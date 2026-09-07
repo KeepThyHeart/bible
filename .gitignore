@@ -1,0 +1,43 @@
+# Node modules and build output
+node_modules/
+dist/
+out/
+dist-electron/
+
+# File types that should never be committed unless specifically overridden
+*.log
+*.db
+*.zip
+storage
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+
+# Ignored by file name
+*.ignore.*
+*.private.*
+*.local.*
+
+# Environment, IDE
+.env
+*.conf
+.vscode/
+.idea/
+temp
+
+# Test artifacts, binaries, misc.
+test-data/
+test-results/
+playwright-report/
+vec-search
+*.bin
+.venv-styletts2
+config.json
+*.lock
+
+# Signing
+catalog-key*.json
+*catalog-signing-key*.json
+*.private.json
+

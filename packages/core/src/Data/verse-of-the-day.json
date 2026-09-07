@@ -1,0 +1,1926 @@
+{
+  "version": "1.0",
+  "years": [
+    {
+      "year": 0,
+      "verses": [
+        {
+          "book": 25,
+          "chapter": 3,
+          "verse": 22
+        },
+        {
+          "book": 20,
+          "chapter": 3,
+          "verse": 5
+        },
+        {
+          "book": 23,
+          "chapter": 40,
+          "verse": 31
+        },
+        {
+          "book": 50,
+          "chapter": 4,
+          "verse": 13
+        },
+        {
+          "book": 19,
+          "chapter": 23,
+          "verse": 1
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 28
+        },
+        {
+          "book": 43,
+          "chapter": 3,
+          "verse": 16
+        },
+        {
+          "book": 24,
+          "chapter": 29,
+          "verse": 11
+        },
+        {
+          "book": 58,
+          "chapter": 11,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 46,
+          "verse": 1
+        },
+        {
+          "book": 23,
+          "chapter": 41,
+          "verse": 10
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 2
+        },
+        {
+          "book": 48,
+          "chapter": 5,
+          "verse": 22
+        },
+        {
+          "book": 50,
+          "chapter": 4,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 11,
+          "verse": 28
+        },
+        {
+          "book": 19,
+          "chapter": 119,
+          "verse": 105
+        },
+        {
+          "book": 43,
+          "chapter": 14,
+          "verse": 6
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 3
+        },
+        {
+          "book": 19,
+          "chapter": 37,
+          "verse": 4
+        },
+        {
+          "book": 45,
+          "chapter": 15,
+          "verse": 13
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 33
+        },
+        {
+          "book": 43,
+          "chapter": 16,
+          "verse": 33
+        },
+        {
+          "book": 49,
+          "chapter": 2,
+          "verse": 8
+        },
+        {
+          "book": 19,
+          "chapter": 27,
+          "verse": 1
+        },
+        {
+          "book": 50,
+          "chapter": 4,
+          "verse": 19
+        },
+        {
+          "book": 20,
+          "chapter": 22,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 28,
+          "verse": 20
+        },
+        {
+          "book": 19,
+          "chapter": 34,
+          "verse": 18
+        },
+        {
+          "book": 45,
+          "chapter": 5,
+          "verse": 8
+        },
+        {
+          "book": 23,
+          "chapter": 26,
+          "verse": 3
+        },
+        {
+          "book": 43,
+          "chapter": 15,
+          "verse": 5
+        },
+        {
+          "book": 46,
+          "chapter": 13,
+          "verse": 4
+        },
+        {
+          "book": 19,
+          "chapter": 56,
+          "verse": 3
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 16
+        },
+        {
+          "book": 59,
+          "chapter": 1,
+          "verse": 17
+        },
+        {
+          "book": 20,
+          "chapter": 4,
+          "verse": 23
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 31
+        },
+        {
+          "book": 47,
+          "chapter": 5,
+          "verse": 17
+        },
+        {
+          "book": 43,
+          "chapter": 8,
+          "verse": 32
+        },
+        {
+          "book": 19,
+          "chapter": 139,
+          "verse": 14
+        },
+        {
+          "book": 40,
+          "chapter": 22,
+          "verse": 37
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 32
+        },
+        {
+          "book": 20,
+          "chapter": 27,
+          "verse": 17
+        },
+        {
+          "book": 62,
+          "chapter": 4,
+          "verse": 19
+        },
+        {
+          "book": 19,
+          "chapter": 91,
+          "verse": 1
+        },
+        {
+          "book": 40,
+          "chapter": 7,
+          "verse": 7
+        },
+        {
+          "book": 48,
+          "chapter": 6,
+          "verse": 9
+        },
+        {
+          "book": 43,
+          "chapter": 13,
+          "verse": 34
+        },
+        {
+          "book": 19,
+          "chapter": 121,
+          "verse": 1
+        },
+        {
+          "book": 46,
+          "chapter": 10,
+          "verse": 13
+        },
+        {
+          "book": 20,
+          "chapter": 11,
+          "verse": 25
+        },
+        {
+          "book": 40,
+          "chapter": 19,
+          "verse": 26
+        },
+        {
+          "book": 45,
+          "chapter": 10,
+          "verse": 9
+        },
+        {
+          "book": 19,
+          "chapter": 100,
+          "verse": 4
+        },
+        {
+          "book": 43,
+          "chapter": 10,
+          "verse": 10
+        },
+        {
+          "book": 49,
+          "chapter": 6,
+          "verse": 10
+        },
+        {
+          "book": 20,
+          "chapter": 15,
+          "verse": 1
+        },
+        {
+          "book": 54,
+          "chapter": 4,
+          "verse": 12
+        },
+        {
+          "book": 19,
+          "chapter": 103,
+          "verse": 1
+        },
+        {
+          "book": 46,
+          "chapter": 16,
+          "verse": 13
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 9
+        },
+        {
+          "book": 19,
+          "chapter": 145,
+          "verse": 18
+        },
+        {
+          "book": 43,
+          "chapter": 11,
+          "verse": 25
+        },
+        {
+          "book": 20,
+          "chapter": 18,
+          "verse": 10
+        },
+        {
+          "book": 45,
+          "chapter": 6,
+          "verse": 23
+        },
+        {
+          "book": 19,
+          "chapter": 51,
+          "verse": 10
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 34
+        },
+        {
+          "book": 23,
+          "chapter": 55,
+          "verse": 6
+        },
+        {
+          "book": 49,
+          "chapter": 3,
+          "verse": 20
+        },
+        {
+          "book": 19,
+          "chapter": 16,
+          "verse": 8
+        },
+        {
+          "book": 43,
+          "chapter": 14,
+          "verse": 27
+        },
+        {
+          "book": 20,
+          "chapter": 31,
+          "verse": 25
+        },
+        {
+          "book": 47,
+          "chapter": 12,
+          "verse": 9
+        },
+        {
+          "book": 19,
+          "chapter": 42,
+          "verse": 11
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 14
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 38
+        },
+        {
+          "book": 23,
+          "chapter": 43,
+          "verse": 19
+        },
+        {
+          "book": 19,
+          "chapter": 118,
+          "verse": 24
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 1
+        },
+        {
+          "book": 49,
+          "chapter": 2,
+          "verse": 10
+        },
+        {
+          "book": 20,
+          "chapter": 3,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 44
+        },
+        {
+          "book": 19,
+          "chapter": 62,
+          "verse": 1
+        },
+        {
+          "book": 46,
+          "chapter": 1,
+          "verse": 9
+        },
+        {
+          "book": 43,
+          "chapter": 6,
+          "verse": 35
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 12
+        },
+        {
+          "book": 23,
+          "chapter": 12,
+          "verse": 2
+        },
+        {
+          "book": 19,
+          "chapter": 19,
+          "verse": 1
+        },
+        {
+          "book": 55,
+          "chapter": 1,
+          "verse": 7
+        },
+        {
+          "book": 20,
+          "chapter": 17,
+          "verse": 17
+        },
+        {
+          "book": 40,
+          "chapter": 17,
+          "verse": 20
+        },
+        {
+          "book": 19,
+          "chapter": 30,
+          "verse": 5
+        },
+        {
+          "book": 43,
+          "chapter": 4,
+          "verse": 14
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 2
+        },
+        {
+          "book": 20,
+          "chapter": 10,
+          "verse": 12
+        },
+        {
+          "book": 45,
+          "chapter": 14,
+          "verse": 8
+        },
+        {
+          "book": 19,
+          "chapter": 55,
+          "verse": 22
+        },
+        {
+          "book": 40,
+          "chapter": 18,
+          "verse": 20
+        },
+        {
+          "book": 23,
+          "chapter": 54,
+          "verse": 10
+        },
+        {
+          "book": 43,
+          "chapter": 15,
+          "verse": 13
+        },
+        {
+          "book": 46,
+          "chapter": 15,
+          "verse": 58
+        },
+        {
+          "book": 19,
+          "chapter": 32,
+          "verse": 8
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 9
+        },
+        {
+          "book": 40,
+          "chapter": 9,
+          "verse": 29
+        },
+        {
+          "book": 45,
+          "chapter": 1,
+          "verse": 16
+        },
+        {
+          "book": 19,
+          "chapter": 147,
+          "verse": 3
+        },
+        {
+          "book": 49,
+          "chapter": 1,
+          "verse": 7
+        },
+        {
+          "book": 43,
+          "chapter": 17,
+          "verse": 17
+        },
+        {
+          "book": 20,
+          "chapter": 19,
+          "verse": 21
+        },
+        {
+          "book": 52,
+          "chapter": 5,
+          "verse": 16
+        },
+        {
+          "book": 19,
+          "chapter": 73,
+          "verse": 26
+        },
+        {
+          "book": 40,
+          "chapter": 25,
+          "verse": 40
+        },
+        {
+          "book": 47,
+          "chapter": 4,
+          "verse": 18
+        },
+        {
+          "book": 23,
+          "chapter": 30,
+          "verse": 15
+        },
+        {
+          "book": 43,
+          "chapter": 5,
+          "verse": 24
+        },
+        {
+          "book": 19,
+          "chapter": 40,
+          "verse": 1
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 21
+        },
+        {
+          "book": 20,
+          "chapter": 12,
+          "verse": 25
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 2
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 25
+        },
+        {
+          "book": 19,
+          "chapter": 143,
+          "verse": 8
+        },
+        {
+          "book": 43,
+          "chapter": 14,
+          "verse": 1
+        },
+        {
+          "book": 20,
+          "chapter": 31,
+          "verse": 30
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 90,
+          "verse": 12
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 21
+        },
+        {
+          "book": 46,
+          "chapter": 13,
+          "verse": 13
+        },
+        {
+          "book": 23,
+          "chapter": 53,
+          "verse": 6
+        },
+        {
+          "book": 49,
+          "chapter": 6,
+          "verse": 11
+        },
+        {
+          "book": 43,
+          "chapter": 8,
+          "verse": 12
+        },
+        {
+          "book": 19,
+          "chapter": 4,
+          "verse": 8
+        },
+        {
+          "book": 20,
+          "chapter": 2,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 10,
+          "verse": 31
+        },
+        {
+          "book": 45,
+          "chapter": 3,
+          "verse": 23
+        },
+        {
+          "book": 19,
+          "chapter": 63,
+          "verse": 1
+        },
+        {
+          "book": 55,
+          "chapter": 3,
+          "verse": 16
+        },
+        {
+          "book": 43,
+          "chapter": 20,
+          "verse": 29
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 26
+        },
+        {
+          "book": 20,
+          "chapter": 30,
+          "verse": 5
+        },
+        {
+          "book": 19,
+          "chapter": 139,
+          "verse": 23
+        },
+        {
+          "book": 40,
+          "chapter": 7,
+          "verse": 12
+        },
+        {
+          "book": 52,
+          "chapter": 5,
+          "verse": 18
+        },
+        {
+          "book": 23,
+          "chapter": 60,
+          "verse": 1
+        },
+        {
+          "book": 43,
+          "chapter": 3,
+          "verse": 30
+        },
+        {
+          "book": 19,
+          "chapter": 84,
+          "verse": 11
+        },
+        {
+          "book": 45,
+          "chapter": 11,
+          "verse": 33
+        },
+        {
+          "book": 20,
+          "chapter": 14,
+          "verse": 26
+        },
+        {
+          "book": 49,
+          "chapter": 1,
+          "verse": 18
+        },
+        {
+          "book": 40,
+          "chapter": 16,
+          "verse": 26
+        },
+        {
+          "book": 19,
+          "chapter": 33,
+          "verse": 4
+        },
+        {
+          "book": 46,
+          "chapter": 2,
+          "verse": 9
+        },
+        {
+          "book": 43,
+          "chapter": 12,
+          "verse": 46
+        },
+        {
+          "book": 19,
+          "chapter": 1,
+          "verse": 1
+        },
+        {
+          "book": 20,
+          "chapter": 1,
+          "verse": 7
+        },
+        {
+          "book": 40,
+          "chapter": 4,
+          "verse": 4
+        },
+        {
+          "book": 45,
+          "chapter": 13,
+          "verse": 8
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 25
+        },
+        {
+          "book": 23,
+          "chapter": 6,
+          "verse": 8
+        },
+        {
+          "book": 43,
+          "chapter": 7,
+          "verse": 38
+        },
+        {
+          "book": 19,
+          "chapter": 25,
+          "verse": 4
+        },
+        {
+          "book": 20,
+          "chapter": 6,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 8
+        },
+        {
+          "book": 45,
+          "chapter": 15,
+          "verse": 4
+        },
+        {
+          "book": 50,
+          "chapter": 1,
+          "verse": 6
+        },
+        {
+          "book": 43,
+          "chapter": 4,
+          "verse": 24
+        },
+        {
+          "book": 19,
+          "chapter": 34,
+          "verse": 8
+        },
+        {
+          "book": 46,
+          "chapter": 6,
+          "verse": 19
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 18
+        },
+        {
+          "book": 23,
+          "chapter": 40,
+          "verse": 8
+        },
+        {
+          "book": 40,
+          "chapter": 12,
+          "verse": 36
+        },
+        {
+          "book": 19,
+          "chapter": 23,
+          "verse": 4
+        },
+        {
+          "book": 49,
+          "chapter": 3,
+          "verse": 17
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 14
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 18
+        },
+        {
+          "book": 20,
+          "chapter": 3,
+          "verse": 3
+        },
+        {
+          "book": 19,
+          "chapter": 46,
+          "verse": 10
+        },
+        {
+          "book": 40,
+          "chapter": 28,
+          "verse": 19
+        },
+        {
+          "book": 52,
+          "chapter": 4,
+          "verse": 11
+        },
+        {
+          "book": 23,
+          "chapter": 58,
+          "verse": 11
+        },
+        {
+          "book": 43,
+          "chapter": 11,
+          "verse": 35
+        },
+        {
+          "book": 19,
+          "chapter": 138,
+          "verse": 8
+        },
+        {
+          "book": 46,
+          "chapter": 15,
+          "verse": 33
+        },
+        {
+          "book": 20,
+          "chapter": 3,
+          "verse": 7
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 6
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 119,
+          "verse": 11
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 15
+        },
+        {
+          "book": 43,
+          "chapter": 14,
+          "verse": 15
+        },
+        {
+          "book": 23,
+          "chapter": 1,
+          "verse": 18
+        },
+        {
+          "book": 19,
+          "chapter": 150,
+          "verse": 6
+        },
+        {
+          "book": 20,
+          "chapter": 21,
+          "verse": 3
+        },
+        {
+          "book": 40,
+          "chapter": 20,
+          "verse": 28
+        },
+        {
+          "book": 46,
+          "chapter": 3,
+          "verse": 16
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 26
+        },
+        {
+          "book": 19,
+          "chapter": 28,
+          "verse": 7
+        },
+        {
+          "book": 43,
+          "chapter": 13,
+          "verse": 35
+        },
+        {
+          "book": 20,
+          "chapter": 14,
+          "verse": 29
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 15
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 13
+        },
+        {
+          "book": 19,
+          "chapter": 37,
+          "verse": 5
+        },
+        {
+          "book": 23,
+          "chapter": 40,
+          "verse": 29
+        },
+        {
+          "book": 45,
+          "chapter": 6,
+          "verse": 14
+        },
+        {
+          "book": 43,
+          "chapter": 15,
+          "verse": 12
+        },
+        {
+          "book": 20,
+          "chapter": 13,
+          "verse": 20
+        },
+        {
+          "book": 46,
+          "chapter": 9,
+          "verse": 24
+        },
+        {
+          "book": 19,
+          "chapter": 95,
+          "verse": 1
+        },
+        {
+          "book": 40,
+          "chapter": 7,
+          "verse": 13
+        },
+        {
+          "book": 49,
+          "chapter": 6,
+          "verse": 18
+        },
+        {
+          "book": 43,
+          "chapter": 10,
+          "verse": 28
+        },
+        {
+          "book": 19,
+          "chapter": 107,
+          "verse": 1
+        },
+        {
+          "book": 20,
+          "chapter": 24,
+          "verse": 16
+        },
+        {
+          "book": 45,
+          "chapter": 10,
+          "verse": 17
+        },
+        {
+          "book": 23,
+          "chapter": 40,
+          "verse": 11
+        },
+        {
+          "book": 40,
+          "chapter": 11,
+          "verse": 29
+        },
+        {
+          "book": 19,
+          "chapter": 86,
+          "verse": 5
+        },
+        {
+          "book": 43,
+          "chapter": 6,
+          "verse": 40
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 24
+        },
+        {
+          "book": 49,
+          "chapter": 2,
+          "verse": 4
+        },
+        {
+          "book": 46,
+          "chapter": 13,
+          "verse": 7
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 10
+        },
+        {
+          "book": 19,
+          "chapter": 33,
+          "verse": 18
+        },
+        {
+          "book": 40,
+          "chapter": 18,
+          "verse": 3
+        },
+        {
+          "book": 23,
+          "chapter": 55,
+          "verse": 8
+        },
+        {
+          "book": 43,
+          "chapter": 3,
+          "verse": 17
+        },
+        {
+          "book": 20,
+          "chapter": 20,
+          "verse": 7
+        },
+        {
+          "book": 19,
+          "chapter": 119,
+          "verse": 50
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 6
+        },
+        {
+          "book": 45,
+          "chapter": 5,
+          "verse": 1
+        },
+        {
+          "book": 40,
+          "chapter": 24,
+          "verse": 35
+        },
+        {
+          "book": 46,
+          "chapter": 2,
+          "verse": 5
+        },
+        {
+          "book": 19,
+          "chapter": 68,
+          "verse": 19
+        },
+        {
+          "book": 43,
+          "chapter": 12,
+          "verse": 35
+        },
+        {
+          "book": 20,
+          "chapter": 28,
+          "verse": 13
+        },
+        {
+          "book": 23,
+          "chapter": 64,
+          "verse": 8
+        },
+        {
+          "book": 50,
+          "chapter": 3,
+          "verse": 14
+        },
+        {
+          "book": 19,
+          "chapter": 71,
+          "verse": 5
+        },
+        {
+          "book": 45,
+          "chapter": 13,
+          "verse": 10
+        },
+        {
+          "book": 40,
+          "chapter": 22,
+          "verse": 39
+        },
+        {
+          "book": 49,
+          "chapter": 1,
+          "verse": 3
+        },
+        {
+          "book": 43,
+          "chapter": 16,
+          "verse": 24
+        },
+        {
+          "book": 20,
+          "chapter": 25,
+          "verse": 11
+        },
+        {
+          "book": 19,
+          "chapter": 27,
+          "verse": 14
+        },
+        {
+          "book": 46,
+          "chapter": 10,
+          "verse": 31
+        },
+        {
+          "book": 23,
+          "chapter": 42,
+          "verse": 16
+        },
+        {
+          "book": 40,
+          "chapter": 16,
+          "verse": 24
+        },
+        {
+          "book": 19,
+          "chapter": 5,
+          "verse": 3
+        },
+        {
+          "book": 43,
+          "chapter": 9,
+          "verse": 25
+        },
+        {
+          "book": 20,
+          "chapter": 22,
+          "verse": 1
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 18
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 8
+        },
+        {
+          "book": 46,
+          "chapter": 12,
+          "verse": 27
+        },
+        {
+          "book": 19,
+          "chapter": 8,
+          "verse": 3
+        },
+        {
+          "book": 23,
+          "chapter": 46,
+          "verse": 4
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 9
+        },
+        {
+          "book": 43,
+          "chapter": 15,
+          "verse": 16
+        },
+        {
+          "book": 20,
+          "chapter": 15,
+          "verse": 13
+        },
+        {
+          "book": 19,
+          "chapter": 104,
+          "verse": 24
+        },
+        {
+          "book": 45,
+          "chapter": 8,
+          "verse": 37
+        },
+        {
+          "book": 49,
+          "chapter": 2,
+          "verse": 14
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 3
+        },
+        {
+          "book": 46,
+          "chapter": 1,
+          "verse": 18
+        },
+        {
+          "book": 19,
+          "chapter": 119,
+          "verse": 114
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 12
+        },
+        {
+          "book": 20,
+          "chapter": 23,
+          "verse": 12
+        },
+        {
+          "book": 23,
+          "chapter": 65,
+          "verse": 24
+        },
+        {
+          "book": 50,
+          "chapter": 2,
+          "verse": 3
+        },
+        {
+          "book": 19,
+          "chapter": 116,
+          "verse": 1
+        },
+        {
+          "book": 45,
+          "chapter": 14,
+          "verse": 19
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 14
+        },
+        {
+          "book": 49,
+          "chapter": 4,
+          "verse": 29
+        },
+        {
+          "book": 43,
+          "chapter": 14,
+          "verse": 21
+        },
+        {
+          "book": 20,
+          "chapter": 9,
+          "verse": 10
+        },
+        {
+          "book": 19,
+          "chapter": 48,
+          "verse": 14
+        },
+        {
+          "book": 46,
+          "chapter": 4,
+          "verse": 2
+        },
+        {
+          "book": 40,
+          "chapter": 7,
+          "verse": 24
+        },
+        {
+          "book": 23,
+          "chapter": 49,
+          "verse": 16
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 6
+        },
+        {
+          "book": 19,
+          "chapter": 112,
+          "verse": 1
+        },
+        {
+          "book": 43,
+          "chapter": 10,
+          "verse": 11
+        },
+        {
+          "book": 20,
+          "chapter": 11,
+          "verse": 2
+        },
+        {
+          "book": 49,
+          "chapter": 3,
+          "verse": 12
+        },
+        {
+          "book": 46,
+          "chapter": 13,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 145,
+          "verse": 9
+        },
+        {
+          "book": 40,
+          "chapter": 10,
+          "verse": 29
+        },
+        {
+          "book": 45,
+          "chapter": 6,
+          "verse": 6
+        },
+        {
+          "book": 23,
+          "chapter": 43,
+          "verse": 2
+        },
+        {
+          "book": 43,
+          "chapter": 8,
+          "verse": 36
+        },
+        {
+          "book": 20,
+          "chapter": 29,
+          "verse": 25
+        },
+        {
+          "book": 19,
+          "chapter": 40,
+          "verse": 31
+        },
+        {
+          "book": 49,
+          "chapter": 6,
+          "verse": 13
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 48
+        },
+        {
+          "book": 46,
+          "chapter": 8,
+          "verse": 6
+        },
+        {
+          "book": 19,
+          "chapter": 19,
+          "verse": 14
+        },
+        {
+          "book": 45,
+          "chapter": 1,
+          "verse": 20
+        },
+        {
+          "book": 43,
+          "chapter": 4,
+          "verse": 34
+        },
+        {
+          "book": 20,
+          "chapter": 12,
+          "verse": 1
+        },
+        {
+          "book": 23,
+          "chapter": 61,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 77,
+          "verse": 14
+        },
+        {
+          "book": 40,
+          "chapter": 5,
+          "verse": 7
+        },
+        {
+          "book": 49,
+          "chapter": 1,
+          "verse": 11
+        },
+        {
+          "book": 46,
+          "chapter": 3,
+          "verse": 11
+        },
+        {
+          "book": 19,
+          "chapter": 36,
+          "verse": 5
+        },
+        {
+          "book": 43,
+          "chapter": 15,
+          "verse": 4
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 32
+        },
+        {
+          "book": 45,
+          "chapter": 5,
+          "verse": 3
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 26
+        },
+        {
+          "book": 19,
+          "chapter": 9,
+          "verse": 1
+        },
+        {
+          "book": 23,
+          "chapter": 25,
+          "verse": 1
+        },
+        {
+          "book": 43,
+          "chapter": 6,
+          "verse": 63
+        },
+        {
+          "book": 20,
+          "chapter": 18,
+          "verse": 24
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 20
+        },
+        {
+          "book": 46,
+          "chapter": 15,
+          "verse": 57
+        },
+        {
+          "book": 19,
+          "chapter": 130,
+          "verse": 5
+        },
+        {
+          "book": 45,
+          "chapter": 15,
+          "verse": 5
+        },
+        {
+          "book": 40,
+          "chapter": 21,
+          "verse": 22
+        },
+        {
+          "book": 43,
+          "chapter": 8,
+          "verse": 31
+        },
+        {
+          "book": 20,
+          "chapter": 19,
+          "verse": 17
+        },
+        {
+          "book": 19,
+          "chapter": 111,
+          "verse": 10
+        },
+        {
+          "book": 23,
+          "chapter": 45,
+          "verse": 22
+        },
+        {
+          "book": 49,
+          "chapter": 2,
+          "verse": 19
+        },
+        {
+          "book": 46,
+          "chapter": 15,
+          "verse": 10
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 6
+        },
+        {
+          "book": 19,
+          "chapter": 65,
+          "verse": 4
+        },
+        {
+          "book": 45,
+          "chapter": 12,
+          "verse": 15
+        },
+        {
+          "book": 43,
+          "chapter": 17,
+          "verse": 3
+        },
+        {
+          "book": 20,
+          "chapter": 16,
+          "verse": 20
+        },
+        {
+          "book": 19,
+          "chapter": 136,
+          "verse": 1
+        },
+        {
+          "book": 50,
+          "chapter": 4,
+          "verse": 8
+        },
+        {
+          "book": 19,
+          "chapter": 107,
+          "verse": 1
+        },
+        {
+          "book": 23,
+          "chapter": 12,
+          "verse": 4
+        },
+        {
+          "book": 40,
+          "chapter": 6,
+          "verse": 3
+        },
+        {
+          "book": 49,
+          "chapter": 1,
+          "verse": 4
+        },
+        {
+          "book": 43,
+          "chapter": 5,
+          "verse": 39
+        },
+        {
+          "book": 19,
+          "chapter": 146,
+          "verse": 2
+        },
+        {
+          "book": 20,
+          "chapter": 15,
+          "verse": 33
+        },
+        {
+          "book": 45,
+          "chapter": 13,
+          "verse": 14
+        },
+        {
+          "book": 40,
+          "chapter": 1,
+          "verse": 23
+        },
+        {
+          "book": 19,
+          "chapter": 96,
+          "verse": 1
+        },
+        {
+          "book": 23,
+          "chapter": 7,
+          "verse": 14
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 4
+        },
+        {
+          "book": 46,
+          "chapter": 13,
+          "verse": 11
+        },
+        {
+          "book": 19,
+          "chapter": 98,
+          "verse": 1
+        },
+        {
+          "book": 20,
+          "chapter": 14,
+          "verse": 34
+        },
+        {
+          "book": 49,
+          "chapter": 5,
+          "verse": 1
+        },
+        {
+          "book": 40,
+          "chapter": 2,
+          "verse": 10
+        },
+        {
+          "book": 23,
+          "chapter": 11,
+          "verse": 1
+        },
+        {
+          "book": 19,
+          "chapter": 8,
+          "verse": 1
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 9
+        },
+        {
+          "book": 45,
+          "chapter": 5,
+          "verse": 5
+        },
+        {
+          "book": 20,
+          "chapter": 3,
+          "verse": 24
+        },
+        {
+          "book": 19,
+          "chapter": 24,
+          "verse": 1
+        },
+        {
+          "book": 46,
+          "chapter": 1,
+          "verse": 3
+        },
+        {
+          "book": 23,
+          "chapter": 11,
+          "verse": 6
+        },
+        {
+          "book": 40,
+          "chapter": 1,
+          "verse": 21
+        },
+        {
+          "book": 19,
+          "chapter": 148,
+          "verse": 1
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 16
+        },
+        {
+          "book": 49,
+          "chapter": 3,
+          "verse": 16
+        },
+        {
+          "book": 20,
+          "chapter": 4,
+          "verse": 18
+        },
+        {
+          "book": 23,
+          "chapter": 9,
+          "verse": 6
+        },
+        {
+          "book": 42,
+          "chapter": 2,
+          "verse": 11
+        },
+        {
+          "book": 19,
+          "chapter": 98,
+          "verse": 4
+        },
+        {
+          "book": 43,
+          "chapter": 1,
+          "verse": 29
+        },
+        {
+          "book": 45,
+          "chapter": 6,
+          "verse": 11
+        },
+        {
+          "book": 40,
+          "chapter": 2,
+          "verse": 11
+        },
+        {
+          "book": 23,
+          "chapter": 52,
+          "verse": 7
+        },
+        {
+          "book": 19,
+          "chapter": 150,
+          "verse": 1
+        }
+      ]
+    }
+  ],
+  "holidays": [
+    {
+      "name": "Christmas Day",
+      "type": "fixed",
+      "month": 12,
+      "day": 25,
+      "verse": {
+        "book": 42,
+        "chapter": 2,
+        "verse": 11
+      }
+    },
+    {
+      "name": "Christmas Eve",
+      "type": "fixed",
+      "month": 12,
+      "day": 24,
+      "verse": {
+        "book": 23,
+        "chapter": 9,
+        "verse": 6
+      }
+    },
+    {
+      "name": "Easter Sunday",
+      "type": "easter_relative",
+      "easterOffset": 0,
+      "verse": {
+        "book": 40,
+        "chapter": 28,
+        "verse": 6
+      }
+    },
+    {
+      "name": "Good Friday",
+      "type": "easter_relative",
+      "easterOffset": -2,
+      "verse": {
+        "book": 23,
+        "chapter": 53,
+        "verse": 5
+      }
+    },
+    {
+      "name": "Palm Sunday",
+      "type": "easter_relative",
+      "easterOffset": -7,
+      "verse": {
+        "book": 40,
+        "chapter": 21,
+        "verse": 9
+      }
+    },
+    {
+      "name": "New Year's Day",
+      "type": "fixed",
+      "month": 1,
+      "day": 1,
+      "verse": {
+        "book": 25,
+        "chapter": 3,
+        "verse": 22
+      }
+    },
+    {
+      "name": "Valentine's Day",
+      "type": "fixed",
+      "month": 2,
+      "day": 14,
+      "verse": {
+        "book": 46,
+        "chapter": 13,
+        "verse": 4
+      }
+    },
+    {
+      "name": "Thanksgiving",
+      "type": "computed",
+      "computedRule": "us_thanksgiving",
+      "verse": {
+        "book": 19,
+        "chapter": 107,
+        "verse": 1
+      }
+    }
+  ]
+}

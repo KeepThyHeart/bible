@@ -1,0 +1,19 @@
+{
+  // `tsconfig.json` is the *build* config: it emits to `dist/`, so tests and
+  // examples have to stay out of it or they would ship. That left them
+  // unchecked, and an unchecked mock is free to drift from the type it stands
+  // in for. This config type-checks everything and emits nothing.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rootDir": ".",
+    // Core's vitest config runs with globals, so the test files use `describe`
+    // and friends without importing them.
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "@bible/core",
+  "version": "1.0.0",
+  "description": "Core business logic and data access layer for Bible study applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./package.json": "./package.json",
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "clean": "rm -rf dist",
+    "pretest": "npm rebuild better-sqlite3",
+    "test": "vitest run",
+    "pretest:watch": "npm rebuild better-sqlite3",
+    "test:watch": "vitest",
+    "pretest:coverage": "npm rebuild better-sqlite3",
+    "test:coverage": "vitest run --coverage"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "bible",
+    "data",
+    "sqlite"
+  ],
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "license": "GPL-3.0-or-later",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "better-sqlite3": "^11.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

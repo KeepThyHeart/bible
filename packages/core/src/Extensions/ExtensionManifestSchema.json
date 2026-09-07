@@ -1,0 +1,584 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bible-app.local/schemas/extension-manifest-v1.json",
+  "title": "Bible Desktop Extension Manifest (v1)",
+  "description": "Schema for extension.json. The manifest loader rejects anything that fails this schema. See packages/core/src/Extensions/ExtensionManifest.ts for the matching TypeScript shape and docs/desktop-refactor/spec-A.extension-api.md section Manifest for the design rationale.",
+  "type": "object",
+  "required": ["id", "name", "version", "publisher", "engines"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "id": {
+      "type": "string",
+      "description": "ext.<publisher>.<name> - kebab-case labels separated by dots.",
+      "pattern": "^ext\\.[a-z0-9]+(?:-[a-z0-9]+)*\\.[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "name": { "$ref": "#/definitions/LocalizedString" },
+    "displayName": { "$ref": "#/definitions/LocalizedString" },
+    "version": {
+      "type": "string",
+      "description": "Semver version of the extension package.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "publisher": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "description": { "$ref": "#/definitions/LocalizedString" },
+
+    "categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "homepage": { "type": "string", "format": "uri" },
+    "repository": { "type": "string", "format": "uri" },
+    "bugs": { "type": "string", "format": "uri" },
+    "license": { "type": "string" },
+    "pricing": {
+      "type": "string",
+      "enum": ["free", "freemium", "paid"]
+    },
+    "icon": { "type": "string" },
+    "preview": { "type": "boolean" },
+
+    "engines": {
+      "type": "object",
+      "required": ["bibleApp"],
+      "additionalProperties": false,
+      "properties": {
+        "bibleApp": {
+          "type": "string",
+          "description": "Semver range against EXTENSION_API_VERSION."
+        }
+      }
+    },
+
+    "main": { "type": "string" },
+
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/Permission" }
+    },
+
+    "network": {
+      "type": "object",
+      "required": ["allowedHosts"],
+      "additionalProperties": false,
+      "properties": {
+        "allowedHosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/AllowedHost" }
+        }
+      }
+    },
+
+    "privacy": {
+      "type": "object",
+      "required": ["dataCollection"],
+      "additionalProperties": false,
+      "description": "Privacy declaration - what data the extension collects and sends to its backend.",
+      "properties": {
+        "dataCollection": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["analytics", "crash-reports", "user-content", "personalization", "none"]
+          }
+        },
+        "privacyPolicyUrl": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+
+    "webviews": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "csp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "img-src":     { "$ref": "#/definitions/CspSourceList" },
+            "font-src":    { "$ref": "#/definitions/CspSourceList" },
+            "style-src":   { "$ref": "#/definitions/CspSourceList" },
+            "connect-src": { "$ref": "#/definitions/CspSourceList" },
+            "media-src":   { "$ref": "#/definitions/CspSourceList" },
+            "frame-src":   { "$ref": "#/definitions/CspSourceList" }
+          }
+        }
+      }
+    },
+
+    "activationEvents": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+
+    "contributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedCommand" }
+        },
+        "panelTypes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PanelTypeDef" }
+        },
+        "menus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/ContributedMenuItem" }
+          }
+        },
+        "configuration": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["$ref"],
+              "additionalProperties": false,
+              "properties": { "$ref": { "type": "string" } }
+            },
+            { "type": "object" }
+          ]
+        },
+        "providers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "displayModes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DisplayModeDescriptor" }
+        },
+        "themes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedTheme" }
+        },
+        "fonts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedFont" }
+        },
+        "icons": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedIcon" }
+        },
+        "styles": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedStyle" }
+        },
+        "fileImporters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedFileImporter" }
+        },
+        "apiExports": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ContributedApiExport" }
+        },
+        "bibleProviders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BibleProviderDescriptor" }
+        },
+        "commentaryProviders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CommentaryProviderDescriptor" }
+        },
+        "dictionaryProviders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DictionaryProviderDescriptor" }
+        },
+        "bookProviders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BookProviderDescriptor" }
+        }
+      }
+    },
+
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxMemoryMB": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 1024,
+          "description": "Maximum V8 heap size in MB for the worker process. Clamped to 256-1024 MB. Default 256."
+        }
+      }
+    },
+
+    "l10n": { "type": "string" }
+  },
+
+  "definitions": {
+    "LocalizedString": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["key"],
+          "additionalProperties": false,
+          "properties": {
+            "key": { "type": "string" },
+            "params": { "type": "object" }
+          }
+        }
+      ]
+    },
+
+    "Permission": {
+      "type": "string",
+      "enum": [
+        "bible:read",
+        "commentary:read",
+        "dictionary:read",
+        "book:read",
+        "notes:read",
+        "notes:write",
+        "highlights:read",
+        "highlights:write",
+        "bookmarks:read",
+        "bookmarks:write",
+        "bible:provide",
+        "commentary:provide",
+        "dictionary:provide",
+        "book:provide",
+        "search:provide",
+        "display-mode:provide",
+        "import:provide",
+        "ai:provide",
+        "tts:provide",
+        "storage",
+        "storage:secrets",
+        "storage:database",
+        "ui:contribute-pane",
+        "ui:verse-decorator",
+        "ui:verse-hover",
+        "ui:context-menu",
+        "ui:notification",
+        "ui:status-bar",
+        "ui:media",
+        "commands:register",
+        "tasks",
+        "network",
+        "network:oauth",
+        "extensions:call",
+        "fs:read-user",
+        "fs:write-user",
+        "fs:managed-folder"
+      ]
+    },
+
+    "AllowedHost": {
+      "type": "object",
+      "required": ["host", "purpose"],
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hostname or *.subdomain wildcard. Wildcards match one or more labels."
+        },
+        "purpose": { "$ref": "#/definitions/LocalizedString" },
+        "methods": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]
+          }
+        }
+      }
+    },
+
+    "CspSourceList": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+
+    "KeybindingDescriptor": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string" },
+        "mac": { "type": "string" },
+        "when": { "type": "string" }
+      }
+    },
+
+    "Shortcut": {
+      "oneOf": [
+        { "$ref": "#/definitions/KeybindingDescriptor" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/KeybindingDescriptor" }
+        }
+      ]
+    },
+
+    "ContributedCommand": {
+      "type": "object",
+      "required": ["id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "$ref": "#/definitions/LocalizedString" },
+        "category": { "$ref": "#/definitions/LocalizedString" },
+        "shortcut": { "$ref": "#/definitions/Shortcut" },
+        "when": { "type": "string" },
+        "handlerEndpoint": { "type": "string" },
+        "order": { "type": "integer" },
+        "hidden": { "type": "boolean" }
+      }
+    },
+
+    "PanelTypeDef": {
+      "type": "object",
+      "required": ["id", "title", "uiEntry"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "$ref": "#/definitions/LocalizedString" },
+        "icon": { "type": "string" },
+        "uiEntry": { "type": "string" },
+        "defaultBucket": {
+          "type": "string",
+          "enum": ["left", "right", "bottom", "unknown"]
+        },
+        "writingPane": { "type": "boolean" }
+      }
+    },
+
+    "ContributedMenuItem": {
+      "type": "object",
+      "required": ["command", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "$ref": "#/definitions/LocalizedString" },
+        "icon": { "type": "string" },
+        "command": { "type": "string" },
+        "args": {},
+        "when": { "type": "string" },
+        "order": { "type": "integer" },
+        "separatorBefore": { "type": "boolean" },
+        "separatorAfter": { "type": "boolean" }
+      }
+    },
+
+    "DisplayModeDescriptor": {
+      "type": "object",
+      "required": ["id", "label", "kind", "renderEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "$ref": "#/definitions/LocalizedString" },
+        "kind": { "type": "string", "enum": ["overlay", "replace"] },
+        "renderEndpoint": { "type": "string" },
+        "applicableLanguages": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "ContributedTheme": {
+      "type": "object",
+      "required": ["id", "label", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "$ref": "#/definitions/LocalizedString" },
+        "path": { "type": "string" }
+      }
+    },
+
+    "ContributedFont": {
+      "type": "object",
+      "required": ["id", "family", "files"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "family": { "type": "string" },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "fallback": { "type": "string" }
+      }
+    },
+
+    "ContributedIcon": {
+      "type": "object",
+      "required": ["id", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+
+    "ContributedStyle": {
+      "type": "object",
+      "required": ["path", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "scope": {
+          "type": "string",
+          "enum": ["verse", "panel", "global"]
+        }
+      }
+    },
+
+    "ContributedFileImporter": {
+      "type": "object",
+      "required": ["id", "label", "extensions", "handlerEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "$ref": "#/definitions/LocalizedString" },
+        "extensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^\\." }
+        },
+        "handlerEndpoint": { "type": "string" }
+      }
+    },
+
+    "ContributedApiExport": {
+      "type": "object",
+      "required": ["method", "handlerEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+        },
+        "description": { "$ref": "#/definitions/LocalizedString" },
+        "handlerEndpoint": { "type": "string" }
+      }
+    },
+
+    "Capability": {
+      "type": "string"
+    },
+
+    "BibleProviderDescriptor": {
+      "type": "object",
+      "required": ["id", "name", "abbreviation", "capabilities", "fetchEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/definitions/LocalizedString" },
+        "abbreviation": { "type": "string" },
+        "language": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["lookup", "range", "iterate", "remote"]
+          }
+        },
+        "fetchEndpoint": { "type": "string" },
+        "rangeEndpoint": { "type": "string" },
+        "iterateEndpoint": { "type": "string" }
+      }
+    },
+
+    "CommentaryProviderDescriptor": {
+      "type": "object",
+      "required": ["id", "name", "abbreviation", "capabilities", "fetchEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/definitions/LocalizedString" },
+        "abbreviation": { "type": "string" },
+        "language": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["lookup", "range", "iterate", "similarity", "remote"]
+          }
+        },
+        "fetchEndpoint": { "type": "string" },
+        "rangeEndpoint": { "type": "string" },
+        "iterateEndpoint": { "type": "string" },
+        "similarityEndpoint": { "type": "string" }
+      }
+    },
+
+    "DictionaryProviderDescriptor": {
+      "type": "object",
+      "required": ["id", "name", "abbreviation", "capabilities", "fetchEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/definitions/LocalizedString" },
+        "abbreviation": { "type": "string" },
+        "language": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "lookup",
+              "search",
+              "iterate",
+              "strongs",
+              "lemma",
+              "morphology",
+              "remote"
+            ]
+          }
+        },
+        "fetchEndpoint": { "type": "string" },
+        "searchEndpoint": { "type": "string" },
+        "iterateEndpoint": { "type": "string" },
+        "morphologyEndpoint": { "type": "string" }
+      }
+    },
+
+    "BookProviderDescriptor": {
+      "type": "object",
+      "required": ["id", "name", "abbreviation", "capabilities", "fetchEndpoint"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/definitions/LocalizedString" },
+        "abbreviation": { "type": "string" },
+        "language": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["lookup", "iterate", "remote"]
+          }
+        },
+        "fetchEndpoint": { "type": "string" },
+        "listEndpoint": { "type": "string" },
+        "iterateEndpoint": { "type": "string" }
+      }
+    }
+  }
+}
