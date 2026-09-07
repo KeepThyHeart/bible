@@ -25,8 +25,19 @@ const MIN_BAR_PERCENT = 12;
 export type SearchDistributionMode = 'keyword' | 'semantic' | 'strongs';
 
 interface SearchDistributionChartProps {
-  /** The rows the panel is currently holding — the chart counts these, not the Bible. */
+  /** The rows the panel is currently holding. They supply the click targets, and
+   *  the counts too when `bookCounts` is absent. */
   results: SearchResultData[];
+  /**
+   * Matches per book across the *whole* search, when the search can report it —
+   * keyword search does, from the server, so the bars describe every match
+   * rather than the first page of rows. Absent for the modes that cannot, which
+   * fall back to counting `results`.
+   *
+   * A book can therefore have a bar and no loaded row behind it. Such a bar is
+   * still a button: selecting it is what makes the panel go and fetch the rest.
+   */
+  bookCounts?: Record<number, number>;
   /**
    * Which search produced `results`. This gates the fuzzy exclusion: only
    * keyword-family results carry a `MatchType` in `type`, while a semantic row's
@@ -37,11 +48,11 @@ interface SearchDistributionChartProps {
   /** Whether a fetch limit cut the result set short — see `searchStore.resultsTruncated`. */
   truncated: boolean;
   /**
-   * Called with the first counted result in the clicked book. Deliberately not a
-   * navigation: a mis-click on a 5px bar should cost nothing more than moving
-   * the selection in the list beside it.
+   * Called with the clicked book, and with its first counted result when one is
+   * loaded. Deliberately not a navigation: a mis-click on a 5px bar should cost
+   * nothing more than moving the selection in the list beside it.
    */
-  onSelectBook: (result: SearchResultData) => void;
+  onSelectBook: (bookNumber: number, first?: SearchResultData) => void;
 }
 
 interface BookBar {
@@ -49,7 +60,11 @@ interface BookBar {
   name: string;
   section: string;
   count: number;
-  /** First counted result in this book, or undefined when the book has none. */
+  /**
+   * First counted result in this book among the loaded rows. Undefined when the
+   * book has no matches at all — but also when it has matches the panel has not
+   * fetched yet, which is why a bar's interactivity keys off `count`.
+   */
   first?: SearchResultData;
 }
 
@@ -65,7 +80,7 @@ interface BookBar {
  * the bars they describe. The tooltip names the bar instead, on hover *and* on
  * keyboard focus, for empty books as well as full ones.
  */
-export function SearchDistributionChart({ results, mode, truncated, onSelectBook }: SearchDistributionChartProps) {
+export function SearchDistributionChart({ results, bookCounts, mode, truncated, onSelectBook }: SearchDistributionChartProps) {
   const { t } = useTranslation();
   const [active, setActive] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -96,7 +111,10 @@ export function SearchDistributionChart({ results, mode, truncated, onSelectBook
         bookNumber,
         name: getLocalizedBookName(bookNumber),
         section: getBibleSection(bookNumber),
-        count: hits?.length ?? 0,
+        // The server's count when there is one, because the loaded rows are only
+        // the first page of a longer list; never below what is actually loaded,
+        // so a bar can't claim fewer matches than the panel is showing.
+        count: bookCounts ? Math.max(bookCounts[bookNumber] ?? 0, hits?.length ?? 0) : hits?.length ?? 0,
         first: hits?.[0],
       });
     }
@@ -104,9 +122,9 @@ export function SearchDistributionChart({ results, mode, truncated, onSelectBook
     return {
       bars: built,
       max: built.reduce((m, b) => Math.max(m, b.count), 0),
-      total: counted.length,
+      total: built.reduce((sum, b) => sum + b.count, 0),
     };
-  }, [results, mode]);
+  }, [results, bookCounts, mode]);
 
   // Keep the tip inside the plot. A bar at either end would otherwise centre its
   // tip half outside the panel and get clipped by the scroll container.
@@ -162,7 +180,8 @@ export function SearchDistributionChart({ results, mode, truncated, onSelectBook
 
           // A book with no matches has nothing to scroll to, so it is not a
           // control — but it still announces itself, which is the whole point of
-          // drawing the hairline in the first place.
+          // drawing the hairline in the first place. A book that has matches is
+          // always a control, loaded or not: the panel fetches what it needs.
           const cell = bar.count > 0 ? (
             <button
               key={bar.bookNumber}
@@ -170,7 +189,7 @@ export function SearchDistributionChart({ results, mode, truncated, onSelectBook
               data-book={bar.bookNumber}
               class={cellClass}
               aria-label={label}
-              onClick={() => bar.first && onSelectBook(bar.first)}
+              onClick={() => onSelectBook(bar.bookNumber, bar.first)}
               onMouseEnter={show}
               onFocus={show}
               onBlur={() => setActive(null)}
@@ -228,7 +247,15 @@ export function SearchDistributionChart({ results, mode, truncated, onSelectBook
 
       <div class="search-distribution__caption">
         {caption}
-        {truncated && <> {t('search.distribution.captionCapped')}</>}
+        {/* Two different shortfalls. Counting the loaded rows means the Bible
+            holds matches the chart knows nothing about; counting the whole
+            search means it knows about all of them up to the server's ceiling,
+            and only a term busier than that is short. */}
+        {truncated && (
+          <> {bookCounts
+            ? t('search.distribution.captionCeiling', { count: total })
+            : t('search.distribution.captionCapped')}</>
+        )}
       </div>
     </div>
   );

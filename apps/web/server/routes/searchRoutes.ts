@@ -22,6 +22,19 @@ const SEMANTIC_CONCURRENCY = 2;
 const SEMANTIC_MAX_QUEUE = 10;
 
 /**
+ * Keyword result caps.
+ *
+ * The list opens with one small page, but the distribution chart above it counts
+ * the *whole* match set, so the route always searches out to the ceiling and
+ * reports per-book counts over everything it found -- only the rows are paged.
+ * The ceiling bounds both, and is what "load all" asks for; it matches the
+ * Strong's ceiling below for the same reason, that a busy term has to be
+ * reachable to its end.
+ */
+const DEFAULT_KEYWORD_PAGE_SIZE = 50;
+const MAX_KEYWORD_RESULTS = 5000;
+
+/**
  * Strong's result caps.
  *
  * The first page stays small so the panel opens fast, but the ceiling has to
@@ -98,8 +111,12 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       }
 
       const modules = req.query.modules ? (req.query.modules as string).split(',') : undefined;
-      // Item #4: Cap keyword search pageSize to prevent resource exhaustion
-      const pageSize = Math.min(Number(req.query.pageSize ?? 50), 100);
+      // Cap the page to prevent resource exhaustion. Garbage or negative input
+      // falls back to the first-page default rather than propagating NaN.
+      const requestedSize = Number(req.query.pageSize ?? DEFAULT_KEYWORD_PAGE_SIZE);
+      const pageSize = Number.isFinite(requestedSize) && requestedSize > 0
+        ? Math.min(Math.floor(requestedSize), MAX_KEYWORD_RESULTS)
+        : DEFAULT_KEYWORD_PAGE_SIZE;
 
       const searchService = db.getSearchService();
       if (!searchService) { sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Search not available'); return; }
@@ -112,9 +129,13 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         }
       }
 
+      // Searched to the ceiling regardless of the page asked for: `bookCounts`
+      // below has to describe every match, not the handful the caller wants to
+      // render. The extra rows cost one bounded SQLite scan and never leave the
+      // server unless the caller paged out this far.
       const results = await searchService.search(query, {
         modules,
-        maxResults: pageSize,
+        maxResults: MAX_KEYWORD_RESULTS,
       });
 
       // `r.type` is the core MatchType — 'exact', 'stem' or 'fuzzy'. It used to
@@ -137,13 +158,31 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         mappedResults = filtered.results as typeof mappedResults;
       }
 
+      // Counted after the hook filter, so a plugin that drops results drops them
+      // from the chart too. Approximate spellings are left out on purpose: they
+      // are not occurrences of the term the reader searched for, and the chart
+      // excludes them from its bars for the same reason.
+      const bookCounts: Record<number, number> = {};
+      for (const r of mappedResults) {
+        if (r.type === 'fuzzy') continue;
+        const { bookNumber } = VerseIdHelper.parse(r.verseId);
+        bookCounts[bookNumber] = (bookCounts[bookNumber] ?? 0) + 1;
+      }
+
+      const page = mappedResults.slice(0, pageSize);
+
       // connect-timeout has already sent a 503 if this fired; writing again
       // would throw ERR_HTTP_HEADERS_SENT into the catch below.
       if (req.timedout) return;
 
       res.json({
-        results: mappedResults,
-        total: mappedResults.length,
+        results: page,
+        // `total` stays the length of the page, as it always has. The size of
+        // the match set is `totalAvailable`; a client that reads neither is
+        // unaffected by the paging above.
+        total: page.length,
+        totalAvailable: mappedResults.length,
+        bookCounts,
       });
 
       hooks?.fireActions('search:performed', { query, resultCount: mappedResults.length });

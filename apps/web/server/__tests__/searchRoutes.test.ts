@@ -80,12 +80,56 @@ describe('GET /api/search/keyword', () => {
     }
   });
 
-  it('caps pageSize at 100 (does not crash with large value)', async () => {
-    const res = await request(app).get('/api/search/keyword?q=love&pageSize=9999');
+  it('caps pageSize at the ceiling (does not crash with large value)', async () => {
+    const res = await request(app).get('/api/search/keyword?q=love&pageSize=999999');
     expect([200, 500]).toContain(res.status);
     if (res.status === 200) {
-      expect(res.body.results.length).toBeLessThanOrEqual(100);
+      expect(res.body.results.length).toBeLessThanOrEqual(5000);
     }
+  });
+
+  it('falls back to the default page for a nonsense pageSize', async () => {
+    for (const bad of ['abc', '-5', '0']) {
+      const res = await request(app).get(`/api/search/keyword?q=love&pageSize=${bad}`);
+      expect(res.status).toBe(200);
+      expect(res.body.results.length).toBeLessThanOrEqual(50);
+    }
+  });
+
+  it('counts the whole match set, not the page it returns', async () => {
+    // The distribution chart above the results describes the search rather than
+    // the list: a page of 50 rows out of hundreds would leave most of the books
+    // that do contain the word sitting at zero.
+    const res = await request(app).get('/api/search/keyword?q=love');
+    expect(res.status).toBe(200);
+    expect(res.body.results.length).toBeLessThanOrEqual(50);
+    expect(res.body.total).toBe(res.body.results.length);
+    expect(res.body.totalAvailable).toBeGreaterThan(res.body.results.length);
+
+    const pageBooks = new Set(
+      (res.body.results as Array<{ verseId: number }>).map(r => Math.floor(r.verseId / 1000000)),
+    );
+    const countedBooks = Object.keys(res.body.bookCounts).map(Number);
+    // The point of the counts: books the page never reached are still counted.
+    expect(countedBooks.some(b => !pageBooks.has(b))).toBe(true);
+  });
+
+  it('counts every match except the approximate spellings', async () => {
+    // Asked for the whole list so the counts can be checked against the rows
+    // they describe. Fuzzy rows are left out because the chart excludes them —
+    // they are not occurrences of the term the reader searched for.
+    const res = await request(app).get('/api/search/keyword?q=love&pageSize=5000');
+    expect(res.status).toBe(200);
+    expect(res.body.results.length).toBe(res.body.totalAvailable);
+
+    const rows = res.body.results as Array<{ verseId: number; type: string }>;
+    const counted = Object.values(res.body.bookCounts as Record<string, number>)
+      .reduce((sum, n) => sum + n, 0);
+    expect(counted).toBe(rows.filter(r => r.type !== 'fuzzy').length);
+
+    // And they are counted into the right books.
+    const genesis = rows.filter(r => r.type !== 'fuzzy' && Math.floor(r.verseId / 1000000) === 1).length;
+    expect(res.body.bookCounts['1'] ?? 0).toBe(genesis);
   });
 
   it('returns 400 for an over-long query', async () => {

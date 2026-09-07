@@ -177,7 +177,14 @@ CREATE TABLE interlinear_word (
     verse_id INTEGER NOT NULL,                      -- The verse this word belongs to. -> bible_verse.
     word_position_start INTEGER NOT NULL,           -- 0-based inclusive word index (0, 1, 2...)
     word_position_end INTEGER NOT NULL,             -- 0-based inclusive; == start for one word
-    original_word TEXT NOT NULL,                    -- Greek/Hebrew word
+    original_word TEXT,                             -- Greek/Hebrew word, where the source has
+                                                    -- one. NULL for a Strong's-tagged
+                                                    -- translation: the tagging attaches a
+                                                    -- number, lemma and gloss to the ENGLISH
+                                                    -- words, with no original-language form to
+                                                    -- record. 8 of 55 bible modules rely on
+                                                    -- this (kjv, kjva, asv, abp, bsb, darby,
+                                                    -- rlt, rwebster).
     transliteration TEXT,                           -- Latin-script rendering of `original_word`, for
                                                     -- readers who cannot read the script. Scheme is
                                                     -- the source's own; not normalised.

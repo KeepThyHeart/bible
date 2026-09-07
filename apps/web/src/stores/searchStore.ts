@@ -3,7 +3,7 @@ import { bibleStore } from './bibleStore';
 import { parseReference } from '../components/Header';
 import { formatPassageRef } from '../constants';
 import type { ISearchProvider } from '../providers/interfaces';
-import type { SearchResultData, WordFamilyMemberData } from '../types';
+import type { SearchResultData, SearchResultSet, WordFamilyMemberData } from '../types';
 import type { SemanticInitProgress } from '../search/BrowserSearchProxy';
 
 /** UI state for the one-time browser semantic-search initialization (download + load). */
@@ -22,17 +22,26 @@ export interface SemanticInitState {
 const STRONGS_PATTERN = /^(?:strongs:)?[GH]\d+$/i;
 
 /**
- * How many keyword results to ask the server for.
+ * How many keyword results to show before the reader asks for the rest.
  *
- * The endpoint has no offset and no total-count of its own — `total` in the
- * response is just `results.length` — so this constant is the *only* thing that
- * tells the client whether the list it is holding is the whole match set or a
- * truncated view of it. `GET /api/search/keyword` defaults to 50 and hard-caps
- * at 100; asking explicitly keeps the number here rather than implied by the
- * server's default, so `results.length >= KEYWORD_PAGE_SIZE` is a reliable
- * "there may well be more" (see `resultsTruncated`).
+ * The page is a rendering decision, not a knowledge one: the endpoint reports
+ * `totalAvailable` and `bookCounts` over the entire match set alongside it, so
+ * the distribution chart describes the whole search while the list stays short
+ * enough to open instantly. `loadAllKeyword` swaps in the rest on demand.
+ *
+ * A server too old to send those falls back to the previous signal — a page
+ * that came back exactly full is assumed to have been cut short. See
+ * `resultsTruncated`.
  */
 const KEYWORD_PAGE_SIZE = 50;
+
+/**
+ * Ceiling for keyword "load all", matching the server's own cap
+ * (MAX_KEYWORD_RESULTS in server/routes/searchRoutes.ts). It bounds the counts
+ * too: a term with more matches than this is counted only to here, which is
+ * what `resultsTruncated` reports in keyword mode.
+ */
+const KEYWORD_MAX_RESULTS = 5000;
 
 /** How many occurrences a Strong's search asks for per page. */
 const STRONGS_PAGE_SIZE = 100;
@@ -44,9 +53,9 @@ const STRONGS_PAGE_SIZE = 100;
 const STRONGS_MAX_RESULTS = 5000;
 
 /**
- * The server reports the true, unclamped occurrence count alongside the capped
- * page. It is optional on `StrongsSearchResult` because a browser client can be
- * talking to an older server that does not send it, so fall back to `total`.
+ * The server reports the true, unclamped match count alongside the capped page.
+ * It is optional on both result sets because a browser client can be talking to
+ * an older server that does not send it, so fall back to `total`.
  */
 function readTotalAvailable(result: { results: unknown[]; total: number; totalAvailable?: number }): number {
   return typeof result.totalAvailable === 'number' ? result.totalAvailable : result.total;
@@ -91,12 +100,22 @@ class SearchStore extends Store {
   /** Translation the current semantic results were hydrated in; see loadMoreSemantic. */
   private lastSemanticModules: string[] = [];
   /**
-   * Whether the last keyword search came back full — i.e. it filled the page we
-   * asked for, so the Bible may hold matches that are not in `results`. Only
-   * meaningful in keyword mode; semantic and Strong's have their own signals
-   * (`canLoadMore`, `strongsTotalAvailable`). See `resultsTruncated`.
+   * Whether the current keyword search knows of matches it has not counted —
+   * i.e. it ran into the server's ceiling. Only meaningful in keyword mode;
+   * semantic and Strong's have their own signals (`canLoadMore`,
+   * `strongsTotalAvailable`). See `resultsTruncated`.
    */
   keywordCapped = false;
+  /**
+   * Matches per book number across the whole keyword match set, straight from
+   * the server — not a tally of `results`, which is only the first page until
+   * the reader loads the rest. Empty outside keyword mode, and empty when
+   * talking to a server too old to send it, in which case the chart falls back
+   * to counting the rows it was given.
+   */
+  bookCounts: Record<number, number> = {};
+  /** How many matches the current keyword search found, page or no page. */
+  keywordTotalAvailable = 0;
   /** Whether more semantic results can be loaded */
   canLoadMore = false;
   loadingMore = false;
@@ -225,6 +244,8 @@ class SearchStore extends Store {
     this.lastSemanticModules = modules ?? [];
     this.canLoadMore = false;
     this.keywordCapped = false;
+    this.bookCounts = {};
+    this.keywordTotalAvailable = 0;
     this.loadingMore = false;
     this.semanticPageSize = 20;
     this.strongsMode = false;
@@ -256,18 +277,15 @@ class SearchStore extends Store {
 
         this.results = semanticResult.results;
         this.totalResults = semanticResult.total;
-        this.keywordMatchCount = keywordResult.total;
+        // The whole match set, not the page the endpoint happened to return —
+        // "N keyword matches" in the banner is a reason to switch modes, and
+        // capping it at a page size understated it by orders of magnitude.
+        this.keywordMatchCount = readTotalAvailable(keywordResult);
         // If we got a full page, there may be more
         this.canLoadMore = semanticResult.results.length >= this.semanticPageSize;
       } else {
         const resultSet = await this.search.keywordSearch(query, modules ?? [], { pageSize: KEYWORD_PAGE_SIZE });
-        this.results = resultSet.results;
-        this.totalResults = resultSet.total;
-        // A full page means the cap may have cut the list short. It cannot
-        // distinguish "exactly 50 matches exist" from "the 51st was dropped",
-        // which is why the chart's caption says "loaded so far" rather than
-        // claiming a Bible-wide tally.
-        this.keywordCapped = resultSet.results.length >= KEYWORD_PAGE_SIZE;
+        this.applyKeywordResultSet(resultSet);
       }
 
       // Promote detected reference verse to top of results
@@ -308,6 +326,9 @@ class SearchStore extends Store {
     this.searchedModule = '';
     this.keywordMatchCount = 0;
     this.canLoadMore = false;
+    this.keywordCapped = false;
+    this.bookCounts = {};
+    this.keywordTotalAvailable = 0;
     this.loadingMore = false;
     this.strongsTotalAvailable = 0;
     this.strongsPageSize = STRONGS_PAGE_SIZE;
@@ -349,15 +370,81 @@ class SearchStore extends Store {
    * differently:
    *  - Strong's knows the true occurrence count (`strongsTotalAvailable`);
    *  - semantic asks for a page and infers more from a full one (`canLoadMore`);
-   *  - keyword has neither, so it compares against the page size we asked for.
+   *  - keyword is counted whole by the server, so it is truncated only when the
+   *    search ran into the server's ceiling (`keywordCapped`).
    *
-   * The distribution chart uses this to say plainly that it counted the loaded
-   * results rather than the Bible.
+   * The distribution chart uses this to say plainly when its bars are not the
+   * whole story. Note that in keyword mode a short *list* is not truncation:
+   * the counts still cover every match, which is the point of `bookCounts`.
    */
   get resultsTruncated(): boolean {
     if (this.strongsMode) return this.results.length < this.strongsTotalAvailable;
     if (this.searchType === 'semantic') return this.canLoadMore;
     return this.keywordCapped;
+  }
+
+  /** Matches the current keyword search found but has not fetched rows for. */
+  get keywordRemaining(): number {
+    if (this.strongsMode || this.searchType !== 'keyword') return 0;
+    return Math.max(0, this.keywordTotalAvailable - this.results.length);
+  }
+
+  /**
+   * Fetch every remaining row for the current keyword search.
+   *
+   * Like the Strong's and semantic paths, the endpoint has no offset: a bigger
+   * page simply replaces the list. Reached from the "load all" button and from
+   * a click on a chart bar whose book is not represented in the loaded page —
+   * the bar knows the book holds matches because the counts say so, so it has
+   * to be able to produce them.
+   */
+  async loadAllKeyword(): Promise<void> {
+    if (!this.search || this.strongsMode || this.searchType !== 'keyword') return;
+    if (this.loadingMore || this.keywordRemaining === 0) return;
+
+    this.loadingMore = true;
+    this.notify();
+
+    const seq = this.searchSeq;
+
+    try {
+      const resultSet = await this.search.keywordSearch(this.query, this.lastKeywordModules, {
+        pageSize: KEYWORD_MAX_RESULTS,
+      });
+      // Dropped on the floor if the user has since launched another search.
+      if (seq !== this.searchSeq) return;
+
+      this.applyKeywordResultSet(resultSet);
+      // The synthetic reference row is rebuilt from scratch on each fetch, so it
+      // has to be re-promoted or it would sink into the middle of the new list.
+      if (this.detectedRefVerseId) this.promoteDetectedRef();
+      this.loadingMore = false;
+      this.notify();
+    } catch (error) {
+      console.error('Load all keyword results failed:', error);
+      if (seq !== this.searchSeq) return;
+      this.loadingMore = false;
+      this.notify();
+    }
+  }
+
+  /**
+   * Take a keyword result set into store state.
+   *
+   * `totalAvailable` and `bookCounts` are optional on the wire — a browser
+   * client can be talking to a server that predates them. Without them the
+   * store falls back to what it can see: the page is all it knows about, and a
+   * page that came back exactly full is assumed to have been cut short.
+   */
+  private applyKeywordResultSet(resultSet: SearchResultSet): void {
+    this.results = resultSet.results;
+    this.bookCounts = resultSet.bookCounts ?? {};
+    this.keywordTotalAvailable = readTotalAvailable(resultSet);
+    // The header counts the search, not the page, now that it can.
+    this.totalResults = this.keywordTotalAvailable;
+    this.keywordCapped = resultSet.bookCounts
+      ? this.keywordTotalAvailable >= KEYWORD_MAX_RESULTS
+      : resultSet.results.length >= KEYWORD_PAGE_SIZE;
   }
 
   /** Occurrences still unfetched for the current Strong's search. */
@@ -539,6 +626,8 @@ class SearchStore extends Store {
     this.strongsModules = undefined;
     this.canLoadMore = false;
     this.keywordCapped = false;
+    this.bookCounts = {};
+    this.keywordTotalAvailable = 0;
     this.lastClickedId = null;
     this.notify();
   }

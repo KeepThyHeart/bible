@@ -41,6 +41,7 @@ function renderChart(props: Partial<Parameters<typeof SearchDistributionChart>[0
   const view = render(
     <SearchDistributionChart
       results={props.results ?? [result(1, 1)]}
+      bookCounts={props.bookCounts}
       mode={props.mode ?? 'keyword'}
       truncated={props.truncated ?? false}
       onSelectBook={props.onSelectBook ?? onSelectBook}
@@ -189,7 +190,7 @@ describe('SearchDistributionChart', () => {
 
     fireEvent.click(container.querySelector(`[data-book="19"]`)!);
     expect(onSelectBook).toHaveBeenCalledTimes(1);
-    expect(onSelectBook).toHaveBeenCalledWith(first);
+    expect(onSelectBook).toHaveBeenCalledWith(19, first);
   });
 
   it('never selects a fuzzy result, even when it comes first in the list', () => {
@@ -198,7 +199,21 @@ describe('SearchDistributionChart', () => {
     const { container, onSelectBook } = renderChart({ results: [fuzzy, exact] });
 
     fireEvent.click(container.querySelector(`[data-book="19"]`)!);
-    expect(onSelectBook).toHaveBeenCalledWith(exact);
+    expect(onSelectBook).toHaveBeenCalledWith(19, exact);
+  });
+
+  it('still offers the book when none of its matches are loaded', () => {
+    // The counts say Psalms has matches; the loaded page is all Genesis. The bar
+    // has to stay a control, because clicking it is what fetches them.
+    const { container, onSelectBook } = renderChart({
+      results: [result(1, 1)],
+      bookCounts: { 1: 1, 19: 40 },
+    });
+
+    const psalms = container.querySelector(`[data-book="19"]`)!;
+    expect(psalms.tagName).toBe('BUTTON');
+    fireEvent.click(psalms);
+    expect(onSelectBook).toHaveBeenCalledWith(19, undefined);
   });
 
   it('makes books with matches buttons and books without them non-interactive', () => {
@@ -239,12 +254,58 @@ describe('SearchDistributionChart', () => {
   });
 
   // ------------------------------------------------------------------
+  // Counts from the server
+  // ------------------------------------------------------------------
+  it('draws the whole match set when the search reports it, not the loaded page', () => {
+    // 50 rows of Genesis loaded out of a search that also hit Psalms hundreds of
+    // times: counting rows would draw the distribution upside down.
+    const { container } = renderChart({
+      results: [result(1, 1), result(1, 2)],
+      bookCounts: { 1: 12, 19: 120 },
+    });
+
+    expect(container.querySelector(`[data-book="19"]`)!.getAttribute('aria-label'))
+      .toContain('"count":120');
+    expect(container.querySelector(`[data-book="1"]`)!.getAttribute('aria-label'))
+      .toContain('"count":12');
+    // Heights scale to the counted maximum, so Genesis is a twelfth of Psalms.
+    expect(container.querySelector<HTMLElement>(`[data-book="19"] .search-distribution__bar`)!.style.height)
+      .toBe('100%');
+    expect(container.querySelector('.search-distribution__caption')!.textContent)
+      .toContain('"count":132');
+  });
+
+  it('never counts a book below the rows it is holding', () => {
+    // Counts and rows can disagree — a plugin filter, or a stale page. Showing
+    // fewer matches than the panel lists below would be the visible error.
+    const { container } = renderChart({
+      results: [result(1, 1), result(1, 2), result(1, 3)],
+      bookCounts: { 1: 1 },
+    });
+    expect(container.querySelector(`[data-book="1"]`)!.getAttribute('aria-label'))
+      .toContain('"count":3');
+  });
+
+  // ------------------------------------------------------------------
   // Caption
   // ------------------------------------------------------------------
   it('says so when the result set was cut short by a fetch limit', () => {
     const { container } = renderChart({ results: [result(1, 1)], truncated: true });
     expect(container.querySelector('.search-distribution__caption')!.textContent)
       .toContain('search.distribution.captionCapped');
+  });
+
+  it('says the count itself stopped short when it is counting the whole search', () => {
+    // Different shortfall, different sentence: with server counts there is
+    // nothing more to load, the search simply stops at its ceiling.
+    const { container } = renderChart({
+      results: [result(1, 1)],
+      bookCounts: { 1: 5000 },
+      truncated: true,
+    });
+    const caption = container.querySelector('.search-distribution__caption')!.textContent!;
+    expect(caption).toContain('search.distribution.captionCeiling');
+    expect(caption).not.toContain('search.distribution.captionCapped');
   });
 
   it('omits the capped notice when the whole result set is present', () => {

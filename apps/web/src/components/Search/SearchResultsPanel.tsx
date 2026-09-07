@@ -54,6 +54,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const includeRelated = useStore(searchStore, () => searchStore.includeRelated);
   const groupedCounts = useStore(searchStore, () => searchStore.groupedCounts);
   const strongsRemaining = useStore(searchStore, () => searchStore.strongsRemaining);
+  const bookCounts = useStore(searchStore, () => searchStore.bookCounts);
+  const keywordRemaining = useStore(searchStore, () => searchStore.keywordRemaining);
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
@@ -72,6 +74,32 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   }, []);
 
   /**
+   * Scroll a result row into view, reporting whether the row was there to scroll
+   * to. Quoted attribute selector, so only a quote or backslash in the id would
+   * need escaping. `CSS.escape` is deliberately not used — it is absent from
+   * some of the DOM shims the tests run under.
+   */
+  const scrollToResultId = (id: string): boolean => {
+    const selector = `[data-result-id="${id.replace(/["\\]/g, '\\$&')}"]`;
+    const row = resultsRef.current?.querySelector<HTMLElement>(selector);
+    if (!row) return false;
+    // Centred rather than merely brought inside the viewport: a row scrolled to
+    // the bottom edge reads as the end of the list, with the verses either side
+    // of it — the reason to jump to a book in the first place — out of sight.
+    row.scrollIntoView({ block: 'center' });
+    return true;
+  };
+
+  // A bar click can land before the row it points at exists, because selecting a
+  // book outside the loaded page fetches the rest of the results first. The
+  // scroll waits for that render instead of quietly doing nothing.
+  const pendingScrollRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingScrollRef.current;
+    if (id && scrollToResultId(id)) pendingScrollRef.current = null;
+  }, [results]);
+
+  /**
    * A bar click moves the selection in the list and scrolls that row into view.
    * It deliberately does *not* navigate the Bible pane: at ~5px per bar on a
    * phone a mis-click has to be cheap, and the selection is undone by clicking
@@ -80,14 +108,28 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const selectResult = (result: SearchResultData) => {
     const id = searchResultId(result);
     searchStore.setLastClickedId(id);
-    // The row may not exist yet on the very first paint; querying after the
-    // store notify is enough in practice because the list is already rendered.
-    // Quoted attribute selector, so only a quote or backslash in the id would
-    // need escaping. `CSS.escape` is deliberately not used — it is absent from
-    // some of the DOM shims the tests run under.
-    const selector = `[data-result-id="${id.replace(/["\\]/g, '\\$&')}"]`;
-    const row = resultsRef.current?.querySelector<HTMLElement>(selector);
-    row?.scrollIntoView({ block: 'nearest' });
+    if (!scrollToResultId(id)) pendingScrollRef.current = id;
+  };
+
+  /**
+   * Select the clicked book's first match.
+   *
+   * In keyword mode the chart counts every match while the list holds only the
+   * first page, so a bar can point at a book with no row behind it — or at a
+   * book whose rows are only partly loaded, where the first match in the book
+   * may still be missing. Either way the rest of the results are fetched before
+   * the selection is made, so the bar always lands on the match it is counting.
+   */
+  const selectBook = async (bookNumber: number, first?: SearchResultData) => {
+    const inBook = (r: SearchResultData) =>
+      r.type !== 'fuzzy' && parseVerseId(r.verseId).bookNumber === bookNumber;
+    const counted = bookCounts[bookNumber];
+    if (counted !== undefined && results.filter(inBook).length < counted) {
+      await searchStore.loadAllKeyword();
+    }
+    // Read back off the store: the fetch above replaced the list wholesale.
+    const target = searchStore.results.find(inBook) ?? first;
+    if (target) selectResult(target);
   };
 
   const navigateToResult = (result: SearchResultData) => {
@@ -372,9 +414,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
         {!loading && results.length > 0 && (
           <SearchDistributionChart
             results={results}
+            // Empty for the modes that have no server-side counts, and the chart
+            // is told nothing rather than told zero — it counts its own rows then.
+            bookCounts={Object.keys(bookCounts).length > 0 ? bookCounts : undefined}
             mode={distributionMode}
             truncated={resultsTruncated}
-            onSelectBook={selectResult}
+            onSelectBook={selectBook}
           />
         )}
         {exactResults.map((result, i) => renderResult(result, `exact-${i}`))}
@@ -387,6 +432,26 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           </div>
         )}
         {fuzzyResults.map((result, i) => renderResult(result, `fuzzy-${i}`))}
+        {/* Keyword search has no incremental paging — the endpoint has no offset
+            and the chart already knows the size of the match set — so the one
+            offer is the whole remainder. */}
+        {!loading && !strongsMode && searchType === 'keyword' && keywordRemaining > 0 && (
+          <div class="search-panel-inline__load-more">
+            <button
+              type="button"
+              class="search-panel-inline__load-more-btn"
+              data-testid="keyword-load-all"
+              disabled={loadingMore}
+              onClick={() => searchStore.loadAllKeyword()}
+            >
+              {loadingMore ? (
+                <><i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('search.loadingMore')}</>
+              ) : (
+                t('search.loadAll', { count: keywordRemaining })
+              )}
+            </button>
+          </div>
+        )}
         {!loading && (searchType === 'semantic' || strongsMode) && canLoadMore && (
           <div class="search-panel-inline__load-more">
             <button

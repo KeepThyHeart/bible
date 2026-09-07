@@ -172,7 +172,21 @@ export interface SearchResultData {
 
 export interface SearchResultSet {
   results: SearchResultData[];
+  /** How many rows are in `results` — the page, not the match set. */
   total: number;
+  /**
+   * How many matches the search found in total, of which `results` is the first
+   * page. Optional: only the keyword endpoint reports it, and only a server new
+   * enough to send it — read it through the store's fallbacks, never bare.
+   */
+  totalAvailable?: number;
+  /**
+   * Matches per book number over the *whole* match set, so the distribution
+   * chart can describe the search rather than the page. Approximate (fuzzy)
+   * spellings are excluded, matching what the chart counts. Optional for the
+   * same reason as `totalAvailable`.
+   */
+  bookCounts?: Record<number, number>;
 }
 
 // Strong's search types

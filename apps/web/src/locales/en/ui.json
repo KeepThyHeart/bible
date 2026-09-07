@@ -142,13 +142,15 @@
       "bar_one": "{{book}} — {{count}} result",
       "bar_other": "{{book}} — {{count}} results",
       "barEmpty": "{{book}} — no matches",
-      "captionKeyword_one": "{{count}} result below, by book. Word-form matches count; approximate spellings do not.",
-      "captionKeyword_other": "{{count}} results below, by book. Word-form matches count; approximate spellings do not.",
+      "captionKeyword_one": "{{count}} result, by book. Word-form matches count; approximate spellings do not.",
+      "captionKeyword_other": "{{count}} results, by book. Word-form matches count; approximate spellings do not.",
       "captionStrongs_one": "{{count}} occurrence below, by book.",
       "captionStrongs_other": "{{count}} occurrences below, by book.",
       "captionSemantic_one": "{{count}} passage retrieved, by book — not a tally of the whole Bible.",
       "captionSemantic_other": "{{count}} passages retrieved, by book — not a tally of the whole Bible.",
-      "captionCapped": "Only the results loaded so far are counted; there are more to load."
+      "captionCapped": "Only the results loaded so far are counted; there are more to load.",
+      "captionCeiling_one": "Only the first {{count}} match is counted; the search stops there.",
+      "captionCeiling_other": "Only the first {{count}} matches are counted; the search stops there."
     }
   },
   "contextMenu": {

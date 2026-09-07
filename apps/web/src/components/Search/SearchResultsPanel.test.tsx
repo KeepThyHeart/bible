@@ -6,7 +6,7 @@
  * useStore is mocked to call the selector immediately (no subscription).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -40,11 +40,12 @@ vi.mock('./SearchResultItem', () => ({
 // The chart is exercised in SearchDistributionChart.test.tsx; here it stands in
 // as a probe for what the panel hands it and for the panel's own click wiring.
 vi.mock('./SearchDistributionChart', () => ({
-  SearchDistributionChart: ({ results, mode, truncated, onSelectBook }: {
+  SearchDistributionChart: ({ results, bookCounts, mode, truncated, onSelectBook }: {
     results: { verseId: number }[];
+    bookCounts?: Record<number, number>;
     mode: string;
     truncated: boolean;
-    onSelectBook: (r: unknown) => void;
+    onSelectBook: (bookNumber: number, first?: unknown) => void;
   }) => (
     <button
       type="button"
@@ -52,10 +53,21 @@ vi.mock('./SearchDistributionChart', () => ({
       data-mode={mode}
       data-truncated={String(truncated)}
       data-count={results.length}
-      onClick={() => onSelectBook(results[results.length - 1])}
+      data-book-counts={bookCounts ? JSON.stringify(bookCounts) : ''}
+      // Stands in for a click on the bar of the last result's book. `mockClickBook`
+      // overrides which book, for the cases where the point is a book the loaded
+      // page does not reach.
+      onClick={() => {
+        const last = results[results.length - 1];
+        const book = mockClickBook ?? (last ? Math.floor(last.verseId / 1000000) : 0);
+        onSelectBook(book, mockClickBook === null ? last : undefined);
+      }}
     />
   ),
 }));
+
+/** Book the stub chart reports as clicked; null means "the last result's book". */
+let mockClickBook: number | null = null;
 
 vi.mock('../../utils/verseId', () => ({
   parseVerseId: (id: number) => ({
@@ -83,6 +95,8 @@ let mockWordFamily: { strongsNumber: string; word: string; transliteration: stri
 let mockIncludeRelated = false;
 let mockGroupedCounts: Record<string, number> = {};
 let mockStrongsRemaining = 0;
+let mockBookCounts: Record<number, number> = {};
+let mockKeywordRemaining = 0;
 let mockLastClickedId: string | null = null;
 let mockResultsTruncated = false;
 let mockIsOnline = true;
@@ -94,6 +108,7 @@ const mockWarmupSemanticSearch = vi.fn(() => Promise.resolve());
 const mockLoadMoreSemantic = vi.fn();
 const mockLoadMoreStrongs = vi.fn();
 const mockLoadAllStrongs = vi.fn();
+const mockLoadAllKeyword = vi.fn(() => Promise.resolve());
 const mockSwitchToKeywordResults = vi.fn();
 const mockSetLastClickedId = vi.fn();
 const mockToggleIncludeRelated = vi.fn();
@@ -115,6 +130,8 @@ vi.mock('../../stores/searchStore', () => ({
     get includeRelated() { return mockIncludeRelated; },
     get groupedCounts() { return mockGroupedCounts; },
     get strongsRemaining() { return mockStrongsRemaining; },
+    get bookCounts() { return mockBookCounts; },
+    get keywordRemaining() { return mockKeywordRemaining; },
     get lastClickedId() { return mockLastClickedId; },
     get resultsTruncated() { return mockResultsTruncated; },
     close: () => mockClose(),
@@ -124,6 +141,7 @@ vi.mock('../../stores/searchStore', () => ({
     loadMoreSemantic: () => mockLoadMoreSemantic(),
     loadMoreStrongs: () => mockLoadMoreStrongs(),
     loadAllStrongs: () => mockLoadAllStrongs(),
+    loadAllKeyword: () => mockLoadAllKeyword(),
     switchToKeywordResults: () => mockSwitchToKeywordResults(),
     setLastClickedId: (...args: unknown[]) => mockSetLastClickedId(...args),
     toggleIncludeRelated: () => mockToggleIncludeRelated(),
@@ -181,6 +199,9 @@ describe('SearchResultsPanel', () => {
     mockIncludeRelated = false;
     mockGroupedCounts = {};
     mockStrongsRemaining = 0;
+    mockBookCounts = {};
+    mockKeywordRemaining = 0;
+    mockClickBook = null;
     mockLastClickedId = null;
     mockResultsTruncated = false;
     mockIsOnline = true;
@@ -528,10 +549,89 @@ describe('SearchResultsPanel', () => {
     expect(mockSetLastClickedId).toHaveBeenCalledWith('19023001-KJV');
     expect(scrolls.length).toBe(1);
     expect((scrolls[0] as [Element, unknown])[0].getAttribute('data-result-id')).toBe('19023001-KJV');
-    expect((scrolls[0] as [Element, unknown])[1]).toEqual({ block: 'nearest' });
+    // Centred, so the verses either side of the match are visible with it.
+    expect((scrolls[0] as [Element, unknown])[1]).toEqual({ block: 'center' });
     // A mis-click must cost nothing: no Bible navigation, no pane switch.
     expect(mockNavigateToPreview).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('hands the chart the whole search\'s counts, and nothing when it has none', () => {
+    mockQuery = 'love';
+    mockResults = [
+      { verseId: 1001001, reference: 'Gen 1:1', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    mockBookCounts = { 1: 12, 19: 120 };
+    const { rerender } = render(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.bookCounts).toBe('{"1":12,"19":120}');
+
+    // Semantic and Strong's have no server counts; the chart is told nothing
+    // rather than told zero, so it goes back to counting its own rows.
+    mockBookCounts = {};
+    rerender(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.bookCounts).toBe('');
+  });
+
+  it('loads the rest of the results before selecting a book the page never reached', async () => {
+    // The bar says Psalms has 40 matches; the loaded page is all Genesis. The
+    // click has to produce the match it is counting, not silently do nothing.
+    mockQuery = 'love';
+    mockResults = [
+      { verseId: 1001001, reference: 'Gen 1:1', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    mockBookCounts = { 1: 1, 19: 40 };
+    mockClickBook = 19;
+    const psalm = { verseId: 19023001, reference: 'Psalm 23:1', module: 'KJV', type: 'exact' as const, text: '...' };
+    mockLoadAllKeyword.mockImplementation(async () => { mockResults = [...mockResults, psalm]; });
+
+    render(<SearchResultsPanel />);
+    fireEvent.click(screen.getByTestId('search-distribution'));
+
+    await waitFor(() => expect(mockLoadAllKeyword).toHaveBeenCalledTimes(1));
+    // ...and the newly-arrived row is the one selected.
+    await waitFor(() => expect(mockSetLastClickedId).toHaveBeenCalledWith('19023001-KJV'));
+  });
+
+  it('does not re-fetch when the clicked book is already fully loaded', async () => {
+    mockQuery = 'love';
+    mockResults = [
+      { verseId: 1001001, reference: 'Gen 1:1', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    mockBookCounts = { 1: 1 };
+
+    render(<SearchResultsPanel />);
+    fireEvent.click(screen.getByTestId('search-distribution'));
+
+    await waitFor(() => expect(mockSetLastClickedId).toHaveBeenCalledWith('1001001-KJV'));
+    expect(mockLoadAllKeyword).not.toHaveBeenCalled();
+  });
+
+  // ------------------------------------------------------------------
+  // Loading the rest of a keyword search
+  // ------------------------------------------------------------------
+  it('offers the remaining keyword matches, and asks for them all at once', () => {
+    mockQuery = 'love';
+    mockResults = [
+      { verseId: 1001001, reference: 'Gen 1:1', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    mockKeywordRemaining = 392;
+
+    render(<SearchResultsPanel />);
+    const loadAll = screen.getByTestId('keyword-load-all');
+    expect(loadAll.textContent).toBe('search.loadAll:392');
+    fireEvent.click(loadAll);
+    expect(mockLoadAllKeyword).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers nothing more to load once the whole keyword search is on screen', () => {
+    mockQuery = 'love';
+    mockResults = [
+      { verseId: 1001001, reference: 'Gen 1:1', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    mockKeywordRemaining = 0;
+
+    render(<SearchResultsPanel />);
+    expect(screen.queryByTestId('keyword-load-all')).toBeNull();
   });
 
   // ------------------------------------------------------------------
