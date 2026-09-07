@@ -1,0 +1,259 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Bible Web App Unified Configuration",
+  "description": "Single configuration file for the Bible web app. Consolidates server config, module settings, search pipeline knobs, and UI defaults. Place in the data directory as site-config.json.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored at runtime)."
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication settings for the password gate.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the password gate is active. When false, the app is accessible without login.",
+          "default": true
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "Pre-computed password hash (salt:hash). If present, 'password' is ignored."
+        },
+        "password": {
+          "type": "string",
+          "description": "Plain-text password. Will be hashed and replaced with 'passwordHash' on first server start."
+        }
+      },
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags to enable or disable optional functionality.",
+      "properties": {
+        "tagGraph": {
+          "type": "boolean",
+          "description": "Enable the tag graph visualization feature.",
+          "default": false
+        },
+        "semanticSearch": {
+          "type": "boolean",
+          "description": "Enable semantic (Ideas) search. Requires a search pipeline config.",
+          "default": false
+        },
+        "pwa": {
+          "type": "boolean",
+          "description": "Enable PWA (manifest + service worker). When false, the app behaves as a regular website with no offline support or install prompt.",
+          "default": true
+        },
+        "offlineDownloads": {
+          "type": "boolean",
+          "description": "Allow users to manually mark modules for offline use.",
+          "default": false
+        },
+        "offlineAutoDownload": {
+          "type": "boolean",
+          "description": "Automatically cache a lite copy of a translation in the browser the first time it is read. Turn off to keep every visitor from pulling several MB per translation.",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "modules": {
+      "type": "object",
+      "description": "Module visibility and grouping settings (replaces settings.json).",
+      "properties": {
+        "about": {
+          "type": "string",
+          "description": "Custom 'About' text displayed in the app settings panel."
+        },
+        "bibles": { "$ref": "#/$defs/moduleTypeConfig" },
+        "commentaries": { "$ref": "#/$defs/moduleTypeConfig" },
+        "dictionaries": { "$ref": "#/$defs/moduleTypeConfig" }
+      },
+      "additionalProperties": false
+    },
+    "commentaryPopularity": {
+      "type": "object",
+      "description": "Commentary module popularity ranking (lower number = more popular). Used for default sort order when no explicit sortOrders are configured.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "offline": {
+      "type": "object",
+      "description": "Settings for offline/PWA behavior.",
+      "properties": {
+        "staleDays": {
+          "type": "integer",
+          "description": "Number of days before auto-downloaded Bible modules are considered stale and eligible for cleanup.",
+          "default": 15,
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "search": {
+      "type": "object",
+      "description": "Search pipeline configuration knobs. The full provider config remains in a separate file.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["server", "browser", "off"],
+          "description": "Where semantic (Ideas) search runs. 'server': the server builds the embedding pipeline (high RAM). 'browser': clients search locally via a Web Worker and self-hosted model/index, keeping the server lean. 'off': semantic search disabled. The server only builds the in-process pipeline when set to 'server'.",
+          "default": "browser"
+        },
+        "pipelineConfigPath": {
+          "type": "string",
+          "description": "Path to the search pipeline provider config file (relative to data directory). Only used when mode is 'server'.",
+          "default": "search-pipeline.json"
+        },
+        "hybrid": {
+          "type": "boolean",
+          "description": "Enable hybrid keyword + semantic search by default.",
+          "default": false
+        },
+        "minScore": {
+          "type": "number",
+          "description": "Minimum relevance score for semantic search results.",
+          "default": 0.15,
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI customization options. Themes and fonts are defined in code; these settings control which are visible.",
+      "properties": {
+        "defaultTheme": {
+          "type": "string",
+          "description": "Default theme ID for new users.",
+          "default": "auto"
+        },
+        "visibleThemes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Restrict available themes to this list of theme IDs. If omitted, all themes are available."
+        },
+        "visibleFonts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Restrict available font schemes to this list of font scheme IDs. If omitted, all fonts are available."
+        },
+        "defaultModule": {
+          "type": "string",
+          "description": "Default Bible module abbreviation for new users (e.g., \"KJV\")."
+        },
+        "defaultDisplayMode": {
+          "type": "string",
+          "enum": ["standard", "reading", "study"],
+          "description": "Default display mode for the Bible pane.",
+          "default": "standard"
+        },
+        "disabledPanes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Panes to disable in the UI (e.g., [\"dictionary\", \"interlinear\"])."
+        }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "description": "Privacy posture for deployments where minimizing data footprint matters (e.g., users in high-risk regions).",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["strict", "relaxed"],
+          "description": "Privacy posture. 'strict' (default): session-only auth cookies, in-memory rate limiting, logger scrubs IPs and refuses client-identifying data. 'relaxed': persistent cookies and optional request-level logging.",
+          "default": "strict"
+        }
+      },
+      "additionalProperties": false
+    },
+    "repoUrl": {
+      "type": "string",
+      "description": "URL to the source code repository, shown in the About panel.",
+      "default": ""
+    },
+    "docsUrl": {
+      "type": "string",
+      "description": "URL of the external documentation website. When set, the Help dialog shows a prominent link to it; when empty or omitted, no link is shown.",
+      "default": ""
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "moduleEntry": {
+      "type": "object",
+      "description": "Configuration for a single module.",
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "description": "Whether this module is visible to users."
+        },
+        "shortName": {
+          "type": "string",
+          "description": "Override the displayed abbreviation."
+        },
+        "title": {
+          "type": "string",
+          "description": "Override the displayed full name."
+        },
+        "description": {
+          "type": "string",
+          "description": "Override the displayed description text."
+        },
+        "sortOrder": {
+          "type": "integer",
+          "description": "Explicit sort order for this module (lower = first)."
+        }
+      },
+      "required": ["active"],
+      "additionalProperties": false
+    },
+    "section": {
+      "type": "object",
+      "description": "A named group of modules displayed together in the UI.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Section heading shown in the module selector."
+        },
+        "helpText": {
+          "type": "string",
+          "description": "Optional help text displayed below the section heading."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered list of module abbreviations in this section."
+        }
+      },
+      "required": ["title", "modules"],
+      "additionalProperties": false
+    },
+    "moduleTypeConfig": {
+      "type": "object",
+      "description": "Configuration for one module type (bibles, commentaries, or dictionaries).",
+      "properties": {
+        "modules": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/moduleEntry" },
+          "description": "Map of module abbreviation to its configuration."
+        },
+        "sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/section" },
+          "description": "Ordered sections for grouping modules in the UI."
+        }
+      },
+      "required": ["modules", "sections"],
+      "additionalProperties": false
+    }
+  }
+}

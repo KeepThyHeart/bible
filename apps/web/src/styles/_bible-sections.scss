@@ -1,0 +1,106 @@
+// ============================================================
+// Canonical Bible section colours
+// ============================================================
+//
+// The ten traditional divisions of the 66-book canon (keys come from
+// getBibleSection() in @bible/core). Two consumers share this scheme and must
+// keep agreeing, or the same book is one colour in the passage picker and
+// another in the search distribution chart:
+//
+//   - .book-chapter-picker__book--<key>   (see _book-chapter-picker.scss)
+//   - .search-distribution__bar--<key>    (see _search.scss)
+//
+// Each section gets two custom properties:
+//
+//   --section-<key>        the section's hue as a solid colour. Used neat for
+//                          the chart's bars and, via color-mix(), for the
+//                          picker's background tint.
+//   --section-<key>-text   a shade of that hue with enough contrast to be read
+//                          as label text on the current theme's background.
+//
+// Hues are interleaved (not a rainbow walk) so each adjacent pair lives in a
+// different colour family — gospels stays green for the obvious "life"
+// association, but everything else jumps around the wheel:
+//   pentateuch=gold, ot-history=blue, wisdom=red, major-prophets=purple,
+//   minor-prophets=orange, gospels=green, acts=pink, pauline=cyan,
+//   general=brown, revelation=fuchsia.
+//
+// These are deliberately fixed colours rather than theme tokens: section
+// identity has to stay recognisable as the reader moves between themes. What
+// *does* change per theme is the lightness — the values below were picked
+// against light backgrounds, so the dark themes take a lighter set (see the
+// [data-dark-theme] block, which settingsStore stamps on <html> for every
+// theme whose theme.json says isDark).
+
+:root {
+  --section-pentateuch:          rgb(202, 138,   4);
+  --section-pentateuch-text:     #854d0e;
+  --section-ot-history:          rgb( 37,  99, 235);
+  --section-ot-history-text:     #1d4ed8;
+  --section-wisdom:              rgb(220,  38,  38);
+  --section-wisdom-text:         #b91c1c;
+  --section-major-prophets:      rgb(147,  51, 234);
+  --section-major-prophets-text: #7e22ce;
+  --section-minor-prophets:      rgb(234,  88,  12);
+  --section-minor-prophets-text: #c2410c;
+  --section-gospels:             rgb( 22, 163,  74);
+  --section-gospels-text:        #15803d;
+  --section-acts:                rgb(219,  39, 119);
+  --section-acts-text:           #be185d;
+  --section-pauline:             rgb(  8, 145, 178);
+  --section-pauline-text:        #0e7490;
+  --section-general:             rgb(154,  52,  18);
+  --section-general-text:        #78350f;
+  --section-revelation:          rgb(162,  28, 175);
+  --section-revelation-text:     #86198f;
+
+  // Amber "approximate match" pair, matching the desktop app's warning-soft /
+  // warning-text tokens. The web themes have no warning colour of their own and
+  // only the fuzzy badge and the fuzzy divider need one.
+  --warn-soft: #fffbeb;
+  --warn-text: #92400e;
+  --warn-border: #fcd34d;
+}
+
+// The light shades above are unreadable on a dark ground — #854d0e gold on
+// #0d1117 is barely a colour at all, and the 600-level bar hues sink into the
+// background. Every dark theme (dark, midnight, slate, sunset) gets the 400/500
+// level of the same hue instead, so the sections stay recognisably themselves.
+[data-dark-theme] {
+  --section-pentateuch:          rgb(234, 179,   8);
+  --section-pentateuch-text:     #fcd34d;
+  --section-ot-history:          rgb( 96, 165, 250);
+  --section-ot-history-text:     #93c5fd;
+  --section-wisdom:              rgb(248, 113, 113);
+  --section-wisdom-text:         #fca5a5;
+  --section-major-prophets:      rgb(192, 132, 252);
+  --section-major-prophets-text: #d8b4fe;
+  --section-minor-prophets:      rgb(251, 146,  60);
+  --section-minor-prophets-text: #fdba74;
+  --section-gospels:             rgb( 74, 222, 128);
+  --section-gospels-text:        #86efac;
+  --section-acts:                rgb(244, 114, 182);
+  --section-acts-text:           #f9a8d4;
+  --section-pauline:             rgb( 34, 211, 238);
+  --section-pauline-text:        #67e8f9;
+  --section-general:             rgb(214, 158, 106);
+  --section-general-text:        #e0b088;
+  --section-revelation:          rgb(232, 121, 249);
+  --section-revelation-text:     #f0abfc;
+
+  --warn-soft: #362b14;
+  --warn-text: #fcd34d;
+  --warn-border: #92400e;
+}
+
+// Paint one section's colours onto a text-and-tint element (the picker's book
+// buttons). Kept here so the tint percentages live beside the hues they mix.
+@mixin section-colors($key) {
+  color: var(--section-#{$key}-text);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--section-#{$key}) 12%, transparent);
+
+  &:hover {
+    background: color-mix(in srgb, var(--section-#{$key}) 22%, transparent);
+  }
+}

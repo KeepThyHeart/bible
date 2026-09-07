@@ -1,0 +1,75 @@
+// ============================================================
+// Right pane mode tabs
+// ============================================================
+.right-pane-tabs {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+
+  &__tab {
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    &--active {
+      color: var(--accent-color);
+      border-bottom-color: var(--accent-color);
+      font-weight: 600;
+    }
+  }
+
+  &__badge {
+    font-size: calc(10px * var(--ui-font-scale, 1));
+    background: var(--accent-color);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  &__collapse {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 6px 8px;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    margin-left: auto;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+  }
+}
+
+// The Study pane container. Its font-size is the "Study Text" setting, so
+// everything inside that sets no size of its own — commentary prose, quoted
+// verse text — reads at the size the reader chose. Elements that do set a size
+// multiply by `--study-font-scale` instead; both variables are published on
+// <html> by settingsStore.applyStudyFontSize().
+.main-layout__right-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  border-left: 1px solid var(--border-color);
+  overflow: hidden;
+  font-size: var(--study-font-size, 15px);
+}
+

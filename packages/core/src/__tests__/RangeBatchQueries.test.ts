@@ -11,12 +11,12 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
-import * as fs from 'fs';
 import { CommentaryRepository } from '../Data/Repositories/CommentaryRepository';
 import { CrossReferenceRepository } from '../Data/Repositories/CrossReferenceRepository';
 import { VerseIdHelper } from '../Data/Core/Types';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 import type { ISql, SqlParameter, SqlResult } from '../Data/Core/ISql';
+import { TEST_MODULES_DIR, testDataAvailable } from './helpers/testData';
 
 /**
  * A provider that counts the statements a repository issues.
@@ -55,7 +55,7 @@ class CountingSqlProvider implements ISql {
   }
 }
 
-const MODULES_DIR = path.resolve(__dirname, '../../../desktop/data/modules/');
+const MODULES_DIR = path.join(TEST_MODULES_DIR, 'modules');
 const BARNES = path.join(MODULES_DIR, 'commentary_barnes.db');
 const TSK = path.join(MODULES_DIR, 'xref_tsk.db');
 
@@ -66,7 +66,7 @@ const CHAPTER_START = VerseIdHelper.calculate(BOOK, CHAPTER, 1);
 const CHAPTER_END = VerseIdHelper.calculate(BOOK, CHAPTER, 999);
 const VERSES = Array.from({ length: 36 }, (_, i) => VerseIdHelper.calculate(BOOK, CHAPTER, i + 1));
 
-describe.skipIf(!fs.existsSync(BARNES))('CommentaryRepository range batches (Barnes)', () => {
+describe.skipIf(!testDataAvailable('CommentaryRepository range batches (Barnes)', BARNES))('CommentaryRepository range batches (Barnes)', () => {
   let provider: TestSqliteProvider;
   let repo: CommentaryRepository;
 
@@ -126,7 +126,7 @@ describe.skipIf(!fs.existsSync(BARNES))('CommentaryRepository range batches (Bar
   });
 });
 
-describe.skipIf(!fs.existsSync(TSK))('CrossReferenceRepository range batches (TSK)', () => {
+describe.skipIf(!testDataAvailable('CrossReferenceRepository range batches (TSK)', TSK))('CrossReferenceRepository range batches (TSK)', () => {
   let provider: TestSqliteProvider;
   let repo: CrossReferenceRepository;
 

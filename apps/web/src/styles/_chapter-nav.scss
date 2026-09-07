@@ -1,0 +1,39 @@
+// ============================================================
+// Chapter nav (part of scrollable content, not sticky)
+// ============================================================
+.chapter-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border-color);
+
+  &__btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 18px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    transition: background 0.1s;
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+  }
+}
+
+

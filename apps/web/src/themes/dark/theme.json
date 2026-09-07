@@ -1,0 +1,12 @@
+{
+  "id": "dark",
+  "name": "Dark",
+  "group": "core",
+  "order": 2,
+  "isDark": true,
+  "swatch": {
+    "bg": "#1a1a2e",
+    "fg": "#e0e0e0",
+    "accent": "#60a5fa"
+  }
+}

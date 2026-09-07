@@ -1,0 +1,12 @@
+{
+  "id": "rose",
+  "name": "Rose",
+  "group": "nature",
+  "order": 11,
+  "isDark": false,
+  "swatch": {
+    "bg": "#fdf2f4",
+    "fg": "#3b1020",
+    "accent": "#be185d"
+  }
+}

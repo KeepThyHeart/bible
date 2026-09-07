@@ -1,0 +1,575 @@
+{
+  "$comment": "Canonical theme palettes for the repo. A string value is shared by both apps. An object { web, desktop } records a colour the two apps intentionally render differently — there are 25 of these, all in the light, dark and sepia themes; the other twelve themes are identical in both apps. Resolving an override is a design decision: replace the object with one string and both apps follow.",
+  "themes": {
+    "light": {
+      "name": "Light",
+      "group": "core",
+      "order": 1,
+      "isDark": false,
+      "swatch": {
+        "bg": "#ffffff",
+        "fg": "#1a1a1a",
+        "accent": "#2563eb"
+      },
+      "colors": {
+        "bg-primary": "#ffffff",
+        "bg-secondary": {
+          "web": "#f8f6f0",
+          "desktop": "#f8f7f4"
+        },
+        "bg-tertiary": {
+          "web": "#eeeeee",
+          "desktop": "#f3f4f6"
+        },
+        "text-primary": {
+          "web": "#1a1a1a",
+          "desktop": "#2c2c2c"
+        },
+        "text-secondary": {
+          "web": "#555555",
+          "desktop": "#666666"
+        },
+        "text-muted": {
+          "web": "#888888",
+          "desktop": "#9ca3af"
+        },
+        "border-color": {
+          "web": "#e2e2e2",
+          "desktop": "#e0e0e0"
+        },
+        "accent-color": {
+          "web": "#2563eb",
+          "desktop": "#3d78bc"
+        },
+        "accent-hover": {
+          "web": "#1d4ed8",
+          "desktop": "#34669f"
+        },
+        "christ-words": {
+          "web": "#c41e3a",
+          "desktop": "#b71c1c"
+        },
+        "highlight-bg": "#fef3c7",
+        "highlight-bg-hover": "#fde68a",
+        "header-bg": "#f5f3ee",
+        "shadow": "rgba(0, 0, 0, 0.08)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.12)",
+        "overlay-bg": "rgba(0, 0, 0, 0.4)",
+        "accent-secondary": "#d07020",
+        "scrollbar-track": "#f1f1f1",
+        "scrollbar-thumb": "#c1c1c1",
+        "scrollbar-thumb-hover": "#a1a1a1"
+      }
+    },
+    "dark": {
+      "name": "Dark",
+      "group": "core",
+      "order": 2,
+      "isDark": true,
+      "swatch": {
+        "bg": "#1a1a2e",
+        "fg": "#e0e0e0",
+        "accent": "#60a5fa"
+      },
+      "colors": {
+        "bg-primary": "#1a1a2e",
+        "bg-secondary": "#16213e",
+        "bg-tertiary": "#0f3460",
+        "text-primary": "#e0e0e0",
+        "text-secondary": {
+          "web": "#aaaaaa",
+          "desktop": "#a0a0b8"
+        },
+        "text-muted": {
+          "web": "#777777",
+          "desktop": "#8282a0"
+        },
+        "border-color": {
+          "web": "#2a2a4a",
+          "desktop": "#3a3a5c"
+        },
+        "accent-color": {
+          "web": "#60a5fa",
+          "desktop": "#6ba3e8"
+        },
+        "accent-hover": {
+          "web": "#93c5fd",
+          "desktop": "#5b93d8"
+        },
+        "christ-words": {
+          "web": "#f87171",
+          "desktop": "#ef5350"
+        },
+        "highlight-bg": "#1e3a5f",
+        "highlight-bg-hover": "#264a73",
+        "header-bg": "#16213e",
+        "shadow": "rgba(0, 0, 0, 0.3)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.4)",
+        "overlay-bg": "rgba(0, 0, 0, 0.5)",
+        "accent-secondary": "#e8923a",
+        "scrollbar-track": "#1a1a2e",
+        "scrollbar-thumb": "#2a2a4a",
+        "scrollbar-thumb-hover": "#3a3a5a"
+      }
+    },
+    "sepia": {
+      "name": "Sepia",
+      "group": "core",
+      "order": 3,
+      "isDark": false,
+      "swatch": {
+        "bg": "#f4ecd8",
+        "fg": "#3d2b1f",
+        "accent": "#8b4513"
+      },
+      "colors": {
+        "bg-primary": {
+          "web": "#f4ecd8",
+          "desktop": "#f5f0e8"
+        },
+        "bg-secondary": {
+          "web": "#efe5cc",
+          "desktop": "#ede6d6"
+        },
+        "bg-tertiary": {
+          "web": "#e6dbc3",
+          "desktop": "#e4dcc8"
+        },
+        "text-primary": {
+          "web": "#3d2b1f",
+          "desktop": "#3e2c1c"
+        },
+        "text-secondary": {
+          "web": "#5c4033",
+          "desktop": "#6b5744"
+        },
+        "text-muted": {
+          "web": "#8b7355",
+          "desktop": "#8c7c69"
+        },
+        "border-color": {
+          "web": "#c4b99a",
+          "desktop": "#d4c5a9"
+        },
+        "accent-color": {
+          "web": "#8b4513",
+          "desktop": "#8b6914"
+        },
+        "accent-hover": {
+          "web": "#a0522d",
+          "desktop": "#7a5c10"
+        },
+        "christ-words": {
+          "web": "#a0342e",
+          "desktop": "#a62828"
+        },
+        "highlight-bg": "#f5deb3",
+        "highlight-bg-hover": "#edd5a0",
+        "header-bg": "#efe5cc",
+        "shadow": "rgba(61, 43, 31, 0.1)",
+        "dropdown-shadow": "rgba(61, 43, 31, 0.15)",
+        "overlay-bg": "rgba(61, 43, 31, 0.35)",
+        "accent-secondary": "#b5651d",
+        "scrollbar-track": "#efe5cc",
+        "scrollbar-thumb": "#c4b99a",
+        "scrollbar-thumb-hover": "#a89870"
+      }
+    },
+    "arctic": {
+      "name": "Arctic",
+      "group": "nature",
+      "order": 13,
+      "isDark": false,
+      "swatch": {
+        "bg": "#f0f8ff",
+        "fg": "#0a2540",
+        "accent": "#0284c7"
+      },
+      "colors": {
+        "bg-primary": "#f0f8ff",
+        "bg-secondary": "#e0f0fb",
+        "bg-tertiary": "#d0e8f8",
+        "text-primary": "#0a2540",
+        "text-secondary": "#1a4060",
+        "text-muted": "#4a7090",
+        "border-color": "#b0d0e8",
+        "accent-color": "#0284c7",
+        "accent-hover": "#0369a1",
+        "christ-words": "#c41e3a",
+        "highlight-bg": "#bae6fd",
+        "highlight-bg-hover": "#a0d8f5",
+        "header-bg": "#e0f0fb",
+        "shadow": "rgba(10, 37, 64, 0.1)",
+        "dropdown-shadow": "rgba(10, 37, 64, 0.15)",
+        "overlay-bg": "rgba(10, 37, 64, 0.35)",
+        "accent-secondary": "#0ea5e9",
+        "scrollbar-track": "#e0f0fb",
+        "scrollbar-thumb": "#b0d0e8",
+        "scrollbar-thumb-hover": "#88b8d5"
+      }
+    },
+    "autumn": {
+      "name": "Autumn",
+      "group": "nature",
+      "order": 15,
+      "isDark": false,
+      "swatch": {
+        "bg": "#faf6f0",
+        "fg": "#2e1a0e",
+        "accent": "#b45309"
+      },
+      "colors": {
+        "bg-primary": "#faf6f0",
+        "bg-secondary": "#f4ece0",
+        "bg-tertiary": "#eadece",
+        "text-primary": "#2e1a0e",
+        "text-secondary": "#5a3820",
+        "text-muted": "#8a6848",
+        "border-color": "#d0b898",
+        "accent-color": "#b45309",
+        "accent-hover": "#92400e",
+        "christ-words": "#a0342e",
+        "highlight-bg": "#f0d8b0",
+        "highlight-bg-hover": "#e8c898",
+        "header-bg": "#f4ece0",
+        "shadow": "rgba(46, 26, 14, 0.1)",
+        "dropdown-shadow": "rgba(46, 26, 14, 0.15)",
+        "overlay-bg": "rgba(46, 26, 14, 0.35)",
+        "accent-secondary": "#c76f10",
+        "scrollbar-track": "#f4ece0",
+        "scrollbar-thumb": "#d0b898",
+        "scrollbar-thumb-hover": "#b8a078"
+      }
+    },
+    "forest": {
+      "name": "Forest",
+      "group": "nature",
+      "order": 4,
+      "isDark": false,
+      "swatch": {
+        "bg": "#f0f5ed",
+        "fg": "#1b2e1b",
+        "accent": "#2d7a3a"
+      },
+      "colors": {
+        "bg-primary": "#f0f5ed",
+        "bg-secondary": "#e3edde",
+        "bg-tertiary": "#d4e3cc",
+        "text-primary": "#1b2e1b",
+        "text-secondary": "#3a5a3a",
+        "text-muted": "#6b8f6b",
+        "border-color": "#b5ccb0",
+        "accent-color": "#2d7a3a",
+        "accent-hover": "#1e5c28",
+        "christ-words": "#a0342e",
+        "highlight-bg": "#d4edba",
+        "highlight-bg-hover": "#c2e4a5",
+        "header-bg": "#e3edde",
+        "shadow": "rgba(27, 46, 27, 0.1)",
+        "dropdown-shadow": "rgba(27, 46, 27, 0.15)",
+        "overlay-bg": "rgba(27, 46, 27, 0.35)",
+        "accent-secondary": "#5a8c32",
+        "scrollbar-track": "#e3edde",
+        "scrollbar-thumb": "#b5ccb0",
+        "scrollbar-thumb-hover": "#8fad87"
+      }
+    },
+    "lagoon": {
+      "name": "Lagoon",
+      "group": "nature",
+      "order": 6,
+      "isDark": false,
+      "swatch": {
+        "bg": "#effaf8",
+        "fg": "#0c2e2a",
+        "accent": "#0e8a7a"
+      },
+      "colors": {
+        "bg-primary": "#effaf8",
+        "bg-secondary": "#ddf2ee",
+        "bg-tertiary": "#c8e8e2",
+        "text-primary": "#0c2e2a",
+        "text-secondary": "#1a4a42",
+        "text-muted": "#4a7a70",
+        "border-color": "#a0d0c8",
+        "accent-color": "#0e8a7a",
+        "accent-hover": "#0a6e62",
+        "christ-words": "#c41e3a",
+        "highlight-bg": "#b8e8de",
+        "highlight-bg-hover": "#a0dcd0",
+        "header-bg": "#ddf2ee",
+        "shadow": "rgba(12, 46, 42, 0.1)",
+        "dropdown-shadow": "rgba(12, 46, 42, 0.15)",
+        "overlay-bg": "rgba(12, 46, 42, 0.35)",
+        "accent-secondary": "#20a898",
+        "scrollbar-track": "#ddf2ee",
+        "scrollbar-thumb": "#a0d0c8",
+        "scrollbar-thumb-hover": "#78b8ac"
+      }
+    },
+    "meadow": {
+      "name": "Meadow",
+      "group": "nature",
+      "order": 9,
+      "isDark": false,
+      "swatch": {
+        "bg": "#f4f8ef",
+        "fg": "#1e3018",
+        "accent": "#5a9e2e"
+      },
+      "colors": {
+        "bg-primary": "#f4f8ef",
+        "bg-secondary": "#e8f0de",
+        "bg-tertiary": "#dae8cc",
+        "text-primary": "#1e3018",
+        "text-secondary": "#3a5428",
+        "text-muted": "#6a8a50",
+        "border-color": "#b8d4a0",
+        "accent-color": "#5a9e2e",
+        "accent-hover": "#488822",
+        "christ-words": "#a0342e",
+        "highlight-bg": "#d8ecbe",
+        "highlight-bg-hover": "#c8e2a8",
+        "header-bg": "#e8f0de",
+        "shadow": "rgba(30, 48, 24, 0.1)",
+        "dropdown-shadow": "rgba(30, 48, 24, 0.15)",
+        "overlay-bg": "rgba(30, 48, 24, 0.35)",
+        "accent-secondary": "#7ab840",
+        "scrollbar-track": "#e8f0de",
+        "scrollbar-thumb": "#b8d4a0",
+        "scrollbar-thumb-hover": "#98bc7c"
+      }
+    },
+    "midnight": {
+      "name": "Midnight",
+      "group": "nature",
+      "order": 5,
+      "isDark": true,
+      "swatch": {
+        "bg": "#0d1117",
+        "fg": "#c9d1d9",
+        "accent": "#58a6ff"
+      },
+      "colors": {
+        "bg-primary": "#0d1117",
+        "bg-secondary": "#161b22",
+        "bg-tertiary": "#21262d",
+        "text-primary": "#c9d1d9",
+        "text-secondary": "#8b949e",
+        "text-muted": "#6e7681",
+        "border-color": "#30363d",
+        "accent-color": "#58a6ff",
+        "accent-hover": "#79c0ff",
+        "christ-words": "#f87171",
+        "highlight-bg": "#1a2a40",
+        "highlight-bg-hover": "#203450",
+        "header-bg": "#161b22",
+        "shadow": "rgba(0, 0, 0, 0.4)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.5)",
+        "overlay-bg": "rgba(0, 0, 0, 0.6)",
+        "accent-secondary": "#d29922",
+        "scrollbar-track": "#0d1117",
+        "scrollbar-thumb": "#30363d",
+        "scrollbar-thumb-hover": "#484f58"
+      }
+    },
+    "ocean": {
+      "name": "Ocean",
+      "group": "nature",
+      "order": 7,
+      "isDark": false,
+      "swatch": {
+        "bg": "#eef4f8",
+        "fg": "#0f2b3c",
+        "accent": "#1a6ea0"
+      },
+      "colors": {
+        "bg-primary": "#eef4f8",
+        "bg-secondary": "#dce9f2",
+        "bg-tertiary": "#c8dce8",
+        "text-primary": "#0f2b3c",
+        "text-secondary": "#2a5470",
+        "text-muted": "#5b8ba5",
+        "border-color": "#a8c8dc",
+        "accent-color": "#1a6ea0",
+        "accent-hover": "#145a84",
+        "christ-words": "#c41e3a",
+        "highlight-bg": "#c0dff0",
+        "highlight-bg-hover": "#a8d2ea",
+        "header-bg": "#dce9f2",
+        "shadow": "rgba(15, 43, 60, 0.1)",
+        "dropdown-shadow": "rgba(15, 43, 60, 0.15)",
+        "overlay-bg": "rgba(15, 43, 60, 0.35)",
+        "accent-secondary": "#2d8ac0",
+        "scrollbar-track": "#dce9f2",
+        "scrollbar-thumb": "#a8c8dc",
+        "scrollbar-thumb-hover": "#7fafc8"
+      }
+    },
+    "parchment": {
+      "name": "Parchment",
+      "group": "nature",
+      "order": 14,
+      "isDark": false,
+      "swatch": {
+        "bg": "#f5edd5",
+        "fg": "#2c2416",
+        "accent": "#6b4e2a"
+      },
+      "colors": {
+        "bg-primary": "#f5edd5",
+        "bg-secondary": "#ede3c4",
+        "bg-tertiary": "#e2d5ae",
+        "text-primary": "#2c2416",
+        "text-secondary": "#4a3c26",
+        "text-muted": "#7a6a4a",
+        "border-color": "#c4b48a",
+        "accent-color": "#6b4e2a",
+        "accent-hover": "#553c1e",
+        "christ-words": "#8b2020",
+        "highlight-bg": "#e8d8a8",
+        "highlight-bg-hover": "#dece98",
+        "header-bg": "#ede3c4",
+        "shadow": "rgba(44, 36, 22, 0.12)",
+        "dropdown-shadow": "rgba(44, 36, 22, 0.18)",
+        "overlay-bg": "rgba(44, 36, 22, 0.38)",
+        "accent-secondary": "#8a6030",
+        "scrollbar-track": "#ede3c4",
+        "scrollbar-thumb": "#c4b48a",
+        "scrollbar-thumb-hover": "#a89868"
+      }
+    },
+    "rose": {
+      "name": "Rose",
+      "group": "nature",
+      "order": 11,
+      "isDark": false,
+      "swatch": {
+        "bg": "#fdf2f4",
+        "fg": "#3b1020",
+        "accent": "#be185d"
+      },
+      "colors": {
+        "bg-primary": "#fdf2f4",
+        "bg-secondary": "#fce7ec",
+        "bg-tertiary": "#f8d7df",
+        "text-primary": "#3b1020",
+        "text-secondary": "#6b2040",
+        "text-muted": "#9a5070",
+        "border-color": "#e8b0c0",
+        "accent-color": "#be185d",
+        "accent-hover": "#9d174d",
+        "christ-words": "#c41e3a",
+        "highlight-bg": "#fcd0dc",
+        "highlight-bg-hover": "#f8bcc8",
+        "header-bg": "#fce7ec",
+        "shadow": "rgba(59, 16, 32, 0.1)",
+        "dropdown-shadow": "rgba(59, 16, 32, 0.15)",
+        "overlay-bg": "rgba(59, 16, 32, 0.35)",
+        "accent-secondary": "#e84080",
+        "scrollbar-track": "#fce7ec",
+        "scrollbar-thumb": "#e8b0c0",
+        "scrollbar-thumb-hover": "#d090a5"
+      }
+    },
+    "slate": {
+      "name": "Slate",
+      "group": "nature",
+      "order": 10,
+      "isDark": true,
+      "swatch": {
+        "bg": "#1e2530",
+        "fg": "#cbd5e1",
+        "accent": "#38bdf8"
+      },
+      "colors": {
+        "bg-primary": "#1e2530",
+        "bg-secondary": "#252d3a",
+        "bg-tertiary": "#2e3848",
+        "text-primary": "#cbd5e1",
+        "text-secondary": "#94a3b8",
+        "text-muted": "#64748b",
+        "border-color": "#334155",
+        "accent-color": "#38bdf8",
+        "accent-hover": "#7dd3fc",
+        "christ-words": "#f87171",
+        "highlight-bg": "#1e3a5f",
+        "highlight-bg-hover": "#264a73",
+        "header-bg": "#252d3a",
+        "shadow": "rgba(0, 0, 0, 0.35)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.45)",
+        "overlay-bg": "rgba(0, 0, 0, 0.55)",
+        "accent-secondary": "#fb923c",
+        "scrollbar-track": "#1e2530",
+        "scrollbar-thumb": "#334155",
+        "scrollbar-thumb-hover": "#475569"
+      }
+    },
+    "sunrise": {
+      "name": "Sunrise",
+      "group": "nature",
+      "order": 12,
+      "isDark": false,
+      "swatch": {
+        "bg": "#fef8f0",
+        "fg": "#3d2010",
+        "accent": "#d4802a"
+      },
+      "colors": {
+        "bg-primary": "#fef8f0",
+        "bg-secondary": "#fdf0de",
+        "bg-tertiary": "#fbe5c8",
+        "text-primary": "#3d2010",
+        "text-secondary": "#6b4020",
+        "text-muted": "#9a7050",
+        "border-color": "#e0c8a8",
+        "accent-color": "#d4802a",
+        "accent-hover": "#b86a1e",
+        "christ-words": "#c41e3a",
+        "highlight-bg": "#fde8c0",
+        "highlight-bg-hover": "#fcdda5",
+        "header-bg": "#fdf0de",
+        "shadow": "rgba(61, 32, 16, 0.1)",
+        "dropdown-shadow": "rgba(61, 32, 16, 0.15)",
+        "overlay-bg": "rgba(61, 32, 16, 0.35)",
+        "accent-secondary": "#e08830",
+        "scrollbar-track": "#fdf0de",
+        "scrollbar-thumb": "#e0c8a8",
+        "scrollbar-thumb-hover": "#c8ad88"
+      }
+    },
+    "sunset": {
+      "name": "Sunset",
+      "group": "nature",
+      "order": 8,
+      "isDark": true,
+      "swatch": {
+        "bg": "#2a1520",
+        "fg": "#f0d0d8",
+        "accent": "#e8789a"
+      },
+      "colors": {
+        "bg-primary": "#2a1520",
+        "bg-secondary": "#3a1a2a",
+        "bg-tertiary": "#4a2035",
+        "text-primary": "#f0d0d8",
+        "text-secondary": "#c8a0b0",
+        "text-muted": "#987888",
+        "border-color": "#5a2a3d",
+        "accent-color": "#e8789a",
+        "accent-hover": "#f09ab5",
+        "christ-words": "#f87171",
+        "highlight-bg": "#4a1a30",
+        "highlight-bg-hover": "#5a2040",
+        "header-bg": "#3a1a2a",
+        "shadow": "rgba(0, 0, 0, 0.3)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.4)",
+        "overlay-bg": "rgba(0, 0, 0, 0.5)",
+        "accent-secondary": "#e8a040",
+        "scrollbar-track": "#2a1520",
+        "scrollbar-thumb": "#5a2a3d",
+        "scrollbar-thumb-hover": "#7a3a55"
+      }
+    }
+  }
+}

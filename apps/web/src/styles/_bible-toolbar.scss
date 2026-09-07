@@ -1,0 +1,226 @@
+// ============================================================
+// Bible toolbar
+// ============================================================
+.bible-toolbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+
+  &__left {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  &__right {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+  }
+
+  &__nav {
+    display: flex;
+    align-items: stretch;
+    // Anchor for the history menu below.
+    position: relative;
+  }
+
+  // Recent-passages menu, hung off the history button.
+  &__history-menu {
+    position: absolute;
+    top: 100%;
+    inset-inline-start: 0;
+    z-index: 60;
+    min-width: 220px;
+    max-width: 320px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    padding-bottom: 4px;
+  }
+
+  &__history-heading {
+    padding: 6px 12px;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__history-empty {
+    padding: 10px 12px;
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+  }
+
+  &__history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 12px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
+    text-align: start;
+    color: var(--text-primary);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--current {
+      font-weight: 600;
+
+      .bible-toolbar__history-dot {
+        background: var(--accent-color);
+      }
+    }
+  }
+
+  &__history-dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: transparent;
+  }
+
+  &__history-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__history-module {
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  // Shared base for all toolbar items: flush, full-height, divider lines
+  &__mode-select,
+  &__translation-btn,
+  &__nav-btn,
+  &__btn {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    display: flex;
+    align-items: center;
+    transition: background 0.1s;
+    outline: none;
+    border-right: 2px solid var(--border-color);
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  // Right-side items use left border instead of right
+  &__right > &__btn,
+  &__right > &__nav > &__nav-btn {
+    border-right: none;
+    border-left: 2px solid var(--border-color);
+  }
+
+  &__mode-select {
+    &:focus {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__translation-btn {
+    font-weight: 600;
+    gap: 6px;
+  }
+
+  &__nav-btn {
+    padding: 8px 10px;
+    font-size: calc(12px * var(--ui-font-scale, 1));
+
+    &:disabled {
+      color: color-mix(in srgb, var(--text-primary) 30%, transparent);
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__btn {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__text-settings-wrapper {
+    position: relative;
+  }
+
+  &__text-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+    z-index: 100;
+    padding: 16px;
+    min-width: 240px;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 14px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      span {
+        font-size: calc(12px * var(--ui-font-scale, 1));
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      select {
+        padding: 5px 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: calc(13px * var(--ui-font-scale, 1));
+      }
+    }
+  }
+}
+

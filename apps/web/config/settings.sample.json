@@ -1,0 +1,66 @@
+{
+  "$schema": "./settings.schema.json",
+  "about": "A modern, open-source Bible study application.",
+  "bibles": {
+    "modules": {
+      "KJV": { "active": true },
+      "BSB": { "active": true },
+      "ASV": { "active": true },
+      "YLT": { "active": true },
+      "Darby": { "active": true },
+      "Geneva1599": { "active": true },
+      "LITV": { "active": true, "title": "Green's Literal Translation", "description": "Custom description override" },
+      "SomePrivateModule": { "active": false, "shortName": "SPM", "title": "Some Private Module" }
+    },
+    "sections": [
+      {
+        "title": "Popular",
+        "helpText": "Well-known, widely-used translations",
+        "modules": ["KJV", "BSB", "ASV", "YLT"]
+      },
+      {
+        "title": "Other Translations",
+        "modules": ["Darby", "Geneva1599", "LITV"]
+      }
+    ]
+  },
+  "commentaries": {
+    "modules": {
+      "SYNTHESIS": { "active": true },
+      "Barnes": { "active": true },
+      "gill": { "active": true },
+      "Clarke": { "active": true },
+      "pulpit": { "active": true },
+      "Wesley": { "active": true }
+    },
+    "sections": [
+      {
+        "title": "Top Commentaries",
+        "modules": ["SYNTHESIS", "Barnes", "gill", "Clarke", "pulpit"]
+      },
+      {
+        "title": "Additional",
+        "modules": ["Wesley"]
+      }
+    ]
+  },
+  "dictionaries": {
+    "modules": {
+      "Easton": { "active": true },
+      "Smith": { "active": true },
+      "StrongsGreek": { "active": true },
+      "StrongsHebrew": { "active": true },
+      "ISBE": { "active": true }
+    },
+    "sections": [
+      {
+        "title": "Bible Dictionaries",
+        "modules": ["Easton", "Smith", "ISBE"]
+      },
+      {
+        "title": "Greek & Hebrew Lexicons",
+        "modules": ["StrongsGreek", "StrongsHebrew"]
+      }
+    ]
+  }
+}

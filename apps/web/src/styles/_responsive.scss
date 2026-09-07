@@ -1,0 +1,214 @@
+// ============================================================
+// Responsive
+// ============================================================
+@media (max-width: 1024px) {
+  .main-layout {
+    &__bible {
+      width: 100% !important;
+      flex: 1 !important;
+    }
+
+    &__right-pane {
+      position: fixed;
+      top: 48px;
+      right: 0;
+      width: 350px !important;
+      height: calc(100vh - 48px);
+      z-index: 40;
+      background: var(--bg-primary);
+      box-shadow: -4px 0 12px var(--shadow);
+    }
+  }
+
+  .resize-handle {
+    display: none;
+  }
+}
+
+// ============================================================
+// Mobile layout styles (driven by .app--mobile class)
+// ============================================================
+.app--mobile {
+  .header {
+    gap: 8px;
+    padding: 8px 12px;
+
+    // Hide search bar on mobile — the Search tab has its own
+    &__search {
+      display: none;
+    }
+  }
+
+  .main-layout__bible {
+    width: 100% !important;
+  }
+
+  // Hide the TOC list icon on mobile
+  .header__toc-btn {
+    display: none;
+  }
+
+  // Hide toolbar chapter nav on mobile (the chapter header has its own)
+  .bible-toolbar__chapter-nav {
+    display: none;
+  }
+
+  // Mobile: chapter header nav buttons flush to edges, taller, easier to tap
+  .bible-content__chapter-header {
+    gap: 0;
+    padding: 0;
+    margin-bottom: 8px;
+  }
+
+  .bible-content__nav-btn {
+    border: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent) !important;
+    border-radius: 4px !important;
+    padding: 12px 14px !important;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 4px;
+
+    &:active:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  .bible-content__chapter-title {
+    flex: 1 !important;
+    text-align: center;
+    margin-left: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-layout__right-pane {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    flex: 1;
+    box-shadow: none !important;
+  }
+
+  .search-panel {
+    width: 100%;
+  }
+
+  .bible-content {
+    padding: 16px;
+
+    &--standard {
+      padding: 12px;
+    }
+  }
+
+  // Mobile: inline verse number with text so wrapped lines don't indent
+  .bible-content--standard .verse--block {
+    display: block;
+
+    .verse__number-left {
+      float: left;
+      width: auto;
+      padding-right: 4px;
+      text-align: left;
+    }
+
+    .verse__body {
+      display: block;
+    }
+  }
+
+  // Hide the Commentary/Search tab switcher on mobile — bottom nav replaces it
+  .right-pane-tabs {
+    display: none;
+  }
+
+  // Show the inline mobile search bar
+  .search-panel-inline__mobile-bar {
+    display: flex;
+  }
+
+  // On mobile, show clickable "Select a verse" link, hide plain text version
+  .commentary-content__select-verse-text {
+    display: none;
+  }
+
+  .commentary-content__select-verse-link {
+    display: inline;
+  }
+
+  // Tab bar sticks to top of the scroll wrapper; header and toolbar
+  // above it scroll away naturally as page content.
+  .bible-tab-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--border-color) 60%, transparent);
+  }
+
+  .bible-back-bar {
+    position: sticky;
+    top: 46px; // just below the sticky tab bar (tab bar height ~46px)
+    z-index: 9;
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-secondary));
+    // Ensure the bar doesn't get clipped by scroll
+    margin-top: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  // The outer mobile-scroll-wrapper is the sole scroll container;
+  // disable the inner bible-pane scroll so content flows naturally.
+  .bible-pane {
+    height: auto;
+  }
+
+  .bible-pane__scroll-container {
+    overflow: visible;
+    flex: none;
+  }
+
+  // Commentary and search panes flow into the outer scroll wrapper
+  .main-layout__right-pane {
+    overflow: visible;
+  }
+
+  // Study pane needs its own scroll context — disable outer wrapper scroll
+  // But NOT for the commentary tab, which should flow into the outer scroll wrapper
+  // so the header scrolls away naturally (like the Bible pane).
+  .mobile-scroll-wrapper:has(.mobile-study-pane:not(.mobile-study-pane--commentary)) {
+    overflow: hidden !important;
+  }
+
+  .main-layout__right-pane:has(.mobile-study-pane:not(.mobile-study-pane--commentary)) {
+    overflow: hidden !important;
+    height: 100% !important;
+  }
+
+  .commentary-pane {
+    height: auto;
+  }
+
+  .commentary-passage-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .commentary-home__list-item--expanded {
+    top: 33px;
+  }
+
+  .commentary-home__accordion {
+    scroll-margin-top: 33px;
+  }
+
+  .commentary-content {
+    overflow: visible;
+    max-height: none;
+  }
+}
+

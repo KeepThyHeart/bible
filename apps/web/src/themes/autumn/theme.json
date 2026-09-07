@@ -1,0 +1,12 @@
+{
+  "id": "autumn",
+  "name": "Autumn",
+  "group": "nature",
+  "order": 15,
+  "isDark": false,
+  "swatch": {
+    "bg": "#faf6f0",
+    "fg": "#2e1a0e",
+    "accent": "#b45309"
+  }
+}

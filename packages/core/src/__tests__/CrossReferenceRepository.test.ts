@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as path from 'path';
-import * as fs from 'fs';
 import { CrossReferenceRepository } from '../Data/Repositories/CrossReferenceRepository';
 import { CrossReferenceGroup } from '../Data/Models/CrossReference/CrossReferenceGroup';
 import { ModuleCrossRefEntry } from '../Data/Models/CrossReference/CrossReferenceEntry';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { moduleDb, testDataAvailable } from './helpers/testData';
 
 // ---------------------------------------------------------------------------
 // Read-only SQLite provider for testing against real module databases
@@ -12,9 +11,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // ---------------------------------------------------------------------------
 // Database path
 // ---------------------------------------------------------------------------
-const DB_PATH = path.resolve(__dirname, '../../../desktop/data/modules/xref_tsk.db');
+const DB_PATH = moduleDb('xref_tsk.db');
 
-describe.skipIf(!fs.existsSync(DB_PATH))('CrossReferenceRepository (xref_tsk.db)', () => {
+describe.skipIf(!testDataAvailable('CrossReferenceRepository (xref_tsk.db)', DB_PATH))('CrossReferenceRepository (xref_tsk.db)', () => {
   let provider: TestSqliteProvider;
   let repo: CrossReferenceRepository;
 

@@ -1,0 +1,46 @@
+// ============================================================
+// Main layout
+// ============================================================
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+
+  &__bible {
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__commentary-collapsed {
+    border-left: 1px solid var(--border-color);
+  }
+}
+
+// Resize handle
+.resize-handle {
+  width: 6px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+
+  &:hover .resize-handle__line {
+    background: var(--accent-color);
+  }
+
+  &__line {
+    width: 2px;
+    height: 40px;
+    background: var(--border-color);
+    border-radius: 1px;
+    transition: background 0.15s;
+  }
+}
+

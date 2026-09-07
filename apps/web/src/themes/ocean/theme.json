@@ -1,0 +1,12 @@
+{
+  "id": "ocean",
+  "name": "Ocean",
+  "group": "nature",
+  "order": 7,
+  "isDark": false,
+  "swatch": {
+    "bg": "#eef4f8",
+    "fg": "#0f2b3c",
+    "accent": "#1a6ea0"
+  }
+}

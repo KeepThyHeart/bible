@@ -1,0 +1,40 @@
+// ============================================================
+// Verse reference hover tooltip
+// ============================================================
+.verse-ref-tooltip {
+  position: fixed;
+  z-index: 150;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px var(--dropdown-shadow);
+  padding: 10px 14px;
+  max-width: 400px;
+  min-width: 200px;
+  pointer-events: none;
+
+  &__ref {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--accent-color);
+    margin-bottom: 4px;
+  }
+
+  &__text {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    line-height: 1.5;
+    color: var(--text-primary);
+
+    // The preview shows the same formatted verse HTML as the reading pane, so
+    // it needs the same two rules. `_bible-content.scss` scopes them under
+    // `.verse`, which this popup is not inside.
+    .christ-words {
+      color: var(--christ-words);
+    }
+
+    .divine-name {
+      font-variant-caps: small-caps;
+    }
+  }
+}
+

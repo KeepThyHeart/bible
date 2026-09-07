@@ -1,0 +1,12 @@
+{
+  "id": "parchment",
+  "name": "Parchment",
+  "group": "nature",
+  "order": 14,
+  "isDark": false,
+  "swatch": {
+    "bg": "#f5edd5",
+    "fg": "#2c2416",
+    "accent": "#6b4e2a"
+  }
+}

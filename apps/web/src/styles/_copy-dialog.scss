@@ -1,0 +1,306 @@
+// ============================================================
+// Copy dialog
+// ============================================================
+.copy-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.copy-dialog {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  padding: 24px;
+  // Wide enough for two columns; the media query at the foot of this file
+  // stacks them when the viewport cannot hold both.
+  width: 760px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    h3 { font-size: calc(16px * var(--ui-font-scale, 1)); }
+
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: calc(18px * var(--ui-font-scale, 1));
+      color: var(--text-muted);
+
+      &:hover {
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  &__ref-field {
+    margin-bottom: 12px;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      span {
+        font-size: calc(13px * var(--ui-font-scale, 1));
+        color: var(--text-secondary);
+      }
+
+      input {
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: calc(14px * var(--ui-font-scale, 1));
+        outline: none;
+
+        &:focus {
+          border-color: var(--accent-color);
+        }
+
+        &::placeholder {
+          color: var(--text-muted);
+        }
+      }
+    }
+  }
+
+  // Two columns: formats and their options on the left, live preview on the
+  // right, so a toggle and its effect on the output are one glance apart.
+  &__body {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  &__left {
+    flex: 0 0 260px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__section-heading {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  &__format-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  // A stacked radio list rather than a row of toggle buttons: it is a
+  // single-choice list, which is what a radio group *is*, and every entry
+  // carries a line of prose under its name that a button row has no room for.
+  &__formats {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__format {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--selected {
+      background: var(--bg-secondary);
+    }
+
+    input[type="radio"] {
+      margin-top: 2px;
+      width: auto;
+      cursor: pointer;
+    }
+  }
+
+  &__format-number {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .copy-dialog__format--selected & {
+      background: var(--accent-color);
+      color: #fff;
+    }
+  }
+
+  &__format-text {
+    min-width: 0;
+  }
+
+  &__format-name {
+    display: block;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  &__format-desc {
+    display: block;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  // The badges are decoration until something says what they are for.
+  &__format-hint {
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+  }
+
+  &__preview {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    line-height: 1.6;
+  }
+
+  // Markdown reaches the clipboard as source text, so it previews as source
+  // text; everything else previews as the block tree the formatter produced.
+  &__preview-source {
+    white-space: pre-wrap;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-family: inherit;
+  }
+
+  &__preview-blocks {
+    p {
+      margin: 0 0 8px;
+
+      &:last-child { margin-bottom: 0; }
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      margin: 12px 0 4px;
+      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-weight: 600;
+
+      &:first-child { margin-top: 0; }
+    }
+
+    blockquote {
+      margin: 0 0 8px;
+      padding-left: 10px;
+      border-left: 3px solid var(--border-color);
+
+      &:last-child { margin-bottom: 0; }
+    }
+  }
+
+  // A writing prompt, meant to be typed over rather than read.
+  &__preview-placeholder {
+    color: var(--text-muted);
+  }
+
+  &__advanced-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+
+    input[type="checkbox"] {
+      width: auto;
+    }
+
+    select {
+      padding: 4px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: calc(12px * var(--ui-font-scale, 1));
+      margin-left: auto;
+    }
+  }
+
+  &__copy-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--accent-hover);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  // Narrow screens stack the two columns, putting the preview under the
+  // format list rather than squeezing both into a phone's width.
+  @media (max-width: 760px) {
+    &__body {
+      flex-direction: column;
+    }
+
+    &__left {
+      flex: 1 1 auto;
+    }
+  }
+}

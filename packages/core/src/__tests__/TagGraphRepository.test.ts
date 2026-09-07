@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
-import * as fs from 'fs';
 import { TagGraphRepository } from '../Data/Repositories/TagGraphRepository';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { TEST_DATA_DIR, testDataAvailable } from './helpers/testData';
 
 // ==========================================================================
 // Test SQLite Provider (read-only)
@@ -12,9 +12,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // Test Suite
 // ==========================================================================
 
-const dbPath = path.resolve(__dirname, '../../../desktop/data/tag_graph.db');
+const dbPath = path.join(TEST_DATA_DIR, 'tag_graph.db');
 
-describe.skipIf(!fs.existsSync(dbPath))('TagGraphRepository', () => {
+describe.skipIf(!testDataAvailable('TagGraphRepository', dbPath))('TagGraphRepository', () => {
   let provider: TestSqliteProvider;
   let repo: TagGraphRepository;
 

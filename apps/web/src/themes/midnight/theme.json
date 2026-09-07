@@ -1,0 +1,12 @@
+{
+  "id": "midnight",
+  "name": "Midnight",
+  "group": "nature",
+  "order": 5,
+  "isDark": true,
+  "swatch": {
+    "bg": "#0d1117",
+    "fg": "#c9d1d9",
+    "accent": "#58a6ff"
+  }
+}

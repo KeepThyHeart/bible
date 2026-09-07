@@ -1,0 +1,45 @@
+{
+  "$schema": "../../config/site-config.schema.json",
+  "auth": {
+    "enabled": false
+  },
+  "features": {
+    "offlineAutoDownload": false
+  },
+  "modules": {
+    "about": "Keep Thy Heart — e2e test fixture.",
+    "bibles": {
+      "modules": {
+        "KJV": { "active": true, "sortOrder": 1 },
+        "ASV": { "active": true, "sortOrder": 2 },
+        "BSB": { "active": true, "sortOrder": 3 }
+      },
+      "sections": [
+        { "title": "Translations", "modules": ["KJV", "ASV", "BSB"] }
+      ]
+    },
+    "commentaries": {
+      "modules": {
+        "Barnes": { "active": true, "sortOrder": 1 },
+        "Clarke": { "active": true, "sortOrder": 2 },
+        "TSK": { "active": true, "sortOrder": 3 },
+        "Wesley": { "active": true, "sortOrder": 4 }
+      },
+      "sections": [
+        { "title": "Commentaries", "modules": ["Barnes", "Clarke", "TSK", "Wesley"] }
+      ]
+    },
+    "dictionaries": {
+      "modules": {
+        "AmTract": { "active": true, "sortOrder": 1 },
+        "Easton": { "active": true, "sortOrder": 2 },
+        "ISBE": { "active": true, "sortOrder": 3 },
+        "StrongsGreek": { "active": true, "sortOrder": 4 },
+        "StrongsHebrew": { "active": true, "sortOrder": 5 }
+      },
+      "sections": [
+        { "title": "Dictionaries", "modules": ["AmTract", "Easton", "ISBE"] }
+      ]
+    }
+  }
+}

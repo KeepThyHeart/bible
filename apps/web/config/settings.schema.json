@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Bible Web App Module Settings",
+  "description": "Controls which modules are visible and how they are grouped in the UI. Place in the data directory as settings.json. If this file is absent, no modules are visible (fail-safe).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored at runtime)."
+    },
+    "about": {
+      "type": "string",
+      "description": "Custom 'About' text displayed in the app settings panel."
+    },
+    "bibles": { "$ref": "#/$defs/moduleTypeConfig" },
+    "commentaries": { "$ref": "#/$defs/moduleTypeConfig" },
+    "dictionaries": { "$ref": "#/$defs/moduleTypeConfig" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "moduleEntry": {
+      "type": "object",
+      "description": "Configuration for a single module.",
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "description": "Whether this module is visible to users."
+        },
+        "shortName": {
+          "type": "string",
+          "description": "Override the displayed abbreviation."
+        },
+        "title": {
+          "type": "string",
+          "description": "Override the displayed full name."
+        },
+        "description": {
+          "type": "string",
+          "description": "Override the displayed description text."
+        }
+      },
+      "required": ["active"],
+      "additionalProperties": false
+    },
+    "section": {
+      "type": "object",
+      "description": "A named group of modules displayed together in the UI.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Section heading shown in the module selector."
+        },
+        "helpText": {
+          "type": "string",
+          "description": "Optional help text displayed below the section heading."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered list of module abbreviations in this section."
+        }
+      },
+      "required": ["title", "modules"],
+      "additionalProperties": false
+    },
+    "moduleTypeConfig": {
+      "type": "object",
+      "description": "Configuration for one module type (bibles, commentaries, or dictionaries).",
+      "properties": {
+        "modules": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/moduleEntry" },
+          "description": "Map of module abbreviation to its configuration. Only modules listed here with active: true are visible."
+        },
+        "sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/section" },
+          "description": "Ordered sections for grouping modules in the UI. Modules not in any section appear under 'Other'."
+        }
+      },
+      "required": ["modules", "sections"],
+      "additionalProperties": false
+    }
+  }
+}

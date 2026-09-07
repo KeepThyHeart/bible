@@ -1,0 +1,435 @@
+// ============================================================
+// Settings panel (centered popup with overlay)
+// ============================================================
+.settings-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.settings-panel {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  width: 420px;
+  max-width: 90vw;
+  height: 60vh;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+
+  &--tabs {
+    width: 580px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 {
+      font-size: calc(16px * var(--ui-font-scale, 1));
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    padding: 4px;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 160px;
+    border-right: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    padding: 8px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    border-radius: 6px;
+    text-align: left;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    &--active {
+      background: var(--accent-color);
+      color: #fff;
+
+      &:hover {
+        background: var(--accent-hover);
+        color: #fff;
+      }
+    }
+
+    i {
+      width: 16px;
+      text-align: center;
+      font-size: calc(12px * var(--ui-font-scale, 1));
+    }
+  }
+
+  &__content {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+
+  &__body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+  }
+
+  &__reset-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent-color);
+      border-color: var(--accent-color);
+    }
+  }
+
+  &__section-title {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+
+    .settings-panel__section-header & {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    span {
+      font-size: calc(13px * var(--ui-font-scale, 1));
+      color: var(--text-secondary);
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+    }
+
+    select {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: calc(13px * var(--ui-font-scale, 1));
+    }
+
+    &--checkbox {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+
+      input[type="checkbox"] {
+        width: auto;
+      }
+    }
+  }
+
+  // A labelled slider with a − and + on either side.
+  //
+  // The geometry is deliberately independent of the text in it: the buttons are
+  // fixed-width and anchored to the ends of a full-width row, and the slider
+  // takes whatever is left. So the buttons stay exactly where they are as the
+  // value goes 9 → 10 → 100 or 1.8 → 2 — clicking + five times never moves the
+  // + out from under the pointer. The value itself sits in the label line, in a
+  // fixed-width cell with tabular figures, for the same reason.
+  &__stepper {
+    gap: 2px;
+  }
+
+  &__stepper-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__stepper-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__stepper-value {
+    flex: 0 0 auto;
+    width: 5ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    color: var(--text-primary) !important;
+  }
+
+  &__stepper-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    input[type="range"] {
+      flex: 1 1 auto;
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  &__stepper-btn {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary, var(--bg-secondary));
+      border-color: var(--accent-color);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__hint {
+    font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+    color: var(--text-muted) !important;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  &__scheme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  &__scheme-card {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: left;
+    transition: border-color 0.15s;
+
+    &:hover {
+      border-color: var(--accent-color);
+    }
+
+    &--active {
+      border-color: var(--accent-color);
+    }
+  }
+
+  &__scheme-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  &__scheme-heading {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    padding: 6px 10px 0;
+  }
+
+  &__scheme-body {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    padding: 0 10px 6px;
+  }
+
+  &__theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 8px;
+  }
+
+  &__theme-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 4px 4px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    min-height: 44px;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+
+    &--active {
+      border-width: 2px;
+      box-shadow: 0 0 0 1px currentColor;
+    }
+  }
+
+  &__theme-swatch-bar {
+    width: 80%;
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 4px;
+  }
+
+  &__theme-swatch-label {
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  &__about {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__about-name {
+    font-size: calc(18px * var(--ui-font-scale, 1));
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__about-desc {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  &__about-license {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+  }
+
+  &__about-text {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  &__about-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+
+// The shared select treatment.
+//
+// It used to live only as `.settings-panel__field select`, so a select outside
+// a field — the language picker on the About tab — fell back to the browser's
+// own control and matched nothing else in the panel. Both selects already
+// carried `.settings-select`; now the class actually means something, and the
+// field rule above is what keeps a class-less select in a field looking right.
+.settings-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+  }
+}

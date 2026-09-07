@@ -12,7 +12,6 @@
 
 import { describe, it, expect } from 'vitest';
 import * as path from 'path';
-import * as fs from 'fs';
 import { ISql } from '../../Data/Core/ISql';
 import { CommentaryRepository } from '../../Data/Repositories/CommentaryRepository';
 import { CrossReferenceRepository } from '../../Data/Repositories/CrossReferenceRepository';
@@ -25,13 +24,14 @@ import {
   EntityAggregationService,
 } from '../../Services/StudyOverview';
 import { TestSqliteProvider } from '../helpers/TestSqliteProvider';
+import { TEST_DATA_DIR, TEST_MODULES_DIR, testDataAvailable } from '../helpers/testData';
 
 // -- Test SQLite provider --------------------------------------------------
 
 // -- Fixture paths ---------------------------------------------------------
 
-const MODULES_DIR = path.resolve(__dirname, '../../../../desktop/data/modules/');
-const DESKTOP_DATA_DIR = path.resolve(__dirname, '../../../../desktop/data/');
+const MODULES_DIR = path.join(TEST_MODULES_DIR, 'modules');
+const DESKTOP_DATA_DIR = TEST_DATA_DIR;
 
 const BARNES = path.join(MODULES_DIR, 'commentary_barnes.db');
 const TSK = path.join(MODULES_DIR, 'xref_tsk.db');
@@ -58,7 +58,7 @@ function lazyRepository<T>(dbPath: string, make: (sql: ISql) => T): () => T {
 // CommentaryAggregationService
 // -------------------------------------------------------------------------
 
-describe.skipIf(!fs.existsSync(BARNES))('CommentaryAggregationService', () => {
+describe.skipIf(!testDataAvailable('CommentaryAggregationService', BARNES))('CommentaryAggregationService', () => {
   const getRepo = lazyRepository(BARNES, sql => new CommentaryRepository(sql));
   const service = new CommentaryAggregationService();
 
@@ -120,7 +120,7 @@ describe.skipIf(!fs.existsSync(BARNES))('CommentaryAggregationService', () => {
 // CrossRefAggregationService
 // -------------------------------------------------------------------------
 
-describe.skipIf(!fs.existsSync(TSK))('CrossRefAggregationService', () => {
+describe.skipIf(!testDataAvailable('CrossRefAggregationService', TSK))('CrossRefAggregationService', () => {
   const getRepo = lazyRepository(TSK, sql => new CrossReferenceRepository(sql));
   const service = new CrossRefAggregationService();
 
@@ -174,7 +174,7 @@ describe.skipIf(!fs.existsSync(TSK))('CrossRefAggregationService', () => {
 // TopicAggregationService
 // -------------------------------------------------------------------------
 
-describe.skipIf(!fs.existsSync(NAVE))('TopicAggregationService', () => {
+describe.skipIf(!testDataAvailable('TopicAggregationService', NAVE))('TopicAggregationService', () => {
   const getRepo = lazyRepository(NAVE, sql => new TopicalIndexRepository(sql));
 
   it('precomputes parent chains and recursive verse counts', () => {
@@ -274,7 +274,7 @@ describe.skipIf(!fs.existsSync(NAVE))('TopicAggregationService', () => {
 // EntityAggregationService
 // -------------------------------------------------------------------------
 
-describe.skipIf(!fs.existsSync(TAG_GRAPH))('EntityAggregationService', () => {
+describe.skipIf(!testDataAvailable('EntityAggregationService', TAG_GRAPH))('EntityAggregationService', () => {
   it('returns empty dict when tag graph is null', () => {
     const service = new EntityAggregationService();
     expect(service.getChapterEntities(43, 3, null)).toEqual({});

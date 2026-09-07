@@ -1,0 +1,12 @@
+{
+  "id": "lagoon",
+  "name": "Lagoon",
+  "group": "nature",
+  "order": 6,
+  "isDark": false,
+  "swatch": {
+    "bg": "#effaf8",
+    "fg": "#0c2e2a",
+    "accent": "#0e8a7a"
+  }
+}

@@ -1,0 +1,75 @@
+// Mobile bottom navigation (hidden by default, shown via .app--mobile class)
+// ============================================================
+.mobile-nav {
+  display: none;
+}
+
+.app--mobile .mobile-nav {
+  display: flex;
+}
+
+.mobile-nav-tooltip {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg, #333);
+  color: var(--tooltip-color, #fff);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: auto;
+  animation: mobile-tooltip-fade 2.5s ease-in-out;
+}
+
+@keyframes mobile-tooltip-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.mobile-nav {
+  border-top: 1px solid var(--border-color);
+  background: var(--header-bg);
+  flex-shrink: 0;
+
+  &__btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.65;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    transition: color 0.15s, opacity 0.15s;
+
+    i {
+      font-size: calc(18px * var(--ui-font-scale, 1));
+    }
+
+    &--active {
+      color: var(--accent-color);
+      opacity: 1;
+      font-weight: 700;
+      position: relative;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 48px;
+        height: 3px;
+        background: var(--accent-color);
+      }
+    }
+  }
+}
+

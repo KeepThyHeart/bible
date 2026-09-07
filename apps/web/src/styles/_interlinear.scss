@@ -1,0 +1,115 @@
+// ============================================================
+// Interlinear original word display
+// ============================================================
+.verse__interlinear-original {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  direction: auto;
+  unicode-bidi: isolate;
+}
+
+// The original-language word and its transliteration open the same Strong's
+// definition as the chip beside them. They used to be inert, which made the
+// most obvious thing to click in an interlinear do nothing.
+.verse__interlinear-original--clickable,
+.verse__interlinear-translit--clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.1s;
+
+  &:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--accent-color);
+  }
+}
+
+// ============================================================
+// Inline interlinear — the default layout. Reads as prose, with each word's
+// original-language form in a small parenthetical after it.
+// ============================================================
+.verse__body--interlinear-inline {
+  flex: 1;
+  overflow-wrap: break-word;
+}
+
+// Keeps a word and its parenthetical together across a line break.
+.verse__interlinear-inline-word {
+  white-space: normal;
+}
+
+.verse__interlinear-annotation {
+  margin-left: 3px;
+  font-size: 0.75em;
+  color: var(--text-muted);
+  white-space: nowrap;
+
+  .verse__interlinear-original,
+  .verse__interlinear-translit {
+    font-size: 1em;
+  }
+
+  .verse__interlinear-translit,
+  .verse__strongs-link {
+    margin-left: 3px;
+  }
+}
+
+// ============================================================
+// Mobile scroll wrapper — single scrollable region for mobile layout.
+// Header, tab bar, toolbar, and content are siblings inside it.
+// The tab bar uses position:sticky to stay pinned while the rest scrolls.
+// ============================================================
+.mobile-scroll-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+// ============================================================
+
+// Stacked / Inline switch, shown beside the interlinear it controls.
+.interlinear-layout-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  overflow: hidden;
+
+  &__btn {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 3px 9px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    line-height: 1.6;
+    white-space: nowrap;
+
+    & + & {
+      border-inline-start: 1px solid var(--border-color);
+    }
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    &--active {
+      background: var(--accent-color);
+      color: #fff;
+
+      &:hover {
+        background: var(--accent-color);
+        color: #fff;
+      }
+    }
+  }
+}
+
+// The Study pane's Interlinear section puts the switch on its own row.
+.study-home__section-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-end: 8px;
+}

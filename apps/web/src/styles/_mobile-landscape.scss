@@ -1,0 +1,218 @@
+// ============================================================
+// Mobile landscape layout
+// ============================================================
+// Landscape layout: [left sidebar (header + tabs)] [center content] [right nav]
+// JSX renders: .mobile-landscape-sidebar + .mobile-scroll-wrapper + .mobile-nav
+.app--mobile-landscape {
+  flex-direction: row !important;
+
+  // Left sidebar: header, action icons, then tab bars stacked vertically
+  .mobile-landscape-sidebar {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: auto;
+
+    &__header {
+      padding: 6px 10px;
+      font-weight: 600;
+      font-size: calc(13px * var(--ui-font-scale, 1));
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border-color);
+
+      i {
+        margin-right: 4px;
+      }
+    }
+
+    &__actions {
+      display: flex;
+      flex-direction: row;
+      gap: 2px;
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    &__action-btn {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: calc(14px * var(--ui-font-scale, 1));
+
+      &:hover {
+        background: var(--hover-bg);
+      }
+    }
+
+    &__theme-wrapper {
+      position: relative;
+    }
+
+    &__theme-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      min-width: 120px;
+    }
+
+    &__theme-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: calc(13px * var(--ui-font-scale, 1));
+
+      &:hover {
+        background: var(--hover-bg);
+      }
+
+      &--active {
+        color: var(--accent-color);
+        font-weight: 600;
+      }
+
+      &:first-child {
+        border-radius: 6px 6px 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 0 6px 6px;
+      }
+    }
+
+    // Tab bars: vertical stack (normal flex-direction: column)
+    .bible-tab-bar,
+    .commentary-tab-bar {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      position: static;
+      border-bottom: none;
+      box-shadow: none;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .bible-tab-bar {
+      &__tab {
+        border-bottom: none;
+        border-left: 4px solid transparent;
+        padding: 8px 10px;
+
+        &--active {
+          border-left-color: var(--accent-color);
+          border-bottom-color: transparent;
+        }
+      }
+
+      &__tab-content {
+        gap: 2px;
+      }
+
+      &__close {
+        display: inline-flex;
+        opacity: 0.5;
+        font-size: 0.7em;
+        padding: 2px;
+      }
+
+      &__add {
+        border: 1px dashed var(--border-color);
+        border-radius: 4px;
+        margin: 4px 8px;
+        padding: 4px 10px;
+      }
+    }
+
+    .commentary-tab-bar {
+      &__tab {
+        border-bottom: none;
+        border-left: 3px solid transparent;
+
+        &--active {
+          border-bottom-color: transparent;
+          border-left-color: var(--accent-color);
+        }
+      }
+
+      &__add {
+        border: 1px dashed var(--border-color);
+        border-radius: 4px;
+        margin: 4px 8px;
+        padding: 4px 10px;
+      }
+    }
+  }
+
+  // Center content area: scrolls vertically, takes remaining space
+  .mobile-scroll-wrapper {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  // Header: hide in landscape (shown in sidebar instead)
+  .header {
+    display: none;
+  }
+
+  // BackBar: keep compact, no sticky
+  .bible-back-bar {
+    position: static;
+  }
+
+  // Nav bar moves to the right, vertical orientation
+  .mobile-nav {
+    flex-direction: column;
+    border-top: none;
+    border-left: 1px solid var(--border-color);
+    width: auto;
+
+    &__btn {
+      padding: 10px 8px;
+      flex: none;
+
+      span {
+        font-size: calc(9px * var(--ui-font-scale, 1));
+      }
+
+      &--active::before {
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 24px;
+        border-radius: 0;
+      }
+    }
+  }
+
+  // Tooltip adjusts for landscape
+  .mobile-nav-tooltip {
+    bottom: auto;
+    right: 52px;
+    left: auto;
+    transform: none;
+  }
+}
+

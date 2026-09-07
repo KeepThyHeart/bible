@@ -1,0 +1,12 @@
+{
+  "id": "arctic",
+  "name": "Arctic",
+  "group": "nature",
+  "order": 13,
+  "isDark": false,
+  "swatch": {
+    "bg": "#f0f8ff",
+    "fg": "#0a2540",
+    "accent": "#0284c7"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "../schemas/help.schema.json",
+  "title": "Help",
+  "docs": {
+    "cta": "Open the User Guide",
+    "desc": "Documentation with screenshots and step-by-step walkthroughs"
+  },
+  "feedback": {
+    "cta": "Send feedback",
+    "desc": "Report a problem or share an idea"
+  },
+  "gettingStarted": {
+    "title": "Getting Started",
+    "intro": "Keep Thy Heart is a Bible study tool. Use the search bar to navigate to any passage or search for words and phrases.",
+    "introContext": {
+      "desktop": "web-based ",
+      "mobile": ""
+    },
+    "referenceHint": "Type a reference like <strong>John 3:16</strong> or <strong>Gen 1</strong> to jump to a passage.",
+    "searchHint": "Type any word or phrase to search across active translations.",
+    "searchTypeHint": "Use the dropdown on the search bar to switch between <strong>Standard Search</strong> (keyword matching) and <strong>Ideas Search</strong> (matches the concepts in your query to the concepts in Bible verses).",
+    "searchTypeHintMobile": "Switch between <strong>Standard</strong> and <strong>Ideas Search</strong> via the search bar dropdown."
+  },
+  "biblePaneDesktop": {
+    "title": "Bible Pane",
+    "compareTabs": "Open multiple tabs to compare passages side by side.",
+    "translationSelector": "Use the <strong>translation selector</strong> to switch Bible versions.",
+    "displayModes": "Switch display modes: <strong>Reading</strong> (no verse numbers), <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).",
+    "strongsClick": "Click a <strong>Strong's number</strong> in Study mode to view its dictionary entry.",
+    "copyDialog": "Right-click any verse to access the <strong>Copy Passage</strong> dialog."
+  },
+  "readingMobile": {
+    "title": "Reading",
+    "compareTabs": "Open multiple tabs to compare passages.",
+    "translationSelector": "Use the <strong>translation selector</strong> to switch Bible versions.",
+    "displayModes": "Switch display modes: <strong>Reading</strong>, <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).",
+    "longPress": "Tap and hold a verse to access options like <strong>Copy</strong>."
+  },
+  "navigation": {
+    "title": "Navigation",
+    "bottomTabs": "Use the <strong>bottom tabs</strong> to switch between Read, Search, Study, and Commentary.",
+    "studyTab": "The <strong>Study</strong> tab shows cross-references, topics, and interlinear data.",
+    "commentaryTab": "The <strong>Commentary</strong> tab shows commentaries for the current verse."
+  },
+  "commentaryAndSearch": {
+    "title": "Commentary & Search",
+    "rightPane": "The right pane shows <strong>commentary</strong> for the current passage, updating as you navigate.",
+    "switchPanes": "Switch between Commentary and Search results using the tabs at the top of the right pane.",
+    "ctrlClick": "Click <strong>Ctrl+Click</strong> on a search result to open it in a new tab."
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "focusSearch": "Focus search bar",
+    "focusSearchAlt": "Focus search bar (when not typing)",
+    "copyDialog": "Open copy dialog (when no text selected)",
+    "closeDialog": "Close any open dialog or popup"
+  },
+  "settings": {
+    "title": "Settings",
+    "descMobile": "Tap the gear icon to customize theme, font, and offline settings.",
+    "descDesktop": "Click the gear icon to customize theme, font family, font size, line height, and offline mode settings."
+  }
+}

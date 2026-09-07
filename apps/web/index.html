@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="%BRAND_THEME_COLOR%" />
+  <meta name="description" content="%BRAND_TAGLINE%" />
+  <!-- Browser-tab icon. There was no `rel="icon"` here at all, only the iOS
+       home-screen one below, so every tab fell back to the browser's default
+       blank/globe glyph. SVG first for browsers that take it (it stays crisp at
+       any tab density); the PNGs are the fallback for those that do not. -->
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <!-- Self-hosted reading fonts. This was a fonts.googleapis.com stylesheet
+       listing eight families by hand, which made a third-party request on every
+       page load, could not work offline, and had no link to the FONT_SCHEMES
+       the app actually offers. scripts/fetch-fonts.mjs now downloads them into
+       public/fonts/ at prebuild time and checks that list against the schemes. -->
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <title>%BRAND_PRODUCT_NAME%</title>
+  <!-- Brand strings for the inline boot scripts further down. They cannot read
+       the placeholders used elsewhere in this file directly: those are
+       HTML-escaped, and entities are not decoded inside <script>. Injected by
+       brandingPlugin() in vite.config.ts, which also owns the escaping. -->
+  <script>window.__BRAND__ = %BRAND_JSON%;</script>
+</head>
+<body>
+  <div id="app"></div>
+  <!-- Boot splash. Deliberately a SIBLING of #app, not a child: Preact's render
+       treats leftover children of its container as excess DOM and removes them,
+       so nesting it here meant it could never outlive the first paint. It is
+       taken down by hideAppLoading() once the first chapter is actually on
+       screen, which is what stops the panes popping in one by one. -->
+  <div id="app-loading" style="position:fixed;inset:0;z-index:9999;background:var(--bg-primary,#fff);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;color:var(--text-secondary,#555);gap:1rem">
+    <i class="fa-solid fa-book-bible" style="font-size:2.5rem;color:var(--accent-color, %BRAND_THEME_COLOR%)"></i>
+    <div style="font-size:1.1rem">Loading %BRAND_PRODUCT_NAME_SHORT%...</div>
+    <div style="width:48px;height:48px;border:3px solid #e0e0e0;border-top-color:var(--accent-color, %BRAND_THEME_COLOR%);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+  <!-- Error fallback UI (hidden until init fails) -->
+  <div id="app-error" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100dvh;font-family:system-ui,sans-serif;color:#555;gap:1rem;padding:2rem;text-align:center">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size:2.5rem;color:#c53030"></i>
+    <div style="font-size:1.2rem;font-weight:600;color:#333">Unable to load %BRAND_PRODUCT_NAME_SHORT%</div>
+    <div id="app-error-message" style="font-size:0.95rem;max-width:400px;color:#666"></div>
+    <div style="display:flex;gap:0.75rem;margin-top:0.5rem;flex-wrap:wrap;justify-content:center">
+      <button onclick="location.reload()" style="padding:0.7rem 1.5rem;font-size:1rem;background:var(--accent-color, %BRAND_THEME_COLOR%);color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
+      <button onclick="clearAndReload()" style="padding:0.7rem 1.5rem;font-size:1rem;background:#666;color:#fff;border:none;border-radius:6px;cursor:pointer">Clear Cache &amp; Reload</button>
+    </div>
+    <div style="font-size:0.8rem;color:#999;margin-top:0.5rem">If the problem persists, check your network connection or contact the administrator.</div>
+  </div>
+  <script>
+    function hideAppLoading() {
+      var loading = document.getElementById('app-loading');
+      if (loading) loading.remove();
+    }
+    function showAppError(message) {
+      var loading = document.getElementById('app-loading');
+      if (loading) loading.style.display = 'none';
+      var app = document.getElementById('app');
+      if (app) app.style.display = 'none';
+      var errorEl = document.getElementById('app-error');
+      if (errorEl) errorEl.style.display = 'flex';
+      var msgEl = document.getElementById('app-error-message');
+      if (msgEl) msgEl.textContent = message || 'Something went wrong while starting the app.';
+    }
+    function clearAndReload() {
+      // Clear service worker caches, localStorage app state, then reload
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          return Promise.all(names.map(function(n) { return caches.delete(n); }));
+        }).then(function() { location.reload(); }).catch(function() { location.reload(); });
+      } else {
+        location.reload();
+      }
+    }
+
+    /*
+     * Apply the saved theme before the splash paints. settingsStore only sets
+     * data-theme once the bundle runs, so without this a dark-theme user gets a
+     * white flash for the whole boot.
+     */
+    (function applySavedTheme() {
+      var theme = null;
+      try {
+        var raw = localStorage.getItem('bible-reader-settings');
+        if (raw) theme = JSON.parse(raw).theme;
+      } catch (e) { /* private mode, or unparseable settings */ }
+      // Mirror settingsStore.getResolvedTheme(): 'auto' (also the default when
+      // nothing is saved) follows the OS preference. Anything else is a theme id
+      // and is trusted as-is — settingsStore re-validates it moments later.
+      if (!theme || theme === 'auto') {
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+
+    /*
+     * Boot-loop detector.
+     *
+     * Runs before the app bundle (deferred module scripts execute after this
+     * inline script) so a wedged build cannot outrun it.
+     *
+     * It exists because the failure it guards against is driven by page
+     * *reloads*: any in-memory request counter is wiped on every iteration and
+     * can never see the pattern. sessionStorage survives reload but not tab
+     * close, which is exactly the right lifetime.
+     *
+     * On trip it self-heals once — unregister the worker and drop the shell
+     * caches — so that the next navigation reaches the real server even if the
+     * installed worker is the one at fault. It deliberately keeps
+     * 'embedding-model' (~130 MB) and 'semantic-index': re-downloading those
+     * over a transient loop would be a worse outcome than the loop.
+     */
+    (function detectBootLoop() {
+      var LOG_KEY = 'br_boot_log';
+      var HEAL_KEY = 'br_boot_healed';
+      var MAX_BOOTS = 5;        // boots allowed within the window
+      var WINDOW_MS = 20000;    // rolling window
+      var PRESERVE = ['embedding-model', 'semantic-index'];
+
+      var now = Date.now();
+      var boots = [];
+      try {
+        boots = JSON.parse(sessionStorage.getItem(LOG_KEY) || '[]');
+        if (!Array.isArray(boots)) boots = [];
+      } catch (e) { boots = []; }
+
+      boots = boots.filter(function(t) { return typeof t === 'number' && now - t < WINDOW_MS; });
+      boots.push(now);
+      try { sessionStorage.setItem(LOG_KEY, JSON.stringify(boots)); } catch (e) { /* private mode */ }
+
+      if (boots.length <= MAX_BOOTS) return;
+
+      // Tripped. Stop the app from booting again into the same wall.
+      window.__bibleBootLoopTripped = true;
+      try { sessionStorage.removeItem(LOG_KEY); } catch (e) { /* ignore */ }
+
+      var alreadyHealed = false;
+      try { alreadyHealed = sessionStorage.getItem(HEAL_KEY) === '1'; } catch (e) { /* ignore */ }
+
+      if (!alreadyHealed) {
+        try { sessionStorage.setItem(HEAL_KEY, '1'); } catch (e) { /* ignore */ }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) {
+              return PRESERVE.indexOf(n) === -1 ? caches.delete(n) : null;
+            }));
+          }).catch(function() { /* best effort */ });
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            return Promise.all(regs.map(function(r) { return r.unregister(); }));
+          }).catch(function() { /* best effort */ });
+        }
+      }
+
+      // The DOM below this script is already parsed, so the error UI is present.
+      var brandName = (window.__BRAND__ && window.__BRAND__.productNameShort) || 'The app';
+      showAppError(
+        brandName + ' restarted several times in a row, so it has been stopped to '
+        + 'avoid a loop. The offline cache has been reset — press Reload to try again.'
+      );
+    })();
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

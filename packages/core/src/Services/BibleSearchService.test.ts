@@ -4,7 +4,11 @@ import { KJVTestHelper } from '../__tests__/helpers/KJVTestHelper';
 import { SearchOptions } from '../types/search';
 import { Book, VerseIdHelper } from '../Data/Core/Types';
 
-describe('BibleSearchService', () => {
+// Gated so a checkout without module data skips with a warning rather than
+// erroring in beforeAll. See __tests__/helpers/testData.ts.
+const KJV_AVAILABLE = KJVTestHelper.isAvailable();
+
+describe.skipIf(!KJV_AVAILABLE)('BibleSearchService', () => {
   let searchService: BibleSearchService;
 
   beforeAll(() => {

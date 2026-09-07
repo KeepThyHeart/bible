@@ -1,0 +1,73 @@
+{
+  "$schema": "https://docs.bible.keepthyheart.com/schemas/site-config.schema.json",
+  "auth": {
+    "enabled": true,
+    "password": ""
+  },
+  "features": {
+    "tagGraph": false,
+    "semanticSearch": false,
+    "pwa": true,
+    "offlineDownloads": false,
+    "offlineAutoDownload": true
+  },
+  "modules": {
+    "about": "A modern, open-source Bible study application.",
+    "bibles": {
+      "modules": {
+        "KJV": { "active": true },
+        "ASV": { "active": true },
+        "BSB": { "active": true }
+      },
+      "sections": [
+        { "title": "Popular", "modules": ["KJV", "ASV", "BSB"] }
+      ]
+    },
+    "commentaries": {
+      "modules": {
+        "MHC": { "active": true },
+        "Barnes": { "active": true }
+      },
+      "sections": [
+        { "title": "Classic", "modules": ["MHC", "Barnes"] }
+      ]
+    },
+    "dictionaries": {
+      "modules": {
+        "Strongs": { "active": true }
+      },
+      "sections": [
+        { "title": "Reference", "modules": ["Strongs"] }
+      ]
+    }
+  },
+  "commentaryPopularity": {
+    "SYNTHESIS": 0,
+    "MHC": 1,
+    "MHCC": 2,
+    "Barnes": 3,
+    "TSK": 4
+  },
+  "offline": {
+    "staleDays": 15
+  },
+  "search": {
+    "mode": "browser",
+    "pipelineConfigPath": "search-pipeline.json",
+    "hybrid": false,
+    "minScore": 0.15
+  },
+  "ui": {
+    "defaultTheme": "auto",
+    "defaultModule": "KJV",
+    "defaultDisplayMode": "standard",
+    "visibleThemes": [],
+    "visibleFonts": [],
+    "disabledPanes": []
+  },
+  "privacy": {
+    "mode": "strict"
+  },
+  "repoUrl": "",
+  "docsUrl": "https://docs.bible.keepthyheart.com/web/"
+}

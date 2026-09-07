@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
-import * as fs from 'fs';
 import { DictionaryRepository } from '../Data/Repositories/DictionaryRepository';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { TEST_MODULES_DIR, testDataAvailable } from './helpers/testData';
 
 // ============================================================================
 // Test SQLite Provider (read-only, for module databases)
@@ -12,9 +12,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // Test Configuration
 // ============================================================================
 
-const MODULES_DIR = path.resolve(__dirname, '../../../desktop/data/modules/');
+const MODULES_DIR = path.join(TEST_MODULES_DIR, 'modules');
 const EASTON_DB_PATH = path.join(MODULES_DIR, 'dictionary_easton.db');
-const DB_EXISTS = fs.existsSync(EASTON_DB_PATH);
+const DB_EXISTS = testDataAvailable('DictionaryRepository (Easton)', EASTON_DB_PATH);
 
 // ============================================================================
 // Tests

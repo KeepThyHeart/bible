@@ -1,0 +1,269 @@
+// ============================================================
+// Module selection dialog (centered popup)
+// ============================================================
+.module-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.module-dialog {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  width: 440px;
+  max-width: 90vw;
+  height: 70vh;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 {
+      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-weight: 600;
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    padding: 4px;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__filter {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 8px;
+
+    input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: calc(14px * var(--ui-font-scale, 1));
+      outline: none;
+
+      &:focus {
+        border-color: var(--accent-color);
+      }
+
+      &::placeholder {
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  &__filter-icon {
+    color: var(--text-muted);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+  }
+
+  &__list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  &__btn {
+    padding: 6px 18px;
+    border-radius: 6px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s;
+
+    &--cancel {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+
+      &:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+    }
+
+    &--apply {
+      background: var(--accent-color);
+      border: 1px solid var(--accent-color);
+      color: #fff;
+
+      &:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+    }
+  }
+}
+
+// Commentary module card within the dialog
+.module-card {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  background: var(--bg-primary);
+
+  &:hover,
+  &--focused {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  &--focused {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__check {
+    flex-shrink: 0;
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    line-height: 1;
+
+    &--on {
+      color: #2ea043;
+    }
+
+    &--off {
+      color: var(--text-muted);
+      opacity: 0.4;
+    }
+  }
+
+  // Single-select rows (the Bible translation picker) draw a radio instead of a
+  // checkbox; the multi-select dialog keeps the checkbox, so the two are told
+  // apart at a glance. Only the glyph and its optical size change here — the
+  // shared `__check` rule above is what keeps the dialogs otherwise identical,
+  // so nothing in this modifier may move out of it.
+  &--single &__check {
+    font-size: calc(17px * var(--ui-font-scale, 1));
+  }
+
+  &__info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__abbr {
+    font-weight: 700;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+
+  &__name {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__content-line {
+    margin-top: 5px;
+    padding-left: 26px; // align with text after checkbox
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    line-height: 1.4;
+
+    &--verse {
+      color: #fff;
+      background: #3574d4;
+    }
+
+    &--chapter {
+      color: #3574d4;
+      background: rgba(53, 116, 212, 0.1);
+    }
+
+    &--loading {
+      color: var(--text-muted);
+    }
+  }
+
+  &__desc {
+    margin-top: 3px;
+    padding-left: 26px; // align with text after checkbox
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+}
+
+.module-dialog__section-label {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 10px 4px 4px;
+  margin-top: 4px;
+}
+
+.module-dialog__section-help {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-muted);
+  padding: 0 4px 4px;
+  line-height: 1.4;
+}
+

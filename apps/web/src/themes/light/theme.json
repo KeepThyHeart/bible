@@ -1,0 +1,12 @@
+{
+  "id": "light",
+  "name": "Light",
+  "group": "core",
+  "order": 1,
+  "isDark": false,
+  "swatch": {
+    "bg": "#ffffff",
+    "fg": "#1a1a1a",
+    "accent": "#2563eb"
+  }
+}

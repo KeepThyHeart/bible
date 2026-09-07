@@ -1,0 +1,12 @@
+{
+  "id": "meadow",
+  "name": "Meadow",
+  "group": "nature",
+  "order": 9,
+  "isDark": false,
+  "swatch": {
+    "bg": "#f4f8ef",
+    "fg": "#1e3018",
+    "accent": "#5a9e2e"
+  }
+}

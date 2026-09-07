@@ -1,0 +1,12 @@
+{
+  "id": "forest",
+  "name": "Forest",
+  "group": "nature",
+  "order": 4,
+  "isDark": false,
+  "swatch": {
+    "bg": "#f0f5ed",
+    "fg": "#1b2e1b",
+    "accent": "#2d7a3a"
+  }
+}

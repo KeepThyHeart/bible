@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
-import * as fs from 'fs';
 import { CommentaryRepository } from '../Data/Repositories/CommentaryRepository';
 import { CommentaryEntryLevel } from '../Data/Models/Commentary/CommentaryEntry';
 import { VerseIdHelper, Book } from '../Data/Core/Types';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { TEST_MODULES_DIR, testDataAvailable } from './helpers/testData';
 
 // ============================================================================
 // Test SQLite Provider (read-only, for module databases)
@@ -14,9 +14,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // Test Configuration
 // ============================================================================
 
-const MODULES_DIR = path.resolve(__dirname, '../../../desktop/data/modules/');
+const MODULES_DIR = path.join(TEST_MODULES_DIR, 'modules');
 const BARNES_DB_PATH = path.join(MODULES_DIR, 'commentary_barnes.db');
-const DB_EXISTS = fs.existsSync(BARNES_DB_PATH);
+const DB_EXISTS = testDataAvailable('CommentaryRepository (Barnes)', BARNES_DB_PATH);
 
 // ============================================================================
 // Tests

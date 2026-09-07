@@ -1,43 +1,51 @@
-# Node modules and build output
+# Dependencies and build output
 node_modules/
 dist/
 out/
-dist-electron/
 
-# File types that should never be committed unless specifically overridden
-*.log
-*.db
-*.zip
-storage
+# Runtime data directories. Never tracked -- these hold operator config
+# (site-config.json, with a written-back password hash), module .db files,
+# downloaded models and plugin state. Templates live in apps/*/config/.
+/data/
+apps/*/data/
+
+# Scratch data the web e2e suite assembles for itself (see apps/web/e2e/prepareData.ts)
+apps/web/e2e/.data/
+
+# Generated web assets. Both are build output, not source: the fonts are
+# downloaded by apps/web/scripts/fetch-fonts.mjs and the icons rasterised from
+# admin/brand/icon.svg by apps/web/scripts/generate-icons.mjs, each on the
+# prebuild:client / predev:client hook.
+apps/web/public/fonts/
+apps/web/public/icons/
+
+# Locale JSON Schemas, generated from src/locales/en/ by
+# apps/web/scripts/generate-locale-schemas.mjs on the same hooks. Editor
+# validation only; `npm run check:locale-schemas` verifies they are current.
+apps/web/src/locales/schemas/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Databases and logs
 *.db
 *.db-shm
 *.db-wal
-.DS_Store
+*.log
 
-# Ignored by file name
-*.ignore.*
-*.private.*
-*.local.*
-
-# Environment, IDE
+# Secrets. Catalog signing: only the PUBLIC key belongs in the repo.
 .env
-*.conf
-.vscode/
-.idea/
-temp
-
-# Test artifacts, binaries, misc.
-test-data/
-test-results/
-playwright-report/
-vec-search
-*.bin
-.venv-styletts2
-config.json
-*.lock
-
-# Signing
 catalog-key*.json
 *catalog-signing-key*.json
 *.private.json
 
+# Local-only file conventions
+*.ignore.*
+*.local.*
+*.private.*
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store

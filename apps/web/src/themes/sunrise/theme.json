@@ -1,0 +1,12 @@
+{
+  "id": "sunrise",
+  "name": "Sunrise",
+  "group": "nature",
+  "order": 12,
+  "isDark": false,
+  "swatch": {
+    "bg": "#fef8f0",
+    "fg": "#3d2010",
+    "accent": "#d4802a"
+  }
+}

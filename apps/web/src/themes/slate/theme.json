@@ -1,0 +1,12 @@
+{
+  "id": "slate",
+  "name": "Slate",
+  "group": "nature",
+  "order": 10,
+  "isDark": true,
+  "swatch": {
+    "bg": "#1e2530",
+    "fg": "#cbd5e1",
+    "accent": "#38bdf8"
+  }
+}

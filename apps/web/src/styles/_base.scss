@@ -1,0 +1,38 @@
+// Reset & base
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--ui-font-size, 14px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh; // Dynamic viewport height — accounts for mobile browser chrome
+}
+
+// Theme transition: only animate colors when actively switching themes.
+// This keeps tab switches, verse selections, etc. instant.
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 1.5s ease, color 1.5s ease, border-color 1.5s ease !important;
+}
+
+#app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}

@@ -5,7 +5,6 @@
  * This ensures tests use actual SQLite FTS5 behavior, indexing, and real verse data.
  */
 
-import * as path from 'path';
 import * as fs from 'fs';
 import Database from 'better-sqlite3';
 import { ISql } from '../../Data/Core/ISql';
@@ -15,12 +14,14 @@ import { IBibleRepository } from '../../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../../Data/Repositories/IBibleBookRepository';
 import { VerseId, VerseIdHelper, Book } from '../../Data/Core/Types';
 import { TestSqliteProvider } from './TestSqliteProvider';
+import { MAIN_DB, moduleDb, testDataAvailable } from './testData';
 
 /**
- * Paths to test databases (relative to core package)
+ * Paths to test databases. Resolved through testData so `BIBLE_DATA_DIR` can
+ * point them at any populated data directory; see that module for the rules.
  */
-const KJV_DB_PATH = path.resolve(__dirname, '../../../../desktop/data/modules/bible_kjv.db');
-const MAIN_DB_PATH = path.resolve(__dirname, '../../../../desktop/data/main.db');
+const KJV_DB_PATH = moduleDb('bible_kjv.db');
+const MAIN_DB_PATH = MAIN_DB;
 
 /**
  * Test helper class for KJV database access
@@ -36,20 +37,27 @@ export class KJVTestHelper {
    * Throws clear error if not found
    */
   static verifyKJVAvailable(): void {
-    if (!fs.existsSync(KJV_DB_PATH)) {
-      throw new Error(
-        `KJV module not found at: ${KJV_DB_PATH}\n` +
-        `Please ensure the bible_kjv.db database exists in the desktop package data directory.\n` +
-        `Run module import/build scripts if needed.`
-      );
+    for (const [label, dbPath] of [['KJV module', KJV_DB_PATH], ['Main database', MAIN_DB_PATH]] as const) {
+      if (!fs.existsSync(dbPath)) {
+        throw new Error(
+          `${label} not found at: ${dbPath}\n` +
+          `Set BIBLE_DATA_DIR to a data directory holding main.db and modules/, or gate the ` +
+          `suite on KJVTestHelper.isAvailable() so it skips instead of failing.`
+        );
+      }
     }
+  }
 
-    if (!fs.existsSync(MAIN_DB_PATH)) {
-      throw new Error(
-        `Main database not found at: ${MAIN_DB_PATH}\n` +
-        `Please ensure the main.db database exists in the desktop package data directory.`
-      );
-    }
+  /**
+   * Whether the KJV fixture and the registry are both present.
+   *
+   * Suites gate on this so a checkout without module data skips rather than
+   * erroring in `beforeAll` -- which is what used to happen, turning "no data
+   * here" into two failing suites and a red run. Warns when it returns false,
+   * so the skip is visible rather than silent.
+   */
+  static isAvailable(): boolean {
+    return testDataAvailable('KJV-backed suites', KJV_DB_PATH, MAIN_DB_PATH);
   }
 
   /**

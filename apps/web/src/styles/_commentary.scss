@@ -1,0 +1,410 @@
+// ============================================================
+// Commentary tab bar
+// ============================================================
+.commentary-tab-bar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-right: 1px solid var(--border-color);
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    transition: background 0.1s;
+    border-bottom: 3px solid transparent;
+    user-select: none;
+    -webkit-user-select: none;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--active {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-bottom-color: var(--accent-color);
+    }
+
+    &--has-content {
+      background: var(--highlight-bg);
+
+      &:hover {
+        background: var(--highlight-bg-hover, color-mix(in srgb, var(--highlight-bg) 70%, var(--bg-tertiary)));
+      }
+    }
+
+    &--home {
+      padding: 6px 8px;
+    }
+
+    &--temporary {
+      .commentary-tab-bar__label {
+        font-style: italic;
+      }
+    }
+  }
+
+  &__label {
+    white-space: nowrap;
+  }
+
+  &__keep {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px 4px;
+    font-size: calc(10px * var(--ui-font-scale, 1));
+    line-height: 1;
+    border-radius: 3px;
+
+    &:hover {
+      color: var(--accent-color);
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px 4px;
+    font-size: calc(10px * var(--ui-font-scale, 1));
+    line-height: 1;
+    border-radius: 3px;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__add-wrapper {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+  }
+
+  &__add {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__module-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+    z-index: 100;
+    min-width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  &__module-filter {
+    padding: 4px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4px;
+
+    input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: calc(13px * var(--ui-font-scale, 1));
+      outline: none;
+
+      &:focus {
+        border-color: var(--accent-color);
+      }
+
+      &::placeholder {
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  &__module-item {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    text-align: left;
+    border-radius: 5px;
+    transition: background 0.1s;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__module-name {
+    color: var(--text-muted);
+    font-size: calc(12px * var(--ui-font-scale, 1));
+  }
+
+  &__module-empty {
+    padding: 12px 16px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+}
+
+// ============================================================
+// Commentary pane
+// ============================================================
+.commentary-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  &__title {
+    margin: 0;
+    padding: 8px 12px 4px;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    // Hidden on desktop — the right-pane tabs already provide context
+    display: none;
+  }
+
+  &__scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &--collapsed {
+    width: 30px;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  &__expand-btn {
+    writing-mode: vertical-rl;
+    background: none;
+    border: none;
+    padding: 12px 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: calc(12px * var(--ui-font-scale, 1));
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+  }
+}
+
+// ============================================================
+// Commentary content
+// ============================================================
+.commentary-content {
+  flex: 1;
+  padding: 16px 20px 40px;
+
+  &--loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  &--empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  // Plain text shown on desktop where Bible pane is already visible
+  &__select-verse-text {
+    display: inline;
+  }
+
+  // Clickable link shown only on mobile where Bible pane is hidden
+  &__select-verse-link {
+    display: none;
+    color: var(--accent-color);
+    text-decoration: underline;
+    cursor: pointer;
+    font-style: italic;
+  }
+}
+
+.commentary-entry {
+  margin-bottom: 20px;
+
+  &__ref {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--accent-color);
+    margin-bottom: 4px;
+  }
+
+  &__text {
+    line-height: inherit;
+    color: var(--text-primary);
+
+    ul, ol {
+      padding-left: 1.5em;
+      margin: 0.4em 0;
+    }
+
+    .commentary-ref,
+    .scripture-link {
+      color: inherit;
+      cursor: pointer;
+      text-decoration: underline;
+
+      &:hover {
+        color: var(--accent-color);
+      }
+    }
+  }
+}
+
+// ── Digest Disclaimer ──────────────────────────────────────────────
+.digest-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 20%, transparent);
+  border-radius: 6px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  color: var(--text-secondary);
+
+  &__icon {
+    color: var(--accent-color);
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--hover-bg);
+    }
+  }
+}
+
+.digest-disclaimer-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: color-mix(in srgb, var(--text-tertiary) 70%, transparent);
+
+  i {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 0.9em;
+  }
+}
+
+.digest-disclaimer-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  margin-bottom: 8px;
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
+  color: var(--accent-color);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--accent-color);
+    filter: brightness(1.2);
+  }
+
+  i {
+    font-size: 0.9em;
+  }
+}
+
+.commentary-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+  }
+}
+

@@ -1,0 +1,47 @@
+// Themed scrollbars
+// During theme transitions, scrollbars are made invisible to avoid an abrupt
+// colour snap, then restored once the transition completes. They are made
+// *invisible*, not *absent*: removing a classic scrollbar hands its width back
+// to the content for the length of the transition, and anything sized off the
+// container width relaid out and then relaid out again 1.6s later. The theme
+// grid in Settings was the visible case — a wider container fits another
+// `auto-fill` column, so the cards narrowed the moment a theme was clicked and
+// snapped back when the transition ended.
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.scrollbar-hidden,
+.scrollbar-hidden * {
+  // Firefox: keep `scrollbar-width` (and so the reserved gutter) as it was;
+  // only the colours go transparent.
+  scrollbar-color: transparent transparent !important;
+}
+
+// WebKit/Blink: the scrollbar keeps its 8px box — only track and thumb stop
+// painting. `display: none` here is what used to move the layout.
+.scrollbar-hidden ::-webkit-scrollbar-track,
+.scrollbar-hidden::-webkit-scrollbar-track,
+.scrollbar-hidden ::-webkit-scrollbar-thumb,
+.scrollbar-hidden::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}

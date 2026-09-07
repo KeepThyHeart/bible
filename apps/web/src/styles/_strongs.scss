@@ -1,0 +1,201 @@
+// ============================================================
+// Strong's popup (click-to-open full detail)
+// ============================================================
+.strongs-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  z-index: 200;
+}
+
+.strongs-popup {
+  position: fixed;
+  z-index: 201;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px var(--dropdown-shadow);
+  padding: 18px;
+  max-width: 450px;
+  // The popup is a fixed-height column: header and the "search occurrences"
+  // action stay put while only the definition scrolls. Scrolling the whole
+  // popup instead (which it used to) pushed the action button below the fold
+  // for any entry with a long definition -- most of them -- so the one
+  // affordance that gets you from a word to its occurrences was invisible
+  // unless you thought to scroll.
+  max-height: min(400px, 80vh);
+  display: flex;
+  flex-direction: column;
+
+  &__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  &__header {
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  &__number {
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 700;
+    color: var(--accent-color);
+    margin-right: 8px;
+  }
+
+  &__word {
+    font-size: calc(18px * var(--ui-font-scale, 1));
+    font-weight: 600;
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: calc(14px * var(--ui-font-scale, 1));
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__translit {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    margin-bottom: 2px;
+  }
+
+  &__pron {
+    font-style: normal;
+    color: var(--text-muted);
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    margin-left: 4px;
+  }
+
+  &__pos {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+
+  &__glosses {
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.5;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+  }
+
+  &__def {
+    line-height: 1.5;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+  }
+
+  &__etym {
+    margin-top: 8px;
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  &__search-btn {
+    display: block;
+    flex: none;
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--accent-color);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-color);
+    }
+  }
+}
+
+// ============================================================
+// Strong's tooltip (hover preview)
+// ============================================================
+.strongs-tooltip {
+  position: fixed;
+  z-index: 150;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px var(--dropdown-shadow);
+  padding: 12px 16px;
+  max-width: 380px;
+  pointer-events: none;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  &__number {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-weight: 700;
+    color: var(--accent-color);
+  }
+
+  &__word {
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-weight: 600;
+  }
+
+  &__translit {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
+  &__pron {
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+  }
+
+  &__pos {
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 6px;
+  }
+
+  &__glosses {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-color);
+    margin-bottom: 4px;
+  }
+
+  &__def {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+}
+

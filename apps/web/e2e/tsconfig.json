@@ -1,0 +1,17 @@
+{
+  // The e2e specs were excluded from `tsconfig.json`, so nothing typechecked
+  // them; a spec calling a helper with the wrong arity only surfaced as an
+  // opaque Playwright timeout. `npm run typecheck:e2e` catches it in a second.
+  "extends": "../../../packages/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  // `prepareData.ts` builds the fixture DB with better-sqlite3-web, whose
+  // ambient declaration lives with the server code.
+  "include": ["**/*.ts", "../server/types/**/*.d.ts"],
+  "exclude": ["node_modules"]
+}

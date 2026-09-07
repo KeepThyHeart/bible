@@ -1,0 +1,31 @@
+{
+  "extends": "../../packages/tsconfig.base.json",
+  "compilerOptions": {
+    // Type-checking only. Neither build path emits through this config:
+    // `build:server` uses tsconfig.server.json and `build:client` uses Vite.
+    // Declaring rootDir/declaration here made every `@bible/core` source file
+    // reachable through the `paths` alias below a TS6059 "not under rootDir"
+    // error, which is what previously forced browser-safe copies of core
+    // modules into src/utils/. Keep this config emit-free so the alias works.
+    "noEmit": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@bible/core": ["../../packages/core/src"],
+      // Platform-free subset of core — safe to bundle for the browser. Client
+      // code must import from here, never from "@bible/core", whose barrel
+      // reaches better-sqlite3 and Node builtins. Mirrored by the Vite alias in
+      // vite.config.ts so the type-checker and the bundler agree.
+      "@bible/core/browser": ["../../packages/core/src/browser"]
+    }
+  },
+  "include": ["src/**/*", "server/**/*"],
+  // Test files are included on purpose. They were excluded, which meant a
+  // mock could drift from the type it stands in for — a test asserting
+  // against a shape the real code never produces — without anything noticing.
+  "exclude": ["node_modules", "dist", "e2e/**/*"]
+}

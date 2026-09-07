@@ -1,0 +1,447 @@
+// ============================================================
+// Header
+// ============================================================
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  height: 48px;
+
+  &__logo {
+    font-size: calc(17px * var(--ui-font-scale, 1));
+    font-weight: 700;
+    color: var(--accent-color);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+      font-size: calc(18px * var(--ui-font-scale, 1));
+    }
+  }
+
+  &__wordmark {
+    display: flex;
+    flex-direction: column;
+    // Pull the two lines together so the pair reads as one mark rather than
+    // two stacked labels.
+    line-height: 1.05;
+  }
+
+  &__wordmark-tagline {
+    font-size: calc(9.5px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    // Quiet enough to stay a subtitle; the name keeps the accent colour.
+    color: color-mix(in srgb, var(--accent-color) 62%, var(--text-secondary));
+    margin-block-start: 2px;
+  }
+
+  // Combined search input
+  &__search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 560px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:focus-within {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+  }
+
+  &__search-type-wrapper {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border-color);
+  }
+
+  &__search-type-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 10px 4px 12px;
+    color: var(--text-muted);
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__search-type-label {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+  }
+
+  &__search-type-caret {
+    font-size: 9px;
+    opacity: 0.5;
+  }
+
+  &__search-type-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+    z-index: 110;
+    min-width: 180px;
+    overflow: hidden;
+  }
+
+  &__search-type-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    transition: background 0.1s;
+    white-space: nowrap;
+
+    i {
+      width: 18px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--active {
+      background: var(--bg-secondary);
+
+      i {
+        color: var(--accent-color);
+      }
+    }
+  }
+
+  &__ideas-help-wrapper {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  &__ideas-help-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 10px;
+    color: var(--text-muted);
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+
+    &:hover {
+      color: var(--accent-color);
+    }
+  }
+
+  &__ideas-help-popup {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: -8px;
+    width: 340px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px var(--dropdown-shadow);
+    z-index: 120;
+    padding: 16px 18px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    line-height: 1.5;
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    ul {
+      margin: 6px 0 10px;
+      padding-left: 18px;
+
+      li {
+        margin-bottom: 4px;
+
+        em {
+          color: var(--accent-color);
+        }
+      }
+    }
+  }
+
+  &__ideas-help-title {
+    font-weight: 700;
+    font-size: calc(15px * var(--ui-font-scale, 1));
+    margin-bottom: 8px;
+  }
+
+  &__ideas-help-subtitle {
+    font-weight: 600;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+  }
+
+  &__ideas-help-note {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 0;
+  }
+
+  &__search-icon {
+    padding: 0 0 0 12px;
+    color: var(--text-muted);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    flex-shrink: 0;
+  }
+
+  &__search-field {
+    flex: 1;
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    outline: none;
+    min-width: 0;
+
+    &::placeholder {
+      color: var(--text-muted);
+      font-size: calc(13px * var(--ui-font-scale, 1));
+    }
+  }
+
+  &__search-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 10px;
+    color: var(--text-muted);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    display: flex;
+    align-items: center;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  // The "/" chip that advertises the focus shortcut. Nothing previously told
+  // the reader the shortcut existed, so it may as well not have.
+  //
+  // It sits inside the field and disappears the moment the field is focused
+  // (`:focus-within` below) so it never crowds what is being typed. Rendered
+  // only when the field is empty — see Header.tsx, where it swaps with the
+  // clear button, so the two never contend for the same corner.
+  &__search-hint {
+    flex-shrink: 0;
+    margin-right: 8px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-color);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    line-height: 1.5;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  &__search:hover &__search-hint {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  &__search:focus-within &__search-hint {
+    display: none;
+  }
+
+  &__suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    list-style: none;
+    z-index: 100;
+    max-height: 260px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+
+    li {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: calc(14px * var(--ui-font-scale, 1));
+      display: flex;
+      align-items: center;
+      transition: background 0.1s;
+
+      &:first-child {
+        border-radius: 8px 8px 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 0 8px 8px;
+      }
+
+      &:hover {
+        background: var(--bg-tertiary);
+      }
+    }
+  }
+
+  &__toc-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: calc(15px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    transition: background 0.1s, color 0.1s, border-color 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-color: var(--accent-color);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  &__offline-badge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font-size: calc(14px * var(--ui-font-scale, 1));
+  }
+
+  &__offline-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+  }
+
+  &__action-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: calc(15px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    transition: background 0.1s, color 0.1s;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+  }
+
+  &__theme-wrapper {
+    position: relative;
+  }
+
+  &__theme-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+    z-index: 200;
+    min-width: 160px;
+    padding: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  &__theme-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    color: var(--text-primary);
+    border-radius: 6px;
+    transition: background 0.1s;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--active {
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+  }
+
+  &__theme-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 8px;
+  }
+
+  &__theme-section-label {
+    padding: 6px 12px 2px;
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+}
+

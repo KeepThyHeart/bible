@@ -1,0 +1,38 @@
+// ============================================================
+// Pull-to-refresh indicator
+// ============================================================
+.pull-to-refresh {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  color: var(--text-muted, #888);
+  font-size: calc(13px * var(--ui-font-scale, 1));
+
+  &--pulling,
+  &--refreshing {
+    height: 48px;
+  }
+
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color, #e0e0e0);
+    border-top-color: var(--accent-color, #4a7c59);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+  }
+
+  &__arrow {
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+  }
+
+  &--ready &__arrow {
+    transform: rotate(180deg);
+  }
+}
+

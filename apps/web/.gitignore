@@ -1,0 +1,2 @@
+# Vite dev-server / build scratch not covered by the root .gitignore.
+*.wasm

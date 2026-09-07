@@ -1,0 +1,77 @@
+// ============================================================
+// Mobile verse link popup (click-to-preview on touch devices)
+// ============================================================
+.verse-link-popup {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--dropdown-shadow);
+  padding: 12px 16px 16px;
+  max-width: min(400px, calc(100vw - 16px));
+  min-width: 220px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  // Keep popup within viewport — use dvh so mobile browser chrome is excluded
+  max-height: calc(100dvh - 100px);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 12px;
+  }
+
+  &__ref {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--accent-color);
+  }
+
+  &__go {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    &:active {
+      background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    }
+  }
+
+  &__text {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    line-height: 1.5;
+    color: var(--text-primary);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    // Extra padding so the last line doesn't sit under the rounded bottom corner
+    padding-bottom: 8px;
+    min-height: 0;
+    flex: 1 1 auto;
+
+    // Same formatted verse HTML as the reading pane; the rules in
+    // `_bible-content.scss` are scoped under `.verse`, which this is not.
+    .christ-words {
+      color: var(--christ-words);
+    }
+
+    .divine-name {
+      font-variant-caps: small-caps;
+    }
+  }
+}
+

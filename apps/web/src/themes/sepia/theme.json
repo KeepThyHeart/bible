@@ -1,0 +1,12 @@
+{
+  "id": "sepia",
+  "name": "Sepia",
+  "group": "core",
+  "order": 3,
+  "isDark": false,
+  "swatch": {
+    "bg": "#f4ecd8",
+    "fg": "#3d2b1f",
+    "accent": "#8b4513"
+  }
+}

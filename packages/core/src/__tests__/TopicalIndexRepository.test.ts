@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as path from 'path';
-import * as fs from 'fs';
 import { TopicalIndexRepository } from '../Data/Repositories/TopicalIndexRepository';
 import { Topic } from '../Data/Models/TopicalIndex/Topic';
 import { TopicVerse } from '../Data/Models/TopicalIndex/TopicVerse';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { moduleDb, testDataAvailable } from './helpers/testData';
 
 // ---------------------------------------------------------------------------
 // Read-only SQLite provider for testing against real module databases
@@ -12,9 +11,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // ---------------------------------------------------------------------------
 // Database path
 // ---------------------------------------------------------------------------
-const DB_PATH = path.resolve(__dirname, '../../../desktop/data/modules/topical_nave.db');
+const DB_PATH = moduleDb('topical_nave.db');
 
-describe.skipIf(!fs.existsSync(DB_PATH))('TopicalIndexRepository (topical_nave.db)', () => {
+describe.skipIf(!testDataAvailable('TopicalIndexRepository (topical_nave.db)', DB_PATH))('TopicalIndexRepository (topical_nave.db)', () => {
   let provider: TestSqliteProvider;
   let repo: TopicalIndexRepository;
 

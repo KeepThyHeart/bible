@@ -1,0 +1,174 @@
+// ============================================================
+// Help dialog
+// ============================================================
+.help-dialog {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  width: 520px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 {
+      font-size: calc(16px * var(--ui-font-scale, 1));
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    padding: 4px;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  &__body {
+    padding: 20px;
+    overflow-y: auto;
+    font-size: calc(13.5px * var(--ui-font-scale, 1));
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+
+  // Entry points to things that live outside the dialog (the documentation
+  // site, the feedback form). Sits above the help text because it is the
+  // shortest path to an answer we do not have room to write here.
+  &__links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  &__link-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    font: inherit;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+
+    &:hover {
+      border-color: var(--accent-color, #2563eb);
+    }
+
+    &--primary {
+      background: var(--accent-color, #2563eb);
+      border-color: var(--accent-color, #2563eb);
+      color: #fff;
+
+      &:hover {
+        opacity: 0.92;
+      }
+    }
+  }
+
+  &__link-icon {
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    opacity: 0.85;
+  }
+
+  &__link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+
+    small {
+      opacity: 0.8;
+      font-size: calc(12px * var(--ui-font-scale, 1));
+    }
+  }
+
+  &__link-chevron {
+    opacity: 0.8;
+  }
+
+  &__section {
+    margin-bottom: 20px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    h4 {
+      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    p {
+      margin: 0 0 8px;
+      color: var(--text-secondary);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+
+      li {
+        margin-bottom: 4px;
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  &__shortcuts {
+    width: 100%;
+    border-collapse: collapse;
+
+    td {
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+
+      &:first-child {
+        white-space: nowrap;
+        width: 120px;
+      }
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-family: monospace;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+  }
+}
+

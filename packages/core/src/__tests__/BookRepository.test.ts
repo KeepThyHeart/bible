@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as path from 'path';
-import * as fs from 'fs';
 import { BookRepository } from '../Data/Repositories/BookRepository';
 import { BookSection } from '../Data/Models/Book/BookSection';
 import { ScriptureReference } from '../Data/Models/Book/ScriptureReference';
 import { TestSqliteProvider } from './helpers/TestSqliteProvider';
+import { moduleDb, testDataAvailable } from './helpers/testData';
 
 // ---------------------------------------------------------------------------
 // Read-only SQLite provider for testing against real module databases
@@ -12,9 +11,9 @@ import { TestSqliteProvider } from './helpers/TestSqliteProvider';
 // ---------------------------------------------------------------------------
 // Database path
 // ---------------------------------------------------------------------------
-const DB_PATH = path.resolve(__dirname, '../../../desktop/data/modules/book_concord.db');
+const DB_PATH = moduleDb('book_concord.db');
 
-describe.skipIf(!fs.existsSync(DB_PATH))('BookRepository (book_concord.db)', () => {
+describe.skipIf(!testDataAvailable('BookRepository (book_concord.db)', DB_PATH))('BookRepository (book_concord.db)', () => {
   let provider: TestSqliteProvider;
   let repo: BookRepository;
 

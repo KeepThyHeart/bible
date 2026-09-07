@@ -3,11 +3,15 @@ import { BibleRepository } from './BibleRepository';
 import { KJVTestHelper } from '../../__tests__/helpers/KJVTestHelper';
 import { Book, VerseIdHelper } from '../Core/Types';
 
+// Gated so a checkout without module data skips with a warning rather than
+// erroring in beforeAll. See __tests__/helpers/testData.ts.
+const KJV_AVAILABLE = KJVTestHelper.isAvailable();
+
 // Probed at collection time so interlinear suites can skip themselves when the
 // local KJV module was built without interlinear_word rows.
 const KJV_HAS_INTERLINEAR = KJVTestHelper.hasInterlinearData();
 
-describe('BibleRepository', () => {
+describe.skipIf(!KJV_AVAILABLE)('BibleRepository', () => {
   let repository: BibleRepository;
 
   beforeAll(() => {

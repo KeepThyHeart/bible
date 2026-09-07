@@ -1,0 +1,12 @@
+{
+  "id": "sunset",
+  "name": "Sunset",
+  "group": "nature",
+  "order": 8,
+  "isDark": true,
+  "swatch": {
+    "bg": "#2a1520",
+    "fg": "#f0d0d8",
+    "accent": "#e8789a"
+  }
+}

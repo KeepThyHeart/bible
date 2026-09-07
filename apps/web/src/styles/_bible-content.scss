@@ -1,0 +1,505 @@
+// Bible content
+// ============================================================
+.bible-content {
+  padding: 20px 32px;
+  position: relative;
+
+  &--standard {
+    padding: 16px 24px;
+    font-size: 1.02em;
+  }
+
+  &--reading {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 32px 48px;
+    font-size: 1.06em;
+  }
+
+  &--loading, &--empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  &__welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  &__no-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  &__ref-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__ref-input {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: calc(15px * var(--ui-font-scale, 1));
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 260px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+  }
+
+  &__ref-btn {
+    padding: 8px 18px;
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--accent-hover);
+    }
+  }
+
+  &__votd {
+    margin-top: 24px;
+    padding: 16px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    max-width: 420px;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:hover {
+      border-color: var(--accent-color);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+  }
+
+  &__votd-label {
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-color);
+    margin-bottom: 8px;
+  }
+
+  &__votd-text {
+    font-family: Georgia, serif;
+    font-size: 1em;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  &__votd-ref {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
+  &__chapter-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+  }
+
+  &__chapter-title {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--heading-font, inherit);
+    flex: 0 0 auto;
+
+    &--tappable {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin: -2px -8px;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+
+      &:hover {
+        background: var(--bg-tertiary);
+      }
+
+      &:active {
+        background: var(--bg-tertiary);
+      }
+    }
+  }
+
+  &__chapter-caret {
+    font-size: 0.55em;
+    opacity: 0.4;
+    margin-top: 2px;
+  }
+
+  &__nav-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: calc(12px * var(--ui-font-scale, 1));
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__study-toggles {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 24px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+
+    // The layout switch is a setting for the interlinear, not a third toggle
+    // of the same rank — push it away from the two checkboxes.
+    .interlinear-layout-toggle {
+      margin-inline-start: auto;
+    }
+  }
+
+  &__study-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+
+    input[type="checkbox"] {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    // Modules that carry no publisher footnotes leave the Notes toggle with
+    // nothing to show; dim it rather than let it read as broken.
+    &--unavailable {
+      cursor: default;
+      opacity: 0.45;
+
+      input[type="checkbox"] {
+        cursor: default;
+      }
+    }
+  }
+
+  &__interlinear-status {
+    padding: 8px 24px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    // Stands in for the verses while they load, so it centres rather than
+    // sitting as a thin line above already-rendered text.
+    &--loading {
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    &--unavailable {
+      font-style: normal;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      margin: 4px 24px 8px;
+      padding: 8px 14px;
+
+      [data-dark-theme] & {
+        color: #fbbf24;
+        background: rgba(251, 191, 36, 0.1);
+        border-color: rgba(251, 191, 36, 0.25);
+      }
+
+      [data-theme="sepia"] & {
+        color: #92400e;
+        background: #f5deb3;
+        border-color: #c4b99a;
+      }
+    }
+  }
+}
+
+// ============================================================
+// Verse
+// ============================================================
+.verse__section-heading {
+  font-style: italic;
+  color: var(--text-secondary);
+  padding: 8px 8px 2px 8px;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+// Chapter preludes (verse 0) — psalm superscriptions, etc.
+.verse--preface {
+  font-style: italic;
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  padding-left: 8px !important;
+  text-indent: 0 !important;
+}
+
+.verse {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+
+  // Inline (reading mode): box-decoration-break so border wraps each
+  // line fragment cleanly instead of breaking across lines
+  &:not(.verse--block) {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding: 1px 3px;
+  }
+
+  &--study {
+    background: var(--highlight-bg);
+  }
+
+  &--preview {
+    text-decoration: underline;
+    text-decoration-color: var(--accent-color);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
+  }
+
+  // Block mode (standard / study)
+  &--block {
+    display: flex;
+    align-items: flex-start;
+    padding: 3px 8px 3px 0;
+    gap: 0;
+
+    @media (hover: hover) {
+      &:hover {
+        background: var(--bg-secondary);
+      }
+    }
+
+    &.verse--study {
+      background: var(--highlight-bg);
+    }
+
+    // Shift-click passage selection. Deliberately a washed-out version of the
+    // anchor's own highlight rather than a different colour: these verses are
+    // the same kind of thing as the anchor, just not the one the study panes
+    // are following, and the weaker tint is what says so.
+    &.verse--in-range {
+      background: color-mix(in srgb, var(--highlight-bg) 45%, transparent);
+    }
+
+    &.verse--preview {
+      border-color: transparent;
+      background: transparent;
+
+      .verse__body {
+        text-decoration: underline;
+        text-decoration-color: var(--accent-color);
+        text-underline-offset: 3px;
+        text-decoration-thickness: 2px;
+      }
+    }
+  }
+
+  .bible-content--reading &.verse--in-range {
+    background: color-mix(in srgb, var(--highlight-bg) 45%, transparent);
+  }
+
+  .bible-content--reading &.verse--preview {
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent-color) 60%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
+  }
+
+  &__number-left {
+    flex-shrink: 0;
+    width: 36px;
+    text-align: right;
+    padding-right: 10px;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--accent-color);
+    user-select: none;
+    line-height: inherit;
+    padding-top: 2px;
+  }
+
+  &__body {
+    flex: 1;
+    // Prevent orphaned punctuation (e.g. colon wrapping to new line)
+    overflow-wrap: break-word;
+    word-break: normal;
+
+    &--interlinear {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+    }
+  }
+
+  // Interlinear word pair (stacked: gloss / original / transliteration / Strong's)
+  &__interlinear-word {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 2px 4px;
+  }
+
+  &__interlinear-gloss {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-primary);
+
+    &--clickable {
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.1s;
+
+      &:hover {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--accent-color);
+      }
+    }
+  }
+
+  &__interlinear-translit {
+    font-size: 0.7em;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
+  // Preface text (verse 0, e.g. Psalm titles)
+  &--preface {
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
+  // Inline mode (reading)
+  &__paragraph-break {
+    display: block;
+    height: 1.2em;
+  }
+
+  &__number {
+    font-size: 0.7em;
+    color: var(--accent-color);
+    margin-right: 2px;
+    font-weight: 600;
+    user-select: none;
+  }
+
+  &__strongs {
+    margin-left: 2px;
+  }
+
+  &__strongs-link {
+    font-size: 0.6em;
+    color: var(--accent-color);
+    cursor: pointer;
+    margin: 0 1px;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+  }
+
+  &__footnote-marker {
+    color: var(--accent-color);
+    font-size: 0.75em;
+    cursor: default;
+    margin: 0 1px;
+  }
+
+  &__footnotes {
+    padding: 4px 0 4px 28px;
+  }
+
+  &__footnote {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  &__footnote-letter {
+    color: var(--accent-color);
+    font-size: 0.85em;
+    margin-right: 2px;
+  }
+
+  .christ-words {
+    color: var(--christ-words);
+  }
+
+  // Tetragrammaton ("LORD"/"GOD" from OSIS <divineName>): rendered small-caps.
+  // Source text is conventionally already all-uppercase ("LORD"), so
+  // text-transform: lowercase feeds font-variant-caps: small-caps true small
+  // capitals for the whole word, then ::first-letter restores a full-height
+  // initial cap — producing "Lord" with a full-size L and small-cap ORD.
+  /* The Tetragrammaton: full-height initial, small capitals after ("Lᴏʀᴅ").
+     The span content is normalized to initial-capital form by formatVerseText,
+     so small-caps alone produces that. Do NOT add `text-transform: lowercase`
+     with a `::first-letter` override — `::first-letter` only matches block
+     containers and is silently ignored on an inline span, which flattens this
+     to uniform small capitals. */
+  .divine-name {
+    font-variant-caps: small-caps;
+  }
+}
+

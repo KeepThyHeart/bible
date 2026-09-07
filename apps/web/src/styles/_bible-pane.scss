@@ -1,0 +1,70 @@
+// ============================================================
+// Back bar — "Back to [ref]" after navigating via a verse link
+// ============================================================
+.bible-back-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 12px;
+  background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-secondary));
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  transition: opacity 0.5s ease-out;
+
+  &--fading {
+    opacity: 0;
+  }
+
+  &__btn {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    font-size: calc(12.5px * var(--ui-font-scale, 1));
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    }
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+    font-size: 11px;
+
+    &:hover {
+      color: var(--text-primary);
+      background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+    }
+  }
+}
+
+// Bible pane
+// ============================================================
+.bible-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  &__scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    // touch-action: pan-y; // Enable when ENABLE_SWIPE_NAVIGATION is true
+  }
+
+  &--reading {
+    // Tabs still visible in reading mode per spec
+  }
+}
+
