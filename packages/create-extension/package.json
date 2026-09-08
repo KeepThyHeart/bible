@@ -24,7 +24,7 @@
     "create"
   ],
   "author": "Peter Rankin <psrankin@outlook.com>",
-  "license": "GPL-3.0-or-later",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0"

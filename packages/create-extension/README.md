@@ -35,10 +35,13 @@ my-extension/
   tsconfig.json         - TypeScript config
   esbuild.config.mjs    - Bundles src/main.ts to dist/main.js (--watch supported)
   vitest.config.ts      - Test config
+  .gitignore
   src/main.ts           - Entry point with activate() / deactivate()
   src/verseUtils.ts     - Verse id helpers
   src/bible-env.d.ts    - Ambient types for the host API
   test/main.test.ts     - A passing test against the mocked host
+  ui/index.html         - Starter panel, wired to the @bible/extension-ui SDK
+  ui/styles.css         - Panel styles, using the host's theme variables
   README.md             - Per-project readme
 ```
 
@@ -64,4 +67,6 @@ To load it in the desktop app, copy the project folder into the app's extensions
 
 ## License
 
-GPL-3.0-or-later. See [`LICENSE`](./LICENSE).
+MIT. See [`LICENSE`](./LICENSE).
+
+Permissive on purpose, while the app itself is GPL-3.0-or-later: this tool copies its templates verbatim into the project it generates, so an MIT licence is what lets the resulting extension ship under any licence its author chooses, commercial ones included. Generated projects are stamped MIT to match.

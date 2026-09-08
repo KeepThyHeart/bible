@@ -578,6 +578,12 @@ npm run package
 \`\`\`
 
 This builds and creates a \`.tgz\` file you can install into the Bible app.
+
+## License
+
+MIT, as generated. Change it to whatever you like -- this is your extension.
+
+Nothing here obliges you to any particular licence. The Bible app itself is GPL-3.0-or-later, but the pieces that end up inside your bundle are not: \`@bible/extension-ui\` is MIT, and \`@bible/core\` is used for types only, which the compiler erases at build time. Commercial and closed-source extensions are fine.
 `;
 }
 
