@@ -1,0 +1,48 @@
+{
+  "name": "@bible/extension-testing",
+  "version": "1.0.0",
+  "description": "Testing utilities for Bible app extension developers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "bible-ext": "./dist/bin.js",
+    "bible-ext-smoke": "./dist/binSmoke.js"
+  },
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/bin.js', 0o755); require('fs').chmodSync('dist/binSmoke.js', 0o755)\"",
+    "typecheck": "tsc --noEmit",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "bible",
+    "extension",
+    "testing",
+    "mock"
+  ],
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@bible/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "vitest": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
+}
