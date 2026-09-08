@@ -1,0 +1,17 @@
+{
+  "layout.studyMode.name": "Modo de estudio",
+  "layout.studyMode.description": "La Biblia a la izquierda y las herramientas de estudio a la derecha",
+  "layout.readingMode.name": "Modo de lectura",
+  "layout.readingMode.description": "Solo la Biblia, con márgenes para la lectura",
+  "layout.studyModeQuad.name": "Modo de estudio (cuádruple)",
+  "layout.studyModeQuad.description": "Diseño de 2×2: comentario arriba a la izquierda, Biblia arriba a la derecha, diccionarios abajo a la izquierda y notas abajo a la derecha",
+  "layout.writerMode.name": "Modo Escritura",
+  "layout.writerMode.description": "La Escritura a la izquierda y un lugar para escribir a la derecha",
+  "layout.applyPreset.title": "Aplicar {presetName}",
+  "layout.dropdown.label": "Diseño",
+  "layout.dropdown.tooltip": "Restablecer a un diseño predefinido",
+  "layout.reset.label": "Restablecer al diseño predeterminado",
+  "layout.undo.toast": "{count, plural, one {Se ha reorganizado # pestaña.} other {Se han reorganizado # pestañas.}}",
+  "layout.undo.button": "Deshacer",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

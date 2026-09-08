@@ -1,0 +1,14 @@
+{
+  "layout.studyMode.name": "अध्ययन मोड",
+  "layout.studyMode.description": "बाईं ओर बाइबल, दाईं ओर अध्ययन के साधन",
+  "layout.readingMode.name": "पठन मोड",
+  "layout.readingMode.description": "केवल बाइबल, पढ़ने के लिए हाशिये के साथ",
+  "layout.studyModeQuad.name": "अध्ययन मोड (चार फलक)",
+  "layout.studyModeQuad.description": "2×2 लेआउट: ऊपर बाईं ओर टीका, ऊपर दाईं ओर बाइबल, नीचे बाईं ओर शब्दकोश, नीचे दाईं ओर टिप्पणियाँ",
+  "layout.applyPreset.title": "{presetName} लागू करें",
+  "layout.dropdown.label": "लेआउट",
+  "layout.dropdown.tooltip": "किसी अंतर्निहित लेआउट पर लौटें",
+  "layout.undo.toast": "{count, plural, one {# टैब पुनर्व्यवस्थित किया गया।} other {# टैब पुनर्व्यवस्थित किए गए।}}",
+  "layout.undo.button": "पूर्ववत करें",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

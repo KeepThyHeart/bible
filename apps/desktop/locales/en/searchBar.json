@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "Search Bible, enter reference, or type / for commands",
+  "searchBar.commandMode.label": "Commands",
+  "searchBar.commandMode.empty": "No matching commands",
+  "searchBar.referenceMode.label": "Navigate to reference",
+  "searchBar.referenceMode.goTo": "Go to {reference}",
+  "searchBar.emptyState.recentSearches": "Recent Searches",
+  "searchBar.emptyState.recentCommands": "Recent Commands",
+  "searchBar.emptyState.noRecents": "No recent items"
+}

@@ -1,0 +1,14 @@
+{
+  "layout.studyMode.name": "研经模式",
+  "layout.studyMode.description": "圣经在左，研经工具在右",
+  "layout.readingMode.name": "阅读模式",
+  "layout.readingMode.description": "只显示圣经，并留出阅读页边距",
+  "layout.studyModeQuad.name": "研经模式（四窗格）",
+  "layout.studyModeQuad.description": "2×2 布局：左上为注释，右上为圣经，左下为词典，右下为笔记",
+  "layout.applyPreset.title": "应用{presetName}",
+  "layout.dropdown.label": "布局",
+  "layout.dropdown.tooltip": "恢复为内置布局",
+  "layout.undo.toast": "已重新排列 {count} 个标签页。",
+  "layout.undo.button": "撤销",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

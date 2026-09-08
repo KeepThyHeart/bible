@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "搜索圣经、输入经文出处，或输入 / 调出命令",
+  "searchBar.commandMode.label": "命令",
+  "searchBar.commandMode.empty": "没有匹配的命令",
+  "searchBar.referenceMode.label": "跳转到经文出处",
+  "searchBar.referenceMode.goTo": "跳转到 {reference}",
+  "searchBar.emptyState.recentSearches": "最近的搜索",
+  "searchBar.emptyState.recentCommands": "最近的命令",
+  "searchBar.emptyState.noRecents": "没有最近的项目"
+}

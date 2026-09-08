@@ -1,0 +1,7 @@
+{
+  "locale.name": "Portuguese (Brazil)",
+  "locale.nativeName": "Português (Brasil)",
+  "locale.status": "draft",
+  "locale.direction": "ltr",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. Scripture samples (preferencesDialog.typographyPreviewLine and the Fonts-section Bible sample preferencesDialog.fontSampleBible, which is the same clause with a trailing ellipsis) use the old João Ferreira de Almeida wording (\"Porque assim amou Deus ao mundo...\"), the 1819/1898 text — public domain. This is deliberately NOT the modern \"Porque Deus amou o mundo de tal maneira...\" reading: that wording belongs to the 1995 Almeida Revista e Corrigida (© Sociedade Bíblica do Brasil) and to the Almeida Corrigida Fiel 1994 (© Sociedade Bíblica Trinitariana do Brasil), both under copyright. Almeida Revista e Atualizada (1959/1993, © SBB) and NVI (© Biblica) are copyrighted too. Do not \"modernise\" this string — doing so silently swaps a public-domain text for a copyrighted one. A Lusophone reviewer should confirm the exact 1819 reading against a scanned edition. The theme preview (ui.preferences.themePreviewLine1/Line2) quotes John 3:16-17 from the same old Almeida text — 3:17 reads \"Porque Deus enviou o seu Filho ao mundo, não para que condenasse o mundo...\". The same do-not-modernise rule applies to it."
+}

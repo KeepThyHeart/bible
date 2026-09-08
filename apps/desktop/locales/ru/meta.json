@@ -1,0 +1,7 @@
+{
+  "locale.name": "Russian",
+  "locale.nativeName": "Русский",
+  "locale.status": "draft",
+  "locale.direction": "ltr",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. Scripture samples (preferencesDialog.typographyPreviewLine and the Fonts-section Bible sample preferencesDialog.fontSampleBible, which is the same clause with a trailing ellipsis) use the Синодальный перевод (Russian Synodal Version, 1876) — public domain, and the terminology base for the whole locale, as it is what Russian-speaking seminaries use. Do NOT replace it with the Современный перевод РБО (2011), Новый русский перевод (© Biblica) or Восточный перевод; all are under copyright. Note the deliberate terminology choice симфония for \"concordance\" (the established Russian biblical-studies term, not конкорданс) and подстрочник for \"interlinear\". The theme preview (ui.preferences.themePreviewLine1/Line2) quotes John 3:16-17 from the same Synodal text; 3:17 keeps the Synodal чрез rather than через."
+}

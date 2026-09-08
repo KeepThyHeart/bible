@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "⟦Šéåŕçĥ Ɓîƀļé, éñţéŕ ŕéƒéŕéñçé, øŕ ţýþé / ƒøŕ çøɱɱåñðš ···············⟧",
+  "searchBar.commandMode.label": "⟦Çøɱɱåñðš ··⟧",
+  "searchBar.commandMode.empty": "⟦Ñø ɱåţçĥîñĝ çøɱɱåñðš ······⟧",
+  "searchBar.referenceMode.label": "⟦Ñåṽîĝåţé ţø ŕéƒéŕéñçé ······⟧",
+  "searchBar.referenceMode.goTo": "⟦Ĝø ţø {reference} ··⟧",
+  "searchBar.emptyState.recentSearches": "⟦Ŕéçéñţ Šéåŕçĥéš ····⟧",
+  "searchBar.emptyState.recentCommands": "⟦Ŕéçéñţ Çøɱɱåñðš ····⟧",
+  "searchBar.emptyState.noRecents": "⟦Ñø ŕéçéñţ îţéɱš ····⟧"
+}

@@ -1,0 +1,14 @@
+{
+  "layout.studyMode.name": "Режим изучения",
+  "layout.studyMode.description": "Библия слева, инструменты изучения справа",
+  "layout.readingMode.name": "Режим чтения",
+  "layout.readingMode.description": "Только Библия, с полями для чтения",
+  "layout.studyModeQuad.name": "Режим изучения (четыре панели)",
+  "layout.studyModeQuad.description": "Макет 2×2: комментарий сверху слева, Библия сверху справа, словари снизу слева, заметки снизу справа",
+  "layout.applyPreset.title": "Применить: {presetName}",
+  "layout.dropdown.label": "Макет",
+  "layout.dropdown.tooltip": "Вернуться к встроенному макету",
+  "layout.undo.toast": "{count, plural, one {Переставлена # вкладка.} few {Переставлено # вкладки.} many {Переставлено # вкладок.} other {Переставлено # вкладки.}}",
+  "layout.undo.button": "Отменить",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "ابحث في الكتاب المقدس، أو أدخل مرجعًا، أو اكتب / لعرض الأوامر",
+  "searchBar.commandMode.label": "الأوامر",
+  "searchBar.commandMode.empty": "لا توجد أوامر مطابقة",
+  "searchBar.referenceMode.label": "الانتقال إلى المرجع",
+  "searchBar.referenceMode.goTo": "الانتقال إلى {reference}",
+  "searchBar.emptyState.recentSearches": "عمليات البحث الأخيرة",
+  "searchBar.emptyState.recentCommands": "الأوامر الأخيرة",
+  "searchBar.emptyState.noRecents": "لا توجد عناصر حديثة"
+}

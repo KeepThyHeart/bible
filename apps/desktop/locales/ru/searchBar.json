@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "Поиск по Библии, ввод ссылки или / для вызова команд",
+  "searchBar.commandMode.label": "Команды",
+  "searchBar.commandMode.empty": "Подходящих команд нет",
+  "searchBar.referenceMode.label": "Перейти к ссылке",
+  "searchBar.referenceMode.goTo": "Перейти к {reference}",
+  "searchBar.emptyState.recentSearches": "Недавние запросы",
+  "searchBar.emptyState.recentCommands": "Недавние команды",
+  "searchBar.emptyState.noRecents": "Недавних элементов нет"
+}

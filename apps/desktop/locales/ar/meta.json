@@ -1,0 +1,7 @@
+{
+  "locale.name": "Arabic",
+  "locale.nativeName": "العربية",
+  "locale.status": "draft",
+  "locale.direction": "rtl",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. Scripture samples (preferencesDialog.typographyPreviewLine and the Fonts-section Bible sample preferencesDialog.fontSampleBible, which is the same clause with a trailing ellipsis) use the Smith-Van Dyck Arabic Bible (فان دايك), 1865 — public domain. Do NOT replace it with كتاب الحياة (NAV/Arabic Living Bible), the Good News Arabic (GNA/كتاب الحياة المشتركة) or the Sharif/Kitab al-Sharif editions; all are under active copyright. Terminology follows the Van Dyck tradition: سفر (book), أصحاح (chapter), عدد (verse). A reviewer preferring the Catholic/modern convention (آية for verse, فصل for chapter) should change GLOSSARY.md first, not this file. The theme preview (ui.preferences.themePreviewLine1/Line2) quotes John 3:16-17 from the same Van Dyck text; ui.preferences.themePreviewLink is the vocalized phrase الْحَيَاةُ الأَبَدِيَّةُ taken verbatim from Line1, because it is spliced back into that sentence at render time."
+}

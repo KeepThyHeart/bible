@@ -1,0 +1,14 @@
+{
+  "layout.studyMode.name": "وضع الدراسة",
+  "layout.studyMode.description": "الكتاب المقدس على اليسار وأدوات الدراسة على اليمين",
+  "layout.readingMode.name": "وضع القراءة",
+  "layout.readingMode.description": "الكتاب المقدس وحده، مع هوامش مريحة للقراءة",
+  "layout.studyModeQuad.name": "وضع الدراسة (رباعي)",
+  "layout.studyModeQuad.description": "تخطيط 2×2: التفسير أعلى اليسار، والكتاب المقدس أعلى اليمين، والقواميس أسفل اليسار، والملاحظات أسفل اليمين",
+  "layout.applyPreset.title": "تطبيق {presetName}",
+  "layout.dropdown.label": "التخطيط",
+  "layout.dropdown.tooltip": "إعادة التعيين إلى تخطيط مضمَّن",
+  "layout.undo.toast": "{count, plural, zero {لم يُعَد ترتيب أي علامة تبويب.} one {أُعيد ترتيب علامة تبويب واحدة.} two {أُعيد ترتيب علامتَي تبويب.} few {أُعيد ترتيب # علامات تبويب.} many {أُعيد ترتيب # علامة تبويب.} other {أُعيد ترتيب # علامة تبويب.}}",
+  "layout.undo.button": "تراجع",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

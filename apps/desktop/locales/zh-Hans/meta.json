@@ -1,0 +1,7 @@
+{
+  "locale.name": "Chinese (Simplified)",
+  "locale.nativeName": "简体中文",
+  "locale.status": "draft",
+  "locale.direction": "ltr",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. Scripture samples (preferencesDialog.typographyPreviewLine and the Fonts-section Bible sample preferencesDialog.fontSampleBible, which is the same clause with a trailing ellipsis) use the 和合本 (Chinese Union Version, 1919) — public domain — in its 神版 (\"Shen\" edition) form, which is the edition predominantly used by the orthodox/house evangelical church in mainland China. Every UI string referring to God therefore uses 神, never 上帝. Do NOT substitute 新标点和合本 (CUV with New Punctuation, 1988, © Hong Kong Bible Society), 和合本修订版 (RCUV, 2010, © HKBS), 新译本 (CNV) or 当代译本; all are under copyright. Note: printed 神版 editions set a full-width space before 神 purely to keep line length equal with the 上帝版 typesetting. That convention is NOT reproduced here, because nothing in the en/es catalogs shows the app rendering Scripture with that kind of typographic padding. Terminology base is 和合本 vocabulary throughout. Chinese has a single CLDR plural category, so layout.undo.toast uses a plain count placeholder rather than an ICU plural block. The theme preview (ui.preferences.themePreviewLine1/Line2) quotes John 3:16-17 from the same 和合本 神版 text."
+}

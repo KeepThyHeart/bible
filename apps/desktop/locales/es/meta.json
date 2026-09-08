@@ -1,0 +1,7 @@
+{
+  "locale.name": "Spanish",
+  "locale.nativeName": "Español",
+  "locale.status": "draft",
+  "locale.direction": "ltr",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. All Scripture in this locale (the typography preview preferencesDialog.typographyPreviewLine, the Fonts-section Bible sample preferencesDialog.fontSampleBible, and the theme preview ui.preferences.themePreviewLine1/Line2) uses the Reina-Valera 1909 — public domain. Note the accented \"á\" in \"ha dado á su Hijo unigénito\" and \"no envió Dios á su Hijo al mundo\": that is 1909 orthography, not a typo, and it is the visible difference from the Reina-Valera 1960, whose text is copyrighted by Sociedades Bíblicas Unidas. Modernising that single character silently converts the string into the copyrighted edition. Do NOT substitute RV1960, RV1995, NVI (© Biblica) or La Biblia de las Américas (© Lockman); all are under copyright. Register follows GLOSSARY.md: impersonal/infinitive for labels, impersonal se or usted for prose — never tú."
+}

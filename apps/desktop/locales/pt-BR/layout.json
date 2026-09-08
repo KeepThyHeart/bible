@@ -1,0 +1,14 @@
+{
+  "layout.studyMode.name": "Modo de estudo",
+  "layout.studyMode.description": "A Bíblia à esquerda e as ferramentas de estudo à direita",
+  "layout.readingMode.name": "Modo de leitura",
+  "layout.readingMode.description": "Somente a Bíblia, com margens para leitura",
+  "layout.studyModeQuad.name": "Modo de estudo (quádruplo)",
+  "layout.studyModeQuad.description": "Layout 2×2: comentário no canto superior esquerdo, Bíblia no canto superior direito, dicionários no canto inferior esquerdo e notas no canto inferior direito",
+  "layout.applyPreset.title": "Aplicar {presetName}",
+  "layout.dropdown.label": "Layout",
+  "layout.dropdown.tooltip": "Redefinir para um layout interno",
+  "layout.undo.toast": "{count, plural, one {# aba reorganizada.} other {# abas reorganizadas.}}",
+  "layout.undo.button": "Desfazer",
+  "layout.showStudyPanes.label": "Show Study Panes"
+}

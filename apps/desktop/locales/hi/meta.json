@@ -1,0 +1,7 @@
+{
+  "locale.name": "Hindi",
+  "locale.nativeName": "हिन्दी",
+  "locale.status": "draft",
+  "locale.direction": "ltr",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. NO SCRIPTURE IS QUOTED IN THIS LOCALE. preferencesDialog.typographyPreviewLine and preferencesDialog.fontSampleBible (the Fonts-section Bible sample) are both plain non-Scripture font-preview sentences, not John 3:16. Reason: no Hindi Bible translation could be positively confirmed as public domain. The familiar Hindi O.V. / Pavitra Bible wording is published by the Bible Society of India, which asserts copyright on its editions; the underlying 19th-century BFBS text is very likely public domain but its exact wording could not be verified against a scanned pre-1928 edition, and the modern BSI reading differs. Every other Hindi translation checked (Easy-to-Read Version, Hindi Contemporary Version, IRV Hindi) is under active copyright. Per locales/README.md a non-Scripture sample was substituted rather than guessing. If a reviewer can cite a specific public-domain Hindi edition with a verifiable date, replace the sample and record the edition here. The Preferences theme preview is likewise NOT Scripture: ui.preferences.themePreviewLine1 and themePreviewLine2 are plain font/colour preview prose, and ui.preferences.themePreviewLink is rendered as the plain phrase \"अनंत जीवन\" — generic Hindi shown as an example link inside that prose, not a quotation of any one translation."
+}
