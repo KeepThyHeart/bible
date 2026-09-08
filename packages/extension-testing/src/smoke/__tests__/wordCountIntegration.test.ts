@@ -6,7 +6,7 @@ import { runSmokeSuite } from '../runSmokeSuite';
 
 const WORD_COUNT_ROOT = path.resolve(
   __dirname,
-  '../../../../../examples/extensions/word-count',
+  '../../../../word-count-example',
 );
 
 describe('smoke pipeline — word-count reference extension', () => {
