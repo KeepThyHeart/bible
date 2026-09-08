@@ -16,7 +16,7 @@ Four aggregation services that collapse *every installed module of a given kind*
 | `src/Services/StudyOverview/CrossRefAggregationService.ts` | Calls `ICrossReferenceRepository.getGroupsWithEntriesForRange`; groups keyed by source verse. |
 | `src/Services/StudyOverview/IEntityAggregationService.ts` | `getChapterEntities(book, chapter, tagGraph)` - a single repo, not an array. |
 | `src/Services/StudyOverview/EntityAggregationService.ts` | Calls `ITagGraphRepository.getEntityRangesForVerseRange`; keys each row under its `startVerseId`. |
-| `src/__tests__/StudyOverview/StudyOverview.test.ts` | Runs against real fixtures (`commentary_barnes.db`, `xref_tsk.db`, `topical_nave.db` under `packages/desktop/data/modules/`, and `tag_graph.db` under `packages/desktop/data/`), auto-skipping when they are absent. Asserts wire shape, module ordering, and that optional fields are *omitted* rather than serialized as null. |
+| `src/__tests__/StudyOverview/StudyOverview.test.ts` | Runs against real fixtures (`commentary_barnes.db`, `xref_tsk.db`, `topical_nave.db` under `apps/desktop/data/modules/`, and `tag_graph.db` under `apps/desktop/data/`), auto-skipping when they are absent. Asserts wire shape, module ordering, and that optional fields are *omitted* rather than serialized as null. |
 
 ## What "aggregate across modules" means here
 

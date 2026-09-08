@@ -4,17 +4,47 @@ import { Collection, PinnedItem } from '../Data/Models/User/Collection';
 import { VerseIdHelper } from '../Data/Core/Types';
 
 /**
+ * Metadata key marking the one collection the flat bookmark surface reads and
+ * writes.
+ *
+ * The default collection is identified by this flag and never by its name or
+ * icon. A name match breaks the moment the user renames the collection, or a
+ * localized build ships it under a translated name -- and it breaks silently,
+ * because the lookup then misses the collection the user's bookmarks are
+ * actually in and creates a second default beside it.
+ *
+ * The flag lives in `collection.metadata`, which the schema and repository
+ * already carried, so adopting it needed no migration.
+ */
+const DEFAULT_BOOKMARKS_FLAG = 'isDefaultBookmarks';
+
+/** Name and icon the pre-flag default collection was created with. */
+const LEGACY_DEFAULT_NAME = 'Favorites';
+const LEGACY_DEFAULT_ICON = '⭐';
+
+/**
  * Service for managing collections (folders of bookmarked verses/passages).
  *
  * Provides higher-level operations on top of the collection repository,
- * including automatic "Favorites" collection creation, duplicate detection,
+ * including automatic default-collection creation, duplicate detection,
  * circular reference prevention, and human-readable reference formatting.
+ *
+ * Two surfaces sit side by side here:
+ *
+ * - The **collection/tree API** -- create, nest, move, and fill collections of
+ *   your own. This is what the extension API is written against; nothing in it
+ *   has been removed.
+ * - The **flat bookmark API** -- {@link CollectionService.getBookmarks},
+ *   {@link CollectionService.replaceBookmarkReference} and
+ *   {@link CollectionService.renameBookmark}, plus the quick-bookmark methods.
+ *   These all operate on the single default collection, which is how the app UI
+ *   presents bookmarks: one list, no folders.
  *
  * @example
  * ```typescript
  * const service = new CollectionService(collectionRepo, bibleBookRepo);
  *
- * // Quick-bookmark a verse to Favorites
+ * // Quick-bookmark a verse to the default collection
  * await service.quickBookmarkVerse(43003016); // John 3:16
  *
  * // Create a custom collection and add verses
@@ -31,8 +61,8 @@ export class CollectionService {
   // ===== Quick Bookmark Operations =====
 
   /**
-   * Quick-bookmark a single verse to the default "Favorites" collection.
-   * Creates the Favorites collection automatically if it does not yet exist.
+   * Quick-bookmark a single verse to the default collection.
+   * Creates the default collection automatically if it does not yet exist.
    *
    * @param verseId - The calculated verse ID (e.g., 43003016 for John 3:16)
    * @param moduleId - Optional module ID to associate the bookmark with a specific Bible translation
@@ -44,24 +74,24 @@ export class CollectionService {
     moduleId?: number,
     title?: string
   ): Promise<number> {
-    const favorites = this.getOrCreateFavorites();
+    const target = this.getOrCreateDefaultCollection();
 
     const item = new PinnedItem({
-      collectionId: favorites.collectionId,
+      collectionId: target.collectionId,
       itemType: 'verse',
       verseIdStart: verseId,
       referenceText: this.formatVerseReference(verseId),
       moduleId,
       title,
-      sortOrder: 0
+      sortOrder: this.nextSortOrder(target.collectionId!)
     });
 
     return this.collectionRepo.addPinnedItem(item);
   }
 
   /**
-   * Quick-bookmark a passage (range of verses) to the default "Favorites" collection.
-   * Creates the Favorites collection automatically if it does not yet exist.
+   * Quick-bookmark a passage (range of verses) to the default collection.
+   * Creates the default collection automatically if it does not yet exist.
    *
    * @param verseIdStart - Starting verse ID of the passage
    * @param verseIdEnd - Ending verse ID of the passage
@@ -75,17 +105,17 @@ export class CollectionService {
     moduleId?: number,
     title?: string
   ): Promise<number> {
-    const favorites = this.getOrCreateFavorites();
+    const target = this.getOrCreateDefaultCollection();
 
     const item = new PinnedItem({
-      collectionId: favorites.collectionId,
+      collectionId: target.collectionId,
       itemType: 'passage',
       verseIdStart,
       verseIdEnd,
       referenceText: this.formatPassageReference(verseIdStart, verseIdEnd),
       moduleId,
       title,
-      sortOrder: 0
+      sortOrder: this.nextSortOrder(target.collectionId!)
     });
 
     return this.collectionRepo.addPinnedItem(item);
@@ -108,6 +138,96 @@ export class CollectionService {
    */
   isVerseBookmarked(verseId: number): boolean {
     return this.collectionRepo.isVerseBookmarked(verseId);
+  }
+
+  // ===== Flat Bookmark Operations =====
+  //
+  // The app UI shows bookmarks as one flat, manually ordered list drawn from
+  // the default collection. These methods are that list's whole vocabulary;
+  // the collection/tree API below is what extensions address.
+
+  /**
+   * Every bookmark in the default collection, in the user's manual order.
+   *
+   * A read, so it never creates the default collection: a user who has not
+   * bookmarked anything yet has no bookmarks and no collection to hold them,
+   * and gets an empty list rather than an empty folder written to their
+   * database. It will, however, adopt a legacy collection if one is there --
+   * see {@link findDefaultCollection}.
+   */
+  getBookmarks(): PinnedItem[] {
+    const target = this.findDefaultCollection();
+    if (!target?.collectionId) {
+      return [];
+    }
+
+    return this.collectionRepo.getPinnedItemsForCollection(target.collectionId);
+  }
+
+  /**
+   * Re-point an existing bookmark at a different verse or passage.
+   *
+   * The title is deliberately left exactly as it is. A bookmark's title is the
+   * user's name for it, not a cached copy of its reference: someone who named a
+   * bookmark "Memorize this week" and then corrected the verse it points at
+   * wants the name to survive the correction. The generated reference text is
+   * refreshed instead, since that one *is* derived from the reference. To clear
+   * or change a name, call {@link renameBookmark} -- that is the only method
+   * that writes a title.
+   *
+   * Passing `verseIdEnd` (different from `verseIdStart`) turns the bookmark into
+   * a passage; omitting it turns it back into a single verse.
+   *
+   * @param pinId - The pinned item to re-point
+   * @param verseIdStart - New starting verse ID
+   * @param verseIdEnd - New ending verse ID for a passage; omit for a single verse
+   * @throws Error if the pinned item does not exist
+   */
+  replaceBookmarkReference(
+    pinId: number,
+    verseIdStart: number,
+    verseIdEnd?: number
+  ): void {
+    const item = this.collectionRepo.getPinnedItem(pinId);
+    if (!item) {
+      throw new Error('Pinned item not found');
+    }
+
+    const isPassage = verseIdEnd !== undefined && verseIdEnd !== verseIdStart;
+
+    item.itemType = isPassage ? 'passage' : 'verse';
+    item.verseIdStart = verseIdStart;
+    item.verseIdEnd = isPassage ? verseIdEnd : undefined;
+    item.referenceText = isPassage
+      ? this.formatPassageReference(verseIdStart, verseIdEnd!)
+      : this.formatVerseReference(verseIdStart);
+
+    this.collectionRepo.updatePinnedItem(item);
+  }
+
+  /**
+   * Name a bookmark, or clear its name back to its reference.
+   *
+   * A blank or whitespace-only title is stored as no title at all, so the UI
+   * falls back to the formatted reference rather than showing an empty row.
+   * This is the mirror of {@link replaceBookmarkReference}: that one moves the
+   * reference and leaves the name, this one changes the name and leaves the
+   * reference.
+   *
+   * @param pinId - The pinned item to rename
+   * @param title - New display title; omit or pass blank to clear it
+   * @throws Error if the pinned item does not exist
+   */
+  renameBookmark(pinId: number, title?: string): void {
+    const item = this.collectionRepo.getPinnedItem(pinId);
+    if (!item) {
+      throw new Error('Pinned item not found');
+    }
+
+    const trimmed = title?.trim();
+    item.title = trimmed ? trimmed : undefined;
+
+    this.collectionRepo.updatePinnedItem(item);
   }
 
   // ===== Collection Management =====
@@ -184,9 +304,10 @@ export class CollectionService {
    * Delete a collection (will cascade delete all pinned items)
    */
   deleteCollection(collectionId: number): void {
-    // Prevent deleting the default Favorites collection
+    // Prevent deleting the default collection -- it is where every quick
+    // bookmark lands, so deleting it would strand the flat bookmark UI.
     const collection = this.collectionRepo.getById(collectionId);
-    if (collection?.name === 'Favorites' && collection?.icon === '⭐') {
+    if (collection && this.isDefaultCollection(collection)) {
       throw new Error('Cannot delete the default Favorites collection');
     }
 
@@ -194,33 +315,46 @@ export class CollectionService {
   }
 
   /**
-   * Get or create the default "Favorites" collection
+   * Get or create the default bookmarks collection.
+   *
+   * Resolution order: the collection carrying the {@link DEFAULT_BOOKMARKS_FLAG}
+   * flag; failing that, a legacy "Favorites" collection, which is adopted in
+   * place; failing that, a freshly created one.
    */
-  getOrCreateFavorites(): Collection {
-    const all = this.collectionRepo.getAll();
-    const favorites = all.find(c => c.name === 'Favorites' && c.icon === '⭐');
-
-    if (favorites && favorites.collectionId) {
-      return favorites;
+  getOrCreateDefaultCollection(): Collection {
+    const existing = this.findDefaultCollection();
+    if (existing) {
+      return existing;
     }
 
-    // Create favorites collection
     const collectionId = this.collectionRepo.create(
       new Collection({
-        name: 'Favorites',
+        name: LEGACY_DEFAULT_NAME,
         description: 'My favorite verses',
         color: '#FFD700',
-        icon: '⭐',
-        sortOrder: 0
+        icon: LEGACY_DEFAULT_ICON,
+        sortOrder: 0,
+        metadata: { [DEFAULT_BOOKMARKS_FLAG]: true }
       })
     );
 
     const created = this.collectionRepo.getById(collectionId);
     if (!created) {
-      throw new Error('Failed to create Favorites collection');
+      throw new Error('Failed to create the default bookmarks collection');
     }
 
     return created;
+  }
+
+  /**
+   * Get or create the default bookmarks collection.
+   *
+   * @deprecated Use {@link getOrCreateDefaultCollection}. The default collection
+   * is no longer identified by the name "Favorites", so the old name is now
+   * misleading; it is kept because extensions compile against it.
+   */
+  getOrCreateFavorites(): Collection {
+    return this.getOrCreateDefaultCollection();
   }
 
   /**
@@ -289,9 +423,6 @@ export class CollectionService {
       throw new Error('This verse is already in this collection');
     }
 
-    // Get sort order (add to end)
-    const sortOrder = existing.length;
-
     const item = new PinnedItem({
       collectionId,
       itemType: 'verse',
@@ -300,7 +431,7 @@ export class CollectionService {
       moduleId,
       title,
       notes,
-      sortOrder
+      sortOrder: this.nextSortOrder(collectionId)
     });
 
     return this.collectionRepo.addPinnedItem(item);
@@ -317,10 +448,6 @@ export class CollectionService {
     title?: string,
     notes?: string
   ): number {
-    // Get sort order (add to end)
-    const existing = this.collectionRepo.getPinnedItemsForCollection(collectionId);
-    const sortOrder = existing.length;
-
     const item = new PinnedItem({
       collectionId,
       itemType: 'passage',
@@ -330,7 +457,7 @@ export class CollectionService {
       moduleId,
       title,
       notes,
-      sortOrder
+      sortOrder: this.nextSortOrder(collectionId)
     });
 
     return this.collectionRepo.addPinnedItem(item);
@@ -374,12 +501,7 @@ export class CollectionService {
     }
 
     item.collectionId = targetCollectionId;
-
-    // Update sort order to add at end
-    const existing = this.collectionRepo.getPinnedItemsForCollection(
-      targetCollectionId
-    );
-    item.sortOrder = existing.length;
+    item.sortOrder = this.nextSortOrder(targetCollectionId);
 
     this.collectionRepo.updatePinnedItem(item);
   }
@@ -422,6 +544,66 @@ export class CollectionService {
   }
 
   /**
+   * Next sort rank for an item appended to a collection: one past the highest
+   * rank in use, not the number of items already there.
+   *
+   * The two agree only while nothing has ever been removed. Three items ranked
+   * 0, 1, 2; delete the middle one and the count is 2 -- which is the rank the
+   * last item still holds, so the appended item ties with it and the two swap
+   * places arbitrarily from one read to the next. The old code took the count,
+   * which was invisible while nothing displayed the order and became a visible
+   * shuffle once the bookmark list became manually ordered.
+   */
+  private nextSortOrder(collectionId: number): number {
+    const existing = this.collectionRepo.getPinnedItemsForCollection(collectionId);
+
+    return existing.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1;
+  }
+
+  /**
+   * Is this the collection the flat bookmark surface reads and writes?
+   *
+   * Answered by the flag alone -- never by name or icon, which the user is free
+   * to change.
+   */
+  private isDefaultCollection(collection: Collection): boolean {
+    return collection.metadata?.[DEFAULT_BOOKMARKS_FLAG] === true;
+  }
+
+  /**
+   * Find the default bookmarks collection without creating one.
+   *
+   * If no collection carries the flag but a legacy "Favorites" one is present,
+   * it is adopted: the flag is stamped onto it in place, keeping its name, icon
+   * and every bookmark already in it. Adopting rather than creating is the whole
+   * point -- a second default beside the first would leave the user's existing
+   * bookmarks in a collection the UI no longer reads.
+   */
+  private findDefaultCollection(): Collection | undefined {
+    const all = this.collectionRepo.getAll();
+
+    const flagged = all.find(c => c.collectionId && this.isDefaultCollection(c));
+    if (flagged) {
+      return flagged;
+    }
+
+    const legacy = all.find(
+      c =>
+        c.collectionId &&
+        c.name === LEGACY_DEFAULT_NAME &&
+        c.icon === LEGACY_DEFAULT_ICON
+    );
+    if (!legacy) {
+      return undefined;
+    }
+
+    legacy.metadata = { ...legacy.metadata, [DEFAULT_BOOKMARKS_FLAG]: true };
+    this.collectionRepo.update(legacy);
+
+    return legacy;
+  }
+
+  /**
    * Validate no circular parent references
    */
   private validateNoCircularReference(
@@ -450,35 +632,15 @@ export class CollectionService {
   // ===== Default Collections Setup =====
 
   /**
-   * Initialize default collections on first run
+   * Initialize default collections on first run.
+   *
+   * Exactly one collection is seeded: the default bookmarks collection. Earlier
+   * versions also seeded a "To Study" collection, which under a single-collection
+   * UI would fill up with items the user has no way to see. An existing "To
+   * Study" is left where it is -- it may well hold the user's verses, and the
+   * extension API can still reach it.
    */
   initializeDefaultCollections(): void {
-    const existing = this.collectionRepo.getAll();
-
-    // Create Favorites if it doesn't exist
-    if (!existing.find(c => c.name === 'Favorites' && c.icon === '⭐')) {
-      this.collectionRepo.create(
-        new Collection({
-          name: 'Favorites',
-          description: 'My favorite verses',
-          color: '#FFD700',
-          icon: '⭐',
-          sortOrder: 0
-        })
-      );
-    }
-
-    // Create "To Study" if it doesn't exist
-    if (!existing.find(c => c.name === 'To Study')) {
-      this.collectionRepo.create(
-        new Collection({
-          name: 'To Study',
-          description: 'Verses to study later',
-          color: '#4A90E2',
-          icon: '📝',
-          sortOrder: 1
-        })
-      );
-    }
+    this.getOrCreateDefaultCollection();
   }
 }

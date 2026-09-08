@@ -4,7 +4,7 @@ import {
   MockCollectionRepository,
   MockBibleBookRepository,
 } from '../__tests__/helpers/MockRepositories';
-import { Collection } from '../Data/Models/User/Collection';
+import { Collection, PinnedItem } from '../Data/Models/User/Collection';
 import { Book, VerseIdHelper } from '../Data/Core/Types';
 
 describe('CollectionService', () => {
@@ -278,15 +278,29 @@ describe('CollectionService', () => {
   });
 
   describe('initializeDefaultCollections', () => {
-    it('should create Favorites and To Study collections', () => {
+    it('should seed exactly one collection', () => {
       service.initializeDefaultCollections();
 
       const all = collectionRepo.getAll();
-      const favorites = all.find(c => c.name === 'Favorites');
-      const toStudy = all.find(c => c.name === 'To Study');
 
-      expect(favorites).toBeDefined();
-      expect(toStudy).toBeDefined();
+      expect(all).toHaveLength(1);
+      expect(all[0].metadata?.isDefaultBookmarks).toBe(true);
+    });
+
+    it('should not seed a "To Study" collection', () => {
+      service.initializeDefaultCollections();
+
+      expect(collectionRepo.getAll().find(c => c.name === 'To Study')).toBeUndefined();
+    });
+
+    it('should leave an existing "To Study" collection alone', () => {
+      const toStudyId = service.createCollection('To Study', undefined, '#4A90E2', '📝');
+      service.addVerseToCollection(toStudyId, VerseIdHelper.calculate(Book.John, 3, 16));
+
+      service.initializeDefaultCollections();
+
+      expect(collectionRepo.getById(toStudyId)?.name).toBe('To Study');
+      expect(collectionRepo.getPinnedItemsForCollection(toStudyId)).toHaveLength(1);
     });
 
     it('should not duplicate default collections', () => {
@@ -553,6 +567,361 @@ describe('CollectionService', () => {
   });
 
   // ==========================================================================
+  // Default Collection Identity Tests
+  // ==========================================================================
+
+  describe('default collection identity', () => {
+    it('should find the default by its flag, not by its name', async () => {
+      const created = service.getOrCreateDefaultCollection();
+      expect(created.metadata?.isDefaultBookmarks).toBe(true);
+
+      // A rename (or a localized build) must not hide the default: the next
+      // bookmark has to land in the same collection, not in a fresh one.
+      created.name = 'Mis versículos';
+      created.icon = '📌';
+      collectionRepo.update(created);
+
+      await service.quickBookmarkVerse(VerseIdHelper.calculate(Book.John, 3, 16));
+
+      expect(collectionRepo.getAll()).toHaveLength(1);
+      expect(service.getOrCreateDefaultCollection().collectionId).toBe(
+        created.collectionId
+      );
+      expect(
+        collectionRepo.getPinnedItemsForCollection(created.collectionId!)
+      ).toHaveLength(1);
+    });
+
+    it('should protect the renamed default from deletion', () => {
+      const created = service.getOrCreateDefaultCollection();
+      created.name = 'Renamed';
+      created.icon = undefined;
+      collectionRepo.update(created);
+
+      expect(() => service.deleteCollection(created.collectionId!)).toThrow(
+        'Cannot delete the default Favorites collection'
+      );
+    });
+
+    it('should not protect an unrelated collection merely named Favorites', () => {
+      // Only the flag confers default status, so a user's own collection that
+      // happens to be called Favorites is still theirs to delete.
+      const mine = service.createCollection('Favorites', undefined, undefined, '📗');
+
+      service.deleteCollection(mine);
+
+      expect(collectionRepo.getById(mine)).toBeUndefined();
+    });
+
+    it('should keep getOrCreateFavorites working as an alias', () => {
+      const viaAlias = service.getOrCreateFavorites();
+      const viaNewName = service.getOrCreateDefaultCollection();
+
+      expect(viaAlias.collectionId).toBe(viaNewName.collectionId);
+      expect(collectionRepo.getAll()).toHaveLength(1);
+    });
+  });
+
+  describe('legacy Favorites adoption', () => {
+    /** A pre-flag Favorites collection, exactly as older versions wrote it. */
+    const seedLegacyFavorites = (): number => {
+      const legacyId = collectionRepo.create(
+        new Collection({
+          name: 'Favorites',
+          description: 'My favorite verses',
+          color: '#FFD700',
+          icon: '⭐',
+          sortOrder: 0,
+        })
+      );
+
+      collectionRepo.addPinnedItem(
+        new PinnedItem({
+          collectionId: legacyId,
+          itemType: 'verse',
+          verseIdStart: VerseIdHelper.calculate(Book.John, 3, 16),
+          referenceText: 'John 3:16',
+          title: 'An old favourite',
+          sortOrder: 0,
+        })
+      );
+
+      return legacyId;
+    };
+
+    it('should adopt the legacy collection instead of creating a second one', () => {
+      const legacyId = seedLegacyFavorites();
+
+      const resolved = service.getOrCreateDefaultCollection();
+
+      expect(resolved.collectionId).toBe(legacyId);
+      expect(collectionRepo.getAll()).toHaveLength(1);
+    });
+
+    it('should stamp the flag in place, keeping name, icon and bookmarks', () => {
+      const legacyId = seedLegacyFavorites();
+
+      const resolved = service.getOrCreateDefaultCollection();
+
+      expect(resolved.metadata?.isDefaultBookmarks).toBe(true);
+      expect(resolved.name).toBe('Favorites');
+      expect(resolved.icon).toBe('⭐');
+
+      const items = collectionRepo.getPinnedItemsForCollection(legacyId);
+      expect(items).toHaveLength(1);
+      expect(items[0].title).toBe('An old favourite');
+
+      // The stamp is persisted, not just set on the returned object.
+      expect(collectionRepo.getById(legacyId)?.metadata?.isDefaultBookmarks).toBe(true);
+    });
+
+    it('should adopt on a read as well as on a write', () => {
+      const legacyId = seedLegacyFavorites();
+
+      expect(service.getBookmarks()).toHaveLength(1);
+      expect(collectionRepo.getById(legacyId)?.metadata?.isDefaultBookmarks).toBe(true);
+    });
+
+    it('should not adopt again once the collection has been renamed', async () => {
+      seedLegacyFavorites();
+      const adopted = service.getOrCreateDefaultCollection();
+      adopted.name = 'Renamed';
+      collectionRepo.update(adopted);
+
+      await service.quickBookmarkVerse(VerseIdHelper.calculate(Book.Romans, 8, 28));
+
+      expect(collectionRepo.getAll()).toHaveLength(1);
+      expect(
+        collectionRepo.getPinnedItemsForCollection(adopted.collectionId!)
+      ).toHaveLength(2);
+    });
+
+    it('should initialize defaults without duplicating a legacy Favorites', () => {
+      const legacyId = seedLegacyFavorites();
+
+      service.initializeDefaultCollections();
+
+      expect(collectionRepo.getAll()).toHaveLength(1);
+      expect(collectionRepo.getById(legacyId)?.metadata?.isDefaultBookmarks).toBe(true);
+    });
+  });
+
+  // ==========================================================================
+  // Sort Order Tests
+  // ==========================================================================
+
+  describe('pinned item sort order', () => {
+    it('should rank an appended item one past the highest, not by count', () => {
+      const collectionId = service.createCollection('Ordered');
+      const first = service.addVerseToCollection(collectionId, 43003016);
+      const middle = service.addVerseToCollection(collectionId, 45008028);
+      const last = service.addVerseToCollection(collectionId, 19023001);
+
+      expect(collectionRepo.getPinnedItem(last)?.sortOrder).toBe(2);
+
+      // Deleting from the middle leaves ranks 0 and 2 in use. Ranking by count
+      // would hand the next item rank 2, colliding with the item that already
+      // holds it.
+      collectionRepo.deletePinnedItem(middle);
+      const appended = service.addVerseToCollection(collectionId, 1001001);
+
+      expect(collectionRepo.getPinnedItem(appended)?.sortOrder).toBe(3);
+
+      const ranks = collectionRepo
+        .getPinnedItemsForCollection(collectionId)
+        .map(item => item.sortOrder);
+      expect(new Set(ranks).size).toBe(ranks.length);
+      expect(collectionRepo.getPinnedItem(first)?.sortOrder).toBe(0);
+    });
+
+    it('should rank an appended passage one past the highest', () => {
+      const collectionId = service.createCollection('Ordered');
+      service.addVerseToCollection(collectionId, 43003016);
+      const middle = service.addVerseToCollection(collectionId, 45008028);
+      service.addVerseToCollection(collectionId, 19023001);
+      collectionRepo.deletePinnedItem(middle);
+
+      const pinId = service.addPassageToCollection(collectionId, 45008028, 45008039);
+
+      expect(collectionRepo.getPinnedItem(pinId)?.sortOrder).toBe(3);
+    });
+
+    it('should rank quick bookmarks one past the highest', async () => {
+      await service.quickBookmarkVerse(43003016);
+      const middle = await service.quickBookmarkVerse(45008028);
+      await service.quickBookmarkVerse(19023001);
+      collectionRepo.deletePinnedItem(middle);
+
+      const pinId = await service.quickBookmarkPassage(
+        VerseIdHelper.calculate(Book.FirstCorinthians, 13, 1),
+        VerseIdHelper.calculate(Book.FirstCorinthians, 13, 13)
+      );
+
+      expect(collectionRepo.getPinnedItem(pinId)?.sortOrder).toBe(3);
+    });
+
+    it('should rank a moved item one past the highest in its new collection', () => {
+      const source = service.createCollection('Source');
+      const target = service.createCollection('Target');
+      service.addVerseToCollection(target, 43003016);
+      const middle = service.addVerseToCollection(target, 45008028);
+      service.addVerseToCollection(target, 19023001);
+      collectionRepo.deletePinnedItem(middle);
+
+      const pinId = service.addVerseToCollection(source, 1001001);
+      service.moveToCollection(pinId, target);
+
+      expect(collectionRepo.getPinnedItem(pinId)?.sortOrder).toBe(3);
+    });
+  });
+
+  // ==========================================================================
+  // Flat Bookmark Surface Tests
+  // ==========================================================================
+
+  describe('getBookmarks', () => {
+    it('should return an empty list without creating a collection', () => {
+      expect(service.getBookmarks()).toEqual([]);
+      expect(collectionRepo.getAll()).toHaveLength(0);
+    });
+
+    it('should return the default collection items in manual order', async () => {
+      const first = await service.quickBookmarkVerse(43003016);
+      const second = await service.quickBookmarkVerse(45008028);
+
+      const reordered = collectionRepo.getPinnedItem(second)!;
+      reordered.sortOrder = -1;
+      collectionRepo.updatePinnedItem(reordered);
+
+      expect(service.getBookmarks().map(item => item.pinId)).toEqual([second, first]);
+    });
+
+    it('should ignore items in other collections', async () => {
+      await service.quickBookmarkVerse(43003016);
+      const other = service.createCollection('Sermon Notes');
+      service.addVerseToCollection(other, 45008028);
+
+      const bookmarks = service.getBookmarks();
+
+      expect(bookmarks).toHaveLength(1);
+      expect(bookmarks[0].verseIdStart).toBe(43003016);
+    });
+  });
+
+  describe('replaceBookmarkReference', () => {
+    it('should move the reference and keep the user title', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016, undefined, 'Memorize this');
+
+      service.replaceBookmarkReference(pinId, VerseIdHelper.calculate(Book.Romans, 8, 28));
+
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.title).toBe('Memorize this');
+      expect(item.verseIdStart).toBe(VerseIdHelper.calculate(Book.Romans, 8, 28));
+      expect(item.referenceText).toBe('Romans 8:28');
+    });
+
+    it('should leave an untitled bookmark untitled', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016);
+
+      service.replaceBookmarkReference(pinId, 45008028);
+
+      expect(collectionRepo.getPinnedItem(pinId)?.title).toBeUndefined();
+    });
+
+    it('should turn a verse into a passage', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016, undefined, 'Named');
+      const start = VerseIdHelper.calculate(Book.Romans, 8, 28);
+      const end = VerseIdHelper.calculate(Book.Romans, 8, 39);
+
+      service.replaceBookmarkReference(pinId, start, end);
+
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.itemType).toBe('passage');
+      expect(item.verseIdEnd).toBe(end);
+      expect(item.referenceText).toBe('Romans 8:28-39');
+      expect(item.title).toBe('Named');
+    });
+
+    it('should turn a passage back into a single verse', async () => {
+      const start = VerseIdHelper.calculate(Book.Romans, 8, 28);
+      const end = VerseIdHelper.calculate(Book.Romans, 8, 39);
+      const pinId = await service.quickBookmarkPassage(start, end);
+
+      service.replaceBookmarkReference(pinId, VerseIdHelper.calculate(Book.John, 3, 16));
+
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.itemType).toBe('verse');
+      expect(item.verseIdEnd).toBeUndefined();
+      expect(item.referenceText).toBe('John 3:16');
+    });
+
+    it('should treat an end equal to the start as a single verse', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016);
+
+      service.replaceBookmarkReference(pinId, 45008028, 45008028);
+
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.itemType).toBe('verse');
+      expect(item.verseIdEnd).toBeUndefined();
+    });
+
+    it('should throw if the pinned item does not exist', () => {
+      expect(() => service.replaceBookmarkReference(999, 43003016)).toThrow(
+        'Pinned item not found'
+      );
+    });
+  });
+
+  describe('renameBookmark', () => {
+    it('should set the title without touching the reference', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016);
+
+      service.renameBookmark(pinId, '  God so loved  ');
+
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.title).toBe('God so loved');
+      expect(item.verseIdStart).toBe(43003016);
+      expect(item.referenceText).toBe('John 3:16');
+    });
+
+    it('should clear a blank title back to the reference', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016, undefined, 'Named');
+
+      service.renameBookmark(pinId, '   ');
+
+      expect(collectionRepo.getPinnedItem(pinId)?.title).toBeUndefined();
+    });
+
+    it('should clear the title when none is given', async () => {
+      const pinId = await service.quickBookmarkVerse(43003016, undefined, 'Named');
+
+      service.renameBookmark(pinId);
+
+      expect(collectionRepo.getPinnedItem(pinId)?.title).toBeUndefined();
+    });
+
+    it('should survive a later re-point, and vice versa', async () => {
+      // Naming and re-pointing are independent: neither one overwrites the
+      // other's field.
+      const pinId = await service.quickBookmarkVerse(43003016);
+
+      service.renameBookmark(pinId, 'Memorize this');
+      service.replaceBookmarkReference(pinId, VerseIdHelper.calculate(Book.Romans, 8, 28));
+      expect(collectionRepo.getPinnedItem(pinId)?.title).toBe('Memorize this');
+
+      service.renameBookmark(pinId, 'Renamed');
+      const item = collectionRepo.getPinnedItem(pinId)!;
+      expect(item.title).toBe('Renamed');
+      expect(item.verseIdStart).toBe(VerseIdHelper.calculate(Book.Romans, 8, 28));
+      expect(item.referenceText).toBe('Romans 8:28');
+    });
+
+    it('should throw if the pinned item does not exist', () => {
+      expect(() => service.renameBookmark(999, 'Nope')).toThrow('Pinned item not found');
+    });
+  });
+
+  // ==========================================================================
   // Integration Tests
   // ==========================================================================
 
@@ -625,7 +994,7 @@ describe('CollectionService', () => {
 
       // Verify organization
       const all = collectionRepo.getAll();
-      expect(all.length).toBeGreaterThanOrEqual(4); // Favorites, To Study, Gospels, Epistles
+      expect(all.length).toBeGreaterThanOrEqual(3); // default bookmarks, Gospels, Epistles
     });
   });
 });
