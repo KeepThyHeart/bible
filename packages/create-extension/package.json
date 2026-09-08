@@ -1,0 +1,32 @@
+{
+  "name": "@bible/create-extension",
+  "version": "1.0.0",
+  "description": "Scaffold a new Bible app extension project",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "create-bible-extension": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "bible",
+    "extension",
+    "scaffold",
+    "create"
+  ],
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "license": "GPL-3.0-or-later",
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}
