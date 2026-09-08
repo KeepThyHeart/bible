@@ -1,0 +1,19 @@
+{
+  "name": "bible-ext-word-count",
+  "version": "1.0.0",
+  "description": "Reference extension: shows a word count for the current Bible chapter in the status bar.",
+  "main": "src/main.js",
+  "scripts": {
+    "smoke": "bible-ext-smoke"
+  },
+  "keywords": [
+    "bible",
+    "extension",
+    "word-count",
+    "reference"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@bible/extension-testing": "^1.0.0"
+  }
+}

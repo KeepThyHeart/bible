@@ -1,0 +1,21 @@
+{
+  "$schema": "https://bible-app.local/schemas/extension-manifest-v1.json",
+  "id": "ext.bible-app.word-count",
+  "name": "Word Count",
+  "version": "1.0.0",
+  "publisher": "bible-app",
+  "description": "Shows a word count for the current Bible passage in the status bar.",
+  "engines": {
+    "bibleApp": "^1.0.0"
+  },
+  "main": "src/main.js",
+  "permissions": [
+    "bible:read",
+    "ui:status-bar"
+  ],
+  "activationEvents": [
+    "onStartup"
+  ],
+  "categories": ["Utilities"],
+  "keywords": ["word count", "statistics", "status bar"]
+}
