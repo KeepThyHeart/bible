@@ -1,0 +1,33 @@
+{
+  "name": "@bible/extension-ui",
+  "version": "1.0.0",
+  "description": "Client-side SDK for Bible app extension iframes — verse linking, navigation, popups, and typed host bridge",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "bible",
+    "extension",
+    "ui",
+    "sdk",
+    "iframe"
+  ],
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
