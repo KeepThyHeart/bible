@@ -17,6 +17,13 @@ The licence grants no rights to the Font Awesome name or logo, neither of which 
 
 The source artwork is `admin/brand/icon.svg`, which carries this attribution inline, as do the icons generated from it into `apps/web/public/icons/` -- so the credit ships with the files that are actually served.
 
+ONNX Runtime
+------------
+
+The desktop app's offline semantic search runs on ONNX Runtime, pulled in transitively via the `onnxruntime-node` / `onnxruntime-common` dependencies (currently pinned to 1.21.0), and its compiled native bindings ship inside the packaged installer (unpacked from the asar archive alongside the other native binaries — see `apps/desktop/README.md`, "What ends up where"). ONNX Runtime's own package metadata declares it MIT licensed, but the compiled binary statically incorporates a number of other third-party components (Intel MKL, an MPL-2.0-licensed piece, Apache-licensed code, and others) under their own terms, and Microsoft's upstream ONNX Runtime distribution ships a consolidated `ThirdPartyNotices.txt` documenting all of them, with an explicit requirement that it accompany any redistribution of the binaries -- an obligation the MIT grant on the top-level package does not by itself satisfy.
+
+The npm package does not include that notices file, so a copy matching the exact ORT version shipped (1.21.0) is vendored in the repo at `apps/desktop/resources/onnxruntime-ThirdPartyNotices.txt`. It is wired into `extraResources` in `apps/desktop/electron-builder.yml` and `apps/desktop/electron-builder.curated.yml`, and lands in a packaged install's `resources/` directory as `onnxruntime-ThirdPartyNotices.txt`, next to `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `FONT-LICENSES.md`. `electron-builder.code-only.yml` deliberately omits it, since that config's payload does not include any ONNX Runtime binaries; its comments call out that the copy must be added back the moment an ONNX Runtime dependency is.
+
 Fonts
 -----
 
