@@ -1,0 +1,373 @@
+/* Base word styling */
+.word {
+  /* `inherit`, not `text`: inside a Bible verse row the words ARE the click
+     target (`.verse-row` in themes.css sets `cursor: pointer`), and an I-beam
+     over them is what made "click the verse" unguessable. Renderers that are
+     not inside a clickable row still get the surrounding cursor. Selecting
+     text is unaffected - that is a `user-select` question, not a cursor one. */
+  cursor: inherit;
+  user-select: text;
+  display: inline;
+  padding: 0;
+  /* Preserve trailing spaces within word spans */
+  white-space: pre-wrap;
+}
+
+/* Highlight colors.
+ *
+ * The hue is identical in every theme (a "yellow" highlight must stay yellow),
+ * only the alpha changes: --theme-highlight-alpha is lowered on dark so the
+ * wash doesn't drown the text, and stays at the light value on sepia.
+ * See themes.css. There is deliberately no `.dark` class in this codebase -
+ * the single theming mechanism is the [data-theme] attribute on <html>.
+ */
+.highlight-yellow {
+  background-color: rgb(var(--theme-highlight-yellow-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-green {
+  background-color: rgb(var(--theme-highlight-green-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-blue {
+  background-color: rgb(var(--theme-highlight-blue-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-red {
+  background-color: rgb(var(--theme-highlight-red-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-purple {
+  background-color: rgb(var(--theme-highlight-purple-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-orange {
+  background-color: rgb(var(--theme-highlight-orange-rgb) / var(--theme-highlight-alpha));
+}
+
+/* Highlighted words keep dark text so the wash stays readable on dark themes,
+   where the surrounding body text is light. */
+[data-theme="dark"] .word[class*="highlight-"] {
+  color: #14142B;
+}
+
+/* Underline styles */
+.word.underline-solid {
+  text-decoration-line: underline !important;
+  text-decoration-style: solid !important;
+  text-decoration-thickness: 2px;
+  text-decoration-skip-ink: none;
+}
+
+.word.underline-wavy {
+  text-decoration-line: underline !important;
+  text-decoration-style: wavy !important;
+  text-decoration-thickness: 2px;
+  text-decoration-skip-ink: none;
+}
+
+.word.underline-dotted {
+  text-decoration-line: underline !important;
+  text-decoration-style: dotted !important;
+  text-decoration-thickness: 2px;
+  text-decoration-skip-ink: none;
+}
+
+.word.underline-dashed {
+  text-decoration-line: underline !important;
+  text-decoration-style: dashed !important;
+  text-decoration-thickness: 2px;
+  text-decoration-skip-ink: none;
+}
+
+/* Combined highlight + underline: ensure both styles stack visually */
+.word.underline-solid[class*="highlight-"],
+.word.underline-wavy[class*="highlight-"],
+.word.underline-dotted[class*="highlight-"],
+.word.underline-dashed[class*="highlight-"] {
+  text-decoration-line: underline !important;
+  text-underline-offset: 3px;
+}
+
+/* Underline colors (independent of highlight color).
+ *
+ * One token per palette colour rather than a literal per rule, because the
+ * same six colours have to be drawn twice: as the `text-decoration-color` of a
+ * marked word, and as the stroke of the line preview in the underline-colour
+ * picker (`highlights/UnderlineSwatch.tsx`). A literal in both places is a
+ * palette that can silently disagree with itself. */
+:root {
+  --underline-color-yellow: rgba(204, 204, 0, 1);
+  --underline-color-green: rgba(0, 128, 0, 1);
+  --underline-color-blue: rgba(0, 0, 255, 1);
+  --underline-color-red: rgba(255, 0, 0, 1);
+  --underline-color-purple: rgba(128, 0, 128, 1);
+  --underline-color-orange: rgba(255, 140, 0, 1);
+}
+
+/* Underlines on dark backgrounds: the saturated dark blues/purples above are
+   nearly invisible against the dark page, so brighten them. Redefining the
+   token (rather than the rules that use it) brightens the picker's preview by
+   the same amount, so what the reader picks is what they get. */
+[data-theme="dark"] {
+  --underline-color-blue: rgba(120, 160, 255, 1);
+  --underline-color-purple: rgba(200, 140, 240, 1);
+  --underline-color-green: rgba(80, 200, 110, 1);
+}
+
+.word.underline-color-yellow {
+  text-decoration-color: var(--underline-color-yellow) !important;
+}
+
+.word.underline-color-green {
+  text-decoration-color: var(--underline-color-green) !important;
+}
+
+.word.underline-color-blue {
+  text-decoration-color: var(--underline-color-blue) !important;
+}
+
+.word.underline-color-red {
+  text-decoration-color: var(--underline-color-red) !important;
+}
+
+.word.underline-color-purple {
+  text-decoration-color: var(--underline-color-purple) !important;
+}
+
+.word.underline-color-orange {
+  text-decoration-color: var(--underline-color-orange) !important;
+}
+
+/* =============================================
+   Study mode, interlinear view
+
+   The English line of each interlinear cell renders the same
+   `.word[data-word-index]` spans as every other display mode, so the palette
+   above is reused verbatim rather than forked. Only the geometry differs: in
+   the stacked layout the tokens sit inside a centred `inline-block` column, so
+   the wash has to paint the token and not the column, and the underline has to
+   land on the English line and not on the Strong's button below it.
+   ============================================= */
+
+/* The wash must hug the token. Any padding here would bleed the highlight into
+   the gap between two columns and read as a wider selection than was made.
+
+   Wrapping is deliberately left alone (the base `.word` rule's `pre-wrap`).
+   Forcing `nowrap` on a cell reads better for the usual 1-3 word cell, but a
+   run of English words no interlinear row claims becomes one cell - over half
+   the verse in RWebster - and that cell would then overflow the pane
+   horizontally. */
+.interlinear-english .word {
+  display: inline;
+  padding: 0;
+  border-radius: 2px;
+}
+
+/* An inline-block column sizes to its content, which for a long run of words no
+   interlinear row claimed would be wider than the pane. Cap it so that cell
+   wraps internally instead of forcing the whole passage to scroll sideways. */
+.interlinear-stacked [data-testid="interlinear-word"] {
+  max-width: 100%;
+}
+
+/* Original-language and transliteration lines are siblings of the English line,
+   never descendants, so a verse underline cannot reach them - this only guards
+   against a future markup change. The Strong's button is deliberately left
+   alone: it owns a `hover:underline` affordance that must keep working. */
+.interlinear-stacked [data-testid="interlinear-original"],
+.interlinear-stacked [data-testid="interlinear-transliteration"],
+.interlinear-inline [data-testid="interlinear-original"],
+.interlinear-inline [data-testid="interlinear-transliteration"] {
+  text-decoration: none;
+}
+
+/* Underlines sit slightly lower here than in running prose: the stacked layout
+   puts the original-language line directly beneath the English one, and the
+   default offset collides with it. */
+.interlinear-stacked .word[class*="underline-"] {
+  text-underline-offset: 2px;
+}
+
+/* Preview state (during drag) */
+.highlight-preview {
+  background-color: rgb(var(--theme-highlight-yellow-rgb) / var(--theme-highlight-preview-alpha));
+  border: 1px dashed var(--theme-border-secondary);
+  transition: background-color 0.1s ease;
+}
+
+/* Hover effects */
+.word.highlighted:hover {
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+/* Selection styling - consistent for both words and spaces between words */
+.word::selection,
+.verse-content::selection,
+.verse-content *::selection {
+  background-color: rgb(var(--theme-accent-primary-rgb) / 0.35);
+}
+
+/* Find in page highlighting */
+.word.find-match {
+  background-color: rgba(255, 235, 59, 0.5) !important;
+  border-radius: 2px;
+}
+
+.word.find-match-current {
+  background-color: rgba(255, 152, 0, 0.7) !important;
+  border-radius: 2px;
+  box-shadow: 0 0 2px 1px rgba(255, 152, 0, 0.5);
+}
+
+/* Find highlights on dark: dim the wash slightly and darken the text on it */
+[data-theme="dark"] .word.find-match {
+  background-color: rgba(255, 235, 59, 0.4) !important;
+  color: #14142B;
+}
+
+[data-theme="dark"] .word.find-match-current {
+  background-color: rgba(255, 152, 0, 0.6) !important;
+  color: #14142B;
+}
+
+/* =============================================
+   Floating Annotation Toolbar (KAN-48)
+   ============================================= */
+
+/*
+  A column of rows, not a single row: the quick actions sit on top and the
+  "Recent" row (when there is anything to remember) below them. With one row it
+  lays out exactly as the single-row flex did.
+*/
+.floating-annotation-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-border-secondary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+
+[data-theme="dark"] .floating-annotation-toolbar {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* One band of controls inside the toolbar */
+.floating-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+  The remembered styles sit visually below the suggested ones, separated by a
+  hairline rather than by space - the toolbar hovers over the passage, so every
+  extra pixel of height covers more of the text it points at.
+*/
+.floating-toolbar-recent-row {
+  padding-top: 4px;
+  border-top: 1px solid var(--theme-border-secondary);
+}
+
+/*
+  A recent entry previews the mark rather than just its colour, so it is a
+  text sample (`Aa`) wearing the real highlight/underline classes.
+*/
+.floating-toolbar-recent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--theme-text-primary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.1s ease, background-color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.floating-toolbar-recent:hover {
+  border-color: rgb(var(--theme-text-primary-rgb) / 0.4);
+  background-color: var(--theme-bg-hover);
+}
+
+/* The clear ("x") button is quieter than the actions above it: it is a
+   housekeeping control, not a way to annotate. */
+.floating-toolbar-btn-clear-recent {
+  width: 22px;
+  height: 22px;
+  opacity: 0.6;
+}
+
+.floating-toolbar-btn-clear-recent:hover {
+  opacity: 1;
+}
+
+/* Section container for grouping swatches */
+.floating-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Color swatch buttons */
+.floating-toolbar-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--theme-text-primary-rgb) / 0.2);
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.floating-toolbar-swatch:hover {
+  transform: scale(1.2);
+  border-color: rgb(var(--theme-text-primary-rgb) / 0.5);
+}
+
+/* Vertical separator between sections */
+.floating-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background-color: var(--theme-border-secondary);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Action buttons (underline, remove) */
+.floating-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.floating-toolbar-btn:hover {
+  background-color: var(--theme-bg-hover);
+}
+
+/* Remove formatting button with red hover */
+.floating-toolbar-btn-remove:hover {
+  background-color: var(--theme-danger-soft);
+  color: var(--theme-danger);
+}

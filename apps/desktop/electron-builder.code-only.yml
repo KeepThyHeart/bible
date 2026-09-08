@@ -1,0 +1,191 @@
+# Code-only build config — the app, and nothing but the app.
+#
+# WHY THIS EXISTS
+# ---------------
+# `electron-builder.yml` (lean) and `electron-builder.curated.yml` (offline)
+# both list Bible/commentary/dictionary `.db` files under `extraResources`.
+# Those files are multi-gigabyte developer assets that are NOT in the repo, so
+# neither config can be built by a clean CI checkout — which meant releases had
+# to be produced by hand on a developer machine. A hand-built release is the
+# weakest link in the signing/provenance chain (see `docs/ReleaseVerification.md`):
+# nothing ties the installer a user downloads to a commit anyone can read.
+#
+# This config ships the application code plus `main.db` (reference data the init
+# script generates from files in the repo) and no content modules at all. It is
+# therefore buildable from a bare checkout with zero external assets, which is
+# what makes an attestable, CI-produced release possible.
+#
+# It also matches where the content story is heading: study content moves into
+# downloadable language starter packs rather than riding along in the installer
+# (see `docs/ReleaseArtifacts.md`, Download 3). A first run with no modules is a
+# supported state — the empty-pane on-ramps from WS-D/D2 handle it.
+#
+# Build:
+#   npm run package:code-only:win     # or :mac / :linux
+#
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
+# `mac.hardenedRuntime` and `afterSign` all come from
+# electron-builder.branding.cjs, which reads the environment (BIBLE_PRODUCT_NAME
+# / BIBLE_APP_ID for the neutral profile; CSC_*/APPLE_* to gate optional
+# signing). Do not re-declare them here — a child config overrides its parent
+# and would defeat the env gate.
+extends: file:electron-builder.branding.cjs
+electronVersion: 33.2.0
+directories:
+  output: dist
+  buildResources: resources
+# asar is ON, for the same two reasons as the sibling configs: @bible/core is
+# bundled into out/main/index.js by electron.vite.config.ts (so no packaged file
+# resolves through the node_modules/@bible/core workspace symlink, which the asar
+# packager rejects), and on Windows a single archive keeps installed paths well
+# under MAX_PATH.
+asar: true
+# Native code CANNOT be loaded from inside an asar archive: dlopen/LoadLibrary
+# need a real file on disk. Kept deliberately narrower than the curated config —
+# onnxruntime is not shipped here (see the `files:` exclusions below).
+asarUnpack:
+  - '**/*.node'
+  - '**/node_modules/better-sqlite3-multiple-ciphers/build/**'
+  - '**/node_modules/keytar/build/**'
+files:
+  - out
+  - package.json
+  - '!node_modules/@bible/**'
+  - '!node_modules/electron/**'
+  # ---------------------------------------------------------------------------
+  # THE SEMANTIC-SEARCH RUNTIME IS NOT IN THIS BUILD — AND THAT IS A KNOWN GAP.
+  #
+  # A downloadable pack carries DATA ONLY: the embedding index, the ONNX model
+  # graph, tokenizer/config JSON. It never carries executable code. That
+  # invariant is enforced at install time by `ALLOWED_ARTIFACT_EXTENSIONS` in
+  # electron/services/SemanticPackService.ts, and at pack-build time by
+  # scripts/build-feature-pack.js. It exists so a pack download can never become
+  # a second, unsigned software distribution channel that quietly undoes code
+  # signing, build provenance and the sandbox.
+  #
+  # The consequence: the runtime that CONSUMES a pack must ship in the installer,
+  # because a pack is not allowed to bring it. This config does not ship it yet,
+  # so a code-only install cannot run semantic search even with a pack present
+  # (`semanticSearchService.isAvailable()` keeps the feature cleanly absent
+  # rather than failing, so this degrades quietly rather than breaking).
+  #
+  # MEASURED 2026-09-02 — this is a SIZE decision, not a technical blocker.
+  # Un-excluding onnxruntime-node + @huggingface/transformers builds cleanly
+  # (app.asar 67.8 MB, win-unpacked 842 MB) versus 34.3 MB / 323 MB without them.
+  # So the cost of making semantic search work on a code-only install is about
+  # +519 MB unpacked. Whether that is worth paying when the pack it enables is
+  # itself ~2.1 GB is the open payload question in WS-G/G7 — deliberately not
+  # decided here.
+  #
+  # IF YOU ADD THEM BACK, prune the three non-target ORT platform trees (~197 MB
+  # of the 259 MB `bin/napi-v6` tree) with an `afterPack` hook that deletes them.
+  #
+  # DO NOT prune them with a platform-specific `files:` list under `win:`/`mac:`/
+  # `linux:`. That was tried and is a trap: a platform `files:` array containing
+  # ONLY negations loses the top-level positive patterns, so electron-builder
+  # falls back to including `**/*` — which swept this package's entire working
+  # directory into the archive, `data/` included (13.9 GB of modules, backups and
+  # semantic-index experiments), producing a 17 GB app.asar before asar's 4.2 GB
+  # ceiling aborted the build. It fails LOUDLY here only because `data/` happens
+  # to be huge on a developer machine; on a clean CI checkout it would have
+  # silently produced a passing build with the wrong contents.
+  - '!node_modules/onnxruntime-node/**'
+  - '!node_modules/onnxruntime-common/**'
+  - '!node_modules/@huggingface/transformers/**'
+  # `sharp` is reached only through transformers' IMAGE pipeline, which the
+  # text-embedding path never invokes. It is also the source of an unfixable
+  # High advisory (GHSA-f88m-g3jw-g9cj, libvips CVEs) — excluding it keeps that
+  # advisory off every user's disk. See docs/security/AUDIT-LOG.md F-002.
+  - '!node_modules/@img/**'
+  - '!node_modules/sharp/**'
+  - '!node_modules/.bin/**'
+  - '!node_modules/.vite/**'
+  - '!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+  - '!node_modules/*.d.ts'
+  - '!node_modules/.bin'
+  - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+  - '!.editorconfig'
+  - '!**/._*'
+  - '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}'
+  - '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}'
+  - '!**/{appveyor.yml,.travis.yml,circle.yml}'
+  - '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
+  - '!**/*.map'
+  - '!**/*.ts'
+  - '!**/tsconfig.json'
+extraResources:
+  # Window/taskbar icon, read at runtime by resolveAppIconPath(). Not covered by
+  # `files:` above, and on Linux the BrowserWindow `icon` option is the sole
+  # source of the taskbar icon.
+  - from: resources/icon.png
+    to: icon.png
+  # GPL-3.0 §4/§5 require the licence text to accompany the distributed binary,
+  # and the OFL requires the font notice to accompany the bundled woff2 assets
+  # (which Vite inlines into the renderer bundle inside the asar).
+  - from: ../../LICENSE
+    to: LICENSE
+  - from: ../../THIRD-PARTY-NOTICES.md
+    to: THIRD-PARTY-NOTICES.md
+  - from: src/ui/styles/fonts/FONT-LICENSES.md
+    to: FONT-LICENSES.md
+  # Do NOT filter this with '**/*.json'. electron-builder's extraResources
+  # matcher tests directory entries too, and `en/`, `pt-BR/`, ... do not match
+  # `*.json`, so the walk is pruned at the top and NOTHING is copied — silently,
+  # with a zero exit code. '**/*' matches directories, so the walk descends.
+  - from: locales
+    to: locales
+    filter:
+      - '**/*'
+      # Development pseudo-locale — never ship it.
+      - '!xx-pseudo/**'
+      - '!*.md'
+  # ALLOWLIST, not a denylist — this must stay an allowlist. `data/` is the
+  # developer's live working directory (every module ever imported, multi-GB
+  # semantic indexes, ad-hoc backups, `users/`). A denylist on a licensing- and
+  # privacy-critical path fails OPEN; enumerate instead.
+  #
+  # `main.db` is reference data only (the 66-book canon + an empty module
+  # registry) and is generated from files in the repo by
+  # `node scripts/init-dev-env.js --target=desktop`, so CI can produce it from a
+  # bare checkout. NO content modules are listed here, by design.
+  - from: data
+    to: data
+    filter:
+      - 'main.db'
+  # NO ONNX Runtime notice here, deliberately: ORT's notice must accompany the
+  # ORT *binaries*, and no ORT binary ships in this config (see `files:` above).
+  #
+  # INVARIANT: if onnxruntime-node, onnxruntime-common, onnxruntime-web or
+  # @huggingface/transformers is ever added back to this config's payload, add
+  # `resources/onnxruntime-ThirdPartyNotices.txt` to extraResources in the same
+  # change. The vendored copy already exists at
+  # `resources/onnxruntime-ThirdPartyNotices.txt`.
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  # Disable the default "is the app running?" check, which false-positives on
+  # this product name and loops on "cannot be closed". See build-installer.nsh.
+  include: build-installer.nsh
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+mac:
+  target:
+    # See electron-builder.yml for why `zip` ships alongside `dmg`: Squirrel.Mac
+    # updates from a zip and cannot read a dmg.
+    - dmg
+    - zip
+  category: public.app-category.education
+linux:
+  target:
+    # See electron-builder.yml. AppImage is the portable download; deb upgrades
+    # in place without touching ~/.config, and is the on-ramp to an apt repo.
+    - AppImage
+    - deb
+  category: Education

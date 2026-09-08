@@ -1,0 +1,36 @@
+{
+  "id": "ext.test.bible-viewer",
+  "name": "Test Bible Viewer",
+  "version": "1.0.0",
+  "publisher": "bible-app",
+  "description": "E2E fixture that exercises bible.getVerse, storage.set/get, ui.showNotification, and registers an iframe panel type.",
+  "engines": { "bibleApp": "^1.0.0" },
+  "main": "./main.js",
+  "permissions": ["bible:read", "ui:notification", "ui:contribute-pane"],
+  "activationEvents": ["onStartup"],
+  "contributes": {
+    "panelTypes": [
+      {
+        "id": "viewer",
+        "title": "Test Bible Viewer",
+        "uiEntry": "./index.html",
+        "icon": "📖"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "verseId": {
+          "type": "number",
+          "default": 43003016,
+          "description": "Verse ID to display in the panel."
+        },
+        "showNotificationOnActivate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a hello notification when the extension activates."
+        }
+      }
+    }
+  }
+}

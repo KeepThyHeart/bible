@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Test Bible Viewer</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 16px; color: #333; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    pre { background: #f6f8fa; padding: 12px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1 data-testid="ext-panel-heading">Test Bible Viewer</h1>
+  <p>Test extension fixture iframe.</p>
+  <pre id="verse" data-testid="ext-panel-verse">Loading…</pre>
+  <script>
+    // The renderer-side `BibleExtensionAPI` postMessage bridge is not wired
+    // here, so this iframe just renders a static placeholder. The host-side test asserts that the iframe is mounted
+    // and that the storage row exists, which is the contract this fixture
+    // is designed to validate.
+    document.getElementById('verse').textContent = 'For God so loved the world…';
+  </script>
+</body>
+</html>

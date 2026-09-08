@@ -1,0 +1,891 @@
+/* Bible/study fonts, self-hosted for offline use (see ./fonts.css). Replaces
+   the former Google Fonts @import URLs, which the app's CSP (style-src 'self')
+   blocks and which fail offline anyway. Noto Serif carries greek/greek-ext so
+   Greek renders without SBL Greek; Ezra SIL covers Hebrew. */
+@import './fonts.css';
+
+/* Theme CSS variables (light, dark, sepia) - KAN-51 */
+@import './themes.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+@layer base {
+  :root {
+    /* Pre-hydration fallback for the Study pane's chrome-text scale ratio
+       (usePreferencesStore.ts's applyTypographyToDOM sets the real value -
+       prefs.uiFontSize / DEFAULT_TYPOGRAPHY.uiFontSize - on document root
+       synchronously at module load, before React mounts). 1 = "no scaling",
+       which matches DEFAULT_TYPOGRAPHY exactly, so anything reading this
+       variable before the store's side effect runs (a component test that
+       never imports usePreferencesStore, an early paint) still renders at
+       the correct default size instead of collapsing to 0/NaN. */
+    --ui-font-scale: 1;
+  }
+
+  html {
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    @apply overflow-hidden;
+  }
+
+  body {
+    @apply font-sans m-0 p-0 overflow-hidden;
+    /* Baseline UI chrome typography from the Typography section's "UI text"
+       sliders + font-family picker (usePreferencesStore.typography.uiFont*).
+       These variables were being SET on document.documentElement all along
+       (applyTypographyToDOM in usePreferencesStore.ts) but nothing ever
+       consumed --ui-font-family/--ui-font-size/--ui-line-height - the font
+       family picker and UI-text sliders had no effect anywhere. This is the
+       baseline; elements that need a specific size (pane tabs/headers) still
+       override via --ui-control-font-size below, and pane content overrides
+       via --bible-* and --study-* variables through .pane-content-*.
+       Global font scale (see GeneralSection.tsx) multiplies in via calc() so
+       a change to --global-font-scale is picked up live without any other
+       variable needing to change. */
+    font-family: var(--ui-font-family);
+    font-size: calc(var(--ui-font-size) * var(--global-font-scale, 1));
+    line-height: var(--ui-line-height);
+  }
+
+  #root {
+    @apply w-full h-screen overflow-hidden;
+  }
+}
+
+/* Bible text styling */
+@layer components {
+  .bible-text {
+    /* Inherit font settings from parent pane-content-bible class */
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* Study mode: the scripture, not the apparatus.
+   *
+   * A study verse is surrounded by its own study aids - footnotes, the inline
+   * cross-reference row, the verse-links row - and every one of them is
+   * `text-sm`. The verse text itself was `text-lg` (a flat 18px), which is
+   * *smaller* than the Bible pane's own default (20px), so the passage read as
+   * one more row of apparatus rather than the thing they all annotate.
+   *
+   * Expressed as a multiplier of the pane's font size - the value the Fonts
+   * preferences (`--pane-font-size-bible` / `--bible-font-size`) and the
+   * Global Font Scale slider both feed - rather than a pixel size, so a reader
+   * who changes either still gets the same relative emphasis. The multiplier
+   * itself is a theme token (`--study-verse-emphasis`, themes.css) so it can be
+   * tuned in one place.
+   */
+  .study-verse-text {
+    font-size: calc(
+      var(--pane-font-size-bible, var(--bible-font-size, 20px))
+      * var(--global-font-scale, 1)
+      * var(--study-verse-emphasis, 1.08)
+    );
+    line-height: var(--pane-line-height-bible, var(--bible-line-height, 1.75));
+    color: var(--theme-text-primary);
+  }
+
+  .verse-number {
+    @apply text-sm font-bold me-1 inline;
+    color: var(--theme-text-secondary);
+    /* A bare Latin numeral sitting inside an RTL paragraph is weak-directional:
+       the bidi algorithm would otherwise let it merge with adjacent numbers or
+       punctuation and reorder it out of position. Isolating pins it to the
+       start of its verse in both directions. */
+    unicode-bidi: isolate;
+  }
+
+  .christ-words {
+    color: var(--theme-christ);
+  }
+
+  /* Disable red-letter when showRedLetter is false */
+  .no-red-letter .christ-words {
+    color: inherit;
+  }
+
+  /* The Tetragrammaton: full-height initial, small capitals after ("LORD").
+     The span content is normalized to initial-capital form by formatVerseText,
+     so small-caps alone produces that. Do NOT add `text-transform: lowercase`
+     with a `::first-letter` override - `::first-letter` only matches block
+     containers and is silently ignored on an inline span, which flattens this
+     to uniform small capitals. */
+  .divine-name {
+    font-variant-caps: small-caps;
+  }
+
+  /* Translator-supplied words (typically in KJV and other translations) */
+  .bible-text i,
+  .bible-text .transChange {
+    @apply italic;
+  }
+
+  /* Quill Editor List Styles (legacy) */
+  .ql-editor ul,
+  .ql-editor ol {
+    @apply ps-8;
+  }
+
+  .ql-editor ul > li {
+    @apply list-disc;
+  }
+
+  .ql-editor ol > li {
+    @apply list-decimal;
+  }
+
+  .ql-editor li {
+    @apply mb-1;
+  }
+
+  /* Ensure Quill toolbar icons are visible */
+  .ql-snow .ql-stroke {
+    stroke: currentColor;
+  }
+
+  .ql-snow .ql-fill {
+    fill: currentColor;
+  }
+
+  /* TipTap Editor List Styles (KAN-26) */
+  .note-editor .ProseMirror ul,
+  .note-editor .ProseMirror ol {
+    @apply ps-8 my-2;
+  }
+
+  .note-editor .ProseMirror ul {
+    list-style-type: disc;
+  }
+
+  /* Nested bullet list levels */
+  .note-editor .ProseMirror ul ul {
+    list-style-type: circle;
+  }
+
+  .note-editor .ProseMirror ul ul ul {
+    list-style-type: square;
+  }
+
+  /* Ordered list: level 1 = 1,2,3  level 2 = a,b,c  level 3 = i,ii,iii */
+  .note-editor .ProseMirror ol {
+    list-style-type: decimal;
+  }
+
+  .note-editor .ProseMirror ol ol {
+    list-style-type: lower-alpha;
+  }
+
+  .note-editor .ProseMirror ol ol ol {
+    list-style-type: lower-roman;
+  }
+
+  .note-editor .ProseMirror ol ol ol ol {
+    list-style-type: upper-alpha;
+  }
+
+  .note-editor .ProseMirror ol ol ol ol ol {
+    list-style-type: upper-roman;
+  }
+
+  /* Custom list-style-type via data attribute */
+  .note-editor .ProseMirror ol[data-list-style="lower-alpha"] {
+    list-style-type: lower-alpha;
+  }
+
+  .note-editor .ProseMirror ol[data-list-style="upper-alpha"] {
+    list-style-type: upper-alpha;
+  }
+
+  .note-editor .ProseMirror ol[data-list-style="lower-roman"] {
+    list-style-type: lower-roman;
+  }
+
+  .note-editor .ProseMirror ol[data-list-style="upper-roman"] {
+    list-style-type: upper-roman;
+  }
+
+  .note-editor .ProseMirror li {
+    @apply mb-1;
+  }
+
+  .note-editor .ProseMirror li p {
+    @apply m-0;
+  }
+
+  /* Greek and Hebrew font families for interlinear display */
+  .font-greek {
+    font-family: 'SBL Greek', 'Noto Serif', serif;
+    font-size: 1.1em;
+  }
+
+  .font-hebrew {
+    font-family: 'Ezra SIL', 'Noto Serif', serif;
+    font-size: 1.1em;
+    direction: rtl;
+  }
+
+  /* Study Mode specific styles */
+  .study-mode {
+    @apply max-w-5xl;
+  }
+
+  .study-controls {
+    @apply rounded-lg p-4 mb-4;
+    background-color: var(--theme-study-controls-bg);
+    border: 1px solid var(--theme-study-controls-border);
+  }
+
+  .footnote-marker,
+  .cross-ref-marker {
+    @apply text-xs align-super cursor-pointer hover:underline;
+  }
+
+  .footnote-marker {
+    color: var(--theme-footnote-color);
+  }
+
+  .cross-ref-marker {
+    color: var(--theme-crossref-color);
+  }
+
+  .strongs-number {
+    @apply font-mono text-sm cursor-pointer hover:underline;
+    color: var(--theme-strongs-color);
+    /* "G2316" / "H0430" are Latin+digits embedded in (potentially) RTL verse
+       text. Isolate so the letter and the digits are not split by the bidi
+       algorithm - without this an RTL run renders them as "2316G". */
+    unicode-bidi: isolate;
+  }
+
+  .strongs-number:hover {
+    color: var(--theme-strongs-color-hover);
+  }
+
+  /* NOTE: no `.interlinear-stack` rule belongs here - `InterlinearDisplay`
+     uses `.interlinear-stacked` (with a d) on the *container* and lays the
+     cells out with utilities on the elements themselves. Adding one back
+     would put the column layout in two places, and it is the JSX that has to
+     win. */
+
+  /* Footnote / cross-reference markers and any inline scripture reference are
+     Latin-scripted islands inside the verse flow. Isolate them so neither the
+     marker nor the surrounding text is reordered. */
+  .footnote-marker,
+  .cross-ref-marker,
+  .scripture-link,
+  .verse-ref-detected {
+    unicode-bidi: isolate;
+  }
+
+  /* Morphology color coding (theme-aware) */
+  .morph-verb {
+    color: var(--theme-morph-verb);
+  }
+
+  .morph-noun {
+    color: var(--theme-morph-noun);
+  }
+
+  .morph-adjective {
+    color: var(--theme-morph-adjective);
+  }
+
+  .morph-pronoun {
+    color: var(--theme-morph-pronoun);
+  }
+
+  /* Pane-specific text styling classes.
+   *
+   * Cascade of CSS variables (highest priority first):
+   *   1. --pane-font-*-<pane>    per-pane override (useTextSettingsStore) -
+   *                              only present once a pane is explicitly
+   *                              customized in the Fonts section; otherwise
+   *                              it is kept in sync with tier 2 live, so in
+   *                              practice tiers 1 and 2 always agree except
+   *                              during that explicit override - see
+   *                              useTextSettingsStore.ts's `customized` doc.
+   *   2. --bible-*, --study-*    fine-grained typography prefs
+   *                              (usePreferencesStore.typography)
+   *   3. Hard-coded defaults     final fallback
+   *
+   * Bible pane uses --bible-*, other panes use --study-*. The whole result is
+   * multiplied by --global-font-scale (General section's Global Font Scale
+   * slider - usePreferencesStore.ts) via calc(), so that slider affects every
+   * pane's effective size live regardless of which tier supplied the base
+   * value, without needing a fourth variable tier.
+   */
+  .pane-content-bible {
+    font-family: var(--pane-font-family-bible, var(--bible-font-family, 'Georgia, Merriweather, serif'));
+    font-size: calc(var(--pane-font-size-bible, var(--bible-font-size, 20px)) * var(--global-font-scale, 1));
+    line-height: var(--pane-line-height-bible, var(--bible-line-height, 1.75));
+  }
+
+  .pane-content-commentary {
+    font-family: var(--pane-font-family-commentary, var(--study-font-family, 'Georgia, Merriweather, serif'));
+    font-size: calc(var(--pane-font-size-commentary, var(--study-font-size, 18px)) * var(--global-font-scale, 1));
+    line-height: var(--pane-line-height-commentary, var(--study-line-height, 1.75));
+  }
+
+  /* @tailwindcss/typography theming.
+   *
+   * The plugin ships hardcoded slate/gray prose colors (see its styles.js).
+   * Rather than toggling the built-in `prose-invert` variant per theme -
+   * which only covers a binary light/dark split - point every `--tw-prose-*`
+   * custom property at this app's existing `--theme-*` variables. Those are
+   * already redefined per `[data-theme="..."]` (light, dark, sepia, and the
+   * additional accent themes in themes.css), so `.prose` content is
+   * automatically legible in all of them for free, with no `prose-invert`
+   * class needed anywhere.
+   */
+  .prose {
+    --tw-prose-body: var(--theme-text-primary);
+    --tw-prose-headings: var(--theme-text-heading);
+    --tw-prose-lead: var(--theme-text-secondary);
+    --tw-prose-links: var(--theme-link-color);
+    --tw-prose-bold: var(--theme-text-primary);
+    --tw-prose-counters: var(--theme-text-secondary);
+    --tw-prose-bullets: var(--theme-text-muted);
+    --tw-prose-hr: var(--theme-border-primary);
+    --tw-prose-quotes: var(--theme-text-primary);
+    --tw-prose-quote-borders: var(--theme-border-secondary);
+    --tw-prose-captions: var(--theme-text-secondary);
+    --tw-prose-kbd: var(--theme-text-primary);
+    --tw-prose-code: var(--theme-text-primary);
+    --tw-prose-pre-code: var(--theme-text-primary);
+    --tw-prose-pre-bg: var(--theme-bg-tertiary);
+    --tw-prose-th-borders: var(--theme-border-primary);
+    --tw-prose-td-borders: var(--theme-border-secondary);
+  }
+
+  /* Typography-plugin sizing must never out-rank a pane's font settings.
+   *
+   * `.prose` declares `font-size: 1rem; line-height: 1.75` and `.prose-lg`
+   * declares `1.125rem / 1.7778` DIRECTLY on the element they are applied to.
+   * A declared value always beats an inherited one, so as soon as the element
+   * that renders the text carries `prose`, the `font-size` / `line-height`
+   * computed from `--pane-font-size-*` / `--pane-line-height-*` above stopped
+   * reaching it -- and with them the Global Font Scale, which is folded into
+   * those same declarations. The Fonts preferences for the commentary pane
+   * looked like they did nothing (only `font-family` still worked, because the
+   * plugin never sets it on `.prose` itself).
+   *
+   * Inheriting instead keeps the pane wrapper the single source of truth. The
+   * plugin's own child rules are em-based, so headings/lists still scale
+   * relative to whatever the pane resolves to.
+   *
+   * NOTE for callers: this is a DESCENDANT rule on purpose. Putting `prose`
+   * and `pane-content-*` on the SAME element cannot be fixed here (the element
+   * would then inherit from its parent rather than use the pane rule), and it
+   * also silently misses the `.pane-content-commentary .prose a` link styling
+   * below. Nest the `prose` element inside the pane wrapper -- see
+   * `components/study/StudyRichText.tsx`. */
+  .pane-content-bible .prose,
+  .pane-content-commentary .prose,
+  .pane-content-book .prose,
+  .pane-content-dictionary .prose {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* Subtle underline for Scripture links in commentary (theme-aware) */
+  .pane-content-commentary .prose a,
+  .pane-content-commentary .prose .scripture-link {
+    text-decoration: underline;
+    text-decoration-color: var(--theme-link-underline);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    color: var(--theme-link-color);
+  }
+
+  .pane-content-commentary .prose a:hover,
+  .pane-content-commentary .prose .scripture-link:hover {
+    text-decoration-color: var(--theme-link-underline-hover);
+    color: var(--theme-link-color-hover);
+  }
+
+  .pane-content-book {
+    font-family: var(--pane-font-family-book, var(--study-font-family, 'Georgia, Merriweather, serif'));
+    font-size: calc(var(--pane-font-size-book, var(--study-font-size, 18px)) * var(--global-font-scale, 1));
+    line-height: var(--pane-line-height-book, var(--study-line-height, 1.75));
+  }
+
+  .pane-content-dictionary {
+    font-family: var(--pane-font-family-dictionary, var(--study-font-family, 'Georgia, Merriweather, serif'));
+    font-size: calc(var(--pane-font-size-dictionary, var(--study-font-size, 16px)) * var(--global-font-scale, 1));
+    line-height: var(--pane-line-height-dictionary, var(--study-line-height, 1.75));
+  }
+
+  /* Pane header bar styling - shared across all panes (theme-aware) */
+  .pane-header {
+    @apply flex items-center flex-shrink-0 min-w-0;
+    background-color: var(--theme-pane-header-bg);
+    border-bottom: 1px solid var(--theme-pane-header-border);
+  }
+
+  /* Pane chrome text follows Preferences -> General -> "UI Control Font Size"
+     (--ui-control-font-size, default 14px) x --global-font-scale, in the same
+     shape as uiScaled() in StudyPane.tsx.
+
+     `@apply text-sm` / `text-xs` here would fight themes.css's own rule
+     setting font-size from --ui-control-font-size on exactly these
+     selectors: themes.css is @imported ABOVE `@tailwind components`, so the
+     utilities emitted here come later at identical specificity and win - the
+     slider would move the variable and nothing on screen would change.
+     Declaring the size here, in the rule that wins, is the fix; the ratios
+     preserve the hierarchy (title 14px = 1.0 of the control size, subtitle
+     12px = 0.857 of it). Do not reintroduce a text-* size utility on
+     these. */
+  .pane-header-title {
+    @apply font-semibold;
+    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    color: var(--theme-pane-header-text);
+  }
+
+  .pane-header-subtitle {
+    font-size: calc(var(--ui-control-font-size, 14px) * 0.857 * var(--global-font-scale, 1));
+    color: var(--theme-pane-header-text-secondary);
+  }
+
+  .pane-header-icon {
+    @apply w-5 h-5 flex-shrink-0;
+    color: var(--theme-pane-header-text-secondary);
+  }
+
+  .pane-header-btn {
+    @apply rounded transition-colors;
+    color: var(--theme-tab-text);
+  }
+
+  .pane-header-btn:hover {
+    color: var(--theme-tab-text-hover);
+    background-color: var(--theme-tab-bg-hover);
+  }
+
+  /* NOTE: .pane-tab / .pane-tab-compact have no markup left. Their only users
+     were RightPane.tsx and StudyResourcesPane.tsx, which nothing imported and
+     which have now been deleted. The live tab strip is dockview's, styled in
+     dockview-overrides.css. These rules are kept only so the font-scale
+     invariants in fontScaleConsumption.test.ts have a complete set to check;
+     delete them and that guard together. */
+  .pane-tab {
+    @apply px-4 py-2 font-medium transition-colors whitespace-nowrap flex-shrink-0;
+    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    color: var(--theme-tab-text);
+  }
+
+  .pane-tab:hover {
+    color: var(--theme-tab-text-hover);
+    background-color: var(--theme-tab-bg-hover);
+  }
+
+  .pane-tab-active {
+    @apply border-b-2 font-medium;
+    background-color: var(--theme-tab-active-bg);
+    color: var(--theme-tab-active-text);
+    border-bottom-color: var(--theme-tab-active-border);
+  }
+
+  .pane-tab-compact {
+    @apply px-2 py-1 transition-colors;
+    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    color: var(--theme-tab-text);
+  }
+
+  .pane-tab-compact:hover {
+    color: var(--theme-tab-text-hover);
+    background-color: var(--theme-tab-bg-hover);
+  }
+
+  .pane-tab-compact-active {
+    @apply border-b-2 font-medium;
+    background-color: var(--theme-tab-active-bg);
+    color: var(--theme-tab-active-text);
+    border-bottom-color: var(--theme-tab-active-border);
+  }
+}
+
+/* Ensure react-resizable-panels containers don't cause overflow */
+@layer utilities {
+  [data-panel-group] {
+    @apply overflow-hidden;
+  }
+
+  [data-panel] {
+    @apply overflow-hidden;
+    min-width: 0;
+  }
+
+  /* Hide scrollbar on tab containers while keeping scrollability */
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 0;
+    display: none;
+  }
+
+  .overflow-x-auto {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+}
+
+/* TipTap note editor styles */
+.note-editor .tiptap {
+  outline: none;
+}
+
+/* Heading styles */
+.note-editor .tiptap h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.75em 0 0.5em;
+}
+
+.note-editor .tiptap h2 {
+  font-size: 1.4em;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.6em 0 0.4em;
+}
+
+.note-editor .tiptap h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.5em 0 0.3em;
+}
+
+/* Christ words / red-letter in notes */
+.note-editor .tiptap .christ-words {
+  color: var(--theme-christ, #c0392b);
+}
+
+/* Placeholder */
+.note-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  color: var(--theme-input-placeholder);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Task list */
+.note-editor .tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.note-editor .tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.note-editor .tiptap ul[data-type="taskList"] li label {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.note-editor .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--theme-accent-primary);
+}
+
+.note-editor .tiptap ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  text-decoration: line-through;
+  color: var(--theme-text-muted);
+}
+
+/* Table */
+.note-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.note-editor .tiptap table td,
+.note-editor .tiptap table th {
+  border: 1px solid var(--theme-border-secondary);
+  padding: 0.5rem 0.75rem;
+  min-width: 80px;
+  vertical-align: top;
+}
+
+.note-editor .tiptap table th {
+  background-color: var(--theme-bg-tertiary);
+  font-weight: 600;
+}
+
+.note-editor .tiptap table .selectedCell {
+  background-color: var(--theme-accent-soft);
+}
+
+.note-editor .tiptap table .column-resize-handle {
+  position: absolute;
+  inset-inline-end: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--theme-accent-primary);
+  cursor: col-resize;
+}
+
+/* Blockquote styling */
+.note-editor .tiptap blockquote {
+  border-inline-start: 3px solid var(--theme-border-secondary);
+  padding-inline-start: 1rem;
+  margin: 1rem 0;
+  color: var(--theme-text-secondary);
+  font-style: italic;
+}
+
+/* No typographic quote marks on block quotes.
+   @tailwindcss/typography sets `quotes` on blockquote and hangs an
+   `open-quote` / `close-quote` off the first and last paragraph, so an
+   inserted passage rendered as a block quote came out wearing both the quote
+   bar and a pair of curly quotes. The bar already says "this is quoted"; the
+   marks are redundant, and they are pure decoration the document does not
+   contain - copying the note back out yields text without them, so what the
+   editor showed did not match what the note held. Applies to `.prose`
+   generally because the note *viewer* uses the same typography classes with
+   no `.note-editor` ancestor. */
+.prose blockquote {
+  quotes: none;
+}
+
+.prose blockquote p:first-of-type::before,
+.prose blockquote p:last-of-type::after {
+  content: none;
+}
+
+/* Auto-detected verse references */
+.note-editor .tiptap .verse-ref-detected {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s;
+}
+
+.note-editor .tiptap .verse-ref-detected:hover {
+  background-color: var(--theme-bg-active);
+}
+
+/* Passages produced by expanding a reference.
+   Unstyled at rest - this is the user's own note content and should read as
+   prose, not as a widget. The hover tint is the only affordance, and it is
+   what makes the "Change format" chip discoverable at all. */
+.note-editor .tiptap .verse-expansion:hover {
+  background-color: var(--theme-bg-active);
+  border-radius: 2px;
+}
+
+/* Passage preview in Insert Passage dialog */
+/* Image styling in notes editor */
+.note-editor .tiptap img {
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem 0;
+  border-radius: 4px;
+}
+
+.note-editor .tiptap img.ProseMirror-selectednode {
+  outline: 2px solid var(--theme-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Slash command popup */
+.slash-command-popup {
+  background: var(--theme-surface-elevated);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-border-primary);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+  min-width: 220px;
+}
+
+.slash-command-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: background-color 0.1s;
+}
+
+.slash-command-item:hover,
+.slash-command-item.is-selected {
+  background-color: var(--theme-bg-hover);
+}
+
+.slash-command-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  background-color: var(--theme-surface-secondary);
+  border: 1px solid var(--theme-border-primary);
+  border-radius: 0.25rem;
+}
+
+.passage-preview .christ-words {
+  color: var(--theme-christ, #c0392b);
+}
+
+.passage-preview p {
+  margin-bottom: 0.25rem;
+}
+
+.passage-preview strong {
+  font-weight: 600;
+}
+
+.passage-preview sup {
+  color: var(--theme-text-secondary);
+  margin-inline-end: 0.25rem;
+  unicode-bidi: isolate;
+}
+
+/* ============================================================
+   RIGHT-TO-LEFT SUPPORT
+   ------------------------------------------------------------
+   `<html dir>` is set from the active locale by
+   src/ui/utils/documentDirection.ts. Almost all direction handling is
+   declarative - Tailwind logical utilities (ps-/pe-, ms-/me-, start-/end-,
+   text-start/end, border-s/e) flip on their own. The rules below cover the
+   cases logical utilities cannot express.
+   ============================================================ */
+
+/* Mirror an icon whose meaning is RELATIVE to the reading direction:
+   next/previous chapter, expand/collapse disclosure triangles, back buttons,
+   breadcrumb separators, "drill in" chevrons.
+
+   Do NOT add this to glyphs whose meaning is absolute - play/pause, a
+   checkmark, a plus, a magnifier, the app logo. Those read identically in
+   both directions and mirroring them is a bug, not a feature.
+
+   Implementation notes:
+
+   * Uses the INDEPENDENT `scale` property, not `transform: scaleX(-1)`.
+     Several of these chevrons also carry Tailwind's `rotate-90` (the
+     expanded state of a disclosure triangle), and Tailwind composes rotation
+     into a single `transform` declaration. A competing `transform` here would
+     replace it outright and silently drop the rotation; `scale` is applied on
+     top of `transform` instead, so both survive. (A rotated-90deg chevron is
+     symmetric about the vertical axis, so mirroring it is a visual no-op -
+     which is exactly right: "expanded" points down in both directions.)
+
+   * `display: inline-block` because an inline non-replaced element is not
+     transformable, and several of these glyphs are bare text (arrow and chevron glyphs) in a
+     plain <span>. The declaration lives inside the `[dir='rtl']` block on
+     purpose: LTR rendering is then bit-for-bit unchanged.
+
+   * Apply only to LEAF glyph elements. Putting it on a flex container would
+     blow away its `display: flex`. */
+[dir='rtl'] .rtl-mirror {
+  display: inline-block;
+  scale: -1 1;
+}
+
+/* Opt-in bidi isolation for a Latin/numeric island inside RTL prose: verse
+   numbers, Strong's tags, references, module abbreviations. Equivalent to
+   wrapping the run in <bdi>, but usable where the markup is fixed. */
+.bidi-isolate {
+  unicode-bidi: isolate;
+}
+
+/* The Bible/commentary/book text panes carry their own `dir` derived from the
+   MODULE's language (see utils/textDirection.ts), which may differ from the UI
+   direction. `isolate` stops a differing content direction from leaking out
+   into the surrounding chrome. */
+[data-content-dir] {
+  unicode-bidi: isolate;
+}
+
+/* -------------------------------------------------------------------------
+   Reduced motion
+
+   `prefers-reduced-motion: reduce` is not a preference about taste. For
+   readers with vestibular disorders, motion in the periphery of a page they
+   are trying to read causes nausea and disorientation - and this app's whole
+   job is sustained reading. The OS already knows the answer; honour it.
+
+   Transitions and transforms are removed outright. The busy spinners are the
+   one exception: they are the only signal that a search or download is still
+   running, so instead of freezing them (which reads as "hung") they are slowed
+   well below the threshold that provokes symptoms.
+
+   `useReducedMotion` (src/ui/components/onboarding/useReducedMotion.ts) covers
+   the cases that need a JS decision - chiefly the guided tour's scroll and
+   spotlight. This block covers everything driven purely by CSS.
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep indeterminate progress legible as progress. */
+  .animate-spin {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Focus visibility
+
+   Before this rule, `<button>` had no focus indicator anywhere in the app and
+   inputs got only a 12%-alpha `--theme-accent-light` halo - which is to say a
+   keyboard user could not see where they were. Everything in this pass that
+   turned a `<div onClick>` into a real `<button>` depends on this being here.
+
+   `:focus-visible` rather than `:focus`, so a pointer click does not paint a
+   ring; the browser's heuristic already distinguishes the two.
+
+   The ring uses `--theme-border-focus`, measured against each theme's page
+   background:
+     light  #4A90E2 on #FFFFFF -> 3.29:1
+     dark   #6BA3E8 on #1A1A2E -> 6.9:1
+     sepia  #8B6914 on #FAF6EE -> 5.1:1
+   All clear WCAG 2.4.11's 3:1 for a non-text indicator. `outline-offset`
+   matters on accent-filled buttons: the 2px gap shows the surrounding surface,
+   so the ring stays distinguishable even where the fill is the accent colour
+   itself.
+   ------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--theme-border-focus);
+  outline-offset: 2px;
+}
+
+/* Inputs keep their border tint as well; the outline is additive, not a
+   replacement. Overriding `outline: none` from themes.css is the whole point. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--theme-border-focus);
+  outline-offset: 1px;
+}

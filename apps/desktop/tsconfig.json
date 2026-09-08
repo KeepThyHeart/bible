@@ -1,0 +1,27 @@
+{
+  "extends": "../../packages/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./out",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "types": ["node", "@testing-library/jest-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@bible/core": ["../../packages/core/src"],
+      // Deep imports into core's source. Needed by the QuickJS guest bundle:
+      // pulling `@bible/core`'s barrel would drag the whole Data layer (and
+      // better-sqlite3) into a realm that has no filesystem at all, so the
+      // guest imports the three runtime values it actually uses by path and
+      // takes everything else as erased `import type`.
+      "@bible/core/*": ["../../packages/core/src/*"],
+      // Test-only. `realmSmokeHarness.test.ts` supplies the QuickJS engine
+      // that `@bible/extension-testing` deliberately does not import, so the
+      // dependency runs desktop → extension-testing and never the reverse.
+      "@bible/extension-testing/*": ["../../packages/extension-testing/src/*"],
+      "@/*": ["src/ui/*"]
+    }
+  },
+  "include": ["src/**/*", "electron/**/*", "extension-runtime/**/*"],
+  "exclude": ["node_modules", "out", "dist"]
+}

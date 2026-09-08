@@ -1,0 +1,2503 @@
+/*
+ * Theme Definitions (KAN-51)
+ *
+ * Themes use CSS custom properties (variables) scoped to data-theme attributes
+ * on the <html> element. To add a new theme, create a new [data-theme="your-theme"]
+ * block following the same variable naming convention.
+ *
+ * ------------------------------------------------------------------
+ * SINGLE SOURCE OF TRUTH: the `*-rgb` variables
+ * ------------------------------------------------------------------
+ * Every theme colour is declared ONCE per theme as a space-separated RGB
+ * triplet (e.g. `--theme-bg-primary-rgb: 255 255 255`). Two things consume it:
+ *
+ *   1. The `--theme-*` colour variables below, derived via `rgb(var(...))`.
+ *      Use these in plain CSS and in inline `style={{ }}` objects.
+ *   2. tailwind.config.cjs, which maps its semantic colour tokens to
+ *      `rgb(var(--theme-*-rgb) / <alpha-value>)`. Declaring the triplets this
+ *      way is what makes Tailwind opacity modifiers (`bg-accent/10`) work -
+ *      a bare `var(--x)` colour silently ignores the opacity modifier.
+ *
+ * When adding a colour, add the `-rgb` triplet to ALL THREE themes and (if it
+ * should be reachable from a Tailwind class) register it in tailwind.config.cjs.
+ *
+ * Variable naming convention:
+ *   --theme-bg-*           Page/background colors
+ *   --theme-surface-*      Surface/card/panel/dialog colors
+ *   --theme-text-*         Text colors
+ *   --theme-border-*       Border colors
+ *   --theme-accent-*       Accent/interactive colors
+ *   --theme-control-*      Secondary (neutral) button / control colors
+ *   --theme-input-*        Form input colors
+ *   --theme-danger|success|warning|info-*   Status colors
+ *   --theme-highlight-*    Highlight colors
+ *   --theme-scrollbar-*    Scrollbar colors
+ */
+
+/* ============================================================
+   LIGHT THEME (default)
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  /* --- RGB source of truth ------------------------------------ */
+
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 255 255 255;
+  --theme-bg-secondary-rgb: 248 247 244;
+  --theme-bg-tertiary-rgb: 243 244 246;
+  --theme-bg-hover-rgb: 240 240 240;
+  --theme-bg-active-rgb: 229 231 235;
+  --theme-bg-strong-rgb: 209 213 219;
+
+  /* Surfaces (cards, panels, dialogs) */
+  --theme-surface-primary-rgb: 255 255 255;
+  --theme-surface-secondary-rgb: 249 250 251;
+  --theme-surface-elevated-rgb: 255 255 255;
+
+  /* Text */
+  --theme-text-primary-rgb: 44 44 44;
+  --theme-text-secondary-rgb: 102 102 102;
+  --theme-text-heading-rgb: 0 0 0;
+  --theme-text-muted-rgb: 156 163 175;
+  --theme-text-inverse-rgb: 255 255 255;
+
+  /* Borders */
+  --theme-border-primary-rgb: 224 224 224;
+  --theme-border-secondary-rgb: 209 213 219;
+  /* Matches --theme-accent-primary below; 4.55:1 on white, comfortably past
+     the 3:1 WCAG 2.4.11 needs for a focus indicator. */
+  --theme-border-focus-rgb: 61 120 188;
+
+  /* Accent
+     Was #4A90E2. Against white that is 3.29:1, which fails WCAG AA twice over:
+     as a text colour (`text-accent` links, 4.5:1 required) and as a fill under
+     white label text (every primary button, active toggle and count badge).
+     axe reported it on every surface of the app.
+
+     Darkened along the same hue to the lightest value that clears 4.5:1, so
+     the blue reads as the same blue:
+       #3D78BC on #FFFFFF  4.55:1   (was 3.29:1)
+       hover #34669F       5.92:1 - still darker than base, as a hover must be
+     Dark and sepia already passed (6.86:1 and 5.09:1) and are unchanged.
+
+     Revert these two lines to `74 144 226` / `58 123 200` to restore the
+     original brand blue - at the cost of the AA failure. */
+  --theme-accent-primary-rgb: 61 120 188;
+  --theme-accent-hover-rgb: 52 102 159;
+  --theme-accent-strong-rgb: 29 78 143;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 183 28 28;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 255 255 255;
+  --theme-input-border-rgb: 209 213 219;
+  --theme-input-text-rgb: 44 44 44;
+  --theme-input-placeholder-rgb: 156 163 175;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 229 231 235;
+  --theme-control-hover-rgb: 209 213 219;
+  --theme-control-text-rgb: 55 65 81;
+
+  /* Status: danger */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+
+  /* Status: success */
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+
+  /* Status: warning */
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+
+  /* Status: info */
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals (not derived) ------------------ */
+  --theme-bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Pane header */
+  --theme-pane-header-bg: #F3F4F6;
+  --theme-pane-header-border: #E5E7EB;
+  --theme-pane-header-text: #374151;
+  --theme-pane-header-text-secondary: #6B7280;
+
+  /* Tabs */
+  --theme-tab-text: #6B7280;
+  --theme-tab-text-hover: #111827;
+  --theme-tab-bg-hover: #E5E7EB;
+  --theme-tab-active-text: #111827;
+  --theme-tab-active-bg: #FFFFFF;
+  --theme-tab-active-border: #4A90E2;
+
+  /* Study mode */
+  --theme-study-controls-bg: #F9FAFB;
+  --theme-study-controls-border: #D1D5DB;
+
+  /* Links in commentary */
+  --theme-link-color: rgb(37, 99, 235);
+  --theme-link-color-hover: rgb(29, 78, 216);
+  --theme-link-underline: rgba(59, 130, 246, 0.4);
+  --theme-link-underline-hover: rgba(59, 130, 246, 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: #2563EB;
+  --theme-strongs-color-hover: #1E40AF;
+
+  /* Morphology colors */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: #D97706;
+  --theme-crossref-color: #2563EB;
+
+  /* Color-coded range slider track */
+  --theme-range-track: #E5E7EB;
+  --theme-range-thumb: #4A90E2;
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   DARK THEME
+   ============================================================ */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 26 26 46;
+  --theme-bg-secondary-rgb: 22 33 62;
+  --theme-bg-tertiary-rgb: 15 52 96;
+  --theme-bg-hover-rgb: 37 51 88;
+  --theme-bg-active-rgb: 45 63 110;
+  --theme-bg-strong-rgb: 58 78 130;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 30 30 58;
+  --theme-surface-secondary-rgb: 35 35 71;
+  --theme-surface-elevated-rgb: 40 40 80;
+
+  /* Text */
+  --theme-text-primary-rgb: 224 224 224;
+  --theme-text-secondary-rgb: 160 160 184;
+  --theme-text-heading-rgb: 240 240 255;
+  --theme-text-muted-rgb: 130 130 160;
+  --theme-text-inverse-rgb: 26 26 46;
+
+  /* Borders */
+  --theme-border-primary-rgb: 58 58 92;
+  --theme-border-secondary-rgb: 74 74 112;
+  --theme-border-focus-rgb: 107 163 232;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 107 163 232;
+  --theme-accent-hover-rgb: 91 147 216;
+  --theme-accent-strong-rgb: 158 197 245;
+  /* The dark-theme accent is a light blue, so white-on-accent would sit at
+     ~2.2:1. Text on accent fills is therefore near-black here. */
+  --theme-accent-text-rgb: 18 22 40;
+
+  /* Christ's words (red letter) - brighter in dark mode */
+  --theme-christ-rgb: 239 83 80;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 35 35 71;
+  --theme-input-border-rgb: 74 74 112;
+  --theme-input-text-rgb: 224 224 224;
+  --theme-input-placeholder-rgb: 130 130 160;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 45 45 85;
+  --theme-control-hover-rgb: 58 58 107;
+  --theme-control-text-rgb: 213 213 232;
+
+  /* Status: danger */
+  --theme-danger-rgb: 239 68 68;
+  --theme-danger-hover-rgb: 220 38 38;
+  --theme-danger-soft-rgb: 61 31 38;
+  --theme-danger-text-rgb: 252 165 165;
+  --theme-danger-border-rgb: 127 29 29;
+
+  /* Status: success */
+  --theme-success-rgb: 34 197 94;
+  --theme-success-soft-rgb: 23 48 31;
+  --theme-success-text-rgb: 134 239 172;
+  --theme-success-border-rgb: 22 101 52;
+
+  /* Status: warning */
+  --theme-warning-rgb: 245 158 11;
+  --theme-warning-soft-rgb: 54 43 20;
+  --theme-warning-text-rgb: 252 211 77;
+  --theme-warning-border-rgb: 120 53 15;
+
+  /* Status: info */
+  --theme-info-rgb: 96 165 250;
+  --theme-info-soft-rgb: 27 42 74;
+  --theme-info-text-rgb: 147 197 253;
+  --theme-info-border-rgb: 30 64 175;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Pane header */
+  --theme-pane-header-bg: #232347;
+  --theme-pane-header-border: #3A3A5C;
+  --theme-pane-header-text: #C8C8E0;
+  --theme-pane-header-text-secondary: #8888A8;
+
+  /* Tabs */
+  --theme-tab-text: #A8A8C8;
+  --theme-tab-text-hover: #E0E0F0;
+  --theme-tab-bg-hover: #2D2D55;
+  --theme-tab-active-text: #F0F0FF;
+  --theme-tab-active-bg: #1E1E3A;
+  --theme-tab-active-border: #6BA3E8;
+
+  /* Study mode */
+  --theme-study-controls-bg: #232347;
+  --theme-study-controls-border: #3A3A5C;
+
+  /* Links */
+  --theme-link-color: #6BA3E8;
+  --theme-link-color-hover: #8BB8F0;
+  --theme-link-underline: rgba(107, 163, 232, 0.4);
+  --theme-link-underline-hover: rgba(107, 163, 232, 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: #6BA3E8;
+  --theme-strongs-color-hover: #8BB8F0;
+
+  /* Morphology colors - brighter for dark backgrounds */
+  --theme-morph-verb: #60A5FA;
+  --theme-morph-noun: #4ADE80;
+  --theme-morph-adjective: #C084FC;
+  --theme-morph-pronoun: #FB923C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: #FBBF24;
+  --theme-crossref-color: #60A5FA;
+
+  /* Range slider */
+  --theme-range-track: #3A3A5C;
+  --theme-range-thumb: #6BA3E8;
+
+  /* Text annotation highlights read best slightly dimmer on dark */
+  --theme-highlight-alpha: 0.3;
+  --theme-highlight-preview-alpha: 0.18;
+}
+
+/* ============================================================
+   SEPIA THEME
+   ============================================================ */
+[data-theme="sepia"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 245 240 232;
+  --theme-bg-secondary-rgb: 237 230 214;
+  --theme-bg-tertiary-rgb: 228 220 200;
+  --theme-bg-hover-rgb: 221 212 190;
+  --theme-bg-active-rgb: 212 201 175;
+  --theme-bg-strong-rgb: 196 180 148;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 245 240 232;
+  --theme-surface-secondary-rgb: 237 230 214;
+  --theme-surface-elevated-rgb: 250 246 238;
+
+  /* Text */
+  --theme-text-primary-rgb: 62 44 28;
+  --theme-text-secondary-rgb: 107 87 68;
+  --theme-text-heading-rgb: 44 26 14;
+  --theme-text-muted-rgb: 140 124 105;
+  --theme-text-inverse-rgb: 245 240 232;
+
+  /* Borders */
+  --theme-border-primary-rgb: 212 197 169;
+  --theme-border-secondary-rgb: 196 180 148;
+  --theme-border-focus-rgb: 139 105 20;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 139 105 20;
+  --theme-accent-hover-rgb: 122 92 16;
+  --theme-accent-strong-rgb: 92 68 8;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) - warm red for sepia */
+  --theme-christ-rgb: 166 40 40;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 250 246 238;
+  --theme-input-border-rgb: 196 180 148;
+  --theme-input-text-rgb: 62 44 28;
+  --theme-input-placeholder-rgb: 140 124 105;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 228 220 200;
+  --theme-control-hover-rgb: 212 201 175;
+  --theme-control-text-rgb: 74 56 40;
+
+  /* Status: danger */
+  --theme-danger-rgb: 185 28 28;
+  --theme-danger-hover-rgb: 153 27 27;
+  --theme-danger-soft-rgb: 243 226 219;
+  --theme-danger-text-rgb: 128 27 27;
+  --theme-danger-border-rgb: 216 182 168;
+
+  /* Status: success */
+  --theme-success-rgb: 21 128 61;
+  --theme-success-soft-rgb: 230 237 219;
+  --theme-success-text-rgb: 20 83 45;
+  --theme-success-border-rgb: 186 205 170;
+
+  /* Status: warning */
+  --theme-warning-rgb: 180 83 9;
+  --theme-warning-soft-rgb: 245 233 209;
+  --theme-warning-text-rgb: 120 53 15;
+  --theme-warning-border-rgb: 219 196 152;
+
+  /* Status: info */
+  --theme-info-rgb: 29 78 216;
+  --theme-info-soft-rgb: 226 231 241;
+  --theme-info-text-rgb: 30 58 138;
+  --theme-info-border-rgb: 180 194 220;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgba(62, 44, 28, 0.5);
+
+  /* Pane header */
+  --theme-pane-header-bg: #EDE6D6;
+  --theme-pane-header-border: #D4C5A9;
+  --theme-pane-header-text: #4A3828;
+  --theme-pane-header-text-secondary: #7A6652;
+
+  /* Tabs */
+  --theme-tab-text: #7A6652;
+  --theme-tab-text-hover: #2C1A0E;
+  --theme-tab-bg-hover: #DDD4BE;
+  --theme-tab-active-text: #2C1A0E;
+  --theme-tab-active-bg: #F5F0E8;
+  --theme-tab-active-border: #8B6914;
+
+  /* Study mode */
+  --theme-study-controls-bg: #EDE6D6;
+  --theme-study-controls-border: #D4C5A9;
+
+  /* Links */
+  --theme-link-color: #6B4C0A;
+  --theme-link-color-hover: #4A3406;
+  --theme-link-underline: rgba(107, 76, 10, 0.4);
+  --theme-link-underline-hover: rgba(107, 76, 10, 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: #6B4C0A;
+  --theme-strongs-color-hover: #4A3406;
+
+  /* Morphology colors - warm tones for sepia */
+  --theme-morph-verb: #2563EB;
+  --theme-morph-noun: #166534;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: #B45309;
+  --theme-crossref-color: #6B4C0A;
+
+  /* Range slider */
+  --theme-range-track: #D4C5A9;
+  --theme-range-thumb: #8B6914;
+
+  /* Sepia is a light theme, so the light-mode highlight alphas apply */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   ARCTIC THEME
+   Ported from packages/web/src/themes/arctic/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="arctic"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 240 248 255;
+  --theme-bg-secondary-rgb: 224 240 251;
+  --theme-bg-tertiary-rgb: 208 232 248;
+  --theme-bg-hover-rgb: 216 236 250;
+  --theme-bg-active-rgb: 208 232 248;
+  --theme-bg-strong-rgb: 191 213 228;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 240 248 255;
+  --theme-surface-secondary-rgb: 224 240 251;
+  --theme-surface-elevated-rgb: 240 248 255;
+
+  /* Text */
+  --theme-text-primary-rgb: 10 37 64;
+  --theme-text-secondary-rgb: 26 64 96;
+  --theme-text-heading-rgb: 9 31 54;
+  --theme-text-muted-rgb: 74 112 144;
+  --theme-text-inverse-rgb: 240 248 255;
+
+  /* Borders */
+  --theme-border-primary-rgb: 176 208 232;
+  --theme-border-secondary-rgb: 162 191 213;
+  --theme-border-focus-rgb: 2 132 199;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 2 132 199;
+  --theme-accent-hover-rgb: 3 105 161;
+  --theme-accent-strong-rgb: 3 89 137;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 196 30 58;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 240 248 255;
+  --theme-input-border-rgb: 162 191 213;
+  --theme-input-text-rgb: 10 37 64;
+  --theme-input-placeholder-rgb: 74 112 144;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 208 232 248;
+  --theme-control-hover-rgb: 191 213 228;
+  --theme-control-text-rgb: 26 64 96;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(10 37 64 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(224 240 251);
+  --theme-pane-header-border: rgb(176 208 232);
+  --theme-pane-header-text: rgb(26 64 96);
+  --theme-pane-header-text-secondary: rgb(74 112 144);
+
+  /* Tabs */
+  --theme-tab-text: rgb(26 64 96);
+  --theme-tab-text-hover: rgb(10 37 64);
+  --theme-tab-bg-hover: rgb(216 236 250);
+  --theme-tab-active-text: rgb(10 37 64);
+  --theme-tab-active-bg: rgb(240 248 255);
+  --theme-tab-active-border: rgb(2 132 199);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(224 240 251);
+  --theme-study-controls-border: rgb(162 191 213);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(162 191 213);
+  --theme-range-thumb: rgb(2 132 199);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   AUTUMN THEME
+   Ported from packages/web/src/themes/autumn/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="autumn"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 250 246 240;
+  --theme-bg-secondary-rgb: 244 236 224;
+  --theme-bg-tertiary-rgb: 234 222 206;
+  --theme-bg-hover-rgb: 239 229 215;
+  --theme-bg-active-rgb: 234 222 206;
+  --theme-bg-strong-rgb: 215 204 190;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 250 246 240;
+  --theme-surface-secondary-rgb: 244 236 224;
+  --theme-surface-elevated-rgb: 250 246 240;
+
+  /* Text */
+  --theme-text-primary-rgb: 46 26 14;
+  --theme-text-secondary-rgb: 90 56 32;
+  --theme-text-heading-rgb: 39 22 12;
+  --theme-text-muted-rgb: 138 104 72;
+  --theme-text-inverse-rgb: 250 246 240;
+
+  /* Borders */
+  --theme-border-primary-rgb: 208 184 152;
+  --theme-border-secondary-rgb: 191 169 140;
+  --theme-border-focus-rgb: 180 83 9;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 180 83 9;
+  --theme-accent-hover-rgb: 146 64 14;
+  --theme-accent-strong-rgb: 124 54 12;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 160 52 46;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 250 246 240;
+  --theme-input-border-rgb: 191 169 140;
+  --theme-input-text-rgb: 46 26 14;
+  --theme-input-placeholder-rgb: 138 104 72;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 234 222 206;
+  --theme-control-hover-rgb: 215 204 190;
+  --theme-control-text-rgb: 90 56 32;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(46 26 14 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(244 236 224);
+  --theme-pane-header-border: rgb(208 184 152);
+  --theme-pane-header-text: rgb(90 56 32);
+  --theme-pane-header-text-secondary: rgb(138 104 72);
+
+  /* Tabs */
+  --theme-tab-text: rgb(90 56 32);
+  --theme-tab-text-hover: rgb(46 26 14);
+  --theme-tab-bg-hover: rgb(239 229 215);
+  --theme-tab-active-text: rgb(46 26 14);
+  --theme-tab-active-bg: rgb(250 246 240);
+  --theme-tab-active-border: rgb(180 83 9);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(244 236 224);
+  --theme-study-controls-border: rgb(191 169 140);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(191 169 140);
+  --theme-range-thumb: rgb(180 83 9);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   FOREST THEME
+   Ported from packages/web/src/themes/forest/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="forest"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 240 245 237;
+  --theme-bg-secondary-rgb: 227 237 222;
+  --theme-bg-tertiary-rgb: 212 227 204;
+  --theme-bg-hover-rgb: 220 232 213;
+  --theme-bg-active-rgb: 212 227 204;
+  --theme-bg-strong-rgb: 195 209 188;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 240 245 237;
+  --theme-surface-secondary-rgb: 227 237 222;
+  --theme-surface-elevated-rgb: 240 245 237;
+
+  /* Text */
+  --theme-text-primary-rgb: 27 46 27;
+  --theme-text-secondary-rgb: 58 90 58;
+  --theme-text-heading-rgb: 23 39 23;
+  --theme-text-muted-rgb: 107 143 107;
+  --theme-text-inverse-rgb: 240 245 237;
+
+  /* Borders */
+  --theme-border-primary-rgb: 181 204 176;
+  --theme-border-secondary-rgb: 167 188 162;
+  --theme-border-focus-rgb: 45 122 58;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 45 122 58;
+  --theme-accent-hover-rgb: 30 92 40;
+  --theme-accent-strong-rgb: 26 78 34;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 160 52 46;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 240 245 237;
+  --theme-input-border-rgb: 167 188 162;
+  --theme-input-text-rgb: 27 46 27;
+  --theme-input-placeholder-rgb: 107 143 107;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 212 227 204;
+  --theme-control-hover-rgb: 195 209 188;
+  --theme-control-text-rgb: 58 90 58;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(27 46 27 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(227 237 222);
+  --theme-pane-header-border: rgb(181 204 176);
+  --theme-pane-header-text: rgb(58 90 58);
+  --theme-pane-header-text-secondary: rgb(107 143 107);
+
+  /* Tabs */
+  --theme-tab-text: rgb(58 90 58);
+  --theme-tab-text-hover: rgb(27 46 27);
+  --theme-tab-bg-hover: rgb(220 232 213);
+  --theme-tab-active-text: rgb(27 46 27);
+  --theme-tab-active-bg: rgb(240 245 237);
+  --theme-tab-active-border: rgb(45 122 58);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(227 237 222);
+  --theme-study-controls-border: rgb(167 188 162);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(167 188 162);
+  --theme-range-thumb: rgb(45 122 58);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   LAGOON THEME
+   Ported from packages/web/src/themes/lagoon/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="lagoon"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 239 250 248;
+  --theme-bg-secondary-rgb: 221 242 238;
+  --theme-bg-tertiary-rgb: 200 232 226;
+  --theme-bg-hover-rgb: 211 237 232;
+  --theme-bg-active-rgb: 200 232 226;
+  --theme-bg-strong-rgb: 184 213 208;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 239 250 248;
+  --theme-surface-secondary-rgb: 221 242 238;
+  --theme-surface-elevated-rgb: 239 250 248;
+
+  /* Text */
+  --theme-text-primary-rgb: 12 46 42;
+  --theme-text-secondary-rgb: 26 74 66;
+  --theme-text-heading-rgb: 10 39 36;
+  --theme-text-muted-rgb: 74 122 112;
+  --theme-text-inverse-rgb: 239 250 248;
+
+  /* Borders */
+  --theme-border-primary-rgb: 160 208 200;
+  --theme-border-secondary-rgb: 147 191 184;
+  --theme-border-focus-rgb: 14 138 122;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 14 138 122;
+  --theme-accent-hover-rgb: 10 110 98;
+  --theme-accent-strong-rgb: 9 94 83;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 196 30 58;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 239 250 248;
+  --theme-input-border-rgb: 147 191 184;
+  --theme-input-text-rgb: 12 46 42;
+  --theme-input-placeholder-rgb: 74 122 112;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 200 232 226;
+  --theme-control-hover-rgb: 184 213 208;
+  --theme-control-text-rgb: 26 74 66;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(12 46 42 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(221 242 238);
+  --theme-pane-header-border: rgb(160 208 200);
+  --theme-pane-header-text: rgb(26 74 66);
+  --theme-pane-header-text-secondary: rgb(74 122 112);
+
+  /* Tabs */
+  --theme-tab-text: rgb(26 74 66);
+  --theme-tab-text-hover: rgb(12 46 42);
+  --theme-tab-bg-hover: rgb(211 237 232);
+  --theme-tab-active-text: rgb(12 46 42);
+  --theme-tab-active-bg: rgb(239 250 248);
+  --theme-tab-active-border: rgb(14 138 122);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(221 242 238);
+  --theme-study-controls-border: rgb(147 191 184);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(147 191 184);
+  --theme-range-thumb: rgb(14 138 122);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   MEADOW THEME
+   Ported from packages/web/src/themes/meadow/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="meadow"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 244 248 239;
+  --theme-bg-secondary-rgb: 232 240 222;
+  --theme-bg-tertiary-rgb: 218 232 204;
+  --theme-bg-hover-rgb: 225 236 213;
+  --theme-bg-active-rgb: 218 232 204;
+  --theme-bg-strong-rgb: 201 213 188;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 244 248 239;
+  --theme-surface-secondary-rgb: 232 240 222;
+  --theme-surface-elevated-rgb: 244 248 239;
+
+  /* Text */
+  --theme-text-primary-rgb: 30 48 24;
+  --theme-text-secondary-rgb: 58 84 40;
+  --theme-text-heading-rgb: 26 41 20;
+  --theme-text-muted-rgb: 106 138 80;
+  --theme-text-inverse-rgb: 244 248 239;
+
+  /* Borders */
+  --theme-border-primary-rgb: 184 212 160;
+  --theme-border-secondary-rgb: 169 195 147;
+  --theme-border-focus-rgb: 90 158 46;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 90 158 46;
+  --theme-accent-hover-rgb: 72 136 34;
+  --theme-accent-strong-rgb: 61 116 29;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 160 52 46;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 244 248 239;
+  --theme-input-border-rgb: 169 195 147;
+  --theme-input-text-rgb: 30 48 24;
+  --theme-input-placeholder-rgb: 106 138 80;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 218 232 204;
+  --theme-control-hover-rgb: 201 213 188;
+  --theme-control-text-rgb: 58 84 40;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(30 48 24 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(232 240 222);
+  --theme-pane-header-border: rgb(184 212 160);
+  --theme-pane-header-text: rgb(58 84 40);
+  --theme-pane-header-text-secondary: rgb(106 138 80);
+
+  /* Tabs */
+  --theme-tab-text: rgb(58 84 40);
+  --theme-tab-text-hover: rgb(30 48 24);
+  --theme-tab-bg-hover: rgb(225 236 213);
+  --theme-tab-active-text: rgb(30 48 24);
+  --theme-tab-active-bg: rgb(244 248 239);
+  --theme-tab-active-border: rgb(90 158 46);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(232 240 222);
+  --theme-study-controls-border: rgb(169 195 147);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(169 195 147);
+  --theme-range-thumb: rgb(90 158 46);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   MIDNIGHT THEME
+   Ported from packages/web/src/themes/midnight/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="midnight"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 13 17 23;
+  --theme-bg-secondary-rgb: 22 27 34;
+  --theme-bg-tertiary-rgb: 33 38 45;
+  --theme-bg-hover-rgb: 28 33 40;
+  --theme-bg-active-rgb: 33 38 45;
+  --theme-bg-strong-rgb: 51 55 62;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 13 17 23;
+  --theme-surface-secondary-rgb: 22 27 34;
+  --theme-surface-elevated-rgb: 35 38 44;
+
+  /* Text */
+  --theme-text-primary-rgb: 201 209 217;
+  --theme-text-secondary-rgb: 139 148 158;
+  --theme-text-heading-rgb: 206 214 221;
+  --theme-text-muted-rgb: 110 118 129;
+  --theme-text-inverse-rgb: 13 17 23;
+
+  /* Borders */
+  --theme-border-primary-rgb: 48 54 61;
+  --theme-border-secondary-rgb: 69 74 80;
+  --theme-border-focus-rgb: 88 166 255;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 88 166 255;
+  --theme-accent-hover-rgb: 121 192 255;
+  --theme-accent-strong-rgb: 141 201 255;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 248 113 113;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 13 17 23;
+  --theme-input-border-rgb: 69 74 80;
+  --theme-input-text-rgb: 201 209 217;
+  --theme-input-placeholder-rgb: 110 118 129;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 33 38 45;
+  --theme-control-hover-rgb: 51 55 62;
+  --theme-control-text-rgb: 139 148 158;
+
+  /* Status colors reused wholesale from the dark theme */
+  --theme-danger-rgb: 239 68 68;
+  --theme-danger-hover-rgb: 220 38 38;
+  --theme-danger-soft-rgb: 61 31 38;
+  --theme-danger-text-rgb: 252 165 165;
+  --theme-danger-border-rgb: 127 29 29;
+  --theme-success-rgb: 34 197 94;
+  --theme-success-soft-rgb: 23 48 31;
+  --theme-success-text-rgb: 134 239 172;
+  --theme-success-border-rgb: 22 101 52;
+  --theme-warning-rgb: 245 158 11;
+  --theme-warning-soft-rgb: 54 43 20;
+  --theme-warning-text-rgb: 252 211 77;
+  --theme-warning-border-rgb: 120 53 15;
+  --theme-info-rgb: 96 165 250;
+  --theme-info-soft-rgb: 27 42 74;
+  --theme-info-text-rgb: 147 197 253;
+  --theme-info-border-rgb: 30 64 175;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(201 209 217 / 0.6);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(22 27 34);
+  --theme-pane-header-border: rgb(48 54 61);
+  --theme-pane-header-text: rgb(139 148 158);
+  --theme-pane-header-text-secondary: rgb(110 118 129);
+
+  /* Tabs */
+  --theme-tab-text: rgb(139 148 158);
+  --theme-tab-text-hover: rgb(201 209 217);
+  --theme-tab-bg-hover: rgb(28 33 40);
+  --theme-tab-active-text: rgb(201 209 217);
+  --theme-tab-active-bg: rgb(13 17 23);
+  --theme-tab-active-border: rgb(88 166 255);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(22 27 34);
+  --theme-study-controls-border: rgb(69 74 80);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(96 165 250);
+  --theme-link-color-hover: rgb(147 197 253);
+  --theme-link-underline: rgb(96 165 250 / 0.4);
+  --theme-link-underline-hover: rgb(96 165 250 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(96 165 250);
+  --theme-strongs-color-hover: rgb(147 197 253);
+
+  /* Morphology colors reused wholesale from the dark theme */
+  --theme-morph-verb: #60A5FA;
+  --theme-morph-noun: #4ADE80;
+  --theme-morph-adjective: #C084FC;
+  --theme-morph-pronoun: #FB923C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(245 158 11);
+  --theme-crossref-color: rgb(96 165 250);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(69 74 80);
+  --theme-range-thumb: rgb(88 166 255);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.3;
+  --theme-highlight-preview-alpha: 0.18;
+}
+
+/* ============================================================
+   OCEAN THEME
+   Ported from packages/web/src/themes/ocean/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="ocean"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 238 244 248;
+  --theme-bg-secondary-rgb: 220 233 242;
+  --theme-bg-tertiary-rgb: 200 220 232;
+  --theme-bg-hover-rgb: 210 227 237;
+  --theme-bg-active-rgb: 200 220 232;
+  --theme-bg-strong-rgb: 184 202 213;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 238 244 248;
+  --theme-surface-secondary-rgb: 220 233 242;
+  --theme-surface-elevated-rgb: 238 244 248;
+
+  /* Text */
+  --theme-text-primary-rgb: 15 43 60;
+  --theme-text-secondary-rgb: 42 84 112;
+  --theme-text-heading-rgb: 13 37 51;
+  --theme-text-muted-rgb: 91 139 165;
+  --theme-text-inverse-rgb: 238 244 248;
+
+  /* Borders */
+  --theme-border-primary-rgb: 168 200 220;
+  --theme-border-secondary-rgb: 155 184 202;
+  --theme-border-focus-rgb: 26 110 160;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 26 110 160;
+  --theme-accent-hover-rgb: 20 90 132;
+  --theme-accent-strong-rgb: 17 77 112;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 196 30 58;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 238 244 248;
+  --theme-input-border-rgb: 155 184 202;
+  --theme-input-text-rgb: 15 43 60;
+  --theme-input-placeholder-rgb: 91 139 165;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 200 220 232;
+  --theme-control-hover-rgb: 184 202 213;
+  --theme-control-text-rgb: 42 84 112;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(15 43 60 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(220 233 242);
+  --theme-pane-header-border: rgb(168 200 220);
+  --theme-pane-header-text: rgb(42 84 112);
+  --theme-pane-header-text-secondary: rgb(91 139 165);
+
+  /* Tabs */
+  --theme-tab-text: rgb(42 84 112);
+  --theme-tab-text-hover: rgb(15 43 60);
+  --theme-tab-bg-hover: rgb(210 227 237);
+  --theme-tab-active-text: rgb(15 43 60);
+  --theme-tab-active-bg: rgb(238 244 248);
+  --theme-tab-active-border: rgb(26 110 160);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(220 233 242);
+  --theme-study-controls-border: rgb(155 184 202);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(155 184 202);
+  --theme-range-thumb: rgb(26 110 160);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   PARCHMENT THEME
+   Ported from packages/web/src/themes/parchment/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="parchment"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 245 237 213;
+  --theme-bg-secondary-rgb: 237 227 196;
+  --theme-bg-tertiary-rgb: 226 213 174;
+  --theme-bg-hover-rgb: 232 220 185;
+  --theme-bg-active-rgb: 226 213 174;
+  --theme-bg-strong-rgb: 208 196 160;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 245 237 213;
+  --theme-surface-secondary-rgb: 237 227 196;
+  --theme-surface-elevated-rgb: 245 237 214;
+
+  /* Text */
+  --theme-text-primary-rgb: 44 36 22;
+  --theme-text-secondary-rgb: 74 60 38;
+  --theme-text-heading-rgb: 37 31 19;
+  --theme-text-muted-rgb: 122 106 74;
+  --theme-text-inverse-rgb: 245 237 213;
+
+  /* Borders */
+  --theme-border-primary-rgb: 196 180 138;
+  --theme-border-secondary-rgb: 180 166 127;
+  --theme-border-focus-rgb: 107 78 42;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 107 78 42;
+  --theme-accent-hover-rgb: 85 60 30;
+  --theme-accent-strong-rgb: 72 51 26;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 139 32 32;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 245 237 213;
+  --theme-input-border-rgb: 180 166 127;
+  --theme-input-text-rgb: 44 36 22;
+  --theme-input-placeholder-rgb: 122 106 74;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 226 213 174;
+  --theme-control-hover-rgb: 208 196 160;
+  --theme-control-text-rgb: 74 60 38;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(44 36 22 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(237 227 196);
+  --theme-pane-header-border: rgb(196 180 138);
+  --theme-pane-header-text: rgb(74 60 38);
+  --theme-pane-header-text-secondary: rgb(122 106 74);
+
+  /* Tabs */
+  --theme-tab-text: rgb(74 60 38);
+  --theme-tab-text-hover: rgb(44 36 22);
+  --theme-tab-bg-hover: rgb(232 220 185);
+  --theme-tab-active-text: rgb(44 36 22);
+  --theme-tab-active-bg: rgb(245 237 213);
+  --theme-tab-active-border: rgb(107 78 42);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(237 227 196);
+  --theme-study-controls-border: rgb(180 166 127);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(180 166 127);
+  --theme-range-thumb: rgb(107 78 42);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   ROSE THEME
+   Ported from packages/web/src/themes/rose/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="rose"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 253 242 244;
+  --theme-bg-secondary-rgb: 252 231 236;
+  --theme-bg-tertiary-rgb: 248 215 223;
+  --theme-bg-hover-rgb: 250 223 230;
+  --theme-bg-active-rgb: 248 215 223;
+  --theme-bg-strong-rgb: 228 198 205;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 253 242 244;
+  --theme-surface-secondary-rgb: 252 231 236;
+  --theme-surface-elevated-rgb: 253 242 244;
+
+  /* Text */
+  --theme-text-primary-rgb: 59 16 32;
+  --theme-text-secondary-rgb: 107 32 64;
+  --theme-text-heading-rgb: 50 14 27;
+  --theme-text-muted-rgb: 154 80 112;
+  --theme-text-inverse-rgb: 253 242 244;
+
+  /* Borders */
+  --theme-border-primary-rgb: 232 176 192;
+  --theme-border-secondary-rgb: 213 162 177;
+  --theme-border-focus-rgb: 190 24 93;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 190 24 93;
+  --theme-accent-hover-rgb: 157 23 77;
+  --theme-accent-strong-rgb: 133 20 65;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 196 30 58;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 253 242 244;
+  --theme-input-border-rgb: 213 162 177;
+  --theme-input-text-rgb: 59 16 32;
+  --theme-input-placeholder-rgb: 154 80 112;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 248 215 223;
+  --theme-control-hover-rgb: 228 198 205;
+  --theme-control-text-rgb: 107 32 64;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(59 16 32 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(252 231 236);
+  --theme-pane-header-border: rgb(232 176 192);
+  --theme-pane-header-text: rgb(107 32 64);
+  --theme-pane-header-text-secondary: rgb(154 80 112);
+
+  /* Tabs */
+  --theme-tab-text: rgb(107 32 64);
+  --theme-tab-text-hover: rgb(59 16 32);
+  --theme-tab-bg-hover: rgb(250 223 230);
+  --theme-tab-active-text: rgb(59 16 32);
+  --theme-tab-active-bg: rgb(253 242 244);
+  --theme-tab-active-border: rgb(190 24 93);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(252 231 236);
+  --theme-study-controls-border: rgb(213 162 177);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(213 162 177);
+  --theme-range-thumb: rgb(190 24 93);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   SLATE THEME
+   Ported from packages/web/src/themes/slate/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="slate"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 30 37 48;
+  --theme-bg-secondary-rgb: 37 45 58;
+  --theme-bg-tertiary-rgb: 46 56 72;
+  --theme-bg-hover-rgb: 42 51 65;
+  --theme-bg-active-rgb: 46 56 72;
+  --theme-bg-strong-rgb: 63 72 87;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 30 37 48;
+  --theme-surface-secondary-rgb: 37 45 58;
+  --theme-surface-elevated-rgb: 50 57 67;
+
+  /* Text */
+  --theme-text-primary-rgb: 203 213 225;
+  --theme-text-secondary-rgb: 148 163 184;
+  --theme-text-heading-rgb: 208 217 228;
+  --theme-text-muted-rgb: 100 116 139;
+  --theme-text-inverse-rgb: 30 37 48;
+
+  /* Borders */
+  --theme-border-primary-rgb: 51 65 85;
+  --theme-border-secondary-rgb: 71 84 102;
+  --theme-border-focus-rgb: 56 189 248;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 56 189 248;
+  --theme-accent-hover-rgb: 125 211 252;
+  --theme-accent-strong-rgb: 145 218 252;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 248 113 113;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 30 37 48;
+  --theme-input-border-rgb: 71 84 102;
+  --theme-input-text-rgb: 203 213 225;
+  --theme-input-placeholder-rgb: 100 116 139;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 46 56 72;
+  --theme-control-hover-rgb: 63 72 87;
+  --theme-control-text-rgb: 148 163 184;
+
+  /* Status colors reused wholesale from the dark theme */
+  --theme-danger-rgb: 239 68 68;
+  --theme-danger-hover-rgb: 220 38 38;
+  --theme-danger-soft-rgb: 61 31 38;
+  --theme-danger-text-rgb: 252 165 165;
+  --theme-danger-border-rgb: 127 29 29;
+  --theme-success-rgb: 34 197 94;
+  --theme-success-soft-rgb: 23 48 31;
+  --theme-success-text-rgb: 134 239 172;
+  --theme-success-border-rgb: 22 101 52;
+  --theme-warning-rgb: 245 158 11;
+  --theme-warning-soft-rgb: 54 43 20;
+  --theme-warning-text-rgb: 252 211 77;
+  --theme-warning-border-rgb: 120 53 15;
+  --theme-info-rgb: 96 165 250;
+  --theme-info-soft-rgb: 27 42 74;
+  --theme-info-text-rgb: 147 197 253;
+  --theme-info-border-rgb: 30 64 175;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(203 213 225 / 0.6);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(37 45 58);
+  --theme-pane-header-border: rgb(51 65 85);
+  --theme-pane-header-text: rgb(148 163 184);
+  --theme-pane-header-text-secondary: rgb(100 116 139);
+
+  /* Tabs */
+  --theme-tab-text: rgb(148 163 184);
+  --theme-tab-text-hover: rgb(203 213 225);
+  --theme-tab-bg-hover: rgb(42 51 65);
+  --theme-tab-active-text: rgb(203 213 225);
+  --theme-tab-active-bg: rgb(30 37 48);
+  --theme-tab-active-border: rgb(56 189 248);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(37 45 58);
+  --theme-study-controls-border: rgb(71 84 102);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(96 165 250);
+  --theme-link-color-hover: rgb(147 197 253);
+  --theme-link-underline: rgb(96 165 250 / 0.4);
+  --theme-link-underline-hover: rgb(96 165 250 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(96 165 250);
+  --theme-strongs-color-hover: rgb(147 197 253);
+
+  /* Morphology colors reused wholesale from the dark theme */
+  --theme-morph-verb: #60A5FA;
+  --theme-morph-noun: #4ADE80;
+  --theme-morph-adjective: #C084FC;
+  --theme-morph-pronoun: #FB923C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(245 158 11);
+  --theme-crossref-color: rgb(96 165 250);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(71 84 102);
+  --theme-range-thumb: rgb(56 189 248);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.3;
+  --theme-highlight-preview-alpha: 0.18;
+}
+
+/* ============================================================
+   SUNRISE THEME
+   Ported from packages/web/src/themes/sunrise/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="sunrise"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 254 248 240;
+  --theme-bg-secondary-rgb: 253 240 222;
+  --theme-bg-tertiary-rgb: 251 229 200;
+  --theme-bg-hover-rgb: 252 235 211;
+  --theme-bg-active-rgb: 251 229 200;
+  --theme-bg-strong-rgb: 231 211 184;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 254 248 240;
+  --theme-surface-secondary-rgb: 253 240 222;
+  --theme-surface-elevated-rgb: 254 248 240;
+
+  /* Text */
+  --theme-text-primary-rgb: 61 32 16;
+  --theme-text-secondary-rgb: 107 64 32;
+  --theme-text-heading-rgb: 52 27 14;
+  --theme-text-muted-rgb: 154 112 80;
+  --theme-text-inverse-rgb: 254 248 240;
+
+  /* Borders */
+  --theme-border-primary-rgb: 224 200 168;
+  --theme-border-secondary-rgb: 206 184 155;
+  --theme-border-focus-rgb: 212 128 42;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 212 128 42;
+  --theme-accent-hover-rgb: 184 106 30;
+  --theme-accent-strong-rgb: 156 90 26;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 196 30 58;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 254 248 240;
+  --theme-input-border-rgb: 206 184 155;
+  --theme-input-text-rgb: 61 32 16;
+  --theme-input-placeholder-rgb: 154 112 80;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 251 229 200;
+  --theme-control-hover-rgb: 231 211 184;
+  --theme-control-text-rgb: 107 64 32;
+
+  /* Status colors reused wholesale from the light theme */
+  --theme-danger-rgb: 220 38 38;
+  --theme-danger-hover-rgb: 185 28 28;
+  --theme-danger-soft-rgb: 254 242 242;
+  --theme-danger-text-rgb: 153 27 27;
+  --theme-danger-border-rgb: 254 202 202;
+  --theme-success-rgb: 22 163 74;
+  --theme-success-soft-rgb: 240 253 244;
+  --theme-success-text-rgb: 22 101 52;
+  --theme-success-border-rgb: 187 247 208;
+  --theme-warning-rgb: 217 119 6;
+  --theme-warning-soft-rgb: 255 251 235;
+  --theme-warning-text-rgb: 146 64 14;
+  --theme-warning-border-rgb: 253 230 138;
+  --theme-info-rgb: 37 99 235;
+  --theme-info-soft-rgb: 239 246 255;
+  --theme-info-text-rgb: 30 64 175;
+  --theme-info-border-rgb: 191 219 254;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(61 32 16 / 0.4);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(253 240 222);
+  --theme-pane-header-border: rgb(224 200 168);
+  --theme-pane-header-text: rgb(107 64 32);
+  --theme-pane-header-text-secondary: rgb(154 112 80);
+
+  /* Tabs */
+  --theme-tab-text: rgb(107 64 32);
+  --theme-tab-text-hover: rgb(61 32 16);
+  --theme-tab-bg-hover: rgb(252 235 211);
+  --theme-tab-active-text: rgb(61 32 16);
+  --theme-tab-active-bg: rgb(254 248 240);
+  --theme-tab-active-border: rgb(212 128 42);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(253 240 222);
+  --theme-study-controls-border: rgb(206 184 155);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(37 99 235);
+  --theme-link-color-hover: rgb(30 64 175);
+  --theme-link-underline: rgb(37 99 235 / 0.4);
+  --theme-link-underline-hover: rgb(37 99 235 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color-hover: rgb(30 64 175);
+
+  /* Morphology colors reused wholesale from the light theme */
+  --theme-morph-verb: #1D4ED8;
+  --theme-morph-noun: #15803D;
+  --theme-morph-adjective: #7E22CE;
+  --theme-morph-pronoun: #C2410C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(217 119 6);
+  --theme-crossref-color: rgb(37 99 235);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(206 184 155);
+  --theme-range-thumb: rgb(212 128 42);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.4;
+  --theme-highlight-preview-alpha: 0.2;
+}
+
+/* ============================================================
+   SUNSET THEME
+   Ported from packages/web/src/themes/sunset/_vars.scss + theme.json.
+   Core palette (bg/text/border/accent/christ) mirrors the web values
+   1:1; everything else (surfaces, status, morphology, tabs, links,
+   range slider, ...) is DERIVED from that core palette by the same
+   formula applied to every ported theme - see the "Themes" section of
+   docs/features/settings-preferences.md for the derivation rules and
+   the tradeoffs (status/morphology colors are reused wholesale from
+   the light/dark block rather than hand-tuned per theme).
+   ============================================================ */
+[data-theme="sunset"] {
+  /* Backgrounds */
+  --theme-bg-primary-rgb: 42 21 32;
+  --theme-bg-secondary-rgb: 58 26 42;
+  --theme-bg-tertiary-rgb: 74 32 53;
+  --theme-bg-hover-rgb: 66 29 48;
+  --theme-bg-active-rgb: 74 32 53;
+  --theme-bg-strong-rgb: 88 50 69;
+
+  /* Surfaces */
+  --theme-surface-primary-rgb: 42 21 32;
+  --theme-surface-secondary-rgb: 58 26 42;
+  --theme-surface-elevated-rgb: 61 42 52;
+
+  /* Text */
+  --theme-text-primary-rgb: 240 208 216;
+  --theme-text-secondary-rgb: 200 160 176;
+  --theme-text-heading-rgb: 242 213 220;
+  --theme-text-muted-rgb: 152 120 136;
+  --theme-text-inverse-rgb: 42 21 32;
+
+  /* Borders */
+  --theme-border-primary-rgb: 90 42 61;
+  --theme-border-secondary-rgb: 107 63 80;
+  --theme-border-focus-rgb: 232 120 154;
+
+  /* Accent */
+  --theme-accent-primary-rgb: 232 120 154;
+  --theme-accent-hover-rgb: 240 154 181;
+  --theme-accent-strong-rgb: 242 169 192;
+  --theme-accent-text-rgb: 255 255 255;
+
+  /* Christ's words (red letter) */
+  --theme-christ-rgb: 248 113 113;
+
+  /* Inputs */
+  --theme-input-bg-rgb: 42 21 32;
+  --theme-input-border-rgb: 107 63 80;
+  --theme-input-text-rgb: 240 208 216;
+  --theme-input-placeholder-rgb: 152 120 136;
+
+  /* Neutral (secondary) controls / buttons */
+  --theme-control-bg-rgb: 74 32 53;
+  --theme-control-hover-rgb: 88 50 69;
+  --theme-control-text-rgb: 200 160 176;
+
+  /* Status colors reused wholesale from the dark theme */
+  --theme-danger-rgb: 239 68 68;
+  --theme-danger-hover-rgb: 220 38 38;
+  --theme-danger-soft-rgb: 61 31 38;
+  --theme-danger-text-rgb: 252 165 165;
+  --theme-danger-border-rgb: 127 29 29;
+  --theme-success-rgb: 34 197 94;
+  --theme-success-soft-rgb: 23 48 31;
+  --theme-success-text-rgb: 134 239 172;
+  --theme-success-border-rgb: 22 101 52;
+  --theme-warning-rgb: 245 158 11;
+  --theme-warning-soft-rgb: 54 43 20;
+  --theme-warning-text-rgb: 252 211 77;
+  --theme-warning-border-rgb: 120 53 15;
+  --theme-info-rgb: 96 165 250;
+  --theme-info-soft-rgb: 27 42 74;
+  --theme-info-text-rgb: 147 197 253;
+  --theme-info-border-rgb: 30 64 175;
+
+  /* --- Theme-specific literals -------------------------------- */
+  --theme-bg-overlay: rgb(240 208 216 / 0.6);
+
+  /* Pane header */
+  --theme-pane-header-bg: rgb(58 26 42);
+  --theme-pane-header-border: rgb(90 42 61);
+  --theme-pane-header-text: rgb(200 160 176);
+  --theme-pane-header-text-secondary: rgb(152 120 136);
+
+  /* Tabs */
+  --theme-tab-text: rgb(200 160 176);
+  --theme-tab-text-hover: rgb(240 208 216);
+  --theme-tab-bg-hover: rgb(66 29 48);
+  --theme-tab-active-text: rgb(240 208 216);
+  --theme-tab-active-bg: rgb(42 21 32);
+  --theme-tab-active-border: rgb(232 120 154);
+
+  /* Study mode */
+  --theme-study-controls-bg: rgb(58 26 42);
+  --theme-study-controls-border: rgb(107 63 80);
+
+  /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
+  --theme-link-color: rgb(96 165 250);
+  --theme-link-color-hover: rgb(147 197 253);
+  --theme-link-underline: rgb(96 165 250 / 0.4);
+  --theme-link-underline-hover: rgb(96 165 250 / 0.8);
+
+  /* Strongs numbers */
+  --theme-strongs-color: rgb(96 165 250);
+  --theme-strongs-color-hover: rgb(147 197 253);
+
+  /* Morphology colors reused wholesale from the dark theme */
+  --theme-morph-verb: #60A5FA;
+  --theme-morph-noun: #4ADE80;
+  --theme-morph-adjective: #C084FC;
+  --theme-morph-pronoun: #FB923C;
+
+  /* Footnote / cross-reference markers */
+  --theme-footnote-color: rgb(245 158 11);
+  --theme-crossref-color: rgb(96 165 250);
+
+  /* Color-coded range slider track */
+  --theme-range-track: rgb(107 63 80);
+  --theme-range-thumb: rgb(232 120 154);
+
+  /* Text annotation highlight alpha (see highlights.css) */
+  --theme-highlight-alpha: 0.3;
+  --theme-highlight-preview-alpha: 0.18;
+}
+
+/* ============================================================
+   DERIVED COLOR VARIABLES
+   Declared once; every theme block above only re-declares the
+   `*-rgb` triplets, so these automatically follow the theme.
+   ============================================================ */
+:root {
+  /* Backgrounds */
+  --theme-bg-primary: rgb(var(--theme-bg-primary-rgb));
+  --theme-bg-secondary: rgb(var(--theme-bg-secondary-rgb));
+  --theme-bg-tertiary: rgb(var(--theme-bg-tertiary-rgb));
+  --theme-bg-hover: rgb(var(--theme-bg-hover-rgb));
+  --theme-bg-active: rgb(var(--theme-bg-active-rgb));
+  --theme-bg-strong: rgb(var(--theme-bg-strong-rgb));
+
+  /* Surfaces */
+  --theme-surface-primary: rgb(var(--theme-surface-primary-rgb));
+  --theme-surface-secondary: rgb(var(--theme-surface-secondary-rgb));
+  --theme-surface-elevated: rgb(var(--theme-surface-elevated-rgb));
+
+  /* Text */
+  --theme-text-primary: rgb(var(--theme-text-primary-rgb));
+  --theme-text-secondary: rgb(var(--theme-text-secondary-rgb));
+  --theme-text-heading: rgb(var(--theme-text-heading-rgb));
+  --theme-text-muted: rgb(var(--theme-text-muted-rgb));
+  --theme-text-inverse: rgb(var(--theme-text-inverse-rgb));
+
+  /* Borders */
+  --theme-border-primary: rgb(var(--theme-border-primary-rgb));
+  --theme-border-secondary: rgb(var(--theme-border-secondary-rgb));
+  --theme-border-focus: rgb(var(--theme-border-focus-rgb));
+
+  /* Accent */
+  --theme-accent-primary: rgb(var(--theme-accent-primary-rgb));
+  --theme-accent-hover: rgb(var(--theme-accent-hover-rgb));
+  --theme-accent-strong: rgb(var(--theme-accent-strong-rgb));
+  --theme-accent-text: rgb(var(--theme-accent-text-rgb));
+  --theme-accent-light: rgb(var(--theme-accent-primary-rgb) / 0.12);
+  --theme-accent-soft: rgb(var(--theme-accent-primary-rgb) / 0.22);
+
+  /* Christ's words */
+  --theme-christ: rgb(var(--theme-christ-rgb));
+
+  /* Inputs */
+  --theme-input-bg: rgb(var(--theme-input-bg-rgb));
+  --theme-input-border: rgb(var(--theme-input-border-rgb));
+  --theme-input-text: rgb(var(--theme-input-text-rgb));
+  --theme-input-placeholder: rgb(var(--theme-input-placeholder-rgb));
+
+  /* Neutral controls */
+  --theme-control-bg: rgb(var(--theme-control-bg-rgb));
+  --theme-control-hover: rgb(var(--theme-control-hover-rgb));
+  --theme-control-text: rgb(var(--theme-control-text-rgb));
+
+  /* Status */
+  --theme-danger: rgb(var(--theme-danger-rgb));
+  --theme-danger-hover: rgb(var(--theme-danger-hover-rgb));
+  --theme-danger-soft: rgb(var(--theme-danger-soft-rgb));
+  --theme-danger-text: rgb(var(--theme-danger-text-rgb));
+  --theme-danger-border: rgb(var(--theme-danger-border-rgb));
+  --theme-success: rgb(var(--theme-success-rgb));
+  --theme-success-soft: rgb(var(--theme-success-soft-rgb));
+  --theme-success-text: rgb(var(--theme-success-text-rgb));
+  --theme-success-border: rgb(var(--theme-success-border-rgb));
+  --theme-warning: rgb(var(--theme-warning-rgb));
+  --theme-warning-soft: rgb(var(--theme-warning-soft-rgb));
+  --theme-warning-text: rgb(var(--theme-warning-text-rgb));
+  --theme-warning-border: rgb(var(--theme-warning-border-rgb));
+  --theme-info: rgb(var(--theme-info-rgb));
+  --theme-info-soft: rgb(var(--theme-info-soft-rgb));
+  --theme-info-text: rgb(var(--theme-info-text-rgb));
+  --theme-info-border: rgb(var(--theme-info-border-rgb));
+
+  /* Scrollbar (follows the surface/border palette) */
+  --theme-scrollbar-track: var(--theme-bg-tertiary);
+  --theme-scrollbar-thumb: var(--theme-border-secondary);
+  --theme-scrollbar-thumb-hover: var(--theme-text-muted);
+
+  /* Annotation highlight swatch colors (identical across themes so the
+     colour a user picks always means the same thing; only the alpha,
+     --theme-highlight-alpha, differs per theme). */
+  --theme-highlight-yellow-rgb: 255 255 0;
+  --theme-highlight-green-rgb: 144 238 144;
+  --theme-highlight-blue-rgb: 173 216 230;
+  --theme-highlight-red-rgb: 255 182 193;
+  --theme-highlight-purple-rgb: 216 191 216;
+  --theme-highlight-orange-rgb: 255 200 124;
+}
+
+/* ============================================================
+   SELECTED VERSE
+   ------------------------------------------------------------
+   `bg-accent-soft` - the theme accent at 22% alpha, painted on
+   the verse ROW - would shift the perceived hue of every
+   highlight in the selected verse: highlight and underline
+   colours are painted on the inner `.word` spans
+   (HighlightRenderer -> highlights.css) and are themselves
+   semi-transparent, so a 22% wash behind them changes how they
+   look.
+
+   Instead, a rounded box with a near-opaque pale fill plus a
+   darker bar down the inline-start edge is used:
+
+     - the fill is `color-mix`ed against the theme's own page
+       background, so it stays a *pale tint of the page* in every
+       theme instead of a translucent film over the words;
+     - the bar is an inset box-shadow, not a border, so applying
+       or clearing the selection cannot shift the text sideways,
+       and it is clipped by border-radius (hence "rounded left
+       border");
+     - deliberately NO text-decoration: highlights.css sets
+       `text-decoration-line: underline !important` per word and
+       the two would collide.
+
+   Per-theme tuning is one triplet: light themes need a deeper
+   amber to read against white, dark themes a brighter one to read
+   against near-black. Everything else derives.
+   ============================================================ */
+:root {
+  /* amber-600 - 4.6:1 on white; reads as "selected", not as a highlight. */
+  --theme-verse-select-rgb: 202 138 4;
+}
+
+/* Dark grounds only. amber-400: the light-theme amber disappears into a
+   near-black page, and a saturated fill would fight the text. */
+[data-theme="dark"],
+[data-theme="midnight"],
+[data-theme="slate"],
+[data-theme="sunset"] {
+  --theme-verse-select-rgb: 250 204 21;
+}
+
+:root {
+  --theme-verse-select-border: rgb(var(--theme-verse-select-rgb));
+  /* Mixed into the page background rather than laid over it with alpha -
+     see the note above about `.word` highlight colours. */
+  --theme-verse-select-fill: color-mix(in srgb, rgb(var(--theme-verse-select-rgb)) 12%, var(--theme-bg-primary));
+  /* Shift-click passage selection: the verses swept in behind the anchor.
+     Deliberately a washed-out version of the anchor's own fill rather than a
+     different colour - these are the same kind of thing as the anchor, just
+     not the verse the study panes are following, and the weaker tint is what
+     says so. 5% is ~45% of the selection strength, matching the web app's
+     `color-mix(... var(--highlight-bg) 45%, transparent)`. Mixed into the page
+     background rather than laid over it with alpha, for the same reason the
+     fill above is: alpha would stack with `.word` highlight colours.
+
+     Raised from 5% to 9%: at 5% a swept verse was so close to the page that
+     readers could not tell a shift-click had taken, and reported the selection
+     as not having happened. Still clearly weaker than the anchor's 12%, which
+     is the distinction that matters. */
+  --theme-verse-range-fill: color-mix(in srgb, rgb(var(--theme-verse-select-rgb)) 9%, var(--theme-bg-primary));
+  /* The swept verses' leading bar. The anchor's bar is the accent at full
+     strength; this is the same bar washed towards the page, so the passage
+     reads as one block while the anchor still stands out inside it. */
+  --theme-verse-range-border: color-mix(in srgb, rgb(var(--theme-verse-select-rgb)) 55%, var(--theme-bg-primary));
+  /* The fading mark on a verse a link just landed on. Blue rather than the
+     selection amber: this is "look here", not "this is now current", and the
+     two must not be mistaken for each other. It fades to nothing, so it never
+     competes with a user highlight underneath. */
+  --theme-verse-flash-fill: rgb(59 130 246 / 0.22);
+  /* The hover hint. Derived from each theme's own hover colour and mixed into
+     that theme's page background, so it lands as the same gentle wash in
+     Light, Dark and Sepia rather than a hardcoded tint that only reads in one
+     of them. */
+  --theme-verse-hover-fill: color-mix(in srgb, rgb(var(--theme-bg-hover-rgb)) 70%, var(--theme-bg-primary));
+}
+
+/*
+  The box every verse row occupies - selected or not.
+
+  It is deliberately unconditional. Adding padding only when a row is
+  selected would grow the row and push every verse after it down the page -
+  the tint and the inset bar need that padding to look like a box, so the
+  geometry lives here, on all rows, and `.verse-selected` below changes
+  nothing but colour.
+
+  There is no vertical negative margin to take the padding back out: Tailwind's
+  `space-y-*` sets BOTH margins on the rows it separates, at a higher
+  specificity, so a `-2px` here would silently lose. The verse lists pick a
+  smaller `space-y` instead.
+*/
+.verse-row {
+  cursor: pointer;
+  border-radius: 8px;
+  padding-block: 2px;
+  /* Small, and symmetric: a deeper start inset made the tint visibly overhang
+     the left edge of the text column. */
+  padding-inline: 4px;
+  margin-inline: -4px;
+  transition: background-color 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+  /* Reading mode applies this to an inline span; without `clone` the box
+     paints only around the first line fragment. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* The affordance: a verse is clickable, so hovering one says so. Pointer
+   devices only - on touch there is no hover and the tint would stick. */
+@media (hover: hover) {
+  .verse-row:hover:not(.verse-selected):not(.verse-in-range) {
+    background-color: var(--theme-verse-hover-fill);
+  }
+
+  /* Study mode puts the affordance on an inner wrapper inside the row, so the
+     wrapper is not itself `.verse-selected` (or `.verse-in-range`). Without
+     this the hover wash would paint a second, differently-coloured box on top
+     of the selected - or shift-click-swept - verse. */
+  .verse-selected .verse-row:hover,
+  .verse-in-range .verse-row:hover {
+    background-color: transparent;
+  }
+}
+
+/* Words are the drag target for highlighting, but the row they sit in is a
+   click target, so the row's pointer cursor has to reach them. */
+.verse-row .word {
+  cursor: inherit;
+}
+
+.verse-selected {
+  /* Alpha fallback for any engine without color-mix(); the declaration
+     below wins wherever it is supported (Chromium 111+, i.e. every
+     Electron we ship). */
+  background-color: rgb(var(--theme-verse-select-rgb) / 0.1);
+  background-color: var(--theme-verse-select-fill);
+  border-radius: 8px;
+  box-shadow: inset 3px 0 0 0 var(--theme-verse-select-border);
+}
+
+/*
+  Shift-click range: every verse between the anchor and the shift-clicked end,
+  excluding the anchor itself (which keeps the full fill and its accent bar -
+  see `isInSelectedRange` in stores/bible/internals/verseRange.ts, where the
+  exclusion is made, so these two rules never have to out-specify each other).
+
+  These carry the bar too, in a washed-out accent. Colour alone, on the
+  reasoning that only the anchor should be marked, leaves the fill too faint
+  to register, and a passage whose verses share a leading edge reads as one
+  block, which is what a shift-click just made. The anchor is still
+  distinguished, by a stronger fill and a full-strength bar.
+
+  Because a bar is back, this rule now needs the same two carve-outs
+  `.verse-selected` has (reading mode, parallel mode) - they follow below.
+*/
+.verse-in-range:not(.verse-selected) {
+  /* Alpha fallback for any engine without color-mix(); the token below wins
+     wherever it is supported (Chromium 111+, i.e. every Electron we ship). */
+  background-color: rgb(var(--theme-verse-select-rgb) / 0.09);
+  background-color: var(--theme-verse-range-fill);
+  border-radius: 8px;
+  box-shadow: inset 3px 0 0 0 var(--theme-verse-range-border);
+}
+
+/* Physical offset, flipped by hand for RTL - as for `.verse-selected`. */
+[dir="rtl"] .verse-in-range:not(.verse-selected) {
+  box-shadow: inset -3px 0 0 0 var(--theme-verse-range-border);
+}
+
+/* box-shadow offsets are physical, so the bar has to be flipped by hand for
+   RTL scripture (the Bible text container carries its own `dir`). */
+[dir="rtl"] .verse-selected {
+  box-shadow: inset -3px 0 0 0 var(--theme-verse-select-border);
+}
+
+/*
+  Preview - a verse the reader followed a link to, not one they chose.
+
+  Deliberately *not* the selection treatment. The fill and the solid accent bar
+  mean "this is the verse the commentary, notes and study panes are showing",
+  and a cross-reference the reader is glancing at is none of those things;
+  painting it the same way would claim the workspace had moved when it has not.
+
+  A dashed outline instead - the same accent, drawn provisionally. It reads as
+  "here, for now" against the selection's solid mark, and it is distinguishable
+  from `.verse-in-range`, which is a fill.
+
+  Two properties make this safe everywhere it is applied:
+
+  - `outline` occupies no space, so previewing a verse cannot reflow the
+    chapter - the same rule every other state here follows.
+  - It claims no background, so a previewed verse that also carries a user
+    highlight still reads as highlighted. (This is why it is not the web app's
+    underline: Study mode puts this class on a block that also contains
+    footnotes and cross-reference rows, and `text-decoration` would strike
+    through all of them.)
+*/
+.verse-preview {
+  /* 2px, and solid rather than dashed. At 1px dashed the mark was reported as
+     barely visible: a hairline of alternating accent and page colour reads as
+     an artefact, not as an answer to "where did that link take me?". Still an
+     outline, so it still occupies no space. */
+  outline: 2px solid var(--theme-accent-primary);
+  /* Inset, so the outline sits inside the row's own rounded box rather than
+     overlapping the verse above. */
+  outline-offset: -2px;
+  border-radius: 8px;
+  /* The arrival flash. A background is normally forbidden here (see above) -
+     this one is allowed because it ends at `transparent`, so a user highlight
+     underneath is briefly tinted and then fully itself again. Restarted per
+     arrival by `.verse-flash` below; this declaration covers the case where
+     the class lands on a row that was not previously previewed. */
+  animation: verse-arrival-flash 1.6s ease-out 1;
+}
+
+/*
+  Re-arming the flash.
+
+  A CSS animation only runs when the class that carries it is applied. Landing
+  on the *same* verse twice - two links to one place, or a link to the verse
+  already previewed - changes no class, so nothing would happen the second
+  time. The scroll effect therefore toggles `.verse-flash` off and on around a
+  forced reflow, and this rule is what it re-triggers.
+*/
+.verse-flash {
+  animation: verse-arrival-flash 1.6s ease-out 1;
+}
+
+@keyframes verse-arrival-flash {
+  from { background-color: var(--theme-verse-flash-fill); }
+  to   { background-color: transparent; }
+}
+
+/* A flash is an attention-getter, and attention-getters are exactly what this
+   setting turns off. The outline still marks the verse. */
+@media (prefers-reduced-motion: reduce) {
+  .verse-preview,
+  .verse-flash {
+    animation: none;
+  }
+}
+
+/* A real selection always wins: the two can coincide only in the instant
+   before a preview is cleared, and two verses claiming to be current is worse
+   than either mark alone. */
+.verse-selected.verse-preview {
+  outline: none;
+}
+
+/*
+  Reading mode: no accent bar.
+
+  In Standard and Study the verse is a block, so the bar runs once down its
+  leading edge and reads as a margin marker. Reading mode renders the verse as
+  an inline `<span>` inside a justified paragraph, and `box-decoration-break:
+  clone` - which the fill needs, or it would paint only around the first line
+  fragment - clones the bar too. A selected three-line verse grew three stubby
+  vertical ticks stranded mid-paragraph, which is noise rather than a marker.
+
+  The fill alone carries the selection here, which is also what the web app
+  does in the same mode. Nothing about the geometry changes, so selecting a
+  verse still cannot reflow the paragraph.
+*/
+.reading-mode .verse-selected,
+[dir="rtl"] .reading-mode .verse-selected,
+.reading-mode .verse-in-range:not(.verse-selected),
+[dir="rtl"] .reading-mode .verse-in-range:not(.verse-selected) {
+  box-shadow: none;
+}
+
+/* Parallel mode's verse row is a `<tr>`, and under `border-collapse: collapse`
+   Chromium never paints a box-shadow on a table row - the background fill above
+   lands, the inset bar silently does not. Grow the bar from the row's leading
+   cell instead. Colour only; an inset shadow occupies no space, so this cannot
+   move the row the way padding-on-selection did. */
+tr.verse-selected > td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--theme-verse-select-border);
+}
+
+/* Same reason, for the verses a shift-click swept in. */
+tr.verse-in-range:not(.verse-selected) > td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--theme-verse-range-border);
+}
+
+/* In RTL the columns reverse, so the DOM's first cell is the visually leading
+   (right-hand) one - same cell, opposite offset. */
+[dir="rtl"] tr.verse-selected > td:first-child {
+  box-shadow: inset -3px 0 0 0 var(--theme-verse-select-border);
+}
+
+[dir="rtl"] tr.verse-in-range:not(.verse-selected) > td:first-child {
+  box-shadow: inset -3px 0 0 0 var(--theme-verse-range-border);
+}
+
+/* `.verse-selected-inset` does not belong here: padding added only while a
+   verse is selected would make every later verse jump down the page on a
+   click. Its geometry lives in `.verse-row` above instead, where every row
+   carries it all the time. */
+
+/* ============================================================
+   THEME-AWARE BASE STYLES
+   Apply theme variables to base elements
+   ============================================================ */
+
+/* Background and text from theme */
+html {
+  background-color: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Global font scale and UI control font size */
+:root {
+  --global-font-scale: 1;
+  --ui-control-font-size: 14px;
+
+  /* Fine-grained typography defaults (usePreferencesStore.typography).
+   * These are overridden at runtime via inline styles on <html>. */
+  --bible-font-size: 20px;
+  --study-font-size: 15px;
+  --ui-font-size: 13px;
+  /* How much larger the verse text is than the rest of the Bible pane when the
+   * passage is in Study mode (globals.css `.study-verse-text`). Deliberately
+   * small: enough that the scripture reads as the subject and the footnotes,
+   * cross-references and verse links as its apparatus, not enough to be felt
+   * as a different font size. */
+  --study-verse-emphasis: 1.08;
+  --bible-line-height: 1.75;
+  --study-line-height: 1.6;
+  --ui-line-height: 1.5;
+  --bible-font-family: Georgia, "Times New Roman", serif;
+  --study-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --ui-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Apply UI control font size to interface elements. Multiplied by
+   --global-font-scale (General section's Global Font Scale slider) so that
+   slider - documented as adjusting "all content pane font sizes
+   proportionally... useful for accessibility" - actually reaches UI chrome
+   too, not just Bible/Study pane text. See globals.css's .pane-content-*
+   rules for the equivalent on pane content. */
+.pane-header,
+.pane-header-title,
+.pane-header-subtitle,
+.pane-tab,
+.pane-tab-compact {
+  font-size: calc(var(--ui-control-font-size) * var(--global-font-scale, 1));
+}
+
+/* -------------------------------------------------------------------------
+   Range slider (track + thumb)
+
+   Every range input in the app (Preferences' font-size/line-height/font-scale
+   sliders) is styled with Tailwind's `appearance-none` utility so the
+   `accent-color` inline style used alongside it can theme the native
+   control. But `-webkit-appearance: none` / `appearance: none` strips ALL
+   native rendering, including the track - `accent-color` has no effect once
+   that happens, so the sliders would render as a bare, colorless thumb with
+   no visible bar to ride on. `--theme-range-track` / `--theme-range-thumb`
+   are already defined per theme for exactly this, but nothing consumes them
+   without these rules. These rules do, via the standard pseudo-elements, so
+   the effect works consistently across engines and themes instead of
+   relying on `accent-color` (which several engines silently ignore under
+   appearance:none anyway).
+   ------------------------------------------------------------------------- */
+input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 1rem;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--theme-range-track);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.3125rem; /* (thumb - track) / 2, centers the thumb on the track */
+  border-radius: 9999px;
+  background: var(--theme-range-thumb);
+  border: 2px solid var(--theme-surface-primary);
+  box-shadow: 0 0 0 1px var(--theme-range-thumb);
+  cursor: pointer;
+}
+
+input[type='range']::-moz-range-track {
+  width: 100%;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--theme-range-track);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--theme-surface-primary);
+  border-radius: 9999px;
+  background: var(--theme-range-thumb);
+  box-shadow: 0 0 0 1px var(--theme-range-thumb);
+  cursor: pointer;
+}
+
+input[type='range']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type='range']:focus-visible {
+  outline: 2px solid var(--theme-border-focus);
+  outline-offset: 2px;
+}
+
+/* Scrollbar theming for WebKit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-thumb-hover);
+}
+
+/* Firefox scrollbar theming */
+* {
+  scrollbar-color: var(--theme-scrollbar-thumb) var(--theme-scrollbar-track);
+  scrollbar-width: thin;
+}
+
+/* Theme-aware input styling */
+input,
+select,
+textarea {
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-input-border);
+  color: var(--theme-input-text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--theme-input-placeholder);
+}
+
+/* Native dropdown options render with the OS/UA palette unless told
+   otherwise, which produces white-on-white text in dark themes. */
+select option,
+select optgroup {
+  background-color: var(--theme-input-bg);
+  color: var(--theme-input-text);
+}
+
+/* Theme-aware focus ring */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--theme-border-focus);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--theme-accent-light);
+}

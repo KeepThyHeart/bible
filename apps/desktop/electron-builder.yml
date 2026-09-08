@@ -1,0 +1,227 @@
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
+# `mac.hardenedRuntime` and `afterSign` all come from
+# electron-builder.branding.cjs, which reads the environment
+# (BIBLE_PRODUCT_NAME / BIBLE_APP_ID for the neutral profile; CSC_*/APPLE_* to
+# gate optional signing). Do not re-declare them here — a child config overrides
+# its parent and would defeat the env gate.
+extends: file:electron-builder.branding.cjs
+electronVersion: 33.2.0
+directories:
+  output: dist
+  buildResources: resources
+# asar is ON. @bible/core is bundled into out/main/index.js by
+# electron.vite.config.ts, so no packaged file resolves through the
+# node_modules/@bible/core workspace symlink (which the asar packager rejects).
+asar: true
+# Native code CANNOT be loaded from inside an asar archive: dlopen/LoadLibrary
+# need a real file on disk. Kept in sync with electron-builder.curated.yml —
+# see that file for the per-entry rationale.
+asarUnpack:
+  - '**/*.node'
+  - '**/node_modules/better-sqlite3-multiple-ciphers/build/**'
+  - '**/node_modules/keytar/build/**'
+  - '**/node_modules/onnxruntime-node/bin/**'
+  - '**/node_modules/@img/**'
+files:
+  - out
+  - package.json
+  # See electron-builder.curated.yml for the full rationale on each of these.
+  - '!node_modules/@bible/**'
+  - '!node_modules/electron/**'
+  - '!node_modules/onnxruntime-node/**'
+  - '!node_modules/onnxruntime-common/**'
+  - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'
+  - '!node_modules/.bin/**'
+  - '!node_modules/.vite/**'
+  # The transformers model download cache is ~1.9 GB of models we never ship.
+  # Left in, it pushes the NSIS payload past what 32-bit makensis can mmap and
+  # the installer build fails outright ("failed creating mmap of ...nsis.7z").
+  - '!**/@huggingface/transformers/.cache'
+  - '!**/@huggingface/transformers/.cache/**'
+  - '!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+  - '!node_modules/*.d.ts'
+  - '!node_modules/.bin'
+  - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+  - '!.editorconfig'
+  - '!**/._*'
+  - '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}'
+  - '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}'
+  - '!**/{appveyor.yml,.travis.yml,circle.yml}'
+  - '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
+  - '!**/*.map'
+  - '!**/*.ts'
+  - '!**/tsconfig.json'
+extraResources:
+  # The window/taskbar icon, read at runtime by resolveAppIconPath(). It is NOT
+  # covered by `files:` above (only `out` and `package.json` are), and on Linux
+  # the BrowserWindow `icon` option is the sole source of the taskbar icon — so
+  # without this entry the packaged app falls back to Electron's default gears.
+  # buildResources/icon.png separately feeds the installer and .desktop entry;
+  # that is a different consumer of the same file.
+  - from: resources/icon.png
+    to: icon.png
+  # GPL-3.0 §4/§5 require the licence text to accompany the distributed binary,
+  # and the OFL requires the font notice to accompany the bundled woff2 assets
+  # (which Vite inlines into the renderer bundle inside the asar). Shipping them
+  # as plain files under resources/ keeps them readable without unpacking.
+  - from: ../../LICENSE
+    to: LICENSE
+  - from: ../../THIRD-PARTY-NOTICES.md
+    to: THIRD-PARTY-NOTICES.md
+  - from: src/ui/styles/fonts/FONT-LICENSES.md
+    to: FONT-LICENSES.md
+  # Do NOT filter this with '**/*.json'. electron-builder's extraResources
+  # matcher tests directory entries too, and `en/`, `pt-BR/`, ... do not match
+  # `*.json`, so the walk is pruned at the top and NOTHING is copied — silently,
+  # with a zero exit code. That is what shipped before: resources/locales was
+  # absent entirely and i18nHandlers.listCatalogs() swallowed the ENOENT and
+  # returned [], leaving the language picker English-only. '**/*' matches
+  # directories, so the walk descends. The directory contains only .json.
+  - from: locales
+    to: locales
+    filter:
+      - '**/*'
+      # Development pseudo-locale (bracketed/accented strings for finding
+      # unlocalised UI). Never ship it — it would appear in the language picker.
+      - '!xx-pseudo/**'
+      # Translator-facing docs that live alongside the catalogs.
+      - '!*.md'
+  # ALLOWLIST, not a denylist — this must stay an allowlist.
+  #
+  # `data/` is the developer's live working directory: it holds every module
+  # ever imported, multi-GB semantic indexes, ad-hoc backups, and `users/`.
+  # This entry used to say `'**/*'` minus a handful of `!` patterns, which fails
+  # OPEN: anything that does not happen to match an exclusion ships. That is not
+  # hypothetical — a `modules.backup-<timestamp>/` directory slipped past
+  # `!modules/**` and put 2.6 GB of unvetted modules into the installer,
+  # including ones whose licences forbid redistribution. A denylist on a
+  # licensing- and privacy-critical path is the wrong shape; enumerate instead.
+  #
+  # Bible modules do NOT belong here. They are listed individually below so that
+  # adding one is a deliberate, reviewable act with a licence check attached.
+  - from: data
+    to: data
+    filter:
+      - 'main.db'
+      # Both optional; absent in a plain dev tree and simply skipped.
+      - 'search-pipeline.json'
+      - 'models/**'
+  # Only redistribution-safe module content may be bundled. This installer is
+  # distributed under the GPL, which grants every recipient the right to
+  # redistribute it; a module carrying non-commercial-only terms would make that
+  # right unexerciseable and put the two licences in direct conflict. (The module
+  # data itself is mere aggregation under GPL §5, so the conflict is about
+  # redistribution rights, not about the code becoming non-free.)
+  # Everything else ships through the module manager, where each module's own
+  # licence is presented before download.
+  #
+  # === v1 DEFAULT STUDY CONTENT SET (WS-D/D1, locked decision) ===
+  # KJV + Matthew Henry (full) + synthesis commentary + Strong's Greek + Strong's
+  # Hebrew + ISBE. No second Bible translation ships in v1 (Parallel/compare is
+  # off out of the box — accepted tradeoff, see WS-D/D1a). Each entry is an
+  # explicit, per-file, licence-checked allowlist line: adding a module is a
+  # deliberate, reviewable act. Bundle the vetted v2 files from data/modules/
+  # (NOT the stale v1 copies under build-data/modules/, which fail
+  # scripts/validate-module.js — no module_uuid/verse_link).
+  #
+  # KJV — public domain (Crown copyright expired outside the UK; distributed
+  # worldwide as public domain). ~52 MB.
+  - from: data/modules/bible_kjv.db
+    to: data/modules/bible_kjv.db
+  # Matthew Henry's Complete Commentary — public domain (1706-1714). ~662 MB.
+  # NOTE: this single module is ~2/3 of the installer payload; see the size
+  # flag in the D1 report. If the download size must shrink, dropping MHC-full
+  # and keeping commentary_synthesis (below) is the obvious lever.
+  - from: data/modules/commentary_mhc.db
+    to: data/modules/commentary_mhc.db
+  # Synthesis commentary — FIRST-PARTY AI-generated / synthesized content, not a
+  # public-domain historical work. It must carry a GPL-compatible licence (it is
+  # our own content, licensed to permit redistribution under this GPL installer)
+  # and ships with its in-app AI/digest disclaimer (`DigestDisclaimer` in the
+  # commentary UI) so the synthesized nature is disclosed to the reader. ~177 MB.
+  - from: data/modules/commentary_synthesis.db
+    to: data/modules/commentary_synthesis.db
+  # Strong's Greek Dictionary — public domain (James Strong, 1890). ~2.7 MB.
+  - from: data/modules/dictionary_strongsgreek.db
+    to: data/modules/dictionary_strongsgreek.db
+  # Strong's Hebrew Dictionary — public domain (James Strong, 1890). ~3.4 MB.
+  - from: data/modules/dictionary_strongshebrew.db
+    to: data/modules/dictionary_strongshebrew.db
+  # International Standard Bible Encyclopedia (ISBE) — public domain (1915). ~38 MB.
+  - from: data/modules/dictionary_isbe.db
+    to: data/modules/dictionary_isbe.db
+  # Nave's Topical Bible — public domain (Orville J. Nave, early 1900s). ~10 MB.
+  # Populates the Study pane's Topics view; without it, topical lookups are empty.
+  - from: data/modules/topical_nave.db
+    to: data/modules/topical_nave.db
+  # Torrey's New Topical Textbook — public domain (R. A. Torrey; out of copyright,
+  # no notice in the original edition). ~5.4 MB.
+  - from: data/modules/topical_torrey.db
+    to: data/modules/topical_torrey.db
+  # Treasury of Scripture Knowledge — public domain (R. A. Torrey, 1880s).
+  # ~67.6 MB raw / ~17.9 MB gzip-compressed, the largest single addition to the
+  # default set (~11% of the 163 MB baseline installer). Included deliberately:
+  # without it the Study pane's cross-references view is empty, which reads as a
+  # broken feature rather than an absent module.
+  - from: data/modules/xref_tsk.db
+    to: data/modules/xref_tsk.db
+  # ONNX Runtime upstream third-party notices. The semantic-search stack ships in
+  # the packaged app (transformers' pinned onnxruntime-node 1.21.0 lands under
+  # app.asar.unpacked), and ORT's own notice requires its ThirdPartyNotices.txt
+  # be "extracted and shipped" alongside the runtime. The npm package does NOT
+  # include it, so a copy for the shipped 1.21.0 is vendored under resources/.
+  - from: resources/onnxruntime-ThirdPartyNotices.txt
+    to: onnxruntime-ThirdPartyNotices.txt
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # signAndEditExecutable and mac hardenedRuntime/afterSign notarization are
+  # driven by electron-builder.branding.cjs (the JS parent config), which reads
+  # the environment: signing activates ONLY when credentials are present, and an
+  # unsigned installer still builds with no secrets set (WS-G/G1). Do not
+  # re-declare signAndEditExecutable here — a child value would override the
+  # env-driven parent and pin it, defeating the gate.
+nsis:
+  # Disable the default "is the app running?" check, which false-positives on
+  # this product name (nsProcess::FindProcess substring-matches the installer's
+  # and uninstaller's OWN process against "Keep Thy Heart Bible Reader.exe") and loops on
+  # "cannot be closed". See build-installer.nsh for the full explanation.
+  include: build-installer.nsh
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  # shortcutName is inherited from electron-builder.branding.cjs
+mac:
+  target:
+    # dmg is the human-facing download. `zip` is NOT redundant with it:
+    # Squirrel.Mac — the mechanism electron-updater drives on macOS — installs
+    # updates from a zip and cannot read a dmg. Ship dmg only and
+    # electron-builder still writes a `latest-mac.yml` naming an artifact the
+    # updater cannot consume, so every macOS update fails at the download step.
+    # Note that macOS self-update ALSO requires the app to be signed and
+    # notarized; unsigned builds get the check but not the install.
+    - dmg
+    - zip
+  category: public.app-category.education
+linux:
+  target:
+    # AppImage is the portable download and the only Linux target
+    # electron-updater can update in place — and even then only when the file
+    # sits somewhere the user can write.
+    #
+    # deb is the one that upgrades cleanly: dpkg replaces package-owned files
+    # under /opt and never touches ~/.config, where getUserDataPath() keeps
+    # main.db, modules and notes. electron-updater deliberately cannot update a
+    # deb install; an apt repository does that, which is the real Linux update
+    # story (see docs/ReleaseArtifacts.md).
+    #
+    # Building the deb needs fpm, so it works on the Linux CI runner but not
+    # from a Windows dev box — `package:linux` there produces the AppImage only.
+    - AppImage
+    - deb
+  category: Education

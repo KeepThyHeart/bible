@@ -1,0 +1,21 @@
+{
+  "id": "ext.test.minimal",
+  "name": "Minimal Test Extension",
+  "version": "1.0.0",
+  "publisher": "bible-app",
+  "description": "E2E fixture that reads a verse, persists a KV row, and renders an iframe panel.",
+  "engines": { "bibleApp": "^1.0.0" },
+  "main": "./main.js",
+  "permissions": ["bible:read"],
+  "activationEvents": ["onStartup"],
+  "contributes": {
+    "panelTypes": [
+      {
+        "id": "viewer",
+        "title": "Minimal Viewer",
+        "uiEntry": "./index.html",
+        "icon": "📖"
+      }
+    ]
+  }
+}

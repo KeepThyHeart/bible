@@ -1,0 +1,424 @@
+/**
+ * Dockview theme overrides
+ * Maps dockview's CSS variables to the app's theme system (--theme-*)
+ * so that dockview panels, tabs, and separators match the app's look.
+ *
+ * Dockview class names use .dv-* prefix (e.g. .dv-tab, .dv-active-tab).
+ *
+ * NOTE: dockview injects its own stylesheet as an inline <style> tag at
+ * runtime, i.e. AFTER this bundled file. Its rules use the same single
+ * .dockview-theme-light selector, so at equal specificity they would win on
+ * source order and the tab strip would stay light-grey in dark/sepia. Every
+ * selector below therefore repeats the class (.dockview-theme-light
+ * .dockview-theme-light) to raise specificity above dockview's own rules.
+ */
+
+/* Override dockview's light theme variables */
+.dockview-theme-light.dockview-theme-light {
+  /* Backgrounds */
+  --dv-background-color: var(--theme-bg-primary);
+  --dv-paneview-header-border-color: var(--theme-border-primary);
+  --dv-separator-border: var(--theme-border-primary);
+
+  /* Group (panel group) headers */
+  --dv-tabs-and-actions-container-background-color: var(--theme-pane-header-bg);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--theme-tab-active-bg);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--theme-pane-header-bg);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--theme-tab-active-bg);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--theme-pane-header-bg);
+
+  /* Tab text colors - use strong text for all tabs, not muted gray */
+  --dv-activegroup-visiblepanel-tab-color: var(--theme-text-primary);
+  --dv-activegroup-hiddenpanel-tab-color: var(--theme-text-secondary);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--theme-text-primary);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--theme-text-secondary);
+
+  /* Drag indicator */
+  --dv-drag-over-background-color: rgb(var(--theme-accent-primary-rgb) / 0.25);
+  --dv-drag-over-border-color: var(--theme-accent-primary);
+
+  /* Panel content area */
+  --dv-group-view-background-color: var(--theme-bg-primary);
+
+  /* ---- Tab strip metrics (see TAB HEADER below) ----
+     The tab strip is sized from the "UI Control Font Size" preference rather
+     than from literals, so the strip grows with the text instead of clipping
+     it. `--app-tab-control-font-size` is the same value DockviewTabRenderer's
+     `controlScaled()` computes; every metric below is that size times the
+     ratio its literal pixel value has to the 14px default, so at the default
+     setting each one still resolves to exactly the value it replaces. */
+  --app-tab-control-font-size: calc(var(--ui-control-font-size, 14px) * var(--global-font-scale, 1));
+  --app-tab-strip-min-height: calc(var(--app-tab-control-font-size) * 38 / 14);
+  /* Weight of the rule under the tab strip, and of each tab's own bottom
+     indicator. 4px, matching the web app's `.bible-tab-bar`
+     (`inset 0 -4px 0` baseline, 4px active border) - the previous 2px/3px read
+     as a hairline next to it. DockviewTabRenderer pads its content past this
+     so nothing sits on the rule. */
+  --app-tab-strip-border-width: 4px;
+}
+
+/* ============================================================
+   SASH (pane resize handle)
+
+   Dockview gives the splitters between docked panes a 4px grab strip that is
+   painted transparent and has no hover feedback, so dragging a pane border was
+   a game of pixel-hunting: there was nothing to aim at, and a 4px target is
+   under half of the ~9px most pointing guidelines ask for.
+
+   Two changes:
+
+   1. A `::before` overlay widens the *hit* area to 12px without moving the
+      sash. The element itself cannot simply be made wider - dockview positions
+      it by its own 4px width, so a 12px sash would sit 4px off the boundary it
+      resizes. The overlay hangs 4px past each edge instead, which leaves the
+      geometry alone. (VS Code's splitter does exactly this.)
+
+   2. Hover and drag paint the boundary in the accent colour, so the handle
+      answers back once the pointer is on it.
+
+   The previous rules here targeted `.dv-resize-container > .dv-sash`, which is
+   the *floating group* resize frame - not the `.dv-split-view-container >
+   .dv-sash-container > .dv-sash` used by every docked splitter. They matched
+   nothing in the normal layout.
+   ============================================================ */
+
+.dockview-theme-light.dockview-theme-light .dv-split-view-container > .dv-sash-container > .dv-sash {
+  background-color: transparent;
+  transition: background-color 0.12s ease-in-out;
+}
+
+.dockview-theme-light.dockview-theme-light .dv-split-view-container > .dv-sash-container > .dv-sash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.dockview-theme-light.dockview-theme-light
+  .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash::before {
+  inset-inline: -4px;
+}
+
+.dockview-theme-light.dockview-theme-light
+  .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash::before {
+  inset-block: -4px;
+}
+
+/* Hover/drag feedback. `!important` and the doubled class are the same
+   specificity fight the rest of this file wages: dockview's own rule for
+   `.dv-sash:hover` is injected after this stylesheet. */
+.dockview-theme-light.dockview-theme-light
+  .dv-split-view-container > .dv-sash-container > .dv-sash:not(.dv-disabled):hover,
+.dockview-theme-light.dockview-theme-light
+  .dv-split-view-container > .dv-sash-container > .dv-sash:not(.dv-disabled):active {
+  background-color: rgb(var(--theme-accent-primary-rgb) / 0.45) !important;
+  transition-delay: 0s !important;
+}
+
+/* Floating groups keep the plain treatment: no specificity fight to win. */
+.dockview-theme-light.dockview-theme-light .dv-resize-container > .dv-sash {
+  background-color: transparent;
+  transition: background-color 0.15s;
+}
+
+.dockview-theme-light.dockview-theme-light .dv-resize-container > .dv-sash:hover {
+  background-color: var(--theme-accent-primary);
+  opacity: 0.3;
+}
+
+/* ============================================================
+   TAB HEADER
+   Use inset box-shadows for bottom indicators so they render
+   inside each element and can't be clipped by overflow: hidden
+   on the .dv-scrollable / .dv-tabs-container ancestors.
+   ============================================================ */
+
+/* Container: the baseline separator spans the full width via inset shadow.
+   Child elements (tabs, void, actions) layer their own shadows on top.
+
+   `height: auto` is the fix for the clipped-subtitle bug. dockview hard-codes
+   `height: var(--dv-tabs-and-actions-container-height)` (35px) on this
+   element, so the strip was a fixed box no matter how large the tab text got:
+   at the top of the "UI Control Font Size" range a two-line Bible tab needed
+   ~50px and its translation name ("KJV") was sliced off by the baseline rule.
+   Letting the strip size to its content - with a *minimum* that still scales -
+   means the text can never outgrow its container at any supported size. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container {
+  border-bottom: none !important;
+  box-shadow: inset 0 calc(-1 * var(--app-tab-strip-border-width)) 0 0 var(--theme-border-primary);
+  height: auto;
+  min-height: var(--app-tab-strip-min-height);
+}
+
+/* Remove default dockview tab padding, match DraggableTabBar sizing.
+   The tab's own padding lives in DockviewTabRenderer (inline, scaled the same
+   way) so it can add the baseline's thickness to its bottom edge. */
+.dockview-theme-light.dockview-theme-light .dv-tab {
+  padding: 0;
+  height: auto;
+  min-height: var(--app-tab-strip-min-height);
+  box-sizing: border-box;
+}
+
+/* Active tab: bold accent inset shadow at bottom */
+.dockview-theme-light.dockview-theme-light .dv-tab.dv-active-tab {
+  box-shadow: inset 0 calc(-1 * var(--app-tab-strip-border-width)) 0 0 var(--theme-tab-active-border, var(--theme-accent-primary)) !important;
+  color: var(--theme-text-primary) !important;
+  font-weight: 600;
+}
+/* Remove any ::before / ::after pseudo-elements to avoid conflicts */
+.dockview-theme-light.dockview-theme-light .dv-tab.dv-active-tab::before {
+  display: none !important;
+}
+
+/* Inactive tab: thin gray bottom line matching the container baseline.
+   Needed because the tab's background color covers the container shadow. */
+.dockview-theme-light.dockview-theme-light .dv-tab.dv-inactive-tab {
+  box-shadow: inset 0 calc(-1 * var(--app-tab-strip-border-width)) 0 0 var(--theme-border-primary) !important;
+}
+.dockview-theme-light.dockview-theme-light .dv-tab.dv-inactive-tab::before {
+  display: none !important;
+}
+
+/* ============================================================
+   TAB STRIP DROP TARGET (.dv-void-container)
+   ------------------------------------------------------------
+   The void container is the empty background of the tab strip, and it is
+   dockview's own drop target for "append this tab AFTER the last one":
+   `voidContainer.onDrop` is the single code path that yields
+   `index: this.tabs.size`. Dropping on a tab yields that tab's own index, and
+   `dockviewGroupPanelModel` hard-codes `position: 'center'`, so the left/right
+   half of a tab only steers the overlay indicator - a drop on the right half of
+   the LAST tab still inserts before it.
+
+   Setting `flex-grow: 0` here, purely to pull the "+" button up next to the
+   last tab, would leave the void with no content of its own: it would measure
+   0px wide, could never be hovered, and appending a tab past the end (or
+   dropping onto another pane's empty tab strip) would be simply impossible.
+
+   So: give the growth back, and move the "+" by ORDER instead. `order: 0` on
+   the right-actions container places it immediately after the tabs; `order: 1`
+   on the void gives the remaining width to the drop zone. `order` is safe under
+   RTL - it follows the flex main axis, which already reverses with `dir`.
+   The collapse chevron opts out of that (order: 2) so it stays pinned to the
+   panel's outer edge; DockviewHeaderActions portals it there.
+   ============================================================ */
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-void-container {
+  flex-grow: 1;
+  /* A hoverable target even when the tabs fill the header. The tabs container
+     scrolls (see TAB SCROLLING below), so this never truncates a tab outright.
+     With room to spare the void takes all of it, which is the generous drop
+     zone; this floor is only what survives when the tabs overflow.
+
+     Trimmed from 48px: when a pane's tabs overflow, the void is the one item
+     that cannot shrink, so this number is dead space between the last tab and
+     the scroll chevron - and with the collapse chevron beyond it, a larger
+     floor would leave the strip visibly short of the pane's edge. 32px is
+     still a comfortable target (a tab is ~120px, a chevron 30px) and gives
+     half the gap back. The "+" button lives inside the scrollable tab list
+     instead of adding another 32px here - see `.app-add-tab-host` below. */
+  min-width: 32px;
+  order: 1;
+}
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-right-actions-container {
+  order: 0;
+}
+
+/* dockview wraps a React header-actions component in its own `div.dv-react-part`,
+   which it never styles - so it is a plain BLOCK box sitting between
+   .dv-right-actions-container and DockviewHeaderActions' own root.
+   `align-self: stretch` (which every control in that component sets, see the
+   ChevronButton note there) only does anything to a FLEX item, so inside this
+   block wrapper it was inert: the component root collapsed to its ~18px content
+   height and the "+" and scroll chevrons sat flush against the top of the ~40px
+   strip instead of centred in it. The wrapper itself is full height already -
+   it stretches as a flex item of .dv-right-actions-container - so it just has
+   to pass that height on. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-right-actions-container > .dv-react-part {
+  display: flex;
+  align-items: stretch;
+}
+/* Portal host for the "+" button, parked as the last child of the scrollable
+   tab list - see DockviewHeaderActions. Inside the list it scrolls away with
+   the tabs instead of holding header width open permanently, which is what the
+   scroll chevron needs in order to sit near the pane's edge. `order` is not
+   set: it must stay last in DOM order, because that is what keeps dockview's
+   `insertBefore(el, children[index])` tab insertion landing before it. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-container > .app-add-tab-host {
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+/* Portal host for the collapse chevron - see DockviewHeaderActions. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .app-collapse-action-host {
+  order: 2;
+}
+
+/* Tab text: bolder and slightly larger to match Bible internal tab feel.
+   ------------------------------------------------------------
+   This is the tab strip the user actually sees. globals.css's `.pane-tab`
+   matches nothing that is mounted, so a hard-coded 14px here
+   would make Preferences -> General -> "UI Control Font Size" appear to do
+   nothing to tabs. Follow --ui-control-font-size (default 14px) x
+   --global-font-scale instead, matching globals.css's pane-header rules and
+   uiScaled() in StudyPane.tsx.
+
+   No `!important` needed: an inline `fontSize: '14px'` on this same element
+   would outrank any selector, but DockviewTabRenderer.tsx computes its own
+   sizes from the same variable (`controlScaled`), so the two agree and this
+   can stand as an ordinary declaration - and, unlike an inline style, it also
+   covers the tab strip's own text and any dockview chrome the renderer does
+   not size. */
+.dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-content {
+  font-size: calc(var(--ui-control-font-size, 14px) * var(--global-font-scale, 1));
+  font-weight: 600;
+}
+
+/* Inactive tab hover */
+.dockview-theme-light.dockview-theme-light .dv-tab.dv-inactive-tab:hover {
+  background-color: var(--theme-tab-bg-hover);
+}
+
+/* ------------------------------------------------------------
+   TAB CURSOR
+
+   The whole tab surface is clickable, so the whole tab surface has to look
+   clickable - including the part of `.dv-tab` that the inner
+   `.dockview-tab-content` does not cover. That gap is real: the content box is
+   `height: 100%` of a tab whose height is `auto`, which resolves to the
+   content's own height, while the tab is held open by `min-height`. Anything
+   between the two is bare `.dv-tab`.
+
+   dockview's own stylesheet does already set `cursor: pointer` on `.dv-tab`
+   (dockview.css), so this is belt-and-braces rather than the whole story for
+   the reported "cursor isn't a pointer coming from the left pane" - see the
+   note on `.dv-scrollbar` below, which is the one strip inside the tab row
+   that genuinely inherits the default cursor. Stating it here also means the
+   app no longer depends on a vendor rule that a dockview upgrade could drop.
+   ------------------------------------------------------------ */
+.dockview-theme-light.dockview-theme-light .dv-tab,
+.dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-content {
+  cursor: pointer;
+}
+
+/* dockview's custom overlay scrollbar for the tab strip is an absolutely
+   positioned, normally-transparent element pinned to the bottom 4px of the
+   scroll area - and it is a sibling of the tabs, not a child, so it inherits
+   the document's default cursor and paints it over the bottom edge of every
+   tab it covers. Hovering the lower few pixels of a tab therefore showed an
+   arrow. Give it the tab cursor; it is not a control the user aims at. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-scrollbar {
+  cursor: pointer;
+}
+
+/* ============================================================
+   TAB SCROLLING
+   Enable native horizontal scrolling (touchpad / trackpad support)
+   while hiding the scrollbar. Dockview sets overflow:hidden on
+   .dv-scrollable > .dv-tabs-container; we override to auto.
+   ============================================================ */
+.dockview-theme-light.dockview-theme-light .dv-scrollable > .dv-tabs-container {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  /* Hide scrollbar visually - scrolling still works via touchpad/trackpad */
+  scrollbar-width: none; /* Firefox */
+}
+.dockview-theme-light.dockview-theme-light .dv-scrollable > .dv-tabs-container::-webkit-scrollbar {
+  display: none; /* Chrome, Edge, Safari */
+}
+
+/* Hide dockview's built-in overflow dropdown - we use chevron buttons instead */
+.dockview-theme-light.dockview-theme-light .dv-tabs-overflow-dropdown-default {
+  display: none !important;
+}
+
+/* Watermark (shown when all panels are closed) */
+.dockview-theme-light.dockview-theme-light .dv-watermark {
+  background-color: var(--theme-bg-primary);
+  color: var(--theme-text-secondary);
+}
+
+/* Drop target overlay */
+.dockview-theme-light.dockview-theme-light .dv-drop-target-dropzone > div {
+  background-color: rgb(var(--theme-accent-primary-rgb) / 0.15);
+  border: 2px dashed var(--theme-accent-primary);
+  border-radius: 4px;
+}
+
+/* ============================================================
+   RIGHT-TO-LEFT
+   ------------------------------------------------------------
+   SCOPE - READ THIS BEFORE EXTENDING.
+
+   dockview does NOT support RTL (dockview-core 5.2 contains zero references
+   to it). Its splitview lays every panel out with
+   `view.container.style.left = '<offset>px'` computed in JS from the view's
+   index (dockview-core/dist/cjs/splitview/splitview.js). `left` is physical
+   and ignores `dir`, so the GRID ITSELF CANNOT MIRROR from CSS alone.
+
+   The one CSS trick that would mirror it - scaleX(-1) on the view container
+   with a counter-transform on each view - was rejected: dockview's drag/drop
+   quadrant detection works from `clientX` against getBoundingClientRect(), so
+   a mirrored subtree makes every drop target land on the wrong edge. A
+   panel layout that looks mirrored but drops panels in the wrong place is
+   worse than one that is honestly still left-to-right.
+
+   So: panel/grid ORDER stays LTR in RTL locales. What *is* mirrored here is
+   everything expressible without touching dockview's geometry - the tab strip
+   order, tab internals, and the close-button/overflow-chevron placement.
+   Mirroring the grid needs an upstream change or a fork; see the RTL section
+   of docs/features/localization.md.
+
+   Selectors keep the doubled `.dockview-theme-light.dockview-theme-light`
+   class from the block above: dockview injects its own stylesheet at runtime
+   AFTER this bundled file at identical specificity, so a single class loses
+   on source order.
+   ============================================================ */
+
+/* Tab strip: `.dv-tabs-and-actions-container` and `.dv-tabs-container` are
+   plain flex rows, so they already reverse under an inherited `dir: rtl`.
+   Nothing to do - this comment exists so nobody "fixes" it with
+   flex-direction: row-reverse, which would double-reverse them. */
+
+/* Tab content/close-button gap. dockview hard-codes `margin-right: 4px` on
+   the label, which puts a 4px hole on the wrong side in RTL. */
+.dockview-theme-light.dockview-theme-light[dir='rtl'] .dv-tab .dv-default-tab .dv-default-tab-content,
+[dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-tab .dv-default-tab .dv-default-tab-content {
+  margin-right: 0;
+  margin-inline-end: 4px;
+}
+
+/* Overflow dropdown label spacing (dockview: `padding-left: 0.25rem`). */
+[dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-tabs-overflow-dropdown-default > span {
+  padding-left: 0;
+  padding-inline-start: 0.25rem;
+}
+
+/* The overflow chevron is rotated 90deg by dockview; in RTL it should point
+   the other way so it still reads as "more tabs, that way". */
+[dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-tabs-overflow-dropdown-default > svg {
+  transform: rotate(-90deg);
+}
+
+/* Paneview header label indent. */
+[dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-pane-container .dv-view .dv-default-header > span {
+  padding-left: 0;
+  padding-inline-start: 8px;
+}
+
+/* The panel CONTENT is ordinary app markup and mirrors correctly; only the
+   grid geometry is pinned. Keep `dir` inheriting into `.dv-content-container`
+   so panes render RTL inside their (LTR-ordered) slots. */
+
+/* Workbench row: dockview container + the collapsed-panes reveal rail.
+   The rail must sit on the PHYSICAL right, because that is the edge
+   dockview's non-mirroring grid collapses towards (see the scope note above).
+   `flex-direction: row` follows `dir`, so under RTL it would swap the two;
+   `row-reverse` under RTL puts the main-axis start back on the left and keeps
+   the rail - the last DOM child - on the right in every locale. */
+.app-workbench-row {
+  flex-direction: row;
+}
+[dir='rtl'] .app-workbench-row,
+.app-workbench-row[dir='rtl'] {
+  flex-direction: row-reverse;
+}

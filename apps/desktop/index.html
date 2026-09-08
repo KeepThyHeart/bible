@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- `lang` and `dir` are the pre-JS defaults; src/ui/main.tsx (and
+     detached.tsx) rebind both from the active locale on boot. -->
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 script-src 'self';
+                 style-src 'self' 'unsafe-inline';
+                 img-src 'self' data:;
+                 font-src 'self';
+                 connect-src 'self';
+                 object-src 'none';
+                 base-uri 'self';">
+  <link rel="icon" type="image/svg+xml" href="/resources/icon.svg">
+  <!-- Replaced at build time from BIBLE_PRODUCT_NAME; see electron.vite.config.ts -->
+  <title>%BIBLE_PRODUCT_NAME%</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/ui/main.tsx"></script>
+</body>
+</html>

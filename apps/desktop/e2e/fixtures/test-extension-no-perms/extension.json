@@ -1,0 +1,11 @@
+{
+  "id": "ext.test.no-perms",
+  "name": "No-Perms Test Extension",
+  "version": "1.0.0",
+  "publisher": "bible-app",
+  "description": "E2E fixture that declares no UI permissions, proving the host enforces the ui:notification gate even when the call would otherwise succeed.",
+  "engines": { "bibleApp": "^1.0.0" },
+  "main": "./main.js",
+  "permissions": [],
+  "activationEvents": ["onStartup"]
+}

@@ -1,0 +1,220 @@
+# Curated offline build config — the DEFAULT module set for a full install:
+#   KJV Bible, Commentary Synthesis, Matthew Henry's Complete Commentary,
+#   Strong's Greek + Hebrew lexicons, ISBE Bible dictionary, plus (when their
+#   artifacts are present) offline semantic search (index + embedding model).
+#   `electron-builder.yml` remains as the lean KJV-only alternative.
+#
+# Wired into `npm run package:{win,mac,linux}` (which stage build-data first).
+# Manual equivalent:
+#   node scripts/stage-build-data.js   # produce build-data/
+#   npm run build                            # electron-vite build -> out/
+#   npx electron-builder --linux --config electron-builder.curated.yml
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
+# `mac.hardenedRuntime` and `afterSign` all come from
+# electron-builder.branding.cjs (env-driven: BIBLE_PRODUCT_NAME / BIBLE_APP_ID
+# for the neutral profile; CSC_*/APPLE_* to gate optional signing). Do not
+# re-declare them here — a child config overrides its parent.
+extends: file:electron-builder.branding.cjs
+electronVersion: 33.2.0
+directories:
+  output: dist
+  buildResources: resources
+# asar is ON. It used to be off because @bible/core is an npm-workspace symlink
+# whose real files live outside apps/desktop and electron-builder's asar
+# packager rejects that. That blocker is gone: electron.vite.config.ts now
+# BUNDLES @bible/core into out/main/index.js (see the comment there), so nothing
+# in the packaged tree resolves through the workspace symlink.
+#
+# On Windows this is also the fix for the MAX_PATH truncation that silently drops
+# deeply nested node_modules files during NSIS install — a single app.asar has no
+# deep paths at all.
+asar: true
+# Native code CANNOT be loaded from inside an asar archive: dlopen/LoadLibrary
+# need a real file on disk. electron-builder auto-unpacks modules containing
+# .node/.dll/.exe, but these are declared explicitly so the set is auditable and
+# does not depend on that heuristic.
+#
+# Every entry is scoped to the directory that actually holds binaries. Unpacking
+# a whole module also unpacks its pure-JS dependency chain, and on Windows those
+# re-rooted paths (`app.asar.unpacked/` is 13 chars longer than `app/`) blow past
+# MAX_PATH and get silently dropped during NSIS install. Keeping JS inside the
+# archive is what makes asar a MAX_PATH *fix* rather than a regression: it takes
+# the deepest installed path from ~266 chars to ~145.
+#
+# Narrow unpacking is safe because Electron's fs shim resolves a require() of a
+# path inside app.asar to app.asar.unpacked when the file was unpacked — so
+# `bindings`/`__dirname` lookups from JS still inside the archive find the .node.
+asarUnpack:
+  - '**/*.node'
+  # SQLite driver used by every database provider — without this the app cannot
+  # open a single module and white-screens on launch. (`lib/` stays archived;
+  # it reaches the binding through `require('bindings')`.)
+  - '**/node_modules/better-sqlite3-multiple-ciphers/build/**'
+  # OS keychain binding for the encryption key.
+  - '**/node_modules/keytar/build/**'
+  # Semantic-search stack. transformers resolves its own pinned ORT 1.21.0 from
+  # its NESTED node_modules, and win32 ORT ships onnxruntime.dll/DirectML.dll
+  # alongside the .node binding; sharp ships libvips DLLs under @img.
+  #
+  # Scoped to `bin/` deliberately — do NOT widen to `onnxruntime-node/**`. That
+  # also unpacks its global-agent -> roarr -> globalthis -> ... dependency chain,
+  # whose paths are ~250 chars; re-rooting those under `app.asar.unpacked/`
+  # (13 chars longer than `app/`) pushes them past Windows MAX_PATH and they get
+  # silently dropped at install time. Pure-JS files belong inside the archive,
+  # where path length stops mattering. Electron's fs shim transparently redirects
+  # a require() of an unpacked path, so bin/ alone is enough for the bindings.
+  - '**/node_modules/onnxruntime-node/bin/**'
+  - '**/node_modules/@img/**'
+files:
+  - out
+  - package.json
+  #
+  # There is deliberately NO `- from: node_modules / to: node_modules` entry.
+  # An explicit `from:` mapping makes electron-builder copy node_modules
+  # VERBATIM and bypasses its production-dependency walk, so every
+  # devDependency shipped: vitest, @vitest/*, @playwright/test,
+  # @testing-library/*, vite, electron-vite, electron-builder, tailwindcss,
+  # postcss, autoprefixer, cross-env, @types/* — ~479 packages transitively,
+  # all inside app.asar. With no such entry electron-builder collects
+  # `dependencies` only, and the negations below trim that tree.
+  #
+  # Those negations MUST be anchored at `node_modules/...`. Inside the old
+  # `from: node_modules` filter they were relative to node_modules AND only
+  # applied to the verbatim copy of apps/desktop/node_modules — hoisted
+  # packages (in this monorepo, most of them) were added by the dependency walk
+  # instead and slipped straight past. That is why top-level onnxruntime-node,
+  # onnxruntime-common, onnxruntime-web and even the @bible workspace symlink
+  # shipped in earlier builds despite being "excluded".
+  #
+  # @bible/core is bundled into out/main/index.js (see electron.vite.config.ts)
+  # and sits in devDependencies, so it is never walked. Kept as belt-and-braces
+  # against it moving back to `dependencies`.
+  - '!node_modules/@bible/**'
+  # Electron's npm package is a build-time shim only: the packaged app gets
+  # its `require('electron')` binding from the runtime (see the preload note
+  # in electron.vite.config.ts). Shipping it embeds a second, complete ~268 MB
+  # Electron distribution inside the app.
+  - '!node_modules/electron/**'
+  # Vestigial direct deps -- nothing in packages/ or scripts/ imports these
+  # (searchHandlers.ts reaches ORT only through `@huggingface/transformers`).
+  # transformers resolves its own pinned onnxruntime-node 1.21.0 from its
+  # NESTED node_modules, so the top-level 1.24.2 copy is dead weight (~210 MB).
+  # Anchored at `node_modules/` so the nested copy is untouched.
+  - '!node_modules/onnxruntime-node/**'
+  - '!node_modules/onnxruntime-common/**'
+  # Browser/WASM ORT build -- unused while the native node backend is active.
+  # This comes back if/when embedding moves to the WASM backend.
+  - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'
+  # npm binstubs and the Vite dep cache are build-time artefacts.
+  - '!node_modules/.bin/**'
+  - '!node_modules/.vite/**'
+  # NOTE: sharp and the nested onnxruntime-node 1.21.0 must NOT be excluded --
+  # transformers statically imports sharp (dist/transformers.node.mjs) and pins
+  # ORT 1.21.0 exactly. Both leave only when transformers itself becomes an add-on.
+  #
+  # Never ship the transformers model download cache (~1.9 GB of other models).
+  # The one model we need is bundled offline under extraResources (data/models).
+  - '!**/@huggingface/transformers/.cache'
+  - '!**/@huggingface/transformers/.cache/**'
+  - '!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+  - '!node_modules/*.d.ts'
+  - '!node_modules/.bin'
+  - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+  - '!.editorconfig'
+  - '!**/._*'
+  - '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}'
+  - '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}'
+  - '!**/{appveyor.yml,.travis.yml,circle.yml}'
+  - '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
+  - '!**/*.map'
+  - '!**/*.ts'
+  - '!**/tsconfig.json'
+extraResources:
+  # The window/taskbar icon, read at runtime by resolveAppIconPath(). Kept in
+  # sync with electron-builder.yml — see that file for the full rationale.
+  - from: resources/icon.png
+    to: icon.png
+  # GPL-3.0 §4/§5 require the licence text to accompany the distributed binary,
+  # and the OFL requires the font notice to accompany the bundled woff2 assets
+  # (which Vite inlines into the renderer bundle inside the asar). Shipping them
+  # as plain files under resources/ keeps them readable without unpacking.
+  - from: ../../LICENSE
+    to: LICENSE
+  - from: ../../THIRD-PARTY-NOTICES.md
+    to: THIRD-PARTY-NOTICES.md
+  - from: src/ui/styles/fonts/FONT-LICENSES.md
+    to: FONT-LICENSES.md
+  # Do NOT filter this with '**/*.json'. electron-builder's extraResources
+  # matcher tests directory entries too, and `en/`, `pt-BR/`, ... do not match
+  # `*.json`, so the walk is pruned at the top and NOTHING is copied — silently,
+  # with a zero exit code. That is what shipped before: resources/locales was
+  # absent entirely and i18nHandlers.listCatalogs() swallowed the ENOENT and
+  # returned [], leaving the language picker English-only. '**/*' matches
+  # directories, so the walk descends. The directory contains only .json.
+  - from: locales
+    to: locales
+    filter:
+      - '**/*'
+      # Development pseudo-locale (bracketed/accented strings for finding
+      # unlocalised UI). Never ship it — it would appear in the language picker.
+      - '!xx-pseudo/**'
+      # Translator-facing docs that live alongside the catalogs.
+      - '!*.md'
+  # The curated, offline data set lands at resources/data (the production data path).
+  #
+  # WARNING (WS-D/D1 reconciliation): this copies the WHOLE `build-data/` tree
+  # with a fail-OPEN `**/*` filter — the opposite shape of the fail-closed
+  # per-module allowlist in electron-builder.yml. `build-data/modules/` is staged
+  # by scripts/stage-build-data.js and currently holds STALE v1 module copies
+  # that FAIL scripts/validate-module.js (no module_uuid/verse_link). Before this
+  # config is used for a real release, re-stage build-data from the vetted v2
+  # files in data/modules/ (or repoint staging at them) and re-run the validator
+  # over the staged set. The v1 default study set now lives as an explicit
+  # allowlist in electron-builder.yml — prefer that config for v1. See the D1
+  # report / curated.yml reconciliation note.
+  - from: build-data
+    to: data
+    filter:
+      - '**/*'
+  # ONNX Runtime upstream third-party notices — same obligation as the lean
+  # config: the semantic stack ships here too. Vendored copy for ORT 1.21.0.
+  - from: resources/onnxruntime-ThirdPartyNotices.txt
+    to: onnxruntime-ThirdPartyNotices.txt
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # signAndEditExecutable / mac notarization are env-driven via
+  # electron-builder.branding.cjs (WS-G/G1). Do not re-declare here.
+nsis:
+  # Disable the default "is the app running?" check, which false-positives on
+  # this product name (the installer detects itself) and loops on "cannot be
+  # closed". See build-installer.nsh for the full explanation.
+  include: build-installer.nsh
+  # One-click, per-user install for this personal offline build: no wizard, no
+  # UAC (allowElevation:false keeps it entirely in the user's context, installing
+  # to %LOCALAPPDATA%\Programs), and a clean silent (/S) path. This sidesteps the
+  # assisted-installer UAC/wizard handshake that stalled headless installs.
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  runAfterFinish: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  # shortcutName is inherited from electron-builder.branding.cjs
+mac:
+  target:
+    # See electron-builder.yml for why `zip` ships alongside `dmg`: Squirrel.Mac
+    # updates from a zip and cannot read a dmg.
+    - dmg
+    - zip
+  category: public.app-category.education
+linux:
+  target:
+    # See electron-builder.yml. AppImage is the portable download; deb upgrades
+    # in place without touching ~/.config, and is the on-ramp to an apt repo.
+    - AppImage
+    - deb
+  category: Education

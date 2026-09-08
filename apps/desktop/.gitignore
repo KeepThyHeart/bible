@@ -1,0 +1,32 @@
+test-results
+build-data
+
+# Screenshots/JSON written by e2e/tests/chrome-bands.spec.ts when MEASURE_OUT is
+# set (opt-in debugging output; the test asserts without it). Regenerable.
+e2e/measure-out
+
+# Step-by-step screenshots from e2e/tests/highlight-diagnosis.spec.ts. Kept
+# outside e2e/test-results (which Playwright wipes each run) so a failure can be
+# inspected afterwards; regenerated on every run, so not committed.
+e2e/highlight-diag-screenshots
+
+# Self-hosted web fonts — generated on demand by `node scripts/fetch-fonts.mjs`
+# (run automatically via the prebuild/predev hooks). Regenerable from Google
+# Fonts + SIL, so not committed. Needs network on a clean checkout.
+src/ui/styles/fonts
+src/ui/styles/fonts.css
+
+# App icons, rasterised from admin/brand/icon.svg by scripts/generate-icons.js
+# (run automatically via the prebuild/predev hooks). electron-builder reads
+# resources/icon.png at package time, so these must exist before packaging --
+# committed copies are what let the brand SVG and the shipped icon drift apart.
+resources/icon.svg
+resources/icon.png
+resources/icon.ico
+
+# Per-extension SQLite directories left behind by the extension-host unit tests.
+# ExtensionDatabaseRegistry builds `<extensionsRoot>/<extensionId>/db`, and a
+# test that passes a relative root writes it here instead of a temp dir, using
+# the fake extension id as the directory name (e.g. ext.a/db/). Pure test
+# leakage, regenerated on every run.
+ext.*/

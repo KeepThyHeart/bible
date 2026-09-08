@@ -1,0 +1,15 @@
+{
+  // The e2e specs were outside every tsconfig, so a spec that referenced a
+  // helper that no longer exists — or called one with the wrong arity — only
+  // failed at run time, inside a 4-worker Electron run, as an opaque timeout.
+  // `npm run typecheck:e2e` catches that in a second.
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}
