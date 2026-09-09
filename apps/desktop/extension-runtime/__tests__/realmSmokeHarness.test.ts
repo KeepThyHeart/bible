@@ -128,6 +128,30 @@ exports.activate = async function activate(api) {
 };
 `;
 
+/**
+ * An extension that binds a command endpoint the way the real API surface
+ * intends: `contributes.commands[].handlerEndpoint` names an address, and
+ * `api.runtime.expose` puts a function at it. The smoke suite reaches it by
+ * sending a reverse-RPC request into the realm, which is the same path the
+ * host takes when the user picks the command out of the palette.
+ */
+const COMMAND_SOURCE = `
+exports.activate = async function activate(api) {
+  await api.runtime.expose('go', function (args) {
+    return { ran: true, args: args };
+  });
+};
+`;
+
+/** Same, but the exposed handler fails. */
+const FAILING_COMMAND_SOURCE = `
+exports.activate = async function activate(api) {
+  await api.runtime.expose('go', function () {
+    throw new Error('command exploded');
+  });
+};
+`;
+
 /** Same extension, but its event handler throws. */
 const THROWING_SOURCE = `
 exports.activate = async function activate(api) {
@@ -156,6 +180,19 @@ function loadInProcess(source: string): {
     activate: (api: Extensions.BibleExtensionAPI) => Promise<void>;
   };
 }
+
+/** Manifest contributing one command whose handler lives at endpoint `go`. */
+const COMMAND_MANIFEST = {
+  contributes: {
+    commands: [
+      {
+        id: 'ext.test.smoke.go',
+        title: { key: 'cmd.go' },
+        handlerEndpoint: 'go',
+      },
+    ],
+  },
+} as Partial<ExtensionManifest>;
 
 async function activateInRealm(
   source: string,
@@ -317,23 +354,41 @@ describe('runSmokeSuite against a realm-backed harness', () => {
     expect(failure?.message).toMatch(/handler exploded/);
   }, 60_000);
 
-  it('skips endpoint hooks with an accurate reason rather than faking a pass', async () => {
-    const harness = await activateInRealm(FIXTURE_SOURCE, {
-      contributes: {
-        commands: [
-          {
-            id: 'ext.test.smoke.hello',
-            title: { key: 'cmd.hello' },
-            handlerEndpoint: 'commands.execute',
-          },
-        ],
-      },
-    } as Partial<ExtensionManifest>);
+  it('calls a contributed command through the guest endpoint bound to it', async () => {
+    const harness = await activateInRealm(COMMAND_SOURCE, COMMAND_MANIFEST);
     const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
 
     const command = result.records.find((r) => r.hookId.startsWith('command:'));
-    expect(command?.status).toBe('skip');
-    expect(command?.message).toMatch(/no reverse-RPC binding/);
+    expect(command?.status).toBe('pass');
+    // The handler's return value came back across the realm boundary, which
+    // is the proof that this ran inside QuickJS rather than being simulated.
+    expect((command?.returnValue as { ran?: boolean } | undefined)?.ran).toBe(true);
+    expect(result.totals.failed).toBe(0);
+  }, 60_000);
+
+  it('fails a contributed command whose exposed handler throws in the realm', async () => {
+    const harness = await activateInRealm(FAILING_COMMAND_SOURCE, COMMAND_MANIFEST);
+    const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
+
+    const command = result.records.find((r) => r.hookId.startsWith('command:'));
+    expect(command?.status).toBe('fail');
+    expect(command?.failureReason).toBe('threw');
+    expect(command?.message).toMatch(/command exploded/);
+  }, 60_000);
+
+  it('fails a contributed command nothing exposed, rather than skipping it', async () => {
+    // `FIXTURE_SOURCE` never calls `runtime.expose`, so the guest runtime
+    // answers `Unknown reverse RPC method`. In the app that is a palette entry
+    // that does nothing when chosen - silent in production, and the single
+    // most common defect this tool exists to catch. Skipping it would certify
+    // the bug, so it is a failure.
+    const harness = await activateInRealm(FIXTURE_SOURCE, COMMAND_MANIFEST);
+    const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
+
+    const command = result.records.find((r) => r.hookId.startsWith('command:'));
+    expect(command?.status).toBe('fail');
+    expect(command?.failureReason).toBe('unbound-endpoint');
+    expect(command?.message).toMatch(/api\.runtime\.expose/);
   }, 60_000);
 });
 
