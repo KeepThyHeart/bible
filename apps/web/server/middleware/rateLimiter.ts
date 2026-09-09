@@ -17,11 +17,12 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-export type RateLimitTier = 'search' | 'content' | 'default';
+export type RateLimitTier = 'search' | 'content' | 'present' | 'default';
 
 export interface RateLimitConfig {
   search: number;
   content: number;
+  present: number;
   default: number;
   global: number;
   /** Window length in ms. Defaults to 60_000 (1 minute). */
@@ -52,6 +53,12 @@ export const DEFAULT_RATE_LIMITS = {
   search: 60,
   // Reference reads: the bulk of all traffic while reading.
   content: 600,
+  // Presenter intents. The load case is someone holding the arrow key to walk a
+  // long psalm: one small POST per keypress, bursty rather than sustained. A
+  // limiter tripping here does not degrade gracefully -- it looks, from the
+  // room, like the projector froze -- so this is sized well clear of any
+  // plausible service.
+  present: 600,
   // Boot-time odds and ends — health, config, version, plugins. A handful per
   // session, so this stays tight without ever gating content.
   default: 120,
@@ -72,6 +79,7 @@ export const DEFAULT_RATE_LIMITS = {
  */
 const TIER_BY_PREFIX: Record<string, RateLimitTier> = {
   search: 'search',
+  present: 'present',
   bible: 'content',
   commentary: 'content',
   dictionary: 'content',
@@ -144,6 +152,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
   const perTier: Record<RateLimitTier, Map<string, Counter>> = {
     search: new Map(),
     content: new Map(),
+    present: new Map(),
     default: new Map(),
   };
   let globalCounter: Counter = { count: 0, windowStart: Date.now() };
@@ -154,6 +163,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
     const now = Date.now();
     sweep(perTier.search, now, windowMs);
     sweep(perTier.content, now, windowMs);
+    sweep(perTier.present, now, windowMs);
     sweep(perTier.default, now, windowMs);
   }, 5 * 60_000);
   // Don't keep the event loop alive just for sweeping.
@@ -198,6 +208,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
     reset() {
       perTier.search.clear();
       perTier.content.clear();
+      perTier.present.clear();
       perTier.default.clear();
       globalCounter = { count: 0, windowStart: Date.now() };
     },

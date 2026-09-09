@@ -49,3 +49,7 @@ catalog-key*.json
 .vscode/
 .idea/
 .DS_Store
+
+# Scratch/working area for in-progress design notes. Not part of the product
+# or its documentation; never tracked.
+/admin/blackboard/

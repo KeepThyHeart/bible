@@ -22,6 +22,7 @@ import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
+import './routes/presentRoutes.js';
 import { getRegisteredRoutes } from './routes/routeRegistry.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
@@ -368,6 +369,10 @@ const routeDeps = {
     // directory from here rather than reaching into DatabaseManager's private
     // field, and the privacy posture so they can honor 'strict'.
     dataDir,
+    // Presentation sessions are state this instance owns and must not share:
+    // two installs pointed at one content store must not see each other's live
+    // sessions. See the dataDir/appStateDir note at the top of this file.
+    appStateDir,
     privacyMode,
     // Shared token the desktop uploader must present. Empty accepts any build.
     desktopReportToken: siteConfig.desktopReports.token,
