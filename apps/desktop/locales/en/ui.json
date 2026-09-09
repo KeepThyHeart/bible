@@ -1870,6 +1870,7 @@
   "extensionConsent.permission.bookmarksWrite": "Create and remove your bookmarks.",
   "extensionConsent.permission.network": "Access the internet (only the hosts listed below).",
   "extensionConsent.permission.networkOauth": "Open external OAuth login pages in your default browser.",
+  "extensionConsent.permission.storage": "Keep a small amount of its own data on this device, readable only by this extension.",
   "extensionConsent.permission.storageSecrets": "Store sensitive secrets (e.g. API keys) in your OS keychain.",
   "extensionConsent.permission.storageDatabase": "Open and write to a private SQLite database for this extension.",
   "extensionConsent.permission.fsReadUser": "Read files you select with the system file picker.",
@@ -1925,5 +1926,8 @@
   "documentationDialog.bookmarks.movingBody": "Right-click a verse, choose <strong>Add to Bookmarks</strong>, and pick an existing bookmark instead of adding a new one — it now points here. A bookmark you named keeps its name; one you never named re-labels itself with the new reference.",
   "documentationDialog.bookmarks.managingHeading": "Managing the list",
   "documentationDialog.bookmarks.managingBody": "The ribbon in the toolbar opens your bookmarks; click one to go there. <strong>Manage Bookmarks</strong> is where you rename, reorder by dragging, and remove.",
-  "documentationDialog.bookmarks.tip": "A bookmarked verse carries a small red ribbon beside it in the text."
+  "documentationDialog.bookmarks.tip": "A bookmarked verse carries a small red ribbon beside it in the text.",
+  "statusBar.label": "Status bar",
+  "commands.openExtensionPanel": "Open {name}",
+  "newTabPage.fromExtensions": "From extensions"
 }

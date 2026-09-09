@@ -62,7 +62,9 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   // Bridge postMessage between the extension iframe and the host renderer.
   // Handles navigation, theme queries, and verse popup requests from the
   // @bible/extension-ui SDK running inside the iframe.
-  useIframeBridge({ extensionId, iframeRef });
+  // `panelId` and `panelTypeId` give the iframe an identity its worker can
+  // trust: they come from these props, never from anything the iframe says.
+  useIframeBridge({ extensionId, iframeRef, panelId, panelTypeId });
 
   React.useEffect(() => {
     let cancelled = false;

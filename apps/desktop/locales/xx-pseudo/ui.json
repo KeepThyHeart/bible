@@ -1870,6 +1870,7 @@
   "extensionConsent.permission.bookmarksWrite": "⟦Çŕéåţé åñð ŕéɱøṽé ýøüŕ ƀøøķɱåŕķš. ·········⟧",
   "extensionConsent.permission.network": "⟦Åççéšš ţĥé îñţéŕñéţ (øñļý ţĥé ĥøšţš ļîšţéð ƀéļøŵ). ···············⟧",
   "extensionConsent.permission.networkOauth": "⟦Øþéñ éẋţéŕñåļ ØÅüţĥ ļøĝîñ þåĝéš îñ ýøüŕ ðéƒåüļţ ƀŕøŵšéŕ. ················⟧",
+  "extensionConsent.permission.storage": "⟦Ķééþ å šɱåĻĻ åɱøüñţ øƒ îţš øŵñ ðåţå øñ ţĥîš ðéṽîçé, ŕéåðåƀĻé øñĻý ƀý ţĥîš éẋţéñšîøñ. ·························⟧",
   "extensionConsent.permission.storageSecrets": "⟦Šţøŕé šéñšîţîṽé šéçŕéţš (é.ĝ. ÅÞÎ ķéýš) îñ ýøüŕ ØŠ ķéýçĥåîñ. ··················⟧",
   "extensionConsent.permission.storageDatabase": "⟦Øþéñ åñð ŵŕîţé ţø å þŕîṽåţé ŠǪĻîţé ðåţåƀåšé ƒøŕ ţĥîš éẋţéñšîøñ. ··················⟧",
   "extensionConsent.permission.fsReadUser": "⟦Ŕéåð ƒîļéš ýøü šéļéçţ ŵîţĥ ţĥé šýšţéɱ ƒîļé þîçķéŕ. ···············⟧",
