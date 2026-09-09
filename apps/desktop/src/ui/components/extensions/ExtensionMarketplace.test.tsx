@@ -50,6 +50,13 @@ interface CatalogApi {
   install: ReturnType<typeof vi.fn>;
 }
 
+/**
+ * The catalogs put two spaces after a full stop; Testing Library compares against
+ * whitespace-normalised text. Collapsing here lets the assertion name the catalog
+ * key rather than a copy of the sentence that goes stale on the next rewording.
+ */
+const collapseSpaces = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
 let catalog: CatalogApi;
 let blocklistList: ReturnType<typeof vi.fn>;
 
@@ -281,7 +288,7 @@ describe('ExtensionCatalogSources', () => {
 
     await user.click(await screen.findByTestId('extension-catalog-add-toggle'));
 
-    expect(screen.getByText(/Nobody reviews the extensions in a catalog you add/i)).toBeInTheDocument();
+    expect(screen.getByText(collapseSpaces(enT('extensions.catalogs.riskBody')))).toBeInTheDocument();
   });
 
   it('surfaces an add failure from the host', async () => {

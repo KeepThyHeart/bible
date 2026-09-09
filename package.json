@@ -15,7 +15,7 @@
     "dev": "npm run dev -w @bible/desktop",
     "dev:web": "npm run dev -w @bible/web",
     "clean": "npm run clean --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run build:core && npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "typecheck:e2e": "npm run typecheck:e2e --workspaces --if-present",
     "typecheck:core": "npm run typecheck -w @bible/core",

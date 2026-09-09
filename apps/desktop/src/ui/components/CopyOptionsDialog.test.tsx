@@ -569,7 +569,13 @@ describe('CopyOptionsDialog: the number-key shortcuts', () => {
     await user.type(reference, 'Romans 3:23');
 
     expect(reference.value).toBe('Romans 3:23');
-    expect(format('Block quote').checked).toBe(true);
+    // Retyping the reference sends the dialog through its `loading` state, and
+    // the format list is withheld while there is no passage - so the radio has
+    // to be waited for rather than read the instant the last digit lands.
+    const blockQuote = (await screen.findByRole('radio', {
+      name: /Block quote/i,
+    })) as HTMLInputElement;
+    expect(blockQuote.checked).toBe(true);
   });
 
   it('leaves digits alone inside the template editor', async () => {

@@ -160,11 +160,25 @@ class BibleStore extends Store {
   studyShowInterlinear = true;
   studyShowNotes = true;
 
-  /** Deferred loading indicator — only shows spinner if fetch takes > 80ms.
-   *  Returns a cancel function to call when the fetch completes. */
-  private deferLoading(tab: BibleTab): () => void {
+  /**
+   * Deferred loading indicator — only shows spinner if the fetch takes > 80ms.
+   * Returns a cancel function to call when the fetch completes.
+   *
+   * The spinner is raised only while `seq` is still the tab's newest load. A
+   * superseded load must not raise one: `loading` is a single flag on a shared
+   * tab, and only the newest load ever lowers it again. When two chapter loads
+   * overlapped and both answered quickly — a warm chapter, or a downloaded
+   * module reading from OPFS in about a millisecond — the abandoned one's timer
+   * fired *after* the winner had finished and set `loading` back to true with
+   * nothing left to clear it. The pane then read "Loading..." over an empty
+   * chapter for good. Callers cancel on every exit path as well, which disarms
+   * the common case; the guard is what makes it independent of which of the two
+   * happens to come first.
+   */
+  private deferLoading(tab: BibleTab, seq: number): () => void {
     let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
       timer = null;
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.loading = true;
       this.notify();
     }, 80);
@@ -290,8 +304,8 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = book;
     tab.chapter = chapter;
-    const cancelLoadingFn = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoadingFn = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
     // When navigating from home screen, don't notify yet — wait for verses to
     // load so the home→bible transition is seamless (no blank content flash).
@@ -301,8 +315,9 @@ class BibleStore extends Store {
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoadingFn();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = requestedModule;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
@@ -408,15 +423,16 @@ class BibleStore extends Store {
     tab.chapter = chapter;
     tab.previewVerse = verseId;
     tab.previewVerseEnd = endVerseId ?? null;
-    const cancelLoading = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoading = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
     this.notify();
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoading();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = requestedModule;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
@@ -718,22 +734,24 @@ class BibleStore extends Store {
     // Reload current chapter in new translation
     if (tab.book && tab.chapter) {
       tab.loadError = undefined;
-      const cancelLoading = this.deferLoading(tab);
       const seq = this.beginLoad(tab);
+      const cancelLoading = this.deferLoading(tab, seq);
       this.notify();
 
       try {
         const data = await this.bible.getChapter(moduleAbbr, tab.book, tab.chapter);
-        if (this.isSupersededLoad(tab, seq)) return;
+        // Cancel before the supersede check, not after: see deferLoading().
         cancelLoading();
+        if (this.isSupersededLoad(tab, seq)) return;
         tab.versesModule = moduleAbbr;
         tab.verses = data.verses;
         tab.hasInterlinearData = data.hasInterlinearData;
         tab.coveredBooks = data.coveredBooks;
         tab.loading = false;
       } catch {
-        if (this.isSupersededLoad(tab, seq)) return;
+        // Cancel before the supersede check, not after: see deferLoading().
         cancelLoading();
+        if (this.isSupersededLoad(tab, seq)) return;
         tab.loading = false;
         // Drop the outgoing translation's text. Leaving it in place showed the
         // *previous* translation under the *new* name with no error at all,
@@ -893,14 +911,15 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = entry.book;
     tab.chapter = entry.chapter;
-    const cancelLoading = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoading = this.deferLoading(tab, seq);
     this.notify();
 
     try {
       const data = await this.bible.getChapter(entry.moduleAbbr, entry.book, entry.chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoading();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = entry.moduleAbbr;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
