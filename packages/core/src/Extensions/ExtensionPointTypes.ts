@@ -1,7 +1,7 @@
 /**
  * Payload and return type maps for every host-emitted extension point.
  *
- * Spec A section "Extension Points (full list)". Each extension point has:
+ * Each extension point has:
  *
  *   - a stable string ID (`ExtensionPointId` in `ExtensionApiTypes.ts`)
  *   - a payload type the host passes to subscribers

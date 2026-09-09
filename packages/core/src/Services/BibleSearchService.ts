@@ -673,8 +673,8 @@ export class BibleSearchService implements ISearchService {
     // from a left-hand match set, and there is no "every verse" operand to
     // subtract from, so the alternative would be a full-corpus scan on a query
     // that asks for almost the whole Bible. Returning nothing is the honest
-    // answer; note that the old code returned the *matches* for `evil` here,
-    // the exact opposite of what was asked.
+    // answer; returning the *matches* for `evil` here would be the exact
+    // opposite of what was asked.
     if (fts5Query === null) return [];
 
     const modules = this.getModulesToSearch(options);

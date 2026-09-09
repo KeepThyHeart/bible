@@ -10,25 +10,22 @@ import {
 
 /**
  * ============================================================================
- * HISTORICAL BUG RECOVERY - repairs `dockviewState` written by a fixed bug.
+ * DEFENSIVE REPAIR - fixes a `dockviewState` shape that restores as a blank pane.
  *
  * Safe to delete this module (and its call site in `DockviewLayout.tsx`) once
- * it's reasonable to assume every user has saved a session at least once since
- * the fix landed (this module makes that automatic - see "self-healing"
- * below). There is no telemetry to confirm that age-out; a practical trigger
- * is "one stable release cycle after the fix ships".
+ * no saved session can still carry the shape described below; this module makes
+ * that self-correcting - see "self-healing" at the end.
  * ============================================================================
  *
- * `PresetApplier.applyPreset` used to build preset layouts with
- * `component: 'panelContent'` on each synthesized panel entry. But dockview's
- * *deserializer* reads `contentComponent`, not `component` (`component` is
- * only an `addPanel()` option - it's meaningless in a `SerializedDockview`).
- * Every panel entry the old code produced therefore had no `contentComponent`
- * field. dockview's `fromJSON` defaults a missing one to the literal string
- * `'unknown'` (`dockview-core`'s deserialize path resolves
- * `panelData.contentComponent ?? 'unknown'`), and the very next `toJSON()` -
- * including the one that feeds session autosave / save-on-close - serialized
- * that `'unknown'` back out as a real, persisted value.
+ * A preset layout built with `component: 'panelContent'` on each synthesized
+ * panel entry does not survive the round trip. dockview's *deserializer* reads
+ * `contentComponent`, not `component` (`component` is only an `addPanel()`
+ * option - it's meaningless in a `SerializedDockview`), so such an entry has no
+ * `contentComponent` field at all. dockview's `fromJSON` defaults a missing one
+ * to the literal string `'unknown'` (`dockview-core`'s deserialize path
+ * resolves `panelData.contentComponent ?? 'unknown'`), and the very next
+ * `toJSON()` - including the one that feeds session autosave / save-on-close -
+ * serializes that `'unknown'` back out as a real, persisted value.
  *
  * `dockview-react`'s `components` map (`DockviewLayout.tsx`) has exactly one
  * entry, `panelContent` -> `PanelContentRenderer`. A panel whose
@@ -36,11 +33,10 @@ import {
  * which is `undefined` - dockview-react renders nothing, and the pane comes
  * back blank.
  *
- * Anyone who applied a layout preset before the fix has this shape sitting in
- * their saved session's `dockviewState.panels[id].contentComponent` right
- * now. This module repairs it (and, defensively, any other unregistered
- * `contentComponent`) once, on session load, before the layout is handed to
- * `dockviewApi.fromJSON()`.
+ * A session carrying that shape has it in
+ * `dockviewState.panels[id].contentComponent`. This module repairs it (and,
+ * defensively, any other unregistered `contentComponent`) once, on session
+ * load, before the layout is handed to `dockviewApi.fromJSON()`.
  *
  * Self-healing: the repaired state is what feeds the *next* `toJSON()` too
  * (autosave / save-on-close both read the live dockview instance), so a

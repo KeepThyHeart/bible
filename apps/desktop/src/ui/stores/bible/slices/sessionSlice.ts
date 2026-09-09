@@ -22,8 +22,8 @@ export interface SessionSlice {
 
   /**
    * Bible panels the session describes that the restored layout does not
-   * contain - passages that used to be sub-tabs. `DockviewLayout` drains this
-   * once dockview is ready.
+   * contain - passages a v1 session carried as sub-tabs. `DockviewLayout`
+   * drains this once dockview is ready.
    */
   pendingPanelCreations: PendingBiblePanel[];
 

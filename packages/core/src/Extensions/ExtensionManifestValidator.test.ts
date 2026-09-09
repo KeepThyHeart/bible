@@ -1,5 +1,5 @@
 /**
- * Tests for `validateManifest`. Spec A Implementation Chunk 1.
+ * Tests for `validateManifest`.
  *
  * Coverage:
  *   - Happy path: the canonical example from section "Manifest" parses cleanly.

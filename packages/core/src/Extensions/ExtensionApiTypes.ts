@@ -1,7 +1,7 @@
 /**
  * Public extension API surface - the contract every extension worker speaks.
  *
- * Spec A section "Public extension API surface". This file defines the
+ * This file defines the
  * `BibleExtensionAPI` interface (the root object the host injects into each
  * extension worker) plus every namespace interface beneath it.
  *
@@ -90,8 +90,8 @@ import type {
 
 /**
  * The current extension API version. Used by the host and worker to negotiate
- * compatibility (see `engines.bibleApp` in the manifest and Spec A
- * section "API versioning"). Bumped according to strict semver:
+ * compatibility (see `engines.bibleApp` in the manifest). Bumped according to
+ * strict semver:
  *
  * - **Patch**: bug fixes only. No surface change.
  * - **Minor**: additive only - new methods, optional fields, permissions,

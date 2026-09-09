@@ -2,7 +2,7 @@
  * RPC envelope shared by the host (main process), each extension worker
  * (utilityProcess), and each UI iframe (`ext-ui://`).
  *
- * Spec A section "RPC envelope". The router on each side validates the envelope
+ * The router on each side validates the envelope
  * shape, rejects malformed messages with an `RpcProtocolError`, and never
  * lets a malformed message reach business logic.
  *

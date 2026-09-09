@@ -83,8 +83,8 @@ export interface ExtensionRpcRouterCallbacks {
    * Called for a worker->host event on a reserved `__runtime.*` channel - in
    * practice `__runtime.error`, which the worker's `ExtensionErrorBoundary`
    * uses to report uncaught exceptions and unhandled rejections. Without a
-   * consumer these were dropped as `unknown-kind` violations and extension
-   * authors got no diagnostics at all.
+   * consumer these are dropped as `unknown-kind` violations and extension
+   * authors get no diagnostics at all.
    */
   onRuntimeEvent?: (channel: string, payload: unknown) => void;
   /** Called whenever an envelope fails validation or routing. */

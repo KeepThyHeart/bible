@@ -1,15 +1,14 @@
 /**
  * Plain JSON DTOs and shared shapes for the extension API contract.
  *
- * Spec A section "DTO Schemas" + the data shapes scattered through section "Public extension
- * API surface". Everything in this file MUST be plain JSON-serializable -
+ * Everything in this file MUST be plain JSON-serializable -
  * no class instances, no methods, no functions, no Date objects, no Maps,
  * no circular references. The host marshals between its internal types
  * (`packages/core/src/Data/Models/...`) and these DTOs at the API boundary.
  *
  * These shapes are **load-bearing** - they appear in many APIs and storage
- * formats. Per section "Implementation tiers" they are part of T1 (the foundation
- * locked in 1.0.0) even when the methods that use them are T2.
+ * formats. They are part of T1 - the foundation locked in 1.0.0 - even when
+ * the methods that use them are T2.
  *
  * The fully-namespaced API interfaces live in `ExtensionApiTypes.ts`, which
  * imports from this file.
@@ -1093,7 +1092,7 @@ export interface SearchSuggestionDto {
 /**
  * Stable error `code` strings the host throws over RPC. The worker re-raises
  * them as subclasses of `ExtensionApiError` (defined in the worker runtime).
- * The names match Spec A's "Errors" table.
+ * Each name matches the error class of the same name in `ExtensionApiErrors.ts`.
  */
 export const EXTENSION_API_ERROR_CODES = [
   'PermissionDeniedError',

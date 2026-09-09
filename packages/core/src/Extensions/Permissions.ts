@@ -1,8 +1,6 @@
 /**
  * Extension permission identifiers and ordering constants.
  *
- * Spec A section "Permissions" + section "`order` hint".
- *
  * Permissions are declared in `extension.json` and approved by the user at
  * install time. The host enforces them at every API boundary call via
  * `ExtensionPermissionGuard`. On failure, the host throws

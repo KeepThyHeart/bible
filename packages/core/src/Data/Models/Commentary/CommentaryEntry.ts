@@ -4,8 +4,8 @@ import { VerseId, Metadata, EntryLevel, RelationshipType } from '../../Core/Type
  * Commentary entry level.
  *
  * Alias of {@link EntryLevel}, which lives in `Core/Types.ts` - the single source
- * of truth for the open enums whose SQL CHECK constraints were dropped in Module
- * Format v2.
+ * of truth for the open enums that Module Format v2 leaves without a SQL CHECK
+ * constraint.
  */
 export type CommentaryEntryLevel = EntryLevel;
 

@@ -64,8 +64,6 @@ interface BiblePaneProps {
  * toolbar. The large chapter heading below it is *not* chrome: it renders
  * inside the scroll container and scrolls away with the text, like a chapter
  * heading in a printed Bible.
- *
- * See docs/Design/BiblePaneTabRestructure.md.
  */
 const BiblePane: React.FC<BiblePaneProps> = (props) => {
   const { panelId: propPanelId, contentKey, dockviewPanelApi, isDetached = false } = props;

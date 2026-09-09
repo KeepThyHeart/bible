@@ -170,12 +170,12 @@ class CommentaryStore extends Store {
   /**
    * A topic the Topics pane should open next.
    *
-   * `token` is what makes a *repeat* request observable. The pane used to read
-   * this during render and clear it as a side effect, which meant a request
-   * raised while the Topics pane was already mounted was silently dropped (no
-   * remount, so nothing ever read it) — clicking a topic in the Study pane with
-   * Topics already open appeared to do nothing. Consumers now watch the token
-   * and clear it from an effect; see TopicsPane / TopicsBrowser.
+   * `token` is what makes a *repeat* request observable. Reading this during
+   * render and clearing it as a side effect silently drops a request raised
+   * while the Topics pane is already mounted (no remount, so nothing ever reads
+   * it) — clicking a topic in the Study pane with Topics already open appears
+   * to do nothing. Consumers watch the token and clear it from an effect; see
+   * TopicsPane / TopicsBrowser.
    */
   pendingTopicNav: PendingTopicNav | null = null;
   private _topicNavToken = 0;
@@ -888,9 +888,9 @@ class CommentaryStore extends Store {
   /**
    * Pin a specific tab to the current passage.
    *
-   * The Overview (Home) tab pins like any other. It used to be excluded here,
-   * which made its pin button a no-op — it rendered, highlighted on hover, and
-   * did nothing, while the same button on every other tab worked.
+   * The Overview (Home) tab pins like any other. Excluding it here makes its
+   * pin button a no-op — it renders, highlights on hover, and does nothing,
+   * while the same button on every other tab works.
    */
   pinTab(tabId: string, studyVerse?: number | null): void {
     const tab = this.tabs.find(t => t.id === tabId);

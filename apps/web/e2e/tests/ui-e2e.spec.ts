@@ -300,8 +300,8 @@ test.describe('UI E2E Tests', () => {
   });
 
   test('commentary pane shows a tab bar with exactly one active tab', async ({ page }) => {
-    // Both assertions used to sit inside `if (visible)` / `if (count > 0)`, so
-    // a commentary pane that rendered no tab bar at all passed.
+    // Neither assertion may sit inside `if (visible)` / `if (count > 0)`: that
+    // passes a commentary pane which rendered no tab bar at all.
     const searchInput = page.locator('.header__search-field');
     await searchInput.fill('John 3');
     await searchInput.press('Enter');

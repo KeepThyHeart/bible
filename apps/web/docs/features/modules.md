@@ -37,7 +37,7 @@ Loading and managing Bible, Commentary, and Dictionary modules.
 | `config/settings.sample.json` | Sample legacy settings file; copy to `apps/web/data/settings.json` and customize |
 | `config/settings.schema.json` | JSON Schema for the above; editor validation only, never read at runtime |
 | `data/settings.json` | Legacy module whitelist (gitignored) — module visibility and section grouping. Superseded by the `modules` section of `site-config.json` |
-| `generate-settings.js` | **Not in this repo** — it lived in a repo-root `scripts/` directory that has not been imported, and its final location is not settled. CLI script to auto-discover modules and bootstrap/update `settings.json` |
+| `npm run init` (root `package.json` script) | Auto-discovers modules and writes the `modules` section of `site-config.json` (only if the file doesn't already exist) as part of registering modules — see [Quick Start](../../README.md#quick-start) |
 
 ## Dictionary Modules
 
@@ -105,5 +105,5 @@ reference works in the right-pane Dictionary tab.
 - Case-sensitive abbreviation resolution (preserves original casing from database)
 - Modules cached after first fetch
 - **Fail-safe module visibility**: If neither `site-config.json` nor a legacy `settings.json` is present, no modules are visible (copyright protection). Only modules explicitly listed with `active: true` are served by the API.
-- **Section grouping**: `settings.json` defines ordered sections (e.g., "Popular", "All Translations") that the UI uses for module selector dialogs. Falls back to the hardcoded `RECOMMENDED_BIBLES` / `BIBLE_DESCRIPTIONS` / `COMMENTARY_DESCRIPTIONS` in `src/moduleDescriptions.ts` if no settings are configured.
-- **Description overrides**: `settings.json` can override a module's shortName, title, and description.
+- **Section grouping**: The `modules` section of `site-config.json` (or a legacy standalone `settings.json`) defines ordered sections (e.g., "Popular", "All Translations") that the UI uses for module selector dialogs. Falls back to the hardcoded `RECOMMENDED_BIBLES` / `BIBLE_DESCRIPTIONS` / `COMMENTARY_DESCRIPTIONS` in `src/moduleDescriptions.ts` if none are configured.
+- **Description overrides**: The same `modules` section can override a module's shortName, title, and description.

@@ -17,8 +17,7 @@ export const NOTES_BACKUP_INTERVAL_MS = 15 * 60 * 1000;
 export const SESSION_SAVE_SHUTDOWN_TIMEOUT_MS = 5000;
 
 /**
- * Diagnostics & issue reporting tunables. See
- * docs/queue/diagnostics-and-issue-reporting.md.
+ * Diagnostics & issue reporting tunables.
  */
 export const DIAGNOSTICS_QUEUE_MAX = 50;
 export const DIAGNOSTICS_RING_SIZE = 20;

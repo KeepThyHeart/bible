@@ -326,7 +326,7 @@ export function parseUSFM(usfm: string): ParsedUsfmDocument {
         chapter = parsed;
         // The first verse of a chapter is implicitly a paragraph start: USFM text
         // may not follow \c directly, so the exporter always emits a paragraph
-        // marker there. See ModuleFormat.md section 7.4.
+        // marker there.
         pending = emptyPending();
         pending.paragraphStart = true;
         break;

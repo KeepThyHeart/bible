@@ -185,10 +185,10 @@ describe('StrongsPopup', () => {
   });
 
   it('keeps the search button outside the scrollable body so a long definition cannot hide it', () => {
-    // Regression: the popup used to be one `overflow-y: auto` box, so every
-    // element -- including the search button pinned at the bottom of the
-    // markup -- scrolled together. Long definitions (the common case) pushed
-    // the button out of the visible 400px and it looked like it did not exist.
+    // One `overflow-y: auto` box scrolls every element together -- including
+    // the search button pinned at the bottom of the markup. Long definitions
+    // (the common case) then push the button out of the visible 400px and it
+    // looks like it does not exist.
     // The button must be a sibling of the scrolling body, not a descendant.
     const { container } = render(
       <StrongsPopup

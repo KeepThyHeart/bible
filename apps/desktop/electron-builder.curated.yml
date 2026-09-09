@@ -19,11 +19,11 @@ electronVersion: 33.2.0
 directories:
   output: dist
   buildResources: resources
-# asar is ON. It used to be off because @bible/core is an npm-workspace symlink
-# whose real files live outside apps/desktop and electron-builder's asar
-# packager rejects that. That blocker is gone: electron.vite.config.ts now
-# BUNDLES @bible/core into out/main/index.js (see the comment there), so nothing
-# in the packaged tree resolves through the workspace symlink.
+# asar is ON, and can only be because electron.vite.config.ts BUNDLES
+# @bible/core into out/main/index.js (see the comment there). Nothing in the
+# packaged tree then resolves through the workspace symlink - @bible/core's real
+# files live outside apps/desktop, and electron-builder's asar packager rejects
+# that.
 #
 # On Windows this is also the fix for the MAX_PATH truncation that silently drops
 # deeply nested node_modules files during NSIS install — a single app.asar has no

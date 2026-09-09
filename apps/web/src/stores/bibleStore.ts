@@ -341,13 +341,12 @@ class BibleStore extends Store {
         // No specific verse asked for: select the chapter's first verse so the
         // study and commentary panes have something to bind to immediately.
         //
-        // This used to be left null and back-filled by an effect in
-        // CommentaryContent that measures the DOM for the first visible verse.
-        // That effect runs before the Bible pane has mounted its verses on a
-        // fresh chapter load or a cold start, so it found nothing, and its deps
-        // did not change again — leaving the pane stuck on "select a verse"
-        // until the user clicked one. The verse data is right here, so there is
-        // no reason to go to the DOM for it.
+        // Not left null for an effect in CommentaryContent to back-fill by
+        // measuring the DOM for the first visible verse: that effect runs
+        // before the Bible pane has mounted its verses on a fresh chapter load
+        // or a cold start, finds nothing, and its deps do not change again —
+        // leaving the pane stuck on "select a verse" until the user clicks one.
+        // The verse data is right here, so there is no reason to go to the DOM.
         tab.studyVerse = tab.verses[0]?.verse_id ?? null;
         // Chapter navigation with no named verse still selects one (the first),
         // and the reader should land on it. Leaving this null meant a prev/next

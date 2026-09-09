@@ -1,8 +1,6 @@
 /**
  * Hand-written validator for `extension.json`.
  *
- * Spec A section "Manifest" + section "Manifest validation rules" + Implementation Chunk 1.
- *
  * Mirrors `ExtensionManifestSchema.json` (the canonical authoring schema) but
  * does the work in TypeScript so `@bible/core` does not need to pull in AJV
  * (which would add a runtime dependency to a package that has none today).

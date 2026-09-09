@@ -9,13 +9,13 @@
  *   public/icons/icon-192.png   raster fallback + Android home screen
  *   public/icons/icon-512.png   raster fallback + install prompt / splash
  *
- * These used to be committed copies with no build step, which meant editing the
- * brand SVG left four stale rasters behind and nothing noticed. index.html and
- * the PWA manifest in vite.config.ts both reference these paths.
+ * They are generated rather than committed: committed copies go stale the
+ * moment the brand SVG is edited, and nothing notices. index.html and the PWA
+ * manifest in vite.config.ts both reference these paths.
  *
  * Rasterising uses @resvg/resvg-js (Rust, prebuilt binaries) rather than a
- * headless browser: the old desktop-side script drove Playwright's Chromium,
- * which is a ~150MB browser download to produce 13KB of PNG. resvg needs no
+ * headless browser: driving Playwright's Chromium means a ~150MB browser
+ * download to produce 13KB of PNG. resvg needs no
  * browser and no network, so unlike the font fetch this step works offline.
  *
  * Idempotent -- existing outputs are left alone. Pass --force to regenerate.

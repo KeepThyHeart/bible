@@ -1,16 +1,15 @@
 /**
  * TypeScript shape of `extension.json`.
  *
- * Spec A section "Manifest". The companion JSON Schema lives at
+ * The companion JSON Schema lives at
  * `ExtensionManifestSchema.json` and is the **only** validator - the loader
  * rejects anything that fails schema validation. The TypeScript type below
  * mirrors the schema and exists so host and worker code can read manifests
  * with type safety.
  *
  * The loader's beyond-schema rules (id format, permission/network
- * cross-checks, path containment) are documented in
- * section "Manifest validation rules" and enforced by `ExtensionManifestLoader.ts`
- * (not yet implemented).
+ * cross-checks, path containment) are enforced by
+ * `apps/desktop/electron/extensions/ExtensionManifestLoader.ts`.
  */
 
 import type { ExtensionPermission } from './Permissions';

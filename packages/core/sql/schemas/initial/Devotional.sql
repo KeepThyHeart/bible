@@ -87,8 +87,8 @@ CREATE INDEX idx_devotional_date ON devotional_entry(date_label);
 CREATE INDEX idx_devotional_sort ON devotional_entry(sort_order);
 
 -- Unified content->verse linking. This table is byte-identical in every module
--- schema and in the user database. It replaces the JSON `scripture_verses` column
--- that used to live on `devotional_entry`.
+-- schema and in the user database. Content->verse links live here, never in a
+-- JSON column on `devotional_entry`.
 --
 -- In a devotional module: source_type = 'devotional_entry',
 -- source_id = devotional_entry.entry_id.

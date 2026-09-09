@@ -66,9 +66,9 @@ export const DEFAULT_RATE_LIMITS = {
  * Route prefix → tier, keyed on the first path segment below `/api`.
  *
  * Everything classified as `content` is immutable reference material read
- * while turning pages. Only bible/commentary/dictionary used to be classified
- * at all; interlinear, cross-references, topics and Strong's fell through to
- * `default` and so read traffic ran under the strictest cap in the app.
+ * while turning pages. Every such prefix has to be listed here: anything left
+ * out — interlinear, cross-references, topics, Strong's — falls through to
+ * `default`, running ordinary read traffic under the strictest cap in the app.
  */
 const TIER_BY_PREFIX: Record<string, RateLimitTier> = {
   search: 'search',

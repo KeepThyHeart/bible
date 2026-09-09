@@ -18,22 +18,15 @@ import templateFormat from './templateFormat';
  * `AdvancedCopyOptions`; "Custom Template" is a user-editable Handlebars-style
  * template (see templateFormat.ts) that answers to nothing but its own text.
  *
- * **Standard and Combined are retired but still registered.** They are no
- * longer offered - Standard was Numbered quote written as lines and Combined
- * was Inline quote written as lines, which is why nobody could say what the
- * difference was - but one thing still renders through them: a note saved with
- * `data-expansion-format="standard"` in its `verseExpansion` mark, which has to
- * keep its shape when re-formatted. Deleting the entries would turn that into a
- * dead id. `formatCatalog.ts` is where they are hidden from the pickers, via
- * `LEGACY_PASSAGE_FORMAT_IDS`. (`ExportUtility`/`FormatSelector` used to be the
- * second consumer; both were deleted as unmounted scaffolding.)
+ * **Standard and Combined are registered but never offered.** One thing still
+ * renders through them: a note saved with `data-expansion-format="standard"` in
+ * its `verseExpansion` mark, which has to keep its shape when re-formatted.
+ * Deleting the entries would turn that into a dead id. `formatCatalog.ts` is
+ * where they are hidden from the pickers, via `LEGACY_PASSAGE_FORMAT_IDS`.
  *
- * The earlier "Inline", "Plain" and "Advanced" entries are gone: the first two
- * were fixed shapes the Advanced options could already produce, and "Advanced"
- * was never a format so much as an option set - it is now the option set behind
- * Standard and Combined. `getLastUsedFormatId()` validates the persisted id
- * against this registry, so a user who last copied with one of them lands back
- * on Standard rather than on a format that no longer exists.
+ * `getLastUsedFormatId()` validates the persisted id against this registry, so
+ * a user whose stored id names nothing here lands on Standard rather than on a
+ * format that does not exist.
  */
 const BUILT_IN_FORMATS: CopyFormat[] = [
   standardFormat,

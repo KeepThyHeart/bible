@@ -422,7 +422,7 @@ describe('VerseRenderer', () => {
 
   it('opens the Strongs definition from the original-language word', () => {
     // The Hebrew/Greek word is the most obvious thing to click in an
-    // interlinear; it used to be inert.
+    // interlinear, so it must not be inert.
     mockInterlinearLayout = 'stacked';
     const onStrongsClick = vi.fn();
     const { container } = render(

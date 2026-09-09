@@ -330,8 +330,8 @@ describe('TopicsBrowser', () => {
   });
 
   it('navigates when a request arrives while already mounted', async () => {
-    // The whole point of the token: a request raised with the browser already
-    // on screen used to be dropped, because nothing remounted to read it.
+    // The whole point of the token: without it a request raised with the
+    // browser already on screen is dropped, because nothing remounts to read it.
     const topicalProvider = makeTopicalProvider();
     const { rerender } = render(
       <TopicsBrowser {...defaultProps} topicalProvider={topicalProvider} />

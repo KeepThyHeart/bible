@@ -105,8 +105,8 @@ describe('useBibleStore - default display mode', () => {
 
     await useBibleStore.getState().openPassageInNewPanel(1, 1, 1, PANEL);
 
-    // The source panel still shows exactly one passage - this is the whole
-    // point of the tab restructure (docs/Design/BiblePaneTabRestructure.md).
+    // The source panel still shows exactly one passage: a passage is a
+    // top-level panel, never a sub-tab.
     expect(useBibleStore.getState().getPanelState(PANEL).openTabs).toHaveLength(1);
   });
 });

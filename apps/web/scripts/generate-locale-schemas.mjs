@@ -10,10 +10,10 @@
  * fonts and icons) and is refreshed by the `prebuild:client` / `predev:client`
  * hooks, so a clean checkout has validation from the first build.
  *
- * The namespace list is read from `src/locales/en/` rather than hardcoded. It
- * used to be a literal array that omitted `booksShort`, so `booksShort.json`
- * pointed at a schema nothing ever generated and went unvalidated. Deriving the
- * list means adding a namespace cannot silently skip its schema again.
+ * The namespace list is read from `src/locales/en/` rather than hardcoded. A
+ * literal array drifts: omit `booksShort` from it and `booksShort.json` points
+ * at a schema nothing generates and goes unvalidated. Deriving the list means
+ * adding a namespace cannot silently skip its schema.
  *
  * Usage:
  *   node scripts/generate-locale-schemas.mjs           # generate/overwrite

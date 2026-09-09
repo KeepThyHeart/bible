@@ -19,7 +19,7 @@ Theme selection, font customization, display options, and offline management, al
 | `src/themes/*/theme.json` | Per-theme metadata: id, name, group, order, isDark, swatch colors, CSS variable values |
 | `src/themes/*/_vars.scss` | Per-theme CSS custom property blocks (`[data-theme="<id>"] { ... }`). **Generated** — see below |
 | `admin/brand/theme-palettes.json` | Canonical palette for all 15 themes, shared with the desktop app -- which is why it sits with the brand assets rather than under `apps/web/` |
-| `generate-theme-vars.js` | **Not in this repo** — it lived in a repo-root `scripts/` directory that has not been imported, and its final location is not settled. Regenerates `_vars.scss` from the palette; `--check` verifies they are current |
+| `scripts/generate-theme-vars.js` (repo root) | Regenerates `_vars.scss` from the palette; run via `npm run generate:theme-vars`. `npm run check:theme-vars` (`--check`) verifies they are current |
 | `src/themes/themeRegistry.ts` | Build-time theme discovery via Vite glob import; exports `THEME_LIST`, `THEME_IDS`, `isValidTheme()`, `getThemeById()` |
 
 ### State
@@ -40,7 +40,7 @@ Theme selection, font customization, display options, and offline management, al
 ### Appearance
 - **Theme**: Auto (system), Light, Dark, Sepia, plus 12 decorative themes (discovered at build time from `src/themes/` folders). Displayed as a swatch grid with color previews.
 
-**Theme colours are shared with the desktop app.** The same fifteen themes are also defined in the desktop app's `src/ui/styles/themes.css`. Twelve are identical in both; light, dark and sepia had drifted into genuinely different colours. `admin/brand/theme-palettes.json` is the one place those colours are written down: a plain string is shared by both apps, while `{ "web": ..., "desktop": ... }` records a colour the two intentionally render differently. The desktop app itself is not in this repo yet.
+**Theme colours are shared with the desktop app.** The same fifteen themes are also defined in the desktop app's `apps/desktop/src/ui/styles/themes.css`. Twelve are identical in both; light, dark and sepia had drifted into genuinely different colours. `admin/brand/theme-palettes.json` is the one place those colours are written down: a plain string is shared by both apps, while `{ "web": ..., "desktop": ... }` records a colour the two intentionally render differently.
 
 To change a theme colour, edit the palette and run `npm run generate:theme-vars` (never edit `_vars.scss` by hand — it is overwritten). `npm run check:theme-vars` fails if they are stale, and `themePalette.test.ts` in the desktop package fails if the desktop stylesheet drifts from the palette. To add a theme, add it to the palette and create the matching `theme.json`.
 - **UI Font Size**: 12-20px slider
@@ -77,12 +77,12 @@ edit.
 | `--study-font-size` | The px size. `.main-layout__right-pane` sets its `font-size` from it, so everything inheriting (commentary prose, quoted verse text) follows |
 | `--study-font-scale` | `studyFontSize / 15` (the default), so every existing px literal renders unchanged until the reader moves the setting. Study-pane **content** rules multiply by it |
 
-It used to be an inline `font-size` on the right-pane container only. Because
-nearly every element in the Study pane sets an absolute
-`calc(Npx * var(--ui-font-scale))`, the inherited size was overridden
-everywhere except commentary prose — so "Study Text" appeared to move Commentary
-and nothing else, while "UI Text" moved everything. The inline size is gone; the
-variables are the single mechanism.
+An inline `font-size` on the right-pane container cannot do this on its own.
+Nearly every element in the Study pane sets an absolute
+`calc(Npx * var(--ui-font-scale))`, which overrides an inherited size everywhere
+except commentary prose — so "Study Text" would appear to move Commentary and
+nothing else, while "UI Text" moved everything. The variables are the single
+mechanism.
 
 **Content vs chrome.** Rules that render module data — topic names and
 descriptions, verse reference lists and verse text, dictionary entry headwords

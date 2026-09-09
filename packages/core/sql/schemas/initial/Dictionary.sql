@@ -234,8 +234,8 @@ CREATE INDEX idx_occurrence_entry ON word_occurrence(entry_key);
 CREATE INDEX idx_occurrence_verse ON word_occurrence(verse_id);
 
 -- Unified content->verse linking. This table is byte-identical in every module
--- schema and in the user database. It replaces the JSON `example_verses` column
--- that used to live on `dictionary_entry`.
+-- schema and in the user database. Content->verse links live here, never in a
+-- JSON column on `dictionary_entry`.
 --
 -- In a dictionary module: source_type = 'dictionary_entry',
 -- source_id = dictionary_entry.entry_id.

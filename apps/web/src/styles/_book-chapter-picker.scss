@@ -192,8 +192,8 @@
     // The hues themselves live in _bible-sections.scss as --section-<key> /
     // --section-<key>-text, because the search distribution chart paints its
     // bars from the same scheme and the two have to agree. That file is also
-    // where the dark themes swap in lighter shades — the values that used to be
-    // hard-coded here were chosen against white and were unreadable on #0d1117.
+    // where the dark themes swap in lighter shades — hues hard-coded here get
+    // chosen against white and come out unreadable on #0d1117.
     &--pentateuch     { @include sections.section-colors('pentateuch'); }
     &--ot-history     { @include sections.section-colors('ot-history'); }
     &--wisdom         { @include sections.section-colors('wisdom'); }

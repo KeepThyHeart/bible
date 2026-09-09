@@ -695,7 +695,7 @@ describe('CopyDialog', () => {
     });
 
     it('leaves the dialog open when the copy button is clicked', async () => {
-      // Clicking keeps the old behaviour so a second copy after tweaking
+      // Clicking leaves the dialog open, so a second copy after tweaking
       // options costs no reopen.
       const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
       fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);

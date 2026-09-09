@@ -37,7 +37,7 @@ Keyword and semantic search across Bible modules, with results displayed in the 
 
 | File | Description |
 |---|---|
-| `server/routes/searchRoutes.ts` | `GET /api/search/keyword` - FTS5 keyword search; results carry the real `MatchType` (`exact` / `stem` / `fuzzy`), not the constant `'bible'` they used to be flattened to. `GET /api/search/semantic` - Semantic search via configurable pipeline; `?modules` names the reader's active translation and decides which repository **hydrates** the matched verses (falling back to KJV when it is absent or unresolvable). The embeddings are KJV-derived and matching is unaffected — but a result was previously always rendered in, and labelled, KJV even while the reader was in another translation. `GET /api/search/strongs` - occurrences of a Strong's number, paged via `maxResults` (default 100, ceiling `MAX_STRONGS_RESULTS` = 5000) and reporting `totalAvailable`. `POST /api/search/semantic/warmup` - returns `{ status: 'ready' \| 'unavailable' \| 'error' }` so the client can tell whether a server-side pipeline exists |
+| `server/routes/searchRoutes.ts` | `GET /api/search/keyword` - FTS5 keyword search; results carry the real `MatchType` (`exact` / `stem` / `fuzzy`) rather than a single flattened constant. `GET /api/search/semantic` - Semantic search via configurable pipeline; `?modules` names the reader's active translation and decides which repository **hydrates** the matched verses (falling back to KJV when it is absent or unresolvable). The embeddings are KJV-derived and matching is unaffected, but without that parameter a result renders in, and is labelled, KJV even while the reader sits in another translation. `GET /api/search/strongs` - occurrences of a Strong's number, paged via `maxResults` (default 100, ceiling `MAX_STRONGS_RESULTS` = 5000) and reporting `totalAvailable`. `POST /api/search/semantic/warmup` - returns `{ status: 'ready' \| 'unavailable' \| 'error' }` so the client can tell whether a server-side pipeline exists |
 | `server/search/SearchPipeline.ts` | Orchestrator: wires embedder + vector search + reranker into a single search call |
 | `server/search/SearchPipelineFactory.ts` | Creates pipeline from config (switches on `provider` discriminant) |
 | `server/search/ApiEmbedder.ts` | Embedding via OpenAI-compatible API (negligible RAM) |
@@ -109,9 +109,9 @@ Covered by `src/stores/searchStore.searchSeq.test.ts`.
 
 ## Paging Strong's occurrences
 
-Strong's results used to be hard-clamped to 100 with no way to see the rest, and
-`total` only ever reported that clamped page, so the client could not tell
-whether more existed.
+Strong's results must not be hard-clamped with no way to reach the rest, and
+`total` has to report what exists rather than the size of the page returned —
+otherwise the client cannot tell whether there is more.
 
 - `searchRoutes` honours a `maxResults` query param (default 100, floored/clamped
   to `MAX_STRONGS_RESULTS` = 5000; garbage or negative input falls back to the

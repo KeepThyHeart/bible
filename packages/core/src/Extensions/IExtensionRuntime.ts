@@ -1,8 +1,7 @@
 /**
  * Worker-side runtime interface.
  *
- * Spec A section "Architecture" + section "Lifecycle" (steps 5-6). `IExtensionRuntime` is
- * the contract the bundled `extension-runtime/` (under
+ * `IExtensionRuntime` is the contract the bundled `extension-runtime/` (under
  * `apps/desktop/extension-runtime/`) implements inside each extension
  * worker process. The host injects an instance of this on worker spawn; the
  * worker entry point hands it the `BibleExtensionAPI` proxy and dispatches
@@ -20,8 +19,6 @@ import type { RpcEnvelope } from './RpcEnvelope';
 
 /**
  * Init payload sent by the host to the worker on spawn (`init` RPC).
- *
- * Spec A section "Capability negotiation".
  */
 export interface ExtensionInitPayload {
   manifest: ExtensionManifest;

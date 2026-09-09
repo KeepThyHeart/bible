@@ -50,8 +50,8 @@ export interface PredefinedRange {
  * Named book groupings offered as one-click scopes in Advanced Search.
  *
  * The ids and book spans are safe to hardcode because this app supports exactly
- * one versification scheme (standard English / KJV ordering) - see the "Single
- * Versification Scheme" constraint in CLAUDE.md. The names are not: they are
+ * one versification scheme: standard English / KJV ordering. The names are
+ * not safe to hardcode: they are
  * the conventional Protestant divisions in English, so they live in the
  * catalog and are resolved at render time.
  */

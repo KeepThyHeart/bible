@@ -1,9 +1,9 @@
 # `@bible/core` - Extensions namespace
 
 This folder contains the **type contract** that third-party extensions speak
-when integrating with the Bible desktop app. The full design lives in
-[`docs/desktop-refactor/spec-A.extension-api.md`](../../../../docs/desktop-refactor/spec-A.extension-api.md);
-this README is the navigation aid.
+when integrating with the Bible desktop app. The types are the contract, and
+each file's header comment carries the rationale for its own slice of it; this
+README is the navigation aid.
 
 > **Status:** the contract types live here; the host runtime, manifest loader,
 > permission guard, IPC bridge, and all `api-impl/*` files live under
@@ -12,15 +12,15 @@ this README is the navigation aid.
 
 ## Files in this folder
 
-| File | Spec ref | Purpose |
-|---|---|---|
-| `RpcEnvelope.ts` | section "RPC envelope" | Request / response / event / subscribe / heartbeat envelope shapes shared by host, worker, and iframe. |
-| `Permissions.ts` | section "Permissions", section "`order` hint" | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. |
-| `ActivationEvents.ts` | section "Activation events" | Activation event identifiers and string-composition helpers. |
-| `ExtensionApiTypes.ts` | section "Public extension API surface", section "DTO Schemas" | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. |
-| `ExtensionPointTypes.ts` | section "Extension Points (full list)" | Payload and return types for the ~30 host-emitted extension points. |
-| `ExtensionManifest.ts` | section "Manifest" | The TypeScript shape of `extension.json`. |
-| `ExtensionManifestSchema.json` | section "Manifest" | JSON Schema (draft-07) the manifest loader validates against. The schema is the only validator. |
+| File | Purpose |
+|---|---|
+| `RpcEnvelope.ts` | Request / response / event / subscribe / heartbeat envelope shapes shared by host, worker, and iframe. |
+| `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. |
+| `ActivationEvents.ts` | Activation event identifiers and string-composition helpers. |
+| `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. |
+| `ExtensionPointTypes.ts` | Payload and return types for the ~30 host-emitted extension points. |
+| `ExtensionManifest.ts` | The TypeScript shape of `extension.json`. |
+| `ExtensionManifestSchema.json` | JSON Schema (draft-07) the manifest loader validates against. The schema is the only validator. |
 
 ## Entry point resolution (`manifest.main`)
 
@@ -56,29 +56,31 @@ no-op change in development, where both helpers return
 and re-pointing the `install_path` column of the `extensions` table, plus a
 cross-platform packaged test pass, so it has not been done yet.
 
-Mitigated for now: `ExtensionHost`'s constructor no longer throws when the
-root cannot be created (it used to take down the whole extension subsystem via
-the swallowed try/catch in `initializeExtensionHostInBackground`), and
-`ExtensionLifecycleLogger` writes are best-effort.
+Mitigated for now: `ExtensionHost`'s constructor does not throw when the root
+cannot be created. It must not - `initializeExtensionHostInBackground` swallows
+what it throws, so a throw there takes down the whole extension subsystem
+silently. `ExtensionLifecycleLogger` writes are best-effort for the same reason.
 
-## Authoring an extension (placeholder)
+## Authoring an extension
 
-A worked author guide will land alongside the host runtime. Until then, the
-spec doc is authoritative. The spec's example manifest in section "Manifest" is the
-canonical reference for what a real `extension.json` looks like.
+`npx @bible/create-extension my-extension` scaffolds a complete, buildable
+project - manifest, TypeScript config, bundler config, entry point and a passing
+test. `packages/word-count-example/` is a worked reference extension to read
+alongside it.
 
-## Future enhancements (T3 - see Spec A section "Future enhancements")
+For the manifest itself, `ExtensionManifestSchema.json` in this folder is the
+authority: it is the only validator the loader runs, so anything it accepts is
+valid and anything it rejects will not load.
 
-The list below mirrors the headlines from
-[`spec-A.extension-api.md` section "Future enhancements"](../../../../docs/desktop-refactor/spec-A.extension-api.md#future-enhancements).
-The spec doc is the authoritative version - keep this README list scoped to
-headlines and one-line descriptions only.
+## Future enhancements (T3)
+
+Headlines and one-line descriptions only - this list is a signpost, not a design
+document.
 
 > These are deliberately **not implemented** in 1.0.0. Designing them without
 > a real consumer risks bloat and bad fits. The list exists so contributors
-> working in this folder see the deferred ideas without having to dig through
-> the spec doc, and so the additive-only versioning policy can plan around
-> them.
+> working in this folder can see the deferred ideas, and so the additive-only
+> versioning policy can plan around them.
 
 1. **`ui.openExternal(url)` + `ui:open-external` permission.** Open a URL in the user's default browser. Host must be in `network.allowedHosts`.
 2. **Generalized content decorators / hovers.** Today verse-only; extend the same pattern to dictionary entries, book sections, commentary entries, and notes via a `ContentTarget` discriminator.
@@ -109,6 +111,6 @@ headlines and one-line descriptions only.
 
 ### Adding a new T3 item
 
-See Spec A section "How to add a new T3 item to this list". TL;DR: PR adds a row to
-the spec, mirrors the headline here, and does NOT add code or types unless
-there's a real consumer ready to ship against it.
+Add a headline and a one-line description to the list above. Do NOT add code or
+types unless there's a real consumer ready to ship against it - a reserved type
+with no implementation behind it is a promise the host has not made.

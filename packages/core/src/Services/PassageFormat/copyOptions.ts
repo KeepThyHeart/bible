@@ -2,9 +2,9 @@
  * Advanced copy options - the shared shape controls behind the copy dialog's
  * "Advanced Options" section.
  *
- * These used to belong to a single "Advanced" *format*. They are now the option
- * set for **Standard** and **Combined** alike: one record, and a format decides
- * which of the options it honours (see `passageCopyRenderer.ts`). The third
+ * They are the option set for **Standard** and **Combined** alike: one record,
+ * and a format decides which of the options it honours (see
+ * `passageCopyRenderer.ts`). The third
  * format, Custom Template, is fully user-controlled and ignores them entirely.
  *
  * They deliberately live *outside* `FormatOptions`. `FormatOptions` is the

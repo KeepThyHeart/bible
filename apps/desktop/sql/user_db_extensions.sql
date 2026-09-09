@@ -1,11 +1,11 @@
 -- Extension state and storage tables.
 --
--- Spec A §"Storage schema additions" (Chunk 2). These tables live inside the
--- per-user encrypted database (user_<username>.db) so backups and per-user
--- isolation come for free from the existing user-DB lifecycle.
+-- These tables live inside the per-user encrypted database
+-- (user_<username>.db) so backups and per-user isolation come for free from
+-- the existing user-DB lifecycle.
 --
 -- DDL is mirrored verbatim in
--- packages/desktop/electron/extensions/extensionSchema.ts (the runtime
+-- apps/desktop/electron/extensions/extensionSchema.ts (the runtime
 -- applies the TS version because the user DB is opened from the main
 -- process, not from disk-loaded SQL files). Keep both copies in sync.
 

@@ -1,13 +1,12 @@
 /**
  * DiagnosticsService - in-memory collection layer for crash reports, manual
- * issue reports, and plain feedback. Builds sanitized payloads per the spec
- * in docs/queue/diagnostics-and-issue-reporting.md section 2.
+ * issue reports, and plain feedback, and builds sanitized payloads from them.
  *
  * Privacy note: this service is allowed to see stack traces and raw errors.
  * Everything it EMITS (payloads, the IPC ring buffer, the state snapshot)
  * must be scrubbed so it never reveals: file paths, usernames, timezones,
  * locales, user content, modules, or session identifiers beyond the
- * strictly-necessary diagnostic fields. See section 2.4 of the spec.
+ * strictly-necessary diagnostic fields.
  */
 
 import os from 'os';

@@ -225,7 +225,7 @@ export function initializeUserSchema(db: ISql): void {
   db.execute('CREATE INDEX IF NOT EXISTS idx_content_verse_link_verse_end ON content_verse_link(verse_id_end)');
   db.execute('CREATE INDEX IF NOT EXISTS idx_content_verse_link_content ON content_verse_link(content_type, content_id)');
 
-  // --- User Keybindings (spec-B) ---------------------------------------
+  // --- User Keybindings -------------------------------------------------
   // Persisted user-rebinds. Loaded at app startup, registered with
   // source='user' in KeybindingService so they outrank built-in bindings.
   db.execute(`
@@ -238,7 +238,7 @@ export function initializeUserSchema(db: ISql): void {
     )
   `);
 
-  // --- Command History (spec-B) ----------------------------------------
+  // --- Command History --------------------------------------------------
   // Recency + frequency tracking for command palette ordering. Updated by
   // CommandRegistry.execute() on every successful invocation; queried at
   // boot to seed the in-memory CommandHistorySink.

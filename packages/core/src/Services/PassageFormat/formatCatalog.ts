@@ -94,9 +94,8 @@ export const DEFAULT_PASSAGE_FORMAT_ID = 'blockquote';
  * Formats that still render but are no longer offered.
  *
  * Kept registered rather than deleted: `formatVersesWithFormat` is what
- * re-formats a passage already sitting in a saved note, and the export utility
- * renders through the same registry. Removing them would turn an old note's
- * passage into an unrenderable id.
+ * re-formats a passage already sitting in a saved note. Removing them would
+ * turn that note's passage into an unrenderable id.
  */
 export const LEGACY_PASSAGE_FORMAT_IDS: readonly string[] = ['standard', 'combined'];
 

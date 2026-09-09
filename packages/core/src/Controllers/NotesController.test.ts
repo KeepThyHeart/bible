@@ -577,8 +577,7 @@ describe('NotesController', () => {
       expect(summaries).toHaveLength(2);
       expect(summaries[0].noteId).toBeDefined();
       expect(summaries[0].title).toBeDefined();
-      // `contentPreview` used to be asserted here; `NoteSummary` does not carry
-      // one and has not for some time - the mock was inventing it.
+      // No `contentPreview` assertion: `NoteSummary` does not carry one.
       expect(summaries[0].modifiedDate).toBeDefined();
     });
   });

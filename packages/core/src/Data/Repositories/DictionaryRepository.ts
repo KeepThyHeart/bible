@@ -67,8 +67,8 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
   /**
    * Update the module information.
    *
-   * `dictionary_type` is validated here rather than by a SQL CHECK: the
-   * constraint was dropped because the set is open, so this is the enforcement
+   * `dictionary_type` is validated here rather than by a SQL CHECK: the set is
+   * open, so there is no constraint to lean on and this is the enforcement
    * point.
    */
   updateModuleInfo(info: DictionaryModuleInfo): void {

@@ -172,7 +172,7 @@ describe.skipIf(!nativeSqliteAvailable)('initMainDatabase migration 005 (widen m
       );
       expect(kjv?.module_name).toBe('King James Version');
 
-      // The actual repro: these inserts used to throw SQLITE_CONSTRAINT.
+      // The case that matters: these inserts must not throw SQLITE_CONSTRAINT.
       expect(() =>
         db.execute(
           `INSERT INTO module_metadata (module_type, module_name, abbreviation, database_path)

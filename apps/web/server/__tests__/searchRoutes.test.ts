@@ -157,10 +157,10 @@ describe('GET /api/search/keyword', () => {
   });
 
   it('never flattens the match type to a constant', async () => {
-    // Regression: every keyword result used to be mapped with a hardcoded
-    // `type: 'bible'`, so `MatchType` never reached the browser. Asserted
-    // unguarded — this file already requires the module data, so an empty
-    // result set for "god" is itself a failure worth seeing.
+    // Mapping every keyword result to a hardcoded `type: 'bible'` keeps
+    // `MatchType` from ever reaching the browser. Asserted unguarded — this
+    // file already requires the module data, so an empty result set for "god"
+    // is itself a failure worth seeing.
     const res = await request(app).get('/api/search/keyword?q=god');
     expect(res.status).toBe(200);
     expect(res.body.results.length).toBeGreaterThan(0);

@@ -1,16 +1,15 @@
 /**
  * Inlined multi-colour icons for the mobile study home and dictionary home.
  *
- * These are the exact SVG strings `@icon-park/svg` produced for the seven
- * call sites that used it, with the same props (theme 'multi-color', the same
- * four-colour fills, the same sizes). The package was 32 MB on disk to supply
+ * These are the exact SVG strings `@icon-park/svg` produces for the seven call
+ * sites that need them, with the same props (theme 'multi-color', the same
+ * four-colour fills, the same sizes). The package costs 32 MB on disk to supply
  * seven static icons, and the rest of the app — including every icon in the
- * desktop client — already inlines its SVG, so the dependency was dropped and
- * its output frozen here.
+ * desktop client — inlines its SVG, so the output is frozen here instead.
  *
- * Rendered via `dangerouslySetInnerHTML`, exactly as the icon-park return
- * value was. The XML prolog icon-park emits is stripped: it is invalid inside
- * an HTML document and browsers ignore it at best.
+ * Rendered via `dangerouslySetInnerHTML`, exactly as the icon-park return value
+ * is. The XML prolog icon-park emits is stripped: it is invalid inside an HTML
+ * document and browsers ignore it at best.
  *
  * To change one of these, edit the markup directly — there is no generator to
  * re-run.

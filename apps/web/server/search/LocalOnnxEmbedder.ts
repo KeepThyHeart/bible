@@ -1,11 +1,9 @@
 /**
  * Local ONNX embedder using @huggingface/transformers.
  *
- * Ported from searchRoutes.ts inline code + embedding-local.js.
  * Uses ~1-1.5GB RAM for the model.
  *
  * Supports mean-centering (anisotropy correction) when meanVectorPath is configured.
- * See docs/bin1/semantic-tester.ignore.md for testing details.
  */
 
 import { readFileSync } from 'fs';

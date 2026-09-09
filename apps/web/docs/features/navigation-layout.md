@@ -64,8 +64,8 @@ Header, URL hash routing, history navigation, resizable panes, and keyboard shor
 |---|---|
 | `src/components/MobileStudyPane/MobileStudyPane.tsx` | Single scrollable page with Cross-refs, Topics, Interlinear sections; Topics browser overlay |
 | `src/components/MobileStudyPane/MobileCommentaryView.tsx` | Dedicated Commentary bottom tab — card list / detail with verse header |
-| `src/components/MobileStudyPane/StudyHomePage.tsx` | (Legacy) 2×2 icon grid, no longer used in mobile nav |
-| `src/components/MobileStudyPane/StudyTabBar.tsx` | (Legacy) Icon tab bar, no longer used in mobile nav |
+| `src/components/MobileStudyPane/StudyHomePage.tsx` | 2×2 icon grid. Not wired into the mobile nav; only its own test renders it |
+| `src/components/MobileStudyPane/StudyTabBar.tsx` | Icon tab bar. Not wired into the mobile nav |
 | `src/components/MobileStudyPane/StudyVerseHeader.tsx` | Verse header with full text, pin, prev/next, history, clickable reference |
 | `src/components/MobileStudyPane/VerseHistory.tsx` | Recent cross-chapter verse history dropdown |
 | `src/components/MobileStudyPane/MobileCommentary.tsx` | List-based commentary view with star/mute, slide-to-detail view |

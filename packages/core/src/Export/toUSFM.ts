@@ -12,8 +12,8 @@
  * - `block` fields become USFM paragraph markers (`\p`, `\q1`-`\q3`, `\s`, `\d`)
  * - document structure is emitted as `\id` / `\ide` / `\h` / `\mt1` / `\c` / `\v`
  *
- * See `docs/Design/DataModel/ModuleFormat.md` for the normative format definition
- * and for the exporter's structural rules (paragraph inference, nesting, ...).
+ * See `docs/features/usfm-export.md` for the exporter's structural rules
+ * (paragraph inference, nesting, heading kinds).
  */
 
 import { splitVerseWords, SPAN_TYPE_USFM } from '../Data/Text/VerseFormatting';

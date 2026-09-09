@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://bible-app.local/schemas/extension-manifest-v1.json",
   "title": "Bible Desktop Extension Manifest (v1)",
-  "description": "Schema for extension.json. The manifest loader rejects anything that fails this schema. See packages/core/src/Extensions/ExtensionManifest.ts for the matching TypeScript shape and docs/desktop-refactor/spec-A.extension-api.md section Manifest for the design rationale.",
+  "description": "Schema for extension.json. The manifest loader rejects anything that fails this schema, and this schema is its only validator. See packages/core/src/Extensions/ExtensionManifest.ts for the matching TypeScript shape.",
   "type": "object",
   "required": ["id", "name", "version", "publisher", "engines"],
   "additionalProperties": false,

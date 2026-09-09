@@ -2,9 +2,9 @@
  * The bulk RANGE queries that let `VerseLinksService.getBatchVerseLinks` answer
  * a whole chapter without asking each module once per verse.
  *
- * Each of these has a single-verse counterpart that Study mode used to call in
- * a loop, and the batch version is only safe if it reproduces that counterpart
- * EXACTLY. A widened predicate that quietly changes which entries match would
+ * Each of these has a single-verse counterpart, and the batch version is only
+ * safe if it reproduces that counterpart EXACTLY. A widened predicate that
+ * quietly changes which entries match would
  * show up as commentaries appearing or vanishing under a verse - the kind of
  * difference nobody attributes to a performance change. So the assertions here
  * are equivalence assertions against the real shipped modules, not fixtures.

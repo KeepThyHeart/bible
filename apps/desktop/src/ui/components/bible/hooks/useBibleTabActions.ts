@@ -8,8 +8,6 @@ import { BibleTabInfo } from '../../BiblePaneContext';
  * splitting and moving a passage is dockview's job and is handled by
  * `DockviewTabRenderer`'s tab context menu. What is left here is detaching
  * the panel into its own window, which dockview cannot do for us.
- *
- * See docs/Design/BiblePaneTabRestructure.md.
  */
 export function useBibleTabActions(args: {
   panelId: string;

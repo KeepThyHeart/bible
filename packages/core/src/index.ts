@@ -80,7 +80,7 @@ export * from './Services/StudyOverview';
 // Plugin system (hook registry, loader, types)
 export * from './Plugin';
 
-// Extensions namespace (Spec A - third-party extension API contract).
+// Extensions namespace (the third-party extension API contract).
 // Exported under a namespace alias to avoid colliding with @bible/core/Api/*.
 // Consumers: `import { Extensions } from '@bible/core'` then
 // `Extensions.BibleExtensionAPI`, `Extensions.BibleVerseDto`, etc.

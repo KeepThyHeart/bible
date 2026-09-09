@@ -635,8 +635,8 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   // Enter is "copy and be done" — the dialog exists only to produce the copy,
   // so leaving it open afterwards just makes the user reach for Escape too.
-  // Clicking the button keeps the old behaviour, where the dialog stays put and
-  // shows "Copied!", so a second copy after tweaking options costs no reopen.
+  // Clicking the button instead leaves the dialog in place showing "Copied!",
+  // so a second copy after tweaking options costs no reopen.
   confirmRef.current = () => {
     if (!canCopy) return;
     void handleCopy().then(onClose);

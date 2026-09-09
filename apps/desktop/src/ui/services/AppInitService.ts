@@ -225,10 +225,10 @@ export async function initializeApp(signal: { aborted: boolean }): Promise<AppIn
       }
 
       // Bible panels restore themselves: one dockview panel is one passage, so
-      // the session is staged here (migrating pre-restructure sessions on the
-      // way through) and each BiblePane claims its own entry when it mounts.
-      // Passages that only existed as sub-tabs come back as `pendingPanelCreations`,
-      // which DockviewLayout turns into real panels once dockview is ready.
+      // the session is staged here (migrating a v1 session on the way through)
+      // and each BiblePane claims its own entry when it mounts. Passages a v1
+      // session held only as sub-tabs arrive as `pendingPanelCreations`, which
+      // DockviewLayout turns into real panels once dockview is ready.
       const layoutBiblePanelIds = biblePanelIdsFromLayout(sessionData.dockviewState);
       useBibleStore.getState().loadSessionData(
         sessionData.bible,

@@ -2,9 +2,9 @@
  * Canonical starter list of `when`-context keys owned by built-in code.
  *
  * Each key is published by exactly one Zustand store (or by `App.tsx` for the
- * app-wide ones). The mapping lives in `docs/desktop-refactor/spec-B...` under
- * "Wiring stores into WhenContextService". Extension code only sees these as
- * strings; built-in code uses the `BuiltinContextKey` union to catch typos.
+ * app-wide ones), and `WhenContextService` is where that wiring lives.
+ * Extension code only sees these as strings; built-in code uses the
+ * `BuiltinContextKey` union to catch typos.
  */
 
 export const BUILTIN_CONTEXT_KEYS = [

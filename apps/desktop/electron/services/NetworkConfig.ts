@@ -19,8 +19,7 @@
  * This is a switch the app honors, not a sandbox the OS enforces. It does not
  * stop the operating system, the GPU process, or a native dependency from
  * making its own connections, and it is not a guarantee that a machine running
- * this app emits no traffic. Do not describe it to users as one. See
- * `docs/security/Privacy.md`.
+ * this app emits no traffic. Do not describe it to users as one.
  *
  * Sync fs is fine (mirrors `DiagnosticsConfig`): the file is tiny, read once
  * at startup, and written only on explicit user interaction (the Privacy menu

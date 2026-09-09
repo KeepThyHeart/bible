@@ -1,14 +1,11 @@
 /**
- * Gating tests for the Bible pane tab restructure.
+ * Gating tests for Bible pane session migration.
  *
- * A pre-restructure session describes a passage as a sub-tab inside one Bible
- * panel; migration turns it into a top-level dockview panel. That makes
- * session restore the highest-consequence part of the change: an upgrading
- * user must not lose open passages, and no shape of saved data may blank the
- * window. These tests pin all three rules the migration is written to - never
- * lose a passage, never crash, stay idempotent.
- *
- * See docs/Design/BiblePaneTabRestructure.md section 4.
+ * A v1 session describes a passage as a sub-tab inside one Bible panel;
+ * migration turns it into a top-level dockview panel. Session restore is the
+ * highest-consequence part of that: a user must not lose open passages, and no
+ * shape of saved data may blank the window. These tests pin all three rules the
+ * migration is written to - never lose a passage, never crash, stay idempotent.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -18,7 +15,7 @@ import {
 } from '../bible/sessionMigration';
 import { BIBLE_SESSION_VERSION } from '../bible/types';
 
-/** A passage as a pre-restructure session wrote it. */
+/** A passage as a v1 session wrote it. */
 function v1Tab(over: Record<string, unknown> = {}) {
   return {
     tabId: 'kjv-1',

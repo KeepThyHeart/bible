@@ -129,7 +129,7 @@ Two conventions follow from how these specs are written:
 
 ## Never repair the state under test
 
-The no-`if (await x.isVisible())` rule in `CLAUDE.md` has a second half: **a setup step must not put the app into the state the test is about to assert.** A `beforeEach` like this one is the shape to watch for:
+Never guard an assertion behind `if (await x.isVisible())` — a missing element turns the check into a silent pass. That rule has a second half: **a setup step must not put the app into the state the test is about to assert.** A `beforeEach` like this one is the shape to watch for:
 
 ```ts
 if (!await checkbox.isChecked()) await checkbox.check({ force: true });

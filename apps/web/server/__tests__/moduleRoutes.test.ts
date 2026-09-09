@@ -180,10 +180,10 @@ describe('GET /api/books', () => {
     const res = await request(appNoSettings).get('/api/books');
     expect(res.status).toBe(200);
 
-    // The predicate used to be typed `(b: { testament: string })` and then read
-    // `b.book_number` — which is not on that type, so it was `undefined`, and
-    // `undefined <= 39` is false. `otBooks` was always empty and the loop below
-    // never ran: the test asserted nothing about testaments at all.
+    // The predicate's type has to carry `book_number`. Typed
+    // `(b: { testament: string })`, reading `b.book_number` gives `undefined`,
+    // `undefined <= 39` is false, `otBooks` comes out empty and the loop below
+    // never runs — the test would assert nothing about testaments at all.
     const books = res.body as Array<{ book_number: number; testament: string }>;
     const otBooks = books.filter(b => b.book_number <= 39);
     expect(otBooks).toHaveLength(39);

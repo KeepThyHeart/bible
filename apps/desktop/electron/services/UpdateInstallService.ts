@@ -17,7 +17,7 @@
  *
  * `isNetworkAllowed()` is checked before any electron-updater method that can
  * touch the network, so the master "Allow web requests" toggle governs this path
- * exactly as it governs the gateway. See `docs/security/Privacy.md`.
+ * exactly as it governs the gateway.
  *
  * ## No background behaviour
  *

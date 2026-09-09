@@ -1,8 +1,6 @@
 /**
  * Activation event identifiers and helpers.
  *
- * Spec A section "Activation events".
- *
  * Activation events are evaluated by the `ExtensionHost` whenever the
  * corresponding event happens in the host. When the conditions match, the
  * host spawns the extension's worker process if it isn't already running and

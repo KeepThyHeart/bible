@@ -121,10 +121,10 @@ will not have it, since `<b>` was used ambiguously for both.
 ## Gotchas
 
 - **Nothing in this repo calls it.** `toUSFM` / `parseUSFM` are referenced only by
-  `src/index.ts`, the format specs under `docs/Design/DataModel/`, the public
-  developer site, and a comment in `BibleTranslation.sql`. There is no export UI,
-  no CLI command, and no IPC handler. It is a published API for external
-  integrators, so treat its shape as a contract even though nothing local breaks.
+  `src/index.ts`, the public developer site, and a comment in
+  `BibleTranslation.sql`. There is no export UI, no CLI command, and no IPC
+  handler. It is a published API for external integrators, so treat its shape as
+  a contract even though nothing local breaks.
 - **`parseUSFM` is not a general USFM importer.** It understands the span and
   block vocabulary plus the scaffolding the exporter emits, and ignores everything
   else. Footnotes, cross-reference notes, milestones and `\va`/`\vp` alternate
