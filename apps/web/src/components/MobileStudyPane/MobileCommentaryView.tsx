@@ -86,6 +86,14 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
 
   const paneRef = useRef<HTMLDivElement>(null);
 
+  // The mobile counterpart of CommentaryPane's mount signal — the mobile nav
+  // shows one view at a time, so this is when a chapter change is worth
+  // spending commentary requests on.
+  useEffect(() => {
+    commentaryStore.viewMounted(true);
+    return () => commentaryStore.viewMounted(false);
+  }, []);
+
   // §2.3 — Scroll commentary to top whenever the current verse changes.
   useEffect(() => {
     paneRef.current?.scrollTo({ top: 0 });

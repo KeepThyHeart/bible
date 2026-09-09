@@ -17,6 +17,7 @@ import { eventBus } from './events/eventBus';
 import { API_BASE } from './utils/apiUrl';
 import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/bootGuard';
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
+import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
@@ -98,6 +99,10 @@ async function init() {
     return;
   }
 
+  // Publish it before anything reads it, so no other module has to ask the
+  // server for the same answer. See utils/clientConfig.ts.
+  setClientConfig(cfg);
+
   if (cfg) {
     if (typeof cfg.staleDays === 'number') serverStaleDays = cfg.staleDays;
     if (cfg.commentaryPopularity) moduleStore.setServerPopularity(cfg.commentaryPopularity);
@@ -142,7 +147,10 @@ async function init() {
   studyStore.init({
     crossRef: providers.crossRef,
     topical: providers.topical,
-    tagGraph: providers.tagGraph,
+    // Omitted entirely when the deployment has the tag graph turned off: the
+    // store treats an absent provider as "no entities", which is the same
+    // answer it would spend a round trip per verse selection to be told.
+    tagGraph: isTagGraphEnabled() ? providers.tagGraph : undefined,
     interlinear: providers.interlinear,
     studyOverview: providers.studyOverview,
   });

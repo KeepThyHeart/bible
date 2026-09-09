@@ -12,6 +12,7 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
+import { isTagGraphEnabled } from '../../utils/clientConfig';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 
@@ -187,7 +188,9 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
               loading={topicsLoading}
               onNavigateBible={handleNavigateBible}
               topicalProvider={providers.topical}
-              tagGraphProvider={providers.tagGraph}
+              // Gated the same way DesktopApp gates the Topics pane: with the
+              // feature off there is nothing for the browser to search or open.
+              tagGraphProvider={isTagGraphEnabled() ? providers.tagGraph : undefined}
               bibleProvider={providers.bible}
               topicRequest={overlayInitialTopic}
               onTopicRequestHandled={() => studyStore.consumePendingTopicNav()}

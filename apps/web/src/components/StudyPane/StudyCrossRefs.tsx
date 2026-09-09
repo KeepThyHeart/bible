@@ -69,10 +69,18 @@ interface StudyCrossRefsProps {
 
 export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
   const { t } = useTranslation();
+  const verseId = useStore(studyStore, () => studyStore.verseId);
   const groups = useStore(studyStore, () => studyStore.crossRefGroups);
   const loading = useStore(studyStore, () => studyStore.crossRefLoading);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const { handleHover, handleLeave, handleClick, popupJsx } = useVersePopup(bibleProvider);
+
+  // The store no longer loads cross-references on verse selection — nothing
+  // should pay for a section that is collapsed, or in a pane that is not the
+  // one on screen. Being mounted is the signal, and this is where it is given.
+  useEffect(() => {
+    studyStore.ensureCrossRefs();
+  }, [verseId]);
 
   // Verse list toggle state
   const [showVerses, setShowVerses] = useState(loadTablePref);

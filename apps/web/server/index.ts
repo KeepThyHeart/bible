@@ -107,6 +107,18 @@ const CACHEABLE_API_PATHS = [
   // and on every Strong's popup.
   /^\/books$/,
   /^\/strongs\/[^/]+$/,
+  // Per-verse study data. These are the fallback path taken whenever the
+  // pre-generated study cache (`data/cache/study-cache.db`) is absent, which is
+  // the default — the generator ships separately. Left as no-store they were
+  // re-fetched for every verse the reader clicked, including on the way back to
+  // a verse visited a moment earlier.
+  /^\/xref\/[^/]+\/\d+\/(groups|count)$/,     // /api/xref/:module/:verseId/…
+  /^\/topical\/verse\/\d+$/,                  // /api/topical/verse/:verseId
+  /^\/taggraph\/verse\/\d+$/,                 // /api/taggraph/verse/:verseId
+  // Chapter-keyed commentary metadata, on the same footing as the endpoints
+  // above it that were already listed.
+  /^\/commentary\/home\/\d+\/\d+$/,           // /api/commentary/home/:book/:chapter
+  /^\/commentary\/[^/]+\/verse\/\d+$/,        // /api/commentary/:module/verse/:verseId
 ];
 
 // `private` keeps these out of shared proxies — the response still travelled

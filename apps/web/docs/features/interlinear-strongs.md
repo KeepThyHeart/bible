@@ -34,7 +34,7 @@ This feature is a child of [Bible Pane](bible-pane.md) and only active in Study 
 | File | Description |
 |---|---|
 | `src/providers/ServerDataProvider.ts` | `IInterlinearDataProvider` and `IStrongsProvider` interfaces + fetch implementations. `getInterlinear(book, chapter, module?)` appends `?module=` |
-| `src/stores/studyStore.ts` | Loads interlinear for the mobile/desktop study pane; keys its cache on `module-book-chapter`, passes the active tab's module through, and **skips the request entirely when there is no tab** (the server would answer with KJV's rows). Also fetches the selected verse's `text_html` when the Bible pane is on another chapter — `getVerseHtml()` / `verseHtmlLoading`, keyed `module-verseId` so it can never hand back another verse's or another translation's text |
+| `src/stores/studyStore.ts` | Loads interlinear for the mobile/desktop study pane, but **only once `StudyHome` mounts and calls `ensureInterlinear()`** — see below. Keys its cache on `module-book-chapter`, passes the active tab's module through, and **skips the request entirely when there is no tab** (the server would answer with KJV's rows). Also fetches the selected verse's `text_html` when the Bible pane is on another chapter — `getVerseHtml()` / `verseHtmlLoading`, keyed `module-verseId` so it can never hand back another verse's or another translation's text |
 | `src/stores/bibleStore.ts` | `fetchVerse(module, verseId)` — a single verse without changing the active tab, through the same offline-first provider as everything else. This is what `studyStore` uses above |
 | `src/offline/OfflineBibleProvider.ts` | Remembers per module whether the *server* reported interlinear data and ORs it back into locally-served chapters (`withKnownInterlinear`) |
 | `src/stores/settingsStore.ts` | `interlinearLayout` (`'inline'` \| `'stacked'`, **default `stacked`**), persisted to localStorage; see [Settings](settings.md) |
@@ -217,6 +217,26 @@ and the pane wrongly claimed the translation had no interlinear data — while
 `/api/interlinear` was still happily serving that module's words from the full
 DB. `OfflineBibleProvider` additionally remembers what the server said per
 module and re-asserts it on locally-read chapters.
+
+## Nothing is fetched until the section is open
+
+There are two consumers of `/api/interlinear/:book/:chapter`, and they gate
+differently:
+
+- **`BiblePane`** fetches only in `displayMode === 'study'` — the rows are the
+  view, so the mode switch is the signal.
+- **`studyStore`** fetches only when `StudyHome` mounts and calls
+  `ensureInterlinear()`. `StudyHome` lives inside a `StudySection` with
+  `defaultExpanded={false}`, and `StudySection` renders no children while
+  collapsed, so being mounted at all is what says the rows are wanted.
+
+The store used to fetch on every `bible:verse-selected` instead. That event
+fires for verse 1 of every chapter the reader lands on, whatever the display
+mode and whichever right-hand pane is mounted (only one is) — so a reader in
+Standard mode with the Commentary pane open was pulling ~155 KB of interlinear
+rows per chapter change and never seeing a word of it. The selected verse's own
+`text_html` (`loadVerseText`) moved behind the same gate, since only this
+section needs it.
 
 ## The module follows the tab
 

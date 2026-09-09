@@ -72,10 +72,15 @@ vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
 
+let mockVerseId: number | null = 43003016;
+
 vi.mock('../../stores/studyStore', () => ({
   studyStore: {
+    get verseId() { return mockVerseId; },
     get crossRefGroups() { return mockCrossRefGroups; },
     get crossRefLoading() { return mockCrossRefLoading; },
+    // See StudyTopics.test.tsx — loading is consumer-driven.
+    ensureCrossRefs: vi.fn(),
   },
 }));
 

@@ -591,21 +591,48 @@ class CommentaryStore extends Store {
     this.notify();
   }
 
-  /** Load chapter verses for a specific commentary module */
+  /**
+   * Work out which verses of this chapter the module has content for.
+   *
+   * This used to be its own server call per module
+   * (`/api/commentary/:module/chapter-verses/:book/:chapter`), which was a
+   * round trip to have the server do a `%` and a sort. The chapter overview —
+   * already fetched on every chapter change, and cached for a day — carries
+   * `[moduleIdx, startVerse, endVerse, level, wordCount]` for *every* module,
+   * which is the same input the endpoint derived its answer from. So derive it
+   * here, for nothing, and for all modules at once.
+   */
   async loadChapterVerses(moduleAbbr: string, book: number, chapter: number): Promise<void> {
     if (!this.provider) return;
     // Don't reload if already cached for this module
     if (this.chapterVersesCache.has(moduleAbbr)) return;
+
     this.chapterVersesLoading = true;
     this.notify();
-    try {
-      const data = await this.provider.getChapterVerses(moduleAbbr, book, chapter);
-      this.chapterVersesCache.set(moduleAbbr, data.verses);
-    } catch {
-      this.chapterVersesCache.set(moduleAbbr, []);
-    }
+    // Resolves immediately once the overview for this chapter is in hand, and
+    // joins the in-flight request otherwise.
+    await this.prefetchChapterOverview(book, chapter);
+    this.chapterVersesCache.set(moduleAbbr, this.chapterVersesFromOverview(moduleAbbr, book, chapter));
     this.chapterVersesLoading = false;
     this.notify();
+  }
+
+  /** The verse numbers `moduleAbbr` covers in this chapter, per the overview. */
+  private chapterVersesFromOverview(moduleAbbr: string, book: number, chapter: number): number[] {
+    const overview = this.chapterOverviewCache.get(`${book}-${chapter}`);
+    if (!overview) return [];
+
+    const verses = new Set<number>();
+    for (const entry of overview.entries) {
+      if (overview.modules[entry.moduleIdx]?.[0] !== moduleAbbr) continue;
+      // A chapter- or book-level entry starts at verse 0 and covers no
+      // particular verse; the endpoint skipped those the same way.
+      if (entry.startVerse <= 0) continue;
+      for (let v = entry.startVerse; v <= Math.max(entry.startVerse, entry.endVerse); v++) {
+        verses.add(v);
+      }
+    }
+    return [...verses].sort((a, b) => a - b);
   }
 
   /** Get chapter verses for the active tab's module */
@@ -763,19 +790,75 @@ class CommentaryStore extends Store {
     this._prefetchKey = '';
     this._chapterOverviewKey = '';
 
-    // Load full-chapter content for each unpinned tab in background (non-blocking).
-    // Started *before* the notify: each registers itself as in flight
-    // synchronously, and `loading` is derived from that register, so this is
-    // what puts a spinner — rather than an empty state — in the same paint
-    // that dropped the stale entries above.
-    const unpinnedTabs = this.tabs.filter(t => t.id !== HOME_TAB_ID && !t.pinned);
-    for (const tab of unpinnedTabs) {
-      void this._backgroundLoadTab(tab.moduleAbbr, book, chapter, generation);
-    }
+    // Start the content load only when a Commentary view is on screen to
+    // receive it. Only one right-hand pane is mounted at a time, and this
+    // fires from `bibleStore.navigateTo` regardless of which — so a reader in
+    // the Study pane was pulling every open commentary tab's full chapter, per
+    // chapter, and never seeing any of it.
+    //
+    // When a view *is* mounted this is started before the notify: each module
+    // registers itself as in flight synchronously, and `loading` is derived
+    // from that register, so this is what puts a spinner — rather than an empty
+    // state — in the same paint that dropped the stale entries above.
+    if (this._viewMounted) this._startChapterContent(book, chapter, generation);
 
     this.notify();
+  }
 
-    // Fire chapter overview prefetch in background (non-blocking)
+  /**
+   * Whether a Commentary view is currently rendered.
+   *
+   * Set by `CommentaryPane` / `MobileCommentaryView` through
+   * {@link viewMounted}. It is a plain boolean rather than a refcount because
+   * the two are never on screen at once — the app renders one layout or the
+   * other — and a stale `true` costs a request the old code made unconditionally
+   * anyway, while a stale `false` would lose content, which is the failure worth
+   * ruling out.
+   */
+  private _viewMounted = false;
+
+  /**
+   * Tell the store a Commentary view has mounted or unmounted.
+   *
+   * On mount it also loads whatever the current chapter needs, because the
+   * chapter change that would have started it may have happened while no view
+   * was there to receive it — switching to the Commentary tab is exactly that
+   * case.
+   */
+  viewMounted(mounted: boolean): void {
+    this._viewMounted = mounted;
+    if (mounted) this.ensureChapterContent();
+  }
+
+  /** Load the synced chapter's commentary content if it is not already loading. */
+  ensureChapterContent(): void {
+    if (!this.syncedBook || !this.syncedChapter) return;
+    this._startChapterContent(this.syncedBook, this.syncedChapter, this._loadGeneration);
+  }
+
+  /**
+   * Start the requests a chapter change needs: the visible tab on its own, and
+   * everything behind it in one batch.
+   *
+   * The split is deliberate. Batching *all* of them would be fewer requests
+   * still, but a batch can only land when its slowest member does — and the
+   * members differ by two orders of magnitude (Matthew Henry's John 3 is ~2 MB
+   * against Barnes' 74 KB). Putting the tab the reader is looking at in with
+   * them would make the pane wait on content that is not on screen, which is a
+   * worse trade than the round trip it saves. So: the active tab answers as
+   * fast as it can, and the background tabs — which nobody is waiting on — cost
+   * one request between them instead of one each.
+   */
+  private _startChapterContent(book: number, chapter: number, generation: number): void {
+    const unpinned = this.tabs.filter(t => t.id !== HOME_TAB_ID && !t.pinned);
+    const active = unpinned.find(t => t.id === this.activeTabId);
+    if (active) void this._backgroundLoadTab(active.moduleAbbr, book, chapter, generation);
+
+    const background = unpinned.filter(t => t !== active).map(t => t.moduleAbbr);
+    void this._backgroundLoadTabs(background, book, chapter, generation);
+
+    // Word counts for every module, and the only thing `getChapterVerses` was
+    // ever asking the server to derive. Non-blocking.
     void this.prefetchChapterOverview(book, chapter);
   }
 
@@ -838,12 +921,91 @@ class CommentaryStore extends Store {
     await this._backgroundLoadTab(tab.moduleAbbr, book, chapter, generation);
   }
 
+  /**
+   * Load full chapter entries for several tabs in **one** request.
+   *
+   * A chapter change reloads every unpinned tab, and doing that a module at a
+   * time meant a reader with four commentaries open spent four round trips on
+   * every next-chapter click. `/api/commentary/all` answers all of them at once
+   * for the same bytes.
+   *
+   * Modules already cached for this chapter are dropped from the request rather
+   * than re-fetched, so a tab opened on its own does not drag the others along
+   * behind it.
+   */
+  private async _backgroundLoadTabs(moduleAbbrs: string[], book: number, chapter: number, generation: number | null): Promise<void> {
+    const wanted = moduleAbbrs.filter(m => !this.entriesByTab.has(m) && !this._isChapterLoadInFlight(m, book, chapter));
+    if (wanted.length === 0) return;
+    if (wanted.length === 1) {
+      await this._backgroundLoadTab(wanted[0], book, chapter, generation);
+      return;
+    }
+
+    for (const moduleAbbr of wanted) this._claimChapterLoad(moduleAbbr, book, chapter);
+    for (const moduleAbbr of wanted) this._beginLoad(moduleAbbr);
+    try {
+      const data = await this.provider!.getAllCommentary(book, chapter, wanted);
+      if (generation !== null && generation !== this._loadGeneration) return;
+      const activeTab = this.tabs.find(t => t.id === this.activeTabId);
+      for (const moduleAbbr of wanted) {
+        // A module with nothing in this chapter is simply absent from the
+        // response. Caching the empty result is the point — it is what stops
+        // the next verse click asking for it again.
+        const moduleData = data.modules[moduleAbbr];
+        this.entriesByTab.set(moduleAbbr, moduleData?.entries ?? []);
+        if (moduleData?.content_format) this.contentFormatByModule.set(moduleAbbr, moduleData.content_format);
+        if (activeTab?.moduleAbbr === moduleAbbr) this.entries = moduleData?.entries ?? [];
+      }
+    } catch (error) {
+      console.error('Failed to load commentary for', wanted.join(', '), error);
+      if (generation !== null && generation !== this._loadGeneration) return;
+      const activeTab = this.tabs.find(t => t.id === this.activeTabId);
+      if (activeTab && wanted.includes(activeTab.moduleAbbr)) this.entries = [];
+    } finally {
+      for (const moduleAbbr of wanted) this._releaseChapterLoad(moduleAbbr, book, chapter);
+      for (const moduleAbbr of wanted) this._endLoad(moduleAbbr);
+      this.notify();
+    }
+  }
+
+  /**
+   * Which (module, chapter) pairs have a request out.
+   *
+   * Keyed by chapter as well as module, and that is the whole point: the
+   * spinner register (`isModuleLoading`) answers "is this module fetching
+   * *something*", which is the wrong question here. A request still out for the
+   * chapter the reader just left would otherwise suppress the new chapter's,
+   * and the tab would sit empty waiting on a response it will discard.
+   */
+  private _chapterLoadsInFlight = new Set<string>();
+
+  private _chapterLoadKey(moduleAbbr: string, book: number, chapter: number): string {
+    return `${moduleAbbr}@${book}-${chapter}`;
+  }
+
+  private _isChapterLoadInFlight(moduleAbbr: string, book: number, chapter: number): boolean {
+    return this._chapterLoadsInFlight.has(this._chapterLoadKey(moduleAbbr, book, chapter));
+  }
+
+  private _claimChapterLoad(moduleAbbr: string, book: number, chapter: number): void {
+    this._chapterLoadsInFlight.add(this._chapterLoadKey(moduleAbbr, book, chapter));
+  }
+
+  private _releaseChapterLoad(moduleAbbr: string, book: number, chapter: number): void {
+    this._chapterLoadsInFlight.delete(this._chapterLoadKey(moduleAbbr, book, chapter));
+  }
+
   /** Load full chapter entries for one tab in the background. Non-blocking.
    *
    *  `generation` is the chapter generation the request belongs to, or null for
    *  a pinned tab, whose content is not tied to the synced chapter at all.
    */
   private async _backgroundLoadTab(moduleAbbr: string, book: number, chapter: number, generation: number | null): Promise<void> {
+    // `ensureChapterContent` runs on every Commentary view mount as well as on
+    // the chapter change itself, so the same load can be asked for twice.
+    if (this._isChapterLoadInFlight(moduleAbbr, book, chapter)) return;
+    this._claimChapterLoad(moduleAbbr, book, chapter);
+
     this._beginLoad(moduleAbbr);
     try {
       const data = await this.provider!.getCommentary(moduleAbbr, book, chapter);
@@ -869,6 +1031,7 @@ class CommentaryStore extends Store {
       // tab": a request may only retire the claim it made, but it must always
       // retire it — success, failure, or superseded — or the spinner it raised
       // outlives it.
+      this._releaseChapterLoad(moduleAbbr, book, chapter);
       this._endLoad(moduleAbbr);
       this.notify();
     }
