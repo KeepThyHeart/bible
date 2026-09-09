@@ -9,11 +9,13 @@
  */
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
-import type { PresentState } from './protocol';
+import type { HighlightRange, PresentState } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
 import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typography';
 import { MAX_OVERSCAN, useFullscreen, useOverscan, useSetupKeys, useWakeLock } from './viewerChrome';
+import { tokenizeVerse } from './tokenize';
+import { highlightSpanForVerse, sweepStep } from './highlight';
 
 /** The join code is the last path segment of `/present/v/<code>`. */
 export function joinCodeFromLocation(pathname: string): string {
@@ -70,7 +72,12 @@ function renderBody(
   toggleFullscreen: () => void,
   overscan: number,
 ): preact.JSX.Element {
-  if (connection.status === 'closed' && !state?.live) {
+  // A closed session takes the wall, even if something was on it. `closed` is
+  // only ever sent because a presenter chose to end the session, or because
+  // this viewer was refused at the door -- never because of a network problem,
+  // which is handled by leaving the screen alone. Once a service is over,
+  // leaving its last verse projected indefinitely helps nobody.
+  if (connection.status === 'closed') {
     return <ClosedScreen reason={connection.reason} />;
   }
   if (!state?.live) {
@@ -93,6 +100,7 @@ function renderBody(
         verses={selectedVerses(passage, state.live)}
         anchor={state.position.index}
         fontStep={state.display.fontStep}
+        highlight={state.position.highlight}
       />
     );
   }
@@ -110,6 +118,7 @@ function PassageView(props: {
   verses: ChapterVerse[];
   anchor: number;
   fontStep: number;
+  highlight: HighlightRange | null;
 }): preact.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLParagraphElement>(null);
@@ -152,15 +161,7 @@ function PassageView(props: {
             class={`pv-verse${verse.verse === props.anchor ? ' pv-verse--anchor' : ''}`}
           >
             <span class="pv-versenum">{verse.verse}</span>
-            {/*
-              The chapter API returns text_html already formatted and escaped by
-              `formatVerseText` in core -- italics for supplied words, the words
-              of Christ, and so on. It is server-rendered reference content, not
-              presenter input; the one place presenter input reaches the screen
-              is the text slide below, which is rendered as text and never as
-              markup.
-            */}
-            <span class="pv-text" dangerouslySetInnerHTML={{ __html: verse.text_html }} />
+            <VerseText html={verse.text_html} verseId={verse.verse_id} highlight={props.highlight} />
           </p>
         ))}
         {/*
@@ -171,6 +172,62 @@ function PassageView(props: {
         <div class="pv-tail" aria-hidden="true" />
       </div>
     </div>
+  );
+}
+
+/**
+ * One verse, rendered word by word.
+ *
+ * Every word gets its own element even when nothing is highlighted, rather than
+ * only the verses a highlight touches. Two reasons, and the second is the one
+ * that decides it:
+ *
+ *  - Switching a verse between an `innerHTML` blob and word spans at the moment
+ *    a highlight arrives risks a reflow, and a line of text shifting on a wall
+ *    is exactly the kind of thing a congregation notices.
+ *  - It is the same markup a controller needs in order to let someone *pick*
+ *    words, so there is one rendering of a verse in this codebase rather than
+ *    two that have to agree.
+ *
+ * The cost is real but small: a long chapter is a few thousand inline spans,
+ * built once when the passage changes rather than on every advance.
+ */
+function VerseText(props: {
+  html: string;
+  verseId: number;
+  highlight: HighlightRange | null;
+}): preact.JSX.Element {
+  // Tokenizing is pure and depends only on the text, so it survives every
+  // highlight change and every scroll.
+  const tokens = useMemo(() => tokenizeVerse(props.html), [props.html]);
+  const span = highlightSpanForVerse(props.verseId, tokens.length, props.highlight);
+
+  return (
+    <span class="pv-text">
+      {tokens.map((token, index) => {
+        const step = sweepStep(index, span);
+        const classes = ['pv-w'];
+        if (token.isChristWords) classes.push('pv-w--christ');
+        if (token.isDivineName) classes.push('pv-w--divine');
+        if (token.isItalic) classes.push('pv-w--supplied');
+        if (step >= 0) classes.push('pv-w--hl');
+
+        return (
+          <span
+            // Keyed by position, not content: a verse has repeated words, and
+            // the index *is* the identity here -- it is what the protocol
+            // addresses.
+            key={index}
+            class={classes.join(' ')}
+            data-word-index={index}
+            style={step >= 0 ? { '--pv-sweep': String(step) } as unknown as preact.JSX.CSSProperties : undefined}
+          >
+            {token.displayText}
+            {token.hasTrailingSpace ? ' ' : ''}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 

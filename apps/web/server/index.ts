@@ -485,6 +485,34 @@ if (existsSync(clientDir)) {
       }
     },
   }));
+  /**
+   * The projection viewer, at the URL people are actually handed.
+   *
+   * It is a second HTML entry point (see `build.rollupOptions.input` in
+   * vite.config.ts), not a route inside the reading app, because the machine
+   * plugged into the television must not download the reader to show a verse.
+   *
+   * This must stay above the SPA catch-all below. If it is lost, the catch-all
+   * answers the same URL with the reading app's shell -- a 200 with HTML, which
+   * looks like success to anything that only checks a status code.
+   *
+   * The join code in the path is not validated here. Serving the shell for an
+   * unknown code is harmless, the code is checked when the page opens its
+   * stream, and answering differently for a real code than for a made-up one
+   * would leak which codes exist.
+   */
+  const presentViewerHtml = join(clientDir, 'present', 'viewer.html');
+  app.get('/present/v/:joinCode', (_req, res) => {
+    if (!existsSync(presentViewerHtml)) {
+      res.status(404).json({ error: 'Projection viewer is not built' });
+      return;
+    }
+    // Same reasoning as the SPA shell: it names hashed asset files, so a stale
+    // copy pins this screen to a stale build.
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentViewerHtml);
+  });
+
   app.get('*', (req, res) => {
     // The SPA shell is ONLY a valid answer for genuine browser navigations.
     // Anything else — /api/*, /data/*, or any fetch/XHR that expects JSON/binary —
