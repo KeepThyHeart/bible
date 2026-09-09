@@ -1,3 +1,4 @@
+import { useEffect } from 'preact/hooks';
 import { TopicsBrowser } from './TopicsBrowser';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -31,6 +32,12 @@ export function TopicsPane({ topicalProvider, tagGraphProvider, bibleProvider, m
   const verseTopics = useStore(studyStore, () => studyStore.verseTopics);
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const topicsLoading = useStore(studyStore, () => studyStore.topicsLoading);
+
+  // This pane renders the verse's topics, so it is one of the things that asks
+  // for them; see StudyCrossRefs for why the store no longer loads them itself.
+  useEffect(() => {
+    studyStore.ensureTopics();
+  }, [verseId]);
 
   const handleNavigateBible = (targetVerseId: number) => {
     const { bookNumber, chapter, verse } = parseVerseId(targetVerseId);

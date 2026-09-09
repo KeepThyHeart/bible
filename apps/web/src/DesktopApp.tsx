@@ -13,6 +13,7 @@ import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
+import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -27,15 +28,11 @@ interface DesktopAppProps {
 export function DesktopApp({ providers }: DesktopAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
-  const [showTagGraph, setShowTagGraph] = useState(false);
+  // Read, not fetched: main.tsx already has /api/config in hand by the time
+  // anything renders, and asking for it again cost a second round trip on the
+  // boot path for one boolean.
+  const showTagGraph = isTagGraphEnabled();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
-
-  // Fetch server-controlled showTagGraph setting once on mount
-  useEffect(() => {
-    fetch('/api/config').then(r => r.json()).then(cfg => {
-      setShowTagGraph(cfg.showTagGraph === true);
-    }).catch(() => { /* leave as false */ });
-  }, []);
 
   // Auto-switch to search mode when a search is performed, and force the pane
   // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs

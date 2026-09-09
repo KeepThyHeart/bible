@@ -190,7 +190,13 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
       // This overrides the blanket no-cache on /api/* (which exists for auth-sensitive routes).
       // stale-while-revalidate lets the service worker serve repeat visits instantly while
       // still revalidating in the background.
-      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+      //
+      // An hour rather than the five minutes this used to allow: a reader
+      // paging back through a chapter they read earlier in the same sitting was
+      // re-fetching text that cannot have changed. The window is still short
+      // enough that a module reinstalled on the server is picked up the same
+      // day, and `stale-while-revalidate` means even that is not a blocking wait.
+      res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=604800');
       res.json(response);
 
       // Fire action hook (non-blocking)

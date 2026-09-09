@@ -41,11 +41,17 @@ vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
 
+let mockVerseId: number | null = 43003016;
+
 vi.mock('../../stores/studyStore', () => ({
   studyStore: {
+    get verseId() { return mockVerseId; },
     get verseTopics() { return mockVerseTopics; },
     get verseEntities() { return mockVerseEntities; },
     get topicsLoading() { return mockTopicsLoading; },
+    // The component asks for its own data now; the store no longer loads it
+    // speculatively on every verse selection.
+    ensureTopics: vi.fn(),
   },
 }));
 

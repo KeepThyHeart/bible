@@ -32,6 +32,10 @@ function resetStore(provider: FakeProvider): void {
   commentaryStore.entriesByTab.clear();
   commentaryStore.syncedBook = null;
   commentaryStore.syncedChapter = null;
+  // These tests are about what the pane shows while a chapter loads, so the
+  // pane is on screen. Without this the store correctly declines to fetch
+  // anything — see `_viewMounted`.
+  commentaryStore.viewMounted(true);
 }
 
 /** A commentary entry pinned to a single verse id. */

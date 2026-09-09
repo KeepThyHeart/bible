@@ -108,6 +108,9 @@ vi.mock('../../stores/commentaryStore', () => ({
     loadForChapter: (...args: unknown[]) => mockLoadForChapter(...args),
     unpin: vi.fn(),
     keepTab: (id: string) => mockKeepTab(id),
+    // A mounted Commentary view is what tells the store a chapter change is
+    // worth spending requests on.
+    viewMounted: vi.fn(),
   },
 }));
 

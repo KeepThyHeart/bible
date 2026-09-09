@@ -31,6 +31,17 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   const tabs = useStore(commentaryStore, () => commentaryStore.tabs);
   const activeTabId = useStore(commentaryStore, () => commentaryStore.activeTabId);
 
+  // Only one right-hand pane is mounted at a time, so this is the store's
+  // signal that a chapter change is worth spending requests on. Collapsed
+  // counts as not on screen — the reader asked for it to be out of the way, and
+  // expanding re-runs this and loads whatever was missed meanwhile. Mounting
+  // loads the current chapter for the same reason: the chapter may well have
+  // changed while some other pane was up.
+  useEffect(() => {
+    commentaryStore.viewMounted(!collapsed);
+    return () => commentaryStore.viewMounted(false);
+  }, [collapsed]);
+
   if (collapsed) {
     return (
       <div class="commentary-pane commentary-pane--collapsed">

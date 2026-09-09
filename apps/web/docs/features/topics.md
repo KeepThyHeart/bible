@@ -56,7 +56,8 @@ The Study pane these live in has no doc of its own; its host components are:
 
 ## Data Flow
 
-1. **Study pane (verse topics):** `studyStore.loadTopics()` calls both `topicalProvider.getTopicsForVerse()` and `tagGraphProvider.getEntitiesForVerse()` in parallel
+1. **Study pane (verse topics):** `StudyTopics` (or `TopicsPane`) calls `studyStore.ensureTopics()` from an effect keyed on `verseId`; that calls both `topicalProvider.getTopicsForVerse()` and `tagGraphProvider.getEntitiesForVerse()` in parallel. **Selecting a verse alone loads nothing** — the store used to fetch on every `bible:verse-selected`, which fires for verse 1 of every chapter the reader lands on regardless of which pane is mounted. See [State Management](state-management.md).
+   With `features.tagGraph` off (the default) `main.tsx` passes no tag-graph provider to `studyStore` at all, so the entity half is skipped client-side. The server route short-circuits to `[]` in that case anyway; this removes the round trip spent being told so.
 2. **Topics pane (search):** `TopicsBrowser.handleSearch()` calls both `topicalProvider.searchTopics()` and `tagGraphProvider.searchEntities()` in parallel
 3. **Cross-pane navigation:** Clicking a topic in `StudyTopics` calls `commentaryStore.navigateToTopic()`, which sets `pendingTopicNav` (carrying a `token`) and switches to the topics pane. `TopicsPane` reads it and passes it down as `topicRequest`; `TopicsBrowser` opens it and calls `onTopicRequestHandled` to clear it. See "Opening a topic from another pane".
 4. **Entity detail:** Clicking an entity card navigates to entity detail view showing notes, topic links (Nave's/Torrey's), associations (clickable → navigate to that entity), and verses (clickable → navigate Bible pane). Uses `tagGraphProvider.getEntity()`, `.getAssociations()`, `.getVersesForEntity()`, `.getTopicLinksForEntity()` in parallel.

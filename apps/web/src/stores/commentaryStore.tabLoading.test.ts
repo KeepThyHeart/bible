@@ -102,6 +102,9 @@ describe('commentaryStore per-tab loading', () => {
     commentaryStore.homeData = null;
     commentaryStore.homeLoading = false;
     resetInFlight();
+    // These tests are about the pane's spinner, so the pane is on screen.
+    // Without this the store correctly declines to fetch — see `_viewMounted`.
+    commentaryStore.viewMounted(true);
   });
 
   it('clears the spinner when the tab that raised it is no longer the visible one', async () => {
