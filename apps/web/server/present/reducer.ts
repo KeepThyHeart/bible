@@ -20,7 +20,7 @@ import {
   type PresentItem,
   type PresentPlanEntry,
   type StoredPresentState,
-} from './protocol.js';
+} from '../../src/present/protocol.js';
 
 // ---------------------------------------------------------------------------
 // Caps

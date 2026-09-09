@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { PresentStore } from '../present/PresentStore';
 import { hashControlToken, verifyControlToken } from '../present/tokens';
-import type { PresentPassageItem } from '../present/protocol';
+import type { PresentPassageItem } from '../../src/present/protocol';
 
 const JOHN_3: PresentPassageItem = { kind: 'passage', module: 'KJV', book: 43, chapter: 3 };
 

@@ -1,0 +1,228 @@
+/*
+ * Projection viewer styling.
+ *
+ * Plain CSS, and self-contained: this page does not load the reading app's
+ * stylesheet, its theme variables or its icon font, so nothing here may depend
+ * on them. It is a few hundred bytes on a machine that has to be ready before
+ * a service starts.
+ *
+ * The palette is deliberately not the app's. A screen in a dim room wants a
+ * near-black ground and slightly warm off-white text; pure #000 on #fff is
+ * harsh at projector brightness and pure white text on pure black smears on
+ * cheaper panels.
+ */
+
+:root {
+  --pv-bg: #12100e;
+  --pv-fg: #f2ece1;
+  --pv-muted: #9a8f7f;
+  --pv-accent: #d8c9a8;
+  /* Set by the app from the session's font step; see typography.ts. */
+  --present-font-vh: 5.2;
+  --present-overscan: 0%;
+  /* Per-verse shrink, written directly onto a verse that would not fit. */
+  --verse-shrink: 1;
+}
+
+:root[data-present-theme='light'] {
+  --pv-bg: #faf7f0;
+  --pv-fg: #1b1814;
+  --pv-muted: #6d6558;
+  --pv-accent: #7a6a48;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--pv-bg);
+  color: var(--pv-fg);
+}
+
+/*
+ * Georgia first. The reading app's self-hosted families are available (the page
+ * loads fonts.css), but a serif with generous x-height and old-style figures is
+ * what carries Scripture at distance, and Georgia is present on essentially
+ * every machine that will ever be plugged into a television.
+ */
+body {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pv-root {
+  position: fixed;
+  inset: 0;
+  background: var(--pv-bg);
+}
+
+/*
+ * Overscan margin: older televisions crop a few percent off every edge of the
+ * signal, taking the first and last line with them. Adjusted from the keyboard
+ * on this machine only -- it is a property of one panel, not of the session.
+ */
+.pv-safe {
+  position: absolute;
+  inset: var(--present-overscan);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Passage                                                                    */
+/* ------------------------------------------------------------------------- */
+
+.pv-passage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.pv-heading {
+  flex: none;
+  margin: 0;
+  padding: 0.6rem 4vw 0.4rem;
+  font-size: calc(var(--present-font-vh) * 0.62vh);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--pv-accent);
+  text-align: center;
+}
+
+.pv-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 6vw;
+  overflow: hidden;
+  /*
+   * `overflow: hidden`, not `auto`: the wall is scrolled by the presenter, not
+   * by anyone standing at the machine. `scrollTo` still works on a hidden
+   * overflow container, and there is no scrollbar to appear on screen.
+   */
+}
+
+.pv-verse {
+  margin: 0 0 0.55em;
+  font-size: calc(var(--present-font-vh) * 1vh * var(--verse-shrink));
+  line-height: 1.42;
+  text-wrap: pretty;
+  transition: opacity 220ms ease;
+}
+
+/* Verses around the anchor stay legible but recede, so the eye lands in the
+   right place without the rest of the passage disappearing. */
+.pv-verse { opacity: 0.55; }
+.pv-verse--anchor { opacity: 1; }
+
+.pv-versenum {
+  font-size: 0.52em;
+  vertical-align: 0.5em;
+  margin-right: 0.35em;
+  color: var(--pv-accent);
+  font-feature-settings: 'lnum';
+}
+
+.pv-text em,
+.pv-text i {
+  font-style: italic;
+  opacity: 0.82;
+}
+
+.pv-attribution {
+  margin-top: 1.2em;
+  font-size: calc(var(--present-font-vh) * 0.45vh);
+  color: var(--pv-muted);
+  font-style: italic;
+}
+
+/* Lets the final verse be scrolled to the top of the screen. */
+.pv-tail { height: 82%; }
+
+/* ------------------------------------------------------------------------- */
+/* Lobby and endings                                                          */
+/* ------------------------------------------------------------------------- */
+
+.pv-lobby {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.pv-lobby-label {
+  margin: 0;
+  font-size: 2.4vh;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--pv-muted);
+}
+
+.pv-lobby-code {
+  margin: 0;
+  font-size: 12vh;
+  letter-spacing: 0.12em;
+  color: var(--pv-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-lobby-hint {
+  margin: 0;
+  font-size: 3vh;
+  color: var(--pv-muted);
+}
+
+.pv-lobby-button {
+  margin-top: 1.4rem;
+  padding: 0.7em 1.6em;
+  font: inherit;
+  font-size: 2.4vh;
+  color: var(--pv-bg);
+  background: var(--pv-accent);
+  border: none;
+  border-radius: 0.4em;
+  cursor: pointer;
+}
+
+.pv-lobby-keys {
+  position: absolute;
+  bottom: 3vh;
+  margin: 0;
+  font-size: 1.8vh;
+  color: var(--pv-muted);
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Blanking                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * A curtain over the content rather than a swap for it, so unblanking restores
+ * the screen exactly -- scroll position included -- with no re-render and no
+ * flash of re-laid-out text.
+ */
+.pv-curtain {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+.pv-curtain--on { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-curtain,
+  .pv-verse {
+    transition: none;
+  }
+}

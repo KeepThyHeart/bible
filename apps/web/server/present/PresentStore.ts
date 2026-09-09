@@ -16,7 +16,7 @@ import { mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { randomUUID } from 'crypto';
 import { SqliteProvider } from '../providers/SqliteProvider.js';
-import type { PresentPlanEntry, StoredPresentState } from './protocol.js';
+import type { PresentPlanEntry, StoredPresentState } from '../../src/present/protocol.js';
 import { initialState } from './reducer.js';
 import {
   generateControlToken,

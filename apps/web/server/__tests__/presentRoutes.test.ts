@@ -10,7 +10,7 @@ import { createPresentRoutes } from '../routes/presentRoutes';
 import { PresentStore } from '../present/PresentStore';
 import { PresentHub } from '../present/PresentHub';
 import type { DatabaseManager } from '../DatabaseManager';
-import type { CreateSessionResponse, PresentPassageItem } from '../present/protocol';
+import type { CreateSessionResponse, PresentPassageItem } from '../../src/present/protocol';
 
 const JOHN_3: PresentPassageItem = { kind: 'passage', module: 'KJV', book: 43, chapter: 3 };
 

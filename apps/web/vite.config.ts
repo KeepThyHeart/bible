@@ -322,6 +322,30 @@ const basePath = process.env.BASE_PATH || '/';
  * prefetching URLs the app never asks for -- so the value comes from the same
  * constant Vite is configured with rather than being guessed at runtime.
  */
+/**
+ * Serve the projection viewer's HTML for its pretty URL during development.
+ *
+ * In a build, `present/viewer.html` becomes a real file and Express answers
+ * `/present/v/<code>` with it (see `server/index.ts`). The dev server has no
+ * such route and would 404, so this rewrites the same shape before Vite's
+ * static handling sees it. Without it, the viewer can only be opened in dev at
+ * a URL that does not match the one people are actually given.
+ */
+function presentViewerDevPlugin(): Plugin {
+  return {
+    name: 'present-viewer-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && /^\/present\/v\/[^/?#]+/.test(req.url)) {
+          req.url = '/present/viewer.html';
+        }
+        next();
+      });
+    },
+  };
+}
+
 function basePathPlugin(): Plugin {
   return {
     name: 'bible-base-path',
@@ -357,6 +381,7 @@ export default defineConfig({
   plugins: [
     brandingPlugin(),
     basePathPlugin(),
+    presentViewerDevPlugin(),
     wasmPlugin(),
     ortWasmPlugin(),
     buildIdPlugin(),
@@ -450,6 +475,22 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
+    rollupOptions: {
+      /*
+       * Two entry points, not one.
+       *
+       * The projection viewer is a separate page rather than a route inside the
+       * reading app because it must not load the reading app at all: no stores,
+       * no plugin host, no service worker, no icon font. It runs on whatever
+       * machine is plugged into the television and has to be on screen before a
+       * service starts. Naming `index.html` explicitly is required -- adding an
+       * `input` map replaces Vite's implicit default rather than adding to it.
+       */
+      input: {
+        index: resolve(__dirname, 'index.html'),
+        presentViewer: resolve(__dirname, 'present/viewer.html'),
+      },
+    },
   },
   worker: {
     format: 'es',

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PresentHub, type SseSink } from '../present/PresentHub';
 import { initialState } from '../present/reducer';
-import type { PresentState } from '../present/protocol';
+import type { PresentState } from '../../src/present/protocol';
 
 /** A sink that records what was written, and can be made to fail on demand. */
 class FakeSink implements SseSink {

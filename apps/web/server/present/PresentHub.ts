@@ -18,7 +18,7 @@ import {
   SSE_RETRY_MS,
   type PresentClosedPayload,
   type PresentState,
-} from './protocol.js';
+} from '../../src/present/protocol.js';
 
 /**
  * The slice of an Express `Response` this needs.

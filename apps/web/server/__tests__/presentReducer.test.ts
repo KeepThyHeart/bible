@@ -9,7 +9,7 @@ import {
   validatePlan,
   type IntentContext,
 } from '../present/reducer';
-import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentPassageItem, type StoredPresentState } from '../present/protocol';
+import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentPassageItem, type StoredPresentState } from '../../src/present/protocol';
 
 /** John 3, so `next` has a real end to run into. */
 const ctx: IntentContext = { chapterLength: () => 36 };

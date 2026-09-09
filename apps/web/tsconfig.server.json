@@ -1,8 +1,15 @@
 {
   "extends": "../../packages/tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist/server",
-    "rootDir": "./server",
+    // Emit into ./dist with the package root as the source root, so `server/`
+    // lands at `dist/server/` exactly as before and the one file this build
+    // borrows from `src/` lands beside it at `dist/src/`. That is the layout
+    // `build:server` already assumes -- it copies `src/locales` there for
+    // middleware/passwordGate.ts. Pinning rootDir to ./server instead makes any
+    // shared file a TS6059 error, which is what previously forced the presenter
+    // wire contract to live on the server side of a boundary it sits astride.
+    "outDir": "./dist",
+    "rootDir": ".",
     "declaration": false,
     "sourceMap": true,
     "module": "ESNext",
@@ -12,6 +19,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["server/**/*"],
+  // `src/present/protocol.ts` is the presenter wire contract: types and a few
+  // constants, importing nothing. Both ends compile against this one file so
+  // they cannot drift. It lives under `src/` because the lint boundary allows
+  // the server to read platform-free client code but never the reverse.
+  "include": ["server/**/*", "src/present/protocol.ts"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

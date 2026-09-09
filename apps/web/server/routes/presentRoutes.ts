@@ -29,7 +29,7 @@ import { applyIntent, validateIntent, validatePlan, LIMITS } from '../present/re
 import type { IntentContext } from '../present/reducer.js';
 import { isValidSessionId, normalizeJoinCode, verifyControlToken } from '../present/tokens.js';
 import type { PresentSessionRow } from '../present/PresentStore.js';
-import type { PresentClosedPayload, PresentState } from '../present/protocol.js';
+import type { PresentClosedPayload, PresentState } from '../../src/present/protocol.js';
 
 /** Failed join attempts tolerated from one address before it is shut out. */
 const JOIN_ATTEMPT_LIMIT = 10;
