@@ -72,6 +72,7 @@ export class BibleApiImpl {
       getRange: (args) => this.handleGetRange(args),
       listModules: () => this.handleListModules(),
       listBooks: (args) => this.handleListBooks(args),
+      listChapters: (args) => this.handleListChapters(args),
       parseReference: (args) => this.handleParseReference(args),
       iterateVerses: (args) => this.handleIterateVerses(args),
       getVerseTokens: (args) => this.handleGetVerseTokens(args),
@@ -170,6 +171,25 @@ export class BibleApiImpl {
       throw new RpcProtocolError('bible.listBooks: moduleId must be a string when provided');
     }
     return this.bridge.listBooks(moduleId);
+  }
+
+  private async handleListChapters(args: unknown[]): Promise<unknown> {
+    this.assertActive();
+    requirePermission(this.grant, 'bible:read');
+    const bookNumber = args[0];
+    if (
+      typeof bookNumber !== 'number' ||
+      !Number.isInteger(bookNumber) ||
+      bookNumber < 1 ||
+      bookNumber > 66
+    ) {
+      throw new RpcProtocolError('bible.listChapters: bookNumber must be an integer 1-66');
+    }
+    const moduleId = args[1];
+    if (moduleId !== undefined && typeof moduleId !== 'string') {
+      throw new RpcProtocolError('bible.listChapters: moduleId must be a string when provided');
+    }
+    return this.bridge.listChapters(bookNumber, moduleId);
   }
 
   private async handleParseReference(args: unknown[]): Promise<unknown> {

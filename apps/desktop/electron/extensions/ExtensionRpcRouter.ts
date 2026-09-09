@@ -38,6 +38,10 @@ type RpcUnsubscribe = Extensions.RpcUnsubscribe;
 
 const { ExtensionApiError, RpcCancelledError, RpcProtocolError, RpcTimeoutError } = Extensions;
 
+// Value import for `serializeError`'s reserved-method branch below. No runtime
+// cycle: ExtensionHostTypes.ts imports this module with `import type` only.
+import { MethodNotImplementedYet } from './ExtensionHostTypes';
+
 /** Minimal transport contract the router needs. */
 export interface IRpcTransport {
   send(envelope: RpcEnvelope): void;
@@ -366,6 +370,23 @@ function serializeError(err: unknown): { code: string; message: string; data?: u
     return err.data !== undefined
       ? { code: err.code, message: err.message, data: err.data }
       : { code: err.code, message: err.message };
+  }
+  // `MethodNotImplementedYet` is deliberately NOT an `ExtensionApiError`: its
+  // code is a host-internal "declared but not built yet" marker and does not
+  // belong in the closed `ExtensionApiErrorCode` union that forms the extension
+  // API's stable error contract. It still has to survive the wire, though -
+  // without this branch it fell into the `Error` case below and arrived as the
+  // opaque `{ code: 'Error' }`, which is exactly the "no usable signal" outcome
+  // the stable code exists to prevent. The worker's `reviveExtensionApiError`
+  // has no constructor for the code and wraps it in the base `ExtensionApiError`
+  // with the code preserved, so `catch (e) { e.code === 'MethodNotImplementedYet' }`
+  // works in extension code.
+  //
+  // Matched by class, not by sniffing `err.code`: a blanket "any Error with a
+  // string code" rule would also push Node and SQLite codes (ENOENT,
+  // SQLITE_BUSY) at extensions as though they were API contract.
+  if (err instanceof MethodNotImplementedYet) {
+    return { code: err.code, message: err.message };
   }
   if (err instanceof Error) {
     return { code: 'Error', message: err.message };

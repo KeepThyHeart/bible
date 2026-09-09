@@ -31,7 +31,7 @@ vi.mock('electron-log', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import { resolveMainDbPath } from './appPaths';
+import { getDataPath, getUserDataPath, resolveMainDbPath } from './appPaths';
 
 describe('resolveMainDbPath', () => {
   let root: string;
@@ -122,5 +122,61 @@ describe('resolveMainDbPath', () => {
     expect(resolved).not.toBe(userDb);
     expect(resolved.endsWith('main.db')).toBe(true);
     expect(existsSync(userDb)).toBe(false);
+  });
+});
+
+/**
+ * The premise every "seed it into user data" fix rests on: outside a packaged
+ * build the two trees are ONE directory.
+ *
+ * Callers rely on this to reason about risk - moving something from
+ * `getDataPath()` to `getUserDataPath()` (extension databases and lifecycle
+ * logs, most recently) can only change behaviour in a packaged app, because
+ * developers and CI get the same path either way. If that ever stops being
+ * true, those changes stop being no-ops for everyone and this test is where it
+ * should be noticed.
+ */
+describe('getDataPath / getUserDataPath', () => {
+  let root: string;
+  let originalResourcesPath: string | undefined;
+  let originalNodeEnv: string | undefined;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'apppaths-roots-'));
+    originalResourcesPath = process.resourcesPath;
+    originalNodeEnv = process.env.NODE_ENV;
+    (process as { resourcesPath?: string }).resourcesPath = join(root, 'resources');
+    process.env.NODE_ENV = 'production';
+    state.userData = join(root, 'userData');
+  });
+
+  afterEach(() => {
+    (process as { resourcesPath?: string }).resourcesPath = originalResourcesPath;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('resolves to the identical directory when not packaged', () => {
+    state.isPackaged = false;
+
+    expect(getUserDataPath()).toBe(getDataPath());
+  });
+
+  it('resolves to the identical directory when NODE_ENV is development', () => {
+    // e2e runs unpackaged; `npm run dev` also sets NODE_ENV. Either branch
+    // alone is enough, and both must agree.
+    state.isPackaged = true;
+    process.env.NODE_ENV = 'development';
+
+    expect(getUserDataPath()).toBe(getDataPath());
+  });
+
+  it('splits into resources/ and userData/ once packaged', () => {
+    state.isPackaged = true;
+
+    expect(getDataPath()).toBe(join(root, 'resources', 'data'));
+    expect(getUserDataPath()).toBe(join(root, 'userData', 'data'));
+    expect(getUserDataPath()).not.toBe(getDataPath());
   });
 });

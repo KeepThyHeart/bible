@@ -18,6 +18,7 @@ import type {
   IExtensionBibleBridge,
   IExtensionBookBridge,
   IExtensionBookmarksBridge,
+  IExtensionCollectionsBridge,
   IExtensionCommentaryBridge,
   IExtensionDictionaryBridge,
   IExtensionFolderBridge,
@@ -31,6 +32,7 @@ import type {
 type BibleVerseDto = Extensions.BibleVerseDto;
 type BibleModuleInfoDto = Extensions.BibleModuleInfoDto;
 type BibleBookDto = Extensions.BibleBookDto;
+type BibleChapterDto = Extensions.BibleChapterDto;
 type ParsedReferenceDto = Extensions.ParsedReferenceDto;
 type VerseIterationResult = Extensions.VerseIterationResult;
 type VerseTokenDto = Extensions.VerseTokenDto;
@@ -72,6 +74,10 @@ type NewHighlightDto = Extensions.NewHighlightDto;
 type HighlightStyleDescriptor = Extensions.HighlightStyleDescriptor;
 type BookmarkDto = Extensions.BookmarkDto;
 type CollectionDto = Extensions.CollectionDto;
+type PassageCollectionDto = Extensions.PassageCollectionDto;
+type PassageEntryDto = Extensions.PassageEntryDto;
+type NewCollectionOpts = Extensions.NewCollectionOpts;
+type NewPassageDto = Extensions.NewPassageDto;
 
 // --- Bible bridge ----------------------------------------------------------
 
@@ -81,6 +87,12 @@ export class InMemoryBibleBridge implements IExtensionBibleBridge {
   readonly tokens = new Map<number, VerseTokenDto[]>();
   readonly modules: BibleModuleInfoDto[] = [];
   readonly books: BibleBookDto[] = [];
+  /**
+   * Per-book chapter extents, keyed by book number. Tests populate this to
+   * simulate the host's `chapter_info` table; a book with no entry lists no
+   * chapters, matching the production bridge's behaviour for an unknown book.
+   */
+  readonly chapters = new Map<number, BibleChapterDto[]>();
   parser: ((input: string, locale?: string) => ParsedReferenceDto | null) | undefined;
   private readonly activeVerseHandlers = new Set<
     (payload: { verseId: number; module: string } | null) => void
@@ -148,6 +160,10 @@ export class InMemoryBibleBridge implements IExtensionBibleBridge {
 
   listBooks(_moduleId?: string): BibleBookDto[] {
     return [...this.books];
+  }
+
+  listChapters(bookNumber: number, _moduleId?: string): BibleChapterDto[] {
+    return [...(this.chapters.get(bookNumber) ?? [])];
   }
 
   parseReference(input: string, locale?: string): ParsedReferenceDto | null {
@@ -911,6 +927,250 @@ export class InMemoryBookmarksBridge implements IExtensionBookmarksBridge {
     };
     this.collections.push(dto);
     return dto;
+  }
+}
+
+// --- Collections bridge (ordered passage lists) --------------------------
+
+/** One `collection` row, as the in-memory bridge keeps it. */
+interface StoredCollection {
+  id: string;
+  name: LocalizedString;
+  parentId?: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  createdAt: number;
+}
+
+/**
+ * One `pinned_item` row of type `'passage'`. `sortOrder` mirrors the column of
+ * the same name and is maintained dense and zero-based per collection - see
+ * `IExtensionCollectionsBridge` for why that invariant is stricter than the
+ * schema demands.
+ */
+interface StoredPassage {
+  id: string;
+  collectionId: string;
+  verseIdStart: number;
+  verseIdEnd: number;
+  label?: LocalizedString;
+  moduleId?: string;
+  notes?: string;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export class InMemoryCollectionsBridge implements IExtensionCollectionsBridge {
+  readonly collections: StoredCollection[] = [];
+  readonly passages: StoredPassage[] = [];
+
+  /**
+   * Optional reference resolver. The real bridge asks the Bible module loader
+   * to turn a verse-id range into `'Romans 8:28-30'`; there is no versification
+   * here, so tests that care about the field install a stub and everything
+   * else gets `reference` left absent - which is exactly what the DTO says an
+   * unresolvable range looks like.
+   */
+  referenceResolver?: (verseIdStart: number, verseIdEnd: number) => string | undefined;
+
+  private nextCollectionId = 1;
+  private nextPassageId = 1;
+
+  // --- Collections -------------------------------------------------------
+
+  listCollections(): PassageCollectionDto[] {
+    return this.collections.map((c) => this.toCollectionDto(c));
+  }
+
+  createCollection(name: LocalizedString, opts?: NewCollectionOpts): PassageCollectionDto {
+    if (opts?.parentId !== undefined && !this.findCollection(opts.parentId)) {
+      throw new Error(`Collection not found: ${opts.parentId}`);
+    }
+    const stored: StoredCollection = {
+      id: `col-${this.nextCollectionId++}`,
+      name,
+      createdAt: Date.now(),
+      ...(opts?.parentId !== undefined ? { parentId: opts.parentId } : {}),
+      ...(opts?.description !== undefined ? { description: opts.description } : {}),
+      ...(opts?.color !== undefined ? { color: opts.color } : {}),
+      ...(opts?.icon !== undefined ? { icon: opts.icon } : {}),
+    };
+    this.collections.push(stored);
+    return this.toCollectionDto(stored);
+  }
+
+  renameCollection(collectionId: string, name: LocalizedString): PassageCollectionDto {
+    const stored = this.requireCollection(collectionId);
+    stored.name = name;
+    return this.toCollectionDto(stored);
+  }
+
+  deleteCollection(collectionId: string): void {
+    this.requireCollection(collectionId);
+    // The schema cascades on `parent_collection_id`, so deleting a parent
+    // takes its children with it. Walk the subtree so the in-memory bridge
+    // does not quietly leave orphans a SQL-backed one would have removed.
+    const doomed = new Set<string>([collectionId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const c of this.collections) {
+        if (c.parentId !== undefined && doomed.has(c.parentId) && !doomed.has(c.id)) {
+          doomed.add(c.id);
+          grew = true;
+        }
+      }
+    }
+    for (let i = this.passages.length - 1; i >= 0; i--) {
+      if (doomed.has(this.passages[i]!.collectionId)) this.passages.splice(i, 1);
+    }
+    for (let i = this.collections.length - 1; i >= 0; i--) {
+      if (doomed.has(this.collections[i]!.id)) this.collections.splice(i, 1);
+    }
+  }
+
+  // --- Passages ----------------------------------------------------------
+
+  listPassages(collectionId: string): PassageEntryDto[] {
+    this.requireCollection(collectionId);
+    return this.orderedPassages(collectionId).map((p) => this.toEntryDto(p));
+  }
+
+  addPassage(collectionId: string, passage: NewPassageDto): PassageEntryDto {
+    this.requireCollection(collectionId);
+    const ordered = this.orderedPassages(collectionId);
+    // A position past the end appends. The api-impl has already refused a
+    // negative one; clamping here as well keeps the bridge safe to call
+    // directly from tests without duplicating the rejection.
+    const at =
+      passage.position === undefined
+        ? ordered.length
+        : Math.max(0, Math.min(passage.position, ordered.length));
+    const stored: StoredPassage = {
+      id: `pin-${this.nextPassageId++}`,
+      collectionId,
+      verseIdStart: passage.verseIdStart,
+      // R-1: inclusive on both ends. A single verse is end = start, never a
+      // missing end - see PassageEntryDto.
+      verseIdEnd: passage.verseIdEnd ?? passage.verseIdStart,
+      sortOrder: at,
+      createdAt: Date.now(),
+      ...(passage.label !== undefined ? { label: passage.label } : {}),
+      ...(passage.moduleId !== undefined ? { moduleId: passage.moduleId } : {}),
+      ...(passage.notes !== undefined ? { notes: passage.notes } : {}),
+    };
+    this.passages.push(stored);
+    ordered.splice(at, 0, stored);
+    this.renumber(ordered);
+    return this.toEntryDto(stored);
+  }
+
+  removePassage(entryId: string): void {
+    const idx = this.passages.findIndex((p) => p.id === entryId);
+    if (idx < 0) throw new Error(`Passage not found: ${entryId}`);
+    const { collectionId } = this.passages[idx]!;
+    this.passages.splice(idx, 1);
+    this.renumber(this.orderedPassages(collectionId));
+  }
+
+  movePassage(entryId: string, position: number): PassageEntryDto[] {
+    const stored = this.passages.find((p) => p.id === entryId);
+    if (!stored) throw new Error(`Passage not found: ${entryId}`);
+    const ordered = this.orderedPassages(stored.collectionId);
+    const from = ordered.indexOf(stored);
+    // Clamp against `length - 1`, not `length`: after removing the entry the
+    // list is one shorter, so an unclamped "move to the end" index would
+    // splice past it and leave a hole the renumber would then close - which
+    // works, but only by accident.
+    const to = Math.max(0, Math.min(position, ordered.length - 1));
+    ordered.splice(from, 1);
+    ordered.splice(to, 0, stored);
+    this.renumber(ordered);
+    return ordered.map((p) => this.toEntryDto(p));
+  }
+
+  reorder(collectionId: string, entryIds: string[]): PassageEntryDto[] {
+    this.requireCollection(collectionId);
+    const ordered = this.orderedPassages(collectionId);
+    // A permutation, not a subset: anything else would silently leave the
+    // omitted entries wherever the renumber happened to put them.
+    if (entryIds.length !== ordered.length) {
+      throw new Error(
+        `collections.reorder: expected ${ordered.length} ids, got ${entryIds.length}`,
+      );
+    }
+    const byId = new Map(ordered.map((p) => [p.id, p]));
+    const next: StoredPassage[] = [];
+    const seen = new Set<string>();
+    for (const id of entryIds) {
+      const p = byId.get(id);
+      if (!p) throw new Error(`collections.reorder: ${id} is not in collection ${collectionId}`);
+      if (seen.has(id)) throw new Error(`collections.reorder: ${id} listed twice`);
+      seen.add(id);
+      next.push(p);
+    }
+    this.renumber(next);
+    return next.map((p) => this.toEntryDto(p));
+  }
+
+  // --- Helpers -----------------------------------------------------------
+
+  private findCollection(collectionId: string): StoredCollection | undefined {
+    return this.collections.find((c) => c.id === collectionId);
+  }
+
+  private requireCollection(collectionId: string): StoredCollection {
+    const found = this.findCollection(collectionId);
+    if (!found) throw new Error(`Collection not found: ${collectionId}`);
+    return found;
+  }
+
+  /**
+   * The collection's passages as a fresh array in `sortOrder`. Callers splice
+   * this array and hand it to `renumber`, which is the in-memory stand-in for
+   * `CollectionRepository.reorderPinnedItems`.
+   */
+  private orderedPassages(collectionId: string): StoredPassage[] {
+    return this.passages
+      .filter((p) => p.collectionId === collectionId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt);
+  }
+
+  /** Write back dense zero-based positions for one collection. */
+  private renumber(ordered: StoredPassage[]): void {
+    ordered.forEach((p, i) => {
+      p.sortOrder = i;
+    });
+  }
+
+  private toCollectionDto(c: StoredCollection): PassageCollectionDto {
+    return {
+      id: c.id,
+      name: c.name,
+      entryCount: this.passages.filter((p) => p.collectionId === c.id).length,
+      createdAt: c.createdAt,
+      ...(c.parentId !== undefined ? { parentId: c.parentId } : {}),
+      ...(c.description !== undefined ? { description: c.description } : {}),
+      ...(c.color !== undefined ? { color: c.color } : {}),
+      ...(c.icon !== undefined ? { icon: c.icon } : {}),
+    };
+  }
+
+  private toEntryDto(p: StoredPassage): PassageEntryDto {
+    const reference = this.referenceResolver?.(p.verseIdStart, p.verseIdEnd);
+    return {
+      id: p.id,
+      collectionId: p.collectionId,
+      verseIdStart: p.verseIdStart,
+      verseIdEnd: p.verseIdEnd,
+      position: p.sortOrder,
+      createdAt: p.createdAt,
+      ...(p.label !== undefined ? { label: p.label } : {}),
+      ...(p.moduleId !== undefined ? { moduleId: p.moduleId } : {}),
+      ...(p.notes !== undefined ? { notes: p.notes } : {}),
+      ...(reference !== undefined ? { reference } : {}),
+    };
   }
 }
 

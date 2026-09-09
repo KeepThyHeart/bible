@@ -566,6 +566,16 @@ export interface ElectronAPI {
     /** Panel-iframe egress, routed through the extension's own gateway. */
     uiFetch: (extensionId: string, url: string, init?: unknown) => Promise<unknown>;
     /**
+     * Panel-iframe message to that panel's own extension worker. The panel
+     * host supplies every identifier; the iframe supplies only `message`.
+     */
+    panelInvoke: (
+      extensionId: string,
+      panelId: string,
+      panelTypeId: string,
+      message: unknown,
+    ) => Promise<unknown>;
+    /**
      * Marketplace. `addSource`'s `acknowledgeRisk` must only be true
      * when the user has actually seen the warning - a source added without it
      * is stored but never fetched.
@@ -1163,6 +1173,24 @@ const electronAPI: ElectronAPI = {
      */
     uiFetch: (extensionId: string, url: string, init?: unknown) =>
       ipcRenderer.invoke('extensions:uiFetch', extensionId, url, init),
+    /**
+     * Deliver a panel iframe's message to its own extension worker. As with
+     * `uiFetch`, the three identifiers come from the panel host's closure and
+     * never from the iframe, so a panel cannot address another extension.
+     */
+    panelInvoke: (
+      extensionId: string,
+      panelId: string,
+      panelTypeId: string,
+      message: unknown,
+    ) =>
+      ipcRenderer.invoke(
+        'extensions:panelInvoke',
+        extensionId,
+        panelId,
+        panelTypeId,
+        message,
+      ),
     /** Marketplace catalogs. */
     catalog: {
       listSources: () => ipcRenderer.invoke('extensions:catalog:listSources'),

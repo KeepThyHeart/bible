@@ -85,8 +85,11 @@ describe('assertExtensionSqlAllowed', () => {
     'CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, body TEXT)',
     'CREATE INDEX idx_notes_body ON notes(body)',
     'WITH recent AS (SELECT * FROM notes LIMIT 10) SELECT * FROM recent',
-    'BEGIN IMMEDIATE',
-    'COMMIT',
+    // A trigger body's `;` separators split into statements the guard sees
+    // individually, and the body ends with a bare `END`. Both must survive -
+    // FTS5 external-content indexes are three triggers and nothing else.
+    'CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN INSERT INTO fts(rowid, body) VALUES (new.id, new.body); END',
+    'CREATE TEMP TRIGGER IF NOT EXISTS t AFTER DELETE ON notes BEGIN DELETE FROM fts WHERE rowid = old.id; END',
   ];
 
   it.each(allowed)('allows %s', (sql) => {
@@ -161,6 +164,74 @@ describe('assertExtensionSqlAllowed', () => {
     expect(() => assertExtensionSqlAllowed('ATTACH DATABASE x AS y', 'storage.db.run')).toThrow(
       /storage\.db\.run: ATTACH/,
     );
+  });
+
+  /**
+   * Raw transaction control desynchronizes `ExtensionDatabaseRegistry`'s
+   * per-handle `inTransaction` flag from SQLite. The worst case is silent: an
+   * extension issues `BEGIN` through `db.exec`, the registry never learns a
+   * transaction is open, and `closeEntry` therefore skips its `ROLLBACK` -
+   * discarding the extension's work with no error raised anywhere.
+   */
+  describe('transaction control', () => {
+    const bannedTx = [
+      'BEGIN',
+      'BEGIN IMMEDIATE',
+      'begin deferred transaction',
+      'COMMIT',
+      'COMMIT TRANSACTION',
+      'ROLLBACK',
+      'rollback to savepoint sp1',
+      'SAVEPOINT sp1',
+      'RELEASE sp1',
+      'RELEASE SAVEPOINT sp1',
+      // `END` is COMMIT's alias when it stands alone.
+      'END',
+      'END TRANSACTION',
+      // ...and hiding it behind a comment or an empty leading statement does
+      // not make it a later statement.
+      '/* x */ END',
+      '; END',
+    ];
+
+    it.each(bannedTx)('rejects %s', (sql) => {
+      expect(() => assertExtensionSqlAllowed(sql, 'test')).toThrow(/not permitted/);
+    });
+
+    it('points the author at the API that does work', () => {
+      expect(() => assertExtensionSqlAllowed('BEGIN', 'storage.db.exec')).toThrow(
+        /db\.transaction\(\)/,
+      );
+    });
+
+    it('does not mistake a trigger body terminator for COMMIT', () => {
+      expect(() =>
+        assertExtensionSqlAllowed(
+          'CREATE TRIGGER t AFTER UPDATE ON notes BEGIN UPDATE meta SET n = n + 1; END',
+          'test',
+        ),
+      ).not.toThrow();
+    });
+
+    it('still catches a banned statement smuggled after a trigger body', () => {
+      expect(() =>
+        assertExtensionSqlAllowed(
+          'CREATE TRIGGER t AFTER UPDATE ON notes BEGIN UPDATE meta SET n = 1; END; ATTACH DATABASE x AS y',
+          'test',
+        ),
+      ).toThrow(/ATTACH/);
+    });
+
+    it('leaves the words alone when they are not the statement', () => {
+      // `commit`/`begin` as identifiers or inside expressions are ordinary.
+      expect(() => assertExtensionSqlAllowed('SELECT begin_at FROM plans', 'test')).not.toThrow();
+      expect(() =>
+        assertExtensionSqlAllowed('INSERT INTO t (a) VALUES (?) ON CONFLICT DO NOTHING', 'test'),
+      ).not.toThrow();
+      expect(() =>
+        assertExtensionSqlAllowed("SELECT CASE WHEN a THEN 1 ELSE 2 END FROM t", 'test'),
+      ).not.toThrow();
+    });
   });
 });
 

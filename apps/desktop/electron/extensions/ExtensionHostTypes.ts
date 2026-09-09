@@ -22,6 +22,7 @@ import type {
   BibleApiImpl,
   BookApiImpl,
   BookmarksApiImpl,
+  CollectionsApiImpl,
   CommandsApiImpl,
   CommentaryApiImpl,
   ContextApiImpl,
@@ -33,6 +34,7 @@ import type {
   L10nApiImpl,
   NetworkApiImpl,
   NotesApiImpl,
+  PanelsApiImpl,
   StorageApiImpl,
   TasksApiImpl,
   UiApiImpl,
@@ -42,6 +44,7 @@ import type {
   IExtensionBibleBridge,
   IExtensionBookBridge,
   IExtensionBookmarksBridge,
+  IExtensionCollectionsBridge,
   IExtensionCommandBridge,
   IExtensionCommentaryBridge,
   IExtensionContextBridge,
@@ -98,6 +101,7 @@ export interface ActiveWorker {
   storageApi?: StorageApiImpl;
   folderStorageApi?: FolderStorageApiImpl;
   uiApi?: UiApiImpl;
+  panelsApi?: PanelsApiImpl;
   workspaceApi?: WorkspaceApiImpl;
   l10nApi?: L10nApiImpl;
   eventsApi?: EventsApiImpl;
@@ -108,6 +112,7 @@ export interface ActiveWorker {
   notesApi?: NotesApiImpl;
   highlightsApi?: HighlightsApiImpl;
   bookmarksApi?: BookmarksApiImpl;
+  collectionsApi?: CollectionsApiImpl;
 }
 
 /**
@@ -131,6 +136,24 @@ export interface ExtensionHostOptions {
   db: ISql;
   /** Absolute path to `data/extensions/` (created if missing). */
   extensionsRoot: string;
+  /**
+   * Absolute path to the root the host may WRITE per-extension state under -
+   * today just `<id>/extension.log` and `<id>/crash.log`. Defaults to
+   * `extensionsRoot`, which is what every existing caller and test gets.
+   *
+   * It exists because the two roots are not the same thing in a packaged
+   * build. `extensionsRoot` is derived from `getDataPath()`, i.e.
+   * `process.resourcesPath/data`, which is read-only for a .deb/.rpm install,
+   * inside the signed bundle on macOS, and a squashfs mount for an AppImage.
+   * The logger degrades quietly when it cannot write (see its `appendLine`),
+   * so the symptom is not a crash - it is an Extensions UI that shows no
+   * activity and a crash-detection loop that never sees a crash record.
+   *
+   * `main.ts` passes `join(getUserDataPath(), 'extensions')`. In development
+   * and under e2e that is the identical directory `extensionsRoot` names, so
+   * supplying it changes nothing outside a packaged app.
+   */
+  logRoot?: string;
   /** Optional renderer-backed consent prompter. */
   consentPrompter?: ConsentPrompter;
   /**
@@ -183,6 +206,14 @@ export interface ExtensionHostOptions {
   notesBridge?: IExtensionNotesBridge;
   highlightsBridge?: IExtensionHighlightsBridge;
   bookmarksBridge?: IExtensionBookmarksBridge;
+  /**
+   * Bridge to the ordered-passage view of the `collection` / `pinned_item`
+   * tables. Separate from `bookmarksBridge` because the two answer different
+   * questions about the same rows - see `IExtensionCollectionsBridge`. Omit to
+   * leave `api.collections` absent, which is what a host with no user database
+   * wired should look like to an extension feature-detecting it.
+   */
+  collectionsBridge?: IExtensionCollectionsBridge;
   /**
    * Bridge for the managed folder API (`fs:managed-folder` permission).
    * Production wires an Electron dialog-based picker; tests inject
@@ -297,6 +328,11 @@ export interface ExtensionHostOptions {
 export interface ExtensionHostContext {
   readonly db: ISql;
   readonly extensionsRoot: string;
+  /**
+   * Resolved writable root (`ExtensionHostOptions.logRoot`, or
+   * `extensionsRoot` when it was not supplied). Always set, unlike the option.
+   */
+  readonly logRoot: string;
   readonly registry: ExtensionRegistry;
   readonly logger: ExtensionLifecycleLogger;
   readonly workerFactory: IUtilityProcessFactory | undefined;
@@ -316,6 +352,7 @@ export interface ExtensionHostContext {
   readonly notesBridge: IExtensionNotesBridge | undefined;
   readonly highlightsBridge: IExtensionHighlightsBridge | undefined;
   readonly bookmarksBridge: IExtensionBookmarksBridge | undefined;
+  readonly collectionsBridge: IExtensionCollectionsBridge | undefined;
   readonly folderBridge: IExtensionFolderBridge | undefined;
   readonly storageQuotaBytes: number | undefined;
   readonly secretsKeychain: ISecretsKeychain | undefined;

@@ -51,6 +51,17 @@ describe('BibleBridge', () => {
         verseCount: 879,
       }),
     ],
+    // Real KJV verse counts. John has 21 chapters; only the ones the tests
+    // assert on are listed, because a wrong count here would make an assertion
+    // pass against fiction.
+    listChapterVerseCounts: (bookNumber: number) =>
+      bookNumber === 43
+        ? [
+            { chapter: 1, verseCount: 51 },
+            { chapter: 2, verseCount: 25 },
+            { chapter: 3, verseCount: 36 },
+          ]
+        : [],
     getDefaultModuleAbbreviation: () => 'KJV',
     sendNavigateToVerse: (_verseId: number) => {},
   };
@@ -117,6 +128,159 @@ describe('BibleBridge', () => {
       { verseId: 43003016, module: 'KJV' },
       { verseId: 1001001, module: 'KJV' },
     ]);
+  });
+
+  // --- Structured formatting -------------------------------------------
+
+  // Psalm 1:1 as the format actually stores it: one verse, three poetic lines,
+  // the indent changing between them. This is the case the legacy
+  // `poetry.indentLevel` cannot represent at all - it has room for one indent
+  // and no line breaks - so it is the case worth pinning.
+  const psalm1_1Text =
+    'Blessed is the man that walketh not in the counsel of the ungodly, ' +
+    'nor standeth in the way of sinners, nor sitteth in the seat of the scornful.';
+
+  const psalm1_1 = new BibleVerse({
+    verseId: 19001001,
+    text: psalm1_1Text,
+    formatting: {
+      v: 1,
+      block: {
+        lines: [
+          { start: 0, end: 12, level: 1 },
+          { start: 13, end: 19, level: 2 },
+          { start: 20, end: 27, level: 3 },
+        ],
+      },
+    },
+  });
+
+  it('carries multi-line poetry across the bridge with every line intact', () => {
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: () => makeRepo([psalm1_1]),
+    });
+    const dto = bridge.getVerse(19001001)!;
+
+    expect(dto.formatting?.block?.lines).toEqual([
+      { start: 0, end: 12, level: 1 },
+      { start: 13, end: 19, level: 2 },
+      { start: 20, end: 27, level: 3 },
+    ]);
+    // The line ranges must cover the real verse, not an invented word count:
+    // 28 whitespace-delimited words, indices 0..27.
+    expect(psalm1_1Text.split(/\s+/)).toHaveLength(28);
+    expect(dto.formatting!.block!.lines!.at(-1)!.end).toBe(27);
+  });
+
+  it('still populates the legacy shape for extensions written against 1.0.0', () => {
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: () => makeRepo([psalm1_1]),
+    });
+    const dto = bridge.getVerse(19001001)!;
+
+    // The legacy view keeps saying what it always said - poetry, opening
+    // indent - and loses the other two lines, which is precisely why the
+    // structured payload exists alongside it rather than replacing it.
+    expect(dto.formattingData?.poetry).toEqual({ isPoetry: true, indentLevel: 1 });
+  });
+
+  it('distinguishes a psalm superscription from an editorial section heading', () => {
+    // Psalm 3's superscription and Matthew 5's editorial heading are the same
+    // string field in the legacy shape, so nothing downstream could tell them
+    // apart - and emitting USFM `\d` for "The Beatitudes" is invalid markup.
+    const psalmTitle = new BibleVerse({
+      verseId: 19003001,
+      text: 'LORD, how are they increased that trouble me!',
+      formatting: {
+        v: 1,
+        block: {
+          heading: 'A Psalm of David, when he fled from Absalom his son.',
+          heading_kind: 'psalm_title',
+        },
+      },
+    });
+    const sectionHeading = new BibleVerse({
+      verseId: 40005003,
+      text: 'Blessed are the poor in spirit',
+      formatting: {
+        v: 1,
+        block: { heading: 'The Beatitudes', heading_kind: 'section' },
+      },
+    });
+
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: () => makeRepo([psalmTitle, sectionHeading]),
+    });
+
+    expect(bridge.getVerse(19003001)!.formatting?.block?.heading_kind).toBe('psalm_title');
+    expect(bridge.getVerse(40005003)!.formatting?.block?.heading_kind).toBe('section');
+    // Both still surface through the legacy field, undifferentiated.
+    expect(bridge.getVerse(19003001)!.formattingData?.sectionHeading).toBe(
+      'A Psalm of David, when he fled from Absalom his son.',
+    );
+  });
+
+  it('leaves heading_kind absent when the module never recorded one', () => {
+    // A module converted from legacy HTML used `<b>` for both kinds, so it has
+    // a heading and no idea which kind it is. That third state must survive the
+    // bridge: collapsing it to 'section' would be the host inventing data.
+    const converted = new BibleVerse({
+      verseId: 19004001,
+      text: 'Hear me when I call, O God of my righteousness',
+      formattingData: { sectionHeading: 'To the chief Musician on Neginoth' },
+    });
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: () => makeRepo([converted]),
+    });
+    const block = bridge.getVerse(19004001)!.formatting?.block;
+
+    expect(block?.heading).toBe('To the chief Musician on Neginoth');
+    expect(block && 'heading_kind' in block).toBe(false);
+  });
+
+  it('hands out a structured-cloneable copy, not a reference into the model', () => {
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: () => makeRepo([psalm1_1]),
+    });
+    const dto = bridge.getVerse(19001001)!;
+
+    // Crosses the RPC boundary by structured clone, so it must survive one
+    // unchanged - no class instances, no frozen exotic objects.
+    expect(structuredClone(dto)).toEqual(dto);
+    // And it must not alias the repository's cached verse: an in-process
+    // consumer editing the DTO would otherwise corrupt the next reader's verse.
+    expect(dto.formatting!.block!.lines).not.toBe(psalm1_1.formatting.block!.lines);
+  });
+
+  it('omits formatting entirely for a verse that carries none', () => {
+    const bridge = new BibleBridge(baseDeps);
+    expect(bridge.getVerse(43003016)!.formatting).toBeUndefined();
+  });
+
+  // --- Chapter extents ---------------------------------------------------
+
+  it('reports real chapter extents with inclusive verse-id bounds', () => {
+    const bridge = new BibleBridge(baseDeps);
+    const chapters = bridge.listChapters(43);
+
+    expect(chapters).toEqual([
+      { bookNumber: 43, chapter: 1, verseCount: 51, firstVerseId: 43001001, lastVerseId: 43001051 },
+      { bookNumber: 43, chapter: 2, verseCount: 25, firstVerseId: 43002001, lastVerseId: 43002025 },
+      { bookNumber: 43, chapter: 3, verseCount: 36, firstVerseId: 43003001, lastVerseId: 43003036 },
+    ]);
+    // John 3:36 is the last verse of John 3 - the number an extension needs to
+    // pass as `verseIdEnd` to add the whole chapter to a plan.
+    expect(chapters[2]!.lastVerseId).toBe(43003036);
+  });
+
+  it('returns an empty list for a book with no chapter data', () => {
+    const bridge = new BibleBridge(baseDeps);
+    expect(bridge.listChapters(66)).toEqual([]);
   });
 
   it('isolates a throwing subscriber from the others', () => {

@@ -15,6 +15,7 @@ import type { Extensions } from '@bible/core';
 type BibleVerseDto = Extensions.BibleVerseDto;
 type BibleModuleInfoDto = Extensions.BibleModuleInfoDto;
 type BibleBookDto = Extensions.BibleBookDto;
+type BibleChapterDto = Extensions.BibleChapterDto;
 type ParsedReferenceDto = Extensions.ParsedReferenceDto;
 type VerseIterationResult = Extensions.VerseIterationResult;
 type VerseTokenDto = Extensions.VerseTokenDto;
@@ -56,6 +57,10 @@ type NewHighlightDto = Extensions.NewHighlightDto;
 type HighlightStyleDescriptor = Extensions.HighlightStyleDescriptor;
 type BookmarkDto = Extensions.BookmarkDto;
 type CollectionDto = Extensions.CollectionDto;
+type PassageCollectionDto = Extensions.PassageCollectionDto;
+type PassageEntryDto = Extensions.PassageEntryDto;
+type NewCollectionOpts = Extensions.NewCollectionOpts;
+type NewPassageDto = Extensions.NewPassageDto;
 
 // --- Bible bridge ----------------------------------------------------------
 
@@ -68,6 +73,11 @@ export interface IExtensionBibleBridge {
   getRange(startVerseId: number, endVerseId: number, moduleId?: string): BibleVerseDto[];
   listModules(): BibleModuleInfoDto[];
   listBooks(moduleId?: string): BibleBookDto[];
+  /**
+   * Every chapter of one book with its verse count and inclusive verse-id
+   * bounds, ordered by chapter. Empty for an unknown book number.
+   */
+  listChapters(bookNumber: number, moduleId?: string): BibleChapterDto[];
   parseReference(input: string, locale?: string): ParsedReferenceDto | null;
   /**
    * Cursor-based iteration over all verses in a module. Page sizes capped at
@@ -204,6 +214,20 @@ export interface IExtensionUiBridge {
 
   /** Snapshot of every registered extension panel type - used by tests + diagnostics. */
   listPanelTypes(): { extensionId: string; def: ExtensionPanelTypeDef }[];
+
+  /**
+   * Push a worker-originated message out to this extension's open panels.
+   * Fire-and-forget; panels that are not mounted simply never see it.
+   *
+   * `panelId` targets one panel, omitted broadcasts to all panels owned by
+   * `extensionId`. The renderer filters on both, so a message can never be
+   * delivered to another extension's iframe.
+   *
+   * Optional so host harnesses that wire no panel surface still satisfy the
+   * interface; `panels.postMessage` rejects with a clear error when it is
+   * absent rather than silently dropping the message.
+   */
+  postPanelMessage?(extensionId: string, message: unknown, panelId?: string): void;
 
   // --- T2 UI methods -------------------------------------------------------
 
@@ -367,6 +391,86 @@ export interface IExtensionBookmarksBridge {
   remove(id: string): void;
   listCollections(): CollectionDto[];
   createCollection(name: LocalizedString): CollectionDto;
+}
+
+// --- Collections bridge (ordered passage lists) --------------------------
+
+/**
+ * Bridge to the user database's `collection` / `pinned_item` tables, viewed as
+ * ordered lists of passages rather than as buckets of bookmarks.
+ *
+ * The two views share a store and stay separate bridges for the same reason
+ * `ICollectionsApi` and `IBookmarksApi` are separate namespaces: the questions
+ * differ. `IExtensionBookmarksBridge.list` answers "which verses are flagged";
+ * `listPassages` answers "what is entry 3 of this reading plan". A single
+ * bridge would have to return rows whose order mattered sometimes.
+ *
+ * **The ordering contract every implementation must hold.** `pinned_item` has
+ * a `sort_order` column and an `(collection_id, sort_order)` index, and this
+ * bridge treats those values as **dense, contiguous and zero-based**: a
+ * collection of n entries occupies exactly 0..n-1. That is stricter than the
+ * column requires - SQLite is perfectly happy with gaps and ties - and the
+ * strictness is the point:
+ *
+ *   - `ORDER BY sort_order` with ties falls back to whatever the storage
+ *     engine feels like, so two entries sharing a position read back in an
+ *     order that can change between calls. A user who dragged an item and saw
+ *     it land would see it elsewhere after a restart.
+ *   - Gaps make the position a caller reads back useless as a position it can
+ *     pass to `move`, which is the whole reason the index is exposed.
+ *
+ * So every mutation renumbers the affected collection as one unit. In SQL that
+ * is `CollectionRepository.reorderPinnedItems(pinIds)` - a transaction issuing
+ * one parameterized `UPDATE pinned_item SET sort_order = ? WHERE pin_id = ?`
+ * per entry. A production implementation of this bridge should delegate there
+ * rather than write its own statements.
+ *
+ * Ranges are inclusive at both ends (`verse_id_end === verse_id_start` for a
+ * single verse); see `PassageEntryDto` for why a nullable end is not allowed.
+ *
+ * Every method throws on an unknown id rather than returning a null-ish value.
+ * A stale collection id is by far the likeliest cause, and answering an
+ * `addPassage` against a deleted collection with "fine, done" loses the data
+ * silently.
+ */
+export interface IExtensionCollectionsBridge {
+  /** Every collection, in the user's own arrangement then by name. */
+  listCollections(): PassageCollectionDto[];
+
+  /** Create a collection. Throws if `opts.parentId` names no collection. */
+  createCollection(name: LocalizedString, opts?: NewCollectionOpts): PassageCollectionDto;
+
+  /** Rename a collection. Throws if it does not exist. */
+  renameCollection(collectionId: string, name: LocalizedString): PassageCollectionDto;
+
+  /** Delete a collection, its passages, and any collections nested under it. */
+  deleteCollection(collectionId: string): void;
+
+  /** The collection's passages in `sort_order`. Throws if it does not exist. */
+  listPassages(collectionId: string): PassageEntryDto[];
+
+  /**
+   * Insert a passage at `passage.position`, or append when it is omitted.
+   * Later entries shift down by one; the collection is renumbered so
+   * positions stay dense.
+   */
+  addPassage(collectionId: string, passage: NewPassageDto): PassageEntryDto;
+
+  /** Remove one passage. Later entries close the gap. */
+  removePassage(entryId: string): void;
+
+  /**
+   * Move one passage within its own collection and return the collection's
+   * full new ordering. A position past the end lands the entry last.
+   */
+  movePassage(entryId: string, position: number): PassageEntryDto[];
+
+  /**
+   * Replace a collection's ordering. `entryIds` must be a permutation of the
+   * ids currently in the collection; anything else throws rather than
+   * partially applying.
+   */
+  reorder(collectionId: string, entryIds: string[]): PassageEntryDto[];
 }
 
 // --- Folder bridge -------------------------------------------------------
