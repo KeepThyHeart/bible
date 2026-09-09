@@ -1,0 +1,528 @@
+// Session mode: the control strip and its panel.
+//
+// Both are docked flex children of `.app`, below `.main-layout`, so the reader
+// above them simply gets shorter rather than being covered. Overlaying would
+// have been fewer lines and would have hidden the last verse of whatever the
+// presenter was reading -- which is the verse they are most likely reading.
+//
+// Sizes here are in `px` rather than `rem` on purpose: this is instrument
+// panel, not text. It must not resize when the reader changes their reading
+// font, because the presenter has learned where the blank button is.
+
+.present-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 2px solid var(--accent-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  // The number a presenter checks before the service starts to confirm the
+  // television actually connected.
+  &__viewers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
+
+    &--offline {
+      opacity: 0.5;
+    }
+  }
+
+  &__live {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__live-label,
+  &__live-empty {
+    color: var(--text-muted);
+  }
+
+  // Preview-then-send made visible: this is the whole difference between what
+  // the presenter is reading and what the room can see.
+  &__send {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, opacity 0.15s;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    // Already on the wall. Deliberately quiet rather than disabled-looking:
+    // "this is showing" is information, not a broken button.
+    &--live,
+    &:disabled {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      cursor: default;
+    }
+  }
+
+  &__send-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 22ch;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    // 44px is the smallest target a thumb finds reliably without looking, which
+    // is the condition these are actually used under.
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 15px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    &--on {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+
+    &--blank {
+      font-weight: 700;
+    }
+  }
+
+  &__btn-text {
+    font-size: 13px;
+  }
+
+  &__error {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--highlight-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+
+    button {
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+  }
+
+  // On a phone the strip is the primary interface, so it gets two rows and the
+  // reference gives up its space to the controls.
+  &--compact {
+    flex-wrap: wrap;
+    row-gap: 8px;
+
+    .present-bar__status {
+      flex-basis: 100%;
+      order: 1;
+      font-size: 13px;
+    }
+
+    .present-bar__send {
+      order: 2;
+      flex: 1;
+    }
+
+    .present-bar__controls {
+      order: 3;
+    }
+
+    .present-bar__btn-text {
+      display: none;
+    }
+  }
+}
+
+.present-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  // Bounded so the reader above never disappears entirely: the presenter still
+  // needs to see the passage they are choosing from.
+  max-height: 45vh;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  &__tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__tab {
+    padding: 10px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+
+    &--active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-color);
+      font-weight: 700;
+    }
+  }
+
+  &__close {
+    margin-left: auto;
+    padding: 0 12px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  &__body {
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  &__row-label {
+    min-width: 90px;
+    color: var(--text-muted);
+  }
+
+  &__step {
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  &__step-value {
+    min-width: 2ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  &__choice {
+    padding: 7px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &--active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+  }
+
+  &__note,
+  &__hint {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  &__join {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  &__join-detail {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  &__code {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  &__link,
+  &__handoff-link {
+    display: block;
+    margin: 4px 0 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    word-break: break-all;
+  }
+
+  &__join-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--danger {
+      border-color: #b3261e;
+      color: #b3261e;
+    }
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  &__danger {
+    flex-basis: 100%;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  &__handoff {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &__warning {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #b3261e;
+  }
+
+  &__confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// The wall in miniature. The box is the aspect ratio; the iframe inside is
+// nominal-size and CSS-scaled, so the viewer measures a real 1280x720 viewport
+// and its viewport-relative typography stays honest.
+.present-preview {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #000;
+
+  &__frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 0;
+  }
+}
+
+.present-plan {
+  &__actions {
+    margin-bottom: 10px;
+  }
+
+  &__add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    color: var(--text-muted);
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-color);
+
+    &--live {
+      background: var(--highlight-bg);
+    }
+  }
+
+  &__grip {
+    min-width: 32px;
+    min-height: 36px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: grab;
+    // dnd-kit needs the browser to stop claiming the gesture for scrolling.
+    touch-action: none;
+  }
+
+  &__label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px;
+    border: none;
+    background: none;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__ref {
+    font-weight: 700;
+  }
+
+  &__note-text {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  &__note-input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  &__icon {
+    min-width: 34px;
+    min-height: 34px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    &--remove:hover {
+      color: #b3261e;
+    }
+  }
+}

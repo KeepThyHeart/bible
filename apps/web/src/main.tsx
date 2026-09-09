@@ -19,6 +19,8 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
+import { presentStore } from './stores/presentStore';
+import { takeControlLinkFromUrl } from './present/controlLink';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
 // icons for offline/PWA use. Only the core + solid + regular styles are imported; the
@@ -40,6 +42,14 @@ function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
 
 async function init() {
   const baseUrl = API_BASE;
+
+  // Session mode. A handoff link carries the control token in its fragment, and
+  // it has to come out of the URL before anything else looks at the hash --
+  // `navigateFromHash` below reads the same slot, and a token sitting in a
+  // visible address bar on a laptop that may itself be plugged into a projector
+  // is not where it belongs. Reading it is cheap and returns null on every
+  // ordinary page load.
+  const adoptedSession = takeControlLinkFromUrl();
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.
@@ -220,6 +230,11 @@ async function init() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     (window as unknown as { hideAppLoading?: () => void }).hideAppLoading?.();
   }));
+
+  // Reconnect to a session this device is driving: one adopted from a handoff
+  // link, or one it created before a reload. After the first paint, because the
+  // reading app has to work whether or not a screen is attached.
+  presentStore.restore(adoptedSession);
 
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();

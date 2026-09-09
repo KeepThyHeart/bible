@@ -197,20 +197,36 @@ function validatePlanEntry(value: unknown, id: string): PresentPlanEntry | null 
   return entry;
 }
 
+/** What a client-supplied entry id may look like: a UUID, and nothing else. */
+const ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /**
- * Validate a whole plan, assigning ids.
+ * Validate a whole plan, keeping ids the client already knows and minting the
+ * rest.
  *
- * Ids come from the server rather than the client because the plan is replaced
- * wholesale on every edit; letting the client name entries would mean trusting
- * it not to collide them, for no benefit it cannot get from the array order.
+ * The plan is replaced wholesale on every edit, so the naive rule -- mint every
+ * id, every time -- is tempting and wrong: reordering a list would rename every
+ * entry in it, which throws away the identity the controller's list is keyed on
+ * and makes a drag re-key mid-gesture.
+ *
+ * So an id is kept when it is a well-formed UUID that has not already been used
+ * in this same plan, and replaced otherwise. That preserves the property worth
+ * having -- the server guarantees the ids are unique, rather than trusting a
+ * client not to collide them -- while letting an entry keep its name for as
+ * long as it exists. A new entry simply arrives without one.
  */
 export function validatePlan(value: unknown, makeId: () => string): PresentPlanEntry[] | null {
   if (!Array.isArray(value)) return null;
   if (value.length > LIMITS.planEntries) return null;
 
+  const seen = new Set<string>();
   const out: PresentPlanEntry[] = [];
   for (const raw of value) {
-    const entry = validatePlanEntry(raw, makeId());
+    const supplied = isPlainObject(raw) && typeof raw.id === 'string' ? raw.id : '';
+    const id = ENTRY_ID.test(supplied) && !seen.has(supplied) ? supplied : makeId();
+    seen.add(id);
+
+    const entry = validatePlanEntry(raw, id);
     if (!entry) return null;
     out.push(entry);
   }

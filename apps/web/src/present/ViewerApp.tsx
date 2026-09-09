@@ -25,16 +25,31 @@ export function joinCodeFromLocation(pathname: string): string {
 
 export function ViewerApp(): preact.JSX.Element {
   const joinCode = useMemo(() => joinCodeFromLocation(window.location.pathname), []);
-  const connection = usePresentStream(joinCode);
+  /**
+   * The same page, rendered small inside the controller as a preview.
+   *
+   * It is the real viewer in an iframe rather than a second renderer, so the
+   * preview cannot drift from the wall -- and an iframe specifically, because
+   * the typography is sized in viewport units. A preview drawn inside a pane
+   * would measure the browser window and lie about what fits on a television,
+   * which is the one thing a preview must not do.
+   *
+   * What it must *not* do is behave like a screen in a room: no wake lock, no
+   * fullscreen offer, no keyboard of its own, and not counted as a viewer.
+   */
+  const isPreview = useMemo(
+    () => new URLSearchParams(window.location.search).get('preview') === '1', [],
+  );
+  const connection = usePresentStream(joinCode, isPreview);
   const state = displayedState(connection);
   const passage = usePassage(state?.live ?? null);
 
   const { overscan, adjust } = useOverscan();
   const { isFullscreen, toggle } = useFullscreen();
-  useWakeLock(connection.status !== 'closed');
+  useWakeLock(!isPreview && connection.status !== 'closed');
   useSetupKeys(useMemo(
-    () => ({ toggleFullscreen: toggle, adjustOverscan: adjust }),
-    [toggle, adjust],
+    () => (isPreview ? null : { toggleFullscreen: toggle, adjustOverscan: adjust }),
+    [isPreview, toggle, adjust],
   ));
 
   const theme = state?.display.theme ?? 'dark';
@@ -50,7 +65,8 @@ export function ViewerApp(): preact.JSX.Element {
   return (
     <div class="pv-root" style={style}>
       <div class="pv-safe">
-        {renderBody(connection, state, passage, joinCode, isFullscreen, toggle, overscan)}
+        {renderBody(connection, state, passage, joinCode,
+          isPreview || isFullscreen, toggle, overscan, isPreview)}
       </div>
       {/*
         The blanking curtain is a sibling of the content, not a swap for it.
@@ -71,6 +87,7 @@ function renderBody(
   isFullscreen: boolean,
   toggleFullscreen: () => void,
   overscan: number,
+  isPreview: boolean,
 ): preact.JSX.Element {
   // A closed session takes the wall, even if something was on it. `closed` is
   // only ever sent because a presenter chose to end the session, or because
@@ -87,6 +104,7 @@ function renderBody(
         isFullscreen={isFullscreen}
         onFullscreen={toggleFullscreen}
         overscan={overscan}
+        isPreview={isPreview}
       />
     );
   }
@@ -263,6 +281,7 @@ function Lobby(props: {
   isFullscreen: boolean;
   onFullscreen: () => void;
   overscan: number;
+  isPreview: boolean;
 }): preact.JSX.Element {
   return (
     <div class="pv-lobby">
@@ -274,15 +293,17 @@ function Lobby(props: {
         offer something to click. This is the only control on the viewer, and it
         is gone the moment anything is being presented.
       */}
-      {props.isFullscreen ? null : (
+      {props.isFullscreen || props.isPreview ? null : (
         <button type="button" class="pv-lobby-button" onClick={props.onFullscreen}>
           Enter fullscreen
         </button>
       )}
-      <p class="pv-lobby-keys">
-        F for fullscreen &middot; [ and ] adjust the margin
-        {props.overscan > 0 ? ` (${props.overscan} of ${MAX_OVERSCAN})` : ''}
-      </p>
+      {props.isPreview ? null : (
+        <p class="pv-lobby-keys">
+          F for fullscreen &middot; [ and ] adjust the margin
+          {props.overscan > 0 ? ` (${props.overscan} of ${MAX_OVERSCAN})` : ''}
+        </p>
+      )}
     </div>
   );
 }

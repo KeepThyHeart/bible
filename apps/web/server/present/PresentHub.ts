@@ -70,10 +70,37 @@ function frame(event: string, payload: unknown, id?: number): string {
 interface Client {
   sink: SseSink;
   closed: boolean;
+  /**
+   * Whether this stream is a person watching, as opposed to the controller's
+   * own preview pane.
+   *
+   * The distinction exists because of what the count is *for*: a presenter
+   * checks it to confirm the television is actually connected before a service
+   * starts. A preview that made it read one when nothing was plugged in would
+   * break the only thing the number is good for. Uncounted clients still occupy
+   * a slot against the caps -- they are real sockets -- they simply do not
+   * claim to be an audience.
+   */
+  counted: boolean;
+}
+
+export interface SubscribeOptions {
+  /** Default true. Set false for a stream that is a mirror, not a viewer. */
+  counted?: boolean;
 }
 
 export class PresentHub {
   private readonly clients = new Map<string, Set<Client>>();
+  /**
+   * The last state put on the wire for each session.
+   *
+   * Not a second copy of the durable state -- `PresentStore` owns that, and
+   * nothing here is read back after a restart. It is "the last thing I sent",
+   * which is exactly the live layer's business, and it is what lets a viewer
+   * arriving or leaving be announced to everyone else without asking the
+   * database for something it did not change.
+   */
+  private readonly lastSent = new Map<string, PresentState>();
   private total = 0;
   private readonly heartbeat: NodeJS.Timeout;
 
@@ -97,7 +124,12 @@ export class PresentHub {
    * a viewer that connects and then waits for the next intent shows a blank
    * wall until the presenter happens to touch something.
    */
-  subscribe(sessionId: string, sink: SseSink, state: PresentState): SubscribeResult {
+  subscribe(
+    sessionId: string,
+    sink: SseSink,
+    state: PresentState,
+    options: SubscribeOptions = {},
+  ): SubscribeResult {
     if (this.total >= this.maxTotal) return { ok: false, reason: 'server-full' };
 
     let set = this.clients.get(sessionId);
@@ -111,9 +143,10 @@ export class PresentHub {
       this.clients.set(sessionId, set);
     }
 
-    const client: Client = { sink, closed: false };
+    const client: Client = { sink, closed: false, counted: options.counted !== false };
     set.add(client);
     this.total++;
+    this.lastSent.set(sessionId, state);
 
     const detach = (): void => {
       if (client.closed) return;
@@ -121,8 +154,14 @@ export class PresentHub {
       const current = this.clients.get(sessionId);
       if (current?.delete(client)) {
         this.total--;
-        if (current.size === 0) this.clients.delete(sessionId);
+        if (current.size === 0) {
+          this.clients.delete(sessionId);
+          this.lastSent.delete(sessionId);
+        }
       }
+      // Someone left: tell whoever is still here, so a controller's count goes
+      // back down rather than reporting a screen that has been unplugged.
+      this.announcePresence(sessionId);
     };
 
     // `retry:` before anything else, so a client that drops during the very
@@ -136,11 +175,39 @@ export class PresentHub {
       return { ok: false, reason: 'server-full' };
     }
 
+    // Presence is the one thing that changes without an intent, so it is the
+    // one thing the version-stamped broadcast path cannot carry on its own.
+    // Announcing it here is what makes a presenter see the television appear
+    // the moment it is plugged in -- which is the entire reason the count is on
+    // the strip. The new client is skipped: its own first frame already
+    // counted it.
+    this.announcePresence(sessionId, client);
+
     return { ok: true, subscription: { close: detach } };
+  }
+
+  /**
+   * Re-send the last state, with a fresh viewer count, to everyone but
+   * `exclude`.
+   *
+   * The version does not move, because nothing about what is *on* the wall
+   * changed. Viewers drop the frame for exactly that reason and carry on
+   * showing what they were showing; the controller reads the count off it.
+   */
+  private announcePresence(sessionId: string, exclude?: Client): void {
+    const state = this.lastSent.get(sessionId);
+    const set = this.clients.get(sessionId);
+    if (!state || !set) return;
+
+    const payload = frame('state', this.withCount(sessionId, state), state.version);
+    for (const client of [...set]) {
+      if (client !== exclude) this.writeOrReap(sessionId, client, payload);
+    }
   }
 
   /** Push new state to every subscriber of one session. */
   broadcast(sessionId: string, state: PresentState): void {
+    this.lastSent.set(sessionId, state);
     this.send(sessionId, frame('state', this.withCount(sessionId, state), state.version));
   }
 
@@ -168,10 +235,14 @@ export class PresentHub {
       this.total--;
     }
     this.clients.delete(sessionId);
+    this.lastSent.delete(sessionId);
   }
 
+  /** People watching. Excludes mirrors such as the controller's preview pane. */
   viewerCount(sessionId: string): number {
-    return this.clients.get(sessionId)?.size ?? 0;
+    let count = 0;
+    for (const client of this.clients.get(sessionId) ?? []) if (client.counted) count++;
+    return count;
   }
 
   totalViewers(): number {
@@ -194,6 +265,7 @@ export class PresentHub {
       }
     }
     this.clients.clear();
+    this.lastSent.clear();
     this.total = 0;
   }
 
@@ -207,7 +279,7 @@ export class PresentHub {
    * -- itself included.
    */
   private withCount(sessionId: string, state: PresentState): PresentState {
-    const viewerCount = this.clients.get(sessionId)?.size ?? 0;
+    const viewerCount = this.viewerCount(sessionId);
     if (state.session.viewerCount === viewerCount) return state;
     return { ...state, session: { ...state.session, viewerCount } };
   }

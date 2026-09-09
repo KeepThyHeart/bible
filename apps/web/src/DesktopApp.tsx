@@ -11,6 +11,7 @@ import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { PresentBar } from './components/Present/PresentBar';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
 import { dictionaryStore } from './stores/dictionaryStore';
@@ -200,6 +201,12 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           </div>
         )}
       </div>
+      {/*
+        Docked below everything, and rendered only while a session is running.
+        It is part of the app rather than a separate controller window because
+        the reading app *is* the preview -- see `presentStore`.
+      */}
+      <PresentBar />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}

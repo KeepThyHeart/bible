@@ -12,6 +12,7 @@ import { ConnectionBanner } from './components/ConnectionBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
+import { PresentBar } from './components/Present/PresentBar';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -431,6 +432,9 @@ export function MobileApp({ providers }: MobileAppProps) {
           {navTooltip}
         </div>
       )}
+      {/* Above the nav, so the thumb targets a presenter needs are the
+          closest thing to their thumb. */}
+      <PresentBar compact />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },

@@ -120,11 +120,13 @@ export function useFullscreen(): { isFullscreen: boolean; toggle(): void } {
  * controller; a stray key press at the lectern machine must not move what the
  * congregation is reading.
  */
+/** `null` disables the keys entirely -- used by the controller's preview pane. */
 export function useSetupKeys(handlers: {
   toggleFullscreen(): void;
   adjustOverscan(delta: number): void;
-}): void {
+} | null): void {
   useEffect(() => {
+    if (!handlers) return;
     const onKey = (event: KeyboardEvent): void => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       switch (event.key) {

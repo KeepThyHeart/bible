@@ -279,7 +279,14 @@ export function createPresentRoutes(options: PresentRouteOptions): Router {
       return;
     }
 
-    const result = hub.subscribe(row.sessionId, res, toWireState(row));
+    // `?preview=1` says "this is a mirror, not an audience". The controller's
+    // preview pane is the real viewer in an iframe -- one rendering path, so
+    // the preview cannot drift from the wall -- and without this it would count
+    // itself as a viewer, breaking the number a presenter uses to check the
+    // television is plugged in. It is not a privilege: anyone may decline to be
+    // counted, and a count is not a security control.
+    const counted = req.query.preview !== '1';
+    const result = hub.subscribe(row.sessionId, res, toWireState(row), { counted });
     if (!result.ok) {
       refuseStream(res, 'full');
       return;

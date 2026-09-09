@@ -148,13 +148,62 @@ describe('broadcasting', () => {
 
     hub.broadcast('s1', wireState(1));
 
-    expect(a.states().map(s => s.version)).toEqual([0, 1]);
+    // `a` also saw a version-0 frame when `b` arrived: presence is announced to
+    // the clients already connected. See the presence tests below.
+    expect(a.states().map(s => s.version)).toEqual([0, 0, 1]);
     expect(b.states().map(s => s.version)).toEqual([0, 1]);
     expect(other.states().map(s => s.version)).toEqual([0]);
   });
 
   it('does nothing for a session with no viewers', () => {
     expect(() => hub.broadcast('nobody', wireState(1))).not.toThrow();
+  });
+});
+
+describe('presence', () => {
+  /**
+   * The viewer count changes without anything on the wall changing, so it is
+   * the one fact the version-stamped broadcast path cannot carry by itself.
+   *
+   * It matters because of what the number is for: a presenter checks it to
+   * confirm the television is connected, minutes before a service. If it only
+   * moved when an intent was sent, they would plug in the screen and watch it
+   * report nobody.
+   */
+  it('tells the viewers already connected when another one arrives', () => {
+    const first = new FakeSink();
+    hub.subscribe('s1', first, wireState());
+    expect(first.states().at(-1)?.session.viewerCount).toBe(1);
+
+    hub.subscribe('s1', new FakeSink(), wireState());
+    expect(first.states().at(-1)?.session.viewerCount).toBe(2);
+  });
+
+  it('tells them when one leaves', () => {
+    const first = new FakeSink();
+    hub.subscribe('s1', first, wireState());
+    const second = hub.subscribe('s1', new FakeSink(), wireState());
+    if (second.ok) second.subscription.close();
+
+    expect(first.states().at(-1)?.session.viewerCount).toBe(1);
+  });
+
+  it('leaves the version alone, so nothing on the wall moves', () => {
+    const first = new FakeSink();
+    hub.subscribe('s1', first, wireState(4));
+    hub.subscribe('s1', new FakeSink(), wireState(4));
+
+    // Every frame is version 4: viewers drop it and keep showing what they had,
+    // which is what makes this safe to send at all.
+    expect(first.states().map(s => s.version)).toEqual([4, 4]);
+  });
+
+  it('does not count a mirror as an arrival', () => {
+    const first = new FakeSink();
+    hub.subscribe('s1', first, wireState());
+    hub.subscribe('s1', new FakeSink(), wireState(), { counted: false });
+
+    expect(first.states().at(-1)?.session.viewerCount).toBe(1);
   });
 });
 

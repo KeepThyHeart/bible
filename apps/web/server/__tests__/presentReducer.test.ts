@@ -177,7 +177,37 @@ describe('validatePlan', () => {
   let n = 0;
   const makeId = (): string => `id-${n++}`;
 
-  it('assigns server-side ids and ignores any the client sent', () => {
+  const UUID_A = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+  const UUID_B = '3f2504e0-4f89-41d3-9a0c-0305e82c3302';
+
+  it('names a new entry itself', () => {
+    n = 0;
+    const plan = validatePlan([{ item: JOHN_3 }], makeId);
+    expect(plan).toEqual([{ id: 'id-0', item: JOHN_3 }]);
+  });
+
+  it('lets an existing entry keep its id', () => {
+    // The plan is replaced wholesale on every edit, so renaming every entry on
+    // every save would re-key the controller's list mid-drag.
+    n = 0;
+    const plan = validatePlan([{ id: UUID_A, item: JOHN_3 }], makeId);
+    expect(plan).toEqual([{ id: UUID_A, item: JOHN_3 }]);
+  });
+
+  it('preserves ids through a reorder', () => {
+    n = 0;
+    const plan = validatePlan([{ id: UUID_B, item: JOHN_3 }, { id: UUID_A, item: JOHN_3 }], makeId);
+    expect(plan?.map(entry => entry.id)).toEqual([UUID_B, UUID_A]);
+  });
+
+  it('refuses to let a client collide two entries onto one id', () => {
+    n = 0;
+    const plan = validatePlan([{ id: UUID_A, item: JOHN_3 }, { id: UUID_A, item: JOHN_3 }], makeId);
+    expect(plan?.[0].id).toBe(UUID_A);
+    expect(plan?.[1].id).toBe('id-0');
+  });
+
+  it('replaces an id that is not a well-formed one', () => {
     n = 0;
     const plan = validatePlan([{ id: 'client-chosen', item: JOHN_3 }], makeId);
     expect(plan).toEqual([{ id: 'id-0', item: JOHN_3 }]);

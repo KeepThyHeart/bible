@@ -24,7 +24,12 @@ export type PresentConnection =
   | { status: 'reconnecting'; state: PresentState }
   | { status: 'closed'; reason: PresentClosedPayload['reason']; state: PresentState | null };
 
-export function usePresentStream(joinCode: string): PresentConnection {
+/**
+ * `preview` marks a stream as a mirror rather than an audience, keeping the
+ * controller's preview pane out of the viewer count. See the `preview` query
+ * parameter in `presentRoutes.ts`.
+ */
+export function usePresentStream(joinCode: string, preview = false): PresentConnection {
   const [connection, setConnection] = useState<PresentConnection>({ status: 'connecting' });
 
   // The last state, held outside React state so the event handlers can compare
@@ -34,7 +39,9 @@ export function usePresentStream(joinCode: string): PresentConnection {
   useEffect(() => {
     if (!joinCode) return;
 
-    const source = new EventSource(`${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/stream`);
+    const source = new EventSource(
+      `${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/stream${preview ? '?preview=1' : ''}`,
+    );
     let closedByServer = false;
 
     source.addEventListener('state', event => {
@@ -84,7 +91,7 @@ export function usePresentStream(joinCode: string): PresentConnection {
     };
 
     return () => source.close();
-  }, [joinCode]);
+  }, [joinCode, preview]);
 
   return connection;
 }

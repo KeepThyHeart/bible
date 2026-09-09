@@ -7,6 +7,7 @@ import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { getAllBookNames, getLocalizedBookName } from '../utils/bookNames';
 import { focusSearchField } from '../utils/focusSearchField';
+import { presentStore } from '../stores/presentStore';
 
 
 // Common abbreviation mappings (lowercase)
@@ -271,6 +272,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const searchQuery = useStore(searchStore, () => searchStore.query);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
+  const presenting = useStore(presentStore, () => presentStore.session !== null);
 
   // Sync search box when a search is performed externally (e.g., Strong's click)
   useEffect(() => {
@@ -506,6 +508,23 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         <i class="fa-solid fa-list" />
       </button>
       <div class="header__actions">
+        {/*
+          Session mode's one entry point. A single press creates a session and
+          opens the panel on the join code, because the first thing a presenter
+          needs is the code on the television -- and the second is to confirm it
+          connected. Once presenting, this becomes the way back to that panel.
+        */}
+        <button
+          class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
+          onClick={() => {
+            if (presenting) presentStore.setPanelOpen(!presentStore.panelOpen);
+            else void presentStore.start().then(ok => ok && presentStore.setPanelOpen(true));
+          }}
+          title={presenting ? t('present.openPanel') : t('present.startTooltip')}
+          aria-label={presenting ? t('present.openPanel') : t('present.start')}
+        >
+          <i class="fa-solid fa-tv" />
+        </button>
         {offlineEnabled && !isOnline && (
           <span class="header__offline-badge" title={t('header.offlineTooltip')}>
             <i class="fa-solid fa-wifi" style={{ opacity: 0.5 }} />

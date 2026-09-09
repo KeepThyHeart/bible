@@ -356,6 +356,18 @@ describe('GET /api/present/j/:joinCode/stream', () => {
     expect(payload.session.viewerCount).toBe(1);
   });
 
+  it('does not count the controller preview as a viewer', async () => {
+    // The count is what a presenter checks to confirm the television is
+    // actually connected. The controller's preview pane is the real viewer in
+    // an iframe, so without this it would report an audience of one before
+    // anything was plugged in -- breaking the only thing the number is for.
+    const session = await newSession();
+    const { body } = await openStream(`/api/present/j/${session.joinCode}/stream?preview=1`);
+
+    const payload = JSON.parse(body.slice(body.indexOf('data: ') + 6).split('\n')[0]);
+    expect(payload.session.viewerCount).toBe(0);
+  });
+
   it('tells a viewer the session ended rather than failing the connection', async () => {
     // `EventSource` retries a failed connection forever, so a projector left
     // running would reconnect all night. A `closed` event is what stops it.
@@ -394,3 +406,4 @@ describe('GET /api/present/j/:joinCode/stream', () => {
     expect((await request(app).get('/api/present/j/ZZZZZZZZ/stream')).status).toBe(404);
   });
 });
+
