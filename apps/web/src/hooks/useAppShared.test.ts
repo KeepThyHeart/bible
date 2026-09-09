@@ -41,6 +41,7 @@ const h = vi.hoisted(() => {
     book?: number;
     chapter?: number;
     displayMode?: string;
+    moduleAbbr?: string;
     studyVerse?: number | null;
     previewVerse?: number | null;
     verses?: Array<{ verse_id: number; footnotes?: unknown }>;
@@ -51,6 +52,20 @@ const h = vi.hoisted(() => {
     navigateFromHash = vi.fn();
     getActiveTab(): Tab | null {
       return this.activeTab;
+    }
+    /**
+     * Mirrors the real store rather than stubbing a constant: "already there"
+     * means module, book, chapter AND loaded verses all agree with the hash,
+     * and the hook's whole behaviour turns on that distinction.
+     */
+    matchesHash(hash: string): boolean {
+      const m = hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
+      const tab = this.activeTab;
+      return !!m && !!tab
+        && tab.moduleAbbr === m[1]
+        && tab.book === Number(m[2])
+        && tab.chapter === Number(m[3])
+        && (tab.verses?.length ?? 0) > 0;
     }
   }
 
@@ -507,6 +522,44 @@ describe('hash navigation', () => {
     render();
 
     expect(h.bibleStore.navigateFromHash).not.toHaveBeenCalled();
+  });
+
+  it('does not re-navigate to a hash the store has already resolved', () => {
+    // main.tsx resolves the opening hash before the first render, so this is
+    // the normal state at mount: the tab is already on the reference and its
+    // verses are loaded. Navigating again re-fetched a chapter that was on
+    // screen — one wasted chapter request per cold load.
+    h.bibleStore.activeTab = {
+      id: 'tab-1',
+      moduleAbbr: 'KJV',
+      book: JOHN,
+      chapter: 3,
+      displayMode: 'standard',
+      verses: [{ verse_id: 43003001 }],
+    };
+    window.location.hash = `#/KJV/${JOHN}/3`;
+
+    render();
+
+    expect(h.bibleStore.navigateFromHash).not.toHaveBeenCalled();
+  });
+
+  it('still navigates when the tab points at the hash but has no verses yet', () => {
+    // A restored session can name the reference before its text has arrived.
+    // That is not "already there", and skipping it would leave the pane empty.
+    h.bibleStore.activeTab = {
+      id: 'tab-1',
+      moduleAbbr: 'KJV',
+      book: JOHN,
+      chapter: 3,
+      displayMode: 'standard',
+      verses: [],
+    };
+    window.location.hash = `#/KJV/${JOHN}/3`;
+
+    render();
+
+    expect(h.bibleStore.navigateFromHash).toHaveBeenCalledWith(`#/KJV/${JOHN}/3`);
   });
 
   it('follows later hash changes', () => {

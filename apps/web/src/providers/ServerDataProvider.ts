@@ -15,6 +15,7 @@ import type {
   IDataProviders,
 } from './interfaces';
 import { StudyOverviewProvider } from './StudyOverviewProvider';
+import { bootFetch } from '../utils/bootPrefetch';
 import { settingsStore } from '../stores/settingsStore';
 import type {
   ChapterData,
@@ -82,7 +83,10 @@ function handleAuthFailure(): Promise<never> {
 
 async function fetchJson<T>(url: string): Promise<T> {
   try {
-    const res = await fetch(url);
+    // Every GET in this file routes through the boot prefetch. Only the few
+    // URLs index.html started are ever served from it; the rest fall straight
+    // through to `fetch`, so this costs one property lookup per request.
+    const res = await bootFetch(url);
     if (!res.ok) {
       const body = await res.text();
       // Auth expired — send the user to the server login page (production only; dev uses noAuth)

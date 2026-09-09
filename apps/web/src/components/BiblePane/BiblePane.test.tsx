@@ -91,6 +91,8 @@ vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
 
+const mockIsServedLocally = vi.fn(() => false);
+
 vi.mock('../../stores/bibleStore', () => ({
   bibleStore: {
     getActiveTab: () => mockActiveTab,
@@ -100,6 +102,9 @@ vi.mock('../../stores/bibleStore', () => ({
     getScrollTop: null,
     getBookTopics: vi.fn().mockResolvedValue({ topics: [] }),
     navigateTo: vi.fn(),
+    // Server-backed by default, which is what makes the adjacent-chapter
+    // prefetch run at all. Overridden per-test to cover the offline case.
+    isServedLocally: (...args: unknown[]) => mockIsServedLocally(...args),
     // Mirrors the real store: only the caller holding the current token can
     // spend it, and clearing notifies just as setting does.
     clearPendingScrollVerse: (verseId: number) => {
@@ -382,6 +387,48 @@ describe('BiblePane', () => {
 
       expect(scrollTopOf(container)).toBe(0);
       expect(mockActiveTab?.pendingScrollVerse).toBeNull();
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Adjacent-chapter prefetch
+  // ------------------------------------------------------------------
+  describe('adjacent-chapter prefetch', () => {
+    /** URLs the prefetch effect asked the network for. */
+    async function prefetchedUrls(): Promise<string[]> {
+      const fetchSpy = vi.fn().mockResolvedValue(new Response('{}'));
+      const original = globalThis.fetch;
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+      try {
+        render(<BiblePane />);
+        // The effect defers its kickoff by a macrotask so the current chapter
+        // renders first.
+        await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+        return fetchSpy.mock.calls.map(c => String(c[0]));
+      } finally {
+        globalThis.fetch = original;
+      }
+    }
+
+    it('warms chapter +/-1 when the translation comes from the server', async () => {
+      mockIsServedLocally.mockReturnValue(false);
+
+      const urls = await prefetchedUrls();
+
+      expect(urls.some(u => u.endsWith('/43/2'))).toBe(true);
+      expect(urls.some(u => u.endsWith('/43/4'))).toBe(true);
+    });
+
+    it('asks for nothing once the translation is readable from local storage', async () => {
+      // There is no HTTP cache to warm in this case: the offline provider
+      // answers chapter +/-1 from the downloaded database. Without the guard a
+      // reader who had downloaded the whole Bible still sent two chapter
+      // requests per navigation for text already on their disk.
+      mockIsServedLocally.mockReturnValue(true);
+
+      const urls = await prefetchedUrls();
+
+      expect(urls.filter(u => u.includes('/api/bible/'))).toEqual([]);
     });
   });
 

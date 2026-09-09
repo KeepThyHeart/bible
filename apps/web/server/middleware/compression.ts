@@ -46,6 +46,15 @@ export function shouldCompress(req: Request, res: Response): boolean {
   // Standard per-request opt-out, honoured by convention.
   if (req.headers['x-no-compression']) return false;
 
+  // Explicit per-response opt-in, set by the route (see `sendDbFile`). It has
+  // to win over the content-type list below, because the responses that need it
+  // are octet-stream too: a lite Bible module is served as octet-stream like
+  // the embedding vectors, but unlike them it is ordinary SQLite pages full of
+  // English prose and gives up ~71% to gzip. The skip list is about the
+  // *incompressible* octet-stream bodies, and this is how a route says it is
+  // not one of those.
+  if (res.locals?.compressible === true) return true;
+
   const contentType = res.getHeader('Content-Type');
   if (typeof contentType === 'string') {
     const base = contentType.split(';')[0].trim().toLowerCase();

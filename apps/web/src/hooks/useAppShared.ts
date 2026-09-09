@@ -185,7 +185,14 @@ export function useAppShared(providers: IDataProviders) {
 
   // Hash navigation
   useEffect(() => {
-    if (window.location.hash) {
+    // Only when the store is not already there. main.tsx resolves the opening
+    // hash before the first render — deliberately, so the reader never sees the
+    // home screen swapped for their chapter — and it also calls updateHash() on
+    // the restored-session path. So by the time this mounts a hash is present
+    // and already satisfied, and navigating again re-fetched a chapter that was
+    // on screen: one wasted chapter request on every cold load, and it quietly
+    // defeated main.tsx's "session had cached verses, no fetch needed" path.
+    if (window.location.hash && !bibleStore.matchesHash(window.location.hash)) {
       bibleStore.navigateFromHash(window.location.hash);
     }
     const handleHashChange = () => {

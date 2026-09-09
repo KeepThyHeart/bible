@@ -303,8 +303,16 @@ export function BiblePane({
   // Adjacent-chapter prefetch: warm the HTTP cache for chapter±1 so swipe/next-button
   // navigation feels instant. Fires after the current chapter is set; responses are
   // discarded — the browser/service-worker cache is the only consumer.
+  //
+  // Skipped entirely once the translation is readable from OPFS, because then
+  // there is nothing to warm: `OfflineBibleProvider` answers chapter±1 from the
+  // local database in a millisecond and never consults the HTTP cache. Without
+  // this check a reader who has downloaded the whole Bible still sent two
+  // chapter requests to the server on every single navigation, for text already
+  // sitting on their disk.
   useEffect(() => {
     if (!tab?.moduleAbbr || !tab.book || !tab.chapter) return;
+    if (bibleStore.isServedLocally(tab.moduleAbbr)) return;
     const moduleAbbr = tab.moduleAbbr;
     const book = tab.book;
     const chapter = tab.chapter;

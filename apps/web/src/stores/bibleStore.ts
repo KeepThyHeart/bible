@@ -137,6 +137,9 @@ export function addHistoryEntry(
 }
 
 const SESSION_KEY = 'bible-reader-session';
+
+/** `#/MODULE/book/chapter[/verse]` — the shape `updateHash` writes. */
+const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/;
 const STUDY_SETTINGS_KEY = 'bible-reader-study-settings';
 
 let tabCounter = 0;
@@ -247,6 +250,14 @@ class BibleStore extends Store {
   setShowHome(show: boolean): void {
     this.showHome = show;
     this.notify();
+  }
+
+  /**
+   * Is this module's text already on the device, ready to read without the
+   * network? False whenever the provider cannot say, which is the safe answer.
+   */
+  isServedLocally(module: string): boolean {
+    return this.bible?.isServedLocally?.(module) ?? false;
   }
 
   /** Fetch a chapter's verses without changing the active tab */
@@ -977,8 +988,29 @@ class BibleStore extends Store {
     }
   }
 
+  /**
+   * Is the active tab already showing exactly what `hash` names?
+   *
+   * Lets a caller skip a navigation that would only redo work already done.
+   * `useAppShared` needs this on mount: main.tsx resolves the opening hash
+   * *before* the first render, so by the time the hook mounts the answer is
+   * normally yes, and navigating again re-fetched the chapter already on
+   * screen. Requires loaded verses, so a tab that is merely pointed at the
+   * right reference (a restored session mid-load, say) still navigates.
+   */
+  matchesHash(hash: string): boolean {
+    const match = hash.match(HASH_PATTERN);
+    if (!match) return false;
+    const tab = this.getActiveTab();
+    return !!tab
+      && tab.moduleAbbr === match[1]
+      && tab.book === parseInt(match[2], 10)
+      && tab.chapter === parseInt(match[3], 10)
+      && tab.verses.length > 0;
+  }
+
   async navigateFromHash(hash: string): Promise<void> {
-    const match = hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
+    const match = hash.match(HASH_PATTERN);
     if (!match) return;
 
     const [, module, bookStr, chapterStr, verseStr] = match;
@@ -1092,6 +1124,10 @@ class BibleStore extends Store {
           tab.verses = data.verses;
           tab.hasInterlinearData = data.hasInterlinearData;
           tab.coveredBooks = data.coveredBooks;
+          // This path arms no spinner of its own, but `beginLoad` above just
+          // made it the tab's newest load — so any flag an earlier load left
+          // behind is now stale, and this is the only place left to clear it.
+          tab.loading = false;
           this.notify();
         } catch { /* ignore, tab will show empty */ }
       }

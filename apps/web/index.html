@@ -25,6 +25,75 @@
        HTML-escaped, and entities are not decoded inside <script>. Injected by
        brandingPlugin() in vite.config.ts, which also owns the escaping. -->
   <script>window.__BRAND__ = %BRAND_JSON%;</script>
+  <!--
+    Boot prefetch. The consuming half is src/utils/bootPrefetch.ts.
+
+    Every request below is a plain GET that depends on nothing in the app
+    bundle, yet all of them used to wait for /assets/index.js to download AND
+    parse first, and then went out as three SERIAL waves (health+config+version,
+    then the module manifest, then the chapter) because each awaited the one
+    before it. Measured cold on a 150ms link that put the first API request
+    1.58s into the load and the last one at 2.17s.
+
+    Issued here they start at ~10ms and overlap the bundle download, and the
+    three waves collapse into one. A miss costs one wasted request and nothing
+    else: `bootFetch` falls through to an ordinary fetch for any URL that was
+    not prefetched.
+  -->
+  <script>
+    (function prefetchBoot() {
+      // Must match `API_BASE` in src/utils/apiUrl.ts exactly, or the app will
+      // ask for a URL that is not the one sitting in this map.
+      var base = window.location.origin + '%BASE_PATH%'.replace(/\/$/, '');
+      var pending = Object.create(null);
+      window.__bootPrefetch = pending;
+
+      function grab(path, init) {
+        var url = base + path;
+        try {
+          var p = fetch(url, init);
+          // Mark the rejection handled. Nothing may be listening yet (the app
+          // is still downloading), and an offline start or an expired session
+          // would otherwise raise an uncaught promise rejection before the app
+          // has any say. The consumer awaits `p` itself, so it still sees the
+          // failure and still reports it.
+          p.catch(function () {});
+          pending[url] = p;
+        } catch (e) { /* no fetch here; the app will request it normally */ }
+      }
+
+      grab('/api/health');
+      grab('/api/config');
+      // `no-store` mirrors main.tsx: this is the answer that decides whether
+      // everything else in this bundle is stale, so it can never come from a
+      // cache.
+      grab('/api/version', { cache: 'no-store' });
+      grab('/api/modules');
+      grab('/api/books');
+      grab('/api/module-sections');
+
+      // The opening chapter, when it can be known without asking the server
+      // first. A deep link states it outright, which is the case that was
+      // slowest and matters most (shared and search-engine links land cold).
+      // Otherwise the saved session states it -- unless the session already
+      // carries the verses, in which case main.tsx renders them and fetches
+      // nothing. A first-ever visit falls through on purpose: its translation
+      // comes from /api/config's ui.defaultModule, which is still in flight
+      // here, and guessing wrong would cost a request and save none.
+      try {
+        var deepLink = window.location.hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
+        if (deepLink) {
+          grab('/api/bible/' + deepLink[1] + '/' + deepLink[2] + '/' + deepLink[3]);
+        } else {
+          var saved = JSON.parse(localStorage.getItem('bible-reader-session') || 'null');
+          var tab = saved && saved.tabs && saved.tabs[saved.activeTabIndex || 0];
+          if (tab && tab.book && tab.chapter && !(tab.verses && tab.verses.length)) {
+            grab('/api/bible/' + (tab.moduleAbbr || 'KJV') + '/' + tab.book + '/' + tab.chapter);
+          }
+        }
+      } catch (e) { /* private mode, or a session this build cannot parse */ }
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>
@@ -34,14 +103,29 @@
        taken down by hideAppLoading() once the first chapter is actually on
        screen, which is what stops the panes popping in one by one. -->
   <div id="app-loading" style="position:fixed;inset:0;z-index:9999;background:var(--bg-primary,#fff);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;color:var(--text-secondary,#555);gap:1rem">
-    <i class="fa-solid fa-book-bible" style="font-size:2.5rem;color:var(--accent-color, %BRAND_THEME_COLOR%)"></i>
+    <!-- Inline SVG, not `<i class="fa-solid fa-book-bible">`. An icon-font glyph
+         here made fa-solid-900.woff2 (120 KB) a boot-critical download for a
+         single character, competing with the app bundle for the link at exactly
+         the moment it is scarcest. The font still loads for the app's own UI,
+         but now after the reader has their chapter. -->
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color, %BRAND_THEME_COLOR%)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 0-2.5 2.5z"/>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M12 6v6M9.5 8.5h5"/>
+    </svg>
     <div style="font-size:1.1rem">Loading %BRAND_PRODUCT_NAME_SHORT%...</div>
     <div style="width:48px;height:48px;border:3px solid #e0e0e0;border-top-color:var(--accent-color, %BRAND_THEME_COLOR%);border-radius:50%;animation:spin 0.8s linear infinite"></div>
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </div>
   <!-- Error fallback UI (hidden until init fails) -->
   <div id="app-error" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100dvh;font-family:system-ui,sans-serif;color:#555;gap:1rem;padding:2rem;text-align:center">
-    <i class="fa-solid fa-triangle-exclamation" style="font-size:2.5rem;color:#c53030"></i>
+    <!-- Inline for the same reason as the splash icon above, and one more: this
+         panel is shown when boot failed, which is exactly when the icon font is
+         least likely to have loaded. -->
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#c53030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+      <path d="M12 9v4M12 17h.01"/>
+    </svg>
     <div style="font-size:1.2rem;font-weight:600;color:#333">Unable to load %BRAND_PRODUCT_NAME_SHORT%</div>
     <div id="app-error-message" style="font-size:0.95rem;max-width:400px;color:#666"></div>
     <div style="display:flex;gap:0.75rem;margin-top:0.5rem;flex-wrap:wrap;justify-content:center">

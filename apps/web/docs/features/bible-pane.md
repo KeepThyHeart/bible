@@ -165,8 +165,9 @@ Component tests sit beside each component (`BiblePane.test.tsx`,
 `TranslationDialog.test.tsx`, `BackBar.test.tsx`). Store tests live at
 `src/stores/bibleStore.history.test.ts`,
 `src/stores/bibleStore.passageSelection.test.ts`,
-`src/stores/bibleStore.studyVerse.test.ts` and
-`src/stores/bibleStore.translationRace.test.ts`.
+`src/stores/bibleStore.studyVerse.test.ts`,
+`src/stores/bibleStore.translationRace.test.ts` and
+`src/stores/bibleStore.stuckSpinner.test.ts`.
 
 ### Related Features
 
@@ -216,3 +217,37 @@ Caches keyed by verse id alone had the same blindness and now include the
 module: `src/hooks/useVersePopup.tsx` keys its tooltip cache `module:verseId`.
 
 Covered by `src/stores/bibleStore.translationRace.test.ts`.
+
+
+## The spinner that outlived its load
+
+`deferLoading(tab, seq)` raises `tab.loading` 80ms into a fetch, so a fast
+chapter never flashes a spinner. It takes the `loadSeq` of the load that armed
+it and **re-checks it before setting the flag**, because the timer can come due
+after that load has already been abandoned:
+
+```
+A starts -> B supersedes A -> B resolves (loading = false) ->
+A's timer fires (loading = true) -> A resolves, superseded, returns
+```
+
+The superseded branch returns without clearing `tab.loading`, and every other
+writer of that flag sits below the `isSupersededLoad` guard — so nothing was
+left to turn it off. `BibleContent`'s `isLoading` is
+`tab.loading || (no verses && no error)`, which makes the flag authoritative
+over `tab.verses`: the reader gets a spinner on top of a chapter that loaded
+fine, with no `loadError` and therefore no retry button. Only a reload clears
+it, and the reload is instant because `saveSession` had already cached the
+verses.
+
+This is not a narrow race. B only has to answer within 80ms, and a prefetched
+or downloaded chapter answers in about a millisecond — `BiblePane`'s
+adjacent-chapter prefetch warms chapter ±1 on every navigation, so the next
+chapter is normally already in cache when the reader swipes to it.
+
+Two supporting changes: the superseded branches cancel their own timer before
+returning, and `loadRestoredTabs` — the one loader that arms no spinner of its
+own, yet claims a `loadSeq` — clears `tab.loading` on success, since a flag an
+abandoned load left behind is stale once it has superseded that load.
+
+Covered by `src/stores/bibleStore.stuckSpinner.test.ts`.

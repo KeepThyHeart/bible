@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { join } from 'path';
-import { existsSync, statSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { gzipSync } from 'zlib';
 import type { Request } from 'express';
 import BetterSqlite3 from 'better-sqlite3-web';
 import type { DatabaseManager } from '../DatabaseManager.js';
@@ -11,7 +12,75 @@ import type { SiteSettings } from '../siteSettings.js';
 import { getSettingsKey, isModuleActive, getModuleEntry, buildDescriptions, buildSortOrders } from '../siteSettings.js';
 import { registerRoute } from './routeRegistry.js';
 
-function sendDbFile(res: Response, filePath: string, filename: string, req?: Request): void {
+/** Suffix of the pre-compressed sibling written beside a cached lite copy. */
+const GZ_SUFFIX = '.gz';
+
+/**
+ * Write `<filePath>.gz` beside a freshly generated lite copy.
+ *
+ * Compressing in the response path instead would cost ~156 ms of CPU per cold
+ * client (gzip level 6 over 6.2 MB runs at ~40 MB/s), which is the wrong shape
+ * entirely: the body is identical for every reader and changes only when the
+ * module does. The lite copy is already a disk cache keyed on the source's
+ * mtime, so its compressed form belongs in the same cache, paid once.
+ *
+ * Level 9 rather than 6 for the same reason -- at generation time the extra
+ * 70 ms buys a slightly smaller file forever. Best-effort: a failure here just
+ * means requests fall back to compressing on the fly.
+ */
+function writeGzSibling(filePath: string): void {
+  try {
+    writeFileSync(`${filePath}${GZ_SUFFIX}`, gzipSync(readFileSync(filePath), { level: 9 }));
+  } catch (error) {
+    console.warn('[LiteCache] Could not pre-compress', filePath, error);
+  }
+}
+
+/**
+ * The usable pre-compressed sibling for `filePath`, if there is one.
+ *
+ * Staleness is judged the same way the lite copy itself is: older than what it
+ * was made from means throw it away. Without that check a regenerated module
+ * would keep serving the previous edition's bytes.
+ */
+function freshGzSibling(filePath: string): string | null {
+  const gzPath = `${filePath}${GZ_SUFFIX}`;
+  if (!existsSync(gzPath)) return null;
+  try {
+    return statSync(gzPath).mtimeMs >= statSync(filePath).mtimeMs ? gzPath : null;
+  } catch {
+    return null;
+  }
+}
+
+function acceptsGzip(req?: Request): boolean {
+  return /\bgzip\b/.test(String(req?.headers['accept-encoding'] ?? ''));
+}
+
+interface SendDbFileOptions {
+  /**
+   * Let the compression middleware gzip this response, when no pre-compressed
+   * copy is available to send instead.
+   *
+   * Off by default because `sendDbFile` also serves full modules, which run to
+   * hundreds of MB, and gzipping those per request costs CPU in proportion to
+   * the largest files we host.
+   *
+   * The lite Bible copies are the opposite case and worth the exception: KJV
+   * measures 6.2 MB raw and 1.8 MB gzipped -- 71% off -- and every reader
+   * fetches one in the background on first use, so it is the largest thing a
+   * typical visitor downloads.
+   */
+  compressible?: boolean;
+}
+
+function sendDbFile(
+  res: Response,
+  filePath: string,
+  filename: string,
+  req?: Request,
+  options: SendDbFileOptions = {}
+): void {
   // Item #6: Add file size limit (500 MB)
   const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
   const stat = statSync(filePath);
@@ -25,9 +94,32 @@ function sendDbFile(res: Response, filePath: string, filename: string, req?: Req
     req.socket.setTimeout(120_000);
   }
 
-  res.setHeader('Content-Length', stat.size);
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+  // Best case: hand over bytes that were compressed once, at generation time.
+  // Nothing is spent per request, and `Content-Length` is honest because it
+  // describes exactly what goes on the wire.
+  const gzPath = options.compressible && acceptsGzip(req) ? freshGzSibling(filePath) : null;
+  if (gzPath) {
+    // `Vary` so a shared cache cannot hand this body to a client that did not
+    // ask for gzip, and vice versa.
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.setHeader('Content-Length', statSync(gzPath).size);
+    res.sendFile(gzPath);
+    return;
+  }
+
+  // Read by `shouldCompress`, which otherwise declines every
+  // application/octet-stream response. Set before the body starts so the
+  // decision is in place in time.
+  if (options.compressible) res.locals.compressible = true;
+
+  // `Content-Length` is deliberately not set when the body may be compressed
+  // on the fly: it describes the file on disk, not the bytes on the wire, and
+  // announcing the wrong length truncates the download.
+  if (!options.compressible) res.setHeader('Content-Length', stat.size);
   res.sendFile(filePath);
 }
 
@@ -196,8 +288,14 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         const sourceMtime = statSync(dbPath).mtimeMs;
         const liteMtime = statSync(litePath).mtimeMs;
         if (liteMtime >= sourceMtime) {
+          // Backfill the compressed sibling for a cache entry that predates it
+          // (or whose source has since been replaced). Costs one request the
+          // ~230 ms to build it; every request after this is served from disk
+          // with no compression work at all.
+          if (!freshGzSibling(litePath)) writeGzSibling(litePath);
+
           // Serve cached lite copy
-          sendDbFile(res, litePath, `${name}-lite.db`, req);
+          sendDbFile(res, litePath, `${name}-lite.db`, req, { compressible: true });
           return;
         }
       }
@@ -275,9 +373,11 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         // Serialize and cache to disk for future requests
         const buffer = liteDb.serialize();
         writeFileSync(litePath, buffer);
+        // Compress once, here, so no request ever pays for it. See writeGzSibling.
+        writeGzSibling(litePath);
         console.log(`[LiteCache] Generated ${litePath} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
 
-        sendDbFile(res, litePath, `${name}-lite.db`, req);
+        sendDbFile(res, litePath, `${name}-lite.db`, req, { compressible: true });
       } finally {
         liteDb.close();
         sourceDb.close();

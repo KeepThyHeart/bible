@@ -311,6 +311,27 @@ function wasmPlugin(): Plugin {
 
 const basePath = process.env.BASE_PATH || '/';
 
+/**
+ * Substitute `%BASE_PATH%` in index.html.
+ *
+ * The boot-prefetch script there is a plain inline `<script>`, so none of the
+ * usual seams reach it: `define` rewrites modules only, and Vite's own
+ * index.html pass rewrites `src`/`href` attributes, not JavaScript string
+ * literals. It has to build absolute `/api/...` URLs that match the ones
+ * `API_BASE` produces (`origin + BASE_URL`), and getting that wrong would mean
+ * prefetching URLs the app never asks for -- so the value comes from the same
+ * constant Vite is configured with rather than being guessed at runtime.
+ */
+function basePathPlugin(): Plugin {
+  return {
+    name: 'bible-base-path',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html: string) => html.replace(/%BASE_PATH%/g, basePath),
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   define: {
@@ -335,6 +356,7 @@ export default defineConfig({
   },
   plugins: [
     brandingPlugin(),
+    basePathPlugin(),
     wasmPlugin(),
     ortWasmPlugin(),
     buildIdPlugin(),
