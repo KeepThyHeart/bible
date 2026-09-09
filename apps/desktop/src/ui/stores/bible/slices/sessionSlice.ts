@@ -165,21 +165,29 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
     });
 
     try {
-      await get().loadAvailableBibles();
-      if (tab.moduleId === undefined) {
-        const bible = get().availableBibles.find(b => b.abbreviation === tab.abbreviation);
-        tab.moduleId = bible?.module_id;
-      }
+      // The chapter text is the only thing the reader is waiting on, so
+      // it goes to the main process FIRST. This used to sit behind two other
+      // awaited round-trips (`loadAvailableBibles`, then `getBookName`), and at
+      // restore time the main process is saturated with the mount IPC of every
+      // other pane in the layout -- so those two cost ~225ms of queue wait, not
+      // the ~30ms they cost in isolation.
+      const chapterPromise = get().loadChapterForTab(
+        panelId, tab.tabId, tab.abbreviation, tab.book, tab.chapter
+      );
 
-      // Resolve the book name (older sessions may not have stored one).
-      let bookName = tab.bookName;
-      try {
-        bookName = await bibleAPI.getBookName(tab.book);
-      } catch (error) {
-        console.error('[useBibleStore] Error getting book name during restore:', error);
-        bookName = tab.bookName || 'Unknown';
-      }
+      // The session already stores the book name; only a session written before
+      // that field existed needs to ask main for it. Kicked off (unawaited)
+      // alongside the chapter rather than in front of it.
+      const bookNamePromise: Promise<string> = tab.bookName
+        ? Promise.resolve(tab.bookName)
+        : bibleAPI.getBookName(tab.book).catch((error: unknown) => {
+            console.error('[useBibleStore] Error getting book name during restore:', error);
+            return 'Unknown';
+          });
 
+      await chapterPromise;
+
+      const bookName = await bookNamePromise;
       const withName = { ...tab, bookName };
       set({
         panels: updatePanelState(get().panels, panelId, {
@@ -188,7 +196,14 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
         }, createDefaultPanelState)
       });
 
-      await get().loadChapterForTab(panelId, tab.tabId, tab.abbreviation, tab.book, tab.chapter);
+      // Needed only to backfill `moduleId` on older sessions and to populate
+      // the version picker -- neither is on the path to first paint, so this
+      // now runs after the text is up rather than in front of it.
+      await get().loadAvailableBibles();
+      if (tab.moduleId === undefined) {
+        const bible = get().availableBibles.find(b => b.abbreviation === tab.abbreviation);
+        tab.moduleId = bible?.module_id;
+      }
 
       // Restore navigation history, synthesising a single entry when the saved
       // history is empty so Back/Forward still behave sensibly.

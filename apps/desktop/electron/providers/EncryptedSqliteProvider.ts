@@ -1,6 +1,49 @@
 import Database from 'better-sqlite3-multiple-ciphers';
+import { copyFileSync, existsSync, statSync } from 'fs';
 import { ISql, SqlParameter, SqlRow, SqlResult } from '@bible/core';
 import log from 'electron-log';
+
+/**
+ * PBKDF2 iterations used to derive the page key.
+ *
+ * SQLCipher v4 defaults to 256,000, which costs roughly 185ms on every single
+ * launch — measurably the largest fixed cost in main-process startup. That
+ * stretching exists to make a *low-entropy passphrase* expensive to
+ * brute-force. This key is not a passphrase: `encryptionKeyManager` generates
+ * 32 bytes from `crypto.randomBytes` and stores them in an Electron
+ * safeStorage-encrypted blob, so an attacker has 256 bits of entropy to search
+ * and the iteration count buys nothing against them. An attacker who can read
+ * the key file does not need to brute-force anything at all.
+ *
+ * Databases written before this change used the v4 default and are migrated on
+ * first open — see `openWithKdfMigration`.
+ */
+const KDF_ITER = 4000;
+
+/** The SQLCipher v4 default this codebase used previously. */
+const LEGACY_KDF_ITER = 256000;
+
+/** Suffix of the copy taken before an in-place rekey. */
+const MIGRATION_BACKUP_SUFFIX = '.pre-kdf-migration.bak';
+
+/**
+ * Apply the cipher configuration and key, then force a real page read.
+ *
+ * The read matters: `PRAGMA key` itself never fails, so without touching a page
+ * a wrong key (or wrong `kdf_iter`) looks exactly like success.
+ */
+function keyAndProbe(db: Database.Database, encryptionKey: string, kdfIter: number): boolean {
+  // Order is critical: cipher, then its parameters, then the key.
+  db.pragma('cipher=sqlcipher');
+  db.pragma(`kdf_iter=${kdfIter}`);
+  db.pragma(`key='${encryptionKey}'`);
+  try {
+    db.prepare('SELECT count(*) FROM sqlite_master').get();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * SQLite `PRAGMA key`/`rekey` cannot use bound parameters, so the key is
@@ -68,16 +111,8 @@ export class EncryptedSqliteProvider implements ISql {
 
     log.info(`[EncryptedSqliteProvider] Opening encrypted database: ${databasePath}`);
 
-    // Open database with better-sqlite3-multiple-ciphers
-    this.db = new Database(databasePath, options);
-
-    // Set cipher BEFORE key - order is critical!
-    // Using SQLCipher cipher scheme for compatibility with existing databases
-    this.db.pragma('cipher=sqlcipher'); // Use SQLCipher encryption scheme
-
-    // Set encryption key IMMEDIATELY after cipher
     assertSafeKeyLiteral(encryptionKey, 'encryption key');
-    this.db.pragma(`key='${encryptionKey}'`);
+    this.db = this.openWithKdfMigration(databasePath, encryptionKey, options);
 
     // Set recommended pragmas for performance and reliability
     this.db.pragma('foreign_keys = ON');
@@ -97,6 +132,85 @@ export class EncryptedSqliteProvider implements ISql {
       log.error('[EncryptedSqliteProvider] Failed to verify database encryption:', error);
       throw new Error('Failed to decrypt database - incorrect key or corrupted database');
     }
+  }
+
+  /**
+   * Open the database at `KDF_ITER`, migrating it from `LEGACY_KDF_ITER` if
+   * that is how it was written.
+   *
+   * A SQLCipher file stores its salt but not its iteration count, so a reader
+   * configured with the wrong count cannot tell "different KDF" from "corrupt
+   * file" — both surface as `file is not a database`. That is why this probes
+   * rather than inspects: try the current setting, and only if that fails fall
+   * back to the legacy one and rewrite the file.
+   *
+   * The rewrite is `PRAGMA rekey` with the SAME key after changing `kdf_iter`,
+   * which re-encrypts every page under the new parameters. (`sqlcipher_export`,
+   * the usual SQLCipher migration route, is not compiled into sqlite3mc.)
+   * Because that rewrites the whole file in place, a copy is taken first and
+   * left behind on failure — this database holds notes, journals and prayers.
+   */
+  private openWithKdfMigration(
+    databasePath: string,
+    encryptionKey: string,
+    options?: Database.Options
+  ): Database.Database {
+    let db = new Database(databasePath, options);
+    if (keyAndProbe(db, encryptionKey, KDF_ITER)) return db;
+
+    // A brand-new (zero-length) file is not a legacy database — there is
+    // nothing to migrate and nothing that could have failed but the key.
+    const isExistingFile = existsSync(databasePath) && statSync(databasePath).size > 0;
+    if (!isExistingFile) return db;
+
+    db.close();
+    db = new Database(databasePath, options);
+    if (!keyAndProbe(db, encryptionKey, LEGACY_KDF_ITER)) {
+      // Neither setting works: this is a genuinely wrong key or a damaged
+      // file, not a migration. Leave it untouched and let the caller fail.
+      db.close();
+      throw new Error('Failed to decrypt database - incorrect key or corrupted database');
+    }
+
+    if (options?.readonly) {
+      // Nothing can be rewritten through a read-only handle. Reading at the
+      // legacy setting is correct and costs only the slower key derivation.
+      log.info('[EncryptedSqliteProvider] Read-only handle on a legacy-KDF database; not migrating');
+      return db;
+    }
+
+    log.info('[EncryptedSqliteProvider] Migrating database to kdf_iter=%d', KDF_ITER);
+    const backupPath = `${databasePath}${MIGRATION_BACKUP_SUFFIX}`;
+    try {
+      copyFileSync(databasePath, backupPath);
+    } catch (error) {
+      db.close();
+      log.error('[EncryptedSqliteProvider] Could not back up before KDF migration:', error);
+      throw new Error('Failed to back up the user database before migrating its encryption settings');
+    }
+
+    try {
+      db.pragma(`kdf_iter=${KDF_ITER}`);
+      db.pragma(`rekey='${encryptionKey}'`);
+      db.close();
+    } catch (error) {
+      try { db.close(); } catch { /* already closed */ }
+      log.error('[EncryptedSqliteProvider] KDF migration failed; backup kept at', backupPath, error);
+      throw new Error('Failed to migrate the user database encryption settings');
+    }
+
+    // Prove the migration took before handing the connection out. A rekey that
+    // reported success but produced an unreadable file must not look like a
+    // clean start — the backup beside it is the recovery path.
+    const migrated = new Database(databasePath, options);
+    if (!keyAndProbe(migrated, encryptionKey, KDF_ITER)) {
+      migrated.close();
+      log.error('[EncryptedSqliteProvider] Database unreadable after KDF migration; backup at', backupPath);
+      throw new Error('User database is unreadable after migrating its encryption settings');
+    }
+
+    log.info('[EncryptedSqliteProvider] KDF migration complete; backup at', backupPath);
+    return migrated;
   }
 
   /**

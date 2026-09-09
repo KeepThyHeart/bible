@@ -128,7 +128,30 @@ export interface AppInitResult {
  *   true at any await boundary, the operation aborts cleanly and returns the
  *   layout collected so far (or null).
  */
-export async function initializeApp(signal: { aborted: boolean }): Promise<AppInitResult> {
+export interface AppInitOptions {
+  /**
+   * Fired the moment the dockview layout for this session is KNOWN --
+   * which is long before the session's commentary/dictionary/book/notes content
+   * has finished loading. The workbench (and therefore the Bible pane) has no
+   * reason to wait on that content, so publishing the layout here rather than
+   * from the resolved promise is what lets the reader see text early.
+   *
+   * Always called exactly once, with `null` when this session has no saved
+   * layout and the default should be built.
+   */
+  onLayoutReady?: (layout: Record<string, unknown> | null) => void;
+}
+
+export async function initializeApp(
+  signal: { aborted: boolean },
+  options: AppInitOptions = {}
+): Promise<AppInitResult> {
+  let layoutPublished = false;
+  const publishLayout = (layout: Record<string, unknown> | null): void => {
+    if (layoutPublished) return;
+    layoutPublished = true;
+    options.onLayoutReady?.(layout);
+  };
   let dockviewLayout: Record<string, unknown> | null = null;
 
   // Default-init helper, used both when there's no session data and as the
@@ -235,6 +258,11 @@ export async function initializeApp(signal: { aborted: boolean }): Promise<AppIn
         layoutBiblePanelIds.length > 0 ? layoutBiblePanelIds : [BIBLE_PANEL_ID]
       );
 
+      // Everything the workbench needs is now in the stores. Hand the layout
+      // over before the content restores below so the panes mount and the
+      // Bible text loads in parallel with them, not after them.
+      publishLayout(dockviewLayout);
+
       // Phase 1: Restore active/visible tabs in parallel for fast render.
       // Panel IDs match the default dockview panel IDs from DockviewLayout.
       const commentaryPanelId = COMMENTARY_PANEL_ID;
@@ -287,6 +315,7 @@ export async function initializeApp(signal: { aborted: boolean }): Promise<AppIn
       // explicitly here too so this path's behavior doesn't silently depend
       // on that side effect.
       usePreferencesStore.getState().applyAll();
+      publishLayout(null);
 
       // No session data, perform default initialization.
       await runDefaultInit();
@@ -302,6 +331,7 @@ export async function initializeApp(signal: { aborted: boolean }): Promise<AppIn
     }
   } catch (error) {
     console.error('Failed to initialize session:', error);
+    publishLayout(null);
     // Fall back to default initialization on error.
     await runDefaultInit();
 
@@ -316,6 +346,9 @@ export async function initializeApp(signal: { aborted: boolean }): Promise<AppIn
     }
   }
 
+  // Backstop: any path that somehow reached here without publishing (a future
+  // early return) must still unblock the workbench.
+  publishLayout(dockviewLayout);
   return { dockviewLayout };
 }
 

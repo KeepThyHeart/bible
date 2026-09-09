@@ -41,7 +41,25 @@
 
 import { app } from 'electron';
 import log from 'electron-log';
-import { autoUpdater, type UpdateInfo, type ProgressInfo } from 'electron-updater';
+import type { UpdateInfo, ProgressInfo } from 'electron-updater';
+
+// `electron-updater` is a heavy CommonJS tree (js-yaml,
+// builder-util-runtime, lodash helpers) that was required at main-process
+// module-eval time even though nothing touches it until the user picks
+// "Check for Updates". Resolved on first use instead. Cached, so the
+// synchronous `quitAndInstall` path below always finds it loaded -- it can
+// only be reached after a download, which loads the module.
+let updaterModule: typeof import('electron-updater') | null = null;
+async function getAutoUpdater(): Promise<typeof import('electron-updater').autoUpdater> {
+  updaterModule ??= await import('electron-updater');
+  return updaterModule.autoUpdater;
+}
+function requireLoadedAutoUpdater(): typeof import('electron-updater').autoUpdater {
+  if (!updaterModule) {
+    throw new Error('electron-updater has not been loaded; download() must run first');
+  }
+  return updaterModule.autoUpdater;
+}
 import { isNetworkAllowed } from '../ipc/networkHandlers';
 
 /** Why an update cannot be applied in-app on this install. */
@@ -93,8 +111,9 @@ export function resolveUnsupportedReason(): UnsupportedReason | null {
 export class UpdateInstallService {
   private configured = false;
 
-  private configure(): void {
+  private async configure(): Promise<void> {
     if (this.configured) return;
+    const autoUpdater = await getAutoUpdater();
     // No background download, and no install slipped in at quit time. Both must
     // stay false: the user consents to the check, then to the download, then to
     // the restart - three explicit acts.
@@ -121,7 +140,8 @@ export class UpdateInstallService {
       return { status: 'blocked' };
     }
 
-    this.configure();
+    await this.configure();
+    const autoUpdater = await getAutoUpdater();
 
     const progressHandler = (info: ProgressInfo): void => {
       onProgress?.({
@@ -165,6 +185,6 @@ export class UpdateInstallService {
     log.info('[UpdateInstall] quitting to install');
     // `isSilent: false` shows the installer UI, so the user can see what is
     // happening and cancel; `isForceRunAfter: true` relaunches when it is done.
-    autoUpdater.quitAndInstall(false, true);
+    requireLoadedAutoUpdater().quitAndInstall(false, true);
   }
 }

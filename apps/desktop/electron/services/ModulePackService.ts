@@ -53,7 +53,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
-import { Open as UnzipperOpen } from 'unzipper';
+// See ExtensionInstaller.ts -- `unzipper` is loaded on first use.
+type UnzipperOpenType = typeof import('unzipper').Open;
+async function unzipperOpen(): Promise<UnzipperOpenType> {
+  return (await import('unzipper')).Open;
+}
 
 /** Accepted archive extensions for a study add-on pack. */
 export const MODULE_PACK_EXTENSIONS = ['.zip', '.biblepack'] as const;
@@ -151,9 +155,9 @@ export async function extractModulePack(
   mkdirSync(tempDir, { recursive: true });
 
   try {
-    let directory: Awaited<ReturnType<typeof UnzipperOpen.file>>;
+    let directory: Awaited<ReturnType<UnzipperOpenType['file']>>;
     try {
-      directory = await UnzipperOpen.file(archivePath);
+      directory = await (await unzipperOpen()).file(archivePath);
     } catch (error) {
       throw new ModulePackError(
         `Could not read archive: ${(error as Error).message}`,

@@ -133,13 +133,12 @@ export function registerCommentaryHandlers(_ipcMain: IpcMain): void {
           }));
         }
 
-        const summaries = repo.getAllEntrySummaries();
-        summariesByTab[abbreviation] = summaries.map(summary => ({
-          verse_id_start: summary.verseIdStart,
-          verse_id_end: summary.verseIdEnd,
-          entry_level: summary.entryLevel,
-          word_count: summary.wordCount
-        }));
+        // Summaries intentionally not loaded here. `getAllEntrySummaries`
+        // is a full GROUP BY over commentary_entry (31k rows for MHC) whose only
+        // consumer is the empty-verse fallback grid -- and CommentaryPane
+        // already lazy-loads it via `loadEntrySummaries` exactly when that grid
+        // is about to render. Eagerly shipping it made session restore 320ms
+        // slower for something the reader usually never sees.
       }
 
       const elapsed = Date.now() - startTime;

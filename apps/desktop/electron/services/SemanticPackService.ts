@@ -69,7 +69,12 @@ import { createGunzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 
 import log from 'electron-log';
-import { Open as UnzipperOpen } from 'unzipper';
+// `unzipper` pulls a sizeable CommonJS tree that is required at main-
+// process module-eval time purely to have it available for an operation the
+// user has to ask for. Loaded on first use instead.
+async function unzipperOpen(): Promise<typeof import('unzipper').Open> {
+  return (await import('unzipper')).Open;
+}
 import {
   packagedFileName,
   parseLocalFeaturePack,
@@ -630,7 +635,7 @@ export class SemanticPackService {
 
     let entries: Map<string, { stream: () => Readable }>;
     try {
-      const directory = await UnzipperOpen.file(sourcePath);
+      const directory = await (await unzipperOpen()).file(sourcePath);
       entries = this.indexArchiveEntries(directory.files);
     } catch (error) {
       if (error instanceof SemanticPackInstallError) throw error;

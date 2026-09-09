@@ -11,6 +11,15 @@ import { getOrCreateEncryptionKey } from '../utils/encryptionKeyManager';
  */
 
 let userDb: EncryptedSqliteProvider | null = null;
+/**
+ * The in-flight open. `getSharedUserDb` used to test `if (!userDb)` and then
+ * `await` the key lookup -- so every caller that arrived during that await saw
+ * a null `userDb` and opened its own connection. At startup that is five
+ * callers (session handlers, notes, highlights, the extension host, file
+ * notes), i.e. five SQLCipher key derivations instead of one, serialised on the
+ * main thread. Caching the PROMISE is what makes this a singleton.
+ */
+let userDbOpening: Promise<EncryptedSqliteProvider> | null = null;
 
 function getUserDbPath(username: string = 'default'): string {
   const userDataPath = app.getPath('userData');
@@ -28,16 +37,25 @@ function getUserDbPath(username: string = 'default'): string {
  * Get the shared encrypted user database, opening it on first access.
  */
 export async function getSharedUserDb(username: string = 'default'): Promise<EncryptedSqliteProvider> {
-  if (!userDb) {
-    const dbPath = getUserDbPath(username);
-    log.info('[SharedUserDb] Opening encrypted user database at:', dbPath);
+  if (userDb) return userDb;
+  if (!userDbOpening) {
+    userDbOpening = (async () => {
+      const dbPath = getUserDbPath(username);
+      log.info('[SharedUserDb] Opening encrypted user database at:', dbPath);
 
-    const encryptionKey = await getOrCreateEncryptionKey();
-    userDb = new EncryptedSqliteProvider(dbPath, encryptionKey);
+      const encryptionKey = await getOrCreateEncryptionKey();
+      const db = new EncryptedSqliteProvider(dbPath, encryptionKey);
+      userDb = db;
 
-    log.info('[SharedUserDb] Encrypted user database opened successfully');
+      log.info('[SharedUserDb] Encrypted user database opened successfully');
+      return db;
+    })().catch((err: unknown) => {
+      // A failed open must not poison every later attempt.
+      userDbOpening = null;
+      throw err;
+    });
   }
-  return userDb;
+  return userDbOpening;
 }
 
 /**
@@ -52,5 +70,6 @@ export function closeSharedUserDb(): void {
       log.error('[SharedUserDb] Error closing user database:', error);
     }
     userDb = null;
+    userDbOpening = null;
   }
 }

@@ -23,7 +23,12 @@ import {
 } from 'fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import { tmpdir } from 'os';
-import { Open as UnzipperOpen } from 'unzipper';
+// EXP-H: `unzipper` pulls a sizeable CommonJS tree that is required at main-
+// process module-eval time purely to have it available for an operation the
+// user has to ask for. Loaded on first use instead.
+async function unzipperOpen(): Promise<typeof import('unzipper').Open> {
+  return (await import('unzipper')).Open;
+}
 import { loadManifest, type ManifestLoadResult } from './ExtensionManifestLoader';
 import {
   verifyExtensionSignature,
@@ -259,7 +264,7 @@ export async function installFromZip(opts: InstallFromZipOpts): Promise<InstallF
 
   try {
     // Open the archive and stream every entry into the temp root.
-    const directory = await UnzipperOpen.file(zipPath);
+    const directory = await (await unzipperOpen()).file(zipPath);
     for (const entry of directory.files) {
       // The `unzipper` types only know "Directory" / "File"; symlinks are
       // exposed as files with no content, which is fine for our use case.
