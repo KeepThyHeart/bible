@@ -75,6 +75,86 @@ Two parser rules are worth knowing before adding a file:
 than assuming, which is the point of the field.
 
 
+Timestamps and audio
+--------------------
+
+Optional, and only worth doing for a hymn that will be sung to a recording. A
+congregation singing to a piano advances by hand, which is the normal case.
+
+    [T:0.0] Amazing grace! how sweet the sound
+    [T:10.3] That saved a wretch like me!
+    [T:1:01.4] I once was lost, but now am found,
+
+Seconds (`10.3`) or minutes and seconds (`1:01.4`), always prefixed `T:`. There
+is one syntax and anything else in brackets is a parse error, deliberately: the
+system this format descends from accepted `[T:10.3]` in its parser but stripped
+*any* bracketed token from the text, and its own sample file used a bare
+`[10.3]` -- so every timestamp in it was silently discarded and the file still
+rendered, so nothing ever complained.
+
+Three rules that are easy to get wrong:
+
+  * **Timestamp every line, not every slide.** Slides are packed at display time
+    from a character budget, so where they break is not known when the file is
+    written. Each slide takes its cue from its own first line.
+  * **Record when the line is *sung*, not when you want it shown.** The lead
+    time -- currently two seconds, so the words are up slightly before they are
+    needed -- is applied when slides are packed. Pre-offsetting applies it twice.
+  * **Within about half a second is close enough.** Slides change every ten to
+    twenty seconds and there is a two-second lead absorbing the difference.
+    Precision beyond that is wasted effort.
+
+
+### Capturing them
+
+There was a purpose-built tool for this once. There does not need to be one
+again: it is a page with an `<audio>` element and a key listener. Save this
+beside the audio file, open it, play, and press Enter at the start of each line.
+
+    <audio id="track" src="./amazing-grace.mp3" controls></audio>
+    <pre id="out"></pre>
+    <script>
+      const stamps = [];
+      addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        stamps.push(`[T:${track.currentTime.toFixed(1)}]`);
+        out.textContent = stamps.join('\n');
+      });
+    </script>
+
+That prints one prefix per line, in order, ready to paste onto the front of each
+line of the hymn. Enter rather than the space bar, because space toggles
+playback when the audio element has focus.
+
+Two refinements if a hymn is long enough to be worth it: paste the hymn's lines
+into the page and emit finished lines rather than bare prefixes, and add a key
+that drops the last stamp so one mistimed press does not mean starting over.
+
+Getting it wrong is cheap to find. The parser requires timestamps to increase
+monotonically through a file, and the test suite parses every hymn in this
+directory, so a bad one fails:
+
+    cd apps/web && npx vitest run server/__tests__/hymns.test.ts
+
+
+### The audio files themselves
+
+Public-domain or self-recorded only. A recording is a separate work from the
+text and the tune, and a modern performance of a public-domain hymn is under
+copyright like any other recording. The `audio:` path is relative to the hymn
+file.
+
+Audio does not belong in git: it is large, it does not diff, and it is better
+distributed as a release artifact or fetched at install time, the way this app
+already fetches its fonts and its embedding model.
+
+**Nothing plays audio yet.** The format carries timestamps and the packer puts a
+lead-adjusted cue on every slide, but the viewer ignores it and advances only
+when the presenter says so. The data is there for when that is built; until
+then these fields are inert, and a hymn is no worse off without them.
+
+
 Adding a hymn
 -------------
 

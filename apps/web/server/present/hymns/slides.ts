@@ -33,6 +33,10 @@ export interface PackingOptions {
   /**
    * Seconds to bring each slide's audio cue forward, so the words are on the
    * screen slightly before they are sung rather than slightly after.
+   *
+   * Applied here, which is why a `.hymn` file records when a line is *sung*
+   * rather than when it should appear -- see "Timestamps and audio" in
+   * `hymns/README.md`, which also covers how to produce the timings.
    */
   lead?: number;
 }
