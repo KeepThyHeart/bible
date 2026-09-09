@@ -130,6 +130,63 @@ test.describe('Presenting from the reading app', () => {
     await wall.close();
   });
 
+  test('a hymn goes on the wall with its credit line', async ({ page, context }) => {
+    const joinCode = await startPresenting(page);
+    const wall = await context.newPage();
+    await wall.goto(`/present/v/${joinCode}`);
+
+    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
+    // By hymnal number, which is how a hymn actually gets called for.
+    await page.locator('.present-hymns__search').fill('460');
+    await expect(page.locator('.present-hymns__title').first()).toHaveText('Amazing Grace');
+    await page.locator('.present-hymns__pick').first().click();
+
+    await expect(wall.locator('.pv-hymn-line').first())
+      .toHaveText('Amazing grace! how sweet the sound', { timeout: 10000 });
+    // Attribution is rendered from the library's own metadata rather than typed
+    // by whoever prepared the service -- which is what keeps the credit right.
+    await expect(wall.locator('.pv-hymn-credit')).toContainText('John Newton');
+    // Nothing that belongs to a Bible passage leaks onto a hymn slide.
+    await expect(wall.locator('.pv-verse')).toHaveCount(0);
+
+    await wall.close();
+  });
+
+  test('next advances a hymn by slide and stops at the end', async ({ page, context }) => {
+    const joinCode = await startPresenting(page);
+    const wall = await context.newPage();
+    await wall.goto(`/present/v/${joinCode}`);
+
+    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
+    await page.locator('.present-hymns__search').fill('amazing grace');
+    await page.locator('.present-hymns__pick').first().click();
+    await expect(wall.locator('.pv-hymn-line').first()).toBeVisible({ timeout: 10000 });
+
+    const firstLine = () => wall.locator('.pv-hymn-line').first().textContent();
+    expect(await firstLine()).toContain('Amazing grace!');
+
+    await page.locator('.present-bar__btn .fa-chevron-right').click();
+    await expect.poll(firstLine).toContain("'Twas grace");
+
+    // Off the end of the last slide, the wall must simply stay where it is
+    // rather than emptying.
+    for (let i = 0; i < 8; i++) await page.locator('.present-bar__btn .fa-chevron-right').click();
+    await expect(wall.locator('.pv-hymn-line').first()).toBeVisible();
+
+    await wall.close();
+  });
+
+  test('a hymn in the running order is named, not numbered', async ({ page }) => {
+    // The session carries a hymn id; the strip has to show a title.
+    await startPresenting(page);
+    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
+    await page.locator('.present-hymns__search').fill('my jesus');
+    await page.locator('.present-hymns__row').first().locator('.present-plan__icon').click();
+
+    await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
+    await expect(page.locator('.present-plan__ref')).toHaveText('My Jesus, I Love Thee');
+  });
+
   test('ending the session clears the wall and the strip', async ({ page, context }) => {
     const joinCode = await startPresenting(page);
     const wall = await context.newPage();

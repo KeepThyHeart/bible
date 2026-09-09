@@ -12,9 +12,9 @@ import {
 import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentPassageItem, type StoredPresentState } from '../../src/present/protocol';
 
 /** John 3, so `next` has a real end to run into. */
-const ctx: IntentContext = { chapterLength: () => 36 };
+const ctx: IntentContext = { chapterLength: () => 36, slideCount: () => null };
 /** A module that is not installed: the reducer must still work. */
-const noModules: IntentContext = { chapterLength: () => null };
+const noModules: IntentContext = { chapterLength: () => null, slideCount: () => null };
 
 const JOHN_3: PresentPassageItem = { kind: 'passage', module: 'KJV', book: 43, chapter: 3 };
 
@@ -72,10 +72,30 @@ describe('validateItem', () => {
     expect(validateItem({ kind: 'text', body: 'x'.repeat(LIMITS.textBody + 1) })).toBeNull();
   });
 
-  it('refuses hymns until something can render one', () => {
-    // Reserved in the protocol, but accepting one now would put an item on the
-    // wall that no viewer can draw -- which reads as a broken projector.
-    expect(validateItem({ kind: 'hymn', hymnId: 'amazing-grace' })).toBeNull();
+  it('accepts a hymn by id', () => {
+    expect(validateItem({ kind: 'hymn', hymnId: 'amazing-grace' }))
+      .toEqual({ kind: 'hymn', hymnId: 'amazing-grace' });
+  });
+
+  it('keeps a verse order the presenter chose', () => {
+    // A refrain between every verse, or only verses one and four: the file's
+    // own order is a default, not a constraint.
+    expect(validateItem({ kind: 'hymn', hymnId: 'amazing-grace', verseOrder: ['1', 'R', '2'] }))
+      .toEqual({ kind: 'hymn', hymnId: 'amazing-grace', verseOrder: ['1', 'R', '2'] });
+  });
+
+  it('rejects a hymn id that is not a slug', () => {
+    // Ids are what saved service plans reference, and they reach a filesystem
+    // lookup; anything that is not a slug did not come from the library.
+    expect(validateItem({ kind: 'hymn', hymnId: '../../etc/passwd' })).toBeNull();
+    expect(validateItem({ kind: 'hymn', hymnId: 'Amazing Grace' })).toBeNull();
+    expect(validateItem({ kind: 'hymn', hymnId: '' })).toBeNull();
+  });
+
+  it('rejects a verse order with tokens that are not section names', () => {
+    expect(validateItem({ kind: 'hymn', hymnId: 'x', verseOrder: ['1', 'Z'] })).toBeNull();
+    expect(validateItem({ kind: 'hymn', hymnId: 'x', verseOrder: [] })).toBeNull();
+    expect(validateItem({ kind: 'hymn', hymnId: 'x', verseOrder: '1 R 2' })).toBeNull();
   });
 
   it('rejects anything that is not an item at all', () => {

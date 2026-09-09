@@ -28,6 +28,8 @@ import { PresentStore } from '../present/PresentStore.js';
 import { applyIntent, validateIntent, validatePlan, LIMITS } from '../present/reducer.js';
 import type { IntentContext } from '../present/reducer.js';
 import { isValidSessionId, normalizeJoinCode, verifyControlToken } from '../present/tokens.js';
+import { HymnLibrary } from '../present/hymns/HymnLibrary.js';
+import { sharedHymnLibrary } from './hymnRoutes.js';
 import type { PresentSessionRow } from '../present/PresentStore.js';
 import type { PresentClosedPayload, PresentState } from '../../src/present/protocol.js';
 
@@ -47,15 +49,24 @@ export interface PresentRouteOptions {
   db: DatabaseManager;
   /** Where `present.db` lives -- the instance's own state directory. */
   appStateDir: string;
+  /**
+   * Where the hymn library is read from. The reducer needs it to know how many
+   * slides a hymn has, which is what `next` runs out of.
+   */
+  hymnDirs?: string[];
   /** Overridable for tests. */
   store?: PresentStore;
   hub?: PresentHub;
+  library?: HymnLibrary;
 }
 
 export function createPresentRoutes(options: PresentRouteOptions): Router {
   const router = Router();
   const store = options.store ?? new PresentStore(`${options.appStateDir}/present.db`);
   const hub = options.hub ?? new PresentHub();
+  // An empty library rather than none: a deployment with no hymns installed is
+  // ordinary, and every hymn lookup then simply answers "not in the library".
+  const library = options.library ?? sharedHymnLibrary(options.hymnDirs ?? []);
 
   // ---------------------------------------------------------------------------
   // Chapter lengths
@@ -83,6 +94,13 @@ export function createPresentRoutes(options: PresentRouteOptions): Router {
       }
       chapterLengths.set(key, length);
       return length;
+    },
+
+    slideCount(hymnId, verseOrder) {
+      // Not memoized: packing a hymn is a pass over a few dozen short strings,
+      // and the order can differ per call, so a cache key would cost more than
+      // the work it saved.
+      return library.slideCount(hymnId, verseOrder);
     },
   };
 
@@ -406,5 +424,6 @@ registerRoute({
   createRoutes: (deps) => createPresentRoutes({
     db: deps.db,
     appStateDir: deps.extra.appStateDir as string,
+    hymnDirs: deps.extra.hymnDirs as string[],
   }),
 });

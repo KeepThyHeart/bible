@@ -51,7 +51,9 @@ export function describeItem(item: PresentItem | null, index: number): string | 
       moduleStore.getBookName(item.book));
   }
   if (item.kind === 'text') return item.title ?? 'Text';
-  return item.hymnId;
+  // A hymn travels as an id; the title is whatever the picker has learned. The
+  // id is a readable last resort rather than a placeholder.
+  return presentStore.hymnTitle(item.hymnId) ?? item.hymnId;
 }
 
 export function usePresenter(): PresenterView {

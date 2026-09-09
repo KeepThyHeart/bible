@@ -23,6 +23,7 @@ import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
 import './routes/presentRoutes.js';
+import './routes/hymnRoutes.js';
 import { getRegisteredRoutes } from './routes/routeRegistry.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
@@ -64,6 +65,20 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
 const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
 const appStateDir = resolve(packageRoot, 'data');
+
+/**
+ * Where the public-domain hymn library is read from, in order of preference.
+ *
+ * The layout matches what a standalone hymn repository would have, so pointing
+ * `BIBLE_HYMNS_DIR` at a checkout of one is the whole integration -- no
+ * submodule, no build step, no compiled index. The repo-root `hymns/` is the
+ * seed library, and `dataDir/hymns` lets an install add its own without
+ * touching the checkout. Both are read; ids must not collide.
+ */
+const hymnDirs = [
+  process.env.BIBLE_HYMNS_DIR || resolve(packageRoot, '../../hymns'),
+  resolve(dataDir, 'hymns'),
+];
 
 // Initialize file logging before any other output
 logger.init(appStateDir);
@@ -373,6 +388,7 @@ const routeDeps = {
     // two installs pointed at one content store must not see each other's live
     // sessions. See the dataDir/appStateDir note at the top of this file.
     appStateDir,
+    hymnDirs,
     privacyMode,
     // Shared token the desktop uploader must present. Empty accepts any build.
     desktopReportToken: siteConfig.desktopReports.token,

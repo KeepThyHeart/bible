@@ -752,6 +752,15 @@
     "leaveHint": "Stopping leaves the screen as it is. Ending clears it for everyone.",
     "end": "End session",
     "endConfirm": "End the session and clear the screen?",
-    "endYes": "End it"
+    "endYes": "End it",
+    "hymns": "Hymns",
+    "hymnSearchPlaceholder": "Title, first line, or number",
+    "hymnSend": "Put this hymn on the screen",
+    "hymnAddToPlan": "Add to the running order",
+    "hymnsNoMatch": "No hymn matches that.",
+    "hymnsEmptyLibrary": "No hymns are installed.",
+    "hymnsUnavailable": "The hymn library could not be reached.",
+    "hymnsMore": "{{count}} more match. Keep typing to narrow it.",
+    "hymnsMore_other": "{{count}} more matches. Keep typing to narrow them."
   }
 }

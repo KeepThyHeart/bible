@@ -12,6 +12,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { HighlightRange, PresentState } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
 import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
+import { useHymn } from './useHymn';
+import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typography';
 import { MAX_OVERSCAN, useFullscreen, useOverscan, useSetupKeys, useWakeLock } from './viewerChrome';
 import { tokenizeVerse } from './tokenize';
@@ -43,6 +45,7 @@ export function ViewerApp(): preact.JSX.Element {
   const connection = usePresentStream(joinCode, isPreview);
   const state = displayedState(connection);
   const passage = usePassage(state?.live ?? null);
+  const hymn = useHymn(state?.live ?? null);
 
   const { overscan, adjust } = useOverscan();
   const { isFullscreen, toggle } = useFullscreen();
@@ -65,7 +68,7 @@ export function ViewerApp(): preact.JSX.Element {
   return (
     <div class="pv-root" style={style}>
       <div class="pv-safe">
-        {renderBody(connection, state, passage, joinCode,
+        {renderBody(connection, state, passage, hymn, joinCode,
           isPreview || isFullscreen, toggle, overscan, isPreview)}
       </div>
       {/*
@@ -83,6 +86,7 @@ function renderBody(
   connection: PresentConnection,
   state: PresentState | null,
   passage: Passage | null,
+  hymn: HymnDetail | null,
   joinCode: string,
   isFullscreen: boolean,
   toggleFullscreen: () => void,
@@ -107,6 +111,11 @@ function renderBody(
         isPreview={isPreview}
       />
     );
+  }
+  if (state.live.kind === 'hymn') {
+    // No slide yet: the heading placeholder below, rather than an empty screen.
+    if (hymn) return <HymnSlideView hymn={hymn} index={state.position.index} />;
+    return <div class="pv-passage"><h1 class="pv-heading">&nbsp;</h1></div>;
   }
   if (state.live.kind === 'text') {
     return <TextSlide title={state.live.title} body={state.live.body} attribution={state.live.attribution} />;
@@ -268,6 +277,48 @@ function TextSlide(props: { title?: string; body: string; attribution?: string }
         {props.attribution ? <p class="pv-attribution">{props.attribution}</p> : null}
         <div class="pv-tail" aria-hidden="true" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * One slide of a hymn.
+ *
+ * Deliberately barer than the passage view. A congregation singing is reading
+ * ahead of the words, not studying them, so there is no verse numbering, no
+ * section label and no highlighting -- just the lines, centred, as large as
+ * they will go.
+ *
+ * The attribution footer is rendered from the library's metadata rather than
+ * typed by whoever prepared the service. That is what keeps the licensing story
+ * honest without asking a presenter to think about it: the credit is correct
+ * because it came from the file that had to declare itself public domain.
+ */
+function HymnSlideView(props: { hymn: HymnDetail; index: number }): preact.JSX.Element {
+  const slide = props.hymn.slides[Math.max(0, Math.min(props.index, props.hymn.slides.length - 1))];
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    // A hymn slide is packed to a character budget, not measured, so a long
+    // stanza can still overflow a short screen. Shrinking is the same fallback
+    // the passage view needs for Esther 8:9.
+    if (el?.parentElement) shrinkToFit(el, el.parentElement.clientHeight);
+  }, [props.hymn.id, props.index]);
+
+  if (!slide) return <div class="pv-hymn" />;
+
+  return (
+    <div class="pv-hymn">
+      <div class="pv-hymn-body" ref={bodyRef}>
+        {slide.lines.map((line, index) => (
+          <p class="pv-hymn-line" key={index}>{line}</p>
+        ))}
+      </div>
+      <p class="pv-hymn-footer">
+        <span class="pv-hymn-title">{props.hymn.title}</span>
+        {props.hymn.attribution ? <span class="pv-hymn-credit">{props.hymn.attribution}</span> : null}
+      </p>
     </div>
   );
 }

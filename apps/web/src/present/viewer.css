@@ -278,3 +278,58 @@ body {
     background-size: 100% 0.92em;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Hymns
+ *
+ * Barer than the passage view on purpose. A congregation singing is reading
+ * ahead of the words rather than studying them, so there is no verse
+ * numbering, no reference and nothing to draw the eye off the line being sung.
+ * The attribution is small, fixed to the foot, and comes from the library's
+ * own metadata -- which is what keeps the credit correct without a presenter
+ * having to type it.
+ * ------------------------------------------------------------------------ */
+
+.pv-hymn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  text-align: center;
+}
+
+.pv-hymn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  font-size: calc(var(--present-font-vh, 5.2) * 1vh * var(--verse-shrink, 1));
+  line-height: 1.28;
+  color: var(--pv-fg);
+}
+
+.pv-hymn-line {
+  margin: 0;
+}
+
+.pv-hymn-footer {
+  position: absolute;
+  bottom: 2.4vh;
+  left: 0;
+  right: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vh;
+  font-size: 1.9vh;
+  color: var(--pv-muted);
+}
+
+.pv-hymn-title {
+  font-style: italic;
+}
+
+.pv-hymn-credit {
+  opacity: 0.75;
+}

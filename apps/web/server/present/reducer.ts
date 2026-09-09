@@ -171,12 +171,27 @@ export function validateItem(value: unknown): PresentItem | null {
       return item;
     }
 
-    case 'hymn':
-      // Reserved in the protocol, not yet servable: nothing resolves a hymn id
-      // to text. Accepting one here would put an item on the wall that no
-      // viewer can render, which looks like a broken projector rather than an
-      // unfinished feature.
-      return null;
+    case 'hymn': {
+      const { hymnId, verseOrder } = value;
+      if (!isBoundedString(hymnId, LIMITS.hymnId)) return null;
+      // Ids are slugs and are what saved service plans reference; anything else
+      // did not come from the library.
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(hymnId)) return null;
+
+      const item: PresentItem = { kind: 'hymn', hymnId };
+      if (verseOrder !== undefined) {
+        if (!Array.isArray(verseOrder)) return null;
+        if (verseOrder.length === 0 || verseOrder.length > LIMITS.hymnVerseOrder) return null;
+        // Section tokens: a stanza number, or R / B / C / I. Validating the
+        // shape here means the library only ever has to answer whether such a
+        // section exists, not whether the string is safe to look up.
+        if (!verseOrder.every(token => typeof token === 'string' && /^(\d{1,3}|[RBCI])$/.test(token))) {
+          return null;
+        }
+        item.verseOrder = verseOrder;
+      }
+      return item;
+    }
 
     default:
       return null;
@@ -294,6 +309,17 @@ export interface IntentContext {
    * than overshooting the end of a chapter.
    */
   chapterLength(module: string, book: number, chapter: number): number | null;
+
+  /**
+   * How many slides a hymn makes in the given order, or null when the hymn is
+   * not in the library.
+   *
+   * Slides are packed by the server, not the viewer, for exactly this reason:
+   * `next` has to know where the end is. A viewer that packed its own slides
+   * would disagree with the server about how many there are the moment two
+   * viewers were configured differently.
+   */
+  slideCount(hymnId: string, verseOrder?: string[]): number | null;
 }
 
 /** The state a brand-new session starts in: nothing on the wall, sensible defaults. */
@@ -322,9 +348,18 @@ function passageBounds(
 
 function clampIndex(item: PresentItem | null, index: number, ctx: IntentContext): number {
   if (!item) return 0;
-  if (item.kind !== 'passage') return 0;
-  const { first, last } = passageBounds(item, ctx);
-  return Math.min(Math.max(index, first), last);
+  if (item.kind === 'passage') {
+    const { first, last } = passageBounds(item, ctx);
+    return Math.min(Math.max(index, first), last);
+  }
+  if (item.kind === 'hymn') {
+    // Slides are 0-based, unlike verse numbers. An unknown hymn is bounded at
+    // its first slide rather than left to wander: the viewer will show nothing
+    // for it either way, and a runaway index would survive into a saved plan.
+    const count = ctx.slideCount(item.hymnId, item.verseOrder);
+    return Math.min(Math.max(index, 0), count === null ? 0 : Math.max(count - 1, 0));
+  }
+  return 0;
 }
 
 /**
@@ -347,7 +382,12 @@ export function applyIntent(
       // A new item always clears the highlight: word indices are meaningless
       // against a passage they were not computed for, and leaving one in place
       // would paint an arbitrary run of words on the next thing shown.
-      const index = clampIndex(intent.item, intent.index ?? 1, ctx);
+      // Where an item starts when the controller does not say: verse 1 for a
+      // passage, but slide 0 for anything paged, because slides are 0-based and
+      // verse numbers are not. Defaulting to 1 for a hymn would open it on its
+      // second slide.
+      const start = intent.item.kind === 'passage' ? 1 : 0;
+      const index = clampIndex(intent.item, intent.index ?? start, ctx);
       return {
         ...state,
         live: intent.item,

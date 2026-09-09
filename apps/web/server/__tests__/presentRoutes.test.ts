@@ -275,13 +275,25 @@ describe('the plan', () => {
     expect(JSON.stringify(viewer.body)).not.toContain('building fund');
   });
 
-  it('rejects a plan containing an unsupported item', async () => {
+  it('rejects a whole plan when one entry is not a supported item', async () => {
+    // All or nothing: a partially saved running order is worse than a refused
+    // one, because the presenter cannot see which half survived.
     const session = await newSession();
     const res = await request(app)
       .put(`/api/present/s/${session.sessionId}/plan`)
       .set('X-Present-Token', session.controlToken)
-      .send({ plan: [{ item: JOHN_3 }, { item: { kind: 'hymn', hymnId: 'x' } }] });
+      .send({ plan: [{ item: JOHN_3 }, { item: { kind: 'video', url: 'http://x' } }] });
     expect(res.status).toBe(400);
+  });
+
+  it('accepts a hymn in the running order', async () => {
+    const session = await newSession();
+    const res = await request(app)
+      .put(`/api/present/s/${session.sessionId}/plan`)
+      .set('X-Present-Token', session.controlToken)
+      .send({ plan: [{ item: { kind: 'hymn', hymnId: 'amazing-grace' } }] });
+    expect(res.status).toBe(200);
+    expect(res.body.plan[0].item).toEqual({ kind: 'hymn', hymnId: 'amazing-grace' });
   });
 });
 

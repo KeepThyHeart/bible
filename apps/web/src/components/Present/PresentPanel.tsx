@@ -4,6 +4,7 @@ import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
 import { buildControlLink, buildViewerLink } from '../../present/controlLink';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from '../../present/protocol';
+import { PresentHymns } from './PresentHymns';
 import { PresentPlanList } from './PresentPlanList';
 import { PresentPreview } from './PresentPreview';
 import { usePresenter } from './usePresenter';
@@ -18,7 +19,7 @@ import { usePresenter } from './usePresenter';
  * the moment that matters.
  */
 
-type Section = 'plan' | 'screen' | 'join';
+type Section = 'plan' | 'hymns' | 'screen' | 'join';
 
 export function PresentPanel(props: { compact?: boolean }) {
   const { t } = useTranslation();
@@ -69,6 +70,7 @@ export function PresentPanel(props: { compact?: boolean }) {
     <div class="present-panel">
       <div class="present-panel__tabs">
         {tab('plan', t('present.runningOrder'))}
+        {tab('hymns', t('present.hymns'))}
         {tab('screen', t('present.screen'))}
         {tab('join', t('present.joining'))}
         <button
@@ -83,6 +85,8 @@ export function PresentPanel(props: { compact?: boolean }) {
 
       <div class="present-panel__body">
         {section === 'plan' && <PresentPlanList />}
+
+        {section === 'hymns' && <PresentHymns />}
 
         {section === 'screen' && (
           <div class="present-panel__screen">

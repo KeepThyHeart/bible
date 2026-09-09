@@ -1,5 +1,6 @@
 import { Store } from './Store';
 import { API_BASE } from '../utils/apiUrl';
+import type { HymnSummary } from '../present/hymns';
 import type {
   CreateSessionResponse,
   PresentIntent,
@@ -93,6 +94,19 @@ class PresentStore extends Store {
 
   /** An intent is in flight. Used to keep the strip from looking dead. */
   busy = false;
+
+  /**
+   * Hymn titles, learned as the picker searches.
+   *
+   * The session state carries a hymn *id*, not its title -- the same way it
+   * carries a book number rather than "John" -- so something has to turn one
+   * into the other for the control strip and the running order. Looking it up
+   * per render would mean a request per keystroke; remembering what the picker
+   * already fetched costs nothing and covers every hymn the presenter has
+   * actually seen. Anything unknown falls back to the id, which is at least
+   * readable.
+   */
+  private readonly hymnTitles = new Map<string, string>();
 
   private stream: EventSource | null = null;
   private lastNavAt = 0;
@@ -418,6 +432,20 @@ class PresentStore extends Store {
   // -------------------------------------------------------------------------
   // UI state
   // -------------------------------------------------------------------------
+
+  rememberHymns(hymns: HymnSummary[]): void {
+    let learned = false;
+    for (const hymn of hymns) {
+      if (this.hymnTitles.get(hymn.id) === hymn.title) continue;
+      this.hymnTitles.set(hymn.id, hymn.title);
+      learned = true;
+    }
+    if (learned) this.notify();
+  }
+
+  hymnTitle(hymnId: string): string | null {
+    return this.hymnTitles.get(hymnId) ?? null;
+  }
 
   setPanelOpen(open: boolean): void {
     this.panelOpen = open;
