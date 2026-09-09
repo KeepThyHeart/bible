@@ -12,6 +12,7 @@
     "build:core": "npm run build -w @bible/core",
     "build:desktop": "npm run build:core && npm run build -w @bible/desktop",
     "build:web": "npm run build:core && npm run build -w @bible/web",
+    "pack:sdk": "node scripts/pack-sdk.js",
     "init": "node scripts/init/index.js",
     "init:desktop": "node scripts/init/index.js --target=desktop",
     "init:check": "node scripts/init/checks.js",

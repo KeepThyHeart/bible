@@ -1,11 +1,16 @@
 /**
  * Acceptance fixture (test-extension-no-perms).
  *
- * Declares NO permissions. The activate() body deliberately tries to call
- * `api.bible.getVerse(43003016)` so the host's permission guard rejects it
- * with `PermissionDeniedError` (the api-impl gates on `bible:read`). The
- * outcome is captured in storage so an external test can assert "the gate
- * fired" without needing the worker exit code.
+ * Declares none of the permissions it exercises. The activate() body
+ * deliberately calls a gated API so the host's permission guard rejects it
+ * with `PermissionDeniedError`. The outcome is captured in storage so an
+ * external test can assert "the gate fired" without needing the worker exit
+ * code.
+ *
+ * `storage` IS declared, and has to be: the KV tier is itself gated on it, so
+ * without it the fixture would have no way to report the very denial it
+ * exists to prove. That does not weaken the fixture - the gate under test is
+ * a different permission.
  *
  * The equivalent shape for the notes API is `api.notes.create(...)` gated on
  * `notes:write`. The principle is the same.
