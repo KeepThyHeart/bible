@@ -2,18 +2,29 @@ import React from 'react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import BiblePane from './BiblePane';
 import CommentaryPane from './CommentaryPane';
-import CommentarySinglePanel from './commentary/CommentarySinglePanel';
-import BookSinglePanel from './book/BookSinglePanel';
-import DictionarySinglePanel from './dictionary/DictionarySinglePanel';
 import BookPane from './BookPane';
-import UserNotesPane from './notes/UserNotesPane';
-import PrayerTab from './notes/tabs/PrayerTab';
-import StudyPane from './StudyPane';
-import TopicsPane from './TopicsPane';
 import NewTabPage from './NewTabPage';
-import SearchResultsPane from './SearchResultsPane';
-import ExtensionPanelHost from './extensions/ExtensionPanelHost';
 import PaneErrorBoundary from './PaneErrorBoundary';
+
+// Everything below is split out of the first-paint bundle. Bible,
+// Commentary, Book and NewTab stay eager because the default layout mounts
+// them; the rest are panes the reader has to go and open. The notes panes in
+// particular drag the whole TipTap/ProseMirror editor stack (~1MB) behind them,
+// which nobody is typing into on the first frame.
+const UserNotesPane = React.lazy(() => import('./notes/UserNotesPane'));
+const PrayerTab = React.lazy(() => import('./notes/tabs/PrayerTab'));
+const StudyPane = React.lazy(() => import('./StudyPane'));
+const TopicsPane = React.lazy(() => import('./TopicsPane'));
+const SearchResultsPane = React.lazy(() => import('./SearchResultsPane'));
+const CommentarySinglePanel = React.lazy(() => import('./commentary/CommentarySinglePanel'));
+const BookSinglePanel = React.lazy(() => import('./book/BookSinglePanel'));
+const DictionarySinglePanel = React.lazy(() => import('./dictionary/DictionarySinglePanel'));
+const ExtensionPanelHost = React.lazy(() => import('./extensions/ExtensionPanelHost'));
+
+/** Fills the pane while a lazily-loaded pane module is in flight. */
+const PaneLoading: React.FC = () => (
+  <div className="h-full w-full" aria-hidden="true" style={{ backgroundColor: 'var(--theme-bg-primary)' }} />
+);
 import type { PanelContentType } from '../stores/useLayoutStore';
 import { useI18n } from '../contexts/useI18n';
 
@@ -65,11 +76,13 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
           <PaneErrorBoundary paneName={contentType}>
+            <React.Suspense fallback={<PaneLoading />}>
             <ExtensionPanelHost
               extensionId={extensionId}
               panelTypeId={panelTypeId}
               panelId={api.id}
             />
+          </React.Suspense>
           </PaneErrorBoundary>
         </div>
       );
@@ -87,7 +100,9 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
           <PaneErrorBoundary paneName={contentType}>
+            <React.Suspense fallback={<PaneLoading />}>
             <CommentarySinglePanel panelId={api.id} dockviewPanelApi={api} contentKey={contentKey} />
+          </React.Suspense>
           </PaneErrorBoundary>
         </div>
       );
@@ -96,7 +111,9 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
           <PaneErrorBoundary paneName={contentType}>
+            <React.Suspense fallback={<PaneLoading />}>
             <BookSinglePanel panelId={api.id} dockviewPanelApi={api} contentKey={contentKey} />
+          </React.Suspense>
           </PaneErrorBoundary>
         </div>
       );
@@ -105,7 +122,9 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
           <PaneErrorBoundary paneName={contentType}>
+            <React.Suspense fallback={<PaneLoading />}>
             <DictionarySinglePanel panelId={api.id} dockviewPanelApi={api} contentKey={contentKey} />
+          </React.Suspense>
           </PaneErrorBoundary>
         </div>
       );
@@ -147,8 +166,10 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
     >
       <PaneErrorBoundary paneName={contentType}>
+            <React.Suspense fallback={<PaneLoading />}>
         <Component {...componentProps} />
-      </PaneErrorBoundary>
+      </React.Suspense>
+          </PaneErrorBoundary>
     </div>
   );
 };

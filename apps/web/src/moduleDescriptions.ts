@@ -2,12 +2,11 @@
  * Recommendation and ordering metadata for Bible translations and commentaries,
  * plus accessors for the prose that describes them.
  *
- * **The prose lives in `locales/en/modules.json`, not here.** It used to be
- * duplicated: 114 English strings sat in this file while a byte-identical copy
- * sat in the catalog that nothing read. Only one of them could be translated,
- * and it was not the one on screen. What stays in this file is the part that is
- * not language at all — which translations are recommended, and what order the
- * commentaries sort in.
+ * **The prose lives in `locales/en/modules.json`, not here.** Duplicating it
+ * into this file gives two copies of the same English, only one of which can be
+ * translated — and not necessarily the one on screen. What belongs here is the
+ * part that is not language at all — which translations are recommended, and
+ * what order the commentaries sort in.
  *
  * Everything text-bearing is a function rather than a constant, because a
  * constant is captured at import time and cannot follow a language change.

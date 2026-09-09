@@ -41,13 +41,34 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
   ? resolve(currentDir, '..')
   : resolve(currentDir, '../..');
 
-const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, 'data');
+/**
+ * Content lives in the shared store; state this instance owns lives beside it.
+ *
+ * `dataDir` holds what an install *reads*: the module registry, the site
+ * config, the semantic indexes, the study cache.  It defaults to the repo-root
+ * `data/` -- the same directory `modulesDir` already pointed at, and the one
+ * the core and server test helpers resolve.  It used to default to
+ * `apps/web/data`, which meant a checkout could have a registry the tests could
+ * read or one the server could read, but not one directory holding both: `npm
+ * test` passed against modules the running app could not see.
+ *
+ * `appStateDir` holds what this instance *writes* and no one else should share:
+ * its log files and its server-side plugins.  Those stay under `apps/web/`,
+ * because two installs pointed at one content store must not overwrite each
+ * other's logs or inherit each other's plugins.
+ *
+ * `BIBLE_DATA_DIR` overrides the first, as before.  Nothing overrides the
+ * second yet; add an env var when a deployment needs one.
+ */
+const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
+const appStateDir = resolve(packageRoot, 'data');
 
 // Initialize file logging before any other output
-logger.init(dataDir);
+logger.init(appStateDir);
 logger.info(`Data directory: ${dataDir}`);
 logger.info(`Modules directory: ${modulesDir}`);
+logger.info(`App state directory: ${appStateDir}`);
 
 const db = new DatabaseManager(dataDir, modulesDir);
 
@@ -308,8 +329,8 @@ app.get('/api/config', (_req, res) => {
 });
 
 // Plugin system — discover and activate server-side plugins
-const pluginsDir = resolve(dataDir, 'plugins');
-const pluginsDataDir = resolve(dataDir, 'plugin-data');
+const pluginsDir = resolve(appStateDir, 'plugins');
+const pluginsDataDir = resolve(appStateDir, 'plugin-data');
 const pluginManager = new ServerPluginManager(db, pluginsDir, pluginsDataDir);
 pluginManager.discover();
 await pluginManager.activate();
@@ -356,7 +377,46 @@ for (const reg of getRegisteredRoutes()) {
   app.use(reg.path, reg.createRoutes(routeDeps));
 }
 
-// Serve semantic search data files for browser-side Ideas Search
+/**
+ * Serve the browser-side search assets -- and nothing else in the data directory.
+ *
+ * A bare `express.static(dataDir)` here publishes every file in that directory
+ * to anonymous callers.  That includes `site-config.json`, where the admin
+ * password hash is written when auth is enabled, and `main.db` — both
+ * downloadable at `/data/...` with no authentication.
+ *
+ * The mount exists for exactly three things, all of which the client requests
+ * by name (see `main.tsx` and `searchWorker.ts`): the quantised embedding
+ * vectors, their metadata sidecar, and the self-hosted model directory.  So the
+ * allowlist below names them, and everything else is a 404 -- which matters far
+ * more now that `dataDir` is the shared store and a fallthrough would offer up
+ * every module database in `modules/`.
+ */
+const SEMANTIC_ASSET = /^semantic_[A-Za-z0-9._-]+\.(bin|json)$/;
+app.use('/data', (req, res, next) => {
+  // Normalise before matching: `models/../main.db` resolves inside the static
+  // root, so a prefix test alone would let it through.
+  let requested: string;
+  try {
+    requested = decodeURIComponent(req.path);
+  } catch {
+    res.status(400).end();
+    return;
+  }
+  const segments = requested.replace(/\\/g, '/').split('/').filter(Boolean);
+  if (segments.includes('..') || segments.length === 0) {
+    res.status(404).end();
+    return;
+  }
+  const isModelAsset = segments[0] === 'models';
+  const isSemanticAsset = segments.length === 1 && SEMANTIC_ASSET.test(segments[0]);
+  if (!isModelAsset && !isSemanticAsset) {
+    res.status(404).end();
+    return;
+  }
+  next();
+});
+
 // These are large binary files — set long cache headers since they're versioned by filename
 app.use('/data', express.static(dataDir, {
   // fallthrough:false → a missing /data file returns a real 404 instead of falling
@@ -370,6 +430,29 @@ app.use('/data', express.static(dataDir, {
     }
   },
 }));
+
+/**
+ * A missing `/data` file is a 404, not a 500.
+ *
+ * `fallthrough: false` above stops a miss from reaching the SPA catch-all --
+ * which is right, because the search worker would then try to JSON.parse the
+ * app shell.  But it forwards the ENOENT to the error handler instead, which
+ * answers 500.  A 500 body chokes that worker exactly as badly as HTML does,
+ * and it misreports a plainly absent optional asset (the semantic index is not
+ * always built) as a server fault.
+ */
+app.use('/data', (
+  err: NodeJS.ErrnoException & { statusCode?: number },
+  _req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  if (err && (err.code === 'ENOENT' || err.statusCode === 404)) {
+    res.status(404).end();
+    return;
+  }
+  next(err);
+});
 
 // Serve static client files in production
 const clientDir = resolve(packageRoot, 'dist/client');

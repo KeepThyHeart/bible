@@ -23,11 +23,11 @@ import {
 } from '../Extensions';
 
 /**
- * Smoke test for Spec A phase 1-5 - confirms the Extensions namespace is
- * exported from `@bible/core`, every constant has the value the spec
- * mandates, the namespace alias re-export is wired, and the helpers behave.
+ * Smoke test for the Extensions namespace: confirms it is exported from
+ * `@bible/core`, every constant carries the value the contract fixes, the
+ * namespace alias re-export is wired, and the helpers behave.
  *
- * No host runtime exists yet - these are pure contract assertions.
+ * These are pure contract assertions - no host runtime is involved.
  */
 describe('Extensions contract', () => {
   it('exports EXTENSION_API_VERSION 1.0.0 at the package root', () => {

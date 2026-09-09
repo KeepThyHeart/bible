@@ -1,6 +1,6 @@
 /**
  * DiagnosticsUploader - background service that drains the diagnostics queue
- * over HTTPS. See docs/queue/diagnostics-and-issue-reporting.md section 4.3.
+ * over HTTPS.
  *
  * ## Design notes
  *

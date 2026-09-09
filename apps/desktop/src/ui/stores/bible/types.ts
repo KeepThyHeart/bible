@@ -168,9 +168,8 @@ export interface PendingBiblePanel {
  *
  * `openTabs` is retained as the per-passage record (it owns the passage's
  * history, display mode and toggle preferences, and keys the verse/study-option
- * caches), but the array now holds **at most one** entry: a passage is a
- * top-level dockview panel, not a sub-tab. See
- * `docs/Design/BiblePaneTabRestructure.md`.
+ * caches), but the array holds **at most one** entry: a passage is a
+ * top-level dockview panel, not a sub-tab.
  */
 export interface BiblePanelState {
   openTabs: BibleTab[];

@@ -159,9 +159,8 @@ describe('BiblePane', () => {
     expect(screen.getByTestId('bible-verse-list')).toBeInTheDocument();
   });
 
-  // The passage is the dockview tab now, so the pane must not render a tab
-  // strip of its own - that band is what the restructure removed.
-  // See docs/Design/BiblePaneTabRestructure.md.
+  // The passage is the dockview tab, so the pane must not render a tab strip
+  // of its own.
   it('renders no in-pane tab strip', () => {
     render(<BiblePane />);
     expect(screen.queryByTestId('bible-tab-bar')).not.toBeInTheDocument();

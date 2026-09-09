@@ -42,8 +42,16 @@ const REQUIRED_MODULES = ['KJV', 'ASV', 'Barnes', 'AmTract'];
  * against, so it is the parent of `modules/`, not `modules/` itself.
  */
 const REGISTRY_CANDIDATES = [
+  // The server's own defaults: its registry beside the app, modules in the
+  // shared store. See `dataDir`/`modulesDir` in server/index.ts.
   { dataDir: join(packageRoot, 'data'), modulesDir: join(repoRoot, 'data') },
-  { dataDir: join(repoRoot, 'packages', 'desktop', 'data'), modulesDir: join(repoRoot, 'packages', 'desktop', 'data') },
+  // The shared store holding its own registry. This is what a fresh clone gets
+  // when the module data is dropped in one place for every workspace to use --
+  // the same directory the core and server test helpers fall back to -- and
+  // without it the suite refused to start on a checkout that could run every
+  // other test.
+  { dataDir: join(repoRoot, 'data'), modulesDir: join(repoRoot, 'data') },
+  { dataDir: join(repoRoot, 'apps', 'desktop', 'data'), modulesDir: join(repoRoot, 'apps', 'desktop', 'data') },
 ];
 
 export interface E2eDataPaths {

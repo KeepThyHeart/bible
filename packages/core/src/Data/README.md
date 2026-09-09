@@ -118,7 +118,7 @@ Range convention (`verse_id_start` inclusive, `verse_id_end` inclusive, NULL =
 single verse) is stated **once**, in `Core/Types.ts` - use `resolveRangeEnd()`
 rather than branching on NULL. Word offsets are 0-based and inclusive everywhere.
 
-Open enums whose SQL `CHECK` constraints were dropped (`module_type`,
+Open enums that carry no SQL `CHECK` constraint (`module_type`,
 `dictionary_type`, `note_type`, `item_type`, `relationship_type`, `plan_type`,
 `search_type`, `link_type`, `source_type`, `entry_level`) live as union types
 plus `is*`/`assert*` validators in `Core/Types.ts` and are enforced at the

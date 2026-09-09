@@ -1,10 +1,10 @@
 /**
  * A typed reference seeds the new panel with its verse.
  *
- * "John 5:5" in the New Tab box was parsed, and then the verse was dropped
- * one line later when the content key was built - so the panel opened John 5
- * with nothing selected and no scroll to verse 5. The parse and the seed have
- * to carry the same information end to end.
+ * Parsing "John 5:5" in the New Tab box and then dropping the verse when the
+ * content key is built opens John 5 with nothing selected and no scroll to
+ * verse 5. The parse and the seed have to carry the same information end to
+ * end.
  */
 import { describe, it, expect } from 'vitest';
 import { parseVerseReference } from '../../utils/verseParser';

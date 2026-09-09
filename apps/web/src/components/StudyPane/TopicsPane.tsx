@@ -18,11 +18,11 @@ interface TopicsPaneProps {
  * with full topic browsing and search capabilities.
  *
  * The pending topic request is *read* here and *cleared by the browser* once it
- * has actually opened the topic. It used to be consumed straight out of this
- * render body, which had two consequences: a request raised while this pane was
- * already mounted was dropped on the floor (nothing remounts, so nothing reads
- * it), and any repeat render between the read and the child's mount effect
- * could throw the request away before it was acted on.
+ * has actually opened the topic. Consuming it straight out of this render body
+ * has two consequences: a request raised while this pane is already mounted is
+ * dropped on the floor (nothing remounts, so nothing reads it), and any repeat
+ * render between the read and the child's mount effect throws the request away
+ * before it is acted on.
  */
 export function TopicsPane({ topicalProvider, tagGraphProvider, bibleProvider, mobile }: TopicsPaneProps) {
   const topicRequest = useStore(commentaryStore, () => commentaryStore.pendingTopicNav);

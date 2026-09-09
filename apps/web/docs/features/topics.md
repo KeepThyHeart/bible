@@ -76,11 +76,11 @@ mobile overlay) carries a **`token`** that is bumped on every request. Three
 things depend on it:
 
 - **A request raised while the Topics pane is already open still navigates.**
-  `TopicsPane` used to call `consumePendingTopicNav()` in its render body, which
-  only runs when something remounts it. With the Topics tab already selected,
-  clicking a topic in the Study pane set the request, changed `rightPaneMode` to
-  a value it already held, and nothing ever read it — the click did nothing at
-  all. `TopicsBrowser` now watches the token in an effect.
+  Calling `consumePendingTopicNav()` from `TopicsPane`'s render body would only
+  run when something remounts it. With the Topics tab already selected, clicking
+  a topic in the Study pane sets the request and changes `rightPaneMode` to a
+  value it already holds, so nothing remounts and nothing reads it — the click
+  does nothing at all. `TopicsBrowser` watches the token in an effect instead.
 - **The request is not lost to a repeated render.** Consuming during render is a
   side effect in render: any re-render between the read and the child's mount
   effect threw the request away.

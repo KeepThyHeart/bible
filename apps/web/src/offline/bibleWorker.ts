@@ -104,8 +104,7 @@ async function getCoveredBooks(db: number): Promise<number[]> {
 interface RawVerseRow {
   verse_id: number;
   text: string;
-  text_plain: string | null;
-  formatting_data: string | null;
+  formatting: string | null;
   word_count: number | null;
 }
 
@@ -113,13 +112,24 @@ function rowToRawVerse(r: (number | string | Uint8Array | number[] | bigint | nu
   return {
     verse_id: r[0] as number,
     text: r[1] as string,
-    text_plain: r[2] as string | null,
-    formatting_data: r[3] as string | null,
-    word_count: r[4] as number | null,
+    formatting: r[2] as string | null,
+    word_count: r[3] as number | null,
   };
 }
 
-const VERSE_SQL = 'SELECT verse_id, text, text_plain, formatting_data, word_count FROM bible_verse';
+/**
+ * Columns as the v2 module schema actually defines them:
+ * `bible_verse(verse_id, text, formatting, word_count, metadata)`.
+ *
+ * This asked for `text_plain` and `formatting_data` — v1 names that no module
+ * in the registry has had for some time. Every local read therefore failed with
+ * `no such column: text_plain`, and `OfflineBibleProvider.getChapter` caught it
+ * and fell back to the server. The fallback is what hid the bug: the app worked
+ * perfectly, it just downloaded 6.5 MB per translation and then never read a
+ * single byte of it. Nothing offline could work either — the "offline" path was
+ * the server path with an extra failed query in front of it.
+ */
+const VERSE_SQL = 'SELECT verse_id, text, formatting, word_count FROM bible_verse';
 
 async function queryChapter(db: number, book: number, chapter: number): Promise<RawVerseRow[]> {
   const startId = book * 1000000 + chapter * 1000;
@@ -146,7 +156,7 @@ async function querySingleVerse(db: number, verseId: number): Promise<RawVerseRo
 }
 
 function formatRow(row: RawVerseRow) {
-  const fd: FormattingData | undefined = row.formatting_data ? JSON.parse(row.formatting_data) : undefined;
+  const fd: FormattingData | undefined = row.formatting ? JSON.parse(row.formatting) : undefined;
   const { textHtml, isParagraphStart, sectionHeading } = formatVerseText(row.text, fd);
   const footnotes = getFootnotes(fd);
 

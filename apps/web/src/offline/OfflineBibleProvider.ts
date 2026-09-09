@@ -30,6 +30,15 @@ export class OfflineBibleProvider implements IBibleDataProvider {
     private workerProxy: BibleWorkerProxy,
   ) {}
 
+  /**
+   * True once the module's database is open in the worker — the same condition
+   * `getChapter` uses to take its local fast path. "Downloaded" is deliberately
+   * not enough: a downloaded-but-unopened module still goes to the server.
+   */
+  isServedLocally(module: string): boolean {
+    return this.workerProxy.isModuleOpen(module);
+  }
+
   async getChapter(module: string, book: number, chapter: number): Promise<ChapterData> {
     // Fast path: DB already open in the worker — query locally
     if (this.workerProxy.isModuleOpen(module)) {

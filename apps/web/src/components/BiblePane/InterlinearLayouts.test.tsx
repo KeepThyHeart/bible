@@ -288,8 +288,8 @@ for (const [name, Layout] of [
     });
 
     it('looks the word up on click, like the chip does', () => {
-      // These used to be inert, which made the Greek word — the most obvious
-      // thing to click in an interlinear — do nothing.
+      // Inert here would make the Greek word — the most obvious thing to
+      // click in an interlinear — do nothing.
       const onStrongsClick = vi.fn();
       const cells = [cell(0, [word('love')])];
 

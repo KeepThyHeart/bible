@@ -8,8 +8,11 @@
  * Set `BIBLE_DATA_DIR` (and `BIBLE_MODULES_DIR`, when `modules/` lives
  * elsewhere) to point these suites at a populated data directory. They are the
  * same two variables the apps read, so a directory that runs an app runs the
- * tests. The fallback is the desktop package's data directory, which is where
- * this data lives once that package exists.
+ * tests. The fallback is the repo-root `data/` directory -- the shared module
+ * store both apps resolve their module files against, so one drop of `main.db`
+ * plus `modules/` there serves every workspace. It used to point into
+ * `packages/desktop/data`, a path that has not existed since the apps moved
+ * under `apps/`, so these suites skipped on every machine.
  *
  * The suites skip when the data is absent rather than failing -- a contributor
  * without module databases should still get a useful run. But they skip
@@ -18,7 +21,7 @@
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
-const fallbackDataDir = resolve(__dirname, '../../../../desktop/data');
+const fallbackDataDir = resolve(__dirname, '../../../../../data');
 
 /** Data directory: holds `main.db` and, by default, `modules/`. */
 export const TEST_DATA_DIR = process.env.BIBLE_DATA_DIR

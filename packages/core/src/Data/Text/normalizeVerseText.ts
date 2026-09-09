@@ -23,8 +23,6 @@
  * token sequences in one pass and maps legacy indices through to clean word
  * indices. Emitted offsets are always 0-based inclusive over
  * {@link splitVerseWords}`(text)`.
- *
- * See `docs/Design/DataModel/WS2-offset-base-findings.md` for the evidence.
  */
 
 import {

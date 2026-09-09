@@ -46,8 +46,27 @@ async function checkOpfs(): Promise<boolean> {
 }
 
 /**
+ * Run `fn` once the browser is idle, or after `timeoutMs` at the latest.
+ *
+ * The download this defers is the largest thing a visitor fetches (KJV is
+ * ~1.9 MB gzipped). Its only caller is `navigateTo`, which runs *during* boot —
+ * before the first chapter has painted — so starting it there put a multi-
+ * megabyte transfer in direct competition with the app bundle and the boot API
+ * requests, on exactly the slow links where that hurts most. Nothing waits on
+ * it: it is a cache for *later* chapter changes, so it can wait for quiet.
+ */
+function whenIdle(fn: () => void, timeoutMs = 5000): void {
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void })
+    .requestIdleCallback;
+  if (ric) ric(fn, { timeout: timeoutMs });
+  else setTimeout(fn, timeoutMs); // Safari < 16.4
+}
+
+/**
  * Trigger a background lite download for a Bible translation.
  * Fire-and-forget — does nothing if the module is already downloaded or in progress.
+ *
+ * Deferred to browser idle; see `whenIdle`.
  */
 export function triggerAutoDownload(abbreviation: string, name: string): void {
   if (!storageManager) return;
@@ -55,10 +74,13 @@ export function triggerAutoDownload(abbreviation: string, name: string): void {
   if (inProgressDownloads.has(abbreviation)) return;
   if (offlineStore.activeDownloads.has(abbreviation)) return;
 
+  // Claimed now rather than inside the idle callback, so that repeated
+  // navigation within the same chapter cannot queue the same download twice
+  // while the first is still waiting for idle.
   inProgressDownloads.add(abbreviation);
 
   // Fire-and-forget — errors are swallowed
-  (async () => {
+  whenIdle(() => void (async () => {
     try {
       const available = await checkOpfs();
       if (!available) return;
@@ -69,7 +91,7 @@ export function triggerAutoDownload(abbreviation: string, name: string): void {
     } finally {
       inProgressDownloads.delete(abbreviation);
     }
-  })();
+  })());
 }
 
 /**

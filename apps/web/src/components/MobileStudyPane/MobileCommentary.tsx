@@ -81,7 +81,7 @@ function renderCard(
           </div>
         </div>
         {/* The line above already shows the digest's display name; repeating
-            it here (it used to be the raw "SYNTHESIS") says nothing. */}
+            it here — as the raw "SYNTHESIS" — says nothing. */}
         <div class="mobile-commentary__card-name">{isDigestModule(card.moduleAbbr) ? '' : card.moduleName}</div>
         {card.wordCount > 0 && (
           <div class="mobile-commentary__card-words">

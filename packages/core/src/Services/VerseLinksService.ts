@@ -829,11 +829,11 @@ export class VerseLinksService {
   /**
    * Format verse ID as a readable reference, e.g. "Rom 5:8".
    *
-   * Uses the shared book-name table rather than the hand-rolled arithmetic and
-   * `Book ${n}` placeholder that used to live here - those strings reached the
-   * UI verbatim (every cross-reference label in the verse-links row).
-   * `getBookName` already returns `Book <n>` for an out-of-range number, so the
-   * degenerate case is still handled, just not for all 66 real books.
+   * Uses the shared book-name table, never hand-rolled arithmetic: these
+   * strings reach the UI verbatim (every cross-reference label in the
+   * verse-links row), so a `Book 45` placeholder would be user-visible.
+   * `getBookName` still returns `Book <n>` for an out-of-range number, so the
+   * degenerate case stays handled without reaching the 66 real books that way.
    */
   private formatVerseId(verseId: VerseId): string {
     const { bookNumber, chapter, verse } = VerseIdHelper.parse(verseId);

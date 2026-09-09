@@ -53,9 +53,9 @@ export class MockBibleSearchRepository implements IBibleSearchRepository {
   ): void {
     const key = `${document}:${division}`;
     const index = new BibleSearchIndex({
-      // `type` is required, `lastIndexed` is the current name for what this
-      // called `indexedDate`, and `bookText` no longer exists on the model -
-      // the mock had been building a record the repository cannot return.
+      // `type` is required and the timestamp field is `lastIndexed`; there is
+      // no `bookText` on the model. The mock must only build records the
+      // repository could actually return.
       type: 'bible',
       document,
       division,

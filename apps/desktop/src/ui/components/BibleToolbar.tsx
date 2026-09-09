@@ -18,9 +18,9 @@ import { openModuleManager } from '../utils/openModuleManager';
  *
  * This is deliberately the *only* persistent chrome the pane owns. The passage
  * itself is a dockview tab (so there is no second tab strip), and the
- * Interlinear/Notes toggles live here rather than in a strip of their own - see
- * docs/Design/BiblePaneTabRestructure.md. Anything new and rarely-used belongs
- * in the settings menu, not in another row.
+ * Interlinear/Notes toggles live here rather than in a strip of their own.
+ * Anything new and rarely-used belongs in the settings menu, not in another
+ * row.
  */
 const BibleToolbar: React.FC = () => {
   const { t } = useI18n();

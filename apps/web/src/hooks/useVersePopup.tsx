@@ -22,7 +22,7 @@ interface PopupPosition {
  * and reduced for display at paint time. Storing the display string instead
  * would bake the "Words of Christ in red" setting into the hover cache, so a
  * verse previewed before the reader flipped that switch would keep rendering
- * the old way until the page reloaded.
+ * at the previous setting until the page reloaded.
  */
 interface TooltipState {
   html: string;

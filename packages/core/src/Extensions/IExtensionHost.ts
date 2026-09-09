@@ -1,9 +1,8 @@
 /**
  * Host-side orchestrator interface.
  *
- * Spec A section "Architecture" + section "Lifecycle". `IExtensionHost` is the contract the
- * main-process singleton implements (`ExtensionHost.ts` under
- * `apps/desktop/electron/extensions/` - not yet implemented). The
+ * `IExtensionHost` is the contract the main-process singleton implements
+ * (`ExtensionHost.ts` under `apps/desktop/electron/extensions/`). The
  * desktop's renderer talks to it via IPC and the rest of the host code holds
  * a reference to it.
  *

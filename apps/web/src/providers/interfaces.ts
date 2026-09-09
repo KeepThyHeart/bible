@@ -50,6 +50,17 @@ export interface IBibleDataProvider {
   getVerseTexts(module: string, verseIds: number[]): Promise<BatchVerseTexts>;
   getBookTopics(book: number): Promise<BookTopicsData>;
   getVerseOfTheDay(): Promise<VotdData>;
+  /**
+   * Can this module's text be answered without touching the network right now?
+   *
+   * Only the offline-first provider implements it; the plain server provider
+   * leaves it undefined, which callers must read as "no". It exists so that
+   * speculative work — warming a cache for a chapter the reader has not asked
+   * for — can be skipped entirely when the whole translation is already sitting
+   * on disk. Answering it must be synchronous and free: a caller that has to
+   * await an answer would be better off just making the request.
+   */
+  isServedLocally?(module: string): boolean;
 }
 
 export interface CommentaryAvailability {

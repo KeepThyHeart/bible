@@ -2,13 +2,13 @@
 
 There are **two unrelated extensibility systems** in `@bible/core` with
 confusingly similar names. `src/Extensions/` is the sandboxed, permissioned,
-out-of-process **third-party extension API** (Spec A). `src/Plugin/` is a small
+out-of-process **third-party extension API**. `src/Plugin/` is a small
 **in-process hook registry** for first-party code. They share no code and no
 concepts. Read the table below before touching either.
 
 ## The two systems
 
-| | `src/Extensions/` (Spec A) | `src/Plugin/` |
+| | `src/Extensions/` | `src/Plugin/` |
 |---|---|---|
 | Audience | Third-party authors shipping an `extension.json` package | First-party code inside a consuming app |
 | Isolation | Separate `utilityProcess` worker per extension, plus `ext-ui://` iframes | Same process, direct function calls |
@@ -197,9 +197,8 @@ costs nothing.
 
 ## Related
 
-- Spec A ("the extension API spec") is cited throughout `src/Extensions/` as
-  "docs/desktop-refactor/spec-A.extension-api.md". **That file is not in this
-  repository** - the file headers are the closest thing to a spec that is
-  actually checked in.
+- [`src/Extensions/README.md`](../../src/Extensions/README.md) is the navigation
+  aid for the contract types themselves; each file's header comment carries the
+  rationale for its own slice.
 - [Data layer](data-layer.md) | [Module format](module-format.md) |
   [Search](search.md)

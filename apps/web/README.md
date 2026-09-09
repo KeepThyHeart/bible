@@ -10,12 +10,6 @@ A Bible study web application built with Preact and Express.  It provides a brow
 
 ## Quick Start
 
-> **Note:** steps 3 and 4 use `npm run init:web` and `npm run generate-settings`,
-> which are not in this repo yet -- they lived in a repo-root `scripts/`
-> directory that has not been imported, and where they will finally live is not
-> settled. Until then, supply `apps/web/data/main.db` and `settings.json`
-> yourself, or point `BIBLE_DATA_DIR` at a data directory that already has them.
-
 ```bash
 # 1. Install dependencies (from repo root)
 npm install
@@ -24,25 +18,20 @@ npm install
 mkdir -p data/modules
 cp /path/to/your/modules/*.db data/modules/
 
-# 3. Initialize the web app (creates apps/web/data/main.db, registers modules)
-npm run init:web
+# 3. Initialize the web app: registers modules in apps/web/data/main.db,
+#    and writes apps/web/data/site-config.json if it doesn't already exist
+npm run init
 
-# 4. Set up settings.json (controls which modules are visible)
-#    Option A: Copy and customize the sample
-cp apps/web/config/settings.sample.json apps/web/data/settings.json
-#    Option B: Auto-generate from registered modules
-npm run generate-settings
-
-# 5. Build the core package (required before first run)
+# 4. Build the core package (required before first run)
 npm run build:core
 
-# 6. Start the dev server
+# 5. Start the dev server
 npm run dev -w @bible/web
 ```
 
 Open **http://localhost:5173/** in your browser (Vite dev server proxies API to Express on port 3100).
 
-> **Important:** If `settings.json` is missing, no modules will be visible. This is a deliberate fail-safe for copyright protection. See [Module Visibility](#configuring-visibility-settingsjson) below.
+> **Important:** If neither `site-config.json` nor a legacy `settings.json` defines any modules, no modules will be visible. This is a deliberate fail-safe for copyright protection. See [Module Visibility](#configuring-visibility-site-configjson) below.
 
 ## SQLite Native Module
 
@@ -70,8 +59,9 @@ data/                              # Shared module storage (repo root, gitignore
 apps/web/
   data/                            # Web-specific data (gitignored)
     main.db                        # Module registry and Bible book data
-    settings.json                  # Module whitelist and section grouping
-    server-config.json             # Server auth and feature flags (optional)
+    site-config.json               # Unified config: modules, auth, features, search, UI (written by `npm run init` if missing)
+    settings.json                  # Legacy module whitelist -- read only if site-config.json has no "modules" section
+    server-config.json             # Legacy server auth and feature flags -- read only if site-config.json doesn't exist
     search-pipeline.json           # Semantic search config (optional)
     tag_graph.db                   # Entity knowledge graph (optional)
     semantic_*.db / *.bin          # Semantic search data (optional)
@@ -84,31 +74,33 @@ Module `.db` files are named with a type prefix: `bible_kjv.db`, `commentary_bar
 After placing module files in `data/modules/`, run the init script to register them:
 
 ```bash
-npm run init:web              # First-time setup
-npm run init:web -- --force   # Recreate main.db from scratch
+npm run init                        # First-time setup
+npm run init -- --force             # Recreate main.db from scratch
+npm run init -- --catalog           # Fetch a module catalog and pick modules to download, interactively
+npm run init -- --select=KJV,ASV    # Register only these modules, non-interactively
+npm run init -- --yes               # Assume defaults instead of prompting (for CI)
 ```
 
-### Configuring Visibility (settings.json)
+`--modules-dir=PATH` and `--data-dir=PATH` point the script at a modules directory or app data directory other than the defaults (`data/` and `apps/web/data/`, respectively).
 
-`settings.json` controls which modules are visible and how they are grouped in the UI. If the file is missing, no modules are visible (fail-safe for copyright protection).
+### Configuring Visibility (site-config.json)
 
-**Option A** — Copy the sample and customize:
+The `modules` section of `site-config.json` controls which modules are visible and how they are grouped in the UI. If `site-config.json` has no `modules` section (or the file doesn't exist), the server falls back to a legacy standalone `settings.json` in the same data directory; if neither defines any modules, none are visible (fail-safe for copyright protection).
+
+**Option A** — Let `npm run init` write it for you: first-time setup (see [Registering Modules](#registering-modules) above) creates `apps/web/data/site-config.json`, with a `modules` section built from whatever it found registered, if the file doesn't already exist.
+
+**Option B** — Copy the example and customize:
 ```bash
-cp apps/web/config/settings.sample.json apps/web/data/settings.json
+cp apps/web/config/site-config.example.json apps/web/data/site-config.json
 ```
 
-**Option B** — Auto-generate from registered modules:
-```bash
-npm run generate-settings
-```
-
-The settings file controls:
+The `modules` section controls:
   - **Which modules are visible** (`active: true/false`)
   - **Section grouping** (e.g., "Popular", "All Translations")
   - **Display overrides** (custom names, descriptions)
   - **About text** for the app
 
-See `schemas/settings.schema.json` for the full schema.
+See `config/site-config.schema.json` for the full schema. Deployments that predate the unified config can keep using a standalone `settings.json` -- see `config/settings.sample.json` and `config/settings.schema.json`.
 
 ## Architecture
 

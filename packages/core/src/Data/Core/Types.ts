@@ -406,7 +406,7 @@ export type Metadata = Record<string, unknown>;
 //   * `verse_id_end` is INCLUSIVE.
 //   * A single verse is `verse_id_end = verse_id_start`. NOT NULL (R-1).
 //
-// RESOLVED (R-1, 2026-07-25): `verse_id_end` is NOT NULL wherever the range is
+// R-1: `verse_id_end` is NOT NULL wherever the range is
 //   mandatory. Every containment query is therefore uniform --
 //   `verse_id_start <= X AND verse_id_end >= X` -- with no `OR verse_id_end IS
 //   NULL` branch whose omission silently drops single-verse rows (the majority).
@@ -538,9 +538,7 @@ export class VerseIdHelper {
    */
   static isValid(verseId: VerseId): boolean {
     // The integer guard matters: without it a fractional id like 43003016.7
-    // parses to a plausible book/chapter/verse and passes. The desktop renderer
-    // carried its own stricter copy of this helper for that reason; the guard
-    // moved here when that copy was removed.
+    // parses to a plausible book/chapter/verse and passes.
     if (!Number.isInteger(verseId)) return false;
     const { bookNumber, chapter, verse } = this.parse(verseId);
     return bookNumber >= 1 && bookNumber <= 66 && chapter >= 1 && verse >= 1;

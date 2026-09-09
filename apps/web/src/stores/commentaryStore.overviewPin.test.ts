@@ -3,11 +3,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { commentaryStore, HOME_TAB_ID } from './commentaryStore';
 
 /**
- * The Overview (Home) tab's pin button used to do nothing.
+ * The Overview (Home) tab's pin button has to work like every other tab's.
  *
- * It rendered, it highlighted on hover, and `pinTab` bailed out on
- * `tabId === HOME_TAB_ID` before touching anything — while the identical button
- * on every module tab worked. A control that is visible, enabled, and inert is
+ * Bailing out of `pinTab` on `tabId === HOME_TAB_ID` leaves a button that
+ * renders, highlights on hover, and does nothing, while the identical button on
+ * every module tab works. A control that is visible, enabled, and inert is
  * worse than an absent one.
  *
  * These tests pin both halves: the pin takes, and a pinned Overview keeps its

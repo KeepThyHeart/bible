@@ -73,10 +73,10 @@ const JOHN_4_2 = 43004002;
 /**
  * A full `VerseData`, with only the fields under test varied.
  *
- * The stubs below used to return bare `{ text_html }` / `{ text }` objects cast
- * to `Partial<IBibleDataProvider>`, which is a shape the provider never
- * produces — the server always sends every column. Varying the real record
- * keeps the fallback cases (empty html, empty text) honest.
+ * The stubs below return a full record rather than a bare `{ text_html }` /
+ * `{ text }` object cast to `Partial<IBibleDataProvider>`: that is a shape the
+ * provider never produces, since the server always sends every column. Varying
+ * the real record keeps the fallback cases (empty html, empty text) honest.
  */
 function verseData(overrides: Partial<VerseData> = {}): VerseData {
   return {

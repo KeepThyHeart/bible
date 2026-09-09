@@ -242,6 +242,15 @@ export class OfflineStorageManager {
   async downloadModuleLite(abbreviation: string, name: string): Promise<void> {
     // Don't show progress UI for lite/auto downloads
     try {
+      // Ask the browser to stop treating this origin's storage as disposable.
+      // `requestPersistence` existed but nothing ever called it, so a multi-MB
+      // translation was written to best-effort storage that the browser is free
+      // to evict under pressure — and re-downloading it is the one cost this
+      // whole mechanism exists to avoid. Not awaited for its answer: a refusal
+      // (or a browser without the API) is fine, the download just proceeds
+      // against evictable storage exactly as it did before.
+      void this.requestPersistence().catch(() => false);
+
       const response = await fetch(`${this.baseUrl}/api/modules/${abbreviation}/download-lite`);
       if (!response.ok) throw new Error(`Lite download failed: ${response.statusText}`);
 

@@ -4,9 +4,9 @@
 // *invisible*, not *absent*: removing a classic scrollbar hands its width back
 // to the content for the length of the transition, and anything sized off the
 // container width relaid out and then relaid out again 1.6s later. The theme
-// grid in Settings was the visible case — a wider container fits another
-// `auto-fill` column, so the cards narrowed the moment a theme was clicked and
-// snapped back when the transition ended.
+// grid in Settings is the visible case — a wider container fits another
+// `auto-fill` column, so the cards narrow the moment a theme is clicked and
+// snap back when the transition ends.
 * {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-width: thin;

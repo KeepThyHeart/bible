@@ -137,6 +137,9 @@ export function addHistoryEntry(
 }
 
 const SESSION_KEY = 'bible-reader-session';
+
+/** `#/MODULE/book/chapter[/verse]` — the shape `updateHash` writes. */
+const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/;
 const STUDY_SETTINGS_KEY = 'bible-reader-study-settings';
 
 let tabCounter = 0;
@@ -160,11 +163,25 @@ class BibleStore extends Store {
   studyShowInterlinear = true;
   studyShowNotes = true;
 
-  /** Deferred loading indicator — only shows spinner if fetch takes > 80ms.
-   *  Returns a cancel function to call when the fetch completes. */
-  private deferLoading(tab: BibleTab): () => void {
+  /**
+   * Deferred loading indicator — only shows spinner if the fetch takes > 80ms.
+   * Returns a cancel function to call when the fetch completes.
+   *
+   * The spinner is raised only while `seq` is still the tab's newest load. A
+   * superseded load must not raise one: `loading` is a single flag on a shared
+   * tab, and only the newest load ever lowers it again. When two chapter loads
+   * overlapped and both answered quickly — a warm chapter, or a downloaded
+   * module reading from OPFS in about a millisecond — the abandoned one's timer
+   * fired *after* the winner had finished and set `loading` back to true with
+   * nothing left to clear it. The pane then read "Loading..." over an empty
+   * chapter for good. Callers cancel on every exit path as well, which disarms
+   * the common case; the guard is what makes it independent of which of the two
+   * happens to come first.
+   */
+  private deferLoading(tab: BibleTab, seq: number): () => void {
     let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
       timer = null;
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.loading = true;
       this.notify();
     }, 80);
@@ -235,6 +252,14 @@ class BibleStore extends Store {
     this.notify();
   }
 
+  /**
+   * Is this module's text already on the device, ready to read without the
+   * network? False whenever the provider cannot say, which is the safe answer.
+   */
+  isServedLocally(module: string): boolean {
+    return this.bible?.isServedLocally?.(module) ?? false;
+  }
+
   /** Fetch a chapter's verses without changing the active tab */
   async fetchChapter(module: string, book: number, chapter: number): Promise<VerseData[]> {
     if (!this.bible) return [];
@@ -290,8 +315,8 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = book;
     tab.chapter = chapter;
-    const cancelLoadingFn = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoadingFn = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
     // When navigating from home screen, don't notify yet — wait for verses to
     // load so the home→bible transition is seamless (no blank content flash).
@@ -301,8 +326,9 @@ class BibleStore extends Store {
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoadingFn();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = requestedModule;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
@@ -326,13 +352,12 @@ class BibleStore extends Store {
         // No specific verse asked for: select the chapter's first verse so the
         // study and commentary panes have something to bind to immediately.
         //
-        // This used to be left null and back-filled by an effect in
-        // CommentaryContent that measures the DOM for the first visible verse.
-        // That effect runs before the Bible pane has mounted its verses on a
-        // fresh chapter load or a cold start, so it found nothing, and its deps
-        // did not change again — leaving the pane stuck on "select a verse"
-        // until the user clicked one. The verse data is right here, so there is
-        // no reason to go to the DOM for it.
+        // Not left null for an effect in CommentaryContent to back-fill by
+        // measuring the DOM for the first visible verse: that effect runs
+        // before the Bible pane has mounted its verses on a fresh chapter load
+        // or a cold start, finds nothing, and its deps do not change again —
+        // leaving the pane stuck on "select a verse" until the user clicks one.
+        // The verse data is right here, so there is no reason to go to the DOM.
         tab.studyVerse = tab.verses[0]?.verse_id ?? null;
         // Chapter navigation with no named verse still selects one (the first),
         // and the reader should land on it. Leaving this null meant a prev/next
@@ -408,15 +433,16 @@ class BibleStore extends Store {
     tab.chapter = chapter;
     tab.previewVerse = verseId;
     tab.previewVerseEnd = endVerseId ?? null;
-    const cancelLoading = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoading = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
     this.notify();
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoading();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = requestedModule;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
@@ -718,22 +744,24 @@ class BibleStore extends Store {
     // Reload current chapter in new translation
     if (tab.book && tab.chapter) {
       tab.loadError = undefined;
-      const cancelLoading = this.deferLoading(tab);
       const seq = this.beginLoad(tab);
+      const cancelLoading = this.deferLoading(tab, seq);
       this.notify();
 
       try {
         const data = await this.bible.getChapter(moduleAbbr, tab.book, tab.chapter);
-        if (this.isSupersededLoad(tab, seq)) return;
+        // Cancel before the supersede check, not after: see deferLoading().
         cancelLoading();
+        if (this.isSupersededLoad(tab, seq)) return;
         tab.versesModule = moduleAbbr;
         tab.verses = data.verses;
         tab.hasInterlinearData = data.hasInterlinearData;
         tab.coveredBooks = data.coveredBooks;
         tab.loading = false;
       } catch {
-        if (this.isSupersededLoad(tab, seq)) return;
+        // Cancel before the supersede check, not after: see deferLoading().
         cancelLoading();
+        if (this.isSupersededLoad(tab, seq)) return;
         tab.loading = false;
         // Drop the outgoing translation's text. Leaving it in place showed the
         // *previous* translation under the *new* name with no error at all,
@@ -893,14 +921,15 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = entry.book;
     tab.chapter = entry.chapter;
-    const cancelLoading = this.deferLoading(tab);
     const seq = this.beginLoad(tab);
+    const cancelLoading = this.deferLoading(tab, seq);
     this.notify();
 
     try {
       const data = await this.bible.getChapter(entry.moduleAbbr, entry.book, entry.chapter);
-      if (this.isSupersededLoad(tab, seq)) return;
+      // Cancel before the supersede check, not after: see deferLoading().
       cancelLoading();
+      if (this.isSupersededLoad(tab, seq)) return;
       tab.versesModule = entry.moduleAbbr;
       tab.verses = data.verses;
       tab.hasInterlinearData = data.hasInterlinearData;
@@ -959,8 +988,29 @@ class BibleStore extends Store {
     }
   }
 
+  /**
+   * Is the active tab already showing exactly what `hash` names?
+   *
+   * Lets a caller skip a navigation that would only redo work already done.
+   * `useAppShared` needs this on mount: main.tsx resolves the opening hash
+   * *before* the first render, so by the time the hook mounts the answer is
+   * normally yes, and navigating again re-fetched the chapter already on
+   * screen. Requires loaded verses, so a tab that is merely pointed at the
+   * right reference (a restored session mid-load, say) still navigates.
+   */
+  matchesHash(hash: string): boolean {
+    const match = hash.match(HASH_PATTERN);
+    if (!match) return false;
+    const tab = this.getActiveTab();
+    return !!tab
+      && tab.moduleAbbr === match[1]
+      && tab.book === parseInt(match[2], 10)
+      && tab.chapter === parseInt(match[3], 10)
+      && tab.verses.length > 0;
+  }
+
   async navigateFromHash(hash: string): Promise<void> {
-    const match = hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
+    const match = hash.match(HASH_PATTERN);
     if (!match) return;
 
     const [, module, bookStr, chapterStr, verseStr] = match;
@@ -1074,6 +1124,10 @@ class BibleStore extends Store {
           tab.verses = data.verses;
           tab.hasInterlinearData = data.hasInterlinearData;
           tab.coveredBooks = data.coveredBooks;
+          // This path arms no spinner of its own, but `beginLoad` above just
+          // made it the tab's newest load — so any flag an earlier load left
+          // behind is now stale, and this is the only place left to clear it.
+          tab.loading = false;
           this.notify();
         } catch { /* ignore, tab will show empty */ }
       }

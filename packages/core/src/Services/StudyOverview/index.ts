@@ -6,7 +6,7 @@
  * Used by the study cache generation script and (in future) by the desktop
  * IPC layer.
  *
- * See docs/queue/keep1.md section 7 for the design rationale.
+ * See `docs/features/study-overview.md` for how the aggregation is shaped.
  */
 
 export * from './types';

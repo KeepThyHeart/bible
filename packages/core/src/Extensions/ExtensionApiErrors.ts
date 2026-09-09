@@ -1,7 +1,7 @@
 /**
  * Error class hierarchy for the extension API.
  *
- * Spec A section "DTO Schemas -> Errors". The host throws these over RPC; the worker
+ * The host throws these over RPC; the worker
  * runtime re-raises them inside the extension's promise rejection. Both
  * sides import from this file so `instanceof PermissionDeniedError` works
  * across the host/worker boundary (each side has its own constructor, but

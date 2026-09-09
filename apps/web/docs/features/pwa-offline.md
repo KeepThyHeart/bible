@@ -8,9 +8,9 @@ Progressive Web App support with service worker caching, installability, and off
 
 The service worker and web app manifest are built **only when `ENABLE_PWA=1`** is set on the client build. Everything below describes the opt-in build; a default build is an ordinary mobile-friendly website.
 
-Why: a service worker is the only thing in this stack that can answer a *navigation* from cache, and a stale app shell answering navigations is the root of every boot loop this app has had. Layers of guards (network-first navigation, the build-ID handshake, the boot-loop detector) each narrowed the failure but none closed it, largely because an already-wedged client is the one client that cannot run the code meant to rescue it. Turning the worker off removes the mechanism instead of guarding it.
+Why: a service worker is the only thing in this stack that can answer a *navigation* from cache, and a stale app shell answering navigations is what wedges a client into a boot loop. Guards (network-first navigation, the build-ID handshake, the boot-loop detector) each narrow that failure but none close it, because an already-wedged client is the one client that cannot run the code meant to rescue it. Turning the worker off removes the mechanism instead of guarding it.
 
-Nothing was deleted. `src/sw.ts`, the update handshake, and the whole offline stack are intact and re-enable with the flag:
+`src/sw.ts`, the update handshake, and the whole offline stack are intact and re-enable with the flag:
 
 ```bash
 ENABLE_PWA=1 npm run build:client     # or: ENABLE_PWA=1 npm run build

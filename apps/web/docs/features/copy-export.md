@@ -7,13 +7,10 @@ Copy a passage to the clipboard, in one of the four numbered passage shapes
 
 ## The engine is core's; this app owns the chrome and the storage
 
-The formatting used to be written out inline in `CopyDialog.tsx` — 1362 lines,
-of which `getFormattedText()` and `renderPreview()` were two parallel
-implementations of the same output (the second existing only so that words of
-Christ could be shown in red), plus `refInline`, `refOwnLine`, `mdRef`,
-`mdHeading`, `mdVerseNum`, `paragraphMarkdown`, `fullMarkdown`,
-`buildHtmlForCopy`, `verseLabel`, `cleanVerseText` and `stripHtml`. All of that
-is gone. `packages/core/src/Services/PassageFormat/`, exported through
+No formatting is written out in `CopyDialog.tsx`. Keeping it here is what
+produces two parallel implementations of the same output — one for the copy, one
+for the preview that shows words of Christ in red — and they drift.
+`packages/core/src/Services/PassageFormat/`, exported through
 `@bible/core/browser`, is now the single implementation, shared with the desktop
 app — see [desktop's copy-export doc](../../../desktop/docs/features/copy-export.md)
 for how the engine itself is put together.
@@ -161,11 +158,11 @@ they switched shape.
 a stale field or an enum value from an older build costs the user that one
 setting rather than all of them.
 
-### Migrating off the old format list
+### Stored ids this dialog does not offer
 
-This dialog used to have a list of its own — `standard`, `plain`, `paragraph`,
-`full`, `advanced`, `template` — and an existing user's stored id is one of
-those. `loadFormatId()` handles it in two steps:
+A stored format id can name something the picker does not list — `standard`,
+`plain`, `paragraph`, `full`, `advanced`, `template`. `loadFormatId()` handles
+that in two steps:
 
 1. `remapLegacyFormatId()` moves core's retired ids onto the shape each was a
    weaker restatement of, so `standard` lands on **Numbered quote**.

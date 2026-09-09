@@ -26,8 +26,7 @@
  * source for the 12 non-core themes below (`arctic` ... `sunset`). Desktop and
  * web are genuinely different frameworks for this feature - web discovers
  * themes at build time via `import.meta.glob` over per-folder SCSS partials
- * (Vite-only, and the web package is intentionally excluded from this repo's
- * root workspace - see the root CLAUDE.md), while desktop has no equivalent
+ * (Vite-only), while desktop has no equivalent
  * glob-import mechanism and consumes one static `themes.css`. A fully shared
  * pipeline (one token source both Vite's glob-import and desktop's plain CSS
  * pull from) would mean either teaching web to consume desktop's format or

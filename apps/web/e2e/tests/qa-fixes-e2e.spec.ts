@@ -121,9 +121,9 @@ test.describe('Scroll position on chapter change', () => {
 
 test.describe('Dictionary lookup', () => {
   test('a dictionary search finds the entry titled with the query', async ({ request }) => {
-    // "Moses" used to return thirty other articles and not MOSES: the search was
-    // a BM25-ranked full-text match over definitions, capped, so the entry
-    // actually titled with the word never made the cut.
+    // A BM25-ranked full-text match over definitions, capped, answers "Moses"
+    // with thirty other articles and not MOSES: the entry actually titled with
+    // the word never makes the cut.
     const res = await request.get('/api/dictionary/AmTract/search?q=Moses');
     expect(res.status()).toBe(200);
     const body = await res.json();

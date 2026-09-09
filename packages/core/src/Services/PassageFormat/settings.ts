@@ -2,10 +2,9 @@
  * The stored state a copy format needs handed to it.
  *
  * Standard and Combined render through the user's saved `AdvancedCopyOptions`;
- * Custom Template renders whatever template text the user last edited. Both
- * used to be read from `localStorage` inside `format()`, which is why the
- * engine could not leave the renderer. Core takes them as an argument instead -
- * the app that owns the storage key does the reading.
+ * Custom Template renders whatever template text the user last edited. Core
+ * takes both as arguments rather than reading them itself: `localStorage` is a
+ * renderer API, and the app that owns the storage key is what should read it.
  */
 
 import { BUILTIN_TEMPLATES } from '../CopyService';

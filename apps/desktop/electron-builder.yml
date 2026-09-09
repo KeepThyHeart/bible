@@ -91,12 +91,12 @@ extraResources:
   #
   # `data/` is the developer's live working directory: it holds every module
   # ever imported, multi-GB semantic indexes, ad-hoc backups, and `users/`.
-  # This entry used to say `'**/*'` minus a handful of `!` patterns, which fails
-  # OPEN: anything that does not happen to match an exclusion ships. That is not
-  # hypothetical — a `modules.backup-<timestamp>/` directory slipped past
-  # `!modules/**` and put 2.6 GB of unvetted modules into the installer,
-  # including ones whose licences forbid redistribution. A denylist on a
-  # licensing- and privacy-critical path is the wrong shape; enumerate instead.
+  # `'**/*'` minus a handful of `!` patterns fails OPEN: anything that does not
+  # happen to match an exclusion ships. That is not hypothetical — a
+  # `modules.backup-<timestamp>/` directory slips past `!modules/**` and puts
+  # gigabytes of unvetted modules into the installer, including ones whose
+  # licences forbid redistribution. A denylist on a licensing- and
+  # privacy-critical path is the wrong shape; enumerate instead.
   #
   # Bible modules do NOT belong here. They are listed individually below so that
   # adding one is a deliberate, reviewable act with a licence check attached.

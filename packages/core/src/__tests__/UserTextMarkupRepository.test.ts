@@ -499,9 +499,9 @@ describe('UserTextMarkupRepository', () => {
       //   43003016: overlaps => deleted
       //   43003020: start(20) <= 18? no => kept
       //
-      // Before R-1 the NULL end matched unconditionally and the markup on v. 14
-      // was deleted too - silently destroying a user annotation outside the
-      // range they asked to clear.
+      // A NULL end must not match unconditionally: that deletes the markup on
+      // v. 14 too, silently destroying a user annotation outside the range they
+      // asked to clear.
       expect(remaining).toHaveLength(2);
       expect(remaining.map(r => r.verseIdStart)).toEqual([43003014, 43003020]);
     });

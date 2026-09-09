@@ -28,7 +28,7 @@ export interface ISearchApi {
   saveSearch(name: string, query: string, modules: string[]): Promise<number>;
   deleteSavedSearch(savedSearchId: number): Promise<void>;
 
-  // Search history was removed: the app does not record what users search for.
+  // No search history: the app does not record what users search for.
 
   // --- Semantic Search --------------------------------------------
   isSemanticSearchAvailable(): Promise<boolean>;

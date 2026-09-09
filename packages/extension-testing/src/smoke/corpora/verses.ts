@@ -2,8 +2,9 @@
  * Default verse corpus for smoke testing.
  *
  * Curated list of ~100 verses / ranges chosen to stress the edge cases that
- * most commonly break naive verse hooks. See `docs/queue/extension-smoke-tests.md`
- * for the rationale. Every entry is a raw `VerseId` (single verse) or a
+ * most commonly break naive verse hooks: book and testament boundaries, the
+ * shortest and longest chapters, single-chapter books, and ranges that span a
+ * chapter break. Every entry is a raw `VerseId` (single verse) or a
  * `{ startVerseId, endVerseId }` range computed via `VerseIdHelper`.
  */
 

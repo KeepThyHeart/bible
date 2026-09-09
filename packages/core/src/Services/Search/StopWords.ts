@@ -1,5 +1,5 @@
 // NOTE: Stop words are English-only. For non-English Bible modules, a per-language stop word registry
-// should be created, selected based on the module's language_code. See docs/queue/languages.md.
+// should be created, selected based on the module's language_code.
 /**
  * Common English stop words for search query filtering.
  * Used in hybrid search mode to strip low-signal terms before building FTS5 queries.

@@ -138,11 +138,11 @@ describe('Dictionary Routes - /:module/search', () => {
     expect(res.body).toEqual([]);
   });
 
-  // Per-module search used to be a bare FTS5 MATCH over word + definition +
-  // usage_notes, ranked by BM25 and capped at 30. A passing mention inside a
-  // long article outranked the article actually titled with the search word, so
-  // looking up "Moses" in a dictionary that plainly has a MOSES entry returned
-  // thirty other articles and not that one.
+  // A bare FTS5 MATCH over word + definition + usage_notes, ranked by BM25 and
+  // capped at 30, is not enough: a passing mention inside a long article
+  // outranks the article actually titled with the search word, so looking up
+  // "Moses" in a dictionary that plainly has a MOSES entry returns thirty other
+  // articles and not that one.
   it.each(['Moses', 'Jerusalem', 'David'])('ranks the entry titled %s first', async (word) => {
     const res = await request(app).get(`/api/dictionary/${DICT_MODULE}/search?q=${word}`);
     expect(res.status).toBe(200);

@@ -1,12 +1,11 @@
 /**
  * Study-verse selection on chapter entry.
  *
- * Regression coverage for the panes opening on "select a verse" after a chapter
- * change or a cold start. The verse used to be left null here and back-filled
- * by an effect in CommentaryContent that measures the DOM for the first visible
- * verse; that effect runs before the Bible pane has mounted its verses, found
- * nothing, and never re-ran — so the commentary and study panes stayed empty
- * until the user clicked a verse by hand.
+ * Coverage for the panes opening on "select a verse" after a chapter change or
+ * a cold start. Leaving the verse null here for an effect in CommentaryContent
+ * to back-fill by measuring the DOM does not work: that effect runs before the
+ * Bible pane has mounted its verses, finds nothing, and never re-runs — so the
+ * commentary and study panes stay empty until the user clicks a verse by hand.
  *
  * These assert the verse is established by the store, at load time, from data
  * it already holds.

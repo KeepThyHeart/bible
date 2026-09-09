@@ -3,9 +3,9 @@
  * i18n-extract.js
  *
  * Heuristic linter that flags likely-user-facing English strings in
- * `apps/desktop/src/ui/` and `apps/desktop/electron/`. The goal is
- * the spec-B acceptance criterion: zero hard-coded user-facing English
- * strings remain in the desktop package - every such string must flow
+ * `apps/desktop/src/ui/` and `apps/desktop/electron/`. The goal: zero
+ * hard-coded user-facing English strings in the desktop package - every such
+ * string must flow
  * through `i18nService.t()` (or `useI18n().t()` in React).
  *
  * What we flag (best-effort heuristics, biased toward false positives):

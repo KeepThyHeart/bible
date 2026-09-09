@@ -58,16 +58,15 @@ Displays commentary entries in the right pane, synced to the current Bible chapt
 request for *its own module* is in flight (`_inFlightByModule`) and there is
 nothing in `entries` to read meanwhile.
 
-It used to be one store-wide boolean that any tab could raise and only the
-*active* tab's response was allowed to lower (`_backgroundLoadTab` cleared it
-inside `if (activeTab?.moduleAbbr === moduleAbbr)`). Switch tabs while a fetch
-is out and the response arrived for the wrong module, declined to clear the
-flag, and the pane spun forever — the reproducible "Loading commentary…" that
-never resolved after opening a module from the Overview tab. `setActiveTab`
-compounded it with an early return "a load is already in progress, it will pick
-up the new activeTabId when it completes"; it cannot, because a response can
-only paint the module it fetched, so the newly active tab got neither data nor a
-request.
+One store-wide boolean cannot do this. If any tab may raise the flag but only
+the *active* tab's response may lower it (`_backgroundLoadTab` clearing inside
+`if (activeTab?.moduleAbbr === moduleAbbr)`), then switching tabs while a fetch
+is out leaves the response arriving for the wrong module, declining to clear the
+flag, and the pane spinning forever — "Loading commentary…" that never resolves
+after opening a module from the Overview tab. Nor can `setActiveTab` early-return
+on "a load is already in progress, it will pick up the new activeTabId when it
+completes": a response can only paint the module it fetched, so the newly active
+tab would get neither data nor a request.
 
 The pieces that keep it honest:
 

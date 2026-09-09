@@ -471,7 +471,13 @@ async function createWindow(): Promise<void> {
   registerDictionaryHandlers(ipcMain);
   registerBookHandlers(ipcMain);
   registerSearchHandlers(ipcMain);
-  await registerSessionHandlers(ipcMain); // Session needed immediately for restore
+  // Registered synchronously; the promise it returns resolves when the
+  // encrypted user DB is actually open, and every session handler awaits that
+  // internally (see `sessionRepoReady` in sessionHandlers.ts). Deliberately not
+  // awaited here: awaiting it put SQLCipher's key derivation in front of
+  // `loadURL` below, so the renderer could not even start fetching its bundle
+  // until the key had been derived.
+  void registerSessionHandlers(ipcMain);
   registerNotesHandlers();
   registerCollectionHandlers();
   registerHighlightHandlers();

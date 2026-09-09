@@ -1,11 +1,11 @@
 /**
- * TSK used to be registered twice - as `commentary_tsk.db` (module_id 100,
- * abbrev `TSK`) and as `xref_tsk.db` (module_id 233, abbrev `TSKxref`) -
- * because module type is inferred from the filename prefix and both files sit
- * in the modules directory. Three separate render paths keyed off
- * `module_type` then showed the same body of references three times under one
- * verse, one of them inside "Commentaries:", where clicking it opened the raw
- * SWORD import the cross-reference module is generated from.
+ * TSK must not be registered twice. Module type is inferred from the filename
+ * prefix, and TSK sits in the modules directory as both `commentary_tsk.db`
+ * (module_id 100, abbrev `TSK`) and `xref_tsk.db` (module_id 233, abbrev
+ * `TSKxref`). Three separate render paths key off `module_type`, so a double
+ * registration shows the same body of references three times under one verse -
+ * one of them inside "Commentaries:", where clicking it opens the raw SWORD
+ * import the cross-reference module is generated from.
  */
 import { describe, it, expect } from 'vitest';
 import {

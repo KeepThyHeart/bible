@@ -156,11 +156,29 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true,
 });
 
+/**
+ * Reads one clipboard flavour back out of its `Blob`.
+ *
+ * This file runs under jsdom (see the note at the top), whose `Blob` predates
+ * `text()` and exposes only `size`, `type` and `slice()`. `FileReader` it does
+ * implement, so that is the way back to the bytes here. Browsers and happy-dom
+ * both have `Blob.text()`, which is why the dialog itself is none the wiser.
+ */
+function readBlob(blob: Blob): Promise<string> {
+  if (typeof blob.text === 'function') return blob.text();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 async function writtenFlavours(): Promise<Record<string, string>> {
   const items = mockClipboardWrite.mock.calls[0][0] as FakeClipboardItem[];
   const out: Record<string, string> = {};
   for (const [type, blob] of Object.entries(items[0].parts)) {
-    out[type] = await blob.text();
+    out[type] = await readBlob(blob);
   }
   return out;
 }
@@ -677,7 +695,7 @@ describe('CopyDialog', () => {
     });
 
     it('leaves the dialog open when the copy button is clicked', async () => {
-      // Clicking keeps the old behaviour so a second copy after tweaking
+      // Clicking leaves the dialog open, so a second copy after tweaking
       // options costs no reopen.
       const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
       fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);

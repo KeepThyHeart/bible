@@ -412,11 +412,11 @@
 
 // The shared select treatment.
 //
-// It used to live only as `.settings-panel__field select`, so a select outside
-// a field — the language picker on the About tab — fell back to the browser's
-// own control and matched nothing else in the panel. Both selects already
-// carried `.settings-select`; now the class actually means something, and the
-// field rule above is what keeps a class-less select in a field looking right.
+// Scoped only as `.settings-panel__field select`, a select outside a field —
+// the language picker on the About tab — falls back to the browser's own
+// control and matches nothing else in the panel. Hence the class: it carries
+// the treatment wherever the select sits, and the field rule above is what
+// keeps a class-less select in a field looking right.
 .settings-select {
   width: 100%;
   padding: 6px 8px;

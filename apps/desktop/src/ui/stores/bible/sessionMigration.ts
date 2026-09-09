@@ -8,13 +8,13 @@ import {
 import { normalizeVisitStack } from './internals/visitStack';
 
 /**
- * Session migration for the Bible pane tab restructure.
+ * Session migration for the Bible pane layout, v1 -> v2.
  *
- * Before the restructure a single Bible panel held an array of passage
- * sub-tabs (`sessionData.bible.openTabs`). Now one dockview panel shows exactly
- * one passage, so every historical sub-tab has to become its own panel.
+ * A v1 session holds an array of passage sub-tabs under a single Bible panel
+ * (`sessionData.bible.openTabs`). In v2 one dockview panel shows exactly one
+ * passage, so every v1 sub-tab has to become its own panel.
  *
- * Rules this module is written to (see docs/Design/BiblePaneTabRestructure.md):
+ * Rules this module is written to:
  *
  *  - **Never lose a passage.** Every entry in a v1 `openTabs[]` comes out the
  *    other side as a panel, keeping its display mode, navigation history,

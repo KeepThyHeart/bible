@@ -74,9 +74,9 @@ function StrongsChip({ strongsNumber, title, onStrongsClick, onStrongsHover, onS
 
 /**
  * Original-language word and transliteration, wired to the same dictionary
- * lookup as the Strong's chip. They used to be inert, which made the Hebrew or
- * Greek word — the one thing a reader is most likely to click in an
- * interlinear — do nothing at all.
+ * lookup as the Strong's chip. Left inert, the Hebrew or Greek word — the one
+ * thing a reader is most likely to click in an interlinear — does nothing at
+ * all.
  */
 function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStrongsHover, onStrongsLeave }: {
   cell: InterlinearCell;

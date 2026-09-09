@@ -184,6 +184,13 @@ interface DockviewLayoutProps {
   /** Serialized layout to restore (from session data) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   savedLayout?: Record<string, any> | null;
+  /**
+   * False until session restore has decided which layout this is. The effect
+   * below builds a layout exactly once (it is guarded on `api.panels.length ===
+   * 0`), so building one before the decision permanently discards the saved
+   * arrangement. See App.tsx.
+   */
+  layoutDecided?: boolean;
 }
 
 /**
@@ -195,7 +202,7 @@ interface DockviewLayoutProps {
  * - Providing component and tab renderers
  * - Tracking panel add/remove for the layout store registry
  */
-const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout }) => {
+const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDecided = true }) => {
   const apiRef = useRef<DockviewApi | null>(null);
   const restoredFromSavedRef = useRef(false);
   // Incremented each time onReady fires; drives the layout-init effect.
@@ -309,6 +316,7 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout }) => {
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
+    if (!layoutDecided) return;
 
     // Store API reference globally
     useLayoutStore.getState().setDockviewApi(api); // allow-getstate: dockview event callback - runs outside React render
@@ -451,7 +459,7 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout }) => {
       restoredFromSavedRef.current = false;
       useLayoutStore.setState({ dockviewApi: null, isReady: false, activePanelId: null, lastActiveBiblePanelId: null });
     };
-  }, [apiVersion, savedLayout, handleGatedDrag]);
+  }, [apiVersion, savedLayout, layoutDecided, handleGatedDrag]);
 
   return (
     /* A flex ROW, not a positioning context for an overlay. The collapsed-panes

@@ -1,14 +1,13 @@
 /**
  * Tag stripping and entity handling for verse text, without a DOM.
  *
- * This used to be `document.createElement('div'); div.innerHTML = html;` and
- * then a read of `textContent` (to get plain text) or of `innerHTML` (to get
- * markup back, normalised by the parser). That works in a renderer and nowhere
- * else - core is imported by Node scripts and its tests run under `node`, so
- * the format engine could not come with it. These three functions are the
- * replacement, written as string transforms.
+ * The DOM way - `document.createElement('div'); div.innerHTML = html;` then a
+ * read of `textContent` (plain text) or of `innerHTML` (markup back, normalised
+ * by the parser) - works in a renderer and nowhere else. Core is imported by
+ * Node scripts and its tests run under `node`, so the format engine cannot
+ * depend on a DOM. These three functions are string transforms instead.
  *
- * ## What the parser did that this reproduces
+ * ## What a DOM parser does that this reproduces
  *
  * - **Tags are removed, their content kept.** `<b>bold</b> text` -> `bold text`.
  * - **Entities are decoded** on the way to plain text, so `&amp;` reads as
@@ -117,8 +116,8 @@ export function decodeHtmlEntities(text: string): string {
  *
  * Entities are **not** decoded here - this is the raw counterpart used where
  * the caller already holds a markup string and only wants the characters out
- * of it (`passageMarkup`'s text flavour), matching what the old code got from
- * reading `innerHTML` and stripping tags off it by hand.
+ * of it (`passageMarkup`'s text flavour), matching what reading `innerHTML`
+ * and stripping the tags off it by hand would yield.
  */
 export function stripHtmlTags(html: string): string {
   return html.replace(HTML_TAG_PATTERN, '');

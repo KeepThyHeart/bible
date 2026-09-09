@@ -95,7 +95,7 @@ files:
   # `sharp` is reached only through transformers' IMAGE pipeline, which the
   # text-embedding path never invokes. It is also the source of an unfixable
   # High advisory (GHSA-f88m-g3jw-g9cj, libvips CVEs) — excluding it keeps that
-  # advisory off every user's disk. See docs/security/AUDIT-LOG.md F-002.
+  # advisory off every user's disk.
   - '!node_modules/@img/**'
   - '!node_modules/sharp/**'
   - '!node_modules/.bin/**'

@@ -193,7 +193,7 @@ Fill a column only when that language is actually being worked on. `-` means "no
 
 ### Pane names
 
-The agreed name for each pane, for any message that has to name one. These live in the catalog as **`paneName.*`** and are the single source for both the per-pane font panels in Preferences (`PreferencesDialog/FontsSection.tsx`) and the dockview tab titles (`DockviewTabRenderer.tsx`, via `src/ui/utils/paneNames.ts`). The `textSettingsDialog.paneName*` keys that first carried the top four were removed when the orphaned `TextSettingsDialog` component was deleted.
+The agreed name for each pane, for any message that has to name one. These live in the catalog as **`paneName.*`** and are the single source for both the per-pane font panels in Preferences (`PreferencesDialog/FontsSection.tsx`) and the dockview tab titles (`DockviewTabRenderer.tsx`, via `src/ui/utils/paneNames.ts`).
 
 | English | Key | Spanish (`es`) | Portuguese (`pt-BR`) | Russian (`ru`) | Hindi (`hi`) | zh-Hans | Arabic (`ar`) | Notes |
 |---|---|---|---|---|---|---|---|---|

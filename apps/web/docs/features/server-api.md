@@ -96,12 +96,12 @@ only and does **not** re-enable `eval()` for JavaScript, unlike `'unsafe-eval'`.
 process-wide ceiling. **Exactly one tier is charged per request** —
 `tierForApiPath()` selects it and `index.ts` mounts a single middleware.
 
-This is load-bearing. Tier middlewares used to be mounted on overlapping
-prefixes (`/api/bible` → content, then `/api` → default). Express runs *every*
-matching `app.use`, so each request incremented its own tier **and** `default`.
-`default` was the lower cap, so it always tripped first and `content` was
-unreachable — the whole API ran at the default cap. Never re-introduce a second
-tier mount on an overlapping path.
+This is load-bearing. Express runs *every* matching `app.use`, so tier
+middlewares mounted on overlapping prefixes (`/api/bible` → content, then
+`/api` → default) charge each request its own tier **and** `default`. `default`
+is the lower cap, so it trips first and `content` becomes unreachable — the
+whole API running at the default cap. Never mount a second tier on an
+overlapping path.
 
 | Tier | Limit/min | Covers |
 |---|---:|---|
@@ -151,11 +151,11 @@ commentary module, and the large modules are very large: measured on John 3,
 Matthew Henry is **2.1 MB**, Luther 845 KB, KingComments 132 KB — against
 Barnes at 74 KB and TSK at 26 KB.
 
-The mobile commentary pane used to call this unconditionally on every chapter
-navigation (`MobileCommentary`, `MobileCommentaryView`), so a reader tapping
-through chapters pulled multiple megabytes of commentary they had not opened.
+Called unconditionally on every chapter navigation (`MobileCommentary`,
+`MobileCommentaryView`), this has a reader tapping through chapters pull
+multiple megabytes of commentary they never opened.
 
-It is now budget-gated client-side, in `commentaryStore`:
+It is budget-gated client-side, in `commentaryStore`:
 
 1. `prefetchChapterOverview()` runs first — `/chapter-overview` is word counts
    only, and the card list needs it anyway.
@@ -223,11 +223,10 @@ file-per-submission reasoning as feedback above.
 
 It is a separate route and a separate directory on purpose. What arrives here is
 not a browser form: it is a versioned envelope built by
-the desktop app's `electron/services/DiagnosticsService.ts` (no desktop package is
-imported into this repo, so that source is not present here) whose shape depends on
-the report type (`crash` \| `manual` \| `feedback`). Merging the two would mean an
-operator could not tell which product a submission came from, and every field
-added to one shape would have to become optional in the other.
+the desktop app's `apps/desktop/electron/services/DiagnosticsService.ts` whose shape
+depends on the report type (`crash` \| `manual` \| `feedback`). Merging the two
+would mean an operator could not tell which product a submission came from, and
+every field added to one shape would have to become optional in the other.
 
 **No IP address is recorded, in either privacy mode.** This is the one place the
 `/api/feedback` `relaxed`-mode behaviour is deliberately *not* mirrored. The

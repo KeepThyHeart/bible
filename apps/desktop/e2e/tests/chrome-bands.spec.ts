@@ -1,10 +1,10 @@
 /**
  * Bible pane chrome regression guard.
  *
- * The Bible pane once stacked four persistent horizontal bands above the
- * scripture text. docs/Design/BiblePaneTabRestructure.md reduced that to three
- * by promoting each passage to a top-level dockview tab and folding the
- * per-passage controls into a settings menu.
+ * The Bible pane carries three persistent horizontal bands above the scripture
+ * text and no more. Each passage is a top-level dockview tab, and the
+ * per-passage controls fold into a settings menu rather than a band of their
+ * own.
  *
  * Chrome creep is a slow, silent regression: each new band looks reasonable on
  * its own, and nobody notices the text column has been pushed down 200px until

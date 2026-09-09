@@ -45,7 +45,7 @@ test.describe('Default Layout', () => {
     // Bible (left) plus Study, Commentary and Dictionary (right group). The Bible tab is
     // titled with its passage - "John 3" over the translation abbreviation -
     // because a passage is now a top-level panel rather than a sub-tab inside a
-    // generic "Bible" pane. See docs/Design/BiblePaneTabRestructure.md.
+    // generic "Bible" pane.
     expect(tabTitles.some(t => /John\s*3/.test(t))).toBe(true);
     expect(tabTitles.some(t => t.includes('KJV'))).toBe(true);
     expect(tabTitles.some(t => t.includes('Study'))).toBe(true);

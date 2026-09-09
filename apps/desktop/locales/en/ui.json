@@ -1678,7 +1678,7 @@
   "preferencesDialog.advancedPaneManagerLabel": "Advanced Pane Manager",
   "preferencesDialog.advancedPaneManagerDescription": "Lets you drag panes to rearrange them.  You can split panes, re-dock them, and create your own layout.  By default, this feature is turned off to avoid accidentally dragging a pane and then not knowing how to get back.  If you ever have to reset the layout, you may use the Layout button's built-in arrangements, and its \"Reset to default layout\" action always work either way (at the top).",
   "advancedPaneManagerGate.title": "Advanced layout features",
-  "advancedPaneManagerGate.body": "Rearranging your workspace is an advanced feature, and it's off by default.  If you want to turn it on, you can always get back to a default layout by using the Layouts button at the top.",
+  "advancedPaneManagerGate.body": "Rearranging your workspace is an advanced feature, and it's off by default.  If you want to turn it on, you can always get back to a default layout by using the Layout button at the top.",
   "advancedPaneManagerGate.checkboxLabel": "Enable Advanced Pane Manager (let me drag panes to rearrange them)",
   "advancedPaneManagerGate.retryHint": "Once enabled, drag the pane again to move it.",
   "advancedPaneManagerGate.cancel": "Cancel",

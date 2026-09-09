@@ -142,7 +142,7 @@ test.describe('Pop Out to Window', () => {
 
     // Pop out the Bible pane. Its dockview tab is titled with the passage
     // ("John 3" over "KJV"), not the generic word "Bible" - a passage is a
-    // top-level panel now. See docs/Design/BiblePaneTabRestructure.md.
+    // top-level panel.
     const detachedWindowPromise = electronApp.waitForEvent('window');
     await rightClickTab(window, 'John 3');
     await clickPopOut(window);

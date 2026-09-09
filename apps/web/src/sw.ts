@@ -29,10 +29,10 @@ declare let self: ServiceWorkerGlobalScope & {
 /**
  * Activate immediately rather than waiting for every tab to close.
  *
- * This is not an update-speed nicety. A browser stuck in the old boot loop never
+ * This is not an update-speed nicety. A browser stuck in a boot loop never
  * reaches its own service-worker registration code — the reload fires first — so
  * it can never ask a waiting worker to activate. Self-activation is the only path
- * by which an already-broken client picks up this fix. The browser re-checks
+ * by which an already-wedged client picks up a fix. The browser re-checks
  * sw.js on every navigation, and a looping client generates plenty of those.
  */
 self.skipWaiting();

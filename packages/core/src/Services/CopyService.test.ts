@@ -727,10 +727,10 @@ describe('CopyService.renderTemplate: {{#blockquote}}', () => {
 });
 
 /**
- * A mistyped helper used to be indistinguishable from a missing variable: it
- * rendered as nothing, taking its whole region's contents with it. That is the
- * one class of template mistake the user cannot debug by looking at the
- * preview, so it is now loud.
+ * A mistyped helper must not be indistinguishable from a missing variable.
+ * Rendering it as nothing takes its whole region's contents with it, and that
+ * is the one class of template mistake the user cannot debug by looking at the
+ * preview - so it throws instead.
  */
 describe('CopyService.renderTemplate: unknown helpers', () => {
   it('throws on an unrecognised section helper', () => {

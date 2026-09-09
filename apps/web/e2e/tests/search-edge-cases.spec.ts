@@ -11,11 +11,10 @@ test.describe('Search Edge Cases', () => {
     const searchInput = page.locator('.header__search-field');
     const tabTitle = page.locator('.bible-tab-bar__tab--active .bible-tab-bar__tab-title');
 
-    // Each step used to be `waitForSelector('.verse')` followed by an assertion
-    // on the tab title with the default 5s timeout. The wait returns
-    // immediately — the *previous* chapter's verses are still in the DOM — so
-    // the title assertion raced the navigation, and lost under load. The
-    // retrying assertion on the title is the whole wait.
+    // `waitForSelector('.verse')` is not a wait here: the *previous* chapter's
+    // verses are still in the DOM, so it returns immediately and a following
+    // title assertion races the navigation and loses under load. The retrying
+    // assertion on the title is the whole wait.
     const references: ReadonlyArray<readonly [string, string]> = [
       ['jn 3', 'John'],                 // abbreviated book
       ['1 cor 13', '1 Corinthians'],    // numbered + abbreviated

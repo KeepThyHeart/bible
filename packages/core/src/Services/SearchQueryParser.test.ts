@@ -203,9 +203,9 @@ describe('SearchQueryParser', () => {
       expect(result.boolean?.left).toBe('wicked');
     });
 
-    // Nesting used to be destroyed before it reached the tree: each operand ran
-    // through `.replace(/[()]/g, '')`, so an inner group arrived as a string
-    // nothing ever parsed again and the grouping was silently lost.
+    // Nesting has to survive into the tree. Running each operand through
+    // `.replace(/[()]/g, '')` makes an inner group arrive as a string nothing
+    // ever parses again, silently losing the grouping.
     it('keeps a nested group as a subtree instead of flattening it to a string', () => {
       const result = parser.parse('(faith AND (hope OR love))');
       expect(result.boolean?.operator).toBe('AND');

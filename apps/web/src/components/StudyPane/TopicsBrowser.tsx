@@ -156,8 +156,8 @@ export function TopicsBrowser({
    */
   const [detailError, setDetailError] = useState<string | null>(null);
   /**
-   * Generation counter for detail loads. Two overlapping loads used to be able
-   * to interleave — the slower one's `clearDetail()` landing after the faster
+   * Generation counter for detail loads. Without it two overlapping loads can
+   * interleave — the slower one's `clearDetail()` landing after the faster
    * one's `setTopicDetail()` — leaving a titled but permanently blank pane.
    */
   const loadSeqRef = useRef(0);
@@ -206,9 +206,8 @@ export function TopicsBrowser({
     savedNav.set(navKey, { history, historyIndex });
   }, [history, historyIndex, navKey]);
 
-  // Honour requests that arrive while this browser is already mounted — the
-  // case that used to do nothing at all, because the only reader of the
-  // pending request ran on mount.
+  // Honour requests that arrive while this browser is already mounted. A
+  // reader of the pending request that runs only on mount drops them entirely.
   useEffect(() => {
     const token = topicRequest?.token;
     if (!topicRequest || token === undefined || token === handledTokenRef.current) return;

@@ -9,8 +9,8 @@
 }
 
 // The original-language word and its transliteration open the same Strong's
-// definition as the chip beside them. They used to be inert, which made the
-// most obvious thing to click in an interlinear do nothing.
+// definition as the chip beside them. Inert, they would make the most obvious
+// thing to click in an interlinear do nothing.
 .verse__interlinear-original--clickable,
 .verse__interlinear-translit--clickable {
   cursor: pointer;

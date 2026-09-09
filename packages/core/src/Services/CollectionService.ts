@@ -32,8 +32,7 @@ const LEGACY_DEFAULT_ICON = '⭐';
  * Two surfaces sit side by side here:
  *
  * - The **collection/tree API** -- create, nest, move, and fill collections of
- *   your own. This is what the extension API is written against; nothing in it
- *   has been removed.
+ *   your own. This is what the extension API is written against.
  * - The **flat bookmark API** -- {@link CollectionService.getBookmarks},
  *   {@link CollectionService.replaceBookmarkReference} and
  *   {@link CollectionService.renameBookmark}, plus the quick-bookmark methods.
@@ -350,8 +349,8 @@ export class CollectionService {
    * Get or create the default bookmarks collection.
    *
    * @deprecated Use {@link getOrCreateDefaultCollection}. The default collection
-   * is no longer identified by the name "Favorites", so the old name is now
-   * misleading; it is kept because extensions compile against it.
+   * is not identified by the name "Favorites", so this name misleads; it is kept
+   * only because extensions compile against it.
    */
   getOrCreateFavorites(): Collection {
     return this.getOrCreateDefaultCollection();

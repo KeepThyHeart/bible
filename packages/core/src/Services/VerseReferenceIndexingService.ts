@@ -10,8 +10,6 @@
  * continuation words (e.g., "versículo" in Spanish) while reusing the same
  * extraction logic. Languages with fundamentally different reference syntax
  * should implement IVerseReferenceIndexingService directly.
- *
- * See docs/queue/languages.md for the full i18n roadmap.
  */
 
 import { IReferenceParser, ReferenceParser, ParsedReference } from './ReferenceParser';

@@ -569,7 +569,19 @@ describe('CopyOptionsDialog: the number-key shortcuts', () => {
     await user.type(reference, 'Romans 3:23');
 
     expect(reference.value).toBe('Romans 3:23');
-    expect(format('Block quote').checked).toBe(true);
+    // Retyping the reference sends the dialog through its `loading` state, and
+    // the format list is withheld while there is no passage - so the radio has
+    // to be waited for rather than read the instant the last digit lands.
+    //
+    // The wait is generous because it is not what this test is about. Resolving
+    // the passage takes ~500ms unloaded, which fits inside Testing Library's
+    // one-second default; sharing the machine with another suite pushes it past
+    // that, and the run then fails on resolver latency rather than on anything
+    // to do with digits.
+    const blockQuote = (await screen.findByRole('radio', {
+      name: /Block quote/i,
+    }, { timeout: 10000 })) as HTMLInputElement;
+    expect(blockQuote.checked).toBe(true);
   });
 
   it('leaves digits alone inside the template editor', async () => {

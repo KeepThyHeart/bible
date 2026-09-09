@@ -16,6 +16,7 @@ import { settingsStore } from './stores/settingsStore';
 import { eventBus } from './events/eventBus';
 import { API_BASE } from './utils/apiUrl';
 import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/bootGuard';
+import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
@@ -53,7 +54,7 @@ async function init() {
   // 'browser' so the app works even if the server declares nothing (lean-server default).
   let semanticMode: 'server' | 'browser' | 'off' = 'browser';
 
-  const healthPromise = fetch(`${baseUrl}/api/health`)
+  const healthPromise = bootFetch(`${baseUrl}/api/health`)
     .then(async (res) => {
       const body = await res.text();
       if (res.status === 401 || res.status === 403 ||
@@ -72,13 +73,13 @@ async function init() {
       return 'offline' as const;
     });
 
-  const configPromise = fetch(`${baseUrl}/api/config`)
+  const configPromise = bootFetch(`${baseUrl}/api/config`)
     .then(async (res) => (res.ok ? res.json() : null))
     .catch(() => null);
 
   // `no-store` so this one answer can never come from a cache — it is the check
   // that decides whether everything else in this bundle is stale.
-  const versionPromise = fetch(`${baseUrl}/api/version`, { cache: 'no-store' })
+  const versionPromise = bootFetch(`${baseUrl}/api/version`, { cache: 'no-store' })
     .then(async (res) => (res.ok ? res.json() : null))
     .catch(() => null);
 
@@ -222,6 +223,10 @@ async function init() {
 
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();
+
+  // Boot is over; anything index.html prefetched and nobody claimed is now just
+  // a response held open for a navigation that may never come.
+  releaseBootPrefetch();
 
   // Clean up stale auto-downloaded modules (fire-and-forget)
   runAutoCleanup().catch(() => {});

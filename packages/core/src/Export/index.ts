@@ -5,7 +5,8 @@
  * - no database handles, no filesystem access - so it can run in the main
  * process, the renderer, a CLI, or a server without change.
  *
- * See `docs/Design/DataModel/ModuleFormat.md` for the normative format.
+ * See `docs/features/usfm-export.md` for the format these functions read and
+ * write.
  */
 
 export * from './VerseFormatting';

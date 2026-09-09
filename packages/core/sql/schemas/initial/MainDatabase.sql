@@ -462,10 +462,10 @@ CREATE INDEX idx_saved_search_date ON saved_search(created_date DESC);
 
 -- 3.5 Search History (canonical definition)
 --
--- Two `search_history` tables used to exist -- one here, one in the user
--- database -- with different columns and the same name, so a query's meaning
--- depended on which connection ran it. The user database's copy was renamed to
--- `user_search_history`; this is now the only `search_history` in the system.
+-- This is the only `search_history` table in the system. The user database's
+-- per-profile equivalent is deliberately named `user_search_history`: two
+-- tables sharing one name across two connections would make a query's meaning
+-- depend on which connection ran it.
 --
 -- The split is intentional, not merely a name fix. This table is app-wide
 -- telemetry for the search box; `user_search_history` is per-profile data that

@@ -9,6 +9,15 @@ import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validatePositiveInt, validateString } from '../utils/validation';
 
 let sessionRepo: SessionRepository | null = null;
+/**
+ * EXP-D: resolves when `initializeSessionRepo()` has finished. Opening the
+ * encrypted user DB runs SQLCipher's 256k-iteration KDF (~185ms), and this used
+ * to be awaited BEFORE `mainWindow.loadURL()` -- so the renderer could not even
+ * begin fetching its bundle until the key had been derived. The handlers are
+ * now registered synchronously and each one awaits this gate instead, which
+ * lets the KDF overlap the renderer's boot rather than precede it.
+ */
+let sessionRepoReady: Promise<void> = Promise.resolve();
 
 interface SessionDto {
   sessionId: number | undefined;
@@ -42,7 +51,8 @@ function toSessionDto(session: Session): SessionDto {
  * Resolve the session repository or raise a classified `unavailable`
  * error so the renderer can branch cleanly.
  */
-function requireSessionRepo(): SessionRepository {
+async function requireSessionRepo(): Promise<SessionRepository> {
+  await sessionRepoReady;
   if (!sessionRepo) {
     throw new IpcKnownError('unavailable', 'Session repository not initialized');
   }
@@ -72,21 +82,22 @@ async function initializeSessionRepo(): Promise<void> {
   }
 }
 
-export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> {
-  // Initialize session repository using shared user DB
-  await initializeSessionRepo();
+export function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> {
+  // Kicked off, not awaited: every handler below gates on `sessionRepoReady`,
+  // so they are safe to register before the DB is open.
+  sessionRepoReady = initializeSessionRepo();
 
   // Handler: Get all sessions
-  ipcHandler<[], SessionDto[]>('session:getAll', () => {
-    const repo = requireSessionRepo();
+  ipcHandler<[], SessionDto[]>('session:getAll', async () => {
+    const repo = await requireSessionRepo();
     const sessions = repo.getAll({ orderBy: 'last_opened', orderDirection: 'DESC' });
     return sessions.map(toSessionDto);
   });
 
   // Handler: Get session by ID
-  ipcHandler<[number], SessionDto | null>('session:load', (sessionId) => {
+  ipcHandler<[number], SessionDto | null>('session:load', async (sessionId) => {
     validatePositiveInt(sessionId, 'sessionId');
-    const repo = requireSessionRepo();
+    const repo = await requireSessionRepo();
 
     const session = repo.getById(sessionId);
     if (!session) {
@@ -100,8 +111,8 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
   });
 
   // Handler: Get or create autosave session
-  ipcHandler<[], SessionDto>('session:getOrCreateAutosave', () => {
-    const repo = requireSessionRepo();
+  ipcHandler<[], SessionDto>('session:getOrCreateAutosave', async () => {
+    const repo = await requireSessionRepo();
 
     // Try to get existing autosave session
     let session = repo.getAutosaveSession();
@@ -135,9 +146,9 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
       sessionData: SessionData;
       isDefault?: boolean;
     }
-  ], SessionDto>('session:create', (data) => {
+  ], SessionDto>('session:create', async (data) => {
     validateString(data.name, 'session name', 200);
-    const repo = requireSessionRepo();
+    const repo = await requireSessionRepo();
 
     const session = new Session({
       name: data.name,
@@ -162,10 +173,10 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
       sessionData?: SessionData;
       isDefault?: boolean;
     }
-  ], SessionDto>('session:update', (sessionId, updates) => {
+  ], SessionDto>('session:update', async (sessionId, updates) => {
     validatePositiveInt(sessionId, 'sessionId');
     if (updates.name !== undefined) { validateString(updates.name, 'session name', 200); }
-    const repo = requireSessionRepo();
+    const repo = await requireSessionRepo();
 
     const session = repo.getById(sessionId);
     if (!session) {
@@ -185,9 +196,9 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
   });
 
   // Handler: Delete session
-  ipcHandler<[number], boolean>('session:delete', (sessionId) => {
+  ipcHandler<[number], boolean>('session:delete', async (sessionId) => {
     validatePositiveInt(sessionId, 'sessionId');
-    const repo = requireSessionRepo();
+    const repo = await requireSessionRepo();
 
     // Don't allow deleting autosave session
     const session = repo.getById(sessionId);
@@ -202,9 +213,9 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
   });
 
   // Handler: Set as default session
-  ipcHandler<[number], boolean>('session:setAsDefault', (sessionId) => {
+  ipcHandler<[number], boolean>('session:setAsDefault', async (sessionId) => {
     validatePositiveInt(sessionId, 'sessionId');
-    const repo = requireSessionRepo();
+    const repo = await requireSessionRepo();
 
     const success = repo.setAsDefault(sessionId);
     log.info(`Set session ${sessionId} as default: ${success}`);
@@ -213,8 +224,8 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
   });
 
   // Handler: Get default session
-  ipcHandler<[], SessionDto | null>('session:getDefault', () => {
-    const repo = requireSessionRepo();
+  ipcHandler<[], SessionDto | null>('session:getDefault', async () => {
+    const repo = await requireSessionRepo();
 
     const session = repo.getDefaultSession();
     if (!session) {
@@ -225,11 +236,13 @@ export async function registerSessionHandlers(_ipcMain: IpcMain): Promise<void> 
   });
 
   // Handler: Get recent sessions
-  ipcHandler<[number | undefined], SessionDto[]>('session:getRecent', (limit) => {
-    const repo = requireSessionRepo();
+  ipcHandler<[number | undefined], SessionDto[]>('session:getRecent', async (limit) => {
+    const repo = await requireSessionRepo();
     const sessions = repo.getRecentSessions(limit ?? 10);
     return sessions.map(toSessionDto);
   });
+
+  return sessionRepoReady;
 }
 
 /**

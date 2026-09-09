@@ -1,30 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
-import AdvancedSearchDialog from './components/AdvancedSearchDialog';
-import ModuleManagerDialog from './components/ModuleManagerDialog';
-import { BackupRestoreDialog } from './components/BackupRestoreDialog';
-import PreferencesDialog from './components/PreferencesDialog';
-import KeyboardShortcutsDialog from './components/KeyboardShortcutsDialog';
-import DocumentationDialog from './components/DocumentationDialog';
-import ManageBookmarksDialog from './components/ManageBookmarksDialog';
-import CrashReportDialog from './components/diagnostics/CrashReportDialog';
-import ReportIssueDialog from './components/diagnostics/ReportIssueDialog';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
-import ExtensionConsentDialog from './components/extensions/ExtensionConsentDialog';
 import ToastContainer from './components/ToastContainer';
 import DockviewLayout from './components/DockviewLayout';
 import WelcomeBar from './components/onboarding/WelcomeBar';
-import LanguageFirstRun from './components/onboarding/LanguageFirstRun';
-import GuidedTour from './components/onboarding/GuidedTour';
 import { useOnboardingStore } from './stores/useOnboardingStore';
 import { useBibleStore } from './stores/useBibleStore';
 import { useSearchStore } from './stores/useSearchStore';
 import { useFindStore } from './stores/useFindStore';
 import FindBar from './components/FindBar';
 import { useSessionAutoSave } from './stores/useSessionStore';
-import UpdateCheckDialog from './components/UpdateCheckDialog';
 import HeaderActions from './components/HeaderActions';
 import type { PaneType } from './stores/useTextSettingsStore';
 import type { ModuleType } from './stores/useModuleStore';
@@ -42,6 +30,42 @@ import { getIssueReportUrl, getProductName } from './config/appConfig';
 import { useI18n } from './contexts/useI18n';
 import './styles/highlights.css';
 import './styles/dockview-overrides.css';
+
+// EXP-E: dialogs and onboarding overlays are split out of the first-paint
+// bundle. Every one of these is closed on launch, and each pulled its whole
+// subtree (and that subtree's dependencies) into the module graph the renderer
+// has to parse before it can draw anything.
+const LazyDialogs = {
+  AdvancedSearchDialog: React.lazy(() => import('./components/AdvancedSearchDialog')),
+  ModuleManagerDialog: React.lazy(() => import('./components/ModuleManagerDialog')),
+  PreferencesDialog: React.lazy(() => import('./components/PreferencesDialog')),
+  KeyboardShortcutsDialog: React.lazy(() => import('./components/KeyboardShortcutsDialog')),
+  DocumentationDialog: React.lazy(() => import('./components/DocumentationDialog')),
+  ManageBookmarksDialog: React.lazy(() => import('./components/ManageBookmarksDialog')),
+  CrashReportDialog: React.lazy(() => import('./components/diagnostics/CrashReportDialog')),
+  ReportIssueDialog: React.lazy(() => import('./components/diagnostics/ReportIssueDialog')),
+  ExtensionConsentDialog: React.lazy(() => import('./components/extensions/ExtensionConsentDialog')),
+  UpdateCheckDialog: React.lazy(() => import('./components/UpdateCheckDialog')),
+  GuidedTour: React.lazy(() => import('./components/onboarding/GuidedTour')),
+  LanguageFirstRun: React.lazy(() => import('./components/onboarding/LanguageFirstRun')),
+  BackupRestoreDialog: React.lazy(() =>
+    import('./components/BackupRestoreDialog').then((m) => ({ default: m.BackupRestoreDialog }))
+  ),
+} as const;
+const AdvancedSearchDialog = LazyDialogs.AdvancedSearchDialog;
+const ModuleManagerDialog = LazyDialogs.ModuleManagerDialog;
+const PreferencesDialog = LazyDialogs.PreferencesDialog;
+const KeyboardShortcutsDialog = LazyDialogs.KeyboardShortcutsDialog;
+const DocumentationDialog = LazyDialogs.DocumentationDialog;
+const ManageBookmarksDialog = LazyDialogs.ManageBookmarksDialog;
+const CrashReportDialog = LazyDialogs.CrashReportDialog;
+const ReportIssueDialog = LazyDialogs.ReportIssueDialog;
+const ExtensionConsentDialog = LazyDialogs.ExtensionConsentDialog;
+const UpdateCheckDialog = LazyDialogs.UpdateCheckDialog;
+const GuidedTour = LazyDialogs.GuidedTour;
+const LanguageFirstRun = LazyDialogs.LanguageFirstRun;
+const BackupRestoreDialog = LazyDialogs.BackupRestoreDialog;
+
 
 // Tiny accessors for menu/command handlers that need to imperatively trigger a
 // store action (not subscribe). Keeps `.getState()` confined to this module
@@ -129,6 +153,11 @@ const AppWordmark: React.FC = () => {
 
 function App() {
   const [savedDockviewLayout, setSavedDockviewLayout] = useState<Record<string, any> | null>(null);
+  // dockview must not build ANY layout until the session has said which
+  // one it is. Without this the workbench raced session restore, won, built the
+  // default layout, and `DockviewLayout`'s `api.panels.length === 0` guard then
+  // silently discarded the user's saved arrangement on every launch.
+  const [layoutDecided, setLayoutDecided] = useState(false);
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleType | null>(null);
   const [showUpdateCheck, setShowUpdateCheck] = useState(false);
@@ -154,15 +183,23 @@ function App() {
   // Enable auto-save
   useSessionAutoSave();
 
+
   // Initialize on mount
   useEffect(() => {
     const signal = { aborted: false };
 
-    initializeApp(signal).then(({ dockviewLayout }) => {
+    initializeApp(signal, {
+      onLayoutReady: (layout) => {
+        if (signal.aborted) return;
+        if (layout) setSavedDockviewLayout(layout);
+        setLayoutDecided(true);
+      },
+    }).then(({ dockviewLayout }) => {
       if (signal.aborted) return;
       if (dockviewLayout) {
         setSavedDockviewLayout(dockviewLayout);
       }
+      setLayoutDecided(true);
     });
 
     registerSaveBeforeCloseHandler();
@@ -361,6 +398,11 @@ function App() {
 
   return (
     <ErrorBoundary>
+      {/* Every dialog and onboarding overlay below is lazily loaded, so
+          the tree needs a Suspense boundary. `null` is the right fallback --
+          each of them renders nothing until the reader opens it anyway, so a
+          one-frame gap while its chunk loads is invisible. */}
+      <React.Suspense fallback={null}>
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
         <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
@@ -386,7 +428,7 @@ function App() {
 
         {/* Main content area - Dockview flexible pane system */}
         <main className="flex-1 min-h-0 overflow-hidden">
-          <DockviewLayout savedLayout={savedDockviewLayout} />
+          <DockviewLayout savedLayout={savedDockviewLayout} layoutDecided={layoutDecided} />
         </main>
 
         {/* Advanced Search Dialog (modal overlay) */}
@@ -461,6 +503,7 @@ function App() {
         */}
         <LanguageFirstRun />
       </div>
+      </React.Suspense>
     </ErrorBoundary>
   );
 }
