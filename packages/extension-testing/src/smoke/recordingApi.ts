@@ -98,6 +98,9 @@ export function createRecordingApi(overrides?: MockApiOverrides): RecordingApi {
     captured.contextMenus.push({ target, item });
     return makeDisposable();
   };
+  // RESERVED - recorded for completeness only. The real host rejects every
+  // `ui.registerDisplayMode` call with `MethodNotImplementedYet`, so a display
+  // mode captured here will never render in the app.
   api.ui.registerDisplayMode = async (
     def: Extensions.DisplayModeDescriptor,
   ): Promise<DisposableHandle> => {
