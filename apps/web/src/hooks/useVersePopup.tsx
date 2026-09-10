@@ -170,10 +170,10 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
     const MAX_PREVIEW_CHARS = 300;
 
     if (e.ctrlKey || e.metaKey) {
-      bibleStore.addTabWithPassage(bibleStore.getActiveTab()?.moduleAbbr || 'KJV', bookNumber, chapter, verse || undefined);
+      bibleStore.addTabWithPassage(bibleStore.getActiveModule(), bookNumber, chapter, verse || undefined);
     } else if (window.matchMedia('(pointer: coarse)').matches && bibleProvider) {
       // Mobile: show verse preview popup
-      const moduleAbbr = bibleStore.getActiveTab()?.moduleAbbr || 'KJV';
+      const moduleAbbr = bibleStore.getActiveModule();
       const reference = formatRef(verseId, endVerseId);
       const rect = anchorEl.getBoundingClientRect();
       const position: PopupPosition = { top: rect.bottom + 4, left: rect.left, anchorTop: rect.top };

@@ -140,6 +140,27 @@ export class DatabaseManager {
     }
   }
 
+  /**
+   * The Bible to answer in when a request names none.
+   *
+   * `preferred` when that Bible is installed, otherwise the first installed
+   * Bible `isVisible` accepts, so a deployment without the configured
+   * translation still answers rather than 404ing. Null only when no Bible is
+   * installed at all. "Installed" is what `getBibleRepo` means by it: listed in
+   * main.db *and* its .db file present.
+   */
+  getDefaultBibleAbbreviation(
+    preferred?: string,
+    isVisible: (abbreviation: string) => boolean = () => true,
+  ): string | null {
+    if (preferred && this.getBibleRepo(preferred)) return this.resolveAbbreviation(preferred);
+    for (const module of this.getModuleMetadataRepo().getByType('bible')) {
+      const abbreviation = module.abbreviation || module.getAbbreviation();
+      if (abbreviation && isVisible(abbreviation) && this.getBibleRepo(abbreviation)) return abbreviation;
+    }
+    return null;
+  }
+
   getCommentaryRepo(abbreviation: string): CommentaryRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
     if (this.commentaryRepos.has(resolved)) {
@@ -230,10 +251,13 @@ export class DatabaseManager {
       const bookRepo = this.getBookRepo();
       const bibleModules = new Map<string, BibleRepositoryT>();
 
-      // Load KJV as default search module
-      const kjvRepo = this.getBibleRepo('KJV');
-      if (kjvRepo) {
-        bibleModules.set('KJV', kjvRepo);
+      // The Bible a search spans when the request names none. KJV when it is
+      // installed, because Strong's searches read its tagged text; otherwise
+      // any installed Bible, so a plain keyword search still has text to scan.
+      const defaultAbbr = this.getDefaultBibleAbbreviation('KJV');
+      const defaultRepo = defaultAbbr ? this.getBibleRepo(defaultAbbr) : null;
+      if (defaultAbbr && defaultRepo) {
+        bibleModules.set(defaultAbbr, defaultRepo);
       }
 
       this.searchService = new BibleSearchService(bibleModules, bookRepo);

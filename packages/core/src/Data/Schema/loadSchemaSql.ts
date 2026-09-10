@@ -19,8 +19,12 @@
  * ```
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+// Namespace imports, not named ones: this module is re-exported from the core
+// index, which the desktop renderer bundles, and Vite stubs node builtins there
+// with a module that has no named exports -- a named import fails that build.
+// The renderer never calls these functions; they only need to load.
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 /** Raised when a schema file cannot be assembled. */
 export class SchemaLoadError extends Error {
@@ -53,7 +57,7 @@ const MAX_INCLUDE_DEPTH = 8;
  *         than {@link MAX_INCLUDE_DEPTH} (which a cycle always will).
  */
 export function loadSchemaSql(schemaPath: string): string {
-  return expand(resolve(schemaPath), 0, []);
+  return expand(path.resolve(schemaPath), 0, []);
 }
 
 function expand(absolutePath: string, depth: number, stack: readonly string[]): string {
@@ -66,15 +70,15 @@ function expand(absolutePath: string, depth: number, stack: readonly string[]): 
 
   let source: string;
   try {
-    source = readFileSync(absolutePath, 'utf8');
+    source = fs.readFileSync(absolutePath, 'utf8');
   } catch (cause) {
     const via = stack.length === 0 ? '' : ` (included from ${stack[stack.length - 1]!})`;
     throw new SchemaLoadError(`cannot read schema file ${absolutePath}${via}: ${String(cause)}`);
   }
 
-  const directory = dirname(absolutePath);
+  const directory = path.dirname(absolutePath);
   INCLUDE_DIRECTIVE.lastIndex = 0;
   return source.replace(INCLUDE_DIRECTIVE, (_match, target: string) =>
-    expand(resolve(directory, target), depth + 1, [...stack, absolutePath]).replace(/\n+$/u, '')
+    expand(path.resolve(directory, target), depth + 1, [...stack, absolutePath]).replace(/\n+$/u, '')
   );
 }

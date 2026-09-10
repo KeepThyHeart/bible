@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
 // Capture the current git commit SHA at build time so the diagnostics
 // uploader can tag reports with the exact source revision they came from.
@@ -32,15 +32,23 @@ const BUILD_ID = resolveBuildId();
 // no source edits. `electron/config/appConfig.ts` reads these defines and
 // applies the runtime fallbacks; see `README.md#build-configuration`.
 //
-// Precedence: environment variable -> `branding.json` (for the values that have
-// one) -> a literal default here or in `appConfig.ts`.
+// Precedence: environment variable -> `admin/brand/branding.json`, overlaid by
+// `branding.local.json` (for the values that have one) -> a literal default here
+// or in `appConfig.ts`.
 function envOrEmpty(name: string): string {
   const value = process.env[name];
   return value && value.trim() ? value.trim() : '';
 }
 
+const BRAND_DIR = resolve(__dirname, '..', '..', 'admin', 'brand');
+
 /**
- * Read a settled value out of the repo-root `branding.json`.
+ * Read a settled value out of `admin/brand/branding.json`, overlaid by
+ * `admin/brand/branding.local.json` when that exists.
+ *
+ * The overlay is how a fork rebrands without editing a tracked file; it is read
+ * exactly as `brandingPlugin()` in `apps/web/vite.config.ts` reads it, so the
+ * two apps cannot disagree about the brand.
  *
  * `branding.json` is the single source of truth for public-facing names and
  * URLs (see `scripts/check-branding.js`). Using it as the DEFAULT for a build
@@ -59,16 +67,16 @@ function envOrEmpty(name: string): string {
  * Manager look broken.
  */
 function brandingValue(key: string): string {
-  try {
-    const branding = JSON.parse(
-      readFileSync(resolve(__dirname, '..', '..', 'branding.json'), 'utf8'),
-    ) as Record<string, unknown> & { _undecided?: string[] };
-    if (branding._undecided?.includes(key)) return '';
-    const value = branding[key];
-    return typeof value === 'string' && value.trim() ? value.trim() : '';
-  } catch {
-    return '';
-  }
+  const read = (name: string): Record<string, unknown> => {
+    const path = resolve(BRAND_DIR, name);
+    return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : {};
+  };
+  const branding = { ...read('branding.json'), ...read('branding.local.json') } as Record<string, unknown> & {
+    _undecided?: string[];
+  };
+  if (branding._undecided?.includes(key)) return '';
+  const value = branding[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
 function resolveAppVersion(): string {

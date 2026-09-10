@@ -39,6 +39,7 @@ let mockActiveTab: { moduleAbbr: string } | undefined = { moduleAbbr: 'KJV' };
 vi.mock('../stores/bibleStore', () => ({
   bibleStore: {
     getActiveTab: () => mockActiveTab,
+    getActiveModule: () => mockActiveTab?.moduleAbbr ?? 'KJV',
     addTabWithPassage: (...args: unknown[]) => mockAddTabWithPassage(...args),
     navigateToPreview: (...args: unknown[]) => mockNavigateToPreview(...args),
   },

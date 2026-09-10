@@ -6,10 +6,11 @@
  */
 
 // Template Engine interface (implementations in @bible/desktop)
-export { ITemplateEngine } from './ITemplateEngine';
+export type { ITemplateEngine } from './ITemplateEngine';
 
 // Template types and enums
-export { TemplateEngineType, TemplateView, createTemplateView } from './TemplateTypes';
+export { TemplateEngineType, createTemplateView } from './TemplateTypes';
+export type { TemplateView } from './TemplateTypes';
 
 // Bible Text Service
 export * from './BibleTextService';

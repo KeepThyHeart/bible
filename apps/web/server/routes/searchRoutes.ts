@@ -226,12 +226,15 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       // KJV-derived and stay that way, so matching is unaffected — but the text
       // rendered for a hit should be the translation the reader is actually in.
       // A result labelled KJV while the reader is reading WEBBE is simply wrong.
+      // With no translation named, KJV is preferred because the embeddings were
+      // built from it; failing that any installed Bible, since showing a match
+      // in another translation beats showing it with no text at all.
       const requestedModule = modules?.[0];
       const requestedRepo = requestedModule ? db.getBibleRepo(requestedModule) : null;
-      const hydrationRepo = requestedRepo ?? db.getBibleRepo('KJV');
       const hydrationModule = requestedRepo && requestedModule
         ? db.resolveAbbreviation(requestedModule)
-        : 'KJV';
+        : (db.getDefaultBibleAbbreviation('KJV') ?? 'KJV');
+      const hydrationRepo = requestedRepo ?? db.getBibleRepo(hydrationModule);
 
       let result;
       try {

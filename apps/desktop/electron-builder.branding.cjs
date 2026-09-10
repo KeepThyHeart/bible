@@ -118,15 +118,23 @@ const macSigningConfigured = Boolean(
 // in `.github/workflows/release.yml`. A local `npm run package:win` writes the
 // yml alongside the exe and uploads nothing.
 //
-// Owner/repo come from `branding.json` so this cannot drift from the URL the
-// in-app update check already uses (`DEFAULT_UPDATE_MANIFEST_URL`).
+// Owner/repo come from `admin/brand/branding.json` (with a fork's
+// `branding.local.json` laid over it, as electron.vite.config.ts does) so this
+// cannot drift from the URL the in-app update check already uses
+// (`DEFAULT_UPDATE_MANIFEST_URL`).
 const branding = (() => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('../../branding.json');
-  } catch {
-    return {};
-  }
+  const readJson = (file) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require(file);
+    } catch {
+      return {};
+    }
+  };
+  return {
+    ...readJson('../../admin/brand/branding.json'),
+    ...readJson('../../admin/brand/branding.local.json'),
+  };
 })();
 
 module.exports = {

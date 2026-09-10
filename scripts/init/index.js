@@ -20,7 +20,8 @@
  *
  *   <data-dir>/main.db      the registry: schema, the canonical verse space,
  *                           and one `module_metadata` row per module found
- *   apps/web/data/site-config.json   (web target only, and only when absent)
+ *   <data-dir>/site-config.json   (web target only, and only when absent)
+ *   apps/desktop/data/modules -> data/modules   (desktop target; see --no-link)
  *
  * Everything is derived from files already in the repository -- the schema
  * under `packages/core/sql/schemas/`, the canonical versification under
@@ -42,16 +43,29 @@
  *   node scripts/init/index.js [options]
  *
  *   --target=web|desktop   Which install to initialise (default: web).
- *   --data-dir=PATH        Where main.db is written.  Overrides --target.
+ *   --data-dir=PATH        Where main.db (and, for web, site-config.json) is
+ *                          written.  Overrides --target.
  *   --modules-dir=PATH     Parent of `modules/`.  Overrides --target.
  *   --force                Delete and rebuild main.db rather than updating it.
  *   --prune                Remove registry rows whose file is missing.
  *   --no-config            Skip writing site-config.json (web target).
- *   --catalog[=URL]        Fetch a catalog and choose modules to download.
- *   --select=KJV,ASV       With --catalog, take these instead of prompting.
+ *   --no-link              Desktop target: leave apps/desktop/data/modules as a
+ *                          directory of its own instead of linking it to the
+ *                          shared data/modules.
+ *   --catalog[=URL]        Fetch a catalog and choose modules to download.  With
+ *                          no URL: $BIBLE_MODULE_CATALOG_URL, else branding's
+ *                          moduleRepositoryUrl (unless that is still undecided).
+ *   --select=KJV,ASV       With --catalog, take these instead of prompting.  A
+ *                          preset name (below) stands for its whole list.
  *   --yes                  Never prompt; accept defaults.  For CI.
  *   --quiet                Only warnings and errors.
  *   --help
+ *
+ *   npm run init:modules   The development catalog with --select=starter.
+ *   npm run setup          Core build, starter modules, web and desktop init,
+ *                          and the Electron native rebuild, in one go.
+ *
+ * Needs Node.js 20.19 or newer.
  *
  * Exit codes: 0 success, 1 nothing usable was produced, 2 usage error.
  */
@@ -60,12 +74,86 @@
 
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3-web');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'packages/core/sql/schemas/initial/MainDatabase.sql');
 const VERSIFICATION_FILE = path.join(REPO_ROOT, 'apps/desktop/scripts/data/kjv-versification.json');
 const SITE_CONFIG_EXAMPLE = path.join(REPO_ROOT, 'apps/web/config/site-config.example.json');
+
+/** Oldest Node.js the repository's toolchain runs on, as [major, minor]. */
+const MIN_NODE_VERSION = [20, 19];
+
+/** What a fresh session opens on when it is installed; otherwise the first Bible found. */
+const PREFERRED_DEFAULT_BIBLE = 'KJV';
+
+// ============================================================================
+// Prerequisites
+// ============================================================================
+
+/**
+ * Why this Node.js cannot run the repository, or null when it can.
+ *
+ * Checked before anything else so the answer is a sentence rather than a syntax
+ * error or a native-module stack trace from somewhere deep in the toolchain.
+ */
+function nodeVersionProblem(version = process.versions.node) {
+  const [major, minor] = version.split('.').map(Number);
+  const [minMajor, minMinor] = MIN_NODE_VERSION;
+  if (major > minMajor || (major === minMajor && minor >= minMinor)) return null;
+  return [
+    `This repository needs Node.js ${minMajor}.${minMinor} or newer; this is ${version}.`,
+    'Install a current release (24 is recommended; `nvm install` reads .nvmrc), then',
+    're-run `npm install` so native modules are built for it.',
+  ];
+}
+
+let sqliteDriver = null;
+
+/**
+ * `better-sqlite3-web`, required on first use rather than at load time.
+ *
+ * That keeps `--help`, the Node.js check and `checks.js` working on a machine
+ * where the native module is missing or broken -- which is exactly the machine
+ * that most needs them.
+ */
+function sqlite() {
+  if (!sqliteDriver) sqliteDriver = require('better-sqlite3-web');
+  return sqliteDriver;
+}
+
+/**
+ * Why the SQLite driver cannot be used, or null when it can.
+ *
+ * `better-sqlite3` loads its native binding lazily, on the first `new
+ * Database()`, so requiring the package proves nothing: an in-memory database
+ * is opened to make the binding load here, where the failure can be explained.
+ * The two failures worth explaining are the two a newcomer actually hits --
+ * `npm install` not having been run, and a binding compiled for a different
+ * Node.js (installed under one version, run under another).  Anything else is
+ * rethrown untouched.
+ */
+function sqliteDriverProblem() {
+  try {
+    const Database = sqlite();
+    new Database(':memory:').close();
+    return null;
+  } catch (cause) {
+    if (cause.code === 'MODULE_NOT_FOUND' && cause.message.includes('better-sqlite3-web')) {
+      return [
+        'The better-sqlite3-web package is not installed.',
+        'Run `npm install` at the repository root first.',
+      ];
+    }
+    if (cause.code === 'ERR_DLOPEN_FAILED' || /NODE_MODULE_VERSION|Could not locate the bindings file/.test(cause.message)) {
+      return [
+        `better-sqlite3-web's native binding is missing or was built for a different Node.js (this is ${process.version}).`,
+        'Rebuild it for this one:  npm rebuild better-sqlite3-web',
+        `  (${cause.message.split('\n')[0]})`,
+      ];
+    }
+    throw cause;
+  }
+}
 
 /**
  * Where each target keeps its registry and its module files.
@@ -99,6 +187,9 @@ const TARGETS = {
   },
 };
 
+/** The shared module store, which the desktop's `modules/` is linked to. */
+const SHARED_MODULES_DIR = path.join(TARGETS.web.modulesDir, 'modules');
+
 /**
  * What the test suites and the apps actually need, keyed by module abbreviation.
  *
@@ -106,24 +197,49 @@ const TARGETS = {
  * will refuse to start because ASV and AmTract are missing".  A newcomer cannot
  * be expected to know that `api.test.ts` pins Clarke by name, so the script says
  * it.  Kept in step with the table in the repository README.
+ *
+ * `starter` marks the modules of the `starter` preset (see PRESETS).
  */
 const EXPECTED_MODULES = [
-  { abbr: 'KJV', file: 'bible_kjv.db', need: 'required', why: 'core BibleRepository and search; the web bible, search, interlinear and Strong\'s routes' },
-  { abbr: 'Barnes', file: 'commentary_barnes.db', need: 'required', why: 'core CommentaryRepository and study overview; the web commentary routes' },
+  { abbr: 'KJV', file: 'bible_kjv.db', need: 'required', starter: true, why: 'core BibleRepository and search; the web bible, search, interlinear and Strong\'s routes' },
+  { abbr: 'Barnes', file: 'commentary_barnes.db', need: 'required', starter: true, why: 'core CommentaryRepository and study overview; the web commentary routes' },
   { abbr: 'Clarke', file: 'commentary_clarke.db', need: 'required', why: 'the web api.test.ts, which pins Clarke\'s Exodus 31 and Psalm 47 entries by name' },
-  { abbr: 'Easton', file: 'dictionary_easton.db', need: 'required', why: 'core DictionaryRepository; the web dictionary routes' },
-  { abbr: 'StrongsGreek', file: 'dictionary_strongsgreek.db', need: 'required', why: 'the web Strong\'s routes' },
-  { abbr: 'StrongsHebrew', file: 'dictionary_strongshebrew.db', need: 'required', why: 'the web Strong\'s routes' },
-  { abbr: 'NaveTopics', file: 'topical_nave.db', need: 'required', why: 'core TopicalIndexRepository and topic aggregation; the web topical routes' },
-  { abbr: 'TSKxref', file: 'xref_tsk.db', need: 'required', why: 'core CrossReferenceRepository and cross-reference aggregation; the web routes' },
+  { abbr: 'Easton', file: 'dictionary_easton.db', need: 'required', starter: true, why: 'core DictionaryRepository; the web dictionary routes' },
+  { abbr: 'StrongsGreek', file: 'dictionary_strongsgreek.db', need: 'required', starter: true, why: 'the web Strong\'s routes' },
+  { abbr: 'StrongsHebrew', file: 'dictionary_strongshebrew.db', need: 'required', starter: true, why: 'the web Strong\'s routes' },
+  { abbr: 'NaveTopics', file: 'topical_nave.db', need: 'required', starter: true, why: 'core TopicalIndexRepository and topic aggregation; the web topical routes' },
+  { abbr: 'TSKxref', file: 'xref_tsk.db', need: 'required', starter: true, why: 'core CrossReferenceRepository and cross-reference aggregation; the web routes' },
   { abbr: 'Concord', file: 'book_concord.db', need: 'required', why: 'core BookRepository' },
-  { abbr: 'ASV', file: 'bible_asv.db', need: 'e2e', why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
+  { abbr: 'ASV', file: 'bible_asv.db', need: 'e2e', starter: true, why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
   { abbr: 'AmTract', file: 'dictionary_amtract.db', need: 'e2e', why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
   { abbr: 'SYNTHESIS', file: 'commentary_synthesis.db', need: 'e2e', why: 'the commentary pane opens on the digest tab, so without it its default view is empty' },
-  { abbr: 'Scofield', file: 'commentary_scofield.db', need: 'desktop-e2e', why: "reference-links.spec.ts opens Scofield on John 3:16; without it the module picker never closes and all nine of its tests fail" },
+  { abbr: 'Scofield', file: 'commentary_scofield.db', need: 'desktop-e2e', starter: true, why: "reference-links.spec.ts opens Scofield on John 3:16; without it the module picker never closes and all nine of its tests fail" },
   { abbr: 'MHC', file: 'commentary_mhc.db', need: 'desktop-e2e', why: "ai-disclaimer.spec.ts asserts that a human-authored commentary carries no AI notice, and names Matthew Henry" },
   { abbr: 'TorreyTopics', file: 'topical_torrey.db', need: 'optional', why: 'a second topical source, so the topical routes meet more than one' },
 ];
+
+/**
+ * Named module sets, usable in `--select` and at the catalog prompt.
+ *
+ * The catalog marks nothing `recommended` yet, so `--yes` on its own installs
+ * nothing, and choosing forty modules by number is not a first-run experience.
+ * These give the two answers people actually want, by name:
+ *
+ *   starter  what a working dev install needs (roughly 60 MB): a Bible and a
+ *            second translation, a commentary, a dictionary, Strong's in both
+ *            languages, topics and cross-references -- enough for both apps to
+ *            open onto real content.  ASV is in it partly so that a catalog
+ *            without KJV still yields a Bible to open on.
+ *   tests    every module a test suite names (roughly 150 MB).
+ *
+ * Derived from EXPECTED_MODULES rather than listed, so the two cannot drift.
+ * A preset module the catalog does not offer is warned about and skipped (see
+ * catalog.js), since not every catalog carries every module.
+ */
+const PRESETS = {
+  starter: EXPECTED_MODULES.filter((m) => m.starter).map((m) => m.abbr),
+  tests: EXPECTED_MODULES.filter((m) => m.need !== 'optional').map((m) => m.abbr),
+};
 
 /** `module_metadata.module_type` values, mirroring core's MODULE_TYPES. */
 const MODULE_TYPES = new Set([
@@ -265,6 +381,7 @@ function buildReferenceSpace(db, log) {
  * Opened read-only.  This script never writes to a module file.
  */
 function readModuleInfo(filePath) {
+  const Database = sqlite();
   let db;
   try {
     db = new Database(filePath, { readonly: true, fileMustExist: true });
@@ -422,10 +539,21 @@ function findOrphanedRows(db, modulesRoot) {
  *
  * Only ever written when absent -- this is somebody's configuration, and
  * overwriting their choices to "help" is not a trade this script gets to make.
+ * An existing one is only checked, for the one mistake that breaks first run.
+ *
+ * Two settings differ from the example, because the example is a production
+ * template and this is a first run:
+ *
+ *   - `auth.enabled` is false when no password is set.  The server refuses to
+ *     start with an enabled gate and no password, which is right for a
+ *     deployment and a wall for somebody who just wants to see the app.
+ *   - `ui.defaultModule` names a Bible that is actually installed, rather than
+ *     the example's KJV, so a fresh session opens onto text.
  */
 function writeSiteConfig(configPath, modules, log) {
   if (fs.existsSync(configPath)) {
     log.debug(`site-config.json already exists at ${configPath}; leaving it alone.`);
+    checkDefaultModule(configPath, modules, log);
     return false;
   }
 
@@ -452,10 +580,134 @@ function writeSiteConfig(configPath, modules, log) {
     }
   }
 
+  const hasPassword = Boolean(config.auth?.password || config.auth?.passwordHash || process.env.SITE_PASSWORD);
+  if (!hasPassword) config.auth = { ...config.auth, enabled: false };
+
+  const defaultBible = chooseDefaultBible(modules);
+  config.ui = config.ui ?? {};
+  if (defaultBible) config.ui.defaultModule = defaultBible;
+  else delete config.ui.defaultModule;
+
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   log.info(`Wrote ${configPath} with ${order} module(s) visible.`);
+  log.info(`  Default Bible (ui.defaultModule): ${defaultBible ?? 'none -- no Bible is installed'}`);
+  if (!hasPassword) {
+    log.info('  No password is set, so the password gate is off (auth.enabled: false).  To put the');
+    log.info('  site behind one, set auth.password and auth.enabled: true, or SITE_PASSWORD.');
+  }
   return true;
+}
+
+/** The installed Bibles' abbreviations, in scan order. */
+function installedBibles(modules) {
+  return modules.filter((m) => m.info.module_type === 'bible').map((m) => m.info.abbreviation);
+}
+
+/**
+ * The Bible a fresh session should open on: PREFERRED_DEFAULT_BIBLE when it is
+ * installed, else the first installed Bible, else null.
+ */
+function chooseDefaultBible(modules) {
+  const bibles = installedBibles(modules);
+  const preferred = bibles.find((abbr) => abbr.toLowerCase() === PREFERRED_DEFAULT_BIBLE.toLowerCase());
+  return preferred ?? bibles[0] ?? null;
+}
+
+/**
+ * Warn when an existing `site-config.json` names a default Bible that is not
+ * installed.
+ *
+ * A config written on one machine and copied to another, or kept after its
+ * Bible was removed, opens every fresh session onto "Failed to load chapter".
+ * Nothing about that message points back at the config, so it is said here.
+ *
+ * A config that does not parse is reported and left for the server to reject:
+ * it is somebody's hand-edited file, and a registry build is no reason to fail.
+ */
+function checkDefaultModule(configPath, modules, log) {
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (cause) {
+    log.warn(`Could not read ${configPath} to check it: ${cause.message}`);
+    return;
+  }
+
+  const configured = config?.ui?.defaultModule;
+  if (!configured) return;
+  const bibles = installedBibles(modules);
+  if (bibles.some((abbr) => abbr.toLowerCase() === configured.toLowerCase())) return;
+
+  log.warn('');
+  log.warn(`${configPath} names "${configured}" as ui.defaultModule, but no such Bible is installed.`);
+  log.warn(bibles.length > 0
+    ? `  Fresh sessions will fail to load a chapter.  Set it to one of: ${bibles.join(', ')}.`
+    : '  No Bible is installed at all; install one (npm run init:modules) and set it to that.');
+}
+
+// ============================================================================
+// The desktop's modules link
+// ============================================================================
+
+/**
+ * Make `linkPath` a link to the shared module store at `sharedDir`.
+ *
+ * The desktop reads `modules/` from directly beneath its own data directory and
+ * has no equivalent of the web server's `BIBLE_MODULES_DIR`, so without this a
+ * developer downloads every module twice -- once per app -- and the two copies
+ * drift.  A link gives both apps one set of files.
+ *
+ * On Windows it is a directory junction: junctions need neither administrator
+ * rights nor Developer Mode, where a symlink needs one or the other.  Windows
+ * stores a junction's target as an absolute path.  Elsewhere it is a relative
+ * symlink, so it survives the clone being moved or renamed.
+ *
+ * Never destroys anything that holds data.  A real directory with files in it
+ * is left alone and reported (those are somebody's own copies); an empty one,
+ * or a link whose target has gone, is replaced.  A link to somewhere else is
+ * reported and kept, since pointing it there was presumably deliberate.
+ *
+ * Returns what happened: 'linked', 'already-linked', 'own-copy',
+ * 'points-elsewhere' or 'blocked'.
+ */
+function linkSharedModules(linkPath, sharedDir, log) {
+  fs.mkdirSync(sharedDir, { recursive: true });
+  const existing = fs.lstatSync(linkPath, { throwIfNoEntry: false });
+
+  if (existing?.isSymbolicLink()) {
+    const dangling = !fs.existsSync(linkPath);
+    if (!dangling && path.relative(fs.realpathSync(linkPath), fs.realpathSync(sharedDir)) === '') {
+      log.debug(`${linkPath} already links to ${sharedDir}.`);
+      return 'already-linked';
+    }
+    if (!dangling) {
+      log.warn(`Note: ${linkPath} is a link to ${fs.realpathSync(linkPath)}, not to the shared`);
+      log.warn(`      store at ${sharedDir}.  Leaving it as it is.`);
+      return 'points-elsewhere';
+    }
+    fs.unlinkSync(linkPath);
+  } else if (existing?.isDirectory()) {
+    if (fs.readdirSync(linkPath).length > 0) {
+      log.warn(`Note: ${linkPath} is a directory with its own module files, so it was not`);
+      log.warn(`      linked to the shared store at ${sharedDir}.  To share one set of files,`);
+      log.warn('      move them there, delete the directory and re-run; --no-link silences this.');
+      return 'own-copy';
+    }
+    fs.rmdirSync(linkPath);
+  } else if (existing) {
+    log.warn(`Note: ${linkPath} exists and is not a directory, so it was not linked to ${sharedDir}.`);
+    return 'blocked';
+  }
+
+  fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+  if (process.platform === 'win32') {
+    fs.symlinkSync(sharedDir, linkPath, 'junction');
+  } else {
+    fs.symlinkSync(path.relative(path.dirname(linkPath), sharedDir), linkPath, 'dir');
+  }
+  log.info(`Linked ${linkPath} -> ${sharedDir}`);
+  return 'linked';
 }
 
 // ============================================================================
@@ -518,7 +770,7 @@ function reportCoverage(installed, log) {
 function parseArgs(argv) {
   const options = {
     target: 'web', dataDir: null, modulesDir: null,
-    force: false, prune: false, config: true,
+    force: false, prune: false, config: true, link: true,
     catalog: null, select: null, yes: false, quiet: false, help: false,
   };
 
@@ -527,6 +779,7 @@ function parseArgs(argv) {
     else if (arg === '--force') options.force = true;
     else if (arg === '--prune') options.prune = true;
     else if (arg === '--no-config') options.config = false;
+    else if (arg === '--no-link') options.link = false;
     else if (arg === '--yes' || arg === '-y') options.yes = true;
     else if (arg === '--quiet') options.quiet = true;
     else if (arg === '--catalog') options.catalog = true;
@@ -573,14 +826,36 @@ function reportNoModules(modulesDir, log) {
   log.error('');
   log.error('Two ways forward:');
   log.error('');
-  log.error('  1. If you already have module files, put them there and re-run:');
-  log.error(`       mkdir -p "${modulesDir}"`);
-  log.error(`       cp /path/to/modules/*.db "${modulesDir}"`);
+  log.error('  1. Download the starter set (about 60 MB) from the development catalog:');
+  log.error('       npm run init:modules');
+  log.error('     or every module the test suites name (about 150 MB):');
+  log.error('       npm run init:modules -- --select=tests');
+  log.error('');
+  log.error('  2. If you already have module files, copy them into that directory and re-run:');
   log.error('       npm run init');
   log.error('');
-  log.error('  2. Download them from a catalog:');
-  log.error('       npm run init -- --catalog');
-  log.error('');
+}
+
+/**
+ * The usage text: the `## Usage` section of this file's header comment, plus
+ * the presets as they are actually defined.
+ *
+ * Read from the header so the two cannot disagree.  The header is the first
+ * `/**` block -- not the first comment, which is the eslint directive.
+ */
+function usageText() {
+  const source = fs.readFileSync(__filename, 'utf8');
+  const start = source.indexOf('/**');
+  const header = source.slice(start + '/**'.length, source.indexOf('*/', start))
+    .split('\n')
+    .map((line) => line.replace(/^ \* ?| \*$/u, ''))
+    .join('\n');
+  const usage = header.slice(header.indexOf('## Usage') + '## Usage'.length).trim();
+
+  const presets = Object.entries(PRESETS)
+    .map(([name, abbrs]) => `  ${name.padEnd(9)} ${abbrs.join(', ')}`)
+    .join('\n');
+  return `${header.trim().split('\n')[0]}\n\n${usage}\n\nPresets for --select:\n${presets}\n`;
 }
 
 async function main() {
@@ -591,8 +866,15 @@ async function main() {
     process.exit(2);
   }
   if (options.help) {
-    console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0].replace(/^\/\*+|^ \* ?|^#!.*|\/\* eslint.*/gm, ''));
+    console.log(usageText());
     process.exit(0);
+  }
+
+  const prerequisite = nodeVersionProblem() ?? sqliteDriverProblem();
+  if (prerequisite) {
+    console.error('');
+    for (const line of prerequisite) console.error(`init: ${line}`);
+    process.exit(1);
   }
 
   const log = makeLogger(options.quiet);
@@ -616,12 +898,19 @@ async function main() {
     log.warn('');
   }
 
+  // Before any download, so a desktop `--catalog` run lands its files in the
+  // shared store rather than in a directory the link is about to replace.
+  if (options.target === 'desktop' && options.link && !options.modulesDir) {
+    linkSharedModules(path.join(modulesDir, 'modules'), SHARED_MODULES_DIR, log);
+  }
+
   if (options.catalog) {
     const { runCatalogInstall } = require('./catalog');
     const outcome = await runCatalogInstall({
       source: typeof options.catalog === 'string' ? options.catalog : null,
       modulesDir: path.join(modulesDir, 'modules'),
       select: options.select,
+      presets: PRESETS,
       assumeYes: options.yes,
       log,
     });
@@ -674,6 +963,7 @@ function writeRegistry({ dataDir, modulesDir, scan, options, target, log }) {
 
   fs.mkdirSync(dataDir, { recursive: true });
   const isNew = !fs.existsSync(mainDbPath);
+  const Database = sqlite();
   const db = new Database(mainDbPath);
 
   try {
@@ -724,4 +1014,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { loadSchemaSql, buildReferenceSpace, readModuleInfo, EXPECTED_MODULES };
+module.exports = {
+  loadSchemaSql, buildReferenceSpace, readModuleInfo, linkSharedModules, nodeVersionProblem,
+  chooseDefaultBible, EXPECTED_MODULES, PRESETS,
+};

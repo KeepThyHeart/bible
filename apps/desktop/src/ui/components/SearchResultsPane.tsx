@@ -99,6 +99,12 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   const navigateToVerse = useBibleStore(s => s.navigateToVerseInPrimary);
   const biblePanels = useBibleStore(s => s.panels);
 
+  // The translation the reader is viewing in the primary Bible panel.
+  const primaryAbbr = useMemo(() => {
+    const primaryPanel = biblePanels.get(DEFAULT_PANEL_ID) ?? biblePanels.values().next().value;
+    return primaryPanel?.openTabs[primaryPanel.activeTabIndex]?.abbreviation;
+  }, [biblePanels]);
+
   // Bible translations currently open across all Bible panels, minus whichever
   // one the user is actively viewing (the de facto "just searched" module -
   // desktop's keyword search always runs against it) and minus any module the
@@ -116,10 +122,8 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
         }
       });
     });
-    const primaryPanel = biblePanels.get(DEFAULT_PANEL_ID) ?? biblePanels.values().next().value;
-    const primaryAbbr = primaryPanel?.openTabs[primaryPanel.activeTabIndex]?.abbreviation;
     return allOpen.filter(abbr => abbr !== primaryAbbr && !retriedModules.includes(abbr));
-  }, [biblePanels, retriedModules]);
+  }, [biblePanels, primaryAbbr, retriedModules]);
 
   // ---- Truncation / paging -------------------------------------------------
   //
@@ -577,6 +581,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                       <SearchResultItem
                         key={`${result.verseId}-${index}`}
                         result={result}
+                        currentModule={primaryAbbr}
                         onClick={() => handleResultClick(result)}
                         lastClicked={lastClickedId === searchResultId(result)}
                       />
@@ -613,6 +618,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                           <SearchResultItem
                             key={`fuzzy-${result.verseId}-${index}`}
                             result={result}
+                            currentModule={primaryAbbr}
                             onClick={() => handleResultClick(result)}
                             lastClicked={lastClickedId === searchResultId(result)}
                             approximate
@@ -685,6 +691,11 @@ const ShowMoreBar: React.FC<ShowMoreBarProps> = ({ label, testId, onClick }) => 
 interface SearchResultItemProps {
   result: SearchResult;
   onClick: () => void;
+  /**
+   * The translation the reader is viewing. A result from any other one is
+   * badged with its module; unknown (no passage open) badges every result.
+   */
+  currentModule?: string;
   /** Marks this as the result the user most recently clicked, so they can see
    * where they were when they return to the list. Purely decorative - it does
    * not affect focus, `aria-current`, or the arrow-key navigation below. */
@@ -697,7 +708,7 @@ interface SearchResultItemProps {
   approximate?: boolean;
 }
 
-const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, lastClicked, approximate }) => {
+const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, currentModule, lastClicked, approximate }) => {
   const { t } = useI18n();
   const isMultiVerse = result.verseIds && result.verseIds.length > 1;
 
@@ -769,7 +780,7 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, la
             </span>
 
             {/* Module Badge (if not current module) */}
-            {result.module && result.module !== 'KJV' && (
+            {result.module && result.module !== currentModule && (
               <span className="text-xs bg-background-tertiary text-text-secondary px-1.5 py-0.5 rounded" data-testid="search-result-module">
                 {result.module}
               </span>
