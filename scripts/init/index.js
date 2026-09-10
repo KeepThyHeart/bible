@@ -214,6 +214,7 @@ const EXPECTED_MODULES = [
   { abbr: 'AmTract', file: 'dictionary_amtract.db', need: 'e2e', why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
   { abbr: 'Scofield', file: 'commentary_scofield.db', need: 'desktop-e2e', starter: true, why: "reference-links.spec.ts opens Scofield on John 3:16; without it the module picker never closes and all nine of its tests fail" },
   { abbr: 'MHC', file: 'commentary_mhc.db', need: 'desktop-e2e', why: "ai-disclaimer.spec.ts asserts that a human-authored commentary carries no AI notice, and names Matthew Henry" },
+  { abbr: 'Wesley', file: 'commentary_wesley.db', need: 'optional', starter: true, why: "a whole-Bible commentary, so the default commentary has text in Genesis as well as John (Barnes covers only the New Testament)" },
   { abbr: 'TorreyTopics', file: 'topical_torrey.db', need: 'optional', why: 'a second topical source, so the topical routes meet more than one' },
   { abbr: 'SYNTHESIS', file: 'commentary_synthesis.db', need: 'optional', why: 'the AI-generated digest; ai-disclaimer.spec.ts exercises its provenance notice and skips those tests without it' },
 ];
@@ -225,12 +226,13 @@ const EXPECTED_MODULES = [
  * nothing, and choosing forty modules by number is not a first-run experience.
  * These give the two answers people actually want, by name:
  *
- *   starter  what a working dev install needs (roughly 60 MB): a Bible and a
- *            second translation, a commentary, a dictionary, Strong's in both
+ *   starter  what a working dev install needs (roughly 80 MB): a Bible and a
+ *            second translation, commentaries, a dictionary, Strong's in both
  *            languages, topics and cross-references -- enough for both apps to
  *            open onto real content.  ASV is in it partly so that a catalog
- *            without KJV still yields a Bible to open on.
- *   tests    every module a test suite names (roughly 150 MB).
+ *            without KJV still yields a Bible to open on, and Wesley so that the
+ *            default commentary covers both Testaments.
+ *   tests    `starter` plus every module a test suite names (roughly 170 MB).
  *
  * Derived from EXPECTED_MODULES rather than listed, so the two cannot drift.
  * A preset module the catalog does not offer is warned about and skipped (see
@@ -238,7 +240,7 @@ const EXPECTED_MODULES = [
  */
 const PRESETS = {
   starter: EXPECTED_MODULES.filter((m) => m.starter).map((m) => m.abbr),
-  tests: EXPECTED_MODULES.filter((m) => m.need !== 'optional').map((m) => m.abbr),
+  tests: EXPECTED_MODULES.filter((m) => m.starter || m.need !== 'optional').map((m) => m.abbr),
 };
 
 /** `module_metadata.module_type` values, mirroring core's MODULE_TYPES. */
@@ -720,46 +722,51 @@ function linkSharedModules(linkPath, sharedDir, log) {
  * The point of naming the consequence is that no newcomer can be expected to
  * connect "no ASV" to "the Playwright run stops before the first test".  A
  * count of modules does not tell them; a list of what will not work does.
+ *
+ * But the consequence has to be sized honestly.  A plain `npm run setup`
+ * installs `starter`, which by design leaves out the modules only the test
+ * suites name, so every normal install is "missing" those.  Reporting them in
+ * capitals as NOT installed made a successful setup read as a failed one.  So
+ * only a gap in `starter` itself is a warning -- the apps have less to show --
+ * and test-only modules are a note saying they matter for `--select=tests`.
  */
 function reportCoverage(installed, log) {
   const have = new Set(installed.map((m) => m.info.abbreviation.toLowerCase()));
   const missing = EXPECTED_MODULES.filter((m) => !have.has(m.abbr.toLowerCase()));
-
-  const required = missing.filter((m) => m.need === 'required');
-  const e2e = missing.filter((m) => m.need === 'e2e');
-  const desktopE2e = missing.filter((m) => m.need === 'desktop-e2e');
-  const optional = missing.filter((m) => m.need === 'optional');
 
   if (missing.length === 0) {
     log.info('Every module the test suites name is installed.');
     return;
   }
 
-  if (required.length > 0) {
+  const starter = missing.filter((m) => m.starter);
+  const testOnly = missing.filter((m) => !m.starter && m.need !== 'optional');
+  const optional = missing.filter((m) => !m.starter && m.need === 'optional');
+  const line = (m) => `  ${m.abbr.padEnd(14)} (${m.file}) -- ${m.why}`;
+
+  if (starter.length > 0) {
     log.warn('');
-    log.warn(`${required.length} module(s) the test suites depend on are NOT installed:`);
-    for (const m of required) log.warn(`  ${m.abbr.padEnd(14)} (${m.file}) -- ${m.why}`);
-    log.warn('  Suites that use these will fail or skip themselves.');
+    log.warn(`${starter.length} module(s) of the starter set are not installed:`);
+    for (const m of starter) log.warn(line(m));
+    log.warn('  Both apps still run, with less to show.  `npm run init:modules` fetches them.');
   }
 
-  if (e2e.length > 0) {
-    log.warn('');
-    log.warn(`${e2e.length} module(s) the Playwright suite needs are NOT installed:`);
-    for (const m of e2e) log.warn(`  ${m.abbr.padEnd(14)} (${m.file}) -- ${m.why}`);
-    log.warn('  `npm run test:e2e -w @bible/web` will stop before the first test.');
-  }
-
-  if (desktopE2e.length > 0) {
-    log.warn('');
-    log.warn(`${desktopE2e.length} module(s) the desktop Playwright suite names are NOT installed:`);
-    for (const m of desktopE2e) log.warn(`  ${m.abbr.padEnd(14)} (${m.file}) -- ${m.why}`);
-    log.warn('  Those specs fail; the rest of `npm run test:e2e -w @bible/desktop` still runs.');
+  if (testOnly.length > 0) {
+    log.info('');
+    log.info('Not installed, and only needed to run the test suites (the starter set leaves');
+    log.info('them out on purpose; `npm run init:modules -- --select=tests` fetches them):');
+    for (const m of testOnly) log.info(line(m));
+    const effects = [];
+    if (testOnly.some((m) => m.need === 'required')) effects.push('the unit suites that name them skip');
+    if (testOnly.some((m) => m.need === 'e2e')) effects.push('`npm run test:e2e -w @bible/web` stops before its first test');
+    if (testOnly.some((m) => m.need === 'desktop-e2e')) effects.push('the desktop Playwright specs that name them fail');
+    log.info(`  Without them ${effects.join('; ')}.  Nothing else is affected.`);
   }
 
   if (optional.length > 0) {
     log.info('');
     log.info('Optional, absent, nothing fails without them:');
-    for (const m of optional) log.info(`  ${m.abbr.padEnd(14)} (${m.file}) -- ${m.why}`);
+    for (const m of optional) log.info(line(m));
   }
 }
 
@@ -826,9 +833,9 @@ function reportNoModules(modulesDir, log) {
   log.error('');
   log.error('Two ways forward:');
   log.error('');
-  log.error('  1. Download the starter set (about 60 MB) from the development catalog:');
+  log.error('  1. Download the starter set (about 80 MB) from the development catalog:');
   log.error('       npm run init:modules');
-  log.error('     or every module the test suites name (about 150 MB):');
+  log.error('     or every module the test suites name (about 170 MB):');
   log.error('       npm run init:modules -- --select=tests');
   log.error('');
   log.error('  2. If you already have module files, copy them into that directory and re-run:');

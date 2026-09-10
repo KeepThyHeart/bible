@@ -35,6 +35,11 @@ describe('pickDefaultCommentary', () => {
   it('prefers Gill, then MHC, whatever order the server lists them in', () => {
     expect(pickDefaultCommentary([mod('MHC'), mod('Barnes'), mod('Gill')])?.abbreviation).toBe('Gill');
     expect(pickDefaultCommentary([mod('Barnes'), mod('MHC')])?.abbreviation).toBe('MHC');
+    expect(pickDefaultCommentary([mod('Wesley'), mod('MHC')])?.abbreviation).toBe('MHC');
+  });
+
+  it('takes Wesley over the New-Testament-only Barnes in a starter install', () => {
+    expect(pickDefaultCommentary([mod('Barnes'), mod('Scofield'), mod('Wesley')])?.abbreviation).toBe('Wesley');
   });
 
   it('matches the abbreviation case-insensitively, never the display name', () => {

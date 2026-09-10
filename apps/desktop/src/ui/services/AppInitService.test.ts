@@ -21,8 +21,8 @@ function mod(abbreviation: string, name = abbreviation): CommentaryModule {
 }
 
 describe('pickDefaultCommentary', () => {
-  it('prefers human-authored commentaries, Gill before MHC', () => {
-    expect(DEFAULT_COMMENTARY_PREFERENCE).toEqual(['Gill', 'MHC']);
+  it('prefers human-authored whole-Bible commentaries: Gill, then MHC, then Wesley', () => {
+    expect(DEFAULT_COMMENTARY_PREFERENCE).toEqual(['Gill', 'MHC', 'Wesley']);
   });
 
   it('prefers Gill even when it is not listed first', () => {
@@ -40,6 +40,17 @@ describe('pickDefaultCommentary', () => {
       mod('MHC', "Matthew Henry's Complete Commentary"),
     ]);
     expect(chosen?.abbreviation).toBe('MHC');
+  });
+
+  it('takes Wesley over the New-Testament-only Barnes in a starter install', () => {
+    // The `starter` preset installs Barnes, Scofield and Wesley. Falling back to
+    // the first listed opened Barnes, which has nothing to say about Genesis.
+    const chosen = pickDefaultCommentary([
+      mod('Barnes', "Barnes' Notes"),
+      mod('Scofield', 'Scofield Reference Notes'),
+      mod('Wesley', "Wesley's Notes"),
+    ]);
+    expect(chosen?.abbreviation).toBe('Wesley');
   });
 
   it('matches the abbreviation case-insensitively', () => {

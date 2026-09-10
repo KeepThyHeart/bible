@@ -21,7 +21,7 @@ npm run dev
 The [repository README](../../README.md) covers prerequisites, the module presets and troubleshooting. The desktop-specific steps of `npm run setup` are:
 
 - **`npm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `npm run init -- --target=desktop --no-link` keeps a separate copy instead.
-- **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild`), which compiles the native modules (`better-sqlite3-multiple-ciphers`, `keytar`) for Electron's Node ABI. It skips modules that already look built.
+- **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
 
 The app also creates and migrates `apps/desktop/data/main.db` itself on first run (`electron/utils/initMainDatabase.ts`), and any module `.db` files found in `apps/desktop/data/modules/` are registered at startup (`electron/utils/moduleDetector.ts`). Adding a module is therefore a matter of dropping the file into the shared `data/modules/` and restarting.
 

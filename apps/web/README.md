@@ -50,7 +50,7 @@ data/                              # Repo root, gitignored: the data directory (
   settings.json                    # Legacy module whitelist -- read only if site-config.json has no "modules" section
   server-config.json               # Legacy server auth and feature flags -- read only if site-config.json doesn't exist
   search-pipeline.json             # Semantic search config (optional)
-  tag_graph.db                     # Entity knowledge graph (optional)
+  tag_graph.db                     # Entity knowledge graph (optional; not distributed, nothing needs it yet)
   semantic_*.db / *.bin            # Semantic search data (optional)
   models/                          # Self-hosted embedding model for browser search (optional)
 

@@ -2,7 +2,7 @@ Keep Thy Heart Bible Reader
 ===========================
 This is an open-source Bible reader written in Node.JS.  Apps include desktop and website.  The desktop is based on Electron, to run in Windows, Mac, and Linux.  Modules (Bible translations, commentaries, etc.) are stored in SQLite .db files for compatibility.
 
-_Note: I'm currently getting the documentation together as well as a quick-start guide.  Once that is finished, this repo should become relatively easy to clone and initialize on most systems, for ease of development.  Modules (Bible, commentary, etc.) should be accessible soon as well, which are needed for testing most features.  A new SQLite format is used for modules, and most have been converted from SWORD modules (conversion scripts to be released as a separate repo)._
+A fresh clone is set up with one command (see [Quick Start](#quick-start)), which downloads a starter set of modules from the development catalog. Modules use a new SQLite format; most were converted from SWORD modules, and the conversion scripts are to be released as a separate repository.
 
 [TODO: Screenshots of web/desktop]
 
@@ -11,7 +11,7 @@ Prerequisites
   - **Node.js 20.19 or newer.** 24 is recommended, and `.nvmrc` pins it, so `nvm install` / `nvm use` (nvm, fnm) pick it up. With nvm-windows, run `nvm install 24` and `nvm use 24`. The init script checks the version and says so if it is too old.
   - **npm** (the version bundled with Node) and **git**.
   - **Network access on the first run.** Setup downloads modules from the development catalog, and the first `npm run dev` / `npm run dev:web` downloads the self-hosted fonts.
-  - **Native build tools, only as a fallback.** The native dependencies (`better-sqlite3`, `better-sqlite3-multiple-ciphers`, `keytar` and others) normally install prebuilt binaries. When no prebuilt binary matches your platform, Node or Electron version, npm compiles it with node-gyp, which needs Python 3 plus a C++ toolchain: Visual Studio Build Tools with the "Desktop development with C++" workload on Windows, the Xcode Command Line Tools on macOS, or `build-essential` on Linux (plus `libsecret-1-dev` for `keytar`). The Electron rebuild in `npm run setup` is the step most likely to need them.
+  - **Native build tools, only as a fallback.** The native dependencies (`better-sqlite3`, `better-sqlite3-multiple-ciphers` and others) normally install prebuilt binaries, including the Electron build of `better-sqlite3-multiple-ciphers` that `npm run setup` fetches. When no prebuilt binary matches your platform, Node or Electron version, npm compiles it with node-gyp, which needs Python 3 plus a C++ toolchain: Visual Studio Build Tools with the "Desktop development with C++" workload on Windows, the Xcode Command Line Tools on macOS, or `build-essential` on Linux. `keytar` is optional (it is only used to migrate an encryption key from older desktop installs), so a failure to build it, for example for want of `libsecret-1-dev` on Linux, does not stop `npm install`.
 
 The commands below work from PowerShell, cmd or a POSIX shell.
 
@@ -35,13 +35,13 @@ npm run dev          # desktop app
 | Step | What it does |
 |---|---|
 | `npm run build:core` | Compiles `packages/core` (`@bible/core`) to `dist/`, which both apps import. |
-| `npm run init:modules` | Downloads the `starter` module set (about 60 MB) from the development catalog into `data/modules/`, builds the module registry `data/main.db`, and writes `data/site-config.json` if there is none. |
+| `npm run init:modules` | Downloads the `starter` module set (about 80 MB) from the development catalog into `data/modules/`, builds the module registry `data/main.db`, and writes `data/site-config.json` if there is none. |
 | `npm run init:desktop` | Builds the desktop registry `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to `data/modules`, so both apps share one set of module files. |
-| `npm run rebuild-sqlite` | Rebuilds the desktop's native modules for Electron, which has its own Node ABI. |
+| `npm run rebuild-sqlite` | Fetches (or, failing that, compiles) the Electron build of the desktop's SQLite driver, since Electron has its own Node ABI. |
 
 `npm run setup:web` is the first two. Re-running either is safe and quick: modules whose SHA-256 already matches are not downloaded again, an existing `site-config.json` is left alone, and an existing link is kept.
 
-The development catalog is unsigned, so the init script prints an "UNSIGNED" warning while downloading. That is expected.
+The development catalog is unsigned, so the init script prints an "UNSIGNED" warning while downloading. That is expected. So is the closing note listing test-only modules as not installed: the starter set leaves them out on purpose, and they matter only for running the test suites (`--select=tests`, below).
 
 Running the Apps
 ----------------
@@ -59,10 +59,12 @@ A module is one SQLite `.db` file with a type prefix: `bible_kjv.db`, `commentar
 
 | Preset | Size | Modules |
 |---|---|---|
-| `starter` (the default) | about 60 MB | KJV, ASV, Barnes, Easton, StrongsGreek, StrongsHebrew, NaveTopics, TSKxref, Scofield |
-| `tests` | about 150 MB | `starter` plus Clarke, Concord, AmTract and MHC: every module a test suite names |
+| `starter` (the default) | about 80 MB | KJV, ASV, Barnes, Easton, StrongsGreek, StrongsHebrew, NaveTopics, TSKxref, Scofield, Wesley |
+| `tests` | about 170 MB | `starter` plus Clarke, Concord, AmTract and MHC: every module a test suite names |
 
-A preset module the catalog does not offer is skipped with a warning, and the rest of the preset still installs. Each app opens on KJV when it is installed and otherwise on the first installed Bible, and the generated `ui.defaultModule` follows the same rule.
+A preset module the catalog does not offer is skipped with a warning, and the rest of the preset still installs. Each app opens on KJV when it is installed and otherwise on the first installed Bible, and the generated `ui.defaultModule` follows the same rule. The commentary a fresh profile opens is the first of Gill, MHC and Wesley that is installed (Wesley, in a starter install), all of which cover both Testaments.
+
+`tag_graph.db`, the entity graph behind the Topics pane's "Related" section, is not distributed and no feature needs it yet. Without it that section stays empty, and the test suites that exercise it skip themselves.
 
 Where things go:
 
@@ -112,7 +114,7 @@ Run from the repository root.
 | `npm run init` | Register the module files already in `data/modules/`; `-- --help` for options |
 | `npm run init:modules` | Download the `starter` modules from the development catalog, then register them |
 | `npm run init:desktop` | Build the desktop registry and link its modules directory |
-| `npm run rebuild-sqlite` | Rebuild the desktop's native modules for Electron (skips any already built) |
+| `npm run rebuild-sqlite` | Fetch or rebuild the desktop's SQLite driver for Electron (skips it when already built) |
 | `npm run test -w @bible/core` | Unit tests for one workspace (also `@bible/web`, `@bible/desktop`) |
 | `npm test` | Build core, then run every workspace's unit tests (slow) |
 | `npm run typecheck` | Type-check every workspace |

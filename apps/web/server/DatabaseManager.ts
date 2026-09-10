@@ -161,6 +161,27 @@ export class DatabaseManager {
     return null;
   }
 
+  /**
+   * The Bible to read Strong's-tagged (interlinear) words from when a request
+   * names none.
+   *
+   * Like `getDefaultBibleAbbreviation`, but only a Bible that carries
+   * interlinear data qualifies: counting or aligning in an untagged translation
+   * answers nothing. `preferred` when it qualifies, otherwise the first
+   * installed Bible that does, otherwise null -- so an install without KJV
+   * still gets Strong's counts from whichever tagged Bible it has.
+   */
+  getDefaultInterlinearBibleAbbreviation(preferred?: string): string | null {
+    if (preferred && this.getBibleRepo(preferred)?.hasInterlinearData()) {
+      return this.resolveAbbreviation(preferred);
+    }
+    for (const module of this.getModuleMetadataRepo().getByType('bible')) {
+      const abbreviation = module.abbreviation || module.getAbbreviation();
+      if (abbreviation && this.getBibleRepo(abbreviation)?.hasInterlinearData()) return abbreviation;
+    }
+    return null;
+  }
+
   getCommentaryRepo(abbreviation: string): CommentaryRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
     if (this.commentaryRepos.has(resolved)) {

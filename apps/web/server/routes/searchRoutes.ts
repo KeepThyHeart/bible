@@ -351,6 +351,12 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       let entry: Record<string, unknown> | null = null;
       const groupedCounts: Record<string, number> = {};
 
+      // Occurrences are counted in a Strong's-tagged Bible: KJV when installed,
+      // otherwise whichever tagged Bible is. Naming KJV outright counted zero
+      // for every word on an install without it.
+      const countingModule = db.getDefaultInterlinearBibleAbbreviation('KJV');
+      const countingRepo = countingModule ? db.getBibleRepo(countingModule) : null;
+
       if (wordFamilyService) {
         const family = wordFamilyService.getWordFamily(displayNum);
         if (family) {
@@ -371,11 +377,10 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
               relationship: m.relationship,
             }));
 
-          const kjvRepo = db.getBibleRepo('KJV');
-          if (kjvRepo) {
+          if (countingRepo) {
             for (const member of family.members) {
               const variants = StrongsNumberHelper.toInterlinearVariants(member.strongsNumber);
-              const verseIds = kjvRepo.searchByStrongsNumber(variants);
+              const verseIds = countingRepo.searchByStrongsNumber(variants);
               groupedCounts[member.strongsNumber] = verseIds.length;
             }
           }
@@ -393,7 +398,10 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       // BibleSearchService assembles its result list, so that
       // `results.length < totalAvailable` means "the cap truncated something".
       let occurrences = 0;
-      for (const abbr of modules && modules.length > 0 ? modules : ['KJV']) {
+      const countedModules = modules && modules.length > 0
+        ? modules
+        : (countingModule ? [countingModule] : []);
+      for (const abbr of countedModules) {
         const repo = db.getBibleRepo(abbr);
         if (!repo) continue;
         for (const num of numbersToCount) {

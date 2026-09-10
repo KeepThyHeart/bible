@@ -65,10 +65,13 @@ const PREFETCH_MODULE_WORD_CAP = 25_000;
 
 /**
  * Commentaries a fresh profile opens, most preferred first. Mirrors the
- * desktop's `DEFAULT_COMMENTARY_PREFERENCE`: human-authored works, with Gill
- * ahead of the much larger Matthew Henry.
+ * desktop's `DEFAULT_COMMENTARY_PREFERENCE`: human-authored works covering both
+ * Testaments, with Gill ahead of the much larger Matthew Henry, and Wesley --
+ * the whole-Bible commentary in the development `starter` set -- after both, so
+ * a starter install does not fall back to the New-Testament-only Barnes and
+ * open Genesis on an empty commentary.
  */
-export const DEFAULT_COMMENTARY_PREFERENCE: readonly string[] = ['Gill', 'MHC'];
+export const DEFAULT_COMMENTARY_PREFERENCE: readonly string[] = ['Gill', 'MHC', 'Wesley'];
 
 /**
  * The commentary a fresh profile opens: the first preferred module the server

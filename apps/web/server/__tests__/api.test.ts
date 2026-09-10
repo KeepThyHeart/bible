@@ -23,6 +23,21 @@ const modulesDir = TEST_MODULES_DIR;
 let db: DatabaseManager;
 let app: express.Express;
 
+/**
+ * Clarke is in the `tests` module preset but not `starter`, so a default
+ * `npm run setup` does not install it. Its tests skip without it, as core's
+ * data-backed suites do, rather than fail with a 404 that reads like a route
+ * bug -- and say so, so the skip is not mistaken for coverage.
+ */
+const CLARKE_DB = resolve(modulesDir, 'modules', 'commentary_clarke.db');
+const clarkeInstalled = existsSync(CLARKE_DB);
+if (!clarkeInstalled) {
+  console.warn(
+    `\n[api tests] SKIPPING the Clarke commentary tests -- module not found:\n    ${CLARKE_DB}\n` +
+      '  Install it with `npm run init:modules -- --select=tests` to run them.\n'
+  );
+}
+
 // Minimal site settings that exposes the modules used in tests.
 // In production, this is loaded from settings.json in the data directory.
 const testSiteSettings: SiteSettings = {
@@ -201,7 +216,7 @@ describe('Commentary Routes', () => {
     expect(passageEntries[0].content.length).toBeGreaterThan(0);
   });
 
-  it('trims leading whitespace and junk HTML from commentary content', async () => {
+  it.skipIf(!clarkeInstalled)('trims leading whitespace and junk HTML from commentary content', async () => {
     // Clarke Exodus 31 is known to have leading <!/P><br /> junk
     const res = await request(app).get('/api/commentary/Clarke/2/31');
     expect(res.status).toBe(200);
@@ -216,7 +231,7 @@ describe('Commentary Routes', () => {
     }
   });
 
-  it('strips "Verse N" prefix labels from verse-level commentary entries', async () => {
+  it.skipIf(!clarkeInstalled)('strips "Verse N" prefix labels from verse-level commentary entries', async () => {
     // Clarke Psalm 47:2 is known to have a leading "<b>Verse 2</b>" prefix
     const res = await request(app).get('/api/commentary/Clarke/19/47');
     expect(res.status).toBe(200);

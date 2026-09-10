@@ -201,7 +201,7 @@ Both panes render `shared/VerseTopicsList`, so a topic appears as its full ances
 
 Entity relationship graph for people, places, objects, and themes. It uses `entity_topic_links` for direct `topic_id` bridges to Nave's/Torrey's, and `entity_facets` for structural subtopic groupings. It provides the "Related (Tag Graph)" section in the Topics pane and a dedicated entity detail view.
 
-**It is optional.** `tagGraphHandlers.ts` opens `tag_graph.db` from the app's data directory (`getDataPath()`), and when that file is not there `getTagGraphRepository()` returns `null` and every `tagGraph:*` channel degrades gracefully - the pane simply renders no Related block. The database is not part of the repository.
+**It is optional.** `tagGraphHandlers.ts` opens `tag_graph.db` from the app's data directory (`getDataPath()`), and when that file is not there `getTagGraphRepository()` returns `null` and every `tagGraph:*` channel degrades gracefully - the pane simply renders no Related block. The database is not part of the repository, is in no module catalog, and nothing depends on it yet, so on every current install the feature is dormant and the suites that exercise it (`TagGraphRepository.test.ts`, the `EntityAggregationService` block of `StudyOverview.test.ts`, the enabled half of the web `tagGraphRoutes.test.ts`) skip themselves.
 
 ### Core Data Layer
 - `packages/core/src/Data/Models/TagGraph/TagGraphEntity.ts` - Entity interfaces (PersonEntity, PlaceEntity, ObjectEntity, ThemeEntity, PeopleRelationship)
