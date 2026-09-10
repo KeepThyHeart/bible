@@ -68,6 +68,24 @@ test.describe('Projection viewer', () => {
     expect((await code.textContent())?.replace(/\s/g, '')).toBe(session.joinCode);
   });
 
+  test('offers a code to scan as well as one to type', async ({ page, request }) => {
+    // Pointing a camera at the screen is the difference between a room that
+    // joins and a room that does not. It has to be a real image, not a broken
+    // one: an <img> that failed to load still occupies the DOM.
+    const session = await createSession(request);
+    await page.goto(`/present/v/${session.joinCode}`);
+
+    const qr = page.locator('.pv-lobby-qr');
+    await expect(qr).toBeVisible();
+    await expect.poll(() => qr.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+
+    // It leaves the screen once anything is being presented; the wall is not
+    // the place for a join code once a service has started.
+    await showJohn3(request, session, page);
+    await expect(qr).toHaveCount(0);
+  });
+
   test('follows the controller onto a passage', async ({ page, request }) => {
     const session = await createSession(request);
     await page.goto(`/present/v/${session.joinCode}`);

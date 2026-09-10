@@ -25,6 +25,7 @@ import { registerRoute } from './routeRegistry.js';
 import { logger } from '../utils/logger.js';
 import { PresentHub } from '../present/PresentHub.js';
 import { PresentStore } from '../present/PresentStore.js';
+import { qrSvg } from '../../src/present/qr.js';
 import { applyIntent, validateIntent, validatePlan, LIMITS } from '../present/reducer.js';
 import type { IntentContext } from '../present/reducer.js';
 import { isValidSessionId, normalizeJoinCode, verifyControlToken } from '../present/tokens.js';
@@ -259,6 +260,43 @@ export function createPresentRoutes(options: PresentRouteOptions): Router {
       return;
     }
     res.json({ state: toWireState(row) });
+  });
+
+  /**
+   * The join URL as a scannable code.
+   *
+   * This is the affordance that decides whether people in a room actually join:
+   * pointing a camera at the screen versus typing an eight-character code into
+   * a phone browser. It is rendered on the viewer's own lobby screen, which is
+   * the right place for it -- everyone is already looking at that screen, and
+   * nobody has to pass a phone around.
+   *
+   * It encodes the *viewer* URL and nothing else, so it conveys no privilege
+   * beyond what its holder already has. Sharing it onward is harmless by
+   * construction, which is what the "viewers can share the QR" requirement
+   * actually needs.
+   */
+  router.get('/j/:joinCode/qr.svg', (req, res): void => {
+    const row = resolveJoin(req, res);
+    if (!row) return;
+
+    const origin = `${req.protocol}://${req.get('host')}`;
+    let svg: string;
+    try {
+      svg = qrSvg(`${origin}/present/v/${row.joinCode}`, { title: `Join code ${row.joinCode}` });
+    } catch (error) {
+      // Only reachable with an absurdly long host name, but a thrown encoder
+      // must not become a 500 on the screen at the front of a room.
+      logger.warn('[present] QR generation failed:', error);
+      sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Could not render a join code');
+      return;
+    }
+
+    res.type('image/svg+xml');
+    // The code for a given session never changes, but it is not shared content
+    // either: `private` keeps it out of any intermediary cache.
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(svg);
   });
 
   router.get('/j/:joinCode/stream', (req, res): void => {

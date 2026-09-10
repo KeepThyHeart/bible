@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
+import { API_BASE } from '../../utils/apiUrl';
 import { buildControlLink, buildViewerLink } from '../../present/controlLink';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from '../../present/protocol';
 import { PresentHymns } from './PresentHymns';
@@ -20,6 +21,39 @@ import { usePresenter } from './usePresenter';
  */
 
 type Section = 'plan' | 'hymns' | 'screen' | 'join';
+
+/**
+ * The handoff link as something a phone can photograph.
+ *
+ * Drawn here rather than fetched from the server, and it has to be: the server
+ * stores only a hash of the control token, so it *cannot* build this link. That
+ * is a property worth keeping, not an inconvenience to work around -- a copy of
+ * the database hands over no live sessions.
+ *
+ * The encoder is imported on demand so it costs the reading app nothing until
+ * someone actually opens this panel. The SVG is our own output from our own
+ * code with no interpolated input, which is what makes setting it as markup
+ * safe here.
+ */
+function HandoffQr(props: { link: string }) {
+  const [svg, setSvg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void import('../../present/qr')
+      .then(({ qrSvg }) => { if (live) setSvg(qrSvg(props.link)); })
+      .catch(() => { /* The link below it is the fallback, and is always there. */ });
+    return () => { live = false; };
+  }, [props.link]);
+
+  if (!svg) return null;
+  return (
+    <div
+      class="present-panel__qr present-panel__qr--small"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
 
 export function PresentPanel(props: { compact?: boolean }) {
   const { t } = useTranslation();
@@ -138,6 +172,16 @@ export function PresentPanel(props: { compact?: boolean }) {
 
         {section === 'join' && (
           <div class="present-panel__join">
+            {/*
+              The same code the lobby screen shows. It is here as well because
+              the presenter is often asked for it directly, and because once a
+              passage is up the wall no longer carries it.
+            */}
+            <img
+              class="present-panel__qr"
+              src={`${API_BASE}/api/present/j/${encodeURIComponent(session.joinCode)}/qr.svg`}
+              alt={t('present.qrAlt', { code: session.joinCode })}
+            />
             <div class="present-panel__join-detail">
               <p class="present-panel__code">{session.joinCode}</p>
               <p class="present-panel__link">{buildViewerLink(session.joinCode)}</p>
@@ -188,6 +232,7 @@ export function PresentPanel(props: { compact?: boolean }) {
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
                     {t('present.handoffWarning')}
                   </p>
+                  <HandoffQr link={buildControlLink(session)} />
                   <code class="present-panel__handoff-link">{buildControlLink(session)}</code>
                   <button
                     type="button"

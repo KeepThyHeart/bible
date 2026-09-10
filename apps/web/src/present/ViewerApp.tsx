@@ -18,6 +18,7 @@ import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typograph
 import { MAX_OVERSCAN, useFullscreen, useOverscan, useSetupKeys, useWakeLock } from './viewerChrome';
 import { tokenizeVerse } from './tokenize';
 import { highlightSpanForVerse, sweepStep } from './highlight';
+import { API_BASE } from '../utils/apiUrl';
 
 /** The join code is the last path segment of `/present/v/<code>`. */
 export function joinCodeFromLocation(pathname: string): string {
@@ -337,6 +338,22 @@ function Lobby(props: {
   return (
     <div class="pv-lobby">
       <p class="pv-lobby-label">Ready</p>
+      {/*
+        The code to scan, on the screen everyone in the room is already looking
+        at. This is the better placement than the controller: nobody has to pass
+        a phone around, and it costs the viewer bundle nothing because the
+        server draws it.
+
+        It encodes the viewer URL only, so sharing it onward conveys no
+        privilege -- which is what makes "viewers can pass the code on" safe by
+        construction rather than by policy. It leaves the screen the moment
+        anything is presented.
+      */}
+      <img
+        class="pv-lobby-qr"
+        src={`${API_BASE}/api/present/j/${encodeURIComponent(props.joinCode)}/qr.svg`}
+        alt=""
+      />
       <p class="pv-lobby-code">{formatCode(props.joinCode)}</p>
       <p class="pv-lobby-hint">Waiting for the presenter.</p>
       {/*

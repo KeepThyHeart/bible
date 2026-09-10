@@ -210,6 +210,24 @@ body {
   color: var(--pv-muted);
 }
 
+/*
+ * The join code as something a camera can read, on the screen everyone in the
+ * room is already looking at.
+ *
+ * White ground regardless of theme, and the quiet zone is baked into the SVG's
+ * own viewBox: a dark-on-dark code, or one whose edge touches its container,
+ * does not scan. Sized in `vh` like everything else here, so it stays readable
+ * from the back of a hall on a television and shrinks sensibly in the
+ * controller's preview.
+ */
+.pv-lobby-qr {
+  width: 26vh;
+  height: 26vh;
+  padding: 1.2vh;
+  background: #fff;
+  border-radius: 1vh;
+}
+
 .pv-lobby-code {
   margin: 0;
   font-size: 12vh;

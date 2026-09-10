@@ -301,6 +301,28 @@
     align-items: flex-start;
   }
 
+  // The QR sits on white regardless of theme: a dark-on-dark code does not
+  // scan, and inverting one is worse than framing it.
+  &__qr {
+    width: 168px;
+    height: 168px;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+
+    &--small {
+      width: 132px;
+      height: 132px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
   &__join-detail {
     flex: 1;
     min-width: 220px;

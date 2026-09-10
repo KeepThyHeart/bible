@@ -419,3 +419,42 @@ describe('GET /api/present/j/:joinCode/stream', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The join code, as something a camera can read
+// ---------------------------------------------------------------------------
+
+describe('GET /api/present/j/:joinCode/qr.svg', () => {
+  it('renders the viewer URL as an SVG', async () => {
+    const session = await newSession();
+    const res = await request(app)
+      .get(`/api/present/j/${session.joinCode}/qr.svg`)
+      // supertest only fills `.text` for types it knows; SVG arrives as a body
+      // buffer otherwise.
+      .buffer(true);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('image/svg+xml');
+    const svg = res.text ?? res.body.toString('utf8');
+    expect(svg).toContain('<svg');
+    // The code the QR carries has to be the one on screen beside it.
+    expect(svg).toContain(session.joinCode);
+  });
+
+  it('encodes the viewer URL and nothing privileged', async () => {
+    const session = await newSession();
+    const res = await request(app)
+      .get(`/api/present/j/${session.joinCode}/qr.svg`)
+      .buffer(true);
+
+    // A control token reaching the lobby screen would put control of the wall
+    // in front of everyone looking at it.
+    const svg = res.text ?? res.body.toString('utf8');
+    expect(svg).not.toContain(session.controlToken);
+    expect(svg).not.toContain(session.sessionId);
+  });
+
+  it('is the same uniform 404 as every other unknown code', async () => {
+    const res = await request(app).get('/api/present/j/ZZZZ9999/qr.svg');
+    expect(res.status).toBe(404);
+  });
+});
