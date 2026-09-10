@@ -1,7 +1,7 @@
 import { Store } from './Store';
 import { eventBus } from '../events/eventBus';
 import type { ICommentaryDataProvider, CommentaryAvailability, IStudyOverviewProvider } from '../providers/interfaces';
-import type { CommentaryModuleInfoData } from '../types';
+import type { CommentaryModuleInfoData, ModuleInfo } from '../types';
 import type { CommentaryEntryData, CommentaryHomeData, ChapterOverviewData } from '../types';
 import { DIGEST_MODULE_ABBR, getDigestDisplayName, isDigestModule } from '../moduleDescriptions';
 
@@ -62,6 +62,26 @@ export const RESTORABLE_PANE_MODES = new Set<string>(RENDERABLE_PANE_MODES);
  */
 const PREFETCH_WORD_BUDGET = 60_000;
 const PREFETCH_MODULE_WORD_CAP = 25_000;
+
+/**
+ * Commentaries a fresh profile opens, most preferred first. Mirrors the
+ * desktop's `DEFAULT_COMMENTARY_PREFERENCE`: human-authored works, with Gill
+ * ahead of the much larger Matthew Henry.
+ */
+export const DEFAULT_COMMENTARY_PREFERENCE: readonly string[] = ['Gill', 'MHC'];
+
+/**
+ * The commentary a fresh profile opens: the first preferred module the server
+ * offers, otherwise the first that is not the generated digest, otherwise
+ * whatever there is. Matched on the abbreviation, never the display name.
+ */
+export function pickDefaultCommentary(commentaries: readonly ModuleInfo[]): ModuleInfo | undefined {
+  for (const preferred of DEFAULT_COMMENTARY_PREFERENCE) {
+    const match = commentaries.find(m => m.abbreviation.toLowerCase() === preferred.toLowerCase());
+    if (match) return match;
+  }
+  return commentaries.find(m => !isDigestModule(m.abbreviation)) ?? commentaries[0];
+}
 
 /**
  * The name a commentary tab should carry.
@@ -224,9 +244,8 @@ class CommentaryStore extends Store {
     if (!this.tabs.find(t => t.id === HOME_TAB_ID)) {
       this.tabs.unshift({ id: HOME_TAB_ID, moduleAbbr: '__home__', moduleName: 'Overview' });
     }
-    if (this.tabs.length <= 1) {
-      this.addTab(DIGEST_MODULE_ABBR, getDigestDisplayName());
-    }
+    // A fresh profile's first commentary tab is opened by `openDefaultTab`
+    // once the module manifest has loaded.
     // Auto-promote Digest unless the user has explicitly muted it
     if (!this.mutedModules.has(DIGEST_MODULE_ABBR)) {
       this.promotedModules.add(DIGEST_MODULE_ABBR);
@@ -1121,6 +1140,19 @@ class CommentaryStore extends Store {
       this.notify();
     }
     return nav;
+  }
+
+  /**
+   * Open a first commentary tab on a fresh profile.
+   *
+   * Called once the module manifest has loaded, because the choice depends on
+   * what this server actually offers (see `pickDefaultCommentary`). A restored
+   * session that already has commentary tabs is left alone.
+   */
+  openDefaultTab(commentaries: readonly ModuleInfo[]): void {
+    if (this.tabs.some(t => t.id !== HOME_TAB_ID)) return;
+    const chosen = pickDefaultCommentary(commentaries);
+    if (chosen) this.addTab(chosen.abbreviation, chosen.name);
   }
 
   addTab(moduleAbbr: string, moduleName?: string, verseId?: number): void {

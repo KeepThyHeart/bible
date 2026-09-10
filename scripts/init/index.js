@@ -212,10 +212,10 @@ const EXPECTED_MODULES = [
   { abbr: 'Concord', file: 'book_concord.db', need: 'required', why: 'core BookRepository' },
   { abbr: 'ASV', file: 'bible_asv.db', need: 'e2e', starter: true, why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
   { abbr: 'AmTract', file: 'dictionary_amtract.db', need: 'e2e', why: 'the Playwright fixture names KJV, ASV, Barnes and AmTract' },
-  { abbr: 'SYNTHESIS', file: 'commentary_synthesis.db', need: 'e2e', why: 'the commentary pane opens on the digest tab, so without it its default view is empty' },
   { abbr: 'Scofield', file: 'commentary_scofield.db', need: 'desktop-e2e', starter: true, why: "reference-links.spec.ts opens Scofield on John 3:16; without it the module picker never closes and all nine of its tests fail" },
   { abbr: 'MHC', file: 'commentary_mhc.db', need: 'desktop-e2e', why: "ai-disclaimer.spec.ts asserts that a human-authored commentary carries no AI notice, and names Matthew Henry" },
   { abbr: 'TorreyTopics', file: 'topical_torrey.db', need: 'optional', why: 'a second topical source, so the topical routes meet more than one' },
+  { abbr: 'SYNTHESIS', file: 'commentary_synthesis.db', need: 'optional', why: 'the AI-generated digest; ai-disclaimer.spec.ts exercises its provenance notice and skips those tests without it' },
 ];
 
 /**

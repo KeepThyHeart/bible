@@ -1,9 +1,11 @@
 /**
  * AI-content disclosure E2E tests.
  *
- * The app opens the AI-synthesized SYNTHESIS commentary by default. These
- * tests assert that every surface which shows that text says where it came
- * from, and that an ordinary human-authored commentary gets no such notice.
+ * The AI-synthesized SYNTHESIS commentary is optional content - never the
+ * default, and not installed by `npm run init` or the module catalog. Where it
+ * is installed, these tests assert that every surface which shows its text says
+ * where it came from, and that an ordinary human-authored commentary gets no
+ * such notice. The tests that need the digest skip themselves without it.
  */
 
 import { test, expect, Page } from '../fixtures/electron.fixture';
@@ -11,6 +13,7 @@ import { test, expect, Page } from '../fixtures/electron.fixture';
 const DISCLAIMER = '[data-testid="module-disclaimer"]';
 const COLLAPSED = '[data-testid="module-disclaimer-collapsed"]';
 const HOME_BADGE = '[data-testid="commentary-home-provenance-badge"]';
+const NO_DIGEST = 'The SYNTHESIS digest is not installed';
 
 async function activateCommentaryTab(window: Page): Promise<void> {
   const tab = window.locator('.dockview-tab-content', { hasText: 'Commentary' }).first();
@@ -21,21 +24,40 @@ async function activateCommentaryTab(window: Page): Promise<void> {
 }
 
 /**
+ * Whether the SYNTHESIS digest is installed. `test.skip` on the answer rather
+ * than a bare `return`: a machine without the module is a legitimate skip, and
+ * reporting it as a pass would hide that nothing was checked there.
+ */
+async function digestInstalled(window: Page): Promise<boolean> {
+  return window.evaluate(async () => {
+    const api = (window as unknown as {
+      electron?: { commentary?: { getAvailableCommentaries?: () => Promise<unknown> } };
+    }).electron;
+    const result = await api?.commentary?.getAvailableCommentaries?.();
+    let modules: unknown = result;
+    if (result && typeof result === 'object' && 'ok' in result) {
+      const envelope = result as { ok: boolean; value?: unknown };
+      modules = envelope.ok ? envelope.value : [];
+    }
+    return Array.isArray(modules)
+      && modules.some((m: { abbreviation?: string }) => m.abbreviation?.toUpperCase() === 'SYNTHESIS');
+  });
+}
+
+/**
  * The commentary tab bar does not label tabs with their abbreviation, so a tab
  * cannot be found by one. The digest is the case that matters here: it is
  * deliberately shown as "Combined Summary" and never under its database name
- * (see `moduleDescriptions.ts` / `DIGEST_DISPLAY_NAME`), so `hasText:
- * 'SYNTHESIS'` matched nothing, every call fell through to the "+" picker, and
- * the picker has no row named "SYNTHESIS" either.
+ * (see `moduleDescriptions.ts` / `DIGEST_DISPLAY_NAME`), so neither the tab bar
+ * nor the "+" picker has anything named "SYNTHESIS" to match.
  */
 const TAB_LABELS: Record<string, string> = {
   SYNTHESIS: 'Combined Summary',
 };
 
 /**
- * Show a commentary module's own tab. The digest is already open on a fresh
- * profile (it is the default), so prefer clicking the existing tab and only
- * fall through to the "+" module selector for anything else.
+ * Show a commentary module's own tab: click it if it is already open, and
+ * otherwise take it from the "+" module selector.
  */
 async function openCommentary(window: Page, abbreviation: string): Promise<void> {
   const pane = window.locator('[data-testid="commentary-pane"]');
@@ -54,7 +76,7 @@ async function openCommentary(window: Page, abbreviation: string): Promise<void>
   // matched row: the picker re-sorts as the per-verse availability check
   // resolves, so a row located a moment ago is routinely replaced before the
   // click lands.
-  await modal.locator('input').first().fill(abbreviation);
+  await modal.locator('input').first().fill(tabLabel);
   await modal.locator('input').first().press('Enter');
   // The picker closing is what says the module was taken; 1.5s was a guess
   // that passed even when the click missed.
@@ -67,8 +89,9 @@ async function openCommentary(window: Page, abbreviation: string): Promise<void>
 }
 
 test.describe('AI-generated content disclosure', () => {
-  test('the default SYNTHESIS commentary discloses its provenance', async ({ window }) => {
+  test('the SYNTHESIS commentary discloses its provenance', async ({ window }) => {
     await activateCommentaryTab(window);
+    test.skip(!(await digestInstalled(window)), NO_DIGEST);
     await openCommentary(window, 'SYNTHESIS');
 
     const notice = window.locator(DISCLAIMER).first();
@@ -91,6 +114,7 @@ test.describe('AI-generated content disclosure', () => {
 
   test('the Overview tab labels the generated module in the list', async ({ window }) => {
     await activateCommentaryTab(window);
+    test.skip(!(await digestInstalled(window)), NO_DIGEST);
     const badge = window.locator(HOME_BADGE).first();
     await expect(badge).toBeVisible({ timeout: 20000 });
     await expect(badge).toContainText(/generated/i);
@@ -98,6 +122,7 @@ test.describe('AI-generated content disclosure', () => {
 
   test('expanding the module in Overview shows the full notice', async ({ window }) => {
     await activateCommentaryTab(window);
+    test.skip(!(await digestInstalled(window)), NO_DIGEST);
     // The badge sits in the module header row; clicking the row expands it.
     const badge = window.locator(HOME_BADGE).first();
     await expect(badge).toBeVisible({ timeout: 20000 });
@@ -108,6 +133,7 @@ test.describe('AI-generated content disclosure', () => {
 
   test('the notice collapses to a labelled chip and expands again', async ({ window }) => {
     await activateCommentaryTab(window);
+    test.skip(!(await digestInstalled(window)), NO_DIGEST);
     await openCommentary(window, 'SYNTHESIS');
 
     await window.locator('[data-testid="module-disclaimer-collapse"]').first().click({ force: true });
@@ -122,6 +148,7 @@ test.describe('AI-generated content disclosure', () => {
 
   test('the notice survives popping the commentary pane into its own window', async ({ electronApp, window }) => {
     await activateCommentaryTab(window);
+    test.skip(!(await digestInstalled(window)), NO_DIGEST);
     await openCommentary(window, 'SYNTHESIS');
     await expect(window.locator(DISCLAIMER).first()).toBeVisible();
 
@@ -144,6 +171,7 @@ test.describe('AI-generated content disclosure', () => {
     for (const theme of ['light', 'dark', 'sepia'] as const) {
       test(`renders with theme tokens in ${theme}`, async ({ window }) => {
         await activateCommentaryTab(window);
+        test.skip(!(await digestInstalled(window)), NO_DIGEST);
         await openCommentary(window, 'SYNTHESIS');
 
         await window.evaluate((t) => {

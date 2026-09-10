@@ -193,6 +193,10 @@ async function init() {
   // is not installed) onto the default -- before anything below fetches it.
   bibleStore.fallBackFromMissingModules();
 
+  // The first commentary tab waits for the manifest: which module it opens
+  // depends on what this server actually offers.
+  commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
+
   // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
   clientPluginManager.discover()
     .then(() => clientPluginManager.activate())
