@@ -116,8 +116,15 @@ describe('contributed verse context menu items', () => {
 
     // Extension commands are already in the same `ICommandRegistry` that
     // serves the palette and the menu bar, so this reuses a path wired in both
-    // directions rather than inventing new IPC.
-    expect(execute).toHaveBeenCalledWith('ext.test.memory.add', { collectionId: 4 });
+    // directions rather than inventing new IPC. The item's own args arrive
+    // with `verse` - what was right-clicked - merged in.
+    expect(execute).toHaveBeenCalledWith(
+      'ext.test.memory.add',
+      expect.objectContaining({
+        collectionId: 4,
+        verse: expect.objectContaining({ verseIds: expect.any(Array) }),
+      }),
+    );
   });
 
   it('resolves a catalog reference for the label', () => {

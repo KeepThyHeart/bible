@@ -152,6 +152,26 @@ export class ExtensionRpcRouter {
     this.transport.send(env);
   }
 
+  private readonly subscribeListeners = new Map<string, Set<() => void>>();
+
+  /**
+   * Run `listener` each time the worker subscribes to `channel`. For
+   * state-like channels (the active verse) whose current value a new
+   * subscriber needs at once rather than at the next change. Returns a
+   * disposer.
+   */
+  onSubscribe(channel: string, listener: () => void): () => void {
+    let set = this.subscribeListeners.get(channel);
+    if (!set) {
+      set = new Set();
+      this.subscribeListeners.set(channel, set);
+    }
+    set.add(listener);
+    return () => {
+      set.delete(listener);
+    };
+  }
+
   /** True iff the worker is currently listening to the given channel. */
   hasSubscription(channel: string): boolean {
     const subs = this.subscriptions.get(channel);
@@ -333,6 +353,15 @@ export class ExtensionRpcRouter {
     }
     set.add(sub.id);
     this.subscriptionChannels.set(sub.id, sub.channel);
+    // After the subscription is recorded, so a listener's `emitEvent` reaches
+    // the worker that just asked.
+    for (const listener of this.subscribeListeners.get(sub.channel) ?? []) {
+      try {
+        listener();
+      } catch {
+        /* a listener's failure must not break subscription bookkeeping */
+      }
+    }
   }
 
   private handleUnsubscribe(unsub: RpcUnsubscribe): void {

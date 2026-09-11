@@ -234,7 +234,14 @@ export interface ContextMenuItemDescriptor {
   icon?: string;
   /** Command ID to execute. */
   command: string;
-  /** Passed to the command handler. */
+  /**
+   * Passed to the command handler.
+   *
+   * For `verse` targets the host adds what was clicked: when `args` is a plain
+   * object or absent, the handler receives it with a `verse` key
+   * ({@link VerseMenuContext}) merged in. Any other `args` value is passed
+   * unchanged, without it.
+   */
   args?: unknown;
   /** when-clause from Spec B. */
   when?: string;
@@ -245,6 +252,20 @@ export interface ContextMenuItemDescriptor {
 
 /** Alias preserved for spec parity - the descriptor IS the wire DTO. */
 export type ContextMenuItemDto = ContextMenuItemDescriptor;
+
+/**
+ * What a `verse` context menu item's command receives under `args.verse`:
+ * the verse (or selection) the user right-clicked, which need not be the
+ * active verse.
+ */
+export interface VerseMenuContext {
+  /** The first verse of the selection. */
+  verseId: number;
+  /** Every selected verse, in order; one element for a single verse. */
+  verseIds: number[];
+  /** Abbreviation of the translation the verse was clicked in. */
+  module: string;
+}
 
 // --- Notifications, quick-pick, input boxes, confirms ----------------------
 

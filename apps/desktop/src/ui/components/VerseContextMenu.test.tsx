@@ -2,7 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import VerseContextMenu from './VerseContextMenu';
+import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
+import type { BibleVerse } from '../services/verseCopyService';
+
+describe('withVerseMenuContext', () => {
+  const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
+
+  it('tells a menu command which verse was clicked', () => {
+    expect(withVerseMenuContext(undefined, v(43003016), 'KJV')).toEqual({
+      verse: { verseId: 43003016, verseIds: [43003016], module: 'KJV' },
+    });
+  });
+
+  it('merges into object args and carries a selection', () => {
+    expect(withVerseMenuContext({ mode: 'x' }, [v(1001001), v(1001002)], 'ASV')).toEqual({
+      mode: 'x',
+      verse: { verseId: 1001001, verseIds: [1001001, 1001002], module: 'ASV' },
+    });
+  });
+
+  it('passes non-object args through unchanged', () => {
+    expect(withVerseMenuContext('literal', v(1), 'KJV')).toBe('literal');
+    expect(withVerseMenuContext([1, 2], v(1), 'KJV')).toEqual([1, 2]);
+  });
+});
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 
 function createMockServices(): AppServices {

@@ -96,6 +96,34 @@ describe('BibleBridge', () => {
     expect(modules[0]).toMatchObject({ id: 'kjv', abbreviation: 'KJV', name: 'King James', version: '1.0' });
   });
 
+  it('reads verses by the id listModules hands out, not only by abbreviation', () => {
+    // Production ids are registry row ids ('1'); repositories are keyed by
+    // abbreviation. An extension passing back the `id` it was given must get
+    // verses, not an empty range.
+    const bridge = new BibleBridge({
+      ...baseDeps,
+      getBibleRepository: (abbr: string) => (abbr === 'KJV' ? makeRepo([johnVerse]) : null),
+      listBibleModules: () => [
+        { moduleId: '1', abbreviation: 'KJV', moduleName: 'King James' },
+      ],
+    });
+    const id = bridge.listModules()[0]!.id;
+    expect(id).toBe('1');
+    expect(bridge.getRange(43003016, 43003016, id)).toHaveLength(1);
+    expect(bridge.getVerse(43003016, id)).not.toBeNull();
+    expect(bridge.getVerse(43003016, 'KJV')).not.toBeNull();
+    expect(bridge.getRange(43003016, 43003016, '99')).toEqual([]);
+  });
+
+  it('remembers the active verse for late subscribers', () => {
+    const bridge = new BibleBridge(baseDeps);
+    expect(bridge.getActiveVerse()).toBeNull();
+    bridge.notifyActiveVerse(43003016, 'ASV');
+    expect(bridge.getActiveVerse()).toEqual({ verseId: 43003016, module: 'ASV' });
+    bridge.notifyActiveVerse(43003017);
+    expect(bridge.getActiveVerse()).toEqual({ verseId: 43003017, module: 'KJV' });
+  });
+
   it('maps testament codes from internal OT/NT to DTO old/new', () => {
     const bridge = new BibleBridge(baseDeps);
     const books = bridge.listBooks();

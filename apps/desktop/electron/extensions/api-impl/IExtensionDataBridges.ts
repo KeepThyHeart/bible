@@ -106,6 +106,14 @@ export interface IExtensionBibleBridge {
   navigateToVerse(verseId: number): Promise<void>;
 
   /**
+   * The most recent active verse, or `null` before the first navigation.
+   * Replayed to an extension when it subscribes, so one activated after the
+   * reader chose a verse still learns which verse that is. Optional: a bridge
+   * without it simply does not replay.
+   */
+  getActiveVerse?(): { verseId: number; module: string } | null;
+
+  /**
    * Subscribe to "active verse changed" events. The bridge invokes `handler`
    * every time the user navigates anywhere in the app. Returns a disposer.
    */

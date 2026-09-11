@@ -343,7 +343,7 @@ export interface ElectronAPI {
     // Listen for initialization data (for detached windows)
     onInitializePane: (callback: (data: any) => void) => void;
     // Broadcast verse change to detached windows
-    broadcastVerseChange: (verseId: number) => Promise<{ success: boolean; error?: string }>;
+    broadcastVerseChange: (verseId: number, moduleId?: string) => Promise<{ success: boolean; error?: string }>;
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
@@ -953,8 +953,8 @@ const electronAPI: ElectronAPI = {
     },
 
     // Broadcast verse change to detached windows (called from main window)
-    broadcastVerseChange: (verseId: number) =>
-      ipcRenderer.invoke('window:broadcast-verse-change', verseId),
+    broadcastVerseChange: (verseId: number, moduleId?: string) =>
+      ipcRenderer.invoke('window:broadcast-verse-change', verseId, moduleId),
 
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => {

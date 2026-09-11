@@ -225,6 +225,13 @@ export class BibleBridge implements IExtensionBibleBridge {
     this.deps.sendNavigateToVerse(verseId);
   }
 
+  private lastActiveVerse: { verseId: number; module: string } | null = null;
+
+  /** The most recent active verse, so a late subscriber need not wait for a change. */
+  getActiveVerse(): { verseId: number; module: string } | null {
+    return this.lastActiveVerse;
+  }
+
   subscribeActiveVerse(
     handler: (payload: { verseId: number; module: string } | null) => void,
   ): () => void {
@@ -252,6 +259,7 @@ export class BibleBridge implements IExtensionBibleBridge {
    */
   notifyActiveVerse(verseId: number, moduleId?: string): void {
     const payload = { verseId, module: moduleId ?? this.deps.getDefaultModuleAbbreviation() ?? '' };
+    this.lastActiveVerse = payload;
     for (const h of this.activeVerseHandlers) {
       try {
         h(payload);
@@ -277,10 +285,18 @@ export class BibleBridge implements IExtensionBibleBridge {
 
   // --- Private ----------------------------------------------------------
 
+  /**
+   * Accepts either form of module id. `listModules()` hands extensions the
+   * registry id (`'1'`) as `id` - and `CollectionsBridge` depends on it staying
+   * numeric - while repositories are keyed by abbreviation. Without the
+   * mapping, passing back the `id` this bridge itself returned resolved
+   * nothing and every read came back empty. Abbreviations still work.
+   */
   private resolveRepo(moduleId?: string): BibleRepository | null {
-    const abbr = moduleId ?? this.deps.getDefaultModuleAbbreviation();
-    if (!abbr) return null;
-    return this.deps.getBibleRepository(abbr);
+    const requested = moduleId ?? this.deps.getDefaultModuleAbbreviation();
+    if (!requested) return null;
+    const byId = this.deps.listBibleModules().find((m) => m.moduleId === requested);
+    return this.deps.getBibleRepository(byId?.abbreviation ?? requested);
   }
 }
 

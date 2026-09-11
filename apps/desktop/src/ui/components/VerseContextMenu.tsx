@@ -66,9 +66,32 @@ export interface VerseContextMenuProps {
  * right of the cursor by however far the dockview root sits from the window's
  * top-left - the "the right-click menu is too low" report.
  */
+/**
+ * Arguments for a contributed `verse` menu item's command: the item's own
+ * `args` with `verse` - what was right-clicked - merged in. Without it a
+ * handler could only guess from the active verse, which a right-click does not
+ * change. Non-object `args` cannot carry the key, so they pass unchanged; see
+ * `ContextMenuItemDescriptor.args`.
+ */
+export function withVerseMenuContext(
+  args: unknown,
+  verses: BibleVerse | BibleVerse[],
+  module: string,
+): unknown {
+  const isPlainObject =
+    typeof args === 'object' && args !== null && !Array.isArray(args);
+  if (args !== undefined && !isPlainObject) return args;
+  const verseIds = (Array.isArray(verses) ? verses : [verses]).map((v) => v.verse_id);
+  if (verseIds.length === 0) return args;
+  return {
+    ...(isPlainObject ? (args as Record<string, unknown>) : {}),
+    verse: { verseId: verseIds[0], verseIds, module },
+  };
+}
+
 const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   verses,
-  context: _context,
+  context,
   position,
   onClose,
   isMultipleVerses: _isMultipleVerses = false,
@@ -85,9 +108,9 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
 }) => {
   const { t, i18n } = useI18n();
   const { registry } = useAppServices();
-  // Note: _context and _isMultipleVerses are kept in the interface for API compatibility
-  // but are not used since we now have a single "Copy Passage" option that opens the dialog
-  void _context;
+  // Note: _isMultipleVerses is kept in the interface for API compatibility but
+  // is not used since we now have a single "Copy Passage" option that opens
+  // the dialog. `context` supplies the translation for extension menu items.
   void _isMultipleVerses;
 
   /*
@@ -591,7 +614,10 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               key={key}
               onClick={() => {
                 onClose();
-                void runExtensionCommand(item.command, item.args);
+                void runExtensionCommand(
+                  item.command,
+                  withVerseMenuContext(item.args, verses, context.translation),
+                );
               }}
               className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
               role="menuitem"

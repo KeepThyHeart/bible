@@ -112,6 +112,25 @@ describe('ExtensionRpcRouter', () => {
     expect(pair.sentByA).toHaveLength(1); // still only the first
   });
 
+  it('runs onSubscribe listeners after the subscription is live', () => {
+    const seen: number[] = [];
+    const dispose = router.onSubscribe('bible.activeVerse', () => {
+      seen.push(pair.sentByA.length);
+      router.emitEvent('bible.activeVerse', { verseId: 43003016 });
+    });
+
+    pair.b.send({ kind: 'subscribe', id: 'sub-1', channel: 'bible.activeVerse' });
+    // The listener's emit reached the worker that just subscribed.
+    expect(seen).toEqual([0]);
+    expect(pair.sentByA).toHaveLength(1);
+
+    // Other channels do not trigger it, and disposing stops it.
+    pair.b.send({ kind: 'subscribe', id: 'sub-2', channel: 'bible.wordSelected' });
+    dispose();
+    pair.b.send({ kind: 'subscribe', id: 'sub-3', channel: 'bible.activeVerse' });
+    expect(seen).toEqual([0]);
+  });
+
   it('reverse request resolves on response', async () => {
     const promise = router.request<string>('commands.execute', ['ext.test.greet'], { timeoutMs: 1000 });
 

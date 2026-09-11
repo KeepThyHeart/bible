@@ -55,6 +55,7 @@ export class BibleApiImpl {
   private readonly contributionRegistry: ContributionRegistry | undefined;
   private readonly registrations = new RegistrationDisposers('provider');
   private unsubscribeActiveVerse: (() => void) | undefined;
+  private unsubscribeActiveVerseReplay: (() => void) | undefined;
   private unsubscribeWordSelection: (() => void) | undefined;
   private disposed = false;
 
@@ -90,6 +91,15 @@ export class BibleApiImpl {
       this.router.emitEvent(ACTIVE_VERSE_CHANNEL, payload);
     });
 
+    // The active verse is state, not just a stream of changes: an extension
+    // that subscribes after the reader chose a verse must still learn which
+    // one. Replay the current value to each new subscriber.
+    this.unsubscribeActiveVerseReplay = this.router.onSubscribe?.(ACTIVE_VERSE_CHANNEL, () => {
+      if (this.disposed) return;
+      const current = this.bridge.getActiveVerse?.();
+      if (current) this.router.emitEvent(ACTIVE_VERSE_CHANNEL, current);
+    });
+
     // Wire the word-selection forward channel.
     this.unsubscribeWordSelection = this.bridge.subscribeWordSelection((payload) => {
       if (this.disposed) return;
@@ -101,6 +111,8 @@ export class BibleApiImpl {
     if (this.disposed) return;
     this.disposed = true;
     this.registrations.disposeAll();
+    this.unsubscribeActiveVerseReplay?.();
+    this.unsubscribeActiveVerseReplay = undefined;
     if (this.unsubscribeActiveVerse) {
       try {
         this.unsubscribeActiveVerse();

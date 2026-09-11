@@ -107,7 +107,9 @@ describe('buildExtensionPanelCsp', () => {
   it('keeps the surrounding lockdown intact', () => {
     expect(directive(csp, 'default-src')).toBe("default-src 'none'");
     expect(directive(csp, 'frame-src')).toBe("frame-src 'none'");
-    expect(directive(csp, 'frame-ancestors')).toBe("frame-ancestors 'none'");
+    // Only the host renderer may frame a panel. `'none'` refused the host too,
+    // which blocked every panel iframe.
+    expect(directive(csp, 'frame-ancestors')).toBe('frame-ancestors file:');
     expect(directive(csp, 'base-uri')).toBe("base-uri 'none'");
     expect(directive(csp, 'form-action')).toBe("form-action 'none'");
   });

@@ -141,10 +141,31 @@ export function buildExtensionPanelCsp(): string {
     "media-src 'self' blob:",
     "connect-src 'self'",
     "frame-src 'none'",
-    "frame-ancestors 'none'",
+    frameAncestorsDirective(),
     "base-uri 'none'",
     "form-action 'none'",
   ].join('; ');
+}
+
+/**
+ * Only the app's own renderer may frame a panel. The previous value, `'none'`,
+ * refused the host as well, so Chromium blocked every panel iframe and no
+ * extension panel could render at all.
+ *
+ * A built app loads its renderer from `file:`; under `electron-vite dev` it is
+ * the dev server, the same `ELECTRON_RENDERER_URL` that `main.ts` loads.
+ */
+function frameAncestorsDirective(): string {
+  const sources = ['file:'];
+  const devUrl = process.env.ELECTRON_RENDERER_URL;
+  if (devUrl) {
+    try {
+      sources.push(new URL(devUrl).origin);
+    } catch {
+      // Malformed dev URL: stay file:-only rather than widen the policy.
+    }
+  }
+  return `frame-ancestors ${sources.join(' ')}`;
 }
 
 /**
