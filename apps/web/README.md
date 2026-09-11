@@ -4,32 +4,22 @@ A Bible study web application built with Preact and Express.  It provides a brow
 
 ## Prerequisites
 
-  - Node.js v18+
-  - npm 9+
-  - Module `.db` files (Bible translations, commentaries, dictionaries)
+  - Node.js 20.19 or newer (24 recommended; `.nvmrc` at the repo root pins it)
+  - npm (the version bundled with Node)
+  - Module `.db` files (Bible translations, commentaries, dictionaries); `npm run setup:web` downloads a starter set
 
 ## Quick Start
 
+From the repo root:
+
 ```bash
-# 1. Install dependencies (from repo root)
 npm install
-
-# 2. Place module .db files in the shared modules directory
-mkdir -p data/modules
-cp /path/to/your/modules/*.db data/modules/
-
-# 3. Initialize the web app: registers modules in apps/web/data/main.db,
-#    and writes apps/web/data/site-config.json if it doesn't already exist
-npm run init
-
-# 4. Build the core package (required before first run)
-npm run build:core
-
-# 5. Start the dev server
-npm run dev -w @bible/web
+npm run setup:web    # build @bible/core, download the starter modules into data/modules,
+                     # build data/main.db, and write data/site-config.json if it is missing
+npm run dev:web      # the same as `npm run dev -w @bible/web`
 ```
 
-Open **http://localhost:5173/** in your browser (Vite dev server proxies API to Express on port 3100).
+Open **http://localhost:5173/** in your browser (Vite dev server proxies API to Express on port 3100). The [repository README](../../README.md) covers prerequisites, the module presets and troubleshooting.
 
 > **Important:** If neither `site-config.json` nor a legacy `settings.json` defines any modules, no modules will be visible. This is a deliberate fail-safe for copyright protection. See [Module Visibility](#configuring-visibility-site-configjson) below.
 
@@ -38,60 +28,63 @@ Open **http://localhost:5173/** in your browser (Vite dev server proxies API to 
 The web package uses `better-sqlite3` via an npm alias (`better-sqlite3-web`) to keep its native binary separate from the Electron-compiled copy in the desktop package. This prevents `NODE_MODULE_VERSION` conflicts between Electron's Node.js and your system Node.js.
 
   - **Web server**: uses `better-sqlite3-web` in `apps/web/node_modules/` (compiled for system Node.js)
-  - **Desktop app**: uses `better-sqlite3` in root `node_modules/` (compiled for Electron via `electron-rebuild`)
+  - **Desktop app**: uses `better-sqlite3-multiple-ciphers` (compiled for Electron via `@electron/rebuild`)
 
-After `npm install`, the `postinstall` script automatically rebuilds the web copy for your system Node.js. If you need to manually rebuild:
+After `npm install`, the `postinstall` script automatically rebuilds the web copy for your system Node.js. Rebuild it again after switching Node versions, when the init script or the server reports a binding built for a different Node.js:
 
 ```bash
 # Rebuild just the web copy (system Node.js)
 npm run rebuild-sqlite -w @bible/web
 
-# Rebuild just the desktop copy (Electron)
-npm run rebuild-sqlite -w @bible/desktop
+# Rebuild the desktop's native modules (Electron); use rebuild-native:force after a NODE_MODULE_VERSION error
+npm run rebuild-native -w @bible/desktop
 ```
 
 ## Data Directory Layout
 
 ```
-data/                              # Shared module storage (repo root, gitignored)
-  modules/                         # Module .db files shared across packages
+data/                              # Repo root, gitignored: the data directory ($BIBLE_DATA_DIR)
+  main.db                          # Module registry and Bible book data (built by `npm run init`)
+  modules/                         # Module .db files, shared with the desktop app and the test suites
+  site-config.json                 # Unified config: modules, auth, features, search, UI (written by `npm run init` if missing)
+  settings.json                    # Legacy module whitelist -- read only if site-config.json has no "modules" section
+  server-config.json               # Legacy server auth and feature flags -- read only if site-config.json doesn't exist
+  search-pipeline.json             # Semantic search config (optional)
+  tag_graph.db                     # Entity knowledge graph (optional; not distributed, nothing needs it yet)
+  semantic_*.db / *.bin            # Semantic search data (optional)
+  models/                          # Self-hosted embedding model for browser search (optional)
 
-apps/web/
-  data/                            # Web-specific data (gitignored)
-    main.db                        # Module registry and Bible book data
-    site-config.json               # Unified config: modules, auth, features, search, UI (written by `npm run init` if missing)
-    settings.json                  # Legacy module whitelist -- read only if site-config.json has no "modules" section
-    server-config.json             # Legacy server auth and feature flags -- read only if site-config.json doesn't exist
-    search-pipeline.json           # Semantic search config (optional)
-    tag_graph.db                   # Entity knowledge graph (optional)
-    semantic_*.db / *.bin          # Semantic search data (optional)
+apps/web/data/                     # Gitignored: what this server instance writes for itself
+  logs/                            # server.log
+  plugin-data/                     # Server-side plugin state
 ```
 
 Module `.db` files are named with a type prefix: `bible_kjv.db`, `commentary_barnes.db`, `dictionary_easton.db`, `book_institutes.db`, `topical_nave.db`, `xref_tsk.db`.
 
 ### Registering Modules
 
-After placing module files in `data/modules/`, run the init script to register them:
+After placing module files in `data/modules/`, run the init script to register them (all from the repo root):
 
 ```bash
-npm run init                        # First-time setup
-npm run init -- --force             # Recreate main.db from scratch
-npm run init -- --catalog           # Fetch a module catalog and pick modules to download, interactively
-npm run init -- --select=KJV,ASV    # Register only these modules, non-interactively
-npm run init -- --yes               # Assume defaults instead of prompting (for CI)
+npm run init                                # Register the .db files in data/modules
+npm run init -- --force                     # Recreate main.db from scratch
+npm run init -- --prune                     # Remove registry rows whose file is gone
+npm run init:modules                        # Download the starter set from the development catalog, then register
+npm run init:modules -- --select=KJV,ASV    # Download these modules (or a preset: starter, tests) instead
+npm run init -- --catalog=URL               # Choose from a catalog's list interactively (add --yes for CI)
 ```
 
-`--modules-dir=PATH` and `--data-dir=PATH` point the script at a modules directory or app data directory other than the defaults (`data/` and `apps/web/data/`, respectively).
+`--modules-dir=PATH` and `--data-dir=PATH` point the script at a modules directory or data directory other than the default, which for both is the repo-root `data/`. `npm run init -- --help` lists every option.
 
 ### Configuring Visibility (site-config.json)
 
 The `modules` section of `site-config.json` controls which modules are visible and how they are grouped in the UI. If `site-config.json` has no `modules` section (or the file doesn't exist), the server falls back to a legacy standalone `settings.json` in the same data directory; if neither defines any modules, none are visible (fail-safe for copyright protection).
 
-**Option A** — Let `npm run init` write it for you: first-time setup (see [Registering Modules](#registering-modules) above) creates `apps/web/data/site-config.json`, with a `modules` section built from whatever it found registered, if the file doesn't already exist.
+**Option A** — Let `npm run init` write it for you: first-time setup (see [Registering Modules](#registering-modules) above) creates `data/site-config.json`, with a `modules` section built from whatever it found registered, if the file doesn't already exist. The generated file turns the password gate off when no password is set (a password in the example, or `SITE_PASSWORD`, keeps it on), and sets `ui.defaultModule` to KJV when it is installed, otherwise to the first installed Bible. Because it is only written when absent, modules added later must be added to its `modules` section by hand (or delete the file and re-run `npm run init`).
 
-**Option B** — Copy the example and customize:
+**Option B** — Copy the example and customize (from the repo root):
 ```bash
-cp apps/web/config/site-config.example.json apps/web/data/site-config.json
+cp apps/web/config/site-config.example.json data/site-config.json
 ```
 
 The `modules` section controls:
@@ -130,12 +123,10 @@ See `config/site-config.schema.json` for the full schema. Deployments that preda
 
 ### Site Config (optional)
 
-Create `site-config.json` in the data directory (`$BIBLE_DATA_DIR`, by default
-`apps/web/data/`, which is gitignored in its entirety). Copy
-`config/site-config.example.json` into it as a starting point:
+`site-config.json` lives in the data directory (`$BIBLE_DATA_DIR`, by default the repo-root `data/`, which is gitignored in its entirety). `npm run init` writes one when there is none; to start from the example instead, copy it there from the repo root:
 
 ```bash
-mkdir -p data && cp config/site-config.example.json data/site-config.json
+cp apps/web/config/site-config.example.json data/site-config.json
 ```
 
 The example ships with an empty `auth.password`. Set one before starting the
@@ -160,9 +151,7 @@ link at all rather than a dead one.
 
 ### Server Config (legacy)
 
-Deployments that predate `site-config.json` still read
-`apps/web/data/server-config.json`, and it is used only when no
-`site-config.json` exists:
+Deployments that predate `site-config.json` still read `server-config.json` from the same data directory, and it is used only when no `site-config.json` exists:
 
 ```json
 {
@@ -178,7 +167,7 @@ Deployments that predate `site-config.json` still read
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3100` | Express server port |
-| `BIBLE_DATA_DIR` | `apps/web/data` | App data directory (main.db, settings.json, etc.) |
+| `BIBLE_DATA_DIR` | `data` (repo root) | Data directory (main.db, site-config.json, semantic indexes, etc.) |
 | `BIBLE_MODULES_DIR` | `data` (repo root) | Parent of `modules/` directory containing module .db files |
 | `NO_AUTH` | — | Set to `1` to disable password gate |
 | `SITE_PASSWORD` | — | Override password (alternative to server-config.json) |
@@ -286,17 +275,16 @@ These values are locale-invariant. Translatable copy belongs in `src/locales/<ln
 
 ### Prerequisites
 
-**API/integration tests** require actual module databases to run against. Point `BIBLE_DATA_DIR` at a data directory that has them (and `BIBLE_MODULES_DIR` too, if `modules/` lives elsewhere); with neither set the suites look in `apps/web/data/`. Either way that directory must contain:
+**API/integration tests** require actual module databases to run against. With neither `BIBLE_DATA_DIR` nor `BIBLE_MODULES_DIR` set, the suites use the repo-root `data/` -- the same directory the server reads -- so `npm run setup:web` covers most of them, and `npm run init:modules -- --select=tests` (from the repo root) installs every module a suite names. Point `BIBLE_DATA_DIR` at another data directory (and `BIBLE_MODULES_DIR` too, if `modules/` lives elsewhere) to use that instead. Either way that directory must contain:
 
-- `main.db` — Module registry and Bible book data (created by the init script noted under Quick Start)
+- `main.db` — Module registry and Bible book data (built by `npm run init`)
 - `modules/bible_kjv.db` — KJV Bible module (required for Bible, search, interlinear tests)
 - `modules/commentary_barnes.db` — Barnes commentary (required for commentary tests)
-- `modules/commentary_clarke.db` — Clarke commentary (required for commentary content-cleaning tests)
-- `modules/commentary_exb.db` — Expositor's Bible (required for passage-level entry tests)
+- `modules/commentary_clarke.db` — Clarke commentary (`api.test.ts` pins Clarke entries by name)
 - `modules/dictionary_strongsgreek.db` — Strong's Greek dictionary (required for Strong's tests)
 - `modules/dictionary_strongshebrew.db` — Strong's Hebrew dictionary
 
-If these files are missing, the corresponding API tests will fail. Client-side unit tests (stores, utils, providers) use mocks and do not require database files.
+If these files are missing, the corresponding API tests will fail or skip themselves; `npm run init` lists what is missing and what that costs. Client-side unit tests (stores, utils, providers) use mocks and do not require database files.
 
 ### Running Tests
 

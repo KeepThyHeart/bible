@@ -23,7 +23,6 @@ import type {
   CommentaryData,
   CommentaryHomeData,
   CommentaryAllModulesData,
-  CommentaryChapterVersesData,
   CommentaryModuleInfoData,
   ChapterOverviewData,
   BookTopicsData,
@@ -173,10 +172,6 @@ class CommentaryDataProvider implements ICommentaryDataProvider {
   getHomeData(book: number, chapter: number, verse?: number): Promise<CommentaryHomeData> {
     const params = verse ? `?verse=${verse}` : '';
     return fetchJson(`${this.baseUrl}/api/commentary/home/${book}/${chapter}${params}`);
-  }
-
-  getChapterVerses(module: string, book: number, chapter: number): Promise<CommentaryChapterVersesData> {
-    return fetchJson(`${this.baseUrl}/api/commentary/${module}/chapter-verses/${book}/${chapter}`);
   }
 
   async getModuleInfo(module: string): Promise<CommentaryModuleInfoData | null> {

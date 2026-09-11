@@ -64,16 +64,29 @@ const CATALOG_MAX_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-const BRANDING_FILE = path.resolve(__dirname, '../../admin/brand/branding.json');
+const BRAND_DIR = path.resolve(__dirname, '../../admin/brand');
 
-/** The default catalog, read from branding rather than hardcoded here. */
+/**
+ * The catalog `--catalog` uses when given no URL.
+ *
+ * Resolved the way the desktop build resolves its own default, so that the two
+ * agree: `BIBLE_MODULE_CATALOG_URL` first, then `moduleRepositoryUrl` from
+ * `branding.json` overlaid by `branding.local.json`.  A key still listed in
+ * `_undecided` counts as absent, as it does for the desktop -- a provisional
+ * URL that does not answer is worse than none, because it fails with a TLS or
+ * DNS error instead of a message saying what to do.
+ */
 function defaultCatalogUrl() {
-  try {
-    const branding = JSON.parse(fs.readFileSync(BRANDING_FILE, 'utf8'));
-    return branding.moduleRepositoryUrl || '';
-  } catch {
-    return '';
-  }
+  const fromEnv = (process.env.BIBLE_MODULE_CATALOG_URL ?? '').trim();
+  if (fromEnv) return fromEnv;
+
+  const read = (name) => {
+    const file = path.join(BRAND_DIR, name);
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+  };
+  const branding = { ...read('branding.json'), ...read('branding.local.json') };
+  if (branding._undecided?.includes('moduleRepositoryUrl')) return '';
+  return typeof branding.moduleRepositoryUrl === 'string' ? branding.moduleRepositoryUrl.trim() : '';
 }
 
 /** A bare directory URL gets `/catalog.json` appended, as the desktop does. */
@@ -345,8 +358,10 @@ function formatSize(bytes) {
  * it needs no dependency, it survives a pipe, an SSH session and a terminal
  * that does not do raw mode, and it can be answered in one line.  `--select`
  * and `--yes` cover the non-interactive case, which is the one CI needs.
+ *
+ * Returns `{ picked, unavailable }`, as `parseSelection` does.
  */
-function promptForSelection(entries, log) {
+function promptForSelection(entries, presets, log) {
   log.info('');
   log.info('Available modules:');
   entries.forEach((entry, index) => {
@@ -356,11 +371,14 @@ function promptForSelection(entries, log) {
   });
   log.info('');
   log.info('  * = recommended');
-  log.info('  Enter numbers and/or ranges (e.g. "1 3 5-8"), "recommended", "all", or blank to cancel.');
+  for (const [name, abbrs] of Object.entries(presets)) {
+    log.info(`  ${name}: ${abbrs.join(', ')}`);
+  }
+  log.info('  Enter numbers and/or ranges (e.g. "1 3 5-8"), a preset name above, "recommended",');
+  log.info('  "all", or blank to cancel.');
 
   const answer = askSync('Install which modules? ');
-  const wanted = parseSelection(answer, entries);
-  return wanted;
+  return parseSelection(answer, entries, presets);
 }
 
 /** Read one line from stdin synchronously, so the flow reads top to bottom. */
@@ -378,34 +396,119 @@ function askSync(question) {
   return buffer.toString('utf8', 0, read).trim();
 }
 
-/** "1 3 5-8", "recommended", "all", or empty. */
-function parseSelection(answer, entries) {
+/** Catalog entries keyed by lower-cased abbreviation. */
+function indexByAbbreviation(entries) {
+  return new Map(entries.map((e) => [e.abbreviation.toLowerCase(), e]));
+}
+
+/** The module list of the preset called `name` (any case), or null. */
+function findPreset(name, presets) {
+  const key = Object.keys(presets).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+  return key ? presets[key] : null;
+}
+
+/**
+ * Split a preset's modules into the entries this catalog offers and the
+ * abbreviations it does not.
+ *
+ * A preset is a wish list, not a contract with any one catalog: the same
+ * `starter` is used against the development catalog, a mirror and a
+ * self-hosted one, and they do not all carry every module.  So a module the
+ * catalog lacks is reported and skipped.  A module named explicitly and
+ * missing is still an error -- that is a typo or the wrong catalog.
+ */
+function expandPreset(abbreviations, byAbbr) {
+  const offered = [];
+  const unavailable = [];
+  for (const abbr of abbreviations) {
+    const entry = byAbbr.get(abbr.toLowerCase());
+    if (entry) offered.push(entry);
+    else unavailable.push(abbr);
+  }
+  return { offered, unavailable };
+}
+
+/**
+ * Resolve `--select` names -- abbreviations and preset names -- against the
+ * catalog.
+ *
+ * Returns `{ picked, unknown, unavailable }`: the entries to install, in the
+ * order named and without repeats; explicit names the catalog does not offer;
+ * and preset members it does not offer.  A preset name wins over a module that
+ * happens to share it.
+ */
+function selectByName(names, entries, presets = {}) {
+  const byAbbr = indexByAbbreviation(entries);
+  const picked = new Set();
+  const unknown = [];
+  const unavailable = new Set();
+
+  for (const name of names) {
+    const preset = findPreset(name, presets);
+    if (preset) {
+      const expanded = expandPreset(preset, byAbbr);
+      expanded.offered.forEach((entry) => picked.add(entry));
+      expanded.unavailable.forEach((abbr) => unavailable.add(abbr));
+    } else if (byAbbr.has(name.toLowerCase())) {
+      picked.add(byAbbr.get(name.toLowerCase()));
+    } else {
+      unknown.push(name);
+    }
+  }
+  return { picked: [...picked], unknown, unavailable: [...unavailable] };
+}
+
+/**
+ * "1 3 5-8", a preset name, "recommended", "all", or empty -- or numbers and
+ * presets mixed, as in "starter 12".
+ *
+ * Returns `{ picked, unavailable }`: the chosen entries in catalog order, and
+ * any preset members this catalog does not offer.
+ */
+function parseSelection(answer, entries, presets = {}) {
   const trimmed = answer.trim().toLowerCase();
-  if (trimmed === '') return [];
-  if (trimmed === 'all') return [...entries];
-  if (trimmed === 'recommended' || trimmed === 'rec') return entries.filter((e) => e.recommended);
+  if (trimmed === '') return { picked: [], unavailable: [] };
+  if (trimmed === 'all') return { picked: [...entries], unavailable: [] };
+  if (trimmed === 'recommended' || trimmed === 'rec') {
+    return { picked: entries.filter((e) => e.recommended), unavailable: [] };
+  }
+
+  const byAbbr = indexByAbbreviation(entries);
+  const entryAt = (index) => {
+    const entry = entries[index - 1];
+    if (!entry) throw new Error(`There is no module ${index}; the list has ${entries.length}.`);
+    return entry;
+  };
 
   const chosen = new Set();
+  const unavailable = new Set();
   for (const token of trimmed.split(/[\s,]+/).filter(Boolean)) {
+    const preset = findPreset(token, presets);
     const range = token.match(/^(\d+)-(\d+)$/);
-    if (range) {
+    if (preset) {
+      const expanded = expandPreset(preset, byAbbr);
+      expanded.offered.forEach((entry) => chosen.add(entry));
+      expanded.unavailable.forEach((abbr) => unavailable.add(abbr));
+    } else if (range) {
       const from = Number(range[1]);
       const to = Number(range[2]);
-      for (let i = Math.min(from, to); i <= Math.max(from, to); i++) chosen.add(i);
+      for (let i = Math.min(from, to); i <= Math.max(from, to); i++) chosen.add(entryAt(i));
     } else if (/^\d+$/.test(token)) {
-      chosen.add(Number(token));
+      chosen.add(entryAt(Number(token)));
     } else {
-      throw new Error(`Not a selection: "${token}". Use numbers, ranges, "recommended" or "all".`);
+      const names = Object.keys(presets).map((name) => `"${name}"`);
+      throw new Error(`Not a selection: "${token}". Use numbers, ranges, ${[...names, '"recommended"'].join(', ')} or "all".`);
     }
   }
 
-  const picked = [];
-  for (const index of [...chosen].sort((a, b) => a - b)) {
-    const entry = entries[index - 1];
-    if (!entry) throw new Error(`There is no module ${index}; the list has ${entries.length}.`);
-    picked.push(entry);
-  }
-  return picked;
+  return { picked: entries.filter((e) => chosen.has(e)), unavailable: [...unavailable] };
+}
+
+/** Say which preset modules the catalog lacked; the rest of the preset still installs. */
+function reportUnavailable(unavailable, log) {
+  if (unavailable.length === 0) return;
+  log.warn(`  Not offered by this catalog, so skipped: ${unavailable.join(', ')}.`);
+  log.warn('  The rest of the preset is installed; re-run once the catalog carries them.');
 }
 
 // ============================================================================
@@ -438,6 +541,15 @@ function parseSelection(answer, entries) {
  * Written to a `.part` file and renamed only once the hash matches, so an
  * interrupted or corrupted download can never be mistaken for an installed
  * module by the scan that follows.
+ *
+ * Skipped outright when the file already on disk has the published checksum.
+ * That is what makes re-running setup take a second rather than re-fetching
+ * every module, and it is safe precisely because the checksum covers the
+ * unpacked `.db`: a matching file is byte-for-byte what a download would
+ * produce.  A file that differs -- an older edition, or one a running app has
+ * written to -- is downloaded again as before.
+ *
+ * Returns `{ target, skipped }`.
  */
 async function downloadModule(entry, modulesDir, catalogUrl, log) {
   const url = new URL(entry.download_url, catalogUrl).toString();
@@ -450,6 +562,12 @@ async function downloadModule(entry, modulesDir, catalogUrl, log) {
 
   const target = path.join(modulesDir, fileName);
   const partial = `${target}.part`;
+  const expected = entry.checksum ? entry.checksum.replace(/^sha256:/i, '').toLowerCase() : null;
+
+  if (expected && fs.existsSync(target) && await sha256OfFile(target) === expected) {
+    log.info(`  ${entry.abbreviation}: already installed and matches the catalog checksum; skipped.`);
+    return { target, skipped: true };
+  }
 
   log.info(`  ${entry.abbreviation} (${formatSize(entry.download_size_bytes)}) ...`);
   const received = await fetchBuffer(url, {});
@@ -461,9 +579,8 @@ async function downloadModule(entry, modulesDir, catalogUrl, log) {
     throw new Error(`${entry.abbreviation}: served payload is not valid gzip (${cause.message})`);
   }
 
-  if (entry.checksum) {
+  if (expected) {
     const actual = createHash('sha256').update(bytes).digest('hex');
-    const expected = entry.checksum.replace(/^sha256:/i, '').toLowerCase();
     if (actual !== expected) {
       throw new Error(
         `Checksum mismatch for ${entry.abbreviation}.
@@ -482,7 +599,18 @@ async function downloadModule(entry, modulesDir, catalogUrl, log) {
   fs.writeFileSync(partial, bytes);
   fs.renameSync(partial, target);
   log.info(`    -> ${fileName}${compressed ? ` (${formatSize(bytes.length)} unpacked)` : ''}`);
-  return target;
+  return { target, skipped: false };
+}
+
+/** SHA-256 of a file, streamed so a large module is never held in memory whole. */
+function sha256OfFile(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    fs.createReadStream(file)
+      .on('error', reject)
+      .on('data', (chunk) => hash.update(chunk))
+      .on('end', () => resolve(hash.digest('hex')));
+  });
 }
 
 // ============================================================================
@@ -496,12 +624,17 @@ async function downloadModule(entry, modulesDir, catalogUrl, log) {
  * caller then runs its ordinary scan over the directory, so a downloaded module
  * is registered by exactly the same code path as one copied in by hand -- there
  * is no second way for a module to enter the registry.
+ *
+ * `select` may name presets from `presets` (name -> abbreviations) as well as
+ * modules; so may an answer at the prompt.
  */
-async function runCatalogInstall({ source, modulesDir, select, assumeYes, log }) {
+async function runCatalogInstall({ source, modulesDir, select, presets = {}, assumeYes, log }) {
   const url = source || defaultCatalogUrl();
   if (!url) {
-    log.error('No catalog URL: none was given and branding.json has no moduleRepositoryUrl.');
-    log.error('Pass one explicitly:  npm run init -- --catalog=https://example.org/catalog.json');
+    log.error('No catalog URL: none was given, BIBLE_MODULE_CATALOG_URL is not set, and');
+    log.error('branding.json has no settled moduleRepositoryUrl.');
+    log.error('For the development catalog:  npm run init:modules');
+    log.error('Or pass one explicitly:       npm run init -- --catalog=https://example.org/catalog.json');
     return 'aborted';
   }
 
@@ -517,17 +650,22 @@ async function runCatalogInstall({ source, modulesDir, select, assumeYes, log })
 
     let chosen;
     if (select && select.length > 0) {
-      const byAbbr = new Map(entries.map((e) => [e.abbreviation.toLowerCase(), e]));
-      const missing = select.filter((a) => !byAbbr.has(a.toLowerCase()));
-      if (missing.length > 0) {
-        throw new Error(`The catalog does not offer: ${missing.join(', ')}`);
+      const { picked, unknown, unavailable } = selectByName(select, entries, presets);
+      if (unknown.length > 0) {
+        throw new Error(`The catalog does not offer: ${unknown.join(', ')}`);
       }
-      chosen = select.map((a) => byAbbr.get(a.toLowerCase()));
+      reportUnavailable(unavailable, log);
+      chosen = picked;
     } else if (assumeYes) {
       chosen = entries.filter((e) => e.recommended);
       log.info(`  --yes: taking the ${chosen.length} recommended module(s).`);
+      if (chosen.length === 0 && Object.keys(presets).length > 0) {
+        log.info(`  This catalog marks none; choose a preset instead, e.g. --select=${Object.keys(presets)[0]}.`);
+      }
     } else {
-      chosen = promptForSelection(entries, log);
+      const { picked, unavailable } = promptForSelection(entries, presets, log);
+      reportUnavailable(unavailable, log);
+      chosen = picked;
     }
 
     if (chosen.length === 0) {
@@ -537,9 +675,13 @@ async function runCatalogInstall({ source, modulesDir, select, assumeYes, log })
 
     const total = chosen.reduce((sum, e) => sum + (e.download_size_bytes || 0), 0);
     log.info('');
-    log.info(`Downloading ${chosen.length} module(s), ${formatSize(total)} total:`);
+    log.info(`Installing ${chosen.length} module(s), up to ${formatSize(total)} to download:`);
+    let skipped = 0;
     for (const entry of chosen) {
-      await downloadModule(entry, modulesDir, catalogUrl, log);
+      if ((await downloadModule(entry, modulesDir, catalogUrl, log)).skipped) skipped += 1;
+    }
+    if (skipped > 0) {
+      log.info(`  ${skipped} of ${chosen.length} were already up to date.`);
     }
     return 'installed';
   } catch (err) {
@@ -554,6 +696,8 @@ module.exports = {
   verifyCatalogSignature,
   isCatalogUsable,
   parseSelection,
+  selectByName,
+  downloadModule,
   resolveCatalogUrl,
   fetchCatalog,
 };

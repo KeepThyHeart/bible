@@ -4,14 +4,15 @@
   "description": "Electron desktop application for Bible study",
   "main": "out/main/index.js",
   "scripts": {
-    "rebuild-native": "npx @electron/rebuild -f",
+    "rebuild-native": "npx @electron/rebuild --only better-sqlite3-multiple-ciphers",
+    "rebuild-native:force": "npx @electron/rebuild --only better-sqlite3-multiple-ciphers -f",
     "fonts": "node scripts/fetch-fonts.mjs",
     "icons": "node scripts/generate-icons.js",
     "predev": "npm run fonts && npm run icons",
     "prebuild": "npm run fonts && npm run icons",
     "dev": "cross-env ELECTRON_DISABLE_SANDBOX=1 electron-vite dev",
     "build": "electron-vite build",
-    "postbuild": "npx @electron/rebuild -f",
+    "postbuild": "npm run rebuild-native",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "lint": "eslint .",
@@ -79,7 +80,6 @@
     "electron-log": "^5.4.3",
     "electron-updater": "^6.3.9",
     "intl-messageformat": "^11.2.0",
-    "keytar": "^7.9.0",
     "onnxruntime-common": "^1.24.2",
     "onnxruntime-node": "^1.24.2",
     "quickjs-emscripten-core": "0.32.0",
@@ -89,6 +89,9 @@
     "tippy.js": "^6.3.7",
     "unzipper": "^0.12.3",
     "zustand": "^5.0.2"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
   },
   "devDependencies": {
     "@bible/core": "*",

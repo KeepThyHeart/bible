@@ -50,7 +50,45 @@ Displays commentary entries in the right pane, synced to the current Bible chapt
 | `GET /api/commentary/info/:module` | `module_info` row, for the About section |
 | `GET /api/commentary/availability/:book/:chapter?verse=N` | Checks which modules have content for passage |
 | `GET /api/commentary/home/:book/:chapter?verse=N` | Returns all modules' entries for a verse (sorted by length) plus chapter-only modules |
-| `GET /api/commentary/:module/chapter-verses/:book/:chapter` | Returns list of verse numbers with content in the chapter |
+| `GET /api/commentary/:module/chapter-verses/:book/:chapter` | Verse numbers with content in the chapter. **The web client no longer calls this** — see below |
+
+## What a chapter change costs
+
+Three things used to happen on every chapter navigation, whether or not a
+Commentary view was on screen. Only one right-hand pane is mounted at a time
+(`DesktopApp.tsx`) and the mobile nav shows one view at a time, so a reader in
+the Study pane was paying for all of it and seeing none of it.
+
+| Was | Now |
+|---|---|
+| One full-chapter request per open tab | The **visible** tab on its own, plus **one** `/api/commentary/all?modules=…` for the rest |
+| A `chapter-verses` request per active module | Derived from the chapter overview, which is already fetched |
+| Both of the above fired from `bibleStore.navigateTo` regardless of pane | Started only while a view is mounted |
+
+`commentaryStore.viewMounted(true/false)` is the signal, called from
+`CommentaryPane` and `MobileCommentaryView`. Mounting also calls
+`ensureChapterContent()`, because the chapter change may have happened while the
+pane was hidden — that is what stops switching to the Commentary tab showing an
+empty pane.
+
+**Why the visible tab is not in the batch.** A batch can only land when its
+slowest member does, and members differ by two orders of magnitude (Matthew
+Henry's John 3 is ~2 MB against Barnes' 74 KB). Putting the tab the reader is
+looking at in with the background ones would make the pane wait on content that
+is not on screen — a worse trade than the round trip it saves.
+
+**Why `chapter-verses` is gone from the client.** It returned "which verse
+numbers does this module cover in this chapter", derived server-side from the
+entry rows. `chapter-overview` already carries
+`[moduleIdx, startVerse, endVerse, level, wordCount]` — verse *numbers* — for
+**every** module, and is fetched on every chapter change and cached for a day.
+`commentaryStore.chapterVersesFromOverview()` computes the same answer from it.
+The endpoint remains for API compatibility.
+
+`_chapterLoadsInFlight` keys de-duplication on `module@book-chapter`, not on
+module alone: `ensureChapterContent()` can be called twice (chapter change, then
+view mount), but a request still out for the chapter the reader *left* must
+never suppress the new chapter's.
 
 ## Loading is per module, not per store
 

@@ -7,6 +7,17 @@ import { validateBookNumber, validateChapter, validateVerseId, validateModuleNam
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
+import { isModuleActive, type SiteSettings } from '../siteSettings.js';
+
+export interface BibleRouteOptions {
+  /** `ui.defaultModule` from site-config.json: the Bible a request that names none is answered in. */
+  defaultModule?: string;
+  /**
+   * Module visibility from site-config.json. When the configured default is not
+   * installed, the fallback is chosen from the Bibles visitors can actually see.
+   */
+  siteSettings?: SiteSettings | null;
+}
 
 // Load VOTD data: check user data dir first (allows custom override), then bundled default.
 //
@@ -24,8 +35,17 @@ function loadVotdService(): InstanceType<typeof VerseOfTheDayService> {
 }
 const votdService = loadVotdService();
 
-export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistry): Router {
+export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistry, options: BibleRouteOptions = {}): Router {
   const router = Router();
+
+  // Decided per request rather than once at startup: it is cheap once the repo
+  // is open, and it stays right if modules are installed or removed while the
+  // server runs. Without settings every Bible counts as visible, which is what
+  // a route constructed directly (as the tests do) has always assumed.
+  const isVisibleBible = (abbreviation: string): boolean =>
+    !options.siteSettings || isModuleActive(options.siteSettings.bibles, abbreviation);
+  const defaultBible = (): string | null =>
+    db.getDefaultBibleAbbreviation(options.defaultModule, isVisibleBible);
 
   // Lazy-initialized BibleViewService
   let viewService: InstanceType<typeof BibleViewService> | null = null;
@@ -55,7 +75,13 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
   // Verse of the Day
   router.get('/votd', (req, res) => {
     try {
-      const moduleAbbr = (req.query.module as string) || 'KJV';
+      // Only an unnamed module falls back. A caller asking for a particular one
+      // is told when it is missing, not quietly handed another translation.
+      const moduleAbbr = (req.query.module as string) || defaultBible();
+      if (!moduleAbbr) {
+        sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, 'No Bible module is installed');
+        return;
+      }
       const repo = db.getBibleRepo(moduleAbbr);
       if (!repo) {
         sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, `Module not found: ${moduleAbbr}`);
@@ -190,7 +216,13 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
       // This overrides the blanket no-cache on /api/* (which exists for auth-sensitive routes).
       // stale-while-revalidate lets the service worker serve repeat visits instantly while
       // still revalidating in the background.
-      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+      //
+      // An hour rather than the five minutes this used to allow: a reader
+      // paging back through a chapter they read earlier in the same sitting was
+      // re-fetching text that cannot have changed. The window is still short
+      // enough that a module reinstalled on the server is picked up the same
+      // day, and `stale-while-revalidate` means even that is not a blocking wait.
+      res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=604800');
       res.json(response);
 
       // Fire action hook (non-blocking)
@@ -206,5 +238,8 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
 
 registerRoute({
   path: '/api/bible',
-  createRoutes: (deps) => createBibleRoutes(deps.db, deps.extra.hooks as ServerHookRegistry),
+  createRoutes: (deps) => createBibleRoutes(deps.db, deps.extra.hooks as ServerHookRegistry, {
+    defaultModule: deps.extra.defaultModule as string | undefined,
+    siteSettings: deps.siteSettings,
+  }),
 });

@@ -120,7 +120,9 @@ This is what a **default (PWA off)** build relies on. All of it lives in `server
 | `sw.js` | `no-store` | The self-destroying worker must never be served stale — it is the only channel to a wedged client |
 | `dist/client/assets/*` | `public, max-age=31536000, immutable` | Vite content-hashes them, so a given URL's bytes can never change |
 | `/data/*` | `max-age=7d` | Filename-versioned semantic index and model files |
-| `/api/commentary/:module/:book/:chapter`<br>`/api/commentary/all/:book/:chapter`<br>`/api/study/overview/:book/:chapter` | `private, max-age=3600, stale-while-revalidate=86400` | Keyed entirely by module + book + chapter, no user identity in the response, and the bulk of repeat traffic while reading |
+| `/api/bible/:module/:book/:chapter` | `public, max-age=3600, stale-while-revalidate=604800` | Immutable text. An hour rather than the five minutes it used to allow, so paging back through a chapter read earlier in the same sitting does not re-fetch it |
+| `/api/commentary/:module/:book/:chapter`<br>`/api/commentary/all/:book/:chapter`<br>`/api/commentary/home/:book/:chapter`<br>`/api/commentary/:module/verse/:verseId`<br>`/api/study/overview/:book/:chapter` | `private, max-age=3600, stale-while-revalidate=86400` | Keyed entirely by module + book + chapter, no user identity in the response, and the bulk of repeat traffic while reading |
+| `/api/xref/:module/:verseId/{groups,count}`<br>`/api/topical/verse/:verseId`<br>`/api/taggraph/verse/:verseId` | `private, max-age=3600, stale-while-revalidate=86400` | The per-verse fallback taken whenever `data/cache/study-cache.db` is absent, which is the default. Left `no-store` these were re-fetched for every verse the reader clicked, including on the way back to one visited moments earlier |
 | everything else under `/api` | `no-cache, no-store, must-revalidate` | Auth-gated and user-specific; a cached 200 outlives a logout |
 
 The cacheable API header is applied at **write time**, not request time, so only a 2xx gets it. A missing module answers 404 on a valid-looking path, and pinning that for an hour would outlive the fix for whatever produced it. `private` keeps these out of shared proxies — the response still travelled through the password gate even though its body is not user-specific.
@@ -133,8 +135,11 @@ The cacheable API header is applied at **write time**, not request time, so only
 | Precache | `**/*.{js,css,html,svg,png,woff2}` | Precache (built-in) | Until new SW |
 | `embedding-model` | `/data/models/*` | CacheFirst | 1 year, 20 entries | Self-hosted ONNX model for browser search; downloaded once, then offline |
 | `semantic-index` | `/data/semantic_*` | CacheFirst | 1 year, 10 entries | Int8 vectors + metadata for browser search |
-| `commentary-text` | `/api/commentary/:mod/:book/:chapter` | CacheFirst | 7 days, 200 entries |
+| `commentary-text` | `/api/commentary/:mod-or-pseudo/:book/:chapter` | CacheFirst | 7 days, 200 entries |
+| `chapter-metadata` | `/api/interlinear/:book/:chapter` | CacheFirst | 7 days, 200 entries |
 | `study-overview` | `/api/study/overview/:book/:chapter` | CacheFirst | 7 days, 100 entries |
+
+**The patterns live in `src/utils/swCachePatterns.ts`, not inline in `sw.ts`, so they can be tested.** Workbox matches a `RegExp` route against the whole URL (`url.href`), not against the path — so the trailing `$` these used to end with silently excluded every request carrying a query string, and the route simply never fired. That is every request that matters here: `/api/commentary/all/43/3?modules=…` (what a chapter change now makes), `/api/commentary/home/43/3?verse=16`, and `/api/interlinear/43/3?module=KJV`. Hence `(\?|$)`. The commentary pattern's `[^/?]+` segment deliberately covers the `all`, `chapter-overview` and `home` pseudo-modules as well as a real module abbreviation.
 
 Other `/api/*` responses are deliberately **not** cached — they are auth-gated and user-specific, and caching them masks 401s after logout.
 

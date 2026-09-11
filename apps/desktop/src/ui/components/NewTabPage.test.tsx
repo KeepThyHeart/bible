@@ -211,6 +211,23 @@ describe('NewTabPage', () => {
     expect(addPanel.mock.calls[0][1]).toBe('KJV|43|3||standard');
   });
 
+  // Modules install separately, so KJV may not be there. The passage has to
+  // open in a Bible that is installed, not in one named out of habit.
+  it('opens a typed passage in an installed Bible when KJV is not installed', async () => {
+    useBibleStore.setState({
+      availableBibles: [{ abbreviation: 'ASV', name: 'American Standard Version', database_path: '/tmp/asv.db' }],
+    });
+    const addPanel = vi.fn().mockReturnValue('bible_new');
+    useLayoutStore.setState({ dockviewApi: fakeDockview(), addPanel });
+
+    const user = userEvent.setup();
+    renderPage(<NewTabPage panelId="test-panel" dockviewPanelApi={{} as never} />);
+    await user.type(screen.getByPlaceholderText(/For example/i), 'John 3:16');
+    await user.keyboard('{Enter}');
+
+    expect(addPanel.mock.calls[0][1]).toBe('ASV|43|3|43003016|standard');
+  });
+
   it('renders the pane-arrangement hint at the bottom', () => {
     renderPage(<NewTabPage panelId="test-panel" />);
     expect(screen.getByText(/dragged by their tab/i)).toBeInTheDocument();

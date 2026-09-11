@@ -4,7 +4,6 @@ import type {
   CommentaryData,
   CommentaryHomeData,
   CommentaryAllModulesData,
-  CommentaryChapterVersesData,
   CommentaryModuleInfoData,
   ChapterOverviewData,
   BookTopicsData,
@@ -74,7 +73,6 @@ export interface ICommentaryDataProvider {
   getAllCommentary(book: number, chapter: number, modules?: string[]): Promise<CommentaryAllModulesData>;
   getAvailability(book: number, chapter: number, verse?: number): Promise<CommentaryAvailability>;
   getHomeData(book: number, chapter: number, verse?: number): Promise<CommentaryHomeData>;
-  getChapterVerses(module: string, book: number, chapter: number): Promise<CommentaryChapterVersesData>;
   getModuleInfo(module: string): Promise<CommentaryModuleInfoData | null>;
   getChapterOverview(book: number, chapter: number): Promise<ChapterOverviewData>;
 }

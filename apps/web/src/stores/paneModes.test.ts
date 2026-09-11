@@ -72,7 +72,6 @@ function initStore(): void {
     getAllCommentary: async () => ({ modules: [] }) as never,
     getAvailability: async () => ({ modules: [] }) as never,
     getHomeData: async () => ({ modules: [], chapterModules: [] }) as never,
-    getChapterVerses: async () => ({ verses: [] }) as never,
     getModuleInfo: async () => null,
     getChapterOverview: async () => ({}) as never,
   });

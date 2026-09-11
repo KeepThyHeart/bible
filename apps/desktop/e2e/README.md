@@ -44,7 +44,7 @@ npm run build          # from repo root - builds core + desktop + web
 
 ### 3. Rebuild native modules for Electron
 
-Native modules (`better-sqlite3`, `better-sqlite3-multiple-ciphers`, `keytar`) must be compiled for Electron's Node.js ABI, not the system Node.js. If you see errors like:
+The SQLite driver (`better-sqlite3-multiple-ciphers`) must be built for Electron's Node.js ABI, not the system Node.js. (`keytar` is a Node-API module and needs no Electron build.) If you see errors like:
 
 ```
 The module was compiled against a different Node.js version using NODE_MODULE_VERSION 137.
@@ -183,11 +183,11 @@ The spec's third test is annotated `test.fail()` - it documents a known extensio
 
 ### App hangs / tests timeout during fixture setup
 
-**Cause:** Native module ABI mismatch. The `better-sqlite3` or `keytar` native modules are compiled for system Node.js, not Electron's Node.js.
+**Cause:** Native module ABI mismatch. The `better-sqlite3-multiple-ciphers` native module is built for system Node.js, not Electron's Node.js.
 
-**Fix:** Run `npx electron-rebuild` in `apps/desktop/`. It also runs as a `postbuild` hook, so a fresh `npm run build` fixes it too.
+**Fix:** Run `npm run rebuild-native:force -w @bible/desktop`. The same rebuild runs as a `postbuild` hook, so a fresh `npm run build` fixes it too.
 
-**Root cause detail:** The `keytar` module uses `import` at the top level. If its native binding crashes on load, the entire main process dies silently. The encryption key manager lazy-loads keytar (only when `NODE_ENV !== 'test'`) to prevent this from blocking test startup.
+**Root cause detail:** The encryption key is kept with Electron's `safeStorage`; `keytar` is only loaded, lazily and outside test mode, to migrate a key from an older install, so a broken `keytar` binding cannot block test startup.
 
 ### Tests fail with "No Bibles available" or blank Bible pane
 

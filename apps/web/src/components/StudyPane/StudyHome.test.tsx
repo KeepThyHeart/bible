@@ -53,6 +53,8 @@ vi.mock('../../stores/studyStore', () => ({
     get verseId() { return mockVerseId; },
     get verseHtmlLoading() { return mockVerseHtmlLoading; },
     getVerseHtml: () => mockFetchedVerseHtml,
+    // See StudyTopics.test.tsx — loading is consumer-driven.
+    ensureInterlinear: vi.fn(),
   },
 }));
 

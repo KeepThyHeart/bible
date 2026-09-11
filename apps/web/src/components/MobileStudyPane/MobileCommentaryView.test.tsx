@@ -127,6 +127,9 @@ vi.mock('../../stores/commentaryStore', () => ({
     loadForChapter: (...args: unknown[]) => mockCommentaryLoadForChapter(...args),
     fetchEntriesForVerse: (...args: unknown[]) => mockFetchEntriesForVerse(...args),
     prefetchAllEntries: (...args: unknown[]) => mockPrefetchAllEntries(...args),
+    // A mounted Commentary view is what tells the store a chapter change is
+    // worth spending requests on.
+    viewMounted: vi.fn(),
   },
 }));
 

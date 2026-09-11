@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { pickDefaultCommentary, restoreFileNotesFromSession } from './AppInitService';
-import { DEFAULT_COMMENTARY_ABBREVIATION } from '../constants';
+import { DEFAULT_COMMENTARY_PREFERENCE } from '../constants';
 import type { CommentaryModule } from '../stores/useCommentaryStore';
 import { useFileNotesStore, getNotesPanelNavState } from '../stores/useFileNotesStore';
 
@@ -21,45 +21,77 @@ function mod(abbreviation: string, name = abbreviation): CommentaryModule {
 }
 
 describe('pickDefaultCommentary', () => {
-  it('uses the AI-synthesized commentary as the shipped default', () => {
-    expect(DEFAULT_COMMENTARY_ABBREVIATION).toBe('SYNTHESIS');
+  it('prefers human-authored whole-Bible commentaries: Gill, then MHC, then Wesley', () => {
+    expect(DEFAULT_COMMENTARY_PREFERENCE).toEqual(['Gill', 'MHC', 'Wesley']);
   });
 
-  it('prefers SYNTHESIS even when it is not listed first', () => {
+  it('prefers Gill even when it is not listed first', () => {
     const chosen = pickDefaultCommentary([
-      mod('MHC', 'Matthew Henry Concise'),
-      mod('SYNTHESIS', 'Commentary Synthesis'),
+      mod('MHC', "Matthew Henry's Complete Commentary"),
+      mod('Gill', "John Gill's Exposition of the Entire Bible"),
       mod('WESLEY', "Wesley's Notes"),
     ]);
-    expect(chosen?.abbreviation).toBe('SYNTHESIS');
+    expect(chosen?.abbreviation).toBe('Gill');
+  });
+
+  it('takes MHC when Gill is not installed', () => {
+    const chosen = pickDefaultCommentary([
+      mod('WESLEY', "Wesley's Notes"),
+      mod('MHC', "Matthew Henry's Complete Commentary"),
+    ]);
+    expect(chosen?.abbreviation).toBe('MHC');
+  });
+
+  it('takes Wesley over the New-Testament-only Barnes in a starter install', () => {
+    // The `starter` preset installs Barnes, Scofield and Wesley. Falling back to
+    // the first listed opened Barnes, which has nothing to say about Genesis.
+    const chosen = pickDefaultCommentary([
+      mod('Barnes', "Barnes' Notes"),
+      mod('Scofield', 'Scofield Reference Notes'),
+      mod('Wesley', "Wesley's Notes"),
+    ]);
+    expect(chosen?.abbreviation).toBe('Wesley');
   });
 
   it('matches the abbreviation case-insensitively', () => {
     const chosen = pickDefaultCommentary([
-      mod('MHC', 'Matthew Henry Concise'),
-      mod('synthesis', 'Commentary Synthesis'),
+      mod('Barnes', "Barnes' Notes"),
+      mod('gill', "John Gill's Exposition of the Entire Bible"),
     ]);
-    expect(chosen?.abbreviation).toBe('synthesis');
+    expect(chosen?.abbreviation).toBe('gill');
   });
 
   it('does not match on the (localizable) display name', () => {
     // Only the abbreviation is stable across locales; a module merely *named*
-    // "Commentary Synthesis" must not be treated as the preferred default.
+    // "Gill" must not be treated as the preferred default.
     const chosen = pickDefaultCommentary([
       mod('ISBE', 'International Standard Bible Encyclopedia'),
-      mod('MHC', 'Commentary Synthesis'),
+      mod('Barnes', 'Gill'),
     ]);
     expect(chosen?.abbreviation).toBe('ISBE');
   });
 
-  it('falls back to the first available commentary when SYNTHESIS is absent', () => {
-    // Lean / KJV-only builds may not ship the synthesis module - the pane must
-    // still open something rather than sit silently empty.
+  it('falls back to the first available commentary when no preferred one is installed', () => {
+    // A fresh development checkout may have neither - the pane must still
+    // open something rather than sit silently empty.
     const chosen = pickDefaultCommentary([
-      mod('MHC', 'Matthew Henry Concise'),
-      mod('ISBE', 'International Standard Bible Encyclopedia'),
+      mod('Barnes', "Barnes' Notes"),
+      mod('Clarke', "Adam Clarke's Commentary"),
     ]);
-    expect(chosen?.abbreviation).toBe('MHC');
+    expect(chosen?.abbreviation).toBe('Barnes');
+  });
+
+  it('passes over the generated digest in the fallback', () => {
+    const chosen = pickDefaultCommentary([
+      mod('SYNTHESIS', 'Commentary Synthesis'),
+      mod('Barnes', "Barnes' Notes"),
+    ]);
+    expect(chosen?.abbreviation).toBe('Barnes');
+  });
+
+  it('opens the digest only when it is the sole commentary installed', () => {
+    const chosen = pickDefaultCommentary([mod('SYNTHESIS', 'Commentary Synthesis')]);
+    expect(chosen?.abbreviation).toBe('SYNTHESIS');
   });
 
   it('returns undefined when no commentaries are installed', () => {
