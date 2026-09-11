@@ -142,7 +142,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const openInNewTab = (result: SearchResultData) => {
     searchStore.setLastClickedId(searchResultId(result));
     const { bookNumber, chapter, verse } = parseVerseId(result.verseId);
-    bibleStore.addTabWithPassage(result.module || bibleStore.getActiveTab()?.moduleAbbr || 'KJV', bookNumber, chapter, verse);
+    bibleStore.addTabWithPassage(result.module || bibleStore.getActiveModule(), bookNumber, chapter, verse);
     onNavigate?.();
   };
 

@@ -23,9 +23,18 @@ vi.mock('./bibleStore', () => ({
 
 import { studyStore } from './studyStore';
 
-/** `loadForVerse` kicks the fetch off; give the promise a turn to settle. */
+/**
+ * Select the verse *and* mount the interlinear section, then give the promise a
+ * turn to settle.
+ *
+ * The two steps are separate because only the interlinear section needs this
+ * text, and it is collapsed until the reader opens it — so `loadForVerse` marks
+ * it stale and `ensureInterlinear` is what actually fetches. See the test below
+ * that pins the selection alone fetching nothing.
+ */
 async function selectJohn316(): Promise<void> {
   studyStore.loadForVerse(43003016, 43, 3, 16);
+  studyStore.ensureInterlinear();
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -49,6 +58,18 @@ describe('studyStore verse text', () => {
     expect(fetchVerse).toHaveBeenCalledWith('KJV', 43003016);
     expect(studyStore.getVerseHtml()).toBe('For God so loved the world');
     expect(studyStore.verseHtmlLoading).toBe(false);
+  });
+
+  it('does not fetch until the interlinear section asks for it', async () => {
+    activeTab = { moduleAbbr: 'KJV', verses: [{ verse_id: 41001001, text_html: 'Mark 1:1' }] };
+    studyStore.loadForVerse(43003016, 43, 3, 16);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Selecting a verse happens on every chapter change, whether or not the
+    // Study pane is the one on screen; paying for this text there was the
+    // waste. Nothing has rendered the interlinear yet, so nothing is owed.
+    expect(fetchVerse).not.toHaveBeenCalled();
   });
 
   it("asks for the tab's own translation, not a default", async () => {

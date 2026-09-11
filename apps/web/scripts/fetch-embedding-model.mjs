@@ -41,7 +41,9 @@ const FILES = [
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(scriptDir, '..');
-const dataDir = process.env.BIBLE_DATA_DIR || resolve(webRoot, 'data');
+// The same default as the server (server/index.ts): the repo-root data/, which
+// is what it serves at /data.
+const dataDir = process.env.BIBLE_DATA_DIR || resolve(webRoot, '../../data');
 const modelDir = join(dataDir, 'models', ...MODEL_ID.split('/'));
 const force = process.env.FORCE_MODEL_FETCH === '1';
 

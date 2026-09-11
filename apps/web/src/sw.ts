@@ -21,6 +21,11 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-
 import { RangeRequestsPlugin } from 'workbox-range-requests';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
+import {
+  COMMENTARY_CACHE_PATTERN,
+  INTERLINEAR_CACHE_PATTERN,
+  STUDY_OVERVIEW_CACHE_PATTERN,
+} from './utils/swCachePatterns';
 
 declare let self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<string | { url: string; revision: string | null }>;
@@ -123,8 +128,11 @@ registerRoute(
 
 // Commentary text and study overview are not user-specific — safe to cache.
 // `statuses: [200]` keeps a 401 login page from ever being stored as content.
+//
+// Patterns live in utils/swCachePatterns.ts so they can be tested; the `$` they
+// used to end with silently matched nothing once a query string was involved.
 registerRoute(
-  /\/api\/commentary\/[^/]+\/\d+\/\d+$/,
+  COMMENTARY_CACHE_PATTERN,
   new CacheFirst({
     cacheName: 'commentary-text',
     plugins: [
@@ -135,8 +143,21 @@ registerRoute(
   'GET',
 );
 
+// Chapter-keyed and immutable, and carries `?module=` — see above.
 registerRoute(
-  /\/api\/study\/overview\/\d+\/\d+$/,
+  INTERLINEAR_CACHE_PATTERN,
+  new CacheFirst({
+    cacheName: 'chapter-metadata',
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 }),
+      new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  }),
+  'GET',
+);
+
+registerRoute(
+  STUDY_OVERVIEW_CACHE_PATTERN,
   new CacheFirst({
     cacheName: 'study-overview',
     plugins: [

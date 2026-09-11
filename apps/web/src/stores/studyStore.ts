@@ -17,9 +17,28 @@ import type {
   VerseFootnote,
 } from '../types';
 
+/**
+ * The Study pane's data, loaded only once something is on screen to show it.
+ *
+ * Every one of these sections used to load the moment the reader selected a
+ * verse — which `useAppShared` does for verse 1 of every chapter the reader
+ * lands on, whether or not the Study pane is the one being displayed. Only one
+ * right-hand pane is mounted at a time (`DesktopApp.tsx`), and the pane's own
+ * sections are collapsed until opened (`StudySection` renders no children while
+ * collapsed), so a reader sitting in the Commentary pane was paying for
+ * interlinear, cross-references, topics and entities on every chapter change
+ * and never seeing any of it — the interlinear alone is ~155 KB a chapter.
+ *
+ * So `loadForVerse` now only *invalidates*: it records the new verse and marks
+ * each section stale. The components that actually render a section call its
+ * `ensure*` method from an effect, which is the point at which a request is
+ * worth making. A section nobody has opened costs nothing; one that is open
+ * reloads exactly as before, because its effect re-runs on the verse change.
+ */
 class StudyStore extends Store {
   private crossRefProvider: ICrossRefDataProvider | null = null;
   private topicalProvider: ITopicalDataProvider | null = null;
+  /** Absent when the deployment has the tag graph turned off — see clientConfig. */
   private tagGraphProvider: ITagGraphDataProvider | null = null;
   private interlinearProvider: IInterlinearDataProvider | null = null;
   private studyOverviewProvider: IStudyOverviewProvider | null = null;
@@ -79,21 +98,29 @@ class StudyStore extends Store {
   pendingTopicNav: PendingTopicNav | null = null;
   private _topicNavToken = 0;
 
-  // Cache keys
+  // Cache keys — what the loaded data belongs to.
   private crossRefLoadedKey = '';
   private topicsLoadedKey = '';
   private interlinearLoadedKey = '';
 
+  // What a request currently out is for. Distinct from the loaded keys, which
+  // are only set on arrival; without these, two mounted consumers of the same
+  // section each start their own request. Empty means nothing in flight.
+  private crossRefInFlightKey = '';
+  private topicsInFlightKey = '';
+  private interlinearInFlightKey = '';
+
   init(providers: {
     crossRef: ICrossRefDataProvider;
     topical: ITopicalDataProvider;
-    tagGraph: ITagGraphDataProvider;
+    /** Omit to disable the tag graph outright — no provider, no request. */
+    tagGraph?: ITagGraphDataProvider;
     interlinear: IInterlinearDataProvider;
     studyOverview: IStudyOverviewProvider;
   }): void {
     this.crossRefProvider = providers.crossRef;
     this.topicalProvider = providers.topical;
-    this.tagGraphProvider = providers.tagGraph;
+    this.tagGraphProvider = providers.tagGraph ?? null;
     this.interlinearProvider = providers.interlinear;
     this.studyOverviewProvider = providers.studyOverview;
     this.restoreSession();
@@ -108,7 +135,17 @@ class StudyStore extends Store {
     });
   }
 
-  /** Called when the Bible pane verse changes. Loads all study data for unpinned pane. */
+  /**
+   * Called when the Bible pane verse changes.
+   *
+   * Records the verse and marks every section stale; it does not fetch. The
+   * `ensure*` methods do that, called from the components that render each
+   * section — see the class comment for why.
+   *
+   * The sections are put into their loading state here rather than in `ensure*`
+   * so that a pane opened later renders a spinner on its first frame instead of
+   * the previous verse's cross-references.
+   */
   loadForVerse(verseId: number, book: number, chapter: number, verse: number, footnotes?: VerseFootnote[]): void {
     if (this.pinned) return;
 
@@ -123,13 +160,58 @@ class StudyStore extends Store {
     // its key is `book-chapter`, so clearing it here defeated its own guard and
     // refetched the whole chapter's interlinear data on every verse click. It
     // is recomputed on chapter change, which is the only thing that stales it.
-    this.crossRefLoadedKey = '';
-    this.topicsLoadedKey = '';
+    if (this.crossRefLoadedKey !== `${this.crossRefModule}-${verseId}`) {
+      this.crossRefLoadedKey = '';
+      this.crossRefLoading = true;
+    }
+    if (this.topicsLoadedKey !== String(verseId)) {
+      this.topicsLoadedKey = '';
+      this.topicsLoading = true;
+    }
+    this.notify();
+  }
 
-    // Load study overview (chapter-level cache) then populate per-verse data
-    this.loadStudyOverviewAndData();
-    this.loadInterlinear();
-    this.loadVerseText();
+  /**
+   * Load this verse's cross-references if they are not already loaded.
+   *
+   * Safe and cheap to call on every render pass: it returns immediately once
+   * the loaded key matches the current verse.
+   */
+  ensureCrossRefs(): void {
+    if (!this.verseId) return;
+    if (this.crossRefLoadedKey === `${this.crossRefModule}-${this.verseId}`) {
+      this.settle('crossRefLoading');
+      return;
+    }
+    void this.loadStudyOverviewAndData('crossrefs');
+  }
+
+  /** Load this verse's topics and tag-graph entities if not already loaded. */
+  ensureTopics(): void {
+    if (!this.verseId) return;
+    if (this.topicsLoadedKey === String(this.verseId)) {
+      this.settle('topicsLoading');
+      return;
+    }
+    void this.loadStudyOverviewAndData('topics');
+  }
+
+  /**
+   * Load the chapter's interlinear rows, and the verse's own text to align them
+   * against, if not already loaded.
+   *
+   * Only the interlinear section needs either, and it is collapsed by default —
+   * which is why neither is loaded until it is opened.
+   */
+  ensureInterlinear(): void {
+    void this.loadInterlinear();
+    void this.loadVerseText();
+  }
+
+  /** Lower a loading flag that has nothing left to wait for. */
+  private settle(flag: 'crossRefLoading' | 'topicsLoading'): void {
+    if (!this[flag]) return;
+    this[flag] = false;
     this.notify();
   }
 
@@ -195,9 +277,16 @@ class StudyStore extends Store {
   /**
    * Loads the chapter-level study overview (commentary, topics, xrefs, entities)
    * from the pre-generated cache, then populates per-verse data from it.
-   * Falls back to per-verse provider calls if the cache is unavailable.
+   * Falls back to a per-verse provider call for `section` if the cache is
+   * unavailable.
+   *
+   * The overview answers both sections at once, so whichever is asked for first
+   * pays for it and the other is free. `section` only narrows the *fallback*:
+   * with no study cache on the server there is no shared answer to reuse, and
+   * fetching topics because the reader opened cross-references would put back
+   * exactly the speculative request this is here to remove.
    */
-  private async loadStudyOverviewAndData(): Promise<void> {
+  private async loadStudyOverviewAndData(section: 'crossrefs' | 'topics'): Promise<void> {
     if (!this.verseId || !this.book || !this.chapter) return;
 
     const chapterKey = `${this.book}-${this.chapter}`;
@@ -218,10 +307,10 @@ class StudyStore extends Store {
     // If overview is available, use it for cross-refs, topics, and entities
     if (this.studyOverviewProvider?.hasChapter(book, chapter)) {
       this.populateFromOverview(verseId, book, chapter);
+    } else if (section === 'crossrefs') {
+      await this.loadCrossRefs();
     } else {
-      // Fallback: use per-verse providers (original behavior)
-      this.loadCrossRefs();
-      this.loadTopics();
+      await this.loadTopics();
     }
   }
 
@@ -253,6 +342,12 @@ class StudyStore extends Store {
     if (!this.verseId) return;
     const key = `${this.crossRefModule}-${this.verseId}`;
     if (this.crossRefLoadedKey === key) return;
+    // The loaded key is only set once the response lands, so it cannot stand in
+    // for "a request is already out". Two mounted consumers of the same section
+    // (the mobile pane renders the topics list and the browser overlay from the
+    // same state) would otherwise each start one.
+    if (this.crossRefInFlightKey === key) return;
+    this.crossRefInFlightKey = key;
 
     this.crossRefLoading = true;
     this.notify();
@@ -264,6 +359,8 @@ class StudyStore extends Store {
     } catch (error) {
       console.error('Error loading cross-references:', error);
       this.crossRefGroups = [];
+    } finally {
+      this.crossRefInFlightKey = '';
     }
 
     this.crossRefLoading = false;
@@ -274,6 +371,8 @@ class StudyStore extends Store {
     if (!this.verseId) return;
     const key = `${this.verseId}`;
     if (this.topicsLoadedKey === key) return;
+    if (this.topicsInFlightKey === key) return;  // see loadCrossRefs
+    this.topicsInFlightKey = key;
 
     this.topicsLoading = true;
     this.notify();
@@ -292,6 +391,8 @@ class StudyStore extends Store {
       console.error('Error loading topics:', error);
       this.verseTopics = [];
       this.verseEntities = [];
+    } finally {
+      this.topicsInFlightKey = '';
     }
 
     this.topicsLoading = false;
@@ -309,6 +410,8 @@ class StudyStore extends Store {
     if (!moduleAbbr) return;
     const key = `${moduleAbbr}-${this.book}-${this.chapter}`;
     if (this.interlinearLoadedKey === key) return;
+    if (this.interlinearInFlightKey === key) return;  // see loadCrossRefs
+    this.interlinearInFlightKey = key;
 
     this.interlinearLoading = true;
     this.notify();
@@ -322,6 +425,8 @@ class StudyStore extends Store {
     } catch (error) {
       console.error('Error loading interlinear data:', error);
       this.interlinearData = null;
+    } finally {
+      this.interlinearInFlightKey = '';
     }
 
     this.interlinearLoading = false;

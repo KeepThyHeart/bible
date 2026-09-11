@@ -19,7 +19,7 @@ All stores extend a `Store` base class with subscriber notification on state cha
 | `src/stores/dictionaryStore.ts` | Dictionary tabs (permanent + temporary), per-tab search/browse/entry state, `openStrongs()` |
 | `src/stores/moduleStore.ts` | Available modules, books, lookups |
 | `src/stores/settingsStore.ts` | Theme, font settings, line height, interlinear layout, gesture thresholds, localStorage persistence |
-| `src/stores/studyStore.ts` | Study pane: cross-references, topics, tag-graph entities and verse text for the study verse |
+| `src/stores/studyStore.ts` | Study pane: cross-references, topics, tag-graph entities and verse text for the study verse. Loads **on demand** — see below |
 | `src/stores/offlineStore.ts` | Offline mode flag, downloaded modules, download progress, online/offline detection — see [PWA & Offline](pwa-offline.md) |
 | `src/stores/connectionStore.ts` | Transient connection-error message behind `src/components/ConnectionBanner.tsx`; auto-dismisses after 15s |
 | `src/events/eventBus.ts` | Small pub/sub used for cross-store signalling that would otherwise need a store-to-store import (tested by `src/__tests__/eventBus.test.ts`) |
@@ -36,6 +36,48 @@ All stores extend a `Store` base class with subscriber notification on state cha
 | `src/hooks/useVerseNavigation.ts` | Shared "navigate to this reference" handler used by link click sites |
 | `src/hooks/useEscapeKey.ts` | Escape-to-close for dialogs |
 | `src/hooks/useViewportPosition.ts` | Keeps popups/tooltips inside the viewport |
+
+## Selecting a verse does not load anything
+
+`useAppShared` emits `bible:verse-selected` for verse 1 of every chapter the
+reader lands on. `studyStore` used to answer that by fetching cross-references,
+topics, tag-graph entities *and* the chapter's interlinear rows (~155 KB) — all
+of it unconditional, on a store that is a module singleton listening to an event
+bus. Two things made that almost entirely waste:
+
+- only **one** right-hand pane is mounted at a time (`DesktopApp.tsx`), so a
+  reader in the Commentary pane paid for a Study pane that was not rendered;
+- `StudySection` renders no children while collapsed, and the interlinear section
+  is `defaultExpanded={false}`, so even with the Study pane open the rows fed
+  nothing.
+
+So `loadForVerse` now only **invalidates**: it records the verse and puts each
+section into its loading state. Fetching is the caller's job:
+
+| Method | Called from | Loads |
+|---|---|---|
+| `ensureCrossRefs()` | `StudyCrossRefs` | `/api/xref/TSKxref/:verseId/groups` |
+| `ensureTopics()` | `StudyTopics`, `TopicsPane` | `/api/topical/verse/:verseId` (+ entities) |
+| `ensureInterlinear()` | `StudyHome` | `/api/interlinear/:book/:chapter`, plus the verse's own text |
+
+Each is a no-op once its data matches the current verse, so calling it from an
+effect keyed on `verseId` is both correct and cheap. The `*InFlightKey` fields
+are separate from the `*LoadedKey` ones because the loaded key is only set when
+a response *arrives* — without them, two mounted consumers of the same state
+(the mobile pane renders the topics list and the browser overlay from it) each
+start their own request.
+
+**A section that nobody opens costs nothing, including the chapter-level study
+overview** — `loadStudyOverviewAndData` is reached only through an `ensure*`.
+When the overview *is* fetched and has the chapter, it answers cross-references
+and topics together; `section` narrows only the fallback, so opening
+cross-references does not drag topics along behind it.
+
+`isTagGraphEnabled()` (from `utils/clientConfig.ts`) decides in `main.tsx`
+whether `studyStore` gets a tag-graph provider at all. With `features.tagGraph`
+off — the default — there is no provider, so no `/api/taggraph/verse/:id`
+request. The server already short-circuits that route to `[]` when disabled; this
+removes the round trip that was being spent to be told so.
 
 ## Data Providers
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { formatVerseReference, formatVerseRange, loadBookNamesCache } from '../../utils/verseReference';
 import { bibleAPI } from '../../services/electronAPI';
 import { useBiblePanel } from '../../stores/hooks/useBiblePanel';
+import { useBibleStore } from '../../stores/useBibleStore';
 import { useI18n } from '../../contexts/useI18n';
 import { sanitizeHtml } from '../../utils/sanitize';
 
@@ -104,7 +105,10 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   const hiddenCount = verses.length - visibleVerses.length;
 
   const { openTabs, activeTabIndex } = useBiblePanel();
-  const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? 'KJV';
+  const defaultBible = useBibleStore(s => s.getDefaultBible());
+  // Undefined only when no Bible is installed (or none is known yet); the
+  // references still list, just without text.
+  const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? defaultBible;
 
   // Fetched verse text keyed by "start-end"
   const [verseTexts, setVerseTexts] = useState<Map<string, FetchedVerse[]>>(new Map());
@@ -123,7 +127,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   // Fetch verse text for all visible entries. Skipped entirely while the text
   // is hidden - there is no point paying for text nobody asked to see.
   useEffect(() => {
-    if (!showVerses) return undefined;
+    if (!showVerses || !activeVersion) return undefined;
     let cancelled = false;
 
     const fetchAll = async () => {
@@ -288,7 +292,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
                           </span>
                         )}
                       </span>
-                    ) : fetchedVerses === undefined ? (
+                    ) : fetchedVerses === undefined && activeVersion ? (
                       <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)' }}>{t('ui.common.loading')}</span>
                     ) : null}
                   </td>

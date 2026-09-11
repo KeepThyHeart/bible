@@ -17,6 +17,7 @@ import { eventBus } from './events/eventBus';
 import { API_BASE } from './utils/apiUrl';
 import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/bootGuard';
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
+import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
@@ -108,6 +109,10 @@ async function init() {
     return;
   }
 
+  // Publish it before anything reads it, so no other module has to ask the
+  // server for the same answer. See utils/clientConfig.ts.
+  setClientConfig(cfg);
+
   if (cfg) {
     if (typeof cfg.staleDays === 'number') serverStaleDays = cfg.staleDays;
     if (cfg.commentaryPopularity) moduleStore.setServerPopularity(cfg.commentaryPopularity);
@@ -142,7 +147,10 @@ async function init() {
   // so the first Bible request after launch can be served locally.
   const workerProxy = new BibleWorkerProxy();
   const offlineBible = createOfflineBibleProvider(providers.bible, workerProxy);
-  bibleStore.init(offlineBible);
+  // The server's ui.defaultModule, applied above. Not yet checked against what
+  // is installed -- the module list is still loading; see
+  // fallBackFromMissingModules below.
+  bibleStore.init(offlineBible, settingsStore.getDefaultBible());
 
   // Initialize auto-download manager (fire-and-forget lite downloads on translation use).
   // Left uninitialized when the server turns it off — triggerAutoDownload and
@@ -152,7 +160,10 @@ async function init() {
   studyStore.init({
     crossRef: providers.crossRef,
     topical: providers.topical,
-    tagGraph: providers.tagGraph,
+    // Omitted entirely when the deployment has the tag graph turned off: the
+    // store treats an absent provider as "no entities", which is the same
+    // answer it would spend a round trip per verse selection to be told.
+    tagGraph: isTagGraphEnabled() ? providers.tagGraph : undefined,
     interlinear: providers.interlinear,
     studyOverview: providers.studyOverview,
   });
@@ -168,7 +179,7 @@ async function init() {
       `${baseUrl}/data/semantic_128d_int8.bin`,
       `${baseUrl}/data/semantic_128d_int8.meta.json`,
       offlineBible, // resolve verse text offline-first from the active version's cached module
-      () => bibleStore.getActiveTab()?.moduleAbbr || 'KJV',
+      () => bibleStore.getActiveModule(),
       `${baseUrl}/data/models`, // self-hosted model (offline; no HuggingFace CDN)
       `${baseUrl}/ort/`,        // self-hosted ONNX Runtime wasm (CSP blocks the jsDelivr default)
     );
@@ -186,6 +197,15 @@ async function init() {
     if (serverOnline) throw err; // unexpected failure when server is up
     console.warn('[PWA] Module manifest unavailable offline — using cached data');
   }
+
+  // Now that the installed translations are known, move any tab that names one
+  // this server does not have (a stale session, or a configured default that
+  // is not installed) onto the default -- before anything below fetches it.
+  bibleStore.fallBackFromMissingModules();
+
+  // The first commentary tab waits for the manifest: which module it opens
+  // depends on what this server actually offers.
+  commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
 
   // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
   clientPluginManager.discover()

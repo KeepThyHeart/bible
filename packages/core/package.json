@@ -23,7 +23,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "pretest": "npm rebuild better-sqlite3",
     "test": "vitest run",
     "pretest:watch": "npm rebuild better-sqlite3",

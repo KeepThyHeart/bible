@@ -1,3 +1,4 @@
+import { useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -50,6 +51,15 @@ export function StudyHome({ onStrongsClick, onStrongsHover, onStrongsLeave }: St
   const fetchedVerseHtml = useStore(studyStore, () => studyStore.getVerseHtml());
   const verseTextLoading = useStore(studyStore, () => studyStore.verseHtmlLoading);
   const verseText = tabVerseHtml ?? fetchedVerseHtml ?? null;
+
+  // This section is collapsed until the reader opens it, and `StudySection`
+  // renders no children while collapsed — so being mounted at all is what says
+  // the chapter's interlinear rows (~155 KB) are actually wanted. The store
+  // used to fetch them on every verse selection regardless, including in
+  // Standard mode with the Study pane closed.
+  useEffect(() => {
+    studyStore.ensureInterlinear();
+  }, [verseId]);
 
   if (interlinearLoading) {
     return <div class="study-home__loading">{t('studyHome.loading')}</div>;

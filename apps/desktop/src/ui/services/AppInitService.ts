@@ -30,7 +30,8 @@ import { sessionAPI } from './electronAPI';
 import { flushActiveNote } from './activeNoteFlush';
 import { DEFAULT_PANEL_ID, panelIdFromLayout, panelIdsFromLayout } from '../stores/helpers/panelStateHelpers';
 import { BOOK_DICT_PANEL_TYPES } from '../stores/helpers/bookDictPanelTypes';
-import { DEFAULT_COMMENTARY_ABBREVIATION, DEFAULT_VERSE_ID } from '../constants';
+import { DEFAULT_COMMENTARY_PREFERENCE, DEFAULT_VERSE_ID } from '../constants';
+import { isDigestModule } from '../moduleDescriptions';
 
 /**
  * Dockview panel IDs created by `createDefaultLayout` in DockviewLayout.
@@ -43,20 +44,23 @@ const COMMENTARY_PANEL_ID = 'commentary_default';
 /**
  * Pick the commentary to open on a fresh profile.
  *
- * Prefers `DEFAULT_COMMENTARY_ABBREVIATION` (matched on the abbreviation,
- * which is stable, rather than the localizable display name). Lean builds
- * may not ship it, so fall back to the first available commentary - an empty
- * Commentary pane with no explanation is worse than an unexpected module.
+ * Walks `DEFAULT_COMMENTARY_PREFERENCE` (matched on the abbreviation, which is
+ * stable, rather than the localizable display name). A development checkout or
+ * lean build may have none of them, so fall back to the first available
+ * commentary - an empty Commentary pane with no explanation is worse than an
+ * unexpected module. The fallback passes over the generated digest while any
+ * human-authored commentary is installed.
  *
  * @returns The chosen module, or undefined when no commentaries are installed.
  */
 export function pickDefaultCommentary(
   commentaries: readonly CommentaryModule[]
 ): CommentaryModule | undefined {
-  const preferred = DEFAULT_COMMENTARY_ABBREVIATION.toLowerCase();
-  return (
-    commentaries.find(c => c.abbreviation.toLowerCase() === preferred) ?? commentaries[0]
-  );
+  for (const preferred of DEFAULT_COMMENTARY_PREFERENCE) {
+    const match = commentaries.find(c => c.abbreviation.toLowerCase() === preferred.toLowerCase());
+    if (match) return match;
+  }
+  return commentaries.find(c => !isDigestModule(c.abbreviation)) ?? commentaries[0];
 }
 
 /** The slice of `SessionData.ui` the file-notes store owns. */

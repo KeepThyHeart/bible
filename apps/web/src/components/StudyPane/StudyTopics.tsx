@@ -1,4 +1,4 @@
-import { useMemo } from 'preact/hooks';
+import { useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { studyStore } from '../../stores/studyStore';
 import { offlineStore } from '../../stores/offlineStore';
@@ -14,10 +14,16 @@ interface StudyTopicsProps {
  */
 export function StudyTopics({ onTopicClick }: StudyTopicsProps) {
   const { t } = useTranslation();
+  const verseId = useStore(studyStore, () => studyStore.verseId);
   const verseTopics = useStore(studyStore, () => studyStore.verseTopics);
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const loading = useStore(studyStore, () => studyStore.topicsLoading);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+
+  // Mounted is the signal to load; see StudyCrossRefs.
+  useEffect(() => {
+    studyStore.ensureTopics();
+  }, [verseId]);
 
   // Group topics by source
   const groupedTopics = useMemo(() => {

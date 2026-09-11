@@ -138,11 +138,24 @@ the default header, so a route that sets its own `Cache-Control` keeps it —
 previously the patch overwrote unconditionally and silently downgraded routes
 asking for `public, max-age=86400`.
 
-Cacheable: commentary chapter text, `commentary/all`, `commentary/chapter-overview`,
-`study/overview`, `interlinear`, `books`, `strongs/:number`. All are immutable
-for a given key. `interlinear` matters most — ~155 KB and ~290 ms, and it was
-being refetched on every chapter navigation because `no-store` made its ETag
-useless.
+Cacheable: commentary chapter text, `commentary/all`,
+`commentary/chapter-overview`, `commentary/home`, `commentary/:module/verse/:id`,
+`study/overview`, `interlinear`, `books`, `strongs/:number`, and the three
+per-verse study endpoints `xref/:module/:verseId/{groups,count}`,
+`topical/verse/:verseId` and `taggraph/verse/:verseId`. All are immutable for a
+given key.
+
+The per-verse trio was added because it is the path a default deployment
+actually takes: the pre-generated study cache (`data/cache/study-cache.db`) is
+built by a generator that ships separately, and without it
+`studyStore.loadStudyOverviewAndData` falls through to these three per verse.
+Left `no-store` they were re-fetched every time the reader clicked a verse —
+including a verse they had visited moments earlier.
+
+`interlinear` matters most by size — ~155 KB and ~290 ms, and it was being
+refetched on every chapter navigation because `no-store` made its ETag useless.
+Note that it is now also fetched far less often: see
+[State Management → Selecting a verse does not load anything](state-management.md).
 
 ## Commentary payload budget
 
