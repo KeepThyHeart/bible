@@ -26,7 +26,7 @@ or first-party code in the app itself (Plugin).
 
 | File | Purpose |
 |---|---|
-| `src/Extensions/ExtensionApiTypes.ts` | `BibleExtensionAPI` (the root object injected into each worker) plus every namespace interface: `IBibleApi`, `ICommentaryApi`, `IDictionaryApi`, `IBookApi`, `INotesApi`, `IHighlightsApi`, `IBookmarksApi`, `ICommandsApi`, `IUiApi`, `IWorkspaceApi`, `IContextApi`, `IStorageApi`, `IL10nApi`, `IEventsApi`, `INetworkApi`, `IAuthApi`, `ITasksApi`, `IExtensionsApi`, `IAiApi`. Also `ExtensionPointId` and `EXTENSION_API_VERSION`. |
+| `src/Extensions/ExtensionApiTypes.ts` | `BibleExtensionAPI` (the root object injected into each worker) plus every namespace interface: `IBibleApi`, `ICommentaryApi`, `IDictionaryApi`, `IBookApi`, `INotesApi`, `IHighlightsApi`, `IBookmarksApi`, `ICollectionsApi`, `ICommandsApi`, `IUiApi`, `IWorkspaceApi`, `IContextApi`, `IStorageApi`, `IL10nApi`, `IEventsApi`, `INetworkApi`, `IAuthApi`, `ITasksApi`, `IExtensionsApi`, `IAiApi`. Also `ExtensionPointId` and `EXTENSION_API_VERSION`. |
 | `src/Extensions/ExtensionApiDtos.ts` | Every plain-JSON DTO crossing the boundary (`BibleVerseDto`, `CommentaryEntryDto`, `DecorationDto`, `KeybindingDescriptor`, `LocalizedString`, ...) plus `EXTENSION_API_ERROR_CODES`. Separated from the methods so the shapes can be locked independently. |
 | `src/Extensions/ExtensionApiErrors.ts` | Error class hierarchy (`ExtensionApiError` base, `PermissionDeniedError`, ...) and `reviveExtensionApiError`. `error.code` is the wire-stable identifier. |
 | `src/Extensions/ExtensionPointTypes.ts` | `ExtensionPointKind` (`event` \| `filter` \| `provider`), the `EXTENSION_POINT_KINDS` map, and the payload/return type maps for every host-emitted extension point. |

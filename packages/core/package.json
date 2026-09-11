@@ -1,6 +1,6 @@
 {
   "name": "@bible/core",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Core business logic and data access layer for Bible study applications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-assets.js",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",

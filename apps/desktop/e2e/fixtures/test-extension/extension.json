@@ -6,7 +6,7 @@
   "description": "E2E fixture that exercises bible.getVerse, storage.set/get, ui.showNotification, and registers an iframe panel type.",
   "engines": { "bibleApp": "^1.0.0" },
   "main": "./main.js",
-  "permissions": ["bible:read", "ui:notification", "ui:contribute-pane"],
+  "permissions": ["bible:read", "storage", "ui:notification", "ui:contribute-pane"],
   "activationEvents": ["onStartup"],
   "contributes": {
     "panelTypes": [

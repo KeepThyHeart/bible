@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
+import { mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import log from 'electron-log';
 import { registerBibleHandlers, closeBibleDb } from './ipc/bibleHandlers';
@@ -36,10 +37,16 @@ import { detectAndRegisterModules } from './utils/moduleDetector';
 import { initializeMainDatabase } from './utils/initMainDatabase';
 import { windowManager } from './services/WindowManager';
 import { WindowStateService } from './services/WindowStateService';
-import { getPaneConfig } from './config/paneConfig';
+import { getPaneConfig, resolveDetachedWindowSize } from './config/paneConfig';
 import { APP_CONFIG } from './config/appConfig';
 import { SESSION_SAVE_SHUTDOWN_TIMEOUT_MS } from './config/constants';
-import { getBundledMainDbPath, getDataPath, resolveAppIconPath, resolveMainDbPath } from './utils/appPaths';
+import {
+  getBundledMainDbPath,
+  getDataPath,
+  getUserDataPath,
+  resolveAppIconPath,
+  resolveMainDbPath,
+} from './utils/appPaths';
 import { applyWindowSecurity, lockDownNavigation, openExternalUrl } from './utils/windowSecurity';
 import { closeSharedMainDb } from './services/sharedMainDb';
 import { closeStudyCache } from './services/StudyCacheService';
@@ -58,6 +65,8 @@ import { RendererContextBridge } from './extensions/bridges/RendererContextBridg
 import { RendererUiBridge } from './extensions/bridges/RendererUiBridge';
 import { RendererWorkspaceBridge } from './extensions/bridges/RendererWorkspaceBridge';
 import { RendererL10nBridge } from './extensions/bridges/RendererL10nBridge';
+import { CollectionsBridge } from './extensions/bridges/CollectionsBridge';
+import { CollectionRepository, CollectionService } from '@bible/core';
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
@@ -79,6 +88,7 @@ import {
   registerExtUiProtocol,
   registerExtUiSchemePrivileged,
 } from './extensions/extUiProtocol';
+import { setActiveHostTheme } from './extensions/hostThemeCss';
 
 // Configure electron-log
 log.transports.file.level = 'info';
@@ -196,11 +206,22 @@ function registerWindowHandlers(): void {
         throw new Error(`Unknown pane type: ${paneType}`);
       }
 
+      // A contributed panel type may ask for its own window size; the payload
+      // is where it travels, alongside `panelTitle`, which `titleFormat` already
+      // reads from the same place. `resolveDetachedWindowSize` treats it as
+      // untrusted and falls back to the pane config's defaults.
+      const requestedSize = (initialState as { defaultWindowSize?: unknown } | null | undefined)
+        ?.defaultWindowSize;
+      const { width, height } = resolveDetachedWindowSize(
+        config,
+        requestedSize as Parameters<typeof resolveDetachedWindowSize>[1],
+      );
+
       const windowId = windowManager.detachPane({
         paneType,
         title: config.titleFormat(initialState),
-        width: config.defaultWidth,
-        height: config.defaultHeight,
+        width,
+        height,
         initialState
       });
 
@@ -523,9 +544,18 @@ async function createWindow(): Promise<void> {
   // gracefully on all platforms.
   menuBuilder = new MenuBuilder();
 
-  // Register menu state update handlers
+  // Register menu state update handlers.
+  //
+  // This channel is also how the main process learns the active theme at all.
+  // The theme is renderer state (`usePreferencesStore`, applied as
+  // `<html data-theme>` and persisted inside the renderer-owned session blob);
+  // main has no preferences store to read it from. Rather than invent a second
+  // notification path - or worse, poll - `ext-ui://host/theme.css` rides on
+  // this existing one, so the extension panels' token sheet re-renders on
+  // exactly the events that already move the View menu's radio buttons.
   ipcMain.on('menu:update-theme', (_event, themeId: string) => {
     menuBuilder?.updateTheme(themeId);
+    setActiveHostTheme(themeId);
   });
 
   // App-level shell commands invoked by renderer command handlers (the menu
@@ -534,11 +564,22 @@ async function createWindow(): Promise<void> {
   // process capabilities like dialog/devtools/external links).
   ipcMain.handle('app:show-about', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    // The build id is appended as its own paragraph rather than folded into
+    // `main.about.detail`, so a build that has none (a source-zip build, or
+    // `electron-vite dev` with no git) shows the dialog it always showed
+    // instead of a stray "Build" label with nothing after it.
+    const detail = t('main.about.detail', {
+      version: app.getVersion(),
+      year: APP_CONFIG.copyrightYear,
+    });
+    const build = APP_CONFIG.buildId
+      ? `\n\n${t('main.about.build', { buildId: APP_CONFIG.buildId })}`
+      : '';
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: t('main.about.title', { productName: APP_CONFIG.productName }),
       message: APP_CONFIG.productName,
-      detail: t('main.about.detail', { version: app.getVersion(), year: APP_CONFIG.copyrightYear }),
+      detail: detail + build,
       buttons: [t('main.about.ok')]
     });
   });
@@ -661,6 +702,39 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     log.info('[Background] Booting ExtensionHost...');
     const userDb = await getSharedUserDb();
     const extensionsRoot = join(getDataPath(), 'extensions');
+    // Where extension *state* is written, as opposed to where extension *code*
+    // is read from.
+    //
+    // Discovery and installs still use `extensionsRoot` above; only the two
+    // components that write per-extension files move here. That split is
+    // deliberate and partial - see `docs/features/extensions.md`.
+    //
+    // `getDataPath()` is `process.resourcesPath/data` in a packaged app: root
+    // owned under `/opt/<Name>` for a .deb/.rpm, inside the signed bundle on
+    // macOS (where writing also invalidates the signature), and a read-only
+    // squashfs mount for an AppImage. Only Windows with `perMachine: false`
+    // lets those writes succeed, which is why the failure was invisible here
+    // and total everywhere else. `getUserDataPath()` is
+    // `app.getPath('userData')/data`, which is writable on every platform and
+    // survives upgrades - the same reasoning `resolveMainDbPath()` documents
+    // at length for `main.db`.
+    //
+    // In development and under e2e (`app.isPackaged` false) both helpers
+    // return the identical `apps/desktop/data` directory, so this is a no-op
+    // for developers and CI and changes only packaged builds.
+    const extensionWritableRoot = join(getUserDataPath(), 'extensions');
+    try {
+      mkdirSync(extensionWritableRoot, { recursive: true });
+    } catch (err) {
+      // Non-fatal on purpose. Per-extension databases and lifecycle logs both
+      // create their own directories lazily and both already degrade rather
+      // than throw; failing the whole host boot because a log directory could
+      // not be pre-created would be a far worse outcome than the warning.
+      log.warn(
+        `[Background] Could not create the extension state root ${extensionWritableRoot}:`,
+        err,
+      );
+    }
 
     // Production BibleBridge wired against the existing shared module
     // loaders. The bridge is constructed before the host so
@@ -679,6 +753,10 @@ async function initializeExtensionHostInBackground(): Promise<void> {
             version: m.version,
           })),
       listAllBooks: () => getSharedBookRepo().getAll(),
+      listChapterVerseCounts: (bookNumber: number) =>
+        getSharedBookRepo()
+          .getChapterInfoByBookNumber(bookNumber)
+          .map((info) => ({ chapter: info.chapter, verseCount: info.verseCount })),
       getDefaultModuleAbbreviation: () => {
         const bibles = getSharedModuleMetadataRepo().getByType('bible');
         const first = bibles[0];
@@ -692,6 +770,35 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       },
     });
     extensionBibleBridge = bibleBridge;
+
+    // Ordered passage collections over the user's own `pinned_item` rows.
+    //
+    // The repository and the reference formatter are both resolved lazily: the
+    // encrypted user database is already open by the time this function runs
+    // (it is awaited above), but `CollectionService` also needs the shared
+    // book repository, and building either eagerly here would mean a second
+    // `CollectionRepository` on the same connection alongside the one
+    // `collectionHandlers` owns. One connection, two readers, no second cache.
+    const collectionsBridge = new CollectionsBridge({
+      getRepository: () => new CollectionRepository(userDb),
+      // `referenceText` is written by the app's own bookmark flow, so most
+      // rows already carry one; this fills the gap for rows an extension
+      // created. A verse id outside the installed versification resolves to a
+      // "Book 66:1:1" style placeholder rather than throwing, which is what
+      // the rest of the app shows for the same input.
+      formatReference: (start, end) => {
+        try {
+          const bookRepo = getSharedBookRepo();
+          const service = new CollectionService(new CollectionRepository(userDb), bookRepo);
+          return start === end
+            ? service.formatVerseReference(start)
+            : service.formatPassageReference(start, end);
+        } catch (err) {
+          log.warn('[Background] Could not format a collection reference:', err);
+          return undefined;
+        }
+      },
+    });
 
     // Production module bridges for commentary, dictionary, and book
     // modules. Each bridge resolves repos lazily through the existing
@@ -755,7 +862,8 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     // activate/deactivate cycles.
     const secretsKeychain = new SafeStorageSecretsKeychain();
     const extensionDatabaseRegistry = new ExtensionDatabaseRegistry({
-      extensionsRoot,
+      // Databases are state, not code: they belong under user data.
+      extensionsRoot: extensionWritableRoot,
       factory: {
         // Hardened open (trusted_schema off, query_only on read-only
         // handles). Statement-level admission control lives in
@@ -796,6 +904,10 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       blocklist,
       db: userDb,
       extensionsRoot,
+      // Lifecycle and crash logs are state too. Kept a separate option rather
+      // than moving `extensionsRoot` wholesale because discovery and installs
+      // still resolve against the bundled tree.
+      logRoot: extensionWritableRoot,
       workerFactory: electronUtilityProcessFactory,
       networkGatewayFactory,
       consentPrompter: createRendererConsentPrompter(getMainWindow),
@@ -811,6 +923,7 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       uiBridge,
       workspaceBridge,
       l10nBridge,
+      collectionsBridge,
       secretsKeychain,
       extensionDatabaseRegistry,
     });

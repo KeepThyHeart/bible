@@ -117,6 +117,58 @@ export const BOOKS_SAMPLE: Extensions.BibleBookDto[] = [
   { bookNumber: 66, shortName: 'Rev', name: 'Revelation', testament: 'new', chapterCount: 22 },
 ];
 
+// ─── Chapter-extent fixtures ──────────────────────────────────────────────────
+
+/**
+ * KJV verse counts for John, chapter 1 through 21.
+ *
+ * John is the one book this package models completely, because it is the book
+ * every other fixture here already anchors to: `VERSE_JOHN_3_16`,
+ * `PARSED_REF_JOHN_3_16`, `COMMENTARY_ENTRY_JOHN_3_16` and the default verse
+ * corpus all point into it. An extension that resolves a passage against the
+ * mock therefore gets a real answer for the reference it is most likely to be
+ * handed, and one that is arithmetically consistent with the verse ids the
+ * rest of the file hands out.
+ */
+const JOHN_VERSE_COUNTS: readonly number[] = [
+  51, 25, 36, 54, 47, 71, 53, 59, 41, 42, 57, 50, 38, 31, 27, 33, 26, 40, 42, 31, 25,
+];
+
+/**
+ * Build the chapter extents for a book from its per-chapter verse counts.
+ *
+ * Verse ids are `book * 1_000_000 + chapter * 1_000 + verse`, the encoding the
+ * host uses and the one every verse fixture above is written in. `lastVerseId`
+ * is INCLUSIVE — it is the id of verse `verseCount`, not a bound past the end —
+ * because that is what `collections.addPassage(firstVerseId, lastVerseId)`
+ * expects, which is the reason `listChapters` exists at all.
+ */
+function chapterExtents(
+  bookNumber: number,
+  verseCounts: readonly number[],
+): Extensions.BibleChapterDto[] {
+  return verseCounts.map((verseCount, i) => {
+    const chapter = i + 1;
+    const base = bookNumber * 1_000_000 + chapter * 1_000;
+    return {
+      bookNumber,
+      chapter,
+      verseCount,
+      firstVerseId: base + 1,
+      lastVerseId: base + verseCount,
+    };
+  });
+}
+
+/**
+ * Every chapter of John with its verse count and inclusive verse-id bounds.
+ * `CHAPTERS_JOHN[2]` is John 3: 36 verses, 43003001 through 43003036.
+ */
+export const CHAPTERS_JOHN: Extensions.BibleChapterDto[] = chapterExtents(
+  43,
+  JOHN_VERSE_COUNTS,
+);
+
 // ─── Commentary fixtures ──────────────────────────────────────────────────────
 
 export const COMMENTARY_MODULE_SAMPLE: Extensions.CommentaryModuleInfoDto = {

@@ -207,6 +207,38 @@ export function registerExtensionHandlers(
     },
   );
 
+  // The panel-to-worker channel. A panel iframe posts an opaque message; the
+  // host hands it to that panel's own extension worker and returns whatever
+  // the worker's `api.panels.onMessage` handler resolved with.
+  //
+  // Same trust model as `uiFetch` above, and for the same reason: the
+  // renderer's panel host supplies `extensionId` from the closure that
+  // mounted the iframe. The iframe never names an extension, so a panel
+  // cannot address another extension's worker or spend its grants. The
+  // payload itself is opaque here - size and timeout are enforced in
+  // `panelsApiImpl`, and meaning is the extension's own business.
+  ipcMain.handle(
+    'extensions:panelInvoke',
+    async (
+      _e,
+      extensionId: string,
+      panelId: string,
+      panelTypeId: string,
+      message: unknown,
+    ) => {
+      if (typeof extensionId !== 'string' || extensionId.length === 0) {
+        throw new Error('extensions:panelInvoke: extensionId must be a non-empty string');
+      }
+      if (typeof panelId !== 'string' || panelId.length === 0) {
+        throw new Error('extensions:panelInvoke: panelId must be a non-empty string');
+      }
+      if (typeof panelTypeId !== 'string' || panelTypeId.length === 0) {
+        throw new Error('extensions:panelInvoke: panelTypeId must be a non-empty string');
+      }
+      return host.panelInvoke({ extensionId, panelId, panelTypeId }, message);
+    },
+  );
+
   // Additional surface needed by the full Extensions panel.
   ipcMain.handle(
     'extensions:updatePermissions',

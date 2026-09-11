@@ -22,6 +22,7 @@ import {
   BibleApiImpl,
   BookApiImpl,
   BookmarksApiImpl,
+  CollectionsApiImpl,
   CommandsApiImpl,
   CommentaryApiImpl,
   ContextApiImpl,
@@ -35,6 +36,7 @@ import {
   NotesApiImpl,
   StorageApiImpl,
   TasksApiImpl,
+  PanelsApiImpl,
   UiApiImpl,
   WorkspaceApiImpl,
 } from './api-impl';
@@ -134,9 +136,13 @@ export function attachApiImpls(
     api.attach();
     active.bookApi = api;
   }
-  // Storage is unconditionally wired - every extension gets a KV tier.
-  // Secrets / openDatabase are gated on permissions inside the api-impl,
-  // and the adapters are only injected here if the host wired them.
+  // The storage namespace is wired unconditionally, but every tier inside it
+  // is gated by `requirePermission` in the api-impl: KV on `storage`, secrets
+  // on `storage:secrets`, `openDatabase` on `storage:database`. Unlike
+  // `network` below we do not skip the attach for an ungranted extension,
+  // because the namespace also carries `getSetting`, which every extension may
+  // call. The secrets and database adapters are only injected here if the host
+  // wired them at all.
   {
     const storageApi = new StorageApiImpl({
       extensionId,
@@ -251,6 +257,20 @@ export function attachApiImpls(
     api.attach();
     active.uiApi = api;
   }
+  // Unconditional, and deliberately ungated. A panel talking to its own
+  // worker is not a capability - the capabilities are whatever the worker
+  // does in response, and those are gated where they always were. Attached
+  // even without a UI bridge so panel -> worker still works in harnesses that
+  // wire no renderer; only the worker -> panel direction needs the bridge.
+  {
+    const api = new PanelsApiImpl({
+      extensionId,
+      router,
+      ...(ctx.uiBridge ? { uiBridge: ctx.uiBridge } : {}),
+    });
+    api.attach();
+    active.panelsApi = api;
+  }
   if (ctx.workspaceBridge) {
     const api = new WorkspaceApiImpl({
       extensionId,
@@ -308,6 +328,22 @@ export function attachApiImpls(
     });
     api.attach();
     active.bookmarksApi = api;
+  }
+  // Ordered passage collections. Gated on its own bridge rather than riding
+  // along with `bookmarksBridge`: the two are separate views of the same
+  // rows, and a host that wires only one should expose only one. Permission
+  // gating inside the api-impl reuses `bookmarks:read` / `bookmarks:write` -
+  // see `collectionsApiImpl.ts` for why a `collections:*` pair would have
+  // been a permission boundary in name only.
+  if (ctx.collectionsBridge) {
+    const api = new CollectionsApiImpl({
+      extensionId,
+      router,
+      bridge: ctx.collectionsBridge,
+      grant,
+    });
+    api.attach();
+    active.collectionsApi = api;
   }
 
   // Inter-extension calls + provider listing. Always
@@ -386,6 +422,7 @@ export async function disposeApiImpls(active: ActiveWorker): Promise<void> {
   active.storageApi?.dispose();
   active.folderStorageApi?.dispose();
   active.uiApi?.dispose();
+  active.panelsApi?.dispose();
   active.workspaceApi?.dispose();
   active.l10nApi?.dispose();
   active.eventsApi?.dispose();
@@ -395,4 +432,5 @@ export async function disposeApiImpls(active: ActiveWorker): Promise<void> {
   active.notesApi?.dispose();
   active.highlightsApi?.dispose();
   active.bookmarksApi?.dispose();
+  active.collectionsApi?.dispose();
 }

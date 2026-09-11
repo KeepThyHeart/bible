@@ -38,8 +38,24 @@ vi.mock('../../services/highlightsAPI', () => ({
   },
 }));
 
+// `VerseContextMenu` reads the command registry to dispatch
+// extension-contributed items. Mocking `useI18n` alone used to be enough
+// because that hook was the component's only route to `useAppServices`; the
+// direct call needs its own stub, or every test here fails on
+// "useAppServices must be used inside <ContextProvider>". `list()` returns
+// empty, so no contributed items render and this file stays about highlights.
+vi.mock('../../contexts/ContextProvider', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../contexts/ContextProvider')>()),
+  useAppServices: () => ({
+    registry: { list: () => [], get: () => undefined, execute: vi.fn() },
+    whenContext: {},
+    keybindings: {},
+    i18n: { resolve: (v: unknown) => String(v) },
+  }),
+}));
+
 vi.mock('../../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: {} }),
+  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: { resolve: (v: unknown) => String(v) } }),
 }));
 
 // Panes/dialogs BiblePaneOverlays pulls in that have nothing to do with highlighting.

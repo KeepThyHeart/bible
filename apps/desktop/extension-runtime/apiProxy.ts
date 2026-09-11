@@ -94,6 +94,29 @@ interface PendingForwardRequest {
 }
 
 /**
+ * Worker-local reverse-RPC endpoint table, owned by `ExtensionRuntime` and
+ * handed to the proxy so `api.runtime.expose(...)` can bind a callback the
+ * host will later call back on.
+ *
+ * The proxy cannot own this itself: the runtime is what dispatches inbound
+ * `request` envelopes, and it is constructed before the proxy.
+ */
+export interface IReverseEndpointTable {
+  register(endpoint: string, handler: (args: unknown[]) => unknown | Promise<unknown>): void;
+  unregister(endpoint: string): void;
+  list(): string[];
+}
+
+/**
+ * Endpoint prefix the host reserves for itself. An extension binding here
+ * could shadow a runtime control message, so `expose` refuses it.
+ */
+const RESERVED_ENDPOINT_PREFIX = 'runtime.';
+
+/** Endpoint the host calls to deliver a panel iframe's message. */
+export const PANEL_MESSAGE_ENDPOINT = 'panels.onMessage';
+
+/**
  * Build the `BibleExtensionAPI` proxy. Returns the API plus a `dispatch`
  * callback the runtime feeds incoming `RpcResponse` envelopes into so the
  * proxy can resolve pending requests.
@@ -101,6 +124,12 @@ interface PendingForwardRequest {
 export function createApiProxy(opts: {
   channel: IRpcChannel;
   emitter: ExtensionEventEmitter;
+  /**
+   * Reverse-RPC endpoint table. Omitted only by tests that never exercise
+   * `api.runtime.*` or `api.panels.*`; those namespaces then reject with a
+   * clear message rather than silently doing nothing.
+   */
+  endpoints?: IReverseEndpointTable;
 }): {
   api: BibleExtensionAPI;
   /** Routes incoming responses to pending forward requests. */
@@ -170,6 +199,50 @@ export function createApiProxy(opts: {
             cache.set(prop, fn);
             return fn;
           }
+          // `runtime.*` never leaves the worker. `expose` takes a function,
+          // which cannot cross the RPC envelope, and the thing it binds to is
+          // the worker's own inbound-request table - so there is nothing to
+          // send and no host round trip to make.
+          if (namespace === 'runtime') {
+            const fn = makeRuntimeMethod(prop, opts.endpoints);
+            if (fn) {
+              cache.set(prop, fn);
+              return fn;
+            }
+          }
+          // `panels.onMessage` is `runtime.expose` under a fixed endpoint
+          // name, with the host told once that a handler now exists.
+          if (namespace === 'panels' && prop === 'onMessage') {
+            const fn = (handler: unknown) => {
+              if (typeof handler !== 'function') {
+                return Promise.reject(
+                  new TypeError('panels.onMessage: handler must be a function'),
+                );
+              }
+              const table = opts.endpoints;
+              if (!table) {
+                return Promise.reject(
+                  new Error('panels.onMessage: this runtime has no endpoint table'),
+                );
+              }
+              const fn2 = handler as (
+                message: unknown,
+                sender: unknown,
+              ) => unknown | Promise<unknown>;
+              table.register(PANEL_MESSAGE_ENDPOINT, (args) => fn2(args[0], args[1]));
+              // Tell the host a handler exists, so a panel message that
+              // arrives before this call can be refused with a useful error
+              // instead of a bare `Unknown reverse RPC method`.
+              return makeRequest('panels.setMessageHandler', [true]).then(() => ({
+                dispose: async () => {
+                  table.unregister(PANEL_MESSAGE_ENDPOINT);
+                  await makeRequest('panels.setMessageHandler', [false]);
+                },
+              }));
+            };
+            cache.set(prop, fn);
+            return fn;
+          }
           if (namespace === 'events' && prop === 'subscribe') {
             const fn = (channelName: unknown, handler: unknown) => {
               if (typeof channelName !== 'string') {
@@ -209,6 +282,7 @@ export function createApiProxy(opts: {
     'notes',
     'highlights',
     'bookmarks',
+    'collections',
     'commands',
     'ui',
     'workspace',
@@ -216,6 +290,8 @@ export function createApiProxy(opts: {
     'storage',
     'l10n',
     'events',
+    'runtime',
+    'panels',
     'network',
     'auth',
     'tasks',
@@ -245,6 +321,72 @@ export function createApiProxy(opts: {
     },
     apiVersion: EXTENSION_API_VERSION,
   };
+}
+
+/**
+ * Build one `api.runtime.*` method, or return null for an unknown property so
+ * the caller falls through to the generic RPC branch (which produces the
+ * host's `Unknown RPC method` - the right error for a typo).
+ *
+ * Every method here is synchronous work wrapped in a promise: the endpoint
+ * table is a local Map. They are `async` only because the contract declares
+ * them so, and because making them sync later would be a breaking change
+ * while making them async later would not be.
+ */
+function makeRuntimeMethod(
+  prop: string,
+  table: IReverseEndpointTable | undefined,
+): ((...args: unknown[]) => Promise<unknown>) | null {
+  const requireTable = (): IReverseEndpointTable => {
+    if (!table) {
+      throw new Error(
+        `api.runtime.${prop}: this runtime was built without an endpoint table`,
+      );
+    }
+    return table;
+  };
+
+  switch (prop) {
+    case 'expose':
+      return async (...args: unknown[]) => {
+        const [endpoint, handler] = args;
+        if (typeof endpoint !== 'string' || endpoint.length === 0) {
+          throw new TypeError('runtime.expose: endpoint must be a non-empty string');
+        }
+        if (endpoint.startsWith(RESERVED_ENDPOINT_PREFIX)) {
+          throw new Error(
+            `runtime.expose: '${RESERVED_ENDPOINT_PREFIX}' is reserved by the host`,
+          );
+        }
+        if (typeof handler !== 'function') {
+          throw new TypeError('runtime.expose: handler must be a function');
+        }
+        const t = requireTable();
+        const fn = handler as (...a: unknown[]) => unknown | Promise<unknown>;
+        t.register(endpoint, (callArgs) => fn(...callArgs));
+        return {
+          dispose: async () => {
+            t.unregister(endpoint);
+          },
+        };
+      };
+
+    case 'unexpose':
+      return async (...args: unknown[]) => {
+        const [endpoint] = args;
+        if (typeof endpoint !== 'string' || endpoint.length === 0) {
+          throw new TypeError('runtime.unexpose: endpoint must be a non-empty string');
+        }
+        requireTable().unregister(endpoint);
+        return undefined;
+      };
+
+    case 'listExposed':
+      return async () => requireTable().list();
+
+    default:
+      return null;
+  }
 }
 
 /**

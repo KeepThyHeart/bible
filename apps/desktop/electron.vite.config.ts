@@ -5,10 +5,12 @@ import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 
-// Capture the current git commit SHA at build time so the diagnostics
-// uploader can tag reports with the exact source revision they came from.
+// Capture the current git commit SHA at build time so the About dialog and
+// the diagnostics uploader can name the exact source revision a binary came
+// from. A version string cannot do that job: every build of `0.1.0` carries
+// the same one.
 // Falls back to an empty string if git isn't available (e.g. a source zip
-// build) - the uploader treats an empty buildId as "unknown".
+// build) - consumers treat an empty buildId as "unknown" and omit it.
 function resolveBuildId(): string {
   const fromEnv = process.env.BIBLE_BUILD_ID;
   if (fromEnv && fromEnv.trim()) return fromEnv.trim();
@@ -114,6 +116,11 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_MODULE_CATALOG_URL__: JSON.stringify(MODULE_CATALOG_URL),
   __BIBLE_COPYRIGHT_YEAR__: JSON.stringify(COPYRIGHT_YEAR),
   __BIBLE_APP_VERSION__: JSON.stringify(APP_VERSION),
+  // In APP_CONFIG_DEFINES rather than the `main` block alone: `appConfig.ts`
+  // resolves it into `AppConfig.buildId`, and that module is compiled into all
+  // three bundles. Defining it for main only would leave the preload handing
+  // the renderer a config whose buildId is silently ''.
+  __BIBLE_BUILD_ID__: JSON.stringify(BUILD_ID),
   __BIBLE_DOCS_URL__: JSON.stringify(DOCS_URL),
   __BIBLE_DIAGNOSTICS_URL__: JSON.stringify(DIAGNOSTICS_URL),
   __BIBLE_DIAGNOSTICS_TOKEN__: JSON.stringify(DIAGNOSTICS_TOKEN),
@@ -227,7 +234,6 @@ export default defineConfig({
       }
     },
     define: {
-      __BIBLE_BUILD_ID__: JSON.stringify(BUILD_ID),
       ...APP_CONFIG_DEFINES,
     },
     build: {

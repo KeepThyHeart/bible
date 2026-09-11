@@ -8,7 +8,7 @@ import { useI18n } from '../../contexts/useI18n';
  *
  * Important properties:
  *
- *   - The iframe is mounted with `sandbox="allow-scripts"` only - no
+ *   - The iframe is mounted with `sandbox="allow-scripts allow-forms"` - no
  *     `allow-same-origin`. The custom protocol gives the iframe a unique
  *     origin per extension, so cross-extension or main-app DOM access is
  *     impossible by construction.
@@ -33,7 +33,12 @@ import { useI18n } from '../../contexts/useI18n';
  * Exported for unit testing without React rendering.
  */
 export function computeSandboxAttr(allowAutoplay: boolean): string {
-  return allowAutoplay ? 'allow-scripts allow-autoplay' : 'allow-scripts';
+  // `allow-forms` is needed for a panel's own `<form>` to work at all: without
+  // it Chromium blocks submission before the `submit` event fires, so the
+  // panel's handler never runs. It grants no navigation - the panel CSP's
+  // `form-action 'none'` still refuses any real submission.
+  const base = 'allow-scripts allow-forms';
+  return allowAutoplay ? `${base} allow-autoplay` : base;
 }
 
 interface ExtensionPanelHostProps {
@@ -62,7 +67,9 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   // Bridge postMessage between the extension iframe and the host renderer.
   // Handles navigation, theme queries, and verse popup requests from the
   // @bible/extension-ui SDK running inside the iframe.
-  useIframeBridge({ extensionId, iframeRef });
+  // `panelId` and `panelTypeId` give the iframe an identity its worker can
+  // trust: they come from these props, never from anything the iframe says.
+  useIframeBridge({ extensionId, iframeRef, panelId, panelTypeId });
 
   React.useEffect(() => {
     let cancelled = false;

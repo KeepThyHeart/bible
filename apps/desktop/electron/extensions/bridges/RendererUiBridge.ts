@@ -157,6 +157,21 @@ export class RendererUiBridge implements IExtensionUiBridge {
     return out;
   }
 
+  /**
+   * Worker -> panel push. The renderer routes it to the mounted iframes owned
+   * by `extensionId`, optionally narrowed to one `panelId`.
+   *
+   * Fire-and-forget by design: the worker is telling its panels something, not
+   * asking them. A panel that is closed, never opened, or still loading simply
+   * misses it, which is why anything a panel must not miss belongs in storage
+   * the panel reads on mount rather than in a push.
+   */
+  postPanelMessage(extensionId: string, message: unknown, panelId?: string): void {
+    this.rpc.notify('panelMessage', [
+      { extensionId, message, ...(panelId !== undefined ? { panelId } : {}) },
+    ]);
+  }
+
   // --- T2 UI methods -------------------------------------------------------
 
   registerVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): () => void {
@@ -210,15 +225,32 @@ export class RendererUiBridge implements IExtensionUiBridge {
     };
   }
 
+  /**
+   * RESERVED, and unreachable from the extension API.
+   * `UiApiImpl.handleRegisterDisplayMode` now rejects every call with
+   * `MethodNotImplementedYet`, so nothing calls this except tests.
+   *
+   * The `displayModeRegistered` / `displayModeUnregistered` notifications are
+   * GONE, not merely unused. They had no listener anywhere in `src/ui` - the
+   * Bible pane's Display Mode picker is the fixed Simple/Standard/Study set from
+   * `useBibleStore` - so every notify was a message into a void. Keeping them
+   * would have been worse than removing them: an IPC channel with no receiver
+   * reads to the next person as a wired-up feature and is the thing you check
+   * last when the feature turns out not to exist. Removing them makes the whole
+   * path honest - the API rejects, the bridge is inert, and nothing pretends.
+   *
+   * The registry maps stay so the method still satisfies `IExtensionUiBridge`
+   * and so `disposeUiContributionsByOwner` keeps one code shape across all T2
+   * contributions. Restore the notifies alongside a renderer that listens for
+   * them when display modes are actually built.
+   */
   registerDisplayMode(extensionId: string, descriptor: DisplayModeDescriptor): () => void {
     const key = `${extensionId}::${descriptor.id}`;
     this.displayModes.set(key, descriptor);
     this.displayModeOwners.set(key, extensionId);
-    this.rpc.notify('displayModeRegistered', [{ extensionId, descriptor }]);
     return () => {
       if (this.displayModes.delete(key)) {
         this.displayModeOwners.delete(key);
-        this.rpc.notify('displayModeUnregistered', [{ extensionId, modeId: descriptor.id }]);
       }
     };
   }

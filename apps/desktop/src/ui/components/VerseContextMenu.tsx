@@ -5,6 +5,8 @@ import {
   VerseContext,
 } from '../services/verseCopyService';
 import { useI18n } from '../contexts/useI18n';
+import { useAppServices } from '../contexts/ContextProvider';
+import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
@@ -64,9 +66,32 @@ export interface VerseContextMenuProps {
  * right of the cursor by however far the dockview root sits from the window's
  * top-left - the "the right-click menu is too low" report.
  */
+/**
+ * Arguments for a contributed `verse` menu item's command: the item's own
+ * `args` with `verse` - what was right-clicked - merged in. Without it a
+ * handler could only guess from the active verse, which a right-click does not
+ * change. Non-object `args` cannot carry the key, so they pass unchanged; see
+ * `ContextMenuItemDescriptor.args`.
+ */
+export function withVerseMenuContext(
+  args: unknown,
+  verses: BibleVerse | BibleVerse[],
+  module: string,
+): unknown {
+  const isPlainObject =
+    typeof args === 'object' && args !== null && !Array.isArray(args);
+  if (args !== undefined && !isPlainObject) return args;
+  const verseIds = (Array.isArray(verses) ? verses : [verses]).map((v) => v.verse_id);
+  if (verseIds.length === 0) return args;
+  return {
+    ...(isPlainObject ? (args as Record<string, unknown>) : {}),
+    verse: { verseId: verseIds[0], verseIds, module },
+  };
+}
+
 const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   verses,
-  context: _context,
+  context,
   position,
   onClose,
   isMultipleVerses: _isMultipleVerses = false,
@@ -81,11 +106,55 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onReplaceBookmark,
   onRemoveBookmark
 }) => {
-  const { t } = useI18n();
-  // Note: _context and _isMultipleVerses are kept in the interface for API compatibility
-  // but are not used since we now have a single "Copy Passage" option that opens the dialog
-  void _context;
+  const { t, i18n } = useI18n();
+  const { registry } = useAppServices();
+  // Note: _isMultipleVerses is kept in the interface for API compatibility but
+  // is not used since we now have a single "Copy Passage" option that opens
+  // the dialog. `context` supplies the translation for extension menu items.
   void _isMultipleVerses;
+
+  /*
+    Extension-contributed items for this target.
+
+    Scoped to items with no `when` clause. `when` evaluates against
+    `IContextApi` keys through the when-context service, and wiring that
+    expression evaluator into a menu that opens on every right-click is a
+    separate piece of work; blocking the common case on it would leave the
+    whole surface unrendered, which is where this started. An item that
+    carries a `when` is held back rather than shown unconditionally, because
+    showing it would be the wrong answer in the one case the author cared
+    enough to write a condition for.
+  */
+  const contributedItems = useExtensionUiStore((s) => s.contextMenuItems);
+  const extensionItems = React.useMemo(
+    () =>
+      contributedItems
+        .filter((c) => c.target === 'verse' && c.item.when === undefined)
+        .sort((a, b) => (a.item.order ?? 0) - (b.item.order ?? 0)),
+    [contributedItems],
+  );
+
+  /*
+    Contributed items dispatch a command rather than calling back into the
+    extension directly. `RendererCommandBridge` has already put extension
+    commands into the same `ICommandRegistry` that serves the palette, the
+    keyboard and the application menu, so this reuses a path that is wired in
+    both directions and needs no new IPC.
+
+    A command that throws must not take the menu with it: the menu is already
+    closing, and an extension's failure is its own to report.
+  */
+  const runExtensionCommand = React.useCallback(
+    async (commandId: string, args: unknown) => {
+      try {
+        await registry.execute(commandId, args);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[VerseContextMenu] extension command '${commandId}' failed`, err);
+      }
+    },
+    [registry],
+  );
   const menuRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const versesArray = Array.isArray(verses) ? verses : [verses];
@@ -528,6 +597,42 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             <span className="flex-1">{t('ui.verseContextMenu.highlightUnderline')}</span>
             <span className="text-xs text-text-muted ms-4 bidi-isolate">{'Ctrl+Shift+H'}</span>
           </button>
+        </>
+      )}
+
+      {/*
+        Extension-contributed items, beneath the built-ins and separated from
+        them. The order is deliberate: the app's own actions are what a reader
+        reaches for, and a freshly installed extension should not be able to
+        push "Copy passage" down the list.
+      */}
+      {extensionItems.length > 0 && (
+        <>
+          <div className="border-t border-border-secondary my-1" role="separator" />
+          {extensionItems.map(({ key, item }) => (
+            <button
+              key={key}
+              onClick={() => {
+                onClose();
+                void runExtensionCommand(
+                  item.command,
+                  withVerseMenuContext(item.args, verses, context.translation),
+                );
+              }}
+              className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+              role="menuitem"
+            >
+              {/*
+                No icon slot. `ContextMenuItemDescriptor.icon` is a string the
+                extension chooses, and rendering arbitrary extension-supplied
+                markup into the app's own menu is exactly the injection this
+                platform is built to avoid. A named-icon vocabulary can be
+                added later; a gap where an icon would be is honest until then.
+              */}
+              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>{i18n.resolve(item.label)}</span>
+            </button>
+          ))}
         </>
       )}
 

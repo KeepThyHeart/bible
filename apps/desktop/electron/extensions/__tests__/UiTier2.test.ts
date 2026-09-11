@@ -8,7 +8,7 @@
  *   - registerVerseHover
  *   - registerContextMenu
  *   - registerStatusBarItem
- *   - registerDisplayMode
+ *   - registerDisplayMode (RESERVED - asserted to reject, not to register)
  *   - pickFile / saveFile
  */
 
@@ -318,52 +318,52 @@ describe('ui.registerStatusBarItem', () => {
 
 // --- registerDisplayMode -------------------------------------------------
 
-describe('ui.registerDisplayMode', () => {
-  it('registers and disposes a display mode', async () => {
+// RESERVED - these assert that the method REJECTS. Custom verse display modes
+// are declared in `IUiApi` but were never implemented; nothing in the renderer
+// consumes a registered mode. Before this, a call resolved with a valid
+// `DisposableHandle` and then silently did nothing, which is indistinguishable
+// from a bug in the extension. The contract is now one answer for every call,
+// whatever the grant or the descriptor shape: `MethodNotImplementedYet`.
+describe('ui.registerDisplayMode (reserved, not implemented)', () => {
+  it('rejects a well-formed call from a fully permitted extension', async () => {
     const { pair, bridge } = makeUi(['display-mode:provide']);
     const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
       { id: 'interlinear', label: 'Interlinear', kind: 'overlay', renderEndpoint: 'onRender' },
     ]);
-    expect(res.error).toBeUndefined();
-    expect(bridge.displayModes).toHaveLength(1);
-    expect(bridge.displayModes[0].descriptor.kind).toBe('overlay');
-
-    const disposalId = (res.result as { disposalId: string }).disposalId;
-    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [disposalId]);
+    expect(res.error?.code).toBe('MethodNotImplementedYet');
+    expect(res.result).toBeUndefined();
+    // The reserved status is in the message as well as the code: the code is
+    // what extensions branch on, the message is what a developer reads first.
+    expect(res.error?.message).toMatch(/reserved/i);
+    // Nothing was registered, so there is nothing to leak and nothing to dispose.
     expect(bridge.displayModes).toHaveLength(0);
   });
 
-  it('accepts replace kind', async () => {
-    const { pair, bridge } = makeUi(['display-mode:provide']);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'custom', label: 'Custom', kind: 'replace', renderEndpoint: 'ep' },
-    ]);
-    expect(res.error).toBeUndefined();
-    expect(bridge.displayModes[0].descriptor.kind).toBe('replace');
-  });
-
-  it('rejects without display-mode:provide', async () => {
+  it('rejects with the same code when the extension lacks display-mode:provide', async () => {
+    // Deliberately NOT PermissionDeniedError. The permission is irrelevant when
+    // the feature does not exist, and naming it would send the author off
+    // granting something that changes nothing.
     const { pair } = makeUi([]);
     const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
       { id: 'x', label: 'X', kind: 'overlay', renderEndpoint: 'ep' },
     ]);
-    expect(res.error?.code).toBe('PermissionDeniedError');
+    expect(res.error?.code).toBe('MethodNotImplementedYet');
   });
 
-  it('rejects invalid kind', async () => {
+  it('rejects with the same code for a malformed descriptor', async () => {
+    // Deliberately NOT RpcProtocolError, for the same reason: fixing the
+    // descriptor would not make the call work.
     const { pair } = makeUi(['display-mode:provide']);
     const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'x', label: 'X', kind: 'invalid', renderEndpoint: 'ep' },
+      { id: 'x', label: 'X', kind: 'invalid' },
     ]);
-    expect(res.error?.code).toBe('RpcProtocolError');
+    expect(res.error?.code).toBe('MethodNotImplementedYet');
   });
 
-  it('rejects missing renderEndpoint', async () => {
+  it('rejects with the same code when called with no arguments at all', async () => {
     const { pair } = makeUi(['display-mode:provide']);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'x', label: 'X', kind: 'overlay' },
-    ]);
-    expect(res.error?.code).toBe('RpcProtocolError');
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', []);
+    expect(res.error?.code).toBe('MethodNotImplementedYet');
   });
 });
 
@@ -435,7 +435,6 @@ describe('UiApiImpl.dispose() cleanup', () => {
       'ui:verse-hover',
       'ui:context-menu',
       'ui:status-bar',
-      'display-mode:provide',
     ]);
 
     await workerCall(pair.workerSide, pair.hostSent, 'ui.registerVerseDecorator', [
@@ -451,15 +450,13 @@ describe('UiApiImpl.dispose() cleanup', () => {
     await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
       { id: 's1', text: 'T' },
     ]);
-    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'm1', label: 'M', kind: 'overlay', renderEndpoint: 'ep' },
-    ]);
+    // registerDisplayMode is absent here on purpose: it is reserved and always
+    // rejects, so it can never contribute a disposer for dispose() to clean up.
 
     expect(bridge.decorators).toHaveLength(1);
     expect(bridge.hoverProviders).toHaveLength(1);
     expect(bridge.contextMenuItems).toHaveLength(1);
     expect(bridge.statusBarItems).toHaveLength(1);
-    expect(bridge.displayModes).toHaveLength(1);
 
     api.dispose();
 
@@ -467,6 +464,5 @@ describe('UiApiImpl.dispose() cleanup', () => {
     expect(bridge.hoverProviders).toHaveLength(0);
     expect(bridge.contextMenuItems).toHaveLength(0);
     expect(bridge.statusBarItems).toHaveLength(0);
-    expect(bridge.displayModes).toHaveLength(0);
   });
 });

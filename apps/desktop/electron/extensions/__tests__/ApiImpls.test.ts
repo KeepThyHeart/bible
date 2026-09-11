@@ -142,6 +142,12 @@ describe('BibleApiImpl', () => {
       testament: 'new',
       chapterCount: 21,
     });
+    // Real KJV extents for the first three chapters of John.
+    bridge.chapters.set(43, [
+      { bookNumber: 43, chapter: 1, verseCount: 51, firstVerseId: 43001001, lastVerseId: 43001051 },
+      { bookNumber: 43, chapter: 2, verseCount: 25, firstVerseId: 43002001, lastVerseId: 43002025 },
+      { bookNumber: 43, chapter: 3, verseCount: 36, firstVerseId: 43003001, lastVerseId: 43003036 },
+    ]);
     bridge.parser = (input) =>
       input === 'John 3:16'
         ? {
@@ -193,6 +199,28 @@ describe('BibleApiImpl', () => {
     expect((m.result as unknown[])[0]).toMatchObject({ id: 'kjv' });
     const b = await workerCall(pair.workerSide, pair.hostSent, 'bible.listBooks', []);
     expect((b.result as unknown[])[0]).toMatchObject({ bookNumber: 43 });
+  });
+
+  it('resolves a chapter to its inclusive verse-id bounds over RPC', async () => {
+    const c = await workerCall(pair.workerSide, pair.hostSent, 'bible.listChapters', [43]);
+    expect(c.error).toBeUndefined();
+    const chapters = c.result as { chapter: number; lastVerseId: number }[];
+    // The whole point of the method: `addPassage(43003001, 43003036)` is John 3
+    // without first paging the chapter to find out where it stops.
+    expect(chapters.find((x) => x.chapter === 3)).toMatchObject({
+      verseCount: 36,
+      firstVerseId: 43003001,
+      lastVerseId: 43003036,
+    });
+  });
+
+  it('rejects a book number outside the 66-book canon', async () => {
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.listChapters', [67]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+    const notANumber = await workerCall(pair.workerSide, pair.hostSent, 'bible.listChapters', [
+      'John',
+    ]);
+    expect(notANumber.error?.code).toBe('RpcProtocolError');
   });
 
   it('parses references', async () => {
@@ -377,7 +405,7 @@ describe('StorageApiImpl', () => {
       extensionId: 'ext.test.storage',
       router,
       db,
-      grant: buildGrant('ext.test.storage', []),
+      grant: buildGrant('ext.test.storage', ['storage']),
       quotaBytes: 256, // tiny budget for the quota test
     }).attach();
   });
@@ -415,7 +443,7 @@ describe('StorageApiImpl', () => {
       extensionId: 'ext.other',
       router: router2,
       db,
-      grant: buildGrant('ext.other', []),
+      grant: buildGrant('ext.other', ['storage']),
     }).attach();
 
     const get = await workerCall(pair2.workerSide, pair2.hostSent, 'storage.get', ['secret']);

@@ -101,17 +101,27 @@ exports.activate = function activate(api) {
   console.log('ASAR_PROBE ' + JSON.stringify(probe));
 
   // Deferred until after activate() returns — see bug B in the file header.
-  setTimeout(function () {
+  // Retried through PermissionDeniedError: the KV tier is gated on the
+  // storage permission, sideloading grants only the defaults, and runProbe
+  // grants it over IPC at a moment this code cannot observe. Mirrors the
+  // on-disk fixture. (No backticks in here - this is a template literal.)
+  var attempt = 0;
+  function roundTrip() {
+    attempt++;
     Promise.resolve(api.storage.set('asarProbe', 'round-trip-ok'))
       .then(function () { return api.storage.get('asarProbe'); })
       .then(function (value) {
-        console.log('ASAR_PROBE_RPC ' + JSON.stringify({ ok: true, value: value }));
+        console.log('ASAR_PROBE_RPC ' + JSON.stringify({ ok: true, value: value, attempts: attempt }));
       }, function (err) {
+        var message = String(err && err.message ? err.message : err);
+        var denied = (err && err.code === 'PermissionDeniedError') || /permission/i.test(message);
+        if (denied && attempt < 40) { setTimeout(roundTrip, 250); return; }
         console.log('ASAR_PROBE_RPC ' + JSON.stringify({
-          ok: false, error: String(err && err.message ? err.message : err)
+          ok: false, error: message, attempts: attempt
         }));
       });
-  }, 300);
+  }
+  setTimeout(roundTrip, 300);
 };
 exports.deactivate = function deactivate() {};
 `;
@@ -384,6 +394,20 @@ async function runProbe(
     });
     return ids && ids.includes(extensionId) ? true : null;
   }, 60_000);
+
+  // The probe's KV round-trip needs the `storage` permission, and sideloading
+  // auto-grants only DEFAULT_GRANTED_PERMISSIONS (`bible:read`,
+  // `commands:register`). Grant it the way the Extensions UI would. The probe
+  // retries through the denial, so it does not matter that `onStartup` may
+  // already have run its first attempt before this lands.
+  await window.evaluate(async (id: string) => {
+    const api = (window as unknown as {
+      electron: {
+        extensions: { updatePermissions: (id: string, perms: string[]) => Promise<void> };
+      };
+    }).electron;
+    await api.extensions.updatePermissions(id, ['storage']).catch(() => undefined);
+  }, extensionId);
 
   // `onStartup` may already have activated it; activate() is idempotent.
   const activate = await window.evaluate(async (id: string) => {

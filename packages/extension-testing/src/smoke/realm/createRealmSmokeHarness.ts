@@ -49,7 +49,7 @@ import type {
 } from '../types';
 import type { SmokeHarness } from '../createSmokeHarness';
 import { dispatchToApi } from './apiDispatch';
-import { RealmHookInvoker } from './RealmHookInvoker';
+import { RealmHookInvoker, type RealmEndpointOutcome } from './RealmHookInvoker';
 import type { RealmFactory, RealmRuntimeError, RealmSession } from './types';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
@@ -67,6 +67,15 @@ const RUNTIME_CHANNEL_PREFIX = '__runtime.';
 const RUNTIME_ERROR_CHANNEL = '__runtime.error';
 
 const INIT_REQUEST_ID = 'smoke-realm-init';
+/** Prefix for the host→guest reverse-RPC requests this harness issues. */
+const ENDPOINT_REQUEST_PREFIX = 'smoke-endpoint-';
+/**
+ * The error `ExtensionRuntime.handleReverseRequest` answers with when its
+ * reverse-handler table has no entry for the requested method. Matching on it
+ * is what lets the harness tell "your handler failed" apart from "you never
+ * bound a handler", which are opposite verdicts in the smoke report.
+ */
+const UNKNOWN_REVERSE_METHOD = 'Unknown reverse RPC method';
 const DEFAULT_ACTIVATE_TIMEOUT_MS = 15_000;
 const DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
 
@@ -124,8 +133,14 @@ export function createRealmSmokeHarness(
 ): RealmSmokeHarness {
   const resolved = resolveEntry(opts);
   const { api, captured } = createRecordingApi(opts.apiOverrides);
+  // No endpoint table is handed to the in-process invoker on purpose: in realm
+  // mode the extension's `runtime.expose` calls never reach the host-side
+  // mock, they bind inside the guest. Endpoint hooks go over the wire instead,
+  // through `callEndpoint` below.
   const eventInvoker = new InProcessHookInvoker(captured);
-  const invoker = new RealmHookInvoker(eventInvoker);
+  const invoker = new RealmHookInvoker(eventInvoker, (endpoint, args, timeoutMs) =>
+    callEndpoint(endpoint, args, timeoutMs),
+  );
   const activateTimeoutMs = opts.activateTimeoutMs ?? DEFAULT_ACTIVATE_TIMEOUT_MS;
 
   const inbox: RpcEnvelope[] = [];
@@ -167,9 +182,10 @@ export function createRealmSmokeHarness(
         requireRealm().deliver({ kind: 'heartbeat', ts: env.ts });
         return;
       case 'response':
-        // Replies to host→guest requests. Activation is tracked by scanning
-        // `sent` for INIT_REQUEST_ID, so nothing extra is needed here yet;
-        // reverse-RPC responses will land here once endpoints are bound.
+        // Replies to host→guest requests: the init handshake and the
+        // reverse-RPC endpoint calls `callEndpoint` issues. Nothing to do
+        // here — every envelope the guest sends is already appended to
+        // `sent`, and both waiters poll that by request id.
         return;
       default:
         return;
@@ -280,6 +296,61 @@ export function createRealmSmokeHarness(
     return sent.find(
       (e): e is RpcResponse => e.kind === 'response' && e.id === INIT_REQUEST_ID,
     );
+  }
+
+  // ── Reverse RPC ───────────────────────────────────────────────────────────
+
+  let nextEndpointRequest = 1;
+
+  function responseFor(id: string): RpcResponse | undefined {
+    return sent.find((e): e is RpcResponse => e.kind === 'response' && e.id === id);
+  }
+
+  /**
+   * Call one of the extension's `api.runtime.expose(...)` endpoints, as the
+   * host does when the user picks a command.
+   *
+   * This is a host→guest request, the mirror image of the guest→host traffic
+   * `handleRequest` serves. The pump is the same `drain` loop, held open until
+   * the guest's `response` for this id appears in `sent` — the guest may make
+   * host calls of its own while its handler runs, and those have to be
+   * answered before it can reply.
+   *
+   * The outcome is returned rather than thrown so `RealmHookInvoker` can keep
+   * the three verdicts distinct: a handler that failed, an endpoint nothing
+   * bound, and a realm that never answered are three different bugs.
+   */
+  async function callEndpoint(
+    endpoint: string,
+    args: readonly unknown[],
+    timeoutMs: number,
+  ): Promise<RealmEndpointOutcome> {
+    if (!realm) {
+      return { outcome: 'error', message: 'RealmSmokeHarness: realm is not running' };
+    }
+    const id = `${ENDPOINT_REQUEST_PREFIX}${nextEndpointRequest++}`;
+    realm.deliver({ kind: 'request', id, method: endpoint, args: [...args] });
+    try {
+      await drain(timeoutMs, () => responseFor(id) !== undefined);
+    } catch (err) {
+      return {
+        outcome: 'timeout',
+        message: `endpoint "${endpoint}" did not answer within ${timeoutMs}ms: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      };
+    }
+    const res = responseFor(id);
+    if (!res) {
+      return { outcome: 'timeout', message: `endpoint "${endpoint}" produced no response` };
+    }
+    if (res.error) {
+      if (res.error.message.includes(UNKNOWN_REVERSE_METHOD)) {
+        return { outcome: 'unbound', message: res.error.message };
+      }
+      return { outcome: 'error', message: `${res.error.code}: ${res.error.message}` };
+    }
+    return { outcome: 'result', value: res.result };
   }
 
   // ── SmokeHarness implementation ───────────────────────────────────────────
