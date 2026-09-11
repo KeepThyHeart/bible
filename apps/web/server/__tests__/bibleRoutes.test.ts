@@ -110,10 +110,58 @@ describe('GET /api/bible/votd', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 404 or 503 for default KJV module without VOTD data', async () => {
+  // The dataset is compiled into core, so with any Bible installed there is
+  // always a verse to give -- whichever translations this install has.
+  it('answers in an installed Bible when no module is named', async () => {
     const res = await request(app).get('/api/bible/votd');
-    // If KJV exists and VOTD data is available → 200; otherwise 404 (module not found) or 503 (no VOTD data)
-    expect([200, 404, 503]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(db.getBibleRepo(res.body.module)).not.toBeNull();
+  });
+
+  it('answers in the configured default when no module is named', async () => {
+    const configured = express();
+    configured.use('/api/bible', createBibleRoutes(db, undefined, { defaultModule: bibleModule }));
+    const res = await request(configured).get('/api/bible/votd');
+    expect(res.status).toBe(200);
+    expect(String(res.body.module).toLowerCase()).toBe(bibleModule.toLowerCase());
+  });
+
+  it('falls back to an installed Bible when the configured default is not installed', async () => {
+    const configured = express();
+    configured.use('/api/bible', createBibleRoutes(db, undefined, { defaultModule: 'NOT_INSTALLED_XYZ' }));
+    const res = await request(configured).get('/api/bible/votd');
+    expect(res.status).toBe(200);
+    expect(db.getBibleRepo(res.body.module)).not.toBeNull();
+  });
+
+  it('falls back only to a Bible the site settings make visible', async () => {
+    const configured = express();
+    configured.use('/api/bible', createBibleRoutes(db, undefined, {
+      defaultModule: 'NOT_INSTALLED_XYZ',
+      siteSettings: { bibles: { modules: { [bibleModule]: { active: true } }, sections: [] } },
+    }));
+    const res = await request(configured).get('/api/bible/votd');
+    expect(res.status).toBe(200);
+    expect(String(res.body.module).toLowerCase()).toBe(bibleModule.toLowerCase());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DatabaseManager.getDefaultBibleAbbreviation
+// ---------------------------------------------------------------------------
+describe('DatabaseManager.getDefaultBibleAbbreviation', () => {
+  it('returns the preferred Bible when it is installed', () => {
+    expect(db.getDefaultBibleAbbreviation(bibleModule.toLowerCase())).toBe(db.resolveAbbreviation(bibleModule));
+  });
+
+  it('returns an installed Bible when the preferred one is not installed', () => {
+    const fallback = db.getDefaultBibleAbbreviation('NOT_INSTALLED_XYZ');
+    expect(fallback).not.toBeNull();
+    expect(db.getBibleRepo(fallback!)).not.toBeNull();
+  });
+
+  it('returns null when no installed Bible is acceptable', () => {
+    expect(db.getDefaultBibleAbbreviation('NOT_INSTALLED_XYZ', () => false)).toBeNull();
   });
 });
 

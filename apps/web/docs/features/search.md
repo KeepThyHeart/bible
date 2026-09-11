@@ -61,10 +61,10 @@ Keyword and semantic search across Bible modules, with results displayed in the 
 
 ### Data
 
-The index files below live under `apps/web/data/` and are **generated build
-artifacts, not repo content** — `apps/*/data/` is gitignored, so a fresh
-checkout has none of them and must build or copy them in. The build scripts are
-in the same table.
+The index files below live in the server's data directory -- the repo-root
+`data/`, or `$BIBLE_DATA_DIR` -- and are **generated build artifacts, not repo
+content**: `data/` is gitignored, so a fresh checkout has none of them and must
+build or copy them in. The server serves them (and the model) at `/data/...`.
 
 | File | Description |
 |---|---|
@@ -72,11 +72,16 @@ in the same table.
 | `semantic_128d_int8.bin` | Flat binary int8 vectors (~47 MB) for browser-side search |
 | `semantic_128d_int8.meta.json` | Row metadata + mean vector (~60 MB) for browser-side search |
 | `semantic_browser.db` | Legacy truncated embeddings (384-dim float16) — superseded by compact index. Still served by `GET /api/modules/semantic-index/download` |
-| `search/build-compact-index.js` | **Not in this repo** — it lived in a repo-root `scripts/` directory that has not been imported, and its final location is not settled. Builds all compact index files from the full 768-dim source DB |
-| `search/compute-mean-vector.js` | **Not in this repo** — it lived in a repo-root `scripts/` directory that has not been imported, and its final location is not settled. Computes mean embedding vector for centering (anisotropy correction) |
-| `search/build-usearch-index.js` | **Not in this repo** — it lived in a repo-root `scripts/` directory that has not been imported, and its final location is not settled. Builds `.usearch` HNSW index from int8 compact DB for UsearchVectorSearch |
-| `scripts/fetch-embedding-model.mjs` | Build-time download of the ONNX embedding model into `data/models/` for self-hosted (offline) browser search. Run via `npm run fetch:model`; also runs automatically as `prebuild`. Idempotent (skips existing files; `FORCE_MODEL_FETCH=1` to re-download) |
+| `scripts/fetch-embedding-model.mjs` | Build-time download of the ONNX embedding model for self-hosted (offline) browser search. Run via `npm run fetch:model`; also runs automatically as `prebuild`. Idempotent (skips existing files; `FORCE_MODEL_FETCH=1` to re-download). It writes to `$BIBLE_DATA_DIR/models/`, defaulting (like the server) to the repo-root `data/models/` |
 | `data/models/nomic-ai/nomic-embed-text-v1.5/` | Self-hosted q8 ONNX model + tokenizer, served at `/data/models/...`. Populated by `fetch:model` |
+
+The scripts that build the index files are **not in this repo**: they lived in a
+repo-root `scripts/` directory that has not been imported, and their final
+location is not settled. They were `build-compact-index.js` (builds all compact
+index files from the full 768-dim source DB), `compute-mean-vector.js` (computes
+the mean embedding vector for centering, an anisotropy correction) and
+`build-usearch-index.js` (builds the `.usearch` HNSW index from the int8 compact
+DB for UsearchVectorSearch).
 | `vite.config.ts` (`ortWasmPlugin`) | Copies `ort-wasm-simd-threaded.jsep.{mjs,wasm}` out of `node_modules/@huggingface/transformers/dist` into `dist/client/ort/`, and serves them from node_modules in dev |
 
 ### Header Integration
@@ -225,7 +230,7 @@ Covered by `SearchDistributionChart.test.tsx`, `SearchResultItem.test.tsx`,
 - Results are consolidated: facets deduped, sub-verses absorbed into passages (unless verse scores higher), consecutive verses merged
 - Passage titles from enrichments DB shown below reference
 - Search type toggle button in header switches between keyword (magnifying glass) and semantic (brain icon)
-- Semantic search pipeline is configurable via `search-pipeline.json` in `apps/web/data/` (env `SEARCH_CONFIG` overrides the path; upstream the schema is at `/schemas/search-pipeline.schema.json` in the repo root and the example alongside the search tooling as `search-pipeline-config.example.json`, but **neither the root `schemas/` nor the root `scripts/` directory is imported into this repo**). The file is gitignored along with the rest of `apps/*/data/`, so it is deployment configuration rather than repo content — a fresh checkout has none and must create one to use `search.mode: "server"`.
+- Semantic search pipeline is configurable via `search-pipeline.json` in the data directory (the repo-root `data/`, or `$BIBLE_DATA_DIR`) (env `SEARCH_CONFIG` overrides the path; upstream the schema is at `/schemas/search-pipeline.schema.json` in the repo root and the example alongside the search tooling as `search-pipeline-config.example.json`, but **neither the root `schemas/` nor the root `scripts/` directory is imported into this repo**). The file is gitignored along with the rest of `data/`, so it is deployment configuration rather than repo content — a fresh checkout has none and must create one to use `search.mode: "server"`.
 - Hybrid search (optional): strict AND-mode keyword search with stopword removal, merged with semantic results
 - Minimum score threshold filters noise (default 0.15, configurable)
 - Topic sources are individually configurable via `scoring.topicSources` in `search-pipeline.json`: enable/disable Nave's topics, Torrey's topics, and custom enrichment tags independently

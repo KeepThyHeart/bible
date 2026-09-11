@@ -375,6 +375,8 @@ const routeDeps = {
     hybridDefault: searchHybridDefault,
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
+    // The configured default Bible, for routes answering a request that names none.
+    defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,
     // Route factories that need to write to disk (feedback) take the data
     // directory from here rather than reaching into DatabaseManager's private

@@ -19,7 +19,8 @@ export interface PassageSlice {
    * @param verse        Verse to select on arrival; defaults to 1.
    * @param sourcePanelId Panel whose translation, display mode and group the new
    *                      panel should inherit. Defaults to the first Bible panel.
-   * @returns The new panel's id, or `null` if the layout could not create it.
+   * @returns The new panel's id, or `null` if the layout could not create it
+   *          or no Bible is installed.
    */
   openPassageInNewPanel: (
     book: number,
@@ -41,9 +42,13 @@ export const createPassageSlice: StateCreator<BibleState, [], [], PassageSlice> 
     const ps = resolvedSourceId ? state.panels.get(resolvedSourceId) : undefined;
     const sourceTab = ps?.openTabs[ps.activeTabIndex] ?? ps?.openTabs[0];
 
-    const abbreviation = sourceTab?.abbreviation
-      ?? state.availableBibles[0]?.abbreviation
-      ?? 'KJV';
+    const abbreviation = sourceTab?.abbreviation ?? await get().resolveDefaultBible();
+    if (!abbreviation) {
+      // A panel naming a translation that is not installed would open on an
+      // error, which is worse than not opening.
+      console.warn('[useBibleStore] No Bible is installed; not opening a passage panel');
+      return null;
+    }
     const displayMode = sourceTab?.displayMode ?? DEFAULT_DISPLAY_MODE;
     const selectedVerseId = VerseIdHelper.calculate(book, chapter, verse ?? 1);
 

@@ -27,8 +27,7 @@ export function useVerseText(verseId: number | null | undefined, bibleProvider?:
     }
     // Fallback: fetch from API if not in local cache
     if (bibleProvider) {
-      const moduleAbbr = bibleStore.getActiveTab()?.moduleAbbr || 'KJV';
-      bibleProvider.getVerse(moduleAbbr, verseId).then(data => {
+      bibleProvider.getVerse(bibleStore.getActiveModule(), verseId).then(data => {
         const raw = data.text_html || data.text || '';
         setVerseText(raw.replace(/<[^>]*>/g, '').trim());
       }).catch(() => setVerseText(''));

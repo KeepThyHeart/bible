@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const repoRoot = path.resolve(__dirname, '..');
 const quiet = process.argv.includes('--quiet');
@@ -87,6 +88,11 @@ function lineNumberAt(text, index) {
 function resolves(spec, docFile) {
   const cleaned = spec.split('#')[0].trim();
   if (!cleaned) return true;
+  return candidatePaths(cleaned, docFile).some((candidate) => fs.existsSync(candidate));
+}
+
+/** Every absolute path a cleaned reference could mean; see resolves(). */
+function candidatePaths(cleaned, docFile) {
   const candidates = [
     path.resolve(path.dirname(docFile), cleaned),
     path.resolve(repoRoot, cleaned),
@@ -95,7 +101,27 @@ function resolves(spec, docFile) {
   // `src/ui/App.tsx` inside apps/desktop/docs. Resolve that too.
   const pkgRoot = packageRootFor(docFile);
   if (pkgRoot) candidates.push(path.resolve(pkgRoot, cleaned));
-  return candidates.some((candidate) => fs.existsSync(candidate));
+  return candidates;
+}
+
+/**
+ * Whether an unresolved reference names a path git is told to ignore: build
+ * output (`dist/`), generated assets (`fonts.css`), runtime data (`data/`),
+ * local overlays (`*.local.*`). Those are absent from a fresh checkout by
+ * design, and a doc that names one is describing it correctly, so it is
+ * reported apart from a missing file rather than failing the check.
+ *
+ * Git is asked rather than .gitignore parsed, so nested ignore files and
+ * negations count. The cost is that a wrong path under an ignored directory
+ * passes too; nothing can verify a file that is never checked in. Outside a git
+ * checkout nothing counts as ignored.
+ */
+function isGitIgnored(spec, docFile) {
+  const cleaned = spec.split('#')[0].trim();
+  return candidatePaths(cleaned, docFile)
+    .map((candidate) => path.relative(repoRoot, candidate))
+    .filter((rel) => rel && !rel.startsWith('..') && !path.isAbsolute(rel))
+    .some((rel) => spawnSync('git', ['check-ignore', '-q', '--', rel], { cwd: repoRoot, stdio: 'ignore' }).status === 0);
 }
 
 /** packages/<pkg>/docs/... or apps/<app>/docs/... -> that package's absolute root. */
@@ -147,6 +173,7 @@ function basenameIndex(pkgRoot) {
  * elsewhere, so the reference is merely written against an implied directory).
  */
 function classify(spec, docFile) {
+  if (isGitIgnored(spec, docFile)) return { kind: 'ignored' };
   const pkgRoot = packageRootFor(docFile);
   if (!pkgRoot) return { kind: 'missing' };
   const base = spec.split('#')[0].trim().split('/').pop();
@@ -194,6 +221,7 @@ function checkFile(docFile) {
 let totalDocs = 0;
 let missingCount = 0;
 let relativeCount = 0;
+let ignoredCount = 0;
 
 for (const root of DOC_ROOTS) {
   const docs = collectMarkdownFiles(path.join(repoRoot, root));
@@ -203,19 +231,24 @@ for (const root of DOC_ROOTS) {
     if (problems.length === 0) continue;
     const rel = path.relative(repoRoot, docFile).split(path.sep).join('/');
     const missing = problems.filter((p) => p.kind === 'missing');
-    const relative = problems.filter((p) => p.kind === 'relative');
+    const informational = problems.filter((p) => p.kind !== 'missing');
     missingCount += missing.length;
-    relativeCount += relative.length;
+    relativeCount += problems.filter((p) => p.kind === 'relative').length;
+    ignoredCount += problems.filter((p) => p.kind === 'ignored').length;
     if (missing.length > 0) {
       console.log(`\n${rel}`);
       for (const problem of missing) {
         console.log(`  MISSING  line ${problem.line}: ${problem.spec}`);
       }
     }
-    if (!quiet && relative.length > 0) {
+    if (!quiet && informational.length > 0) {
       if (missing.length === 0) console.log(`\n${rel}`);
-      for (const problem of relative) {
-        console.log(`  relative line ${problem.line}: ${problem.spec}  -> ${problem.actual}`);
+      for (const problem of informational) {
+        if (problem.kind === 'ignored') {
+          console.log(`  ignored  line ${problem.line}: ${problem.spec}  (gitignored: generated or local)`);
+        } else {
+          console.log(`  relative line ${problem.line}: ${problem.spec}  -> ${problem.actual}`);
+        }
       }
     }
   }
@@ -223,6 +256,7 @@ for (const root of DOC_ROOTS) {
 
 console.log(
   `\nChecked ${totalDocs} docs: ${missingCount} missing, ` +
-    `${relativeCount} written relative to an implied directory.`
+    `${relativeCount} written relative to an implied directory, ` +
+    `${ignoredCount} naming gitignored (generated or local) files.`
 );
 process.exit(missingCount === 0 ? 0 : 1);

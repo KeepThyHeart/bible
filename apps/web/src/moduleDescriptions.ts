@@ -17,12 +17,15 @@ import i18n from './i18n';
  * Resolve a catalog key, treating "no such key" as absent rather than as text.
  *
  * i18next echoes the key back when it cannot resolve it, which would put
- * `modules:bibles.KJV.tagline` on screen for any module whose entry omits the
- * optional field.
+ * `commentaries.Wesley.disclaimer` on screen for any module whose entry omits
+ * the optional field. The echo is the key *without* its `modules:` namespace
+ * prefix, so comparing the result against the key never matched and the raw key
+ * was shown; asking `exists` first does not depend on the echo's shape.
  */
 function optional(key: string): string | undefined {
+  if (!i18n.exists(key)) return undefined;
   const value = i18n.t(key);
-  return value === key || value === '' ? undefined : value;
+  return value === '' ? undefined : value;
 }
 
 // ─── Special Module: Commentary Digest (AI Synthesis) ────────────────

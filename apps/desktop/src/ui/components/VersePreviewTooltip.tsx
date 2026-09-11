@@ -5,6 +5,7 @@ import { loadBookNamesCache } from '../utils/verseReference';
 import { formatVerseReference } from '../utils/verseFormatting';
 import { VerseIdHelper } from '@bible/core';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
+import { useBibleStore } from '../stores/useBibleStore';
 import { sanitizeHtml } from '../utils/sanitize';
 import { usePopupPosition, PopupPortal } from '../hooks/usePopupPosition';
 import { getVersesCached, primeVerseCache, type CachedVerse } from '../services/verseFetchCache';
@@ -81,7 +82,8 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
   const isRange = endVerseId !== undefined && endVerseId > verseId;
   // Get active Bible version from store
   const { openTabs, activeTabIndex } = useBiblePanel();
-  const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? 'KJV';
+  const defaultBible = useBibleStore(s => s.getDefaultBible());
+  const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? defaultBible;
   /**
    * Words of Christ in red, read from the same Bible-pane text settings the
    * reader sets in Preferences. The popup shows the *same* verse text as the
@@ -110,6 +112,12 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
       try {
         setLoading(true);
         setError(null);
+
+        // No Bible installed (or none known yet): nothing to preview from.
+        if (!activeVersion) {
+          setError('Verse not found');
+          return;
+        }
 
         // Ensure book names are loaded
         await loadBookNamesCache(bibleAPI);

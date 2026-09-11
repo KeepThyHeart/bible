@@ -117,8 +117,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
   };
 
   const handleNewTabSelect = (book: number, chapter: number, verse?: number, endVerse?: number) => {
-    const moduleAbbr = bibleStore.getActiveTab()?.moduleAbbr || 'KJV';
-    bibleStore.addTabWithPassage(moduleAbbr, book, chapter, verse, endVerse);
+    bibleStore.addTabWithPassage(bibleStore.getActiveModule(), book, chapter, verse, endVerse);
     setShowNewTabPicker(false);
   };
 

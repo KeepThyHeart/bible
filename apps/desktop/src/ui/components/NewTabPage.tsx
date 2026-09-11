@@ -15,20 +15,6 @@ interface NewTabPageProps {
   dockviewPanelApi?: DockviewPanelApi;
 }
 
-/** Get the default Bible abbreviation from the current Bible pane state */
-function getDefaultBibleAbbreviation(): string {
-  const bibleState = useBibleStore.getState(); // allow-getstate: event handler - imperative store access outside render
-  const primaryPanel = bibleState.panels.values().next().value;
-  if (primaryPanel) {
-    const activeTab = primaryPanel.openTabs[primaryPanel.activeTabIndex];
-    if (activeTab) return activeTab.abbreviation;
-  }
-  if (bibleState.availableBibles.length > 0) {
-    return bibleState.availableBibles[0].abbreviation;
-  }
-  return 'KJV';
-}
-
 /** Parse "Book Chapter" format (without verse), e.g. "John 3", "Genesis 1" */
 function parseBookChapter(input: string): { bookNumber: number; bookName: string; chapter: number } | undefined {
   const normalized = input.trim().toLowerCase();
@@ -125,6 +111,39 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     currentPanel.api.close();
   }, [panelId, dockviewPanelApi, t]);
 
+  /**
+   * Open a typed passage in the default Bible. Immediate whenever the default
+   * is already known - every normal session, since the Bible pane has loaded
+   * the installed list long before anyone types here - and waits for that list
+   * only when it has not been loaded.
+   */
+  const openPassage = useCallback((
+    book: number,
+    chapter: number,
+    bookName: string,
+    selectedVerseId?: number,
+  ) => {
+    const open = (abbreviation: string | undefined): void => {
+      if (!abbreviation) {
+        // No Bible installed: there is nothing to open the passage in.
+        setError(t('layout.newTab.createFailed'));
+        return;
+      }
+      // No displayMode: let the seed carry the app default (Standard) rather
+      // than pinning Reading, which hides verse numbers.
+      const contentKey = encodeBibleContentKey({ abbreviation, book, chapter, selectedVerseId });
+      replaceWithPanel('bible', contentKey, `${bookName} ${chapter}`, abbreviation);
+    };
+
+    const bibleStore = useBibleStore.getState(); // allow-getstate: event handler - imperative store access outside render
+    const known = bibleStore.getDefaultBible();
+    if (known) {
+      open(known);
+      return;
+    }
+    void bibleStore.resolveDefaultBible().then(open);
+  }, [replaceWithPanel, t]);
+
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = query.trim();
@@ -148,32 +167,17 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     // Try parsing as a full verse reference (e.g. "John 3:16")
     const parsed = parseVerseReference(trimmed);
     if (parsed) {
-      const abbreviation = getDefaultBibleAbbreviation();
-      // No displayMode: let the seed carry the app default (Standard) rather
-      // than pinning Reading, which hides verse numbers.
-      const contentKey = encodeBibleContentKey({
-        abbreviation,
-        book: parsed.bookNumber,
-        chapter: parsed.chapter,
-        // The verse the user typed. Dropping it opened "John 5:5" on John 5
-        // with nothing selected and no scroll - the reference was parsed and
-        // then thrown away one line later.
-        selectedVerseId: parsed.verseIdStart,
-      });
-      replaceWithPanel('bible', contentKey, `${parsed.bookName} ${parsed.chapter}`, abbreviation);
+      // The verse the user typed. Dropping it opened "John 5:5" on John 5
+      // with nothing selected and no scroll - the reference was parsed and
+      // then thrown away one line later.
+      openPassage(parsed.bookNumber, parsed.chapter, parsed.bookName, parsed.verseIdStart);
       return;
     }
 
     // Try parsing as "Book Chapter" (no verse, e.g. "John 3")
     const chapterRef = parseBookChapter(trimmed);
     if (chapterRef) {
-      const abbreviation = getDefaultBibleAbbreviation();
-      const contentKey = encodeBibleContentKey({
-        abbreviation,
-        book: chapterRef.bookNumber,
-        chapter: chapterRef.chapter,
-      });
-      replaceWithPanel('bible', contentKey, `${chapterRef.bookName} ${chapterRef.chapter}`, abbreviation);
+      openPassage(chapterRef.bookNumber, chapterRef.chapter, chapterRef.bookName);
       return;
     }
 
@@ -182,7 +186,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     setError(
       t('newTabPage.unrecognizedInput', { input: trimmed }),
     );
-  }, [query, replaceWithPanel, t]);
+  }, [query, replaceWithPanel, openPassage, t]);
 
   const handleQuickAction = useCallback((type: PanelContentType) => {
     // Deliberately NOT the button's visible label. That text is already

@@ -12,7 +12,7 @@
     "build": "tsc && node -e \"require('fs').chmodSync('dist/bin.js', 0o755); require('fs').chmodSync('dist/binSmoke.js', 0o755)\"",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest"
   },

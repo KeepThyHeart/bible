@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { VerseIdHelper } from '@bible/core';
 import { bibleAPI } from '../../../services/electronAPI';
+import { pickDefaultBible } from '../../../../../electron/ipc/defaultBible';
 import { DEFAULT_PANEL_ID, updatePanelState } from '../../helpers/panelStateHelpers';
 import { useLayoutStore } from '../../useLayoutStore';
 import {
@@ -25,6 +26,22 @@ export interface SharedSlice {
   loadAvailableBibles: () => Promise<void>;
   /** Seed `panelId` (default: the first Bible panel) with the default passage. */
   loadInitialData: (panelId?: string) => Promise<void>;
+
+  /**
+   * The Bible to use when nothing more specific was asked for: `preferred` if
+   * it is installed, else the translation the reader already has open in a
+   * Bible panel, else KJV if installed, else the first installed Bible.
+   *
+   * Synchronous and safe to call from a selector. Until the installed list has
+   * loaded it can only vouch for `preferred` or a translation already on
+   * screen (which loaded, so it is installed), and answers `undefined`
+   * otherwise - it never guesses a Bible by name. Where waiting for the list is
+   * worth it, use `resolveDefaultBible`.
+   */
+  getDefaultBible: (preferred?: string | null) => string | undefined;
+
+  /** `getDefaultBible`, after loading the installed list if that has not happened yet. */
+  resolveDefaultBible: (preferred?: string | null) => Promise<string | undefined>;
 
   /**
    * Navigate the first Bible panel to a verse (convenience for commentary,
@@ -79,7 +96,11 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
     set({ loadingBibles: true });
 
     try {
-      const data = await bibleAPI.getInitialData('KJV', 43, 3);
+      // On a fresh start nothing is known yet - this call is what loads the
+      // installed list - so no Bible is named and the main process chooses
+      // with the same rule. Naming one by habit asked for a module that may
+      // not be installed.
+      const data = await bibleAPI.getInitialData(get().getDefaultBible(), 43, 3);
 
       if (!data.defaultBible || data.defaultVerses.length === 0) {
         // No Bibles available, just update available list
@@ -179,6 +200,36 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
       console.error('[useBibleStore] Error loading initial data:', error);
       set({ loadingBibles: false, initialLoadComplete: true });
     }
+  },
+
+  getDefaultBible: (preferred?: string | null) => {
+    const { availableBibles, panels } = get();
+
+    // The reader's last-used translation: whatever the first Bible panel with
+    // a passage is showing.
+    let onScreen: string | undefined;
+    for (const ps of panels.values()) {
+      onScreen = ps.openTabs[ps.activeTabIndex]?.abbreviation;
+      if (onScreen) break;
+    }
+
+    if (availableBibles.length === 0) {
+      return preferred ?? onScreen;
+    }
+
+    const isInstalled = (abbreviation: string | null | undefined): boolean =>
+      !!abbreviation && availableBibles.some(b => b.abbreviation.toLowerCase() === abbreviation.toLowerCase());
+    return pickDefaultBible(
+      availableBibles,
+      isInstalled(preferred) ? preferred : onScreen,
+    );
+  },
+
+  resolveDefaultBible: async (preferred?: string | null) => {
+    if (get().availableBibles.length === 0) {
+      await get().loadAvailableBibles();
+    }
+    return get().getDefaultBible(preferred);
   },
 
   // Navigate the Bible panel the user is actually looking at to a verse
