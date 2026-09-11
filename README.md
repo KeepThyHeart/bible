@@ -130,6 +130,8 @@ Troubleshooting
 npm run rebuild-native:force -w @bible/desktop
 ```
 
+**`npm run setup` spends a couple of minutes compiling during `rebuild-sqlite`.** That step first downloads a prebuilt Electron binary of the SQLite driver from GitHub, and compiles it only when the download fails. A network where IPv6 to GitHub is slow or broken can stall the download past its 15-second timeout, so it compiles instead. That is harmless, just slower; forcing IPv4 (for example `NODE_OPTIONS=--dns-result-order=ipv4first npm run rebuild-sqlite`) usually makes it a download again.
+
 **`init: better-sqlite3-web's native binding is missing or was built for a different Node.js`.** The web copy of SQLite was installed under another Node version. Rebuild it for the current one with `npm rebuild better-sqlite3-web` (the same as `npm run rebuild-sqlite -w @bible/web`). The web server hits the same error for the same reason.
 
 **`init: This repository needs Node.js 20.19 or newer`.** Install Node 24, then re-run `npm install` so native modules are built for it.

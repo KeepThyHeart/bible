@@ -209,7 +209,11 @@ export default defineConfig({
     // tree, and `files:` filters cannot veto that. Since node_modules/@bible/core
     // is a workspace symlink, moving it back to `dependencies` breaks asar
     // packaging with "packages/core/LICENSE must be under apps/desktop/".
-    plugins: [externalizeDepsPlugin({ exclude: ['@bible/core'] }), quickjsGuestBundlePlugin()],
+    //
+    // `keytar` is in `optionalDependencies`, which the plugin does not read, so it
+    // is named here: it is native, and must stay a runtime `require` that
+    // encryptionKeyManager can catch when the module is absent.
+    plugins: [externalizeDepsPlugin({ exclude: ['@bible/core'], include: ['keytar'] }), quickjsGuestBundlePlugin()],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
