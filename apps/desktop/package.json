@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "preview": "electron-vite preview",
     "stage-build-data": "node scripts/stage-build-data.js",
+    "build-feature-pack": "node scripts/build-feature-pack.js",
     "package:win": "npm run build && npm run stage-build-data && electron-builder --win --config electron-builder.curated.yml",
     "package:mac": "npm run build && npm run stage-build-data && electron-builder --mac --config electron-builder.curated.yml",
     "package:linux": "npm run build && npm run stage-build-data && electron-builder --linux --config electron-builder.curated.yml",

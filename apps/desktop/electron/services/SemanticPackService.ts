@@ -78,6 +78,7 @@ async function unzipperOpen(): Promise<typeof import('unzipper').Open> {
 import {
   packagedFileName,
   parseLocalFeaturePack,
+  FEATURE_PACK_ALLOWED_EXTENSIONS,
   FEATURE_PACK_MANIFEST_FILENAME,
   type FeaturePack,
   type FeaturePackArtifact,
@@ -96,48 +97,11 @@ const PACK_TYPE = 'semantic_search';
 const MANIFEST_FILENAME = 'pack.json';
 
 /**
- * File extensions a pack is allowed to contain. **A PACK MAY CARRY DATA; IT MAY
- * NEVER CARRY CODE.**
- *
- * This is the invariant that keeps packs from becoming a second software
- * distribution channel. Everything executable - the ONNX runtime, the
- * transformers layer, the search logic - ships inside the signed, attested
- * installer and nowhere else (see `docs/ReleaseVerification.md`). A pack is
- * bounded *input* to code the user already has. If a `.dll`, `.so` or `.node`
- * could arrive inside a downloaded pack, then code signing, build provenance
- * and the renderer sandbox would all be reasoning about a binary that is no
- * longer the whole program, and the pack download would become the softest way
- * in.
- *
- * ALLOWLIST, NOT A DENYLIST - deliberately, and for the same reason the
- * `data/` entry in `electron-builder*.yml` is an allowlist. A denylist of
- * dangerous extensions fails OPEN: it has to anticipate `.dylib`, versioned
- * `.so.1.27.0`, `.wasm`, `.pyc`, `.jar`, `.scr`, and whatever the next loader
- * format turns out to be. Enumerating what a semantic pack legitimately needs
- * is a short, checkable list that fails CLOSED on everything else.
- *
- *   .db    the embedding index (SQLite)
- *   .onnx  the model graph
- *   .json  config.json / tokenizer.json / tokenizer_config.json / ...
- *   .txt   vocab files, and model LICENSE.txt
- *   .md    model licence / model card
- *
- * Note what is NOT here: `.bin` and `.pt`/`.pth`/`.pkl`/`.ckpt`. Those are the
- * PyTorch/pickle formats, which execute arbitrary code *by design* on load.
- * This app only ever loads ONNX. Extensionless files are also rejected - on
- * Linux an executable commonly has no extension at all.
- *
- * Adding an entry here widens what a hostile or compromised catalog can put on
- * a user's disk. Do not add one without saying, in the commit message, what
- * loads that file type and why it cannot execute.
+ * File extensions a pack is allowed to contain - data, never code. The list
+ * and the reasoning behind it live with the pack types in @bible/core, where
+ * the pack build script enforces the same list.
  */
-const ALLOWED_ARTIFACT_EXTENSIONS: ReadonlySet<string> = new Set([
-  '.db',
-  '.onnx',
-  '.json',
-  '.txt',
-  '.md',
-]);
+const ALLOWED_ARTIFACT_EXTENSIONS = FEATURE_PACK_ALLOWED_EXTENSIONS;
 
 /**
  * Allowance over an artifact's declared size before the transfer is aborted.

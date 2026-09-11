@@ -26,8 +26,8 @@ Two independent search stacks live in `@bible/core`: a complete, self-contained 
 
 | File | Purpose |
 |---|---|
-| `src/Services/SemanticSearchService.ts` | Brute-force in-memory cosine search over a `semantic_embeddings` SQLite table. Also exports `cosineSimilarity`. |
-| `src/Services/SemanticSearchService.test.ts` | Covers `cosineSimilarity` only. |
+| `src/Services/SemanticSearchService.ts` | Brute-force in-memory cosine search over a `semantic_embeddings` SQLite table, float32 or int8, in whatever width and centring the index's `index_metadata` declares. Also exports `cosineSimilarity`. |
+| `src/Services/SemanticSearchService.test.ts` | `cosineSimilarity`, plus format-1 (legacy float32) and format-2 (truncated, centred int8) indexes built in memory: query transform, declared threshold and query model, level filtering, passage collapsing, and rejection of malformed indexes. |
 | `src/Services/SearchOrchestrationService.ts` | Framework-agnostic orchestration on top of an `ISearchPipeline`: fuse -> consolidate -> tag-rerank -> topic-expand -> enrich -> min-score -> optional hybrid merge. |
 
 ### Pipeline contracts and pure functions - `src/Services/Search/`
@@ -80,12 +80,17 @@ There are two, and they do not share code past the interfaces.
 
 ```
 consumer's semantic-search entry point
-  -> getQueryEmbedding()            // @huggingface/transformers, Xenova/nomic-embed-text-v1, fp32
-  -> SemanticSearchService.search(queryEmbedding, {maxResults, levels, minSimilarity: 0.3})
-      -> loadEmbeddings() once (all rows into a Map of Float32Array views)
-      -> cosineSimilarity against every entry at the requested levels
+  -> SemanticSearchService.getQueryModel()   // model id, dtype, prefix - declared by the index
+  -> getQueryEmbedding()            // @huggingface/transformers with that model
+  -> SemanticSearchService.search(queryEmbedding, {maxResults, levels, collapsePassages})
+      -> loadEmbeddings() once (flat typed arrays, paged by rowid)
+      -> prepareQuery(): truncate to embedding_dim, normalise, subtract mean_vector if any
+      -> dot product x per-row inverse norm against every row at the requested levels
+      -> floor at the index's min_similarity (0.3 for a format-1 index)
   -> formatSemanticReference() + verse-text enrichment by the caller
 ```
+
+The index formats: **format 1** (no `index_format` key) is full-width float32, queried with `Xenova/nomic-embed-text-v1` at fp32 - the directory name the original packs used for the nomic v1.5 weights. **Format 2** declares `vector_encoding` (`float32` | `int8`), `embedding_dim`, an optional `mean_vector`, `min_similarity`, and `query_model` / `query_model_dtype` / `query_prefix`. Anything the reader does not recognise throws, rather than ranking on a guess.
 
 **Via `ISearchPipeline`**, the full path:
 
@@ -125,7 +130,7 @@ When chasing a ranking bug, trace where the target verse sits after each stage -
 - **Deduplication is by `verseId` alone, across modules.** Searching KJV and ESV together yields each verse once, from whichever module the `Map` iterated first. Insertion order therefore decides which translation the user sees.
 - **`score` is nearly decorative for keyword results.** Almost every path assigns `1.0` (Strong's word-family relatives get `0.8`). Ordering comes from `rankResults`: exact before fuzzy, then an exact-phrase boost for multi-word queries, then canonical verse order.
 - **Two different `SemanticSearchResult` types exist.** `SemanticSearchService` exports one and `SearchOrchestrationService` exports another; `src/index.ts` re-exports the latter as `OrchestrationSearchResult` to keep the root barrel from colliding.
-- **`SemanticSearchService` assumes float32 blobs.** It builds `Float32Array` views over `embedding_blob` with `byteLength / 4`. Int8-quantized indexes are the platform vector-search implementations' business, not this class's.
+- **A centred or truncated index scores on its own scale.** Similarities from a 256-d mean-centred int8 index are not comparable with raw 768-d cosine, which is why the floor comes from the index (`min_similarity`) and callers should not pass a fixed one.
 - **Nothing in `src/Services/Search/` has a unit test.** `ScoreFusion`, `Consolidation`, `TopicExpansion`, `TagReranking`, and `ScoringUtils` are pure and trivially testable, and are currently not covered at all.
 - **Query length is capped at three layers on purpose.** HTTP routes reject over 512 chars with a 400; each embedder calls `clampSearchQuery` as a backstop for non-route callers. Do not "simplify" this to one layer.
 

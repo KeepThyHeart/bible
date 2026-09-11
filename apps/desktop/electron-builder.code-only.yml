@@ -73,9 +73,10 @@ files:
   # Un-excluding onnxruntime-node + @huggingface/transformers builds cleanly
   # (app.asar 67.8 MB, win-unpacked 842 MB) versus 34.3 MB / 323 MB without them.
   # So the cost of making semantic search work on a code-only install is about
-  # +519 MB unpacked. Whether that is worth paying when the pack it enables is
-  # itself ~2.1 GB is the open payload question in WS-G/G7 — deliberately not
-  # decided here.
+  # +519 MB unpacked. Whether that is worth paying is the open payload question
+  # in WS-G/G7 — deliberately not decided here. The pack it enables was ~2.1 GB
+  # in its original full-width float32 form; the compact 256-d int8 pack built
+  # by scripts/build-feature-pack.js is ~210 MB to download, ~280 MB installed.
   #
   # IF YOU ADD THEM BACK, prune the three non-target ORT platform trees (~197 MB
   # of the 259 MB `bin/napi-v6` tree) with an `afterPack` hook that deletes them.
