@@ -219,12 +219,37 @@ describe('runSmokeSuite', () => {
     expect(result.records[0]?.message).toContain('evil.tracker.com');
   });
 
-  it('classifies not-invokable hooks as skip, not fail', async () => {
+  it('classifies a declarative contribution as skip, not fail', async () => {
+    // A panel type is the real skip case: the host mounts an iframe, and
+    // there is no extension code behind it for the corpus to call.
+    const harness = createSmokeHarness({
+      manifest: manifest(),
+      activate: async (api) => {
+        await api.ui.registerPanelType({
+          id: 'panel',
+          title: { key: 'Panel' },
+          uiEntry: 'ui/index.html',
+        });
+      },
+    });
+    await harness.activate();
+    const result = await runSmokeSuite({ harness });
+    await harness.deactivate();
+
+    const panelRecords = result.records.filter((r) => r.kind === 'panelType');
+    expect(panelRecords.length).toBeGreaterThan(0);
+    expect(panelRecords.every((r) => r.status === 'skip')).toBe(true);
+    expect(panelRecords[0]?.message).toMatch(/declarative/);
+    expect(result.totals.failed).toBe(0);
+    expect(result.totals.skipped).toBeGreaterThan(0);
+  });
+
+  it('classifies a declared-but-unbound endpoint as fail, not skip', async () => {
     const harness = createSmokeHarness({
       manifest: manifest(),
       activate: async (api) => {
         await api.ui.registerVerseHover({
-          id: 'hover-skip',
+          id: 'hover-dead',
           hoverEndpoint: 'onHover',
         });
       },
@@ -233,10 +258,63 @@ describe('runSmokeSuite', () => {
     const result = await runSmokeSuite({ harness });
     await harness.deactivate();
 
-    const hoverRecords = result.records.filter((r) => r.hookId === 'hover:hover-skip');
-    expect(hoverRecords.length).toBeGreaterThan(0);
-    expect(hoverRecords.every((r) => r.status === 'skip')).toBe(true);
+    const hoverRecords = result.records.filter((r) => r.hookId === 'hover:hover-dead');
+    // Recorded once, not once per corpus entry: the outcome cannot vary with
+    // the input, so thirteen identical rows would say nothing extra.
+    expect(hoverRecords).toHaveLength(1);
+    expect(hoverRecords[0]?.status).toBe('fail');
+    expect(hoverRecords[0]?.failureReason).toBe('unbound-endpoint');
+    expect(result.totals.failed).toBe(1);
+  });
+
+  it('passes an endpoint hook the extension bound and exercises every corpus input', async () => {
+    const seen: unknown[] = [];
+    const harness = createSmokeHarness({
+      manifest: manifest(),
+      activate: async (api) => {
+        await api.runtime.expose('onHover', (verseId: unknown) => {
+          seen.push(verseId);
+          return null;
+        });
+        await api.ui.registerVerseHover({ id: 'hover-live', hoverEndpoint: 'onHover' });
+      },
+    });
+    await harness.activate();
+    const result = await runSmokeSuite({ harness });
+    await harness.deactivate();
+
+    const hoverRecords = result.records.filter((r) => r.hookId === 'hover:hover-live');
+    expect(hoverRecords.length).toBeGreaterThan(1);
+    expect(hoverRecords.every((r) => r.status === 'pass')).toBe(true);
+    expect(seen).toHaveLength(hoverRecords.length);
     expect(result.totals.failed).toBe(0);
-    expect(result.totals.skipped).toBeGreaterThan(0);
+  });
+
+  it('fails a command whose handler throws on one corpus input', async () => {
+    const harness = createSmokeHarness({
+      manifest: manifest({
+        contributes: {
+          commands: [
+            { id: 'ext.test.suite.go', title: { key: 'go' }, handlerEndpoint: 'go' },
+          ],
+        },
+      }),
+      activate: async (api) => {
+        await api.runtime.expose('go', (args: unknown) => {
+          if (args === null) throw new Error('null args exploded');
+        });
+      },
+    });
+    await harness.activate();
+    const result = await runSmokeSuite({ harness });
+    await harness.deactivate();
+
+    const failed = result.records.filter((r) => r.status === 'fail');
+    expect(failed.length).toBeGreaterThan(0);
+    expect(failed.every((r) => r.failureReason === 'threw')).toBe(true);
+    expect(failed[0]?.message).toContain('null args exploded');
+    // The other inputs still ran and passed — a throw on one input does not
+    // abandon the rest of the corpus.
+    expect(result.totals.passed).toBeGreaterThan(0);
   });
 });

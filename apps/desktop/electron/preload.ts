@@ -343,7 +343,7 @@ export interface ElectronAPI {
     // Listen for initialization data (for detached windows)
     onInitializePane: (callback: (data: any) => void) => void;
     // Broadcast verse change to detached windows
-    broadcastVerseChange: (verseId: number) => Promise<{ success: boolean; error?: string }>;
+    broadcastVerseChange: (verseId: number, moduleId?: string) => Promise<{ success: boolean; error?: string }>;
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
@@ -565,6 +565,16 @@ export interface ElectronAPI {
     openInstallFolder: (extensionId: string) => Promise<boolean>;
     /** Panel-iframe egress, routed through the extension's own gateway. */
     uiFetch: (extensionId: string, url: string, init?: unknown) => Promise<unknown>;
+    /**
+     * Panel-iframe message to that panel's own extension worker. The panel
+     * host supplies every identifier; the iframe supplies only `message`.
+     */
+    panelInvoke: (
+      extensionId: string,
+      panelId: string,
+      panelTypeId: string,
+      message: unknown,
+    ) => Promise<unknown>;
     /**
      * Marketplace. `addSource`'s `acknowledgeRisk` must only be true
      * when the user has actually seen the warning - a source added without it
@@ -943,8 +953,8 @@ const electronAPI: ElectronAPI = {
     },
 
     // Broadcast verse change to detached windows (called from main window)
-    broadcastVerseChange: (verseId: number) =>
-      ipcRenderer.invoke('window:broadcast-verse-change', verseId),
+    broadcastVerseChange: (verseId: number, moduleId?: string) =>
+      ipcRenderer.invoke('window:broadcast-verse-change', verseId, moduleId),
 
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => {
@@ -1163,6 +1173,24 @@ const electronAPI: ElectronAPI = {
      */
     uiFetch: (extensionId: string, url: string, init?: unknown) =>
       ipcRenderer.invoke('extensions:uiFetch', extensionId, url, init),
+    /**
+     * Deliver a panel iframe's message to its own extension worker. As with
+     * `uiFetch`, the three identifiers come from the panel host's closure and
+     * never from the iframe, so a panel cannot address another extension.
+     */
+    panelInvoke: (
+      extensionId: string,
+      panelId: string,
+      panelTypeId: string,
+      message: unknown,
+    ) =>
+      ipcRenderer.invoke(
+        'extensions:panelInvoke',
+        extensionId,
+        panelId,
+        panelTypeId,
+        message,
+      ),
     /** Marketplace catalogs. */
     catalog: {
       listSources: () => ipcRenderer.invoke('extensions:catalog:listSources'),

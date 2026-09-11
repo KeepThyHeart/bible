@@ -1,6 +1,7 @@
 {
   "main.about.title": "⟦Åƀøüţ {productName} ··⟧",
-  "main.about.detail": "⟦Ṽéŕšîøñ {version}\n\nÅ ɱøðéŕñ Ɓîƀļé šţüðý ðéšķţøþ åþþļîçåţîøñ.\n\n© {year} ················⟧",
+  "main.about.detail": "⟦Ṽéŕšîøñ {version}\n\nÅ Ɓîƀļé šţüðý ðéšķţøþ åþþļîçåţîøñ.\n\n© {year} ··············⟧",
+  "main.about.build": "⟦Ɓüîļð {buildId} ··⟧",
   "main.about.ok": "⟦ØĶ ··⟧",
   "main.dialog.saveBackup": "⟦Šåṽé Ɓåçķüþ Ƒîļé ····⟧",
   "main.dialog.selectBackup": "⟦Šéļéçţ Ɓåçķüþ Ƒîļé ·····⟧",
@@ -43,5 +44,6 @@
   "main.window.study": "⟦Šţüðý - {name} ··⟧",
   "main.window.studyFallback": "⟦Šţüðý ··⟧",
   "main.window.topics": "⟦Ţøþîçš - {name} ··⟧",
-  "main.window.topicsFallback": "⟦Ţøþîçš ··⟧"
+  "main.window.topicsFallback": "⟦Ţøþîçš ··⟧",
+  "main.window.extensionFallback": "⟦Éẋţéñšîøñ ··⟧"
 }

@@ -14,7 +14,9 @@
  *   - `registerVerseHover` - hover content providers
  *   - `registerContextMenu` - context menu item contributions
  *   - `registerStatusBarItem` - status bar contributions
- *   - `registerDisplayMode` - custom Bible display modes
+ *   - `registerDisplayMode` - RESERVED. Declared in `IUiApi` but never
+ *     implemented; always rejects with `MethodNotImplementedYet`. See the
+ *     handler for the full reasoning.
  *   - `pickFile` / `saveFile` - file picker round-trips
  */
 
@@ -25,6 +27,9 @@ import {
   type ExtensionPermissionGrant,
   requirePermission,
 } from '../ExtensionPermissionGuard';
+// Value import, and safe from a cycle: ExtensionHostTypes.ts imports this
+// module (via ./api-impl) with `import type` only, so that edge is erased.
+import { MethodNotImplementedYet } from '../ExtensionHostTypes';
 import type { IExtensionUiBridge } from './IExtensionDataBridges';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
@@ -262,19 +267,50 @@ export class UiApiImpl {
     return { disposalId };
   }
 
-  private async handleRegisterDisplayMode(args: unknown[]): Promise<{ disposalId: string }> {
-    this.assertActive();
-    requirePermission(this.grant, 'display-mode:provide');
-    const def = args[0];
-    if (!isDisplayModeDescriptor(def)) {
-      throw new RpcProtocolError(
-        'ui.registerDisplayMode: expected DisplayModeDescriptor as first arg',
-      );
-    }
-    const disposer = this.bridge.registerDisplayMode(this.extensionId, def);
-    const disposalId = `display-${this.nextDisposalId++}`;
-    this.disposers.set(disposalId, disposer);
-    return { disposalId };
+  /**
+   * RESERVED - always rejects with `MethodNotImplementedYet`.
+   *
+   * `ui.registerDisplayMode` is declared in `IUiApi`, validated here, and
+   * pushed to the renderer by `RendererUiBridge` - but custom verse display
+   * modes were never built. Nothing in the renderer consumes a registered mode:
+   * the Bible pane's Display Mode picker is driven by the fixed
+   * Simple/Standard/Study set in `useBibleStore`, and no listener for the
+   * `displayModeRegistered` notification exists anywhere in `src/ui`. The type
+   * shipped ahead of the decision.
+   *
+   * Until this change an extension got a valid `DisposableHandle` back and then
+   * nothing happened - no error, no warning, no rendering. That is the one
+   * outcome that cannot stay: it is indistinguishable from a bug in the
+   * extension, so the author's only route to the truth is reading host source.
+   * A predictable rejection carrying a stable code costs the extension nothing
+   * it actually had, and turns an invisible dead end into a message.
+   *
+   * The throw is UNCONDITIONAL and comes before the permission check and the
+   * descriptor validation on purpose. Neither can change the answer - no grant
+   * and no well-formed descriptor makes a display mode render - so gating the
+   * reserved error behind them would hand back `PermissionDeniedError` or
+   * `RpcProtocolError` for calls whose real problem is that the feature does not
+   * exist. One method, one answer.
+   *
+   * `MethodNotImplementedYet` (ExtensionHostTypes.ts) is reused rather than a
+   * new code because it is exactly what it was declared for, and because it is
+   * deliberately NOT a member of the closed `ExtensionApiErrorCode` union - a
+   * host-internal "not built yet" marker is not part of the extension API's
+   * stable error contract. `serializeError` in `ExtensionRpcRouter` carries the
+   * code across the wire, and the worker runtime revives it as a plain
+   * `ExtensionApiError` whose `.code` is `'MethodNotImplementedYet'`, so an
+   * extension can branch on it.
+   *
+   * When display modes are implemented, delete this throw and restore the
+   * `display-mode:provide` permission check, an `isDisplayModeDescriptor` type
+   * guard, and the `bridge.registerDisplayMode` delegation. The bridge method
+   * and `DisplayModeDescriptor` are both still in place; only the guard was
+   * removed here, because `noUnusedLocals` will not tolerate a dead one.
+   */
+  private async handleRegisterDisplayMode(_args: unknown[]): Promise<never> {
+    throw new MethodNotImplementedYet(
+      'ui.registerDisplayMode (reserved: custom verse display modes are declared in the API but not implemented)',
+    );
   }
 
   private async handleRegisterStatusBarItem(args: unknown[]): Promise<{ disposalId: string }> {
@@ -372,15 +408,10 @@ function isContextMenuItemDescriptor(value: unknown): value is Extensions.Contex
   return true;
 }
 
-function isDisplayModeDescriptor(value: unknown): value is Extensions.DisplayModeDescriptor {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || v.id.length === 0) return false;
-  if (!isLocalizedString(v.label)) return false;
-  if (v.kind !== 'overlay' && v.kind !== 'replace') return false;
-  if (typeof v.renderEndpoint !== 'string' || v.renderEndpoint.length === 0) return false;
-  return true;
-}
+// `isDisplayModeDescriptor` used to sit here. It went with the descriptor
+// validation in `handleRegisterDisplayMode`, which now rejects unconditionally:
+// a guard nothing calls is a `noUnusedLocals` error, and a commented-out one is
+// worse than none. Restore it from history when display modes are built.
 
 function isStatusBarItemDescriptor(value: unknown): value is Extensions.StatusBarItemDescriptor {
   if (typeof value !== 'object' || value === null) return false;

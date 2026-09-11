@@ -147,6 +147,35 @@ describe('CommandRegistry', () => {
       expect(h.registry.get('ext.demo.greet')?.ownerExtensionId).toBe('demo');
     });
 
+    it('accepts a fully qualified manifest id as the owner', () => {
+      // The regression this guards: a real extension's `ownerExtensionId` is
+      // its manifest id, which `ID_PATTERN` requires to start with `ext.`.
+      // Concatenating `ext.` again made the expected prefix
+      // `ext.ext.acme.plan.`, so this - the correct id an author would write -
+      // threw `ExtensionCommandPrefixError`, and no extension could register a
+      // command at all.
+      h.registry.register({
+        id: 'ext.acme.plan.start',
+        title: 'Start',
+        ownerExtensionId: 'ext.acme.plan',
+        handler: vi.fn(),
+      });
+      expect(h.registry.get('ext.acme.plan.start')?.ownerExtensionId).toBe('ext.acme.plan');
+    });
+
+    it('still rejects a command that borrows another extension id', () => {
+      // Normalising the owner must not weaken the rule into "starts with
+      // ext.". `ext.acme.plan` may not claim ids under `ext.other`.
+      expect(() =>
+        h.registry.register({
+          id: 'ext.other.start',
+          title: 'Start',
+          ownerExtensionId: 'ext.acme.plan',
+          handler: vi.fn(),
+        }),
+      ).toThrow(ExtensionCommandPrefixError);
+    });
+
     it('rejects an extension command id without the ext.<id>. prefix', () => {
       expect(() =>
         h.registry.register({

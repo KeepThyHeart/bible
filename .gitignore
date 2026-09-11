@@ -3,6 +3,10 @@ node_modules/
 dist/
 out/
 
+# Packed SDK tarballs produced by `npm run pack:sdk`, for scaffolding an
+# extension project outside this repository. Build output, not source.
+/build/sdk/
+
 # Runtime data directories. Never tracked -- these hold operator config
 # (site-config.json, with a written-back password hash), module .db files,
 # downloaded models and plugin state. Templates live in apps/*/config/.

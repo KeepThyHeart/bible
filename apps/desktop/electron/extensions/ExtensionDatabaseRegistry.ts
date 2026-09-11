@@ -48,7 +48,16 @@ interface OpenEntry {
 }
 
 export interface ExtensionDatabaseRegistryOptions {
-  /** Absolute path to `data/extensions/`. */
+  /**
+   * Absolute path to the per-extension state root - the parent of
+   * `<id>/db/`.
+   *
+   * This must be a WRITABLE directory, which is why `main.ts` passes
+   * `join(getUserDataPath(), 'extensions')` rather than the discovery root it
+   * derives from `getDataPath()`. The two are the same directory outside a
+   * packaged build; in a packaged one the discovery root lives in
+   * `process.resourcesPath` and is read-only on Linux and macOS.
+   */
   extensionsRoot: string;
   /** Factory for opening the underlying SQLite file. */
   factory: IExtensionDatabaseFactory;

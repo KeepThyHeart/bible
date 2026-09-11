@@ -1,6 +1,6 @@
 {
   "name": "@bible/extension-testing",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Testing utilities for Bible app extension developers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,11 +30,12 @@
   "author": "Peter Rankin <psrankin@outlook.com>",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "@bible/core": "^1.0.0"
+    "@bible/core": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0",
+    "unzipper": "^0.12.3",
     "vitest": "^2.0.0"
   },
   "peerDependencies": {

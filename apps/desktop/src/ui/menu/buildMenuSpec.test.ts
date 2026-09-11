@@ -57,13 +57,19 @@ function bootI18n(): I18nService {
 }
 
 /**
- * `buildMenuSpec` touches exactly two things on these services, so a stub
- * beats dragging the real registry in. Every command id resolves, since an
+ * `buildMenuSpec` touches a small slice of these services, so a stub beats
+ * dragging the real registry in. Every command id resolves, since an
  * unregistered one is a separate failure mode (it warns and still labels).
+ *
+ * `list()` returns empty: the Tools menu is built by enumerating commands that
+ * carry an `ownerExtensionId`, and this file is about the *boot* menu - the
+ * one a fresh install with no extensions gets. Its own coverage lives in
+ * `extensionToolsMenu.test.ts`.
  */
 function stubDeps(i18n: I18nService) {
   const registry = {
     get: (commandId: string) => ({ id: commandId, title: commandId, handler: () => {} }),
+    list: () => [],
   } as unknown as ICommandRegistry;
   const keybindings = {
     getBindingsForCommand: () => [],

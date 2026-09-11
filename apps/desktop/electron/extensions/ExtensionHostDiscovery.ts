@@ -43,6 +43,12 @@ export async function loadAll(ctx: ExtensionHostContext): Promise<void> {
       continue;
     }
 
+    // No manifest at all means this is not an install. The host keeps each
+    // extension's own data here too (`<id>/db/`, `<id>/extension.log`) - for
+    // an unpacked extension that is all the directory holds - so warning about
+    // it on every start would report a healthy extension as broken.
+    if (!existsSync(join(installPath, 'extension.json'))) continue;
+
     const manifestResult = loadManifest(installPath);
     if (!manifestResult.ok) {
       // Surface the load failure both to the registry (so the UI shows

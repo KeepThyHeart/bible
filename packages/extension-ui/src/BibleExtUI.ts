@@ -253,6 +253,55 @@ export class BibleExtUI {
     return this.rpc.request<UiFetchResponse>('network.fetch', [url, init]);
   }
 
+  // ── Talking to your extension's worker ───────────────────────────────
+
+  /**
+   * Send a message to your extension's worker and await its reply.
+   *
+   * **This is how panel UI reaches the API.** A panel iframe runs on its own
+   * sandboxed origin and can only navigate a verse, read the theme, and make
+   * a permission-gated {@link fetch}. It cannot call `api.storage`,
+   * `api.bible` or `api.l10n` directly - those live in your worker, behind the
+   * permission guard. So the panel asks, and the worker answers:
+   *
+   * ```typescript
+   * // worker (main.js)
+   * api.panels.onMessage(async (msg) => {
+   *   if (msg.type === 'load') return api.storage.get('state');
+   *   throw new Error(`unknown request: ${msg.type}`);
+   * });
+   * ```
+   * ```typescript
+   * // panel
+   * const state = await bible.postToWorker({ type: 'load' });
+   * ```
+   *
+   * The host stamps your extension's identity onto the message from the
+   * closure that mounted this iframe, so the worker always knows which of its
+   * panels asked and no other extension can be addressed.
+   *
+   * Rejects if your extension is not active, has not registered a handler,
+   * the handler threw, the message exceeds 256 KB of JSON, or the worker took
+   * longer than 10 seconds to answer.
+   */
+  postToWorker<T = unknown>(message: unknown): Promise<T> {
+    return this.rpc.request<T>('panel.invoke', [message]);
+  }
+
+  /**
+   * Receive messages your worker pushed with `api.panels.postMessage(...)`.
+   *
+   * These arrive without being asked for, so treat them as notifications - a
+   * refresh signal, a progress tick, a "your data changed elsewhere" nudge.
+   * A panel that is closed or still loading misses them, so anything the
+   * panel must not miss belongs in storage it reads on mount instead.
+   */
+  onWorkerMessage(callback: (message: unknown) => void): Disposable {
+    return this.rpc.on('panel.message', (payload) => {
+      callback(payload);
+    });
+  }
+
   // ── Utility ──────────────────────────────────────────────────────────
 
   /**

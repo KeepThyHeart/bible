@@ -40,6 +40,12 @@ vi.mock('./notes/UserNotesPane', () => stubPane('UserNotesPane'));
 vi.mock('./notes/tabs/PrayerTab', () => stubPane('PrayerTab'));
 vi.mock('./StudyPane', () => stubPane('StudyPane'));
 vi.mock('./TopicsPane', () => stubPane('TopicsPane'));
+// Extension panels detach into this one component - every contributed panel
+// type maps to it, and `extensionId` / `panelTypeId` arrive in the payload.
+// Stubbed like the rest: the real one calls `useI18n`, which needs the
+// `ContextProvider` that `detached.tsx` wraps the tree in, and mounts an
+// `ext-ui://` iframe that has no meaning in jsdom.
+vi.mock('./extensions/ExtensionPanelHost', () => stubPane('ExtensionPanelHost'));
 
 // Only the singleton is stubbed: `enT` imports the real `I18nService` class
 // from this same module, so replacing the whole module would break it.

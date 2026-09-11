@@ -1250,5 +1250,8 @@
   "documentationDialog.bookmarks.movingBody": "किसी पद पर राइट-क्लिक करें, <strong>बुकमार्क में जोड़ें</strong> चुनें, और नया जोड़ने के बजाय कोई मौजूदा बुकमार्क चुनें — अब वह यहाँ इंगित करता है। नामित बुकमार्क अपना नाम रखता है; बिना नाम वाला नया संदर्भ दिखाने लगता है।",
   "documentationDialog.bookmarks.managingHeading": "सूची का प्रबंधन",
   "documentationDialog.bookmarks.managingBody": "टूलबार का रिबन आपके बुकमार्क खोलता है; वहाँ जाने के लिए किसी पर क्लिक करें। <strong>बुकमार्क प्रबंधित करें</strong> में नाम बदलें, खींचकर क्रम बदलें और हटाएँ।",
-  "documentationDialog.bookmarks.tip": "बुकमार्क किया गया पद पाठ में अपने पास एक छोटा लाल रिबन दिखाता है।"
+  "documentationDialog.bookmarks.tip": "बुकमार्क किया गया पद पाठ में अपने पास एक छोटा लाल रिबन दिखाता है।",
+  "statusBar.label": "स्थिति पट्टी",
+  "commands.openExtensionPanel": "{name} खोलें",
+  "newTabPage.fromExtensions": "एक्सटेंशन से"
 }

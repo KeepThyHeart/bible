@@ -35,6 +35,7 @@ const NAMESPACES: ReadonlySet<string> = new Set([
   'notes',
   'highlights',
   'bookmarks',
+  'collections',
   'commands',
   'ui',
   'workspace',

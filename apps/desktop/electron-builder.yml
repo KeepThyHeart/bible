@@ -107,6 +107,32 @@ extraResources:
       # Both optional; absent in a plain dev tree and simply skipped.
       - 'search-pipeline.json'
       - 'models/**'
+      # === BUNDLED FIRST-PARTY EXTENSIONS ===
+      #
+      # Licensing posture here is the OPPOSITE of the module entries below, and
+      # that is the whole reason these can be listed at all. A third-party module
+      # is content whose licence we did not write and must check for a
+      # redistribution right before it can ride along in a GPL installer. A
+      # bundled extension is our own source, in this repository, under a
+      # GPL-compatible licence - word-count-example is MIT, deliberately more
+      # permissive than the repository root so it can be copied as the starting
+      # point for someone else's extension. There is no per-file licence
+      # question to answer; the reviewable decision is WHICH packages get
+      # bundled, and that list lives in scripts/stage-extensions.js.
+      #
+      # Named per extension, NOT `extensions/**`. In a developer tree
+      # `data/extensions/` is also the per-user install root: it holds whatever
+      # the developer has sideloaded or installed from a catalog, each
+      # extension's `db/` directory (arbitrary user data) and its lifecycle log.
+      # `extensions/**` would ship all of that - the same fail-open shape this
+      # block exists to avoid. One line per bundled extension, matching one
+      # entry in BUNDLED_EXTENSIONS in scripts/stage-extensions.js, so removing
+      # one from the installer is a two-line, reviewable act.
+      #
+      # The directory is produced by `npm run stage-extensions` (wired into
+      # `package:lean:*`); it is NOT checked in - `data/` is gitignored - so a
+      # build that skips staging simply ships no extensions rather than failing.
+      - 'extensions/ext.bible-app.word-count/**'
   # Only redistribution-safe module content may be bundled. This installer is
   # distributed under the GPL, which grants every recipient the right to
   # redistribute it; a module carrying non-commercial-only terms would make that

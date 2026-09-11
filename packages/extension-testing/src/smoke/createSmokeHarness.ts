@@ -19,7 +19,7 @@
  */
 
 import type { Extensions } from '@bible/core';
-import type { MockApiOverrides } from '../createMockApi';
+import { getMockRuntimeEndpoints, type MockApiOverrides } from '../createMockApi';
 import { loadManifest, type LoadedManifest } from './loadManifest';
 import { createRecordingApi } from './recordingApi';
 import { enumerateHooks } from './enumerateHooks';
@@ -83,7 +83,12 @@ const DEFAULT_ACTIVATE_TIMEOUT_MS = 5_000;
 export function createSmokeHarness(opts: SmokeHarnessOptions): SmokeHarness {
   const loaded = resolveManifestAndEntry(opts);
   const { api, captured } = createRecordingApi(opts.apiOverrides);
-  const invoker = opts.invoker ?? new InProcessHookInvoker(captured);
+  // The endpoint table is what turns the endpoint-based hooks (commands and
+  // everything routed through one) from skips into real assertions — see the
+  // header of `hookInvoker.ts`. It is the mock's own table, so it is filled by
+  // the extension's `api.runtime.expose(...)` calls during activate().
+  const invoker =
+    opts.invoker ?? new InProcessHookInvoker(captured, getMockRuntimeEndpoints(api));
   const activateTimeoutMs = opts.activateTimeoutMs ?? DEFAULT_ACTIVATE_TIMEOUT_MS;
   let active = false;
   let hooks: HookDescriptor[] | null = null;

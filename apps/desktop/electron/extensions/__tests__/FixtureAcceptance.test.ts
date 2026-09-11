@@ -168,6 +168,7 @@ const stubBibleBridge = {
   getRange: () => [],
   listModules: () => [],
   listBooks: () => [],
+  listChapters: () => [],
   parseReference: () => null,
   subscribeActiveVerse: () => () => {},
   iterateVerses: () => ({ verses: [], hasMore: false }),
@@ -222,6 +223,7 @@ describe('Fixture acceptance', () => {
     // consent path.
     await host.updatePermissions('ext.test.bible-viewer', [
       'bible:read',
+      'storage',
       'ui:notification',
       'ui:contribute-pane',
     ] as never);
@@ -289,6 +291,10 @@ describe('Fixture acceptance', () => {
     });
 
     await host.loadAll();
+    // The fixture reports the denial through the KV tier, which is itself
+    // gated on `storage`. Grant that and nothing else, so the gate under
+    // test - `ui:notification` - is still the only thing missing.
+    await host.updatePermissions('ext.test.no-perms', ['storage'] as never);
     await host.activate('ext.test.no-perms');
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));

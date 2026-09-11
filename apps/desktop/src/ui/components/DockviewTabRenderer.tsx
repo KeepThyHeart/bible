@@ -18,6 +18,8 @@ import { localizePaneLabel } from '../utils/paneNames';
 import { anchorAtPointerX } from '../utils/overlayPosition';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 import { cleanModuleName } from '../utils/verseFormatting';
+import { useExtensionUiStore } from '../extensions/extensionUiStore';
+import { declaredPanelWindowSize } from '../extensions/panelWindowSize';
 // Icon map for panel content types. Lives in its own module so the Books pane's
 // internal tab strip marks a book and a dictionary with the same glyphs this
 // header does, instead of inventing its own badge - and so the "+" page's
@@ -79,6 +81,46 @@ const POP_OUT_PANE_TYPE: Partial<Record<PanelContentType, PaneType>> = {
   study: 'study',
   topics: 'topics',
 };
+
+/**
+ * Map a panel's content type to the window kind it detaches into.
+ *
+ * A plain record lookup cannot serve extension panels: their content type is
+ * `` `ext:${extensionId}.${panelTypeId}` ``, so there is one per contributed
+ * panel and they are not known until an extension registers. That is why
+ * extension panes could not be popped out at all - `handlePopOut` returned
+ * early on the lookup miss and the menu simply left the item off.
+ *
+ * Every extension panel maps to the single `'extension'` window kind; what
+ * distinguishes one from another travels in the detach payload.
+ *
+ * Exported for unit testing - the mapping is the whole of P2's logic, and the
+ * rest is Electron plumbing that a unit test cannot reach.
+ */
+export function popOutPaneTypeFor(contentType: PanelContentType): PaneType | undefined {
+  if (typeof contentType === 'string' && contentType.startsWith('ext:')) return 'extension';
+  return POP_OUT_PANE_TYPE[contentType];
+}
+
+/**
+ * Split `ext:<extensionId>.<panelTypeId>` back into its two halves.
+ *
+ * Extension ids contain dots (`ext.bible-app.memory`), so the split is on the
+ * *last* dot, which is where the panel type id begins. Splitting on the first
+ * would hand back `ext` as the extension id for every panel in existence.
+ */
+export function parseExtensionContentType(
+  contentType: string,
+): { extensionId: string; panelTypeId: string } | null {
+  if (!contentType.startsWith('ext:')) return null;
+  const rest = contentType.slice('ext:'.length);
+  const lastDot = rest.lastIndexOf('.');
+  if (lastDot <= 0 || lastDot === rest.length - 1) return null;
+  return {
+    extensionId: rest.slice(0, lastDot),
+    panelTypeId: rest.slice(lastDot + 1),
+  };
+}
 
 interface ContextMenuState {
   x: number;
@@ -201,8 +243,42 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     setContextMenu(null);
     if (!contentType) return;
     try {
-      const paneType = POP_OUT_PANE_TYPE[contentType];
+      const paneType = popOutPaneTypeFor(contentType);
       if (!paneType) return;
+
+      // Extension panels detach with their identity and their contributed
+      // title. Nothing else can travel: the panel's state lives inside a
+      // sandboxed iframe on the extension's own origin, so the host cannot
+      // read it and must not try. A popped-out panel therefore reloads from
+      // whatever its worker has persisted - which is the same thing that
+      // happens when the user reopens it, and is why `api.panels` exists.
+      if (paneType === 'extension') {
+        const parsed = parseExtensionContentType(contentType);
+        if (!parsed) return;
+        // The panel type may have declared a preferred window size. It is
+        // looked up here rather than passed down as a prop because the tab
+        // header knows only its content type: the registry is the store, and
+        // a panel whose extension has since been deactivated simply has no
+        // entry, which correctly means "no preference".
+        const registered = useExtensionUiStore // allow-getstate: event handler - read latest state without re-subscribing
+          .getState()
+          .panelTypes.find(
+            (p) => p.extensionId === parsed.extensionId && p.panelTypeId === parsed.panelTypeId,
+          );
+        const detachResult = await window.electron.window.detachPane('extension', {
+          extensionId: parsed.extensionId,
+          panelTypeId: parsed.panelTypeId,
+          panelId: api.id,
+          panelTitle: api.title,
+          defaultWindowSize: declaredPanelWindowSize(registered?.def),
+        });
+        if (!detachResult.success) {
+          console.error('[DockviewTabRenderer] Failed to pop out extension panel:', detachResult.error);
+          return;
+        }
+        containerApi.getPanel(api.id)?.api.close();
+        return;
+      }
 
       // A single-module panel keeps `entries`, `currentVerseId` and the rest in
       // local React state and writes nothing to the store. Reading the store by
