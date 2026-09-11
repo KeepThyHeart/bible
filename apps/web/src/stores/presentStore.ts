@@ -108,8 +108,15 @@ class PresentStore extends Store {
    */
   private readonly hymnTitles = new Map<string, string>();
 
+  /** Hymn ids already looked up, so a burst of frames asks the server once. */
+  private readonly hymnTitlesAsked = new Set<string>();
+
   private stream: EventSource | null = null;
   private lastNavAt = 0;
+
+  /** How often the wall is polled while this controller's stream is refused. */
+  private static readonly REFUSED_POLL_MS = 5000;
+  private refusedPoll: ReturnType<typeof setInterval> | null = null;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -243,15 +250,36 @@ class PresentStore extends Store {
       } else {
         this.wall = next;
       }
+      this.learnHymnTitles([this.wall.live]);
       this.connection = 'live';
       this.notify();
     });
 
-    source.addEventListener('closed', () => {
+    source.addEventListener('closed', event => {
       source.close();
+      if (this.stream !== source) return;
+
+      let reason: string | undefined;
+      try {
+        reason = (JSON.parse((event as MessageEvent<string>).data) as { reason?: string }).reason;
+      } catch {
+        // No readable reason is treated as the end, as it always was.
+      }
+
+      // Refused at the door is not the same as over. With joins locked, or the
+      // session full, the server turns away *every* new stream -- this one
+      // included. A presenter who locks joins and then reloads, or hands off
+      // to a phone, would otherwise throw away the control token for a session
+      // that is still running, with no way back to it.
+      if (reason === 'locked' || reason === 'full') {
+        this.stream = null;
+        this.watchWhileRefused(joinCode, reason === 'locked');
+        return;
+      }
+
       // The session is over -- most likely because this controller ended it, or
       // because it expired. Either way there is nothing left to drive.
-      if (this.stream === source) this.leave();
+      this.leave();
     });
 
     source.onerror = () => {
@@ -261,7 +289,55 @@ class PresentStore extends Store {
     };
   }
 
+  /**
+   * Keep up with the wall while the stream is refused.
+   *
+   * The state endpoint still answers a locked session, so polling it keeps the
+   * strip and the viewer count honest. Once a lock lifts, the stream is opened
+   * again and this stops. A full session is only polled: trying the stream
+   * again would just be refused again.
+   */
+  private watchWhileRefused(joinCode: string, reopenWhenUnlocked: boolean): void {
+    this.stopWatching();
+    this.connection = this.wall ? 'reconnecting' : 'connecting';
+    this.notify();
+
+    const poll = async (): Promise<void> => {
+      if (this.session?.joinCode !== joinCode) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/state`);
+        if (res.status === 404 || res.status === 410) {
+          this.leave();
+          return;
+        }
+        if (!res.ok) return;
+        const body = await res.json() as { state: PresentState };
+        if (this.session?.joinCode !== joinCode) return;
+
+        this.wall = body.state;
+        this.learnHymnTitles([body.state.live]);
+        if (reopenWhenUnlocked && !body.state.session.joinsLocked) {
+          this.openStream(joinCode);
+        } else {
+          this.connection = 'live';
+        }
+        this.notify();
+      } catch {
+        // The next tick will try again.
+      }
+    };
+
+    void poll();
+    this.refusedPoll = setInterval(() => void poll(), PresentStore.REFUSED_POLL_MS);
+  }
+
+  private stopWatching(): void {
+    if (this.refusedPoll) clearInterval(this.refusedPoll);
+    this.refusedPoll = null;
+  }
+
   private closeStream(): void {
+    this.stopWatching();
     this.stream?.close();
     this.stream = null;
   }
@@ -315,7 +391,18 @@ class PresentStore extends Store {
       }
 
       const body = await res.json() as { state: PresentState };
-      if (body.state) this.wall = body.state;
+      if (body.state) {
+        const wasLocked = this.wall?.session.joinsLocked ?? false;
+        this.wall = body.state;
+        this.learnHymnTitles([body.state.live]);
+        // This controller just unlocked joins while its own stream was being
+        // refused: there is no reason to wait for the next poll to find out.
+        // Only on that change -- a session refused for being full is unlocked
+        // all along, and retrying its stream would just be refused again.
+        if (this.refusedPoll && wasLocked && !body.state.session.joinsLocked) {
+          this.openStream(session.joinCode);
+        }
+      }
       this.error = null;
       return true;
     } catch {
@@ -363,6 +450,7 @@ class PresentStore extends Store {
       if (!res.ok) return;
       const body = await res.json() as { plan: PresentPlanEntry[] };
       this.plan = body.plan ?? [];
+      this.learnHymnTitles(this.plan.map(entry => entry.item));
       this.notify();
     } catch {
       // The plan is a convenience; failing to load it must not stop a service.
@@ -445,6 +533,27 @@ class PresentStore extends Store {
 
   hymnTitle(hymnId: string): string | null {
     return this.hymnTitles.get(hymnId) ?? null;
+  }
+
+  /**
+   * Look up the titles of hymns the picker has not shown on this device.
+   *
+   * After a reload, or on a phone a session was handed off to, the picker has
+   * never run here -- so without this the strip and the running order would
+   * name the hymn on the wall `amazing-grace`. Each id is asked for once; a
+   * failure leaves the id as the label, which is where it would have been.
+   */
+  private learnHymnTitles(items: Array<PresentItem | null | undefined>): void {
+    for (const item of items) {
+      if (item?.kind !== 'hymn') continue;
+      const id = item.hymnId;
+      if (this.hymnTitles.has(id) || this.hymnTitlesAsked.has(id)) continue;
+      this.hymnTitlesAsked.add(id);
+      fetch(`${API_BASE}/api/hymns/${encodeURIComponent(id)}`)
+        .then(res => (res.ok ? res.json() as Promise<HymnSummary> : null))
+        .then(hymn => { if (hymn?.title) this.rememberHymns([hymn]); })
+        .catch(() => { /* The id stays as the label. */ });
+    }
   }
 
   setPanelOpen(open: boolean): void {

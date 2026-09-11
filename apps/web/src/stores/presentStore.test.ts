@@ -320,3 +320,141 @@ describe('leaving versus ending', () => {
     expect(presentStore.session).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Naming hymns
+// ---------------------------------------------------------------------------
+
+describe('naming hymns the picker has not shown', () => {
+  // The store outlives each test and remembers every title it learns, so each
+  // test uses a hymn id of its own.
+
+  beforeEach(() => {
+    localStorage.setItem('present-controller-session', JSON.stringify(SESSION));
+    fetchMock.mockResolvedValue(respond(200, { plan: [] }));
+    presentStore.restore(null);
+    fetchMock.mockReset();
+  });
+
+  /** Let a lookup's promise chain run to the end. */
+  const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('looks up a hymn that arrives on the wall, and only once', async () => {
+    // After a reload the picker has never run here, and without the lookup the
+    // strip would name the hymn on the wall by its id.
+    fetchMock.mockResolvedValue(respond(200, { id: 'it-is-well', title: 'It Is Well with My Soul' }));
+    const frame: PresentState = { ...stateAt(4), live: { kind: 'hymn', hymnId: 'it-is-well' } };
+    FakeEventSource.instances[0].emit('state', frame);
+    FakeEventSource.instances[0].emit('state', { ...frame, version: 5 });
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/hymns/it-is-well');
+    expect(presentStore.hymnTitle('it-is-well')).toBe('It Is Well with My Soul');
+  });
+
+  it('looks up the hymns in a running order it loads', async () => {
+    fetchMock.mockImplementation((url: string) => Promise.resolve(url.includes('/plan')
+      ? respond(200, { plan: [{ id: 'a', item: { kind: 'hymn', hymnId: 'my-jesus' } }] })
+      : respond(200, { id: 'my-jesus', title: 'My Jesus, I Love Thee' })));
+
+    await presentStore.loadPlan();
+    await settle();
+
+    expect(presentStore.hymnTitle('my-jesus')).toBe('My Jesus, I Love Thee');
+  });
+
+  it('keeps the id as the label when the lookup fails', async () => {
+    fetchMock.mockResolvedValue(respond(404, {}));
+    FakeEventSource.instances[0].emit('state', { ...stateAt(4), live: { kind: 'hymn', hymnId: 'gone' } });
+    await settle();
+
+    expect(presentStore.hymnTitle('gone')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Refused at the door
+// ---------------------------------------------------------------------------
+
+describe('a controller whose stream is refused', () => {
+  // Locking joins turns away every new stream, the controller's own included.
+  // A controller that reloads into a locked session must keep driving it.
+
+  beforeEach(() => {
+    localStorage.setItem('present-controller-session', JSON.stringify(SESSION));
+    fetchMock.mockResolvedValue(respond(200, { plan: [] }));
+    presentStore.restore(null);
+    fetchMock.mockReset();
+  });
+
+  const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('keeps the session, and its token, when joins are locked', async () => {
+    const locked = stateAt(3);
+    locked.session.joinsLocked = true;
+    fetchMock.mockResolvedValue(respond(200, { state: locked }));
+
+    FakeEventSource.instances[0].emit('closed', { reason: 'locked' });
+    await settle();
+
+    expect(presentStore.session?.sessionId).toBe(SESSION.sessionId);
+    expect(localStorage.getItem('present-controller-session')).not.toBeNull();
+    expect(fetchMock.mock.calls[0][0]).toContain(`/api/present/j/${SESSION.joinCode}/state`);
+    expect(presentStore.wall?.version).toBe(3);
+  });
+
+  it('opens the stream again once the lock lifts', async () => {
+    fetchMock.mockResolvedValue(respond(200, { state: stateAt(3) }));
+
+    FakeEventSource.instances[0].emit('closed', { reason: 'locked' });
+    await settle();
+
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.instances[1].url).toContain('preview=1');
+  });
+
+  it('does not keep retrying the stream of a full session', async () => {
+    fetchMock.mockResolvedValue(respond(200, { state: stateAt(3) }));
+
+    FakeEventSource.instances[0].emit('closed', { reason: 'full' });
+    await settle();
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(presentStore.session).not.toBeNull();
+
+    // Nor on the back of an intent: a full session was never locked, so there
+    // is no unlock to react to.
+    fetchMock.mockResolvedValue(respond(200, { state: stateAt(4) }));
+    await presentStore.send({ type: 'next' });
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it('opens the stream as soon as this controller unlocks joins', async () => {
+    const locked = stateAt(3);
+    locked.session.joinsLocked = true;
+    fetchMock.mockResolvedValue(respond(200, { state: locked }));
+    FakeEventSource.instances[0].emit('closed', { reason: 'locked' });
+    await settle();
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    fetchMock.mockResolvedValue(respond(200, { state: stateAt(4) }));
+    await presentStore.send({ type: 'lockJoins', locked: false });
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('lets go when the session turns out to be over', async () => {
+    fetchMock.mockResolvedValue(respond(410, {}));
+
+    FakeEventSource.instances[0].emit('closed', { reason: 'locked' });
+    await settle();
+
+    expect(presentStore.session).toBeNull();
+  });
+
+  it('still lets go when the session has ended', () => {
+    FakeEventSource.instances[0].emit('closed', { reason: 'ended' });
+    expect(presentStore.session).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

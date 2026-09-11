@@ -146,6 +146,12 @@ export function PresentPlanList() {
         && live.book === entry.item.book
         && live.chapter === entry.item.chapter;
     }
+    if (live.kind === 'hymn' && entry.item.kind === 'hymn') {
+      return live.hymnId === entry.item.hymnId;
+    }
+    if (live.kind === 'text' && entry.item.kind === 'text') {
+      return live.title === entry.item.title && live.body === entry.item.body;
+    }
     return false;
   };
 
