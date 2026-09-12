@@ -1,6 +1,10 @@
 Keep Thy Heart Bible Reader
 ===========================
-This is an open-source Bible reader written in Node.JS.  Apps include desktop and website.  The desktop is based on Electron, to run in Windows, Mac, and Linux.  Modules (Bible translations, commentaries, etc.) are stored in SQLite .db files for compatibility.
+_Note: This is currently a work in progress, so stay tuned for updates!  I am working on adding a docs website, screenshots, and installers soon._
+
+> For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
+
+Welcome to the Keep Thy Heart Bible app!  This project is an open-source set of Bible study applications (web, desktop) written in Node.JS.  The desktop app is based on Electron, to run in Windows, Mac, and Linux.  Modules (Bible translations, commentaries, etc.) are stored in SQLite .db files for compatibility.
 
 A fresh clone is set up with one command (see [Quick Start](#quick-start)), which downloads a starter set of modules from the development catalog. Modules use a new SQLite format; most were converted from SWORD modules, and the conversion scripts are to be released as a separate repository.
 
