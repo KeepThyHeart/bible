@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import CommentaryTreeView from './CommentaryTreeView';
@@ -143,6 +143,9 @@ describe('CommentaryTreeView', () => {
       />,
     );
     const input = screen.getByPlaceholderText(enString('commentaryTreeView.searchPlaceholder'));
+    // The focus trap moves focus into the dialog on a requestAnimationFrame;
+    // typing before it lands sends the keystrokes to whatever it focuses instead.
+    await waitFor(() => expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true));
     await user.type(input, 'xyzzy_no_match_12345');
     expect(screen.getByText('No matching verses found')).toBeInTheDocument();
   });
