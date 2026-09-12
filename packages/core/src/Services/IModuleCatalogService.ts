@@ -13,15 +13,17 @@ export interface IModuleCatalogService {
    * loop, oversized response) or when the signature is present but invalid.
    *
    * @param url - Repository catalog URL
-   * @param expectedPublicKey - Key the catalog must be signed by, when known
-   *                            (pinned official key, or the key recorded on a
-   *                            previous fetch). Omit to accept any key.
+   * @param expectedPublicKey - Key, or keys, the catalog must be signed by when
+   *                            known (the key recorded on a previous fetch); any
+   *                            one of them is accepted. Omit to accept any key.
+   *                            The official catalog's pinned keys apply
+   *                            regardless.
    * @param requireSignature - Reject an unsigned catalog outright.
    * @returns The parsed catalog plus its signature verification result
    */
   fetchCatalog(
     url: string,
-    expectedPublicKey?: string,
+    expectedPublicKey?: string | readonly string[],
     requireSignature?: boolean
   ): Promise<FetchedCatalog>;
 

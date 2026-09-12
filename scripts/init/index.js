@@ -52,10 +52,17 @@
  *   --no-link              Desktop target: leave apps/desktop/data/modules as a
  *                          directory of its own instead of linking it to the
  *                          shared data/modules.
+ *   --no-modules           Write main.db with the schema and the canonical verse
+ *                          space but no module rows, and do not look for module
+ *                          files.  This is the template a packaged app ships;
+ *                          run it against a fresh --data-dir (or a clean
+ *                          checkout) so no earlier rows carry over.
  *   --catalog[=URL]        Fetch a catalog and choose modules to download.  With
  *                          no URL: $BIBLE_MODULE_CATALOG_URL, else branding's
  *                          moduleRepositoryUrl (unless that is still undecided).
- *   --select=KJV,ASV       With --catalog, take these instead of prompting.  A
+ *                          An index.json beside that catalog, when there is one,
+ *                          brings in every catalog it lists.
+ *   --select=KJV,ASV      With --catalog, take these instead of prompting.  A
  *                          preset name (below) stands for its whole list.
  *   --yes                  Never prompt; accept defaults.  For CI.
  *   --quiet                Only warnings and errors.
@@ -777,7 +784,7 @@ function reportCoverage(installed, log) {
 function parseArgs(argv) {
   const options = {
     target: 'web', dataDir: null, modulesDir: null,
-    force: false, prune: false, config: true, link: true,
+    force: false, prune: false, config: true, link: true, modules: true,
     catalog: null, select: null, yes: false, quiet: false, help: false,
   };
 
@@ -787,6 +794,7 @@ function parseArgs(argv) {
     else if (arg === '--prune') options.prune = true;
     else if (arg === '--no-config') options.config = false;
     else if (arg === '--no-link') options.link = false;
+    else if (arg === '--no-modules') options.modules = false;
     else if (arg === '--yes' || arg === '-y') options.yes = true;
     else if (arg === '--quiet') options.quiet = true;
     else if (arg === '--catalog') options.catalog = true;
@@ -800,6 +808,9 @@ function parseArgs(argv) {
 
   if (!TARGETS[options.target]) {
     return { error: `unknown target "${options.target}" (expected web or desktop)` };
+  }
+  if (!options.modules && options.catalog) {
+    return { error: '--no-modules and --catalog contradict each other' };
   }
   return options;
 }
@@ -907,7 +918,7 @@ async function main() {
 
   // Before any download, so a desktop `--catalog` run lands its files in the
   // shared store rather than in a directory the link is about to replace.
-  if (options.target === 'desktop' && options.link && !options.modulesDir) {
+  if (options.target === 'desktop' && options.link && options.modules && !options.modulesDir) {
     linkSharedModules(path.join(modulesDir, 'modules'), SHARED_MODULES_DIR, log);
   }
 
@@ -924,8 +935,12 @@ async function main() {
     if (outcome === 'aborted') process.exit(1);
   }
 
-  const scan = scanModules(modulesDir, log);
-  if (scan.missing || scan.found.length === 0) {
+  // --no-modules: the packaged-app template. Scanning is skipped rather than
+  // filtered, so nothing in a developer's modules/ can leak into it.
+  const scan = options.modules
+    ? scanModules(modulesDir, log)
+    : { dir: path.join(modulesDir, 'modules'), missing: false, found: [], rejected: [] };
+  if (options.modules && (scan.missing || scan.found.length === 0)) {
     reportNoModules(path.join(modulesDir, 'modules'), log);
     if (scan.rejected.length > 0) {
       log.error(`${scan.rejected.length} file(s) in that directory are not usable modules:`);
@@ -946,8 +961,10 @@ async function main() {
     writeRegistry({ dataDir, modulesDir, scan, options, target, log });
   }
 
-  log.info('');
-  reportCoverage(scan.found, log);
+  if (options.modules) {
+    log.info('');
+    reportCoverage(scan.found, log);
+  }
   log.info('');
   log.info('Done.');
 }

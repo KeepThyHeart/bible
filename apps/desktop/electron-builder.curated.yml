@@ -9,8 +9,8 @@
 #   node scripts/stage-build-data.js   # produce build-data/
 #   npm run build                            # electron-vite build -> out/
 #   npx electron-builder --linux --config electron-builder.curated.yml
-# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
-# `mac.hardenedRuntime` and `afterSign` all come from
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`
+# and `mac.hardenedRuntime` all come from
 # electron-builder.branding.cjs (env-driven: BIBLE_PRODUCT_NAME / BIBLE_APP_ID
 # for the neutral profile; CSC_*/APPLE_* to gate optional signing). Do not
 # re-declare them here — a child config overrides its parent.

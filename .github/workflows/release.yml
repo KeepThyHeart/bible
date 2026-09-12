@@ -1,0 +1,159 @@
+# Builds the desktop installers on Windows, macOS and Linux and uploads them to
+# a DRAFT GitHub Release for the pushed tag. Nothing reaches users until the
+# draft is published by hand from the Releases page: GitHub hides drafts from
+# unauthenticated API calls, so neither electron-updater nor the in-app update
+# check can see them.
+#
+#   Release:  set "version" in apps/desktop/package.json, commit, then
+#               git tag v<version> && git push origin v<version>
+#   Dry run:  Actions -> Release -> Run workflow. Builds all three platforms,
+#             unsigned, and attaches the installers to the run as workflow
+#             artifacts. Creates no release and publishes nothing.
+#
+# The installers come from electron-builder.code-only.yml: application code and
+# the main.db reference template, and no content modules. A first run starts
+# empty; the user picks a language and installs modules from the UI.
+#
+# Signing is optional and driven by secrets on the `release` environment. With
+# none set, every platform builds unsigned. See the build job's `env`.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per ref at a time; a re-pushed tag waits rather than racing uploads.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    # Created once, up front. electron-builder uploads into an existing draft
+    # whose tag matches; left to create it themselves, the three build jobs race
+    # and can leave duplicate drafts.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      # electron-builder publishes to `v<package.json version>`, not to the
+      # pushed tag. If the two differ the uploads land on a different release
+      # from the draft created below.
+      - name: Check tag matches package version
+        run: |
+          expected="v$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match apps/desktop/package.json version ($expected)."
+            exit 1
+          fi
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; the build jobs upload into it."
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build:
+    needs: draft
+    # Runs when `draft` succeeded (tag push) or was skipped (dry run).
+    if: ${{ !failure() && !cancelled() }}
+    name: build (${{ matrix.target }})
+    # Signing secrets live on `release` only. Dry runs use a separate
+    # environment that holds none, so they are always unsigned and never wait
+    # on the release reviewer.
+    environment: ${{ github.event_name == 'push' && 'release' || 'dry-run' }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write       # upload installers into the draft
+      id-token: write       # sign the provenance attestation (Sigstore)
+      attestations: write   # store the attestation against the repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win
+            os: windows-latest
+            artifacts: |
+              apps/desktop/dist/*.exe
+          - target: mac
+            os: macos-latest
+            artifacts: |
+              apps/desktop/dist/*.dmg
+              apps/desktop/dist/*.zip
+          - target: linux
+            # The oldest supported image, not the newest: an AppImage only runs
+            # on distros whose glibc is at least as new as the build machine's.
+            os: ubuntu-22.04
+            artifacts: |
+              apps/desktop/dist/*.AppImage
+              apps/desktop/dist/*.deb
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- macOS: Developer ID signing + notarization --------------------------
+      # Every value is scoped to the mac job. electron-builder.branding.cjs turns
+      # Windows signing on whenever CSC_LINK is set, so a Developer ID cert
+      # exported to every job would make the Windows build try to sign with it.
+      # An empty string reads as unset there (envStr) and in electron-builder,
+      # so on win/linux every gate stays off.
+      CSC_LINK: ${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || '' }}
+      CSC_KEY_PASSWORD: ${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+      APPLE_ID: ${{ matrix.target == 'mac' && secrets.APPLE_ID || '' }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.target == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+      APPLE_TEAM_ID: ${{ matrix.target == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+      # Without a cert, stop electron-builder searching the runner's keychain
+      # for an identity to sign with.
+      CSC_IDENTITY_AUTO_DISCOVERY: ${{ (matrix.target == 'mac' && secrets.MAC_CSC_LINK != '') && 'true' || 'false' }}
+
+      # --- Windows ------------------------------------------------------------
+      # Unsigned until a signing service is chosen (Azure Trusted Signing or
+      # SignPath; see the OPTIONAL CODE SIGNING notes in
+      # electron-builder.branding.cjs). Scope its secrets to the win job the same
+      # way as the mac ones above.
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The main.db template the installer ships: schema plus the 66-book
+      # reference space, built offline from files in the repo, with an empty
+      # module registry. The app copies it into user data on first run.
+      - name: Generate main.db template
+        run: node scripts/init/index.js --target=desktop --no-modules
+
+      - name: Build installers
+        shell: bash
+        run: npm run package:code-only:${{ matrix.target }} -w @bible/desktop -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
+
+      # Verifiable with: gh attestation verify <file> -R <owner>/<repo>
+      - name: Attest build provenance
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ matrix.artifacts }}
+
+      - name: Keep dry-run installers
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.target }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error

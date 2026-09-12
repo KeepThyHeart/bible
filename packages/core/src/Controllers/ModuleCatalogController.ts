@@ -168,10 +168,19 @@ export class ModuleCatalogController {
  * See CatalogTypes.ts for the expected JSON structure.
  *
  * Optionally (and recommended for public catalogs) the host also serves a
- * detached Ed25519 signature at `catalog.json.sig`. Because the catalog carries
- * each module's download URL and SHA-256 checksum, a verified catalog signature
- * transitively authenticates every module download it describes. Generate a key
- * with `scripts/catalog-keygen.js` and sign with `scripts/sign-catalog.js`.
+ * detached Ed25519 signature at `catalog.json.sig`, which may carry several
+ * signatures during a key rotation. Because the catalog carries each module's
+ * download URL and SHA-256 checksum, a verified catalog signature transitively
+ * authenticates every module download it describes. Sign with
+ * `scripts/yubikey-sign.py`, which also stamps `repository.published`.
+ *
+ * The official catalog may also serve `catalog.json.vouches`: statements by
+ * trusted keys vouching for new ones, consulted only when no trusted key signed
+ * the catalog, and only with the user's approval (desktop `CatalogKeyVouches`).
+ *
+ * The official domain may also serve a signed `index.json` listing further
+ * catalogs under it (one per language, say), so each can be signed on its own;
+ * the desktop adds any it does not know yet on refresh (desktop `CatalogIndex`).
  *
  * Unsigned catalogs remain supported: their modules may only be downloaded from
  * the catalog's own origin (see ModuleCatalogService.getAllAvailableModules).

@@ -22,6 +22,7 @@ const path = require('path');
 const { generateKeyPairSync, createHash, sign } = require('crypto');
 const {
   verifyCatalogSignature, isCatalogUsable, parseSelection, selectByName, downloadModule, resolveCatalogUrl,
+  indexUrlFor, readCatalogIndex, mergeModules, readOfficialTrust, vouchMessage, findVouchedKey,
 } = require('./catalog');
 const { linkSharedModules, chooseDefaultBible, nodeVersionProblem } = require('./index');
 
@@ -58,6 +59,61 @@ check('a signature from an unpinned key is untrusted',
 check('the pinned key accepts its own signature',
   verifyCatalogSignature(catalogBytes, sigDoc(), { expectedPublicKey: rawPublic }).status, 'verified');
 
+check('any key in a pinned set is accepted (rotation)',
+  verifyCatalogSignature(catalogBytes, sigDoc(), { expectedPublicKey: [otherKey, rawPublic] }).status, 'verified');
+
+check('a key outside a pinned set is untrusted',
+  verifyCatalogSignature(catalogBytes, sigDoc(), { expectedPublicKey: [otherKey] }).status, 'untrusted_key');
+
+// Several signatures over the same bytes (key rotation): every one must
+// verify, and one by a trusted key is enough.
+const second = generateKeyPairSync('ed25519');
+const secondPublic = second.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
+const multiDoc = (secondSignature = sign(null, digest, second.privateKey).toString('hex')) => JSON.stringify({
+  publicKey: rawPublic, signature, algorithm: 'ed25519-sha256',
+  signatures: [{ publicKey: secondPublic, signature: secondSignature, algorithm: 'ed25519-sha256' }],
+});
+check('a trusted key that signed second is enough',
+  verifyCatalogSignature(catalogBytes, multiDoc(), { expectedPublicKey: secondPublic }).status, 'verified');
+check('any invalid signature among several fails the catalog',
+  verifyCatalogSignature(catalogBytes, multiDoc('f'.repeat(128)), { expectedPublicKey: rawPublic }).status, 'invalid');
+
+// Official pins, read from the desktop's trustedCatalogKeys.ts.
+const anchors = readOfficialTrust();
+check('the official keys are read from trustedCatalogKeys.ts',
+  anchors.keys.length > 0 && anchors.keys.every((key) => /^[0-9a-f]{64}$/.test(key)), true);
+check('...and so is the official URL prefix',
+  anchors.prefixes.length > 0 && anchors.prefixes.every((prefix) => prefix.startsWith('https://')), true);
+
+// Key vouches.  The message must match the desktop's byte for byte -- this is
+// the same test vector as CatalogKeyVouches.test.ts.
+check('the vouch message matches the desktop test vector',
+  vouchMessage({
+    scope: 'https://modules.example.org/', vouchingKey: '11'.repeat(32), newKey: 'AB'.repeat(32),
+    issued: '2027-03-01T12:00:00Z',
+  }).toString('utf8'),
+  'KTH-BIBLE-KEY-VOUCH-V1\nscope: https://modules.example.org/\n' +
+  `vouching-key: ${'11'.repeat(32)}\nnew-key: ${'ab'.repeat(32)}\nissued: 2027-03-01T12:00:00Z\n`);
+
+const vouchScope = 'https://modules.example.org/';
+const makeVouch = (byPrivate, byPublic, newKey) => {
+  const unsignedVouch = { vouchingKey: byPublic, newKey, scope: vouchScope, issued: '2027-03-01T12:00:00Z' };
+  return { ...unsignedVouch, signature: sign(null, vouchMessage(unsignedVouch), byPrivate).toString('hex') };
+};
+const vouchDoc = (...vouches) => JSON.stringify({ format: 'kth-bible-key-vouches', version: 1, vouches });
+check('a vouch from a trusted key is followed',
+  findVouchedKey(vouchDoc(makeVouch(privateKey, rawPublic, secondPublic)),
+    { trustedKeys: [rawPublic], signers: [secondPublic], scope: vouchScope })?.newKey, secondPublic);
+check('a vouch from a key that is not trusted is ignored',
+  findVouchedKey(vouchDoc(makeVouch(second.privateKey, secondPublic, otherKey)),
+    { trustedKeys: [rawPublic], signers: [otherKey], scope: vouchScope }), undefined);
+const unsignedVouch = { vouchingKey: rawPublic, newKey: otherKey, scope: vouchScope, issued: '2027-03-01T12:00:00Z' };
+const catalogStyleSignature = sign(null, createHash('sha256').update(vouchMessage(unsignedVouch)).digest(), privateKey)
+  .toString('hex');
+check('a catalog-style signature cannot pass as a vouch',
+  findVouchedKey(vouchDoc({ ...unsignedVouch, signature: catalogStyleSignature }),
+    { trustedKeys: [rawPublic], signers: [otherKey], scope: vouchScope }), undefined);
+
 check('no .sig served is "unsigned"', verifyCatalogSignature(catalogBytes, null).status, 'unsigned');
 check('malformed signature JSON is an error', verifyCatalogSignature(catalogBytes, '{oops').status, 'error');
 check('wrong algorithm is an error',
@@ -74,6 +130,50 @@ check('a directory URL gains /catalog.json',
   resolveCatalogUrl('https://example.org/'), 'https://example.org/catalog.json');
 check('an explicit .json URL is left alone',
   resolveCatalogUrl('https://example.org/a.json'), 'https://example.org/a.json');
+
+// The catalog index: always looked for beside the catalog, and its entries
+// held to the index's own directory.
+check('the index sits beside a directory catalog URL',
+  indexUrlFor('https://example.org/modules/'), 'https://example.org/modules/index.json');
+check('...and beside an explicit catalog.json',
+  indexUrlFor('https://example.org/modules/catalog.json'), 'https://example.org/modules/index.json');
+
+const readIndex = readCatalogIndex({
+  format: 'kth-bible-catalog-index',
+  version: 1,
+  catalogs: [
+    { url: 'catalog.json', name: 'English', abbreviation: 'EN' },
+    { url: 'es/catalog.json', name: 'Spanish' },
+    { url: '../private/catalog.json', name: 'Escape' },
+    { url: 'https://evil.example/catalog.json', name: 'Elsewhere' },
+    { url: 'es/catalog.json', name: 'Spanish again' },
+    { url: 'fr/catalog.json' },
+  ],
+}, 'https://example.org/modules/index.json');
+check('index entries resolve against the index and stay beside it',
+  readIndex.entries.map((e) => e.url),
+  ['https://example.org/modules/catalog.json', 'https://example.org/modules/es/catalog.json']);
+check('...and the rest are reported, not fatal', readIndex.rejected.length, 4);
+
+let notAnIndex = null;
+try {
+  readCatalogIndex({ repository: { name: 'X' }, modules: [] }, 'https://example.org/index.json');
+} catch (err) {
+  notAnIndex = err.message;
+}
+check('a catalog served in the index\'s place is refused',
+  notAnIndex !== null && notAnIndex.includes('kth-bible-catalog-index'), true);
+
+const merged = mergeModules([
+  { catalogUrl: 'https://example.org/modules/catalog.json',
+    catalog: { modules: [{ module_id: 'kjv', abbreviation: 'KJV' }] } },
+  { catalogUrl: 'https://example.org/modules/es/catalog.json',
+    catalog: { modules: [{ module_id: 'rv1909', abbreviation: 'RV' }, { module_id: 'kjv', abbreviation: 'KJV' }] } },
+], silent);
+check('modules from every listed catalog are offered together, the first catalog winning a repeat',
+  merged.entries.map((e) => e.abbreviation), ['KJV', 'RV']);
+check('each module downloads relative to the catalog that listed it',
+  merged.sourceOf.get(merged.entries[1]), 'https://example.org/modules/es/catalog.json');
 
 const entries = [
   { abbreviation: 'KJV', recommended: true },

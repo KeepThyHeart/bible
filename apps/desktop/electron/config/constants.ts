@@ -94,9 +94,22 @@ export const CATALOG_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 /**
  * Maximum size of a catalog's detached signature (`catalog.json.sig`). A
  * signature document is a small fixed-shape JSON object (public key +
- * signature bytes as hex), so this is deliberately tiny.
+ * signature bytes as hex, at most `MAX_CATALOG_SIGNATURES` of them), so this
+ * is deliberately tiny.
  */
 export const CATALOG_SIGNATURE_MAX_RESPONSE_BYTES = 8 * 1024;
+
+/**
+ * Maximum size of a catalog's key-vouch document (`catalog.json.vouches`): a
+ * few hundred bytes per vouch, and at most `MAX_VOUCHES` of them.
+ */
+export const CATALOG_VOUCHES_MAX_RESPONSE_BYTES = 32 * 1024;
+
+/**
+ * Maximum size of the official catalog index (`index.json`): a short list of
+ * catalog URLs and names, at most `MAX_INDEX_CATALOGS` of them.
+ */
+export const CATALOG_INDEX_MAX_RESPONSE_BYTES = 64 * 1024;
 
 /**
  * Manual "Check for Updates" tunables.

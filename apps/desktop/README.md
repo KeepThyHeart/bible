@@ -223,7 +223,7 @@ apps/desktop/
 +-- build-data/                  # Staged offline module set for the curated packaged build
 +-- locales/                     # UI translation catalogs (one folder per locale) plus i18n tooling docs
 +-- sql/                         # Standalone SQL (e.g. user_db_extensions.sql)
-+-- scripts/                     # Build/dev scripts: font fetch, i18n extract/validate/pseudo-localize, notarize
++-- scripts/                     # Build/dev scripts: font fetch, i18n extract/validate/pseudo-localize
 +-- resources/                   # App icons and vendored third-party notices bundled into the installer
 +-- docs/                        # Feature documentation
 |   +-- features/                # Per-feature file listings

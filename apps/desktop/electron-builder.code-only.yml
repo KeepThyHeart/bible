@@ -23,8 +23,8 @@
 # Build:
 #   npm run package:code-only:win     # or :mac / :linux
 #
-# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
-# `mac.hardenedRuntime` and `afterSign` all come from
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`
+# and `mac.hardenedRuntime` all come from
 # electron-builder.branding.cjs, which reads the environment (BIBLE_PRODUCT_NAME
 # / BIBLE_APP_ID for the neutral profile; CSC_*/APPLE_* to gate optional
 # signing). Do not re-declare them here — a child config overrides its parent
@@ -147,8 +147,8 @@ extraResources:
   #
   # `main.db` is reference data only (the 66-book canon + an empty module
   # registry) and is generated from files in the repo by
-  # `node scripts/init-dev-env.js --target=desktop`, so CI can produce it from a
-  # bare checkout. NO content modules are listed here, by design.
+  # `node scripts/init/index.js --target=desktop --no-modules`, so CI can produce
+  # it from a bare checkout. NO content modules are listed here, by design.
   - from: data
     to: data
     filter:
@@ -179,8 +179,15 @@ mac:
   target:
     # See electron-builder.yml for why `zip` ships alongside `dmg`: Squirrel.Mac
     # updates from a zip and cannot read a dmg.
-    - dmg
-    - zip
+    #
+    # Apple Silicon and Intel as separate downloads, not one universal app,
+    # which would double the download for everyone. Both build on the arm64 CI
+    # runner, and electron-updater picks the zip matching the running arch out
+    # of latest-mac.yml.
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
   category: public.app-category.education
 linux:
   target:

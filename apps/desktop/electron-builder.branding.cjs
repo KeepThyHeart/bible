@@ -10,7 +10,7 @@
  * (e.g. `win.target`) and the values set here survive - but a child that
  * RE-DECLARES a key set here overrides it. Therefore the child ymls must NOT
  * re-declare `appId`, `productName`, `nsis.shortcutName`,
- * `win.signAndEditExecutable`, `mac.hardenedRuntime`, or `afterSign`.
+ * `win.signAndEditExecutable`, or `mac.hardenedRuntime`.
  *
  * ===================================================================
  * NEUTRAL-BRANDING PROFILE  (persecuted-user footprint)
@@ -66,12 +66,11 @@
  *   3. Traditional OV/EV .pfx: set CSC_LINK (path or base64) + CSC_KEY_PASSWORD;
  *      electron-builder signs automatically.
  *
- * macOS. `mac.hardenedRuntime` and the `afterSign` notarization hook
- * (scripts/notarize.cjs) activate only when Apple signing + notarization creds are
- * all present: CSC_LINK/CSC_NAME (Developer ID cert) AND APPLE_ID AND
- * APPLE_APP_SPECIFIC_PASSWORD AND APPLE_TEAM_ID. Otherwise an unsigned,
- * un-notarized dmg still builds. The hook itself also re-checks and no-ops when
- * creds are absent, so it is safe to leave wired unconditionally.
+ * macOS. `mac.hardenedRuntime` activates only when Apple signing + notarization
+ * creds are all present: CSC_LINK/CSC_NAME (Developer ID cert) AND APPLE_ID AND
+ * APPLE_APP_SPECIFIC_PASSWORD AND APPLE_TEAM_ID. Notarization needs no hook:
+ * electron-builder submits and staples a signed app itself whenever those
+ * APPLE_* vars are set. Otherwise an unsigned, un-notarized dmg still builds.
  *
  * Keep DEFAULT_PRODUCT_NAME in sync with `DEFAULT_PRODUCT_NAME` in
  * `electron/config/appConfig.ts`.
@@ -145,9 +144,11 @@ module.exports = {
       provider: 'github',
       owner: branding.githubOrg || 'psrankin',
       repo: branding.githubRepo || 'bible',
-      // Drafts are not offered to users. The release workflow publishes a draft
-      // for review, and updates only start flowing once it is published by hand.
-      releaseType: 'release',
+      // Drafts are not offered to users: GitHub hides them from unauthenticated
+      // API calls, so neither electron-updater nor the in-app check sees them.
+      // The release workflow uploads into a draft for review, and updates only
+      // start flowing once it is published by hand from the Releases page.
+      releaseType: 'draft',
     },
   ],
   nsis: {
@@ -161,8 +162,4 @@ module.exports = {
     // Hardened runtime is required for notarization; only meaningful when signed.
     hardenedRuntime: macSigningConfigured,
   },
-  // Notarization hook. Self-guards: no-ops unless the platform is darwin and all
-  // Apple creds are present, so it is safe to leave wired for unsigned builds and
-  // on Windows/Linux. Path resolves relative to the desktop package dir.
-  afterSign: 'scripts/notarize.cjs',
 };

@@ -40,10 +40,28 @@
  * `catalog-trust.json` beside the registry, which is the CLI's equivalent of
  * the desktop's `module_repository.signing_public_key` column.
  *
- * Unsigned catalogs are permitted, matching `isCatalogUsable` -- self-hosted
+ * Catalogs (and indexes) under the official URL prefix are pinned, as in the
+ * desktop, from the very first run: they must be signed by one of the keys in
+ * `trustedCatalogKeys.ts` -- read from that file, so the two cannot disagree --
+ * or by a key vouched for by one (`CatalogKeyVouches.ts`) that the user
+ * approves at a prompt.  `--yes` never approves one.  Approvals are kept in
+ * `catalog-approved-keys.json`, apart from the first-use record, so only a user
+ * decision can widen the official trust set.
+ *
+ * Unsigned catalogs outside the official prefix are permitted, matching
+ * `isCatalogUsable` -- self-hosted
  * and development catalogs are unsigned by default -- but the fact is printed
  * every time, and once a source has served a valid signature this script will
  * not accept an unsigned one from it again.
+ *
+ * ## Catalog index
+ *
+ * A source may publish several catalogs (one per language, say) and list them
+ * in a signed `index.json` beside its catalog -- the format is the desktop's
+ * `CatalogIndex.ts`.  This script always looks for one: with it, every listed
+ * catalog is offered, each verified against its own signature; without it
+ * (HTTP 404), the source's single catalog is used.  The index gets its own
+ * trust-on-first-use entry, just like a catalog.
  */
 
 'use strict';
@@ -60,11 +78,28 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 /** Matches CATALOG_MAX_RESPONSE_BYTES in apps/desktop/electron/config/constants.ts. */
 const CATALOG_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Mirror CatalogIndex.ts and CATALOG_INDEX_MAX_RESPONSE_BYTES in the desktop. */
+const CATALOG_INDEX_FILENAME = 'index.json';
+const CATALOG_INDEX_FORMAT = 'kth-bible-catalog-index';
+const CATALOG_INDEX_VERSION = 1;
+const MAX_INDEX_CATALOGS = 64;
+const CATALOG_INDEX_MAX_BYTES = 64 * 1024;
+
 /** Bounded like the desktop's NetworkGateway; a redirect chain is not a maze. */
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 const BRAND_DIR = path.resolve(__dirname, '../../admin/brand');
+
+/** The desktop's compiled-in trust anchors; see `readOfficialTrust`. */
+const TRUSTED_KEYS_FILE = path.resolve(__dirname, '../../apps/desktop/electron/services/trustedCatalogKeys.ts');
+
+/** Mirror CatalogKeyVouches.ts and CATALOG_VOUCHES_MAX_RESPONSE_BYTES in the desktop. */
+const VOUCH_FORMAT = 'kth-bible-key-vouches';
+const VOUCH_VERSION = 1;
+const VOUCH_MAGIC = 'KTH-BIBLE-KEY-VOUCH-V1';
+const MAX_VOUCHES = 32;
+const VOUCHES_MAX_BYTES = 32 * 1024;
 
 /**
  * The catalog `--catalog` uses when given no URL.
@@ -92,6 +127,15 @@ function defaultCatalogUrl() {
 /** A bare directory URL gets `/catalog.json` appended, as the desktop does. */
 function resolveCatalogUrl(url) {
   return url.endsWith('.json') ? url : `${url.replace(/\/$/, '')}/catalog.json`;
+}
+
+/**
+ * Where a source's catalog index lives: `index.json` in its catalog's
+ * directory.  `https://x/modules/` and `https://x/modules/catalog.json` both
+ * give `https://x/modules/index.json`.
+ */
+function indexUrlFor(sourceUrl) {
+  return new URL(CATALOG_INDEX_FILENAME, resolveCatalogUrl(sourceUrl)).toString();
 }
 
 // ============================================================================
@@ -174,74 +218,111 @@ function fetchBuffer(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
  * formatting differences can never break the digest -- which is the reason the
  * signature is detached in the first place.
  *
- * Verdicts match the desktop's `CatalogSignatureStatus`.
+ * Verdicts match the desktop's `CatalogSignatureStatus`.  `expectedPublicKey`
+ * may be one key or a list of keys; a signature by any listed key is accepted.
  */
 function verifyCatalogSignature(catalogBytes, signatureJson, { expectedPublicKey } = {}) {
   if (signatureJson === null) {
     return { status: 'unsigned', message: 'No signature was served alongside this catalog.' };
   }
 
-  let sig;
+  let doc;
   try {
-    sig = JSON.parse(signatureJson);
+    doc = JSON.parse(signatureJson);
   } catch (err) {
     return { status: 'error', message: `Failed to parse catalog signature: ${err.message}` };
   }
 
-  if (!sig || typeof sig.publicKey !== 'string' || typeof sig.signature !== 'string'
-      || sig.algorithm !== 'ed25519-sha256') {
+  // The top-level fields are the primary signature; `signatures` may add more
+  // over the same bytes (key rotation).  Every one must verify, and one by a
+  // trusted key is enough.
+  const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (!isRecord(doc) || (doc.signatures !== undefined && !Array.isArray(doc.signatures))) {
+    return { status: 'error', message: SIGNATURE_SHAPE_ERROR };
+  }
+  const entries = [doc, ...(doc.signatures ?? [])];
+  if (entries.length > MAX_CATALOG_SIGNATURES) {
     return {
       status: 'error',
-      message: 'Catalog signature has an invalid shape (expected publicKey, signature, algorithm: "ed25519-sha256").',
+      message: `Catalog carries ${entries.length} signatures; at most ${MAX_CATALOG_SIGNATURES} are accepted.`,
     };
   }
-  if (!/^[0-9a-f]{64}$/i.test(sig.publicKey)) {
-    return { status: 'error', message: 'publicKey must be 64 hex characters (32-byte Ed25519 key).' };
-  }
-  if (!/^[0-9a-f]{128}$/i.test(sig.signature)) {
-    return { status: 'error', message: 'signature must be 128 hex characters (64-byte Ed25519 signature).' };
-  }
-
-  let valid;
-  try {
-    const keyObject = createPublicKey({
-      key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(sig.publicKey, 'hex')]),
-      format: 'der',
-      type: 'spki',
-    });
-    const digest = createHash('sha256').update(catalogBytes).digest();
-    valid = verify(null, digest, keyObject, Buffer.from(sig.signature, 'hex'));
-  } catch (err) {
-    return { status: 'error', message: `Catalog signature verification error: ${err.message}` };
+  for (const entry of entries) {
+    if (!isRecord(entry) || typeof entry.publicKey !== 'string' || typeof entry.signature !== 'string'
+        || entry.algorithm !== 'ed25519-sha256') {
+      return { status: 'error', message: SIGNATURE_SHAPE_ERROR };
+    }
+    if (!/^[0-9a-f]{64}$/i.test(entry.publicKey)) {
+      return { status: 'error', message: 'publicKey must be 64 hex characters (32-byte Ed25519 key).' };
+    }
+    if (!/^[0-9a-f]{128}$/i.test(entry.signature)) {
+      return { status: 'error', message: 'signature must be 128 hex characters (64-byte Ed25519 signature).' };
+    }
   }
 
-  if (!valid) {
+  const digest = createHash('sha256').update(catalogBytes).digest();
+  const signers = [];
+  for (const entry of entries) {
+    let valid;
+    try {
+      const keyObject = createPublicKey({
+        key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(entry.publicKey, 'hex')]),
+        format: 'der',
+        type: 'spki',
+      });
+      valid = verify(null, digest, keyObject, Buffer.from(entry.signature, 'hex'));
+    } catch (err) {
+      return { status: 'error', message: `Catalog signature verification error: ${err.message}` };
+    }
+
+    if (!valid) {
+      return {
+        status: 'invalid',
+        publicKey: entry.publicKey,
+        message: 'Catalog signature does not match its contents -- the catalog may have been tampered with in transit.',
+      };
+    }
+    signers.push(entry.publicKey);
+  }
+
+  const trustedKeys = (typeof expectedPublicKey === 'string' ? [expectedPublicKey] : (expectedPublicKey ?? []))
+    .filter((key) => key.length > 0);
+  if (trustedKeys.length === 0) {
     return {
-      status: 'invalid',
-      publicKey: sig.publicKey,
-      message: 'Catalog signature does not match its contents -- the catalog may have been tampered with in transit.',
+      status: 'verified',
+      publicKey: signers[0],
+      signers,
+      message: `Catalog signature verified (key ${shortKey(signers[0])} recorded on first use).`,
     };
   }
 
-  if (expectedPublicKey && expectedPublicKey.toLowerCase() !== sig.publicKey.toLowerCase()) {
+  const trustedSigner = signers.find((signer) =>
+    trustedKeys.some((key) => key.toLowerCase() === signer.toLowerCase()));
+  if (trustedSigner === undefined) {
     return {
       status: 'untrusted_key',
-      publicKey: sig.publicKey,
+      publicKey: signers[0],
+      signers,
       message:
         `Catalog is signed by a different key than the one previously trusted for this source ` +
-        `(expected ${shortKey(expectedPublicKey)}, got ${shortKey(sig.publicKey)}). ` +
+        `(expected ${trustedKeys.map(shortKey).join(' or ')}, got ${signers.map(shortKey).join(', ')}). ` +
         'If the publisher rotated keys, delete the entry in catalog-trust.json to accept the new one.',
     };
   }
 
   return {
     status: 'verified',
-    publicKey: sig.publicKey,
-    message: expectedPublicKey
-      ? 'Catalog signature verified against the trusted key.'
-      : `Catalog signature verified (key ${shortKey(sig.publicKey)} recorded on first use).`,
+    publicKey: trustedSigner,
+    signers,
+    message: 'Catalog signature verified against the trusted key.',
   };
 }
+
+const SIGNATURE_SHAPE_ERROR =
+  'Catalog signature has an invalid shape (expected publicKey, signature, algorithm: "ed25519-sha256").';
+
+/** Mirrors `MAX_CATALOG_SIGNATURES` in the desktop's `CatalogSignatureVerifier`. */
+const MAX_CATALOG_SIGNATURES = 8;
 
 function shortKey(hex) {
   return `${hex.slice(0, 8)}…${hex.slice(-4)}`;
@@ -281,64 +362,465 @@ function recordTrust(modulesDir, url, entry) {
 }
 
 // ============================================================================
+// Official pins -- read from the desktop's trustedCatalogKeys.ts
+// ============================================================================
+
+let officialTrust = null;
+
+/**
+ * The desktop's compiled-in trust anchors, `{ keys, prefixes }`, read from its
+ * source so the two can never disagree.  Read with a pattern rather than
+ * imported, since this script cannot load TypeScript (`scripts/yubikey-sign.py`
+ * does the same).  Throws if the file cannot be read: an official catalog must
+ * never quietly fall back to trust-on-first-use.
+ */
+function readOfficialTrust() {
+  if (officialTrust) return officialTrust;
+
+  let source;
+  try {
+    source = fs.readFileSync(TRUSTED_KEYS_FILE, 'utf8');
+  } catch (err) {
+    throw new Error(`Cannot read the official signing keys from ${TRUSTED_KEYS_FILE}: ${err.message}`);
+  }
+  const arrayBody = (name) => {
+    const match = source.match(new RegExp(`export const ${name}\\b[^=]*=\\s*\\[([\\s\\S]*?)\\]`));
+    if (!match) throw new Error(`Cannot find ${name} in ${TRUSTED_KEYS_FILE}.`);
+    return match[1];
+  };
+
+  officialTrust = {
+    keys: [...arrayBody('OFFICIAL_PUBLIC_KEYS').matchAll(/'([0-9a-fA-F]{64})'/g)].map((m) => m[1].toLowerCase()),
+    prefixes: [...arrayBody('OFFICIAL_CATALOG_URL_PREFIXES').matchAll(/'(https:\/\/[^']+)'/g)].map((m) => m[1]),
+  };
+  return officialTrust;
+}
+
+/** Checks-only: replace the anchors read from trustedCatalogKeys.ts; `null` restores them. */
+function __setOfficialTrustForChecks(trust) {
+  officialTrust = trust;
+}
+
+/**
+ * The official prefix `url` falls under while pinning is in force (at least
+ * one key), or undefined.  Mirrors `isPinnedOfficialCatalog`.
+ */
+function officialScope(url) {
+  const { keys, prefixes } = readOfficialTrust();
+  if (keys.length === 0) return undefined;
+  const lower = url.toLowerCase();
+  return prefixes.find((prefix) => lower.startsWith(prefix.toLowerCase()));
+}
+
+// Keys the user approved from a vouch.  A separate file from the first-use
+// record, mirroring the desktop's ApprovedCatalogKeys.ts.
+
+function approvedKeysPath(modulesDir) {
+  return path.join(path.dirname(modulesDir), 'catalog-approved-keys.json');
+}
+
+function readApprovedKeys(modulesDir, scope) {
+  let list;
+  try {
+    list = JSON.parse(fs.readFileSync(approvedKeysPath(modulesDir), 'utf8'));
+  } catch {
+    return []; // Missing is normal; unreadable means no approvals, never more.
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((e) => e && typeof e.publicKey === 'string' && /^[0-9a-f]{64}$/i.test(e.publicKey)
+      && typeof e.scope === 'string' && e.scope.toLowerCase() === scope.toLowerCase())
+    .map((e) => e.publicKey.toLowerCase());
+}
+
+function recordApprovedKey(modulesDir, entry) {
+  const file = approvedKeysPath(modulesDir);
+  let list = [];
+  try {
+    list = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch { /* first approval */ }
+  if (!Array.isArray(list)) list = [];
+  list.push(entry);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(list, null, 2)}\n`, 'utf8');
+}
+
+// ============================================================================
+// Key vouches -- mirrors CatalogKeyVouches.ts
+// ============================================================================
+
+/** The exact bytes a vouch signature covers.  Must match the desktop's `vouchMessage`. */
+function vouchMessage(vouch) {
+  return Buffer.from(
+    `${VOUCH_MAGIC}\n` +
+    `scope: ${vouch.scope}\n` +
+    `vouching-key: ${vouch.vouchingKey.toLowerCase()}\n` +
+    `new-key: ${vouch.newKey.toLowerCase()}\n` +
+    `issued: ${vouch.issued}\n`,
+    'utf8'
+  );
+}
+
+function isWellFormedVouch(v) {
+  return Boolean(v) && typeof v === 'object'
+    && typeof v.vouchingKey === 'string' && /^[0-9a-f]{64}$/i.test(v.vouchingKey)
+    && typeof v.newKey === 'string' && /^[0-9a-f]{64}$/i.test(v.newKey)
+    && typeof v.scope === 'string' && /^https:\/\/\S+$/.test(v.scope)
+    && typeof v.issued === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(v.issued)
+    && typeof v.signature === 'string' && /^[0-9a-f]{128}$/i.test(v.signature);
+}
+
+function isVouchSignatureValid(v) {
+  try {
+    const keyObject = createPublicKey({
+      key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(v.vouchingKey, 'hex')]),
+      format: 'der',
+      type: 'spki',
+    });
+    return verify(null, vouchMessage(v), keyObject, Buffer.from(v.signature, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A catalog signer that a chain of valid vouches links to a trusted key, as
+ * `{ newKey, chain }`, or undefined.  Mirrors the desktop's `findVouchedKey`:
+ * bad vouches are skipped, a document of the wrong format or size is ignored.
+ */
+function findVouchedKey(vouchesJson, { trustedKeys, signers, scope }) {
+  let doc;
+  try {
+    doc = JSON.parse(vouchesJson);
+  } catch {
+    return undefined;
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || doc.format !== VOUCH_FORMAT
+      || doc.version !== VOUCH_VERSION || !Array.isArray(doc.vouches) || doc.vouches.length > MAX_VOUCHES) {
+    return undefined;
+  }
+  const usable = doc.vouches.filter((v) => isWellFormedVouch(v)
+    && v.scope.toLowerCase() === scope.toLowerCase() && isVouchSignatureValid(v));
+
+  // Breadth-first from the trusted keys, so the shortest chain wins.
+  const chains = new Map(trustedKeys.map((key) => [key.toLowerCase(), []]));
+  let frontier = [...chains.keys()];
+  while (frontier.length > 0) {
+    const next = [];
+    for (const v of usable) {
+      const from = v.vouchingKey.toLowerCase();
+      const to = v.newKey.toLowerCase();
+      if (frontier.includes(from) && !chains.has(to)) {
+        chains.set(to, [...chains.get(from), v]);
+        next.push(to);
+      }
+    }
+    frontier = next;
+  }
+
+  for (const signer of signers) {
+    const chain = chains.get(signer.toLowerCase());
+    if (chain && chain.length > 0) return { newKey: signer.toLowerCase(), chain };
+  }
+  return undefined;
+}
+
+/**
+ * For an official document whose signatures all verify but none is by a pinned
+ * or approved key: look for a vouch chain from a trusted key and ask before
+ * trusting its key.  Mirrors the desktop's `tryVouchedKey`.  `--yes` never
+ * approves; a blank answer or a closed stdin is a no.  Returns the verdict to
+ * use -- the original `untrusted_key` (with a clearer message) unless approved.
+ */
+async function tryVouchedKey(url, scope, trustedKeys, result, { modulesDir, log, assumeYes }) {
+  const refused = (why) => ({
+    ...result,
+    message: `${why}  If the publisher changed keys, update this checkout (trustedCatalogKeys.ts).`,
+  });
+
+  let vouchesJson;
+  try {
+    vouchesJson = (await fetchBuffer(`${url}.vouches`, { maxBytes: VOUCHES_MAX_BYTES })).toString('utf8');
+  } catch {
+    return refused('It is signed by a key that is not an official key.');
+  }
+  const vouched = findVouchedKey(vouchesJson, { trustedKeys, signers: result.signers ?? [], scope });
+  if (!vouched) {
+    return refused('It is signed by a key that is not an official key, and no trusted key vouches for it.');
+  }
+
+  log.warn('');
+  log.warn(`  ${url} is signed with a key this checkout does not know yet:`);
+  log.warn(`    ${vouched.newKey}`);
+  log.warn('  A key it already trusts vouched for it:');
+  for (const link of vouched.chain) {
+    log.warn(`    ${link.vouchingKey}  vouched for  ${link.newKey}  on ${link.issued}`);
+  }
+  if (assumeYes) {
+    return refused('A vouched key needs your approval, which --yes never gives; re-run without it to review the key.');
+  }
+  const answer = askSync('  Trust the new key? Only if you expected the publisher to change keys. [y/N] ');
+  if (!/^y(es)?$/i.test(answer)) {
+    return refused('The new key was not approved.');
+  }
+
+  const link = vouched.chain[vouched.chain.length - 1];
+  recordApprovedKey(modulesDir, {
+    publicKey: vouched.newKey,
+    scope,
+    vouchedBy: link.vouchingKey,
+    issued: link.issued,
+    approvedAt: new Date().toISOString(),
+  });
+  return {
+    status: 'verified',
+    publicKey: vouched.newKey,
+    signers: result.signers,
+    message: 'Signature verified against a new key you approved.',
+  };
+}
+
+// ============================================================================
 // Catalog fetch
 // ============================================================================
 
-async function fetchCatalog(sourceUrl, modulesDir, log) {
-  const catalogUrl = resolveCatalogUrl(sourceUrl);
-  log.info(`Fetching ${catalogUrl} ...`);
+/**
+ * Fetch a signed JSON document -- a catalog or a catalog index -- and verify
+ * its sibling `.sig`.
+ *
+ * Under the official URL prefix the desktop's pins apply from the very first
+ * run: the signature must be by a pinned key (or one the user approved from a
+ * vouch), and an unsigned document is refused.  Anywhere else it is
+ * trust-on-first-use.
+ *
+ * `validate(doc)` runs before the signature is looked at, and throws if the
+ * document is not the kind expected; nothing is recorded for a document that
+ * fails it.  Fetch errors keep their HTTP `status`, so a caller can tell "not
+ * published" from "broken".  Returns the parsed document.
+ *
+ * `context` is `{ modulesDir, log, assumeYes }`.
+ */
+async function fetchSignedJson(url, { what, maxBytes, unsigned, validate }, context) {
+  const { modulesDir, log } = context;
+  log.info(`Fetching ${url} ...`);
 
-  const bytes = await fetchBuffer(catalogUrl, { maxBytes: CATALOG_MAX_BYTES });
+  const bytes = await fetchBuffer(url, { maxBytes });
 
-  let catalog;
+  let doc;
   try {
-    catalog = JSON.parse(bytes.toString('utf8'));
+    doc = JSON.parse(bytes.toString('utf8'));
   } catch {
-    throw new Error(`Catalog at ${catalogUrl} is not valid JSON.`);
+    throw new Error(`${what} at ${url} is not valid JSON.`);
   }
-  if (!catalog || typeof catalog !== 'object' || !Array.isArray(catalog.modules)) {
-    throw new Error(`Catalog at ${catalogUrl} has no "modules" array -- it does not look like a repository catalog.`);
-  }
+  validate(doc);
 
   // The signature is a sibling `.sig`; its absence is a verdict, not an error.
   let signatureJson = null;
   try {
-    signatureJson = (await fetchBuffer(`${catalogUrl}.sig`, { maxBytes: 64 * 1024 })).toString('utf8');
+    signatureJson = (await fetchBuffer(`${url}.sig`, { maxBytes: 64 * 1024 })).toString('utf8');
   } catch (err) {
     if (!err.status) log.debug(`  (no signature: ${err.message})`);
   }
 
-  const trusted = readTrust(modulesDir, catalogUrl);
-  const result = verifyCatalogSignature(bytes, signatureJson, {
-    expectedPublicKey: trusted?.publicKey,
-  });
+  const scope = officialScope(url);
+  const trusted = scope ? null : readTrust(modulesDir, url);
+  const expectedKeys = scope
+    ? [...readOfficialTrust().keys, ...readApprovedKeys(modulesDir, scope)]
+    : trusted?.publicKey;
+  let result = verifyCatalogSignature(bytes, signatureJson, { expectedPublicKey: expectedKeys });
+
+  if (result.status === 'unsigned' && scope) {
+    throw new Error(
+      `${url} serves no signature, but everything under ${scope} must be signed by an\n` +
+      '  official key (trustedCatalogKeys.ts).  Refusing to use it.'
+    );
+  }
 
   // Once a source has served a valid signature it may never go back to none:
-  // an unsigned catalog from a source known to sign is a downgrade, not a
+  // an unsigned document from a source known to sign is a downgrade, not a
   // configuration choice.  Mirrors `isSignatureRequired`.
   if (result.status === 'unsigned' && trusted?.publicKey) {
     throw new Error(
-      `${catalogUrl} previously served a valid signature and now serves none.\n` +
+      `${url} previously served a valid signature and now serves none.\n` +
       '  This is what a downgrade attack looks like.  If the publisher genuinely stopped\n' +
       `  signing, remove its entry from ${trustStorePath(modulesDir)} to accept that.`
     );
   }
 
+  // Official, every signature valid, none by a key we trust: a vouch may bridge
+  // the gap, with the user's approval.
+  if (result.status === 'untrusted_key' && scope) {
+    result = await tryVouchedKey(url, scope, expectedKeys, result, context);
+  }
+
   if (!isCatalogUsable(result)) {
-    throw new Error(`Catalog signature check failed for ${catalogUrl}:\n  ${result.message}`);
+    throw new Error(`${what} signature check failed for ${url}:\n  ${result.message}`);
   }
 
   if (result.status === 'verified') {
     log.info(`  ${result.message}`);
-    recordTrust(modulesDir, catalogUrl, { publicKey: result.publicKey, signed: true });
+    // Official documents answer to the pins, never to a first-use record.
+    if (!scope) recordTrust(modulesDir, url, { publicKey: result.publicKey, signed: true });
   } else {
-    log.warn('  This catalog is UNSIGNED.');
-    log.warn('  Nothing proves the download URLs and checksums below are the publisher\'s.');
+    log.warn(`  This ${what.toLowerCase()} is UNSIGNED.`);
+    log.warn(`  ${unsigned}`);
     log.warn('  Acceptable for a development or self-hosted catalog; not for an untrusted one.');
-    recordTrust(modulesDir, catalogUrl, { signed: false });
+    recordTrust(modulesDir, url, { signed: false });
   }
 
-  return catalog;
+  return doc;
+}
+
+/** `context` is `{ modulesDir, log, assumeYes }`, as for `fetchSignedJson`. */
+async function fetchCatalog(sourceUrl, context) {
+  const catalogUrl = resolveCatalogUrl(sourceUrl);
+  return fetchSignedJson(catalogUrl, {
+    what: 'Catalog',
+    maxBytes: CATALOG_MAX_BYTES,
+    unsigned: 'Nothing proves the download URLs and checksums below are the publisher\'s.',
+    validate: (catalog) => {
+      if (!catalog || typeof catalog !== 'object' || !Array.isArray(catalog.modules)) {
+        throw new Error(`Catalog at ${catalogUrl} has no "modules" array -- it does not look like a repository catalog.`);
+      }
+    },
+  }, context);
+}
+
+// ============================================================================
+// Catalog index -- mirrors CatalogIndex.ts
+// ============================================================================
+
+/**
+ * The catalogs a `kth-bible-catalog-index` document lists, as absolute URLs.
+ *
+ * Mirrors the desktop's `parseCatalogIndex`, with one difference: the desktop
+ * holds entries to the official URL prefix, while this script -- which has no
+ * pins -- holds them to the index's own directory.  Either way an index can
+ * only point at catalogs beside or below itself.  Throws when the document is
+ * not an index; skips (and reports) bad entries so one cannot hide the rest.
+ */
+function readCatalogIndex(doc, indexUrl) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)
+      || doc.format !== CATALOG_INDEX_FORMAT || doc.version !== CATALOG_INDEX_VERSION) {
+    throw new Error(`${indexUrl} is not a version ${CATALOG_INDEX_VERSION} "${CATALOG_INDEX_FORMAT}" document.`);
+  }
+  if (!Array.isArray(doc.catalogs)) {
+    throw new Error(`${indexUrl} has no "catalogs" array.`);
+  }
+  if (doc.catalogs.length > MAX_INDEX_CATALOGS) {
+    throw new Error(`${indexUrl} lists ${doc.catalogs.length} catalogs; at most ${MAX_INDEX_CATALOGS} are read.`);
+  }
+
+  const scope = new URL('./', indexUrl).toString().toLowerCase();
+  const entries = [];
+  const rejected = [];
+  const seen = new Set([indexUrl.toLowerCase()]);
+
+  doc.catalogs.forEach((raw, position) => {
+    if (!raw || typeof raw !== 'object' || typeof raw.url !== 'string' || raw.url === ''
+        || typeof raw.name !== 'string' || raw.name.trim() === '' || raw.name.length > 200
+        || (raw.abbreviation !== undefined
+          && (typeof raw.abbreviation !== 'string' || raw.abbreviation.length > 20))) {
+      rejected.push(`#${position}: needs a "url" and a short "name"`);
+      return;
+    }
+
+    let url;
+    try {
+      url = new URL(raw.url, indexUrl).toString();
+    } catch {
+      rejected.push(`#${position}: "${raw.url}" is not a valid URL`);
+      return;
+    }
+    // The URL parser has already folded any "../" segments.
+    if (!url.toLowerCase().startsWith(scope)) {
+      rejected.push(`#${position}: ${url} is outside ${scope}`);
+      return;
+    }
+    if (seen.has(url.toLowerCase())) {
+      rejected.push(`#${position}: ${url} is the index itself or listed twice`);
+      return;
+    }
+
+    seen.add(url.toLowerCase());
+    entries.push({ url, name: raw.name.trim(), abbreviation: raw.abbreviation });
+  });
+
+  return { entries, rejected };
+}
+
+/**
+ * The catalogs a source offers, as `[{ catalogUrl, catalog }]`.
+ *
+ * Always looks for `index.json` beside the catalog first.  With one, every
+ * catalog it lists is loaded -- each checked against its own signature, so
+ * adding a module to one catalog never means re-signing the rest.  Without one
+ * (HTTP 404), the source's single catalog is used, as before.
+ *
+ * The index must pass its own signature check.  A listed catalog that cannot
+ * be loaded is skipped with the reason, as the desktop's refresh does; the run
+ * fails only if none loads.
+ */
+async function loadCatalogs(sourceUrl, context) {
+  const { log } = context;
+  const indexUrl = indexUrlFor(sourceUrl);
+
+  let index;
+  try {
+    index = await fetchSignedJson(indexUrl, {
+      what: 'Catalog index',
+      maxBytes: CATALOG_INDEX_MAX_BYTES,
+      unsigned: 'Nothing proves the catalogs it lists are the publisher\'s.',
+      validate: (doc) => readCatalogIndex(doc, indexUrl),
+    }, context);
+  } catch (err) {
+    if (err.status !== 404) throw err;
+    log.info('  No catalog index there; using the single catalog.');
+    const catalogUrl = resolveCatalogUrl(sourceUrl);
+    return [{ catalogUrl, catalog: await fetchCatalog(catalogUrl, context) }];
+  }
+
+  const { entries, rejected } = readCatalogIndex(index, indexUrl);
+  for (const problem of rejected) log.warn(`  Ignoring index entry ${problem}`);
+  log.info(`  The index lists ${entries.length} catalog(s).`);
+
+  const loaded = [];
+  for (const entry of entries) {
+    const catalogUrl = resolveCatalogUrl(entry.url);
+    try {
+      loaded.push({ catalogUrl, catalog: await fetchCatalog(catalogUrl, context) });
+    } catch (err) {
+      log.warn(`  Skipping ${entry.name}: ${err.message}`);
+    }
+  }
+  if (loaded.length === 0) {
+    throw new Error(`None of the catalogs listed in ${indexUrl} could be loaded.`);
+  }
+  return loaded;
+}
+
+/**
+ * Every catalog's modules in one list, each remembered with the catalog that
+ * listed it (its `download_url` is relative to that catalog).  A module offered
+ * by more than one catalog is taken from the first.
+ */
+function mergeModules(catalogs, log) {
+  const entries = [];
+  const sourceOf = new Map();
+  const seen = new Set();
+  for (const { catalogUrl, catalog } of catalogs) {
+    for (const entry of catalog.modules) {
+      const key = entry.module_id ?? entry.abbreviation;
+      if (seen.has(key)) {
+        log.warn(`  ${entry.abbreviation ?? key} is offered by more than one catalog; using the first.`);
+        continue;
+      }
+      seen.add(key);
+      entries.push(entry);
+      sourceOf.set(entry, catalogUrl);
+    }
+  }
+  return { entries, sourceOf };
 }
 
 // ============================================================================
@@ -618,7 +1100,8 @@ function sha256OfFile(file) {
 // ============================================================================
 
 /**
- * Fetch a catalog, pick modules, download them into `modulesDir`.
+ * Fetch the source's catalogs (every one its index lists, see `loadCatalogs`),
+ * pick modules, download them into `modulesDir`.
  *
  * Returns 'installed', 'nothing' (the user chose nothing) or 'aborted'.  The
  * caller then runs its ordinary scan over the directory, so a downloaded module
@@ -639,14 +1122,15 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
   }
 
   try {
-    const catalogUrl = resolveCatalogUrl(url);
-    const catalog = await fetchCatalog(url, modulesDir, log);
-    const entries = catalog.modules;
+    const catalogs = await loadCatalogs(url, { modulesDir, log, assumeYes });
+    for (const { catalog } of catalogs) {
+      log.info(`  ${catalog.repository?.name ?? 'Catalog'}: ${catalog.modules.length} module(s) offered.`);
+    }
+    const { entries, sourceOf } = mergeModules(catalogs, log);
     if (entries.length === 0) {
-      log.warn('The catalog lists no modules.');
+      log.warn('No catalog lists any modules.');
       return 'nothing';
     }
-    log.info(`  ${catalog.repository?.name ?? 'Catalog'}: ${entries.length} module(s) offered.`);
 
     let chosen;
     if (select && select.length > 0) {
@@ -678,7 +1162,7 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
     log.info(`Installing ${chosen.length} module(s), up to ${formatSize(total)} to download:`);
     let skipped = 0;
     for (const entry of chosen) {
-      if ((await downloadModule(entry, modulesDir, catalogUrl, log)).skipped) skipped += 1;
+      if ((await downloadModule(entry, modulesDir, sourceOf.get(entry), log)).skipped) skipped += 1;
     }
     if (skipped > 0) {
       log.info(`  ${skipped} of ${chosen.length} were already up to date.`);
@@ -700,4 +1184,11 @@ module.exports = {
   downloadModule,
   resolveCatalogUrl,
   fetchCatalog,
+  indexUrlFor,
+  readCatalogIndex,
+  mergeModules,
+  readOfficialTrust,
+  vouchMessage,
+  findVouchedKey,
+  __setOfficialTrustForChecks,
 };
