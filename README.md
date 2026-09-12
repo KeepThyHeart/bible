@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on adding a docs website, screenshots, and installers soon._
+_Note: This is currently a work in progress, so stay tuned for updates!  I am working on adding a docs website and installers soon._
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
@@ -8,7 +8,15 @@ Welcome to the Keep Thy Heart Bible app!  This project is an open-source set of 
 
 A fresh clone is set up with one command (see [Quick Start](#quick-start)), which downloads a starter set of modules from the development catalog. Modules use a new SQLite format; most were converted from SWORD modules, and the conversion scripts are to be released as a separate repository.
 
-[TODO: Screenshots of web/desktop]
+Screenshots
+-----------
+**Desktop:**
+
+[![Keep Thy Heart Bible Reader, desktop app](https://docs.bible.keepthyheart.com/assets/images/intro-overview-edf60c30c8a953c7212696737dc4cf6a.png)](https://docs.bible.keepthyheart.com/assets/images/intro-overview-edf60c30c8a953c7212696737dc4cf6a.png)
+
+**Web:**
+
+[![Keep Thy Heart Bible Reader, web app](https://docs.bible.keepthyheart.com/assets/images/intro-overview-1256097954b9d261401499f919087719.png)](https://docs.bible.keepthyheart.com/assets/images/intro-overview-1256097954b9d261401499f919087719.png)
 
 Prerequisites
 -------------
