@@ -31,7 +31,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "rebuild-sqlite": "npm rebuild better-sqlite3-web",
-    "postinstall": "npm rebuild better-sqlite3-web"
+    "ensure-sqlite": "node -e \"try{new (require('better-sqlite3-web'))(':memory:').close()}catch{process.exit(1)}\" || npm rebuild better-sqlite3-web",
+    "postinstall": "npm run ensure-sqlite"
   },
   "dependencies": {
     "@bible/core": "*",
@@ -40,7 +41,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@huggingface/transformers": "^3.8.1",
-    "better-sqlite3-web": "npm:better-sqlite3@^11.10.0",
+    "better-sqlite3-web": "npm:better-sqlite3@^12.11.1",
     "compression": "^1.8.1",
     "connect-timeout": "^1.9.1",
     "dompurify": "^3.4.12",

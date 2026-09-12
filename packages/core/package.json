@@ -24,11 +24,12 @@
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "pretest": "npm rebuild better-sqlite3",
+    "ensure-sqlite": "node -e \"try{new (require('better-sqlite3'))(':memory:').close()}catch{process.exit(1)}\" || npm rebuild better-sqlite3",
+    "pretest": "npm run ensure-sqlite",
     "test": "vitest run",
-    "pretest:watch": "npm rebuild better-sqlite3",
+    "pretest:watch": "npm run ensure-sqlite",
     "test:watch": "vitest",
-    "pretest:coverage": "npm rebuild better-sqlite3",
+    "pretest:coverage": "npm run ensure-sqlite",
     "test:coverage": "vitest run --coverage"
   },
   "files": [
@@ -47,7 +48,7 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.0",
     "@vitest/coverage-v8": "^2.0.0",
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^12.11.1",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

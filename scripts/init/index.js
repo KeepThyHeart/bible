@@ -68,7 +68,8 @@
  *   --quiet                Only warnings and errors.
  *   --help
  *
- *   npm run init:modules   The development catalog with --select=starter.
+ *   npm run init:modules   The official catalog with --select=starter
+ *                          (init:modules:dev for the development catalog).
  *   npm run setup          Core build, starter modules, web and desktop init,
  *                          and the Electron native rebuild, in one go.
  *
@@ -844,7 +845,7 @@ function reportNoModules(modulesDir, log) {
   log.error('');
   log.error('Two ways forward:');
   log.error('');
-  log.error('  1. Download the starter set (about 80 MB) from the development catalog:');
+  log.error('  1. Download the starter set (about 80 MB) from the official catalog:');
   log.error('       npm run init:modules');
   log.error('     or every module the test suites name (about 170 MB):');
   log.error('       npm run init:modules -- --select=tests');

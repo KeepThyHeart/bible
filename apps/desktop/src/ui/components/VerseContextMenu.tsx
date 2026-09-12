@@ -330,9 +330,10 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   };
 
   const handleSubmenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    // Left is "back out one level" in every menu that nests, and it is the
-    // keyboard's replacement for the Back item the drill-in view needed.
-    if (event.key === 'ArrowLeft') {
+    // Left is "back out one level" in every menu that nests, and so is Escape
+    // here. Escape has to be handled on the flyout itself: stopping the event
+    // below would keep it from the document listener that otherwise does this.
+    if (event.key === 'ArrowLeft' || event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       closeBookmarks(true);

@@ -1,0 +1,54 @@
+# Type-checks and unit-tests every workspace on each pull request and on pushes
+# to main, so a contributor learns about a broken test before review does.
+#
+# Modules come from the official, signed catalog (the `tests` preset: every
+# module a suite names) and are cached between runs. The init script skips any
+# module whose SHA-256 already matches the catalog, so a stale cache only costs
+# the download of what changed. The key follows scripts/init/index.js, where
+# the presets are defined.
+#
+# `npm ci` leaves the desktop's SQLite driver built for Node rather than
+# Electron, so the desktop suites that open a real database run here instead of
+# skipping themselves as they do in a checkout set up for `npm run dev`.
+#
+# Not covered: the Playwright suites (desktop needs xvfb and a build, web needs
+# `npx playwright install`).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore modules
+        uses: actions/cache@v4
+        with:
+          path: data/modules
+          key: modules-tests-${{ hashFiles('scripts/init/index.js') }}
+          restore-keys: modules-tests-
+
+      - run: npm run build:core
+      - run: npm run init:modules -- --select=tests --yes
+      - run: npm run typecheck
+      - run: npm test

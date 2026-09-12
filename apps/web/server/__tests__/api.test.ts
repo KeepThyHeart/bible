@@ -49,7 +49,6 @@ const testSiteSettings: SiteSettings = {
     modules: {
       Barnes: { active: true },
       Clarke: { active: true },
-      ExB: { active: true },
     },
     sections: [],
   },
@@ -199,23 +198,6 @@ describe('Commentary Routes', () => {
     expect(res.status).toBe(404);
   });
 
-  // Skipped: no "ExB" commentary module (nor any other module with
-  // entry_level='passage' rows) exists in the dev/test data directory, so
-  // this can't be verified against real data. Needs the module installed —
-  // see follow-up ticket for restoring commentary test coverage.
-  it.skip('Expositor\'s Bible Exodus 32 includes passage-level entry covering verses 1-35', async () => {
-    // The Expositor's Bible is registered as "ExB" in module_metadata
-    const res = await request(app).get('/api/commentary/ExB/2/32');
-    expect(res.status).toBe(200);
-    const entries = res.body.entries;
-    expect(entries.length).toBeGreaterThan(0);
-
-    // Pulpit has multiple passage entries in Exodus 32 (e.g. 32:1-6, 32:15-35)
-    const passageEntries = entries.filter((e: any) => e.entry_level === 'passage');
-    expect(passageEntries.length).toBeGreaterThan(0);
-    expect(passageEntries[0].content.length).toBeGreaterThan(0);
-  });
-
   it.skipIf(!clarkeInstalled)('trims leading whitespace and junk HTML from commentary content', async () => {
     // Clarke Exodus 31 is known to have leading <!/P><br /> junk
     const res = await request(app).get('/api/commentary/Clarke/2/31');
@@ -246,28 +228,10 @@ describe('Commentary Routes', () => {
     // Content should start with the actual commentary text
     expect(v2Entry.content.length).toBeGreaterThan(10);
   });
-
-  // Skipped: see note above — ExB is not present in the dev/test dataset.
-  it.skip('finds entries for sparse commentaries (entries beyond verse 5)', async () => {
-    // ExB typically has passage-level entries that start at various verses
-    const res = await request(app).get('/api/commentary/ExB/2/32');
-    expect(res.status).toBe(200);
-    const entries = res.body.entries;
-
-    // Should have found the passage entry even though individual verses may be empty
-    expect(entries.length).toBeGreaterThan(0);
-  });
 });
 
-/*
- * The 'Commentary entry classification (verse vs passage)' block that lived
- * here has moved to src/utils/commentaryEntries.test.ts. It declared its own
- * copy of the client's isPassageEntry ("Mirrors the client-side isPassageEntry
- * logic from CommentaryContent.tsx") and every case in it was it.skip'ped,
- * because the ExB module it needed is not in the dev dataset — so it tested a
- * copy of the logic, and did not run even then. The replacement calls the real
- * filterCommentaryEntries against fixtures, so it needs no module present.
- */
+// Classifying commentary entries as verse or passage is covered, against
+// fixtures, in src/utils/commentaryEntries.test.ts.
 
 describe('Strong\'s Routes', () => {
   it('GET /api/strongs/G2316 returns entry', async () => {

@@ -16,7 +16,8 @@
     "setup": "npm run build:core && npm run init:modules && npm run init:desktop && npm run rebuild-sqlite",
     "setup:web": "npm run build:core && npm run init:modules",
     "init": "node scripts/init/index.js",
-    "init:modules": "node scripts/init/index.js --catalog=https://modules-dev.bible.keepthyheart.com/modules/ --select=starter",
+    "init:modules": "node scripts/init/index.js --catalog --select=starter",
+    "init:modules:dev": "node scripts/init/index.js --catalog=https://modules-dev.bible.keepthyheart.com/modules/ --select=starter",
     "init:desktop": "node scripts/init/index.js --target=desktop",
     "init:check": "node scripts/init/checks.js",
     "dev": "npm run dev -w @bible/desktop",
@@ -59,6 +60,6 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^12.11.1"
   }
 }

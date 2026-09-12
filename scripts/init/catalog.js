@@ -894,8 +894,8 @@ function findPreset(name, presets) {
  * abbreviations it does not.
  *
  * A preset is a wish list, not a contract with any one catalog: the same
- * `starter` is used against the development catalog, a mirror and a
- * self-hosted one, and they do not all carry every module.  So a module the
+ * `starter` is used against the official catalog, the development catalog, a
+ * mirror and a self-hosted one, and they do not all carry every module.  So a module the
  * catalog lacks is reported and skipped.  A module named explicitly and
  * missing is still an error -- that is a typo or the wrong catalog.
  */
@@ -1116,7 +1116,7 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
   if (!url) {
     log.error('No catalog URL: none was given, BIBLE_MODULE_CATALOG_URL is not set, and');
     log.error('branding.json has no settled moduleRepositoryUrl.');
-    log.error('For the development catalog:  npm run init:modules');
+    log.error('For the development catalog:  npm run init:modules:dev');
     log.error('Or pass one explicitly:       npm run init -- --catalog=https://example.org/catalog.json');
     return 'aborted';
   }
