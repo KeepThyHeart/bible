@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on adding a docs website and installers soon._
+_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next._
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
@@ -8,8 +8,8 @@ Welcome to the Keep Thy Heart Bible app!  This project is an open-source set of 
 
 A fresh clone is set up with one command (see [Quick Start](#quick-start)), which downloads a starter set of modules from the development catalog. Modules use a new SQLite format; most were converted from SWORD modules, and the conversion scripts are to be released as a separate repository.
 
-Screenshots
------------
+Screenshots and User Documentation
+----------------------------------
 **Desktop:**
 
 [![Keep Thy Heart Bible Reader, desktop app](https://docs.bible.keepthyheart.com/assets/images/intro-overview-edf60c30c8a953c7212696737dc4cf6a.png)](https://docs.bible.keepthyheart.com/assets/images/intro-overview-edf60c30c8a953c7212696737dc4cf6a.png)
@@ -17,6 +17,12 @@ Screenshots
 **Web:**
 
 [![Keep Thy Heart Bible Reader, web app](https://docs.bible.keepthyheart.com/assets/images/intro-overview-1256097954b9d261401499f919087719.png)](https://docs.bible.keepthyheart.com/assets/images/intro-overview-1256097954b9d261401499f919087719.png)
+
+**User Documentation:**
+
+  - Home (will contain links to installers, etc., in future): [https://docs.bible.keepthyheart.com/](https://docs.bible.keepthyheart.com/)
+  - Desktop: [https://docs.bible.keepthyheart.com/desktop/](https://docs.bible.keepthyheart.com/desktop/)
+  - Web: [https://docs.bible.keepthyheart.com/web/](https://docs.bible.keepthyheart.com/web/)
 
 Prerequisites
 -------------
@@ -150,7 +156,7 @@ npm run rebuild-native:force -w @bible/desktop
 
 **Font download fails on the first `npm run dev`.** The desktop fetches its fonts on `predev` and `prebuild`. Google Fonts is required: if it cannot be reached the script stops with instructions, so retry once you are online. Ezra SIL (the Hebrew font, from software.sil.org) is optional: a failure only warns, the app runs without it, and the download is retried after 24 hours. To retry now, run `npm run fonts -w @bible/desktop -- --force` (which re-downloads every font). The web app fetches its fonts on `npm run dev:web` the same way; `npm run fetch:fonts -w @bible/web -- --force` refetches them.
 
-**`No catalog URL: none was given, BIBLE_MODULE_CATALOG_URL is not set ...`.** A bare `--catalog` has no default yet, because the production module host is not serving (its URL is listed in `_undecided` in `admin/brand/branding.json`). Use `npm run init:modules`, pass `--catalog=URL`, or set `BIBLE_MODULE_CATALOG_URL`. If the development catalog itself is unreachable, copy module files into `data/modules/` and run `npm run init`.
+**`No catalog URL: none was given, BIBLE_MODULE_CATALOG_URL is not set ...`.** A bare `--catalog` defaults to `moduleRepositoryUrl` in `admin/brand/branding.json` (the official module site, whose signed `index.json` lists its catalogs), so this appears only when a `branding.local.json` clears that URL or lists it in `_undecided`. Use `npm run init:modules`, pass `--catalog=URL`, or set `BIBLE_MODULE_CATALOG_URL`. If the catalog itself is unreachable, copy module files into `data/modules/` and run `npm run init`.
 
 **The web server exits with "password gate is enabled but no password is set".** Your `data/site-config.json` enables auth without a password. Set `auth.password`, set `SITE_PASSWORD`, or set `auth.enabled` to `false`.
 

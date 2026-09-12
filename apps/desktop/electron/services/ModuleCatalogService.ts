@@ -96,6 +96,18 @@ export class ModuleCatalogService implements IModuleCatalogService {
   }
 
   /**
+   * Where a source's catalog index would be served, or undefined when the
+   * source URL names a catalog document. A directory may serve an index
+   * beside (or instead of) its `catalog.json`; a URL naming `index.json` is
+   * the index itself.
+   */
+  private static indexUrlFor(url: string): string | undefined {
+    if (/\/index\.json$/i.test(url)) return url;
+    if (url.endsWith('.json')) return undefined;
+    return `${url.replace(/\/$/, '')}/${CATALOG_INDEX_FILENAME}`;
+  }
+
+  /**
    * Fetch a catalog and verify its detached signature.
    *
    * Transport hardening (bounded redirects, TLS enforcement, timeouts, size
@@ -111,6 +123,19 @@ export class ModuleCatalogService implements IModuleCatalogService {
     expectedPublicKey?: string | readonly string[],
     requireSignature = false,
   ): Promise<FetchedCatalog> {
+    const fetched = await this.tryFetchCatalog(url, expectedPublicKey, requireSignature);
+    if (!fetched) {
+      throw new Error('Failed to fetch catalog: HTTP 404');
+    }
+    return fetched;
+  }
+
+  /** `fetchCatalog`, but a catalog that is not there (HTTP 404) yields undefined. */
+  private async tryFetchCatalog(
+    url: string,
+    expectedPublicKey: string | readonly string[] | undefined,
+    requireSignature: boolean,
+  ): Promise<FetchedCatalog | undefined> {
     const catalogUrl = ModuleCatalogService.resolveCatalogUrl(url);
 
     const response = await this.gateway.fetchBuffered({
@@ -120,6 +145,9 @@ export class ModuleCatalogService implements IModuleCatalogService {
       context: 'catalog fetch',
     });
 
+    if (response.status === 404) {
+      return undefined;
+    }
     if (response.status !== 200) {
       throw new Error(`Failed to fetch catalog: HTTP ${response.status}`);
     }
@@ -209,21 +237,25 @@ export class ModuleCatalogService implements IModuleCatalogService {
    * Add every catalog listed in a signed official index that this install does
    * not know yet (see `CatalogIndex.ts`).
    *
-   * Runs at the start of a refresh-all. New sources are created enabled and
-   * empty; the refresh that follows fetches and verifies each like any other
-   * official catalog. Nothing is removed or re-enabled: a catalog dropped from
-   * the index keeps its row, and one the user disabled stays disabled.
+   * Runs at the start of a refresh-all, for installs whose official source
+   * names a catalog rather than the directory serving the index. A scope whose
+   * index an enabled source already serves is left to that source's own
+   * refresh (`refreshSource`), so the index is fetched once.
    *
    * Never throws - a missing, unsigned or malformed index just adds nothing.
    *
    * @returns The catalog sources that were added.
    */
   async syncOfficialIndexes(): Promise<ModuleCatalog[]> {
+    const servedBySource = new Set(
+      this.catalogRepo.getEnabled().map((source) => ModuleCatalogService.indexUrlFor(source.url)?.toLowerCase()),
+    );
     const added: ModuleCatalog[] = [];
     for (const scope of OFFICIAL_CATALOG_URL_PREFIXES) {
-      if (!isPinnedOfficialCatalog(scope)) continue;
+      const indexUrl = `${scope.replace(/\/$/, '')}/${CATALOG_INDEX_FILENAME}`;
+      if (!isPinnedOfficialCatalog(scope) || servedBySource.has(indexUrl.toLowerCase())) continue;
       try {
-        added.push(...(await this.syncOfficialIndex(scope)));
+        added.push(...((await this.syncIndex(scope, indexUrl, 'official'))?.added ?? []));
       } catch (error) {
         log.warn(`[ModuleCatalog] Could not use the catalog index for ${scope}:`, error);
       }
@@ -231,8 +263,31 @@ export class ModuleCatalogService implements IModuleCatalogService {
     return added;
   }
 
-  private async syncOfficialIndex(scope: string): Promise<ModuleCatalog[]> {
-    const indexUrl = `${scope}${CATALOG_INDEX_FILENAME}`;
+  /**
+   * Fetch and verify the catalog index at `indexUrl`, and add every catalog it
+   * lists that this install does not know yet (see `CatalogIndex.ts`).
+   *
+   * New sources are created enabled and empty, each naming its catalog
+   * document - never a directory, so one index cannot lead to another. Nothing
+   * is removed or re-enabled: a catalog dropped from the index keeps its row,
+   * and one the user disabled stays disabled.
+   *
+   * An index under the official prefix is held to the pinned keys and may only
+   * list catalogs under that prefix. Any other is held to `expectedPublicKey`
+   * (trust on first use) and may only list catalogs beside or below itself.
+   *
+   * @param sourceUrl - The URL that decides the trust rules (official or not).
+   * @param type      - Source type for the catalogs added from a non-official index.
+   * @returns undefined when no index is served (HTTP 404). Throws when one is
+   *          served but cannot be used.
+   */
+  private async syncIndex(
+    sourceUrl: string,
+    indexUrl: string,
+    type: ModuleCatalog['type'],
+    expectedPublicKey?: string,
+    requireSignature = false,
+  ): Promise<{ signature: CatalogVerificationResult; added: ModuleCatalog[] } | undefined> {
     const response = await this.gateway.fetchBuffered({
       url: indexUrl,
       method: 'GET',
@@ -240,17 +295,25 @@ export class ModuleCatalogService implements IModuleCatalogService {
       context: 'catalog index fetch',
     });
     if (response.status === 404) {
-      return []; // The server does not publish an index.
+      return undefined; // The server does not publish an index.
     }
     if (response.status !== 200) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(`Failed to fetch catalog index: HTTP ${response.status}`);
     }
 
-    const signature = await this.verifySignedDocument(scope, indexUrl, response.body, undefined, true);
-    if (signature.status !== 'verified') {
-      throw new Error(`index signature check failed: ${signature.message}`);
+    const signature = await this.verifySignedDocument(
+      sourceUrl,
+      indexUrl,
+      response.body,
+      expectedPublicKey,
+      requireSignature,
+    );
+    if (!isCatalogUsable(signature)) {
+      throw new Error(`Catalog index signature check failed for ${indexUrl}: ${signature.message}`);
     }
 
+    const officialScope = isPinnedOfficialCatalog(sourceUrl) ? officialCatalogScope(sourceUrl) : undefined;
+    const scope = officialScope ?? new URL('./', indexUrl).toString();
     const { entries, rejected } = parseCatalogIndex(response.body.toString('utf-8'), indexUrl, scope);
     for (const problem of rejected) {
       log.warn(`[ModuleCatalog] Ignoring catalog index entry ${problem}`);
@@ -261,25 +324,25 @@ export class ModuleCatalogService implements IModuleCatalogService {
     );
     const added: ModuleCatalog[] = [];
     for (const entry of entries) {
-      const documentUrl = ModuleCatalogService.resolveCatalogUrl(entry.url).toLowerCase();
-      if (known.has(documentUrl)) continue;
+      const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
+      if (known.has(catalogUrl.toLowerCase())) continue;
 
-      known.add(documentUrl);
+      known.add(catalogUrl.toLowerCase());
       added.push(
         this.catalogRepo.create(
           new ModuleCatalog({
             name: entry.name,
             abbreviation: entry.abbreviation,
-            url: entry.url,
-            type: 'official',
+            url: catalogUrl,
+            type: officialScope ? 'official' : type,
             isEnabled: true,
-            priority: 100,
+            priority: officialScope ? 100 : 0,
           }),
         ),
       );
-      log.info(`[ModuleCatalog] Added ${entry.url} from the signed catalog index.`);
+      log.info(`[ModuleCatalog] Added ${catalogUrl} from the catalog index at ${indexUrl}.`);
     }
-    return added;
+    return { signature, added };
   }
 
   /**
@@ -379,7 +442,8 @@ export class ModuleCatalogService implements IModuleCatalogService {
   }
 
   /**
-   * Refresh catalog for a catalog source
+   * Refresh catalog for a catalog source, and any catalogs its index adds
+   * (see `refreshSource`).
    */
   async refreshCatalog(catalogId: number): Promise<ModuleCatalog> {
     const entry = this.catalogRepo.getById(catalogId);
@@ -387,38 +451,96 @@ export class ModuleCatalogService implements IModuleCatalogService {
       throw new Error(`Catalog source ${catalogId} not found`);
     }
 
-    // Require the same key this source used before; `fetchCatalog` swaps in the
-    // pinned keys for the official catalog. A catalog that starts signing with
-    // a different key, or stops signing entirely, fails instead of silently
-    // losing its trust level.
-    const fetched = await this.fetchCatalog(entry.url, entry.signingPublicKey, entry.hasBeenSigned());
-
-    // Update with new catalog and the observed signature state
-    entry.setCatalog(fetched.catalog);
-    entry.signatureStatus = fetched.signature.status;
-    if (fetched.signature.publicKey) {
-      entry.signingPublicKey = fetched.signature.publicKey;
-    }
-    this.catalogRepo.update(entry);
-
-    return entry;
+    const [refreshed] = await this.refreshSource(entry);
+    return refreshed;
   }
 
   /**
-   * Refresh all enabled catalog sources
+   * Refresh one catalog source.
+   *
+   * A source URL names a catalog, a catalog index, or a directory that may
+   * serve either or both (`index.json`, `catalog.json`) - so a site root can
+   * be a source whether it publishes one catalog or an index of several. A
+   * directory's index is read first, and the catalogs it adds are fetched
+   * straight away; then its own catalog is fetched as before. A missing
+   * catalog is expected beside an index: the source is then an index only, and
+   * lists no modules itself.
+   *
+   * Requires the same key this source used before; `fetchCatalog` swaps in the
+   * pinned keys for the official catalog. A catalog that starts signing with
+   * a different key, or stops signing entirely, fails instead of silently
+   * losing its trust level.
+   *
+   * @returns The source first, then each catalog its index added that loaded.
+   */
+  private async refreshSource(entry: ModuleCatalog): Promise<ModuleCatalog[]> {
+    const refreshed: ModuleCatalog[] = [entry];
+    const indexUrl = ModuleCatalogService.indexUrlFor(entry.url);
+
+    let index: { signature: CatalogVerificationResult; added: ModuleCatalog[] } | undefined;
+    let indexError: unknown;
+    if (indexUrl) {
+      try {
+        index = await this.syncIndex(entry.url, indexUrl, entry.type, entry.signingPublicKey, entry.hasBeenSigned());
+      } catch (error) {
+        // A broken index must not take down a working catalog served beside it.
+        indexError = error;
+        log.warn(`[ModuleCatalog] Could not use the catalog index at ${indexUrl}:`, error);
+      }
+
+      for (const added of index?.added ?? []) {
+        try {
+          refreshed.push(...(await this.refreshSource(added)));
+        } catch (error) {
+          // One listed catalog failing must not fail the index that listed it.
+          log.error(`Failed to refresh catalog ${added.name}:`, error);
+        }
+      }
+    }
+
+    // A URL naming the index itself has no catalog of its own to look for.
+    const fetched = indexUrl === entry.url
+      ? undefined
+      : await this.tryFetchCatalog(entry.url, entry.signingPublicKey, entry.hasBeenSigned());
+
+    if (fetched) {
+      entry.setCatalog(fetched.catalog);
+      ModuleCatalogService.recordSignature(entry, fetched.signature);
+    } else if (index) {
+      // An index only. A catalog this source served before is dropped rather
+      // than left to go stale.
+      entry.catalogJson = undefined;
+      entry.lastFetched = new Date().toISOString();
+      ModuleCatalogService.recordSignature(entry, index.signature);
+    } else {
+      const reason = indexError instanceof Error ? indexError.message : 'HTTP 404';
+      throw new Error(`No catalog or catalog index at ${entry.url} (${reason})`);
+    }
+    this.catalogRepo.update(entry);
+
+    return refreshed;
+  }
+
+  /** Keep the signature state a fetch observed, and the signing key when one verified. */
+  private static recordSignature(entry: ModuleCatalog, signature: CatalogVerificationResult): void {
+    entry.signatureStatus = signature.status;
+    if (signature.publicKey) {
+      entry.signingPublicKey = signature.publicKey;
+    }
+  }
+
+  /**
+   * Refresh all enabled catalog sources, and the catalogs their indexes add.
    */
   async refreshAllCatalogs(): Promise<ModuleCatalog[]> {
     // Pick up catalogs the official index lists first, so a newly published
     // catalog is fetched in this same pass.
     await this.syncOfficialIndexes();
 
-    const catalogs = this.catalogRepo.getEnabled();
     const refreshed: ModuleCatalog[] = [];
-
-    for (const entry of catalogs) {
+    for (const entry of this.catalogRepo.getEnabled()) {
       try {
-        const updated = await this.refreshCatalog(entry.catalogId!);
-        refreshed.push(updated);
+        refreshed.push(...(await this.refreshSource(entry)));
       } catch (error) {
         // Log error but continue with other catalogs
         log.error(`Failed to refresh catalog ${entry.name}:`, error);
@@ -532,13 +654,12 @@ export class ModuleCatalogService implements IModuleCatalogService {
     for (const entry of catalogs) {
       const catalog = entry.getParsedCatalog();
       if (catalog && catalog.modules) {
-        // Resolve relative download URLs against the catalog base URL
-        const baseUrl = entry.url.replace(/\/$/, '');
+        // Relative download URLs resolve against the catalog document, as a
+        // browser would: a source may name the document, not just its directory.
+        const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
         const resolved = catalog.modules.map((m: CatalogModule) => ({
           ...m,
-          download_url: m.download_url.startsWith('http')
-            ? m.download_url
-            : `${baseUrl}/${m.download_url}`
+          download_url: new URL(m.download_url, catalogUrl).toString()
         }));
         allModules.push(...resolved);
       }

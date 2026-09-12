@@ -182,4 +182,99 @@ describe('ModuleCatalogService - official catalog index', () => {
     expect(repo.sources).toHaveLength(1);
     expect(refreshed[0].signatureStatus).toBe('verified');
   });
+
+  describe('a source that serves only an index', () => {
+    const ENGLISH_CATALOG_URL = `${SCOPE}modules/en/catalog.json`;
+    const ENGLISH_ONLY_INDEX = JSON.stringify({
+      format: CATALOG_INDEX_FORMAT,
+      version: CATALOG_INDEX_VERSION,
+      catalogs: [{ url: 'modules/en/catalog.json', name: 'Official English Repository', abbreviation: 'EN' }],
+    });
+    const ENGLISH_CATALOG = JSON.stringify({
+      repository: { name: 'English', url: SCOPE, version: '1.0' },
+      modules: [{ module_id: 'kjv', module_type: 'bible', name: 'KJV', download_url: 'bible/bible_kjv.db.gz' }],
+    });
+
+    function englishSource(): ModuleCatalog | undefined {
+      return repo.sources.find((source) => source.url === ENGLISH_CATALOG_URL);
+    }
+
+    it('becomes an index, and the catalogs it lists are added and fetched', async () => {
+      serve({ [INDEX_URL]: ENGLISH_ONLY_INDEX, [ENGLISH_CATALOG_URL]: ENGLISH_CATALOG });
+
+      const refreshed = await service.refreshAllCatalogs();
+
+      const root = repo.sources[0];
+      expect(root.signatureStatus).toBe('verified');
+      expect(root.catalogJson).toBeUndefined();
+      expect(englishSource()).toMatchObject({ name: 'Official English Repository', type: 'official' });
+      expect(englishSource()?.signatureStatus).toBe('verified');
+      expect(refreshed.map((source) => source.url)).toEqual([SCOPE, ENGLISH_CATALOG_URL]);
+      // Served by the seeded source, so the official sync leaves it to that source.
+      expect(gateway.fetchCalls.filter((call) => call.url === INDEX_URL)).toHaveLength(1);
+    });
+
+    it('resolves download URLs against the listed catalog document', async () => {
+      serve({ [INDEX_URL]: ENGLISH_ONLY_INDEX, [ENGLISH_CATALOG_URL]: ENGLISH_CATALOG });
+
+      await service.refreshAllCatalogs();
+
+      expect(service.getAllAvailableModules().map((module) => module.download_url)).toEqual([
+        `${SCOPE}modules/en/bible/bible_kjv.db.gz`,
+      ]);
+    });
+
+    it('adds and fetches the listed catalogs when refreshed on its own', async () => {
+      serve({ [INDEX_URL]: ENGLISH_ONLY_INDEX, [ENGLISH_CATALOG_URL]: ENGLISH_CATALOG });
+
+      const root = await service.refreshCatalog(repo.sources[0].catalogId!);
+
+      expect(root.signatureStatus).toBe('verified');
+      expect(englishSource()?.signatureStatus).toBe('verified');
+    });
+
+    it('drops a catalog the source used to serve itself', async () => {
+      serve({ [ROOT_CATALOG_URL]: catalogJson('English') });
+      await service.refreshAllCatalogs();
+      serve({ [INDEX_URL]: ENGLISH_ONLY_INDEX, [ENGLISH_CATALOG_URL]: ENGLISH_CATALOG });
+
+      await service.refreshAllCatalogs();
+
+      expect(repo.sources[0].catalogJson).toBeUndefined();
+      expect(service.getAllAvailableModules().map((module) => module.module_id)).toEqual(['kjv']);
+    });
+  });
+
+  it('fails a source that serves neither a catalog nor an index', async () => {
+    serve({});
+
+    await expect(service.refreshCatalog(repo.sources[0].catalogId!)).rejects.toThrow(
+      /No catalog or catalog index/,
+    );
+  });
+
+  it('reads the index of a source outside the official domain, within that source only', async () => {
+    const base = 'https://example.org/repo/';
+    const french = `${base}fr/catalog.json`;
+    const index = JSON.stringify({
+      format: CATALOG_INDEX_FORMAT,
+      version: CATALOG_INDEX_VERSION,
+      catalogs: [
+        { url: 'fr/catalog.json', name: 'Français' },
+        { url: '../elsewhere/catalog.json', name: 'Elsewhere' },
+      ],
+    });
+    const third = repo.create(new ModuleCatalog({ name: 'Third party', url: base, type: 'third_party' }));
+    // Unsigned throughout: a third-party source is trusted on first use.
+    serve(
+      { [`${base}index.json`]: index, [french]: catalogJson('French') },
+      { [`${base}index.json`]: '', [french]: '' },
+    );
+
+    await service.refreshCatalog(third.catalogId!);
+
+    expect(repo.sources.map((source) => source.url)).toEqual([SCOPE, base, french]);
+    expect(repo.sources[2]).toMatchObject({ type: 'third_party', signatureStatus: 'unsigned' });
+    expect(third.signatureStatus).toBe('unsigned');
+  });
 });

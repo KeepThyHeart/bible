@@ -58,28 +58,27 @@ export class ModuleCatalogController {
       throw new Error('Repository already exists');
     }
 
-    // Fetch catalog to validate the source. No expected key is passed: adding
-    // a catalog is the trust-on-first-use moment, so whatever key signs it now
-    // becomes the key required on every later refresh.
-    const fetched = await this.repositoryService.fetchCatalog(url);
-
-    // Create repository entity
-    const repository = new ModuleCatalog({
+    // The source is saved first and then refreshed, so adding goes through the
+    // same path as every later refresh: the URL may name a catalog, an index of
+    // catalogs, or a directory serving either. No key is recorded yet, so this
+    // is the trust-on-first-use moment - whatever key signs it now becomes the
+    // key required on every later refresh.
+    const repository = this.catalogRepo.create(new ModuleCatalog({
       name,
       abbreviation,
       url,
       type,
       isEnabled: true,
       priority: type === 'official' ? 100 : 0
-    });
+    }));
 
-    // Set catalog and record the signature state observed on first use
-    repository.setCatalog(fetched.catalog);
-    repository.signatureStatus = fetched.signature.status;
-    repository.signingPublicKey = fetched.signature.publicKey;
-
-    // Save to database
-    return this.catalogRepo.create(repository);
+    try {
+      return await this.repositoryService.refreshCatalog(repository.catalogId!);
+    } catch (error) {
+      // A source that serves nothing usable is not kept.
+      this.catalogRepo.delete(repository.catalogId!);
+      throw error;
+    }
   }
 
   /**
@@ -178,9 +177,12 @@ export class ModuleCatalogController {
  * trusted keys vouching for new ones, consulted only when no trusted key signed
  * the catalog, and only with the user's approval (desktop `CatalogKeyVouches`).
  *
- * The official domain may also serve a signed `index.json` listing further
- * catalogs under it (one per language, say), so each can be signed on its own;
- * the desktop adds any it does not know yet on refresh (desktop `CatalogIndex`).
+ * A source may instead (or as well) serve an `index.json` listing catalogs
+ * beside or below it (one per language, say), so each can be signed on its
+ * own: a source URL naming a directory is checked for both, and the desktop
+ * adds any listed catalog it does not know yet on refresh (desktop
+ * `CatalogIndex`, `ModuleCatalogService.refreshSource`). The official domain
+ * serves one at its root, held to the pinned keys like its catalogs.
  *
  * Unsigned catalogs remain supported: their modules may only be downloaded from
  * the catalog's own origin (see ModuleCatalogService.getAllAvailableModules).

@@ -1,10 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
+import * as crypto from 'crypto';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 import type { ISql } from '@bible/core';
 import { ModuleMetadata, ModuleMetadataRepository } from '@bible/core';
 import type { InstallationResult } from '@bible/core';
-import type { IInstallationService } from '@bible/core';
+import type { IInstallationService, InstallVerification } from '@bible/core';
 import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
 
@@ -17,6 +20,15 @@ const MODULE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 const REQUIRED_CANON = 'protestant-66';
 const REQUIRED_VERSIFICATION = 'kjv-english';
 const MAX_BOOK_NUMBER = 66;
+
+/** SHA-256 of a file, streamed so a large module is never held in memory whole. */
+async function sha256OfFile(filePath: string): Promise<string> {
+  const hash = crypto.createHash('sha256');
+  for await (const chunk of fs.createReadStream(filePath)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest('hex');
+}
 
 export class InstallationService implements IInstallationService {
   private moduleMetadataRepo: ModuleMetadataRepository;
@@ -34,10 +46,15 @@ export class InstallationService implements IInstallationService {
 
   /**
    * Install a native format module
+   *
+   * @param verification - For a download: the checksum its catalog publishes
+   *   for the unpacked module, and the unpacked size to stop at. The file is
+   *   checked against it before anything opens it, and discarded if it fails.
    */
   async installModule(
     sourcePath: string,
-    moduleInfo: Partial<ModuleMetadata>
+    moduleInfo: Partial<ModuleMetadata>,
+    verification?: InstallVerification
   ): Promise<InstallationResult> {
     try {
       // Verify source file exists
@@ -49,11 +66,31 @@ export class InstallationService implements IInstallationService {
       }
 
       // Decompress if .gz file
-      let dbPath = sourcePath;
-      if (sourcePath.endsWith('.gz')) {
-        const decompressedPath = sourcePath.replace(/\.gz$/, '');
-        await this.decompressModule(sourcePath, decompressedPath);
-        dbPath = decompressedPath;
+      const dbPath = sourcePath.endsWith('.gz') ? sourcePath.replace(/\.gz$/, '') : sourcePath;
+      try {
+        if (dbPath !== sourcePath) {
+          await this.decompressModule(sourcePath, dbPath, verification?.maxBytes);
+        }
+
+        // A download is checked against the checksum its catalog publishes -
+        // which covers the unpacked module - before anything opens it. Until
+        // then the file is untrusted, and SQLite parsing a hostile database is
+        // a far larger attack surface than gunzip.
+        if (verification) {
+          const actual = await sha256OfFile(dbPath);
+          if (actual !== verification.sha256.toLowerCase()) {
+            throw new Error(`Checksum verification failed (expected ${verification.sha256}, got ${actual})`);
+          }
+        }
+      } catch (error) {
+        // A download that fails is discarded rather than kept to be resumed or
+        // retried from. A user's own file (no verification) is never deleted.
+        if (verification) {
+          for (const file of new Set([sourcePath, dbPath])) {
+            fs.rmSync(file, { force: true });
+          }
+        }
+        throw error;
       }
 
       // Verify module - file-format header check first, then a structural +
@@ -87,7 +124,11 @@ export class InstallationService implements IInstallationService {
       //
       // This runs BEFORE the rename below: a refused module must be left where
       // it was found, not moved into the modules tree.
-      if (!moduleInfo.moduleUuid) {
+      //
+      // A catalog entry does not carry the module's identity; the file does, and
+      // it has passed every check above, so it is safe to read it from there.
+      const moduleUuid = moduleInfo.moduleUuid ?? (await this.extractModuleInfo(dbPath)).moduleUuid;
+      if (!moduleUuid) {
         return {
           success: false,
           error:
@@ -121,7 +162,7 @@ export class InstallationService implements IInstallationService {
         // Carried through from `module_info.module_uuid` so the registry row
         // has the stable identity the install-policy check keys on. Guaranteed
         // present by the gate above.
-        moduleUuid: moduleInfo.moduleUuid,
+        moduleUuid,
         moduleName: moduleInfo.moduleName!,
         abbreviation: moduleInfo.abbreviation,
         version: moduleInfo.version,
@@ -254,19 +295,35 @@ export class InstallationService implements IInstallationService {
 
   /**
    * Decompress a gzipped module file
+   *
+   * With `maxBytes`, unpacking stops once the output passes it, so a small
+   * download cannot inflate to fill the disk. A partial or over-long output is
+   * removed rather than left to be mistaken for a module.
    */
-  async decompressModule(sourcePath: string, destinationPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const input = fs.createReadStream(sourcePath);
-      const output = fs.createWriteStream(destinationPath);
-      const gunzip = zlib.createGunzip();
-
-      input
-        .pipe(gunzip)
-        .pipe(output)
-        .on('finish', resolve)
-        .on('error', reject);
+  async decompressModule(sourcePath: string, destinationPath: string, maxBytes?: number): Promise<void> {
+    let unpacked = 0;
+    const cap = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        unpacked += chunk.length;
+        if (maxBytes !== undefined && unpacked > maxBytes) {
+          callback(new Error(`Module unpacks to more than the ${maxBytes} bytes its catalog declares`));
+          return;
+        }
+        callback(null, chunk);
+      }
     });
+
+    try {
+      await pipeline(
+        fs.createReadStream(sourcePath),
+        zlib.createGunzip(),
+        cap,
+        fs.createWriteStream(destinationPath)
+      );
+    } catch (error) {
+      fs.rmSync(destinationPath, { force: true });
+      throw error;
+    }
   }
 
   /**

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { SqliteProvider } from '../providers/SqliteProvider';
+import { APP_CONFIG } from '../config/appConfig';
 import { initializeMainDatabase } from './initMainDatabase';
 
 /**
@@ -25,6 +26,82 @@ const nativeSqliteAvailable = ((): boolean => {
     return false;
   }
 })();
+
+/**
+ * The official catalog source is seeded on whichever start first finds none -
+ * not only when this code creates the database, which `npm run init` and the
+ * installer's main.db template both do instead.
+ */
+describe.skipIf(!nativeSqliteAvailable)('initMainDatabase official repository seed', () => {
+  const OFFICIAL_URL = 'https://modules.example.org/';
+  const originalUrl = APP_CONFIG.moduleCatalogUrl;
+  let tmpDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'bible-mainDb-seed-'));
+    dbPath = join(tmpDir, 'main.db');
+  });
+
+  afterEach(() => {
+    (APP_CONFIG as { moduleCatalogUrl: string }).moduleCatalogUrl = originalUrl;
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function startWithCatalogUrl(url: string): void {
+    (APP_CONFIG as { moduleCatalogUrl: string }).moduleCatalogUrl = url;
+    initializeMainDatabase(dbPath).close();
+  }
+
+  function repositories(): Array<{ abbreviation: string; url: string; type: string; is_enabled: number }> {
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      return db.queryAll<{ abbreviation: string; url: string; type: string; is_enabled: number }>(
+        'SELECT abbreviation, url, type, is_enabled FROM module_repository ORDER BY repository_id',
+      );
+    } finally {
+      db.close();
+    }
+  }
+
+  it('adds the official source to a database that already existed without one', () => {
+    startWithCatalogUrl('');
+    expect(repositories()).toEqual([]);
+
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toEqual([{ abbreviation: 'OFFICIAL', url: OFFICIAL_URL, type: 'official', is_enabled: 1 }]);
+  });
+
+  it('adds it once, however many times the app starts', () => {
+    startWithCatalogUrl(OFFICIAL_URL);
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toHaveLength(1);
+  });
+
+  it('leaves an official source the user changed as it is', () => {
+    startWithCatalogUrl(OFFICIAL_URL);
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      db.execute(`UPDATE module_repository SET url = 'https://mirror.example.net/', is_enabled = 0 WHERE type = 'official'`);
+    } finally {
+      db.close();
+    }
+
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toEqual([
+      { abbreviation: 'OFFICIAL', url: 'https://mirror.example.net/', type: 'official', is_enabled: 0 },
+    ]);
+  });
+
+  it('adds nothing when the build has no catalog URL', () => {
+    startWithCatalogUrl('');
+
+    expect(repositories()).toEqual([]);
+  });
+});
 
 /**
  * Regression test for the module_type CHECK constraint bug: a main.db created

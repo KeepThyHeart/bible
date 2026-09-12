@@ -65,6 +65,15 @@ describe('DownloadService via NetworkGateway', () => {
     expect(gateway.downloadCalls[0]!.headers).toEqual({ Range: `bytes=${'partial'.length}-` });
   });
 
+  it('creates the destination folder when a fresh profile has none', async () => {
+    const nested = path.join(path.dirname(destination), 'temp', 'downloads', 'module.db.gz');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 200, chunks: ['module-bytes'] });
+
+    await expect(service.startDownload(9, 'https://cdn.example/module.db.gz', nested)).resolves.toBe(nested);
+
+    expect(fs.readFileSync(nested, 'utf-8')).toBe('module-bytes');
+  });
+
   it('rejects a duplicate queue id', async () => {
     gateway.downloadStreamImpl = () =>
       new Promise(() => {
