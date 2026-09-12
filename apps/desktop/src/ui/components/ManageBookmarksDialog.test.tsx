@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ManageBookmarksDialog from './ManageBookmarksDialog';
@@ -44,10 +44,10 @@ const bookmark = (
 });
 
 describe('ManageBookmarksDialog', () => {
-  let loadBookmarks: ReturnType<typeof vi.fn>;
-  let setBookmarkTitle: ReturnType<typeof vi.fn>;
-  let removeBookmark: ReturnType<typeof vi.fn>;
-  let reorderBookmarks: ReturnType<typeof vi.fn>;
+  let loadBookmarks: Mock;
+  let setBookmarkTitle: Mock;
+  let removeBookmark: Mock;
+  let reorderBookmarks: Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();

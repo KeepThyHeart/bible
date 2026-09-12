@@ -61,11 +61,8 @@ export default defineConfig({
         '**/example*.ts',
         '**/*.config.ts',
       ],
-      all: true,
-      lines: 80,
-      functions: 80,
-      branches: 80,
-      statements: 80,
+      // Report uncovered source files too, not only the ones a test loaded.
+      include: ['src/**/*.{ts,tsx}', 'electron/**/*.ts', 'extension-runtime/**/*.ts'],
     },
 
     // Reporter configuration

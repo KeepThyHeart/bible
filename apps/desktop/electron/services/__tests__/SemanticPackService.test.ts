@@ -18,7 +18,7 @@
  *     Windows an open SQLite file cannot be renamed or deleted.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -52,7 +52,7 @@ import type { FeaturePack } from '@bible/core';
 
 let tempDir: string;
 let gateway: FakeNetworkGateway;
-let onInstalled: ReturnType<typeof vi.fn>;
+let onInstalled: Mock;
 let service: SemanticPackService;
 
 const INDEX_BODY = 'SQLite format 3\u0000-pretend-index-bytes';

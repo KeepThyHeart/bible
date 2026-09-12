@@ -178,7 +178,7 @@ The app uses Electron's two-process architecture:
 
 | Layer       | Technology                                      |
 |-------------|------------------------------------------------|
-| Desktop     | Electron 33                                    |
+| Desktop     | Electron 44                                    |
 | UI          | React 18                                       |
 | State       | Zustand 5                                      |
 | Styling     | Tailwind CSS 3                                 |

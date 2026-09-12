@@ -25,11 +25,12 @@
  * uncheckpointed WAL and writes a fresh single-file copy - so no -wal/-shm files
  * get shipped into the read-only install location.
  *
- * Uses the async `sqlite3` driver (system Node.js), per the repo's driver split.
+ * Uses the repo root's `better-sqlite3`, which is built for system Node.js
+ * (the desktop's own `better-sqlite3-multiple-ciphers` is built for Electron).
  */
 const fs = require('fs');
 const path = require('path');
-const sqlite3 = require('sqlite3');
+const Database = require('better-sqlite3');
 
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const DATA = path.join(REPO, 'apps', 'desktop', 'data');
@@ -131,42 +132,22 @@ const MODEL_FILES = [
 ];
 const MODEL_DEST = path.join(OUT, 'models', 'Xenova', 'nomic-embed-text-v1');
 
-function run(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+// Opened read-write: the WAL checkpoint below needs it.
+function open(file) {
+  return new Database(file, { fileMustExist: true });
 }
 
-function get(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
-  });
-}
-
-function open(file, mode) {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(file, mode, (err) => (err ? reject(err) : resolve(db)));
-  });
-}
-
-function close(db) {
-  return new Promise((resolve, reject) => db.close((err) => (err ? reject(err) : resolve())));
-}
-
-async function vacuumInto(srcAbs, destAbs) {
+function vacuumInto(srcAbs, destAbs) {
   fs.mkdirSync(path.dirname(destAbs), { recursive: true });
   for (const ext of ['', '-wal', '-shm']) {
     if (fs.existsSync(destAbs + ext)) fs.rmSync(destAbs + ext);
   }
-  const db = await open(srcAbs, sqlite3.OPEN_READWRITE); // RW so WAL can checkpoint
+  const db = open(srcAbs);
   try {
-    await run(db, 'PRAGMA wal_checkpoint(TRUNCATE)');
-    await run(db, 'VACUUM INTO ?', [destAbs]);
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.prepare('VACUUM INTO ?').run(destAbs);
   } finally {
-    await close(db);
+    db.close();
   }
 }
 

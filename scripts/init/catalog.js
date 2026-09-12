@@ -88,6 +88,13 @@ const CATALOG_INDEX_MAX_BYTES = 64 * 1024;
 /** Bounded like the desktop's NetworkGateway; a redirect chain is not a maze. */
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 30_000;
+// How long each address may take to connect before Node's dual-stack connect
+// moves on.  Node's default, 250 ms, fails the whole request on a network where
+// IPv6 is unreachable and IPv4 is merely slow to answer.
+const CONNECT_ATTEMPT_TIMEOUT_MS = 2_000;
+// Network-level failures worth another try.  An HTTP error status is not one.
+const RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENETUNREACH', 'EHOSTUNREACH', 'EAI_AGAIN', 'EPIPE']);
+const FETCH_ATTEMPTS = 3;
 
 const BRAND_DIR = path.resolve(__dirname, '../../admin/brand');
 
@@ -150,7 +157,7 @@ function indexUrlFor(sourceUrl) {
  * chooses what gets installed -- and a module is a SQLite database the app
  * opens and queries.
  */
-function fetchBuffer(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
+function fetchOnce(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
   return new Promise((resolve, reject) => {
     let parsed;
     try {
@@ -164,7 +171,10 @@ function fetchBuffer(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
       return;
     }
 
-    const request = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (response) => {
+    const request = https.get(url, {
+      timeout: REQUEST_TIMEOUT_MS,
+      autoSelectFamilyAttemptTimeout: CONNECT_ATTEMPT_TIMEOUT_MS,
+    }, (response) => {
       const status = response.statusCode ?? 0;
 
       if (status >= 300 && status < 400 && response.headers.location) {
@@ -174,7 +184,7 @@ function fetchBuffer(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
           return;
         }
         const next = new URL(response.headers.location, url).toString();
-        resolve(fetchBuffer(next, { maxBytes, redirectsLeft: redirectsLeft - 1 }));
+        resolve(fetchOnce(next, { maxBytes, redirectsLeft: redirectsLeft - 1 }));
         return;
       }
 
@@ -201,10 +211,35 @@ function fetchBuffer(url, { maxBytes, redirectsLeft = MAX_REDIRECTS } = {}) {
 
     request.on('timeout', () => {
       request.destroy();
-      reject(new Error(`Timed out after ${REQUEST_TIMEOUT_MS}ms fetching ${url}`));
+      reject(Object.assign(new Error(`Timed out after ${REQUEST_TIMEOUT_MS}ms fetching ${url}`), { code: 'ETIMEDOUT' }));
     });
     request.on('error', reject);
   });
+}
+
+/**
+ * `fetchOnce`, tried again when the network rather than the server failed: a
+ * dropped connection, or a connect that timed out.
+ */
+async function fetchBuffer(url, options = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fetchOnce(url, options);
+    } catch (err) {
+      if (attempt >= FETCH_ATTEMPTS || !RETRYABLE_CODES.has(err.code)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+}
+
+/**
+ * An error's message, or what it is made of when it has none: Node's dual-stack
+ * connect fails with an AggregateError whose own message is empty.
+ */
+function describeError(err) {
+  if (err.message) return err.message;
+  const causes = (err.errors || []).map((e) => `${e.code ?? e.message} ${e.address ?? ''}`.trim());
+  return [err.code ?? err.name, ...causes].join('; ');
 }
 
 // ============================================================================
@@ -1170,7 +1205,7 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
     return 'installed';
   } catch (err) {
     log.error('');
-    log.error(`Catalog install failed: ${err.message}`);
+    log.error(`Catalog install failed: ${describeError(err)}`);
     return 'aborted';
   }
 }

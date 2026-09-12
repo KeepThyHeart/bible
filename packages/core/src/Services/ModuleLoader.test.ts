@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { ModuleLoader } from './ModuleLoader';
 import type { ISql } from '../Data/Core/ISql';
 import type { IModuleMetadataRepository } from '../Data/Repositories/IModuleMetadataRepository';
@@ -12,9 +12,9 @@ import type { IModuleMetadataRepository } from '../Data/Repositories/IModuleMeta
 describe('ModuleLoader failure memoization', () => {
   const dbPath = 'modules/commentary_synthesis.db';
 
-  let getByAbbreviation: ReturnType<typeof vi.fn>;
-  let fileExists: ReturnType<typeof vi.fn>;
-  let logger: { error: ReturnType<typeof vi.fn> };
+  let getByAbbreviation: Mock;
+  let fileExists: Mock;
+  let logger: { error: Mock };
 
   const build = (overrides: { fileExists?: (p: string) => boolean } = {}) =>
     new ModuleLoader<{ id: string }>({

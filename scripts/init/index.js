@@ -125,7 +125,12 @@ let sqliteDriver = null;
  * that most needs them.
  */
 function sqlite() {
-  if (!sqliteDriver) sqliteDriver = require('better-sqlite3-web');
+  if (!sqliteDriver) {
+    // Resolved from `apps/web`, which depends on it: npm may install it in that
+    // workspace's own node_modules rather than hoisting it to the root.
+    const driverPath = require.resolve('better-sqlite3-web', { paths: [path.join(REPO_ROOT, 'apps/web')] });
+    sqliteDriver = require(driverPath);
+  }
   return sqliteDriver;
 }
 

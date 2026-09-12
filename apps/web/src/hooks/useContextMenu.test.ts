@@ -16,7 +16,7 @@
  * would only restate the implementation); `bibleStore` is mocked because the
  * only thing this hook asks of it is a single call.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/preact';
 
 const adoptPreviewAsStudy = vi.fn();
@@ -39,7 +39,7 @@ interface Harness {
   action: (name: string) => void;
   setCopyOpen: ReturnType<typeof vi.fn>;
   setMobileView: ReturnType<typeof vi.fn>;
-  emit: ReturnType<typeof vi.spyOn>;
+  emit: MockInstance<typeof eventBus.emit>;
 }
 
 /**
