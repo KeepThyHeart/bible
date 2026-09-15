@@ -136,9 +136,28 @@ const branding = (() => {
   };
 })();
 
+// --- Electron version ------------------------------------------------------
+//
+// The installers must run the Electron the app is developed and tested on, so
+// no config pins one. electron-builder would read it from
+// apps/desktop/node_modules/electron, but npm hoists `electron` to the root
+// node_modules, and without it there electron-builder falls back to the
+// `^44.x` range in package.json and refuses to build ("is a range, not a fixed
+// version"). So it is resolved here the way Node resolves it, which finds the
+// hoisted package. Upgrading Electron with npm needs no edit here.
+const electronVersion = (() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(require.resolve('electron/package.json', { paths: [__dirname] })).version;
+  } catch (cause) {
+    throw new Error(`electron-builder.branding.cjs: the electron package is not installed (${cause.message}). Run \`npm install\` at the repository root first.`);
+  }
+})();
+
 module.exports = {
   appId,
   productName,
+  electronVersion,
   publish: [
     {
       provider: 'github',
