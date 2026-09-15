@@ -162,4 +162,15 @@ module.exports = {
     // Hardened runtime is required for notarization; only meaningful when signed.
     hardenedRuntime: macSigningConfigured,
   },
+  linux: {
+    // On Linux the binary is otherwise named after the npm package,
+    // `@bible/desktop` -> `@bibledesktop`, which electron-builder refuses for
+    // the AppImage ("executableName contains characters that cannot be safely
+    // used in file paths"), so the Linux release build failed. Derived from
+    // productName so a neutral BIBLE_PRODUCT_NAME build renames it too.
+    // Linux only: on Windows the .exe keeps productName, which
+    // build-installer.nsh depends on. Child configs' `linux:` blocks are
+    // deep-merged with this one, so their targets are unaffected.
+    executableName: productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bible',
+  },
 };

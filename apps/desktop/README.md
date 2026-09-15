@@ -14,12 +14,13 @@ From the monorepo root:
 
 ```bash
 npm install
-npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron rebuild
+npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron download and rebuild
 npm run dev
 ```
 
-The [repository README](../../README.md) covers prerequisites, the module presets and troubleshooting. The desktop-specific steps of `npm run setup` are:
+The [repository README](../../README.md) covers prerequisites, the module presets, setup's options and troubleshooting. The desktop-specific steps of `npm run setup` are:
 
+- **`npm run init:electron`** downloads the Electron binary for this platform from GitHub and checks it against the checksums the `electron` package ships. Since Electron 44 `npm install` no longer does this; without it the first `npm run dev` would. It does nothing when the binary is already there.
 - **`npm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `npm run init -- --target=desktop --no-link` keeps a separate copy instead.
 - **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
 
