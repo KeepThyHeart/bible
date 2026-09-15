@@ -162,15 +162,37 @@ module.exports = {
     // Hardened runtime is required for notarization; only meaningful when signed.
     hardenedRuntime: macSigningConfigured,
   },
+  // The deb's required "homepage" (fpm refuses to build without one). Taken
+  // from branding like every other public URL, rather than hard-coded in
+  // package.json.
+  extraMetadata: {
+    homepage: branding.siteUrl || branding.downloadsUrl
+      || `https://github.com/${branding.githubOrg || 'psrankin'}/${branding.githubRepo || 'bible'}`,
+  },
   linux: {
     // On Linux the binary is otherwise named after the npm package,
     // `@bible/desktop` -> `@bibledesktop`, which electron-builder refuses for
     // the AppImage ("executableName contains characters that cannot be safely
-    // used in file paths"), so the Linux release build failed. Derived from
-    // productName so a neutral BIBLE_PRODUCT_NAME build renames it too.
+    // used in file paths"), so the Linux release build failed.
     // Linux only: on Windows the .exe keeps productName, which
     // build-installer.nsh depends on. Child configs' `linux:` blocks are
     // deep-merged with this one, so their targets are unaffected.
-    executableName: productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bible',
+    executableName: linuxName(),
+  },
+  deb: {
+    // Otherwise both come from the npm name, and the deb was written to
+    // dist/@bible/desktop_<version>_amd64.deb: a subdirectory the release
+    // workflow's `dist/*.deb` never matches.
+    packageName: linuxName(),
+    artifactName: `${linuxName()}_\${version}_\${arch}.\${ext}`,
   },
 };
+
+/**
+ * productName as a Linux file and package name ("keep-thy-heart-bible-reader"),
+ * so a neutral BIBLE_PRODUCT_NAME build renames the binary and the deb too.
+ * A function declaration, so the object above can call it.
+ */
+function linuxName() {
+  return productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bible';
+}
