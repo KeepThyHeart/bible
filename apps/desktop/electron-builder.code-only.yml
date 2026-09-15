@@ -30,7 +30,8 @@
 # signing). Do not re-declare them here — a child config overrides its parent
 # and would defeat the env gate.
 extends: file:electron-builder.branding.cjs
-electronVersion: 33.2.0
+# No electronVersion: electron-builder takes it from the installed `electron`
+# package, so the installers run the Electron the app is developed and tested on.
 directories:
   output: dist
   buildResources: resources
