@@ -10,10 +10,19 @@ import { focusSearchField } from '../utils/focusSearchField';
 import { presentStore } from '../stores/presentStore';
 
 
-// Common abbreviation mappings (lowercase)
-const BOOK_ABBREV_MAP: Record<string, number> = {
+/**
+ * Common abbreviation mappings (lowercase).
+ *
+ * Exported so other code that needs to recognise a book name -- the
+ * presenter's paste-to-detect-references scanner (`present/referenceScan.ts`)
+ * is the one other caller today -- has one table to consult rather than a
+ * second copy invented for it.
+ */
+export const BOOK_ABBREV_MAP: Record<string, number> = {
   'gen': 1, 'exo': 2, 'exod': 2, 'exodus': 2, 'lev': 3, 'num': 4, 'deu': 5, 'deut': 5,
   'jos': 6, 'josh': 6, 'jdg': 7, 'judg': 7, 'judges': 7, 'rut': 8, 'ruth': 8,
+  'ps': 19, 'psa': 19, 'psalm': 19, 'psalms': 19, 'pro': 20, 'prov': 20, 'proverbs': 20,
+  'ecc': 21, 'eccl': 21, 'eccles': 21, 'ecclesiastes': 21,
   'isa': 23, 'isaiah': 23, 'jer': 24, 'jeremiah': 24, 'lam': 25, 'eze': 26, 'ezek': 26,
   'dan': 27, 'daniel': 27, 'hos': 28, 'hosea': 28, 'joe': 29, 'joel': 29,
   'amo': 30, 'amos': 30, 'oba': 31, 'obad': 31, 'jon': 32, 'jonah': 32,

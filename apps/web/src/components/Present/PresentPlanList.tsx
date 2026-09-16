@@ -15,6 +15,7 @@ import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
 import type { PresentPlanEntry } from '../../present/protocol';
 import { describeItem, usePresenter } from './usePresenter';
+import { PresentPasteReferences } from './PresentPasteReferences';
 
 /**
  * The running order: the service plan, in the order it will be used.
@@ -169,6 +170,7 @@ export function PresentPlanList() {
             ? t('present.addToPlan', { ref: view.staged.label })
             : t('present.nothingToAdd')}
         </button>
+        <PresentPasteReferences />
       </div>
 
       {plan.length === 0 ? (
