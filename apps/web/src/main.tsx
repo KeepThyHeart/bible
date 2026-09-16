@@ -21,7 +21,8 @@ import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
-import { takeControlLinkFromUrl } from './present/controlLink';
+import { followStore } from './stores/followStore';
+import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from './present/controlLink';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
 // icons for offline/PWA use. Only the core + solid + regular styles are imported; the
@@ -51,6 +52,14 @@ async function init() {
   // is not where it belongs. Reading it is cheap and returns null on every
   // ordinary page load.
   const adoptedSession = takeControlLinkFromUrl();
+
+  // Follow-along mode (`/present/f/<code>`): unlike the control link, the
+  // join code is not a secret -- it is exactly what the QR code and the
+  // viewer link already hand out -- so it stays in the path rather than
+  // being read and scrubbed. `followStore.start` is called after the first
+  // paint, alongside `presentStore.restore` below, for the same reason: the
+  // reading app has to work whether or not this is a follow-along session.
+  const followCode = takeFollowLinkFromUrl();
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.
@@ -255,6 +264,12 @@ async function init() {
   // link, or one it created before a reload. After the first paint, because the
   // reading app has to work whether or not a screen is attached.
   presentStore.restore(adoptedSession);
+
+  // Start following, if this load was `/present/f/<code>`. Also after the
+  // first paint: the reader underneath renders exactly as it would for any
+  // other chapter, and `followStore` then nudges it to the presenter's live
+  // reference the moment the stream answers.
+  if (followCode) followStore.start(followCode);
 
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();

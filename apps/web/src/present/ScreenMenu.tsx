@@ -12,6 +12,7 @@
 import type { PresentTheme } from './protocol';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from './protocol';
 import { MAX_OVERSCAN } from './viewerChrome';
+import { buildFollowLink } from './controlLink';
 
 const THEMES: Array<{ value: PresentTheme; label: string }> = [
   { value: 'max', label: 'Max visibility' },
@@ -31,6 +32,8 @@ export function ScreenMenu(props: {
   onAdjustOverscan(delta: number): void;
   isFullscreen: boolean;
   onToggleFullscreen(): void;
+  /** Omitted in the controller's preview, which is not a real screen to switch away from. */
+  joinCode?: string;
 }): preact.JSX.Element | null {
   if (!props.visible) return null;
 
@@ -96,6 +99,19 @@ export function ScreenMenu(props: {
         <button type="button" class="pv-menu-btn pv-menu-btn--wide" onClick={props.onToggleFullscreen}>
           {props.isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         </button>
+
+        {/*
+          For whoever opened the projector link on a phone by mistake -- or a
+          screen someone would simply rather read along on. The other
+          direction lives on the follow banner itself (`FollowBanner.tsx`,
+          "Open screen view instead"), so the switch works both ways without
+          either page having to guess what kind of device it is running on.
+        */}
+        {props.joinCode && (
+          <a class="pv-menu-btn pv-menu-btn--wide" href={buildFollowLink(props.joinCode)}>
+            Follow along instead
+          </a>
+        )}
       </div>
 
       <div class="pv-menu-row pv-menu-row--status">

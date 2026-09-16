@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
 import { API_BASE } from '../../utils/apiUrl';
-import { buildControlLink, buildViewerLink } from '../../present/controlLink';
+import { buildControlLink, buildViewerLink, typedWatchAddress } from '../../present/controlLink';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from '../../present/protocol';
 import { PresentHymns } from './PresentHymns';
 import { PresentPlanList } from './PresentPlanList';
@@ -26,6 +26,14 @@ import { usePresenter } from './usePresenter';
  * everything else. Putting the running order or font controls there instead
  * would push blank and next further from a thumb, which is the wrong trade in
  * the moment that matters.
+ *
+ * The screen preview used to live inside the "Screen" section below, which
+ * meant seeing it and seeing the running order were mutually exclusive tabs.
+ * `PresentTab` now shows the real preview in its own panel underneath this
+ * one, always visible alongside whichever section is selected -- so
+ * `previewInline` (default on) is what lets the floating popup fallback
+ * (`PresentPanel`, which has nowhere else to put a persistent panel) keep the
+ * old inline placement, while `PresentTab` turns it off.
  */
 
 type Section = 'plan' | 'hymns' | 'screen' | 'join';
@@ -63,7 +71,8 @@ function HandoffQr(props: { link: string }) {
   );
 }
 
-export function PresentPanelBody(props: { compact?: boolean; onClose?: () => void }) {
+export function PresentPanelBody(props: { compact?: boolean; onClose?: () => void; previewInline?: boolean }) {
+  const previewInline = props.previewInline ?? true;
   const { t } = useTranslation();
   const view = usePresenter();
   const session = useStore(presentStore, () => presentStore.session);
@@ -138,11 +147,16 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
             {/*
               A preview on a phone would be a postage stamp competing for the
               only screen the presenter has. On a phone the actual television is
-              usually in the room anyway.
+              usually in the room anyway. On desktop, `PresentTab` shows the
+              same preview in its own always-visible panel instead (see
+              `previewInline` above), so there is nothing to render here.
             */}
-            {props.compact
-              ? <p class="present-panel__note">{t('present.previewDesktopOnly')}</p>
-              : <PresentPreview joinCode={session.joinCode} />}
+            {props.compact && (
+              <p class="present-panel__note">{t('present.previewDesktopOnly')}</p>
+            )}
+            {!props.compact && previewInline && (
+              <PresentPreview joinCode={session.joinCode} />
+            )}
 
             <div class="present-panel__row">
               <span class="present-panel__row-label">{t('present.textSize')}</span>
@@ -206,6 +220,17 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
             <div class="present-panel__join-detail">
               <p class="present-panel__code">{session.joinCode}</p>
               <p class="present-panel__link">{buildViewerLink(session.joinCode)}</p>
+              {/*
+                A link is easy to scan or paste, but hard to *type* -- and a
+                presenter without a working camera, or a room with the code on
+                a slide rather than a phone in hand, needs something a person
+                can key in by hand. A short, fixed address plus the code
+                already on screen (or spoken aloud) does that; `/watch` asks
+                for the code and sends the browser on to the right place.
+              */}
+              <p class="present-panel__hint present-panel__typed-hint">
+                {t('present.joinTypedHint')} <strong>{typedWatchAddress()}</strong>
+              </p>
               <div class="present-panel__join-actions">
                 <a
                   class="present-panel__button"

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildControlLink, buildViewerLink, parseControlLink } from '../controlLink';
+import {
+  buildControlLink, buildViewerLink, buildFollowLink, buildWatchLink, typedWatchAddress,
+  parseControlLink, parseFollowLink,
+} from '../controlLink';
 import type { ControllerSession } from '../../stores/presentStore';
 
 /**
@@ -104,5 +107,37 @@ describe('the viewer link', () => {
     const link = buildViewerLink(SESSION.joinCode, 'https://bible.example.org');
     expect(link).not.toContain(SESSION.controlToken);
     expect(link).not.toContain(SESSION.sessionId);
+  });
+});
+
+describe('the follow-along link', () => {
+  it('carries the join code and nothing else', () => {
+    const link = buildFollowLink('ABCD2345', 'https://bible.example.org');
+    expect(link).toBe('https://bible.example.org/present/f/ABCD2345');
+  });
+
+  it('round-trips through parseFollowLink', () => {
+    expect(parseFollowLink('/present/f/ABCD2345')).toBe('ABCD2345');
+    expect(parseFollowLink('/present/f/ABCD2345/')).toBe('ABCD2345');
+  });
+
+  it('is null for an ordinary page load, and for the screen link', () => {
+    expect(parseFollowLink('/')).toBeNull();
+    expect(parseFollowLink('/present/v/ABCD2345')).toBeNull();
+  });
+
+  it('refuses a join code outside the alphabet the server uses', () => {
+    expect(parseFollowLink('/present/f/ABCDILOU')).toBeNull();
+  });
+});
+
+describe('the /watch address', () => {
+  it('builds a plain link', () => {
+    expect(buildWatchLink('https://bible.example.org')).toBe('https://bible.example.org/watch');
+  });
+
+  it('drops the scheme for what a person actually types', () => {
+    expect(typedWatchAddress('https://bible.example.org')).toBe('bible.example.org/watch');
+    expect(typedWatchAddress('http://localhost:5173')).toBe('localhost:5173/watch');
   });
 });

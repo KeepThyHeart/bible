@@ -316,6 +316,14 @@
     text-decoration-thickness: 2px;
   }
 
+  // Where the presenter currently is, on a follow-along tab
+  // (`/present/f/<code>`) -- the same left-bar device the projection viewer
+  // uses for its own current verse (see `.pv-verse--anchor` in `viewer.css`),
+  // so the two look like the same idea rather than two different ones.
+  &--follow-live {
+    border-left: 3px solid var(--accent-color);
+  }
+
   // Block mode (standard / study)
   &--block {
     display: flex;
@@ -500,6 +508,53 @@
      to uniform small capitals. */
   .divine-name {
     font-variant-caps: small-caps;
+  }
+
+  // Words of a follow-along session's currently highlighted verse
+  // (`FollowHighlightedText` in `VerseRenderer.tsx`). A parallel set of
+  // classes to `.christ-words`/`.divine-name` above rather than a reuse of
+  // them: this render path tokenizes into individual word spans (so a
+  // highlight can address one word), which those two selectors were never
+  // written to match.
+  &__follow-word {
+    &--christ { color: var(--christ-words); }
+    &--divine { font-variant-caps: small-caps; }
+    &--supplied { font-style: italic; }
+
+    // The same left-to-right sweep the projection viewer draws
+    // (`@keyframes pv-sweep` in `viewer.css`), reproduced here rather than
+    // shared: this is plain app CSS with the app's own theme variables, not
+    // the viewer's self-contained stylesheet, and the two have no file in
+    // common to share a keyframe from.
+    //
+    // A tint of `--accent-color`, not `--highlight-bg`: the followed verse is
+    // also the study pane's selected verse (`navigateTo` sets `studyVerse`
+    // to it), which already paints the whole verse with `--highlight-bg` --
+    // using the same colour for the word sweep would paint it directly over
+    // an identical background and disappear.
+    &--hl {
+      background-image: linear-gradient(
+        color-mix(in srgb, var(--accent-color) 45%, transparent),
+        color-mix(in srgb, var(--accent-color) 45%, transparent)
+      );
+      background-repeat: no-repeat;
+      background-position: 0 0.1em;
+      background-size: 0 0.92em;
+      animation: verse-follow-sweep 260ms ease-out forwards;
+      animation-delay: calc(var(--follow-sweep, 0) * 45ms);
+    }
+  }
+}
+
+@keyframes verse-follow-sweep {
+  from { background-size: 0 0.92em; }
+  to   { background-size: 100% 0.92em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verse__follow-word--hl {
+    animation: none;
+    background-size: 100% 0.92em;
   }
 }
 

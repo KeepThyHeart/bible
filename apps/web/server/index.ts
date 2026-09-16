@@ -543,6 +543,23 @@ if (existsSync(clientDir)) {
     res.sendFile(presentViewerHtml);
   });
 
+  /**
+   * `/watch`: the short, typeable join address (see `present/watch.html`).
+   *
+   * Above the SPA catch-all for the same reason `/present/v/:joinCode` is:
+   * this is a second, bare entry point, not a route inside the reading app,
+   * and must not fall through to `index.html`.
+   */
+  const presentWatchHtml = join(clientDir, 'present', 'watch.html');
+  app.get('/watch', (_req, res) => {
+    if (!existsSync(presentWatchHtml)) {
+      res.status(404).json({ error: 'The join page is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentWatchHtml);
+  });
+
   app.get('*', (req, res) => {
     // The SPA shell is ONLY a valid answer for genuine browser navigations.
     // Anything else — /api/*, /data/*, or any fetch/XHR that expects JSON/binary —

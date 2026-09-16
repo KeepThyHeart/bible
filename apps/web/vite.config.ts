@@ -346,6 +346,29 @@ function presentViewerDevPlugin(): Plugin {
   };
 }
 
+/**
+ * Same trick as `presentViewerDevPlugin`, for `/watch` (see `present/watch.html`).
+ *
+ * `/watch?...` has to keep its query string (a prefilled code), unlike
+ * `/present/v/<code>` where the code is a path segment -- a plain prefix test
+ * would also rewrite `/watch-something-else`, so this matches the whole path
+ * component exactly.
+ */
+function presentWatchDevPlugin(): Plugin {
+  return {
+    name: 'present-watch-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && /^\/watch(?:[/?#]|$)/.test(req.url)) {
+          req.url = req.url.replace(/^\/watch/, '/present/watch.html');
+        }
+        next();
+      });
+    },
+  };
+}
+
 function basePathPlugin(): Plugin {
   return {
     name: 'bible-base-path',
@@ -382,6 +405,7 @@ export default defineConfig({
     brandingPlugin(),
     basePathPlugin(),
     presentViewerDevPlugin(),
+    presentWatchDevPlugin(),
     wasmPlugin(),
     ortWasmPlugin(),
     buildIdPlugin(),
@@ -489,6 +513,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, 'index.html'),
         presentViewer: resolve(__dirname, 'present/viewer.html'),
+        presentWatch: resolve(__dirname, 'present/watch.html'),
       },
     },
   },

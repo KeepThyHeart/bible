@@ -35,6 +35,17 @@
   --pv-accent: #7a6a48;
   --pv-highlight: rgba(240, 200, 90, 0.62);
   --pv-christ: #a83220;
+  --pv-anchor-bar: #7a6a48;
+}
+
+/*
+ * Dark keeps its own anchor bar colour (the warm accent already used for the
+ * heading and verse numbers), separately from Light's, so the marker reads
+ * clearly against either ground.
+ */
+:root:not([data-present-theme]),
+:root[data-present-theme='dark'] {
+  --pv-anchor-bar: #d8c9a8;
 }
 
 /*
@@ -138,16 +149,27 @@ body {
 
 .pv-verse {
   margin: 0 0 0.55em;
+  padding-left: 0.5em;
+  border-left: 0.25em solid transparent;
   font-size: calc(var(--present-font-vh) * 1vh * var(--verse-shrink));
   line-height: 1.42;
   text-wrap: pretty;
-  transition: opacity 220ms ease;
+  transition: opacity 220ms ease, border-color 220ms ease;
 }
 
-/* Verses around the anchor stay legible but recede, so the eye lands in the
-   right place without the rest of the passage disappearing. */
+/*
+ * Verses around the anchor stay legible but recede, so the eye lands in the
+ * right place without the rest of the passage disappearing. Opacity alone was
+ * not a strong enough cue at a glance -- a left bar (the same device Max
+ * visibility already uses for its own anchor, in the theme's own accent
+ * colour rather than Max's fixed red) marks the current verse unambiguously,
+ * even from the back of a room where the contrast difference is hard to see.
+ */
 .pv-verse { opacity: 0.55; }
-.pv-verse--anchor { opacity: 1; }
+.pv-verse--anchor {
+  opacity: 1;
+  border-left-color: var(--pv-anchor-bar);
+}
 
 .pv-versenum {
   font-size: 0.52em;
@@ -299,6 +321,13 @@ body {
   margin: 0;
   font-size: 3vh;
   color: var(--pv-muted);
+}
+
+.pv-lobby-typed {
+  margin: 0;
+  font-size: 2.2vh;
+  color: var(--pv-muted);
+  opacity: 0.85;
 }
 
 .pv-lobby-button {

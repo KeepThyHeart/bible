@@ -180,7 +180,8 @@
   },
   "homeScreen": {
     "readBible": "Read Bible",
-    "search": "Search"
+    "search": "Search",
+    "watchPresentation": "Watch a presentation"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -748,6 +749,7 @@
     "acceptClickerKeys": "Accept remote/clicker keys",
     "acceptClickerKeysHint": "Page Up/Down and the arrow keys move next/previous, and B blanks the screen -- the keys a presentation remote sends. Off by default so those keys still belong to the reader.",
     "previewDesktopOnly": "The screen preview is available on a larger display.",
+    "previewLabel": "Preview: what screens show",
     "textSize": "Text size",
     "textSmaller": "Smaller text",
     "textLarger": "Larger text",
@@ -759,6 +761,8 @@
     "openViewer": "Open the screen",
     "copyLink": "Copy link",
     "copied": "Copied",
+    "joinTypedHint": "Or, easier to type in by hand:",
+    "joinTypedLink": "{{host}}/watch",
     "lockJoins": "Stop new devices joining",
     "lockJoinsHint": "Screens already connected stay connected.",
     "handoff": "Move to another device",
@@ -777,6 +781,14 @@
     "hymnsEmptyLibrary": "No hymns are installed.",
     "hymnsUnavailable": "The hymn library could not be reached.",
     "hymnsMore": "{{count}} more match. Keep typing to narrow it.",
-    "hymnsMore_other": "{{count}} more matches. Keep typing to narrow them."
+    "hymnsMore_other": "{{count}} more matches. Keep typing to narrow them.",
+    "followBannerLabel": "Following the presentation",
+    "followingLabel": "Following: {{ref}}",
+    "followingWaiting": "Following along. Waiting for the presenter to show something.",
+    "stopFollowing": "Stop following",
+    "pausedLabel": "Paused. Live: {{ref}}",
+    "backToLive": "Back to live",
+    "openScreenViewInstead": "Open screen view instead",
+    "followEnded": "This session has ended."
   }
 }

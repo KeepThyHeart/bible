@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { DesktopApp } from './DesktopApp';
 import { MobileApp } from './MobileApp';
+import { FollowBanner } from './components/Present/FollowBanner';
 import type { IDataProviders } from './providers/interfaces';
 
 const MOBILE_BREAKPOINT = 768;
@@ -33,7 +34,12 @@ export function App({ providers }: AppProps) {
     };
   }, []);
 
-  return isMobile
-    ? <MobileApp providers={providers} />
-    : <DesktopApp providers={providers} />;
+  return (
+    <>
+      <FollowBanner />
+      {isMobile
+        ? <MobileApp providers={providers} />
+        : <DesktopApp providers={providers} />}
+    </>
+  );
 }

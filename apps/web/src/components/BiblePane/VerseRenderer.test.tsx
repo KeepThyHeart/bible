@@ -494,4 +494,66 @@ describe('VerseRenderer', () => {
     expect(mockPerformSearch).toHaveBeenCalledWith('G2316');
     expect(mockSetRightPaneMode).toHaveBeenCalledWith('search');
   });
+
+  // ------------------------------------------------------------------
+  // Following along (`isFollowLive` / `followHighlight`)
+  // ------------------------------------------------------------------
+  describe('following along', () => {
+    it('marks the followed verse without changing how it renders', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} isFollowLive />);
+      expect(container.querySelector('.verse--follow-live')).toBeTruthy();
+      expect(container.innerHTML).toContain('For God so loved the world');
+    });
+
+    it('does not mark a verse the presenter is not on', () => {
+      const verse = makeVerse();
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} />);
+      expect(container.querySelector('.verse--follow-live')).toBeNull();
+    });
+
+    it('renders the presenter\'s highlighted words on the followed verse', () => {
+      const verse = makeVerse({ verse_id: 43003016, text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlight={{ verseIdStart: 43003016, textStart: 1, textEnd: 2 }}
+        />,
+      );
+      const words = container.querySelectorAll('.verse__follow-word');
+      expect(words.length).toBe(6); // "For God so loved the world"
+      expect(words[1].className).toContain('verse__follow-word--hl');
+      expect(words[2].className).toContain('verse__follow-word--hl');
+      expect(words[0].className).not.toContain('verse__follow-word--hl');
+      expect(container.textContent).toContain('For God so loved the world');
+    });
+
+    it('falls back to the plain render when there is no highlight, even while followed', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer verse={verse} {...defaultProps} isFollowLive followHighlight={null} />,
+      );
+      expect(container.querySelector('.verse__follow-word')).toBeNull();
+      expect(container.innerHTML).toContain('For God so loved the world');
+    });
+
+    it('respects the red-letter setting for the followed verse the same as everywhere else', () => {
+      mockWordsOfChristInRed = true;
+      const verse = makeVerse({
+        verse_id: 43003016,
+        text_html: '<span class="christ-words">It is finished</span>',
+      });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlight={{ verseIdStart: 43003016, textStart: 0, textEnd: 0 }}
+        />,
+      );
+      expect(container.querySelector('.verse__follow-word--christ')).toBeTruthy();
+    });
+  });
 });

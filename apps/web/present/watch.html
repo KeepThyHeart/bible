@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Join</title>
+  <!--
+    A short, easy-to-type address for someone who would rather key in a code
+    than scan a QR or paste a link -- the presenter's own join link stays
+    `/present/v/<code>`, which nobody is expected to type from memory.
+
+    Deliberately a bare static page, on the same reasoning as `viewer.html`:
+    this loads before a service starts, on whatever device is at hand, and has
+    nothing to do but take a code and send the browser on to the right place.
+    No reader, no stores, no bundler-managed script -- just this file.
+  -->
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #faf7f0;
+      --fg: #1b1814;
+      --muted: #6d6558;
+      --accent: #7a6a48;
+      --border: #ddd5c4;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 360px;
+    }
+    h1 {
+      margin: 0 0 0.3em;
+      font-size: 1.6rem;
+      font-weight: 400;
+    }
+    p {
+      margin: 0 0 1.2em;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    input[type="text"] {
+      display: block;
+      width: 100%;
+      padding: 0.7em 0.8em;
+      font: inherit;
+      font-size: 1.4rem;
+      letter-spacing: 0.12em;
+      text-align: center;
+      text-transform: uppercase;
+      color: var(--fg);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 0.4em;
+    }
+    input[type="text"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      margin-top: 0.8em;
+      padding: 0.75em;
+      font: inherit;
+      font-size: 1.05rem;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 0.4em;
+      cursor: pointer;
+    }
+    button.secondary {
+      color: var(--fg);
+      background: #fff;
+      border: 1px solid var(--border);
+    }
+    .error {
+      margin: 0.6em 0 0;
+      color: #a83220;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+    .choose {
+      display: none;
+      margin-top: 1.4em;
+      padding-top: 1.2em;
+      border-top: 1px solid var(--border);
+    }
+    .choose.is-open {
+      display: block;
+    }
+    .choose p {
+      margin-bottom: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Join</h1>
+    <p>Enter the code you were given.</p>
+    <form id="join-form" autocomplete="off">
+      <input
+        type="text"
+        id="code"
+        name="code"
+        inputmode="text"
+        placeholder="ABCD 1234"
+        autocapitalize="characters"
+        autocomplete="off"
+        autofocus
+      />
+      <p class="error" id="error" role="alert"></p>
+      <button type="submit">Continue</button>
+    </form>
+    <div class="choose" id="choose">
+      <p>Which are you joining as?</p>
+      <button type="button" class="secondary" id="choose-screen">Big screen / projector</button>
+      <button type="button" id="choose-follow">Follow along on this device</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var form = document.getElementById('join-form');
+      var input = document.getElementById('code');
+      var error = document.getElementById('error');
+      var choose = document.getElementById('choose');
+      var chooseScreen = document.getElementById('choose-screen');
+      var chooseFollow = document.getElementById('choose-follow');
+
+      // A code already in the address (e.g. `/watch?j=ABCD1234`, offered from a
+      // link rather than typed) is worth prefilling, not just accepted blind --
+      // the person still sees what they are about to join.
+      try {
+        var pre = new URLSearchParams(window.location.search).get('j');
+        if (pre) input.value = pre;
+      } catch (e) { /* Malformed query string: nothing to prefill. */ }
+
+      function normalize(raw) {
+        return (raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+      }
+
+      // Phones join by QR almost by definition; entering a code by hand is
+      // just as likely from a projector's own keyboard. Guessed from touch
+      // support and a small screen, same heuristic the join links use -- and
+      // guessed only, never trusted blindly: see the explicit choice below for
+      // anything this does not confidently read as a phone.
+      function looksLikePhone() {
+        var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        var small = Math.min(window.screen.width, window.screen.height) < 600;
+        return touch && small;
+      }
+
+      function goTo(kind, code) {
+        var path = kind === 'follow' ? '/present/f/' : '/present/v/';
+        window.location.href = path + encodeURIComponent(code);
+      }
+
+      var currentCode = '';
+
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var code = normalize(input.value);
+        if (!code) {
+          error.textContent = 'Enter the code you were given.';
+          return;
+        }
+        error.textContent = '';
+        currentCode = code;
+
+        if (looksLikePhone()) {
+          goTo('follow', code);
+          return;
+        }
+
+        // Not confidently a phone: ask, rather than guess wrong and send a
+        // projector into follow-along or a phone at the back of the room to
+        // drive the actual screen.
+        choose.classList.add('is-open');
+      });
+
+      chooseScreen.addEventListener('click', function () { goTo('screen', currentCode); });
+      chooseFollow.addEventListener('click', function () { goTo('follow', currentCode); });
+    })();
+  </script>
+</body>
+</html>

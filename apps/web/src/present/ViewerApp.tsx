@@ -22,6 +22,7 @@ import {
 import { ScreenMenu } from './ScreenMenu';
 import { tokenizeVerse } from './tokenize';
 import { highlightSpanForVerse, sweepStep } from './highlight';
+import { typedWatchAddress } from './controlLink';
 import { API_BASE } from '../utils/apiUrl';
 
 /** The join code is the last path segment of `/present/v/<code>`. */
@@ -114,6 +115,7 @@ export function ViewerApp(): preact.JSX.Element {
           onAdjustOverscan={adjust}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggle}
+          joinCode={joinCode}
         />
       )}
     </div>
@@ -340,11 +342,25 @@ function TextSlide(props: { title?: string; body: string; attribution?: string }
  * A quotation, set apart from a presenter's own words: centred, large,
  * bracketed in quotation marks the same way the old viewer's quote template
  * did, with the attribution set off below rather than run into the text.
+ *
+ * Shrinks to fit exactly like a long verse does: a presenter picks the size
+ * that suits most quotes, and the rare long one shrinks itself rather than
+ * overflowing the screen. Deliberately *not* auto-split into multiple slides
+ * -- a presenter who wants that can make two quote slides themselves, which
+ * is simpler and easier to reason about than the software guessing where to
+ * break a quotation.
  */
 function QuoteSlide(props: { text: string; attribution?: string }): preact.JSX.Element {
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (el?.parentElement) shrinkToFit(el, el.parentElement.clientHeight);
+  }, [props.text]);
+
   return (
     <div class="pv-quote">
-      <p class="pv-quote-text">&ldquo;{props.text}&rdquo;</p>
+      <p class="pv-quote-text" ref={textRef}>&ldquo;{props.text}&rdquo;</p>
       {props.attribution ? <p class="pv-quote-attribution">&mdash; {props.attribution}</p> : null}
     </div>
   );
@@ -424,6 +440,12 @@ function Lobby(props: {
       />
       <p class="pv-lobby-code">{formatCode(props.joinCode)}</p>
       <p class="pv-lobby-hint">Waiting for the presenter.</p>
+      {/*
+        For a phone with no working camera, or someone who would rather type
+        than scan: a short address to key in by hand, plus the code already on
+        screen above.
+      */}
+      <p class="pv-lobby-typed">Or type in {typedWatchAddress()}</p>
       {/*
         Fullscreen can only be entered from a real gesture, so the lobby has to
         offer something to click. This is the only control on the viewer, and it

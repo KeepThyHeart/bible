@@ -10,10 +10,8 @@
  */
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { API_BASE } from '../utils/apiUrl';
 import type { PresentClosedPayload, PresentState } from './protocol';
-import { isNewer } from './transport/frames';
-import { openLocalChannel } from './transport/localChannel';
+import { openPresentReceiver } from './transport/receiver';
 
 export type PresentConnection =
   /** Never yet received state. The lobby is showing. */
@@ -41,69 +39,35 @@ export function usePresentStream(joinCode: string, preview = false): PresentConn
   useEffect(() => {
     if (!joinCode) return;
 
-    const source = new EventSource(
-      `${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/stream${preview ? '?preview=1' : ''}`,
-    );
-    let closedByServer = false;
-
     // Same-machine screens (and the controller's own preview) also learn about
     // state the instant a same-browser controller predicts it, over
-    // `BroadcastChannel` -- no wait for a round trip to the server. `isNewer`
-    // is what keeps this from ever contradicting what the network eventually
-    // says; see `transport/frames.ts`.
-    const localChannel = openLocalChannel(joinCode);
+    // `BroadcastChannel` -- no wait for a round trip to the server. Merging
+    // that with the network stream by one version rule (so this can never
+    // contradict what the network eventually says) is `openPresentReceiver`'s
+    // whole job; see `transport/receiver.ts`.
+    const receiver = openPresentReceiver(joinCode, { preview });
 
-    function accept(state: PresentState, origin: 'network' | 'local'): void {
-      if (!isNewer(latest.current, { origin, state })) return;
-
-      latest.current = state;
-      try {
-        localStorage.setItem('present-viewer-theme', state.display.theme);
-      } catch {
-        // Private mode. Costs a themed flash on the next load, nothing more.
+    const unsubscribe = receiver.subscribe(event => {
+      if (event.type === 'state') {
+        latest.current = event.state;
+        try {
+          localStorage.setItem('present-viewer-theme', event.state.display.theme);
+        } catch {
+          // Private mode. Costs a themed flash on the next load, nothing more.
+        }
+        setConnection({ status: 'live', state: event.state });
+      } else if (event.type === 'reconnecting') {
+        // Deliberately silent otherwise: EventSource is already retrying, and
+        // the viewer goes on showing whatever it last had.
+        if (latest.current) setConnection({ status: 'reconnecting', state: latest.current });
+      } else {
+        setConnection({ status: 'closed', reason: event.reason, state: latest.current });
       }
-      setConnection({ status: 'live', state });
-    }
-
-    source.addEventListener('state', event => {
-      let next: PresentState;
-      try {
-        next = JSON.parse((event as MessageEvent<string>).data) as PresentState;
-      } catch {
-        // A frame we cannot read is not a reason to blank the wall.
-        return;
-      }
-      accept(next, 'network');
     });
-
-    const unsubscribeLocal = localChannel.subscribe(state => accept(state, 'local'));
-
-    source.addEventListener('closed', event => {
-      let reason: PresentClosedPayload['reason'] = 'ended';
-      try {
-        reason = (JSON.parse((event as MessageEvent<string>).data) as PresentClosedPayload).reason;
-      } catch {
-        // Fall back to the generic ending.
-      }
-      closedByServer = true;
-      // Stop reconnecting. Without this the projector would retry all night
-      // after a service, because EventSource treats a closed stream as a
-      // failure to retry rather than an answer.
-      source.close();
-      setConnection({ status: 'closed', reason, state: latest.current });
-    });
-
-    source.onerror = () => {
-      if (closedByServer) return;
-      // Deliberately silent: EventSource is already retrying, and the viewer
-      // goes on showing whatever it last had.
-      if (latest.current) setConnection({ status: 'reconnecting', state: latest.current });
-    };
 
     return () => {
-      source.close();
-      unsubscribeLocal();
-      localChannel.close();
+      unsubscribe();
+      receiver.close();
     };
   }, [joinCode, preview]);
 

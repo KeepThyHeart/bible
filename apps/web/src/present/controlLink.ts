@@ -23,6 +23,9 @@ import type { ControllerSession } from '../stores/presentStore';
 /** `/present/c/<sessionId>`, with the session id as the first capture. */
 const CONTROL_PATH = /^\/present\/c\/([0-9A-HJKMNP-TV-Z]{16})\/?$/;
 
+/** `/present/f/<joinCode>`, with the join code as the first capture. */
+const FOLLOW_PATH = /^\/present\/f\/([0-9A-HJKMNP-TV-Z]{8})\/?$/;
+
 /** Crockford base32, which excludes I, L, O and U. */
 const JOIN_CODE = /^[0-9A-HJKMNP-TV-Z]{8}$/;
 
@@ -113,4 +116,53 @@ export function buildControlLink(session: ControllerSession, origin?: string): s
 export function buildViewerLink(joinCode: string, origin?: string): string {
   const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
   return `${base}/present/v/${joinCode}`;
+}
+
+/**
+ * The URL a phone follows along on: the join code, and nothing privileged --
+ * same as `buildViewerLink`, just the other destination.
+ */
+export function buildFollowLink(joinCode: string, origin?: string): string {
+  const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base}/present/f/${joinCode}`;
+}
+
+/**
+ * Read a join code out of a `/present/f/<code>` URL, if this is one.
+ *
+ * Unlike `parseControlLink`, there is no secret to take out of the address
+ * bar and scrub: the join code is exactly what the QR code and the viewer
+ * link already hand out (see `buildViewerLink`), so it is fine to sit in the
+ * path and in history. `takeFollowLinkFromUrl` still exists for the same
+ * "read once at boot" shape `main.tsx` already uses for the control link.
+ */
+export function parseFollowLink(pathname: string): string | null {
+  const match = FOLLOW_PATH.exec(pathname);
+  return match ? match[1] : null;
+}
+
+/** `parseFollowLink`, read from `window.location`. Returns null on every ordinary page load. */
+export function takeFollowLinkFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  return parseFollowLink(window.location.pathname);
+}
+
+/**
+ * `/watch`, the short address someone can type by hand rather than scan or
+ * paste -- see `watch.html`. No join code in the path: the code-entry form is
+ * the whole point of typing this instead of following a link.
+ */
+export function buildWatchLink(origin?: string): string {
+  const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base}/watch`;
+}
+
+/**
+ * `host/watch`, without the scheme -- what actually gets typed. A presenter
+ * reading this off a slide is not going to type "https://"; every browser's
+ * address bar fills it in.
+ */
+export function typedWatchAddress(origin?: string): string {
+  const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base.replace(/^[a-z]+:\/\//i, '')}/watch`;
 }

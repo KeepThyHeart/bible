@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
+import { followStore } from '../../stores/followStore';
 import { useStore } from '../../hooks/useStore';
 import { VerseRenderer } from './VerseRenderer';
 import { InterlinearLayoutToggle } from './InterlinearLayoutToggle';
@@ -161,6 +162,12 @@ export function BibleContent({
   // Whether this chapter carries any publisher footnotes at all. Modules that
   // ship none leave the Notes toggle with nothing to reveal.
   const hasNotes = tab?.verses.some(v => v.footnotes && v.footnotes.length > 0) ?? false;
+  // Only read for a follow-along session (`/present/f/<code>`) -- null on
+  // every ordinary tab, since `followStore` is never `active` there.
+  const followLive = useStore(followStore, () => followStore.liveVerse);
+  const followBookChapterMatches = Boolean(
+    followLive && tab?.book === followLive.book && tab.chapter === followLive.chapter,
+  );
   const [refValue, setRefValue] = useState('');
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -388,6 +395,10 @@ export function BibleContent({
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}
                 onStrongsLeave={onStrongsLeave}
+                isFollowLive={followBookChapterMatches && verse.verse === followLive!.verse}
+                followHighlight={
+                  followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlight : null
+                }
               />
             ))}
             </>

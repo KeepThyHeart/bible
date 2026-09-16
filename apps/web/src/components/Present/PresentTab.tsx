@@ -1,7 +1,10 @@
+import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
 import { PresentPanelBody } from './PresentPanelBody';
+import { PresentPreview } from './PresentPreview';
 
 /**
  * Session mode as a tab, rather than a strip docked under the reader: the
@@ -25,6 +28,11 @@ export function PresentTab(props: { compact?: boolean }) {
   const { t } = useTranslation();
   const view = usePresenter();
   const { staged, wall } = view;
+  const session = useStore(presentStore, () => presentStore.session);
+  // Collapsed by default on nothing in particular -- just a plain boolean, not
+  // persisted: reopening the tab (or the app) is exactly when a presenter most
+  // wants to be reminded what the room is currently seeing.
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
   if (!view.presenting) return null;
 
@@ -109,7 +117,29 @@ export function PresentTab(props: { compact?: boolean }) {
         </div>
       )}
 
-      <PresentPanelBody compact={props.compact} />
+      <PresentPanelBody compact={props.compact} previewInline={false} />
+
+      {/*
+        The preview lives in its own panel at the bottom of the tab, not
+        nested inside the "Screen" section, so the running order (or hymns, or
+        the join panel) and a look at what the room is actually seeing are
+        both on screen at the same time -- the point of having a preview at
+        all. Desktop only: see the note in `PresentPanelBody`.
+      */}
+      {!props.compact && session && (
+        <div class="present-tab__preview">
+          <button
+            type="button"
+            class="present-tab__preview-toggle"
+            onClick={() => setPreviewCollapsed(collapsed => !collapsed)}
+            aria-expanded={!previewCollapsed}
+          >
+            <span>{t('present.previewLabel')}</span>
+            <i class={`fa-solid ${previewCollapsed ? 'fa-chevron-up' : 'fa-chevron-down'}`} aria-hidden="true" />
+          </button>
+          {!previewCollapsed && <PresentPreview joinCode={session.joinCode} />}
+        </div>
+      )}
     </div>
   );
 }
