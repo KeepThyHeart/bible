@@ -28,7 +28,7 @@
   }
 
   &__storage {
-    margin-left: auto;
+    margin-inline-start: auto;
     color: var(--text-muted);
     font-size: calc(12px * var(--ui-font-scale, 1));
   }
@@ -79,7 +79,7 @@
 
   &__badge {
     display: inline-block;
-    margin-left: 6px;
+    margin-inline-start: 6px;
     padding: 1px 6px;
     border-radius: 8px;
     font-size: calc(10px * var(--ui-font-scale, 1));
@@ -143,8 +143,8 @@
   &__progress {
     position: absolute;
     bottom: 0;
-    left: 0;
-    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
     height: 3px;
     background: var(--border-color);
   }

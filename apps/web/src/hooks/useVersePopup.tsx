@@ -332,7 +332,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
           {popup.loading
             ? (
               <div class="verse-link-popup__text">
-                <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />Loading...
+                <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />Loading...
               </div>
             )
             : (

@@ -248,7 +248,7 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
         <div class="study-crossrefs__verse-list">
           {versesLoading ? (
             <div class="study-crossrefs__loading">
-              <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('studyCrossRefs.loadingVerses')}
+              <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('studyCrossRefs.loadingVerses')}
             </div>
           ) : (
             sorted.map(({ group, entries }) => {

@@ -62,9 +62,13 @@ vi.mock('../../constants', () => ({
   } as Record<number, number>,
 }));
 
-vi.mock('@bible/core/browser', () => ({
-  getBibleSection: () => 'nt',
-}));
+vi.mock('@bible/core/browser', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@bible/core/browser')>();
+  return {
+    ...actual,
+    getBibleSection: () => 'nt',
+  };
+});
 
 vi.mock('../../utils/verseId', () => ({
   parseVerseId: (verseId: number) => ({

@@ -149,6 +149,10 @@ const mockGetBookByNumber = vi.fn((n: number) => ({
 vi.mock('../../stores/moduleStore', () => ({
   moduleStore: {
     getBookByNumber: (n: number) => mockGetBookByNumber(n),
+    // Content direction reads the active tab's module language via this -
+    // an empty list is fine here, since none of these tests are about RTL;
+    // `directionForLanguage(undefined)` just falls back to 'ltr'.
+    getBibleModules: () => [],
   },
 }));
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
-import { syncDocumentLang } from '../../i18n';
+import { changeLocale, selectableLocaleInfos } from '../../i18n';
 import { settingsStore, FONT_SCHEMES, type InterlinearLayout } from '../../stores/settingsStore';
 import { THEME_LIST } from '../../themes/themeRegistry';
 import { offlineStore } from '../../stores/offlineStore';
@@ -9,8 +9,10 @@ import { moduleStore } from '../../stores/moduleStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
+import type { Localizer } from '@bible/core/browser';
 
 type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'offline' | 'about';
 
@@ -33,11 +35,12 @@ function sectionToTab(section?: string): SettingsTab {
   return 'text-size';
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+function formatBytes(bytes: number, localizer: Localizer): string {
+  const fixed1 = (n: number) => localizer.formatNumber(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (bytes < 1024) return `${localizer.formatNumber(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${fixed1(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${fixed1(bytes / (1024 * 1024))} MB`;
+  return `${fixed1(bytes / (1024 * 1024 * 1024))} GB`;
 }
 
 function OfflineModuleCard({
@@ -60,6 +63,7 @@ function OfflineModuleCard({
   badge?: string;
 }) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
   const pct = progress && progress.total > 0
     ? Math.round((progress.loaded / progress.total) * 100)
     : 0;
@@ -70,7 +74,7 @@ function OfflineModuleCard({
         <span class="offline-module-card__name">{name}</span>
         <span class="offline-module-card__meta">
           {abbreviation}
-          {sizeBytes ? ` - ${formatBytes(sizeBytes)}` : ''}
+          {sizeBytes ? ` - ${formatBytes(sizeBytes, localizer)}` : ''}
           {badge && <span class="offline-module-card__badge">{badge}</span>}
         </span>
       </div>
@@ -122,6 +126,15 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPanelProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
+  // Registry-driven language picker (see the "about" tab below): recomputed
+  // on every render, which is cheap (a handful of `meta.json`s) and correct,
+  // since react-i18next already re-renders this component on language change.
+  const localeOptions = selectableLocaleInfos(i18n.language);
+  const betaBadgeLabel = t('settings.language.localeBetaBadge');
+  const draftBadgeLabel = t('settings.language.localeDraftBadge');
+  const anyDraftListed = localeOptions.some((info) => info.status === 'draft');
+  const anyBetaListed = localeOptions.some((info) => info.status === 'beta');
   const theme = useStore(settingsStore, () => settingsStore.theme);
   const fontSize = useStore(settingsStore, () => settingsStore.fontSize);
   const lineHeight = useStore(settingsStore, () => settingsStore.lineHeight);
@@ -318,7 +331,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
         onClick={(e) => e.stopPropagation()}
       >
         <div class="settings-panel__header">
-          <h3><i class="fa-solid fa-gear" style={{ marginRight: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
+          <h3><i class="fa-solid fa-gear" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
           <button class="settings-panel__close" onClick={onClose}>
             <i class="fa-solid fa-xmark" />
           </button>
@@ -420,7 +433,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                             <span class="settings-panel__stepper-value">
                               {control.unit === 'px'
                                 ? t('settings.textSize.pxValue', { size: value })
-                                : value.toFixed(1)}
+                                : localizer.formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </span>
                           </span>
                           <div class="settings-panel__stepper-row">
@@ -636,17 +649,43 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 <h4 class="settings-panel__section-title">{t('settings.language.title')}</h4>
                 <div class="settings-panel__field">
                   <span>{t('settings.language.description')}</span>
+                  {/*
+                    Registry-driven, same three-tier rule as desktop's
+                    `selectableLocales()`: `draft` locales are withheld unless
+                    already active, `beta` and `complete` are always offered.
+                    Today this build only ships `en` (`complete`), so the list
+                    is a single option until another locale folder is added -
+                    at that point it appears here with no code change beyond
+                    its own `meta.json`.
+                  */}
                   <select
                     class="settings-select"
-                    value={i18n.language?.startsWith('en') ? 'en' : i18n.language || 'en'}
+                    value={localeOptions.some((info) => info.code === i18n.language) ? i18n.language : 'en'}
                     onChange={(e) => {
-                      const lng = (e.target as HTMLSelectElement).value;
-                      i18n.changeLanguage(lng);
-                      syncDocumentLang();
+                      void changeLocale((e.target as HTMLSelectElement).value);
                     }}
                   >
-                    <option value="en">{t('settingsPanel.english')}</option>
+                    {localeOptions.map((info) => (
+                      <option key={info.code} value={info.code}>
+                        {info.code === 'en'
+                          ? t('settingsPanel.english')
+                          : info.status === 'beta'
+                            ? `${info.nativeName} (${betaBadgeLabel})`
+                            : info.status === 'draft'
+                              ? `${info.nativeName} (${draftBadgeLabel})`
+                              : info.nativeName}
+                      </option>
+                    ))}
                   </select>
+                  {anyDraftListed && (
+                    <p class="settings-panel__hint">{t('settings.language.draftNote')}</p>
+                  )}
+                  {!anyDraftListed && anyBetaListed && (
+                    <p class="settings-panel__hint">{t('settings.language.betaNote')}</p>
+                  )}
+                  {!anyDraftListed && !anyBetaListed && (
+                    <p class="settings-panel__hint">{t('settings.language.moreComingNote')}</p>
+                  )}
                 </div>
 
                 <h4 class="settings-panel__section-title">{t('settings.about.title')}</h4>
@@ -655,7 +694,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     class="settings-panel__refresh-btn"
                     onClick={() => window.location.reload()}
                   >
-                    <i class="fa-solid fa-rotate-right" style={{ marginRight: '8px' }} />
+                    <i class="fa-solid fa-rotate-right" style={{ marginInlineEnd: '8px' }} />
                     {t('settings.about.refreshApp')}
                   </button>
                 </div>
@@ -665,7 +704,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     {t('settings.about.description')}
                   </p>
                   <p class="settings-panel__about-license">
-                    <i class="fa-solid fa-scale-balanced" style={{ marginRight: '6px', opacity: 0.6 }} />
+                    <i class="fa-solid fa-scale-balanced" style={{ marginInlineEnd: '6px', opacity: 0.6 }} />
                     <span dangerouslySetInnerHTML={{ __html: t('settings.about.license') }} />
                   </p>
                   <p class="settings-panel__about-text">
@@ -692,7 +731,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   <span>{isOnline ? t('settings.offline.online') : t('settings.offline.offline')}</span>
                   {storageUsed > 0 && (
                     <span class="offline-status__storage">
-                      {t('settings.offline.storage')} {formatBytes(storageUsed)}
+                      {t('settings.offline.storage')} {formatBytes(storageUsed, localizer)}
                     </span>
                   )}
                 </div>

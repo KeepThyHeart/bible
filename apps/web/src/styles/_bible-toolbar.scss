@@ -127,7 +127,7 @@
     align-items: center;
     transition: background 0.1s;
     outline: none;
-    border-right: 2px solid var(--border-color);
+    border-inline-end: 2px solid var(--border-color);
 
     &:hover {
       background: var(--bg-tertiary);
@@ -137,8 +137,8 @@
   // Right-side items use left border instead of right
   &__right > &__btn,
   &__right > &__nav > &__nav-btn {
-    border-right: none;
-    border-left: 2px solid var(--border-color);
+    border-inline-end: none;
+    border-inline-start: 2px solid var(--border-color);
   }
 
   &__mode-select {
@@ -183,7 +183,7 @@
   &__text-dropdown {
     position: absolute;
     top: calc(100% + 8px);
-    right: 0;
+    inset-inline-end: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;

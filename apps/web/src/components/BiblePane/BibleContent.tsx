@@ -11,6 +11,7 @@ import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { directionForLanguage } from '../../utils/textDirection';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData } from '../../providers/interfaces';
 
@@ -196,7 +197,7 @@ export function BibleContent({
               class="bible-content__ref-input"
             />
             <button type="submit" class="bible-content__ref-btn">
-              <i class="fa-solid fa-arrow-right" /> {t('bibleContent.go')}
+              <i class="fa-solid fa-arrow-right rtl-mirror" /> {t('bibleContent.go')}
             </button>
           </form>
           {refError && <p style={{ color: 'var(--text-muted)', fontSize: '0.85em', marginTop: '8px' }}>{refError}</p>}
@@ -230,6 +231,13 @@ export function BibleContent({
         end: Math.max(tab.studyVerse, tab.selectionEndVerse),
       }
     : null;
+
+  // Scripture follows the MODULE's writing direction, not the UI's. Someone
+  // running an Arabic interface may have the KJV open (and vice versa), so
+  // the verse text carries its own `dir`/`lang` - see
+  // `apps/desktop/src/ui/components/BibleVerseList.tsx` for the same split.
+  const contentLang = moduleStore.getBibleModules().find(m => m.abbreviation === tab.moduleAbbr)?.language_code;
+  const contentDir = directionForLanguage(contentLang);
 
   // Chapter navigation helpers
   const book = tab.book ? moduleStore.getBookByNumber(tab.book) : null;
@@ -287,7 +295,7 @@ export function BibleContent({
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
         <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left" />
+          <i class="fa-solid fa-chevron-left rtl-mirror" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
@@ -297,12 +305,12 @@ export function BibleContent({
           {isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`} <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
         <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right" />
+          <i class="fa-solid fa-chevron-right rtl-mirror" />
         </button>
       </div>
       {isLoading ? (
         <div class="bible-content bible-content--loading">
-          <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+          <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
           {t('bibleContent.loading')}
         </div>
       ) : isEmpty ? (
@@ -314,7 +322,7 @@ export function BibleContent({
               style={{ marginTop: '12px', padding: '8px 16px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-secondary)', color: 'var(--accent-color)', cursor: 'pointer' }}
               onClick={() => tab.book && tab.chapter && bibleStore.navigateTo(tab.book, tab.chapter)}
             >
-              <i class="fa-solid fa-rotate-right" style={{ marginRight: '6px' }} />{t('bibleContent.retry')}
+              <i class="fa-solid fa-rotate-right" style={{ marginInlineEnd: '6px' }} />{t('bibleContent.retry')}
             </button>
           )}
         </div>
@@ -360,7 +368,7 @@ export function BibleContent({
               <i class="fa-solid fa-spinner fa-spin" /> {t('bibleContent.interlinearLoading')}
             </div>
           ) : (
-            <>
+            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir}>
             {interlinearUnavailable && studyShowInterlinear && (
               <div class="bible-content__interlinear-status bible-content__interlinear-status--unavailable">
                 <i class="fa-solid fa-circle-info" /> {t('bibleContent.interlinearUnavailable')}
@@ -390,7 +398,7 @@ export function BibleContent({
                 onStrongsLeave={onStrongsLeave}
               />
             ))}
-            </>
+            </div>
           )}
         </>
       )}

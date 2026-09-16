@@ -27,6 +27,10 @@ vi.mock('../../hooks/useStore', () => ({
 vi.mock('../../i18n', () => ({
   default: { language: 'en', changeLanguage: vi.fn() },
   syncDocumentLang: vi.fn(),
+  changeLocale: vi.fn(),
+  selectableLocaleInfos: () => [
+    { code: 'en', name: 'English', nativeName: 'English', status: 'complete', direction: 'ltr' },
+  ],
 }));
 
 // ---- Settings store -------------------------------------------------------
@@ -226,6 +230,14 @@ describe('SettingsPanel', () => {
     const aboutTab = container.querySelector<HTMLElement>('[data-tab="about"]')!;
     fireEvent.click(aboutTab);
     expect(container.querySelector('[data-section="about"]')).toBeTruthy();
+  });
+
+  it('renders the language picker from selectableLocaleInfos(), not a hard-coded option', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+    const options = container.querySelectorAll('.settings-select option');
+    expect(options.length).toBe(1);
+    expect(options[0].getAttribute('value')).toBe('en');
   });
 
   // ------------------------------------------------------------------

@@ -33,8 +33,11 @@ vi.mock('react-i18next', async () => {
       catalog,
     );
     if (typeof value !== 'string') return key;
+    // Catalog values are ICU MessageFormat now (`{x}`, not `{{x}}`); this
+    // stub only needs to handle the plain-substitution form this dialog's
+    // own keys use, not full ICU (no plural/select syntax appears here).
     return vars
-      ? value.replace(/\{\{(\w+)\}\}/g, (_whole, name: string) => String(vars[name] ?? ''))
+      ? value.replace(/\{(\w+)\}/g, (_whole, name: string) => String(vars[name] ?? ''))
       : value;
   };
   return {
