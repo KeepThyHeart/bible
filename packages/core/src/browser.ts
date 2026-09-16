@@ -65,6 +65,8 @@ export {
   registerLocalizer,
 } from './Data/Locales/Localizer';
 export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
+export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
 
 export { collapseReferences, collapseReferencesStructured } from './Services/ReferenceCollapser';
 export type { CollapseOptions, CollapsedSegment } from './Services/ReferenceCollapser';

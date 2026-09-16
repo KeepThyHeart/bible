@@ -40,6 +40,8 @@ export {
   registerLocalizer,
 } from './Data/Locales/Localizer';
 export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
+export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
 
 // Re-export Controllers via the barrel, so the root export surface and the
 // TypeDoc entry point (`src/Controllers/index.ts`) cannot drift apart. They did:
