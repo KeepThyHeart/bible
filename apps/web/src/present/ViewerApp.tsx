@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
-import type { HighlightRange, PresentState } from './protocol';
+import type { HighlightRange, PresentState, PresentTheme } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
 import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
 import { useHymn } from './useHymn';
@@ -129,6 +129,7 @@ function renderBody(
         anchor={state.position.index}
         fontStep={state.display.fontStep}
         highlight={state.position.highlight}
+        theme={state.display.theme}
       />
     );
   }
@@ -147,10 +148,15 @@ function PassageView(props: {
   anchor: number;
   fontStep: number;
   highlight: HighlightRange | null;
+  theme: PresentTheme;
 }): preact.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLParagraphElement>(null);
   const previousKey = useRef<string | null>(null);
+  // "Max visibility" reproduces the old LiveScreen layout: every verse at full
+  // contrast, and the current one centred in the middle of the screen rather
+  // than pinned near the top. Dark and Light keep this app's own layout.
+  const isMax = props.theme === 'max';
 
   useLayoutEffect(() => {
     const scroller = scrollRef.current;
@@ -166,14 +172,20 @@ function PassageView(props: {
     const isNewPassage = previousKey.current !== props.passage.key;
     previousKey.current = props.passage.key;
 
+    const top = isMax
+      // Keep the current verse in the vertical middle of the screen, as the
+      // old viewer did, rather than pinned to the top.
+      ? Math.max(target.offsetTop - scroller.offsetTop - (scroller.clientHeight - target.clientHeight) / 2, 0)
+      : Math.max(target.offsetTop - scroller.offsetTop, 0);
+
     scroller.scrollTo({
-      top: Math.max(target.offsetTop - scroller.offsetTop, 0),
+      top,
       behavior: isNewPassage || prefersReducedMotion() ? 'auto' : 'smooth',
     });
-  }, [props.passage.key, props.anchor, props.fontStep, props.verses]);
+  }, [props.passage.key, props.anchor, props.fontStep, props.verses, isMax]);
 
   return (
-    <div class="pv-passage">
+    <div class={`pv-passage${isMax ? ' pv-passage--max' : ''}`}>
       {/*
         Book and chapter only. A reference with a verse in it changes on every
         advance, which turns a fixed heading into a flicker at the top of the

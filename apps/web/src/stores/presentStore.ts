@@ -7,7 +7,15 @@ import type {
   PresentItem,
   PresentPlanEntry,
   PresentState,
+  StoredPresentState,
 } from '../present/protocol';
+import { applyIntent, type IntentContext } from '../present/reducer';
+import { openLocalChannel, type LocalChannel } from '../present/transport/localChannel';
+
+/** The cache key `warmContext` and `hasWarmContext` share for a hymn's slide count. */
+function hymnSlideKey(hymnId: string, verseOrder?: string[]): string {
+  return `${hymnId}?${(verseOrder ?? []).join(' ')}`;
+}
 
 /**
  * Session mode: the reading app, driving a screen.
@@ -34,6 +42,13 @@ import type {
  * it stays out of access logs and `Referer`. The one place it legitimately
  * appears in a URL is the fragment of a handoff link (see `controlLink.ts`),
  * which browsers do not transmit.
+ *
+ * On the same-machine transport: this device also predicts what most intents
+ * will do, with the exact reducer the server runs, and publishes that
+ * prediction to a `BroadcastChannel` a screen in another tab of this browser
+ * is listening on -- see `predictLocal`. Nothing here waits for that path or
+ * treats it as authoritative; the POST below is still what actually drives
+ * the session, and its answer still replaces whatever was predicted.
  */
 
 /** What a device needs to hold in order to drive a session. */
@@ -113,6 +128,32 @@ class PresentStore extends Store {
 
   private stream: EventSource | null = null;
   private lastNavAt = 0;
+
+  /**
+   * The same-machine sink for state this device predicts. See `predictLocal`
+   * for what is safe to predict and why, and `transport/localChannel.ts` for
+   * the transport itself.
+   */
+  private localChannel: LocalChannel | null = null;
+
+  /** Chapter lengths this device has learned, keyed `module/book/chapter`. */
+  private readonly chapterLengths = new Map<string, number>();
+  private readonly chapterLengthsAsked = new Set<string>();
+  /** Hymn slide counts this device has learned, keyed by `hymnSlideKey`. */
+  private readonly slideCounts = new Map<string, number>();
+  private readonly slideCountsAsked = new Set<string>();
+
+  /**
+   * The same pure reducer the server runs, so this device can predict what an
+   * intent will do instead of waiting to be told. `chapterLength` and
+   * `slideCount` answer from whatever `warmContext` has learned so far, and
+   * `null` when it has not -- which `predictLocal` treats as "do not guess",
+   * never as "assume zero".
+   */
+  private readonly intentContext: IntentContext = {
+    chapterLength: (module, book, chapter) => this.chapterLengths.get(`${module}/${book}/${chapter}`) ?? null,
+    slideCount: (hymnId, verseOrder) => this.slideCounts.get(hymnSlideKey(hymnId, verseOrder)) ?? null,
+  };
 
   /** How often the wall is polled while this controller's stream is refused. */
   private static readonly REFUSED_POLL_MS = 5000;
@@ -229,6 +270,7 @@ class PresentStore extends Store {
   private openStream(joinCode: string): void {
     this.closeStream();
     this.connection = 'connecting';
+    this.localChannel = openLocalChannel(joinCode);
 
     const source = new EventSource(
       `${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/stream?preview=1`,
@@ -248,9 +290,12 @@ class PresentStore extends Store {
       if (this.wall && next.version < this.wall.version) {
         this.wall = { ...this.wall, session: next.session };
       } else {
-        this.wall = next;
+        this.adoptWall(next);
       }
-      this.learnHymnTitles([this.wall.live]);
+      // Non-null by construction: both branches above just set `this.wall`,
+      // directly or through `adoptWall`, which the type checker cannot see
+      // through a method call the way it can a plain assignment.
+      this.learnHymnTitles([this.wall!.live]);
       this.connection = 'live';
       this.notify();
     });
@@ -314,7 +359,7 @@ class PresentStore extends Store {
         const body = await res.json() as { state: PresentState };
         if (this.session?.joinCode !== joinCode) return;
 
-        this.wall = body.state;
+        this.adoptWall(body.state);
         this.learnHymnTitles([body.state.live]);
         if (reopenWhenUnlocked && !body.state.session.joinsLocked) {
           this.openStream(joinCode);
@@ -340,6 +385,76 @@ class PresentStore extends Store {
     this.stopWatching();
     this.stream?.close();
     this.stream = null;
+    this.localChannel?.close();
+    this.localChannel = null;
+  }
+
+  /** Adopt newly-known state. A thin, named wrapper so every call site reads the same way. */
+  private adoptWall(next: PresentState): void {
+    this.wall = next;
+  }
+
+  /**
+   * Learn how long the given passage's chapter is, or how many slides the
+   * given hymn makes, so a later `next`/`previous`/`goTo`/`show` against it can
+   * be predicted locally.
+   *
+   * Called from `predictLocal` itself, on demand, the first time it declines
+   * to guess about a given item for lack of this -- never eagerly on every
+   * incoming frame. Two reasons: it means a passage or hymn nobody ever
+   * navigates within is never fetched a second time for nothing, and it keeps
+   * this request off the same tick as adopting state from the server, which
+   * would otherwise interleave unpredictably with whatever request the caller
+   * of `send` is about to make (as, for instance, `presentStore.test.ts`
+   * asserts by position). Best-effort and silent: a failure here only means
+   * `predictLocal` keeps declining to guess, exactly as it already does before
+   * this has run.
+   */
+  private warmContext(item: PresentItem | null): void {
+    if (!item) return;
+
+    if (item.kind === 'passage') {
+      const key = `${item.module}/${item.book}/${item.chapter}`;
+      if (this.chapterLengths.has(key) || this.chapterLengthsAsked.has(key)) return;
+      this.chapterLengthsAsked.add(key);
+      fetch(`${API_BASE}/api/bible/${encodeURIComponent(item.module)}/${item.book}/${item.chapter}`)
+        .then(res => (res.ok ? res.json() as Promise<{ verses?: unknown[] }> : null))
+        .then(body => {
+          if (Array.isArray(body?.verses) && body.verses.length > 0) {
+            this.chapterLengths.set(key, body.verses.length);
+          }
+        })
+        .catch(() => { /* Predictions for this chapter just stay unavailable. */ });
+      return;
+    }
+
+    if (item.kind === 'hymn') {
+      // The common case -- no verse-order override -- is exactly what
+      // `learnHymnTitles` already fetches to learn a hymn's title, and that
+      // response is a full detail, slides included. Piggybacking on it there
+      // (rather than asking again here) is what keeps a hymn arriving on the
+      // wall from costing two requests for the one thing.
+      if (!item.verseOrder?.length) return;
+
+      const key = hymnSlideKey(item.hymnId, item.verseOrder);
+      if (this.slideCounts.has(key) || this.slideCountsAsked.has(key)) return;
+      this.slideCountsAsked.add(key);
+      const order = `?order=${encodeURIComponent(item.verseOrder.join(' '))}`;
+      fetch(`${API_BASE}/api/hymns/${encodeURIComponent(item.hymnId)}${order}`)
+        .then(res => (res.ok ? res.json() as Promise<{ slides?: unknown[] }> : null))
+        .then(body => {
+          if (Array.isArray(body?.slides)) this.slideCounts.set(key, body.slides.length);
+        })
+        .catch(() => { /* Same: the network path is entirely unaffected. */ });
+    }
+  }
+
+  /** Whether `item` could be positioned within without guessing its length. */
+  private hasWarmContext(item: PresentItem): boolean {
+    if (item.kind === 'passage') return this.chapterLengths.has(`${item.module}/${item.book}/${item.chapter}`);
+    if (item.kind === 'hymn') return this.slideCounts.has(hymnSlideKey(item.hymnId, item.verseOrder));
+    // A text item has exactly one position (index 0) regardless of context.
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -355,17 +470,87 @@ class PresentStore extends Store {
    */
   async send(intent: PresentIntent): Promise<boolean> {
     if (!this.session) return false;
+    // Captured before `predictLocal` may optimistically update `this.wall`, so
+    // `post` can still tell whether *this* intent is the one that unlocked
+    // joins, rather than comparing the prediction against itself.
+    const wasLocked = this.wall?.session.joinsLocked ?? false;
+    this.predictLocal(intent);
     this.busy = true;
     this.notify();
     try {
-      return await this.post(intent);
+      return await this.post(intent, wasLocked);
     } finally {
       this.busy = false;
       this.notify();
     }
   }
 
-  private async post(intent: PresentIntent): Promise<boolean> {
+  /**
+   * Compute, and publish to same-machine screens, the state this intent will
+   * produce -- without waiting for the server. This is the whole of the
+   * "non-network-reliant" path the spec asks for: a screen sharing this
+   * browser updates the instant this runs, not when the POST below resolves.
+   *
+   * `next`/`previous`/`goTo` reposition within whatever is already live, and
+   * `show` positions within the item it names; all four need to know how long
+   * that passage's chapter is, or how many slides that hymn makes, to clamp
+   * correctly at the ends -- exactly what the server's `IntentContext` knows
+   * and this device only sometimes does (see `warmContext`). Guessing wrong
+   * there would predict a version bump the server never makes, which nothing
+   * could later correct: `isNewer` only lets a newer version replace an older
+   * one, and there would be no newer version coming. So this predicts only
+   * once the real length has been learned, never before, and every other
+   * intent -- which the reducer computes without asking the outside world
+   * anything -- is always safe.
+   */
+  private predictLocal(intent: PresentIntent): void {
+    if (!this.wall) return;
+
+    const needsContext = intent.type === 'show' || intent.type === 'goTo'
+      || intent.type === 'next' || intent.type === 'previous';
+    if (needsContext) {
+      const item = intent.type === 'show' ? intent.item : this.wall.live;
+      if (!item) return;
+      if (!this.hasWarmContext(item)) {
+        // Not known yet: learn it for next time, but do not guess now.
+        this.warmContext(item);
+        return;
+      }
+    }
+
+    const stored: StoredPresentState = {
+      version: this.wall.version,
+      live: this.wall.live,
+      position: this.wall.position,
+      display: this.wall.display,
+      session: {
+        id: this.wall.session.id,
+        joinCode: this.wall.session.joinCode,
+        joinsLocked: this.wall.session.joinsLocked,
+      },
+    };
+
+    const next = applyIntent(stored, intent, this.intentContext);
+    if (!next) return;
+
+    const predicted: PresentState = {
+      ...next,
+      version: this.wall.version + 1,
+      session: { ...next.session, viewerCount: this.wall.session.viewerCount },
+    };
+    this.localChannel?.publish(predicted);
+    this.adoptWall(predicted);
+    this.notify();
+  }
+
+  /**
+   * `wasLocked`, when given, is whether joins were locked before this intent
+   * was sent -- captured by `send` before `predictLocal` could have already
+   * moved `this.wall` on to a prediction of what this very intent produces.
+   * `end` calls this directly, without a prediction ever having run, so it is
+   * safe to fall back to reading `this.wall` there.
+   */
+  private async post(intent: PresentIntent, wasLocked?: boolean): Promise<boolean> {
     const session = this.session;
     if (!session) return false;
     try {
@@ -392,8 +577,8 @@ class PresentStore extends Store {
 
       const body = await res.json() as { state: PresentState };
       if (body.state) {
-        const wasLocked = this.wall?.session.joinsLocked ?? false;
-        this.wall = body.state;
+        wasLocked ??= this.wall?.session.joinsLocked ?? false;
+        this.adoptWall(body.state);
         this.learnHymnTitles([body.state.live]);
         // This controller just unlocked joins while its own stream was being
         // refused: there is no reason to wait for the next poll to find out.
@@ -542,6 +727,11 @@ class PresentStore extends Store {
    * never run here -- so without this the strip and the running order would
    * name the hymn on the wall `amazing-grace`. Each id is asked for once; a
    * failure leaves the id as the label, which is where it would have been.
+   *
+   * The response is a full hymn detail, slides included, at the hymn's default
+   * order -- so this is also where `predictLocal` learns how many slides a
+   * hymn with no verse-order override makes (see `warmContext`), without a
+   * second request for the one thing.
    */
   private learnHymnTitles(items: Array<PresentItem | null | undefined>): void {
     for (const item of items) {
@@ -550,9 +740,12 @@ class PresentStore extends Store {
       if (this.hymnTitles.has(id) || this.hymnTitlesAsked.has(id)) continue;
       this.hymnTitlesAsked.add(id);
       fetch(`${API_BASE}/api/hymns/${encodeURIComponent(id)}`)
-        .then(res => (res.ok ? res.json() as Promise<HymnSummary> : null))
-        .then(hymn => { if (hymn?.title) this.rememberHymns([hymn]); })
-        .catch(() => { /* The id stays as the label. */ });
+        .then(res => (res.ok ? res.json() as Promise<HymnSummary & { slides?: unknown[] }> : null))
+        .then(hymn => {
+          if (hymn?.title) this.rememberHymns([hymn]);
+          if (Array.isArray(hymn?.slides)) this.slideCounts.set(hymnSlideKey(id, undefined), hymn.slides.length);
+        })
+        .catch(() => { /* The id stays as the label, and no slide count is learned. */ });
     }
   }
 

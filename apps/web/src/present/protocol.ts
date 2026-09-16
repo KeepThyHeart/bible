@@ -98,7 +98,13 @@ export interface HighlightRange {
 // State
 // ---------------------------------------------------------------------------
 
-export type PresentTheme = 'light' | 'dark';
+/**
+ * `max` is "Max visibility": the classic fixed-heading, centred-current-verse
+ * layout, reproduced from the old LiveScreen viewer (see `ViewerApp.tsx`).
+ * `light` and `dark` keep this app's own layout: a centred heading and the
+ * current verse pinned near the top, dimming its neighbours.
+ */
+export type PresentTheme = 'light' | 'dark' | 'max';
 
 export const MIN_FONT_STEP = 1;
 export const MAX_FONT_STEP = 10;

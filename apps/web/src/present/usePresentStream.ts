@@ -12,6 +12,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { API_BASE } from '../utils/apiUrl';
 import type { PresentClosedPayload, PresentState } from './protocol';
+import { isNewer } from './transport/frames';
+import { openLocalChannel } from './transport/localChannel';
 
 export type PresentConnection =
   /** Never yet received state. The lobby is showing. */
@@ -44,6 +46,25 @@ export function usePresentStream(joinCode: string, preview = false): PresentConn
     );
     let closedByServer = false;
 
+    // Same-machine screens (and the controller's own preview) also learn about
+    // state the instant a same-browser controller predicts it, over
+    // `BroadcastChannel` -- no wait for a round trip to the server. `isNewer`
+    // is what keeps this from ever contradicting what the network eventually
+    // says; see `transport/frames.ts`.
+    const localChannel = openLocalChannel(joinCode);
+
+    function accept(state: PresentState, origin: 'network' | 'local'): void {
+      if (!isNewer(latest.current, { origin, state })) return;
+
+      latest.current = state;
+      try {
+        localStorage.setItem('present-viewer-theme', state.display.theme);
+      } catch {
+        // Private mode. Costs a themed flash on the next load, nothing more.
+      }
+      setConnection({ status: 'live', state });
+    }
+
     source.addEventListener('state', event => {
       let next: PresentState;
       try {
@@ -52,21 +73,10 @@ export function usePresentStream(joinCode: string, preview = false): PresentConn
         // A frame we cannot read is not a reason to blank the wall.
         return;
       }
-
-      // Versions are monotonic, so anything not newer is a duplicate or a
-      // reordered delivery and is safe to drop. This is what makes reconnection
-      // free: the server re-sends current state and the viewer either learns
-      // something or ignores it.
-      if (latest.current && next.version <= latest.current.version) return;
-
-      latest.current = next;
-      try {
-        localStorage.setItem('present-viewer-theme', next.display.theme);
-      } catch {
-        // Private mode. Costs a themed flash on the next load, nothing more.
-      }
-      setConnection({ status: 'live', state: next });
+      accept(next, 'network');
     });
+
+    const unsubscribeLocal = localChannel.subscribe(state => accept(state, 'local'));
 
     source.addEventListener('closed', event => {
       let reason: PresentClosedPayload['reason'] = 'ended';
@@ -90,7 +100,11 @@ export function usePresentStream(joinCode: string, preview = false): PresentConn
       if (latest.current) setConnection({ status: 'reconnecting', state: latest.current });
     };
 
-    return () => source.close();
+    return () => {
+      source.close();
+      unsubscribeLocal();
+      localChannel.close();
+    };
   }, [joinCode, preview]);
 
   return connection;

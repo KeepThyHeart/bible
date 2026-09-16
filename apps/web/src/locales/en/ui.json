@@ -739,6 +739,7 @@
     "theme": "Screen theme",
     "themeDark": "Dark",
     "themeLight": "Light",
+    "themeMax": "Max visibility",
     "qrAlt": "Scan to join, or enter the code {{code}}",
     "openViewer": "Open the screen",
     "copyLink": "Copy link",

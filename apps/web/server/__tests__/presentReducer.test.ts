@@ -165,6 +165,7 @@ describe('validateIntent', () => {
     expect(validateIntent({ type: 'end' })).toEqual({ type: 'end' });
     expect(validateIntent({ type: 'goTo', index: 16 })).toEqual({ type: 'goTo', index: 16 });
     expect(validateIntent({ type: 'setTheme', theme: 'light' })).toEqual({ type: 'setTheme', theme: 'light' });
+    expect(validateIntent({ type: 'setTheme', theme: 'max' })).toEqual({ type: 'setTheme', theme: 'max' });
     expect(validateIntent({ type: 'lockJoins', locked: true })).toEqual({ type: 'lockJoins', locked: true });
     expect(validateIntent({ type: 'setFontStep', fontStep: 7 })).toEqual({ type: 'setFontStep', fontStep: 7 });
     expect(validateIntent({ type: 'show', item: JOHN_3 })).toEqual({ type: 'show', item: JOHN_3 });

@@ -156,14 +156,14 @@ export function PresentPanel(props: { compact?: boolean }) {
 
             <div class="present-panel__row">
               <span class="present-panel__row-label">{t('present.theme')}</span>
-              {(['dark', 'light'] as const).map(theme => (
+              {(['max', 'dark', 'light'] as const).map(theme => (
                 <button
                   key={theme}
                   type="button"
                   class={`present-panel__choice ${view.wall?.display.theme === theme ? 'present-panel__choice--active' : ''}`}
                   onClick={() => void presentStore.send({ type: 'setTheme', theme })}
                 >
-                  {theme === 'dark' ? t('present.themeDark') : t('present.themeLight')}
+                  {theme === 'max' ? t('present.themeMax') : theme === 'dark' ? t('present.themeDark') : t('present.themeLight')}
                 </button>
               ))}
             </div>

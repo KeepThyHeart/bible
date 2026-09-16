@@ -37,6 +37,30 @@
   --pv-christ: #a83220;
 }
 
+/*
+ * Max visibility: reproduces the old LiveScreen viewer -- the option a
+ * presenter reaches for when readability matters more than looking modern
+ * (a nursing home, say). Plain black on white, a bold top bar instead of a
+ * centred heading, and every verse at full contrast; see `.pv-passage--max`
+ * below for the layout differences that go with this palette.
+ */
+:root[data-present-theme='max'] {
+  /*
+   * A faint grey ground, not pure white -- so the anchor verse's translucent
+   * white band (below) actually reads as brighter than its surroundings
+   * instead of disappearing into them.
+   */
+  --pv-bg: #f0efec;
+  --pv-fg: #111111;
+  --pv-muted: #555555;
+  --pv-accent: #222222;
+  --pv-highlight: rgba(216, 216, 216, 0.9);
+  --pv-christ: #900;
+  --pv-max-rule: #999999;
+  --pv-max-anchor-bg: rgba(255, 255, 255, 0.82);
+  --pv-max-anchor-border: #900;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -131,6 +155,41 @@ body {
   margin-right: 0.35em;
   color: var(--pv-accent);
   font-feature-settings: 'lnum';
+}
+
+/* ------------------------------------------------------------------------- */
+/* Max visibility layout                                                     */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * A fixed top bar (book + chapter, left-aligned, bold, ruled underneath)
+ * rather than a centred heading, and every verse at full contrast rather than
+ * dimmed -- the current one is called out by its own band and bar instead.
+ * This is the layout the old LiveScreen viewer used; see `PassageView` for the
+ * matching change to where the current verse scrolls to.
+ */
+.pv-passage--max .pv-heading {
+  padding: 0.5em 4vw;
+  font-size: calc(var(--present-font-vh) * 0.5vh);
+  font-weight: 700;
+  letter-spacing: normal;
+  text-align: left;
+  color: var(--pv-fg);
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 5px solid var(--pv-max-rule);
+}
+
+.pv-passage--max .pv-verse {
+  opacity: 1;
+  border-left: 0.4em solid transparent;
+  padding: 0.15em 0 0.15em 0.5em;
+  margin-left: -0.9em;
+  border-radius: 0.15em;
+}
+
+.pv-passage--max .pv-verse--anchor {
+  background: var(--pv-max-anchor-bg);
+  border-left-color: var(--pv-max-anchor-border);
 }
 
 /* ------------------------------------------------------------------------- */
