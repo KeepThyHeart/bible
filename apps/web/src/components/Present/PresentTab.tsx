@@ -1,61 +1,39 @@
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
-import { usePresenterShortcuts } from './usePresenterShortcuts';
-import { PresentPanel } from './PresentPanel';
+import { PresentPanelBody } from './PresentPanelBody';
 
 /**
- * The control strip: what a presenter touches while presenting.
+ * Session mode as a tab, rather than a strip docked under the reader: the
+ * desktop Study pane's Present tab, and mobile's root-level Present tab
+ * (`compact`, replacing Home in the bottom nav while a session is live).
  *
- * It is docked to the bottom of the reading app and it is deliberately short.
- * Everything on it is something that might be needed *mid-sentence*, in a room,
- * without looking down. Anything that can wait -- the running order, the join
- * code, display settings -- lives in the panel behind the last button.
+ * It carries exactly what `PresentBar` (the always-on compact strip mobile
+ * keeps visible on every *other* tab) carries at the top -- the viewer count,
+ * what is on the wall, send/next/previous/blank -- reusing its
+ * `present-bar__*` classes (they are BEM class names, not descendant
+ * selectors, so they render identically outside `.present-bar` itself), and
+ * then `PresentPanelBody` embedded directly below rather than behind a
+ * "panel" toggle, since a whole tab already is that disclosure.
  *
- * Three things earn their place by being needed urgently:
- *
- *  - **Blank.** During prayer, during an unplanned digression, or when
- *    something has gone wrong on the screen. It is the largest control and it
- *    is always in the same place, because it is the one that gets pressed
- *    without looking.
- *  - **Send.** The line between what the presenter is reading and what the room
- *    can see. It says what it would send, and it looks different when the wall
- *    is already showing it, so there is never a question of which.
- *  - **Next / previous.** Sized for a thumb on a phone held low.
- *
- * The viewer count is the quiet one that matters most before a service starts:
- * it is how a presenter confirms the television is actually connected, minutes
- * before it would be embarrassing to find out otherwise.
+ * The global keyboard shortcuts are not wired up here: `usePresenterShortcuts`
+ * is called once from `DesktopApp` (mobile has no keyboard to speak of) so
+ * they keep working on the Study tab or any other tab, not only while this
+ * one is selected.
  */
-
-export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void }) {
+export function PresentTab(props: { compact?: boolean }) {
   const { t } = useTranslation();
   const view = usePresenter();
   const { staged, wall } = view;
-
-  // The global shortcuts (and, opted into, a presentation remote/clicker) --
-  // shared with the Present tab, so they work the same regardless of where
-  // the controls happen to be rendered.
-  usePresenterShortcuts();
 
   if (!view.presenting) return null;
 
   const blanked = wall?.display.blanked ?? false;
   const connected = view.connection === 'live';
 
-  // Where there is a root-level Present tab to send someone to (mobile),
-  // this button goes there instead of opening the floating popup: one place
-  // to reach the running order, not two competing ones.
-  const openFull = (): void => {
-    if (props.onOpenPanel) props.onOpenPanel();
-    else presentStore.setPanelOpen(!view.panelOpen);
-  };
-  const showFloatingPanel = !props.onOpenPanel && view.panelOpen;
-
   return (
-    <>
-      {showFloatingPanel && <PresentPanel compact={props.compact} />}
-      <div class={`present-bar${props.compact ? ' present-bar--compact' : ''}`} role="region" aria-label={t('present.barLabel')}>
+    <div class={`present-tab${props.compact ? ' present-tab--compact' : ''}`}>
+      <div class="present-tab__row">
         <div class="present-bar__status">
           <span
             class={`present-bar__viewers ${connected ? '' : 'present-bar__viewers--offline'}`}
@@ -119,15 +97,6 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
               {blanked ? t('present.unblank') : t('present.blank')}
             </span>
           </button>
-          <button
-            type="button"
-            class={`present-bar__btn ${showFloatingPanel ? 'present-bar__btn--on' : ''}`}
-            onClick={openFull}
-            title={t('present.panel')}
-            aria-expanded={showFloatingPanel}
-          >
-            <i class="fa-solid fa-list-ol" aria-hidden="true" />
-          </button>
         </div>
       </div>
 
@@ -139,6 +108,8 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
           </button>
         </div>
       )}
-    </>
+
+      <PresentPanelBody compact={props.compact} />
+    </div>
   );
 }

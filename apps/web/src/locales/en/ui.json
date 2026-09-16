@@ -167,6 +167,7 @@
     "topics": "Topics",
     "dictionary": "Dictionary",
     "search": "Search",
+    "present": "Present",
     "collapseRight": "Collapse right pane"
   },
   "mobileNav": {
@@ -174,7 +175,8 @@
     "search": "Search",
     "study": "Study",
     "commentary": "Cmt",
-    "read": "Read"
+    "read": "Read",
+    "present": "Present"
   },
   "homeScreen": {
     "readBible": "Read Bible",

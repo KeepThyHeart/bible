@@ -4,29 +4,41 @@ import { desktopOnly, navigateTo, waitForVerses } from '../helpers';
 /**
  * Session mode: the reading app driving a screen.
  *
- * The controller is not a separate application, so what has to be proved here
- * is exactly the seam between the two -- that a session started from the
- * reading app's own chrome reaches a viewer opened somewhere else, and that
- * "what I am reading" and "what the room can see" stay apart until the
- * presenter joins them. Both halves run in real browser pages, because the
- * whole point is that they are two devices.
+ * What has to be proved here is exactly the seam between the two -- that a
+ * session started from the reading app's own chrome reaches a viewer opened
+ * somewhere else, and that "what I am reading" and "what the room can see"
+ * stay apart until the presenter joins them. Both halves run in real browser
+ * pages, because the whole point is that they are two devices.
+ *
+ * On desktop the controls live in the Study pane's Present tab (`PresentTab`,
+ * embedding `PresentPanelBody`) rather than the bottom strip mobile keeps;
+ * the header's TV button reveals it directly. Most of the selectors below --
+ * `.present-bar__*`, `.present-panel__*` -- are unchanged from the strip:
+ * they are BEM class names, not descendant selectors, so `PresentTab` reuses
+ * them and renders identically wherever it sits in the DOM.
  */
 
-/** Start a session from the header and wait for the strip to appear. */
+/** Start a session from the header and wait for the Present tab to appear. */
 async function startPresenting(page: Page): Promise<string> {
   await page.locator('.header__action-btn .fa-tv').click();
-  await expect(page.locator('.present-bar')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.present-tab')).toBeVisible({ timeout: 10000 });
 
-  // The panel opens on the join code, which is the first thing a presenter needs.
+  // The tab opens on the join code, which is the first thing a presenter needs.
   const code = page.locator('.present-panel__code');
   await expect(code).toBeVisible();
   return (await code.textContent())!.trim();
 }
 
+/** Reveal the Present tab again (e.g. after a reload put the pane back on Study). */
+async function openPresentTab(page: Page): Promise<void> {
+  await page.locator('.header__action-btn .fa-tv').click();
+  await expect(page.locator('.present-tab')).toBeVisible({ timeout: 10000 });
+}
+
 test.describe('Presenting from the reading app', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    // The strip exists on both layouts, but the preview pane and the running
-    // order are laid out for a desktop; running the whole flow on every phone
+    // The tab exists on both layouts, but the preview and the running order
+    // are laid out for a desktop; running the whole flow on every phone
     // profile tests the profiles.
     desktopOnly(testInfo);
     await page.goto('/');
@@ -40,6 +52,12 @@ test.describe('Presenting from the reading app', () => {
     // Nothing has been sent, and the strip says so rather than implying the
     // screen is already showing what the presenter is reading.
     await expect(page.locator('.present-bar__live-empty')).toBeVisible();
+  });
+
+  test('the Present tab carries a live dot visible from another tab', async ({ page }) => {
+    await startPresenting(page);
+    await page.locator('.right-pane-tabs__tab', { hasText: 'Study' }).click();
+    await expect(page.locator('.right-pane-tabs__live-dot')).toBeVisible();
   });
 
   test('what the presenter reads does not reach the wall until they send it', async ({ page, context }) => {
@@ -106,9 +124,12 @@ test.describe('Presenting from the reading app', () => {
 
     await page.reload();
     await waitForVerses(page);
-    await expect(page.locator('.present-bar')).toBeVisible({ timeout: 10000 });
 
-    await page.locator('.present-bar__btn .fa-list-ol').click();
+    // A reload always lands back on Study -- the Present tab only exists
+    // while a session is live, and (like Search) does not try to survive a
+    // reload as the *active* tab. The session itself does survive: this is
+    // still the same presenter, and the join code before still works.
+    await openPresentTab(page);
     await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
     await expect(page.locator('.present-plan__ref')).toHaveText('John 3');
   });
@@ -200,7 +221,7 @@ test.describe('Presenting from the reading app', () => {
     await page.locator('.present-panel__button--danger', { hasText: 'End it' }).click();
 
     await expect(wall.locator('.pv-lobby-hint')).toContainText(/ended/i, { timeout: 10000 });
-    await expect(page.locator('.present-bar')).toHaveCount(0);
+    await expect(page.locator('.present-tab')).toHaveCount(0);
     // And the reader underneath is exactly as it was.
     await expect(page.locator('.verse').first()).toBeVisible();
 
@@ -219,7 +240,7 @@ test.describe('Presenting from the reading app', () => {
     await page.locator('.present-panel__tab', { hasText: 'Joining' }).click();
     await page.locator('.present-panel__button', { hasText: 'Stop controlling' }).click();
 
-    await expect(page.locator('.present-bar')).toHaveCount(0);
+    await expect(page.locator('.present-tab')).toHaveCount(0);
     await expect(wall.locator('.pv-verse--anchor')).toBeVisible();
 
     await wall.close();

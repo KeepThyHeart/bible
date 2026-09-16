@@ -684,3 +684,50 @@
     max-width: 100%;
   }
 }
+
+// ---------------------------------------------------------------------------
+// The Present tab: session mode embedded in the desktop Study pane, instead
+// of the strip-plus-popup used everywhere there is no room for a permanent
+// tab (a phone, or the mobile Study sheet). It reuses `.present-bar__*` and
+// `.present-panel__*` (see `PresentTab.tsx` for why that is safe) and adds
+// only its own layout: a full-height flex column filling the right pane,
+// rather than a fixed strip and a capped-height popup docked under the app.
+// ---------------------------------------------------------------------------
+
+.present-tab {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    flex-shrink: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+  }
+
+  // Mobile's root Present tab: the status line and the send button each want
+  // a whole row of their own on a phone before the prev/next/blank controls
+  // get one, rather than the three competing for one line the way they do
+  // (successfully) in the wider desktop Study pane.
+  &--compact &__row {
+    .present-bar__status,
+    .present-bar__send {
+      flex-basis: 100%;
+    }
+  }
+
+  // The panel body fills whatever height is left, rather than the 45vh cap
+  // that suits a popup competing with the reader for the same screen.
+  .present-panel {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    border-top: none;
+  }
+}

@@ -266,9 +266,17 @@ interface HeaderProps {
    */
   onFeedbackClick?: () => void;
   onLogoClick?: () => void;
+  /**
+   * Reveals the Present tab (desktop's Study pane, or mobile's root nav)
+   * instead of the floating panel. Passed only by a shell that has such a
+   * tab to reveal; when it is absent, the TV button falls back to opening
+   * `PresentPanel` as a popup, which is the whole of session mode's UI on a
+   * layout with nowhere else to put it.
+   */
+  onPresentClick?: () => void;
 }
 
-export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick }: HeaderProps) {
+export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick, onPresentClick }: HeaderProps) {
   const { t } = useTranslation();
   const theme = useStore(settingsStore, () => settingsStore.getResolvedTheme());
   const [value, setValue] = useState('');
@@ -526,8 +534,14 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         <button
           class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
           onClick={() => {
-            if (presenting) presentStore.setPanelOpen(!presentStore.panelOpen);
-            else void presentStore.start().then(ok => ok && presentStore.setPanelOpen(true));
+            if (onPresentClick) {
+              if (presenting) onPresentClick();
+              else void presentStore.start().then(ok => ok && onPresentClick());
+            } else if (presenting) {
+              presentStore.setPanelOpen(!presentStore.panelOpen);
+            } else {
+              void presentStore.start().then(ok => ok && presentStore.setPanelOpen(true));
+            }
           }}
           title={presenting ? t('present.openPanel') : t('present.startTooltip')}
           aria-label={presenting ? t('present.openPanel') : t('present.start')}
