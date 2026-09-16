@@ -13,8 +13,8 @@ import { enT } from '../../testing/enCatalog';
 /**
  * The picker is the one modal in the app that opens by itself, so the tests
  * that matter are about *when it does not*: once answered, before the locale
- * catalogs it lists have loaded, and - since only English is offered out of
- * the shipped catalogs (`SELECTABLE_BUILT_IN_LOCALES` in
+ * catalogs it lists have loaded, and - since only English is `complete` (or
+ * `beta`) out of the shipped catalogs, per `selectableLocales()` in
  * `PreferencesDialog/GeneralSection.tsx`) - when there is no longer a question
  * worth asking.
  */
@@ -125,6 +125,19 @@ describe('LanguageFirstRun', () => {
     expect(screen.getByTestId('first-run-language-fr')).toHaveTextContent('draft translation');
     expect(screen.getByTestId('first-run-language-de')).not.toHaveTextContent('draft translation');
     expect(screen.getByTestId('first-run-language-en')).not.toHaveTextContent('draft translation');
+  });
+
+  it('marks a beta locale distinctly from a draft one', async () => {
+    h.locales = [
+      ...BUILT_IN,
+      { code: 'pt-BR', name: 'Portuguese (Brazil)', nativeName: 'Português (Brasil)', status: 'beta', direction: 'ltr' },
+    ];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    await userEvent.click(screen.getByTestId('first-run-language-more'));
+
+    expect(screen.getByTestId('first-run-language-pt-BR')).toHaveTextContent('beta translation');
+    expect(screen.getByTestId('first-run-language-pt-BR')).not.toHaveTextContent('draft translation');
   });
 
   it('switches locale and records the answer on continue', async () => {

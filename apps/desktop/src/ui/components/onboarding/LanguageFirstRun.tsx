@@ -86,11 +86,20 @@ const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, onSelec
       {info.nativeName !== info.name && (
         <span className="text-sm text-text-secondary">{info.name}</span>
       )}
-      {info.status === 'draft' && (
+      {info.status !== 'complete' && (
         // Never imply a review that did not happen - every non-English
-        // catalog here is machine-drafted.
-        <span className="ms-auto flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary">
-          {t('onboarding.language.draftBadge')}
+        // catalog here is machine-drafted. `selectableLocales()` already
+        // withholds built-in `draft` locales, so a `draft` reaching this
+        // component is always user-supplied; `beta` may be either.
+        <span
+          data-testid={`first-run-language-${info.status}-badge-${info.code}`}
+          className="ms-auto flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
+        >
+          {t(
+            info.status === 'beta'
+              ? 'onboarding.language.betaBadge'
+              : 'onboarding.language.draftBadge',
+          )}
         </span>
       )}
     </button>

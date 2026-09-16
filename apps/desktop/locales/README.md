@@ -10,6 +10,29 @@ This folder holds every UI string the Electron app can display. English (`en/`) 
 
 ---
 
+## Globalization roadmap (14-language wave)
+
+This app is being globalized to 14 languages: `en`, `zh-Hans`, `es`, `hi`, `ar`, `fr`, `ru`, `pt-BR`, `id`, `bn`, `ur`, `ja`, `vi`, `tr`. This section is the decision record for that effort - read it before starting work on a new locale or on the shared localization plumbing, so decisions already made are not re-litigated per PR.
+
+**Scope of this pass:** infrastructure and architecture only (the tier system below, the shared locale registry, the localizer interface) - no glossary terminology or catalog content has been drafted for any of the seven new locales (`fr`, `id`, `bn`, `ur`, `ja`, `vi`, `tr`). That drafting is separate follow-up work, once a worker is asked to do it; see [Adding a new locale](#adding-a-new-locale).
+
+* **Tags.** `zh-Hans` only for now (Simplified Chinese; Traditional/`zh-Hant` is a later addition, not this wave). `pt-BR` only for now (Brazilian Portuguese; see the register note in `GLOSSARY.md` on why a neutral `pt` was rejected - `pt-PT` can be added later without touching `pt-BR`).
+* **Selectability tiers.** `draft` (hidden) / `beta` (shown, badged) / `complete` (regular, no badge) - see [the three tiers](#the-three-tiers) below. This replaces the old binary "only `en` is selectable" gate; nothing is auto-promoted by this change alone.
+* **Shared locale identity.** `@bible/core`'s `LOCALE_REGISTRY` and `resolveLocaleDescriptor()` (`packages/core/src/Data/Locales/LocaleRegistry.ts`) are now the one place direction, script and digit-system facts live for all 14 planned locales, resolved by primary subtag so a region variant (`ar-EG`, `ur-PK`) still resolves correctly. This fixed a real bug along the way: the web app's `syncDocumentLang()` compared the *exact* tag against a hard-coded RTL list, so `ar-EG` silently stayed LTR - it now reads the shared registry instead (`apps/web/src/i18n.ts`).
+* **Message format.** Desktop keeps ICU MessageFormat via `intl-messageformat` (unchanged). The web app is planned to migrate from i18next's own `{{x}}`/`_one`/`_other` syntax to ICU too (`i18next-icu`), so both apps share one translator rulebook and one validator - not yet done as of this note.
+* **Digits.** Chapter/verse numbers and counts should be configurable per user, not hard-coded per locale. **Implemented**: `@bible/core`'s `Localizer.formatNumber()`/`formatDate()` (`packages/core/src/Data/Locales/Localizer.ts`) take a per-call `digitSystem: 'latin' | 'native'` override on top of each locale's own default (native for `ar`/`bn`, Latin for `hi`/`ur`, matching `Intl`'s real per-locale behavior - see the module doc for how these were checked). Nothing in either app's UI reads or exposes this as a user-facing setting yet, and no `toLocale*`/`toFixed` call site has been migrated to it - both are follow-up work.
+* **Book names and reference parsing.** The largest functional gap: modules carry no book names, and `ReferenceParser` has no localized table for any language, so "Juan 3:16" does not parse. **The interface is implemented** (`packages/core/src/Data/Locales/Localizer.ts`'s `referenceParserConfig` field, registered per tag via `registerLocalizer()`/`getLocalizer()`) but **no language's book-name table has been drafted** - that is real content work (66 book names × long/short/aliases, per language) left for a dedicated future pass. Every locale falls back to the English table today via `EnglishLocalizer`, which is exactly the "English always accepted as a parsing fallback" behavior the roadmap calls for - it is just currently the *only* table that exists.
+* **Server side (web).** Stays English. API error messages remain error codes the client maps to catalog strings; the HTML shell is not localized server-side. Out of scope for this task.
+* **Web plugins.** Should eventually get l10n parity with desktop extensions (manifest `LocalizedString`, `l10n/<bcp47>.json` catalogs) - planned, not yet scheduled.
+* **Content search (FTS, semantic embeddings).** Explicitly **out of scope** for this task - CJK/non-English tokenization and multilingual semantic search is a separate effort. It was flagged, though, that the module/search data format should be abstracted behind an interface early, so alternate module or search backends can be swapped in later; that is a search/module-architecture concern, not a translation one, and is left for that separate task.
+* **Scripture samples for new locales.** Follow the existing rule (only ever quote a verifiably public-domain edition, sourced and verified against a primary text, never from memory; plain non-Scripture prose, as `hi` already does, when a public-domain edition cannot be confirmed). Choosing and sourcing an edition per locale is deferred to whoever drafts that locale's catalog - not done in this pass.
+* **Fonts.** Bundle Noto Nastaliq Urdu for `ur` (Windows does not install it by default, and Nastaliq needs much taller line-height than the OS fallback would give it). CJK (`zh-Hans`, `ja`) stays on system/OS fonts, but needs an exact `:lang()` font stack **per** locale - `zh-Hans` and `ja` share Han code points, and a shared/ambiguous stack renders one of them with the wrong glyph shapes (Han unification). Not yet implemented.
+* **RTL grid.** The dockview pane grid not mirroring under RTL is accepted for this beta wave (users can re-dock manually); fixing it needs an upstream change or a fork and is not blocking.
+
+None of the seven new locales (`fr`, `id`, `bn`, `ur`, `ja`, `vi`, `tr`) has a catalog folder, or glossary terminology, yet - both are content-drafting work, deferred to a later pass; see [Adding a new locale](#adding-a-new-locale) for the process once that work is picked up.
+
+---
+
 ## Layout
 
 ```
@@ -170,7 +193,7 @@ Every locale folder must contain `meta.json`:
 {
   "locale.name": "Spanish",
   "locale.nativeName": "Español",
-  "locale.status": "draft",
+  "locale.status": "beta",
   "locale.direction": "ltr"
 }
 ```
@@ -179,17 +202,29 @@ Every locale folder must contain `meta.json`:
 |---|---|---|
 | `locale.name` | free text | Name in English, for maintainers and logs |
 | `locale.nativeName` | free text | Endonym, shown in the language picker |
-| `locale.status` | `complete` \| `draft` | `complete` means a native speaker has reviewed it. Anything else is `draft`. |
-| `locale.direction` | `ltr` \| `rtl` | Base writing direction. `ar` is `rtl`; everything else is currently `ltr`. |
+| `locale.status` | `draft` \| `beta` \| `complete` | See the three tiers below. |
+| `locale.direction` | `ltr` \| `rtl` | Base writing direction. `ar` and (once added) `ur` are `rtl`; everything else is `ltr`. |
 | `locale.notes` | free text, optional | Maintainer notes for this locale: which Scripture edition the sample quotes and why, which editions are copyrighted and must not be substituted, and any terminology decision a reviewer is likely to want to overturn. Not shown in the UI. |
 
 `locale.notes` is not present in `en/meta.json`, so `i18n-validate.js` reports it as an **extra key**. That is expected and non-fatal - extra keys are a warning only. Do not delete the notes to silence it.
 
 It is loaded through the ordinary catalog mechanism, so no build or IPC change is needed to add a language - dropping in a folder is enough.
 
-`status` is **not** cosmetic. `I18nService.getLocaleMetadata()` reads it from the locale's own catalog (never through the English fallback) and defaults to `draft` when it is absent or unrecognized, so an unknown locale can never silently present itself as reviewed. `availableLocaleInfos` returns the whole list ready for a picker, sorted English -> complete -> draft.
+### The three tiers
 
-**Do not flip a locale to `complete` yourself.** That flag is a claim that a native speaker signed off.
+Every catalog goes through three tiers on its way to full support:
+
+| Tier | Shown in the built-in picker? | Badge | Meaning |
+|---|---|---|---|
+| `draft` | **No** - withheld by `selectableLocales()`. | - | Machine-drafted and either incomplete (missing namespaces, low key coverage) or otherwise not yet vetted enough to try. Every new locale starts here. |
+| `beta` | Yes | "Beta — community review pending" | Machine-drafted but **complete** - every namespace present, `check-translations.js` passes for it - and stable enough to offer with an honest caveat. Not yet reviewed by a native speaker. |
+| `complete` | Yes | none | Reviewed by a native speaker end to end. |
+
+This gate applies to **built-in** catalogs only. A locale a user drops into `<userData>/locales/` is always shown, at whatever status it claims (defaulting to `draft` if it has no `meta.json`) - hiding a translation a user installed themselves would be a regression, badge or no badge.
+
+Promoting a built-in locale is exactly one edit: change `locale.status` in its `meta.json`. `selectableLocales()` (`GeneralSection.tsx`) and both pickers pick it up with no other code change - there is no separate allowlist. `I18nService.getLocaleMetadata()` reads the field from the locale's own catalog (never through the English fallback) and defaults to `draft` when it is absent or unrecognized, so an unknown locale can never silently present itself as reviewed or even beta-stable. `availableLocaleInfos` returns the whole list ready for a picker, sorted English -> `complete` -> `beta` -> `draft`.
+
+**Do not flip a locale to `beta` or `complete` yourself without meeting the bar above.** `beta` is a claim that the catalog is complete (all namespaces, full key coverage); `complete` is a claim that a native speaker signed off. As of this writing all six machine-drafted locales (`ar`, `es`, `hi`, `pt-BR`, `ru`, `zh-Hans`) are still `draft`: each is missing `main.json`/`menu.json` entirely and `ui.json` is only ~64% complete, so none has met the `beta` bar yet.
 
 ---
 
@@ -198,7 +233,7 @@ It is loaded through the ordinary catalog mechanism, so no build or IPC change i
 1. Read [`GLOSSARY.md`](GLOSSARY.md) and fill in your language's column and its register/formality note *before* translating. Terminology decided per-string ends up inconsistent.
 2. `mkdir locales/<bcp47>` and copy every `.json` from `en/`.
 3. Translate the values. Leave the keys untouched.
-4. Write `meta.json` with `"locale.status": "draft"`.
+4. Write `meta.json` with `"locale.status": "draft"` (see [the three tiers](#the-three-tiers) - a new locale always starts here, no exceptions).
 5. Validate:
    ```bash
    node apps/desktop/scripts/i18n-validate.js --locale=<bcp47>
@@ -226,4 +261,4 @@ If you speak one of these languages or another one, feel free to correct or cont
 2. Fix the string in the locale's JSON.
 3. Run the two validators above.
 4. Open a PR describing what was wrong. Terminology reasoning is welcome in the PR body; the audience includes seminary students who will notice.
-5. Once a locale has been reviewed end to end, its `meta.json` can be moved to `"locale.status": "complete"` in the same PR.
+5. Once a locale has been reviewed end to end, its `meta.json` can be moved to `"locale.status": "complete"` in the same PR. If you filled in every missing namespace/key for a still-unreviewed locale (making `check-translations.js` pass for it) but did not review the wording, move it to `"locale.status": "beta"` instead - that is what makes it appear in the app's pickers, badged, ahead of a full review.
