@@ -15,7 +15,11 @@ import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './u
 import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typography';
-import { MAX_OVERSCAN, useFullscreen, useOverscan, useSetupKeys, useWakeLock } from './viewerChrome';
+import {
+  effectiveDisplay, MAX_OVERSCAN, useFullscreen, useHoverMenu, useLocalOverride, useOverscan, useSetupKeys,
+  useWakeLock,
+} from './viewerChrome';
+import { ScreenMenu } from './ScreenMenu';
 import { tokenizeVerse } from './tokenize';
 import { highlightSpanForVerse, sweepStep } from './highlight';
 import { API_BASE } from '../utils/apiUrl';
@@ -56,21 +60,34 @@ export function ViewerApp(): preact.JSX.Element {
     [isPreview, toggle, adjust],
   ));
 
-  const theme = state?.display.theme ?? 'dark';
+  // This screen's own theme and size, when it has chosen to differ from the
+  // presenter's -- see `ScreenMenu.tsx`. Never sent anywhere: the presenter
+  // and every other screen keep seeing what `state.display` actually says.
+  const override = useLocalOverride();
+  const display = effectiveDisplay(
+    state?.display ?? { theme: 'dark', fontStep: 5 },
+    { theme: override.theme ?? undefined, fontStep: override.fontStep ?? undefined },
+  );
+
   useEffect(() => {
-    document.documentElement.setAttribute('data-present-theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-present-theme', display.theme);
+  }, [display.theme]);
 
   const style = {
-    '--present-font-vh': `${fontScaleForStep(state?.display.fontStep ?? 5)}`,
+    '--present-font-vh': `${fontScaleForStep(display.fontStep)}`,
     '--present-overscan': `${overscan}%`,
   } as unknown as preact.JSX.CSSProperties;
+
+  // The hover menu is a screen's own affordance, not a mirror's: it never
+  // appears in the controller's preview, and there is nothing to adjust the
+  // display of before anything is on the wall.
+  const menuVisible = useHoverMenu(isPreview || !state?.live);
 
   return (
     <div class="pv-root" style={style}>
       <div class="pv-safe">
         {renderBody(connection, state, passage, hymn, joinCode,
-          isPreview || isFullscreen, toggle, overscan, isPreview)}
+          isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep)}
       </div>
       {/*
         The blanking curtain is a sibling of the content, not a swap for it.
@@ -79,6 +96,21 @@ export function ViewerApp(): preact.JSX.Element {
         unmount it.
       */}
       <div class={`pv-curtain${state?.display.blanked ? ' pv-curtain--on' : ''}`} aria-hidden="true" />
+      {isPreview ? null : (
+        <ScreenMenu
+          visible={menuVisible}
+          theme={display.theme}
+          fontStep={display.fontStep}
+          hasOverride={override.hasOverride}
+          onSetTheme={override.setTheme}
+          onSetFontStep={override.setFontStep}
+          onClearOverride={override.clear}
+          overscan={overscan}
+          onAdjustOverscan={adjust}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggle}
+        />
+      )}
     </div>
   );
 }
@@ -93,6 +125,8 @@ function renderBody(
   toggleFullscreen: () => void,
   overscan: number,
   isPreview: boolean,
+  theme: PresentTheme,
+  fontStep: number,
 ): preact.JSX.Element {
   // A closed session takes the wall, even if something was on it. `closed` is
   // only ever sent because a presenter chose to end the session, or because
@@ -127,9 +161,9 @@ function renderBody(
         passage={passage}
         verses={selectedVerses(passage, state.live)}
         anchor={state.position.index}
-        fontStep={state.display.fontStep}
+        fontStep={fontStep}
         highlight={state.position.highlight}
-        theme={state.display.theme}
+        theme={theme}
       />
     );
   }
