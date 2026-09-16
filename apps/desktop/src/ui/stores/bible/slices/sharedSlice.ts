@@ -272,6 +272,18 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
       }
     }
     await get().navigateToVerse(targetPanelId, verseId);
+
+    // Bring the target pane's tab to the front. `navigateToVerse` only
+    // updates state - if the Bible pane is behind another tab in its dockview
+    // group (or in a background group entirely), the reader would see nothing
+    // happen. Callers that jump here from outside the Bible pane itself
+    // (search, commentary, an extension's "Show in Bible" button) need the
+    // pane to actually become visible, not just internally scrolled. Mirrors
+    // the `dockPanel.api.setActive()` pattern `openSearchResultsPanel` and
+    // `addPanel` already use. A no-op when dockview is not ready (e.g. in
+    // tests that never call `setDockviewApi`) or the panel id is stale.
+    layoutState.dockviewApi?.getPanel(targetPanelId)?.api.setActive();
+
     // After the navigation, which resets the selection to the single anchor.
     if (endVerseId !== undefined && endVerseId !== verseId) {
       get().extendSelectionTo(targetPanelId, endVerseId);

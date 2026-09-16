@@ -37,6 +37,7 @@ import {
   setActiveHostTheme,
   DEFAULT_HOST_THEME_ID,
 } from '../hostThemeCss';
+import { getHostControlsCss } from '../hostControlsCss';
 import type { ExtensionHost } from '../ExtensionHost';
 
 /**
@@ -301,5 +302,78 @@ describe('host theme tokens follow the active theme', () => {
   it('renders each theme at most once', () => {
     setActiveHostTheme('sepia');
     expect(getActiveHostThemeCss()).toBe(getActiveHostThemeCss());
+  });
+});
+
+describe('ext-ui://host/controls.css - shared toolbar/back-button chrome', () => {
+  const handle = createExtUiHandler(emptyHost());
+
+  it('resolves even with no extensions installed', async () => {
+    const res = await handle(request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/css; charset=utf-8');
+  });
+
+  it('serves the toolbar, toolbar-button and nav-button classes PaneToolbar/PaneNavHeader render', async () => {
+    const res = await handle(request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`));
+    const css = await res.text();
+
+    for (const selector of [
+      '.control-toolbar',
+      '.control-toolbar-button',
+      '.control-nav-button',
+    ]) {
+      expect(css, `controls.css is missing ${selector}`).toContain(selector);
+    }
+  });
+
+  it('references only host design tokens, no hardcoded colours', async () => {
+    // A hardcoded hex/rgb literal here would not follow a theme switch, which
+    // defeats the point of building this from the same --theme-* variables
+    // theme.css serves.
+    const css = getHostControlsCss();
+    expect(css).toMatch(/var\(--theme-/);
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+
+  it('sends the panel CSP, nosniff and no-store, same as theme.css', async () => {
+    const res = await handle(request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`));
+
+    expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('is invariant across theme switches, unlike theme.css', async () => {
+    resetActiveHostThemeForTests();
+    const before = await (
+      await handle(request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`))
+    ).text();
+
+    setActiveHostTheme('dark');
+    const after = await (
+      await handle(request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`))
+    ).text();
+
+    expect(after).toBe(before);
+    resetActiveHostThemeForTests();
+  });
+
+  it('wins over the registry even if a shadowing extension existed', async () => {
+    let lookups = 0;
+    const shadowingHost = {
+      getExtension: async (id: string) => {
+        lookups++;
+        return { installPath: `/tmp/${id}` };
+      },
+    } as unknown as ExtensionHost;
+
+    const res = await createExtUiHandler(shadowingHost)(
+      request(`${EXT_UI_SCHEME}://${EXT_UI_HOST_HOSTNAME}/controls.css`),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lookups, 'the reserved hostname must never reach the registry').toBe(0);
   });
 });
