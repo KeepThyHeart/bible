@@ -61,6 +61,8 @@ npm run package:mac        # macOS
 npm run package:linux      # Linux
 ```
 
+**On macOS**, run the `:mac` scripts on a Mac. `package:code-only:mac` (what the release workflow builds) produces a `.dmg` and a `.zip` for both Apple Silicon and Intel, whichever the Mac is; the other two configs build only the Mac's own arch. Without a certificate in the environment every build is signed ad hoc, so it opens on the Mac that built it; a copy downloaded from elsewhere is not notarized, and Gatekeeper blocks it until it is allowed under System Settings > Privacy & Security. To sign with a certificate from your keychain, set `CSC_NAME` to its name; `CSC_LINK` plus the `APPLE_*` variables sign and notarize (see `electron-builder.branding.cjs`). electron-builder rebuilds the SQLite driver in the shared `node_modules` for each arch it packages, and the build then puts the Mac's own build back so that `npm run dev` keeps working; if a packaging run fails part-way, run `npm run rebuild-native:force -w @bible/desktop`. An installed build runs under the same app name as `npm run dev` (`@bible/desktop`), so on a Mac where you have run the app in development, a local build asks for access to the "@bible/desktop Safe Storage" keychain item when it opens its encrypted user database, and asks again after every rebuild, since each ad-hoc signature is new; choose Allow. The installer test sidesteps this with Chromium's mock keychain. Check an installer with `npm run test:installer -- "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.dmg"` from the repository root, using the `-arm64` file on Apple Silicon.
+
 There are three electron-builder configs:
 
 | Config | Used by | Ships |
@@ -244,7 +246,7 @@ The app uses `electron-log` for automatic log file management:
 | Platform | Log Location |
 |----------|-------------|
 | Linux    | `~/.config/bible-desktop-app/logs/main.log` |
-| macOS    | `~/Library/Logs/bible-desktop-app/main.log` |
+| macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
 | Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
 
 In dev mode (`npm run dev`), logs go to the terminal stdout instead of log files.

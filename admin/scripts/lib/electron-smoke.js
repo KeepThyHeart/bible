@@ -145,8 +145,12 @@ async function runSmoke(options) {
     // Before the app path: Chromium switches.  --no-sandbox because an
     // extracted or unpacked Linux app's chrome-sandbox is not setuid root;
     // basic password store so no keyring prompt can stall a headless run.
+    // The macOS counterpart is the mock keychain: an installed app and
+    // `npm run dev` share one app name, so the installed build asks to use the
+    // "Safe Storage" item development created, and the prompt waits forever.
     const switches = [];
     if (process.platform === 'linux') switches.push('--no-sandbox', '--disable-dev-shm-usage', '--password-store=basic');
+    if (process.platform === 'darwin') switches.push('--use-mock-keychain');
     args.unshift(...switches);
 
     const env = { ...process.env, ELECTRON_USER_DATA: userData };
