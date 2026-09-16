@@ -68,7 +68,20 @@ export interface PresentTextItem {
   attribution?: string;
 }
 
-export type PresentItem = PresentPassageItem | PresentHymnItem | PresentTextItem;
+/**
+ * A quotation: someone else's words, set apart from a presenter's own
+ * announcement or creed. Distinct from `PresentTextItem` because it is drawn
+ * differently -- centred, in quotation marks, the attribution set off below
+ * -- the way the old LiveScreen viewer treated a quote slide as its own
+ * template rather than a flavour of free text.
+ */
+export interface PresentQuoteItem {
+  kind: 'quote';
+  text: string;
+  attribution?: string;
+}
+
+export type PresentItem = PresentPassageItem | PresentHymnItem | PresentTextItem | PresentQuoteItem;
 
 export type PresentItemKind = PresentItem['kind'];
 

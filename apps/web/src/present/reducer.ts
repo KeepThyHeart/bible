@@ -44,6 +44,9 @@ export const LIMITS = {
   textBody: 8_192,
   textTitle: 200,
   textAttribution: 300,
+  /** A quote is shown large and centred; a paragraph, not a chapter. */
+  quoteText: 2_000,
+  quoteAttribution: 300,
   /** A running order, not a database. */
   planEntries: 200,
   planNote: 500,
@@ -174,6 +177,20 @@ export function validateItem(value: unknown): PresentItem | null {
       }
       if (attribution !== undefined) {
         if (!isBoundedString(attribution, LIMITS.textAttribution)) return null;
+        item.attribution = attribution;
+      }
+      return item;
+    }
+
+    case 'quote': {
+      const { text, attribution } = value;
+      if (typeof text !== 'string') return null;
+      const trimmed = text.trim();
+      if (trimmed.length === 0 || trimmed.length > LIMITS.quoteText) return null;
+
+      const item: PresentItem = { kind: 'quote', text: trimmed };
+      if (attribution !== undefined) {
+        if (!isBoundedString(attribution, LIMITS.quoteAttribution)) return null;
         item.attribution = attribution;
       }
       return item;

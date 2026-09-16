@@ -98,6 +98,20 @@ describe('validateItem', () => {
     expect(validateItem({ kind: 'hymn', hymnId: 'x', verseOrder: '1 R 2' })).toBeNull();
   });
 
+  it('trims a quote and enforces its cap', () => {
+    expect(validateItem({ kind: 'quote', text: '  To be, or not to be.  ' }))
+      .toEqual({ kind: 'quote', text: 'To be, or not to be.' });
+    expect(validateItem({ kind: 'quote', text: '   ' })).toBeNull();
+    expect(validateItem({ kind: 'quote', text: 'x'.repeat(LIMITS.quoteText + 1) })).toBeNull();
+  });
+
+  it('keeps a quote attribution and enforces its cap', () => {
+    expect(validateItem({ kind: 'quote', text: 'Amazing grace.', attribution: 'John Newton' }))
+      .toEqual({ kind: 'quote', text: 'Amazing grace.', attribution: 'John Newton' });
+    expect(validateItem({ kind: 'quote', text: 'x', attribution: 'y'.repeat(LIMITS.quoteAttribution + 1) }))
+      .toBeNull();
+  });
+
   it('rejects anything that is not an item at all', () => {
     expect(validateItem(null)).toBeNull();
     expect(validateItem('passage')).toBeNull();

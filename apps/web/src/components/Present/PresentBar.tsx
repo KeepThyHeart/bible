@@ -1,7 +1,7 @@
-import { useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
+import { usePresenterShortcuts } from './usePresenterShortcuts';
 import { PresentPanel } from './PresentPanel';
 
 /**
@@ -28,54 +28,15 @@ import { PresentPanel } from './PresentPanel';
  * before it would be embarrassing to find out otherwise.
  */
 
-/** Keys held down mid-service must not reach the reader underneath. */
-function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
-}
-
 export function PresentBar(props: { compact?: boolean }) {
   const { t } = useTranslation();
   const view = usePresenter();
   const { staged, wall } = view;
 
-  /**
-   * Every shortcut carries a modifier, without exception.
-   *
-   * A bare arrow key belongs to the reader, and quietly repurposing one the
-   * moment a session starts would change what the app does under someone in the
-   * middle of using it. Alt+Enter and Ctrl+Enter follow the prior art.
-   */
-  useEffect(() => {
-    if (!view.presenting) return;
-
-    const onKey = (event: KeyboardEvent): void => {
-      if (isTyping(event.target) || event.repeat) return;
-
-      if (event.ctrlKey && event.key === 'Enter') {
-        event.preventDefault();
-        void presentStore.toggleBlank();
-        return;
-      }
-      if (!event.altKey || event.ctrlKey || event.metaKey) return;
-
-      if (event.key === 'Enter' && staged) {
-        event.preventDefault();
-        void presentStore.show(staged.item, staged.index);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        void presentStore.step('next');
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        void presentStore.step('previous');
-      }
-    };
-
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [view.presenting, staged?.item.book, staged?.item.chapter, staged?.index]);
+  // The global shortcuts (and, opted into, a presentation remote/clicker) --
+  // shared with the Present tab, so they work the same regardless of where
+  // the controls happen to be rendered.
+  usePresenterShortcuts();
 
   if (!view.presenting) return null;
 

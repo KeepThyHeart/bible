@@ -64,6 +64,29 @@ export type PresentConnectionStatus = 'offline' | 'connecting' | 'live' | 'recon
 const SESSION_KEY = 'present-controller-session';
 
 /**
+ * Whether the controller's own keyboard should also answer to a presentation
+ * remote/clicker: plain Page Up/Down and arrow keys for next/previous, and
+ * `b` for blank -- the keys the old, single-machine program read directly
+ * from a projector pointer.
+ *
+ * Off by default and opt-in, on purpose: those are exactly the bare keys a
+ * reader normally uses to navigate the app underneath (see `isTyping` and the
+ * "a bare arrow key belongs to the reader" rule this store's shortcuts
+ * otherwise follow), so turning this on trades that away in exchange for
+ * clicker support. A presenter without a clicker plugged in never has to make
+ * that trade.
+ */
+const CLICKER_KEY = 'present-accept-clicker-keys';
+
+function readStoredClickerPreference(): boolean {
+  try {
+    return localStorage.getItem(CLICKER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * How far apart two `next`/`previous` presses have to be before the second one
  * is sent. A held arrow key would otherwise put one request per repeat on the
  * wire; the server already refuses to bump its version for a no-op, but the
@@ -106,6 +129,9 @@ class PresentStore extends Store {
 
   /** Whether the running order / preview panel is open. */
   panelOpen = false;
+
+  /** See `CLICKER_KEY`. Read once at construction; this browser's own choice. */
+  acceptClickerKeys = readStoredClickerPreference();
 
   /** An intent is in flight. Used to keep the strip from looking dead. */
   busy = false;
@@ -751,6 +777,17 @@ class PresentStore extends Store {
 
   setPanelOpen(open: boolean): void {
     this.panelOpen = open;
+    this.notify();
+  }
+
+  setAcceptClickerKeys(accept: boolean): void {
+    this.acceptClickerKeys = accept;
+    try {
+      if (accept) localStorage.setItem(CLICKER_KEY, '1');
+      else localStorage.removeItem(CLICKER_KEY);
+    } catch {
+      // Private browsing: the choice lasts for this tab only.
+    }
     this.notify();
   }
 

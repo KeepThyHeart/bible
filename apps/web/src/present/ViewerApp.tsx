@@ -16,8 +16,8 @@ import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typography';
 import {
-  effectiveDisplay, MAX_OVERSCAN, useFullscreen, useHoverMenu, useLocalOverride, useOverscan, useSetupKeys,
-  useWakeLock,
+  effectiveDisplay, itemTransitionKey, MAX_OVERSCAN, useFullscreen, useHoverMenu, useItemTransitionFlash,
+  useLocalOverride, useOverscan, useSetupKeys, useWakeLock,
 } from './viewerChrome';
 import { ScreenMenu } from './ScreenMenu';
 import { tokenizeVerse } from './tokenize';
@@ -83,6 +83,10 @@ export function ViewerApp(): preact.JSX.Element {
   // display of before anything is on the wall.
   const menuVisible = useHoverMenu(isPreview || !state?.live);
 
+  // The old viewer's fade between passages, reproduced as a brief cross-fade
+  // whenever the live item itself changes (not on `next`/`previous`).
+  const flashSeq = useItemTransitionFlash(itemTransitionKey(state?.live ?? null));
+
   return (
     <div class="pv-root" style={style}>
       <div class="pv-safe">
@@ -96,6 +100,7 @@ export function ViewerApp(): preact.JSX.Element {
         unmount it.
       */}
       <div class={`pv-curtain${state?.display.blanked ? ' pv-curtain--on' : ''}`} aria-hidden="true" />
+      {flashSeq > 0 && <div key={flashSeq} class="pv-curtain-flash" aria-hidden="true" />}
       {isPreview ? null : (
         <ScreenMenu
           visible={menuVisible}
@@ -154,6 +159,9 @@ function renderBody(
   }
   if (state.live.kind === 'text') {
     return <TextSlide title={state.live.title} body={state.live.body} attribution={state.live.attribution} />;
+  }
+  if (state.live.kind === 'quote') {
+    return <QuoteSlide text={state.live.text} attribution={state.live.attribution} />;
   }
   if (state.live.kind === 'passage' && passage) {
     return (
@@ -324,6 +332,20 @@ function TextSlide(props: { title?: string; body: string; attribution?: string }
         {props.attribution ? <p class="pv-attribution">{props.attribution}</p> : null}
         <div class="pv-tail" aria-hidden="true" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A quotation, set apart from a presenter's own words: centred, large,
+ * bracketed in quotation marks the same way the old viewer's quote template
+ * did, with the attribution set off below rather than run into the text.
+ */
+function QuoteSlide(props: { text: string; attribution?: string }): preact.JSX.Element {
+  return (
+    <div class="pv-quote">
+      <p class="pv-quote-text">&ldquo;{props.text}&rdquo;</p>
+      {props.attribution ? <p class="pv-quote-attribution">&mdash; {props.attribution}</p> : null}
     </div>
   );
 }

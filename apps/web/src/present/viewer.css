@@ -330,11 +330,17 @@ body {
  * A curtain over the content rather than a swap for it, so unblanking restores
  * the screen exactly -- scroll position included -- with no re-render and no
  * flash of re-laid-out text.
+ *
+ * It fades to the *current theme's* background, not a fixed black: Max
+ * visibility and Light are meant to be blanked to white, the way the old
+ * LiveScreen viewer did, while Dark still fades to near-black. One rule
+ * ("fade to `--pv-bg`") covers both without the viewer having to know which
+ * theme wants which colour.
  */
 .pv-curtain {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--pv-bg);
   opacity: 0;
   pointer-events: none;
   transition: opacity 320ms ease;
@@ -342,10 +348,39 @@ body {
 
 .pv-curtain--on { opacity: 1; }
 
+/*
+ * The automatic cross-fade between passages ("fade to white between
+ * passages" in the old viewer). A sibling overlay, keyed by transition
+ * number so React remounts it on every genuine item change and the browser
+ * restarts the animation from a clean node -- no JS timer decides when it
+ * ends, so there is no state that can leave a curtain stuck partway.
+ */
+@keyframes pv-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.pv-curtain-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--pv-bg);
+  opacity: 0;
+  pointer-events: none;
+  /* `forwards` is what stops this sitting at opacity 1 forever: without it,
+     the element's base `opacity` (the property's initial value, 1, since
+     nothing here sets it outside the keyframes) is what "no animation
+     applied" resolves to once the animation ends. */
+  animation: pv-flash 480ms ease-in-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pv-curtain,
+  .pv-curtain-flash,
   .pv-verse {
     transition: none;
+    animation: none;
   }
 
   /* Arrive at the highlighted state instead of drawing it. The highlight still
@@ -405,6 +440,42 @@ body {
 
 .pv-hymn-title {
   font-style: italic;
+}
+
+/* ---------------------------------------------------------------------------
+ * Quotes
+ *
+ * Someone else's words, set apart from a presenter's own text slide: centred,
+ * in quotation marks, with the attribution set off below rather than run into
+ * the sentence -- the old viewer's own quote template.
+ * ------------------------------------------------------------------------ */
+
+.pv-quote {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4vh;
+  min-height: 0;
+  text-align: center;
+  padding: 0 6vw;
+}
+
+.pv-quote-text {
+  margin: 0;
+  max-width: 46ch;
+  font-style: italic;
+  font-size: calc(var(--present-font-vh, 5.2) * 1vh * var(--verse-shrink, 1));
+  line-height: 1.32;
+  color: var(--pv-fg);
+}
+
+.pv-quote-attribution {
+  margin: 0;
+  font-style: normal;
+  font-size: 2.4vh;
+  color: var(--pv-muted);
 }
 
 /* ---------------------------------------------------------------------------

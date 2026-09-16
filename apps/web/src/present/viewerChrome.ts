@@ -8,7 +8,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentDisplay, type PresentTheme } from './protocol';
+import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentDisplay, type PresentItem, type PresentTheme } from './protocol';
+import { prefersReducedMotion } from './typography';
 
 const OVERSCAN_KEY = 'present-viewer-overscan';
 export const MAX_OVERSCAN = 5;
@@ -248,6 +249,57 @@ export function useLocalOverride(): {
     setFontStep: step => persist({ ...stored, fontStep: Math.min(Math.max(step, MIN_FONT_STEP), MAX_FONT_STEP) }),
     clear: () => persist({}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Passage-to-passage transition
+// ---------------------------------------------------------------------------
+
+/**
+ * A content-based identity for whatever is live, so a reconnect that hands
+ * back the same item does not read as a change. Reference equality on the
+ * `PresentItem` itself would also catch that -- the reducer only ever mints a
+ * new `live` object on `show` -- but a fresh SSE payload after a dropped
+ * connection is a fresh object with the same content, and that must not
+ * flash the wall as if the presenter had moved on.
+ */
+export function itemTransitionKey(item: PresentItem | null): string | null {
+  if (!item) return null;
+  if (item.kind === 'passage') {
+    return `passage:${item.module}:${item.book}:${item.chapter}:${item.verseStart ?? ''}:${item.verseEnd ?? ''}`;
+  }
+  if (item.kind === 'hymn') return `hymn:${item.hymnId}:${(item.verseOrder ?? []).join(',')}`;
+  if (item.kind === 'quote') return `quote:${item.text}:${item.attribution ?? ''}`;
+  return `text:${item.title ?? ''}:${item.body}`;
+}
+
+/**
+ * Reproduces the old viewer's fade between passages: a brief cross-fade to
+ * the theme's background whenever the *item* changes (a new `show`), never
+ * on `next`/`previous` within the same one.
+ *
+ * Returns a sequence number, 0 until the first transition. The caller keys a
+ * plain CSS-animated overlay on it (`.pv-curtain-flash`), so the animation is
+ * owned entirely by the browser: nothing here schedules its own timer to
+ * remove it, which is what rules out a curtain that gets stuck partway.
+ */
+export function useItemTransitionFlash(key: string | null): number {
+  const [seq, setSeq] = useState(0);
+  const prevKey = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // First render: nothing to transition from.
+    if (prevKey.current === undefined) {
+      prevKey.current = key;
+      return;
+    }
+    if (prevKey.current === key) return;
+    prevKey.current = key;
+    if (prefersReducedMotion()) return;
+    setSeq(s => s + 1);
+  }, [key]);
+
+  return seq;
 }
 
 // ---------------------------------------------------------------------------

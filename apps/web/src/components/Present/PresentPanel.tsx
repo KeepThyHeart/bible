@@ -60,6 +60,7 @@ export function PresentPanel(props: { compact?: boolean }) {
   const view = usePresenter();
   const session = useStore(presentStore, () => presentStore.session);
   const plan = useStore(presentStore, () => presentStore.plan);
+  const acceptClickerKeys = useStore(presentStore, () => presentStore.acceptClickerKeys);
 
   // A session with nothing on the wall and nothing planned has just been
   // created, and the first thing its presenter needs is the join code.
@@ -167,6 +168,16 @@ export function PresentPanel(props: { compact?: boolean }) {
                 </button>
               ))}
             </div>
+
+            <label class="present-panel__toggle">
+              <input
+                type="checkbox"
+                checked={acceptClickerKeys}
+                onChange={event => presentStore.setAcceptClickerKeys((event.target as HTMLInputElement).checked)}
+              />
+              {t('present.acceptClickerKeys')}
+            </label>
+            <p class="present-panel__hint">{t('present.acceptClickerKeysHint')}</p>
           </div>
         )}
 

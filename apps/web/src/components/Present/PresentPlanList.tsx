@@ -16,6 +16,7 @@ import { presentStore } from '../../stores/presentStore';
 import type { PresentPlanEntry } from '../../present/protocol';
 import { describeItem, usePresenter } from './usePresenter';
 import { PresentPasteReferences } from './PresentPasteReferences';
+import { PresentQuote } from './PresentQuote';
 
 /**
  * The running order: the service plan, in the order it will be used.
@@ -153,6 +154,9 @@ export function PresentPlanList() {
     if (live.kind === 'text' && entry.item.kind === 'text') {
       return live.title === entry.item.title && live.body === entry.item.body;
     }
+    if (live.kind === 'quote' && entry.item.kind === 'quote') {
+      return live.text === entry.item.text && live.attribution === entry.item.attribution;
+    }
     return false;
   };
 
@@ -171,6 +175,7 @@ export function PresentPlanList() {
             : t('present.nothingToAdd')}
         </button>
         <PresentPasteReferences />
+        <PresentQuote />
       </div>
 
       {plan.length === 0 ? (
