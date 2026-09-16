@@ -56,6 +56,7 @@ vi.mock('../../utils/bookNames', () => ({
 vi.mock('../../constants', () => ({
   isSingleChapterBook: () => false,
   formatPassageRef: (book: number, ch: number, v: number) => `B${book} ${ch}:${v}`,
+  localizedBookAliases: () => ({}),
 }));
 
 // ---- Store state ---------------------------------------------------------

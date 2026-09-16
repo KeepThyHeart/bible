@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
+import { useLocalizer } from '../../hooks/useLocalizer';
 import { VerseRenderer } from './VerseRenderer';
 import { InterlinearLayoutToggle } from './InterlinearLayoutToggle';
 import { isInterlinearPending } from './interlinearPending';
 import { BookChapterPicker } from './BookChapterPicker';
-import { isSingleChapterBook, formatPassageRef } from '../../constants';
+import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { directionForLanguage } from '../../utils/textDirection';
@@ -46,9 +47,15 @@ function VerseOfTheDay() {
 // Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
 const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude
 
-function parseReference(input: string): { book: number; chapter: number; verse?: number; endVerse?: number } | null {
+function parseReference(input: string, bookAliases: Record<string, number>): { book: number; chapter: number; verse?: number; endVerse?: number } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
+  const aliasesByBook = new Map<number, string[]>();
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
+    const list = aliasesByBook.get(bookNum) ?? [];
+    list.push(alias.toLowerCase());
+    aliasesByBook.set(bookNum, list);
+  }
   const bookEntries = Object.entries(getAllBookNames());
   for (const [numStr, name] of bookEntries) {
     const bookNum = parseInt(numStr, 10);
@@ -56,6 +63,10 @@ function parseReference(input: string): { book: number; chapter: number; verse?:
     const lowerInput = trimmed.toLowerCase();
     const abbrevs = [lowerName, lowerName.substring(0, 3)];
     if (/^\d/.test(lowerName)) abbrevs.push(lowerName.replace(' ', ''));
+    abbrevs.push(...(aliasesByBook.get(bookNum) ?? []));
+    // Longest first, so a more specific alias is tried before a shorter one
+    // that happens to be its own prefix.
+    abbrevs.sort((a, b) => b.length - a.length);
     for (const abbr of abbrevs) {
       if (lowerInput.startsWith(abbr)) {
         const rest = trimmed.substring(abbr.length).trim();
@@ -155,6 +166,8 @@ export function BibleContent({
   onCommentaryVerse,
 }: BibleContentProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const tab = useStore(bibleStore, () => bibleStore.getActiveTab());
   const displayMode = tab?.displayMode ?? 'standard';
   const studyShowInterlinear = useStore(bibleStore, () => bibleStore.studyShowInterlinear);
@@ -172,7 +185,7 @@ export function BibleContent({
   if (!tab.book || !tab.chapter) {
     const handleRefSubmit = (e: Event) => {
       e.preventDefault();
-      const ref = parseReference(refValue);
+      const ref = parseReference(refValue, bookAliases);
       if (ref) {
         setRefError('');
         bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { endVerse: ref.endVerse });
