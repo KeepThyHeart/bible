@@ -82,7 +82,7 @@ const BookSectionTree: React.FC<BookSectionTreeProps> = ({
   onSelectSection,
   forceExpanded,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
   const tree = useMemo(() => buildSectionTree(summaries), [summaries]);
@@ -166,7 +166,7 @@ const BookSectionTree: React.FC<BookSectionTreeProps> = ({
               <span className="text-xs text-text-secondary ms-auto">
                 {t(
                   'ui.bookTreeView.wordCount',
-                  { count: node.section.word_count.toLocaleString(), },
+                  { count: localizer.formatNumber(node.section.word_count), },
                 )}
               </span>
             )}

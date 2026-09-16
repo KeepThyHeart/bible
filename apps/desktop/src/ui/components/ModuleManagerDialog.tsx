@@ -189,7 +189,7 @@ const ViewModeTabs: React.FC<{
 };
 
 const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, initialModuleType }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const appliedInitialFilterRef = useRef(false);
   const [searchInput, setSearchInput] = useState('');
@@ -501,7 +501,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
 
   const officialRepo = repositories.find(r => r.type === 'official');
   const lastUpdated = officialRepo?.lastFetched
-    ? new Date(officialRepo.lastFetched).toLocaleDateString()
+    ? localizer.formatDate(new Date(officialRepo.lastFetched))
     : 'Never';
 
   return (

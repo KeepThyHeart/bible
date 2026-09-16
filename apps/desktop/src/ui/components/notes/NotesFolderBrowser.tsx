@@ -65,7 +65,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   sideTab = 'browse',
   onCreateNote,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
@@ -99,7 +99,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return localizer.formatDate(date, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'

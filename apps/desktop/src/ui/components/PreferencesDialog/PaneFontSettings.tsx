@@ -39,7 +39,7 @@ export const PaneFontSettings: React.FC<PaneFontSettingsProps> = ({
   onReset,
   globalFontScale
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const effectiveFontSize = Math.round(settings.fontSize * globalFontScale);
 
   return (
@@ -163,7 +163,7 @@ export const PaneFontSettings: React.FC<PaneFontSettingsProps> = ({
               className="block text-xs font-medium mb-1"
               style={{ color: 'var(--theme-text-secondary)' }}
             >
-              {t('ui.preferences.lineHeightValue', { value: settings.lineHeight.toFixed(2), })}
+              {t('ui.preferences.lineHeightValue', { value: localizer.formatNumber(settings.lineHeight, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), })}
             </label>
             <div className="flex items-center gap-2">
               <span aria-hidden="true" className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('ui.preferences.lineHeightCompact')}</span>

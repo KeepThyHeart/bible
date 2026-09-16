@@ -222,7 +222,7 @@ function BackupTab() {
 
 function RestoreTab() {
   const store = useBackupStore();
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
 
   return (
     <div className="space-y-4">
@@ -312,7 +312,7 @@ function RestoreTab() {
           >
             <h4 className="font-medium mb-2" style={{ color: 'var(--theme-text-heading)' }}>{t('backupRestoreDialog.backupDetailsHeading')}</h4>
             <div className="space-y-1" style={{ color: 'var(--theme-text-secondary)' }}>
-              <p>{t('backupRestoreDialog.created', { v1: new Date(store.backupMetadata.createdAt).toLocaleString() })}</p>
+              <p>{t('backupRestoreDialog.created', { v1: localizer.formatDate(new Date(store.backupMetadata.createdAt), { dateStyle: 'medium', timeStyle: 'medium' }) })}</p>
               <p>{t('backupRestoreDialog.tables', { v1: Object.keys(store.backupMetadata.tables).length })}</p>
               <p>
                 {t('backupRestoreDialog.recordsLabel')}{' '}

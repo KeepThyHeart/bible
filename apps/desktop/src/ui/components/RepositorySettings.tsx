@@ -12,7 +12,7 @@ const RepositorySettings: React.FC = () => {
   // default - in that case the URL inputs must not show an example URL that
   // reads like a working default.
   const defaultCatalogUrl = getModuleCatalogUrl();
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const urlPlaceholder = defaultCatalogUrl ?? t('repositorySettings.urlPlaceholder');
   const {
     repositories,
@@ -256,7 +256,7 @@ const RepositorySettings: React.FC = () => {
                 {/* Metadata */}
                 <div className="flex items-center gap-4 text-xs text-text-tertiary">
                   {repo.lastFetched && (
-                    <span>{t('repositorySettings.lastFetched', { date: new Date(repo.lastFetched).toLocaleDateString() })}</span>
+                    <span>{t('repositorySettings.lastFetched', { date: localizer.formatDate(new Date(repo.lastFetched)) })}</span>
                   )}
                   {!repo.lastFetched && (
                     <span className="text-warning">{t('repositorySettings.neverFetched')}</span>
