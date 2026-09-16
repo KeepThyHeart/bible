@@ -141,6 +141,7 @@ vi.mock('../../utils/bookNames', () => ({
 
 vi.mock('../../constants', () => ({
   formatPassageRef: (_book: number, _ch: number, verse: number, bookName: string) => `${bookName} 3:${verse}`,
+  localizedBookAliases: () => ({}),
 }));
 
 // ---- Clipboard -----------------------------------------------------------

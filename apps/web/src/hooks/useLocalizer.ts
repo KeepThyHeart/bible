@@ -9,7 +9,7 @@
  * rather than the OS locale.
  */
 
-import { useMemo } from 'react';
+import { useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { getLocalizer, type Localizer } from '@bible/core/browser';
 
