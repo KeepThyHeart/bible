@@ -14,18 +14,18 @@ Every folder under `apps/desktop/locales/`, with the `locale.status` / `locale.d
 |---|---|---|---|
 | `en` | complete | ltr | Source of truth |
 | `ar` | **draft** | **rtl** | Arabic - the locale the RTL work was done against |
-| `es` | **draft** | ltr | Spanish |
+| `es` | **beta** | ltr | Spanish - every namespace complete, machine-drafted, unreviewed |
 | `hi` | **draft** | ltr | Hindi - quotes **no** Scripture at all (see its `locale.notes`) |
 | `pt-BR` | **draft** | ltr | Portuguese (Brazil) |
 | `ru` | **draft** | ltr | Russian |
-| `zh-Hans` | **draft** | ltr | Chinese (Simplified) |
+| `zh-Hans` | **beta** | ltr | Chinese (Simplified) - every namespace complete, machine-drafted, unreviewed |
 | `xx-pseudo` | draft (generated) | ltr | Dev-only pseudo-locale for spotting unlocalized strings |
 
 Every non-`en` folder except `xx-pseudo` is machine-drafted and carries a `locale.notes` recording which public-domain Scripture edition its samples quote. New folders are added independently of this document; the direction plumbing picks up whatever is present, so the table may lag the directory. See **Right-to-left (RTL)** below.
 
-All six are still `draft` rather than `beta` as of this writing: each is missing `main.json` and `menu.json` entirely and `ui.json` is only about 64% complete. Promoting one to `beta` - so it appears in the pickers with a badge instead of being withheld - is a content decision (fill the gaps first, see the globalization task), not a code change; see [Which locales are offered](#which-locales-are-offered).
+`es` and `zh-Hans` were promoted to `beta` once a content-drafting pass filled in `main.json`/`menu.json` (previously missing entirely) and completed `ui.json` to 100% - they now appear in the pickers with a "Beta" badge instead of being withheld. `ar`, `hi`, `pt-BR` and `ru` are still `draft`: each is still missing `main.json` and `menu.json` entirely and `ui.json` is only about 64% complete. Promoting one is a content decision (fill the gaps first, see the globalization task), not a code change; see [Which locales are offered](#which-locales-are-offered).
 
-**Shipped does not mean selectable.** Every catalog here is loaded and usable, but the pickers offer a built-in locale only once its own status is `beta` or `complete` - `draft` ones are withheld. Today that means only `en`. See [Which locales are offered](#which-locales-are-offered).
+**Shipped does not mean selectable.** Every catalog here is loaded and usable, but the pickers offer a built-in locale only once its own status is `beta` or `complete` - `draft` ones are withheld. Today that means `en`, `es` and `zh-Hans`. See [Which locales are offered](#which-locales-are-offered).
 
 ## Files
 

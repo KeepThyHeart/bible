@@ -2,6 +2,6 @@
   "$schema": "../schemas/meta.schema.json",
   "locale.name": "Spanish",
   "locale.nativeName": "Español",
-  "locale.status": "draft",
+  "locale.status": "beta",
   "locale.direction": "ltr"
 }

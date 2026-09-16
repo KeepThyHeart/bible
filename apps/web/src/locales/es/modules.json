@@ -1,0 +1,268 @@
+{
+  "$schema": "../schemas/modules.schema.json",
+  "digest": {
+    "displayName": "Resumen combinado",
+    "subtitle": "Resumen combinado de notas generado automáticamente",
+    "disclaimer": "Este es un resumen generado automáticamente a partir de una selección de comentarios de dominio público. El proceso automático a veces comete errores al resumir, y los comentarios a veces contienen falsas doctrinas."
+  },
+  "bibles": {
+    "KJV": {
+      "description": "1769. Equivalencia formal. NT: Textus Receptus; AT: Texto Masorético. Incluye números Strong.",
+      "tagline": "1769 — equivalencia formal, Textus Receptus, con números Strong"
+    },
+    "BSB": {
+      "description": "2020. Equivalencia óptima. NT: texto crítico NA/UBS; AT: Texto Masorético.",
+      "tagline": "2020 — equivalencia óptima, texto crítico NA/UBS"
+    },
+    "ASV": {
+      "description": "1901. Equivalencia formal. NT: texto crítico de Westcott-Hort; AT: Texto Masorético.",
+      "tagline": "1901 — equivalencia formal, texto crítico de Westcott-Hort"
+    },
+    "YLT": {
+      "description": "1898. Estrictamente literal, conserva los tiempos verbales originales. NT: Textus Receptus; AT: Texto Masorético.",
+      "tagline": "1898 — estrictamente literal, Textus Receptus, conserva los tiempos verbales originales"
+    },
+    "AB": {
+      "description": "De la Septuaginta griega (LXX). AT y libros deuterocanónicos."
+    },
+    "ABP": {
+      "description": "Traducción de estilo interlineal a partir de la Septuaginta (LXX)."
+    },
+    "ACV": {
+      "description": "Equivalencia formal. NT: Textus Receptus. Biblia completa."
+    },
+    "AKJV": {
+      "description": "Texto de la KJV (Textus Receptus) con ortografía estadounidense modernizada. Biblia completa."
+    },
+    "Anderson": {
+      "description": "1864. Del Textus Receptus. Solo NT."
+    },
+    "BBE": {
+      "description": "1949/1964. Vocabulario limitado de 850 palabras de inglés básico. Biblia completa."
+    },
+    "BWE": {
+      "description": "1969. Inglés simplificado para lectores internacionales. Solo NT."
+    },
+    "CPDV": {
+      "description": "2009. Católica. Traducida de la Vulgata Latina. Incluye libros deuterocanónicos."
+    },
+    "Common": {
+      "description": "Inglés moderno. De un texto crítico. Solo NT."
+    },
+    "DRC": {
+      "description": "1749–1752 (revisión de Challoner). De la Vulgata Latina. Católica. Biblia completa con deuterocanónicos."
+    },
+    "Darby": {
+      "description": "1890. Equivalencia formal. NT: texto crítico; AT: Texto Masorético. Biblia completa."
+    },
+    "EMTV": {
+      "description": "2012. Del Texto Bizantino/Mayoritario. Solo NT."
+    },
+    "Etheridge": {
+      "description": "1849. De la Peshitta siríaca. Solo NT."
+    },
+    "Geneva1599": {
+      "description": "1599. Equivalencia formal. NT: Textus Receptus; AT: Texto Masorético. Biblia completa."
+    },
+    "Godbey": {
+      "description": "1902. Del texto crítico de Westcott-Hort. Solo NT."
+    },
+    "GodsWord": {
+      "description": "1995. Equivalencia dinámica. De un texto crítico (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "Haweis": {
+      "description": "1795. Del Textus Receptus. Solo NT."
+    },
+    "ISV": {
+      "description": "2011. Equivalencia equilibrada. De un texto crítico (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "JPS": {
+      "description": "1917. Jewish Publication Society. Del Texto Masorético. Solo AT."
+    },
+    "Jubilee2000": {
+      "description": "2000. Revisión de la tradición KJV. Del Textus Receptus (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "KJVA": {
+      "description": "1769. KJV (Textus Receptus) con números Strong; incluye los apócrifos."
+    },
+    "KJVPCE": {
+      "description": "1900 (Edición Pura de Cambridge). Texto de la KJV cuidadosamente estandarizado. Textus Receptus. Biblia completa."
+    },
+    "LEB": {
+      "description": "2012. Equivalencia formal. De un texto crítico (NT) y el Texto Masorético/BHS (AT). Biblia completa."
+    },
+    "LITV": {
+      "description": "1985. Estrictamente literal. Del Textus Receptus (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "LO": {
+      "description": "1826. Traducción de Alexander Campbell a partir de un texto crítico. Solo NT."
+    },
+    "MKJV": {
+      "description": "1962. KJV modernizada. Del Textus Receptus (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "Montgomery": {
+      "description": "1924. Equivalencia dinámica. De un texto crítico. Solo NT."
+    },
+    "Murdock": {
+      "description": "1852. De la Peshitta siríaca. Solo NT."
+    },
+    "NETfree": {
+      "description": "2019. Equivalencia equilibrada. Del texto crítico NA/UBS. Edición gratuita con notas limitadas. Biblia completa."
+    },
+    "NETtext": {
+      "description": "2019. Texto de la NET Bible a partir del texto crítico NA/UBS, con marcadores de notas al pie. Biblia completa."
+    },
+    "NHEB": {
+      "description": "2020 (en curso). De dominio público. De un texto crítico (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "NHEBJE": {
+      "description": "2020 (en curso). Variante de la NHEB que usa \"Jehová\" para el nombre divino. Biblia completa."
+    },
+    "NHEBME": {
+      "description": "2020 (en curso). Variante de la NHEB con los nombres hebreos restaurados. Biblia completa."
+    },
+    "Noyes": {
+      "description": "1869. Traducción académica a partir de un texto crítico (NT) y el Texto Masorético (AT). Biblia completa."
+    },
+    "OEB": {
+      "description": "En curso. Inglés moderno, ortografía estadounidense. De un texto crítico. Parcialmente completa."
+    },
+    "OEBcth": {
+      "description": "En curso. Inglés moderno, ortografía británica. De un texto crítico. Parcialmente completa."
+    },
+    "OrthJBC": {
+      "description": "Perspectiva judía ortodoxa con abundantes hebraísmos. Del Textus Receptus. Solo NT."
+    },
+    "RKJNT": {
+      "description": "NT de la KJV revisado con lenguaje modernizado. Del Textus Receptus. Solo NT."
+    },
+    "RLT": {
+      "description": "2018. Revisión literal de la KJV con números Strong. Del Textus Receptus. Biblia completa."
+    },
+    "RNKJV": {
+      "description": "KJV (Textus Receptus) con el nombre divino restaurado a su forma hebrea. Biblia completa."
+    },
+    "Rotherham": {
+      "description": "1902. Equivalencia formal. De un texto crítico (NT) y el Texto Masorético (AT). Usa marcas tipográficas de énfasis. Biblia completa."
+    },
+    "RWebster": {
+      "description": "1833. Revisión de la KJV de Noah Webster. Del Textus Receptus. Biblia completa."
+    },
+    "SPE": {
+      "description": "Del Pentateuco Samaritano. Solo el Pentateuco."
+    },
+    "Twenty": {
+      "description": "1904. Equivalencia dinámica. Del texto crítico de Westcott-Hort. Solo NT."
+    },
+    "Tyndale": {
+      "description": "1525/1530. Del texto griego de Erasmo y la Vulgata. NT + Pentateuco."
+    },
+    "UKJV": {
+      "description": "KJV (Textus Receptus) con inglés moderno actualizado. Biblia completa."
+    },
+    "Webster": {
+      "description": "1833. Revisión de la KJV de Noah Webster. Del Textus Receptus. Biblia completa."
+    },
+    "Weymouth": {
+      "description": "1912. Equivalencia dinámica. De un texto crítico. Solo NT."
+    },
+    "Worsley": {
+      "description": "1770. Del Textus Receptus. Solo NT."
+    }
+  },
+  "commentaries": {
+    "SYNTHESIS": {
+      "description": "Resumen combinado de notas generado automáticamente a partir de una selección de comentarios de dominio público."
+    },
+    "Barnes": {
+      "description": "Las notas exhaustivas y accesibles de Albert Barnes, uno de los comentarios de estudio más populares. Nuevo Testamento."
+    },
+    "gill": {
+      "description": "La exposición profunda y erudita de John Gill, con amplias referencias. Biblia completa."
+    },
+    "Clarke": {
+      "description": "El comentario de Adam Clarke con notas críticas, una referencia metodista clásica. Biblia completa."
+    },
+    "pulpit": {
+      "description": "The Pulpit Commentary, una extensa obra de múltiples autores con homilética y exposición. Biblia completa."
+    },
+    "kd": {
+      "description": "Keil & Delitzsch, el comentario académico conservador de referencia sobre el Antiguo Testamento. Solo AT."
+    },
+    "CalvinCommentaries": {
+      "description": "Los comentarios recopilados de Juan Calvino, exposición reformada fundacional. La mayoría de los libros."
+    },
+    "poole": {
+      "description": "El Synopsis de Matthew Poole, anotaciones concisas pero exhaustivas sobre toda la Biblia. Biblia completa."
+    },
+    "cambridge": {
+      "description": "The Cambridge Bible for Schools and Colleges, notas claras y académicas para estudiantes. Biblia completa."
+    },
+    "lange": {
+      "description": "El comentario de Lange, una extensa obra crítica y doctrinal germano-estadounidense. Biblia completa."
+    },
+    "expositors": {
+      "description": "The Expositor's Bible, exposición literaria y amena de eruditos de la época victoriana. Biblia completa."
+    },
+    "TSK": {
+      "description": "Treasury of Scripture Knowledge, referencias cruzadas exhaustivas para cada versículo. Biblia completa."
+    },
+    "Wesley": {
+      "description": "Las notas concisas y prácticas de John Wesley sobre toda la Biblia. Biblia completa."
+    },
+    "Scofield": {
+      "description": "Scofield Reference Notes (1917), influyentes notas de estudio dispensacionalistas. Biblia completa."
+    },
+    "Geneva": {
+      "description": "Notas de traducción de la Biblia de Ginebra, anotaciones marginales de la época de la Reforma. Biblia completa."
+    },
+    "RWP": {
+      "description": "Word Pictures de Robertson, estudios de palabras griegas para el Nuevo Testamento. Solo NT."
+    },
+    "PNT": {
+      "description": "The People's New Testament, el comentario claro y práctico de B. W. Johnson. Solo NT."
+    },
+    "Abbott": {
+      "description": "El Illustrated New Testament de Lyman Abbott, notas con contexto cultural. Solo NT."
+    },
+    "Burkitt": {
+      "description": "Las Expository Notes de William Burkitt, comentario cálido y devocional. Solo NT."
+    },
+    "Lightfoot": {
+      "description": "El comentario de John Lightfoot, rico trasfondo hebraico y talmúdico."
+    },
+    "Luther": {
+      "description": "El comentario de Martín Lutero sobre pasajes selectos, perspectivas de la Reforma."
+    },
+    "tod": {
+      "description": "El Treasury of David de Spurgeon, el clásico comentario devocional sobre los Salmos. Solo Salmos."
+    },
+    "Catena": {
+      "description": "La Catena Aurea de Tomás de Aquino, una \"cadena de oro\" de citas de los primeros Padres de la Iglesia sobre los Evangelios. Solo los Evangelios."
+    },
+    "DTN": {
+      "description": "Darby Translation Notes, las notas de traducción y textuales de J. N. Darby."
+    },
+    "Family": {
+      "description": "Family Bible Notes, notas breves y accesibles, adecuadas para la lectura en familia."
+    },
+    "NETnotesfree": {
+      "description": "Notas al pie de los traductores de la NET Bible (edición gratuita), notas académicas sobre decisiones de traducción."
+    },
+    "Personal": {
+      "description": "Comentario personal, notas y observaciones breves de estudio personal."
+    },
+    "TFG": {
+      "description": "The Fourfold Gospel, una armonía de los Evangelios con comentario. Evangelios + Hechos."
+    },
+    "Kingcomments": {
+      "description": "El comentario de Ger de Koning sobre toda la Biblia, práctico y devocional. Biblia completa."
+    },
+    "QuotingPassages": {
+      "description": "Herramienta de referencias cruzadas que muestra dónde la Escritura cita otros pasajes de la Escritura."
+    },
+    "Spurious": {
+      "description": "Las notas de Tischendorf sobre variantes textuales y pasajes espurios en el NT griego. Solo NT."
+    }
+  }
+}
