@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import { directionForTag } from '@bible/core/browser';
 
 import ui from './locales/en/ui.json';
 import books from './locales/en/books.json';
@@ -44,13 +45,24 @@ i18n
       : false,
   });
 
+/**
+ * Languages this app has no planned locale for (see `@bible/core`'s
+ * `LOCALE_REGISTRY`) but that a browser can still report via
+ * `navigator.language`, and that are genuinely RTL - kept as a fallback so
+ * the document direction is still correct even with no catalog to match.
+ */
+const OTHER_RTL_LANGUAGES = ['he', 'fa'];
+
 /** Update the document's lang and dir attributes to match the current language */
 export function syncDocumentLang(): void {
   const lng = i18n.language || 'en';
   document.documentElement.lang = lng;
-  // RTL support: set dir attribute for RTL languages
-  const rtlLangs = ['ar', 'he', 'fa', 'ur'];
-  document.documentElement.dir = rtlLangs.includes(lng) ? 'rtl' : 'ltr';
+  // RTL support: resolved through the shared locale registry, which matches
+  // on the primary subtag - so a region variant like `ar-EG` still resolves
+  // to Arabic's `rtl` direction instead of silently falling through to ltr.
+  const primary = lng.split('-')[0];
+  const isRtl = directionForTag(lng) === 'rtl' || OTHER_RTL_LANGUAGES.includes(primary);
+  document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
 }
 
 i18n.on('languageChanged', syncDocumentLang);

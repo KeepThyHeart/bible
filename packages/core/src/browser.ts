@@ -47,6 +47,25 @@ export type { BookNameFormat } from './Data/Core/BookNames';
 export { ReferenceParser } from './Services/ReferenceParser';
 export type { ParsedReference, IReferenceParser, ReferenceParserConfig } from './Services/ReferenceParser';
 
+// --- Locale identity and per-language processing ----------------------------
+// Shared, translation-free locale metadata (direction, script, digits) plus
+// the `Localizer` interface that gives every planned locale correct
+// number/date/collation/case behavior today, and a place for a language's own
+// book-name table once one is drafted. See `Data/Locales/Localizer.ts`.
+export {
+  LOCALE_REGISTRY,
+  resolveLocaleDescriptor,
+  directionForTag,
+} from './Data/Locales/LocaleRegistry';
+export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
+export {
+  EnglishLocalizer,
+  createIntlLocalizer,
+  getLocalizer,
+  registerLocalizer,
+} from './Data/Locales/Localizer';
+export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+
 export { collapseReferences, collapseReferencesStructured } from './Services/ReferenceCollapser';
 export type { CollapseOptions, CollapsedSegment } from './Services/ReferenceCollapser';
 
