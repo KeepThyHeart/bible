@@ -193,14 +193,14 @@ function mb(p) {
   // 2) Empty the module registry in the staged main.db so the boot detector
   //    registers exactly the bundled modules (no stale/broken entries).
   const mainAbs = path.join(OUT, 'main.db');
-  const mdb = await open(mainAbs, sqlite3.OPEN_READWRITE);
+  const mdb = open(mainAbs);
   try {
-    const before = await get(mdb, 'SELECT COUNT(*) AS n FROM module_metadata');
-    await run(mdb, 'DELETE FROM module_metadata');
-    await run(mdb, 'VACUUM');
+    const before = mdb.prepare('SELECT COUNT(*) AS n FROM module_metadata').get();
+    mdb.prepare('DELETE FROM module_metadata').run();
+    mdb.exec('VACUUM');
     console.log(`  Cleared module_metadata (${before.n} rows -> 0)`);
   } finally {
-    await close(mdb);
+    mdb.close();
   }
 
   // 3) Plain config files

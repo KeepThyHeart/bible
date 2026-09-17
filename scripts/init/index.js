@@ -71,7 +71,8 @@
  *   npm run init:modules   The official catalog with --select=starter
  *                          (init:modules:dev for the development catalog).
  *   npm run setup          Core build, starter modules, web and desktop init,
- *                          and the Electron native rebuild, in one go.
+ *                          the Electron download and native rebuild, in one go
+ *                          (scripts/init/setup.js; `npm run setup -- --help`).
  *
  * Needs Node.js 20.19 or newer.
  *

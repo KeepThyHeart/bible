@@ -15,7 +15,9 @@
 # for the neutral profile; CSC_*/APPLE_* to gate optional signing). Do not
 # re-declare them here — a child config overrides its parent.
 extends: file:electron-builder.branding.cjs
-electronVersion: 33.2.0
+# No electronVersion here: electron-builder.branding.cjs sets it from the
+# installed `electron` package, so the installers run the Electron the app is
+# developed and tested on.
 directories:
   output: dist
   buildResources: resources
@@ -141,7 +143,7 @@ extraResources:
   # as plain files under resources/ keeps them readable without unpacking.
   - from: ../../LICENSE
     to: LICENSE
-  - from: ../../THIRD-PARTY-NOTICES.md
+  - from: ../../admin/THIRD-PARTY-NOTICES.md
     to: THIRD-PARTY-NOTICES.md
   - from: src/ui/styles/fonts/FONT-LICENSES.md
     to: FONT-LICENSES.md
