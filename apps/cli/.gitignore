@@ -1,0 +1,5 @@
+# Compiled executables from `bun build --compile`
+build/
+
+# The trimmed KJV is produced by DATA-3's build script, not checked in.
+src/assets/bible_kjv.db

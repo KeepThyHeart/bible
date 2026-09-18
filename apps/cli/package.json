@@ -1,0 +1,35 @@
+{
+  "name": "@bible/cli",
+  "version": "0.1.0",
+  "description": "Lightweight, read-only terminal Bible reader",
+  "license": "GPL-3.0-or-later",
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "bible": "./build/bible"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "smoke": "bun run src/smoke.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build": "node scripts/build.js --local",
+    "build:all": "node scripts/build.js",
+    "clean": "rm -rf build"
+  },
+  "keywords": [
+    "bible",
+    "cli",
+    "terminal",
+    "tui"
+  ],
+  "dependencies": {
+    "@bible/core": "*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "bun": "^1.1.0",
+    "typescript": "^5.5.0"
+  }
+}

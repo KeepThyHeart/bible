@@ -1,0 +1,71 @@
+# `@bible/cli` — cross-compile the terminal Bible reader and prove the result runs.
+#
+# Typechecking and unit tests for the CLI already run in ci.yml (the CLI is an
+# npm workspace, so `npm run typecheck` and `npm test` cover it). This workflow
+# adds what ci.yml does not: building the four single-file executables with
+# `bun build --compile`, and running the compile probe against them.
+name: cli
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/cli/**'
+      - 'packages/core/**'
+      - '.github/workflows/cli.yml'
+  pull_request:
+    paths:
+      - 'apps/cli/**'
+      - 'packages/core/**'
+      - '.github/workflows/cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # One Linux runner produces all four executables; that cross-compilation is
+    # the reason the CLI uses Bun.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Bun comes from the CLI's `bun` devDependency; no separate setup step.
+      - run: npm ci
+
+      # The CLI consumes core's compiled CommonJS output, not its source, so
+      # core must be built first.
+      - run: npm run build:core
+
+      - name: Compile probe (from source)
+        working-directory: apps/cli
+        run: |
+          npx bun run scripts/make-fixture.ts /tmp/fixture.db
+          npx bun run src/smoke.ts /tmp/fixture.db
+
+      - name: Cross-compile all targets
+        run: npm run build:all -w @bible/cli
+
+      # Running the probe again as a compiled binary is the check that matters:
+      # it is the toolchain, not the source, that is in doubt.
+      - name: Compile probe (compiled binary)
+        working-directory: apps/cli
+        run: |
+          node scripts/build.js --entry=smoke --local
+          ./build/smoke-linux-x64 /tmp/fixture.db
+
+      - run: ls -lh apps/cli/build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bible-cli
+          path: apps/cli/build/bible-*
+          if-no-files-found: error
