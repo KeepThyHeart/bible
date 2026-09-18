@@ -1,86 +1,51 @@
 /**
- * The main screen of the 2026 redesign (task 0001-bible-cli).
+ * The main screen, and the app's only one: a single passage shown in a Bible
+ * pane, with a Study pane that sits beside it (wide terminal) or is swapped in
+ * for it (narrow), plus a session history.
  *
- * Replaces `Reader.ts` + `Study.ts` (and, as of phase 5, every other old
- * screen) as the app's only screen. The human's brief was to dramatically
- * simplify the CLI: one passage (no tabs,
- * no parallel versions, no command palette), a Bible pane and a Study pane
- * that is either beside it (wide terminal) or swapped in for it (narrow), and
- * a session history. See the task thread (`0001-bible-cli`, message 01) for
- * the wireframes and the fourteen questions this was built from.
+ * Study views (`StudyView`): `hints` (the default key menu), `x` cross
+ * references, `c`/`m` commentaries, `t` topics, `d` dictionaries, `k` books,
+ * `h` history, `o` options, `b` bookmarks and `/` search results. Each is a view
+ * the Study pane switches into, **not** a pushed `Screen`: the Bible pane and
+ * the verse cursor stay live beside every one of them ("every study view
+ * follows the verse cursor"), which only works if `MainScreen` keeps owning
+ * the cursor while a study view is showing. The data behind each view is pure
+ * and lives in `app/studyPanes.ts`, `app/history.ts`, `app/bookmarks.ts` and
+ * `app/search.ts` (no rendering, no keys); this screen turns their rows into
+ * `StyledLine`s and owns every key.
  *
- * Built in phases, per the architecture proposal's build order:
- *
- * - **Phase 1** (message 03): the shell, the two panes, and the session
- *   history (`app/history.ts`) — every study item was a "not built yet"
- *   placeholder in the default hint menu.
- * - **Phase 2** (message 05): `x` (cross references), `c` and `m`
- *   (commentaries), and `t` (topics) — the four the architecture proposal
- *   grouped together because `CrossReferenceRepository.getGroupsWithEntries`
- *   already returns entries in the wireframe's shape. Each is a `StudyView`
- *   the Study pane switches into, **not** a pushed `Screen`: the wireframe
- *   keeps the Bible pane and the verse cursor live beside every one of them
- *   ("every study view follows the verse cursor"), which only works if
- *   `MainScreen` still owns the cursor while a study view is showing. The
- *   data behind each of the four is pure and lives in `app/studyPanes.ts`, on
- *   the same "no rendering, no keys" split as `app/history.ts`; this screen
- *   turns their rows into `StyledLine`s and owns every key, including the
- *   shared "type a number, hit Enter" pattern (`PICKER_VIEWS`, `pickerKey`).
- * - **Phase 3** (this delivery): `d` (dictionaries) and `k` (books) — unlike
- *   x/c/t these are not verse-scoped (question 3's correction: "Dictionaries
- *   (2)" just means two are installed), so each is a browser rather than a
- *   lookup. `d` drills list → letter index → that letter's entries → one
- *   entry; `k` drills list → table of contents (recursively, one level of
- *   children at a time, via `bookSectionStack`) → one section. Both leaf
- *   reading views reuse `layoutCommentary` again, same as a commentary entry.
- *   A dictionary's entry list is the one `PICKER_VIEWS` member that accepts
- *   four digits instead of two (`pickerDigits`) — a Strong's module's "G"/"H"
- *   buckets run into the thousands, where the other lists' two-digit cap
- *   (question 6) would leave most entries unreachable.
- * - **Phase 4** (this delivery): `o` (options) and `b` (bookmarks) — the last
- *   build-order phase before the old screens come out and
- *   `docs/planning/cli` is rewritten. Options is one numbered row per
- *   setting (`OPTION_ROWS`): a typed number plus Enter cycles that row to its
- *   next value and stays put, rather than navigating away like `PICKER_VIEWS`
- *   does — closer to `ReadingSettings.ts`'s cycle than to a `pickerKey` list,
- *   though kept independent of that file rather than importing from it, since
- *   it is scheduled to go. Translation joins the rows here (question 12);
- *   Layout keeps only `paragraph`/`numbered` (`columns` and its presets were
- *   removed, question 2 and question 11). Bookmarks (`app/bookmarks.ts`) is a
- *   flat, user-ordered list in `~/.bible/state.db` (question 13): a typed row
- *   number plus a letter acts on it — `a`dd, `r`ename, re-`p`oint, `d`elete
- *   (twice, to confirm), `[`/`]` to reorder — and Enter alone is a plain jump,
- *   like every other picker's numbers. Renaming is the one case that needs
- *   free text from a screen that cannot open the input line itself
+ * - **Numbered pickers** (`PICKER_VIEWS`, `pickerKey`): type a number, then
+ *   Enter, to pick a row. A dictionary's entry list is the one picker that
+ *   accepts four digits instead of two (`pickerDigits`): a Strong's module's
+ *   "G"/"H" buckets run into the thousands.
+ * - **Dictionaries and books** are not verse-scoped, so each is a browser.
+ *   `d` drills list, letter index, that letter's entries, one entry; `k` drills
+ *   list, table of contents (recursively, one level of children at a time,
+ *   via `bookSectionStack`), one section. Both leaf reading views reuse
+ *   `layoutCommentary`, as a commentary entry does.
+ * - **Options** (`o`) is one numbered row per setting (`OPTION_ROWS`): a typed
+ *   number plus Enter cycles that row to its next value and stays put, rather
+ *   than navigating away like `PICKER_VIEWS` does.
+ * - **Bookmarks** (`app/bookmarks.ts`) are a flat, user-ordered list in
+ *   `~/.bible/state.db`: a typed row number plus a letter acts on it: `a`dd,
+ *   `r`ename, re-`p`oint, `d`elete (twice, to confirm), `[`/`]` to reorder;
+ *   Enter alone is a plain jump, like every other picker's numbers. Renaming
+ *   needs free text from a screen that cannot open the input line itself
  *   (`app/App.ts`'s docblock): `r` arms `bookmarkRenameTarget`, and the next
- *   line submitted — through `/`, exactly as the user always opens it — is
- *   read as the new name rather than classified as a reference or a search
- *   (`nameFromIntent`). `m`'s last-opened commentary is now persisted too
- *   (`ctx.lastCommentary`, the `lastCommentary` action), closing the "not yet
- *   persisted" note phase 2 left.
+ *   line submitted through `/` is read as the new name rather than classified
+ *   as a reference or a search (`nameFromIntent`).
+ * - **Search** (`/`, `app/search.ts`) fills the `searchResults` view, on the
+ *   same numbered-picker pattern as every other list.
+ * - `m` reopens the last-opened commentary (`ctx.lastCommentary`, persisted
+ *   through the `lastCommentary` action).
  *
- * Deliberately reuses everything the architecture review said to keep:
- * `term/reading.ts`'s `layoutReading` for the chapter itself (paragraph flow,
- * the cursor highlight, verse numbers), `app/selection.ts` for
- * shift+up/down, `app/verseText.ts` for the styled runs, `app/commentaryMarkup.ts`'s
- * exported `layoutCommentary` for turning a commentary entry's markup into
- * terminal rows, and the shell in `app/App.ts` for chrome, the input line,
- * persistence and the screen contract (`screens/types.ts`).
- *
- * - **Phase 5** (message 10, "wrap this up"): `/` search (`app/search.ts`,
- *   reused the same way `app/history.ts` and `app/studyPanes.ts` are — pure
- *   data, no rendering, no keys) as a new `searchResults` `StudyView`, on the
- *   same numbered-picker pattern as every other list (`PICKER_VIEWS`); and
- *   the old screens this one replaces (`Reader`, `Study`, `Tabs`, `Commands`,
- *   `Help`, `SearchSyntax`, `Parallel`, `Copy`, `ReadingSettings`, the old
- *   `CrossReferences`/`Topics`/`SearchResults`/`Commentary`) are deleted, per
- *   the architecture proposal's last build-order step. `screens/Modules.ts`
- *   (`^O`, the module library) is kept: question 11's answer specifically
- *   asked for it, over the architecture proposal's own suggestion to remove
- *   it. `Interlinear.ts` is also deleted rather than rebuilt in the Study
- *   pane — see that question's note in `app/App.ts` and this delivery's
- *   message for why that one is flagged as an open question rather than
- *   guessed at.
+ * Reuses `term/reading.ts`'s `layoutReading` for the chapter itself (paragraph
+ * flow, the cursor highlight, verse numbers), `app/selection.ts` for
+ * shift+up/down, `app/verseText.ts` for the styled runs,
+ * `app/commentaryMarkup.ts`'s `layoutCommentary` for turning a commentary
+ * entry's markup into terminal rows, and the shell in `app/App.ts` for chrome,
+ * the input line, persistence and the screen contract (`screens/types.ts`).
+ * `screens/Modules.ts` (`^O`, the module library) is a separate screen.
  */
 import { VerseIdHelper } from '@bible/core';
 
@@ -166,7 +131,7 @@ import type {
   VerseNumberStyle,
 } from './types';
 
-/** Title + blank line above the chapter text, same as the old reader. */
+/** Title + blank line above the chapter text. */
 const TITLE_ROWS = 2;
 
 interface Laid {
@@ -204,7 +169,7 @@ type StudyView =
   | 'bookmarksList'
   | 'searchResults';
 
-/** The views a numbered buffer plus Enter picks a row in (§ task thread, message 01). */
+/** The views a numbered buffer plus Enter picks a row in. */
 const PICKER_VIEWS: ReadonlySet<StudyView> = new Set([
   'crossReferences',
   'commentaryList',
@@ -221,18 +186,16 @@ const PICKER_VIEWS: ReadonlySet<StudyView> = new Set([
 /**
  * How many hits `/` shows, per {@link RunSearchOptions.maxResults}.
  *
- * Every other picker in this app is a two-digit field (question 6), and a
- * search can otherwise run into the hundreds — core's own default is 200.
- * Capped here rather than widened to match, the same call phase 3 made for
- * dictionary entries in the other direction: a Bible search is for finding a
- * verse you half-remember, not for reading every occurrence of "the".
+ * Every other picker in this app is a two-digit field, and a search can
+ * otherwise run into the hundreds — core's own default is 200. Capped at two
+ * digits rather than widened to match: a Bible search is for finding a verse
+ * you half-remember, not for reading every occurrence of "the".
  */
 const MAX_SEARCH_RESULTS = 99;
 
 /**
- * How many digits `pickerBuffer` accepts before Enter is needed. Two,
- * per question 6, for every list the wireframes sized in the single digits —
- * except a dictionary's entry list, whose "G"/"H" buckets run into the
+ * How many digits `pickerBuffer` accepts before Enter is needed. Two for
+ * every list, except a dictionary's entry list, whose "G"/"H" buckets run into the
  * thousands on a Strong's module, where a two-digit cap would leave almost
  * everything unreachable.
  */
@@ -264,11 +227,7 @@ function pickerEscapeTarget(view: StudyView): StudyView {
 // --- options (`o`) ---------------------------------------------------------
 
 /**
- * One stop in a setting's cycle, and how to reach it — the same shape
- * `ReadingSettings.ts`'s overlay used, kept independent of it rather than
- * imported: that file is one of the screens the architecture proposal
- * schedules for removal once every wireframe has a home in this one, and this
- * screen should not come to depend on code already marked to go.
+ * One stop in a setting's cycle, and how to reach it.
  */
 interface OptionChoice {
   readonly label: string;
@@ -283,7 +242,7 @@ interface OptionRow {
   readonly choices: (ctx: ScreenContext) => readonly OptionChoice[];
 }
 
-/** A choice that changes a global display setting, cycled the same way `ReadingSettings.ts` did. */
+/** A choice that changes a global display setting. */
 function displayOption(
   label: string,
   change: (display: DisplaySettings) => DisplaySettings,
@@ -298,7 +257,7 @@ const VERSE_NUMBER_STYLES: readonly VerseNumberStyle[] = [
   'hidden',
 ];
 
-/** Depths named in terms a reader has a way to judge (see `ReadingSettings.ts`'s note on the same list). */
+/** Depths named in terms a reader has a way to judge. */
 const COLOUR_CHOICES: readonly { readonly label: string; readonly depth: ColorDepth | 'auto' }[] = [
   { label: 'auto', depth: 'auto' },
   { label: 'full', depth: 'ansi256' },
@@ -306,7 +265,7 @@ const COLOUR_CHOICES: readonly { readonly label: string; readonly depth: ColorDe
   { label: 'none', depth: 'none' },
 ];
 
-/** Every installed Bible, alphabetical by abbreviation — Translation's row (question 12). */
+/** Every installed Bible, alphabetical by abbreviation — Translation's row. */
 function translationChoices(ctx: ScreenContext): readonly OptionChoice[] {
   const modules = [...ctx.library.bibleModules()].sort((a, b) =>
     a.abbreviation.localeCompare(b.abbreviation),
@@ -322,9 +281,7 @@ function translationChoices(ctx: ScreenContext): readonly OptionChoice[] {
 
 /**
  * Every setting `o` shows, in the order the numbered rows list them. Adding
- * one is a record here, same as `ReadingSettings.ts`'s table — Columns and
- * the `columns` layout are not among them: both were removed along with
- * presets and parallel versions (question 2, question 11).
+ * one is a record here.
  */
 const OPTION_ROWS: readonly OptionRow[] = [
   {
@@ -386,7 +343,7 @@ const OPTION_ROWS: readonly OptionRow[] = [
   },
 ];
 
-/** The next choice in a row's cycle, wrapping past the end — `ReadingSettings.ts`'s `cycle`, for one row at a time. */
+/** The next choice in a row's cycle, wrapping past the end. */
 function cycleOptionRow(row: OptionRow, ctx: ScreenContext): ScreenAction {
   const choices = row.choices(ctx);
   if (choices.length === 0) {
@@ -403,13 +360,13 @@ function cycleOptionRow(row: OptionRow, ctx: ScreenContext): ScreenAction {
  * What a rename typed on the shell's input line is taken to mean.
  *
  * `search` is the overwhelmingly common case — free text that is not a
- * reference, a command or a step is classified as a search, and its `query`
+ * reference or a step is classified as a search, and its `query`
  * is the trimmed text exactly as typed (`app/input.ts`). A name that happens
  * to *parse* as a reference (`3:16`, `john 3:16`) is read back through
  * {@link formatResolvedReference} instead of being lost: that reconstructs
  * the same words the reference parser accepted, so naming a bookmark after
- * its own passage works instead of silently failing. A command or a chapter
- * step (`:x`, `<`, `+5`) carries no text to recover and is rejected.
+ * its own passage works instead of silently failing. A chapter
+ * step (`<`, `+5`) carries no text to recover and is rejected.
  */
 function nameFromIntent(ctx: ScreenContext, intent: Intent): string | undefined {
   switch (intent.kind) {
@@ -417,7 +374,6 @@ function nameFromIntent(ctx: ScreenContext, intent: Intent): string | undefined 
       return intent.query.trim().length > 0 ? intent.query.trim() : undefined;
     case 'reference':
       return formatResolvedReference(ctx, intent.reference);
-    case 'command':
     case 'step-unit':
     case 'step-verse':
     case 'empty':
@@ -442,7 +398,7 @@ export class MainScreen implements Screen {
 
   private cache: { key: string; laid: Laid } | undefined;
 
-  /** Session history (task thread, question 8) — lasts for this run only. */
+  /** Session history — lasts for this run only. */
   private history: HistorySlot = emptyHistory();
 
   /** Whether the Study pane is drawn beside the Bible pane, in a wide terminal. */
@@ -593,9 +549,9 @@ export class MainScreen implements Screen {
         if (key.ctrl) return { kind: 'none' };
         if (key.alt && key.char === 'c') return this.copy(ctx, laid);
         if (key.alt) return { kind: 'none' };
-        // `space` pages the Study pane (question 7) when it is open and has not
-        // claimed the key some other way (`subViewKey` already ran); otherwise it
-        // falls through as an ordinary character, same as before this pane existed.
+        // `space` pages the Study pane when it is open and has not claimed
+        // the key some other way (`subViewKey` already ran); otherwise it falls
+        // through as an ordinary character.
         if (key.name === 'space' && this.studyOpen(ctx)) {
           return this.scrollStudy(Math.max(1, ctx.bodyHeight - 2));
         }
@@ -623,15 +579,13 @@ export class MainScreen implements Screen {
         return this.stepVerses(ctx, laid, intent.delta, window);
       case 'search':
         return this.runSearchView(intent.query, ctx);
-      case 'command':
       case 'empty':
         return { kind: 'none' };
     }
   }
 
   /**
-   * `/` text that is not a reference (question 9, "the wireframe's `Search
-   * results`"). Asynchronous because `runSearch` is — `app/App.ts`'s
+   * `/` text that is not a reference. Asynchronous because `runSearch` is — `app/App.ts`'s
    * `resolve` awaits a screen's `ScreenResult` exactly for this — so the
    * outcome is stored on `this` and the pane switched only once it lands.
    */
@@ -737,7 +691,7 @@ export class MainScreen implements Screen {
     return this.dimensions(ctx).wide ? this.wideStudyVisible : this.narrowStudyActive;
   }
 
-  /** `pgup`/`pgdn`/`space` (question 7) — the arrows stay verse keys, so the pane scrolls on its own keys. */
+  /** `pgup`/`pgdn`/`space` — the arrows stay verse keys, so the pane scrolls on its own keys. */
   private scrollStudy(delta: number): ScreenAction {
     // Clamped against the real content length in `studyRows`, which is the
     // only place that number is known; a deliberate overshoot here is how
@@ -796,7 +750,7 @@ export class MainScreen implements Screen {
       return this.pickHistory(ctx);
     }
     // Any other key falls through to ordinary navigation (arrows still move
-    // the verse and the history list follows, per the task thread's notes).
+    // the verse and the history list follows).
     return undefined;
   }
 
@@ -1031,8 +985,8 @@ export class MainScreen implements Screen {
       return this.pickerSelect(ctx);
     }
     // Any other key falls through — arrows still move the verse and every
-    // picker's rows follow it, per the task thread's "every study view
-    // follows the verse cursor" (dictionaries and books don't read the verse,
+    // picker's rows follow it, since every study view follows the verse
+    // cursor (dictionaries and books don't read the verse,
     // so the arrows just move the Bible pane underneath, harmlessly).
     return undefined;
   }
@@ -1068,7 +1022,7 @@ export class MainScreen implements Screen {
     }
   }
 
-  /** A search result's number, Enter — a plain jump (question 9), same as a cross reference or a topic's verse. */
+  /** A search result's number, Enter — a plain jump, same as a cross reference or a topic's verse. */
   private jumpToSearchResult(ctx: ScreenContext, n: number): ScreenAction {
     const hit = this.searchOutcome?.hits[n - 1];
     if (hit === undefined) return { kind: 'message', text: 'No such result.', tone: 'error' };
@@ -1193,7 +1147,7 @@ export class MainScreen implements Screen {
 
   /**
    * Pop back to the hints and put the reader on `verseId` — following a cross
-   * reference or a topic's verse is "a plain jump" (question 9), the same
+   * reference or a topic's verse is a plain jump, the same
    * action `pickHistory` already takes for a history row.
    */
   private jumpToVerse(ctx: ScreenContext, verseId: number): ScreenAction {
@@ -1377,8 +1331,7 @@ export class MainScreen implements Screen {
   }
 
   private goToReference(ctx: ScreenContext, reference: ResolvedReference, window: number): ScreenAction {
-    // `16-17` and `3:16-17` arrive selected (§4.1: "that range, selected on
-    // arrival"). The verse count is the *destination* chapter's, so it is
+    // `16-17` and `3:16-17` arrive with that range selected. The verse count is the *destination* chapter's, so it is
     // resolved before the range is clamped rather than from the chapter
     // being left.
     const bible = ctx.library.bible(ctx.tab.translation);
@@ -1581,9 +1534,8 @@ export class MainScreen implements Screen {
           : { text: `(${ctx.lastCommentary})`, style: muted },
       ],
       line(`t - Topics            (${counts.topics})`),
-      // No count here (question 3): "Dictionaries (2)" means two are
-      // installed, not that two have something for this verse, and the
-      // human asked for the number to come off once that was clear.
+      // No count here: "Dictionaries (2)" would mean two are installed, not
+      // that two have something for this verse, which would mislead.
       line('d - Dictionaries'),
       line(`k - Books             (${counts.books})`),
       [],
@@ -1635,7 +1587,7 @@ export class MainScreen implements Screen {
     return rows;
   }
 
-  /** `c` — every installed commentary, alphabetical (question 5), with word counts and a fixed number. */
+  /** `c` — every installed commentary, alphabetical, with word counts and a fixed number. */
   private commentaryListPane(ctx: ScreenContext): StyledLine[] {
     const rows = commentaryListRows(ctx.library, ctx.tab.cursorVerse);
     const title: StyledLine = [{ text: 'Commentaries', style: ctx.theme.title }];
@@ -1734,7 +1686,7 @@ export class MainScreen implements Screen {
 
   // --- dictionaries (`d`) -------------------------------------------------
 
-  /** `d` — every installed dictionary, alphabetical (not verse-scoped — question 3). */
+  /** `d` — every installed dictionary, alphabetical (not verse-scoped). */
   private dictionaryListPane(ctx: ScreenContext): StyledLine[] {
     const rows = dictionaryListRows(ctx.library);
     const title: StyledLine = [{ text: 'Dictionaries', style: ctx.theme.title }];
@@ -1859,7 +1811,7 @@ export class MainScreen implements Screen {
 
   // --- books (`k`) ---------------------------------------------------------
 
-  /** `k` — every installed book module, alphabetical (not verse-scoped — question 4). */
+  /** `k` — every installed book module, alphabetical (not verse-scoped). */
   private bookListPane(ctx: ScreenContext): StyledLine[] {
     const rows = bookListRows(ctx.library);
     const title: StyledLine = [{ text: 'Books', style: ctx.theme.title }];
@@ -2013,8 +1965,7 @@ export class MainScreen implements Screen {
   }
 
   /**
-   * `/` text that was not a reference (question 9) — the search wireframe's
-   * distribution graph, then every hit, numbered like any other picker
+   * `/` text that was not a reference — the distribution graph, then every hit, numbered like any other picker
    * (`numberedTextRow`, the same helper `topicVersesPane` uses for full verse
    * text). An empty result, an unanswerable query and a rejected one are
    * three different answers (`app/search.ts`'s own note on why), not one
@@ -2154,8 +2105,8 @@ function studyCounts(ctx: ScreenContext, verseId: number): StudyCounts {
   const topics = ctx.library
     .study('topical_index')
     .reduce((sum, m) => sum + m.repository.getTopicsByVerse(verseId).length, 0);
-  // Not verse-scoped (question 4) — an installed count, like the dictionary
-  // list's own count (question 3), which is why `d`'s hint row has none.
+  // Not verse-scoped — an installed count, unlike `d`'s hint row, which
+  // shows none.
   const books = ctx.library.study('book').length;
   const commentaries = ctx.library
     .study('commentary')

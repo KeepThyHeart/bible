@@ -1,13 +1,6 @@
 /**
  * Commentary markup → terminal rows.
  *
- * Extracted from `screens/Commentary.test.ts` when the old rail-based
- * `Commentary` screen was removed (task 0001-bible-cli, "delete the old
- * screens") — only {@link layoutCommentary}'s own markup group and its
- * Markdown counterpart carry over; the screen's `describe.skipIf(!hasLibrary)`
- * groups tested the rail, `<`/`>` by unit and the find box, none of which
- * exist any more (`screens/Main.ts`'s `c`/`m` study views replace them).
- *
  * {@link layoutCommentary} is pure, so it is tested against markup written
  * out in the test — including the shapes that were *found* in the real
  * modules (`<!P>`, `<sup>`, a style boundary flush against a comma) rather

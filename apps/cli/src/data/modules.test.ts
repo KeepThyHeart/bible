@@ -1,7 +1,7 @@
 /**
  * Module discovery.
  *
- * Driven through a fake filesystem, so the five roots of DesignSpec §3.2 can be
+ * Driven through a fake filesystem, so the five module roots can be
  * asserted on all three platforms from one machine. The last block runs against
  * the real checkout, which is the only way to know the descriptor reader
  * matches the actual module format.
@@ -154,7 +154,7 @@ describe('root resolution', () => {
     const user = roots.find((r) => r.kind === 'desktop-user');
     const bundled = roots.find((r) => r.kind === 'desktop-bundled');
 
-    // §3.4: immutable is safe only where nothing writes.
+    // Immutable is safe only where nothing writes.
     expect(user?.immutable).toBe(false);
     expect(bundled?.immutable).toBe(true);
   });
@@ -185,7 +185,7 @@ describe('root resolution', () => {
     expect(kinds(moduleRoots(env))).toEqual([]);
   });
 
-  test('roots come back in the priority order of §3.2', () => {
+  test('roots come back in priority order', () => {
     const env = fakeEnv(
       {
         '/custom/modules': ['a.db'],
@@ -277,9 +277,9 @@ describe('discovery', () => {
     const usable = modules.filter((m) => m.unsupported === undefined);
     expect(usable.map((m) => m.abbreviation)).toEqual(['ASV', 'KJV']);
 
-    // The bad one is listed with a reason rather than dropped. Dropping it is
-    // what the modules screen exists to replace: a `.db` the user can see on disk and
-    // cannot find in the app, with nothing anywhere saying why.
+    // The bad one is listed with a reason rather than dropped: a `.db` the user
+    // can see on disk but cannot find in the app, with nothing saying why, is
+    // what the modules screen exists to prevent.
     // Matched on the filename: `join` uses the platform separator, so the path
     // is `\mroken.db` on Windows and `/m/broken.db` elsewhere.
     const broken = modules.find((m) => m.path.endsWith('broken.db'));
@@ -338,7 +338,7 @@ describe('discovery', () => {
       read: reader({ '/m/bible_future.db': { abbreviation: 'FUT', schemaVersion: '9.0.0' } }),
     });
 
-    // §3.5: dim the row rather than crash on an unexpected table shape.
+    // Dim the row rather than crash on an unexpected table shape.
     expect(module?.unsupported).toContain('newer than this build supports');
     expect(() => openModule(module!)).toThrow(/newer than this build supports/);
   });

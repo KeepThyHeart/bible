@@ -1,7 +1,7 @@
 /**
  * The frame every screen is drawn inside.
  *
- * Six rows of chrome, exactly as the wireframes show them:
+ * Six rows of chrome:
  *
  * ```
  *   ▸John 3  Romans 8  Psalm 23                          KJV  v16/36  ¶   header
@@ -32,7 +32,7 @@ import { renderStyledLine, type StyledLine, type StyledSegment, type Theme } fro
 import type { TerminalSize } from '../term/raw';
 import type { Overlay } from '../screens/types';
 
-/** Widest the reading column is allowed to get. DesignSpec §5.2. */
+/** Widest the reading column is allowed to get. */
 export const MAX_TEXT_WIDTH = 84;
 
 /** Columns of blank margin on each side of the body. */
@@ -250,9 +250,6 @@ function overlayBox(overlay: Overlay, theme: Theme, width: number): StyledLine[]
   }
 
   lines.push([{ text: `└${'─'.repeat(Math.max(0, width - 2))}┘`, style: theme.rule }]);
-  if (overlay.caption !== undefined) {
-    lines.push([{ text: truncateToWidth(overlay.caption, width), style: theme.muted }]);
-  }
   return lines;
 }
 

@@ -1,16 +1,13 @@
 /**
- * `~/.bible/state.db` — the only file this app writes (DesignSpec §3.6).
+ * `~/.bible/state.db` — the only file this app writes.
  *
- * It holds the open tabs, which in this design replace both bookmarks and
- * saved sessions: what you had open is what you get back, and there is no
- * separate concept to learn.
+ * It holds the open tabs (what you had open is what you get back), the
+ * bookmarks and a few app-level values.
  *
- * **Two kinds of state, stored differently.** Tabs get a real table, because
- * they are a list the app reasons about — ordering, the active one, one row
- * each. Everything a controller wants to persist goes in a single JSON blob,
- * produced by core's `SessionSerializationService`, because its shape belongs
- * to the controllers rather than to this schema and should not require a
- * migration here every time one of them changes.
+ * **Two kinds of state, stored differently.** Tabs and bookmarks get real
+ * tables, because they are lists the app reasons about — ordering, the active
+ * one, one row each. Everything else (display settings, the last commentary) is
+ * a key/value row in `app_state`, so adding one needs no schema change.
  *
  * **Corruption is expected, not exceptional.** A power cut mid-write, a synced
  * folder, a half-copied home directory. The store recovers by moving the bad
@@ -20,55 +17,31 @@
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { VerseIdHelper, type SessionSnapshot } from '@bible/core';
+import { VerseIdHelper } from '@bible/core';
 
 import { BunSql } from '../data/BunSql';
 import type { Bookmark } from './bookmarks';
 
 /** Bumped when the *table* shape changes; the JSON blob versions itself. */
-export const STATE_SCHEMA_VERSION = 4;
+export const STATE_SCHEMA_VERSION = 1;
 
-/**
- * How a chapter is drawn.
- *
- * `columns` is a *page* rather than a scroll: a fixed geometry chosen from
- * `app/presets.ts`, which is why it needs {@link TabState.preset} beside it. The
- * other two flow to whatever width the window happens to be.
- */
-export type DisplayMode = 'paragraph' | 'numbered' | 'columns';
+/** How a chapter is drawn. Both flow to whatever width the window happens to be. */
+export type DisplayMode = 'paragraph' | 'numbered';
 
-const DISPLAY_MODES: readonly DisplayMode[] = ['paragraph', 'numbered', 'columns'];
+const DISPLAY_MODES: readonly DisplayMode[] = ['paragraph', 'numbered'];
 
 /** Anything else stored in the column reads back as the default, never as a crash. */
 function toDisplayMode(raw: string): DisplayMode {
   return DISPLAY_MODES.includes(raw as DisplayMode) ? (raw as DisplayMode) : 'paragraph';
 }
 
-export interface StudyPosition {
-  /**
-   * Which of the study tabs was open, counted from 1 as the strip numbers them.
-   *
-   * Stored as a number rather than a name because the strip's own labels are
-   * what the user sees and what `1`–`6` select; a renamed tab should not lose
-   * somebody's place. Out-of-range values are clamped on the way in, so a state
-   * file written by a version with more tabs than this one still opens.
-   */
-  readonly tab: number;
-  /** Which kind of resource the tab was last studying. */
-  readonly kind: string;
-  /** The module it came from. */
-  readonly module: string;
-  /** Scroll position within that resource. */
-  readonly offset: number;
-}
-
 export interface TabState {
   readonly bookNumber: number;
   readonly chapter: number;
-  /** The verse the cursor sits on — the subject of every key (§4.2). */
+  /** The verse the cursor sits on — the subject of every key. */
   readonly cursorVerse: number;
   /**
-   * The other end of a selection, when there is one (§4.2).
+   * The other end of a selection, when there is one.
    *
    * A selection is an anchor plus the cursor rather than a start and an end, so
    * that `shift+↑` from the anchor shrinks the range instead of inverting it,
@@ -80,7 +53,7 @@ export interface TabState {
    * Whether the arrow keys *extend* the selection rather than replace it.
    *
    * Set only by `v`, whose whole job is to make the ordinary arrows extend on a
-   * terminal that swallows `shift+arrow` (§4.2). `shift+↑`/`shift+↓` leave it
+   * terminal that swallows `shift+arrow` . `shift+↑`/`shift+↓` leave it
    * unset: they carry their own intent in the modifier, so the plain arrow that
    * follows collapses the range the way it does in every editor. Without the
    * distinction there is no way back to a bare cursor except `esc`, which is
@@ -95,19 +68,6 @@ export interface TabState {
   /** Module abbreviation, e.g. `KJV`. */
   readonly translation: string;
   readonly displayMode: DisplayMode;
-  /**
-   * Which page geometry `columns` mode is drawn at — a name from
-   * `app/presets.ts`, never a size.
-   *
-   * Kept even while `displayMode` is not `columns`, so that leaving column mode
-   * and coming back does not forget the page you were reading. `undefined` means
-   * "never chosen"; the reader then asks the window for the largest that fits,
-   * which is a starting point rather than a setting.
-   */
-  readonly preset: string | undefined;
-  readonly study: StudyPosition | undefined;
-  /** Remembered so the copy dialog can offer last time's choice (§5.3). */
-  readonly copyFormat: string | undefined;
 }
 
 export interface SessionState {
@@ -124,9 +84,6 @@ export const DEFAULT_TAB: TabState = {
   scrollOffset: 0,
   translation: 'KJV',
   displayMode: 'paragraph',
-  preset: undefined,
-  study: undefined,
-  copyFormat: undefined,
 };
 
 export const DEFAULT_SESSION: SessionState = { tabs: [DEFAULT_TAB], activeTab: 0 };
@@ -157,13 +114,7 @@ CREATE TABLE IF NOT EXISTS tab (
   selection_anchor INTEGER,
   scroll_offset INTEGER NOT NULL DEFAULT 0,
   translation   TEXT    NOT NULL,
-  display_mode  TEXT    NOT NULL DEFAULT 'paragraph',
-  preset        TEXT,
-  study_kind    TEXT,
-  study_module  TEXT,
-  study_offset  INTEGER,
-  study_tab     INTEGER,
-  copy_format   TEXT
+  display_mode  TEXT    NOT NULL DEFAULT 'paragraph'
 );
 
 CREATE TABLE IF NOT EXISTS app_state (
@@ -191,52 +142,12 @@ interface TabRow {
   scroll_offset: number;
   translation: string;
   display_mode: string;
-  preset: string | null;
-  study_kind: string | null;
-  study_module: string | null;
-  study_offset: number | null;
-  study_tab: number | null;
-  copy_format: string | null;
 }
 
 export interface OpenStateResult {
   readonly store: StateStore;
   /** Set when the previous file was unreadable and had to be set aside. */
   readonly recoveredFrom: string | undefined;
-}
-
-/**
- * Add columns a newer version needs to a database an older one created.
- *
- * `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists, so
- * a column added to {@link SCHEMA} never reaches anybody who has run the app
- * before. `ALTER TABLE ... ADD COLUMN` is the only way to get it there, and
- * SQLite has no `IF NOT EXISTS` for it — so each is attempted and a failure
- * meaning "already there" is the expected outcome, not an error.
- *
- * Adding a nullable column is the whole migration story this file needs. If a
- * change ever requires rewriting rows, this is where it goes, keyed off
- * `state_schema.version`.
- *
- * The list below is the *whole* set of columns added since the first release, in
- * the order they were added, rather than one `if` per column. A new nullable
- * column costs a line here and a line in {@link SCHEMA}; forgetting the line
- * here is the failure mode, and one list makes the omission visible.
- */
-const ADDED_TAB_COLUMNS: readonly { readonly name: string; readonly type: string }[] = [
-  { name: 'selection_anchor', type: 'INTEGER' },
-  { name: 'preset', type: 'TEXT' },
-  { name: 'study_tab', type: 'INTEGER' },
-];
-
-function migrate(sql: BunSql): void {
-  const columns = new Set(
-    sql.queryAll<{ name: string }>('PRAGMA table_info(tab)').map((row) => row.name),
-  );
-  for (const column of ADDED_TAB_COLUMNS) {
-    if (columns.has(column.name)) continue;
-    sql.execute(`ALTER TABLE tab ADD COLUMN ${column.name} ${column.type}`);
-  }
 }
 
 export class StateStore {
@@ -289,8 +200,6 @@ export class StateStore {
         if (trimmed) sql.execute(trimmed);
       }
 
-      migrate(sql);
-
       const version = sql.queryOne<{ version: number }>('SELECT version FROM state_schema LIMIT 1');
       if (!version) {
         sql.execute('INSERT INTO state_schema (version) VALUES (?)', [STATE_SCHEMA_VERSION]);
@@ -334,17 +243,6 @@ export class StateStore {
         scrollOffset: row.scroll_offset,
         translation: row.translation,
         displayMode: toDisplayMode(row.display_mode),
-        preset: row.preset ?? undefined,
-        study:
-          row.study_kind && row.study_module
-            ? {
-                tab: Math.max(1, row.study_tab ?? 1),
-                kind: row.study_kind,
-                module: row.study_module,
-                offset: row.study_offset ?? 0,
-              }
-            : undefined,
-        copyFormat: row.copy_format ?? undefined,
       }),
     );
 
@@ -364,9 +262,8 @@ export class StateStore {
         this.sql.execute(
           `INSERT INTO tab (
              sort_order, book_number, chapter, cursor_verse, selection_anchor,
-             scroll_offset, translation, display_mode, preset, study_kind,
-             study_module, study_offset, study_tab, copy_format
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             scroll_offset, translation, display_mode
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             index,
             tab.bookNumber,
@@ -376,12 +273,6 @@ export class StateStore {
             tab.scrollOffset,
             tab.translation,
             tab.displayMode,
-            tab.preset ?? null,
-            tab.study?.kind ?? null,
-            tab.study?.module ?? null,
-            tab.study?.offset ?? null,
-            tab.study?.tab ?? null,
-            tab.copyFormat ?? null,
           ],
         );
       });
@@ -391,7 +282,7 @@ export class StateStore {
     });
   }
 
-  /** Every bookmark, in the user's own order (thread question 13). */
+  /** Every bookmark, in the user's own order. */
   loadBookmarks(): Bookmark[] {
     try {
       return this.sql
@@ -415,29 +306,6 @@ export class StateStore {
         );
       });
     });
-  }
-
-  /**
-   * Persist a snapshot from core's `SessionSerializationService`.
-   *
-   * Stored whole, as JSON: the shape belongs to the controllers that produced
-   * it, and pinning it into columns here would mean a schema migration every
-   * time one of them gained a field.
-   */
-  saveSnapshot(snapshot: SessionSnapshot): void {
-    this.setValue('controllers', JSON.stringify(snapshot));
-  }
-
-  /** Returns `undefined` when absent or unparseable — never throws. */
-  loadSnapshot(): SessionSnapshot | undefined {
-    const raw = this.getValue('controllers');
-    if (!raw) return undefined;
-    try {
-      const parsed = JSON.parse(raw) as SessionSnapshot;
-      return parsed && typeof parsed === 'object' && parsed.controllers ? parsed : undefined;
-    } catch {
-      return undefined;
-    }
   }
 
   getValue(key: string): string | undefined {

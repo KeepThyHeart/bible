@@ -1,5 +1,5 @@
 /**
- * Selection and ranges (DesignSpec §4.2).
+ * Selection and ranges.
  *
  * A selection is **an anchor plus the cursor**, not a start and an end. The
  * difference is the whole point: with a start/end pair, `shift+↑` from a range
@@ -12,10 +12,10 @@
  * never has two ideas of where you are.
  *
  * This module is deliberately **not a screen**. Selection is a behaviour of the
- * reader, so `Reader.ts` owns the three keys (`shift+↑`, `shift+↓`, `v`) and
- * this owns the arithmetic underneath them: resolving, extending, shrinking,
- * clamping, the `:sel` forms, and the summary the wireframe pins above the
- * input line.
+ * reader, so `screens/Main.ts` owns the three keys (`shift+↑`, `shift+↓`, `v`)
+ * and this owns the arithmetic underneath them: resolving, extending,
+ * shrinking, clamping, the range a reference implies, and the summary shown
+ * above the input line.
  *
  * ## Why the clamp is the chapter and not the book
  *
@@ -26,7 +26,7 @@
  *    chapter would be half invisible, and a selection you cannot see is a
  *    selection you cannot check before pressing `y`. Showing what `y` will copy
  *    is the only job a selection has.
- * 2. **The wireframe's own summary is chapter-relative** — `16-17 selected`,
+ * 2. **The summary is chapter-relative** — `16-17 selected`,
  *    `John 3:16-17 selected — 2 verses`. Verse numbers with no chapter only
  *    read correctly inside one chapter, and a range that spanned two would have
  *    to be written differently depending on how far it had grown.
@@ -51,28 +51,6 @@ export interface VerseRange {
   readonly end: number;
 }
 
-/**
- * The least a verse has to offer for {@link selectParagraph}.
- *
- * Structural rather than a concrete type, so `DisplayVerse` (from
- * `verseText.ts`, which the reader already has laid out) satisfies it without
- * an adapter, and a test can hand over three object literals.
- *
- * `paragraphStart` comes from `BibleVerse.isParagraphStart()`, which reads the
- * v2 `formatting.block.paragraph_start` flag and falls back to v1's
- * `formatting_data.paragraphStart`. That fallback is why paragraph selection —
- * unlike span rendering — needs no formatting-version argument: the *block*
- * data is readable in both shapes, whereas v1 span offsets are expressed
- * against HTML words and are wrong unless converted (see the note in
- * `verseText.ts`).
- */
-export interface ParagraphVerse {
-  readonly verse: number;
-  readonly paragraphStart: boolean;
-  /** A psalm title or section heading. Also starts a paragraph — see below. */
-  readonly heading?: string | undefined;
-}
-
 /** Chapter limits for the clamp. Verses run `1..verseCount`. */
 export interface SelectionBounds {
   readonly bookNumber: number;
@@ -92,7 +70,7 @@ export function hasSelection(tab: TabState): boolean {
  * The tab's selection as an ordered range of verse numbers.
  *
  * Always defined: with no anchor the selection *is* the cursor verse, which is
- * what `y` copies by default (§4.2). An anchor that is not in the cursor's own
+ * what `y` copies by default. An anchor that is not in the cursor's own
  * chapter is discarded — see the note at the top of the file.
  */
 export function selectedRange(tab: TabState): VerseRange {
@@ -112,14 +90,6 @@ export function selectedRange(tab: TabState): VerseRange {
   };
 }
 
-/** Every verse number the selection covers, in order. */
-export function selectedVerseNumbers(tab: TabState): number[] {
-  const { start, end } = selectedRange(tab);
-  const out: number[] = [];
-  for (let verse = start; verse <= end; verse += 1) out.push(verse);
-  return out;
-}
-
 /** True when `verse` (a verse number) falls inside the range. */
 export function rangeContains(range: VerseRange, verse: number): boolean {
   return verse >= range.start && verse <= range.end;
@@ -130,7 +100,7 @@ export function rangeContains(range: VerseRange, verse: number): boolean {
 /**
  * `v` — arm the selection at the cursor without moving anything.
  *
- * That is genuinely all it does, and it is what makes the wireframe's `v then ↓`
+ * That is genuinely all it does, and it is what makes the `v then ↓`
  * fallback work for free: once the anchor is set, the reader's *ordinary* `↓`
  * carries it along (every reader movement rebuilds the tab by spreading it, so
  * `selectionAnchor` survives), and the range grows. The fallback exists because
@@ -142,7 +112,7 @@ export function rangeContains(range: VerseRange, verse: number): boolean {
 export function beginSelection(tab: TabState): TabState {
   if (tab.selectionAnchor !== undefined) return clearSelection(tab);
   // Arming is what makes the plain arrows extend. It is set *only* here: a
-  // selection made with `shift+arrow`, `:sel` or a paragraph command leaves the
+  // selection made with `shift+arrow` or by typing a range leaves the
   // arrows alone, so the next one collapses the range instead of growing it.
   return { ...tab, selectionAnchor: tab.cursorVerse, selectionArmed: true };
 }
@@ -193,73 +163,8 @@ export function moveSelection(tab: TabState, delta: number, bounds: SelectionBou
 }
 
 /**
- * Select an explicit range, clamped into the chapter.
- *
- * The cursor lands on `end` rather than on `start`, because every way of asking
- * for a range names it in reading order and the useful place to be afterwards
- * is at the bottom of what you just selected — the next `shift+↓` grows it.
- */
-export function setSelection(
-  tab: TabState,
-  start: number,
-  end: number,
-  bounds: SelectionBounds,
-): TabState {
-  const first = clampVerse(Math.min(start, end), bounds);
-  const last = clampVerse(Math.max(start, end), bounds);
-  return {
-    ...tab,
-    selectionAnchor:
-      first === last ? undefined : VerseIdHelper.calculate(bounds.bookNumber, bounds.chapter, first),
-    cursorVerse: VerseIdHelper.calculate(bounds.bookNumber, bounds.chapter, last),
-  };
-}
-
-/**
- * `:sel para` — the paragraph the cursor verse is in.
- *
- * A paragraph runs from the last break at or before the cursor to the verse
- * before the next break, both clamped to the chapter. **A heading starts a
- * paragraph too**, and it has to: `layoutReading` flushes the current paragraph
- * when a verse carries one, so a selection that ignored headings would run
- * across a break the user can plainly see on screen. Matching what is drawn
- * matters more here than matching the module's `paragraph_start` flag alone,
- * because the selection is checked by eye.
- *
- * A chapter with no breaks at all is one paragraph, which is the right answer
- * rather than a degenerate one — plenty of short chapters carry no flags.
- */
-export function selectParagraph(
-  tab: TabState,
-  verses: readonly ParagraphVerse[],
-  bounds: SelectionBounds,
-): TabState {
-  const cursor = VerseIdHelper.parse(tab.cursorVerse).verse;
-  const ordered = [...verses].sort((a, b) => a.verse - b.verse);
-  if (ordered.length === 0) return tab;
-
-  let start = ordered[0]!.verse;
-  let end = ordered[ordered.length - 1]!.verse;
-
-  for (const verse of ordered) {
-    if (!startsParagraph(verse)) continue;
-    if (verse.verse <= cursor) start = verse.verse;
-    else {
-      end = verse.verse - 1;
-      break;
-    }
-  }
-
-  return setSelection(tab, start, end, bounds);
-}
-
-function startsParagraph(verse: ParagraphVerse): boolean {
-  return verse.paragraphStart || (verse.heading !== undefined && verse.heading !== '');
-}
-
-/**
- * The cursor and anchor a reference implies — `16-17`, `3:16-17` (§4.1, "that
- * range, selected on arrival").
+ * The cursor and anchor a reference implies — `16-17`, `3:16-17` (a range typed as a
+ * reference is selected on arrival).
  *
  * Returned as loose fields rather than a `TabState` because the caller is
  * mid-navigation: it is already rebuilding the tab from the reference's book
@@ -305,70 +210,7 @@ export function selectionForReference(
   };
 }
 
-// --- the `:sel` command --------------------------------------------------
-
-/** What `:sel …` asked for. */
-export type SelArgument =
-  | { readonly kind: 'range'; readonly start: number; readonly end: number }
-  | { readonly kind: 'paragraph' };
-
-const SEL_RANGE = /^(\d+)\s*-\s*(\d+)$/;
-const SEL_VERSE = /^(\d+)$/;
-
-/**
- * Parse the argument of `:sel`. The commands wireframe defines two forms,
- * `:sel 16-17` and `:sel para`; a bare `:sel 16` is accepted as the degenerate
- * range because refusing it would be a rule with nothing behind it.
- *
- * Returns `undefined` for anything else, so the caller reports what the forms
- * are instead of silently selecting something the user did not ask for.
- */
-export function parseSelArgument(args: string): SelArgument | undefined {
-  const text = args.trim().toLowerCase();
-  if (text === 'para' || text === 'paragraph') return { kind: 'paragraph' };
-
-  const range = SEL_RANGE.exec(text);
-  if (range !== null) {
-    return { kind: 'range', start: Number(range[1]), end: Number(range[2]) };
-  }
-
-  const single = SEL_VERSE.exec(text);
-  if (single !== null) {
-    const verse = Number(single[1]);
-    return { kind: 'range', start: verse, end: verse };
-  }
-
-  return undefined;
-}
-
-/** `:sel …` end to end. `undefined` means the argument was not one of the forms. */
-export function applySelCommand(
-  tab: TabState,
-  args: string,
-  verses: readonly ParagraphVerse[],
-  bounds: SelectionBounds,
-): TabState | undefined {
-  const parsed = parseSelArgument(args);
-  if (parsed === undefined) return undefined;
-  return parsed.kind === 'paragraph'
-    ? selectParagraph(tab, verses, bounds)
-    : setSelection(tab, parsed.start, parsed.end, bounds);
-}
-
 // --- what it says on screen ----------------------------------------------
-
-/**
- * The right-hand status when a selection is live: `16-17 selected`.
- *
- * Empty for a bare cursor, because the reader's own `v16/36` already says where
- * the cursor is and repeating it as a one-verse "selection" would make the
- * status say the same thing twice.
- */
-export function selectionStatus(tab: TabState): string {
-  const range = selectedRange(tab);
-  if (range.end === range.start) return '';
-  return `${range.start}-${range.end} selected`;
-}
 
 export interface SelectionSummaryOptions {
   /** The passage, already formatted — `John 3:16-17`. */
@@ -381,15 +223,14 @@ export interface SelectionSummaryOptions {
 }
 
 /**
- * The two rows the wireframe pins directly above the input line:
+ * The two rows shown directly above the input line:
  *
  * ```
  *   John 3:16-17 selected — 2 verses, 47 words.   y copies · esc clears
- *   Also selects:  shift+↓   v then ↓   16-17   3:16-17   :sel para
+ *   Also selects:  shift+↓   v then ↓   16-17   3:16-17
  * ```
  *
- * These go in `ScreenView.notice`, which exists for exactly this and had no
- * caller until now. The second row is a teaching line, so it is **dropped
+ * These go in `ScreenView.notice`. The second row is a teaching line, so it is **dropped
  * whole** when it will not fit rather than truncated: a list of alternatives
  * cut off mid-item teaches the wrong alternatives, and the row it costs is a
  * row of Scripture.
@@ -407,7 +248,7 @@ export function selectionSummary(options: SelectionSummaryOptions): StyledLine[]
     ],
   ];
 
-  const teach = 'Also selects:  shift+↓   v then ↓   16-17   3:16-17   :sel para';
+  const teach = 'Also selects:  shift+↓   v then ↓   16-17   3:16-17';
   if (teach.length <= width) rows.push([{ text: teach, style: theme.muted }]);
 
   return rows;
@@ -429,7 +270,7 @@ function plural(count: number, noun: string): string {
  * a single `cursorVerse`, and widening that to a range would change the one
  * function every screen lays text out through for the sake of one screen's
  * feature. Post-processing the rows costs a pass over what is about to be drawn
- * and keeps the change inside this lane.
+ * and keeps the change inside this file.
  *
  * The selection background is merged *under* each segment's own style, exactly
  * as the cursor highlight is, so a selected verse does not lose its red letter

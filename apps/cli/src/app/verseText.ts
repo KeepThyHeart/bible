@@ -32,7 +32,7 @@ import { mergeStyle, type Style, type StyledSegment, type Theme } from '../term/
 
 export interface VerseDisplayOptions {
   readonly theme: Theme;
-  /** Colour the words of Christ. Toggled by `w`; a display setting, not a copy option (§5.3). */
+  /** Colour the words of Christ. Toggled by `w`; a display setting. */
   readonly redLetter: boolean;
   /** Italicise translator-supplied words. */
   readonly showSupplied: boolean;

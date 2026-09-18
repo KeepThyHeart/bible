@@ -1,6 +1,6 @@
 /**
- * Pure data-shaping for the Study pane's cross-reference, commentary, topic
- * (task 0001-bible-cli, phase 2), dictionary and book (phase 3) views.
+ * Pure data-shaping for the Study pane's cross-reference, commentary, topic,
+ * dictionary and book views.
  *
  * Each function turns the open library — plus a verse id, for the three
  * verse-scoped views — into rows a screen can draw — no rendering, no key
@@ -9,15 +9,13 @@
  * and `screens/Main.ts` owns every decision about how a row actually looks or
  * which key moves the cursor.
  *
- * Dictionaries and books are not verse-scoped — question 3's answer corrected
- * the original proposal that "Dictionaries (2)" meant something about the
- * cursor verse; it is just an installed count, and `d`/`k` are browsers (a
- * letter index and a table of contents) rather than lookups.
+ * Dictionaries and books are not verse-scoped: "Dictionaries (2)" is just an
+ * installed count, and `d`/`k` are browsers (a letter index and a table of
+ * contents) rather than lookups.
  *
  * A module that fails to answer (an unsupported schema, a corrupt row) is
  * treated as having nothing rather than allowed to throw — one broken module
- * should not blank the whole pane, which is the same reasoning
- * `screens/Commentary.ts`'s `chapterOverview` gives for the same kind of call.
+ * should not blank the whole pane.
  */
 import {
   decodeHtmlEntities,
@@ -58,9 +56,8 @@ export interface CrossReferenceGroupRows {
 
 /**
  * Every cross reference on `verseId`, from every installed module, grouped by
- * phrase and numbered straight through — the task thread's "show all of them
- * at once" (message 01): nothing here is collapsed, and there is no per-module
- * picker to choose first.
+ * phrase and numbered straight through: nothing here is collapsed, and there
+ * is no per-module picker to choose first.
  */
 export function crossReferenceGroups(
   library: Library,
@@ -110,7 +107,7 @@ function safeGroupsWithEntries(
 
 /**
  * `v17` when the target is in the chapter already on screen, `Romans 3:23`
- * otherwise — exactly the shorthand the task thread's wireframe sample uses.
+ * otherwise.
  */
 function crossReferenceLabel(
   library: Library,
@@ -143,18 +140,18 @@ function crossReferenceLabel(
 // --- commentaries ------------------------------------------------------------
 
 export interface CommentaryListRow {
-  /** Fixed, alphabetical (question 5) — not the library's discovery order. */
+  /** Fixed, alphabetical — not the library's discovery order. */
   readonly number: number;
   readonly abbreviation: string;
   readonly moduleName: string;
   readonly wordCount: number;
-  /** Whether this commentary has anything on the verse; greyed out when false (question 5). */
+  /** Whether this commentary has anything on the verse; greyed out when false. */
   readonly hasEntry: boolean;
 }
 
 /**
  * Every installed commentary, alphabetically by abbreviation so a number
- * always names the same module (question 5) — including the ones with
+ * always names the same module — including the ones with
  * nothing on this verse, so the caller can grey them out rather than hide
  * them and shift every number after.
  */
@@ -223,9 +220,9 @@ export interface TopicListRow {
 /**
  * Every topic that has an entry for `verseId`, across every installed
  * topical-index module, alphabetically by name and numbered straight through
- * (the same "always the same number" reasoning as the commentary list, though
- * the task thread only asked for it there — a topic that moves position every
- * time a module is added or removed would be worse, not better).
+ * (the same "always the same number" reasoning as the commentary list: a
+ * topic that moves position every time a module is added or removed would be
+ * confusing).
  */
 export function topicListRows(library: Library, verseId: number): readonly TopicListRow[] {
   const modules = library.study('topical_index');
@@ -277,9 +274,8 @@ export interface TopicVerseRow {
 }
 
 /**
- * The verses filed under one topic, with their text — question 9's "verses
- * will be more likely to be shown with their text here than in desktop, since
- * the user can't hover".
+ * The verses filed under one topic, with their text — shown inline because a
+ * terminal user can't hover for it.
  */
 export function topicVerseRows(
   library: Library,
@@ -343,10 +339,9 @@ export interface DictionaryListRow {
 /**
  * Every installed dictionary, alphabetically by abbreviation — same "always
  * the same number" reasoning as {@link commentaryListRows}. `d` is a browser,
- * not a verse-scoped lookup: the task thread's question 3 corrected the
- * original proposal — "Dictionaries (2)" just means two are installed, not
- * that two have something for the cursor verse — so unlike the commentary and
- * topic lists, nothing here reads `verseId`.
+ * not a verse-scoped lookup: "Dictionaries (2)" just means two are installed,
+ * not that two have something for the cursor verse — so unlike the commentary
+ * and topic lists, nothing here reads `verseId`.
  */
 export function dictionaryListRows(library: Library): readonly DictionaryListRow[] {
   const modules = [...library.study('dictionary')].sort((a, b) =>
@@ -469,8 +464,8 @@ export interface BookListRow {
 
 /**
  * Every installed book module, alphabetically — `k` is a table-of-contents
- * browser, not verse-scoped (question 4's answer, "Same" — the same
- * installed-count reading as question 3, not "sections citing this verse").
+ * browser, not verse-scoped: the count is installed modules, not "sections
+ * citing this verse".
  */
 export function bookListRows(library: Library): readonly BookListRow[] {
   const modules = [...library.study('book')].sort((a, b) =>
@@ -543,9 +538,7 @@ export function bookSection(library: Library, abbreviation: string, sectionId: n
  * Target verse text, in one query, with the module's own formatting applied.
  *
  * `toDisplayVerse` rather than the raw column so the divine name is
- * uppercased here exactly as it is in the reader — the old, now-deleted
- * `screens/CrossReferences.ts`'s `verseTexts` made the same call for the
- * same reasoning. Only the characters are kept: neither list paints
+ * uppercased here exactly as it is in the reader. Only the characters are kept: neither list paints
  * anything but its own selection highlight.
  */
 function verseTextsPlain(

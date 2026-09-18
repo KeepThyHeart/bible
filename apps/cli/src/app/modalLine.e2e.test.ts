@@ -32,8 +32,8 @@ const hasKjv = existsSync(join(MODULES, 'bible_kjv.db'));
  * developer's own `~/.bible/state.db` — which is not merely untidy. These tests
  * navigate and change reading settings, so the state they leave behind arrives
  * in the *next* test's opening frame and in the developer's next real session.
- * One test setting column mode is enough to make every later assertion here
- * describe a screen nobody asked for.
+ * One test changing a reading setting is enough to make every later assertion
+ * here describe a screen nobody asked for.
  *
  * `home` and `cwd` stay real, deliberately: the shipped KJV is found through the
  * desktop module root beside the repository, and redirecting those as well would
@@ -68,14 +68,14 @@ describe.skipIf(!hasKjv)('the input line, end to end', () => {
   test('a reference typed after a slash navigates, and the prompt tracks the mode', async () => {
     const { app } = await startup(isolated());
 
-    // Closed: the row advertises the two keys that open it.
+    // Closed: the row advertises the key that opens it.
     expect(screenText(app)).toContain('/ go to or search');
 
     // The bytes a user actually sends. `/` opens, the rest is text.
     send(app, '/rom 8:28');
     const typing = screenText(app);
     expect(typing).toContain('> rom 8:28');
-    // The input row no longer advertises the key; the screen's own hint row
+    // The input row does not advertise the key; the screen's own hint row
     // still does, so look at the row that holds the prompt, not the whole frame.
     const inputRow = typing.split('\n').find((line) => line.includes('> rom 8:28')) ?? '';
     expect(inputRow).not.toContain('/ go to or search');
@@ -92,8 +92,8 @@ describe.skipIf(!hasKjv)('the input line, end to end', () => {
   test('letters are commands while the line is closed, and text once it is open', async () => {
     const { app } = await startup(isolated());
 
-    // `n` closed is the reading-mode command, so the status gains the numbered
-    // marker rather than an `n` appearing anywhere.
+    // `n` closed is the next-chapter command, so the frame changes rather than
+    // an `n` appearing anywhere.
     const before = screenText(app);
     send(app, 'n');
     const after = screenText(app);

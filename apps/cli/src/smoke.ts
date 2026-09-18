@@ -11,9 +11,8 @@
  *   3. An embedded asset survives compilation and is readable from the binary,
  *      which is how the trimmed KJV is shipped.
  *
- * This is a probe, not a deliverable. `BunSql implements ISql` belongs to
- * `data/BunSql.ts` and is deliberately not written here; this file talks to `bun:sqlite`
- * directly so it cannot pre-empt that design.
+ * This is a probe, not part of the app. It talks to `bun:sqlite` directly rather
+ * than through `data/`.
  *
  * Run:  bun run src/smoke.ts [path-to-module.db]
  */
@@ -95,7 +94,7 @@ function resolveProbeDb(argPath: string | undefined): string | undefined {
 function checkSqlite(dbPath: string): void {
   let db: Database | undefined;
   try {
-    // Read-only, and never create. DesignSpec §3.2: module trees are never written to.
+    // Read-only, and never create. Module trees are never written to.
     db = new Database(dbPath, { readonly: true, create: false });
 
     const version = db

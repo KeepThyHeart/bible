@@ -8,11 +8,12 @@
  *
  * `src/assets/bible_kjv.db` is generated, not checked in:
  *
- *     node scripts/build-cli-kjv.js
+ *     npm run kjv -w @bible/cli
  *
- * `scripts/build.js` creates a placeholder when it is missing, so a build
- * without a module library still compiles; `firstRun` then reports that this
- * build ships no bundled Bible rather than extracting nonsense.
+ * `scripts/build.js` builds it when it is missing, or creates a placeholder if
+ * there is no module library to build it from, so the package always
+ * compiles; `firstRun` then reports that this build ships no bundled Bible
+ * rather than extracting nonsense.
  */
 import path from './bible_kjv.db' with { type: 'file' };
 

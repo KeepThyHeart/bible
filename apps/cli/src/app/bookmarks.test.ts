@@ -1,5 +1,5 @@
 /**
- * Bookmark list rules (0001-bible-cli, phase 4): add, rename, re-point,
+ * Bookmark list rules: add, rename, re-point,
  * reorder, delete. Each test names the rule it checks.
  */
 import { describe, expect, test } from 'bun:test';
@@ -7,7 +7,6 @@ import { describe, expect, test } from 'bun:test';
 import {
   addBookmark,
   bookmarkAt,
-  bookmarkNumber,
   moveBookmark,
   removeBookmark,
   renameBookmark,
@@ -99,13 +98,11 @@ describe('moveBookmark', () => {
   });
 });
 
-describe('bookmarkAt / bookmarkNumber', () => {
-  test('round-trip: a typed row number resolves to the same bookmark its own number reports', () => {
+describe('bookmarkAt', () => {
+  test('a typed row number resolves 1-based, top to bottom', () => {
     let list = addBookmark([], 'A', 1);
     list = addBookmark(list, 'B', 2);
-    const b = bookmarkAt(list, 2);
-    expect(b?.name).toBe('B');
-    expect(bookmarkNumber(list, b!.id)).toBe(2);
+    expect(bookmarkAt(list, 2)?.name).toBe('B');
   });
 
   test('out of range is undefined', () => {

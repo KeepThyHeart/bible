@@ -1,9 +1,6 @@
 /**
- * Layout numbers for the 2026 redesign's main screen (0001-bible-cli, question
- * 14): named constants rather than literals scattered through `Main.ts`, so an
- * `Options` screen can read (and later let the user adjust) them from one
- * place instead of a search-and-replace. Hard-coded for now, as agreed — no
- * settings UI for these yet.
+ * Named layout constants for the main screen's wide/narrow split, kept in one
+ * place rather than as literals scattered through `Main.ts`.
  */
 
 /** Terminal columns at or above which the Study pane sits beside the Bible

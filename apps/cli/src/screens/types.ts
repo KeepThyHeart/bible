@@ -1,15 +1,14 @@
 /**
  * The screen contract.
  *
- * The reader was never the real deliverable. The shape every one of the other
- * screens is written to is, and three decisions make it up:
+ * Every screen is written to the same shape, and four decisions make it up:
  *
  * 1. **The shell owns the chrome.** Header, tab strip, rules, input line and
- *    footer are identical on every screen in the wireframes, so a screen fills a
- *    body and names its status line and its hints. It never draws a frame, and
- *    it cannot get the frame subtly wrong.
+ *    footer are identical on every screen, so a screen fills a body and names its
+ *    status line and its hints. It never draws a frame, and it cannot get the
+ *    frame subtly wrong.
  * 2. **The shell owns the input line.** How a line is entered and what it means
- *    (§4.1) is a property of the application, not of a screen. Typing, editing and
+ *    is a property of the application, not of a screen. Typing, editing and
  *    classification all happen once, in the shell, and a screen receives the
  *    finished {@link Intent}. A screen that wants raw keys gets the ones the
  *    input line did not claim.
@@ -17,22 +16,16 @@
  *    to `state.db`, closes a module, or calls `process.exit`. It describes what
  *    should happen and the shell does it, which is what keeps persistence in one
  *    place and makes a screen testable without a terminal.
- *
- * A fourth was added when the rest of the screens fanned out (Wave 4):
- *
- * 4. **Screens are a stack, and `esc` pops it.** Every wireframe past the reader
- *    ends its hints with `esc back`, and the reader is the only screen with
- *    nothing underneath. So the shell owns that too: a screen returns
+ * 4. **Screens are a stack, and `esc` pops it.** A screen returns
  *    {@link ScreenAction} `open` to push and `close` to pop, and a screen that
- *    does not claim `esc` gets popped for free. A screen therefore never needs
- *    to know what opened it, which is what lets the commentary viewer be reached
- *    from the study tabs, from a cross reference, and from `:c` without three
- *    different back-buttons.
+ *    does not claim `esc` gets popped for free. The bottom screen has nothing
+ *    underneath, so `esc` does nothing there. A screen therefore never needs to
+ *    know what opened it.
  */
 import type { Bookmark } from '../app/bookmarks';
 import type { Intent } from '../app/input';
 import type { Library } from '../app/library';
-import type { DisplayMode, SessionState, TabState } from '../app/state';
+import type { SessionState, TabState } from '../app/state';
 import type { Key } from '../term/keys';
 import type { TerminalSize } from '../term/raw';
 import type { VerseNumberStyle } from '../term/reading';
@@ -49,7 +42,7 @@ export type { VerseNumberStyle };
 
 /** Display settings that belong to the app rather than to one tab. */
 export interface DisplaySettings {
-  /** Colour the words of Christ. `w` toggles. Not a copy option — see §5.3. */
+  /** Colour the words of Christ. A display setting only; copied text is unaffected. */
   readonly redLetter: boolean;
   /** Italicise translator-supplied words, as a printed KJV does. */
   readonly showSupplied: boolean;
@@ -74,9 +67,7 @@ export interface DisplaySettings {
   /**
    * How much colour to use, or `auto` for whatever the terminal reports.
    *
-   * The wireframe's row for this reads `dark · light · none`, and it overpromises:
-   * `createTheme` has one palette per depth and no light variant, so offering
-   * "light" would change nothing while claiming to have changed something. Depth
+   * There is one palette per depth (`createTheme`) and no light variant, so depth
    * is the setting that exists, and `none` is the one people actually reach for.
    */
   readonly colour: ColorDepth | 'auto';
@@ -102,20 +93,9 @@ export interface ScreenContext {
   readonly session: SessionState;
   readonly tab: TabState;
   readonly display: DisplaySettings;
-  /**
-   * The largest this terminal has ever been, across every session.
-   *
-   * Only the column page uses it, and only to say something true in the panel
-   * that reports a page will not fit: "this terminal has managed 4 columns
-   * before, at 124×40" turns a dead end into an instruction. Fullscreen is not
-   * detectable (XTWINOPS goes unanswered on Windows Terminal and conhost), so
-   * remembering what the window has done is the only honest way to know it can
-   * do it again. Never smaller than {@link size}.
-   */
-  readonly largestSize: TerminalSize;
   /** What is currently typed on the input line. */
   readonly input: string;
-  /** Every bookmark, in the user's own order (`b`, phase 4). The shell owns
+  /** Every bookmark, in the user's own order (`b`). The shell owns
    * the list; a screen changes it with the `bookmarks` action. */
   readonly bookmarks: readonly Bookmark[];
   /**
@@ -129,25 +109,23 @@ export interface ScreenContext {
 }
 
 /**
- * A box drawn over the lower part of the body — the commands palette and the
- * study menu's narrowing list (Wireframes: "Commands", "Study a verse").
+ * A box drawn over the lower part of the body — the Modules screen uses one for
+ * the detail of the selected module.
  *
  * An overlay is not a screen of its own. It belongs to the screen that returned
  * it, so the keys that drive it are that screen's keys and closing it is that
  * screen's business. What the shell contributes is the border and the placement.
  */
 export interface Overlay {
-  /** Rendered into the top border: `┌─ COMMANDS — keep typing to narrow ─┐`. */
+  /** Rendered into the top border: `┌─ KJV — King James Version ─┐`. */
   readonly title: string;
   readonly rows: readonly StyledLine[];
-  /** One line under the box, e.g. `Keystrokes so far: s c m h c`. */
-  readonly caption?: string;
 }
 
 export interface ScreenView {
   /**
    * Replaces the tab strip on the left of the header, for a screen that is not
-   * a passage — `search everlasting life`, `search syntax`. Omit to keep the
+   * a passage — `modules`, `search everlasting life`. Omit to keep the
    * tabs, which is what a screen showing a passage wants.
    */
   readonly title?: string;
@@ -156,10 +134,9 @@ export interface ScreenView {
   /**
    * Body rows. Shorter than `bodyHeight` is fine; longer is truncated.
    *
-   * **Omit it to keep the body of the screen underneath.** That is what makes an
-   * overlay an overlay: the commands palette is drawn over the reader, and the
-   * reader stays visible and correct without the palette knowing anything about
-   * how a chapter is laid out.
+   * **Omit it to keep the body of the screen underneath.** That lets a screen
+   * sit over the one beneath, which stays visible and correct without the top
+   * screen knowing anything about how it is laid out.
    */
   readonly body?: readonly StyledLine[];
   /** Footer hints, e.g. `↑↓ verse  < > chapter  s study`. */
@@ -177,30 +154,22 @@ export type ScreenAction =
   | { readonly kind: 'quit' }
   /** Replace the active tab's state. The shell persists it. */
   | { readonly kind: 'tab'; readonly tab: TabState }
-  /**
-   * Replace the whole tab list — opened, closed, reordered, switched.
-   *
-   * Separate from `tab` because those are different scopes with different
-   * blast radii: `tab` cannot lose a tab and `session` can, so the one screen
-   * allowed to do the second is easy to find.
-   */
-  | { readonly kind: 'session'; readonly session: SessionState }
   /** Say something on the footer line until the next keystroke. */
   | { readonly kind: 'message'; readonly text: string; readonly tone?: 'info' | 'error' }
   /** Change a global display setting. The shell persists it. */
   | { readonly kind: 'display'; readonly display: DisplaySettings }
   /** Replace the bookmark list — add, rename, re-point, reorder or delete. The
-   * shell persists it to `state.db` (`app/bookmarks.ts`, phase 4). */
+   * shell persists it to `state.db` (`app/bookmarks.ts`). */
   | { readonly kind: 'bookmarks'; readonly bookmarks: readonly Bookmark[] }
   /** `m` opened a different commentary than last time. The shell persists it. */
   | { readonly kind: 'lastCommentary'; readonly abbreviation: string }
   /**
    * Put a screen on top of this one. `esc` takes it off again.
    *
-   * A stack rather than a mode flag because that is the shape the wireframes
-   * already have: the study menu opens a commentary, the commentary goes back to
-   * the menu, and the menu goes back to the reader. Anything flatter would make
-   * each screen remember where it was opened from.
+   * A stack rather than a mode flag because that is the shape navigation has: a
+   * menu opens a commentary, the commentary goes back to the menu, and the menu
+   * goes back to the reader. Anything flatter would make each screen remember
+   * where it was opened from.
    */
   | { readonly kind: 'open'; readonly screen: Screen }
   /**
@@ -223,7 +192,7 @@ export type ScreenAction =
  *
  * A promise is allowed because some answers cannot be produced synchronously:
  * `BibleSearchService.search()` is `async`, and there is no synchronous entry
- * point that does not reimplement DesignSpec §5.4. The shell awaits it and
+ * point. The shell awaits it and
  * applies the result, so a screen still just describes what should happen.
  *
  * **A synchronous return stays synchronous all the way through the shell** —
@@ -256,17 +225,4 @@ export function syncAction(result: ScreenResult): ScreenAction {
     throw new Error('expected a synchronous action, got a promise — await it instead');
   }
   return result;
-}
-
-/**
- * The other of the two flowing modes, for the `¶` toggle.
- *
- * `n` toggles between prose and one-verse-per-block, and from a column page it
- * leaves for prose. It deliberately does not cycle through `columns`: a page is
- * chosen with `:cols` because it has a geometry to choose, and putting it in a
- * two-key toggle would mean somebody pressing `n` twice ends up on a page that
- * may not even fit the window.
- */
-export function otherMode(mode: DisplayMode): DisplayMode {
-  return mode === 'paragraph' ? 'numbered' : 'paragraph';
 }

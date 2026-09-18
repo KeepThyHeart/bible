@@ -160,8 +160,8 @@ interface Helper {
 
 /**
  * `clip.exe` decodes stdin using the console code page, which mangles anything
- * outside it — Greek and Hebrew included, which is most of what the interlinear
- * screen copies. It does understand UTF-16LE, so that is what it gets.
+ * outside it — Greek and Hebrew included. It does understand UTF-16LE, so that
+ * is what it gets.
  */
 export function helpersFor(platform: NodeJS.Platform): readonly Helper[] {
   if (platform === 'win32') {

@@ -206,7 +206,7 @@ export interface Theme {
   /** The active tab in the tab strip. */
   readonly tabActive: Style;
   readonly tabInactive: Style;
-  /** The verse the cursor is on (§4.2) — a background, since it can start mid-line. */
+  /** The verse the cursor is on — a background, since it can start mid-line. */
   readonly cursorVerse: Style;
   /** Verse number of the cursor verse. */
   readonly cursorVerseNumber: Style;

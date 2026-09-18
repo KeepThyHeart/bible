@@ -1,5 +1,5 @@
 /**
- * Module discovery, implementing DesignSpec §3.2–3.5.
+ * Module discovery.
  *
  * Three decisions shape this file:
  *
@@ -17,7 +17,7 @@
  * **`immutable=1` is per tree, not global.** The bundled tree is never written,
  * so ignoring its WAL sidecar is safe and necessary (its directory is often
  * read-only). The user tree may be written by the desktop app right now, and an
- * immutable connection there could read torn pages. §3.4.
+ * immutable connection there could read torn pages.
  */
 import { readdirSync, statSync } from 'node:fs';
 import { existsSync } from 'node:fs';
@@ -52,7 +52,7 @@ const PREFIX_TO_TYPE: Readonly<Record<string, ModuleType>> = {
 /**
  * The highest module format major version this build understands. A module
  * declaring a higher one is listed but marked unsupported rather than opened
- * and crashed on (§3.5).
+ * and crashed on.
  */
 export const MAX_SCHEMA_MAJOR = 2;
 
@@ -128,7 +128,7 @@ export function bibleHome(env: DiscoveryEnv): string {
 }
 
 /**
- * The five roots of §3.2, in priority order. Only those that exist are
+ * The five module roots, in priority order. Only those that exist are
  * returned, so the caller never has to filter.
  */
 export function moduleRoots(env: DiscoveryEnv): ModuleRoot[] {
@@ -142,7 +142,7 @@ export function moduleRoots(env: DiscoveryEnv): ModuleRoot[] {
   candidates.push({ path: join(env.home, '.bible', 'modules'), kind: 'cli', immutable: false });
 
   for (const path of desktopUserRoots(env)) {
-    // The desktop may be running and writing here, so never immutable (§3.4).
+    // The desktop may be running and writing here, so never immutable.
     candidates.push({ path, kind: 'desktop-user', immutable: false });
   }
 
@@ -385,10 +385,9 @@ export function discoverModules(options: DiscoverOptions = {}): DiscoveredModule
         // Reported, not skipped. A `.db` sitting in a module directory that
         // cannot be read is exactly what the modules screen exists to explain —
         // a partial download, a file from a newer build, something that is not
-        // a module at all. Dropping it silently is the behaviour the modules screen was
-        // written to replace, and it leaves the user looking for a translation
-        // that is right there on disk with nothing to tell them why it is not
-        // in the list. It is deliberately not de-duplicated: without a
+        // a module at all. Dropping it silently would leave the user looking for
+        // a translation that is right there on disk with nothing to tell them
+        // why it is not in the list. It is deliberately not de-duplicated: without a
         // descriptor there is no abbreviation and no hash to compare.
         modules.push({
           path,

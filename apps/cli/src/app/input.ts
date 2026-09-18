@@ -1,15 +1,14 @@
 /**
- * Input dispatch (NAV-1), implementing DesignSpec §4.1.
+ * Input dispatch.
  *
- * There is one input line and no mode to enter. What you type is parsed as a
- * reference first; if it parses you go there, and if it does not, it is a
- * search. That single rule is what removes the mode switch, the match list, and
- * the search prefix from the interface — so the rule has to be reliable, which
- * is what this file is for.
+ * What is typed on the input line is parsed as a reference first; if it parses
+ * you go there, and if it does not, it is a search. That single rule replaces a
+ * separate search mode or prefix, so it has to be reliable, which is what this
+ * file is for.
  *
  * Everything here is pure: it turns text plus "where the cursor is" into an
- * {@link Intent}. It performs no navigation and runs no query, so every row of
- * the §4.1 table can be asserted directly.
+ * {@link Intent}. It performs no navigation and runs no query, so every
+ * input form can be asserted directly.
  *
  * **Context-relative forms are resolved here, not by core.** `16`, `3:16` and
  * `16-17` only mean anything relative to the chapter you are reading, and
@@ -28,7 +27,7 @@ import { ENGLISH_BOOK_NAMES, type ParsedReference, ReferenceParser } from '@bibl
  * instead of John 3:16. Being sent to the wrong book without a word is the one
  * outcome the one-line design cannot afford.
  *
- * Kept here rather than in core deliberately (DesignSpec §2.4): changing core's
+ * Kept here rather than in core deliberately: changing core's
  * alias map would change desktop and web behaviour too.
  */
 export const CLI_BOOK_ALIASES: ReadonlyMap<string, number> = new Map([['jo', 43]]);
@@ -56,9 +55,7 @@ export type Intent =
   | { readonly kind: 'reference'; readonly reference: ResolvedReference }
   /** Search the open modules. `forced` when the leading `/` was used. */
   | { readonly kind: 'search'; readonly query: string; readonly forced: boolean }
-  /** `:` — `name` is empty when the bare colon opened the list. */
-  | { readonly kind: 'command'; readonly name: string; readonly args: string }
-  /** `<` and `>` — by the unit being read (§4.3). */
+  /** `<` and `>` — by the unit being read. */
   | { readonly kind: 'step-unit'; readonly delta: 1 | -1 }
   /** `+5` / `-5`. */
   | { readonly kind: 'step-verse'; readonly delta: number };
@@ -93,18 +90,8 @@ export function classifyInput(
   const text = input.trim();
   if (text === '') return { kind: 'empty' };
 
-  // `:` is checked before everything else so a command can never be mistaken
-  // for a reference — `:16` is a command, not verse 16.
-  if (text.startsWith(':')) {
-    const body = text.slice(1).trim();
-    const spaceAt = body.indexOf(' ');
-    return spaceAt === -1
-      ? { kind: 'command', name: body, args: '' }
-      : { kind: 'command', name: body.slice(0, spaceAt), args: body.slice(spaceAt + 1).trim() };
-  }
-
   // The slash is the only escape hatch: it forces text that *would* parse as a
-  // reference to be searched instead (§4.1).
+  // reference to be searched instead.
   if (text.startsWith('/')) {
     return { kind: 'search', query: text.slice(1).trim(), forced: true };
   }
@@ -134,9 +121,8 @@ export function classifyInput(
 /**
  * The forms that only mean something relative to the current passage.
  *
- * A bare number is a *verse*, not a chapter — DesignSpec §4.1 is explicit, and
- * the alternative would make `23` ambiguous in Psalms with no way to say which
- * was meant.
+ * A bare number is a *verse*, not a chapter; the alternative would make `23`
+ * ambiguous in Psalms with no way to say which was meant.
  */
 function resolveRelative(text: string, context: InputContext): ResolvedReference | undefined {
   const crossChapter = CROSS_CHAPTER_RANGE.exec(text);
@@ -223,12 +209,4 @@ function fromParsed(parsed: ParsedReference): ResolvedReference {
     endChapter: parsed.endChapter,
     endVerse: parsed.endVerse,
   };
-}
-
-/**
- * True when the reference names a span rather than a single verse — the reader
- * selects the range on arrival (§4.1).
- */
-export function isRange(reference: ResolvedReference): boolean {
-  return reference.endVerse !== undefined || reference.endChapter !== undefined;
 }

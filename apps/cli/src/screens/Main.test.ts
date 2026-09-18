@@ -1,10 +1,8 @@
 /**
- * Acceptance tests for the new main screen (task 0001-bible-cli).
+ * Acceptance tests for the main screen.
  *
- * Driven against the real KJV where a chapter has to be read correctly — the
- * old `Reader.test.ts`'s reasoning, before that screen was deleted (task
- * 0001-bible-cli, "delete the old screens"): a fixture would only prove this
- * screen agrees with the test's idea of a chapter. Where the real module is not
+ * Driven against the real KJV where a chapter has to be read correctly: a
+ * fixture would only prove this screen agrees with the test's idea of a chapter. Where the real module is not
  * available (this checkout may not carry the multi-megabyte asset — see
  * `hasKjv` below) those tests are skipped, exactly as the rest of this
  * package already does.
@@ -56,7 +54,6 @@ function context(
     library: library(),
     session: { tabs: [{ ...DEFAULT_TAB, ...tab }], activeTab: 0 },
     tab: { ...DEFAULT_TAB, ...tab },
-    largestSize: size,
     display: DEFAULT_DISPLAY,
     input: '',
     bookmarks: [],
@@ -201,7 +198,7 @@ describe.skipIf(!hasKjv)('the main screen — reading', () => {
     }
   });
 
-  test('`o` and `b` open Options and Bookmarks — everything in the hint menu is built as of phase 4', () => {
+  test('`o` and `b` open Options and Bookmarks from the hint menu', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     expect(syncAction(screen.key(key('char', 'o'), ctx)).kind).toBe('redraw');
@@ -224,7 +221,7 @@ const hasStudyModules =
   existsSync(join(MODULES, 'topical_nave.db')) &&
   existsSync(join(MODULES, 'commentary_mhc.db'));
 
-describe.skipIf(!hasStudyModules)('the main screen — study panes (phase 2)', () => {
+describe.skipIf(!hasStudyModules)('the main screen — study panes', () => {
   test('`x` lists cross references, and a number jumps and returns to the hints', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -238,7 +235,7 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes (phase 2)', (
     const jumped = syncAction(screen.key(key('enter'), ctx));
     expect(jumped.kind).toBe('tab');
 
-    // Picking a reference is a plain jump (question 9): it returns to the hints.
+    // Picking a reference is a plain jump: it returns to the hints.
     const after = jumped.kind === 'tab' ? context(jumped.tab, 30, 140) : ctx;
     expect(textOf(screen.view(after))).toContain('Cross-References (');
   });
@@ -264,7 +261,7 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes (phase 2)', (
     expect(listed.toLowerCase()).toContain('mhc');
 
     // Whichever number and name MHC landed on: read the row back rather than
-    // assuming either — the alphabetical order (question 5) is asserted
+    // assuming either — the alphabetical order is asserted
     // separately in `app/studyPanes.test.ts`.
     const row = listed.split('\n').find((l) => l.toLowerCase().includes('mhc'));
     expect(row).toBeDefined();
@@ -277,7 +274,7 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes (phase 2)', (
     for (const digit of number) syncAction(screen.key(key('char', digit), ctx));
     const opened = syncAction(screen.key(key('enter'), ctx));
     // Opening a commentary for the first time this session always differs
-    // from `ctx.lastCommentary` (`undefined`), so it is persisted (phase 4)
+    // from `ctx.lastCommentary` (`undefined`), so it is persisted
     // rather than a plain redraw — see the dedicated `lastCommentary` tests.
     expect(opened.kind).toBe('lastCommentary');
     expect(textOf(screen.view(ctx))).toContain(moduleName);
@@ -357,7 +354,7 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes (phase 2)', (
 const hasDictionary = hasKjv && existsSync(join(MODULES, 'dictionary_strongsgreek.db'));
 const hasBook = hasKjv && existsSync(join(MODULES, 'book_finney.db'));
 
-describe.skipIf(!hasDictionary)('the main screen — dictionaries (phase 3)', () => {
+describe.skipIf(!hasDictionary)('the main screen — dictionaries', () => {
   test('`d` lists dictionaries, drilling into a letter and then an entry', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -412,7 +409,7 @@ describe.skipIf(!hasDictionary)('the main screen — dictionaries (phase 3)', ()
   });
 });
 
-describe.skipIf(!hasBook)('the main screen — books (phase 3)', () => {
+describe.skipIf(!hasBook)('the main screen — books', () => {
   test('`k` lists books, drilling into the table of contents and a section', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -447,7 +444,7 @@ describe.skipIf(!hasBook)('the main screen — books (phase 3)', () => {
   });
 });
 
-describe.skipIf(!hasKjv)('the main screen — options (phase 4)', () => {
+describe.skipIf(!hasKjv)('the main screen — options', () => {
   test('`o` lists every setting, numbered', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -529,7 +526,7 @@ describe.skipIf(!hasKjv)('the main screen — options (phase 4)', () => {
   });
 });
 
-describe.skipIf(!hasKjv)('the main screen — bookmarks (phase 4)', () => {
+describe.skipIf(!hasKjv)('the main screen — bookmarks', () => {
   test('`b` with nothing saved yet, and `a` adds the cursor verse, named after its reference', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -549,7 +546,7 @@ describe.skipIf(!hasKjv)('the main screen — bookmarks (phase 4)', () => {
     expect(textOf(screen.view(ctx2))).toContain('John 3:16');
   });
 
-  test('a number and Enter jumps to that bookmark, like every other picker (question 9: a plain jump)', () => {
+  test('a number and Enter jumps to that bookmark, like every other picker (a plain jump)', () => {
     const screen = new MainScreen();
     const bookmarks = [
       { id: 1, name: 'Favourite', verseId: VerseIdHelper.calculate(ROMANS, 8, 28) },
@@ -689,7 +686,7 @@ describe.skipIf(!hasKjv)('the main screen — bookmarks (phase 4)', () => {
   });
 });
 
-describe.skipIf(!hasStudyModules)('the main screen — `m` persists the last commentary (phase 4)', () => {
+describe.skipIf(!hasStudyModules)('the main screen — `m` persists the last commentary', () => {
   test('opening one and remembering it across a render round-trip', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
@@ -718,7 +715,7 @@ describe.skipIf(!hasStudyModules)('the main screen — `m` persists the last com
   });
 });
 
-describe.skipIf(!hasKjv)('the main screen — `/` search (phase 5)', () => {
+describe.skipIf(!hasKjv)('the main screen — `/` search', () => {
   test('text that is not a reference opens the search results view, and a number jumps', async () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 1), 30, 140);
@@ -737,7 +734,7 @@ describe.skipIf(!hasKjv)('the main screen — `/` search (phase 5)', () => {
     const jumped = syncAction(screen.key(key('enter'), ctx));
     expect(jumped.kind).toBe('tab');
 
-    // A plain jump (question 9), same as a cross reference or a topic's
+    // A plain jump, same as a cross reference or a topic's
     // verse: it returns to the hints rather than staying on the results.
     const after = jumped.kind === 'tab' ? context(jumped.tab, 30, 140) : ctx;
     expect(textOf(screen.view(after))).toContain('Cross-References (');
@@ -767,7 +764,7 @@ describe.skipIf(!hasKjv)('the main screen — `/` search (phase 5)', () => {
   });
 
   test('a forced search with no text does nothing, rather than searching for nothing', async () => {
-    // `classifyInput('/', …)` is the shape a bare second `/` produces (§4.1's
+    // `classifyInput('/', …)` is the shape a bare second `/` produces (the
     // escape hatch, with nothing typed after it) — `query` is `''`, `forced`
     // is `true`, and this is the one case `runSearchView`'s own guard exists
     // for, since `classifyInput('', …)` never reaches the `search` branch at

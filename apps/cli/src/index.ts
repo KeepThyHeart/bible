@@ -4,8 +4,6 @@
  * Argument handling and the terminal check only. Everything between the process
  * beginning and the first frame lives in `app/startup.ts`, so that it can be
  * exercised without a terminal.
- *
- * See `docs/planning/cli/DesignSpec.md` §2.2 for the layer boundaries.
  */
 import { startup } from './app/startup';
 import { runKeyProbe } from './term/keyProbe';

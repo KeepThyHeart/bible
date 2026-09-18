@@ -27,9 +27,9 @@ import {
   type IBibleBookRepository,
   type Testament,
 } from '@bible/core';
-// Not re-exported by core's root barrel, and DesignSpec §2.4 forbids changing
-// core for the CLI's convenience. The `./*` entry in core's `exports` map is the
-// documented way in, and is what `apps/desktop` uses for the same reason.
+// Not re-exported by core's root barrel, and core is not changed for the CLI's
+// convenience. The `./*` entry in core's `exports` map is the documented way
+// in, and is what `apps/desktop` uses for the same reason.
 import { VerseNavigationService } from '@bible/core/Services/VerseNavigationService';
 
 import { BunSql } from '../data/BunSql';
@@ -45,11 +45,10 @@ export interface OpenBible {
 }
 
 /**
- * The module types the study screen offers (DesignSpec §4.4).
+ * The module types the Study pane offers.
  *
  * `bible` is absent on purpose — a translation is opened by {@link Library.bible}
- * with its own formatting-version resolution, and a parallel column is a Bible
- * rather than a study resource.
+ * with its own formatting-version resolution, and is not a study resource.
  */
 export type StudyModuleType =
   | 'commentary'
@@ -148,12 +147,12 @@ export class Library {
   }
 
   /**
-   * Every usable Bible module found, one per abbreviation, best first (§3.2).
+   * Every usable Bible module found, one per abbreviation, best first.
    *
-   * "Best" is not merely "earliest root", and finding that out was a real bug.
-   * §3.2's dedupe collapses *the same* module found twice — `abbreviation` plus
-   * `content_sha256`. Two **different** modules claiming one abbreviation is a
-   * case it does not cover, and it happens as soon as somebody has the desktop
+   * "Best" is not merely "earliest root". Discovery's dedupe collapses *the
+   * same* module found twice — `abbreviation` plus `content_sha256`. Two
+   * **different** modules claiming one abbreviation is a case it does not
+   * cover, and it happens as soon as somebody has the desktop
    * app installed: its shipped `bible_kjv.db` declares `schema_version 1.0.0`
    * and carries no paragraph, heading or span data at all, while the same
    * translation in a v2 module declares `2.0.0` and carries all three. Root
@@ -167,11 +166,6 @@ export class Library {
   bibleModules(): DiscoveredModule[] {
     const usable = this.modules.filter((m) => m.type === 'bible' && m.unsupported === undefined);
     return preferOnePerAbbreviation(usable);
-  }
-
-  /** Every Bible found, including the ones shadowed above. The modules screen lists them all. */
-  allBibleModules(): DiscoveredModule[] {
-    return this.modules.filter((m) => m.type === 'bible' && m.unsupported === undefined);
   }
 
   /**
@@ -206,12 +200,6 @@ export class Library {
     };
     this.bibles.set(module.path, opened);
     return opened;
-  }
-
-  /** The books of the canon, in order. Empty only when no module could be opened. */
-  allBooks(): BibleBook[] {
-    this.ensureBooks();
-    return [...this.booksByNumber.values()].sort((a, b) => a.bookNumber - b.bookNumber);
   }
 
   book(bookNumber: number): BibleBook | undefined {
@@ -323,14 +311,14 @@ export class Library {
 
   /**
    * The book table as an `IBibleBookRepository`, so core's services can be used
-   * unchanged (DesignSpec §2.3) whether or not `main.db` exists.
+   * unchanged whether or not `main.db` exists.
    */
   bookRepository(): IBibleBookRepository {
     this.ensureBooks();
     return new CanonBookRepository(this.booksByNumber);
   }
 
-  /** Core's chapter movement, book rollover and reference formatting (NAV-2). */
+  /** Core's chapter movement, book rollover and reference formatting. */
   navigation(): VerseNavigationService {
     if (this.nav === undefined) this.nav = new VerseNavigationService(this.bookRepository());
     return this.nav;
@@ -391,18 +379,16 @@ const CANONICAL_BOOK_NAMES: readonly string[] = [
 /**
  * The canon: 66 books, standard English (KJV) versification.
  *
- * **Not derived from the open module, which is what it used to do and was
- * wrong.** Deriving meant taking whichever Bible discovery happened to list
+ * **Not derived from the open module, which would be wrong.** Deriving means taking whichever Bible discovery happened to list
  * first — with 53 modules in a developer checkout, that is `bible_abp.db`, not
  * the KJV — and reading its book and chapter counts as the canon. A module that
- * covers only part of the Bible then produced a canon missing books, and
- * `Library.chapter()` clamped every request into it: asking for John 3 in the
- * KJV silently returned John 1, because the *other* module said John had one
- * chapter.
+ * covers only part of the Bible would yield a canon missing books, and
+ * `Library.chapter()` would clamp every request into it: asking for John 3 in
+ * the KJV would silently return John 1, because the *other* module said John
+ * had one chapter.
  *
- * A fixed table is also simply correct. DesignSpec's key constraints fix the app
- * to one versification scheme, so these numbers cannot vary by module. They are
- * transcribed from the shipped KJV: 66 books, 1,189 chapters, 31,102 verses.
+ * A fixed table is also simply correct. The app uses one versification scheme, so these numbers cannot
+ * vary by module. They are transcribed from the shipped KJV: 66 books, 1,189 chapters, 31,102 verses.
  */
 const CHAPTER_COUNTS: readonly number[] = [
   50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150, 31,
@@ -534,7 +520,7 @@ class CanonBookRepository implements IBibleBookRepository {
 /**
  * One module per abbreviation, preferring the newer module format.
  *
- * Order within the result is the original discovery order, so §3.2's root
+ * Order within the result is the discovery order, so root
  * precedence still decides *where* a translation comes from — this only decides
  * *which* of two files claiming the same name is opened, and only when they
  * declare different schema versions.

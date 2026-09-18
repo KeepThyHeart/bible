@@ -8,11 +8,10 @@
  * a column when they occupy none. And it counts a CJK ideograph as one column
  * when terminals draw it in two.
  *
- * `wireframes/build-wireframes.js` solved a narrower version of this at build
- * time: it counts code points after NFC normalisation, which is exactly right
- * for the precomposed Greek in the mock-ups and wrong for everything else. This
- * is the general version, and the render-width assertion in `padTo` is the same
- * discipline that caught a silently-too-wide row there.
+ * Counting code points after NFC normalisation would be exactly right for
+ * precomposed Greek and wrong for everything else. This is the general
+ * version, and the render-width assertion in `padTo` catches a row that is
+ * silently too wide.
  *
  * ## What is deliberately not attempted
  *
@@ -21,9 +20,8 @@
  * disagree about where the cursor ends up afterwards. Measuring the width of a
  * Hebrew run is well-defined and done here; deciding which column each glyph
  * lands in is not, and guessing would produce alignment that is wrong in a
- * different way on every terminal. The interlinear is the first screen that
- * needs an answer, and it should be settled against real terminal output rather
- * than in advance.
+ * different way on every terminal. Any screen that needs an answer should
+ * settle it against real terminal output rather than in advance.
  */
 
 import type { Style, StyledLine, StyledSegment } from './style';
@@ -418,10 +416,8 @@ export function truncateLineToWidth(line: StyledLine, width: number): StyledLine
 /**
  * The scroll offset that keeps row `cursorRow` inside a `window`-row view.
  *
- * Moved here from `screens/Tabs.ts` when that screen was deleted (task
- * 0001-bible-cli, "delete the old screens"): a plain scroll clamp belongs
- * beside the rest of this file's geometry, not inside the one screen that
- * happened to need it first. `screens/Modules.ts` is its only caller now.
+ * A plain scroll clamp, kept beside the rest of this file's geometry rather
+ * than inside a screen. `screens/Modules.ts` is its only caller.
  */
 export function keepVisible(offset: number, cursorRow: number, window: number): number {
   if (cursorRow < offset) return cursorRow;

@@ -202,8 +202,8 @@ describe('the input line, which is opened rather than always live', () => {
   });
 
   test('a screen is never offered a printable while the line is open', () => {
-    // The invariant every screen leans on. It is what lets the copy dialog bind
-    // `1`-`4` and the reader bind `g` without either of them checking anything.
+    // The invariant every screen leans on. It is what lets a screen bind digits
+    // and letters such as `g` without checking anything.
     const screen = new StubScreen();
     screen.answer = () => ({ kind: 'message', text: 'claimed' });
     const { app: a } = app({ screen });
@@ -216,9 +216,9 @@ describe('the input line, which is opened rather than always live', () => {
   });
 
   test('the space bar reaches the line, from a real decoded keystroke', () => {
-    // keys.ts gives space a name of its own so a screen can bind it (the copy
-    // dialog does). Both insert paths gated on `name === 'char'`, so a space
-    // matched neither and `john 3` was untypable.
+    // keys.ts gives space a name of its own so a screen can bind it (the study
+    // pane pages with it). Both insert paths must accept it as well as `char`,
+    // or `john 3` is untypable.
     const { app: a } = app();
     const [space] = decodeKeys(' ').keys;
     expect(space?.name).toBe('space');
@@ -313,8 +313,8 @@ describe('the input line, which is opened rather than always live', () => {
   });
 
   test('arrows and function keys stay with the screen while the line is open', () => {
-    // So the command palette can be steered with the arrows while its filter is
-    // being typed, which is the whole way that screen works.
+    // So a screen can be steered with the arrows while text is being typed
+    // into the line.
     const screen = new StubScreen();
     screen.answer = () => ({ kind: 'redraw' });
     const { app: a } = app({ screen });
@@ -341,9 +341,8 @@ describe('the input line, which is opened rather than always live', () => {
 
 describe('the command line reference', () => {
   test('`bible "i cor 9"` reaches the screen as a reference intent', async () => {
-    // The argument used to be parsed for flags and then dropped: `startup()`
-    // took no reference at all, so every `bible <passage>` opened wherever the
-    // last session had left off, silently.
+    // `startup()` has to carry the reference through; otherwise every
+    // `bible <passage>` would silently open wherever the last session left off.
     const screen = new StubScreen();
     const { app: a } = app({ screen, openAt: 'i cor 9' });
 
@@ -396,9 +395,9 @@ describe('key routing', () => {
   });
 
   test('a letter a screen claims is a command, whatever word it starts', () => {
-    // `g` is the case that drove the change: it used to fire the reader's "first
-    // verse" while somebody was typing Genesis. Genesis is typed after `/` now,
-    // so `g` is free to be a command and is no longer ambiguous.
+    // `g` is the telling case: it could be the reader's "first verse" or the
+    // start of Genesis. Genesis is typed after `/`, so `g` is free to be a
+    // command and is never ambiguous.
     const screen = new StubScreen();
     const seen: string[] = [];
     screen.answer = (key) => {
@@ -521,7 +520,7 @@ describe('the frame', () => {
     expect(ctx.bodyWidth).toBeLessThanOrEqual(ctx.size.columns);
   });
 
-  test('tabs are named by their passage, with no name to invent (§4.5)', () => {
+  test('tabs are named by their passage, with no name to invent', () => {
     const { app: a } = app();
     // No modules, so book names come from the fixed canon: tab 1 is Genesis 1.
     expect(stripAnsi(a.frame().lines[0]!)).toContain('Genesis 1');
@@ -529,10 +528,10 @@ describe('the frame', () => {
 });
 
 /**
- * Wave 4 — the screen stack.
+ * The screen stack.
  *
- * These are the shell mechanics every screen after the reader is written to, so
- * they are pinned here rather than discovered separately by each of them.
+ * These are the shell mechanics every pushed screen is written to, so they are
+ * pinned here rather than discovered separately by each of them.
  */
 class Pushed implements Screen {
   constructor(
@@ -575,7 +574,7 @@ describe('the screen stack', () => {
 
     const before = screen.keys.length;
     a.handleKey(named('down'));
-    // The screen underneath is no longer being typed at.
+    // The screen underneath is not offered keys while another is on top.
     expect(screen.keys.length).toBe(before);
   });
 
@@ -615,8 +614,8 @@ describe('the screen stack', () => {
       screen: new Pushed('results', { answer: () => ({ kind: 'closeTo', tab: destination }) }),
     });
 
-    // One key to push, one to close, and both ordinary letters: `/` and `:` never
-    // reach a screen, so neither can be used to drive a stub.
+    // One key to push, one to close, and both ordinary letters: `/` never
+    // reaches a screen, so it cannot be used to drive a stub.
     a.handleKey(char('s'));
     a.handleKey(char('x'));
 
@@ -629,19 +628,19 @@ describe('the screen stack', () => {
     const { app: a, screen } = app();
     screen.answer = () => ({
       kind: 'open',
-      screen: new Pushed('palette', {
-        overlay: { title: 'COMMANDS', rows: [[{ text: ':q  quit' }]] },
+      screen: new Pushed('overlay', {
+        overlay: { title: 'OVERLAY', rows: [[{ text: 'an overlay row' }]] },
       }),
     });
 
-    // A letter, not `:`. The colon opens the input line and is never offered to
-    // a screen, so it cannot be what pushes the stub palette here.
+    // A letter, not `/`. The slash opens the input line and is never offered to
+    // a screen, so it cannot be what pushes the stub overlay here.
     a.handleKey(char('p'));
     const frame = a.frame().lines.map(stripAnsi).join('\n');
-    // The stub's body is still there, with the palette drawn over the bottom.
+    // The stub's body is still there, with the overlay drawn over the bottom.
     expect(frame).toContain('body');
-    expect(frame).toContain('COMMANDS');
-    expect(frame).toContain(':q  quit');
+    expect(frame).toContain('OVERLAY');
+    expect(frame).toContain('an overlay row');
   });
 
   test('a title replaces the tab strip, and only for the screen that sets one', () => {
@@ -717,34 +716,6 @@ describe('display settings are a table, not a code path per setting', () => {
     // upwards: an explicit depth replaces whatever the app was built with.
     expect(before).toBe('none');
     expect(screen.lastContext?.theme.depth).toBe('ansi256');
-  });
-});
-
-describe('the largest window this terminal has managed', () => {
-  test('it is remembered across sessions, and grows on each axis', () => {
-    // Fullscreen is not detectable, so what the window *has* been is the only
-    // honest way to tell somebody their page will fit if they make it bigger.
-    const dir = home();
-    const store = openStore(dir);
-    store.setValue('display.largestSize', '200x60');
-    store.close();
-
-    const { app: shell, screen } = app({ screen: new StubScreen(), dir });
-    shell.frame();
-    expect(screen.lastContext?.largestSize).toEqual({ columns: 200, rows: 60 });
-  });
-
-  test('an unreadable value falls back to the window rather than to nonsense', () => {
-    const dir = home();
-    const store = openStore(dir);
-    store.setValue('display.largestSize', 'enormous');
-    store.close();
-
-    const { app: shell, screen } = app({ screen: new StubScreen(), dir });
-    shell.frame();
-    // The current size: never larger than the window has been, which is the one
-    // thing the caller needs to be able to rely on.
-    expect(screen.lastContext?.largestSize.columns).toBeGreaterThan(0);
   });
 });
 

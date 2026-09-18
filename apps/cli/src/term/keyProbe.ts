@@ -7,8 +7,7 @@
  * prints what the *current* terminal actually sends and tracks which of the
  * keys the app depends on have been seen.
  *
- * Run it in each terminal, press the listed keys, and paste the summary into
- * the table in `docs/planning/cli/Tasks.md`.
+ * Run it in each terminal, press the listed keys, and read off the summary.
  */
 import { type Key, describeKey } from './keys';
 import { TerminalInput } from './raw';

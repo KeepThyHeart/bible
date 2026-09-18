@@ -14,8 +14,7 @@
  *
  * Terminals also disagree about which sequence a key produces — `alt+1` in
  * particular is intercepted outright by some. `bible --keys` prints what the
- * current terminal actually sends, which is how the compatibility table in
- * `docs/planning/cli/Tasks.md` gets filled in.
+ * current terminal actually sends.
  */
 
 export type KeyName =

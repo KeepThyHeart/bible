@@ -1,11 +1,10 @@
 /**
- * Bookmarks — the `b` screen of the 2026 redesign (0001-bible-cli, phase 4).
+ * Bookmarks — the `b` screen.
  *
- * A flat, named, user-ordered list, persisted in the CLI's own `~/.bible/state.db`
- * (thread question 13: "Can't assume the desktop will exist on the machine.") —
- * unlike the desktop and web apps, which keep bookmarks in the shared user
- * database, this CLI has no such database to lean on and would lose them the
- * moment it did not have one.
+ * A flat, named, user-ordered list, persisted in the CLI's own `~/.bible/state.db`.
+ * Unlike the desktop and web apps, which keep bookmarks in the shared user
+ * database, the CLI cannot assume the desktop app exists on the machine, so it
+ * keeps its own copy.
  *
  * Pure and untyped-key, on the same split as {@link "./history"}: no rendering,
  * no keys, so every rule here — adding, renaming, re-pointing, reordering,
@@ -31,8 +30,8 @@ export interface Bookmark {
   readonly id: number;
   readonly name: string;
   /** The verse it points at — a full verse id, so it means the same thing in
-   * every translation (§ task thread: a bookmark is a place, not a passage in
-   * one particular translation). */
+   * every translation: a bookmark is a place, not a passage in one particular
+   * translation. */
   readonly verseId: number;
 }
 
@@ -112,10 +111,4 @@ export function moveBookmark(
 /** The bookmark a typed row number names — 1-based, top to bottom, as shown. */
 export function bookmarkAt(list: readonly Bookmark[], number: number): Bookmark | undefined {
   return list[number - 1];
-}
-
-/** The row number a bookmark is currently shown at, for a screen that already has its id. */
-export function bookmarkNumber(list: readonly Bookmark[], id: number): number | undefined {
-  const index = list.findIndex((b) => b.id === id);
-  return index === -1 ? undefined : index + 1;
 }

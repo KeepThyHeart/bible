@@ -1,14 +1,12 @@
 /**
- * The session history rules the human asked to be ported exactly from the
- * desktop app (0001-bible-cli thread, question 8). Each test names the rule
- * from the spec it is checking.
+ * The session history rules, ported exactly from the desktop app. Each test
+ * names the rule it is checking.
  */
 import { describe, expect, test } from 'bun:test';
 
 import {
   addHistoryEntry,
   arrayIndexToDisplayIndex,
-  currentEntry,
   displayIndexToArrayIndex,
   displayOrder,
   emptyHistory,
@@ -43,7 +41,7 @@ describe('addHistoryEntry', () => {
     slot = addHistoryEntry(slot, entry(43, 3, 1));
     slot = addHistoryEntry(slot, entry(43, 3, 16)); // moved the cursor, same chapter
     expect(slot.entries).toHaveLength(1);
-    expect(currentEntry(slot)?.verseId).toBe(entry(43, 3, 16).verseId);
+    expect(slot.entries[slot.index]?.verseId).toBe(entry(43, 3, 16).verseId);
   });
 
   test('paging (replace) overwrites the current entry rather than adding one', () => {

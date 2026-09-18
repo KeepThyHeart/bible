@@ -2,7 +2,7 @@
  * Modules — the library: what was found, and where each piece came from.
  *
  * This screen exists because module discovery is *implicit*. Five roots are
- * scanned in a fixed order (DesignSpec §3.2), duplicates collapse on
+ * scanned in a fixed order (see {@link SEARCH_ORDER}), duplicates collapse on
  * abbreviation and content hash, and modules the desktop app installed are read
  * in place. None of that is visible while reading, so when a translation is
  * missing — or turns out to be a copy the user did not expect — this is the only
@@ -11,13 +11,12 @@
  * Three decisions follow from that:
  *
  * **Nothing usable is omitted, and nothing unusable is hidden.** A module in a
- * format newer than this build understands (§3.5) gets a dimmed row and the
+ * format newer than this build understands gets a dimmed row and the
  * reason, not silence. An absent row would look like a missing file and send the
  * user hunting on disk for something that is already there.
  *
- * **The repository half says it does not exist.** DesignSpec §7 defers the
- * catalog and downloader to 1.1; the wireframe's `r repository` would therefore
- * be a key that does nothing. A sentence explaining that nothing goes outbound,
+ * **The repository half says it does not exist.** There is no catalog or
+ * downloader, so an `r repository` key would do nothing. A sentence explaining that nothing goes outbound,
  * and what to do instead, is worth more than a dead button.
  *
  * **A language filter, and a language tag on anything foreign.** The project's
@@ -47,7 +46,7 @@ export interface ModulesOptions {
   readonly fileSize?: (path: string) => number | undefined;
 }
 
-/** The five roots of DesignSpec §3.2, in the order they are searched. */
+/** The five module roots, in the order they are searched. */
 export const SEARCH_ORDER: ReadonlyArray<{
   readonly kind: RootKind;
   readonly path: string;
@@ -124,7 +123,7 @@ export function formatBytes(bytes: number | undefined): string {
   return `${rounded} ${units[unit]}`;
 }
 
-/** `^O` from anywhere. Wired by the shell; see the note in `Tabs.tabSwitchAction`. */
+/** Opens the Modules screen for `^O`; `undefined` for any other key. */
 export function modulesShortcut(key: Key): ScreenAction | undefined {
   if (key.ctrl && key.name === 'char' && key.char === 'o') {
     return { kind: 'open', screen: new Modules() };
@@ -252,8 +251,7 @@ export class Modules implements Screen {
     // `↵` reads the selected translation *here*, which is the one thing this
     // screen can usefully do to a module. Installing and removing is the
     // desktop app's job for modules it owns, and there is no repository to
-    // install from (§7) — so the wireframe's "↵ install/remove" would have been
-    // a key that does nothing.
+    // install from — so an install/remove key would do nothing.
     if (module.type === 'bible') {
       return {
         kind: 'closeTo',
@@ -487,7 +485,7 @@ function moduleRow(
 }
 
 /**
- * See the note on `Tabs.columns` — every cell is cut before `padTo` can throw.
+ * Joins the cells into one row, cutting each to its width before `padTo` can throw.
  * A zero-width column has been dropped by {@link tableLayout} and disappears
  * rather than becoming an empty gap.
  */

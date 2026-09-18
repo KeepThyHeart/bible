@@ -1,9 +1,8 @@
 /**
- * The two reading modes (DesignSpec §5.1).
+ * The two reading modes.
  *
- * This supersedes the earlier `layoutNumbered` / `layoutParagraph`, which
- * returning `string[]`. Plain strings cannot carry the two things the reader
- * needs from a laid-out chapter:
+ * Plain strings cannot carry the two things the reader needs from a laid-out
+ * chapter:
  *
  * - **Which verse each line belongs to.** Scrolling has to keep the cursor
  *   verse on screen, and `↑` / `↓` move by verse rather than by line, so a row
@@ -17,7 +16,6 @@
  */
 import type { DisplayVerse } from '../app/verseText';
 import {
-  lineWidth,
   makeToken,
   tokenizeText,
   wrapTokens,
@@ -35,8 +33,7 @@ export type ReadingMode = 'paragraph' | 'numbered';
  * are separate settings because they answer separate complaints — "I want one
  * verse per block" and "my font has no superscripts" are not the same request.
  *
- * - `superscript` — `¹⁶For God so loved…`. The default, and what the wireframes
- *   draw.
+ * - `superscript` — `¹⁶For God so loved…`. The default.
  * - `margin` — plain digits, right-aligned in a gutter with the text hanging
  *   beside it.
  * - `inline` — `(16) For God so loved…`, for a font that draws tofu instead of
@@ -87,7 +84,7 @@ export interface ReadingLine {
 const SUPERSCRIPT_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'] as const;
 
 /**
- * Verse numbers as Unicode superscripts, matching the wireframes.
+ * Verse numbers as Unicode superscripts.
  *
  * Every one of these is BMP and East Asian Neutral, so `stringWidth` gives them
  * one column each and the frame arithmetic is unaffected. A font without them
@@ -330,33 +327,8 @@ function headingLines(heading: string, options: ReadingOptions): ReadingLine[] {
   }).map((line) => ({ segments: line.segments, verse: undefined }));
 }
 
-/** The first row showing a given verse, or `-1`. Used to keep the cursor on screen. */
-export function findVerseRow(lines: readonly ReadingLine[], verse: number): number {
-  return lines.findIndex((line) => line.verse === verse);
-}
-
-/** The last row showing a given verse, or `-1`. */
-export function findVerseEndRow(lines: readonly ReadingLine[], verse: number): number {
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    if (lines[i]!.verse === verse) return i;
-  }
-  return -1;
-}
-
-/** Total width of a laid-out row — exported so screens can assert their frame. */
-export function readingLineWidth(line: ReadingLine): number {
-  return lineWidth(line.segments);
-}
-
 /**
  * The scroll offset that keeps a verse on screen, moving as little as possible.
- *
- * Lives here beside `findVerseRow` rather than in a screen, because it is
- * arithmetic over laid-out rows and four screens need exactly the same answer —
- * the reader, the parallel columns, the search results and the cross-references.
- * It used to be exported from `Reader.ts`, which made every one of those screens
- * import the reader to scroll a list, and put a cycle in the way of anything the
- * reader itself wanted to import.
  *
  * The rule is "move only if you must": an offset already showing the verse is
  * returned unchanged, so scrolling with `alt+↑↓` and then moving the cursor does

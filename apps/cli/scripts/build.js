@@ -11,7 +11,7 @@
  * spawn error.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,30 +77,35 @@ function main() {
   }
 
   // The bundle pulls `@bible/core` from its compiled CommonJS output, so that
-  // has to exist first. Root `build:cli` sequences it; a bare
-  // `npm run build --workspaces` may not, so check rather than fail inside Bun
-  // with a resolution error that does not say what is wrong.
-  const coreDist = join(PKG_DIR, '..', 'core', 'dist', 'index.js');
+  // has to exist first. Check rather than fail inside Bun with a resolution
+  // error that does not say what is wrong.
+  const coreDist = join(PKG_DIR, '..', '..', 'packages', 'core', 'dist', 'index.js');
   if (!existsSync(coreDist)) {
     process.stderr.write(
       '@bible/cli: @bible/core is not built — skipping the compile step.\n' +
-        '            Run `npm run build:core`, or use `npm run build:cli` from the root.\n',
+        '            Run `npm run build:core` from the repo root first.\n',
     );
     return 0;
   }
 
   // The bundler resolves `src/assets/bible_kjv.db` statically and fails if it
-  // is absent. The file is generated rather than checked in, so a checkout with
-  // no module library — CI, a fresh clone — needs a placeholder to build at
-  // all. `firstRun` inspects the asset and reports `no-bundled-module` when it
-  // is not a real module, so a placeholder build runs; it just ships no Bible.
+  // is absent. The file is generated rather than checked in: build it from the
+  // repo's `data/modules/bible_kjv.db`. With no module library (CI, a fresh
+  // clone) fall back to an empty placeholder, which `firstRun` reports as
+  // `no-bundled-module`, so that build runs but ships no Bible.
   const kjvAsset = join(PKG_DIR, 'src', 'assets', 'bible_kjv.db');
-  if (!existsSync(kjvAsset)) {
-    writeFileSync(kjvAsset, '');
-    process.stderr.write(
-      '@bible/cli: no bundled KJV — building with an empty placeholder.\n' +
-        '            Run `node scripts/build-cli-kjv.js` to produce the real one.\n',
-    );
+  if (!existsSync(kjvAsset) || statSync(kjvAsset).size === 0) {
+    const r = spawnSync(BUN, [join(PKG_DIR, 'scripts', 'build-kjv.ts')], {
+      cwd: PKG_DIR,
+      stdio: 'inherit',
+    });
+    if (r.status !== 0) {
+      writeFileSync(kjvAsset, '');
+      process.stderr.write(
+        '@bible/cli: could not build the bundled KJV — building with an empty placeholder.\n' +
+          '            Put a bible_kjv.db in data/modules and run `npm run kjv -w @bible/cli`.\n',
+      );
+    }
   }
 
   const pkg = JSON.parse(readFileSync(join(PKG_DIR, 'package.json'), 'utf8'));

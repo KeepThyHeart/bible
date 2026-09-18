@@ -1,6 +1,6 @@
 /**
  * `ISql` over `bun:sqlite` — the CLI's only binding to `@bible/core`'s data
- * layer (DesignSpec §2.2).
+ * layer.
  *
  * Both sides are synchronous, so this is a direct mapping rather than an
  * adapter with buffering or promise plumbing. What it is *not* is a thin
@@ -24,14 +24,14 @@ export interface BunSqlOptions {
    * Open with SQLite's `immutable=1`, which tells it the file cannot change
    * and to ignore any `-wal` / `-shm` sidecar beside it.
    *
-   * This is the fix for DesignSpec §3.4: shipped modules are written in WAL
+   * Shipped modules are written in WAL
    * mode (verified — `PRAGMA journal_mode` on `bible_kjv.db` returns `wal`),
    * and a plain read-only open of a WAL database wants to touch the sidecar.
    *
    * Only ever set this for a tree nobody is writing. `immutable` makes SQLite
    * skip locking entirely, so if another process *is* mid-write — the desktop
    * app building a `book_search_index`, say — the read can see stale or torn
-   * data. That is exactly why DesignSpec §3.2 restricts it to the bundled
+   * data. That is exactly why module discovery restricts it to the bundled
    * tree and uses a plain read-only open for the user tree.
    */
   immutable?: boolean;

@@ -10,14 +10,12 @@
     "rootDir": "./src",
     "sourceMap": true,
     "isolatedModules": true
-    // Deliberately no `paths` mapping to `../core/src`, unlike
-    // `packages/desktop`. Bun honours tsconfig `paths` at *runtime*, so
-    // mapping to source would make the CLI consume core's ESM source rather
-    // than its CommonJS `dist/` — which is what DesignSpec §2.4 verified, and
-    // core's source is not ESM-clean (see the note in README.md). Resolving
-    // through node_modules types the CLI against the same build it runs.
-    // Consequence: `npm run build:core` is a prerequisite, which the root
-    // `build:cli` script encodes.
+    // Deliberately no `paths` mapping to `../../packages/core/src`. Bun honours
+    // tsconfig `paths` at *runtime*, so mapping to source would make the CLI
+    // consume core's ESM source rather than its CommonJS `dist/`, and core's
+    // source is not ESM-clean. Resolving through node_modules types the CLI
+    // against the same build it runs. Consequence: `npm run build:core` is a
+    // prerequisite for typechecking, testing and building the CLI.
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "build"]

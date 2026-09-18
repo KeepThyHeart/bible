@@ -1,12 +1,8 @@
 /**
  * Commentary (and dictionary, and book-section) markup → terminal rows.
  *
- * Extracted from the old `screens/Commentary.ts` rail-based screen when it
- * was removed (task 0001-bible-cli, "delete the old screens"): that screen's
- * own UI — the module rail, `<`/`>` by unit, the find box — is superseded by
- * `screens/Main.ts`'s `c`/`m` study views, but {@link layoutCommentary} is
- * pure and is reused unchanged, by `Main.ts` for a commentary entry and by
- * `app/studyPanes.ts`'s dictionary and book readers alike.
+ * {@link layoutCommentary} is pure and shared: `screens/Main.ts` uses it for a
+ * commentary entry and `app/studyPanes.ts` for its dictionary and book readers.
  *
  * Most module content is HTML, and not the tidy subset a Bible verse carries.
  * A tag census over the first 60 entries of each of the 25 installed

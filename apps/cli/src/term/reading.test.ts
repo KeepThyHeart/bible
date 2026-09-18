@@ -1,15 +1,13 @@
 /**
  * The two reading modes, and how a verse number is drawn in each.
  *
- * These replace the reading-mode tests that were in `layout.test.ts`. The
- * assertions that carried over are about paragraph breaks and the gutter; the
- * new ones are about the two things the old `string[]` return could not express:
- * which verse a row belongs to, and a highlight that survives a line break.
+ * Paragraph breaks and the gutter, plus the two things a laid-out row has to
+ * express: which verse it belongs to, and a highlight that survives a line break.
  */
 import { describe, expect, test } from 'bun:test';
 
 import type { DisplayVerse } from '../app/verseText';
-import { findVerseEndRow, findVerseRow, layoutReading, superscript } from './reading';
+import { layoutReading, superscript } from './reading';
 import { lineWidth } from './layout';
 import { createTheme, type StyledLine } from './style';
 
@@ -37,6 +35,9 @@ const JOHN = [
   verse(16, 'And of his fulness have all we received, and grace for grace.'),
 ];
 
+const rowOf = (lines: readonly { readonly verse: number | undefined }[], verse: number): number =>
+  lines.findIndex((l) => l.verse === verse);
+
 describe('numbered mode', () => {
   test('the number sits in a gutter and the text hangs beside it', () => {
     const lines = layoutReading(JOHN, { width: 40, mode: 'numbered', theme, cursorVerse: 0 });
@@ -56,7 +57,7 @@ describe('numbered mode', () => {
   test('every row knows which verse it belongs to', () => {
     const lines = layoutReading(JOHN, { width: 30, mode: 'numbered', theme, cursorVerse: 0 });
     for (const line of lines) expect(line.verse).toBeDefined();
-    expect(findVerseRow(lines, 15)).toBeGreaterThan(findVerseRow(lines, 14));
+    expect(rowOf(lines, 15)).toBeGreaterThan(rowOf(lines, 14));
   });
 });
 
@@ -152,22 +153,7 @@ describe('headings', () => {
     const headingRow = lines.find((l) => textOf(l).includes('A Psalm of David.'));
     expect(headingRow).toBeDefined();
     expect(headingRow!.verse).toBeUndefined();
-    expect(lines.indexOf(headingRow!)).toBeLessThan(findVerseRow(lines, 1));
-  });
-});
-
-describe('row lookup', () => {
-  test('findVerseEndRow finds the last row of a wrapped verse', () => {
-    const lines = layoutReading(JOHN, { width: 24, mode: 'numbered', theme, cursorVerse: 0 });
-    const start = findVerseRow(lines, 16);
-    const end = findVerseEndRow(lines, 16);
-    expect(end).toBeGreaterThanOrEqual(start);
-    expect(lines[end]!.verse).toBe(16);
-  });
-
-  test('a verse that is not laid out reports -1 rather than 0', () => {
-    const lines = layoutReading(JOHN, { width: 40, mode: 'numbered', theme, cursorVerse: 0 });
-    expect(findVerseRow(lines, 99)).toBe(-1);
+    expect(lines.indexOf(headingRow!)).toBeLessThan(lines.findIndex((l) => l.verse === 1));
   });
 });
 
@@ -217,8 +203,8 @@ describe('verse number styles', () => {
       cursorVerse: 0,
       verseNumbers: 'hidden',
     });
-    expect(findVerseRow(lines, 15)).toBeGreaterThanOrEqual(0);
-    expect(findVerseRow(lines, 16)).toBeGreaterThanOrEqual(0);
+    expect(rowOf(lines, 15)).toBeGreaterThanOrEqual(0);
+    expect(rowOf(lines, 16)).toBeGreaterThanOrEqual(0);
   });
 
   test('the numbered gutter is plain digits whichever of the two styles asks', () => {
@@ -245,7 +231,7 @@ describe('verse number styles', () => {
       cursorVerse: 0,
       verseNumbers: 'hidden',
     });
-    // No number, and no empty column left where it used to be.
+    // No number, and no empty gutter column.
     expect(textOf(lines[0]!)).toStartWith('And the Word');
     for (const line of lines) expect(lineWidth(line.segments)).toBeLessThanOrEqual(40);
   });

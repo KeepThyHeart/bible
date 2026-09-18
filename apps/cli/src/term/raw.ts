@@ -8,7 +8,7 @@
  * which looks like a hung terminal. So restoration is wired to every exit path
  * there is, not just the tidy one.
  *
- * Note that in raw mode ctrl+c no longer raises `SIGINT` — it arrives as the
+ * Note that in raw mode ctrl+c does not raise `SIGINT` — it arrives as the
  * byte `0x03` like any other key. {@link TerminalInput} therefore delivers it
  * as a key and leaves the policy to the caller, while still guaranteeing the
  * terminal is restored if the process does go down.

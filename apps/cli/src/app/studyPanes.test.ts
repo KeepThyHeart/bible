@@ -1,13 +1,9 @@
 /**
- * Cross references, commentaries and topics — the "phase 2" data functions
- * behind the Study pane's `x`, `c`, `m` and `t` (task 0001-bible-cli, thread
- * message 01).
+ * Cross references, commentaries, topics, dictionaries and books — the data
+ * functions behind the Study pane's `x`, `c`, `m`, `t`, `d` and `k`.
  *
- * Driven against the real modules — the old `screens/CrossReferences.ts`,
- * `screens/Commentary.ts` and `screens/Topics.ts` were tested the same way,
- * before the 2026 redesign replaced them and deleted them (task
- * 0001-bible-cli): the behaviour under test is a claim about what a real
- * module returns (TSK's phrases for John 3:16, Matthew Henry's word count,
+ * Driven against the real modules: the behaviour under test is a claim about
+ * what a real module returns (TSK's phrases for John 3:16, Matthew Henry's word count,
  * Nave's headings), and a fixture would only prove this file agrees with
  * itself. Where the assets are not present (this checkout may not carry
  * them — see `hasLibrary` below) the whole suite is skipped, exactly as the
@@ -45,12 +41,9 @@ const hasLibrary =
   existsSync(join(MODULES, 'topical_nave.db')) &&
   existsSync(join(MODULES, 'commentary_mhc.db'));
 
-// Real filenames documented in THIRD-PARTY-NOTICES.md and docs/Design/*
-// (`dictionary_strongsgreek.db`, `book_finney.db`) — not this checkout's
-// content, so the tests below assert structural properties rather than
-// specific headwords or titles (the same reasoning phase 2's suite gives for
-// `hasLibrary`, one level further: there is no old screen's test to borrow
-// documented facts from either, because `d`/`k` had no viewer before this).
+// Module filenames a full library carries (`dictionary_strongsgreek.db`,
+// `book_finney.db`), which this checkout may not have — so the tests below
+// assert structural properties rather than specific headwords or titles.
 const hasDictionary = existsSync(join(MODULES, 'dictionary_strongsgreek.db'));
 const hasBook = existsSync(join(MODULES, 'book_finney.db'));
 
@@ -61,10 +54,8 @@ const ROMANS = 45;
 const JOHN_3_16 = VerseIdHelper.calculate(JOHN, 3, 16);
 
 /**
- * The old `screens/CrossReferences.test.ts` carried the identical helper:
- * discovery currently drops every non-Bible module because
- * `readModuleDescriptor` selects a column only Bible modules have. A no-op
- * once that is fixed.
+ * Everything `discoverModules()` finds, plus any other `.db` module in the
+ * repo's `data/modules` directory that discovery did not list.
  */
 function modules(): DiscoveredModule[] {
   const found = discoverModules();
@@ -116,7 +107,7 @@ describe.skipIf(!hasLibrary)('crossReferenceGroups', () => {
     const groups = crossReferenceGroups(library(), undefined, JOHN_3_16, theme, DISPLAY);
     expect(groups.length).toBeGreaterThan(0);
 
-    // TSK's real phrases for John 3:16 (the old CrossReferences.test.ts's note).
+    // TSK's real phrases for John 3:16.
     const phrases = groups.map((g) => g.phrase);
     expect(phrases).toContain('God.');
     expect(phrases).toContain('gave.');
@@ -124,7 +115,7 @@ describe.skipIf(!hasLibrary)('crossReferenceGroups', () => {
 
     const numbers = groups.flatMap((g) => g.rows.map((r) => r.number));
     expect(numbers).toEqual(Array.from({ length: numbers.length }, (_, i) => i + 1));
-    expect(numbers.length).toBe(17); // the same count the old CrossReferences.test.ts asserted
+    expect(numbers.length).toBe(17);
   });
 
   test('a same-chapter target reads as "v17"; a different book reads in full', () => {

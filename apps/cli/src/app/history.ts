@@ -1,15 +1,13 @@
 /**
- * Session navigation history — the `h` screen of the 2026 redesign
- * (0001-bible-cli).
+ * Session navigation history — the `h` screen.
  *
- * Ported, deliberately close to the original, from the desktop app's
- * `packages/desktop/src/ui/stores/bible/internals/navigationHistory.ts`. The
- * human's instruction (thread question 8) was to match that logic exactly
- * rather than invent a CLI-specific rule, because it had "been carefully
- * worked out in the desktop/web apps". The only differences from the source
- * are cosmetic: no `scrollTop` (the CLI has no scroll position worth
- * remembering across a jump), and no `goBack`/`goForward` (question 8: no
- * back key for now, `h` then a number is the only way to move the cursor).
+ * Ported closely from the desktop app's
+ * `apps/desktop/src/ui/stores/bible/internals/navigationHistory.ts`, so the
+ * CLI follows the same carefully worked-out rules as the desktop and web apps.
+ * The only differences from that source are cosmetic: no `scrollTop` (the CLI
+ * has no scroll position worth remembering across a jump), and no
+ * `goBack`/`goForward` (there is no back key; `h` then a number is the only way
+ * to move the cursor).
  *
  * Semantics:
  *  - {@link addHistoryEntry} truncates forward history (a jump made after
@@ -29,7 +27,7 @@
  *    reordering" true.
  */
 
-/** Cap on remembered chapters (thread question 8: 10, the desktop's number). */
+/** Cap on remembered chapters (10, the desktop's number). */
 export const HISTORY_MAX_ENTRIES = 10;
 
 export interface HistoryEntry {
@@ -52,10 +50,6 @@ export interface HistorySlot {
 
 export function emptyHistory(maxSize: number = HISTORY_MAX_ENTRIES): HistorySlot {
   return { entries: [], index: -1, maxSize };
-}
-
-export function currentEntry(slot: HistorySlot): HistoryEntry | undefined {
-  return slot.entries[slot.index];
 }
 
 /**

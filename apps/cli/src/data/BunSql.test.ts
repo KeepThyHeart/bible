@@ -130,7 +130,7 @@ describe('read-only behaviour', () => {
 
   test.skipIf(!has(KJV))('immutable=1 opens a WAL-mode module', () => {
     // Shipped modules are in WAL mode, so a plain read-only open wants the
-    // -wal sidecar. DesignSpec §3.4.
+    // -wal sidecar.
     const journal = new BunSql(modulePath(KJV), { readonly: true });
     expect(journal.queryOne<{ journal_mode: string }>('PRAGMA journal_mode')?.journal_mode).toBe(
       'wal',

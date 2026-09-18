@@ -4,13 +4,12 @@
  * The binary embeds a trimmed KJV so that `bible` works the moment it is
  * installed, with no download and no setup. On first run it is written to
  * `~/.bible/modules/bible_kjv.db`, and from that point it is an ordinary
- * module, indistinguishable from any other (DesignSpec §3.1).
+ * module, indistinguishable from any other.
  *
  * **Extraction is skipped when the same content is already reachable.** A user
- * who has the desktop app installed already has the full KJV — with the
- * interlinear this build dropped — and writing a second, lesser copy would
- * shadow it in the search order for no benefit. The comparison is on
- * `content_sha256`, not on filename or version string.
+ * who has the desktop app installed already has the full KJV, and writing a
+ * second, lesser copy would shadow it in the search order for no benefit. The
+ * comparison is on `content_sha256`, not on filename or version string.
  *
  * The embedded file is read with `Database.deserialize`, so its identity can be
  * established without writing it anywhere first.
@@ -119,7 +118,7 @@ export async function ensureBundledKjv(options: EnsureBundledOptions): Promise<F
 
   if (host.exists(target)) {
     // Compare content, not existence: a half-written file from an interrupted
-    // extraction, or an older build's copy, should be replaced.
+    // extraction, or a stale copy, should be replaced.
     const existing = moduleIdentity(host.read(target));
     if (existing?.contentSha256 === identity.contentSha256) {
       return {

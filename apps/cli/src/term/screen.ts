@@ -41,11 +41,6 @@ export interface ScreenOptions {
   out?: ScreenWriter;
   /** Defaults to reading `process.stdout`. */
   measure?: () => TerminalSize;
-  /**
-   * Where to leave the hardware cursor, and whether to show it. The reader
-   * shows it on the input line and hides it everywhere else.
-   */
-  showCursor?: boolean;
 }
 
 export interface CursorPosition {

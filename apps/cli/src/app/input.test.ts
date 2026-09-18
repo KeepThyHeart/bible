@@ -1,17 +1,16 @@
 /**
- * NAV-1 acceptance — every row of DesignSpec §4.1.
+ * Input classification, one test per input form.
  *
- * The table in the spec is the specification, so it is transcribed here as
- * tests rather than paraphrased. The rows that matter most are the ones that
+ * The rows that matter most are the ones that
  * must NOT parse as a reference: the whole design rests on "if it does not
  * parse, it is a search", and a parser that is too eager silently swallows
  * searches.
  */
 import { describe, expect, test } from 'bun:test';
 
-import { type InputContext, type Intent, classifyInput, isRange } from './input';
+import { type InputContext, type Intent, classifyInput } from './input';
 
-/** Reading John 3, as the wireframes do. */
+/** Reading John 3. */
 const IN_JOHN_3: InputContext = { book: 43, chapter: 3 };
 
 const classify = (text: string, context: InputContext = IN_JOHN_3): Intent =>
@@ -25,7 +24,7 @@ const reference = (text: string, context: InputContext = IN_JOHN_3) => {
   return intent.reference;
 };
 
-describe('§4.1 — context-relative references', () => {
+describe('context-relative references', () => {
   test('`16` is verse 16 of the current chapter', () => {
     expect(reference('16')).toEqual({
       book: 43,
@@ -39,7 +38,6 @@ describe('§4.1 — context-relative references', () => {
   test('`16-17` is that range, in the current chapter', () => {
     const ref = reference('16-17');
     expect(ref).toMatchObject({ book: 43, chapter: 3, verse: 16, endVerse: 17 });
-    expect(isRange(ref)).toBe(true);
   });
 
   test('`3:16` is chapter 3 verse 16 of the current book', () => {
@@ -64,7 +62,7 @@ describe('§4.1 — context-relative references', () => {
   });
 
   test('a bare number is a verse, not a chapter', () => {
-    // Deliberate, and stated in §4.1: otherwise `23` in Psalms is ambiguous
+    // Deliberate: otherwise `23` in Psalms is ambiguous
     // with no way for the user to say which was meant.
     const ref = reference('23', { book: 19, chapter: 119 });
     expect(ref.chapter).toBe(119);
@@ -76,7 +74,7 @@ describe('§4.1 — context-relative references', () => {
   });
 });
 
-describe('§4.1 — references naming a book', () => {
+describe('references naming a book', () => {
   test('the long, short and space-separated spellings all resolve', () => {
     for (const text of ['john 3:16', 'joh 3:16', 'John 3:16']) {
       expect(reference(text)).toMatchObject({ book: 43, chapter: 3, verse: 16 });
@@ -93,7 +91,7 @@ describe('§4.1 — references naming a book', () => {
   });
 });
 
-describe('§4.1 — anything that is not a reference is a search', () => {
+describe('anything that is not a reference is a search', () => {
   test('a phrase of ordinary words', () => {
     const intent = classify('everlasting life');
     expect(intent).toEqual({ kind: 'search', query: 'everlasting life', forced: false });
@@ -118,7 +116,7 @@ describe('§4.1 — anything that is not a reference is a search', () => {
   });
 });
 
-describe('§4.1 — the slash forces a search', () => {
+describe('the slash forces a search', () => {
   test('text that would otherwise be a reference is searched instead', () => {
     // Its only purpose.
     expect(classify('john 3').kind).toBe('reference');
@@ -130,26 +128,7 @@ describe('§4.1 — the slash forces a search', () => {
   });
 });
 
-describe('§4.1 — commands', () => {
-  test('a bare colon opens the list', () => {
-    expect(classify(':')).toEqual({ kind: 'command', name: '', args: '' });
-  });
-
-  test('a named command', () => {
-    expect(classify(':modules')).toEqual({ kind: 'command', name: 'modules', args: '' });
-  });
-
-  test('a command with arguments', () => {
-    expect(classify(':p +esv')).toEqual({ kind: 'command', name: 'p', args: '+esv' });
-  });
-
-  test('a colon-prefixed number is a command, not verse 16', () => {
-    // Checked before the reference forms for exactly this reason.
-    expect(classify(':16').kind).toBe('command');
-  });
-});
-
-describe('§4.1 — movement', () => {
+describe('movement', () => {
   test('`<` and `>` step by the unit being read', () => {
     expect(classify('<')).toEqual({ kind: 'step-unit', delta: -1 });
     expect(classify('>')).toEqual({ kind: 'step-unit', delta: 1 });
@@ -176,7 +155,6 @@ describe('edge cases', () => {
     const ref = reference('john 3');
     expect(ref.chapter).toBe(3);
     expect(ref.verse).toBeUndefined();
-    expect(isRange(ref)).toBe(false);
   });
 
   test('a bare book name is a search, not a whole-book reference', () => {

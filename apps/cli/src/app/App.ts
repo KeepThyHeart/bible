@@ -24,24 +24,22 @@
  *     anything else (↑↓, ^O)      → the screen's, or a global shortcut
  * ```
  *
- * ### Why a mode, when the design started without one
+ * ### Why a mode
  *
- * The first version had one always-live line and no mode: what you typed was
- * parsed as a reference, and as a search if that failed. It is a good rule and it
- * survives untouched — see `input.ts`, which still does exactly that. What could
- * not survive was letters *also* being commands, because then `s` is either "open
- * the study pane" or the first letter of `still small voice`, and no amount of
- * cleverness makes it both.
+ * A single always-live line is parsed as a reference, and as a search if that
+ * fails (see `input.ts`). That rule works, but it cannot coexist with letters
+ * also being commands: `s` would be either "open the study pane" or the first
+ * letter of `still small voice`.
  *
- * Unbinding every letter was tried first and is the worse trade. Book names are
- * localised, so a reserved letter is a letter some language needs — but that cuts
- * the other way too: with the line opened deliberately, book names are typed
- * *after* `/`, so no letter is reserved from any language and every letter is free
- * to be a command. It also frees the digits, which matters more than it looks:
- * `1 Corinthians` and `2 Kings` begin with one.
+ * Unbinding every letter is the worse trade. Book names are localised, so a
+ * reserved letter is a letter some language needs. With the line opened
+ * deliberately, book names are typed *after* `/`, so no letter is reserved from
+ * any language and every letter is free to be a command. That also frees the
+ * digits, which matters more than it looks: `1 Corinthians` and `2 Kings` begin
+ * with one.
  *
- * The cost is one keystroke on the commonest action — `/john 3:16` rather than
- * `john 3:16` — and a mode the user has to be able to see, which is why the
+ * The cost is one keystroke on the commonest action (`/john 3:16` rather than
+ * `john 3:16`) and a mode the user has to be able to see, which is why the
  * prompt renders differently in each state rather than always showing a caret.
  *
  * ### The invariant every screen relies on
@@ -51,21 +49,17 @@
  * test `ctx.input` before binding a letter or a digit.
  *
  * `/` is the one character no screen may bind, because it never reaches one.
- * (The 2026 redesign, task 0001-bible-cli, dropped the old `:` command line
- * along with the screen it only ever existed to open — see `screens/Main.ts`'s
- * docblock for the build order. `key.name === 'f1'` and the command-palette
- * `ctrl+t`/`alt+1`-`9` tab switch went with it for the same reason: tabs and
- * a command palette are both on that redesign's "remove" list. `^O`, the
- * module library, is the one global shortcut question 11 asked to keep.)
+ * `^O`, the module library, is the only global shortcut; it is offered after the
+ * top screen has declined a key.
  *
  * ## The screen stack
  *
  * Screens form a stack with `MainScreen` at the bottom. Only the top one
  * receives keys and submissions. `esc` on an empty line is offered to it
  * like any other key, and **if it does not claim it the shell pops the
- * stack** — `MainScreen` is the only screen the 2026 redesign ever pushes
- * something onto (`screens/Modules.ts`, via `^O`), so in practice this is
- * "esc closes the module library".
+ * stack**. `MainScreen` is the only screen that pushes anything
+ * (`screens/Modules.ts`, via `^O`), so in practice this is "esc closes the
+ * module library".
  *
  * `view()` is called on every screen in the stack, bottom first, because a
  * screen may omit its body to keep the one underneath.
@@ -75,8 +69,6 @@ import { classifyInput, type Intent } from './input';
 import { bodyMetrics, renderFrame, type FrameMessage, type FrameTab } from './frame';
 import type { Library } from './library';
 import {
-  cursorVerseNumber,
-  DEFAULT_TAB,
   type SessionState,
   type StateStore,
   type TabState,
@@ -110,21 +102,16 @@ const SCROLL_BUDGET_MS = 110;
  */
 const MIN_ANIMATED_ROWS = 2;
 
-/** Where the largest window this terminal has managed is remembered. */
-const LARGEST_SIZE_KEY = 'display.largestSize';
-
-/** Where `m`'s last-opened commentary is remembered (phase 4, task thread message 05). */
+/** Where `m`'s last-opened commentary is remembered. */
 const LAST_COMMENTARY_KEY = 'lastCommentary';
 
 /**
  * How one display setting is stored, and read back.
  *
- * There used to be one `const` per setting and two hand-written lines in
- * `loadDisplay`/`apply` for each. That is a code path per setting, and with six
- * of them the ones nobody had updated were invisible — a setting could be
- * changed, redrawn correctly, and silently not survive a restart. A row in a
- * table cannot be half-added: {@link loadDisplay} and {@link saveDisplay} walk
- * the same list, so a new setting either persists both ways or neither.
+ * A row in a table cannot be half-added: {@link loadDisplay} and
+ * {@link saveDisplay} walk the same list, so a new setting either persists both
+ * ways or neither, rather than being changed, redrawn correctly, and silently
+ * not surviving a restart.
  *
  * `parse` returns nothing for a value it does not recognise, so a hand-edited or
  * downgraded `state.db` falls back to the default for that one setting instead of
@@ -138,7 +125,7 @@ interface DisplaySetting {
 
 type DisplayPatch = Partial<{ -readonly [K in keyof DisplaySettings]: DisplaySettings[K] }>;
 
-/** Boolean settings are stored as `1`/`0` — the shape the first two shipped in. */
+/** Boolean settings are stored as `1`/`0` (a flag is either on or off). */
 function flag(key: string, field: 'redLetter' | 'showSupplied' | 'breakOnVerse'): DisplaySetting {
   return {
     key,
@@ -209,7 +196,7 @@ export class App {
   /**
    * The theme in force, which the colour setting can replace.
    *
-   * Not `readonly`, because `:read`'s Colour row changes it. The one the app was
+   * Not `readonly`, because the Colour option changes it. The one the app was
    * constructed with is kept beside it as {@link detectedTheme}, so `auto` means
    * "back to whatever the terminal reported" rather than "re-detect, and in a
    * test detect nothing".
@@ -224,16 +211,16 @@ export class App {
 
   private session: SessionState;
   private display: DisplaySettings;
-  /** The bookmark list (`b`, phase 4) — loaded once, changed only via the `bookmarks` action. */
+  /** The bookmark list (`b`) — loaded once, changed only via the `bookmarks` action. */
   private bookmarks: readonly Bookmark[];
   /** `m`'s last-opened commentary, across the whole session — see `LAST_COMMENTARY_KEY`. */
   private lastCommentary: string | undefined;
   private line = '';
   private caret = 0;
   /**
-   * Whether the input line has been opened, by `/` or by `:`.
+   * Whether the input line has been opened, by `/`.
    *
-   * The app's only mode, and the reason every letter can be a command again. It
+   * The app's only mode, and the reason every letter can be a command. It
    * is held here rather than inferred from `line !== ''`, because an *open and
    * empty* line is a real state and a distinct one: it is what `/` alone leaves
    * behind, and while it lasts a keystroke is text rather than a command.
@@ -241,16 +228,6 @@ export class App {
   private lineOpen = false;
   private message: FrameMessage | undefined;
   private size: TerminalSize = { columns: 80, rows: 24 };
-  /**
-   * The largest window this terminal has ever had, restored from `state.db`.
-   *
-   * Grown on each axis independently, because that is the question being asked:
-   * "has this terminal ever been wide enough, and has it ever been tall enough".
-   * A window that was once wide and short and later narrow and tall really has
-   * managed both numbers, and telling the user so is what makes the fit notice
-   * actionable rather than a shrug.
-   */
-  private largestSize: TerminalSize;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
   /**
    * A stepped scroll part-way through being drawn.
@@ -264,7 +241,6 @@ export class App {
   private running = false;
   private resolveExit: (() => void) | undefined;
   private pending: Promise<void> = Promise.resolve();
-  private busy = false;
   /**
    * Rows the top screen last pinned above the input line.
    *
@@ -290,7 +266,6 @@ export class App {
     this.bookmarks = this.store.loadBookmarks();
     this.lastCommentary = this.store.getValue(LAST_COMMENTARY_KEY);
     this.theme = this.themeFor(this.display.colour);
-    this.largestSize = this.loadLargestSize();
     this.message =
       options.startupMessage === undefined
         ? undefined
@@ -312,7 +287,6 @@ export class App {
     this.running = true;
 
     this.size = this.input.size();
-    this.growLargestSize();
     this.renderer.start();
     this.input.start();
     if (this.openAt !== undefined) this.submitText(this.openAt);
@@ -354,8 +328,8 @@ export class App {
     // `↵` submits whatever is open, including an open but empty line — that is
     // the `↵ read it` of every list screen, which answers the empty intent.
     //
-    // `alt+↵` is "open in a new tab" (§4.5) and is a screen's business in either
-    // state, which is why it is excluded here rather than tested by name alone.
+    // `alt+↵` is a screen's business in either state, which is why it is
+    // excluded here rather than tested by name alone.
     if (this.lineOpen && key.name === 'enter' && !key.alt) {
       this.submit();
       return;
@@ -389,9 +363,7 @@ export class App {
       }
 
       // Application-wide keys, offered only after the top screen has refused.
-      // `^O`, the module library, is the one the 2026 redesign kept —
-      // question 11's answer, over the architecture proposal's own
-      // suggestion to remove it (`screens/Main.ts`'s docblock).
+      // `^O`, the module library, is the only one.
       if (action.kind === 'none') {
         const global = modulesShortcut(key);
         if (global !== undefined) {
@@ -427,11 +399,6 @@ export class App {
         this.message = { text: describeError(error), tone: 'error' };
         this.render();
       });
-    // Waiting on a screen must never be the reason the process stays alive.
-    this.busy = true;
-    void this.pending.finally(() => {
-      this.busy = false;
-    });
   }
 
   /** Test hook: resolves once every in-flight screen answer has been applied. */
@@ -439,14 +406,8 @@ export class App {
     await this.pending;
   }
 
-  /** Whether an asynchronous answer is still being waited on. */
-  isBusy(): boolean {
-    return this.busy;
-  }
-
   private handleResize(size: TerminalSize): void {
     this.size = size;
-    this.growLargestSize();
     // The terminal reflows its own contents on a resize, so the previous frame
     // no longer describes what is on screen and a diff against it leaves debris.
     this.renderer.invalidate();
@@ -497,7 +458,7 @@ export class App {
         this.caret = this.line.length;
         return true;
       // `space` is a name of its own, not a `char` (keys.ts decodes it that way
-      // so a screen can bind it — the copy dialog toggles a control with it).
+      // so a screen can bind it — the study pane pages with it).
       // It still carries its character, and to the input line it is ordinary
       // text: gating on the name alone dropped every space, so `john 3` could
       // not be typed at all.
@@ -555,9 +516,6 @@ export class App {
       case 'tab':
         this.replaceTab(this.beginScroll(action.tab));
         break;
-      case 'session':
-        this.replaceSession(action.session);
-        break;
       case 'open':
         this.stack.push(action.screen);
         break;
@@ -580,7 +538,7 @@ export class App {
         this.saveDisplay(action.display);
         // Only on a change, and only then: rebuilding the theme invalidates
         // every style object the screens are holding, so the frame has to be
-        // drawn from scratch rather than diffed against one in the old palette.
+        // drawn from scratch rather than diffed against one in the previous palette.
         if (recolour) {
           this.theme = this.themeFor(action.display.colour);
           this.renderer.invalidate();
@@ -591,9 +549,9 @@ export class App {
         this.message = { text: action.text, tone: action.tone ?? 'info' };
         break;
       case 'bookmarks':
-        // Written straight through, like `growLargestSize`: bookmark edits are
-        // rare, deliberate keystrokes rather than something held down, so there
-        // is no per-frame cost a debounce would be protecting against.
+        // Written straight through: bookmark edits are rare, deliberate
+        // keystrokes rather than something held down, so there is no per-frame
+        // cost a debounce would be protecting against.
         this.bookmarks = action.bookmarks;
         if (this.store.isOpen()) this.store.saveBookmarks(this.bookmarks);
         break;
@@ -606,19 +564,6 @@ export class App {
         break;
     }
     this.render();
-  }
-
-  /**
-   * Replace the tab list, keeping the invariant the rest of the shell relies on:
-   * there is always at least one tab and `activeTab` always points at one.
-   * Enforced here rather than trusted from the screen, because every other
-   * method reads `tabs[activeTab]` and a bad index there is a blank frame.
-   */
-  private replaceSession(session: SessionState): void {
-    const tabs = session.tabs.length > 0 ? session.tabs : [DEFAULT_TAB];
-    const activeTab = Math.min(Math.max(session.activeTab, 0), tabs.length - 1);
-    this.session = { tabs, activeTab };
-    this.scheduleSave();
   }
 
   private replaceTab(tab: TabState): void {
@@ -757,7 +702,6 @@ export class App {
       session: this.session,
       tab: this.activeTab(),
       display: this.display,
-      largestSize: this.largestSize,
       input: this.line,
       bookmarks: this.bookmarks,
       lastCommentary: this.lastCommentary,
@@ -823,7 +767,7 @@ export class App {
     });
   }
 
-  /** Tabs are named by their passage — there is nothing to name yourself (§4.5). */
+  /** Tabs are named by their passage; there is no name to choose. */
   private tabStrip(): FrameTab[] {
     return this.session.tabs.map((tab, index) => ({
       label: `${this.library.bookName(tab.bookNumber)} ${tab.chapter}`,
@@ -858,28 +802,6 @@ export class App {
   private themeFor(colour: DisplaySettings['colour']): Theme {
     return colour === 'auto' ? this.detectedTheme : createTheme(colour);
   }
-
-  private loadLargestSize(): TerminalSize {
-    const raw = this.store.getValue(LARGEST_SIZE_KEY) ?? '';
-    const match = /^(\d+)x(\d+)$/.exec(raw.trim());
-    if (match === null) return this.size;
-    return { columns: Number(match[1]), rows: Number(match[2]) };
-  }
-
-  /**
-   * Record the window if it is the biggest yet, on either axis.
-   *
-   * Written straight through rather than debounced: it changes at most once per
-   * resize, and a crash between the resize and the next save is exactly the case
-   * where the number is worth having.
-   */
-  private growLargestSize(): void {
-    const columns = Math.max(this.largestSize.columns, this.size.columns);
-    const rows = Math.max(this.largestSize.rows, this.size.rows);
-    if (columns === this.largestSize.columns && rows === this.largestSize.rows) return;
-    this.largestSize = { columns, rows };
-    if (this.store.isOpen()) this.store.setValue(LARGEST_SIZE_KEY, `${columns}x${rows}`);
-  }
 }
 
 /** A stepped scroll in flight. Mutable: the walk advances through it. */
@@ -906,7 +828,6 @@ function isPureScroll(current: TabState, next: TabState): boolean {
     current.chapter === next.chapter &&
     current.translation === next.translation &&
     current.displayMode === next.displayMode &&
-    current.preset === next.preset &&
     current.selectionAnchor === next.selectionAnchor &&
     current.scrollOffset !== next.scrollOffset
   );
@@ -929,12 +850,6 @@ function isTypable(key: Key): boolean {
   if (char === undefined || char === '') return false;
   if (key.ctrl || key.alt) return false;
   return char.codePointAt(0)! >= 0x20 && char !== '\x7f';
-}
-
-/** The verse the cursor is on, for callers that only have a session. */
-export function activeCursorVerse(session: SessionState): number {
-  const tab = session.tabs[session.activeTab] ?? session.tabs[0];
-  return tab === undefined ? 1 : cursorVerseNumber(tab);
 }
 
 /**

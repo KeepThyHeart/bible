@@ -1,13 +1,11 @@
 /**
  * Full-text search — the data behind `/` when the typed text is not a
- * reference (task 0001-bible-cli, "Wireframes › Search results").
+ * reference.
  *
- * Extracted from the old `screens/SearchResults.ts` screen, which the 2026
- * redesign (`screens/Main.ts`) replaces with a `StudyView` the same way it
- * replaced cross-references, commentaries and topics: the search itself is
- * pure and asynchronous, and `Main.ts` turns its {@link SearchOutcome} into
- * rows and owns the keys, on the same "no rendering, no keys" split as
- * `app/studyPanes.ts` and `app/history.ts`.
+ * The search itself is pure and asynchronous, and `screens/Main.ts` (a
+ * `StudyView`) turns its {@link SearchOutcome} into rows and owns the keys, on
+ * the same "no rendering, no keys" split as `app/studyPanes.ts` and
+ * `app/history.ts`.
  *
  * ## An empty result and an unanswerable one are different answers
  *
@@ -84,8 +82,7 @@ const parser = new SearchQueryParser();
  *
  * Only the tab's own Bible is searched — searching the whole library would
  * put results from translations the user is not reading above the ones they
- * are, and there is nowhere in the new design to name more than one module
- * at once.
+ * are, and there is nowhere to name more than one module at once.
  *
  * `autoFuzzy` is turned off. Core supplements an exact query with approximate
  * matches whenever it finds between one and nine results, and those arrive

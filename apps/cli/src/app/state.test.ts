@@ -8,11 +8,9 @@
  * the app still starts.
  */
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-import { BunSql } from '../data/BunSql';
 
 import { addBookmark, type Bookmark } from './bookmarks';
 import {
@@ -36,9 +34,6 @@ const tab = (overrides: Partial<TabState> = {}): TabState => ({
   scrollOffset: 0,
   translation: 'KJV',
   displayMode: 'paragraph',
-  preset: undefined,
-  study: undefined,
-  copyFormat: undefined,
   ...overrides,
 });
 
@@ -66,8 +61,6 @@ describe('surviving quit and relaunch', () => {
           scrollOffset: 12,
           translation: 'ASV',
           displayMode: 'numbered',
-          study: { tab: 2, kind: 'commentary', module: 'mhc', offset: 340 },
-          copyFormat: 'combined',
         }),
       ],
       activeTab: 1,
@@ -139,46 +132,7 @@ describe('surviving quit and relaunch', () => {
   });
 });
 
-describe('controller snapshots', () => {
-  test('round-trip through the JSON blob', () => {
-    const home = freshHome();
-    const snapshot = {
-      version: 1,
-      timestamp: '2026-09-05T00:00:00.000Z',
-      controllers: { search: { lastQuery: 'faith AND works' } },
-    };
-
-    const first = StateStore.open(home).store;
-    first.saveSnapshot(snapshot);
-    first.close();
-
-    const second = StateStore.open(home).store;
-    expect(second.loadSnapshot()).toEqual(snapshot);
-    second.close();
-  });
-
-  test('absent snapshot returns undefined', () => {
-    const store = StateStore.ephemeral();
-    expect(store.loadSnapshot()).toBeUndefined();
-    store.close();
-  });
-
-  test('an unparseable snapshot returns undefined rather than throwing', () => {
-    const store = StateStore.ephemeral();
-    store.setValue('controllers', '{ this is not json');
-    expect(store.loadSnapshot()).toBeUndefined();
-    store.close();
-  });
-
-  test('valid JSON of the wrong shape is rejected', () => {
-    const store = StateStore.ephemeral();
-    store.setValue('controllers', '[1,2,3]');
-    expect(store.loadSnapshot()).toBeUndefined();
-    store.close();
-  });
-});
-
-describe('bookmarks (thread question 13)', () => {
+describe('bookmarks', () => {
   test('starts empty', () => {
     const store = StateStore.open(freshHome()).store;
     expect(store.loadBookmarks()).toEqual([]);
@@ -274,44 +228,6 @@ describe('corruption recovery', () => {
     const { store } = StateStore.open(home);
     store.save({ tabs: [tab({ bookNumber: 40 })], activeTab: 0 });
     expect(store.load().tabs[0]?.bookNumber).toBe(40);
-    store.close();
-  });
-});
-
-describe('schema migration', () => {
-  test('a database written before the selection column still opens, and gains it', () => {
-    const dir = freshHome();
-    mkdirSync(dir, { recursive: true });
-    const path = join(dir, 'state.db');
-
-    // Exactly the v1 table: no `selection_anchor`. `CREATE TABLE IF NOT EXISTS`
-    // will not touch it, so without a migration every later read of that column
-    // fails and the store recovers by throwing the user's tabs away.
-    const seed = new BunSql(path, { create: true });
-    seed.execute('CREATE TABLE state_schema (version INTEGER NOT NULL)');
-    seed.execute('INSERT INTO state_schema (version) VALUES (1)');
-    seed.execute(`CREATE TABLE tab (
-      tab_id INTEGER PRIMARY KEY AUTOINCREMENT, sort_order INTEGER NOT NULL,
-      book_number INTEGER NOT NULL, chapter INTEGER NOT NULL, cursor_verse INTEGER NOT NULL,
-      scroll_offset INTEGER NOT NULL DEFAULT 0, translation TEXT NOT NULL,
-      display_mode TEXT NOT NULL DEFAULT 'paragraph', study_kind TEXT, study_module TEXT,
-      study_offset INTEGER, copy_format TEXT)`);
-    seed.execute('CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
-    seed.execute(
-      `INSERT INTO tab (sort_order, book_number, chapter, cursor_verse, translation)
-       VALUES (0, 43, 3, 43003016, 'KJV')`,
-    );
-    seed.close();
-
-    const { store, recoveredFrom } = StateStore.open(dir);
-    // Migrated, not recovered: the old tab is still there.
-    expect(recoveredFrom).toBeUndefined();
-    expect(store.load().tabs[0]!.cursorVerse).toBe(43003016);
-    expect(store.load().tabs[0]!.selectionAnchor).toBeUndefined();
-
-    // And the new column now works end to end.
-    store.save({ tabs: [tab({ selectionAnchor: 43003017 })], activeTab: 0 });
-    expect(store.load().tabs[0]!.selectionAnchor).toBe(43003017);
     store.close();
   });
 });

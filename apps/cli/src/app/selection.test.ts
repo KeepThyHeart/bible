@@ -2,10 +2,9 @@
  * Selection and ranges.
  *
  * Driven against the real KJV wherever the answer depends on the module's own
- * data: John 3's paragraph breaks are at 14, 16, 18, 22, 23 and 25, and
- * `:sel para` is only correct if it agrees with those rather than with a
- * fixture's idea of a paragraph. The pure range arithmetic is tested without a
- * module, because there is nothing in it a module could contradict.
+ * data: the summary's word count and the highlighting of real laid-out rows.
+ * The pure range arithmetic is tested without a module, because there is
+ * nothing in it a module could contradict.
  *
  * The tests worth reading are the shrink cases. Extending a selection is easy
  * and every implementation gets it right; coming back the other way is where a
@@ -25,22 +24,15 @@ import { discoverModules } from '../data/modules';
 import { createTheme, stripAnsi, renderStyledLine } from '../term/style';
 import { layoutReading } from '../term/reading';
 import {
-  applySelCommand,
   beginSelection,
   clearSelection,
   countWords,
   hasSelection,
   highlightSelection,
   moveSelection,
-  parseSelArgument,
   selectedRange,
-  selectedVerseNumbers,
   selectionForReference,
-  selectionStatus,
   selectionSummary,
-  selectParagraph,
-  setSelection,
-  type SelArgument,
   type SelectionBounds,
 } from './selection';
 
@@ -52,7 +44,7 @@ const theme = createTheme('ansi256');
 const JOHN = 43;
 const PSALMS = 19;
 
-/** John 3 — 36 verses. The chapter every wireframe in this lane is drawn on. */
+/** John 3 — 36 verses. The chapter the tests are drawn on. */
 const JOHN3: SelectionBounds = { bookNumber: JOHN, chapter: 3, verseCount: 36 };
 
 function tabAt(verse: number, anchor?: number): TabState {
@@ -115,11 +107,6 @@ describe('resolving an anchor and a cursor', () => {
       selectionAnchor: VerseIdHelper.calculate(PSALMS, 3, 5),
     };
     expect(selectedRange(stale)).toEqual({ start: 5, end: 5 });
-  });
-
-  test('selectedVerseNumbers walks the range in reading order', () => {
-    expect(selectedVerseNumbers(tabAt(17, 16))).toEqual([16, 17]);
-    expect(selectedVerseNumbers(tabAt(16))).toEqual([16]);
   });
 });
 
@@ -196,113 +183,6 @@ describe('v, and esc', () => {
   });
 });
 
-describe('setSelection', () => {
-  test('the cursor lands at the end of the range, ready to grow it', () => {
-    const tab = setSelection(tabAt(1), 16, 17, JOHN3);
-    expect(VerseIdHelper.parse(tab.cursorVerse).verse).toBe(17);
-    expect(selectedRange(tab)).toEqual({ start: 16, end: 17 });
-  });
-
-  test('a backwards range is ordered, not refused', () => {
-    expect(selectedRange(setSelection(tabAt(1), 17, 16, JOHN3))).toEqual({ start: 16, end: 17 });
-  });
-
-  test('past the end of the chapter clamps', () => {
-    expect(selectedRange(setSelection(tabAt(1), 30, 99, JOHN3))).toEqual({ start: 30, end: 36 });
-  });
-
-  test('a one-verse range leaves no anchor to shrink against', () => {
-    expect(setSelection(tabAt(1), 16, 16, JOHN3).selectionAnchor).toBeUndefined();
-  });
-});
-
-describe('the :sel command', () => {
-  test.each<[string, SelArgument]>([
-    ['16-17', { kind: 'range', start: 16, end: 17 }],
-    [' 16 - 17 ', { kind: 'range', start: 16, end: 17 }],
-    ['16', { kind: 'range', start: 16, end: 16 }],
-    ['para', { kind: 'paragraph' }],
-    ['PARAGRAPH', { kind: 'paragraph' }],
-  ])('%s parses', (args, expected) => {
-    expect(parseSelArgument(args)).toEqual(expected);
-  });
-
-  test.each(['', 'john 3:16', 'p', '16-', 'all'])(
-    '%p is refused rather than guessed at',
-    (args) => {
-      expect(parseSelArgument(args)).toBeUndefined();
-    },
-  );
-
-  test('an unparseable argument comes back undefined so the caller can say so', () => {
-    expect(applySelCommand(tabAt(16), 'everything', [], JOHN3)).toBeUndefined();
-  });
-});
-
-describe.skipIf(!hasKjv)(':sel para against the KJV’s own paragraph data', () => {
-  // John 3 breaks at 14, 16, 18, 22, 23 and 25 — verified against the module,
-  // not assumed. A fixture here would only prove the code agrees with itself.
-  const verses = (): DisplayVerse[] => chapterVerses(JOHN, 3);
-
-  test('the module really does break where this test assumes', () => {
-    const breaks = verses()
-      .filter((v) => v.paragraphStart)
-      .map((v) => v.verse);
-    expect(breaks).toContain(14);
-    expect(breaks).toContain(16);
-    expect(breaks).toContain(18);
-  });
-
-  test('from inside a paragraph it takes the whole paragraph', () => {
-    const tab = selectParagraph(tabAt(16), verses(), JOHN3);
-    expect(selectedRange(tab)).toEqual({ start: 16, end: 17 });
-  });
-
-  test('from the second verse of a paragraph it still starts at the break', () => {
-    const tab = selectParagraph(tabAt(17), verses(), JOHN3);
-    expect(selectedRange(tab)).toEqual({ start: 16, end: 17 });
-  });
-
-  test('before the first break it runs from the top of the chapter', () => {
-    const tab = selectParagraph(tabAt(5), verses(), JOHN3);
-    expect(selectedRange(tab)).toEqual({ start: 1, end: 13 });
-  });
-
-  test('after the last break it runs to the end of the chapter', () => {
-    const tab = selectParagraph(tabAt(30), verses(), JOHN3);
-    const range = selectedRange(tab);
-    expect(range.end).toBe(36);
-    expect(range.start).toBeLessThanOrEqual(30);
-  });
-
-  test('a heading starts a paragraph, because that is what the reader draws', () => {
-    // Psalm 3 carries a superscription, and `layoutReading` flushes the
-    // paragraph when it meets one. A selection that ignored headings would run
-    // across a break plainly visible on screen.
-    const psalm = chapterVerses(PSALMS, 3);
-    const heading = psalm.find((v) => v.heading !== undefined && v.heading !== '');
-    expect(heading).toBeDefined();
-
-    const bounds: SelectionBounds = {
-      bookNumber: PSALMS,
-      chapter: 3,
-      verseCount: psalm[psalm.length - 1]!.verse,
-    };
-    const cursor: TabState = {
-      ...DEFAULT_TAB,
-      bookNumber: PSALMS,
-      chapter: 3,
-      cursorVerse: VerseIdHelper.calculate(PSALMS, 3, heading!.verse),
-    };
-    expect(selectedRange(selectParagraph(cursor, psalm, bounds)).start).toBe(heading!.verse);
-  });
-
-  test('a chapter with no breaks is one paragraph rather than nothing', () => {
-    const flat: DisplayVerse[] = verses().map((v) => ({ ...v, paragraphStart: false, heading: undefined }));
-    expect(selectedRange(selectParagraph(tabAt(20), flat, JOHN3))).toEqual({ start: 1, end: 36 });
-  });
-});
-
 describe('a range typed on the input line', () => {
   test('16-17 arrives selected', () => {
     const intent = classifyInput('16-17', { book: JOHN, chapter: 3 });
@@ -347,7 +227,7 @@ describe('a range typed on the input line', () => {
 });
 
 describe.skipIf(!hasKjv)('the summary above the input line', () => {
-  test('reproduces the wireframe’s line exactly, counts and all', () => {
+  test('reproduces the summary line exactly, counts and all', () => {
     const texts = chapterVerses(JOHN, 3)
       .filter((v) => v.verse === 16 || v.verse === 17)
       .map((v) => v.plainText);
@@ -359,7 +239,7 @@ describe.skipIf(!hasKjv)('the summary above the input line', () => {
       width: 84,
     });
     const first = stripAnsi(renderStyledLine(rows[0]!, theme.depth));
-    // The wireframe says "2 verses, 47 words" — and the KJV really does have 47.
+    // The summary says "2 verses, 47 words" — and the KJV really does have 47.
     expect(first).toBe('John 3:16-17 selected — 2 verses, 47 words.   y copies · esc clears');
   });
 
@@ -376,16 +256,6 @@ describe.skipIf(!hasKjv)('the summary above the input line', () => {
 
   test('countWords counts as the span data does', () => {
     expect(countWords(['one two  three', ' four '])).toBe(4);
-  });
-});
-
-describe('the status line', () => {
-  test('names the range while one is live', () => {
-    expect(selectionStatus(tabAt(17, 16))).toBe('16-17 selected');
-  });
-
-  test('says nothing for a bare cursor, which v16/36 already covers', () => {
-    expect(selectionStatus(tabAt(16))).toBe('');
   });
 });
 

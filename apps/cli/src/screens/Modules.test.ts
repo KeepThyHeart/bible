@@ -97,7 +97,6 @@ function context(
     library: Library.open({ modules }),
     session: { tabs: [DEFAULT_TAB], activeTab: 0 },
     tab: DEFAULT_TAB,
-    largestSize: size,
     display: DEFAULT_DISPLAY,
     input,
     bookmarks: [],

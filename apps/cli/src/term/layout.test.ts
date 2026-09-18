@@ -90,7 +90,7 @@ describe('stringWidth', () => {
     expect(stringWidth(precomposed)).toBe(stringWidth(decomposed));
   });
 
-  test('Greek interlinear text from the wireframes measures as drawn', () => {
+  test('polytonic Greek measures as drawn', () => {
     expect(stringWidth('οὕτως')).toBe(5);
     expect(stringWidth('ἠγάπησεν')).toBe(8);
   });
@@ -104,8 +104,8 @@ describe('padTo', () => {
   });
 
   test('throws rather than returning an over-wide row', () => {
-    // The wireframe generator caught a silently-2-columns-too-wide row this
-    // way; the same assertion belongs at runtime.
+    // A row that is silently too wide would break the frame arithmetic, so
+    // the assertion belongs at runtime.
     expect(() => padTo('too long', 3)).toThrow(/exceeding 3/);
   });
 
@@ -266,8 +266,8 @@ describe('styled line measurement', () => {
 
 describe('the separator space', () => {
   test('a word never touches the one before it at the wrap column', () => {
-    // Regression: the separator used to be emitted *after* a token, so a token
-    // that fit without its leading space stayed on the line glued to the
+    // Regression: if the separator is emitted *after* a token, a token
+    // that fits without its leading space stayed on the line glued to the
     // previous word. In the reader that rendered "Plead my" as "Pleadmy" —
     // a wrong word, at exactly the wrap column, in ordinary prose.
     const text = 'Plead my cause and deliver me quicken me according to thy word';

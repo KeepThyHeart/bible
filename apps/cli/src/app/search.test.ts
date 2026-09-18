@@ -1,17 +1,10 @@
 /**
- * Full-text search — extracted from `screens/SearchResults.test.ts` when that
- * screen was removed (task 0001-bible-cli, "delete the old screens").
+ * Full-text search: `runSearch` and the distribution graph.
  *
- * Driven against the real bundled KJV, for the same reason the original
- * screen's tests were: what is being verified is that a real FTS5 index, a
- * real read-only module and core's real `BibleSearchService` produce the
- * results the wireframe describes. A fixture would only prove this file
- * agrees with itself.
- *
- * The Screen-specific groups from the old file (rendering, keys, opening a
- * result in a tab, `F2` syntax) do not carry over — `screens/Main.ts` renders
- * and keys this itself now — but the pure claims about `runSearch` and the
- * distribution graph do.
+ * Driven against the real bundled KJV: what is being verified is that a real
+ * FTS5 index, a real read-only module and core's real `BibleSearchService`
+ * produce the expected results. A fixture would only prove this file agrees
+ * with itself. Rendering and keys belong to `screens/Main.ts`.
  */
 import { describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
@@ -50,13 +43,13 @@ function target(overrides: Partial<RunSearchTarget> = {}): RunSearchTarget {
 }
 
 describe.skipIf(!hasKjv)('running a search', () => {
-  test('finds what the wireframe says it finds, in the tab’s own translation', async () => {
+  test('finds the expected verses, in the tab’s own translation', async () => {
     const outcome = await runSearch('everlasting life', target());
     expect(outcome.module).toBe('KJV');
     expect(outcome.error).toBeUndefined();
     expect(outcome.unanswerable).toBeUndefined();
     expect(outcome.hits.map((hit) => hit.reference)).toContain('John 3:16');
-    // Daniel 12:2 is the wireframe's first result and the only Old Testament
+    // Daniel 12:2 is the first result and the only Old Testament
     // one; it is what makes the distribution graph worth drawing.
     expect(outcome.hits[0]?.reference).toBe('Daniel 12:2');
   });
@@ -119,7 +112,7 @@ describe.skipIf(!hasKjv)('running a search', () => {
 describe.skipIf(!hasKjv)('empty and unanswerable are different answers', () => {
   test('a word-proximity query on a read-only module says it cannot be answered', async () => {
     // A read-only module's proximity index can never be built, so this must
-    // say "cannot be answered" rather than "no matches" (Tasks.md §10).
+    // say "cannot be answered" rather than "no matches".
     const outcome = await runSearch('faith works ~10', target());
     expect(outcome.hits).toHaveLength(0);
     expect(outcome.unanswerable).toBeDefined();
@@ -140,12 +133,12 @@ describe.skipIf(!hasKjv)('empty and unanswerable are different answers', () => {
   });
 });
 
-describe.skipIf(!hasKjv)('the syntax the reminder line claims', () => {
+describe.skipIf(!hasKjv)('query syntax', () => {
   /**
-   * These pin the two examples the old screen printed under every result
-   * set, and `Main.ts`'s search view still relies on the same claim: if core
-   * ever makes bare `AND` work, this test fails and the hint text should be
-   * changed back.
+   * These pin two claims about core's query syntax: an operator needs
+   * brackets, and a quoted phrase is exact. If core ever makes bare `AND`
+   * work, the first test fails and any user-facing syntax hint should be
+   * revisited.
    */
   test('brackets are what make AND an operator', async () => {
     const bracketed = await runSearch('(faith AND works)', target());

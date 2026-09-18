@@ -107,8 +107,8 @@ describe('extraction decisions', () => {
 
     const result = await ensureBundledKjv({ host, discovered: [discovered(sha)] });
 
-    // The desktop's copy has the interlinear this build dropped; shadowing it
-    // with a lesser copy would be a downgrade.
+    // The desktop's copy is the full KJV; shadowing it with the trimmed
+    // embedded copy would be a downgrade.
     expect(result.action).toBe('already-discoverable');
     expect(host.written.size).toBe(0);
   });
@@ -155,7 +155,7 @@ describe('the trimmed KJV', () => {
     sql.close();
   });
 
-  test.skipIf(!hasAsset)('has no interlinear — the 39 MB that was removed', () => {
+  test.skipIf(!hasAsset)('does not ship the large word-level table', () => {
     const sql = new BunSql(ASSET, { readonly: true });
     const table = sql.queryOne<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'interlinear_word'",
