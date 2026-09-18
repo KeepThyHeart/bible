@@ -1,5 +1,5 @@
 /**
- * The `.bibleignore` matcher used by `bible-ext package`.
+ * The `.extensionignore` matcher used by `bible-ext package`.
  *
  * Deliberately a small subset of gitignore rather than a reimplementation of
  * it: `#` comments, blank lines, a trailing `/` for "this directory and
@@ -12,12 +12,12 @@
  * Patterns match the entry's path relative to the extension root, POSIX-style.
  */
 
-/** Excluded whether or not a `.bibleignore` exists. */
+/** Excluded whether or not a `.extensionignore` exists. */
 export const DEFAULT_IGNORES: readonly string[] = [
   'node_modules/',
   '.git/',
   '.gitignore',
-  '.bibleignore',
+  '.extensionignore',
   '.DS_Store',
   '**/*.zip',
   '**/*.tgz',

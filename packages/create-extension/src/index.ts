@@ -856,7 +856,7 @@ ui/panel.js.map
  * but pointless — the host loads dist/main.js and nothing else — and it puts
  * an author's whole tree inside an artifact they may be publishing.
  */
-function bibleignoreTemplate(): string {
+function extensionignoreTemplate(): string {
   return `# Patterns for \`bible-ext package\`. One per line; # for comments.
 # A trailing / means "this directory and everything under it".
 
@@ -961,7 +961,7 @@ function main(): void {
     ['vitest.config.ts', vitestConfigTemplate()],
     ['README.md', readmeTemplate(id, name)],
     ['.gitignore', gitignoreTemplate()],
-    ['.bibleignore', bibleignoreTemplate()],
+    ['.extensionignore', extensionignoreTemplate()],
     ['src/main.ts', entryPointTemplate(name)],
     ['src/verseUtils.ts', verseUtilsTemplate()],
     ['src/panel.ts', panelTemplate(name)],
