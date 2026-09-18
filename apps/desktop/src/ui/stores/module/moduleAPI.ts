@@ -21,8 +21,8 @@ export const moduleAPI = {
   async searchModules(filter: any) {
     return unwrap(requireElectronAPI().moduleManager.searchModules(filter));
   },
-  async installModule(moduleId: string) {
-    return unwrap(requireElectronAPI().moduleManager.installModule(moduleId));
+  async installModule(moduleId: string, catalogId?: number) {
+    return unwrap(requireElectronAPI().moduleManager.installModule(moduleId, catalogId));
   },
   async installFromFile() {
     return unwrap(requireElectronAPI().moduleManager.installFromFile());
@@ -30,8 +30,15 @@ export const moduleAPI = {
   async installFromPath(filePath: string, allowOverwrite?: boolean) {
     return unwrap(requireElectronAPI().moduleManager.installFromPath(filePath, allowOverwrite));
   },
-  async installPackFromPath(archivePath: string, allowOverwrite?: boolean) {
-    return unwrap(requireElectronAPI().moduleManager.installPackFromPath(archivePath, allowOverwrite));
+  async installPackFromPath(
+    archivePath: string,
+    allowOverwrite?: boolean,
+    options?: { acceptUnverified?: boolean }
+  ) {
+    return unwrap(requireElectronAPI().moduleManager.installPackFromPath(archivePath, allowOverwrite, options));
+  },
+  async inspectPack(archivePath: string) {
+    return unwrap(requireElectronAPI().moduleManager.inspectPack(archivePath));
   },
   async uninstallModule(moduleId: number, removeUserData?: boolean) {
     return unwrap(requireElectronAPI().moduleManager.uninstallModule(moduleId, removeUserData));

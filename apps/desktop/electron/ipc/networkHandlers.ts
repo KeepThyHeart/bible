@@ -16,7 +16,7 @@
  * and `openExternalUrl`.
  */
 
-import { dialog, type IpcMain } from 'electron';
+import { BrowserWindow, dialog, type IpcMain } from 'electron';
 import log from 'electron-log';
 import { ipcHandler } from './handler-helper';
 import { NetworkConfig } from '../services/NetworkConfig';
@@ -75,10 +75,22 @@ async function confirmEnable(): Promise<boolean> {
       'will see your IP address.\n\n' +
       'Turning this off stops the app from starting those requests. It is not a ' +
       'firewall, and it cannot control what the rest of your system does.\n\n' +
-      'You can turn this back off at any time in Preferences.',
+      'You can turn this back off at any time in Preferences → Privacy.',
     noLink: true,
   });
   return response === 1;
+}
+
+/**
+ * Tell every open window the master switch changed, so the renderer's
+ * `useNetworkStore` (menu checkbox, Preferences toggle, first run, the Module
+ * Manager banner) stays in sync across windows with no polling. Fired only
+ * after a real change - see call sites below.
+ */
+function broadcastNetworkChanged(allow: boolean): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('network:changed', allow);
+  }
 }
 
 export function registerNetworkHandlers(_ipcMain: IpcMain): void {
@@ -92,8 +104,10 @@ export function registerNetworkHandlers(_ipcMain: IpcMain): void {
     'network:set-allow-web-requests',
     async (allow) => {
       if (!allow) {
+        const wasAllowed = cfg.get().allowNetwork;
         const next = cfg.set({ allowNetwork: false });
         log.info('[network] allowNetwork set to false');
+        if (wasAllowed) broadcastNetworkChanged(false);
         return next.allowNetwork;
       }
 
@@ -107,6 +121,7 @@ export function registerNetworkHandlers(_ipcMain: IpcMain): void {
 
       const next = cfg.set({ allowNetwork: true });
       log.info('[network] allowNetwork set to true (user confirmed)');
+      broadcastNetworkChanged(true);
       return next.allowNetwork;
     }
   );
@@ -120,12 +135,17 @@ export function registerNetworkHandlers(_ipcMain: IpcMain): void {
 
   ipcHandler<[boolean], boolean>('network:set-offline-mode', async (offline) => {
     if (offline) {
+      const wasAllowed = cfg.get().allowNetwork;
       cfg.set({ allowNetwork: false });
+      if (wasAllowed) broadcastNetworkChanged(false);
       return true;
     }
     if (cfg.get().allowNetwork) return false;
     const confirmed = await confirmEnable();
-    if (confirmed) cfg.set({ allowNetwork: true });
+    if (confirmed) {
+      cfg.set({ allowNetwork: true });
+      broadcastNetworkChanged(true);
+    }
     return !confirmed;
   });
 }

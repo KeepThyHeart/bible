@@ -84,6 +84,13 @@ export interface ModuleCatalog {
   priority: number;
   lastUpdated?: string;
   lastFetched?: string;
+  /**
+   * Result of verifying this catalog's detached signature on the last
+   * successful fetch - `undefined` when it has never been fetched. Drives
+   * `RepositorySettings`' signature badge; see
+   * `packages/core`'s `CatalogSignatureStatus` for the full status meanings.
+   */
+  signatureStatus?: 'verified' | 'unsigned' | 'invalid' | 'untrusted_key' | 'error';
 }
 
 export interface ModuleFilter {

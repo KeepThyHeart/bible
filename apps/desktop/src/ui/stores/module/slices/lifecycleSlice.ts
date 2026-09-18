@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { moduleAPI } from '../moduleAPI';
+import type { IpcErrorCode } from '../../../services/ipcResult';
 import { ModuleState, ModuleViewMode } from '../types';
 
 export interface LifecycleSlice {
@@ -12,6 +13,16 @@ export interface LifecycleSlice {
 
   // Errors
   error: string | null;
+  /**
+   * Classification of `error`, when it came from an IPC `Result<T>` envelope
+   * (`IpcResultError#code`) - `null` for errors with no such classification.
+   * Lets the UI tell an expected condition like `network_blocked` apart from
+   * a genuine failure without parsing the message string. Only
+   * `repositorySlice`'s catalog-refresh actions set this today; every other
+   * action clears it alongside `error` so a stale code can never outlive the
+   * error it described.
+   */
+  errorCode: IpcErrorCode | null;
 
   // Actions
   initialize: () => Promise<void>;
@@ -24,6 +35,7 @@ export const createLifecycleSlice: StateCreator<ModuleState, [], [], LifecycleSl
   initError: null,
   viewMode: 'available',
   error: null,
+  errorCode: null,
 
   // Initialize module manager
   initialize: async () => {
@@ -52,6 +64,6 @@ export const createLifecycleSlice: StateCreator<ModuleState, [], [], LifecycleSl
 
   // Clear error
   clearError: () => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
   },
 });

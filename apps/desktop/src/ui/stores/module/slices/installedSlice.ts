@@ -7,7 +7,13 @@ export interface InstalledSlice {
   loadingInstalled: boolean;
 
   loadInstalledModules: () => Promise<void>;
-  installModule: (moduleId: string) => Promise<boolean>;
+  /**
+   * `catalogId`, when given, restricts resolution to that one catalog (see
+   * `IModuleCatalogService.getModuleInfo`) - a starter pack's own
+   * `source.catalogId`, so a third-party catalog can never satisfy an
+   * install meant for the verified official one.
+   */
+  installModule: (moduleId: string, catalogId?: number) => Promise<boolean>;
   uninstallModule: (moduleId: number, removeUserData?: boolean) => Promise<boolean>;
   updateModule: (moduleId: number) => Promise<boolean>;
   checkForUpdates: (moduleId: number) => Promise<any>;
@@ -36,10 +42,10 @@ export const createInstalledSlice: StateCreator<ModuleState, [], [], InstalledSl
   },
 
   // Install module
-  installModule: async (moduleId: string) => {
+  installModule: async (moduleId: string, catalogId?: number) => {
     set({ error: null });
     try {
-      await moduleAPI.installModule(moduleId);
+      await moduleAPI.installModule(moduleId, catalogId);
       // Reload installed modules
       await get().loadInstalledModules();
       // Start polling downloads

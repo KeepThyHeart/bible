@@ -1,16 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useModuleStore, ModuleType } from '../stores/useModuleStore';
+import { useNetworkStore } from '../stores/useNetworkStore';
 import { moduleAPI } from '../stores/module/moduleAPI';
 import ModuleList from './ModuleList';
 import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
+import ConfirmDialog from './shared/ConfirmDialog';
 import { activateFocusTrap } from '../utils/focusTrap';
 import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import type { ModulePackInstallSummary } from '../../../electron/services/ModulePackService';
 
-/** Extension check mirroring `isModulePackPath` (electron/services/ModulePackService.ts) for the drop handler. */
+/**
+ * Extension check mirroring `isModulePackPath` (electron/services/ModulePackService.ts)
+ * for the drop handler. Both extensions get the same trust gate below -
+ * `.zip` is not a lesser-checked shortcut, since deciding trust from a
+ * filename extension (something the file itself controls) would let a
+ * hostile archive simply rename its way past verification.
+ */
 function isPackFileName(name: string): boolean {
   const lower = name.toLowerCase();
   return lower.endsWith('.zip') || lower.endsWith('.biblepack');
@@ -204,6 +212,47 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   // `SemanticPackService`'s polling design, which is out of scope here.
   const [isInstalling, setIsInstalling] = useState(false);
   const dragCounterRef = useRef(0);
+  // A `.biblepack` that is unsigned or signed by an untrusted key needs the
+  // user's explicit "install anyway" before `installPackFromPath` is called
+  // with `acceptUnverified: true` - main re-verifies regardless (see
+  // `moduleHandlers.ts`), this is only ever a UI gate. Resolved by whichever
+  // button on `ConfirmDialog` the user clicks.
+  const [packConfirm, setPackConfirm] = useState<{
+    fileName: string;
+    message: string;
+    resolve: (accept: boolean) => void;
+  } | null>(null);
+
+  const confirmUnverifiedPack = useCallback(
+    (fileName: string, message: string): Promise<boolean> =>
+      new Promise((resolve) => setPackConfirm({ fileName, message, resolve })),
+    []
+  );
+
+  /**
+   * Install a dropped pack archive - `.zip` exactly like `.biblepack`, see
+   * `isPackFileName`'s doc comment - inspecting its signature first
+   * (`module:inspect-pack`) and asking the user before installing one that
+   * isn't verified. Returns the install summary, `{ errorMessage }` for an
+   * invalid/tampered pack (no install attempted), or `null` if the user
+   * declined - the caller treats that like a cancelled dialog, not a failure.
+   */
+  const installPackWithTrustCheck = useCallback(
+    async (archivePath: string, fileName: string): Promise<ModulePackInstallSummary | { errorMessage: string } | null> => {
+      const inspection = await moduleAPI.inspectPack(archivePath);
+      if (inspection.status === 'invalid') {
+        return { errorMessage: t('moduleManagerDialog.packInvalidBody') };
+      }
+      let acceptUnverified = false;
+      if (inspection.status === 'unsigned' || inspection.status === 'untrusted') {
+        const accepted = await confirmUnverifiedPack(fileName, inspection.message);
+        if (!accepted) return null;
+        acceptUnverified = true;
+      }
+      return await moduleAPI.installPackFromPath(archivePath, true, { acceptUnverified });
+    },
+    [confirmUnverifiedPack, t]
+  );
 
   const {
     isInitialized,
@@ -212,6 +261,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     loadingAvailable,
     loadingInstalled,
     error,
+    errorCode,
     activeDownloads,
     repositories,
     activeFilter,
@@ -226,6 +276,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     stopDownloadPolling,
     loadInstalledModules
   } = useModuleStore();
+  const { allowWebRequests, requestAllow } = useNetworkStore();
 
   // Initialize on mount
   useEffect(() => {
@@ -319,6 +370,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   // Handle refresh catalog
   const handleRefreshCatalog = async () => {
     await refreshAllCatalogs();
+  };
+
+  // Offline banner's "Turn on" - same confirmation-gated path as the menu
+  // checkbox and the Preferences toggle (see `useNetworkStore`). A refresh is
+  // only worth attempting once the switch is confirmed on; a cancelled
+  // dialog leaves the banner exactly as it was.
+  const handleTurnOnNetwork = async () => {
+    const allowed = await requestAllow(true);
+    if (allowed) await refreshAllCatalogs();
   };
 
   // Handle file upload - the dialog supports selecting multiple plain module
@@ -428,9 +488,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
       for (const file of packFiles) {
         try {
           const archivePath = await window.electron.webUtils.getPathForFile(file);
-          const summary = await moduleAPI.installPackFromPath(archivePath, true);
-          combinedPackSummary = combinedPackSummary ? mergePackSummaries(combinedPackSummary, summary) : summary;
-          if (summary.failed.length > 0) hasError = true;
+          const result = await installPackWithTrustCheck(archivePath, file.name);
+          if (result === null) continue; // user declined an unverified pack - not an error
+          if ('errorMessage' in result) {
+            results.push(`Error: ${file.name} - ${result.errorMessage}`);
+            hasError = true;
+            continue;
+          }
+          combinedPackSummary = combinedPackSummary ? mergePackSummaries(combinedPackSummary, result) : result;
+          if (result.failed.length > 0) hasError = true;
         } catch (error) {
           results.push(`Error: ${file.name} - ${(error as Error).message}`);
           hasError = true;
@@ -536,6 +602,22 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           <ModulePackSummaryPanel summary={packSummary} onClose={() => setPackSummary(null)} />
         )}
 
+        {/* "Install anyway?" for an unsigned/untrusted .biblepack */}
+        <ConfirmDialog
+          open={packConfirm !== null}
+          title={t('moduleManagerDialog.packUnverifiedTitle')}
+          message={packConfirm ? `${packConfirm.message} ${t('moduleManagerDialog.packUnverifiedHint')}` : ''}
+          confirmLabel={t('moduleManagerDialog.installAnyway')}
+          onConfirm={() => {
+            packConfirm?.resolve(true);
+            setPackConfirm(null);
+          }}
+          onCancel={() => {
+            packConfirm?.resolve(false);
+            setPackConfirm(null);
+          }}
+        />
+
         {/* Drop result notification */}
         {dropResult && (
           <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
@@ -578,8 +660,9 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           </div>
         </div>
 
-        {/* Error Banner */}
-        {error && (
+        {/* Error Banner - `network_blocked` gets the offline banner below
+            instead, so the two never stack for the same underlying cause. */}
+        {error && errorCode !== 'network_blocked' && (
           <div className="px-6 py-3 bg-danger-soft border-b border-danger-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg
@@ -732,6 +815,39 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
             )}
           </div>
         </div>
+        )}
+
+        {/* Offline banner - persistent (not dismissible like the error banner
+            above), because it describes a mode, not a one-off failure. Shown
+            whenever the Available tab has no way to reach a catalog, so a
+            `NetworkBlockedError` from Refresh never has to fall back to
+            ModuleList's generic "no modules found, adjust your filter". */}
+        {viewMode === 'available' && !allowWebRequests && (
+          <div
+            className="px-6 py-3 bg-warning-soft border-b border-warning-border flex items-center justify-between gap-4"
+            data-testid="module-manager-offline-banner"
+          >
+            <span className="text-sm text-warning-text">{t('moduleManagerDialog.offlineBanner')}</span>
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => void handleTurnOnNetwork()}
+                data-testid="module-manager-offline-turn-on"
+                className="px-3 py-1.5 text-sm font-medium text-text-on-accent bg-accent rounded hover:bg-accent-hover transition-colors"
+              >
+                {t('moduleManagerDialog.turnOnNetwork')}
+              </button>
+              <button
+                type="button"
+                onClick={handleUploadModule}
+                disabled={isInstalling}
+                data-testid="module-manager-offline-install-file"
+                className="px-3 py-1.5 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('moduleManagerDialog.installFromFile')}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Main Content */}

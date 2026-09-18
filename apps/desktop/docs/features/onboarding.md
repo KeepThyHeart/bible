@@ -14,12 +14,15 @@ There is exactly one exception, documented as layer 0 below: the first-run langu
 
 **Why this one is modal** when the welcome bar deliberately is not: the welcome bar's argument - "a new user's first interaction should be with the app, not a wizard" - does not transfer to language. It is one click, asked once per install, and everything else is unreadable until it is settled.
 
-**Two steps.**
+**Three steps, two of which can be skipped.**
 
 1. **Language.** The four `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`, from `@bible/core`) are listed first - those are the languages we intend to have study *content* for. Every other loaded locale stays reachable behind a "More languages" disclosure; hiding a working translation to keep the list short would be a regression. Draft catalogs are badged so we never imply a review that did not happen.
-2. **Suggested content.** Starter packs for the chosen language, fetched via `module:get-starter-packs`. This step is frequently **empty** - Hindi has no Bible translation confirmed public domain, and an offline install has no catalog at all - so it renders an honest "nothing yet, here is where to look later" rather than an empty list or a spinner that never resolves.
+2. **Network.** Skipped unless the shared `useNetworkStore` has definitely finished loading AND definitely reports the master "Allow web requests" switch off (`electron/services/NetworkConfig.ts` - off by default on a fresh install). An unresolved read skips the step rather than stalling on it. **Go online** goes through `requestAllow(true)` - the same native confirmation dialog as the Privacy menu item and Preferences → Privacy - then refreshes the catalog before moving on; a cancelled dialog leaves the step exactly as it was. **Stay offline** moves on without asking again.
+3. **Suggested content.** Starter packs for the chosen language, fetched via `module:get-starter-packs` as `OfferedStarterPack[]` (`@bible/core`'s `StarterPackTypes.ts`) - **only from the official catalog, verified against the pinned key** (see `docs/features/module-management.md`'s "Starter packs" section). Every offered pack shows a "Verified: signed by Keep Thy Heart" badge. This step is frequently **empty** - Hindi has no Bible translation confirmed public domain, an offline install has no catalog at all, and the official catalog not (yet) verifying counts too - so it renders an honest "nothing yet" state: offline, a **Go online** / **Install from a file…** pair; online, a shortcut to the Module Manager.
 
-Installing is deliberately **not** a one-click button here. A starter pack is hundreds of megabytes of separately-licensed content and each module's licence is presented by the Module Manager before its download; short-circuiting that for a first-run convenience would put content on disk whose terms the user was never shown.
+Installing a suggested pack **is** wired to a one-click Install button per pack, unlike earlier versions of this dialog - but every module's name, licence and size is listed, unconditionally, before that button can be clicked, at least as much disclosure as the Module Manager's own card (whose licence sits behind a collapsed "Show details"). A partial failure lists which modules did not install and points at the Module Manager rather than leaving the dialog stuck.
+
+Every `getStarterPackModules` / `installModule` call this step makes carries the pack's own `source.catalogId`, so a module id is only ever resolved against the catalog the pack itself came from - never any other enabled catalog. See `ModuleCatalogService.getStarterPackModules`'s doc comment for why cross-catalog resolution would let a third-party catalog "shadow" an official module id.
 
 **Two implementation points worth knowing:**
 
@@ -152,6 +155,7 @@ The tour is the one place that computes physical offsets in JS, because it ancho
 | `src/ui/components/onboarding/index.ts` | Barrel export |
 | `src/ui/components/onboarding/LanguageFirstRun.tsx` | Layer 0 - the first-run language + starter-pack dialog |
 | `src/ui/services/localeCatalogsReady.ts` | `whenLocaleCatalogsReady()`, awaited before the language dialog paints |
+| `src/ui/stores/useNetworkStore.ts` | Renderer-wide mirror of the master "Allow web requests" switch, shared with the Privacy menu, Preferences → Privacy and the Module Manager's offline banner |
 | `src/ui/components/HelpPanel.tsx` | The `?` menu: documentation, tour, shortcuts, plus the configured docs site and issue-report rows |
 | `src/ui/components/HeaderActions.tsx` | Header buttons for Module Manager, Preferences and `?`; owns the Help panel's open state |
 | `src/ui/config/appConfig.ts` | `getDocsUrl()` / `getAboutText()` / `getIssueReportUrl()` / `getProductName()` for the panel |

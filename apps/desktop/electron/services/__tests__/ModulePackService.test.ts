@@ -29,16 +29,21 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { createHash, sign } from 'crypto';
 
 import {
   extractModulePack,
   installModulePack,
+  inspectModulePack,
   cleanupModulePack,
   isModulePackPath,
   ModulePackError,
   DEFAULT_MODULE_PACK_LIMITS,
   type ModulePackLimits,
+  type ModulePackTrustOptions,
 } from '../ModulePackService';
+import { PACK_MANIFEST_FORMAT, packManifestDigest, type PackManifest, type PackManifestModuleEntry } from '../ModulePackSignature';
+import { makeKey, type TestKey } from './catalogSigningTestHelpers';
 
 // --- Minimal STORE-method ZIP writer (test-only) ---------------------------
 
@@ -431,6 +436,271 @@ describe('installModulePack', () => {
 
     await expect(installModulePack(zipPath, extractionRoot, installOne, limits)).rejects.toBeInstanceOf(ModulePackError);
 
+    const leftover = fs.existsSync(extractionRoot) ? fs.readdirSync(extractionRoot) : [];
+    expect(leftover).toHaveLength(0);
+  });
+});
+
+/**
+ * Pack trust gate: `pack.json` + `pack.json.sig` verification, and the
+ * manifest/archive cross-check once a pack verifies. There is no
+ * `isBiblePackPath` any more (see `ModulePackService.ts`'s module doc
+ * comment) - the gate is driven entirely by `ModulePackTrustOptions`, which
+ * every real caller passes for any pack archive regardless of extension.
+ * These fixtures use `writeZip`'s fixed `.zip` filename throughout (there is
+ * nothing `.biblepack`-specific to test at this layer any more), which is
+ * itself evidence the gate no longer cares what the file is named.
+ *
+ * Uses real Ed25519 keys (`catalogSigningTestHelpers`) - the same helper the
+ * catalog-signature tests use - and the real `buildZip` writer above, so
+ * these exercise the exact code path a genuine pack archive would.
+ */
+describe('trust gate (pack archives, regardless of extension)', () => {
+  function sha256Hex(data: Buffer): string {
+    return createHash('sha256').update(data).digest('hex');
+  }
+
+  function manifestFor(modules: Array<{ name: string; data: Buffer }>): PackManifest {
+    return {
+      format: PACK_MANIFEST_FORMAT,
+      pack_id: 'test-pack',
+      name: 'Test pack',
+      version: '1.0.0',
+      languages: ['en'],
+      modules: modules.map(
+        ({ name, data }): PackManifestModuleEntry => ({
+          path: name,
+          sha256: sha256Hex(data),
+          size_bytes: data.length,
+        })
+      ),
+    };
+  }
+
+  function signManifest(bytes: Buffer, key: TestKey): Buffer {
+    const digest = packManifestDigest(bytes);
+    return Buffer.from(
+      JSON.stringify({
+        publicKey: key.publicKeyHex,
+        signature: sign(null, digest, key.privateKey).toString('hex'),
+        algorithm: 'ed25519-sha256',
+      })
+    );
+  }
+
+  /** Build a `.biblepack`-shaped zip: the given modules, plus pack.json (and, if `key` is given, pack.json.sig). */
+  function writePackArchive(
+    modules: Array<{ name: string; data: Buffer }>,
+    options: { key?: TestKey; manifestOverride?: PackManifest } = {}
+  ): string {
+    const manifest = options.manifestOverride ?? manifestFor(modules);
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const entries = [
+      ...modules.map((m) => ({ name: m.name, data: m.data })),
+      { name: 'pack.json', data: manifestBytes },
+    ];
+    if (options.key) {
+      entries.push({ name: 'pack.json.sig', data: signManifest(manifestBytes, options.key) });
+    }
+    return writeZip(entries);
+  }
+
+  it('installs, reporting `verified`, when every file matches a manifest signed by a trusted key', async () => {
+    const key = makeKey();
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const packPath = writePackArchive(modules, { key });
+    const trust: ModulePackTrustOptions = { trustedKeys: [key.publicKeyHex] };
+
+    const result = await extractModulePack(packPath, extractionRoot, DEFAULT_MODULE_PACK_LIMITS, trust);
+    writtenTempDirs.push(result.tempDir);
+
+    expect(result.packVerification?.status).toBe('verified');
+    expect(result.moduleFiles.map((f) => f.entryPath)).toEqual(['kjv.db']);
+  });
+
+  it('refuses (pack_tampered) when a verified pack has a modified file, and installs nothing', async () => {
+    const key = makeKey();
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const manifest = manifestFor(modules);
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const packPath = writeZip([
+      { name: 'kjv.db', data: dbContent('TAMPERED') }, // does not match the manifest's hash/size
+      { name: 'pack.json', data: manifestBytes },
+      { name: 'pack.json.sig', data: signManifest(manifestBytes, key) },
+    ]);
+    const trust: ModulePackTrustOptions = { trustedKeys: [key.publicKeyHex] };
+    const installOne = async (): Promise<{ moduleName?: string }> => ({ moduleName: 'should-not-install' });
+
+    let caught: unknown;
+    try {
+      await installModulePack(packPath, extractionRoot, installOne, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_tampered');
+    const leftover = fs.existsSync(extractionRoot) ? fs.readdirSync(extractionRoot) : [];
+    expect(leftover).toHaveLength(0);
+  });
+
+  it('refuses (pack_tampered) an extra .db entry the verified manifest does not list', async () => {
+    const key = makeKey();
+    const listed = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const manifest = manifestFor(listed);
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const packPath = writeZip([
+      { name: 'kjv.db', data: dbContent('kjv') },
+      { name: 'sneaky.db', data: dbContent('sneaky') }, // not in the manifest
+      { name: 'pack.json', data: manifestBytes },
+      { name: 'pack.json.sig', data: signManifest(manifestBytes, key) },
+    ]);
+    const trust: ModulePackTrustOptions = { trustedKeys: [key.publicKeyHex] };
+
+    let caught: unknown;
+    try {
+      await extractModulePack(packPath, extractionRoot, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_tampered');
+  });
+
+  it('refuses (pack_tampered) when the verified manifest lists a file that never shows up', async () => {
+    const key = makeKey();
+    const present = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const manifest = manifestFor([...present, { name: 'missing.db', data: dbContent('missing') }]);
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const packPath = writeZip([
+      { name: 'kjv.db', data: dbContent('kjv') }, // missing.db never included
+      { name: 'pack.json', data: manifestBytes },
+      { name: 'pack.json.sig', data: signManifest(manifestBytes, key) },
+    ]);
+    const trust: ModulePackTrustOptions = { trustedKeys: [key.publicKeyHex] };
+
+    let caught: unknown;
+    try {
+      await extractModulePack(packPath, extractionRoot, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_tampered');
+  });
+
+  it('refuses (pack_unverified) an unsigned pack when acceptUnverified is not set, installing nothing', async () => {
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const packPath = writePackArchive(modules); // no key -> no pack.json.sig
+    const trust: ModulePackTrustOptions = { trustedKeys: [makeKey().publicKeyHex] };
+    const installOne = async (): Promise<{ moduleName?: string }> => ({ moduleName: 'should-not-install' });
+
+    let caught: unknown;
+    try {
+      await installModulePack(packPath, extractionRoot, installOne, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_unverified');
+  });
+
+  it('installs an unsigned pack when acceptUnverified is true', async () => {
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const packPath = writePackArchive(modules);
+    const trust: ModulePackTrustOptions = { trustedKeys: [makeKey().publicKeyHex], acceptUnverified: true };
+    const installOne = async (filePath: string): Promise<{ moduleName?: string }> => ({
+      moduleName: path.basename(filePath, '.db'),
+    });
+
+    const summary = await installModulePack(packPath, extractionRoot, installOne, DEFAULT_MODULE_PACK_LIMITS, trust);
+
+    expect(summary.installed.map((i) => i.moduleName)).toEqual(['kjv']);
+    expect(summary.packVerification?.status).toBe('unsigned');
+  });
+
+  it('refuses (pack_unverified) a pack signed only by an untrusted key, unless accepted', async () => {
+    const untrustedKey = makeKey();
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const packPath = writePackArchive(modules, { key: untrustedKey });
+    const trust: ModulePackTrustOptions = { trustedKeys: [makeKey().publicKeyHex] };
+
+    let caught: unknown;
+    try {
+      await extractModulePack(packPath, extractionRoot, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_unverified');
+  });
+
+  it('refuses (pack_signature_invalid) a pack.json.sig that does not verify, with no override', async () => {
+    const key = makeKey();
+    const modules = [{ name: 'kjv.db', data: dbContent('kjv') }];
+    const manifest = manifestFor(modules);
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const sigDoc = JSON.parse(signManifest(manifestBytes, key).toString('utf-8'));
+    sigDoc.signature = 'f'.repeat(128); // corrupt
+    const packPath = writeZip([
+      { name: 'kjv.db', data: dbContent('kjv') },
+      { name: 'pack.json', data: manifestBytes },
+      { name: 'pack.json.sig', data: Buffer.from(JSON.stringify(sigDoc)) },
+    ]);
+    // Even with acceptUnverified: true, an invalid signature has no override.
+    const trust: ModulePackTrustOptions = { trustedKeys: [key.publicKeyHex], acceptUnverified: true };
+
+    let caught: unknown;
+    try {
+      await extractModulePack(packPath, extractionRoot, DEFAULT_MODULE_PACK_LIMITS, trust);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModulePackError);
+    expect((caught as ModulePackError).code).toBe('pack_signature_invalid');
+  });
+
+  it('is unaffected on a plain .zip with no trust options passed (unchanged behaviour)', async () => {
+    const zipPath = writeZip([{ name: 'kjv.db', data: dbContent('kjv') }]);
+    const result = await extractModulePack(zipPath, extractionRoot); // no `trust` argument at all
+    writtenTempDirs.push(result.tempDir);
+    expect(result.packVerification).toBeUndefined();
+    expect(result.moduleFiles).toHaveLength(1);
+  });
+});
+
+describe('inspectModulePack', () => {
+  it('reports a manifest summary without installing or extracting anything', async () => {
+    const key = makeKey();
+    const modules = [
+      { name: 'kjv.db', data: Buffer.from('a'.repeat(100)) },
+      { name: 'mhc.db', data: Buffer.from('b'.repeat(50)) },
+    ];
+    const manifest: PackManifest = {
+      format: PACK_MANIFEST_FORMAT,
+      pack_id: 'test-pack',
+      name: 'Test pack',
+      version: '1.0.0',
+      languages: ['en'],
+      modules: modules.map((m) => ({ path: m.name, sha256: createHash('sha256').update(m.data).digest('hex'), size_bytes: m.data.length })),
+    };
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const digest = packManifestDigest(manifestBytes);
+    const sigDoc = Buffer.from(
+      JSON.stringify({ publicKey: key.publicKeyHex, signature: sign(null, digest, key.privateKey).toString('hex'), algorithm: 'ed25519-sha256' })
+    );
+    const packPath = writeZip([
+      ...modules,
+      { name: 'pack.json', data: manifestBytes },
+      { name: 'pack.json.sig', data: sigDoc },
+    ]);
+
+    const result = await inspectModulePack(packPath, [key.publicKeyHex]);
+
+    expect(result.status).toBe('verified');
+    expect(result.moduleCount).toBe(2);
+    expect(result.totalBytes).toBe(150);
+
+    // Nothing was extracted anywhere - inspect never writes module files.
     const leftover = fs.existsSync(extractionRoot) ? fs.readdirSync(extractionRoot) : [];
     expect(leftover).toHaveLength(0);
   });
