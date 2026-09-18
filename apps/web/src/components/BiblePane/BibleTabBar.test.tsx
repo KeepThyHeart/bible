@@ -98,6 +98,7 @@ vi.mock('../../stores/bibleStore', () => ({
     get activeTabId() { return mockActiveTabId; },
     get showHome() { return mockShowHome; },
     getActiveTab: () => mockGetActiveTab(),
+    getActiveModule: () => mockGetActiveTab()?.moduleAbbr ?? 'KJV',
     setActiveTab: (id: string) => mockSetActiveTab(id),
     setShowHome: (v: boolean) => mockSetShowHome(v),
     removeTab: (id: string) => mockRemoveTab(id),

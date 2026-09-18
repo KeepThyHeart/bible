@@ -6,7 +6,7 @@
  * asserting here is which verse (or passage) reaches the store - and that
  * merely opening the menu saves nothing.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -55,9 +55,9 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
 }
 
 describe('BookmarkMenu', () => {
-  let addBookmark: ReturnType<typeof vi.fn>;
-  let removeVerseFromAllCollections: ReturnType<typeof vi.fn>;
-  let loadBookmarks: ReturnType<typeof vi.fn>;
+  let addBookmark: Mock;
+  let removeVerseFromAllCollections: Mock;
+  let loadBookmarks: Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();

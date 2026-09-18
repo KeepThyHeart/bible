@@ -1,6 +1,6 @@
 # Desktop Package Documentation
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-09
 
 This folder contains feature-oriented documentation for the `@bible/desktop` package. Each feature doc lists the relevant files and provides brief explanations to help you quickly get oriented when working on a particular feature.
 
@@ -41,6 +41,7 @@ This folder contains feature-oriented documentation for the `@bible/desktop` pac
 | [Onboarding](features/onboarding.md) | First-run language question, welcome bar, the header's Help panel, re-runnable guided tour, and the pane empty-state coaching |
 | [Localization (i18n)](features/localization.md) | String catalogs, ICU formatting, locale metadata and draft status, the language picker, and right-to-left (RTL) support |
 | [Source-side i18n rules](features/i18n-source-fixes.md) | How to write English source strings and call sites that translate cleanly, and the known limitations |
+| [Status Bar](features/status-bar.md) | The bottom strip, filled entirely by extension-contributed items; absent entirely when there are none |
 | [Extensions](features/extensions.md) | Sandboxed extension host, the `api.*` RPC surface, trust tiers and signing, and the catalog/blocklist marketplace |
 
 ## Translating

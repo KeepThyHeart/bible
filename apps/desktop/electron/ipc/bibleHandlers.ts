@@ -5,6 +5,7 @@ import { getSharedModuleMetadataRepo, getSharedBookRepo } from '../services/shar
 import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateBookNumber, validateChapter, validateVerseId, validateString } from '../utils/validation';
+import { pickDefaultBible } from './defaultBible';
 
 const bibleLoader = new ModuleLoader('bible', (db) => new BibleRepository(db), (repo) => {
   repo.ensureSearchTablesExist();
@@ -178,11 +179,17 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
   );
 
   // Handler: Get initial Bible data in one call (for faster startup)
-  // Returns available Bibles, default chapter verses, and book name
-  ipcHandler<[string | undefined, number | undefined, number | undefined], any>(
+  // Returns available Bibles, default chapter verses, and book name.
+  //
+  // The renderer usually cannot name a Bible yet - this call is what tells it
+  // which ones are installed - so it may send none, and the choice is made here
+  // with the same rule the renderer uses once it knows.
+  ipcHandler<[string | null | undefined, number | undefined, number | undefined], any>(
     'bible:getInitialData',
-    (defaultAbbreviation = 'KJV', defaultBook = 43, defaultChapter = 3) => {
-      validateAbbreviation(defaultAbbreviation);
+    (requestedAbbreviation, defaultBook = 43, defaultChapter = 3) => {
+      if (requestedAbbreviation != null) {
+        validateAbbreviation(requestedAbbreviation);
+      }
       validateBookNumber(defaultBook);
       validateChapter(defaultChapter);
 
@@ -201,10 +208,10 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
         }));
       }
 
-      // Find the default Bible (or first available)
-      const targetAbbr = availableBibles.find(b => b.abbreviation === defaultAbbreviation)
-        ? defaultAbbreviation
-        : availableBibles[0]?.abbreviation;
+      // The requested Bible if installed, else the app's default rule. Chosen
+      // from the metadata list, so a Bible that is not installed is never
+      // opened just to find out it is missing.
+      const targetAbbr = pickDefaultBible(availableBibles, requestedAbbreviation);
 
       let defaultVerses: any[] = [];
       let bookName = 'John';

@@ -201,6 +201,7 @@ describe('Minimal fixture acceptance', () => {
       getRange: () => [],
       listModules: () => [],
       listBooks: () => [],
+      listChapters: () => [],
       parseReference: () => null,
       subscribeActiveVerse: () => () => {},
       iterateVerses: () => ({ verses: [], hasMore: false }),
@@ -217,6 +218,10 @@ describe('Minimal fixture acceptance', () => {
       bibleBridge: stubBibleBridge,
     });
     await host.loadAll();
+    // Sideloading auto-grants only DEFAULT_GRANTED_PERMISSIONS; the fixture's
+    // `storage.set` needs `storage`, which the user would grant from the
+    // Extensions UI (or the install consent dialog).
+    await host.updatePermissions('ext.test.minimal', ['bible:read', 'storage'] as never);
 
     await host.activate('ext.test.minimal');
 

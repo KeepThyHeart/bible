@@ -1,14 +1,16 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
-// Capture the current git commit SHA at build time so the diagnostics
-// uploader can tag reports with the exact source revision they came from.
+// Capture the current git commit SHA at build time so the About dialog and
+// the diagnostics uploader can name the exact source revision a binary came
+// from. A version string cannot do that job: every build of `0.1.0` carries
+// the same one.
 // Falls back to an empty string if git isn't available (e.g. a source zip
-// build) - the uploader treats an empty buildId as "unknown".
+// build) - consumers treat an empty buildId as "unknown" and omit it.
 function resolveBuildId(): string {
   const fromEnv = process.env.BIBLE_BUILD_ID;
   if (fromEnv && fromEnv.trim()) return fromEnv.trim();
@@ -32,15 +34,23 @@ const BUILD_ID = resolveBuildId();
 // no source edits. `electron/config/appConfig.ts` reads these defines and
 // applies the runtime fallbacks; see `README.md#build-configuration`.
 //
-// Precedence: environment variable -> `branding.json` (for the values that have
-// one) -> a literal default here or in `appConfig.ts`.
+// Precedence: environment variable -> `admin/brand/branding.json`, overlaid by
+// `branding.local.json` (for the values that have one) -> a literal default here
+// or in `appConfig.ts`.
 function envOrEmpty(name: string): string {
   const value = process.env[name];
   return value && value.trim() ? value.trim() : '';
 }
 
+const BRAND_DIR = resolve(__dirname, '..', '..', 'admin', 'brand');
+
 /**
- * Read a settled value out of the repo-root `branding.json`.
+ * Read a settled value out of `admin/brand/branding.json`, overlaid by
+ * `admin/brand/branding.local.json` when that exists.
+ *
+ * The overlay is how a fork rebrands without editing a tracked file; it is read
+ * exactly as `brandingPlugin()` in `apps/web/vite.config.ts` reads it, so the
+ * two apps cannot disagree about the brand.
  *
  * `branding.json` is the single source of truth for public-facing names and
  * URLs (see `scripts/check-branding.js`). Using it as the DEFAULT for a build
@@ -59,16 +69,16 @@ function envOrEmpty(name: string): string {
  * Manager look broken.
  */
 function brandingValue(key: string): string {
-  try {
-    const branding = JSON.parse(
-      readFileSync(resolve(__dirname, '..', '..', 'branding.json'), 'utf8'),
-    ) as Record<string, unknown> & { _undecided?: string[] };
-    if (branding._undecided?.includes(key)) return '';
-    const value = branding[key];
-    return typeof value === 'string' && value.trim() ? value.trim() : '';
-  } catch {
-    return '';
-  }
+  const read = (name: string): Record<string, unknown> => {
+    const path = resolve(BRAND_DIR, name);
+    return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : {};
+  };
+  const branding = { ...read('branding.json'), ...read('branding.local.json') } as Record<string, unknown> & {
+    _undecided?: string[];
+  };
+  if (branding._undecided?.includes(key)) return '';
+  const value = branding[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
 function resolveAppVersion(): string {
@@ -106,6 +116,11 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_MODULE_CATALOG_URL__: JSON.stringify(MODULE_CATALOG_URL),
   __BIBLE_COPYRIGHT_YEAR__: JSON.stringify(COPYRIGHT_YEAR),
   __BIBLE_APP_VERSION__: JSON.stringify(APP_VERSION),
+  // In APP_CONFIG_DEFINES rather than the `main` block alone: `appConfig.ts`
+  // resolves it into `AppConfig.buildId`, and that module is compiled into all
+  // three bundles. Defining it for main only would leave the preload handing
+  // the renderer a config whose buildId is silently ''.
+  __BIBLE_BUILD_ID__: JSON.stringify(BUILD_ID),
   __BIBLE_DOCS_URL__: JSON.stringify(DOCS_URL),
   __BIBLE_DIAGNOSTICS_URL__: JSON.stringify(DIAGNOSTICS_URL),
   __BIBLE_DIAGNOSTICS_TOKEN__: JSON.stringify(DIAGNOSTICS_TOKEN),
@@ -201,7 +216,11 @@ export default defineConfig({
     // tree, and `files:` filters cannot veto that. Since node_modules/@bible/core
     // is a workspace symlink, moving it back to `dependencies` breaks asar
     // packaging with "packages/core/LICENSE must be under apps/desktop/".
-    plugins: [externalizeDepsPlugin({ exclude: ['@bible/core'] }), quickjsGuestBundlePlugin()],
+    //
+    // `keytar` is in `optionalDependencies`, which `externalizeDeps` does not
+    // read, so it is named here: it is native, and must stay a runtime `require`
+    // that encryptionKeyManager can catch when the module is absent.
+    plugins: [quickjsGuestBundlePlugin()],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
@@ -215,10 +234,10 @@ export default defineConfig({
       }
     },
     define: {
-      __BIBLE_BUILD_ID__: JSON.stringify(BUILD_ID),
       ...APP_CONFIG_DEFINES,
     },
     build: {
+      externalizeDeps: { exclude: ['@bible/core'], include: ['keytar'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'electron/main.ts'),
@@ -239,13 +258,13 @@ export default defineConfig({
     // throws "module not found" under sandbox and aborts the whole preload
     // (blank window). Excluding it inlines electron-log/renderer; require("electron")
     // stays external (provided by the runtime).
-    plugins: [externalizeDepsPlugin({ exclude: ['electron-log'] })],
     // The preload hands the resolved app config across the context bridge, so
     // it needs the same defines the main bundle gets.
     define: {
       ...APP_CONFIG_DEFINES,
     },
     build: {
+      externalizeDeps: { exclude: ['electron-log'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'electron/preload.ts')

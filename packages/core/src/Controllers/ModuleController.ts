@@ -98,12 +98,12 @@ export class ModuleController {
       const fileName = `${moduleInfo.module_id}_v${moduleInfo.version}.db.gz`;
       const tempFilePath = `${this.tempDownloadPath}/${fileName}`;
 
-      // Start download
+      // Start download. The catalog's checksum covers the unpacked module, so
+      // the installation service checks it after unpacking, not the download.
       const downloadedPath = await this.downloadService.startDownload(
         queueEntry.queueId!,
         moduleInfo.download_url,
-        tempFilePath,
-        moduleInfo.checksum.replace('sha256:', '')
+        tempFilePath
       );
 
       // Mark download as completed in queue
@@ -125,7 +125,12 @@ export class ModuleController {
           license: moduleInfo.license,
           license_url: moduleInfo.license_url,
         }
-      });
+      }, moduleInfo.checksum
+        ? {
+            sha256: moduleInfo.checksum.replace('sha256:', ''),
+            maxBytes: moduleInfo.installed_size_bytes || undefined,
+          }
+        : undefined);
 
       return installResult;
     } catch (error) {

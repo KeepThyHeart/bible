@@ -57,7 +57,11 @@ export * from './Services/WordFamilyService';
 export * from './Services/VerseFormatter';
 export * from './Services/ModuleLoader';
 export * from './Services/BibleViewService';
-export { SearchTopicEntry, ITopicalRepoProvider, SemanticSearchResponse, SemanticSearchParams, SearchOrchestrationConfig, SearchOrchestrationService } from './Services/SearchOrchestrationService';
+// Types via `export type`: Vite's dev server transpiles one file at a time and
+// cannot tell an interface from a value, so a plain re-export of one becomes a
+// runtime import that does not exist - which stops the desktop renderer loading.
+export type { SearchTopicEntry, ITopicalRepoProvider, SemanticSearchResponse, SemanticSearchParams, SearchOrchestrationConfig } from './Services/SearchOrchestrationService';
+export { SearchOrchestrationService } from './Services/SearchOrchestrationService';
 export type { SemanticSearchResult as OrchestrationSearchResult } from './Services/SearchOrchestrationService';
 
 export * from './Services/SessionSerializationService';

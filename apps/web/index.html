@@ -87,8 +87,10 @@
         } else {
           var saved = JSON.parse(localStorage.getItem('bible-reader-session') || 'null');
           var tab = saved && saved.tabs && saved.tabs[saved.activeTabIndex || 0];
-          if (tab && tab.book && tab.chapter && !(tab.verses && tab.verses.length)) {
-            grab('/api/bible/' + (tab.moduleAbbr || 'KJV') + '/' + tab.book + '/' + tab.chapter);
+          // A tab without a translation gets one from ui.defaultModule, which
+          // is unknown here; skip it rather than guess, like a first visit.
+          if (tab && tab.moduleAbbr && tab.book && tab.chapter && !(tab.verses && tab.verses.length)) {
+            grab('/api/bible/' + tab.moduleAbbr + '/' + tab.book + '/' + tab.chapter);
           }
         }
       } catch (e) { /* private mode, or a session this build cannot parse */ }

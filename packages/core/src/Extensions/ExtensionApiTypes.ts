@@ -19,6 +19,7 @@ import type {
   BackgroundTaskDescriptor,
   BackgroundTaskInfo,
   BibleBookDto,
+  BibleChapterDto,
   BibleModuleInfoDto,
   BibleProviderDescriptor,
   BibleVerseDto,
@@ -60,15 +61,20 @@ import type {
   LocalizedString,
   NetworkFetchInit,
   NetworkFetchResponse,
+  NewCollectionOpts,
   NewHighlightDto,
   NewNoteDto,
+  NewPassageDto,
   NoteQueryDto,
   NotificationOpts,
   OAuthResult,
   OpenDatabaseOpts,
   OpenPanelOpts,
   PanelInfoDto,
+  PanelMessageSender,
   ParsedReferenceDto,
+  PassageCollectionDto,
+  PassageEntryDto,
   PickFileOpts,
   PickedFileDto,
   QuickPickItemDescriptor,
@@ -99,7 +105,7 @@ import type {
  * - **Major**: breaking change. Ships side-by-side with the previous major
  *   for at least 12 months.
  */
-export const EXTENSION_API_VERSION = '1.0.0' as const;
+export const EXTENSION_API_VERSION = '1.1.0' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker
@@ -119,6 +125,8 @@ export interface BibleExtensionAPI {
   notes: INotesApi;
   highlights: IHighlightsApi;
   bookmarks: IBookmarksApi;
+  /** Ordered lists of passages - reading plans, outlines, memorisation sets. */
+  collections: ICollectionsApi;
   commands: ICommandsApi;
   ui: IUiApi;
   workspace: IWorkspaceApi;
@@ -126,6 +134,13 @@ export interface BibleExtensionAPI {
   storage: IStorageApi;
   l10n: IL10nApi;
   events: IEventsApi;
+  /**
+   * Binds this extension's callbacks to the reverse-RPC endpoints the host
+   * calls back on. Worker-local: nothing here crosses to the host.
+   */
+  runtime: IRuntimeApi;
+  /** Messages from this extension's own panel iframes. */
+  panels: IPanelsApi;
   /** T2 - outbound HTTP, host-mediated. */
   network: INetworkApi;
   /** T2 - OAuth 2.0 / PKCE broker. */
@@ -156,6 +171,25 @@ export interface IBibleApi {
 
   /** List the books in a Bible module (with chapter counts). */
   listBooks(moduleId?: string): Promise<BibleBookDto[]>;
+
+  /**
+   * List every chapter of one book with its verse count and its inclusive
+   * verse-id bounds. Ordered by chapter; `length` is the book's chapter count.
+   *
+   * This is how a passage range is resolved. `collections.addPassage` requires a
+   * `verseIdEnd`, and nothing else on this surface can tell you where a chapter
+   * stops - `listBooks` gives chapter counts but not verse counts, and paging
+   * `iterateVerses` to the end of a chapter reads the entire chapter to learn a
+   * single number. One call per book rather than one per chapter, because the
+   * callers that need this ("add John to my reading plan", "outline Psalms")
+   * almost always want the whole book, and 150 small records is cheaper than
+   * 150 round trips.
+   *
+   * Resolves to an empty array for a book the host has no versification data
+   * for. A `bookNumber` outside the 66-book canon is a caller bug, not a
+   * missing book, and rejects.
+   */
+  listChapters(bookNumber: number, moduleId?: string): Promise<BibleChapterDto[]>;
 
   /**
    * Cursor-based iteration across verses. Required for extensions that need
@@ -317,6 +351,124 @@ export interface IBookmarksApi {
   createCollection(name: LocalizedString): Promise<CollectionDto>;
 }
 
+// --- ICollectionsApi *(ordered passage lists)* -----------------------------
+
+/**
+ * Ordered lists of scripture passages: reading plans, sermon outlines,
+ * memorisation sets, lectionaries.
+ *
+ * **Why this is not more methods on `IBookmarksApi`.** A bookmark is a flag on
+ * a verse - it exists or it does not, and asking where it sits in a sequence
+ * is a category error. A study list is a *sequence of ranges*, where position
+ * is the point: "day 3" means the third entry, and moving it changes what the
+ * user reads on Wednesday. Both live in the same `collection` /
+ * `pinned_item` tables, but that is a storage fact, not a modelling one.
+ * Widening `IBookmarksApi` would have produced an `add()` whose `verseId`
+ * meant a point sometimes and a range's start other times, and a `list()`
+ * returning items whose order was meaningful for some collections and
+ * arbitrary for others - and every consumer would have inherited the job of
+ * telling those apart. Two namespaces, two concepts.
+ *
+ * ```typescript
+ * const plan = await api.collections.create('Romans in 30 days');
+ * await api.collections.addPassage(plan.id, {
+ *   verseIdStart: 45008028, verseIdEnd: 45008030, label: 'Day 12',
+ * });
+ * // Put the new entry first instead of last:
+ * await api.collections.move(entry.id, 0);
+ * ```
+ *
+ * **Permissions.** Reads require `bookmarks:read`, writes `bookmarks:write` -
+ * the same grants `IBookmarksApi` uses, because these are the same rows. A
+ * separate `collections:*` permission would have let an extension the user
+ * refused bookmark access read and rewrite the identical table through the
+ * other door, which is a permission that exists only on paper.
+ *
+ * **Ordering.** Positions are dense, contiguous and zero-based: a collection
+ * of n entries occupies exactly 0..n-1, so an index read back from
+ * `listPassages` is an index `move` accepts. Inserting mid-list shifts every
+ * later entry down by one; removing shifts them up. The host renumbers the
+ * whole collection in a single transaction rather than leaving gaps, so two
+ * entries can never share a position and no entry can drift out of range.
+ */
+export interface ICollectionsApi {
+  /**
+   * Every collection the user has, ordered by the user's own arrangement then
+   * by name. Includes collections created through the app's own UI and
+   * through `bookmarks.createCollection` - there is one collection store, not
+   * an extension-private one.
+   */
+  list(): Promise<PassageCollectionDto[]>;
+
+  /** Create a collection. Nest it by passing `opts.parentId`. */
+  create(
+    name: LocalizedString,
+    opts?: NewCollectionOpts,
+  ): Promise<PassageCollectionDto>;
+
+  /**
+   * Rename a collection. Resolves with the updated collection so a caller
+   * that renders the result does not need a follow-up `list()`.
+   */
+  rename(
+    collectionId: string,
+    name: LocalizedString,
+  ): Promise<PassageCollectionDto>;
+
+  /**
+   * Delete a collection and everything in it - its passages and, because the
+   * store cascades, any collections nested beneath it. Deleting a collection
+   * that does not exist is an error, not a no-op: silently succeeding hides
+   * the far more common case of a stale id.
+   */
+  delete(collectionId: string): Promise<void>;
+
+  /**
+   * The collection's passages in order, resolved: each entry carries its
+   * inclusive verse range, its label, its pinned module, and a human-readable
+   * `reference` string the host derives from the range.
+   *
+   * Returns `[]` for an empty collection and rejects for an unknown one, so a
+   * caller can tell "nothing in it yet" from "wrong id".
+   */
+  listPassages(collectionId: string): Promise<PassageEntryDto[]>;
+
+  /**
+   * Add a passage. Appends by default; pass `passage.position` to insert at a
+   * specific index, shifting later entries down.
+   */
+  addPassage(
+    collectionId: string,
+    passage: NewPassageDto,
+  ): Promise<PassageEntryDto>;
+
+  /** Remove one passage. Later entries close the gap. */
+  removePassage(entryId: string): Promise<void>;
+
+  /**
+   * Move one passage to `position` within its own collection. Resolves with
+   * the collection's full new ordering, which is what a UI needs to repaint
+   * and saves it a round trip.
+   *
+   * A position past the end moves the entry last rather than rejecting -
+   * "put this at the bottom" is a legitimate request that a caller should not
+   * have to compute the exact index for.
+   */
+  move(entryId: string, position: number): Promise<PassageEntryDto[]>;
+
+  /**
+   * Replace a collection's ordering wholesale. `entryIds` must be a
+   * permutation of exactly the ids currently in the collection - a partial
+   * list would leave the omitted entries at positions this call did not
+   * choose, which is a silent reordering nobody asked for. Resolves with the
+   * new ordering.
+   */
+  reorder(
+    collectionId: string,
+    entryIds: string[],
+  ): Promise<PassageEntryDto[]>;
+}
+
 // --- ICommandsApi *(T1)* ---------------------------------------------------
 
 /**
@@ -364,11 +516,23 @@ export interface IUiApi {
   ): Promise<DisposableHandle>;
 
   /**
-   * Contribute a custom verse display mode. Appears in the Bible pane's
-   * Display Mode picker alongside Simple/Standard/Study. The host calls
-   * `renderEndpoint` for each visible verse, and the extension returns
-   * either decorations to overlay on the standard rendering, or an iframe
-   * URL to fully replace the verse's rendering.
+   * RESERVED - NOT IMPLEMENTED. Always rejects.
+   *
+   * Custom verse display modes were never built: nothing in the host renders a
+   * registered mode, and the Bible pane's Display Mode picker is a fixed
+   * Simple/Standard/Study set. This declaration shipped ahead of the decision,
+   * and until it was made to reject, a call returned a valid `DisposableHandle`
+   * and then did nothing at all - no error, no warning, no rendering.
+   *
+   * It now rejects with an `ExtensionApiError` whose `code` is
+   * `'MethodNotImplementedYet'`. Do not call it. The signature is kept so that
+   * implementing display modes later is not a breaking change.
+   *
+   * The intended behaviour, when it exists: the mode appears in the Bible pane's
+   * Display Mode picker alongside Simple/Standard/Study; the host calls
+   * `renderEndpoint` for each visible verse; the extension returns either
+   * decorations to overlay on the standard rendering, or an iframe URL to fully
+   * replace the verse's rendering.
    */
   registerDisplayMode(def: DisplayModeDescriptor): Promise<DisposableHandle>;
 
@@ -598,6 +762,124 @@ export interface IEventsApi {
     channel: ExtensionPointId,
     handler: (payload: T) => void | Promise<void>,
   ): Promise<DisposableHandle>;
+}
+
+// --- IRuntimeApi *(T1 - reverse-RPC endpoint binding)* ---------------------
+
+/**
+ * Binds extension callbacks to the reverse-RPC endpoint names the host calls
+ * back on.
+ *
+ * **Why this exists.** Several registration DTOs carry a `handlerEndpoint`
+ * string rather than a function, because a function cannot survive the RPC
+ * envelope that carries the registration to the host. When the user fires the
+ * command (or the host needs hover content, a decoration, a rendered display
+ * mode), the host issues a *reverse* request naming that endpoint. Until this
+ * namespace existed there was no way for the extension to say which of its
+ * functions answers to that name, so every reverse request came back
+ * `Unknown reverse RPC method` and the registration was inert:
+ * `contributes.commands` entries appeared in the palette and did nothing when
+ * invoked.
+ *
+ * ```typescript
+ * exports.activate = async (api) => {
+ *   await api.runtime.expose('helloWorld', async () => {
+ *     await api.ui.showNotification({ key: 'greeting' });
+ *   });
+ * };
+ * ```
+ *
+ * The endpoint name is the extension's own choice and is scoped to its worker;
+ * two extensions may use the same name without colliding. Names beginning with
+ * `runtime.` are reserved for the host.
+ *
+ * Prefer passing a `handler` function directly to `commands.register` where
+ * that is available - it calls `expose` for you with a generated name. Use
+ * this directly for endpoints named in `extension.json`, which the host may
+ * call before any imperative registration has run.
+ */
+export interface IRuntimeApi {
+  /**
+   * Bind `handler` to `endpoint`. The returned handle unbinds it.
+   *
+   * The handler receives the reverse request's positional arguments and may
+   * return a value (or a promise of one), which is sent back to the host as
+   * the response. Throwing rejects the host's request.
+   *
+   * Binding an endpoint that is already bound replaces the previous handler.
+   */
+  expose(
+    endpoint: string,
+    handler: (...args: unknown[]) => unknown | Promise<unknown>,
+  ): Promise<DisposableHandle>;
+
+  /** Unbind an endpoint. Idempotent. */
+  unexpose(endpoint: string): Promise<void>;
+
+  /** Endpoint names currently bound by this extension. */
+  listExposed(): Promise<string[]>;
+}
+
+// --- IPanelsApi *(T1 - panel iframe to worker channel)* --------------------
+
+/**
+ * The channel between an extension's panel iframes and its own worker.
+ *
+ * **The problem it solves.** A panel iframe is sandboxed on its own
+ * `ext-ui://<extensionId>` origin and reaches the host through a deliberately
+ * tiny renderer-side bridge - navigate a verse, read the theme mode, make a
+ * permission-gated fetch. It cannot call `storage`, `bible`, or `l10n`,
+ * because putting the `api.*` surface in the renderer would mean enforcing
+ * permissions in a second place, and the renderer is the wrong place to
+ * decide them. So a panel that holds state, reads scripture, or localises a
+ * string had no way to do it.
+ *
+ * The answer is not a second API surface but an opaque channel: the panel
+ * posts a message, this extension's own worker receives it and decides what to
+ * do with the API access it already holds. Permission enforcement stays where
+ * it is, the host surface grows by one method, and the extension author
+ * controls exactly what its panel may ask for.
+ *
+ * ```typescript
+ * // worker (main.js)
+ * api.panels.onMessage(async (msg) => {
+ *   if (msg.type === 'getRange') return api.bible.getRange(msg.start, msg.end);
+ *   throw new Error(`unknown panel request: ${msg.type}`);
+ * });
+ * ```
+ * ```typescript
+ * // panel (ui/index.html)
+ * const verses = await bible.postToWorker({ type: 'getRange', start, end });
+ * ```
+ *
+ * **Security property:** the host resolves which worker to deliver to from the
+ * closure that mounted the iframe, never from the message payload, so a panel
+ * cannot name another extension and spend its grants. Payloads are size-capped
+ * and requests time out; the worker is a QuickJS realm and an uncapped message
+ * firehose into it would be a denial-of-service surface.
+ */
+export interface IPanelsApi {
+  /**
+   * Handle messages posted by this extension's panel iframes. The handler's
+   * return value resolves the panel's `postToWorker` promise; throwing rejects
+   * it with the error message.
+   *
+   * Registering a second handler replaces the first - there is one channel per
+   * extension, not one per panel. Use a discriminator in the message if a
+   * panel needs to route.
+   */
+  onMessage(
+    handler: (message: unknown, sender: PanelMessageSender) => unknown | Promise<unknown>,
+  ): Promise<DisposableHandle>;
+
+  /**
+   * Push a message to this extension's open panels, without a reply. Panels
+   * receive it through `onWorkerMessage`.
+   *
+   * `panelId` targets one panel; omit it to broadcast to all of this
+   * extension's panels.
+   */
+  postMessage(message: unknown, opts?: { panelId?: string }): Promise<void>;
 }
 
 /**

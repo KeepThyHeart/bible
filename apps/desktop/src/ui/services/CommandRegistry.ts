@@ -72,7 +72,24 @@ export class CommandRegistry implements ICommandRegistry {
       // Extension contributions must use the `ext.<extensionId>.` prefix so
       // built-in commands cannot be shadowed and disposal-on-deactivate is
       // unambiguous.
-      const expectedPrefix = `ext.${cmd.ownerExtensionId}.`;
+      //
+      // `ownerExtensionId` arrives in two forms and both are legitimate. A
+      // manifest id is always fully qualified - `ID_PATTERN` in
+      // `ExtensionManifestValidator` requires the `ext.` prefix - and that is
+      // what `commandsApiImpl` passes for a real extension. Host-side callers
+      // that predate extensions, and this file's own tests, pass the bare
+      // publisher-and-name (`demo`).
+      //
+      // Concatenating unconditionally is what broke this: a real extension
+      // `ext.acme.plan` produced the expected prefix `ext.ext.acme.plan.`, so
+      // the correctly named command `ext.acme.plan.start` was rejected with
+      // `ExtensionCommandPrefixError` and every extension command was
+      // unregisterable. Normalising first accepts both spellings and still
+      // enforces exactly one `ext.` segment.
+      const owner = cmd.ownerExtensionId.startsWith('ext.')
+        ? cmd.ownerExtensionId
+        : `ext.${cmd.ownerExtensionId}`;
+      const expectedPrefix = `${owner}.`;
       if (!EXTENSION_COMMAND_ID_REGEX.test(cmd.id) || !cmd.id.startsWith(expectedPrefix)) {
         throw new ExtensionCommandPrefixError(cmd.id, cmd.ownerExtensionId);
       }

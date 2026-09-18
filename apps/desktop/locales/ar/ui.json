@@ -1238,5 +1238,8 @@
   "documentationDialog.bookmarks.movingBody": "انقر بزر الفأرة الأيمن على آية، واختر <strong>إضافة إلى العلامات المرجعية</strong>، ثم اختر علامة موجودة بدلاً من إضافة جديدة — فتصبح مشيرة إلى هنا. تحتفظ العلامة المسمّاة باسمها؛ أما غير المسمّاة فتعرض الموضع الجديد.",
   "documentationDialog.bookmarks.managingHeading": "إدارة القائمة",
   "documentationDialog.bookmarks.managingBody": "يفتح الشريط في شريط الأدوات علاماتك المرجعية؛ انقر على واحدة للانتقال إليها. ومن <strong>إدارة العلامات المرجعية</strong> تعيد التسمية وتعيد الترتيب بالسحب وتحذف.",
-  "documentationDialog.bookmarks.tip": "تحمل الآية المضافة شريطًا أحمر صغيرًا بجانبها داخل النص."
+  "documentationDialog.bookmarks.tip": "تحمل الآية المضافة شريطًا أحمر صغيرًا بجانبها داخل النص.",
+  "statusBar.label": "شريط الحالة",
+  "commands.openExtensionPanel": "فتح {name}",
+  "newTabPage.fromExtensions": "من الامتدادات"
 }

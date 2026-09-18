@@ -23,7 +23,7 @@ import { t } from '../services/MainI18n';
  * DockviewTabRenderer never emits them), and the standalone Documents and
  * Journal tabs they named were scaffolding for features cut from v1.
  */
-export type PaneType = 'bible' | 'commentary' | 'book' | 'verse-notes' | 'prayer' | 'study' | 'topics';
+export type PaneType = 'bible' | 'commentary' | 'book' | 'verse-notes' | 'prayer' | 'study' | 'topics' | 'extension';
 
 export interface PaneTypeConfig {
   defaultWidth: number;
@@ -210,6 +210,37 @@ export const PANE_CONFIGS: Record<PaneType, PaneTypeConfig> = {
     syncState: {
       verseId: true
     }
+  },
+
+  /**
+   * Extension Panel Configuration
+   *
+   * One config covers every extension panel type rather than one per
+   * extension: the panel is an iframe on the extension's own origin, so the
+   * host has nothing type-specific to configure. What distinguishes one from
+   * another travels in the payload (`extensionId`, `panelTypeId`), which is
+   * also what `titleFormat` reads.
+   *
+   * The default size is deliberately generous. An extension panel is an
+   * app-within-an-app that owns its whole rectangle - unlike Commentary or
+   * Notes, nothing else is going to fill the space for it.
+   *
+   * It is now only a FALLBACK: a panel type may declare its own preferred
+   * pop-out size, which `resolveDetachedWindowSize()` below clamps against the
+   * `minWidth`/`minHeight` here and a 4K ceiling. This entry is what a panel
+   * that declares nothing still gets.
+   */
+  extension: {
+    defaultWidth: 900,
+    defaultHeight: 700,
+    titleFormat: (state) =>
+      // The extension supplies its own already-localized title at
+      // registration time. Fall back to a generic label rather than showing a
+      // raw extension id if a saved layout outlives the extension.
+      state?.panelTitle || t('main.window.extensionFallback'),
+    component: 'ExtensionPanelHost',
+    minWidth: 320,
+    minHeight: 240
   }
 };
 
@@ -218,6 +249,91 @@ export const PANE_CONFIGS: Record<PaneType, PaneTypeConfig> = {
  */
 export function getPaneConfig(paneType: PaneType): PaneTypeConfig {
   return PANE_CONFIGS[paneType];
+}
+
+/**
+ * Hard ceiling on a detached window, in CSS pixels.
+ *
+ * Chosen as 4K rather than "the current display" on purpose: the display list
+ * is not stable (a laptop is docked and undocked, an external monitor sleeps),
+ * and a window sized to a screen that has gone away is worse than one sized to
+ * a plausible screen. Electron will happily create a 30000px window that opens
+ * almost entirely off-screen with its close button somewhere the user cannot
+ * reach - the OS clamps a *maximised* window, not a requested size.
+ */
+export const DETACHED_WINDOW_MAX_WIDTH = 3840;
+export const DETACHED_WINDOW_MAX_HEIGHT = 2160;
+
+/**
+ * Floor used when a pane config declares no `minWidth` / `minHeight`.
+ *
+ * Every config that can carry a requested size declares its own (the
+ * `extension` entry above uses 320x240); this only exists so the clamp is
+ * total rather than conditional.
+ */
+const DETACHED_WINDOW_FLOOR_WIDTH = 320;
+const DETACHED_WINDOW_FLOOR_HEIGHT = 240;
+
+/** A size a panel type asked for. Every field is untrusted - see below. */
+export interface RequestedWindowSize {
+  width?: unknown;
+  height?: unknown;
+}
+
+function clampDimension(
+  requested: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  if (typeof requested !== 'number' || !Number.isFinite(requested)) return fallback;
+  return Math.round(Math.min(Math.max(requested, min), max));
+}
+
+/**
+ * Resolve the size a detached window should open at.
+ *
+ * `defaultWidth` / `defaultHeight` on the pane config are the host's answer for
+ * every window of that type, which is right for the built-ins - a Commentary
+ * window is a Commentary window - and wrong for extension panels. One config
+ * covers every contributed panel (see the `extension` entry above), so a
+ * narrow verse-timeline strip and a full study workbench both open at 900x700,
+ * and at most one of those is the size its author wanted.
+ *
+ * `requested` is therefore the panel type's own preference, and it is
+ * untrusted twice over: it originates in a third-party extension's
+ * `ui.registerPanelType` call or manifest, and it reaches the main process
+ * over IPC from the renderer. So each dimension is taken only if it is a
+ * finite number, and is then clamped between the pane's own minimum and
+ * DETACHED_WINDOW_MAX_*. An extension can neither open a 1px window the user
+ * has no handle to grab nor a 30000px one whose controls land off-screen, and
+ * a garbage value falls back to the host default rather than failing the
+ * pop-out.
+ *
+ * Width and height are resolved independently: a panel that declares only a
+ * sensible width keeps the default height rather than losing both.
+ */
+export function resolveDetachedWindowSize(
+  config: PaneTypeConfig,
+  requested: RequestedWindowSize | null | undefined,
+): { width: number; height: number } {
+  if (typeof requested !== 'object' || requested === null) {
+    return { width: config.defaultWidth, height: config.defaultHeight };
+  }
+  return {
+    width: clampDimension(
+      requested.width,
+      config.defaultWidth,
+      config.minWidth ?? DETACHED_WINDOW_FLOOR_WIDTH,
+      DETACHED_WINDOW_MAX_WIDTH,
+    ),
+    height: clampDimension(
+      requested.height,
+      config.defaultHeight,
+      config.minHeight ?? DETACHED_WINDOW_FLOOR_HEIGHT,
+      DETACHED_WINDOW_MAX_HEIGHT,
+    ),
+  };
 }
 
 /**

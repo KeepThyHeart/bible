@@ -1,7 +1,17 @@
 import { Store } from './Store';
+import { moduleStore } from './moduleStore';
 import { isValidTheme, getThemeById } from '../themes/themeRegistry';
+import type { ModuleInfo } from '../types';
 
 const STORAGE_KEY = 'bible-reader-settings';
+
+/** Used only when there is no configured default and no installed Bible to name. */
+const LAST_RESORT_BIBLE = 'KJV';
+
+function findBible(bibles: ModuleInfo[], abbreviation: string): ModuleInfo | undefined {
+  const wanted = abbreviation.toLowerCase();
+  return bibles.find(m => m.abbreviation.toLowerCase() === wanted);
+}
 
 /** Theme ID string. Valid values are discovered at build time from src/themes/. */
 export type ThemeName = string;
@@ -355,6 +365,42 @@ class SettingsStore extends Store {
 
   setServerOfflineDownloads(enabled: boolean): void {
     this.serverOfflineDownloads = enabled;
+  }
+
+  /**
+   * The Bible to open when nothing more specific names one: a fresh session's
+   * first tab, a new tab with no tab open, a restored tab whose translation is
+   * no longer installed.
+   *
+   * The server's configured default (`ui.defaultModule`) when it is installed,
+   * otherwise the first installed Bible, so an install without the configured
+   * translation still opens on text rather than "Failed to load chapter".
+   *
+   * Until the module list has loaded there is nothing to check against, so the
+   * configured default is trusted as-is. Anything decided that early is checked
+   * again once the list arrives -- see `bibleStore.fallBackFromMissingModules`.
+   * The literal is the last resort only: no configured default and no Bible
+   * installed (or none known yet).
+   */
+  getDefaultBible(): string {
+    const configured = this.serverDefaultModule;
+    if (!moduleStore.loaded) return configured ?? LAST_RESORT_BIBLE;
+    const installed = moduleStore.getBibleModules();
+    const match = configured ? findBible(installed, configured) : undefined;
+    return match?.abbreviation ?? installed[0]?.abbreviation ?? configured ?? LAST_RESORT_BIBLE;
+  }
+
+  /**
+   * `abbreviation` when it names an installed Bible, otherwise the default one.
+   *
+   * Returned unchanged while the module list has not loaded (or failed to, as
+   * it does offline): not knowing is not the same as knowing it is missing, and
+   * an offline reader may well have that translation downloaded. Matching is
+   * case-insensitive, as it is on the server, and returns the list's spelling.
+   */
+  resolveInstalledBible(abbreviation: string): string {
+    if (!moduleStore.loaded) return abbreviation;
+    return findBible(moduleStore.getBibleModules(), abbreviation)?.abbreviation ?? this.getDefaultBible();
   }
 
   /** Get font schemes filtered by server config. Returns all if no restriction. */

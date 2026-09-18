@@ -1238,5 +1238,8 @@
   "documentationDialog.bookmarks.movingBody": "Щёлкните стих правой кнопкой, выберите <strong>Добавить в закладки</strong> и вместо новой закладки выберите существующую — теперь она указывает сюда. Названная закладка сохраняет своё название; безымянная показывает новую ссылку.",
   "documentationDialog.bookmarks.managingHeading": "Управление списком",
   "documentationDialog.bookmarks.managingBody": "Ленточка на панели инструментов открывает ваши закладки; щёлкните одну, чтобы перейти к ней. В разделе <strong>Управление закладками</strong> можно переименовывать, менять порядок перетаскиванием и удалять.",
-  "documentationDialog.bookmarks.tip": "Стих с закладкой отмечен маленькой красной ленточкой в тексте."
+  "documentationDialog.bookmarks.tip": "Стих с закладкой отмечен маленькой красной ленточкой в тексте.",
+  "statusBar.label": "Строка состояния",
+  "commands.openExtensionPanel": "Открыть {name}",
+  "newTabPage.fromExtensions": "Из расширений"
 }

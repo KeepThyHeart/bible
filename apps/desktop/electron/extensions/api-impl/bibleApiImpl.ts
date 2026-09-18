@@ -55,6 +55,7 @@ export class BibleApiImpl {
   private readonly contributionRegistry: ContributionRegistry | undefined;
   private readonly registrations = new RegistrationDisposers('provider');
   private unsubscribeActiveVerse: (() => void) | undefined;
+  private unsubscribeActiveVerseReplay: (() => void) | undefined;
   private unsubscribeWordSelection: (() => void) | undefined;
   private disposed = false;
 
@@ -72,6 +73,7 @@ export class BibleApiImpl {
       getRange: (args) => this.handleGetRange(args),
       listModules: () => this.handleListModules(),
       listBooks: (args) => this.handleListBooks(args),
+      listChapters: (args) => this.handleListChapters(args),
       parseReference: (args) => this.handleParseReference(args),
       iterateVerses: (args) => this.handleIterateVerses(args),
       getVerseTokens: (args) => this.handleGetVerseTokens(args),
@@ -89,6 +91,15 @@ export class BibleApiImpl {
       this.router.emitEvent(ACTIVE_VERSE_CHANNEL, payload);
     });
 
+    // The active verse is state, not just a stream of changes: an extension
+    // that subscribes after the reader chose a verse must still learn which
+    // one. Replay the current value to each new subscriber.
+    this.unsubscribeActiveVerseReplay = this.router.onSubscribe?.(ACTIVE_VERSE_CHANNEL, () => {
+      if (this.disposed) return;
+      const current = this.bridge.getActiveVerse?.();
+      if (current) this.router.emitEvent(ACTIVE_VERSE_CHANNEL, current);
+    });
+
     // Wire the word-selection forward channel.
     this.unsubscribeWordSelection = this.bridge.subscribeWordSelection((payload) => {
       if (this.disposed) return;
@@ -100,6 +111,8 @@ export class BibleApiImpl {
     if (this.disposed) return;
     this.disposed = true;
     this.registrations.disposeAll();
+    this.unsubscribeActiveVerseReplay?.();
+    this.unsubscribeActiveVerseReplay = undefined;
     if (this.unsubscribeActiveVerse) {
       try {
         this.unsubscribeActiveVerse();
@@ -170,6 +183,25 @@ export class BibleApiImpl {
       throw new RpcProtocolError('bible.listBooks: moduleId must be a string when provided');
     }
     return this.bridge.listBooks(moduleId);
+  }
+
+  private async handleListChapters(args: unknown[]): Promise<unknown> {
+    this.assertActive();
+    requirePermission(this.grant, 'bible:read');
+    const bookNumber = args[0];
+    if (
+      typeof bookNumber !== 'number' ||
+      !Number.isInteger(bookNumber) ||
+      bookNumber < 1 ||
+      bookNumber > 66
+    ) {
+      throw new RpcProtocolError('bible.listChapters: bookNumber must be an integer 1-66');
+    }
+    const moduleId = args[1];
+    if (moduleId !== undefined && typeof moduleId !== 'string') {
+      throw new RpcProtocolError('bible.listChapters: moduleId must be a string when provided');
+    }
+    return this.bridge.listChapters(bookNumber, moduleId);
   }
 
   private async handleParseReference(args: unknown[]): Promise<unknown> {

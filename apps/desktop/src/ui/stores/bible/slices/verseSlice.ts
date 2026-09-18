@@ -37,6 +37,23 @@ export interface VerseSlice {
   clearError: (panelId: string, tabId: string) => void;
 }
 
+let startupVerseAnnounced = false;
+
+/**
+ * Announce the verse the reader starts on, once. Clicks broadcast through
+ * `setSelectedVerse`, but the verse restored from the session (or the default
+ * first load) is selected without a click, so extensions activated at startup
+ * would not know it - or which translation is open - until the reader clicked.
+ */
+function announceStartupVerse(verseId: number | null, moduleAbbr: string): void {
+  if (startupVerseAnnounced || !verseId) return;
+  if (!window.electron?.window?.broadcastVerseChange) return;
+  startupVerseAnnounced = true;
+  window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {
+    console.error('[useBibleStore] Error announcing startup verse:', err);
+  });
+}
+
 export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (set, get) => ({
   // Helper: Load chapter for a specific tab within a specific panel
   loadChapterForTab: async (panelId: string, tabId: string, abbreviation: string, bookNumber: number, chapter: number) => {
@@ -72,6 +89,7 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
       }
 
       set({ panels: updatePanelState(get().panels, panelId, { versesByTab: newVersesMap, loadingByTab: newLoadingMap }, createDefaultPanelState) });
+      announceStartupVerse(get().getPanelState(panelId).selectedVerseId, abbreviation);
     } catch (error) {
       const ps = get().getPanelState(panelId);
       const newLoadingMap = new Map(ps.loadingByTab);
@@ -335,9 +353,12 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
       }, createDefaultPanelState)
     });
 
-    // Broadcast verse change to detached windows for syncing
+    // Broadcast verse change to detached windows for syncing. The module goes
+    // with it so extensions learn which translation the reader is in, rather
+    // than being told the app default.
     if (verseId && window.electron?.window?.broadcastVerseChange) {
-      window.electron.window.broadcastVerseChange(verseId).catch(err => {
+      const moduleAbbr = updatedTabs[ps.activeTabIndex]?.abbreviation;
+      window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {
         console.error('[useBibleStore] Error broadcasting verse change:', err);
       });
     }

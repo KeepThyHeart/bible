@@ -158,6 +158,7 @@ vi.mock('../../stores/bibleStore', () => ({
     get tabs() { return [{ id: 'tab-1', moduleAbbr: 'KJV' }]; },
     get activeTabId() { return 'tab-1'; },
     getActiveTab: () => ({ moduleAbbr: 'KJV' }),
+    getActiveModule: () => 'KJV',
     navigateToPreview: (...args: unknown[]) => mockNavigateToPreview(...args),
     addTabWithPassage: (...args: unknown[]) => mockAddTabWithPassage(...args),
     setActiveTab: (...args: unknown[]) => mockSetActiveTab(...args),

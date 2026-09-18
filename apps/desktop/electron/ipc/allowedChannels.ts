@@ -371,6 +371,7 @@ export const TYPED_IPC_CHANNELS = [
   'extensions:getPanelTypeUiEntry',
   'extensions:openInstallFolder',
   'extensions:uiFetch',
+  'extensions:panelInvoke',
   // Marketplace. No `blocklist:refresh` channel by design - the
   // blocklist is fetched only from the manual "Check for Updates" flow.
   'extensions:catalog:listSources',

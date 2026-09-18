@@ -18,6 +18,7 @@
 import { useEffect, useCallback } from 'react';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { usePreferencesStore } from '../../stores/usePreferencesStore';
+import { subscribeToPanelMessages } from '../../extensions/extensionUiStore';
 
 // -- Inlined envelope types (kept in sync with @bible/core RpcEnvelope) ---
 
@@ -50,9 +51,21 @@ function isRpcRequest(v: unknown): v is RpcRequest {
 interface UseIframeBridgeOpts {
   extensionId: string;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
+  /**
+   * Identifies the panel to its worker. Optional so callers that only need
+   * navigation and theme (and the existing tests) keep working; without it
+   * `panel.invoke` refuses rather than guessing an identity.
+   */
+  panelId?: string;
+  panelTypeId?: string;
 }
 
-export function useIframeBridge({ extensionId, iframeRef }: UseIframeBridgeOpts): void {
+export function useIframeBridge({
+  extensionId,
+  iframeRef,
+  panelId,
+  panelTypeId,
+}: UseIframeBridgeOpts): void {
   const sendToIframe = useCallback((envelope: RpcResponse | RpcEvent) => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
@@ -74,7 +87,7 @@ export function useIframeBridge({ extensionId, iframeRef }: UseIframeBridgeOpts)
       if (!isRpcRequest(event.data)) return;
 
       const req = event.data;
-      handleRequest(req, extensionId).then(
+      handleRequest(req, { extensionId, panelId, panelTypeId }).then(
         (result) => {
           sendToIframe({ kind: 'response', id: req.id, result });
         },
@@ -91,7 +104,24 @@ export function useIframeBridge({ extensionId, iframeRef }: UseIframeBridgeOpts)
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [sendToIframe, iframeRef, extensionId]);
+  }, [sendToIframe, iframeRef, extensionId, panelId, panelTypeId]);
+
+  // -- Worker -> panel pushes -------------------------------------------
+
+  // `api.panels.postMessage(...)` in the worker arrives here as a renderer
+  // notification. Deliver it only to iframes this extension owns, and only to
+  // the addressed panel when the worker named one.
+  useEffect(() => {
+    return subscribeToPanelMessages((msg) => {
+      if (msg.extensionId !== extensionId) return;
+      if (msg.panelId !== undefined && msg.panelId !== panelId) return;
+      sendToIframe({
+        kind: 'event',
+        channel: 'panel.message',
+        payload: msg.message,
+      });
+    });
+  }, [sendToIframe, extensionId, panelId]);
 
   // -- Forward host events to the iframe --------------------------------
 
@@ -114,7 +144,18 @@ export function useIframeBridge({ extensionId, iframeRef }: UseIframeBridgeOpts)
 
 // -- Request dispatch -----------------------------------------------------
 
-async function handleRequest(req: RpcRequest, extensionId: string): Promise<unknown> {
+/**
+ * Who the host believes this iframe to be. Assembled by the panel host from
+ * the props it was mounted with - never from anything the iframe said.
+ */
+interface PanelIdentity {
+  extensionId: string;
+  panelId?: string;
+  panelTypeId?: string;
+}
+
+async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<unknown> {
+  const { extensionId } = identity;
   switch (req.method) {
     case 'network.fetch': {
       // The iframe's CSP does not allow it to reach any remote host
@@ -143,6 +184,40 @@ async function handleRequest(req: RpcRequest, extensionId: string): Promise<unkn
         throw new Error('network.fetch: extensions:uiFetch IPC is not available');
       }
       return uiFetch(extensionId, url, init);
+    }
+
+    case 'panel.invoke': {
+      // The panel's only route to its own extension's API surface. It carries
+      // exactly one thing from the iframe - the message - and three things
+      // from the closure that mounted it. That split is the security
+      // property: `network.fetch` above works the same way, and for the same
+      // reason. A panel that could name an extension could spend another
+      // extension's grants.
+      const { panelId, panelTypeId } = identity;
+      if (!panelId || !panelTypeId) {
+        throw new Error(
+          'panel.invoke: this panel was mounted without an identity, so it ' +
+            'cannot address its worker',
+        );
+      }
+      const panelInvoke = (
+        window as unknown as {
+          electron?: {
+            extensions?: {
+              panelInvoke?: (
+                extensionId: string,
+                panelId: string,
+                panelTypeId: string,
+                message: unknown,
+              ) => Promise<unknown>;
+            };
+          };
+        }
+      ).electron?.extensions?.panelInvoke;
+      if (!panelInvoke) {
+        throw new Error('panel.invoke: extensions:panelInvoke IPC is not available');
+      }
+      return panelInvoke(extensionId, panelId, panelTypeId, req.args[0]);
     }
 
     case 'bible.navigateToVerse': {

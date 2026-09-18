@@ -28,8 +28,10 @@ export function createInterlinearRoutes(db: DatabaseManager): Router {
       const chapter = validateChapter(req.params.chapter);
       if (chapter === null) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid chapter number'); return; }
 
-      const moduleName = (req.query.module as string) || 'KJV';
-      const repo = db.getBibleRepo(moduleName);
+      // With no module named, a Strong's-tagged Bible: KJV when installed,
+      // otherwise whichever tagged Bible is, rather than assuming KJV exists.
+      const moduleName = (req.query.module as string) || db.getDefaultInterlinearBibleAbbreviation('KJV');
+      const repo = moduleName ? db.getBibleRepo(moduleName) : null;
 
       // An unresolvable module answers with no words rather than another
       // module's — the client aligns these rows against the *requested*
@@ -37,7 +39,9 @@ export function createInterlinearRoutes(db: DatabaseManager): Router {
       // none. Logged because an empty response is otherwise indistinguishable
       // from "this translation has no interlinear data".
       if (!repo) {
-        logger.warn(`Interlinear requested for unknown Bible module "${moduleName}"; returning no words`);
+        logger.warn(moduleName
+          ? `Interlinear requested for unknown Bible module "${moduleName}"; returning no words`
+          : 'Interlinear requested with no module named and no Strong\'s-tagged Bible installed; returning no words');
         res.json({ words: [], strongsEntries: {} });
         return;
       }

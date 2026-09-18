@@ -18,7 +18,8 @@ import type { StarterPack, CatalogModule } from '@bible/core';
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
 import { InstallationService } from '../services/InstallationService';
-import { ModuleCatalogService } from '../services/ModuleCatalogService';
+import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../services/ModuleCatalogService';
+import { FileApprovedCatalogKeyStore } from '../services/ApprovedCatalogKeys';
 import { blessPath, isPathBlessed } from './blessedPaths';
 import { t } from '../services/MainI18n';
 import {
@@ -99,6 +100,34 @@ let installationService: InstallationService | null = null;
 let catalogService: ModuleCatalogService | null = null;
 
 /**
+ * Ask whether to trust a new official-catalog signing key that a key the app
+ * already trusts has vouched for. A native main-process dialog on purpose: the
+ * renderer cannot answer it on the user's behalf.
+ */
+async function confirmVouchedCatalogKey(request: VouchedKeyApprovalRequest): Promise<boolean> {
+  const chain = request.chain
+    .map((link) => `${link.vouchingKey}\n  vouched for ${link.newKey}\n  on ${link.issued}`)
+    .join('\n');
+  const { response } = await dialog.showMessageBox({
+    type: 'warning',
+    buttons: ['Decline', 'Trust new key'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'New signing key for the official catalog',
+    message: 'The official module catalog is signed with a key this app does not know yet.',
+    detail:
+      `New key:\n${request.newKey}\n\n` +
+      `A key this app already trusts vouched for it:\n${chain}\n\n` +
+      'This is expected when the publisher replaces its signing key. Trust it only if ' +
+      'you expected that - for example, because it was announced on the project ' +
+      'website. If you decline, the official catalog will not refresh until you ' +
+      'update the app.',
+    noLink: true,
+  });
+  return response === 1;
+}
+
+/**
  * Initialize module manager services
  */
 function initializeModuleManager(): void {
@@ -123,7 +152,10 @@ function initializeModuleManager(): void {
     // Create services
     const downloadService = new DownloadService();
     installationService = new InstallationService(mainDb, modulesPath);
-    catalogService = new ModuleCatalogService(mainDb);
+    catalogService = new ModuleCatalogService(mainDb, undefined, {
+      approveVouchedKey: confirmVouchedCatalogKey,
+      approvedKeys: new FileApprovedCatalogKeyStore(),
+    });
 
     // Create controllers
     const moduleMetadataRepo = new ModuleMetadataRepository(mainDb);

@@ -1,5 +1,5 @@
 import type { ICommentaryDataProvider } from '../providers/interfaces';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { commentaryStore, HOME_TAB_ID, RESTORABLE_PANE_MODES } from './commentaryStore';
 
 /**
@@ -17,7 +17,7 @@ import { commentaryStore, HOME_TAB_ID, RESTORABLE_PANE_MODES } from './commentar
  */
 
 interface FakeProvider {
-  getCommentary: ReturnType<typeof vi.fn>;
+  getCommentary: Mock;
 }
 
 function resetStore(provider: FakeProvider): void {

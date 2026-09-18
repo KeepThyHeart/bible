@@ -192,6 +192,32 @@ function applyThemeToDOM(theme: ThemeId): void {
 }
 
 /**
+ * Tell the main process which theme is now active.
+ *
+ * Two things in main depend on this, and neither has any other way to find
+ * out - the theme is renderer state, applied as a DOM attribute and persisted
+ * inside the renderer-owned session blob:
+ *
+ *   1. The View menu's theme radio buttons (`menuBuilder.updateTheme`).
+ *   2. `ext-ui://host/theme.css`, the design-token stylesheet extension panels
+ *      load in their sandboxed iframes. Panels live on a different origin and
+ *      cannot see `<html data-theme>`, so this message is what makes their
+ *      palette follow the user's theme.
+ *
+ * Called from BOTH the user-initiated change and the session restore. It used
+ * to fire only on `setTheme`, which meant a user whose saved theme was, say,
+ * "midnight" started every session with a light-checked radio in the View menu
+ * until they changed theme by hand - and, once panels started reading tokens,
+ * would have started every session with a light palette inside every extension
+ * panel while the rest of the app was dark.
+ */
+function notifyMainOfTheme(theme: ThemeId): void {
+  if (typeof window !== 'undefined' && window.electron?.menu?.updateTheme) {
+    window.electron.menu.updateTheme(theme);
+  }
+}
+
+/**
  * Apply global font scale as a CSS custom property on the document root.
  * Pane font sizes are multiplied by this value.
  */
@@ -302,12 +328,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   setTheme: (theme: ThemeId) => {
     set({ theme });
     applyThemeToDOM(theme);
-
-    // Notify the Electron menu so it can update the radio buttons
-    if (typeof window !== 'undefined' && window.electron?.menu?.updateTheme) {
-      window.electron.menu.updateTheme(theme);
-    }
-
+    notifyMainOfTheme(theme);
     markSessionDirty();
   },
 
@@ -382,6 +403,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
     set({ theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled });
     applyThemeToDOM(theme);
+    notifyMainOfTheme(theme);
     applyGlobalFontScaleToDOM(globalFontScale);
     applyUiControlFontSizeToDOM(uiControlFontSize);
     applyTypographyToDOM(typography);

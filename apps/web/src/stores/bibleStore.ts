@@ -5,8 +5,20 @@ import type { IBibleDataProvider, VotdData } from '../providers/interfaces';
 import type { VerseData, BookTopicsData } from '../types';
 import { formatPassageRef } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
+import { settingsStore } from './settingsStore';
 
 export type DisplayMode = 'standard' | 'reading' | 'study';
+
+const DISPLAY_MODES: readonly string[] = ['standard', 'reading', 'study'] satisfies DisplayMode[];
+
+/**
+ * The display mode a tab starts in when there is no open tab to copy one from:
+ * the server's `ui.defaultDisplayMode` when it names a real mode, else standard.
+ */
+function defaultDisplayMode(): DisplayMode {
+  const configured = settingsStore.serverDefaultDisplayMode;
+  return configured && DISPLAY_MODES.includes(configured) ? configured as DisplayMode : 'standard';
+}
 
 export interface BibleTab {
   id: string;
@@ -202,13 +214,59 @@ class BibleStore extends Store {
     return tab.loadSeq !== seq;
   }
 
-  init(bible: IBibleDataProvider): void {
+  /**
+   * `defaultModule` is the translation a fresh session's first tab opens in.
+   *
+   * This runs before the module list has loaded, so neither it nor a restored
+   * session's translations can be checked against what is installed yet; the
+   * caller follows up with `fallBackFromMissingModules` once the list arrives.
+   */
+  init(bible: IBibleDataProvider, defaultModule: string = settingsStore.getDefaultBible()): void {
     this.bible = bible;
     this.restoreSession();
     this.restoreStudySettings();
     if (this.tabs.length === 0) {
-      this.addTab('KJV');
+      this.addTab(defaultModule);
     }
+  }
+
+  /**
+   * Move every tab off a translation that is not installed, onto the default.
+   *
+   * A session restored from localStorage (or a fresh tab opened on a configured
+   * default) can name a translation this server does not have -- the module
+   * was removed, or the session came from another install. Left alone it would
+   * fetch a chapter that 404s and sit on "Failed to load chapter". The tab keeps
+   * its passage and drops only its cached text, so `loadRestoredTabs` fetches
+   * that passage again in the translation it now names. History entries follow
+   * the tab, or Back would lead straight to the same failure.
+   *
+   * A no-op until the module list has loaded: offline, "not listed" does not
+   * mean missing, and the reader may have that translation downloaded.
+   */
+  fallBackFromMissingModules(): void {
+    let changed = false;
+    for (const tab of this.tabs) {
+      const resolved = settingsStore.resolveInstalledBible(tab.moduleAbbr);
+      if (resolved !== tab.moduleAbbr) {
+        tab.moduleAbbr = resolved;
+        tab.moduleName = resolved;
+        tab.verses = [];
+        tab.versesModule = undefined;
+        tab.loadError = undefined;
+        changed = true;
+      }
+      for (const entry of tab.history) {
+        const resolvedEntry = settingsStore.resolveInstalledBible(entry.moduleAbbr);
+        if (resolvedEntry !== entry.moduleAbbr) {
+          entry.moduleAbbr = resolvedEntry;
+          changed = true;
+        }
+      }
+    }
+    if (!changed) return;
+    this.saveSession();
+    this.notify();
   }
 
   /**
@@ -235,6 +293,11 @@ class BibleStore extends Store {
 
   getActiveTab(): BibleTab | undefined {
     return this.tabs.find(t => t.id === this.activeTabId);
+  }
+
+  /** The translation the reader is in, or the default Bible when no tab is open. */
+  getActiveModule(): string {
+    return this.getActiveTab()?.moduleAbbr || settingsStore.getDefaultBible();
   }
 
   openBookPicker(): void {
@@ -659,7 +722,7 @@ class BibleStore extends Store {
 
   addTab(moduleAbbr?: string): void {
     const activeTab = this.getActiveTab();
-    const abbr = moduleAbbr ?? activeTab?.moduleAbbr ?? 'KJV';
+    const abbr = moduleAbbr ?? activeTab?.moduleAbbr ?? settingsStore.getDefaultBible();
     const tab: BibleTab = {
       id: newTabId(),
       moduleAbbr: abbr,
@@ -676,7 +739,7 @@ class BibleStore extends Store {
       pendingScrollVerse: null,
       pendingScrollTop: null,
       hasInterlinearData: false,
-      displayMode: activeTab?.displayMode ?? 'standard',
+      displayMode: activeTab?.displayMode ?? defaultDisplayMode(),
       history: [],
       historyIndex: -1,
       showBackBar: false,
@@ -1013,10 +1076,13 @@ class BibleStore extends Store {
     const match = hash.match(HASH_PATTERN);
     if (!match) return;
 
-    const [, module, bookStr, chapterStr, verseStr] = match;
+    const [, linkedModule, bookStr, chapterStr, verseStr] = match;
     const book = parseInt(bookStr, 10);
     const chapter = parseInt(chapterStr, 10);
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
+    // A link shared from another install can name a translation this one does
+    // not have. The passage is still worth opening, in the default Bible.
+    const module = settingsStore.resolveInstalledBible(linkedModule);
 
     const tab = this.getActiveTab();
     if (tab && tab.moduleAbbr !== module) {
@@ -1066,7 +1132,10 @@ class BibleStore extends Store {
           // Per-tab history; fall back to old global history for migration
           const tabHistory = tabData.history ?? parsed.history ?? [];
           const tabHistoryIndex = tabData.history ? (tabData.historyIndex ?? -1) : (parsed.historyIndex ?? -1);
-          const restoredModule = tabData.moduleAbbr || 'KJV';
+          // Whether this translation is still installed cannot be known yet --
+          // the module list loads after this -- so it is taken as-is here and
+          // checked by `fallBackFromMissingModules` once the list is in.
+          const restoredModule = tabData.moduleAbbr || settingsStore.getDefaultBible();
           // Sessions written before `versesModule` existed have no record of
           // where their cached text came from; assume it matched, which is what
           // it did whenever no load was in flight at save time.
@@ -1093,7 +1162,7 @@ class BibleStore extends Store {
             pendingScrollTop: null,
             hasInterlinearData: tabData.hasInterlinearData ?? false,
             coveredBooks: tabData.coveredBooks,
-            displayMode: tabData.displayMode ?? 'standard',
+            displayMode: tabData.displayMode ?? defaultDisplayMode(),
             history: tabHistory,
             historyIndex: tabHistoryIndex,
             showBackBar: false,

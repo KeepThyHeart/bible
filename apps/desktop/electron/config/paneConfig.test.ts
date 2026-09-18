@@ -20,9 +20,12 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  DETACHED_WINDOW_MAX_HEIGHT,
+  DETACHED_WINDOW_MAX_WIDTH,
   PANE_CONFIGS,
   getPaneConfig,
   isValidPaneType,
+  resolveDetachedWindowSize,
   type PaneType,
 } from './paneConfig';
 
@@ -236,5 +239,103 @@ describe('titleFormat: populated state', () => {
       currentChapter: 0,
     });
     expect(title).toBe('Bible - KJV');
+  });
+});
+
+/**
+ * The clamp is the trust boundary for an extension-supplied window size.
+ *
+ * The request originates in third-party code (`ui.registerPanelType`) and
+ * arrives here over IPC from the renderer, so "the renderer already checked
+ * it" is not a defence - anything that can reach `window:detach-pane` can send
+ * whatever it likes. Electron does not clamp a requested size, so an
+ * unchecked value opens a window whose title bar and close button are
+ * off-screen, or one a few pixels tall that cannot be grabbed to resize.
+ */
+describe('resolveDetachedWindowSize', () => {
+  const extension = PANE_CONFIGS.extension;
+
+  it('falls back to the pane defaults when nothing is requested', () => {
+    for (const requested of [undefined, null]) {
+      expect(resolveDetachedWindowSize(extension, requested)).toEqual({
+        width: extension.defaultWidth,
+        height: extension.defaultHeight,
+      });
+    }
+  });
+
+  it('honours a sensible request', () => {
+    expect(resolveDetachedWindowSize(extension, { width: 460, height: 1000 })).toEqual({
+      width: 460,
+      height: 1000,
+    });
+  });
+
+  it('clamps up to the pane minimum', () => {
+    // A 1px window has no grab handle and no title bar; the user's only
+    // recourse would be the OS window list.
+    expect(resolveDetachedWindowSize(extension, { width: 1, height: 1 })).toEqual({
+      width: extension.minWidth,
+      height: extension.minHeight,
+    });
+    expect(resolveDetachedWindowSize(extension, { width: -900, height: 0 })).toEqual({
+      width: extension.minWidth,
+      height: extension.minHeight,
+    });
+  });
+
+  it('clamps down to the 4K ceiling', () => {
+    expect(resolveDetachedWindowSize(extension, { width: 30000, height: 30000 })).toEqual({
+      width: DETACHED_WINDOW_MAX_WIDTH,
+      height: DETACHED_WINDOW_MAX_HEIGHT,
+    });
+  });
+
+  it('resolves width and height independently', () => {
+    // A panel that cares about width only should not lose its height to the
+    // same fallback.
+    expect(resolveDetachedWindowSize(extension, { width: 500 })).toEqual({
+      width: 500,
+      height: extension.defaultHeight,
+    });
+    expect(resolveDetachedWindowSize(extension, { height: 500 })).toEqual({
+      width: extension.defaultWidth,
+      height: 500,
+    });
+  });
+
+  it('ignores non-numeric junk rather than failing the pop-out', () => {
+    // The payload crossed an IPC boundary and was authored by an extension;
+    // a bad value must degrade to the default, not throw and leave the user
+    // with a pop-out menu item that silently does nothing.
+    const junk = [
+      { width: '900', height: '700' },
+      { width: NaN, height: Infinity },
+      { width: null, height: {} },
+      'not an object',
+      42,
+    ];
+    for (const requested of junk) {
+      expect(
+        resolveDetachedWindowSize(extension, requested as never),
+        JSON.stringify(requested),
+      ).toEqual({ width: extension.defaultWidth, height: extension.defaultHeight });
+    }
+  });
+
+  it('rounds fractional sizes to whole pixels', () => {
+    expect(resolveDetachedWindowSize(extension, { width: 640.4, height: 480.6 })).toEqual({
+      width: 640,
+      height: 481,
+    });
+  });
+
+  it('uses each pane type\'s own minimum, not one global floor', () => {
+    // Bible declares minWidth 600 (see PANE_CONFIGS); a request below it must
+    // clamp to that, not to the extension pane's 320.
+    const bible = PANE_CONFIGS.bible;
+    const resolved = resolveDetachedWindowSize(bible, { width: 10, height: 10 });
+    expect(resolved.width).toBe(bible.minWidth);
+    expect(resolved.height).toBe(bible.minHeight);
   });
 });

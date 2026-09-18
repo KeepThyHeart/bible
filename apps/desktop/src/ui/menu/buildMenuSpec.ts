@@ -109,6 +109,62 @@ function isRegistered(deps: BuildMenuSpecDeps, commandId: string): boolean {
   return deps.registry.get(commandId) !== undefined;
 }
 
+/**
+ * Build the Tools submenu from extension-registered commands.
+ *
+ * Every command carrying an `ownerExtensionId` is eligible; hidden commands
+ * are not, because `hidden` is how an extension says "reachable, but not by
+ * browsing" and a menu is browsing. Entries are grouped by owning extension so
+ * one extension's items stay together, then ordered within a group by the
+ * command's own `order`, then by resolved label so equal orders are stable
+ * rather than dependent on activation timing.
+ *
+ * Exported for testing: the whole of P3a's logic is this selection and
+ * ordering, and the rest is Electron menu plumbing a unit test cannot reach.
+ */
+export function buildExtensionToolsSubmenu(deps: BuildMenuSpecDeps): MenuSpecItem[] {
+  const byExtension = new Map<string, { label: string; item: MenuCommandSpec }[]>();
+
+  for (const command of deps.registry.list()) {
+    const owner = command.ownerExtensionId;
+    if (owner === undefined || command.hidden === true) continue;
+
+    // The extension supplies its own title, already localized through its own
+    // catalog. Resolving it here rather than looking up a `menu.*` key is the
+    // one place this file departs from its usual rule - see the Tools comment
+    // in `buildMenuSpec`.
+    const label = deps.i18n.resolve(command.title);
+    const accel = acceleratorFor(deps, command.id);
+    const item: MenuCommandSpec = {
+      type: 'command',
+      commandId: command.id,
+      label,
+      ...(accel !== undefined ? { accelerator: accel } : {}),
+    };
+    const group = byExtension.get(owner);
+    if (group) group.push({ label, item });
+    else byExtension.set(owner, [{ label, item }]);
+  }
+
+  if (byExtension.size === 0) return [];
+
+  const orderOf = (commandId: string): number =>
+    deps.registry.get(commandId)?.order ?? 0;
+
+  const out: MenuSpecItem[] = [];
+  // Extensions in id order: stable across restarts, and independent of which
+  // extension happened to activate first.
+  for (const owner of [...byExtension.keys()].sort()) {
+    if (out.length > 0) out.push({ type: 'separator' });
+    const entries = byExtension.get(owner)!.sort((a, b) => {
+      const delta = orderOf(a.item.commandId) - orderOf(b.item.commandId);
+      return delta !== 0 ? delta : a.label.localeCompare(b.label);
+    });
+    for (const entry of entries) out.push(entry.item);
+  }
+  return out;
+}
+
 export function buildMenuSpec(deps: BuildMenuSpecDeps): MenuSpec {
   const { isMac } = deps;
   const out: MenuSpec = [];
@@ -227,6 +283,33 @@ export function buildMenuSpec(deps: BuildMenuSpecDeps): MenuSpec {
           checked: deps.allowWebRequests === true,
         }),
       ],
+    });
+  }
+
+  // ---- Tools menu ----
+  //
+  // Extension-contributed entries, and the only place in the application menu
+  // an extension can reach. Before this the command palette was an extension's
+  // sole entry point, which is fine for power users and invisible to everyone
+  // else - a panel an extension contributed could not be found by looking.
+  //
+  // **Omitted entirely when empty.** This follows the rule the rest of this
+  // file already keeps for developer tools and the privacy toggle: an entry
+  // whose command is not registered is left off rather than shown dead, and a
+  // submenu with nothing in it is worse than no submenu. A fresh install with
+  // no extensions therefore has no Tools menu at all.
+  //
+  // Labels come from the extension's own already-localized command title, not
+  // from the `menu.*` catalog: the app cannot know a phrase for something it
+  // did not ship. That is a deliberate departure from this file's usual rule,
+  // and it is why `menuItemsFor` is separate from `commandItem`.
+  const toolsSubmenu = buildExtensionToolsSubmenu(deps);
+  if (toolsSubmenu.length > 0) {
+    out.push({
+      type: 'submenu',
+      label: deps.i18n.t('menu.tools.title'),
+      id: 'tools',
+      submenu: toolsSubmenu,
     });
   }
 

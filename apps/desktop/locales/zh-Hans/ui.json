@@ -1250,5 +1250,8 @@
   "documentationDialog.bookmarks.movingBody": "右键点击一节经文，选择<strong>添加到书签</strong>，然后选择一个已有书签而不是新建——它便指向此处。你命名过的书签会保留名称；未命名的会改为显示新的经文出处。",
   "documentationDialog.bookmarks.managingHeading": "管理列表",
   "documentationDialog.bookmarks.managingBody": "工具栏中的书签丝带会打开你的书签；点击其中一个即可前往。<strong>管理书签</strong>用于重命名、拖动排序和移除。",
-  "documentationDialog.bookmarks.tip": "已加书签的经文会在正文中旁边显示一条红色小丝带。"
+  "documentationDialog.bookmarks.tip": "已加书签的经文会在正文中旁边显示一条红色小丝带。",
+  "statusBar.label": "状态栏",
+  "commands.openExtensionPanel": "打开 {name}",
+  "newTabPage.fromExtensions": "来自扩展"
 }

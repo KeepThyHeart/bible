@@ -63,6 +63,19 @@ export class WindowManager {
         // happens in the main process behind IPC handlers; the renderer never
         // touches better-sqlite3 or any other native module directly.
         sandbox: true
+        //
+        // DO NOT add a `partition` here without also registering the
+        // `ext-ui://` handler on that session.
+        //
+        // `registerExtUiProtocol(host)` is called in `main.ts` with no
+        // session, which registers on the global protocol module and so
+        // serves `session.defaultSession`. These windows inherit the default
+        // session precisely because no partition is set, which is the only
+        // reason a popped-out extension panel can load its iframe at all.
+        // Give them their own partition and every extension panel window goes
+        // blank - with no error, because a protocol with no handler simply
+        // fails the request. `registerExtUiProtocol` takes an optional
+        // `Session` for exactly this case.
       },
       backgroundColor: '#FFFFFF',
       show: false // Show when ready

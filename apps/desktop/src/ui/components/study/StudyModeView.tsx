@@ -149,9 +149,11 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
     studyOptions.showCrossReferences,
   );
 
-  // Get current abbreviation from active tab
+  // Get current abbreviation from active tab. With no tab there is no chapter
+  // on screen and nothing to look interlinear data up for; an empty key finds
+  // none, where naming a Bible here only guessed at one.
   const activeTab = openTabs[activeTabIndex];
-  const currentAbbreviation = activeTab?.abbreviation || 'KJV';
+  const currentAbbreviation = activeTab?.abbreviation ?? '';
 
   // Interlinear availability is populated by useBibleStore when chapters load -
   // no separate IPC call needed (avoids multi-second IPC queue delay)

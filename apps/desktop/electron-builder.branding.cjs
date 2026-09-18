@@ -10,7 +10,7 @@
  * (e.g. `win.target`) and the values set here survive - but a child that
  * RE-DECLARES a key set here overrides it. Therefore the child ymls must NOT
  * re-declare `appId`, `productName`, `nsis.shortcutName`,
- * `win.signAndEditExecutable`, `mac.hardenedRuntime`, or `afterSign`.
+ * `win.signAndEditExecutable`, or `mac.hardenedRuntime`.
  *
  * ===================================================================
  * NEUTRAL-BRANDING PROFILE  (persecuted-user footprint)
@@ -66,12 +66,11 @@
  *   3. Traditional OV/EV .pfx: set CSC_LINK (path or base64) + CSC_KEY_PASSWORD;
  *      electron-builder signs automatically.
  *
- * macOS. `mac.hardenedRuntime` and the `afterSign` notarization hook
- * (scripts/notarize.cjs) activate only when Apple signing + notarization creds are
- * all present: CSC_LINK/CSC_NAME (Developer ID cert) AND APPLE_ID AND
- * APPLE_APP_SPECIFIC_PASSWORD AND APPLE_TEAM_ID. Otherwise an unsigned,
- * un-notarized dmg still builds. The hook itself also re-checks and no-ops when
- * creds are absent, so it is safe to leave wired unconditionally.
+ * macOS. `mac.hardenedRuntime` activates only when Apple signing + notarization
+ * creds are all present: CSC_LINK/CSC_NAME (Developer ID cert) AND APPLE_ID AND
+ * APPLE_APP_SPECIFIC_PASSWORD AND APPLE_TEAM_ID. Notarization needs no hook:
+ * electron-builder submits and staples a signed app itself whenever those
+ * APPLE_* vars are set. Otherwise an unsigned, un-notarized dmg still builds.
  *
  * Keep DEFAULT_PRODUCT_NAME in sync with `DEFAULT_PRODUCT_NAME` in
  * `electron/config/appConfig.ts`.
@@ -118,28 +117,103 @@ const macSigningConfigured = Boolean(
 // in `.github/workflows/release.yml`. A local `npm run package:win` writes the
 // yml alongside the exe and uploads nothing.
 //
-// Owner/repo come from `branding.json` so this cannot drift from the URL the
-// in-app update check already uses (`DEFAULT_UPDATE_MANIFEST_URL`).
+// Owner/repo come from `admin/brand/branding.json` (with a fork's
+// `branding.local.json` laid over it, as electron.vite.config.ts does) so this
+// cannot drift from the URL the in-app update check already uses
+// (`DEFAULT_UPDATE_MANIFEST_URL`).
 const branding = (() => {
+  const readJson = (file) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require(file);
+    } catch {
+      return {};
+    }
+  };
+  return {
+    ...readJson('../../admin/brand/branding.json'),
+    ...readJson('../../admin/brand/branding.local.json'),
+  };
+})();
+
+// --- Electron version ------------------------------------------------------
+//
+// The installers must run the Electron the app is developed and tested on, so
+// no config pins one. electron-builder would read it from
+// apps/desktop/node_modules/electron, but npm hoists `electron` to the root
+// node_modules, and without it there electron-builder falls back to the
+// `^44.x` range in package.json and refuses to build ("is a range, not a fixed
+// version"). So it is resolved here the way Node resolves it, which finds the
+// hoisted package. Upgrading Electron with npm needs no edit here.
+const electronVersion = (() => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('../../branding.json');
-  } catch {
-    return {};
+    return require(require.resolve('electron/package.json', { paths: [__dirname] })).version;
+  } catch (cause) {
+    throw new Error(`electron-builder.branding.cjs: the electron package is not installed (${cause.message}). Run \`npm install\` at the repository root first.`);
   }
 })();
+
+// --- Native modules after a mac build ----------------------------------------
+//
+// electron-builder rebuilds native modules for each arch it packages IN PLACE,
+// in the repository's node_modules. The mac targets build arm64 and x64, so the
+// last pass leaves its arch behind: on an Apple Silicon Mac the development
+// tree then holds x64 binaries and `npm run dev` cannot load SQLite
+// ("incompatible architecture") until `npm run rebuild-native:force`. After a
+// mac build this puts back the host's Electron build of any binding left for
+// another arch. Not on CI, which has no development tree to keep working.
+const MACHO_CPU_TYPES = { 0x01000007: 'x64', 0x0100000c: 'arm64' }; // <mach/machine.h>
+const NATIVE_BINDINGS = {
+  'better-sqlite3-multiple-ciphers': 'build/Release/better_sqlite3.node',
+  keytar: 'build/Release/keytar.node',
+};
+
+function restoreHostNativeModules() {
+  if (process.platform !== 'darwin' || process.env.CI) return [];
+  const fs = require('fs');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const otherArch = Object.entries(NATIVE_BINDINGS)
+    .filter(([name, binding]) => {
+      const header = Buffer.alloc(8);
+      try {
+        const dir = path.dirname(require.resolve(`${name}/package.json`, { paths: [__dirname] }));
+        const fd = fs.openSync(path.join(dir, binding), 'r');
+        try {
+          fs.readSync(fd, header, 0, 8, 0);
+        } finally {
+          fs.closeSync(fd);
+        }
+      } catch {
+        return false; // not installed (keytar is optional) or not built
+      }
+      const arch = MACHO_CPU_TYPES[header.readUInt32LE(4)];
+      return arch !== undefined && arch !== process.arch;
+    })
+    .map(([name]) => name);
+  if (otherArch.length > 0) {
+    console.log(`  • restoring the ${process.arch} Electron build of ${otherArch.join(', ')} for npm run dev`);
+    execFileSync('npx', ['@electron/rebuild', '--only', otherArch.join(','), '-f'], { cwd: __dirname, stdio: 'inherit' });
+  }
+  return [];
+}
 
 module.exports = {
   appId,
   productName,
+  electronVersion,
+  afterAllArtifactBuild: restoreHostNativeModules,
   publish: [
     {
       provider: 'github',
       owner: branding.githubOrg || 'psrankin',
       repo: branding.githubRepo || 'bible',
-      // Drafts are not offered to users. The release workflow publishes a draft
-      // for review, and updates only start flowing once it is published by hand.
-      releaseType: 'release',
+      // Drafts are not offered to users: GitHub hides them from unauthenticated
+      // API calls, so neither electron-updater nor the in-app check sees them.
+      // The release workflow uploads into a draft for review, and updates only
+      // start flowing once it is published by hand from the Releases page.
+      releaseType: 'draft',
     },
   ],
   nsis: {
@@ -152,9 +226,46 @@ module.exports = {
   mac: {
     // Hardened runtime is required for notarization; only meaningful when signed.
     hardenedRuntime: macSigningConfigured,
+    // With no certificate supplied, sign ad hoc ('-') rather than letting
+    // electron-builder pick whatever identity the keychain holds. Otherwise a
+    // developer's Mac signs local builds with their personal "Apple
+    // Development" cert, timestamping every file against Apple's server (slow,
+    // and it fails offline), while CI builds the same config unsigned. Ad hoc
+    // is also the least Apple Silicon needs: an arm64 app with no signature at
+    // all is refused. Set CSC_NAME to sign with a keychain identity on purpose.
+    ...(envStr('CSC_LINK') || envStr('CSC_NAME') ? {} : { identity: '-' }),
   },
-  // Notarization hook. Self-guards: no-ops unless the platform is darwin and all
-  // Apple creds are present, so it is safe to leave wired for unsigned builds and
-  // on Windows/Linux. Path resolves relative to the desktop package dir.
-  afterSign: 'scripts/notarize.cjs',
+  // The deb's required "homepage" (fpm refuses to build without one). Taken
+  // from branding like every other public URL, rather than hard-coded in
+  // package.json.
+  extraMetadata: {
+    homepage: branding.siteUrl || branding.downloadsUrl
+      || `https://github.com/${branding.githubOrg || 'psrankin'}/${branding.githubRepo || 'bible'}`,
+  },
+  linux: {
+    // On Linux the binary is otherwise named after the npm package,
+    // `@bible/desktop` -> `@bibledesktop`, which electron-builder refuses for
+    // the AppImage ("executableName contains characters that cannot be safely
+    // used in file paths"), so the Linux release build failed.
+    // Linux only: on Windows the .exe keeps productName, which
+    // build-installer.nsh depends on. Child configs' `linux:` blocks are
+    // deep-merged with this one, so their targets are unaffected.
+    executableName: linuxName(),
+  },
+  deb: {
+    // Otherwise both come from the npm name, and the deb was written to
+    // dist/@bible/desktop_<version>_amd64.deb: a subdirectory the release
+    // workflow's `dist/*.deb` never matches.
+    packageName: linuxName(),
+    artifactName: `${linuxName()}_\${version}_\${arch}.\${ext}`,
+  },
 };
+
+/**
+ * productName as a Linux file and package name ("keep-thy-heart-bible-reader"),
+ * so a neutral BIBLE_PRODUCT_NAME build renames the binary and the deb too.
+ * A function declaration, so the object above can call it.
+ */
+function linuxName() {
+  return productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bible';
+}

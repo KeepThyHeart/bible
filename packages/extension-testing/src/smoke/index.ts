@@ -51,6 +51,7 @@ export type {
   HookInvocationStatus,
   HookKind,
   HookSource,
+  HookTarget,
 } from './types';
 export {
   formatPretty,
@@ -65,6 +66,8 @@ export {
   RealmHookInvoker,
   dispatchToApi,
   type DispatchResult,
+  type RealmEndpointCaller,
+  type RealmEndpointOutcome,
   type RealmFactory,
   type RealmRuntimeError,
   type RealmSession,

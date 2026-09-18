@@ -2,11 +2,10 @@
  * Module provenance metadata - how the desktop app decides that a module's
  * text was produced by a machine rather than written by a human author.
  *
- * This exists because the app opens an AI-synthesized commentary by default
- * (see `DEFAULT_COMMENTARY_ABBREVIATION` in `constants.ts`). A reader who is
- * not told will reasonably assume the commentary was written by the historical
- * commentators whose names appear elsewhere in the app, so every surface that
- * shows that text has to say where it came from.
+ * This exists because the app can show an AI-synthesized commentary alongside
+ * the historical ones. A reader who is not told will reasonably assume the
+ * commentary was written by the commentators whose names appear elsewhere in
+ * the app, so every surface that shows that text has to say where it came from.
  *
  * Mirrors `apps/web/src/moduleDescriptions.ts` so both apps disclose the
  * same thing in the same words.

@@ -2,14 +2,20 @@
 export const DEFAULT_VERSE_ID = 43003016;
 
 /**
- * Module abbreviation of the commentary opened on a fresh profile.
+ * Commentaries to open on a fresh profile, most preferred first.
  *
- * The AI-synthesized commentary ships with every build (see
- * scripts/stage-build-data.js), so it is the only safe cross-tradition
- * default. Lean builds that omit it fall back to the first available
- * commentary - see `pickDefaultCommentary` in services/AppInitService.
+ * All are human-authored public-domain works, so a first-run reader never
+ * meets generated text they did not ask for. Gill leads because it covers the
+ * whole Bible at a seventh of Matthew Henry's installed size (90 MB against
+ * 632 MB); MHC follows because the default installer bundles it; Wesley is
+ * last because it is the whole-Bible commentary in the development `starter`
+ * set (`npm run init:modules`). Every one covers both Testaments: the fallback
+ * below takes whatever is listed first, and in a starter install that was the
+ * New-Testament-only Barnes, so Genesis opened on "No commentary for this
+ * verse". With none installed, `pickDefaultCommentary` in
+ * services/AppInitService falls back to the first available commentary.
  */
-export const DEFAULT_COMMENTARY_ABBREVIATION = 'SYNTHESIS';
+export const DEFAULT_COMMENTARY_PREFERENCE: readonly string[] = ['Gill', 'MHC', 'Wesley'];
 
 // ---------------------------------------------------------------------------
 // localStorage key constants

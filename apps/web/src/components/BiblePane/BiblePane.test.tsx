@@ -91,7 +91,7 @@ vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
 
-const mockIsServedLocally = vi.fn(() => false);
+const mockIsServedLocally = vi.fn((_module: string) => false);
 
 vi.mock('../../stores/bibleStore', () => ({
   bibleStore: {
@@ -104,7 +104,7 @@ vi.mock('../../stores/bibleStore', () => ({
     navigateTo: vi.fn(),
     // Server-backed by default, which is what makes the adjacent-chapter
     // prefetch run at all. Overridden per-test to cover the offline case.
-    isServedLocally: (...args: unknown[]) => mockIsServedLocally(...args),
+    isServedLocally: (module: string) => mockIsServedLocally(module),
     // Mirrors the real store: only the caller holding the current token can
     // spend it, and clearing notifies just as setting does.
     clearPendingScrollVerse: (verseId: number) => {

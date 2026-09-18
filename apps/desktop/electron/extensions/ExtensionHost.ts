@@ -84,8 +84,9 @@ export class ExtensionHost implements IExtensionHost {
     this.ctx = {
       db: opts.db,
       extensionsRoot: opts.extensionsRoot,
+      logRoot: opts.logRoot ?? opts.extensionsRoot,
       registry: new ExtensionRegistry(opts.db),
-      logger: new ExtensionLifecycleLogger(opts.extensionsRoot),
+      logger: new ExtensionLifecycleLogger(opts.logRoot ?? opts.extensionsRoot),
       workerFactory: opts.workerFactory,
       workerScriptPath:
         opts.workerScriptPath ?? join(__dirname, 'extension-runtime', 'index.js'),
@@ -104,6 +105,7 @@ export class ExtensionHost implements IExtensionHost {
       notesBridge: opts.notesBridge,
       highlightsBridge: opts.highlightsBridge,
       bookmarksBridge: opts.bookmarksBridge,
+      collectionsBridge: opts.collectionsBridge,
       folderBridge: opts.folderBridge,
       storageQuotaBytes: opts.storageQuotaBytes,
       secretsKeychain: opts.secretsKeychain,
@@ -154,11 +156,16 @@ export class ExtensionHost implements IExtensionHost {
     // never exists and nothing says why.
     //
     // Degrade instead: a host with an unwritable root can still enumerate and
-    // run extensions that are already present; only installs and log writes
-    // fail, and those report their own errors. See "Known issue - extensions
-    // root is not user-writable when packaged" in
-    // `packages/core/src/Extensions/README.md`; the durable fix is to root
-    // extensions at `app.getPath('userData')` (i.e. `getUserDataPath()`).
+    // run extensions that are already present; only installs fail, and those
+    // report their own errors. See "Known issue - extensions root is not
+    // user-writable when packaged" in
+    // `packages/core/src/Extensions/README.md`.
+    //
+    // Per-extension *state* no longer rides on this root being writable:
+    // `main.ts` points `logRoot` (and, separately,
+    // `ExtensionDatabaseRegistry`) at `getUserDataPath()`. Installs and
+    // discovery are the remaining users of `extensionsRoot`, and moving those
+    // is the larger, still-outstanding half of the fix.
     try {
       if (!existsSync(this.ctx.extensionsRoot)) {
         mkdirSync(this.ctx.extensionsRoot, { recursive: true });
@@ -166,9 +173,26 @@ export class ExtensionHost implements IExtensionHost {
     } catch (err) {
       log.warn(
         `[ExtensionHost] could not create extensions root ${this.ctx.extensionsRoot} — ` +
-          'installs and per-extension logs will fail (read-only location?):',
+          'installs will fail (read-only location?):',
         err,
       );
+    }
+    // The log root is usually the same directory (they are identical outside a
+    // packaged build), so this is normally a no-op. Created eagerly anyway
+    // because the logger swallows its own errors: without this, a permission
+    // problem under user data would leave no trace at all.
+    if (this.ctx.logRoot !== this.ctx.extensionsRoot) {
+      try {
+        if (!existsSync(this.ctx.logRoot)) {
+          mkdirSync(this.ctx.logRoot, { recursive: true });
+        }
+      } catch (err) {
+        log.warn(
+          `[ExtensionHost] could not create extension log root ${this.ctx.logRoot} — ` +
+            'per-extension logs will be dropped:',
+          err,
+        );
+      }
     }
   }
 
@@ -340,6 +364,37 @@ export class ExtensionHost implements IExtensionHost {
       );
     }
     return active.networkApi.fetchInternal(url, init);
+  }
+
+  /**
+   * Deliver a panel iframe's message to that panel's own extension worker and
+   * resolve with the worker's reply.
+   *
+   * Every field of `sender` is host-supplied. The renderer's panel host knows
+   * `extensionId` from the closure that mounted the iframe, and the iframe
+   * never names an extension - so, exactly as with `uiFetch`, a panel cannot
+   * borrow another extension's worker or its grants.
+   */
+  panelInvoke(
+    sender: Extensions.PanelMessageSender,
+    message: unknown,
+  ): Promise<unknown> {
+    const active = this.ctx.activeWorkers.get(sender.extensionId);
+    if (!active) {
+      return Promise.reject(
+        new Error(
+          `Extension '${sender.extensionId}' is not active — cannot deliver a panel message.`,
+        ),
+      );
+    }
+    if (!active.panelsApi) {
+      return Promise.reject(
+        new Error(
+          `Extension '${sender.extensionId}' has no panel channel attached.`,
+        ),
+      );
+    }
+    return active.panelsApi.deliver(message, sender);
   }
 
   isActive(extensionId: string): boolean {

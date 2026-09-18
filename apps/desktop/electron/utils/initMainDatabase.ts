@@ -70,6 +70,7 @@ export function initializeMainDatabase(mainDbPath: string, seedDbPath?: string):
   }
 
   ensureModuleUuidColumn(db);
+  ensureDefaultRepository(db);
   ensureReferenceData(db, seedDbPath);
 
   log.info('[MainDB] Database initialization complete');
@@ -220,6 +221,43 @@ function ensureModuleUuidColumn(db: SqliteProvider): void {
   db.execute(`ALTER TABLE module_metadata ADD COLUMN module_uuid TEXT`);
   db.execute(
     `CREATE INDEX IF NOT EXISTS idx_module_metadata_uuid ON module_metadata(module_uuid)`
+  );
+}
+
+/**
+ * Add this build's official catalog source when the database has none.
+ *
+ * Runs on every start rather than inside a migration, because most databases
+ * never run the migration that used to seed it: `npm run init` and the main.db
+ * template the installer ships (`init --no-modules`) both build the schema
+ * directly, so a fresh install's first launch already finds an existing
+ * database. Only when this build has a catalog URL (BIBLE_MODULE_CATALOG_URL,
+ * defaulted from branding) - seeding a URL that 404s makes the Module Manager
+ * look broken.
+ *
+ * Keyed on the type rather than the URL, so a user who edited or disabled the
+ * official source keeps what they chose, and it is never added twice. The
+ * official source cannot be removed, so "none" means it never existed here.
+ */
+function ensureDefaultRepository(db: SqliteProvider): void {
+  if (APP_CONFIG.moduleCatalogUrl === '') {
+    log.info('[MainDB] No default module catalog configured; skipping repository seed');
+    return;
+  }
+
+  const tableExists = db.queryOne(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='module_repository'
+  `);
+  if (!tableExists) return;
+
+  const official = db.queryOne(`SELECT repository_id FROM module_repository WHERE type = 'official' LIMIT 1`);
+  if (official) return;
+
+  log.info('[MainDB] Seeding the official module repository:', APP_CONFIG.moduleCatalogUrl);
+  db.execute(
+    `INSERT OR IGNORE INTO module_repository (name, abbreviation, url, type, is_enabled, priority)
+     VALUES (?, 'OFFICIAL', ?, 'official', 1, 100)`,
+    [`Official ${APP_CONFIG.productName} Repository`, APP_CONFIG.moduleCatalogUrl]
   );
 }
 
@@ -464,18 +502,8 @@ function applyMigration002(db: SqliteProvider): void {
 
   db.execute('CREATE INDEX IF NOT EXISTS idx_repo_enabled ON module_repository(is_enabled, priority)');
 
-  // Seed the default repository - but only when this build actually has a
-  // catalog URL (BIBLE_MODULE_CATALOG_URL). The maintainer has not settled on
-  // one yet, and seeding a URL that 404s makes the Module Manager look broken.
-  if (APP_CONFIG.moduleCatalogUrl !== '') {
-    db.execute(
-      `INSERT OR IGNORE INTO module_repository (name, abbreviation, url, type, is_enabled, priority)
-       VALUES (?, 'official', ?, 'official', 1, 100)`,
-      [`Official ${APP_CONFIG.productName} Repository`, APP_CONFIG.moduleCatalogUrl]
-    );
-  } else {
-    log.info('[MainDB] No default module catalog configured; skipping repository seed');
-  }
+  // The official repository is seeded by `ensureDefaultRepository` on every
+  // start, not here: most databases never run this migration.
 
   // Module Download Queue Table
   db.execute(`

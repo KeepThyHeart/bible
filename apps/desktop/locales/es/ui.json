@@ -1295,5 +1295,8 @@
   "documentationDialog.bookmarks.movingBody": "Haz clic derecho en un versículo, elige <strong>Añadir a marcadores</strong> y selecciona un marcador existente en lugar de crear uno nuevo: ahora apunta aquí. Un marcador con nombre conserva su nombre; uno sin nombre pasa a mostrar la nueva referencia.",
   "documentationDialog.bookmarks.managingHeading": "Gestionar la lista",
   "documentationDialog.bookmarks.managingBody": "La cinta de la barra abre tus marcadores; haz clic en uno para ir allí. En <strong>Gestionar marcadores</strong> puedes cambiar nombres, reordenar arrastrando y quitar.",
-  "documentationDialog.bookmarks.tip": "Un versículo con marcador lleva una pequeña cinta roja junto a él en el texto."
+  "documentationDialog.bookmarks.tip": "Un versículo con marcador lleva una pequeña cinta roja junto a él en el texto.",
+  "statusBar.label": "Barra de estado",
+  "commands.openExtensionPanel": "Abrir {name}",
+  "newTabPage.fromExtensions": "De extensiones"
 }

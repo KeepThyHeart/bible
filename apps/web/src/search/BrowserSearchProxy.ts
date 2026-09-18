@@ -138,7 +138,11 @@ export class BrowserSearchProxy {
     return this.initPromise;
   }
 
-  async semanticSearch(query: string, options?: SearchOptions): Promise<SearchResultSet> {
+  /**
+   * `module` is the translation the results are labelled with. The worker has
+   * no access to the stores, so the caller decides it.
+   */
+  async semanticSearch(query: string, module: string, options?: SearchOptions): Promise<SearchResultSet> {
     await this.ensureInitialized();
 
     if (!this.worker) {
@@ -150,6 +154,7 @@ export class BrowserSearchProxy {
       this.worker!.postMessage({
         type: 'search',
         query,
+        module,
         maxResults: options?.pageSize ?? 20,
         levels: ['verse', 'paragraph'],
         minScore: 0.0,

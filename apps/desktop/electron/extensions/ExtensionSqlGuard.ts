@@ -10,6 +10,24 @@
  *   PRAGMA journal_mode = ...;               -- reconfigure the connection
  *   VACUUM INTO '.../anywhere.db';           -- write a copy outside the sandbox
  *
+ * It also refuses raw transaction control (`BEGIN`, `COMMIT`, `SAVEPOINT`,
+ * ...). That is a smaller concern - it corrupts the extension's own data
+ * rather than anyone else's - but the reason is the same shape: a statement
+ * that moves state the host is separately tracking. See
+ * `FORBIDDEN_TRANSACTION_STATEMENTS`.
+ *
+ * ## What this is NOT
+ *
+ * It is not an SQL-injection filter, and it cannot become one. By the time a
+ * statement reaches this function it is a finished string; whether the
+ * extension built it with bound parameters or by concatenating a user's input
+ * is no longer recoverable from it, and both produce SQL that is
+ * syntactically indistinguishable. Injection inside an extension's own
+ * database is the extension author's bug to avoid (bind parameters - the
+ * `params` argument on `query` / `queryOne` / `run` exists for exactly this),
+ * and its blast radius is that extension's own file, which is why the
+ * sandbox boundary above is where the host spends its enforcement.
+ *
  * ## Why a parser and not `sqlite3_set_authorizer`
  *
  * The kernel-level fix is an authorizer callback denying `SQLITE_ATTACH`,
@@ -91,6 +109,34 @@ const FORBIDDEN_STATEMENTS: ReadonlySet<string> = new Set([
 const FORBIDDEN_FUNCTIONS: ReadonlySet<string> = new Set(['load_extension']);
 
 /**
+ * Transaction control, banned for a different reason than the four above.
+ *
+ * These do not reach outside the file; they desynchronize the host from it.
+ * `ExtensionDatabaseRegistry` keeps an `inTransaction` flag per handle so
+ * `db.transaction()` can refuse to nest and `closeEntry` can roll back what a
+ * crashed extension left open. That flag is host-side bookkeeping, and a raw
+ * `BEGIN` through `db.exec` moves SQLite without moving it: the registry then
+ * believes no transaction is open, skips the `ROLLBACK` on close, and the
+ * extension's writes vanish at close time with no error anywhere. The mirror
+ * case - a raw `COMMIT` inside a `db.transaction()` - leaves the registry
+ * believing a transaction is still open and turns the next real commit into
+ * an "no transaction is active" failure the extension author cannot explain.
+ *
+ * `SAVEPOINT` belongs here because outside a transaction it starts one, and
+ * `RELEASE` of the outermost savepoint commits it.
+ *
+ * So `db.transaction()` is made the only route - which is also the only route
+ * `IExtensionDatabase` documents.
+ */
+const FORBIDDEN_TRANSACTION_STATEMENTS: ReadonlySet<string> = new Set([
+  'begin',
+  'commit',
+  'rollback',
+  'savepoint',
+  'release',
+]);
+
+/**
  * Throw unless `sql` is admissible on an extension-owned database.
  *
  * @param sql   The extension-supplied statement.
@@ -99,14 +145,35 @@ const FORBIDDEN_FUNCTIONS: ReadonlySet<string> = new Set(['load_extension']);
 export function assertExtensionSqlAllowed(sql: string, label: string): void {
   const stripped = stripCommentsAndLiterals(sql);
 
+  // Counts only statements that carry tokens, so `; END` and `/*x*/ END` are
+  // both recognized as leading rather than trailing.
+  let statementIndex = -1;
+
   for (const statement of stripped.split(';')) {
     const tokens = statement.match(/[A-Za-z_][A-Za-z0-9_]*/g);
     if (!tokens || tokens.length === 0) continue;
+    statementIndex++;
 
     const keyword = leadingKeyword(tokens);
     if (keyword && FORBIDDEN_STATEMENTS.has(keyword)) {
       throw new RpcProtocolError(
         `${label}: ${keyword.toUpperCase()} is not permitted on an extension database`,
+      );
+    }
+    // `END` is COMMIT's alias, but it is also what closes a `CREATE TRIGGER`
+    // body - and the `;` separators inside that body make the closing `END`
+    // look like a later statement's leading keyword to the split above.
+    // Triggers are ordinary things for an extension to create (an FTS5
+    // external-content index is built out of three of them), so banning `end`
+    // everywhere would false-positive on real code. It is banned only where
+    // it can actually mean COMMIT: leading the *first* statement. An `END`
+    // reached later can only be closing a body, because `prepare()` refuses
+    // multi-statement SQL and would reject anything else before it ran.
+    if (keyword && (FORBIDDEN_TRANSACTION_STATEMENTS.has(keyword) ||
+        (keyword === 'end' && statementIndex === 0))) {
+      throw new RpcProtocolError(
+        `${label}: ${keyword.toUpperCase()} is not permitted on an extension database - ` +
+          'use db.transaction() so the host can track the transaction',
       );
     }
 

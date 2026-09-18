@@ -11,7 +11,11 @@ export {
   type RealmSmokeHarness,
   type RealmSmokeHarnessOptions,
 } from './createRealmSmokeHarness';
-export { RealmHookInvoker } from './RealmHookInvoker';
+export {
+  RealmHookInvoker,
+  type RealmEndpointCaller,
+  type RealmEndpointOutcome,
+} from './RealmHookInvoker';
 export { dispatchToApi, type DispatchResult } from './apiDispatch';
 export type {
   RealmFactory,

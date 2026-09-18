@@ -7,7 +7,7 @@ import {
   isAiGeneratedModule,
   isDigestModule,
 } from './moduleDescriptions';
-import { DEFAULT_COMMENTARY_ABBREVIATION } from './constants';
+import { DEFAULT_COMMENTARY_PREFERENCE } from './constants';
 import { enString } from './testing/enCatalog';
 
 describe('moduleDescriptions', () => {
@@ -33,10 +33,12 @@ describe('moduleDescriptions', () => {
       expect(isDigestModule('')).toBe(false);
     });
 
-    it('covers the module the app opens by default', () => {
-      // If the default ever changes, the disclosure has to follow it.
-      expect(isDigestModule(DEFAULT_COMMENTARY_ABBREVIATION)).toBe(true);
-      expect(DEFAULT_COMMENTARY_ABBREVIATION).toBe(DIGEST_MODULE_ABBR);
+    it('is never among the commentaries the app opens by default', () => {
+      // Generated text is something a reader opts into, not a first-run default.
+      for (const abbreviation of DEFAULT_COMMENTARY_PREFERENCE) {
+        expect(isDigestModule(abbreviation)).toBe(false);
+      }
+      expect(DEFAULT_COMMENTARY_PREFERENCE).not.toContain(DIGEST_MODULE_ABBR);
     });
   });
 

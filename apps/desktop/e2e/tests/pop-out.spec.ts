@@ -111,8 +111,8 @@ test.describe('Pop Out to Window', () => {
 
     // Content before the pop-out, so "content preserved" means something.
     //
-    // The default profile already opens SYNTHESIS, so there is no need to drive
-    // the module picker here. Note the picker does not close on Enter, so
+    // The default profile already opens a commentary, so there is no need to
+    // drive the module picker here. Note the picker does not close on Enter, so
     // opening it and pressing Enter would select nothing.
     await expect(commentaryPane).toContainText(/\w{4}/, { timeout: 20000 });
 

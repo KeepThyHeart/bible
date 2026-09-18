@@ -86,9 +86,12 @@ export class BrowserSearchProvider implements ISearchProvider {
     // Semantic search runs in the browser via Web Worker. Over-fetch so that after
     // consolidating overlapping verse/paragraph matches we still have a full page.
     const limit = options?.pageSize ?? 20;
-    const raw = await this.proxy.semanticSearch(query, { ...options, pageSize: limit * 4 });
+    // Read once, so the label the worker stamps on each result and the text
+    // fetched for it below cannot come from two different translations.
+    const module = this.getActiveModule();
+    const raw = await this.proxy.semanticSearch(query, module, { ...options, pageSize: limit * 4 });
     const results = consolidateResults(raw.results, limit);
-    await this.enrichVerseText(results);
+    await this.enrichVerseText(results, module);
     return { results, total: results.length };
   }
 
@@ -100,9 +103,8 @@ export class BrowserSearchProvider implements ISearchProvider {
    * a per-verse fan-out trips the server rate limiter and overloads the OPFS wasm
    * worker. On failure the idea-preview text is kept as a fallback.
    */
-  private async enrichVerseText(results: SearchResultData[]): Promise<void> {
+  private async enrichVerseText(results: SearchResultData[], module: string): Promise<void> {
     if (results.length === 0) return;
-    const module = this.getActiveModule();
     const ids = results.map((r) => r.verseId);
     try {
       const batch = await this.bibleProvider.getVerseTexts(module, ids);

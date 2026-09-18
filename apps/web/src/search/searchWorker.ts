@@ -8,7 +8,7 @@
  *   → { type: 'init', embeddingsUrl, metadataUrl }
  *   ← { type: 'progress', stage, detail }
  *   ← { type: 'ready' }
- *   → { type: 'search', query, maxResults?, levels?, minScore? }
+ *   → { type: 'search', query, module, maxResults?, levels?, minScore? }
  *   ← { type: 'results', results, timings }
  *   → { type: 'dispose' }
  *   ← { type: 'error', message }
@@ -70,7 +70,7 @@ let initialized = false;
 
 // ── Vector search ───────────────────────────────────────────────────────────
 
-function searchInt8(queryFloat32: Float32Array, maxResults: number, levels?: string[], minScore = 0.0): SearchResult[] {
+function searchInt8(queryFloat32: Float32Array, module: string, maxResults: number, levels?: string[], minScore = 0.0): SearchResult[] {
   if (!vectors || !metadata) throw new Error('Not initialized');
 
   // Quantize query to int8
@@ -110,7 +110,7 @@ function searchInt8(queryFloat32: Float32Array, maxResults: number, levels?: str
       text: meta.textPreview,
       snippet: meta.textPreview,
       score: Math.round(s.score * 1000) / 1000,
-      module: 'KJV',
+      module,
       type: meta.level,
     };
   });
@@ -303,14 +303,14 @@ self.onmessage = async (e: MessageEvent) => {
           return;
         }
 
-        const { query, maxResults = 20, levels, minScore = 0.0 } = msg;
+        const { query, module, maxResults = 20, levels, minScore = 0.0 } = msg;
 
         const t0 = performance.now();
         const queryVector = await embedQuery(query);
         const embedTime = performance.now() - t0;
 
         const t1 = performance.now();
-        const results = searchInt8(queryVector, maxResults, levels, minScore);
+        const results = searchInt8(queryVector, module, maxResults, levels, minScore);
         const searchTime = performance.now() - t1;
 
         postMessage({

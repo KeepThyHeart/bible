@@ -205,6 +205,43 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
         tab.moduleId = bible?.module_id;
       }
 
+      // A session can name Bibles that have since been uninstalled: as the
+      // passage itself, on Back-stack entries, and as parallel-view columns.
+      // Each is moved onto the default Bible, independently of the others.
+      // Only once the installed list is known - an empty list may just mean it
+      // failed to load. (The back/forward history entries carry no
+      // translation, so they need nothing.)
+      const { availableBibles } = get();
+      const isInstalled = (candidate: string): boolean =>
+        availableBibles.some(b => b.abbreviation === candidate);
+      // Chosen before the tab moves. The tab's own missing translation is
+      // skipped as "last used" because it is not installed.
+      const defaultBible = availableBibles.find(b => b.abbreviation === get().getDefaultBible());
+
+      // The passage. Its chapter has already failed to load above; rather than
+      // leave the reader on that error, show the same passage in the default.
+      let abbreviation = tab.abbreviation;
+      if (defaultBible && !isInstalled(abbreviation)) {
+        console.warn(
+          `[useBibleStore] Panel ${panelId}: ${abbreviation} is not installed, showing ${defaultBible.abbreviation} instead`
+        );
+        get().changeTabVersion(panelId, tab.tabId, defaultBible.abbreviation, defaultBible.name);
+        abbreviation = defaultBible.abbreviation;
+      }
+
+      // Parallel view is an explicit list of columns, and needs two to show
+      // anything. A missing column becomes the default Bible, which keeps the
+      // number of columns the reader chose - unless the default is already a
+      // column, when the missing one is dropped rather than shown twice.
+      const savedParallel = get().getPanelState(panelId).parallelVersions;
+      const parallelVersions: string[] = [];
+      for (const version of savedParallel) {
+        const resolved = defaultBible && !isInstalled(version) ? defaultBible.abbreviation : version;
+        if (!parallelVersions.includes(resolved)) parallelVersions.push(resolved);
+      }
+      const parallelChanged = parallelVersions.length !== savedParallel.length
+        || parallelVersions.some((version, i) => version !== savedParallel[i]);
+
       // Restore navigation history, synthesising a single entry when the saved
       // history is empty so Back/Forward still behave sensibly.
       const history = tab.history?.length > 0 ? tab.history : [{
@@ -219,14 +256,20 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
       // whose stack failed to parse) has none, so seed the single entry a
       // freshly opened passage would have: the reader is here, with nothing
       // behind them, and Back is correctly disabled.
+      //
+      // A saved entry naming a missing Bible follows the passage onto the
+      // default, or Back would lead to a translation that cannot load.
       const visitStack = staged.visitStack && staged.visitStack.length > 0
-        ? staged.visitStack
+        ? staged.visitStack.map(visit =>
+            defaultBible && visit.abbreviation && !isInstalled(visit.abbreviation)
+              ? { ...visit, abbreviation: defaultBible.abbreviation }
+              : visit)
         : [{
             verseId: tab.selectedVerseId ?? VerseIdHelper.calculate(tab.book, tab.chapter, 1),
             bookNumber: tab.book,
             chapter: tab.chapter,
             bookName,
-            abbreviation: tab.abbreviation,
+            abbreviation,
           }];
 
       set({
@@ -234,6 +277,7 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
           navigationHistory: history,
           historyIndex,
           visitStack,
+          ...(parallelChanged ? { parallelVersions } : {}),
         }, createDefaultPanelState)
       });
     } catch (error) {

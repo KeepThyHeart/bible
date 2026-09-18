@@ -1,6 +1,6 @@
 # Bookmarks & Collections
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-09
 
 Verse bookmarking. The UI presents **one flat, manually ordered list**; the collection tree underneath it is in the schema and reachable by extensions, but nothing in the app shows or creates a second collection.
 
@@ -58,6 +58,7 @@ Verse bookmarking. The UI presents **one flat, manually ordered list**; the coll
 | `electron/ipc/collectionHandlers.ts` | `collection:*`. Flat bookmark channels: `get-bookmarks`, `bookmark-passage`, `replace-bookmark-reference`, `rename-bookmark`. The tree-shaped channels (`create`, `move`, `get-tree`, ...) are there for extensions |
 | `electron/ipc/allowedChannels.ts` | Allow-lists every `collection:*` channel |
 | `electron/extensions/api-impl/bookmarksApiImpl.ts` | Bookmarks surface exposed to extensions - the only caller that can create a *collection* |
+| `electron/extensions/api-impl/collectionsApiImpl.ts` | `api.collections` - the same `collection` / `pinned_item` rows seen as **ordered lists of passages** (reading plans, outlines). Adds ranges with a label and an explicit position, and reorders. Gated on `bookmarks:read` / `bookmarks:write`, the same grants `bookmarksApiImpl` uses, because they are the same rows |
 
 ### Core
 
@@ -75,11 +76,12 @@ Verse bookmarking. The UI presents **one flat, manually ordered list**; the coll
 | `src/ui/components/bible/BookmarkMenu.test.tsx` | That opening the menu saves nothing, saving against the selection, passage selection, removal, disabled save with no selection, dropdown cap and overflow text, navigation, manage event |
 | `src/ui/components/ManageBookmarksDialog.test.tsx` | List rendering, rename, no notes editor, remove, handle reordering and its bounds, navigation, Escape-cancels, Escape-with-focus-outside |
 | `src/ui/components/VerseContextMenu.test.tsx` | Flyout open on click and on hover, add, replace-target list, Escape backing out one level, and removal only when bookmarked |
+| `electron/extensions/__tests__/Collections.test.ts` | `api.collections`: the dense-position invariant after insert-at, insert-past-the-end, remove-from-the-middle, move up and down, and a wholesale reorder; range storage (single verse as end = start); argument validation off the untyped RPC wire; `bookmarks:read` / `bookmarks:write` gating; disposal |
 | `e2e/tests/bookmarks.spec.ts` | End to end: saving from the menu, the jump list navigating, naming, keyboard reordering from the drag handle, removal, Escape closing the manager, and re-pointing an existing bookmark |
 
 ## Data flow
 
-`BookmarkMenu` / `VerseContextMenu` / **Ctrl+D** -> `useBookmarkStore` -> `collectionAPI` -> `collection:*` IPC -> `CollectionService` -> `CollectionRepository` -> `collection` / `pinned_item` in the user DB. Extensions enter the same chain at `bookmarksApiImpl`.
+`BookmarkMenu` / `VerseContextMenu` / **Ctrl+D** -> `useBookmarkStore` -> `collectionAPI` -> `collection:*` IPC -> `CollectionService` -> `CollectionRepository` -> `collection` / `pinned_item` in the user DB. Extensions enter the same chain at `bookmarksApiImpl` (flags on verses) or `collectionsApiImpl` (ordered lists of passages) - two namespaces over one store, because "is this verse saved" and "what is entry 3 of this reading plan" are different questions.
 
 ## Gotchas
 
@@ -103,8 +105,13 @@ It reports state and nothing more. Every way to change that state is one gesture
 
 Ranking an append off the collection's item count collides with an existing rank as soon as anything has been deleted from the middle: three items ranked 0, 1, 2, delete the middle one, and the count is 2 - the rank the last item still holds. `nextSortOrder()` exists for that, and `getBookmarks()` tie-breaks on `pin_id`.
 
+The extension-facing `api.collections` takes the other route and keeps `sort_order` **dense and zero-based** - a collection of n entries occupies exactly 0..n-1 - renumbering the whole collection after every insert, removal and move. It has to: the position a caller reads back is the position it passes to `move`, so a gap makes the number it was handed a lie, and a tie makes two entries read back in whichever order the storage engine feels like.
+
+The two rules agree rather than fight. After a dense renumber `max` is `n-1`, so the app's own `nextSortOrder()` append lands at exactly `n` - the same slot the extension API's append would have chosen - and `getBookmarks()`, which sorts by `sort_order` and tie-breaks on `pin_id`, never sees a tie to break.
+
 ## Not implemented
 
 - **Collection hierarchy in the UI.** `collection:create` / `update` / `delete` / `move` / `reorder` exist in IPC and in the store; no UI calls them. Extensions can. If an extension creates a collection, its items do not appear in the bookmarks list - the list is the default collection only.
+- **A production bridge for either extension namespace.** `bookmarksApiImpl` and `collectionsApiImpl` are attached only when `ExtensionHost` is given a `bookmarksBridge` / `collectionsBridge`, and `main.ts` supplies neither - it wires the bible, commentary, dictionary, book, command, context, UI, workspace and l10n bridges and stops there. Both namespaces are therefore absent from a real worker today, which is what an extension feature-detecting `typeof api.collections` should see. The in-memory bridges in `api-impl/InMemoryDataBridges.ts` are what the tests drive; a SQL-backed `IExtensionCollectionsBridge` should delegate to `CollectionRepository` (whose statements are all parameterized) rather than write its own, and specifically to `reorderPinnedItems()` for the renumbering described above.
 - **Search or filter within bookmarks.** The manager shows the whole list.
 - **Bookmarking anything but a verse or passage.** `pinned_item.item_type` allows notes, commentary entries, dictionary entries, book sections and images; only `verse` and `passage` are reachable from the UI.

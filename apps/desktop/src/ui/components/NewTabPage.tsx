@@ -3,6 +3,7 @@ import { useLayoutStore, type PanelContentType } from '../stores/useLayoutStore'
 import { useBibleStore, encodeBibleContentKey } from '../stores/useBibleStore';
 import { parseVerseReference, getAllBooks } from '../utils/verseParser';
 import { useI18n } from '../contexts/useI18n';
+import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import { genericEnglishTitle } from '../utils/paneNames';
 // Same icon rule the panel tab uses, so a category tile and the tab it creates
 // never disagree - separate lists drift.
@@ -12,20 +13,6 @@ import type { DockviewPanelApi } from 'dockview-react';
 interface NewTabPageProps {
   panelId: string;
   dockviewPanelApi?: DockviewPanelApi;
-}
-
-/** Get the default Bible abbreviation from the current Bible pane state */
-function getDefaultBibleAbbreviation(): string {
-  const bibleState = useBibleStore.getState(); // allow-getstate: event handler - imperative store access outside render
-  const primaryPanel = bibleState.panels.values().next().value;
-  if (primaryPanel) {
-    const activeTab = primaryPanel.openTabs[primaryPanel.activeTabIndex];
-    if (activeTab) return activeTab.abbreviation;
-  }
-  if (bibleState.availableBibles.length > 0) {
-    return bibleState.availableBibles[0].abbreviation;
-  }
-  return 'KJV';
 }
 
 /** Parse "Book Chapter" format (without verse), e.g. "John 3", "Genesis 1" */
@@ -76,7 +63,8 @@ const KEYWORD_MAP: Record<string, PanelContentType> = {
  * - Or click one of the quick action buttons
  */
 const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) => {
-  const { t } = useI18n();
+  const { t, i18n } = useI18n();
+  const extensionPanels = useExtensionUiStore((s) => s.panelTypes);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +111,39 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     currentPanel.api.close();
   }, [panelId, dockviewPanelApi, t]);
 
+  /**
+   * Open a typed passage in the default Bible. Immediate whenever the default
+   * is already known - every normal session, since the Bible pane has loaded
+   * the installed list long before anyone types here - and waits for that list
+   * only when it has not been loaded.
+   */
+  const openPassage = useCallback((
+    book: number,
+    chapter: number,
+    bookName: string,
+    selectedVerseId?: number,
+  ) => {
+    const open = (abbreviation: string | undefined): void => {
+      if (!abbreviation) {
+        // No Bible installed: there is nothing to open the passage in.
+        setError(t('layout.newTab.createFailed'));
+        return;
+      }
+      // No displayMode: let the seed carry the app default (Standard) rather
+      // than pinning Reading, which hides verse numbers.
+      const contentKey = encodeBibleContentKey({ abbreviation, book, chapter, selectedVerseId });
+      replaceWithPanel('bible', contentKey, `${bookName} ${chapter}`, abbreviation);
+    };
+
+    const bibleStore = useBibleStore.getState(); // allow-getstate: event handler - imperative store access outside render
+    const known = bibleStore.getDefaultBible();
+    if (known) {
+      open(known);
+      return;
+    }
+    void bibleStore.resolveDefaultBible().then(open);
+  }, [replaceWithPanel, t]);
+
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = query.trim();
@@ -146,32 +167,17 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     // Try parsing as a full verse reference (e.g. "John 3:16")
     const parsed = parseVerseReference(trimmed);
     if (parsed) {
-      const abbreviation = getDefaultBibleAbbreviation();
-      // No displayMode: let the seed carry the app default (Standard) rather
-      // than pinning Reading, which hides verse numbers.
-      const contentKey = encodeBibleContentKey({
-        abbreviation,
-        book: parsed.bookNumber,
-        chapter: parsed.chapter,
-        // The verse the user typed. Dropping it opened "John 5:5" on John 5
-        // with nothing selected and no scroll - the reference was parsed and
-        // then thrown away one line later.
-        selectedVerseId: parsed.verseIdStart,
-      });
-      replaceWithPanel('bible', contentKey, `${parsed.bookName} ${parsed.chapter}`, abbreviation);
+      // The verse the user typed. Dropping it opened "John 5:5" on John 5
+      // with nothing selected and no scroll - the reference was parsed and
+      // then thrown away one line later.
+      openPassage(parsed.bookNumber, parsed.chapter, parsed.bookName, parsed.verseIdStart);
       return;
     }
 
     // Try parsing as "Book Chapter" (no verse, e.g. "John 3")
     const chapterRef = parseBookChapter(trimmed);
     if (chapterRef) {
-      const abbreviation = getDefaultBibleAbbreviation();
-      const contentKey = encodeBibleContentKey({
-        abbreviation,
-        book: chapterRef.bookNumber,
-        chapter: chapterRef.chapter,
-      });
-      replaceWithPanel('bible', contentKey, `${chapterRef.bookName} ${chapterRef.chapter}`, abbreviation);
+      openPassage(chapterRef.bookNumber, chapterRef.chapter, chapterRef.bookName);
       return;
     }
 
@@ -180,7 +186,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     setError(
       t('newTabPage.unrecognizedInput', { input: trimmed }),
     );
-  }, [query, replaceWithPanel, t]);
+  }, [query, replaceWithPanel, openPassage, t]);
 
   const handleQuickAction = useCallback((type: PanelContentType) => {
     // Deliberately NOT the button's visible label. That text is already
@@ -267,6 +273,45 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
             );
           })}
         </div>
+
+        {/*
+          Extension-contributed panels, in their own group beneath the app's
+          own kinds. Without this the only way to open one was for the
+          extension to call `workspace.openPanel` itself, so a panel an
+          extension contributed was invisible to everyone who did not already
+          know it existed.
+
+          Kept visually separate rather than mixed into the grid above: the
+          eight built-in kinds are a fixed vocabulary a user learns once, and
+          silently growing that grid by whatever is installed would make it a
+          different shape on every machine.
+        */}
+        {extensionPanels.length > 0 && (
+          <>
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mt-lg mb-xs">
+              {t('newTabPage.fromExtensions')}
+            </h3>
+            <div className="grid grid-cols-4 gap-sm">
+              {extensionPanels.map((panel) => {
+                const label = i18n.resolve(panel.def.title);
+                return (
+                  <button
+                    key={panel.key}
+                    type="button"
+                    onClick={() => replaceWithPanel(panel.contentType, undefined, label)}
+                    className="flex flex-col items-center justify-center gap-xs min-w-0 px-xs py-md text-xs rounded border border-border bg-transparent text-text-primary hover:bg-background-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                  >
+                    {/* No icon: `ExtensionPanelTypeDef.icon` is an
+                        extension-chosen string, and rendering arbitrary
+                        extension markup into the app's own chrome is the
+                        injection this platform exists to avoid. */}
+                    <span className="w-full text-center leading-tight break-words">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         <p className="text-xs text-text-muted text-center mt-md leading-relaxed">
           {t('newTabPage.hint')}

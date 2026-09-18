@@ -1,5 +1,4 @@
 import { IpcMain } from 'electron';
-import { join } from 'path';
 import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { SqliteProvider } from '../providers/SqliteProvider';
@@ -10,7 +9,8 @@ import { getDictionaryRepository } from './dictionaryHandlers';
 import { validateString, validatePositiveInt } from '../utils/validation';
 import { getSharedMainDb, getSharedModuleMetadataRepo, getSharedBookRepo } from '../services/sharedMainDb';
 import { getModuleDatabaseRegistry } from '../services/ModuleDatabaseRegistry';
-import { resolveModulePath, resolveSemanticIndexPath, resolveSemanticModelsPath } from '../utils/appPaths';
+import { resolveSemanticIndexPath, resolveSemanticModelsPath } from '../utils/appPaths';
+import { pickDefaultBible } from './defaultBible';
 import {
   resolveSearchScope,
   applySearchHighlighting as applyHighlighting,
@@ -21,6 +21,8 @@ import {
 let bibleDb: SqliteProvider | null = null;
 let searchRepo: BibleSearchRepository | null = null;
 let bibleRepo: BibleRepository | null = null;
+/** The Bible `bibleRepo` belongs to - the app's default, not necessarily KJV. */
+let searchBibleAbbreviation: string | null = null;
 let searchService: BibleSearchService | null = null;
 let searchController: SearchController | null = null;
 
@@ -56,37 +58,42 @@ function initializeSearchServices(): void {
   }
 
   if (!bibleDb) {
-    // `resolveModulePath`, not `getDataPath`: a module the user installed
-    // themselves lives under userData, and only this resolver looks there
-    // before falling back to the bundled tree. Building the path from
-    // `getDataPath()` pinned search to the read-only shipped copy, so a build
-    // that bundles no modules - the intended shape, since modules install
-    // separately and must survive updates - left reading working (it goes
-    // through the registry) while search alone came up empty.
-    const bibleDbPath = resolveModulePath(join('modules', 'bible_kjv.db'));
+    // Whichever Bible the app defaults to, chosen from what is installed. This
+    // used to open `bible_kjv.db` by name, so an install without KJV left
+    // search switched off entirely - every query failed with "not
+    // initialized" - and logged a missing database on every start.
+    //
+    // Opened by abbreviation through the shared registry, which resolves the
+    // installed path (userData before the bundled tree) and hands back the
+    // same connection bibleHandlers/studyHandlers use for this module.
+    const installedBibles = getSharedModuleMetadataRepo().getByType('bible')
+      .map(m => ({ abbreviation: m.abbreviation || m.getAbbreviation() }));
+    const abbreviation = pickDefaultBible(installedBibles);
 
-    log.info('Initializing Bible repository for search:', bibleDbPath);
-
-    try {
-      // Route through the shared registry so this KJV handle is the same
-      // object bibleHandlers/studyHandlers use for 'KJV'.
-      bibleDb = getModuleDatabaseRegistry().openByPath(bibleDbPath);
-      if (bibleDb) {
-        bibleRepo = new BibleRepository(bibleDb);
-        log.info('Bible repository for search initialized successfully');
-      } else {
-        log.error('Bible database not found for search:', bibleDbPath);
+    if (!abbreviation) {
+      log.info('No Bible installed; search will initialize once one is');
+    } else {
+      log.info('Initializing Bible repository for search:', abbreviation);
+      try {
+        bibleDb = getModuleDatabaseRegistry().openByAbbreviation(abbreviation, 'bible');
+        if (bibleDb) {
+          bibleRepo = new BibleRepository(bibleDb);
+          searchBibleAbbreviation = abbreviation;
+          log.info('Bible repository for search initialized successfully');
+        } else {
+          log.error('Bible database not found for search:', abbreviation);
+        }
+      } catch (error) {
+        log.error('Failed to initialize Bible repository:', error);
       }
-    } catch (error) {
-      log.error('Failed to initialize Bible repository:', error);
     }
   }
 
   // Initialize search service and controller
-  if (searchRepo && bibleRepo) {
+  if (searchRepo && bibleRepo && searchBibleAbbreviation && !searchController) {
     const bookRepo = getSharedBookRepo();
     const bibleModules = new Map();
-    bibleModules.set('KJV', bibleRepo);
+    bibleModules.set(searchBibleAbbreviation, bibleRepo);
 
     searchService = new BibleSearchService(bibleModules, bookRepo);
     searchController = new SearchController(searchService, searchRepo);
@@ -146,6 +153,11 @@ export function registerSearchHandlers(_ipcMain: IpcMain): void {
   // Handler: Perform search
   ipcHandler<[string, any], any[]>('search:performSearch', async (query, options) => {
     validateString(query, 'search query', 1000);
+    // A Bible installed after startup is picked up on the first search that
+    // needs it, rather than leaving search off until the app restarts.
+    if (!searchController) {
+      initializeSearchServices();
+    }
     if (!searchController || !searchService) {
       throw new IpcKnownError('unavailable', 'Search controller not initialized');
     }
@@ -424,7 +436,7 @@ export function registerSearchHandlers(_ipcMain: IpcMain): void {
     const resolvedResults = results.map(r => {
       const reference = formatSemanticReference(r.startVerseId, r.endVerseId, bookName);
 
-      // Get full text from KJV for verse-level results
+      // Get full text from the search Bible for verse-level results
       let fullText = r.textPreview;
       if (r.level === 'verse' && bibleRepo) {
         const verse = bibleRepo.getVerse(r.startVerseId);
@@ -639,6 +651,7 @@ export function closeSearchDb(): void {
 
   searchRepo = null;
   bibleRepo = null;
+  searchBibleAbbreviation = null;
   searchService = null;
   searchController = null;
   semanticEmbedder = null;

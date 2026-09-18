@@ -19,7 +19,12 @@ import * as path from 'path';
 function manifestTemplate(id: string, name: string): string {
   return JSON.stringify(
     {
-      $schema: 'https://bible-app.dev/schemas/extension-manifest.json',
+      // Resolved relative to this file, so editors validate `extension.json`
+      // as you type it — completions for `permissions`, `activationEvents` and
+      // every contribution point. This was a `https://bible-app.dev/...` URL
+      // that resolves nowhere, which silently bought no validation at all.
+      // The schema arrives with @bible/core, so it works after `npm install`.
+      $schema: './node_modules/@bible/core/dist/Extensions/ExtensionManifestSchema.json',
       id: `ext.your-name.${id}`,
       name,
       version: '0.1.0',
@@ -39,7 +44,11 @@ function manifestTemplate(id: string, name: string): string {
         ],
         panelTypes: [
           {
-            id: `ext.your-name.${id}.panel`,
+            // Short id. The validator qualifies it to
+            // `ext.your-name.<ext>.panel` for you, and it is the same id
+            // src/main.ts passes to api.ui.registerPanelType — where a
+            // pre-qualified id would be prefixed a second time.
+            id: 'panel',
             title: `${name}`,
             uiEntry: 'ui/index.html',
             defaultBucket: 'right',
@@ -52,10 +61,13 @@ function manifestTemplate(id: string, name: string): string {
   );
 }
 
-function entryPointTemplate(id: string, name: string): string {
-  return `// The BibleExtensionAPI type comes from @bible/core.
-// import type { Extensions } from '@bible/core';
-// type BibleExtensionAPI = Extensions.BibleExtensionAPI;
+function entryPointTemplate(name: string): string {
+  return `// \`import type\` is erased at build time, so this costs nothing in the
+// bundle and creates no runtime dependency on @bible/core — you get the full
+// typed API surface, and dist/main.js stays your own code.
+import type { Extensions } from '@bible/core';
+
+type BibleExtensionAPI = Extensions.BibleExtensionAPI;
 
 // Split your code across as many files as you like — esbuild inlines them all
 // into the single dist/main.js the host loads. What you cannot do is import a
@@ -63,25 +75,72 @@ function entryPointTemplate(id: string, name: string): string {
 // on those, because the realm your extension runs in has none of them.
 import { describeVerse } from './verseUtils';
 
+/** The most recent active verse, kept between calls. See the command below. */
+let lastVerseId: number | null = null;
+
 /**
  * Called when the extension is activated.
  * Register commands, panels, and event listeners here.
  */
-export async function activate(api: any): Promise<void> {
+export async function activate(api: BibleExtensionAPI): Promise<void> {
   // console.* is routed to the host and lands in your extension's log, which
   // you can read from the app's extension details view.
   console.log('${name} extension activated');
 
-  // Register the panel type declared in extension.json
-  await api.ui.registerPanelType('ext.your-name.${id}.panel', {
+  // Declaring a panel in extension.json is NOT enough to make it appear.
+  // Despite what the manifest's own doc comments suggest, nothing in the host
+  // currently reads \`contributes.panelTypes\` — the only parts of
+  // \`contributes\` anything reads are \`apiExports\` and \`configuration\`.
+  // Panels and commands reach the registry through these imperative calls and
+  // no other way, so the manifest entry is documentation until that changes.
+  //
+  // Note the id is the SHORT one ('panel'), not the fully-qualified id in
+  // extension.json: the host composes the content type as
+  // \`ext:<extensionId>.<this id>\` and would otherwise repeat your prefix.
+  await api.ui.registerPanelType({
+    id: 'panel',
     title: '${name}',
     uiEntry: 'ui/index.html',
   });
 
-  // Example: listen for verse changes
-  await api.bible.onDidChangeActiveVerse.subscribe((event: any) => {
-    if (event) {
-      console.log('Active verse changed to:', describeVerse(event.verseId));
+  // THIS is the line that makes the command in extension.json actually do
+  // something. A \`handlerEndpoint\` in the manifest is a *name*, not a
+  // function — a function cannot survive the RPC hop to the host. The host
+  // calls back with that name when the user runs the command, and until
+  // something binds it here, the command appears in the palette and the Tools
+  // menu and silently does nothing when clicked.
+  await api.runtime.expose('helloWorld', async () => {
+    if (lastVerseId === null) {
+      console.log('Hello from ${name}! No verse is active yet.');
+      return;
+    }
+    // There is no api.bible.getActiveVerse() — the active verse arrives as an
+    // event, so an extension that wants it on demand remembers it. Your worker
+    // is a long-lived process, so module state is exactly the right place.
+    const verse = await api.bible.getVerse(lastVerseId);
+    console.log(\`Hello from ${name}! \${describeVerse(lastVerseId)}: \${verse.text}\`);
+  });
+
+  // The other end of ui/index.html's postToWorker. The payload is opaque to
+  // the host — this is your own protocol with your own panel — and whatever
+  // api.* you call here runs under YOUR permissions, which is why the panel
+  // does not get an api of its own.
+  await api.panels.onMessage(async (message) => {
+    const msg = message as { type?: string };
+    if (msg.type !== 'getActiveVerse') return { verse: 'Unknown request' };
+    if (lastVerseId === null) return { verse: 'No verse is active yet.' };
+    const verse = await api.bible.getVerse(lastVerseId);
+    return { verse: \`\${describeVerse(lastVerseId)} — \${verse.text}\` };
+  });
+
+  // Example: listen for verse changes. \`event\` needs no annotation — its
+  // shape comes from the typed \`api\` above, and so does the autocomplete.
+  await api.bible.onDidChangeActiveVerse.subscribe((event) => {
+    lastVerseId = event ? event.verseId : null;
+    // Push it at the panel too, so an open panel updates without polling.
+    // Fire-and-forget: a panel that is not open simply is not there.
+    if (lastVerseId !== null) {
+      void api.panels.postMessage({ type: 'activeVerse', verse: describeVerse(lastVerseId) });
     }
   });
 }
@@ -128,23 +187,72 @@ function uiHtmlTemplate(name: string): string {
 <body>
   <div id="app">
     <h1>Hello from ${name}!</h1>
-    <p>This panel is ready for your extension UI.</p>
+    <p id="output">Loading…</p>
+    <button id="refresh" type="button">Refresh</button>
   </div>
 
   <!--
-    Use the @bible/extension-ui SDK to communicate with the host app:
+    Panel scripts MUST be external files. This document is served on its own
+    ext-ui:// origin under "script-src 'self' ext-ui://host" — there is no
+    'unsafe-inline', so an inline <script> here is silently blocked with no
+    error you will see. (Inline *styles* are allowed; style-src permits them.)
 
-    <script src="@bible/extension-ui/sdk.js"></script>
-    <script>
-      const sdk = window.BibleExtensionSDK;
-      sdk.onMessage((msg) => {
-        console.log('Message from extension host:', msg);
-      });
-      sdk.postMessage({ type: 'ready' });
-    </script>
+    panel.js talks to your extension's worker — see src/main.ts, which answers
+    with api.panels.onMessage. The panel has no api.* of its own by design:
+    whatever it needs, it asks the worker for, and the worker's permissions
+    are the ones that apply.
   -->
+  <script src="panel.js"></script>
 </body>
 </html>
+`;
+}
+
+/**
+ * The panel side. Bundled by esbuild to `ui/panel.js`, which `ui/index.html`
+ * loads as an external script.
+ */
+function panelTemplate(name: string): string {
+  return `import { BibleExtUI } from '@bible/extension-ui';
+
+// init() opens the bridge to the renderer host. Everything below goes through
+// it — the panel has no api.* of its own, deliberately: it runs on its own
+// sandboxed origin, and giving it a slice of the API would put permission
+// decisions in the renderer, which is the least appropriate place for them.
+const bible = BibleExtUI.init();
+
+const output = document.getElementById('output');
+
+function show(text: string): void {
+  if (output) output.textContent = text;
+}
+
+// postToWorker is request/reply, and the other end is api.panels.onMessage in
+// src/main.ts. The payload is opaque to the host: it is your protocol with
+// your own worker, so keep it small — messages are capped at 256 KB each way,
+// because the realm has a bounded heap and unbounded payloads into it would be
+// a denial-of-service surface against your own extension.
+async function refresh(): Promise<void> {
+  try {
+    const reply = await bible.postToWorker<{ verse: string }>({ type: 'getActiveVerse' });
+    show(reply.verse);
+  } catch (err) {
+    show(\`Could not reach the extension worker: \${(err as Error).message}\`);
+  }
+}
+
+// Worker pushes are fire-and-forget in the other direction (api.panels.postMessage).
+bible.onWorkerMessage((message) => {
+  const msg = message as { type?: string; verse?: string };
+  if (msg.type === 'activeVerse' && typeof msg.verse === 'string') show(msg.verse);
+});
+
+document.getElementById('refresh')?.addEventListener('click', () => {
+  void refresh();
+});
+
+void refresh();
+console.log('${name} panel ready');
 `;
 }
 
@@ -183,7 +291,12 @@ p {
 
 function testTemplate(id: string): string {
   return `import { describe, it, expect, vi } from 'vitest';
-import { createMockApi, createTestHost, VERSE_JOHN_3_16 } from '@bible/extension-testing';
+import {
+  createMockApi,
+  createTestHost,
+  getMockRuntimeEndpoints,
+  VERSE_JOHN_3_16,
+} from '@bible/extension-testing';
 import { activate, deactivate } from '../src/main';
 
 describe('${id} extension', () => {
@@ -194,20 +307,26 @@ describe('${id} extension', () => {
     await host.deactivate();
   });
 
-  it('should register the panel type', async () => {
-    const registerPanelSpy = vi.fn().mockResolvedValue({ dispose: vi.fn() });
-    const api = createMockApi({
-      ui: { registerPanelType: registerPanelSpy },
-    });
-
+  /**
+   * The single most valuable test in this file. Every command in
+   * extension.json names a \`handlerEndpoint\`, and the app has no way to tell
+   * a handler you forgot to bind from one that binds and does nothing — both
+   * put an item in the palette that appears to work. Assert the binding.
+   */
+  it('binds the handler for every command in extension.json', async () => {
+    const api = createMockApi();
     await activate(api);
 
-    expect(registerPanelSpy).toHaveBeenCalledWith(
-      'ext.your-name.${id}.panel',
-      expect.objectContaining({
-        uiEntry: 'ui/index.html',
-      }),
-    );
+    expect(getMockRuntimeEndpoints(api).list()).toContain('helloWorld');
+  });
+
+  it('runs the helloWorld command without throwing', async () => {
+    const api = createMockApi();
+    await activate(api);
+
+    await expect(
+      getMockRuntimeEndpoints(api).invoke('helloWorld'),
+    ).resolves.not.toThrow();
   });
 
   it('should subscribe to verse change events', async () => {
@@ -258,6 +377,44 @@ function tsconfigTemplate(): string {
         noImplicitReturns: true,
       },
       include: ['src/**/*'],
+      // src/panel.ts runs in the iframe, not the realm. It needs the DOM and
+      // must NOT be checked against a config that denies it, so it has its own
+      // tsconfig.panel.json.
+      exclude: ['node_modules', 'dist', 'src/panel.ts'],
+    },
+    null,
+    2,
+  );
+}
+
+/**
+ * The panel half of an extension is a different runtime with a different set
+ * of globals: an ordinary browser document on a sandboxed `ext-ui://` origin,
+ * with a DOM and no `api.*` at all. Typechecking it against the realm's config
+ * would reject `document`; typechecking the realm against this one would let
+ * worker code reference a DOM that does not exist there. Hence two configs.
+ */
+function tsconfigPanelTemplate(): string {
+  return JSON.stringify(
+    {
+      compilerOptions: {
+        target: 'ES2020',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+        noEmit: true,
+        lib: ['ES2020', 'DOM'],
+        types: [],
+        noImplicitAny: true,
+        strictNullChecks: true,
+        noUnusedLocals: true,
+        noUnusedParameters: true,
+        noImplicitReturns: true,
+      },
+      include: ['src/panel.ts'],
       exclude: ['node_modules', 'dist'],
     },
     null,
@@ -344,12 +501,34 @@ const options = {
   logLevel: 'info',
 };
 
+/**
+ * The panel is a SEPARATE build with different rules. It runs in an ordinary
+ * browser iframe, so it gets platform: 'browser' and the DOM — and it must be
+ * an external file, because the panel document is served under
+ * \`script-src 'self' ext-ui://host\` with no 'unsafe-inline'. An inline
+ * <script> in ui/index.html is blocked with no visible error.
+ *
+ * @bible/extension-ui is bundled in here rather than loaded from the host:
+ * nothing serves the SDK from the ext-ui://host origin, so the only way a
+ * panel can use it is inlined into a file inside the extension package.
+ */
+const panelOptions = {
+  entryPoints: ['src/panel.ts'],
+  outfile: 'ui/panel.js',
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'es2020',
+  sourcemap: true,
+  logLevel: 'info',
+};
+
 if (process.argv.includes('--watch')) {
-  const ctx = await context(options);
-  await ctx.watch();
+  const ctxs = await Promise.all([context(options), context(panelOptions)]);
+  await Promise.all(ctxs.map((c) => c.watch()));
   console.log('esbuild: watching for changes…');
 } else {
-  await build(options);
+  await Promise.all([build(options), build(panelOptions)]);
 }
 `;
 }
@@ -367,7 +546,62 @@ export default defineConfig({
 `;
 }
 
-function packageJsonTemplate(id: string, name: string): string {
+/**
+ * Where the scaffold's two SDK devDependencies come from.
+ *
+ * Until `@bible/core` and `@bible/extension-testing` are on a registry, a
+ * project created outside this repository cannot resolve them by version:
+ * `npm install` fails on the very first command the README tells an author to
+ * run. `--local-sdk=<dir>` points the scaffold at packed tarballs instead
+ * (`npm run pack:sdk` in the monorepo produces them), so out-of-tree
+ * development works today and the same scaffold keeps working unchanged once
+ * the packages are published.
+ */
+interface SdkSpecs {
+  core: string;
+  extensionTesting: string;
+  extensionUi: string;
+}
+
+const REGISTRY_SDK: SdkSpecs = {
+  core: '^0.1.0',
+  extensionTesting: '^0.1.0',
+  extensionUi: '^0.1.0',
+};
+
+function resolveLocalSdk(sdkDir: string, targetDir: string): SdkSpecs {
+  const resolved = path.resolve(process.cwd(), sdkDir);
+  if (!fs.existsSync(resolved)) {
+    console.error(`Error: --local-sdk directory does not exist: ${resolved}`);
+    process.exit(1);
+  }
+
+  const tarballs = fs.readdirSync(resolved).filter((f) => f.endsWith('.tgz'));
+
+  const pick = (prefix: string, packageName: string): string => {
+    // Newest last by sort, which for `name-<semver>.tgz` is close enough to
+    // version order for a dev-only convenience and is at least deterministic.
+    const matches = tarballs.filter((f) => f.startsWith(prefix)).sort();
+    const chosen = matches[matches.length - 1];
+    if (!chosen) {
+      console.error(
+        `Error: no ${packageName} tarball (${prefix}*.tgz) in ${resolved}\n` +
+          `       Run "npm run pack:sdk" in the Bible repository first.`,
+      );
+      process.exit(1);
+    }
+    const rel = path.relative(targetDir, path.join(resolved, chosen)).split(path.sep).join('/');
+    return `file:${rel}`;
+  };
+
+  return {
+    core: pick('bible-core-', '@bible/core'),
+    extensionTesting: pick('bible-extension-testing-', '@bible/extension-testing'),
+    extensionUi: pick('bible-extension-ui-', '@bible/extension-ui'),
+  };
+}
+
+function packageJsonTemplate(id: string, name: string, sdk: SdkSpecs): string {
   return JSON.stringify(
     {
       name: `bible-ext-${id}`,
@@ -380,19 +614,32 @@ function packageJsonTemplate(id: string, name: string): string {
         // Typecheck and bundle are separate jobs: `tsc` only checks (noEmit),
         // esbuild produces the single file the host loads.
         build: 'npm run typecheck && node esbuild.config.mjs',
-        typecheck: 'tsc --noEmit',
+        // Both halves. The realm code and the panel code have different
+        // globals, so they have different tsconfigs — see tsconfig.panel.json.
+        typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.panel.json',
         watch: 'node esbuild.config.mjs --watch',
-        clean: 'rm -rf dist',
+        // `rm -rf` is not a command on Windows, where a fair share of authors
+        // work. node's own rmSync is the portable spelling.
+        clean: 'node -e "require(\'fs\').rmSync(\'dist\',{recursive:true,force:true})"',
         test: 'vitest run',
         'test:watch': 'vitest',
+        // Checks the manifest and that every file it points at exists. Cheap
+        // enough to run in CI on every push; needs no realm.
+        validate: 'bible-ext validate',
         smoke: 'bible-ext-smoke',
-        package: 'npm run build && npm pack',
+        // `bible-ext package`, NOT `npm pack`. npm pack produces a registry
+        // tarball; the app installs a .zip with extension.json at the root,
+        // and cannot read the former.
+        package: 'npm run build && bible-ext package',
       },
       keywords: ['bible', 'extension'],
       license: 'MIT',
       devDependencies: {
-        '@bible/core': '^1.0.0',
-        '@bible/extension-testing': '^1.0.0',
+        '@bible/core': sdk.core,
+        '@bible/extension-testing': sdk.extensionTesting,
+        // Bundled into ui/panel.js by esbuild, not loaded at runtime — the
+        // panel origin serves only files inside your package.
+        '@bible/extension-ui': sdk.extensionUi,
         // @types/node is for the *build scripts* (esbuild.config.mjs), not for
         // your extension: tsconfig sets `types: []` so it never reaches src/.
         '@types/node': '^20.14.0',
@@ -400,9 +647,11 @@ function packageJsonTemplate(id: string, name: string): string {
         typescript: '^5.5.0',
         vitest: '^2.0.0',
       },
-      peerDependencies: {
-        '@bible/core': '^1.0.0',
-      },
+      // No peerDependencies. @bible/core is used for `import type` only — it
+      // is erased at build time and never appears in dist/main.js — and the
+      // host injects `api` at runtime rather than the extension importing it.
+      // Nobody `npm install`s an extension, so a peer range here would only
+      // have been a claim with no consumer to honour it.
     },
     null,
     2,
@@ -590,8 +839,35 @@ Nothing here obliges you to any particular licence. The Bible app itself is GPL-
 function gitignoreTemplate(): string {
   return `node_modules/
 dist/
+build/
+ui/panel.js
+ui/panel.js.map
 *.tgz
 .DS_Store
+`;
+}
+
+/**
+ * What `bible-ext package` leaves out of the .zip.
+ *
+ * Everything here is on top of the built-in exclusions (node_modules/, .git/,
+ * *.zip, *.tgz, *.map). These are the scaffold's own additions: the
+ * *sources* of the bundle rather than the bundle. Shipping them is harmless
+ * but pointless — the host loads dist/main.js and nothing else — and it puts
+ * an author's whole tree inside an artifact they may be publishing.
+ */
+function bibleignoreTemplate(): string {
+  return `# Patterns for \`bible-ext package\`. One per line; # for comments.
+# A trailing / means "this directory and everything under it".
+
+src/
+test/
+tsconfig*.json
+vitest.config.ts
+esbuild.config.mjs
+package.json
+package-lock.json
+README.md
 `;
 }
 
@@ -605,11 +881,15 @@ Arguments:
   name          Extension name (e.g. "greek-tools", "daily-reading")
 
 Options:
-  --help        Show this help message
+  --local-sdk=<dir>  Resolve @bible/core and @bible/extension-testing from
+                     packed tarballs in <dir> instead of a registry. Run
+                     "npm run pack:sdk" in the Bible repository to produce
+                     them. Needed until those packages are published.
+  --help             Show this help message
 
 Examples:
   create-bible-extension greek-tools
-  create-bible-extension daily-reading
+  create-bible-extension daily-reading --local-sdk=../bible/build/sdk
   npx @bible/create-extension my-extension
 `);
 }
@@ -637,10 +917,16 @@ function main(): void {
     process.exit(args.length === 0 ? 1 : 0);
   }
 
-  const rawName = args[0];
+  const rawName = args.find((a) => !a.startsWith('-'));
   if (!rawName) {
     console.error('Error: Extension name is required.');
     printUsage();
+    process.exit(1);
+  }
+
+  const localSdkArg = args.find((a) => a.startsWith('--local-sdk'));
+  if (localSdkArg !== undefined && !localSdkArg.includes('=')) {
+    console.error('Error: --local-sdk requires a directory, e.g. --local-sdk=../bible/build/sdk');
     process.exit(1);
   }
 
@@ -653,6 +939,11 @@ function main(): void {
     process.exit(1);
   }
 
+  const sdk =
+    localSdkArg !== undefined
+      ? resolveLocalSdk(localSdkArg.slice(localSdkArg.indexOf('=') + 1), targetDir)
+      : REGISTRY_SDK;
+
   console.log(`Creating Bible extension "${name}" in ./${id}/\n`);
 
   // Create directory structure
@@ -663,14 +954,17 @@ function main(): void {
   // Write files
   const files: Array<[string, string]> = [
     ['extension.json', manifestTemplate(id, name)],
-    ['package.json', packageJsonTemplate(id, name)],
+    ['package.json', packageJsonTemplate(id, name, sdk)],
     ['tsconfig.json', tsconfigTemplate()],
+    ['tsconfig.panel.json', tsconfigPanelTemplate()],
     ['esbuild.config.mjs', esbuildConfigTemplate()],
     ['vitest.config.ts', vitestConfigTemplate()],
     ['README.md', readmeTemplate(id, name)],
     ['.gitignore', gitignoreTemplate()],
-    ['src/main.ts', entryPointTemplate(id, name)],
+    ['.bibleignore', bibleignoreTemplate()],
+    ['src/main.ts', entryPointTemplate(name)],
     ['src/verseUtils.ts', verseUtilsTemplate()],
+    ['src/panel.ts', panelTemplate(name)],
     ['src/bible-env.d.ts', bibleEnvTemplate()],
     ['ui/index.html', uiHtmlTemplate(name)],
     ['ui/styles.css', uiStylesTemplate()],
@@ -688,8 +982,15 @@ Done! Next steps:
 
   cd ${id}
   npm install
-  npm test        # Run the sample tests
-  npm run build   # Typecheck, then bundle to dist/main.js
+  npm test           # Run the sample tests
+  npm run build      # Typecheck, then bundle to dist/main.js
+  npm run validate   # Check extension.json and the files it points at
+  npm run package    # Build the installable .zip into build/
+
+To try it in the app without packaging: Preferences > Extensions, turn on
+Developer Mode, then "Load unpacked extension..." and pick this folder. The
+host re-reads it whenever the build output changes, so \`npm run watch\` in one
+terminal gives you reload-on-save.
 
 Your extension runs in a sandboxed realm with no Node, no filesystem and no
 network of its own — see "How extensions run" in README.md.

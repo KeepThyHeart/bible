@@ -6,6 +6,6 @@
   "description": "E2E fixture that declares no UI permissions, proving the host enforces the ui:notification gate even when the call would otherwise succeed.",
   "engines": { "bibleApp": "^1.0.0" },
   "main": "./main.js",
-  "permissions": [],
+  "permissions": ["storage"],
   "activationEvents": ["onStartup"]
 }

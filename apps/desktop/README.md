@@ -4,26 +4,32 @@ Electron desktop application for Bible study, built with React, Zustand, and Tai
 
 ## Prerequisites
 
-- **Node.js** 20+
-- **npm** 9+ (workspace support)
-- Module database files in `apps/desktop/data/modules/` (e.g., `bible_kjv.db`)
+- **Node.js** 20.19 or newer (24 recommended; `.nvmrc` at the repo root pins it)
+- **npm** (the version bundled with Node)
+- Module database files in `apps/desktop/data/modules/` (e.g., `bible_kjv.db`); `npm run setup` links that directory to the shared repo-root `data/modules/` and downloads a starter set into it
 
 ## Setup
 
 From the monorepo root:
 
 ```bash
-npm install                # Install all workspace dependencies
-npm run build:core         # Build @bible/core (required before running desktop)
+npm install
+npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron download and rebuild
+npm run dev
 ```
 
-The reference database `apps/desktop/data/main.db` is created and migrated by the app itself on first run (`electron/utils/initMainDatabase.ts`), and any module `.db` files found in `apps/desktop/data/modules/` are registered at startup (`electron/utils/moduleDetector.ts`). Adding a module is therefore a matter of dropping the file in and restarting.
+The [repository README](../../README.md) covers prerequisites, the module presets, setup's options and troubleshooting. The desktop-specific steps of `npm run setup` are:
 
-If native SQLite modules fail to load, rebuild them for Electron:
+- **`npm run init:electron`** downloads the Electron binary for this platform from GitHub and checks it against the checksums the `electron` package ships. Since Electron 44 `npm install` no longer does this; without it the first `npm run dev` would. It does nothing when the binary is already there.
+- **`npm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `npm run init -- --target=desktop --no-link` keeps a separate copy instead.
+- **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
+
+The app also creates and migrates `apps/desktop/data/main.db` itself on first run (`electron/utils/initMainDatabase.ts`), and any module `.db` files found in `apps/desktop/data/modules/` are registered at startup (`electron/utils/moduleDetector.ts`). Adding a module is therefore a matter of dropping the file into the shared `data/modules/` and restarting.
+
+If the app fails with a `NODE_MODULE_VERSION` error, a native module is built for system Node rather than Electron (for example after `npm rebuild better-sqlite3-multiple-ciphers` for the unit tests). Force the Electron rebuild:
 
 ```bash
-cd apps/desktop
-npx electron-rebuild       # Or: npx @electron/rebuild -f
+npm run rebuild-native:force -w @bible/desktop
 ```
 
 ## Development
@@ -32,6 +38,8 @@ npx electron-rebuild       # Or: npx @electron/rebuild -f
 # From monorepo root
 npm run dev                # Start Electron app in dev mode (electron-vite)
 ```
+
+`predev` first fetches the self-hosted fonts (`scripts/fetch-fonts.mjs`) and generates the app icons. The fonts are not committed, so the first run needs network access. The Google Fonts families are required, and the script stops with instructions if they cannot be downloaded; Ezra SIL (Hebrew) is optional, and when its host is unreachable the script only warns and retries after 24 hours (`npm run fonts -w @bible/desktop -- --force` retries now).
 
 In dev mode, logs go to the terminal where you launched the command. The renderer supports hot module replacement via Vite.
 
@@ -52,6 +60,8 @@ npm run package:win        # Windows
 npm run package:mac        # macOS
 npm run package:linux      # Linux
 ```
+
+**On macOS**, run the `:mac` scripts on a Mac. `package:code-only:mac` (what the release workflow builds) produces a `.dmg` and a `.zip` for both Apple Silicon and Intel, whichever the Mac is; the other two configs build only the Mac's own arch. Without a certificate in the environment every build is signed ad hoc, so it opens on the Mac that built it; a copy downloaded from elsewhere is not notarized, and Gatekeeper blocks it until it is allowed under System Settings > Privacy & Security. To sign with a certificate from your keychain, set `CSC_NAME` to its name; `CSC_LINK` plus the `APPLE_*` variables sign and notarize (see `electron-builder.branding.cjs`). electron-builder rebuilds the SQLite driver in the shared `node_modules` for each arch it packages, and the build then puts the Mac's own build back so that `npm run dev` keeps working; if a packaging run fails part-way, run `npm run rebuild-native:force -w @bible/desktop`. An installed build runs under the same app name as `npm run dev` (`@bible/desktop`), so on a Mac where you have run the app in development, a local build asks for access to the "@bible/desktop Safe Storage" keychain item when it opens its encrypted user database, and asks again after every rebuild, since each ad-hoc signature is new; choose Allow. The installer test sidesteps this with Chromium's mock keychain. Check an installer with `npm run test:installer -- "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.dmg"` from the repository root, using the `-arm64` file on Apple Silicon.
 
 There are three electron-builder configs:
 
@@ -85,7 +95,7 @@ A few user-visible values are not finalised yet, so they are supplied by environ
 | --- | --- | --- |
 | `BIBLE_PRODUCT_NAME` | `Keep Thy Heart Bible Reader` | Product name used for the window title, the page `<title>`, the app header, the About dialog, and the installer (`productName` / NSIS shortcut). |
 | `BIBLE_ISSUE_REPORT_URL` | *(empty)* | Where the "Report an Issue" command sends the user. Accepts an `https://` issue-tracker URL **or** a `mailto:` address (a subject line with the product name and version is pre-filled for `mailto:`). When empty the command is not registered at all, so it never appears in the command palette or the Help menu - no dead links. |
-| `BIBLE_MODULE_CATALOG_URL` | *(empty)* | Default module catalog/repository URL. When set it is seeded as the official repository on first run and used as the URL placeholder in Repository Settings. When empty no repository is seeded and the UI explains that modules can be dropped into `data/modules` instead. |
+| `BIBLE_MODULE_CATALOG_URL` | `moduleRepositoryUrl` from `admin/brand/branding.json` (`https://modules.bible.keepthyheart.com/`), or empty while that key is listed in `_undecided` | Default module catalog/repository URL. When set it is seeded as the official repository on first run and used as the URL placeholder in Repository Settings. It may name a catalog, or a directory serving an `index.json` of catalogs (as the official site root does); each listed catalog is added on refresh. When empty no repository is seeded and the UI explains that modules can be dropped into `data/modules` instead. |
 | `BIBLE_COPYRIGHT_YEAR` | year of the build | Copyright year shown in the About dialog. |
 | `BIBLE_APP_VERSION` | `version` from `package.json` | Version embedded in the `mailto:` issue-report subject, and shown at the foot of the Help panel. |
 | `BIBLE_DOCS_URL` | `https://docs.bible.keepthyheart.com/desktop/` | Documentation website. The Help panel offers a "Documentation website" row that opens it in the OS browser. Set it to `none` for a build with no docs site: the row is then omitted entirely - same rule as the issue tracker, no dead links. |
@@ -114,11 +124,12 @@ npm run test -w @bible/desktop
 npm run test:watch -w @bible/desktop
 npm run test:coverage -w @bible/desktop
 
-# E2E tests (Playwright + Electron)
-npm run build                              # Full build required
-cd apps/desktop && npx electron-rebuild
-npx playwright test --config=e2e/playwright.config.ts --reporter=list
+# E2E tests (Playwright + Electron), from the repo root
+npm run build:desktop                      # Builds core and desktop; postbuild runs @electron/rebuild
+npm run test:e2e -w @bible/desktop
 ```
+
+Some unit suites drive real SQLite and skip themselves unless `better-sqlite3-multiple-ciphers` is built for system Node (`npm rebuild better-sqlite3-multiple-ciphers`). Run `npm run rebuild-native:force -w @bible/desktop` afterwards to restore the Electron build before `npm run dev`.
 
 See [`e2e/README.md`](e2e/README.md) for E2E test details, conventions, and troubleshooting.
 
@@ -170,7 +181,7 @@ The app uses Electron's two-process architecture:
 
 | Layer       | Technology                                      |
 |-------------|------------------------------------------------|
-| Desktop     | Electron 33                                    |
+| Desktop     | Electron 44                                    |
 | UI          | React 18                                       |
 | State       | Zustand 5                                      |
 | Styling     | Tailwind CSS 3                                 |
@@ -211,11 +222,11 @@ apps/desktop/
 |       +-- utils/               # UI utilities
 +-- data/                        # Runtime data (gitignored)
 |   +-- main.db                  # Reference database
-|   +-- modules/                 # Module database files
+|   +-- modules/                 # Module database files (a link to the repo-root data/modules; see Setup)
 +-- build-data/                  # Staged offline module set for the curated packaged build
 +-- locales/                     # UI translation catalogs (one folder per locale) plus i18n tooling docs
 +-- sql/                         # Standalone SQL (e.g. user_db_extensions.sql)
-+-- scripts/                     # Build/dev scripts: font fetch, i18n extract/validate/pseudo-localize, notarize
++-- scripts/                     # Build/dev scripts: font fetch, i18n extract/validate/pseudo-localize
 +-- resources/                   # App icons and vendored third-party notices bundled into the installer
 +-- docs/                        # Feature documentation
 |   +-- features/                # Per-feature file listings
@@ -235,7 +246,7 @@ The app uses `electron-log` for automatic log file management:
 | Platform | Log Location |
 |----------|-------------|
 | Linux    | `~/.config/bible-desktop-app/logs/main.log` |
-| macOS    | `~/Library/Logs/bible-desktop-app/main.log` |
+| macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
 | Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
 
 In dev mode (`npm run dev`), logs go to the terminal stdout instead of log files.

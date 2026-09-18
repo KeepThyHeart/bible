@@ -234,7 +234,14 @@ export interface ContextMenuItemDescriptor {
   icon?: string;
   /** Command ID to execute. */
   command: string;
-  /** Passed to the command handler. */
+  /**
+   * Passed to the command handler.
+   *
+   * For `verse` targets the host adds what was clicked: when `args` is a plain
+   * object or absent, the handler receives it with a `verse` key
+   * ({@link VerseMenuContext}) merged in. Any other `args` value is passed
+   * unchanged, without it.
+   */
   args?: unknown;
   /** when-clause from Spec B. */
   when?: string;
@@ -245,6 +252,20 @@ export interface ContextMenuItemDescriptor {
 
 /** Alias preserved for spec parity - the descriptor IS the wire DTO. */
 export type ContextMenuItemDto = ContextMenuItemDescriptor;
+
+/**
+ * What a `verse` context menu item's command receives under `args.verse`:
+ * the verse (or selection) the user right-clicked, which need not be the
+ * active verse.
+ */
+export interface VerseMenuContext {
+  /** The first verse of the selection. */
+  verseId: number;
+  /** Every selected verse, in order; one element for a single verse. */
+  verseIds: number[];
+  /** Abbreviation of the translation the verse was clicked in. */
+  module: string;
+}
 
 // --- Notifications, quick-pick, input boxes, confirms ----------------------
 
@@ -373,14 +394,151 @@ export interface BibleVerseFormattingCrossRef {
   references: number[];
 }
 
+/**
+ * The legacy per-verse formatting shape.
+ *
+ * @deprecated Read {@link BibleVerseDto.formatting} instead. This shape cannot
+ * express a line break inside a verse (`poetry.indentLevel` is one indent for
+ * the whole verse) and cannot say whether `sectionHeading` is a psalm
+ * superscription or an editorial heading. It is still populated on every verse
+ * so extensions written against 1.0.0 keep working unchanged.
+ */
 export interface BibleVerseFormattingDataDto {
   paragraphStart?: boolean;
   poetry?: { isPoetry: boolean; indentLevel?: number };
   wordsOfChrist?: { start: number; end: number }[];
   addedWords?: { start: number; end: number }[];
+  /**
+   * Word ranges covering the Tetragrammaton, conventionally rendered in small
+   * caps. Present in the host's own legacy shape since before 1.0.0; the DTO
+   * simply forgot to declare it, so the field was already arriving on the wire
+   * with no type to read it through.
+   */
+  divineName?: { start: number; end: number }[];
   sectionHeading?: string;
   footnotes?: BibleVerseFormattingFootnote[];
   crossReferences?: BibleVerseFormattingCrossRef[];
+}
+
+/**
+ * Poetry indent level. 1 is the outermost line, 3 the most deeply indented.
+ * USFM `\q1`-`\q3`.
+ */
+export type VersePoetryLevelDto = 1 | 2 | 3;
+
+/**
+ * One poetic line inside a verse: the words it covers and how far it is
+ * indented.
+ *
+ * A verse is not one line of poetry. Psalm 1:1 is three lines, and Isaiah
+ * alternates indent levels inside a single verse constantly - which is exactly
+ * what {@link BibleVerseFormattingDataDto.poetry} could not express. Lines are
+ * ordered, do not overlap, and together cover every word of the verse, so a
+ * renderer can walk them in order without consulting the raw text for gaps.
+ *
+ * `start` / `end` are word indices, 0-based and inclusive, in the same space as
+ * {@link VerseSpanDto} - the whitespace split of the verse's `text`.
+ */
+export interface VersePoetryLineDto {
+  /** First word of the line. 0-based, inclusive. */
+  start: number;
+  /** Last word of the line. 0-based, inclusive. */
+  end: number;
+  level: VersePoetryLevelDto;
+}
+
+/** Which USFM heading marker {@link VerseBlockDto.heading} corresponds to. */
+export type VerseHeadingKindDto = 'section' | 'psalm_title';
+
+/**
+ * Semantic role a range of words carries. One USFM character marker each:
+ * `\nd`, `\add`, `\wj`, `\em`, `\qt`, `\tl`, `\qs` respectively.
+ *
+ * The legacy shape had buckets for only three of these, so `quotation`,
+ * `transliteration`, `emphasis` and `musical_direction` were invisible to
+ * extensions until this payload existed.
+ */
+export type VerseSpanTypeDto =
+  | 'divine_name'
+  | 'supplied'
+  | 'words_of_christ'
+  | 'emphasis'
+  | 'quotation'
+  | 'transliteration'
+  | 'musical_direction';
+
+/** A range of words carrying a semantic role. 0-based, inclusive word indices. */
+export interface VerseSpanDto {
+  type: VerseSpanTypeDto;
+  /** First word covered. 0-based, inclusive. */
+  start: number;
+  /** Last word covered. 0-based, inclusive. */
+  end: number;
+  /**
+   * Only meaningful for `quotation`: the quoted passage as an INCLUSIVE
+   * `verseId` range. The two fields travel together - both present or both
+   * absent - and `ref_end >= ref_start`.
+   */
+  ref_start?: number;
+  ref_end?: number;
+}
+
+/** Properties of the verse as a whole, rather than of a range of words. */
+export interface VerseBlockDto {
+  /** This verse begins a new paragraph. USFM `\p`. */
+  paragraph_start?: boolean;
+  /** The poetic lines this verse breaks into, in order. Omitted for prose. */
+  lines?: VersePoetryLineDto[];
+  /** Superscription or section heading attached to this verse. USFM `\d` / `\s`. */
+  heading?: string;
+  /**
+   * Which kind of heading {@link heading} is.
+   *
+   * **Omitted when the module does not know** - modules converted from legacy
+   * HTML generally do not, because `<b>` was used ambiguously for both. That is
+   * a third state, distinct from either value, and the host deliberately does
+   * not collapse it: a consumer that wants a default should apply `'section'`
+   * itself, but one that is emitting USFM must not, because `\d` on an
+   * editorial heading like "The Beatitudes" produces invalid USFM.
+   */
+  heading_kind?: VerseHeadingKindDto;
+}
+
+/** Provenance for a verse whose source numbered it differently from KJV versification. */
+export interface VerseSourceRefDto {
+  /** The verse number the source itself used, e.g. `18` for NHEB Rev 12:18. */
+  verse: number;
+  /** Chapter in the source's numbering, when it differs from the host verse's. */
+  chapter?: number;
+  /** Where the merged text sits within the host verse. */
+  position?: 'prefix' | 'suffix';
+  /** Word range within the host verse that came from this source verse. */
+  start?: number;
+  end?: number;
+}
+
+/**
+ * Structured verse formatting - the host's `bible_verse.formatting` payload,
+ * republished verbatim.
+ *
+ * The keys are snake_case where the rest of this file is camelCase, and that is
+ * deliberate: this is a *versioned storage format* with its own published
+ * documentation (`Data/Text/VerseFormatting.ts`), not a shape invented at the
+ * API boundary. Renaming its keys here would mean maintaining a translation
+ * table that silently rots every time the format gains a field, and would make
+ * the format's own documentation wrong for the people reading it.
+ *
+ * Everything is data naming *ranges of words*, never inline markup: `text` on
+ * {@link BibleVerseDto} stays clean UTF-8 and a consumer that only wants text
+ * can ignore this entirely.
+ */
+export interface VerseFormattingDto {
+  /** Schema version of the payload. Currently `1`. */
+  v: number;
+  block?: VerseBlockDto;
+  spans?: VerseSpanDto[];
+  /** Present only for a verse that absorbed a source verse KJV has no address for. */
+  source_verses?: VerseSourceRefDto[];
 }
 
 export interface BibleVerseDto {
@@ -388,7 +546,19 @@ export interface BibleVerseDto {
   text: string;
   /** Plain text without inline formatting markup. */
   textPlain?: string;
+  /**
+   * @deprecated Read {@link formatting}. Still populated on every verse that
+   * has any formatting at all, projected down from the same source, so nothing
+   * written against 1.0.0 breaks.
+   */
   formattingData?: BibleVerseFormattingDataDto;
+  /**
+   * Structured formatting: per-line poetry, typed headings, and the full span
+   * vocabulary. Present whenever the verse carries any formatting; absent when
+   * it carries none, so `formatting?.block?.lines` is the whole check a poetry
+   * renderer needs.
+   */
+  formatting?: VerseFormattingDto;
   wordCount?: number;
   /** Free-form per-verse metadata preserved from the source module. */
   metadata?: Record<string, unknown>;
@@ -420,6 +590,29 @@ export interface BibleBookDto {
   name: LocalizedString;
   testament: 'old' | 'new';
   chapterCount: number;
+}
+
+/**
+ * One chapter's extent in the host's versification.
+ *
+ * This is what makes an *inclusive* passage expressible. `collections.addPassage`
+ * demands a `verseIdEnd`, and without this DTO the only way to discover where a
+ * chapter ends was to page `iterateVerses` until it ran out - a full scan of the
+ * chapter to learn one number.
+ *
+ * `firstVerseId` / `lastVerseId` are the verse ids of verse 1 and verse
+ * `verseCount`, so `addPassage(firstVerseId, lastVerseId)` is the whole chapter.
+ */
+export interface BibleChapterDto {
+  bookNumber: number;
+  /** 1-based chapter number within the book. */
+  chapter: number;
+  /** Verses in this chapter. Always >= 1. */
+  verseCount: number;
+  /** Verse id of verse 1. */
+  firstVerseId: number;
+  /** Verse id of the last verse. INCLUSIVE - it is a real verse, not a bound past the end. */
+  lastVerseId: number;
 }
 
 export interface ParsedReferenceDto {
@@ -645,6 +838,22 @@ export interface PanelInfoDto {
   state?: Record<string, unknown>;
 }
 
+/**
+ * Who sent a panel message, as determined by the host - never by the payload.
+ *
+ * `extensionId` is resolved from the closure that mounted the iframe, so a
+ * panel cannot claim to be another extension. The worker can trust these
+ * fields in a way it must not trust anything inside `message`.
+ */
+export interface PanelMessageSender {
+  /** The extension that owns the panel. Always this worker's own id. */
+  extensionId: string;
+  /** The host's id for the panel instance the message came from. */
+  panelId: string;
+  /** The contributed panel type, e.g. `ext.bible-app.memory.session`. */
+  panelTypeId: string;
+}
+
 export interface OpenPanelOpts {
   /** Where to dock the new panel. */
   bucket?: 'left' | 'right' | 'bottom' | 'main';
@@ -835,6 +1044,21 @@ export interface ExtensionPanelTypeDef {
    * instead of the study bucket. Default false.
    */
   writingPane?: boolean;
+  /**
+   * Preferred size, in CSS pixels, for this panel's popped-out window.
+   *
+   * Every extension panel otherwise shares one host-owned default (900x700 in
+   * `paneConfig.ts`), which is the wrong size for anything with an unusual
+   * shape - a two-column reading layout needs width a chat-style panel does
+   * not, and raising the shared default would move every other extension's
+   * windows to suit one.
+   *
+   * A request, not a command: the host clamps each dimension to the pane
+   * type's own minimum and a 4K ceiling, and falls back to the default for a
+   * missing or non-finite value. Ignored entirely while the panel is docked -
+   * the dock decides its own geometry.
+   */
+  defaultWindowSize?: { width: number; height: number };
 }
 
 export interface DisplayModeDescriptor {
@@ -1111,3 +1335,112 @@ export const EXTENSION_API_ERROR_CODES = [
 ] as const;
 
 export type ExtensionApiErrorCode = (typeof EXTENSION_API_ERROR_CODES)[number];
+
+// --- Ordered passage collections (`ICollectionsApi`) -----------------------
+
+/**
+ * A user collection viewed as an *ordered list of passages*.
+ *
+ * Deliberately distinct from `CollectionDto`, which `IBookmarksApi` returns.
+ * Both are backed by the same `collection` row, but they answer different
+ * questions: `CollectionDto.count` is "how many bookmarks landed in this
+ * bucket", while a passage collection is a sequence the user arranged - a
+ * reading plan, a sermon outline, a memorisation set - where position carries
+ * meaning. Widening `CollectionDto` to serve both would have made `count`
+ * mean two things and left every consumer to guess which.
+ *
+ * Nesting, colour and icon are surfaced because the underlying `collection`
+ * table already carries them and a study-list UI is the first consumer that
+ * actually needs them.
+ */
+export interface PassageCollectionDto {
+  id: string;
+  name: LocalizedString;
+  /** Parent collection, when this one is nested. Absent for top-level. */
+  parentId?: string;
+  description?: string;
+  /** Hex colour (`#RRGGBB`) or a host palette token. Host-defined. */
+  color?: string;
+  /** Icon id understood by the host's icon set. */
+  icon?: string;
+  /**
+   * Number of passage entries directly in this collection. Does NOT include
+   * entries in nested child collections - a count that silently aggregated
+   * children would disagree with `listPassages(id).length`.
+   */
+  entryCount: number;
+  createdAt: number;
+}
+
+/** Optional attributes accepted by `collections.create`. */
+export interface NewCollectionOpts {
+  /** Nest the new collection under an existing one. */
+  parentId?: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+}
+
+/**
+ * One passage in an ordered collection.
+ *
+ * `verseIdStart` / `verseIdEnd` are **inclusive on both ends**, matching the
+ * host's range convention everywhere else: a single verse is stored with
+ * `verseIdEnd === verseIdStart`, never with the end omitted. A half-open or
+ * nullable end has bitten this codebase before - a NULL end made every
+ * single-verse row match every range query starting after it - so the DTO
+ * refuses to express that shape at all.
+ */
+export interface PassageEntryDto {
+  id: string;
+  collectionId: string;
+  /** Inclusive lower bound. */
+  verseIdStart: number;
+  /** Inclusive upper bound. Equals `verseIdStart` for a single verse. */
+  verseIdEnd: number;
+  /** User- or extension-supplied label, e.g. "Day 3 - the golden chain". */
+  label?: LocalizedString;
+  /**
+   * Bible module this passage is pinned to, when the user chose one. Absent
+   * means "render in whatever module is active", which is what a translation-
+   * agnostic reading plan wants.
+   */
+  moduleId?: string;
+  /** Free-text note attached to this entry. */
+  notes?: string;
+  /**
+   * Zero-based position within the collection. Positions are dense and
+   * contiguous: a collection of n entries always occupies 0..n-1, so the
+   * index a caller reads is the index it can pass back to `move`.
+   */
+  position: number;
+  /**
+   * Human-readable reference for the range, e.g. `'Romans 8:28-30'`, resolved
+   * by the host at read time. Absent when the host cannot resolve it (an
+   * unknown module, or a verse id outside the installed versification).
+   */
+  reference?: string;
+  createdAt: number;
+}
+
+/**
+ * A passage to add to a collection.
+ *
+ * `verseIdEnd` may be omitted for a single verse; the host stores it as
+ * `verseIdStart` rather than as NULL (see `PassageEntryDto`).
+ */
+export interface NewPassageDto {
+  /** Inclusive lower bound. */
+  verseIdStart: number;
+  /** Inclusive upper bound. Omit for a single verse. */
+  verseIdEnd?: number;
+  label?: LocalizedString;
+  moduleId?: string;
+  notes?: string;
+  /**
+   * Zero-based insert position. Omit to append. Values past the end append;
+   * negative values are rejected rather than silently clamped, because a
+   * negative index almost always means the caller computed it wrong.
+   */
+  position?: number;
+}

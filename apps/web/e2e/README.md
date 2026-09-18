@@ -35,9 +35,10 @@ npx playwright install
 starts, and the config hands it to the server as `BIBLE_DATA_DIR`:
 
 - **`main.db`** — a `VACUUM INTO` snapshot of the first module registry it finds,
-  looking in `apps/web/data` and then the desktop app's `data`. Module `.db`
-  files are read in place from whichever of those two the registry came with;
-  nothing is copied.
+  looking in `apps/web/data` (a registry left by an older checkout), then the
+  repo-root `data/` that `npm run setup` fills, then the desktop app's `data`.
+  Module `.db` files are read in place from wherever that registry's modules
+  live; nothing is copied.
 - **`site-config.json`** — a copy of `e2e/fixtures/site-config.json`, which pins
   auth off and the visible module set. Without this the suite would pass or fail
   according to which modules a developer happened to switch on.
