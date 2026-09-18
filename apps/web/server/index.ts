@@ -519,8 +519,11 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal server error occurred' } });
 });
 
-const server = app.listen(PORT, () => {
-  logger.info(`Bible web app running on http://localhost:${PORT}`);
+// Loopback only by default: Apache proxies to 127.0.0.1, and nothing else
+// should reach the app directly. Set LISTEN_HOST (e.g. 0.0.0.0) to widen it.
+const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
+const server = app.listen(PORT, LISTEN_HOST, () => {
+  logger.info(`Bible web app running on http://${LISTEN_HOST}:${PORT}`);
 });
 
 // HTTP server timeouts (item #1)

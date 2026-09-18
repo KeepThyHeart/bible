@@ -1,39 +1,23 @@
 /**
- * SQLite-based vector search — loads all embeddings into memory.
+ * SQLite-based vector search — vectors in memory, passage text on disk.
  *
  * Supports both float32 (legacy) and int8 (compact centered) embeddings.
  * Auto-detects precision from index_metadata table.
  *
- * Memory usage:
+ * Memory layout: every vector lives in one contiguous typed array, next to
+ * compact per-row metadata (verse range and level). Passage text and titles
+ * stay in the database and are read only for the candidates a search returns.
+ * Holding the text of all ~400K passages as JS objects used to be most of the
+ * server's heap, and it was swapped out between visits.
+ *
+ * Memory usage (vectors):
  *   - float32 768d: ~1.1 GB for 388K embeddings
- *   - int8 128d:    ~48 MB for 388K embeddings
+ *   - int8 384d:    ~150 MB for 403K embeddings
  */
 
 import type { IVectorSearch, SearchCandidate, VectorSearchOptions, SqliteVectorSearchConfig, ScoringConfig } from '@bible/core';
 import { applyMainFacetPreference, resolveScoringConfig } from '../core.js';
 import Database from 'better-sqlite3-web';
-
-interface EmbeddingEntryFloat32 {
-  rowid: number;
-  id: string;
-  level: string;
-  startVerseId: number;
-  endVerseId: number;
-  textContent: string;
-  title: string;
-  vector: Float32Array;
-}
-
-interface EmbeddingEntryInt8 {
-  rowid: number;
-  id: string;
-  level: string;
-  startVerseId: number;
-  endVerseId: number;
-  textContent: string;
-  title: string;
-  vector: Int8Array;
-}
 
 export interface TopicEntry {
   embeddingId: string;
@@ -45,13 +29,28 @@ export interface TopicEntry {
   torreyTopicId: number | null;
 }
 
+/** Row positions (into the in-memory arrays) and scores, best first. */
+interface Ranked {
+  rows: number[];
+  scores: number[];
+}
+
 export class SqliteVectorSearch implements IVectorSearch {
   private dbPath: string;
   private scoringConfig: ReturnType<typeof resolveScoringConfig>;
   private precision: 'float32' | 'int8' = 'float32';
   private dims: number = 768;
-  private entriesFloat32: EmbeddingEntryFloat32[] | null = null;
-  private entriesInt8: EmbeddingEntryInt8[] | null = null;
+  private count = 0;
+  private vectorsInt8: Int8Array | null = null;
+  private vectorsFloat32: Float32Array | null = null;
+  private rowids = new Int32Array(0);
+  private startVerseIds = new Int32Array(0);
+  private endVerseIds = new Int32Array(0);
+  private levelCodes = new Uint8Array(0);
+  private levelNames: string[] = [];
+  /** Read-only handle kept open to look up text and titles for results. */
+  private db: Database.Database | null = null;
+  private detailsStmt: Database.Statement | null = null;
 
   /** Topic entries loaded from companion table (available for search route to use) */
   topicEntries: Map<string, TopicEntry> = new Map();
@@ -62,10 +61,12 @@ export class SqliteVectorSearch implements IVectorSearch {
   }
 
   async initialize(): Promise<void> {
-    if (this.entriesFloat32 || this.entriesInt8) return;
+    if (this.db) return;
 
     console.log('[SqliteVectorSearch] Loading embeddings from database...');
     const db = new Database(this.dbPath, { readonly: true });
+    db.pragma('cache_size = -2000');
+    db.pragma('mmap_size = 268435456');
 
     // Auto-detect precision and dimensions from metadata
     const metaRows = db.prepare('SELECT key, value FROM index_metadata').all() as Array<{ key: string; value: string }>;
@@ -76,52 +77,67 @@ export class SqliteVectorSearch implements IVectorSearch {
 
     console.log(`[SqliteVectorSearch] Detected: ${this.dims}d ${this.precision}, centered=${meta.get('centered') || 'false'}`);
 
+    const total = (db.prepare('SELECT COUNT(*) AS n FROM semantic_embeddings').get() as { n: number }).n;
+    const bytesPerVector = this.precision === 'int8' ? this.dims : this.dims * 4;
+    const vectorBytes = new Uint8Array(total * bytesPerVector);
+    this.rowids = new Int32Array(total);
+    this.startVerseIds = new Int32Array(total);
+    this.endVerseIds = new Int32Array(total);
+    this.levelCodes = new Uint8Array(total);
+    const levelIndex = new Map<string, number>();
+
+    // Stream the rows (no text) straight into the typed arrays, so loading
+    // never materializes every row at once.
     const rows = db.prepare(
-      'SELECT rowid, id, level, start_verse_id, end_verse_id, text_content, title, embedding_blob FROM semantic_embeddings'
-    ).all() as Array<{
+      'SELECT rowid, level, start_verse_id, end_verse_id, embedding_blob FROM semantic_embeddings ORDER BY rowid'
+    ).iterate() as IterableIterator<{
       rowid: number;
-      id: string;
-      level: string;
+      level: string | null;
       start_verse_id: number;
       end_verse_id: number;
-      text_content: string;
-      title: string | null;
       embedding_blob: Buffer;
     }>;
+    let n = 0;
+    let badRow: string | null = null;
+    for (const row of rows) {
+      if (n >= total) break;
+      if (row.embedding_blob.byteLength !== bytesPerVector) {
+        badRow = `row ${row.rowid} has a ${row.embedding_blob.byteLength}-byte embedding, expected ${bytesPerVector}`;
+        break;
+      }
+      vectorBytes.set(row.embedding_blob, n * bytesPerVector);
+      this.rowids[n] = row.rowid;
+      this.startVerseIds[n] = row.start_verse_id;
+      this.endVerseIds[n] = row.end_verse_id;
+      const level = row.level ?? '';
+      let code = levelIndex.get(level);
+      if (code === undefined) {
+        code = this.levelNames.length;
+        levelIndex.set(level, code);
+        this.levelNames.push(level);
+      }
+      if (code > 255) {
+        badRow = 'more than 256 distinct embedding levels';
+        break;
+      }
+      this.levelCodes[n] = code;
+      n++;
+    }
+    if (badRow) {
+      db.close();
+      throw new Error(`[SqliteVectorSearch] ${this.dbPath}: ${badRow}`);
+    }
+    this.count = n;
 
     if (this.precision === 'int8') {
-      this.entriesInt8 = rows.map(row => ({
-        rowid: row.rowid,
-        id: row.id,
-        level: row.level,
-        startVerseId: row.start_verse_id,
-        endVerseId: row.end_verse_id,
-        textContent: row.text_content || '',
-        title: row.title || '',
-        vector: new Int8Array(
-          row.embedding_blob.buffer,
-          row.embedding_blob.byteOffset,
-          row.embedding_blob.byteLength
-        ),
-      }));
-      console.log(`[SqliteVectorSearch] Loaded ${this.entriesInt8.length} int8 embeddings (${(this.entriesInt8.length * this.dims / 1024 / 1024).toFixed(1)} MB vectors).`);
+      this.vectorsInt8 = new Int8Array(vectorBytes.buffer, 0, n * this.dims);
     } else {
-      this.entriesFloat32 = rows.map(row => ({
-        rowid: row.rowid,
-        id: row.id,
-        level: row.level,
-        startVerseId: row.start_verse_id,
-        endVerseId: row.end_verse_id,
-        textContent: row.text_content || '',
-        title: row.title || '',
-        vector: new Float32Array(
-          row.embedding_blob.buffer,
-          row.embedding_blob.byteOffset,
-          row.embedding_blob.byteLength / 4
-        ),
-      }));
-      console.log(`[SqliteVectorSearch] Loaded ${this.entriesFloat32.length} float32 embeddings.`);
+      this.vectorsFloat32 = new Float32Array(vectorBytes.buffer, 0, n * this.dims);
     }
+    console.log(
+      `[SqliteVectorSearch] Loaded ${n} ${this.precision} embeddings ` +
+      `(${(n * bytesPerVector / 1024 / 1024).toFixed(1)} MB vectors; passage text stays on disk).`
+    );
 
     // Load topic_entries companion table if available
     try {
@@ -154,7 +170,10 @@ export class SqliteVectorSearch implements IVectorSearch {
       // topic_entries table may not exist — that's fine
     }
 
-    db.close();
+    this.detailsStmt = db.prepare(
+      'SELECT rowid, text_content, title FROM semantic_embeddings WHERE rowid IN (SELECT value FROM json_each(?))'
+    );
+    this.db = db;
   }
 
   async search(queryVector: Float32Array, options: VectorSearchOptions): Promise<SearchCandidate[]> {
@@ -180,82 +199,148 @@ export class SqliteVectorSearch implements IVectorSearch {
   }
 
   private searchFloat32(queryVector: Float32Array, options: VectorSearchOptions): SearchCandidate[] {
-    if (!this.entriesFloat32) {
+    const vectors = this.vectorsFloat32;
+    if (!vectors) {
       throw new Error('SqliteVectorSearch not initialized. Call initialize() first.');
     }
 
     const { topN, minScore = 0.0, levels } = options;
-    const results: SearchCandidate[] = [];
+    const dims = this.dims;
+    const allowed = this.levelFilter(levels);
 
-    for (let i = 0; i < this.entriesFloat32.length; i++) {
-      const entry = this.entriesFloat32[i];
-      if (levels && levels.length > 0 && !levels.includes(entry.level)) continue;
-
-      const score = dotProductFloat32(queryVector, entry.vector);
-      if (score >= minScore) {
-        results.push({
-          index: entry.rowid,
-          score,
-          level: entry.level,
-          startVerseId: entry.startVerseId,
-          endVerseId: entry.endVerseId,
-          title: entry.title || undefined,
-          text: entry.textContent,
-        });
+    return this.toCandidates(topK(this.count, topN ?? this.count, minScore, row => {
+      if (allowed && !allowed[this.levelCodes[row]]) return null;
+      const offset = row * dims;
+      let sum = 0;
+      for (let d = 0; d < dims; d++) {
+        sum += queryVector[d] * vectors[offset + d];
       }
-    }
-
-    results.sort((a, b) => b.score - a.score);
-    return results.slice(0, topN);
+      return sum;
+    }));
   }
 
   private searchInt8(queryVector: Float32Array, options: VectorSearchOptions): SearchCandidate[] {
-    if (!this.entriesInt8) {
+    const vectors = this.vectorsInt8;
+    if (!vectors) {
       throw new Error('SqliteVectorSearch not initialized. Call initialize() first.');
     }
 
     const { topN, minScore = 0.0, levels } = options;
+    const dims = this.dims;
+    const allowed = this.levelFilter(levels);
 
     // Quantize the float32 query to int8 for fast integer dot product
     const queryInt8 = quantizeFloat32ToInt8(queryVector);
 
-    const results: SearchCandidate[] = [];
+    return this.toCandidates(topK(this.count, topN ?? this.count, minScore, row => {
+      if (allowed && !allowed[this.levelCodes[row]]) return null;
+      const offset = row * dims;
+      let sum = 0;
+      for (let d = 0; d < dims; d++) {
+        sum += queryInt8[d] * vectors[offset + d];
+      }
+      // Both vectors were quantized by multiplying by 127, so divide by 127²
+      return sum / (127 * 127);
+    }));
+  }
 
-    for (let i = 0; i < this.entriesInt8.length; i++) {
-      const entry = this.entriesInt8[i];
-      if (levels && levels.length > 0 && !levels.includes(entry.level)) continue;
+  /** Per-level-code allow list for a `levels` filter (null = every level). */
+  private levelFilter(levels?: string[]): Uint8Array | null {
+    if (!levels || levels.length === 0) return null;
+    const allowed = new Uint8Array(this.levelNames.length);
+    this.levelNames.forEach((name, code) => {
+      if (levels.includes(name)) allowed[code] = 1;
+    });
+    return allowed;
+  }
 
-      const score = dotProductInt8Normalized(queryInt8, entry.vector);
-      if (score >= minScore) {
-        results.push({
-          index: entry.rowid,
-          score,
-          level: entry.level,
-          startVerseId: entry.startVerseId,
-          endVerseId: entry.endVerseId,
-          title: entry.title || undefined,
-          text: entry.textContent,
-        });
+  /** Build result candidates, reading text and titles for just these rows. */
+  private toCandidates({ rows, scores }: Ranked): SearchCandidate[] {
+    const details = new Map<number, { text: string; title: string | null }>();
+    if (rows.length > 0 && this.detailsStmt) {
+      const rowids = rows.map(row => this.rowids[row]);
+      const found = this.detailsStmt.all(JSON.stringify(rowids)) as Array<{
+        rowid: number;
+        text_content: string | null;
+        title: string | null;
+      }>;
+      for (const d of found) {
+        details.set(d.rowid, { text: d.text_content || '', title: d.title });
       }
     }
 
-    results.sort((a, b) => b.score - a.score);
-    return results.slice(0, topN);
+    return rows.map((row, i) => {
+      const rowid = this.rowids[row];
+      const d = details.get(rowid);
+      return {
+        index: rowid,
+        score: scores[i],
+        level: this.levelNames[this.levelCodes[row]],
+        startVerseId: this.startVerseIds[row],
+        endVerseId: this.endVerseIds[row],
+        title: d?.title || undefined,
+        text: d?.text ?? '',
+      };
+    });
   }
 
   async dispose(): Promise<void> {
-    this.entriesFloat32 = null;
-    this.entriesInt8 = null;
+    this.db?.close();
+    this.db = null;
+    this.detailsStmt = null;
+    this.vectorsFloat32 = null;
+    this.vectorsInt8 = null;
+    this.count = 0;
   }
 }
 
-/** Dot product for two Float32Arrays (assumes L2-normalized). */
-function dotProductFloat32(a: Float32Array, b: Float32Array): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    sum += a[i] * b[i];
+/**
+ * The `k` best-scoring rows with score >= minScore, best first. `scoreAt`
+ * returns null to skip a row. A bounded min-heap keeps this O(n log k)
+ * instead of building and sorting a candidate object for every row.
+ */
+function topK(count: number, k: number, minScore: number, scoreAt: (row: number) => number | null): Ranked {
+  k = Math.max(0, Math.min(k, count));
+  const heapRows = new Int32Array(k);
+  const heapScores = new Float64Array(k);
+  let size = 0;
+
+  for (let row = 0; row < count; row++) {
+    const score = scoreAt(row);
+    if (score === null || score < minScore) continue;
+
+    if (size < k) {
+      // Sift the new entry up from the end.
+      let c = size++;
+      while (c > 0) {
+        const p = (c - 1) >> 1;
+        if (heapScores[p] <= score) break;
+        heapScores[c] = heapScores[p];
+        heapRows[c] = heapRows[p];
+        c = p;
+      }
+      heapScores[c] = score;
+      heapRows[c] = row;
+    } else if (k > 0 && score > heapScores[0]) {
+      // Replace the current worst (the root) and sift it down.
+      let c = 0;
+      for (;;) {
+        const l = 2 * c + 1;
+        if (l >= size) break;
+        const r = l + 1;
+        const m = r < size && heapScores[r] < heapScores[l] ? r : l;
+        if (heapScores[m] >= score) break;
+        heapScores[c] = heapScores[m];
+        heapRows[c] = heapRows[m];
+        c = m;
+      }
+      heapScores[c] = score;
+      heapRows[c] = row;
+    }
   }
-  return sum;
+
+  const order = Array.from({ length: size }, (_, i) => i).sort((a, b) => heapScores[b] - heapScores[a]);
+  return { rows: order.map(i => heapRows[i]), scores: order.map(i => heapScores[i]) };
 }
 
 /** Quantize a normalized float32 vector to int8 [-127, 127]. */
@@ -265,17 +350,4 @@ function quantizeFloat32ToInt8(vec: Float32Array): Int8Array {
     out[i] = Math.round(Math.max(-127, Math.min(127, vec[i] * 127)));
   }
   return out;
-}
-
-/**
- * Dot product for two Int8Arrays, normalized to [-1, 1].
- * Integer dot product divided by 127² to get cosine similarity.
- */
-function dotProductInt8Normalized(a: Int8Array, b: Int8Array): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    sum += a[i] * b[i];
-  }
-  // Both vectors were quantized by multiplying by 127, so divide by 127²
-  return sum / (127 * 127);
 }
