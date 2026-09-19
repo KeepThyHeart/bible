@@ -14,12 +14,13 @@ From the monorepo root:
 
 ```bash
 npm install
-npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron rebuild
+npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron download and rebuild
 npm run dev
 ```
 
-The [repository README](../../README.md) covers prerequisites, the module presets and troubleshooting. The desktop-specific steps of `npm run setup` are:
+The [repository README](../../README.md) covers prerequisites, the module presets, setup's options and troubleshooting. The desktop-specific steps of `npm run setup` are:
 
+- **`npm run init:electron`** downloads the Electron binary for this platform from GitHub and checks it against the checksums the `electron` package ships. Since Electron 44 `npm install` no longer does this; without it the first `npm run dev` would. It does nothing when the binary is already there.
 - **`npm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `npm run init -- --target=desktop --no-link` keeps a separate copy instead.
 - **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
 
@@ -59,6 +60,8 @@ npm run package:win        # Windows
 npm run package:mac        # macOS
 npm run package:linux      # Linux
 ```
+
+**On macOS**, run the `:mac` scripts on a Mac. `package:code-only:mac` (what the release workflow builds) produces a `.dmg` and a `.zip` for both Apple Silicon and Intel, whichever the Mac is; the other two configs build only the Mac's own arch. Without a certificate in the environment every build is signed ad hoc, so it opens on the Mac that built it; a copy downloaded from elsewhere is not notarized, and Gatekeeper blocks it until it is allowed under System Settings > Privacy & Security. To sign with a certificate from your keychain, set `CSC_NAME` to its name; `CSC_LINK` plus the `APPLE_*` variables sign and notarize (see `electron-builder.branding.cjs`). electron-builder rebuilds the SQLite driver in the shared `node_modules` for each arch it packages, and the build then puts the Mac's own build back so that `npm run dev` keeps working; if a packaging run fails part-way, run `npm run rebuild-native:force -w @bible/desktop`. An installed build runs under the same app name as `npm run dev` (`@bible/desktop`), so on a Mac where you have run the app in development, a local build asks for access to the "@bible/desktop Safe Storage" keychain item when it opens its encrypted user database, and asks again after every rebuild, since each ad-hoc signature is new; choose Allow. The installer test sidesteps this with Chromium's mock keychain. Check an installer with `npm run test:installer -- "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.dmg"` from the repository root, using the `-arm64` file on Apple Silicon.
 
 There are three electron-builder configs:
 
@@ -243,7 +246,7 @@ The app uses `electron-log` for automatic log file management:
 | Platform | Log Location |
 |----------|-------------|
 | Linux    | `~/.config/bible-desktop-app/logs/main.log` |
-| macOS    | `~/Library/Logs/bible-desktop-app/main.log` |
+| macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
 | Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
 
 In dev mode (`npm run dev`), logs go to the terminal stdout instead of log files.
