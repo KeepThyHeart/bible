@@ -3,23 +3,60 @@ import type { ISql } from '@bible/core';
 import type {
   RepositoryCatalog,
   CatalogModule,
+  CatalogVerificationResult,
   ModuleFilter,
   FeaturePack,
   FetchedCatalog,
   StarterPack,
 } from '@bible/core';
 import {
+  ModuleCatalog,
   ModuleCatalogRepository,
   parseFeaturePacks,
   parseStarterPacks,
   selectStarterPacksForLanguage,
 } from '@bible/core';
-import type { ModuleCatalog } from '@bible/core';
 import type { IModuleCatalogService } from '@bible/core';
-import { CATALOG_MAX_RESPONSE_BYTES, CATALOG_SIGNATURE_MAX_RESPONSE_BYTES } from '../config/constants';
+import {
+  CATALOG_INDEX_MAX_RESPONSE_BYTES,
+  CATALOG_MAX_RESPONSE_BYTES,
+  CATALOG_SIGNATURE_MAX_RESPONSE_BYTES,
+  CATALOG_VOUCHES_MAX_RESPONSE_BYTES,
+} from '../config/constants';
 import { getNetworkGateway, type INetworkGateway } from './NetworkGateway';
 import { verifyCatalogSignature, isCatalogUsable } from './CatalogSignatureVerifier';
-import { resolveExpectedKey, isSignatureRequired } from './trustedCatalogKeys';
+import { findVouchedKey, type KeyVouch } from './CatalogKeyVouches';
+import { CATALOG_INDEX_FILENAME, parseCatalogIndex } from './CatalogIndex';
+import { MemoryApprovedCatalogKeyStore, type ApprovedCatalogKeyStore } from './ApprovedCatalogKeys';
+import {
+  OFFICIAL_CATALOG_URL_PREFIXES,
+  isPinnedOfficialCatalog,
+  isSignatureRequired,
+  officialCatalogScope,
+  resolveExpectedKeys,
+} from './trustedCatalogKeys';
+
+/** What the user is asked to approve: a new official-catalog key and the vouches leading to it. */
+export interface VouchedKeyApprovalRequest {
+  catalogUrl: string;
+  newKey: string;
+  chain: KeyVouch[];
+}
+
+export type VouchedKeyApprover = (request: VouchedKeyApprovalRequest) => Promise<boolean>;
+
+export interface ModuleCatalogServiceOptions {
+  /**
+   * Asks the user whether to trust a key vouched for by an already-trusted
+   * key. Defaults to declining, so an instance with no way to ask can never
+   * widen trust.
+   */
+  approveVouchedKey?: VouchedKeyApprover;
+  /** Where approved keys are kept. Defaults to memory (forgotten on exit). */
+  approvedKeys?: ApprovedCatalogKeyStore;
+  /** Test seam: the catalog source repository. Defaults to one over `mainDb`. */
+  catalogRepository?: ModuleCatalogRepository;
+}
 
 /**
  * Module catalog service implementation.
@@ -36,10 +73,18 @@ import { resolveExpectedKey, isSignatureRequired } from './trustedCatalogKeys';
 export class ModuleCatalogService implements IModuleCatalogService {
   private catalogRepo: ModuleCatalogRepository;
   private readonly gateway: INetworkGateway;
+  private readonly approveVouchedKey: VouchedKeyApprover;
+  private readonly approvedKeys: ApprovedCatalogKeyStore;
 
-  constructor(mainDb: ISql, gateway: INetworkGateway = getNetworkGateway()) {
-    this.catalogRepo = new ModuleCatalogRepository(mainDb);
+  constructor(
+    mainDb: ISql,
+    gateway: INetworkGateway = getNetworkGateway(),
+    options: ModuleCatalogServiceOptions = {},
+  ) {
+    this.catalogRepo = options.catalogRepository ?? new ModuleCatalogRepository(mainDb);
     this.gateway = gateway;
+    this.approveVouchedKey = options.approveVouchedKey ?? (async () => false);
+    this.approvedKeys = options.approvedKeys ?? new MemoryApprovedCatalogKeyStore();
   }
 
   /**
@@ -51,17 +96,46 @@ export class ModuleCatalogService implements IModuleCatalogService {
   }
 
   /**
+   * Where a source's catalog index would be served, or undefined when the
+   * source URL names a catalog document. A directory may serve an index
+   * beside (or instead of) its `catalog.json`; a URL naming `index.json` is
+   * the index itself.
+   */
+  private static indexUrlFor(url: string): string | undefined {
+    if (/\/index\.json$/i.test(url)) return url;
+    if (url.endsWith('.json')) return undefined;
+    return `${url.replace(/\/$/, '')}/${CATALOG_INDEX_FILENAME}`;
+  }
+
+  /**
    * Fetch a catalog and verify its detached signature.
    *
    * Transport hardening (bounded redirects, TLS enforcement, timeouts, size
    * caps) is enforced by the injected `NetworkGateway` - catalog URLs are
    * user-supplied, so they are treated as untrusted input.
+   *
+   * The official catalog's pins apply here whatever the caller passes, so every
+   * path - including adding a catalog, which has no recorded key yet - is held
+   * to them.
    */
   async fetchCatalog(
     url: string,
-    expectedPublicKey?: string,
+    expectedPublicKey?: string | readonly string[],
     requireSignature = false,
   ): Promise<FetchedCatalog> {
+    const fetched = await this.tryFetchCatalog(url, expectedPublicKey, requireSignature);
+    if (!fetched) {
+      throw new Error('Failed to fetch catalog: HTTP 404');
+    }
+    return fetched;
+  }
+
+  /** `fetchCatalog`, but a catalog that is not there (HTTP 404) yields undefined. */
+  private async tryFetchCatalog(
+    url: string,
+    expectedPublicKey: string | readonly string[] | undefined,
+    requireSignature: boolean,
+  ): Promise<FetchedCatalog | undefined> {
     const catalogUrl = ModuleCatalogService.resolveCatalogUrl(url);
 
     const response = await this.gateway.fetchBuffered({
@@ -71,6 +145,9 @@ export class ModuleCatalogService implements IModuleCatalogService {
       context: 'catalog fetch',
     });
 
+    if (response.status === 404) {
+      return undefined;
+    }
     if (response.status !== 200) {
       throw new Error(`Failed to fetch catalog: HTTP ${response.status}`);
     }
@@ -88,14 +165,23 @@ export class ModuleCatalogService implements IModuleCatalogService {
       throw new Error('Invalid catalog format');
     }
 
+    // `repository.published` sits inside the signed bytes, ready for a future
+    // freshness check. Nothing is rejected for its age today.
+    const published = catalog.repository.published;
+    if (published !== undefined && Number.isNaN(Date.parse(published))) {
+      log.warn(`[ModuleCatalog] ${catalogUrl} has an unreadable repository.published: ${String(published)}`);
+    }
+
     // -- Fetch and verify the detached signature --------------------------
     // Verification runs against the exact bytes received, not a re-serialized
     // object, so formatting differences can never break the digest.
-    const signatureJson = await this.fetchSignature(catalogUrl);
-    const signature = verifyCatalogSignature(response.body, signatureJson, {
+    const signature = await this.verifySignedDocument(
+      url,
+      catalogUrl,
+      response.body,
       expectedPublicKey,
       requireSignature,
-    });
+    );
 
     if (!isCatalogUsable(signature)) {
       throw new Error(`Catalog signature check failed for ${catalogUrl}: ${signature.message}`);
@@ -109,36 +195,255 @@ export class ModuleCatalogService implements IModuleCatalogService {
   }
 
   /**
-   * Fetch the detached signature that sits beside the catalog.
+   * Verify the detached `.sig` beside a catalog or catalog index.
    *
-   * A missing signature is not an error here - it yields `undefined` and the
-   * verifier decides whether "unsigned" is acceptable for this source. Only
-   * `NetworkGateway`-level failures (offline, redirect/scheme violations)
-   * propagate.
+   * When `sourceUrl` is official, its pins (plus keys the user approved) apply
+   * and a signature is required. If every signature is valid but none is by a
+   * key this install trusts, a vouch may bridge the gap - if the user agrees.
+   *
+   * @param sourceUrl   - The URL that decides the trust rules (official or not).
+   * @param documentUrl - The document itself; `.sig`/`.vouches` sit beside it.
    */
-  private async fetchSignature(catalogUrl: string): Promise<string | undefined> {
-    const sigUrl = `${catalogUrl}.sig`;
+  private async verifySignedDocument(
+    sourceUrl: string,
+    documentUrl: string,
+    body: Buffer,
+    expectedPublicKey: string | readonly string[] | undefined,
+    requireSignature: boolean,
+  ): Promise<CatalogVerificationResult> {
+    const officialScope = isPinnedOfficialCatalog(sourceUrl) ? officialCatalogScope(sourceUrl) : undefined;
+    const expectedKeys = resolveExpectedKeys(
+      sourceUrl,
+      expectedPublicKey,
+      officialScope ? this.approvedKeys.list(officialScope) : [],
+    );
+    const signatureJson = await this.fetchSidecar(
+      `${documentUrl}.sig`,
+      CATALOG_SIGNATURE_MAX_RESPONSE_BYTES,
+      'catalog signature fetch',
+    );
+    const signature = verifyCatalogSignature(body, signatureJson, {
+      expectedPublicKey: expectedKeys,
+      requireSignature: isSignatureRequired(sourceUrl, requireSignature),
+    });
+
+    if (signature.status === 'untrusted_key' && officialScope) {
+      return this.tryVouchedKey(documentUrl, officialScope, expectedKeys ?? [], signature);
+    }
+    return signature;
+  }
+
+  /**
+   * Add every catalog listed in a signed official index that this install does
+   * not know yet (see `CatalogIndex.ts`).
+   *
+   * Runs at the start of a refresh-all, for installs whose official source
+   * names a catalog rather than the directory serving the index. A scope whose
+   * index an enabled source already serves is left to that source's own
+   * refresh (`refreshSource`), so the index is fetched once.
+   *
+   * Never throws - a missing, unsigned or malformed index just adds nothing.
+   *
+   * @returns The catalog sources that were added.
+   */
+  async syncOfficialIndexes(): Promise<ModuleCatalog[]> {
+    const servedBySource = new Set(
+      this.catalogRepo.getEnabled().map((source) => ModuleCatalogService.indexUrlFor(source.url)?.toLowerCase()),
+    );
+    const added: ModuleCatalog[] = [];
+    for (const scope of OFFICIAL_CATALOG_URL_PREFIXES) {
+      const indexUrl = `${scope.replace(/\/$/, '')}/${CATALOG_INDEX_FILENAME}`;
+      if (!isPinnedOfficialCatalog(scope) || servedBySource.has(indexUrl.toLowerCase())) continue;
+      try {
+        added.push(...((await this.syncIndex(scope, indexUrl, 'official'))?.added ?? []));
+      } catch (error) {
+        log.warn(`[ModuleCatalog] Could not use the catalog index for ${scope}:`, error);
+      }
+    }
+    return added;
+  }
+
+  /**
+   * Fetch and verify the catalog index at `indexUrl`, and add every catalog it
+   * lists that this install does not know yet (see `CatalogIndex.ts`).
+   *
+   * New sources are created enabled and empty, each naming its catalog
+   * document - never a directory, so one index cannot lead to another. Nothing
+   * is removed or re-enabled: a catalog dropped from the index keeps its row,
+   * and one the user disabled stays disabled.
+   *
+   * An index under the official prefix is held to the pinned keys and may only
+   * list catalogs under that prefix. Any other is held to `expectedPublicKey`
+   * (trust on first use) and may only list catalogs beside or below itself.
+   *
+   * @param sourceUrl - The URL that decides the trust rules (official or not).
+   * @param type      - Source type for the catalogs added from a non-official index.
+   * @returns undefined when no index is served (HTTP 404). Throws when one is
+   *          served but cannot be used.
+   */
+  private async syncIndex(
+    sourceUrl: string,
+    indexUrl: string,
+    type: ModuleCatalog['type'],
+    expectedPublicKey?: string,
+    requireSignature = false,
+  ): Promise<{ signature: CatalogVerificationResult; added: ModuleCatalog[] } | undefined> {
+    const response = await this.gateway.fetchBuffered({
+      url: indexUrl,
+      method: 'GET',
+      maxResponseBytes: CATALOG_INDEX_MAX_RESPONSE_BYTES,
+      context: 'catalog index fetch',
+    });
+    if (response.status === 404) {
+      return undefined; // The server does not publish an index.
+    }
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch catalog index: HTTP ${response.status}`);
+    }
+
+    const signature = await this.verifySignedDocument(
+      sourceUrl,
+      indexUrl,
+      response.body,
+      expectedPublicKey,
+      requireSignature,
+    );
+    if (!isCatalogUsable(signature)) {
+      throw new Error(`Catalog index signature check failed for ${indexUrl}: ${signature.message}`);
+    }
+
+    const officialScope = isPinnedOfficialCatalog(sourceUrl) ? officialCatalogScope(sourceUrl) : undefined;
+    const scope = officialScope ?? new URL('./', indexUrl).toString();
+    const { entries, rejected } = parseCatalogIndex(response.body.toString('utf-8'), indexUrl, scope);
+    for (const problem of rejected) {
+      log.warn(`[ModuleCatalog] Ignoring catalog index entry ${problem}`);
+    }
+
+    const known = new Set(
+      this.catalogRepo.getAll().map((source) => ModuleCatalogService.resolveCatalogUrl(source.url).toLowerCase()),
+    );
+    const added: ModuleCatalog[] = [];
+    for (const entry of entries) {
+      const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
+      if (known.has(catalogUrl.toLowerCase())) continue;
+
+      known.add(catalogUrl.toLowerCase());
+      added.push(
+        this.catalogRepo.create(
+          new ModuleCatalog({
+            name: entry.name,
+            abbreviation: entry.abbreviation,
+            url: catalogUrl,
+            type: officialScope ? 'official' : type,
+            isEnabled: true,
+            priority: officialScope ? 100 : 0,
+          }),
+        ),
+      );
+      log.info(`[ModuleCatalog] Added ${catalogUrl} from the catalog index at ${indexUrl}.`);
+    }
+    return { signature, added };
+  }
+
+  /**
+   * Try to reach one of the catalog's signing keys through a chain of vouches
+   * starting at a trusted key, and ask the user before trusting it.
+   *
+   * Only reached for the official catalog, and only when no signature on it is
+   * by a trusted key - a vouch never overrides a working pin. Returns the
+   * `untrusted_key` result it was given (so the fetch fails) when there is no
+   * usable vouch or the user declines.
+   */
+  private async tryVouchedKey(
+    catalogUrl: string,
+    scope: string,
+    trustedKeys: readonly string[],
+    result: CatalogVerificationResult,
+  ): Promise<CatalogVerificationResult> {
+    const vouchesJson = await this.fetchSidecar(
+      `${catalogUrl}.vouches`,
+      CATALOG_VOUCHES_MAX_RESPONSE_BYTES,
+      'catalog key vouch fetch',
+    );
+    if (vouchesJson === undefined) return result;
+
+    const vouched = findVouchedKey(vouchesJson, {
+      trustedKeys,
+      signers: result.signers ?? [],
+      scope,
+    });
+    if (!vouched) return result;
+
+    const approved = await this.approveVouchedKey({
+      catalogUrl,
+      newKey: vouched.newKey,
+      chain: vouched.chain,
+    });
+    if (!approved) {
+      log.warn(`[ModuleCatalog] New signing key ${vouched.newKey} for ${catalogUrl} was not approved.`);
+      return {
+        ...result,
+        message:
+          'The official catalog is signed by a new key that you did not approve. ' +
+          'Refresh again to review it, or update the app.',
+      };
+    }
+
+    const link = vouched.chain[vouched.chain.length - 1];
+    this.approvedKeys.add({
+      publicKey: vouched.newKey,
+      scope,
+      vouchedBy: link.vouchingKey,
+      issued: link.issued,
+      approvedAt: new Date().toISOString(),
+    });
+    log.info(
+      `[ModuleCatalog] User approved signing key ${vouched.newKey} for ${scope} ` +
+        `(vouched for by ${link.vouchingKey}).`,
+    );
+    return {
+      status: 'verified',
+      publicKey: vouched.newKey,
+      signers: result.signers,
+      message: 'Catalog signature verified against a new key you approved.',
+    };
+  }
+
+  /**
+   * Fetch a small document that sits beside the catalog (`.sig`, `.vouches`).
+   *
+   * A missing document is not an error here - it yields `undefined` and the
+   * caller decides what its absence means (for `.sig`, the verifier decides
+   * whether "unsigned" is acceptable). Network failures are logged and also
+   * yield `undefined`.
+   */
+  private async fetchSidecar(
+    url: string,
+    maxResponseBytes: number,
+    context: string,
+  ): Promise<string | undefined> {
     try {
       const response = await this.gateway.fetchBuffered({
-        url: sigUrl,
+        url,
         method: 'GET',
-        maxResponseBytes: CATALOG_SIGNATURE_MAX_RESPONSE_BYTES,
-        context: 'catalog signature fetch',
+        maxResponseBytes,
+        context,
       });
 
       if (response.status !== 200) {
-        // Most commonly 404 - the publisher has not signed the catalog.
+        // Most commonly 404 - the publisher does not serve this document.
         return undefined;
       }
       return response.body.toString('utf-8');
     } catch (error) {
-      log.warn(`[ModuleCatalog] Could not retrieve ${sigUrl}:`, error);
+      log.warn(`[ModuleCatalog] Could not retrieve ${url}:`, error);
       return undefined;
     }
   }
 
   /**
-   * Refresh catalog for a catalog source
+   * Refresh catalog for a catalog source, and any catalogs its index adds
+   * (see `refreshSource`).
    */
   async refreshCatalog(catalogId: number): Promise<ModuleCatalog> {
     const entry = this.catalogRepo.getById(catalogId);
@@ -146,37 +451,96 @@ export class ModuleCatalogService implements IModuleCatalogService {
       throw new Error(`Catalog source ${catalogId} not found`);
     }
 
-    // Require the same key this source used before (or the pinned official
-    // key). A catalog that starts signing with a different key, or stops
-    // signing entirely, fails instead of silently losing its trust level.
-    const expectedKey = resolveExpectedKey(entry.url, entry.signingPublicKey);
-    const mustBeSigned = isSignatureRequired(entry.url, entry.hasBeenSigned());
-
-    // Fetch fresh catalog
-    const fetched = await this.fetchCatalog(entry.url, expectedKey, mustBeSigned);
-
-    // Update with new catalog and the observed signature state
-    entry.setCatalog(fetched.catalog);
-    entry.signatureStatus = fetched.signature.status;
-    if (fetched.signature.publicKey) {
-      entry.signingPublicKey = fetched.signature.publicKey;
-    }
-    this.catalogRepo.update(entry);
-
-    return entry;
+    const [refreshed] = await this.refreshSource(entry);
+    return refreshed;
   }
 
   /**
-   * Refresh all enabled catalog sources
+   * Refresh one catalog source.
+   *
+   * A source URL names a catalog, a catalog index, or a directory that may
+   * serve either or both (`index.json`, `catalog.json`) - so a site root can
+   * be a source whether it publishes one catalog or an index of several. A
+   * directory's index is read first, and the catalogs it adds are fetched
+   * straight away; then its own catalog is fetched as before. A missing
+   * catalog is expected beside an index: the source is then an index only, and
+   * lists no modules itself.
+   *
+   * Requires the same key this source used before; `fetchCatalog` swaps in the
+   * pinned keys for the official catalog. A catalog that starts signing with
+   * a different key, or stops signing entirely, fails instead of silently
+   * losing its trust level.
+   *
+   * @returns The source first, then each catalog its index added that loaded.
+   */
+  private async refreshSource(entry: ModuleCatalog): Promise<ModuleCatalog[]> {
+    const refreshed: ModuleCatalog[] = [entry];
+    const indexUrl = ModuleCatalogService.indexUrlFor(entry.url);
+
+    let index: { signature: CatalogVerificationResult; added: ModuleCatalog[] } | undefined;
+    let indexError: unknown;
+    if (indexUrl) {
+      try {
+        index = await this.syncIndex(entry.url, indexUrl, entry.type, entry.signingPublicKey, entry.hasBeenSigned());
+      } catch (error) {
+        // A broken index must not take down a working catalog served beside it.
+        indexError = error;
+        log.warn(`[ModuleCatalog] Could not use the catalog index at ${indexUrl}:`, error);
+      }
+
+      for (const added of index?.added ?? []) {
+        try {
+          refreshed.push(...(await this.refreshSource(added)));
+        } catch (error) {
+          // One listed catalog failing must not fail the index that listed it.
+          log.error(`Failed to refresh catalog ${added.name}:`, error);
+        }
+      }
+    }
+
+    // A URL naming the index itself has no catalog of its own to look for.
+    const fetched = indexUrl === entry.url
+      ? undefined
+      : await this.tryFetchCatalog(entry.url, entry.signingPublicKey, entry.hasBeenSigned());
+
+    if (fetched) {
+      entry.setCatalog(fetched.catalog);
+      ModuleCatalogService.recordSignature(entry, fetched.signature);
+    } else if (index) {
+      // An index only. A catalog this source served before is dropped rather
+      // than left to go stale.
+      entry.catalogJson = undefined;
+      entry.lastFetched = new Date().toISOString();
+      ModuleCatalogService.recordSignature(entry, index.signature);
+    } else {
+      const reason = indexError instanceof Error ? indexError.message : 'HTTP 404';
+      throw new Error(`No catalog or catalog index at ${entry.url} (${reason})`);
+    }
+    this.catalogRepo.update(entry);
+
+    return refreshed;
+  }
+
+  /** Keep the signature state a fetch observed, and the signing key when one verified. */
+  private static recordSignature(entry: ModuleCatalog, signature: CatalogVerificationResult): void {
+    entry.signatureStatus = signature.status;
+    if (signature.publicKey) {
+      entry.signingPublicKey = signature.publicKey;
+    }
+  }
+
+  /**
+   * Refresh all enabled catalog sources, and the catalogs their indexes add.
    */
   async refreshAllCatalogs(): Promise<ModuleCatalog[]> {
-    const catalogs = this.catalogRepo.getEnabled();
-    const refreshed: ModuleCatalog[] = [];
+    // Pick up catalogs the official index lists first, so a newly published
+    // catalog is fetched in this same pass.
+    await this.syncOfficialIndexes();
 
-    for (const entry of catalogs) {
+    const refreshed: ModuleCatalog[] = [];
+    for (const entry of this.catalogRepo.getEnabled()) {
       try {
-        const updated = await this.refreshCatalog(entry.catalogId!);
-        refreshed.push(updated);
+        refreshed.push(...(await this.refreshSource(entry)));
       } catch (error) {
         // Log error but continue with other catalogs
         log.error(`Failed to refresh catalog ${entry.name}:`, error);
@@ -290,13 +654,12 @@ export class ModuleCatalogService implements IModuleCatalogService {
     for (const entry of catalogs) {
       const catalog = entry.getParsedCatalog();
       if (catalog && catalog.modules) {
-        // Resolve relative download URLs against the catalog base URL
-        const baseUrl = entry.url.replace(/\/$/, '');
+        // Relative download URLs resolve against the catalog document, as a
+        // browser would: a source may name the document, not just its directory.
+        const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
         const resolved = catalog.modules.map((m: CatalogModule) => ({
           ...m,
-          download_url: m.download_url.startsWith('http')
-            ? m.download_url
-            : `${baseUrl}/${m.download_url}`
+          download_url: new URL(m.download_url, catalogUrl).toString()
         }));
         allModules.push(...resolved);
       }

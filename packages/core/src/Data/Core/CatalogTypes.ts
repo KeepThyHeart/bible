@@ -9,6 +9,13 @@ export interface RepositoryInfo {
   version: string;
   url: string;
   last_updated: string;
+  /**
+   * ISO-8601 UTC time the catalog was published, stamped by
+   * `scripts/yubikey-sign.py` when it signs. It sits inside the catalog, so the
+   * signature covers it. Recorded for a future freshness check - the app does
+   * not reject a catalog for its age today. Absent in older catalogs.
+   */
+  published?: string;
   description: string;
   language: string;
 }
@@ -82,23 +89,36 @@ export interface RepositoryCatalog {
   starter_packs?: unknown[];
 }
 
+/** One Ed25519 signature over the SHA-256 digest of a catalog's exact bytes. */
+export interface CatalogSignatureEntry {
+  /** Hex-encoded 32-byte Ed25519 public key (64 hex chars). */
+  publicKey: string;
+  /** Hex-encoded 64-byte Ed25519 signature (128 hex chars). */
+  signature: string;
+  algorithm: 'ed25519-sha256';
+}
+
 /**
  * Detached Ed25519 signature over a catalog document.
  *
  * Served alongside the catalog as `<catalog>.sig` so that `catalog.json`
  * stays byte-identical to what was signed (no canonicalization needed).
  * Mirrors the extension signing format (`ExtensionSignature`).
+ *
+ * The top-level fields are the primary signature. `signatures` may add more
+ * over the same bytes by other keys, which is how a catalog is signed by an
+ * outgoing and an incoming key at once during a rotation. Apps that predate
+ * `signatures` read only the primary, so during a rotation it should be the
+ * key older installs trust. Every signature present must verify; one by a
+ * trusted key is enough.
  */
-export interface CatalogSignature {
-  /** Hex-encoded 32-byte Ed25519 public key (64 hex chars). */
-  publicKey: string;
-  /** Hex-encoded 64-byte Ed25519 signature (128 hex chars). */
-  signature: string;
-  algorithm: 'ed25519-sha256';
+export interface CatalogSignature extends CatalogSignatureEntry {
   /** ISO-8601 timestamp the signature was produced (informational). */
   signedAt?: string;
   /** Optional short label identifying the signing key. */
   keyId?: string;
+  /** Further signatures over the same catalog bytes. */
+  signatures?: CatalogSignatureEntry[];
 }
 
 /**
@@ -120,8 +140,13 @@ export type CatalogSignatureStatus =
 
 export interface CatalogVerificationResult {
   status: CatalogSignatureStatus;
-  /** Hex public key that produced the signature, when one was present. */
+  /**
+   * Hex public key that produced the signature, when one was present. With
+   * several signatures, the trusted one that verified the catalog.
+   */
   publicKey?: string;
+  /** Every key whose signature over the catalog verified. */
+  signers?: string[];
   /** Human-readable detail, suitable for surfacing in the UI. */
   message: string;
 }

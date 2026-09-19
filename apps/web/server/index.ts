@@ -267,7 +267,9 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
 if (!NO_AUTH) {
   app.use(createPasswordGate({ passwordHash: sitePasswordHash, privacyMode }));
 } else {
-  logger.info('Auth disabled (NO_AUTH=1)');
+  logger.info(authConfig.enabled
+    ? 'Auth disabled (NO_AUTH=1)'
+    : 'Auth disabled (auth.enabled is false in site-config.json)');
 }
 
 // Load search pipeline config if available

@@ -26,8 +26,9 @@
  * Canon source: `main.db` (`chapter_info` + `bible_book`) when it is populated,
  * otherwise the checked-in `scripts/data/kjv-versification.json`.
  *
- * Uses the async `sqlite3` driver (NOT better-sqlite3) so it runs under system
- * Node.js. All module databases are opened READ-ONLY - this script never writes.
+ * Uses the repo root's `better-sqlite3`, which is built for system Node.js (the
+ * desktop's own `better-sqlite3-multiple-ciphers` is built for Electron). All
+ * module databases are opened READ-ONLY - this script never writes.
  *
  * Usage:
  *   node scripts/validate-module.js <module> [options]
@@ -54,7 +55,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const sqlite3 = require('sqlite3');
+const Database = require('better-sqlite3');
 
 // ============================================================================
 // Constants
@@ -199,38 +200,27 @@ const colors = {
 // SQLite helpers (read-only)
 // ============================================================================
 
-function openReadOnly(dbPath) {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
-      if (err) reject(new Error(`Cannot open database: ${dbPath} (${err.message})`));
-      else resolve(db);
-    });
-  });
+// better-sqlite3 is synchronous; these stay async so a failure surfaces as a
+// rejection, the way every caller below already handles it.
+
+async function openReadOnly(dbPath) {
+  try {
+    return new Database(dbPath, { readonly: true, fileMustExist: true });
+  } catch (err) {
+    throw new Error(`Cannot open database: ${dbPath} (${err.message})`);
+  }
 }
 
-function dbAll(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+async function dbAll(db, sql, params = []) {
+  return db.prepare(sql).all(params);
 }
 
-function dbGet(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row || null);
-    });
-  });
+async function dbGet(db, sql, params = []) {
+  return db.prepare(sql).get(params) || null;
 }
 
-function dbClose(db) {
-  return new Promise((resolve) => {
-    if (!db) { resolve(); return; }
-    db.close(() => resolve());
-  });
+async function dbClose(db) {
+  if (db) db.close();
 }
 
 // ============================================================================
