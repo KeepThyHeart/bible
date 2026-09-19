@@ -154,10 +154,56 @@ const electronVersion = (() => {
   }
 })();
 
+// --- Native modules after a mac build ----------------------------------------
+//
+// electron-builder rebuilds native modules for each arch it packages IN PLACE,
+// in the repository's node_modules. The mac targets build arm64 and x64, so the
+// last pass leaves its arch behind: on an Apple Silicon Mac the development
+// tree then holds x64 binaries and `npm run dev` cannot load SQLite
+// ("incompatible architecture") until `npm run rebuild-native:force`. After a
+// mac build this puts back the host's Electron build of any binding left for
+// another arch. Not on CI, which has no development tree to keep working.
+const MACHO_CPU_TYPES = { 0x01000007: 'x64', 0x0100000c: 'arm64' }; // <mach/machine.h>
+const NATIVE_BINDINGS = {
+  'better-sqlite3-multiple-ciphers': 'build/Release/better_sqlite3.node',
+  keytar: 'build/Release/keytar.node',
+};
+
+function restoreHostNativeModules() {
+  if (process.platform !== 'darwin' || process.env.CI) return [];
+  const fs = require('fs');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const otherArch = Object.entries(NATIVE_BINDINGS)
+    .filter(([name, binding]) => {
+      const header = Buffer.alloc(8);
+      try {
+        const dir = path.dirname(require.resolve(`${name}/package.json`, { paths: [__dirname] }));
+        const fd = fs.openSync(path.join(dir, binding), 'r');
+        try {
+          fs.readSync(fd, header, 0, 8, 0);
+        } finally {
+          fs.closeSync(fd);
+        }
+      } catch {
+        return false; // not installed (keytar is optional) or not built
+      }
+      const arch = MACHO_CPU_TYPES[header.readUInt32LE(4)];
+      return arch !== undefined && arch !== process.arch;
+    })
+    .map(([name]) => name);
+  if (otherArch.length > 0) {
+    console.log(`  • restoring the ${process.arch} Electron build of ${otherArch.join(', ')} for npm run dev`);
+    execFileSync('npx', ['@electron/rebuild', '--only', otherArch.join(','), '-f'], { cwd: __dirname, stdio: 'inherit' });
+  }
+  return [];
+}
+
 module.exports = {
   appId,
   productName,
   electronVersion,
+  afterAllArtifactBuild: restoreHostNativeModules,
   publish: [
     {
       provider: 'github',
@@ -180,6 +226,38 @@ module.exports = {
   mac: {
     // Hardened runtime is required for notarization; only meaningful when signed.
     hardenedRuntime: macSigningConfigured,
+    // With no certificate supplied, sign ad hoc ('-') rather than letting
+    // electron-builder pick whatever identity the keychain holds. Otherwise a
+    // developer's Mac signs local builds with their personal "Apple
+    // Development" cert, timestamping every file against Apple's server (slow,
+    // and it fails offline), while CI builds the same config unsigned. Ad hoc
+    // is also the least Apple Silicon needs: an arm64 app with no signature at
+    // all is refused. Set CSC_NAME to sign with a keychain identity on purpose.
+    ...(envStr('CSC_LINK') || envStr('CSC_NAME') ? {} : { identity: '-' }),
+  },
+  // The deb's required "homepage" (fpm refuses to build without one). Taken
+  // from branding like every other public URL, rather than hard-coded in
+  // package.json.
+  extraMetadata: {
+    homepage: branding.siteUrl || branding.downloadsUrl
+      || `https://github.com/${branding.githubOrg || 'psrankin'}/${branding.githubRepo || 'bible'}`,
+  },
+  linux: {
+    // On Linux the binary is otherwise named after the npm package,
+    // `@bible/desktop` -> `@bibledesktop`, which electron-builder refuses for
+    // the AppImage ("executableName contains characters that cannot be safely
+    // used in file paths"), so the Linux release build failed.
+    // Linux only: on Windows the .exe keeps productName, which
+    // build-installer.nsh depends on. Child configs' `linux:` blocks are
+    // deep-merged with this one, so their targets are unaffected.
+    executableName: linuxName(),
+  },
+  deb: {
+    // Otherwise both come from the npm name, and the deb was written to
+    // dist/@bible/desktop_<version>_amd64.deb: a subdirectory the release
+    // workflow's `dist/*.deb` never matches.
+    packageName: linuxName(),
+    artifactName: `${linuxName()}_\${version}_\${arch}.\${ext}`,
   },
   // The deb's required "homepage" (fpm refuses to build without one). Taken
   // from branding like every other public URL, rather than hard-coded in

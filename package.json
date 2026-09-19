@@ -79,6 +79,7 @@
     "usearch": true,
     "unrs-resolver": true,
     "@parcel/watcher": true,
+    "fsevents": false,
     "protobufjs": false
   }
 }

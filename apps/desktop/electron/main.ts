@@ -681,6 +681,8 @@ async function createWindow(): Promise<void> {
     } finally {
       isClosing = false;
       mainWindow?.destroy();
+      // Preventing the close cancelled any quit in progress; resume it.
+      if (quitRequested) app.quit();
     }
   });
 
@@ -1053,6 +1055,17 @@ app.whenReady().then(async () => {
       await createWindow();
     }
   });
+});
+
+// Set once a quit is under way (Cmd+Q, the app menu's Quit, app.quit()).
+// Electron quits by closing every window, and a window whose 'close' is
+// prevented cancels the quit. The main window's 'close' handler prevents it to
+// save the session first, so it calls app.quit() again once the window is
+// gone. Elsewhere window-all-closed would quit anyway, but on macOS it does
+// not, and without this Cmd+Q only closed the window.
+let quitRequested = false;
+app.on('before-quit', () => {
+  quitRequested = true;
 });
 
 app.on('window-all-closed', () => {

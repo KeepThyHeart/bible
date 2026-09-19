@@ -105,8 +105,10 @@ jobs:
       # Every value is scoped to the mac job. electron-builder.branding.cjs turns
       # Windows signing on whenever CSC_LINK is set, so a Developer ID cert
       # exported to every job would make the Windows build try to sign with it.
-      # An empty string reads as unset there (envStr) and in electron-builder,
-      # so on win/linux every gate stays off.
+      # An empty string reads as unset there (envStr), but NOT in
+      # electron-builder: it takes an empty CSC_LINK as a certificate path,
+      # resolves it to the project directory and fails with "... not a file".
+      # The "Build installers" step unsets the empty ones before it runs.
       CSC_LINK: ${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || '' }}
       CSC_KEY_PASSWORD: ${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
       APPLE_ID: ${{ matrix.target == 'mac' && secrets.APPLE_ID || '' }}
@@ -130,6 +132,21 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # Electron's V8 headers put a GNU attribute after a C++11 one in a class
+      # head (`class [[deprecated]] __attribute__((visibility)) Value`), which
+      # the GCC on ubuntu-22.04 cannot parse, so building the native modules
+      # (better-sqlite3-multiple-ciphers, keytar) against Electron fails there.
+      # Clang accepts it. The image ships several clang versions; take the
+      # newest.
+      - name: Use clang for native modules
+        if: matrix.target == 'linux'
+        run: |
+          cxx=$(ls /usr/bin/clang++-[0-9]* | sort -V | tail -n1)
+          cc=${cxx/clang++/clang}
+          "$cxx" --version
+          echo "CC=$cc" >> "$GITHUB_ENV"
+          echo "CXX=$cxx" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: npm ci
 
@@ -141,7 +158,13 @@ jobs:
 
       - name: Build installers
         shell: bash
-        run: npm run package:code-only:${{ matrix.target }} -w @bible/desktop -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
+        run: |
+          # Unset signing values that are empty (no secret, or not the mac job)
+          # so electron-builder sees them as absent. See the job's `env`.
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || unset "$name"
+          done
+          npm run package:code-only:${{ matrix.target }} -w @bible/desktop -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
 
       # Verifiable with: gh attestation verify <file> -R <owner>/<repo>
       - name: Attest build provenance

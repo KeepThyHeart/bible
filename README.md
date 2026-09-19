@@ -26,12 +26,25 @@ Screenshots and User Documentation
 
 Prerequisites
 -------------
-  - **Node.js 20.19 or newer.** 24 is recommended, and `.nvmrc` pins it, so `nvm install` / `nvm use` (nvm, fnm) pick it up. With nvm-windows, run `nvm install 24` and `nvm use 24`. The init script checks the version and says so if it is too old.
+  - **Node.js 20.19 or newer.** 24 is recommended, and `.nvmrc` pins it, so `nvm install` / `nvm use` (nvm, fnm) pick it up. With nvm-windows, run `nvm install 24` and `nvm use 24`. The init script checks the version and says so if it is too old. macOS ships no Node at all; see [macOS](#macos) below.
   - **npm** (the version bundled with Node) and **git**.
   - **Network access on the first run.** Setup downloads modules from the official module catalog and the Electron binary from GitHub, the first `npm run dev` / `npm run dev:web` downloads the self-hosted fonts, and the first `npm run build:web` downloads the search embedding model (about 130 MB) from huggingface.co into `data/models/`.
-  - **Native build tools, only as a fallback.** The native dependencies (`better-sqlite3`, `better-sqlite3-multiple-ciphers` and others) normally install prebuilt binaries, including the Electron build of `better-sqlite3-multiple-ciphers` that `npm run setup` fetches. When no prebuilt binary matches your platform, Node or Electron version, npm compiles it with node-gyp, which needs Python 3 plus a C++ toolchain: Visual Studio Build Tools with the "Desktop development with C++" workload on Windows, the Xcode Command Line Tools on macOS, or `build-essential` on Linux. `keytar` is optional (it is only used to migrate an encryption key from older desktop installs), so a failure to build it, for example for want of `libsecret-1-dev` on Linux, does not stop `npm install`. If `npm install` sits compiling SQLite for several minutes, see [Troubleshooting](#troubleshooting): a slow DNS lookup of github.com, or broken IPv6 to it, makes every prebuilt download time out.
+  - **Native build tools.** The native dependencies (`better-sqlite3`, `better-sqlite3-multiple-ciphers` and others) normally install prebuilt binaries, including the Electron build of `better-sqlite3-multiple-ciphers` that `npm run setup` fetches. When no prebuilt binary matches your platform, Node or Electron version, npm compiles it with node-gyp, which needs Python 3 plus a C++ toolchain: Visual Studio Build Tools with the "Desktop development with C++" workload on Windows, the Xcode Command Line Tools on macOS, or `build-essential` on Linux. `keytar` is optional (it is only used to migrate an encryption key from older desktop installs), so a failure to build it, for example for want of `libsecret-1-dev` on Linux, does not stop `npm install`. If `npm install` sits compiling SQLite for several minutes, see [Troubleshooting](#troubleshooting): a slow DNS lookup of github.com, or broken IPv6 to it, makes every prebuilt download time out. At the time of writing `better-sqlite3-multiple-ciphers` publishes no Electron 44 (ABI 149) binaries for any platform, so `npm run rebuild-sqlite` always compiles it (about a minute) and the C++ toolchain is in practice required.
 
-The commands below work from PowerShell, cmd or a POSIX shell.
+### macOS
+
+A new Mac has neither Node nor a compiler, so install both first:
+
+```bash
+xcode-select --install          # git, clang and make; skip if `xcode-select -p` prints a path
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+exec zsh                        # or open a new terminal, so nvm is on PATH
+cd bible && nvm install         # reads .nvmrc (24)
+```
+
+Homebrew works too (`brew install node@24`, then put `$(brew --prefix node@24)/bin` on `PATH`; it is keg-only). After that the Quick Start below runs as written. `admin/scripts/verify-macos.sh` loads nvm itself when `node` is not on `PATH`.
+
+The commands below work from PowerShell, cmd or a POSIX shell (bash, or zsh, the macOS default).
 
 Quick Start
 -----------
@@ -211,7 +224,7 @@ It uses Playwright from the checkout it runs in, so run `npm install` there firs
 
 Troubleshooting
 ---------------
-**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `npm install` or after `npm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `npm run rebuild-sqlite` skips modules that look built already, so force it:
+**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `npm install` or after `npm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `npm run rebuild-sqlite` skips modules that look built already, so force it. The same fix applies on a Mac when the driver fails to load with `incompatible architecture (have 'arm64', need 'x86_64')` or the reverse, or is missing altogether: packaging for mac rebuilds it in place for each arch it builds, and puts the host's build back afterwards, but a packaging run that fails or is interrupted part-way leaves the other arch (or nothing) behind.
 
 ```bash
 npm run rebuild-native:force -w @bible/desktop
