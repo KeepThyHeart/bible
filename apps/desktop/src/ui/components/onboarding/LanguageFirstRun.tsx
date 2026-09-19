@@ -49,7 +49,11 @@ import type { LocaleMetadata } from '../../services/II18nService';
  *    native confirmation dialog - as the Privacy menu and Preferences; a
  *    cancelled dialog leaves this step exactly as it was.
  * 3. **Suggested content.** Starter packs for the chosen language, if the
- *    catalog offers any. It frequently offers none: `hi` has no Bible
+ *    catalog offers any; otherwise the catalog's recommended modules for that
+ *    language (the published catalog has modules but no `starter_packs`
+ *    section), Bible first, installed through the same card. Region codes fall
+ *    back to the base language (`en-US` -> `en`) for both lookups. It can
+ *    still offer nothing: `hi` has no Bible
  *    translation confirmed to be public domain (see the note on
  *    `SUPPORTED_CONTENT_LANGUAGES`), and an offline install has no catalog at
  *    all. So this step renders an honest "nothing to suggest yet" state - with
@@ -68,6 +72,64 @@ import type { LocaleMetadata } from '../../services/II18nService';
 const DEFAULT_LOCALE = 'en';
 
 type Step = 'language' | 'network' | 'content';
+
+/** What step 3 can put in front of the user for a language. */
+interface ContentOffer {
+  packs: OfferedStarterPack[];
+  /** Recommended catalog modules, Bible first. Only populated when `packs` is empty. */
+  modules: CatalogModule[];
+}
+
+/**
+ * Language codes to try, most specific first: `en-US` -> `en`. Catalog entries
+ * and starter packs are keyed by the bare language (only `en` is published
+ * today), while the UI locale can carry a region.
+ */
+function languageCandidates(languageCode: string): string[] {
+  const base = languageCode.split(/[-_]/)[0];
+  return base && base !== languageCode ? [languageCode, base] : [languageCode];
+}
+
+/**
+ * Starter packs for the language, else its recommended catalog modules.
+ *
+ * The official catalog has published modules without any `starter_packs`
+ * section, so "no packs" must not be reported as "no content". Any failure
+ * degrades to an empty offer.
+ */
+async function findOffer(languageCode: string): Promise<ContentOffer> {
+  const api = window.electron?.moduleManager;
+  const candidates = languageCandidates(languageCode);
+
+  for (const code of candidates) {
+    try {
+      const result = await api?.getStarterPacks?.(code);
+      if (result && result.ok && Array.isArray(result.value) && result.value.length > 0) {
+        return { packs: result.value, modules: [] };
+      }
+    } catch {
+      // Treated as "no packs"; fall through to the module lookup.
+    }
+  }
+
+  for (const code of candidates) {
+    try {
+      const result = await api?.searchModules?.({ languageCode: code, recommended: true });
+      if (result && result.ok && Array.isArray(result.value) && result.value.length > 0) {
+        const modules = result.value as CatalogModule[];
+        // Bible first, otherwise catalog order (stable sort).
+        const bibleFirst = [...modules].sort(
+          (a, b) => Number(b.module_type === 'bible') - Number(a.module_type === 'bible')
+        );
+        return { packs: [], modules: bibleFirst };
+      }
+    } catch {
+      // Treated as "no modules".
+    }
+  }
+
+  return { packs: [], modules: [] };
+}
 
 interface LanguageOptionProps {
   info: LocaleMetadata;
@@ -127,7 +189,7 @@ const LanguageFirstRun: React.FC = () => {
   const [step, setStep] = useState<Step>('language');
   const [selected, setSelected] = useState<string>(i18n.currentLocale || DEFAULT_LOCALE);
   const [showAll, setShowAll] = useState(false);
-  const [packs, setPacks] = useState<OfferedStarterPack[] | null>(null);
+  const [offer, setOffer] = useState<ContentOffer | null>(null);
   const [dismissed, setDismissed] = useState(false);
   // Shown on the network step while `requestAllow(true)` -> `refreshAllCatalogs()`
   // is in flight, between the user confirming the native dialog and the
@@ -194,18 +256,14 @@ const LanguageFirstRun: React.FC = () => {
     setSelected((current) => (current ? current : i18n.currentLocale || DEFAULT_LOCALE));
   }, [i18n.currentLocale]);
 
-  // Ask for suggestions for `languageCode`. Failures (offline, no catalog
-  // configured, a catalog that lists no starter packs) all land on the same
-  // empty state - there is nothing actionable to distinguish, and this never
-  // itself makes a network request (it reads whatever catalog is cached).
+  // Ask for suggestions for `languageCode`: starter packs first, then - because
+  // the published catalog may carry modules but no `starter_packs` section at
+  // all - its recommended modules for that language. Failures (offline, no
+  // catalog configured, nothing published) all land on the same empty state -
+  // there is nothing actionable to distinguish, and this never itself makes a
+  // network request (it reads whatever catalog is cached).
   const fetchPacksFor = useCallback(async (languageCode: string) => {
-    try {
-      const api = window.electron?.moduleManager;
-      const result = await api?.getStarterPacks?.(languageCode);
-      setPacks(result && result.ok && Array.isArray(result.value) ? result.value : []);
-    } catch {
-      setPacks([]);
-    }
+    setOffer(await findOffer(languageCode));
   }, []);
 
   const handleConfirmLanguage = useCallback(async () => {
@@ -369,7 +427,7 @@ const LanguageFirstRun: React.FC = () => {
           ) : onNetworkStep ? (
             <NetworkStep loading={catalogLoading} />
           ) : (
-            <StarterPackStep packs={packs} allowWebRequests={allowWebRequests} onGoOnline={handleGoOnline} />
+            <StarterPackStep offer={offer} allowWebRequests={allowWebRequests} onGoOnline={handleGoOnline} />
           )}
         </div>
 
@@ -480,11 +538,7 @@ type PackInstallState =
  * Module Manager (which starts collapsed).
  */
 const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
-  const { t } = useI18n();
-  const installModule = useModuleStore((s) => s.installModule);
-  const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
   const [modules, setModules] = useState<CatalogModule[] | null>(null);
-  const [install, setInstall] = useState<PackInstallState>({ status: 'idle' });
   const catalogId = pack.source?.catalogId;
 
   useEffect(() => {
@@ -504,6 +558,43 @@ const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
       cancelled = true;
     };
   }, [pack.pack_id, catalogId]);
+
+  return (
+    <InstallCard
+      id={pack.pack_id}
+      name={pack.name}
+      description={pack.description}
+      // Every pack first run offers comes from the verified official
+      // catalog (see `getStarterPacksForLanguage`); the badge states that
+      // plainly so users learn what "verified" means here.
+      verified
+      modules={modules}
+      catalogId={catalogId}
+    />
+  );
+};
+
+interface InstallCardProps {
+  id: string;
+  name: string;
+  description: string;
+  /** Show the "verified official catalog" badge. Only packs may claim it. */
+  verified?: boolean;
+  /** `null` while still being looked up. */
+  modules: CatalogModule[] | null;
+  /** Scopes each install to one catalog; undefined for the module fallback. */
+  catalogId: number | undefined;
+}
+
+/**
+ * The module list (licence + size always visible) and Install button shared by
+ * starter packs and the recommended-modules fallback.
+ */
+const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verified, modules, catalogId }) => {
+  const { t } = useI18n();
+  const installModule = useModuleStore((s) => s.installModule);
+  const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
+  const [install, setInstall] = useState<PackInstallState>({ status: 'idle' });
 
   const totalSize = (modules ?? []).reduce((sum, m) => sum + (m.download_size_bytes || 0), 0);
 
@@ -528,27 +619,26 @@ const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
   return (
     <li
       className="rounded border border-border px-md py-sm"
-      data-testid={`first-run-pack-${pack.pack_id}`}
+      data-testid={`first-run-pack-${id}`}
     >
       <div className="flex items-baseline gap-xs">
-        <p className="text-sm font-medium text-text-primary">{pack.name}</p>
-        {/* Every pack first run offers comes from the verified official
-            catalog (see `getStarterPacksForLanguage`); the badge states that
-            plainly so users learn what "verified" means here. */}
-        <span
-          className="rounded bg-success-soft px-xs text-xs text-success-text"
-          data-testid={`first-run-pack-verified-${pack.pack_id}`}
-        >
-          {t('onboarding.packs.verifiedBadge')}
-        </span>
+        <p className="text-sm font-medium text-text-primary">{name}</p>
+        {verified && (
+          <span
+            className="rounded bg-success-soft px-xs text-xs text-success-text"
+            data-testid={`first-run-pack-verified-${id}`}
+          >
+            {t('onboarding.packs.verifiedBadge')}
+          </span>
+        )}
       </div>
-      <p className="mt-xs text-sm text-text-secondary">{pack.description}</p>
+      <p className="mt-xs text-sm text-text-secondary">{description}</p>
 
       {modules === null ? (
         <p className="mt-sm text-xs text-text-secondary">{t('onboarding.language.packModulesLoading')}</p>
       ) : (
         <>
-          <ul className="mt-sm flex flex-col gap-xs" data-testid={`first-run-pack-modules-${pack.pack_id}`}>
+          <ul className="mt-sm flex flex-col gap-xs" data-testid={`first-run-pack-modules-${id}`}>
             {modules.map((module) => (
               <StarterPackModuleRow key={module.module_id} module={module} />
             ))}
@@ -567,24 +657,24 @@ const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
             type="button"
             onClick={() => void handleInstall()}
             disabled={!modules || modules.length === 0}
-            data-testid={`first-run-pack-install-${pack.pack_id}`}
+            data-testid={`first-run-pack-install-${id}`}
             className="rounded bg-accent px-md py-xs text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
           >
             {t('onboarding.language.packInstall')}
           </button>
         )}
         {install.status === 'installing' && (
-          <p className="text-sm text-text-secondary" data-testid={`first-run-pack-installing-${pack.pack_id}`}>
+          <p className="text-sm text-text-secondary" data-testid={`first-run-pack-installing-${id}`}>
             {t('onboarding.language.packInstalling', { current: install.index, total: install.total })}
           </p>
         )}
         {install.status === 'done' && install.failed.length === 0 && (
-          <p className="text-sm text-success" data-testid={`first-run-pack-installed-${pack.pack_id}`}>
+          <p className="text-sm text-success" data-testid={`first-run-pack-installed-${id}`}>
             {t('onboarding.language.packInstalled')}
           </p>
         )}
         {install.status === 'done' && install.failed.length > 0 && (
-          <div data-testid={`first-run-pack-failed-${pack.pack_id}`}>
+          <div data-testid={`first-run-pack-failed-${id}`}>
             <p className="text-sm text-danger">{t('onboarding.language.packInstallPartial')}</p>
             <ul className="mt-xs text-xs text-danger">
               {install.failed.map((m) => (
@@ -606,8 +696,8 @@ const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
 };
 
 interface StarterPackStepProps {
-  /** `null` while the lookup is in flight; `[]` once it resolved with nothing. */
-  packs: OfferedStarterPack[] | null;
+  /** `null` while the lookup is in flight; empty packs AND modules once it resolved with nothing. */
+  offer: ContentOffer | null;
   /** Read live so this step reflects "Go online" happening from within it. */
   allowWebRequests: boolean;
   /** Same handler the network step's own "Go online" button uses. */
@@ -618,7 +708,7 @@ interface StarterPackStepProps {
  * Step 3 - what we can offer in the chosen language, if the network switch is
  * on, and whatever else there is to do about it if it is not.
  */
-const StarterPackStep: React.FC<StarterPackStepProps> = ({ packs, allowWebRequests, onGoOnline }) => {
+const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebRequests, onGoOnline }) => {
   const { t } = useI18n();
   const [fileInstall, setFileInstall] = useState<{ message: string; isError: boolean } | null>(null);
   const [fileInstallBusy, setFileInstallBusy] = useState(false);
@@ -649,11 +739,30 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ packs, allowWebReques
     }
   };
 
-  if (packs === null) {
+  if (offer === null) {
     return (
       <p className="text-sm text-text-secondary" data-testid="first-run-packs-loading">
         {t('onboarding.language.packsLoading')}
       </p>
+    );
+  }
+
+  const { packs, modules } = offer;
+
+  if (packs.length === 0 && modules.length > 0) {
+    return (
+      <div data-testid="first-run-modules-list">
+        <p className="mb-md text-sm text-text-secondary">{t('onboarding.language.recommendedIntro')}</p>
+        <ul className="flex flex-col gap-sm">
+          <InstallCard
+            id="recommended"
+            name={t('onboarding.language.recommendedName')}
+            description={t('onboarding.language.recommendedDescription')}
+            modules={modules}
+            catalogId={undefined}
+          />
+        </ul>
+      </div>
     );
   }
 

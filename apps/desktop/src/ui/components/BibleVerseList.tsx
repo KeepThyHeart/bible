@@ -13,10 +13,12 @@ import BibleHeader from './BibleHeader';
 import { directionForLanguage } from '../utils/textDirection';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
+import PaneEmptyState from './onboarding/PaneEmptyState';
 import { useDeferredLoading } from '../hooks/useDeferredLoading';
 import { isInSelectedRange } from '../stores/bible/internals/verseRange';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
+import { openModuleManager } from '../utils/openModuleManager';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -230,16 +232,27 @@ const BibleVerseList: React.FC = () => {
               !isSessionLoaded ? (
                 <PaneLoadingSkeleton testId="bible-loading-skeleton" />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-text-secondary">
-                  <p className="mb-md">{t('biblePane.noTranslationOpen')}</p>
-                  <button
-                    type="button"
-                    className="px-lg py-md bg-accent text-text-on-accent rounded hover:bg-accent-hover"
-                    onClick={() => setShowSelector(true)}
-                  >
-                    {t('biblePane.selectTranslation')}
-                  </button>
-                </div>
+                <PaneEmptyState
+                  icon="📖"
+                  testId="bible-empty-state"
+                  title={t('onboarding.empty.bible.title')}
+                  description={t('onboarding.empty.bible.description')}
+                  actions={[
+                    availableBibles.length === 0
+                      ? {
+                          label: t('onboarding.empty.bible.install'),
+                          onClick: () => openModuleManager('bible'),
+                          primary: true,
+                          testId: 'bible-empty-install',
+                        }
+                      : {
+                          label: t('biblePane.selectTranslation'),
+                          onClick: () => setShowSelector(true),
+                          primary: true,
+                          testId: 'bible-empty-choose',
+                        },
+                  ]}
+                />
               )
             ) : isLoading && currentVerses.length === 0 ? (
               // First-ever load for this tab (session restore, or a brand-new

@@ -43,6 +43,7 @@ const USER_SUPPLIED: LocaleMetadata[] = [
 // Hoisted so the module mock below can read a value each test sets.
 const h = vi.hoisted(() => ({
   locales: [] as LocaleMetadata[],
+  current: 'en',
   setLocale: vi.fn(async () => {}),
 }));
 
@@ -54,7 +55,9 @@ vi.mock('../../contexts/useI18n', () => ({
     t: (key: string, params?: Record<string, unknown>) => enT(key, params),
     locale: 'en',
     i18n: {
-      currentLocale: 'en',
+      get currentLocale(): string {
+        return h.current;
+      },
       get availableLocaleInfos(): LocaleMetadata[] {
         return h.locales;
       },
@@ -69,6 +72,7 @@ beforeEach(() => {
   window.localStorage.clear();
   useOnboardingStore.setState({ languageChosen: false });
   h.setLocale.mockClear();
+  h.current = 'en';
   h.locales = [...BUILT_IN, ...USER_SUPPLIED];
   getStarterPacks.mockReset();
   getStarterPacks.mockResolvedValue({ ok: true, value: [] });
@@ -225,6 +229,123 @@ describe('LanguageFirstRun', () => {
 
       expect(await screen.findByTestId('first-run-pack-starter-fr')).toHaveTextContent('French Starter');
       expect(getStarterPacks).toHaveBeenCalledWith('fr');
+    });
+
+    describe('when the catalog has no starter packs', () => {
+      const searchModules = vi.fn();
+      const RECOMMENDED = [
+        { module_id: 'strongs', module_type: 'dictionary', name: "Strong's", license: 'Public Domain', download_size_bytes: 1_000_000 },
+        { module_id: 'kjv', module_type: 'bible', name: 'King James Version', license: 'Public Domain', download_size_bytes: 5_000_000 },
+      ];
+
+      beforeEach(() => {
+        searchModules.mockReset().mockResolvedValue({ ok: true, value: [] });
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, searchModules },
+        };
+      });
+
+      async function continueWithDefaultLanguage() {
+        render(<LanguageFirstRun />);
+        await screen.findByTestId('first-run-language-dialog');
+        await userEvent.click(screen.getByTestId('first-run-language-continue'));
+      }
+
+      it('offers the recommended modules for the language, Bible first', async () => {
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        const card = await screen.findByTestId('first-run-pack-recommended');
+        expect(screen.queryByTestId('first-run-packs-empty')).not.toBeInTheDocument();
+        expect(searchModules).toHaveBeenCalledWith({ languageCode: 'en', recommended: true });
+        const rows = card.querySelectorAll('[data-testid^="first-run-pack-module-"]');
+        expect(Array.from(rows).map((r) => r.getAttribute('data-testid'))).toEqual([
+          'first-run-pack-module-kjv',
+          'first-run-pack-module-strongs',
+        ]);
+        // Not from a signed pack, so it must not claim the verified badge.
+        expect(screen.queryByTestId('first-run-pack-verified-recommended')).not.toBeInTheDocument();
+      });
+
+      it('installs them through the same Install flow', async () => {
+        const installModule = vi.fn().mockResolvedValue(true);
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ installModule, loadInstalledModules });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        await userEvent.click(await screen.findByTestId('first-run-pack-install-recommended'));
+
+        await waitFor(() => expect(installModule).toHaveBeenCalledTimes(2));
+        expect(installModule).toHaveBeenNthCalledWith(1, 'kjv', undefined);
+        expect(installModule).toHaveBeenNthCalledWith(2, 'strongs', undefined);
+        expect(await screen.findByTestId('first-run-pack-installed-recommended')).toBeInTheDocument();
+      });
+
+      it('shows the honest empty state only when the modules are empty too', async () => {
+        await continueWithDefaultLanguage();
+        expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-pack-recommended')).not.toBeInTheDocument();
+        expect(searchModules).toHaveBeenCalled();
+      });
+
+      it('shows the empty state when the module lookup fails', async () => {
+        searchModules.mockRejectedValue(new Error('offline'));
+        await continueWithDefaultLanguage();
+        expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+      });
+
+      it('prefers packs over recommended modules when both exist', async () => {
+        getStarterPacks.mockResolvedValue({
+          ok: true,
+          value: [
+            {
+              pack_id: 'starter-en',
+              languages: ['en'],
+              name: 'English Starter',
+              description: 'KJV.',
+              version: '1.0.0',
+              module_ids: ['kjv'],
+              source: { catalogId: 1, catalogName: 'Official', verifiedOfficial: true },
+            },
+          ],
+        });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        expect(await screen.findByTestId('first-run-pack-starter-en')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-pack-recommended')).not.toBeInTheDocument();
+        expect(searchModules).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('with a regional locale', () => {
+      it('falls back from en-US to en for both lookups', async () => {
+        const searchModules = vi.fn().mockImplementation(async (filter: { languageCode: string }) => ({
+          ok: true,
+          value:
+            filter.languageCode === 'en'
+              ? [{ module_id: 'kjv', module_type: 'bible', name: 'King James Version', license: 'Public Domain', download_size_bytes: 1 }]
+              : [],
+        }));
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, searchModules },
+        };
+        h.locales = [
+          { code: 'en-US', name: 'English (US)', nativeName: 'English (US)', status: 'complete', direction: 'ltr' },
+          ...BUILT_IN,
+        ];
+        h.current = 'en-US';
+
+        render(<LanguageFirstRun />);
+        await screen.findByTestId('first-run-language-dialog');
+        await userEvent.click(screen.getByTestId('first-run-language-continue'));
+
+        expect(await screen.findByTestId('first-run-pack-recommended')).toBeInTheDocument();
+        // Packs: full code first, then the base language.
+        expect(getStarterPacks.mock.calls.map((c) => c[0])).toEqual(['en-US', 'en']);
+        expect(searchModules.mock.calls.map((c) => c[0].languageCode)).toEqual(['en-US', 'en']);
+      });
     });
 
     it('falls back to the empty state when the pack lookup fails', async () => {

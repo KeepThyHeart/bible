@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { moduleAPI } from '../moduleAPI';
 import { ModuleState, ModuleMetadata } from '../types';
+import { notifyLibraryChanged } from '../../crossStoreBridge';
 
 export interface InstalledSlice {
   installedModules: ModuleMetadata[];
@@ -19,6 +20,34 @@ export interface InstalledSlice {
   checkForUpdates: (moduleId: number) => Promise<any>;
 }
 
+const moduleSignature = (m: ModuleMetadata): string =>
+  `${m.module_id}@${m.version}${m.user_hidden ? '!hidden' : ''}`;
+
+/**
+ * Module types whose installed set differs between two snapshots - added,
+ * removed, updated (version change) or hidden/unhidden modules.
+ */
+function changedModuleTypes(before: ModuleMetadata[], after: ModuleMetadata[]): string[] {
+  const signaturesByType = (list: ModuleMetadata[]): Map<string, Set<string>> => {
+    const byType = new Map<string, Set<string>>();
+    for (const m of list) {
+      const set = byType.get(m.module_type) ?? new Set<string>();
+      set.add(moduleSignature(m));
+      byType.set(m.module_type, set);
+    }
+    return byType;
+  };
+  const prev = signaturesByType(before);
+  const next = signaturesByType(after);
+  const changed: string[] = [];
+  for (const type of new Set([...prev.keys(), ...next.keys()])) {
+    const a = prev.get(type) ?? new Set<string>();
+    const b = next.get(type) ?? new Set<string>();
+    if (a.size !== b.size || [...a].some(sig => !b.has(sig))) changed.push(type);
+  }
+  return changed;
+}
+
 export const createInstalledSlice: StateCreator<ModuleState, [], [], InstalledSlice> = (set, get) => ({
   installedModules: [],
   loadingInstalled: false,
@@ -27,11 +56,22 @@ export const createInstalledSlice: StateCreator<ModuleState, [], [], InstalledSl
   loadInstalledModules: async () => {
     set({ loadingInstalled: true, error: null });
     try {
+      const before = get().installedModules;
       const modules = await moduleAPI.getInstalledModules();
+      const after = (modules as ModuleMetadata[]) || [];
       set({
-        installedModules: (modules as ModuleMetadata[]) || [],
+        installedModules: after,
         loadingInstalled: false
       });
+      // Every install/uninstall/update path - including file and pack installs
+      // made outside this slice - ends in a reload, and the reload happens only
+      // once the work has actually finished (the IPC calls resolve after the
+      // download and install complete; polling is progress display only). So
+      // the reload is the one place that sees a finished change.
+      const changedTypes = changedModuleTypes(before, after);
+      if (changedTypes.length > 0) {
+        await notifyLibraryChanged({ moduleTypes: changedTypes });
+      }
     } catch (error) {
       console.error('[ModuleStore] Error loading installed modules:', error);
       set({

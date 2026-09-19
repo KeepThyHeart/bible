@@ -25,7 +25,9 @@ import { DEFAULT_PANEL_ID } from './helpers/panelStateHelpers';
 import { syncPanesWithVerse } from './syncPanesWithVerse';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
+import { useSessionStore } from './useSessionStore';
 import {
+  setNotifyLibraryChanged,
   setNavigateToVerseInPrimary,
   setPreviewVerseInPrimary,
   setResolvePrimaryBibleVerseId,
@@ -57,6 +59,31 @@ export function wireStoreSync(): void {
   // ==========================================================================
   // Cross-store bridges (imperative calls)
   // ==========================================================================
+
+  // The module store raises this once an install/uninstall/update has finished.
+  // A changed set of Bibles must reach the Bible store, or the translation
+  // picker stays stale and - when the very first Bible was just installed - the
+  // reading pane stays on its empty state until the app restarts.
+  setNotifyLibraryChanged(async (change) => {
+    if (!change.moduleTypes.includes('bible')) return;
+
+    await useBibleStore.getState().loadAvailableBibles();
+
+    // Seed the reading pane only from the true empty state: no Bible open in any
+    // panel, and the saved session (which may be about to restore tabs) already
+    // loaded and not staged for that panel. Anything else already has - or is
+    // about to have - a Bible, and swapping it out would be wrong.
+    if (!useSessionStore.getState().isSessionLoaded) return;
+    const bibleState = useBibleStore.getState();
+    let target: string | undefined;
+    for (const [panelId, ps] of bibleState.panels) {
+      if (ps.openTabs.length > 0) return;
+      if (target === undefined && !bibleState.sessionPanelStates.has(panelId)) target = panelId;
+    }
+    if (target !== undefined) {
+      await bibleState.loadInitialData(target);
+    }
+  });
 
   // Commentary slices call this when the user clicks a verse in the
   // commentary and we want the Bible pane to follow along.

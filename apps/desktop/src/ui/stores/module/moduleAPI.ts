@@ -7,6 +7,7 @@
 // receive plain values and errors throw as `IpcResultError`.
 import { requireElectronAPI } from '../../services/electronAPI';
 import { unwrap } from '../../services/ipcResult';
+import { searchAPI } from '../../services/electronAPI';
 
 export const moduleAPI = {
   async init() {
@@ -90,5 +91,8 @@ export const moduleAPI = {
   },
   async setRepositoryEnabled(repositoryId: number, enabled: boolean) {
     return unwrap(requireElectronAPI().moduleManager.setRepositoryEnabled(repositoryId, enabled));
+  },
+  async reindexModule(abbrev: string, onProgress?: (progress: any) => void) {
+    return searchAPI.buildIndex([abbrev], onProgress);
   }
 };

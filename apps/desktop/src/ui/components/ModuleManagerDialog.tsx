@@ -1,15 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MODULE_TYPES } from '@bible/core';
 import { useI18n } from '../contexts/useI18n';
 import { useModuleStore, ModuleType } from '../stores/useModuleStore';
+import type { ModuleInstallFilter, ModuleManagerTab } from '../stores/module/types';
 import { useNetworkStore } from '../stores/useNetworkStore';
 import { moduleAPI } from '../stores/module/moduleAPI';
-import ModuleList from './ModuleList';
+import { mergeAndSortModules, getTabTypes, type ModuleRow } from '../stores/module/moduleRows';
+import ModuleTable from './moduleManager/ModuleTable';
+import { findRowDownload } from './moduleManager/ModuleRow';
+import ModuleDetailsPanel from './moduleManager/ModuleDetailsPanel';
+import { MODULE_TYPE_LABELS, useTd } from './moduleManager/moduleManagerI18n';
+import { TabStrip } from './shared/TabStrip';
 import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
 import ConfirmDialog from './shared/ConfirmDialog';
 import { activateFocusTrap } from '../utils/focusTrap';
-import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import type { ModulePackInstallSummary } from '../../../electron/services/ModulePackService';
 
 /**
@@ -123,84 +129,34 @@ const ModulePackSummaryPanel: React.FC<{ summary: ModulePackInstallSummary; onCl
 export interface ModuleManagerDialogProps {
   onClose: () => void;
   /**
-   * When set, the dialog opens on the Available tab pre-filtered to this module
-   * type - an empty study pane sends the user straight to the modules
-   * that would fill it. `null` opens with no filter (the default).
+   * When set, the dialog opens on that module type's tab (with the All filter)
+   * - an empty study pane sends the user straight to the modules that would
+   * fill it. `null` opens on whichever tab was last used (the default).
    */
   initialModuleType?: ModuleType | null;
 }
 
-type ViewModeId = 'available' | 'installed' | 'updates' | 'features' | 'repositories';
-
-/**
- * View-mode tabs. Labels are catalog keys with English fallbacks - a tab label
- * is read aloud, so it has to translate like any other visible string.
- */
-const VIEW_MODES: Array<{ id: ViewModeId; key: string; testId?: string }> = [
-  { id: 'available', key: 'moduleManager.tabAvailable', testId: 'module-manager-available-tab' },
-  { id: 'installed', key: 'moduleManager.tabInstalled', testId: 'module-manager-installed-tab' },
-  { id: 'updates', key: 'moduleManager.tabUpdates' },
-  { id: 'features', key: 'moduleManager.tabFeatures', testId: 'module-manager-features-tab' },
-  { id: 'repositories', key: 'moduleManager.tabRepositories', testId: 'module-manager-repositories-tab' },
+const INSTALL_FILTERS: Array<{ id: ModuleInstallFilter; key: string; fallback: string }> = [
+  { id: 'all', key: 'moduleManager.filterAll', fallback: 'All' },
+  { id: 'installed', key: 'moduleManager.filterInstalled', fallback: 'Installed' },
+  { id: 'updates', key: 'moduleManager.filterUpdates', fallback: 'Updates' },
 ];
 
-/**
- * ARIA-conformant view-mode tablist for ModuleManagerDialog.
- * Uses `useTabKeyboardNav` for arrow/Home/End keyboard movement.
- */
-const ViewModeTabs: React.FC<{
-  viewMode: ViewModeId;
-  setViewMode: (mode: ViewModeId) => void;
-}> = ({ viewMode, setViewMode }) => {
-  const { t } = useI18n();
-  const activeIndex = VIEW_MODES.findIndex(m => m.id === viewMode);
-  const { tablistRef, onKeyDown } = useTabKeyboardNav({
-    tabCount: VIEW_MODES.length,
-    activeIndex,
-    onActivate: (index) => setViewMode(VIEW_MODES[index].id),
-  });
-  return (
-    <div className="px-6 pt-4 border-b border-border">
-      <div
-        className="flex gap-1"
-        role="tablist"
-        aria-label={t('moduleManager.viewsLabel')}
-        ref={tablistRef}
-        onKeyDown={onKeyDown}
-      >
-        {VIEW_MODES.map((mode) => {
-          const isActive = viewMode === mode.id;
-          return (
-            <button
-              key={mode.id}
-              type="button"
-              role="tab"
-              id={`module-manager-tab-${mode.id}`}
-              aria-selected={isActive}
-              aria-controls={`module-manager-panel-${mode.id}`}
-              tabIndex={isActive ? 0 : -1}
-              onClick={() => setViewMode(mode.id)}
-              data-testid={mode.testId}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
-                isActive
-                  ? 'bg-surface text-accent border-t-2 border-s border-e border-accent'
-                  : 'bg-background-tertiary text-text-secondary hover:bg-background-active'
-              }`}
-            >
-              {t(mode.key)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+const isPanelTab = (tab: ModuleManagerTab): tab is 'features' | 'repositories' =>
+  tab === 'features' || tab === 'repositories';
 
 const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, initialModuleType }) => {
   const { t } = useI18n();
+  const td = useTd();
   const dialogRef = useRef<HTMLDivElement>(null);
   const appliedInitialFilterRef = useRef(false);
   const [searchInput, setSearchInput] = useState('');
+  // The selected row is local to the dialog (by abbreviation, the row key) -
+  // it is not store state, so reopening the dialog starts with no panel.
+  const [selectedAbbreviation, setSelectedAbbreviation] = useState<string | null>(null);
+  // Abbreviations with an install/update/uninstall in flight (disables that row's buttons).
+  const [busyAbbreviations, setBusyAbbreviations] = useState<ReadonlySet<string>>(() => new Set());
+  const [uninstallRequest, setUninstallRequest] = useState<{ row: ModuleRow; removeUserData: boolean } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dropResult, setDropResult] = useState<{ message: string; isError: boolean } | null>(null);
   const [packSummary, setPackSummary] = useState<ModulePackInstallSummary | null>(null);
@@ -257,19 +213,22 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   const {
     isInitialized,
     initError,
-    viewMode,
+    activeTypeTab,
+    installFilter,
+    availableModules,
+    installedModules,
     loadingAvailable,
     loadingInstalled,
     error,
     errorCode,
     activeDownloads,
     repositories,
-    activeFilter,
     initialize,
-    setViewMode,
-    searchModules,
-    setFilter,
-    clearFilter,
+    setActiveTypeTab,
+    setInstallFilter,
+    installModule,
+    updateModule,
+    uninstallModule,
     refreshAllCatalogs,
     clearError,
     startDownloadPolling,
@@ -285,18 +244,36 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     }
   }, [isInitialized, initError, initialize]);
 
-  // D2: when opened from an empty study pane, land on the Available tab filtered
-  // to the pane's module type. Applied once, after init, so it isn't clobbered
+  // D2: when opened from an empty study pane, land on the pane's module type
+  // tab with the All filter. Applied once, after init, so it isn't clobbered
   // by the store's own initialization.
   useEffect(() => {
     if (!isInitialized) return;
     if (appliedInitialFilterRef.current) return;
     appliedInitialFilterRef.current = true;
     if (initialModuleType) {
-      setViewMode('available');
-      setFilter({ moduleType: initialModuleType });
+      setActiveTypeTab(initialModuleType);
+      setInstallFilter('all');
     }
-  }, [isInitialized, initialModuleType, setViewMode, setFilter]);
+  }, [isInitialized, initialModuleType, setActiveTypeTab, setInstallFilter]);
+
+  // One merged, sorted row per module (catalog + installed joined on abbreviation).
+  const rows = useMemo(
+    () => mergeAndSortModules(availableModules, installedModules),
+    [availableModules, installedModules]
+  );
+
+  // One tab per module type that has modules ('bible' always). A type the dialog
+  // was opened on (or last left on) stays a tab even if it has no modules, so
+  // an empty catalog/offline state still lands on the type the user asked for.
+  const tabTypes = useMemo(() => {
+    const types = getTabTypes(availableModules, installedModules);
+    if (!isPanelTab(activeTypeTab) && !types.includes(activeTypeTab)) {
+      types.push(activeTypeTab);
+      types.sort((a, b) => MODULE_TYPES.indexOf(a) - MODULE_TYPES.indexOf(b));
+    }
+    return types;
+  }, [availableModules, installedModules, activeTypeTab]);
 
   // Start/stop download polling based on active downloads
   useEffect(() => {
@@ -351,20 +328,55 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // Handle search input change
+  // Search filters the rows locally (name / abbreviation / description), so it
+  // covers installed-only modules that are not in the catalog too.
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchInput(query);
-    searchModules(query);
+    setSearchInput(e.target.value);
   };
 
-  // Handle module type filter
-  const handleTypeFilter = (type: ModuleType | null) => {
-    if (type === null) {
-      clearFilter();
-    } else {
-      setFilter({ moduleType: type });
+  const handleTabChange = (tabId: string) => {
+    setActiveTypeTab(tabId as ModuleManagerTab);
+    setSelectedAbbreviation(null);
+  };
+
+  // Run a row's install/update/uninstall with that row marked busy.
+  const runRowAction = async (row: ModuleRow, action: () => Promise<unknown>) => {
+    setBusyAbbreviations((prev) => new Set(prev).add(row.abbreviation));
+    try {
+      await action();
+    } finally {
+      setBusyAbbreviations((prev) => {
+        const next = new Set(prev);
+        next.delete(row.abbreviation);
+        return next;
+      });
     }
+  };
+
+  const handleInstallRow = (row: ModuleRow) => {
+    const catalogModule = row.catalogModule;
+    if (!catalogModule) return;
+    void runRowAction(row, () => installModule(catalogModule.module_id));
+  };
+
+  const handleUpdateRow = (row: ModuleRow) => {
+    const installedModule = row.installedModule;
+    if (!installedModule) return;
+    void runRowAction(row, () => updateModule(installedModule.module_id));
+  };
+
+  // Uninstall is destructive: it always goes through the confirm dialog first.
+  const handleUninstallRow = (row: ModuleRow, removeUserData: boolean) => {
+    if (!row.installedModule) return;
+    setUninstallRequest({ row, removeUserData });
+  };
+
+  const confirmUninstall = () => {
+    const request = uninstallRequest;
+    setUninstallRequest(null);
+    const installedModule = request?.row.installedModule;
+    if (!request || !installedModule) return;
+    void runRowAction(request.row, () => uninstallModule(installedModule.module_id, request.removeUserData));
   };
 
   // Handle refresh catalog
@@ -568,7 +580,30 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   const officialRepo = repositories.find(r => r.type === 'official');
   const lastUpdated = officialRepo?.lastFetched
     ? new Date(officialRepo.lastFetched).toLocaleDateString()
-    : 'Never';
+    : td('moduleManager.lastUpdatedNever', 'Never');
+
+  const panelTab = isPanelTab(activeTypeTab);
+  const selectedRow = isPanelTab(activeTypeTab)
+    ? undefined
+    : rows.find(r => r.abbreviation === selectedAbbreviation && r.module_type === activeTypeTab);
+  const typeLabel = (type: ModuleType) => td(MODULE_TYPE_LABELS[type].key, MODULE_TYPE_LABELS[type].fallback);
+  const tabs = tabTypes.map(type => ({
+    id: type,
+    label: typeLabel(type),
+    testId: `module-manager-type-tab-${type}`,
+  }));
+  const trailingTabs = [
+    {
+      id: 'features',
+      label: td('moduleManager.tabFeaturePacks', 'Feature packs'),
+      testId: 'module-manager-features-tab',
+    },
+    {
+      id: 'repositories',
+      label: td('moduleManager.tabSources', 'Sources'),
+      testId: 'module-manager-repositories-tab',
+    },
+  ];
 
   return (
     <div className="fixed inset-0 bg-background-overlay flex items-center justify-center z-50 p-4" data-testid="module-manager-overlay">
@@ -693,13 +728,18 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           </div>
         )}
 
-        {/* View Mode Tabs */}
-        <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} />
-
+        {/* Module-type tabs, plus the Feature packs / Sources panels on the right */}
+        <TabStrip
+          tabs={tabs}
+          trailingTabs={trailingTabs}
+          activeId={activeTypeTab}
+          onChange={handleTabChange}
+          ariaLabel={t('moduleManager.viewsLabel')}
+        />
 
         {/* Toolbar (hidden on the tabs that render their own panel - module
-            search, type filter and catalog refresh have nothing to act on) */}
-        {viewMode !== 'repositories' && viewMode !== 'features' && (
+            search, install filter and catalog refresh have nothing to act on) */}
+        {!panelTab && (
         <div className="px-6 py-3 bg-surface-secondary border-b border-border">
           <div className="flex items-center gap-4">
             {/* Search */}
@@ -727,34 +767,33 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
               </svg>
             </div>
 
-            {/* Module Type Filter */}
-            {viewMode === 'available' && (
-              <select
-                value={
-                  activeFilter.moduleType
-                    ? Array.isArray(activeFilter.moduleType)
-                      ? activeFilter.moduleType[0]
-                      : activeFilter.moduleType
-                    : 'all'
-                }
-                onChange={(e) =>
-                  handleTypeFilter(e.target.value === 'all' ? null : e.target.value as ModuleType)
-                }
-                aria-label={t('moduleManager.typeFilterLabel')}
-                className="px-3 py-2 text-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-              >
-                <option value="all">{t('moduleManagerDialog.typeAll')}</option>
-                <option value="bible">{t('moduleManagerDialog.typeBibles')}</option>
-                <option value="commentary">{t('moduleManagerDialog.typeCommentaries')}</option>
-                <option value="dictionary">{t('moduleManagerDialog.typeDictionaries')}</option>
-                <option value="book">{t('moduleManagerDialog.typeBooks')}</option>
-                <option value="devotional">{t('moduleManagerDialog.typeDevotionals')}</option>
-                <option value="lexicon">{t('moduleManagerDialog.typeLexicons')}</option>
-                <option value="topical_index">{t('moduleManagerDialog.typeTopicalIndexes')}</option>
-                <option value="cross_reference">{t('moduleManagerDialog.typeCrossReferences')}</option>
-                <option value="tag_graph">{t('moduleManagerDialog.typeTagGraphs')}</option>
-              </select>
-            )}
+            {/* All / Installed / Updates filter chips */}
+            <div
+              role="group"
+              aria-label={td('moduleManager.installFilterLabel', 'Filter by install status')}
+              className="flex gap-1"
+              data-testid="module-manager-install-filter"
+            >
+              {INSTALL_FILTERS.map(({ id, key, fallback }) => {
+                const isActive = installFilter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={isActive}
+                    data-testid={`module-manager-filter-${id}`}
+                    onClick={() => setInstallFilter(id)}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                      isActive
+                        ? 'bg-accent text-text-on-accent border-accent'
+                        : 'bg-surface text-text-secondary border-border hover:bg-background-hover'
+                    }`}
+                  >
+                    {td(key, fallback)}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Upload Module File(s) / Pack */}
             <button
@@ -784,45 +823,42 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
             </button>
 
             {/* Refresh Catalog */}
-            {viewMode === 'available' && (
-              <button
-                onClick={handleRefreshCatalog}
-                disabled={loadingAvailable}
-                className="px-4 py-2 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            <button
+              onClick={handleRefreshCatalog}
+              disabled={loadingAvailable}
+              className="px-4 py-2 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <svg
+                className={`w-4 h-4 ${loadingAvailable ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className={`w-4 h-4 ${loadingAvailable ? 'animate-spin' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                {t('moduleManagerDialog.refresh')}
-              </button>
-            )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              {t('moduleManagerDialog.refresh')}
+            </button>
 
             {/* Last Updated */}
-            {viewMode === 'available' && (
-              <div className="text-xs text-text-tertiary whitespace-nowrap">
-                {t('moduleManagerDialog.lastUpdated', { date: lastUpdated })}
-              </div>
-            )}
+            <div className="text-xs text-text-tertiary whitespace-nowrap">
+              {t('moduleManagerDialog.lastUpdated', { date: lastUpdated })}
+            </div>
           </div>
         </div>
         )}
 
         {/* Offline banner - persistent (not dismissible like the error banner
             above), because it describes a mode, not a one-off failure. Shown
-            whenever the Available tab has no way to reach a catalog, so a
-            `NetworkBlockedError` from Refresh never has to fall back to
-            ModuleList's generic "no modules found, adjust your filter". */}
-        {viewMode === 'available' && !allowWebRequests && (
+            on the module tabs whenever the catalog can't be reached (not under
+            the Installed filter, which needs no catalog), so a
+            `NetworkBlockedError` from Refresh never has to fall back to a
+            generic "no modules found, adjust your filter". */}
+        {!panelTab && installFilter !== 'installed' && !allowWebRequests && (
           <div
             className="px-6 py-3 bg-warning-soft border-b border-warning-border flex items-center justify-between gap-4"
             data-testid="module-manager-offline-banner"
@@ -850,21 +886,77 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           </div>
         )}
 
-        {/* Main Content */}
-        <div
-          className="flex-1 overflow-y-auto"
-          role="tabpanel"
-          id={`module-manager-panel-${viewMode}`}
-          aria-labelledby={`module-manager-tab-${viewMode}`}
-        >
-          {viewMode === 'repositories' ? (
-            <RepositorySettings />
-          ) : viewMode === 'features' ? (
-            <FeaturePackPanel />
-          ) : (
-            <ModuleList viewMode={viewMode} />
+        {/* Main Content: the active tab's panel, plus the module details panel
+            (in-dialog, not a nested modal) once a row is selected. */}
+        <div className="flex-1 min-h-0 flex">
+          <div
+            className="flex-1 min-w-0 overflow-y-auto"
+            role="tabpanel"
+            id={`panel-${activeTypeTab}`}
+            aria-labelledby={`tab-${activeTypeTab}`}
+          >
+            {activeTypeTab === 'repositories' ? (
+              <RepositorySettings />
+            ) : activeTypeTab === 'features' ? (
+              <FeaturePackPanel />
+            ) : (
+              <ModuleTable
+                type={activeTypeTab}
+                rows={rows}
+                installFilter={installFilter}
+                searchQuery={searchInput}
+                selectedAbbreviation={selectedRow?.abbreviation ?? null}
+                loading={loadingAvailable || loadingInstalled}
+                offline={!allowWebRequests}
+                busyAbbreviations={busyAbbreviations}
+                activeDownloads={activeDownloads}
+                ariaLabel={typeLabel(activeTypeTab)}
+                onSelect={(row) => setSelectedAbbreviation(row.abbreviation)}
+                onInstall={handleInstallRow}
+                onUpdate={handleUpdateRow}
+              />
+            )}
+          </div>
+          {selectedRow && (
+            <div className="w-96 max-w-[45%] flex-shrink-0 border-s border-border overflow-y-auto">
+              <ModuleDetailsPanel
+                key={selectedRow.abbreviation}
+                row={selectedRow}
+                activeDownload={findRowDownload(selectedRow, activeDownloads)}
+                isOffline={!allowWebRequests}
+                onClose={() => setSelectedAbbreviation(null)}
+                onInstall={handleInstallRow}
+                onUpdate={handleUpdateRow}
+                onUninstall={handleUninstallRow}
+              />
+            </div>
           )}
         </div>
+
+        {/* Confirm before uninstalling a module */}
+        <ConfirmDialog
+          open={uninstallRequest !== null}
+          destructive
+          title={td('moduleManager.uninstallConfirmTitle', 'Uninstall module')}
+          message={
+            uninstallRequest
+              ? uninstallRequest.removeUserData
+                ? td(
+                    'moduleManager.uninstallConfirmBodyRemoveData',
+                    'Uninstall "{name}" and remove your notes and highlights for it? This cannot be undone.',
+                    { name: uninstallRequest.row.name }
+                  )
+                : td(
+                    'moduleManager.uninstallConfirmBody',
+                    'Uninstall "{name}"? Your notes and highlights for it are kept.',
+                    { name: uninstallRequest.row.name }
+                  )
+              : ''
+          }
+          confirmLabel={td('moduleCard.uninstall', 'Uninstall')}
+          onConfirm={confirmUninstall}
+          onCancel={() => setUninstallRequest(null)}
+        />
 
         {/* Downloads Panel (if active downloads exist) */}
         {activeDownloads.length > 0 && <DownloadProgressPanel />}
@@ -873,29 +965,23 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
         <div className="px-6 py-4 border-t border-border bg-surface-secondary">
           <div className="flex items-center justify-between">
             <div className="text-sm text-text-secondary">
-              {viewMode === 'available' && (
+              {activeTypeTab === 'features' && <span>{t('moduleManagerDialog.footerFeatures')}</span>}
+              {activeTypeTab === 'repositories' && <span>{t('moduleManagerDialog.manageRepos')}</span>}
+              {!panelTab && installFilter === 'all' && (
                 <span>
                   {loadingAvailable
                     ? t('moduleManagerDialog.loading')
                     : t('moduleManagerDialog.footerAvailable')}
                 </span>
               )}
-              {viewMode === 'installed' && (
+              {!panelTab && installFilter === 'installed' && (
                 <span>
                   {loadingInstalled
                     ? t('moduleManagerDialog.loading')
                     : t('moduleManagerDialog.footerInstalled')}
                 </span>
               )}
-              {viewMode === 'updates' && <span>{t('moduleManagerDialog.checkUpdates')}</span>}
-              {viewMode === 'features' && (
-                <span>
-                  {t('moduleManagerDialog.footerFeatures')}
-                </span>
-              )}
-              {viewMode === 'repositories' && (
-                <span>{t('moduleManagerDialog.manageRepos')}</span>
-              )}
+              {!panelTab && installFilter === 'updates' && <span>{t('moduleManagerDialog.checkUpdates')}</span>}
             </div>
             <button
               onClick={onClose}

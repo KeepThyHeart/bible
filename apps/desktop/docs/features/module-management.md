@@ -1,8 +1,8 @@
 # Module Management
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-18
 
-Browsing, downloading, and managing Bible, Commentary, Dictionary, and Book modules.
+Browsing, downloading, and managing Bible, Commentary, Dictionary, and Book modules. The dialog organizes modules by type in a tabbed, filterable table with a details panel for metadata and actions.
 
 ## Files
 
@@ -12,9 +12,12 @@ Related: **starter packs** (language-scoped content recommendations) are typed b
 
 | File | Description |
 |---|---|
-| `src/ui/components/ModuleManagerDialog.tsx` | Main module manager dialog for browsing and installing modules. Also hosts the "Upload Module" file dialog (multi-select + pack-archive support), drag-and-drop install, the inline `ModulePackSummaryPanel` that reports per-module install results for a batch/pack import, a persistent offline banner (Available tab, `useNetworkStore`) with **Turn on** / **Install from a file…** whenever the master network switch is off, and (for a dropped pack archive - `.zip` or `.biblepack` alike) a `module:inspect-pack` call plus a `shared/ConfirmDialog` "install anyway?" prompt for an unsigned/untrusted pack |
-| `src/ui/components/ModuleList.tsx` | List view of available/installed modules |
-| `src/ui/components/ModuleCard.tsx` | Card display for an individual module, including uninstall (with the `removeUserData` choice) |
+| `src/ui/components/ModuleManagerDialog.tsx` | Main module manager dialog: header with upload/refresh controls, offline banner (when `useNetworkStore` is off: **Turn on** / **Install from a file…**), inline `ModulePackSummaryPanel` for pack import results, and drag-and-drop pack install (with `module:inspect-pack` + `shared/ConfirmDialog` for unsigned/untrusted archives). Body replaced with type-tabbed layout |
+| `src/ui/components/moduleManager/ModuleTable.tsx` | Compact table for a single module type: sort recommended-then-alpha, join with download progress, filter by install status (All/Installed/Updates), render a row per module |
+| `src/ui/components/moduleManager/ModuleRow.tsx` | One table row: module name + abbreviation, language, version, size, status/action cell (joined with active download progress). Clicking opens the details panel |
+| `src/ui/components/moduleManager/ModuleDetailsPanel.tsx` | Right-hand in-dialog panel: full metadata (description, author, publisher, licence link, version, sizes, features, tags, checksum, `is_indexed`), actions (Install / Update / Uninstall with data choice / Re-index / Cancel-pause-resume download), and a button to filter by type |
+| `src/ui/components/shared/TabStrip.tsx` | Wraps `hooks/useTabKeyboardNav.ts`: keyboard-navigable tab list with support for grouped tabs (module types + right-aligned Feature packs / Sources) |
+| `src/ui/components/shared/ProgressRing.tsx` | Determinate circular progress when `totalBytes` is known; indeterminate spinner otherwise |
 | `src/ui/components/RepositorySettings.tsx` | Add, remove, enable/disable and re-point module repositories, force a catalog refresh, and a signature badge per catalog (Verified (Keep Thy Heart) / Signed / Unsigned / Signature problem - `undefined` when never fetched) |
 | `src/ui/components/DownloadProgressPanel.tsx` | Progress indicator for module downloads |
 | `src/ui/components/LibraryHome.tsx` | The library landing surface listing installed modules by kind |
@@ -25,7 +28,8 @@ Related: **starter packs** (language-scoped content recommendations) are typed b
 | File | Description |
 |---|---|
 | `src/ui/stores/useModuleStore.ts` | Re-export shim for the store below |
-| `src/ui/stores/module/` | The store itself: `useModuleStore.ts`, `moduleAPI.ts`, `types.ts`, and `slices/` - `catalogSlice`, `detailsSlice`, `downloadSlice` (which owns the renderer-side progress polling), `installedSlice`, `lifecycleSlice`, `repositorySlice` |
+| `src/ui/stores/module/` | The store itself: `useModuleStore.ts`, `moduleAPI.ts`, `types.ts`, and `slices/` - `catalogSlice`, `detailsSlice` (`selectedModule`, `loadModuleDetails`), `downloadSlice` (progress polling, 500 ms interval, includes `moduleId`), `installedSlice`, `lifecycleSlice` (`activeTypeTab`, `installFilter`), `repositorySlice` |
+| `src/ui/stores/module/moduleRows.ts` | Pure, testable module: merges catalog + installed into `ModuleRow` (keyed by abbreviation), groups by type, sorts recommended-then-alpha (per-type). No React dependencies |
 
 ### IPC Handlers (Main Process)
 
@@ -58,12 +62,17 @@ Related: **starter packs** (language-scoped content recommendations) are typed b
 | `electron/services/__tests__/ModuleCatalogService.starterPacks.test.ts` | First run offers only verified-official packs; `getStarterPackModules`/`getModuleInfo` resolve a module id against one catalog only, never a same-id module shadowed by another |
 | `electron/ipc/__tests__/allowedChannels.test.ts` | The `module:*` / `download:*` / `repository:*` channel allowlist |
 | `electron/ipc/__tests__/moduleHandlers.installFromFile.test.ts` | `module:install-from-file`'s native `dialog.showMessageBox`/`showErrorBox` trust gate: unsigned → confirm → install with `acceptUnverified`; Cancel → clean `null`, not an error; invalid → native error box + reported failure, no install; verified → no dialog; the same gate for a plain `.zip`, and the picker's own cancel unaffected. Mocks `electron` and every heavy service `initializeModuleManager()` would otherwise construct |
-| `src/ui/components/ModuleManagerDialog.test.tsx` | The dialog: browsing, upload, the offline banner, and the pack drag-and-drop trust gate for both `.zip` and `.biblepack` (unsigned → `ConfirmDialog` → install with `acceptUnverified`; declined; invalid → error, no install option; verified → installs with no prompt) |
-| `src/ui/components/ModuleCard.test.tsx`, `ModuleSelector.test.tsx`, `LibraryHome.test.tsx`, `DownloadProgressPanel.test.tsx` | The remaining module surfaces |
+| `src/ui/components/ModuleManagerDialog.test.tsx` | The dialog: type tabs, install filter, table browsing, upload, the offline banner, and the pack drag-and-drop trust gate (unsigned → `ConfirmDialog` → install with `acceptUnverified`; declined; invalid → error, no install option; verified → installs with no prompt) |
+| `src/ui/stores/module/moduleRows.test.ts` | Row model: merge catalog + installed, grouping, sorting (recommended first, then alphabetical), type filtering |
+| `src/ui/components/shared/TabStrip.test.tsx`, `ProgressRing.test.tsx` | Tab navigation and progress indication |
+| `src/ui/components/moduleManager/ModuleTable.test.tsx`, `ModuleRow.test.tsx`, `ModuleDetailsPanel.test.tsx` | Table rendering, row interaction, details panel with actions |
+| `src/ui/stores/module/moduleAPI.test.ts` | API wrappers including `reindexModule` |
+| `src/ui/stores/__tests__/libraryChanged.test.ts` | Install → `notifyLibraryChanged` → `loadAvailableBibles` + re-seed (Bug B fix) |
+| `src/ui/components/ModuleSelector.test.tsx`, `LibraryHome.test.tsx`, `DownloadProgressPanel.test.tsx` | Remaining module surfaces |
 | `packages/core/src/Data/Core/ModuleVersion.test.ts` | Version ordering, and the orderable/unorderable boundary the install policy depends on |
 | `packages/core/src/Data/Core/StarterPackTypes.test.ts` | Starter-pack catalog validation and language matching |
 
-Not yet unit-tested: `electron/ipc/moduleHandlers.ts` beyond the "Install from File" trust gate above (the install-policy matrix, `normalizeInstallPolicy`, and every other handler), `electron/ipc/blessedPaths.ts`, `electron/utils/moduleDetector.ts`, `electron/services/InstallationService.ts`, `electron/services/moduleLinkStability.ts`, `src/ui/stores/module/slices/*`, `ModuleList.tsx`. `RepositorySettings.test.tsx` covers only the catalog signature badge (see "RepositorySettings.tsx" in Components above) - the rest of the component (add/remove/refresh/edit-url) is still untested directly.
+Not yet unit-tested: `electron/ipc/moduleHandlers.ts` beyond the "Install from File" trust gate above (the install-policy matrix, `normalizeInstallPolicy`, and every other handler), `electron/ipc/blessedPaths.ts`, `electron/utils/moduleDetector.ts`, `electron/services/InstallationService.ts`, `electron/services/moduleLinkStability.ts`. `RepositorySettings.test.tsx` covers only the catalog signature badge (see "RepositorySettings.tsx" in Components above) - the rest of the component (add/remove/refresh/edit-url) is still untested directly.
 
 ### E2E Tests
 
@@ -75,7 +84,7 @@ Not yet unit-tested: `electron/ipc/moduleHandlers.ts` beyond the "Install from F
 
 `moduleHandlers.ts` registers, and `electron/ipc/allowedChannels.ts` allowlists:
 
-- **Modules:** `module:init`, `module:get-available`, `module:get-installed`, `module:search`, `module:get-details`, `module:install`, `module:install-from-file`, `module:install-from-path`, `module:install-pack-from-path`, `module:inspect-pack`, `module:bless-dropped-path`, `module:uninstall`, `module:update`, `module:check-for-updates`, `module:get-starter-packs`, `module:get-starter-pack-modules`
+- **Modules:** `module:init`, `module:get-available`, `module:get-installed`, `module:search`, `module:get-details`, `module:install`, `module:install-from-file`, `module:install-from-path`, `module:install-pack-from-path`, `module:inspect-pack`, `module:bless-dropped-path`, `module:uninstall`, `module:update`, `module:check-for-updates`, `module:get-starter-packs`, `module:get-starter-pack-modules`, `search:buildIndex` (wrapped by `moduleAPI.reindexModule`)
 
   `module:install` takes an optional `catalogId`; when given (a starter pack's own `source.catalogId`), the module id is resolved only against that catalog (`ModuleCatalogService.getModuleInfo`), never across every enabled one - closing the gap where a third-party catalog could otherwise "shadow" an official module id. `module:get-starter-pack-modules` takes a required `catalogId` for the same reason. `module:inspect-pack` previews a pack archive's signature/manifest without installing anything (see "Signed offline pack archives" below); it is always a preview - `module:install-pack-from-path` re-verifies independently every time.
 - **Downloads:** `download:get-progress`, `download:get-active`, `download:pause`, `download:resume`, `download:cancel`. The renderer polls progress on an interval owned by `slices/downloadSlice.ts`; the queue itself lives in `DownloadQueueRepository`.
@@ -105,9 +114,11 @@ Note the asymmetry with `moduleLinkStability`, whose key is `moduleType:abbrevia
 
 **"Newer"** is decided by `compareModuleVersions` (`packages/core/src/Data/Core/ModuleVersion.ts`), which returns `incomparable` - never an upgrade - for version strings it cannot order. Publisher version strings are unvalidated free text (`2.3.1`, `1.0`, `v3`, `20240115`, `1769`), so a **single-component** version at or above `MAX_BARE_VERSION_COMPONENT` (1000) is treated as a date or edition year rather than an enormous release number, and that also catches the `YYYY-MM-DD` shape. Without that rule a date-stamped module would read as an upgrade over every dotted version it met, silently overwriting the user's content. Multi-component versions are exempt: `2024.1` is unambiguously versioned. Identical strings compare `same`, and trailing zeros do not matter (`1.0` and `1.0.0` are the same version).
 
-## Starter packs
+## Starter packs and first-run fallback
 
 `ModuleCatalogService` resolves a repository catalog's `starter_packs` into installable module lists. `getStarterPacksForLanguage` filters against `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`) and returning `[]` is a normal outcome. A pack entry whose `module_id` does not resolve is dropped with a warning rather than failing the whole pack. Ceilings: `MAX_STARTER_PACKS` 64, `MAX_STARTER_PACK_MODULES` 200, `MAX_STARTER_PACK_ARCHIVE_BYTES` 8 GiB.
+
+**When starter packs are empty**, the first-run language dialog falls back to recommended catalog modules (`module:search` with `{ languageCode, recommended: true }`, Bible first) and offers those instead. Only "nothing available" is shown when both packs and modules are empty. The dialog also falls back `en-US` → `en` on the language code. **Currently, only `en` is published**, so non-English users will legitimately see nothing; the UI explains this honestly.
 
 A pack may also carry a `StarterPackArchive` (`download_url`, `download_size_bytes`, `sha256`), which lets the whole pack install from one `.biblepack` with no per-module network traffic (see "Signed offline pack archives" below).
 

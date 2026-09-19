@@ -1,6 +1,6 @@
 # Onboarding
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-18
 
 First-run guidance for two audiences at once: seminary students who want the power features found fast, and laypeople who have never used Bible software and would otherwise bounce off a multi-pane workspace with no explanation.
 
@@ -18,9 +18,11 @@ There is exactly one exception, documented as layer 0 below: the first-run langu
 
 1. **Language.** The four `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`, from `@bible/core`) are listed first - those are the languages we intend to have study *content* for. Every other loaded locale stays reachable behind a "More languages" disclosure; hiding a working translation to keep the list short would be a regression. Draft catalogs are badged so we never imply a review that did not happen.
 2. **Network.** Skipped unless the shared `useNetworkStore` has definitely finished loading AND definitely reports the master "Allow web requests" switch off (`electron/services/NetworkConfig.ts` - off by default on a fresh install). An unresolved read skips the step rather than stalling on it. **Go online** goes through `requestAllow(true)` - the same native confirmation dialog as the Privacy menu item and Preferences → Privacy - then refreshes the catalog before moving on; a cancelled dialog leaves the step exactly as it was. **Stay offline** moves on without asking again.
-3. **Suggested content.** Starter packs for the chosen language, fetched via `module:get-starter-packs` as `OfferedStarterPack[]` (`@bible/core`'s `StarterPackTypes.ts`) - **only from the official catalog, verified against the pinned key** (see `docs/features/module-management.md`'s "Starter packs" section). Every offered pack shows a "Verified: signed by Keep Thy Heart" badge. This step is frequently **empty** - Hindi has no Bible translation confirmed public domain, an offline install has no catalog at all, and the official catalog not (yet) verifying counts too - so it renders an honest "nothing yet" state: offline, a **Go online** / **Install from a file…** pair; online, a shortcut to the Module Manager.
+3. **Suggested content.** Starter packs for the chosen language, fetched via `module:get-starter-packs` as `OfferedStarterPack[]` (`@bible/core`'s `StarterPackTypes.ts`) - **only from the official catalog, verified against the pinned key** (see `docs/features/module-management.md`'s "Starter packs and first-run fallback" section). Every offered pack shows a "Verified: signed by Keep Thy Heart" badge.
 
-Installing a suggested pack **is** wired to a one-click Install button per pack, unlike earlier versions of this dialog - but every module's name, licence and size is listed, unconditionally, before that button can be clicked, at least as much disclosure as the Module Manager's own card (whose licence sits behind a collapsed "Show details"). A partial failure lists which modules did not install and points at the Module Manager rather than leaving the dialog stuck.
+**When starter packs are not available**, the step falls back to offering recommended catalog modules (`module:search` with `{ languageCode, recommended: true }`, Bible first). When both packs and modules are empty, it renders an honest empty state: offline, a **Go online** / **Install from a file…** pair; online, a shortcut to the Module Manager. **Currently, only `en` is published**, so non-English users will legitimately see no content.
+
+Installing a suggested pack or module is wired to a one-click Install button per item - but every module's name, licence and size is listed, unconditionally, before that button can be clicked, at least as much disclosure as the Module Manager's details panel provides. A partial failure lists which modules did not install and points at the Module Manager rather than leaving the dialog stuck.
 
 Every `getStarterPackModules` / `installModule` call this step makes carries the pack's own `source.catalogId`, so a module id is only ever resolved against the catalog the pack itself came from - never any other enabled catalog. See `ModuleCatalogService.getStarterPackModules`'s doc comment for why cross-catalog resolution would let a third-party catalog "shadow" an official module id.
 
@@ -43,6 +45,7 @@ When a pane holds nothing, it explains what it is for and offers the single acti
 
 | Empty state | Rendered by | `data-testid` |
 |---|---|---|
+| No Bible installed | `BibleVerseList.tsx` | - |
 | No dictionary chosen | `DictionaryPane.tsx` | `dictionary-empty-state` |
 | Dictionary open, nothing looked up | `DictionaryPane.tsx` | `dictionary-no-entry-state` |
 | Dictionary lookup failed | `DictionaryPane.tsx` | `dictionary-error-state` |
@@ -141,6 +144,10 @@ All `helpPanel.*` keys are in `locales/en/ui.json`, resolved with plain `t()`.
 Logical properties only (`ps`/`pe`/`ms`/`me`/`text-start`), and semantic theme tokens only (`bg-surface-elevated`, `text-text-secondary`, `border-border`, `bg-accent` + `text-text-on-accent`) so light, dark and sepia all work.
 
 The tour is the one place that computes physical offsets in JS, because it anchors to `getBoundingClientRect()` coordinates. The card's leading edge is placed with `utils/overlayPosition.ts#anchorAtPointerX`, which resolves to `left` in LTR and `right` in RTL. The spotlight rect itself stays physical - it is tracing a real element's box.
+
+## Module installation and the reading pane
+
+When a Bible module is installed, `notifyLibraryChanged` (via `crossStoreBridge.ts`) triggers `loadAvailableBibles` and re-seeds the Bible pane, so the newly installed translation appears immediately without restart. The reading pane's empty state (no Bibles installed) offers an **Install a Bible** button that opens the Module Manager filtered to Bible modules.
 
 ## Files
 

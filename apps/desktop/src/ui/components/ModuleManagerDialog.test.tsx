@@ -13,6 +13,7 @@ import { moduleAPI } from '../stores/module/moduleAPI';
 vi.mock('../stores/module/moduleAPI', () => ({
   moduleAPI: {
     installFromFile: vi.fn().mockResolvedValue(null),
+    getModuleDetails: vi.fn().mockResolvedValue(null),
     inspectPack: vi.fn(),
     installPackFromPath: vi.fn(),
   },
@@ -50,7 +51,8 @@ describe('ModuleManagerDialog', () => {
     useModuleStore.setState({
       isInitialized: true,
       initError: null,
-      viewMode: 'available',
+      activeTypeTab: 'bible',
+      installFilter: 'all',
       loadingAvailable: false,
       loadingInstalled: false,
       error: null,
@@ -62,7 +64,8 @@ describe('ModuleManagerDialog', () => {
       installedModules: [],
       searchQuery: '',
       initialize: vi.fn().mockResolvedValue(undefined),
-      setViewMode: vi.fn(),
+      setActiveTypeTab: vi.fn(),
+      setInstallFilter: vi.fn(),
       searchModules: vi.fn(),
       setFilter: vi.fn(),
       clearFilter: vi.fn(),
@@ -79,25 +82,38 @@ describe('ModuleManagerDialog', () => {
 
   it('renders the dialog', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    // The module manager should render with tabs
-    expect(screen.getByText('Available Modules')).toBeInTheDocument();
-    expect(screen.getByText('Installed Modules')).toBeInTheDocument();
+    // Type tabs on the left, the Feature packs / Sources panels on the right.
+    expect(screen.getByTestId('module-manager-type-tab-bible')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-features-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-repositories-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('module-table-bible')).toBeInTheDocument();
   });
 
-  it('shows Available Modules tab as active by default', () => {
+  it('shows the Bibles tab and the All filter as active by default', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    const availableTab = screen.getByTestId('module-manager-available-tab');
-    expect(availableTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('module-manager-type-tab-bible')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('module-manager-filter-all')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('module-manager-filter-installed')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('switches to Installed tab when clicked', async () => {
+  it('switches to the Installed filter when its chip is clicked', async () => {
     const user = userEvent.setup();
-    const setViewMode = vi.fn();
-    useModuleStore.setState({ setViewMode });
+    const setInstallFilter = vi.fn();
+    useModuleStore.setState({ setInstallFilter });
 
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    await user.click(screen.getByTestId('module-manager-installed-tab'));
-    expect(setViewMode).toHaveBeenCalledWith('installed');
+    await user.click(screen.getByTestId('module-manager-filter-installed'));
+    expect(setInstallFilter).toHaveBeenCalledWith('installed');
+  });
+
+  it('switches to a panel tab (Sources) when its trailing tab is clicked', async () => {
+    const user = userEvent.setup();
+    const setActiveTypeTab = vi.fn();
+    useModuleStore.setState({ setActiveTypeTab });
+
+    renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+    await user.click(screen.getByTestId('module-manager-repositories-tab'));
+    expect(setActiveTypeTab).toHaveBeenCalledWith('repositories');
   });
 
   it('renders search input', () => {
@@ -117,9 +133,9 @@ describe('ModuleManagerDialog', () => {
     expect(screen.getByTestId('module-manager-repositories-tab')).toBeInTheDocument();
   });
 
-  it('shows Updates tab', () => {
+  it('shows the Updates filter chip', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    expect(screen.getByText('Updates')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-filter-updates')).toHaveTextContent('Updates');
   });
 
   describe('offline banner', () => {
@@ -127,7 +143,7 @@ describe('ModuleManagerDialog', () => {
       useNetworkStore.setState({ allowWebRequests: false, loaded: true });
     });
 
-    it('shows the banner on the Available tab when the network is off', () => {
+    it('shows the banner on a module tab (All filter) when the network is off', () => {
       renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
       expect(screen.getByTestId('module-manager-offline-banner')).toBeInTheDocument();
     });
@@ -138,8 +154,8 @@ describe('ModuleManagerDialog', () => {
       expect(screen.queryByTestId('module-manager-offline-banner')).not.toBeInTheDocument();
     });
 
-    it('does not show the banner on the Installed tab', () => {
-      useModuleStore.setState({ viewMode: 'installed' });
+    it('does not show the banner under the Installed filter', () => {
+      useModuleStore.setState({ installFilter: 'installed' });
       renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
       expect(screen.queryByTestId('module-manager-offline-banner')).not.toBeInTheDocument();
     });

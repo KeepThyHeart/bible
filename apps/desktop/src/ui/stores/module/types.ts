@@ -1,18 +1,9 @@
-// Module types (matching core types)
-// Keep in sync with packages/core/src/Data/Core/Types.ts (MODULE_TYPES) - this
-// had drifted out of sync (missing lexicon/topical_index/cross_reference/
-// tag_graph), which meant modules of those types were mistyped throughout the
-// Module Manager UI (installed list, catalog filter, icon lookup).
-export type ModuleType =
-  | 'bible'
-  | 'commentary'
-  | 'dictionary'
-  | 'book'
-  | 'devotional'
-  | 'lexicon'
-  | 'topical_index'
-  | 'cross_reference'
-  | 'tag_graph';
+// Module types come from the canonical `MODULE_TYPES` in `@bible/core` rather
+// than being re-declared here - a local copy drifted out of sync once
+// (missing lexicon/topical_index/cross_reference/tag_graph), which mistyped
+// modules of those types throughout the Module Manager UI.
+import type { ModuleType } from '@bible/core';
+export type { ModuleType };
 
 export interface ModuleMetadata {
   module_id: number;
@@ -105,13 +96,15 @@ export interface ModuleFilter {
   maxSize?: number;
 }
 
-// View modes
 /**
- * Which tab of the Module Manager dialog is active. Not all of these list
- * modules - `repositories` and `features` render their own panels - but the
- * selection lives in one place so the dialog restores the tab it was left on.
+ * Which tab of the Module Manager dialog is active: one tab per module type,
+ * plus the `features` (feature packs) and `repositories` (sources) panels,
+ * which render their own content instead of a module table.
  */
-export type ModuleViewMode = 'available' | 'installed' | 'updates' | 'features' | 'repositories';
+export type ModuleManagerTab = ModuleType | 'features' | 'repositories';
+
+/** The All / Installed / Updates filter chip group shown inside each module-type tab. */
+export type ModuleInstallFilter = 'all' | 'installed' | 'updates';
 
 import type { LifecycleSlice } from './slices/lifecycleSlice';
 import type { CatalogSlice } from './slices/catalogSlice';
