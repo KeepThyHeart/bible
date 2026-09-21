@@ -913,9 +913,18 @@ function askSync(question) {
   return buffer.toString('utf8', 0, read).trim();
 }
 
-/** Catalog entries keyed by lower-cased abbreviation. */
+/**
+ * Catalog entries keyed by lower-cased abbreviation, and also by module_id
+ * (`bible_kjv`), which is how starter packs name their modules.  An
+ * abbreviation wins over a module_id that happens to be the same text.
+ */
 function indexByAbbreviation(entries) {
-  return new Map(entries.map((e) => [e.abbreviation.toLowerCase(), e]));
+  const index = new Map();
+  for (const e of entries) {
+    if (e.module_id) index.set(String(e.module_id).toLowerCase(), e);
+  }
+  for (const e of entries) index.set(e.abbreviation.toLowerCase(), e);
+  return index;
 }
 
 /** The module list of the preset called `name` (any case), or null. */

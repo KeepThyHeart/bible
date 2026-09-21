@@ -16,7 +16,7 @@
  * involved - only the catalog-row bookkeeping these methods read.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ModuleCatalog, type ISql, type ModuleCatalogRepository } from '@bible/core';
+import { ModuleCatalog, BUNDLED_STARTER_PACKS, type ISql, type ModuleCatalogRepository } from '@bible/core';
 
 import { ModuleCatalogService } from '../ModuleCatalogService';
 import { FakeNetworkGateway } from './fakeNetworkGateway';
@@ -122,10 +122,58 @@ describe('ModuleCatalogService starter packs and same-catalog resolution', () =>
     it('offers a pack from the verified official catalog, carrying its source', () => {
       addCatalog({ url: OFFICIAL_URL, catalogJson: starterPackCatalogJson('official-kjv', 'Official KJV') });
 
-      const packs = service.getStarterPacksForLanguage('en');
+      const packs = service.getStarterPacksForLanguage('en').filter(p => p.pack_id === 'en-starter');
       expect(packs).toHaveLength(1);
       expect(packs[0].source.verifiedOfficial).toBe(true);
       expect(packs[0].source.catalogId).toBe(repo.sources[0].catalogId);
+    });
+
+    describe('the bundled packs (starter-packs.json)', () => {
+      const bundledIds = () => BUNDLED_STARTER_PACKS.map(p => p.pack_id);
+      const catalogWithoutPacks = () => JSON.stringify({
+        repository: { name: 'Official', url: OFFICIAL_URL, version: '1.0' },
+        modules: [
+          { module_id: 'bible_kjv', module_type: 'bible', name: 'KJV', download_url: 'bible_kjv.db.gz', download_size_bytes: 1, checksum: 'sha256:a' },
+          { module_id: 'commentary_mhc', module_type: 'commentary', name: 'MHC', download_url: 'commentary_mhc.db.gz', download_size_bytes: 1, checksum: 'sha256:b' },
+        ],
+      });
+
+      it('are offered on the verified official catalog even when it publishes no packs', () => {
+        addCatalog({ url: OFFICIAL_URL, catalogJson: catalogWithoutPacks() });
+
+        const offered = service.getStarterPacksForLanguage('en');
+        expect(offered.map(p => p.pack_id)).toEqual(expect.arrayContaining(bundledIds()));
+        expect(offered.every(p => p.source.verifiedOfficial)).toBe(true);
+      });
+
+      it('are not offered from a third-party or unverified catalog', () => {
+        addCatalog({ url: 'https://third-party.example/catalog.json', catalogJson: catalogWithoutPacks(), type: 'third_party' });
+        addCatalog({ url: OFFICIAL_URL, catalogJson: catalogWithoutPacks(), signatureStatus: 'unsigned' });
+
+        expect(service.getStarterPacksForLanguage('en')).toEqual([]);
+      });
+
+      it('are resolved against that catalog only, skipping ids it does not offer', () => {
+        const catalog = addCatalog({ url: OFFICIAL_URL, catalogJson: catalogWithoutPacks() });
+
+        const { pack, modules } = service.getStarterPackModules('essentials', catalog.catalogId!);
+
+        expect(pack?.pack_id).toBe('essentials');
+        // The catalog offers only two of the pack's modules; the rest are dropped.
+        expect(modules.map(m => m.module_id)).toEqual(['bible_kjv', 'commentary_mhc']);
+      });
+
+      it('yield to a pack the catalog publishes under the same id', () => {
+        const catalog = addCatalog({
+          url: OFFICIAL_URL,
+          catalogJson: starterPackCatalogJson('bible_kjv', 'KJV', 'essentials'),
+        });
+
+        const offered = service.getStarterPacksForLanguage('en').filter(p => p.pack_id === 'essentials');
+        expect(offered).toHaveLength(1);
+        expect(offered[0].name).toBe('English starter');
+        expect(service.getStarterPackModules('essentials', catalog.catalogId!).modules.map(m => m.module_id)).toEqual(['bible_kjv']);
+      });
     });
 
     it('excludes a pack from a third-party catalog', () => {

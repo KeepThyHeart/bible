@@ -15,6 +15,7 @@ import {
   ModuleCatalogRepository,
   parseFeaturePacks,
   parseStarterPacks,
+  BUNDLED_STARTER_PACKS,
   selectStarterPacksForLanguage,
 } from '@bible/core';
 import type { IModuleCatalogService } from '@bible/core';
@@ -742,6 +743,27 @@ export class ModuleCatalogService implements IModuleCatalogService {
   }
 
   /**
+   * The starter packs one (already verified official) catalog can offer: the
+   * ones it publishes itself, then the bundled ones (`starter-packs.json`) it
+   * does not already publish under the same `pack_id`.
+   *
+   * The catalog's own packs win so its maintainers can change a list without
+   * an app release; the bundled ones mean a catalog that publishes none still
+   * gets a sensible "install the basics" choice. Bundled packs only name
+   * `module_ids`, which are then resolved against THIS catalog like any other.
+   */
+  private static starterPacksOf(catalog: RepositoryCatalog, catalogName: string): StarterPack[] {
+    const { packs: published, rejected } = parseStarterPacks(catalog.starter_packs ?? []);
+    for (const rejection of rejected) {
+      log.warn(
+        `[ModuleCatalog] Ignoring starter pack #${rejection.index} from ${catalogName}: ${rejection.errors.join('; ')}`
+      );
+    }
+    const publishedIds = new Set(published.map(pack => pack.pack_id));
+    return [...published, ...BUNDLED_STARTER_PACKS.filter(pack => !publishedIds.has(pack.pack_id))];
+  }
+
+  /**
    * Every validated starter pack from a catalog first run is willing to
    * offer: the official catalog, verified against the pinned key, right now.
    *
@@ -764,14 +786,9 @@ export class ModuleCatalogService implements IModuleCatalogService {
       if (!ModuleCatalogService.isVerifiedOfficialEntry(entry)) continue;
 
       const catalog = entry.getParsedCatalog();
-      if (!catalog?.starter_packs) continue;
+      if (!catalog) continue;
 
-      const { packs: valid, rejected } = parseStarterPacks(catalog.starter_packs);
-      for (const rejection of rejected) {
-        log.warn(
-          `[ModuleCatalog] Ignoring starter pack #${rejection.index} from ${entry.name}: ${rejection.errors.join('; ')}`
-        );
-      }
+      const valid = ModuleCatalogService.starterPacksOf(catalog, entry.name);
       for (const pack of valid) {
         packs.push({
           ...pack,
@@ -824,10 +841,9 @@ export class ModuleCatalogService implements IModuleCatalogService {
     }
 
     const catalog = entry.getParsedCatalog();
-    if (!catalog?.starter_packs) return { modules: [] };
+    if (!catalog) return { modules: [] };
 
-    const { packs } = parseStarterPacks(catalog.starter_packs);
-    const pack = packs.find(p => p.pack_id === packId);
+    const pack = ModuleCatalogService.starterPacksOf(catalog, entry.name).find(p => p.pack_id === packId);
     if (!pack) return { modules: [] };
 
     const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);

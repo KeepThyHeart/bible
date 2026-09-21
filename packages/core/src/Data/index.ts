@@ -48,6 +48,7 @@ export * from './Core/Types';
 export * from './Core/CatalogTypes';
 export * from './Core/FeaturePackTypes';
 export * from './Core/StarterPackTypes';
+export * from './Core/BundledStarterPacks';
 export * from './Core/ModuleVersion';
 export * from './Core/StrongsNumberHelper';
 export * from './Core/JsonHelpers';

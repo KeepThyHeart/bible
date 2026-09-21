@@ -252,7 +252,27 @@ const EXPECTED_MODULES = [
  * A preset module the catalog does not offer is warned about and skipped (see
  * catalog.js), since not every catalog carries every module.
  */
+/**
+ * The recommended sets the desktop app offers at first run, by pack_id
+ * (`essentials`, ...), so `--select=essentials` installs the same list the app
+ * suggests.  They come from the one file that defines them for both.
+ */
+const STARTER_PACKS_FILE = path.join(REPO_ROOT, 'packages/core/src/Data/Core/starter-packs.json');
+
+function readStarterPackPresets(file = STARTER_PACKS_FILE) {
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const presets = {};
+  for (const pack of parsed.packs ?? []) {
+    if (pack && typeof pack.pack_id === 'string' && Array.isArray(pack.module_ids)) {
+      presets[pack.pack_id] = pack.module_ids.filter((id) => typeof id === 'string');
+    }
+  }
+  return presets;
+}
+
 const PRESETS = {
+  ...readStarterPackPresets(),
+  // Named sets for a dev install win over a pack that reuses their name.
   starter: EXPECTED_MODULES.filter((m) => m.starter).map((m) => m.abbr),
   tests: EXPECTED_MODULES.filter((m) => m.starter || m.need !== 'optional').map((m) => m.abbr),
 };
@@ -1047,5 +1067,5 @@ if (require.main === module) {
 
 module.exports = {
   loadSchemaSql, buildReferenceSpace, readModuleInfo, linkSharedModules, nodeVersionProblem,
-  chooseDefaultBible, EXPECTED_MODULES, PRESETS,
+  chooseDefaultBible, EXPECTED_MODULES, PRESETS, readStarterPackPresets,
 };
