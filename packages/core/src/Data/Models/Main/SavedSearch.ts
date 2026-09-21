@@ -47,6 +47,20 @@ export interface SearchOptions {
   maxResults?: number;          // Result limit (default 200)
   includeContext?: boolean;     // Include surrounding verses
   autoFuzzy?: boolean;          // Auto-fallback to fuzzy if < 10 results
+  /**
+   * How the auto-fuzzy supplement decides that a verse is a plausible
+   * approximate match for a multi-word query.
+   *
+   * - `'any-term'` (default, the historical behaviour): a verse qualifies if it
+   *   matches ANY single term, so "God so loved the world" pulls in every verse
+   *   containing "God" or "so" or "the". Kept as the default so callers that
+   *   never opted in (the desktop app) behave exactly as before.
+   * - `'coverage'`: stop words do not count, and a verse must match a minimum
+   *   fraction of the query's significant terms; results are ranked by how many
+   *   they match and how close together the matches sit. See
+   *   BibleSearchService.addCoverageFuzzyMatches.
+   */
+  fuzzyGate?: 'any-term' | 'coverage';
   includeRelatedWords?: boolean;  // For Strong's search: include word family members
 }
 
