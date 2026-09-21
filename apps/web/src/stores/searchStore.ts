@@ -89,6 +89,8 @@ class SearchStore extends Store {
    * Enter in the search box looks like it did nothing.
    */
   searchSeq = 0;
+  /** Bumped by every keyword/semantic run and by `setSearchType` to abandon in-flight ones. */
+  private runId = 0;
   /** Verse ID detected from a reference in the search query (shown first in results) */
   detectedRefVerseId: number | null = null;
   /** The module abbreviation that was searched (for keyword searches) */
@@ -232,6 +234,9 @@ class SearchStore extends Store {
     this.query = query;
     this.searchType = type ?? this.searchType;
     this.searchSeq++;
+    // Identifies this run, so a search the reader has since abandoned (by
+    // switching to Ideas mode, see `setSearchType`) cannot land its results.
+    const runId = ++this.runId;
     this.loading = true;
     this.results = [];
     this.totalResults = 0;
@@ -274,6 +279,7 @@ class SearchStore extends Store {
             ? this.search.keywordSearch(query, modules).catch(() => ({ results: [], total: 0 }))
             : Promise.resolve({ results: [], total: 0 }),
         ]);
+        if (runId !== this.runId) return;
 
         this.results = semanticResult.results;
         this.totalResults = semanticResult.total;
@@ -285,6 +291,7 @@ class SearchStore extends Store {
         this.canLoadMore = semanticResult.results.length >= this.semanticPageSize;
       } else {
         const resultSet = await this.search.keywordSearch(query, modules ?? [], { pageSize: KEYWORD_PAGE_SIZE });
+        if (runId !== this.runId) return;
         this.applyKeywordResultSet(resultSet);
       }
 
@@ -296,6 +303,7 @@ class SearchStore extends Store {
       this.loading = false;
       this.notify();
     } catch (error) {
+      if (runId !== this.runId) return;
       console.error('Search failed:', error);
       this.results = [];
       this.totalResults = 0;
@@ -589,9 +597,35 @@ class SearchStore extends Store {
     this.notify();
   }
 
+  /**
+   * Switch between Search (keyword) and Ideas (semantic).
+   *
+   * Choosing Ideas does NOT run a search. The reader picks the mode first and
+   * very often wants to reword the term for it — "God so loved the world" is a
+   * fine keyword query and a poor Ideas one — and an Ideas search is the
+   * expensive one (model + vector index, and a first-use download in the
+   * browser), so re-running the old text the instant the menu item is clicked
+   * spends that cost on a query the reader is about to change. The results on
+   * screen belong to the other mode, so they are dropped, and the next explicit
+   * submit (Enter) is what searches. The results panel is left open, showing
+   * its "enter a search term" state, so the reader is not bounced out of it.
+   *
+   * Going the other way (to keyword) still re-queries: that search is cheap and
+   * the reader is looking at semantic results the keyword list should replace.
+   */
   setSearchType(type: 'keyword' | 'semantic'): void {
     if (this.searchType === type) return;
     this.searchType = type;
+
+    if (type === 'semantic') {
+      // Abandon anything in flight so a slow keyword search cannot land its
+      // results into the Ideas view after the reset below.
+      this.runId++;
+      this.resetResults();
+      this.notify();
+      return;
+    }
+
     this.notify();
 
     // Re-query with the new search type if there's an active query
@@ -610,10 +644,18 @@ class SearchStore extends Store {
   }
 
   clear(): void {
+    this.resetResults();
+    this.isOpen = false;
+    this.notify();
+  }
+
+  /** Drop the query and every result, leaving `isOpen` as it was. */
+  private resetResults(): void {
     this.query = '';
     this.results = [];
     this.totalResults = 0;
-    this.isOpen = false;
+    this.loading = false;
+    this.loadingMore = false;
     this.searchedModule = '';
     this.detectedRefVerseId = null;
     this.strongsMode = false;
@@ -628,8 +670,8 @@ class SearchStore extends Store {
     this.keywordCapped = false;
     this.bookCounts = {};
     this.keywordTotalAvailable = 0;
+    this.keywordMatchCount = 0;
     this.lastClickedId = null;
-    this.notify();
   }
 }
 
