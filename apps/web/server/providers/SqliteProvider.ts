@@ -31,10 +31,19 @@ export class SqliteProvider implements ISql {
     this.db = new BetterSqlite3(databasePath, options);
 
     this.db.pragma('foreign_keys = ON');
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+    // Setting the journal mode writes the database header, which a read-only
+    // connection can't do (and a DELETE-mode module file would refuse).
+    if (!options?.readonly) {
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('synchronous = NORMAL');
+    }
     this.db.pragma('temp_store = MEMORY');
-    this.db.pragma('cache_size = -64000');
+    // Keep the per-connection page cache small: ~80 connections stay open for
+    // the life of the process, and 64 MB each let the heap grow until it was
+    // swapped out. Reads go through mmap instead, so hot pages live in the
+    // kernel's file cache, which is dropped (not swapped) under memory pressure.
+    this.db.pragma('cache_size = -2000');
+    this.db.pragma('mmap_size = 268435456');
     this.db.pragma('busy_timeout = 5000');
   }
 

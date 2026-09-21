@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request } from 'express';
-import { createPasswordGate, hashPassword } from '../middleware/passwordGate';
+import { authCookieValue, createPasswordGate, hashPassword } from '../middleware/passwordGate';
 import {
   mockRequest as baseMockRequest,
   mockResponse,
@@ -135,7 +135,7 @@ describe('passwordGate middleware', () => {
       const gate = createPasswordGate({ passwordHash: hash });
       const req = mockRequest({
         path: '/api/bible',
-        headers: { cookie: 'bible_auth=1' },
+        headers: { cookie: `bible_auth=${authCookieValue(hash)}` },
       });
       const res = mockResponse();
 
@@ -150,7 +150,7 @@ describe('passwordGate middleware', () => {
       const gate = createPasswordGate({ passwordHash: hash });
       const req = mockRequest({
         path: '/api/bible',
-        headers: { cookie: 'session=xyz; bible_auth=1; other=123' },
+        headers: { cookie: `session=xyz; bible_auth=${authCookieValue(hash)}; other=123` },
       });
       const res = mockResponse();
 
@@ -186,6 +186,34 @@ describe('passwordGate middleware', () => {
       expect(res.status).toHaveBeenCalledWith(401);
     });
 
+    it('rejects the old constant cookie (bible_auth=1), which anyone could forge', () => {
+      const hash = hashPassword('secret');
+      const gate = createPasswordGate({ passwordHash: hash });
+      const req = mockRequest({
+        path: '/api/bible',
+        headers: { cookie: 'bible_auth=1' },
+      });
+      const res = mockResponse();
+
+      gate(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('rejects a cookie made for a different password', () => {
+      const gate = createPasswordGate({ passwordHash: hashPassword('secret') });
+      const req = mockRequest({
+        path: '/api/bible',
+        headers: { cookie: `bible_auth=${authCookieValue(hashPassword('secret'))}` },
+      });
+      const res = mockResponse();
+
+      gate(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
     it('requires exact cookie name match', () => {
       const hash = hashPassword('secret');
       const gate = createPasswordGate({ passwordHash: hash });
@@ -205,7 +233,7 @@ describe('passwordGate middleware', () => {
       const gate = createPasswordGate({ passwordHash: hash });
       const req = mockRequest({
         path: '/api/bible',
-        headers: { cookie: 'a=1 ; bible_auth=1 ; b=2' },
+        headers: { cookie: `a=1 ; bible_auth=${authCookieValue(hash)} ; b=2` },
       });
       const res = mockResponse();
 
@@ -246,7 +274,7 @@ describe('passwordGate middleware', () => {
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Set-Cookie',
-        expect.stringContaining('bible_auth=1')
+        expect.stringContaining(`bible_auth=${authCookieValue(hash)}`)
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         'Set-Cookie',
@@ -475,7 +503,7 @@ describe('passwordGate middleware', () => {
       const setCookie = (res.setHeader as any).mock.calls.find(
         (call: any[]) => call[0] === 'Set-Cookie'
       )?.[1];
-      expect(setCookie).toContain('bible_auth=1');
+      expect(setCookie).toContain(`bible_auth=${authCookieValue(hash)}`);
       expect(setCookie).not.toContain('Max-Age');
     });
 
