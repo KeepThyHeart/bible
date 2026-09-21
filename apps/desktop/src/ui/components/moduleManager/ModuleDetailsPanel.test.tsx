@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ModuleDetailsPanel } from './ModuleDetailsPanel';
@@ -102,10 +102,10 @@ function rowFor(catalog: CatalogModule[], installed: ModuleMetadata[], abbr: str
 }
 
 interface Handlers {
-  onClose: ReturnType<typeof vi.fn>;
-  onInstall: ReturnType<typeof vi.fn>;
-  onUpdate: ReturnType<typeof vi.fn>;
-  onUninstall: ReturnType<typeof vi.fn>;
+  onClose: Mock<() => void>;
+  onInstall: Mock<(row: ModuleRow) => void>;
+  onUpdate: Mock<(row: ModuleRow) => void>;
+  onUninstall: Mock<(row: ModuleRow, removeUserData: boolean) => void>;
 }
 
 function renderPanel(

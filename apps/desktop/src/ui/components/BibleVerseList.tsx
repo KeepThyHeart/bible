@@ -235,8 +235,8 @@ const BibleVerseList: React.FC = () => {
                 <PaneEmptyState
                   icon="📖"
                   testId="bible-empty-state"
-                  title={t('onboarding.empty.bible.title')}
-                  description={t('onboarding.empty.bible.description')}
+                  title={availableBibles.length === 0 ? t('onboarding.empty.bible.noneTitle') : t('onboarding.empty.bible.title')}
+                  description={availableBibles.length === 0 ? t('onboarding.empty.bible.noneDescription') : t('onboarding.empty.bible.description')}
                   actions={[
                     availableBibles.length === 0
                       ? {

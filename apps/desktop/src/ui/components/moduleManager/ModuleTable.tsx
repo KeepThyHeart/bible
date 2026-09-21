@@ -96,17 +96,24 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
               ? td('moduleList.allUpToDate', 'All modules are up to date')
               : isInstalled
                 ? td('moduleTable.noneInstalled', 'Nothing installed here yet')
-                : td('moduleList.noModulesFound', 'No modules found')}
+                : offline && !searchQuery
+                  ? td('moduleList.offlineTitle', 'Nothing to browse while offline')
+                  : td('moduleList.noModulesFound', 'No modules found')}
           </h3>
           <p className="text-text-secondary">
             {isUpdates
               ? td('moduleList.allUpToDateHint', 'You have the latest versions of all your installed modules.')
               : isInstalled
                 ? td('moduleTable.noneInstalledHint', 'Switch the filter to All to browse modules you can install.')
-                : td(
-                    'moduleList.noModulesFoundHint',
-                    'Try adjusting your search or filter criteria, or refresh the catalog.'
-                  )}
+                : offline && !searchQuery
+                  ? td(
+                      'moduleList.offlineHint',
+                      'Turn on network access to see what you can install, or install a module from a file you have already downloaded.'
+                    )
+                  : td(
+                      'moduleList.noModulesFoundHint',
+                      'Try adjusting your search or filter criteria, or refresh the catalog.'
+                    )}
           </p>
         </div>
       </div>

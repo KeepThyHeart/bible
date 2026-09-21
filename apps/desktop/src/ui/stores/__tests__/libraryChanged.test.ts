@@ -13,6 +13,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const getAvailableBibles = vi.fn();
 const getInitialData = vi.fn();
+const getAvailableCommentaries = vi.fn();
+const getAvailableDictionaries = vi.fn();
+const getAvailableBooks = vi.fn();
 
 vi.mock('../../services/electronAPI', () => ({
   bibleAPI: {
@@ -22,8 +25,14 @@ vi.mock('../../services/electronAPI', () => ({
     getBookName: vi.fn().mockResolvedValue('John'),
   },
   commentaryAPI: {
-    getAvailableCommentaries: vi.fn().mockResolvedValue([]),
+    getAvailableCommentaries: (...args: unknown[]) => getAvailableCommentaries(...args),
     getEntriesForVerse: vi.fn().mockResolvedValue([]),
+  },
+  dictionaryAPI: {
+    getAvailableDictionaries: (...args: unknown[]) => getAvailableDictionaries(...args),
+  },
+  bookAPI: {
+    getAvailableBooks: (...args: unknown[]) => getAvailableBooks(...args),
   },
 }));
 
@@ -46,6 +55,9 @@ vi.mock('../module/moduleAPI', () => ({
 }));
 
 import { useBibleStore } from '../useBibleStore';
+import { useCommentaryStore } from '../useCommentaryStore';
+import { useDictionaryStore } from '../useDictionaryStore';
+import { useBookStore } from '../useBookStore';
 import { useModuleStore } from '../module/useModuleStore';
 import { useSessionStore } from '../useSessionStore';
 import { wireStoreSync } from '../storeSync';
@@ -77,6 +89,9 @@ function panelTabs() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getAvailableCommentaries.mockResolvedValue([]);
+  getAvailableDictionaries.mockResolvedValue([]);
+  getAvailableBooks.mockResolvedValue([]);
   wireStoreSync();
   getAvailableBibles.mockResolvedValue([]);
   getInitialData.mockResolvedValue({
@@ -187,6 +202,49 @@ describe('when a Bible is already open', () => {
     await useModuleStore.getState().installModule('kjv');
 
     expect(getInitialData).not.toHaveBeenCalled();
+  });
+});
+
+describe('installing other kinds of module', () => {
+  // On a fresh install every pane starts on "nothing installed". Each must hear
+  // about an install of its own kind, or it says so until the app restarts.
+  const installedCommentary = { module_id: 5, module_type: 'commentary', abbreviation: 'Wesley', version: '1.0', user_hidden: false };
+  const installedBook = { module_id: 6, module_type: 'book', abbreviation: 'Pilgrim', version: '1.0', user_hidden: false };
+
+  it('refreshes the commentary list', async () => {
+    getAvailableCommentaries.mockResolvedValue([{ abbreviation: 'Wesley', name: "Wesley's Notes" }]);
+    getInstalledModules.mockResolvedValue([installedCommentary]);
+
+    await useModuleStore.getState().installModule('wesley');
+
+    expect(useCommentaryStore.getState().availableCommentaries.map(c => c.abbreviation)).toEqual(['Wesley']);
+  });
+
+  it('refreshes the dictionary list', async () => {
+    getAvailableDictionaries.mockResolvedValue([{ abbreviation: 'STR', name: 'Strongs' }]);
+    getInstalledModules.mockResolvedValue([installedDictionary]);
+
+    await useModuleStore.getState().installModule('strongs');
+
+    expect(useDictionaryStore.getState().availableDictionaries.map(d => d.abbreviation)).toEqual(['STR']);
+  });
+
+  it('refreshes the book list', async () => {
+    getAvailableBooks.mockResolvedValue([{ abbreviation: 'Pilgrim', name: "Pilgrim's Progress" }]);
+    getInstalledModules.mockResolvedValue([installedBook]);
+
+    await useModuleStore.getState().installModule('pilgrim');
+
+    expect(useBookStore.getState().availableBooks.map(b => b.abbreviation)).toEqual(['Pilgrim']);
+  });
+
+  it('leaves the other stores alone', async () => {
+    getInstalledModules.mockResolvedValue([installedCommentary]);
+
+    await useModuleStore.getState().installModule('wesley');
+
+    expect(getAvailableDictionaries).not.toHaveBeenCalled();
+    expect(getAvailableBooks).not.toHaveBeenCalled();
   });
 });
 

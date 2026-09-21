@@ -22,7 +22,7 @@ There is exactly one exception, documented as layer 0 below: the first-run langu
 
 **When starter packs are not available**, the step falls back to offering recommended catalog modules (`module:search` with `{ languageCode, recommended: true }`, Bible first). When both packs and modules are empty, it renders an honest empty state: offline, a **Go online** / **Install from a file…** pair; online, a shortcut to the Module Manager. **Currently, only `en` is published**, so non-English users will legitimately see no content.
 
-Installing a suggested pack or module is wired to a one-click Install button per item - but every module's name, licence and size is listed, unconditionally, before that button can be clicked, at least as much disclosure as the Module Manager's details panel provides. A partial failure lists which modules did not install and points at the Module Manager rather than leaving the dialog stuck.
+Every module in a suggested list has a checkbox, all ticked to begin with, so the one-click path installs the whole recommended set and unticking trims it (**Select none / Select all** flips the lot). **Install selected** installs only the ticked modules, and the summary line shows how many are ticked and their total size. Every module's name, licence and size is listed, unconditionally, before that button can be clicked, at least as much disclosure as the Module Manager's details panel provides. A partial failure lists which modules did not install and points at the Module Manager rather than leaving the dialog stuck.
 
 Every `getStarterPackModules` / `installModule` call this step makes carries the pack's own `source.catalogId`, so a module id is only ever resolved against the catalog the pack itself came from - never any other enabled catalog. See `ModuleCatalogService.getStarterPackModules`'s doc comment for why cross-catalog resolution would let a third-party catalog "shadow" an official module id.
 
@@ -147,7 +147,13 @@ The tour is the one place that computes physical offsets in JS, because it ancho
 
 ## Module installation and the reading pane
 
-When a Bible module is installed, `notifyLibraryChanged` (via `crossStoreBridge.ts`) triggers `loadAvailableBibles` and re-seeds the Bible pane, so the newly installed translation appears immediately without restart. The reading pane's empty state (no Bibles installed) offers an **Install a Bible** button that opens the Module Manager filtered to Bible modules.
+When a Bible module is installed, `notifyLibraryChanged` (via `crossStoreBridge.ts`) triggers `loadAvailableBibles` and re-seeds the Bible pane, so the newly installed translation appears immediately without restart. The reading pane's empty state (no Bibles installed) says so - "No Bibles installed yet" - and offers an **Install a Bible** button that opens the Module Manager filtered to Bible modules.
+
+The same signal reaches every other store that caches an installed list: commentaries (which also rebuilds the Commentary overview for the verse it is on), dictionaries and books. The Study pane re-reads its sections when the installed list changes. A pane whose module kind has none installed at all says that ("No commentaries installed yet", "No cross-reference module is installed. Install one") rather than "nothing for this verse", and links to the Module Manager.
+
+Restoring a saved session drops tabs for modules that are not installed (`services/pruneSessionTabs.ts`), so a session carried onto a machine without a module cannot ask for content that is not there.
+
+Catalog modules of type `topical` and `xref` are registered as `topical_index` and `cross_reference` (`normalizeModuleType` in `@bible/core`); registered under the short spelling they installed but never appeared in the Study pane or as a Module Manager tab.
 
 ## Files
 

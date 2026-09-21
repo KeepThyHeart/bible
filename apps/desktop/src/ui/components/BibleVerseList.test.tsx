@@ -32,8 +32,10 @@ vi.mock('./study/StudyModeView', () => ({ default: () => <div data-testid="study
 vi.mock('./ParallelBibleView', () => ({ default: () => <div data-testid="parallel-view" /> }));
 vi.mock('./SearchResultsPane', () => ({ default: () => <div data-testid="search-results" /> }));
 vi.mock('./onboarding/PaneEmptyState', () => ({
-  default: ({ testId, actions }: any) => (
+  default: ({ testId, title, description, actions }: any) => (
     <div data-testid={testId}>
+      <h3>{title}</h3>
+      <p>{description}</p>
       {actions?.map((action: any) => (
         <button key={action.label} onClick={action.onClick} data-testid={action.testId}>
           {action.label}
@@ -485,6 +487,26 @@ describe('BibleVerseList', () => {
       expect(installButton).toBeInTheDocument();
       // Button text is the i18n key because t() is mocked to return the key
       expect(installButton).toHaveTextContent('onboarding.empty.bible.install');
+    });
+
+    it('says that no Bible is installed, rather than inviting a choice that does not exist', () => {
+      renderWithContext({ openTabs: [], activeTab: undefined, availableBibles: [] });
+
+      const state = screen.getByTestId('bible-empty-state');
+      expect(state).toHaveTextContent('onboarding.empty.bible.noneTitle');
+      expect(state).toHaveTextContent('onboarding.empty.bible.noneDescription');
+    });
+
+    it('keeps the ordinary invitation once a Bible is installed', () => {
+      renderWithContext({
+        openTabs: [],
+        activeTab: undefined,
+        availableBibles: [{ abbreviation: 'KJV', name: 'King James Version' }],
+      });
+
+      const state = screen.getByTestId('bible-empty-state');
+      expect(state).toHaveTextContent('onboarding.empty.bible.title');
+      expect(state).not.toHaveTextContent('onboarding.empty.bible.noneTitle');
     });
 
     it('shows select translation button when Bibles are available', () => {

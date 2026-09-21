@@ -5,7 +5,10 @@ import { useStudyPanel } from '../stores/hooks/useStudyPanel';
 import { useTopicsStore } from '../stores/useTopicsStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useBibleStore } from '../stores/useBibleStore';
+import { useModuleStore } from '../stores/useModuleStore';
 import { previewVerseInPrimary } from '../stores/crossStoreBridge';
+import { openModuleManager } from '../utils/openModuleManager';
+import type { ModuleType } from '@bible/core';
 import PaneNavHeader from './shared/PaneNavHeader';
 import SuggestionBanner from './shared/SuggestionBanner';
 import TopicSearchBar from './shared/TopicSearchBar';
@@ -176,8 +179,21 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
    * absorb the failure silently and report nothing on screen.
    */
   const [failedSections, setFailedSections] = useState<string[]>([]);
+  /**
+   * Sections for which no module of that kind is installed at all - a
+   * different situation from "nothing for this verse", and one the reader can
+   * fix, so the section says so and links to the Module Manager.
+   */
+  const [notInstalled, setNotInstalled] = useState({ xrefs: false, topics: false, commentaries: false });
+  const markNotInstalled = (section: 'xrefs' | 'topics' | 'commentaries', missing: boolean) =>
+    setNotInstalled(prev => (prev[section] === missing ? prev : { ...prev, [section]: missing }));
 
   const bibleAnchorVerseId = useBibleStore(selectBibleAnchorVerseId);
+  // Installing or removing a module changes what every section below can show,
+  // so the installed list is a dependency of the load: without it a reader who
+  // installs a commentary from first run keeps seeing "no commentary entries"
+  // for the verse they are on until they move to another one.
+  const installedModules = useModuleStore(s => s.installedModules);
 
   const displayNameFor = useCallback(
     (abbreviation: string, moduleName: string) =>
@@ -242,6 +258,10 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
 
     const loadTopics = async () => {
       try {
+        // Best effort: a failure to list modules must not hide the topics.
+        const listing = window.electron.topical.getAvailable?.();
+        const topicModules = listing ? await unwrap(listing).catch(() => null) : null;
+        if (!cancelled && topicModules) markNotInstalled('topics', topicModules.length === 0);
         const topicResults = await unwrap(window.electron.topical.getTopicsForVerse(verseId));
         if (!cancelled) setTopics(topicResults);
       } catch (error) {
@@ -253,6 +273,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
     const loadCommentaries = async () => {
       try {
         const availCommentaries = await unwrap(window.electron.commentary.getAvailableCommentaries());
+        if (!cancelled) markNotInstalled('commentaries', availCommentaries.length === 0);
         const summaries: CommentarySummary[] = [];
         for (const comm of availCommentaries) {
           const inlineRendered = isDigestModule(comm.abbreviation);
@@ -285,6 +306,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
     const loadCrossReferences = async () => {
       try {
         const xrefModules = await unwrap(window.electron.crossReference.getAvailable());
+        if (!cancelled) markNotInstalled('xrefs', xrefModules.length === 0);
         const allGroups: XrefGroupWithEntries[] = [];
         const sources: string[] = [];
         for (const mod of xrefModules) {
@@ -313,7 +335,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [currentVerseId, displayNameFor]);
+  }, [currentVerseId, displayNameFor, installedModules]);
 
   // Navigate topic to Topics Pane
   const handleTopicClick = useCallback((abbreviation: string, topicId: number) => {
@@ -482,6 +504,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
             <CrossReferencesSection
               xrefGroups={xrefGroups}
               sources={xrefSources}
+              notInstalled={notInstalled.xrefs}
               collapsed={!!sectionsCollapsed['xrefs']}
               onToggle={() => toggleSection('xrefs')}
             />
@@ -508,7 +531,9 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
                 topics={topics}
                 onTopicClick={handleTopicClick}
                 scale={uiScaled}
-                emptyState={<EmptyNote>{t('studyPane.noTopics')}</EmptyNote>}
+                emptyState={notInstalled.topics
+                  ? <NotInstalledNote message={t('studyPane.noTopicalInstalled')} moduleType="topical_index" />
+                  : <EmptyNote>{t('studyPane.noTopics')}</EmptyNote>}
               />
             </StudySection>
 
@@ -532,7 +557,9 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
               onToggle={() => toggleSection('commentaries')}
             >
               {otherCommentaries.length === 0 ? (
-                <EmptyNote>{t('studyPane.noCommentaries')}</EmptyNote>
+                notInstalled.commentaries
+                  ? <NotInstalledNote message={t('studyPane.noCommentaryInstalled')} moduleType="commentary" />
+                  : <EmptyNote>{t('studyPane.noCommentaries')}</EmptyNote>
               ) : (
                 /*
                   A real <button>, not a `<div onClick>`: the row activates
@@ -603,6 +630,24 @@ const EmptyNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
+/** "No module of this kind is installed" with a way to fix that. */
+const NotInstalledNote: React.FC<{ message: string; moduleType: ModuleType }> = ({ message, moduleType }) => {
+  const { t } = useI18n();
+  return (
+    <EmptyNote>
+      {message}{' '}
+      <button
+        type="button"
+        onClick={() => openModuleManager(moduleType)}
+        data-testid={`study-install-${moduleType}`}
+        style={{ border: 'none', background: 'none', padding: 0, color: 'var(--theme-accent, #3b76ba)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+      >
+        {t('studyPane.installLink')}
+      </button>
+    </EmptyNote>
+  );
+};
+
 /**
  * The auto-generated digest, rendered in place.
  *
@@ -632,9 +677,10 @@ const CombinedSummary: React.FC<{ entries: CommentarySummary[]; verseId: number 
 const CrossReferencesSection: React.FC<{
   xrefGroups: XrefGroupWithEntries[];
   sources: string[];
+  notInstalled: boolean;
   collapsed: boolean;
   onToggle: () => void;
-}> = ({ xrefGroups, sources, collapsed, onToggle }) => {
+}> = ({ xrefGroups, sources, notInstalled, collapsed, onToggle }) => {
   const { t } = useI18n();
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
@@ -706,7 +752,9 @@ const CrossReferencesSection: React.FC<{
       onToggle={onToggle}
     >
       {sorted.length === 0 ? (
-        <EmptyNote>{t('studyPane.noCrossReferences')}</EmptyNote>
+        notInstalled
+          ? <NotInstalledNote message={t('studyPane.noCrossReferencesInstalled')} moduleType="cross_reference" />
+          : <EmptyNote>{t('studyPane.noCrossReferences')}</EmptyNote>
       ) : (
         sorted.map((g) => {
           // The raw TSK phrase runs the keyword together with an editorial

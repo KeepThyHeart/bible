@@ -503,18 +503,36 @@ const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
   );
 };
 
-/** One row of a starter pack's module list: name, licence and size, always visible. */
-const StarterPackModuleRow: React.FC<{ module: CatalogModule }> = ({ module }) => {
+/**
+ * One row of a starter pack's module list: a checkbox, name, licence and size,
+ * always visible. The whole row is the label, so the name is a click target.
+ */
+const StarterPackModuleRow: React.FC<{
+  module: CatalogModule;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}> = ({ module, checked, disabled, onToggle }) => {
   const { t } = useI18n();
   return (
-    <li className="flex items-baseline justify-between gap-sm text-xs text-text-secondary" data-testid={`first-run-pack-module-${module.module_id}`}>
-      <span className="text-text-primary">{module.name}</span>
-      <span>
-        {t('onboarding.language.packModuleMeta', {
-          license: module.license || '—',
-          size: formatSize(module.download_size_bytes),
-        })}
-      </span>
+    <li data-testid={`first-run-pack-module-${module.module_id}`}>
+      <label className="flex cursor-pointer items-baseline gap-sm text-xs text-text-secondary">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={onToggle}
+          data-testid={`first-run-pack-module-check-${module.module_id}`}
+          className="translate-y-[2px]"
+        />
+        <span className="flex-1 text-text-primary">{module.name}</span>
+        <span className="whitespace-nowrap">
+          {t('onboarding.language.packModuleMeta', {
+            license: module.license || '—',
+            size: formatSize(module.download_size_bytes),
+          })}
+        </span>
+      </label>
     </li>
   );
 };
@@ -596,18 +614,35 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
   const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
   const [install, setInstall] = useState<PackInstallState>({ status: 'idle' });
 
-  const totalSize = (modules ?? []).reduce((sum, m) => sum + (m.download_size_bytes || 0), 0);
+  // Everything starts ticked: the recommended set is the easy path, and
+  // unticking is how a reader trims it. Reset whenever the list is (re)loaded.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setSelected(new Set((modules ?? []).map((m) => m.module_id)));
+  }, [modules]);
+
+  const chosen = (modules ?? []).filter((m) => selected.has(m.module_id));
+  const totalSize = chosen.reduce((sum, m) => sum + (m.download_size_bytes || 0), 0);
+  const busy = install.status === 'installing';
+
+  const toggle = (moduleId: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) next.delete(moduleId);
+      else next.add(moduleId);
+      return next;
+    });
 
   const handleInstall = async () => {
-    if (!modules || modules.length === 0) return;
+    if (chosen.length === 0) return;
     const failed: CatalogModule[] = [];
-    for (let i = 0; i < modules.length; i++) {
-      setInstall({ status: 'installing', index: i + 1, total: modules.length });
+    for (let i = 0; i < chosen.length; i++) {
+      setInstall({ status: 'installing', index: i + 1, total: chosen.length });
       // Scoped to the pack's own catalog - see `IModuleCatalogService.getModuleInfo`'s
       // doc comment for why a bare module id must never be resolved across
       // every enabled catalog here.
-      const ok = await installModule(modules[i].module_id, catalogId);
-      if (!ok) failed.push(modules[i]);
+      const ok = await installModule(chosen[i].module_id, catalogId);
+      if (!ok) failed.push(chosen[i]);
     }
     // `installModule` already reloads the installed list per call; one more
     // pass here is cheap insurance so every reader pane sees the final state
@@ -640,13 +675,32 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
         <>
           <ul className="mt-sm flex flex-col gap-xs" data-testid={`first-run-pack-modules-${id}`}>
             {modules.map((module) => (
-              <StarterPackModuleRow key={module.module_id} module={module} />
+              <StarterPackModuleRow
+                key={module.module_id}
+                module={module}
+                checked={selected.has(module.module_id)}
+                disabled={busy}
+                onToggle={() => toggle(module.module_id)}
+              />
             ))}
           </ul>
-          <p className="mt-xs text-xs text-text-secondary">
-            {t('onboarding.language.packModuleCount', { count: modules.length })}
+          <p className="mt-xs text-xs text-text-secondary" data-testid={`first-run-pack-summary-${id}`}>
+            {t('onboarding.language.packSelectedCount', { selected: chosen.length, count: modules.length })}
             {' · '}
             {t('onboarding.language.packTotalSize', { size: formatSize(totalSize) })}
+            {install.status === 'idle' && modules.length > 1 && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  onClick={() => setSelected(chosen.length === modules.length ? new Set() : new Set(modules.map((m) => m.module_id)))}
+                  data-testid={`first-run-pack-toggle-all-${id}`}
+                  className="text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  {chosen.length === modules.length ? t('onboarding.language.packSelectNone') : t('onboarding.language.packSelectAll')}
+                </button>
+              </>
+            )}
           </p>
         </>
       )}
@@ -656,7 +710,7 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
           <button
             type="button"
             onClick={() => void handleInstall()}
-            disabled={!modules || modules.length === 0}
+            disabled={chosen.length === 0}
             data-testid={`first-run-pack-install-${id}`}
             className="rounded bg-accent px-md py-xs text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
           >
@@ -762,6 +816,7 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebReques
             catalogId={undefined}
           />
         </ul>
+        <p className="mt-md text-xs text-text-secondary">{t('onboarding.language.moreLater')}</p>
       </div>
     );
   }
@@ -769,9 +824,9 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebReques
   if (packs.length === 0) {
     return (
       <div data-testid="first-run-packs-empty">
-        <p className="text-sm text-text-primary">{t('onboarding.language.packsEmpty')}</p>
         {allowWebRequests ? (
           <>
+            <p className="text-sm text-text-primary">{t('onboarding.language.packsEmpty')}</p>
             <p className="mt-sm text-sm text-text-secondary">{t('onboarding.language.packsEmptyHint')}</p>
             <button
               type="button"
@@ -828,6 +883,7 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebReques
           <StarterPackCard key={pack.pack_id} pack={pack} />
         ))}
       </ul>
+      <p className="mt-md text-xs text-text-secondary">{t('onboarding.language.moreLater')}</p>
     </div>
   );
 };

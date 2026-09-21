@@ -258,7 +258,7 @@ describe('LanguageFirstRun', () => {
         const card = await screen.findByTestId('first-run-pack-recommended');
         expect(screen.queryByTestId('first-run-packs-empty')).not.toBeInTheDocument();
         expect(searchModules).toHaveBeenCalledWith({ languageCode: 'en', recommended: true });
-        const rows = card.querySelectorAll('[data-testid^="first-run-pack-module-"]');
+        const rows = card.querySelectorAll('li[data-testid^="first-run-pack-module-"]');
         expect(Array.from(rows).map((r) => r.getAttribute('data-testid'))).toEqual([
           'first-run-pack-module-kjv',
           'first-run-pack-module-strongs',
@@ -280,6 +280,40 @@ describe('LanguageFirstRun', () => {
         expect(installModule).toHaveBeenNthCalledWith(1, 'kjv', undefined);
         expect(installModule).toHaveBeenNthCalledWith(2, 'strongs', undefined);
         expect(await screen.findByTestId('first-run-pack-installed-recommended')).toBeInTheDocument();
+      });
+
+      it('lets the reader untick modules, and installs only the ticked ones', async () => {
+        const installModule = vi.fn().mockResolvedValue(true);
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ installModule, loadInstalledModules });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        // Everything starts ticked, so the one-click path still works.
+        const strongs = await screen.findByTestId('first-run-pack-module-check-strongs');
+        expect(strongs).toBeChecked();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('2 of 2 selected');
+
+        await userEvent.click(strongs);
+        expect(strongs).not.toBeChecked();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('1 of 2 selected');
+
+        await userEvent.click(screen.getByTestId('first-run-pack-install-recommended'));
+        await waitFor(() => expect(installModule).toHaveBeenCalledTimes(1));
+        expect(installModule).toHaveBeenCalledWith('kjv', undefined);
+      });
+
+      it('disables Install when nothing is ticked, and Select all brings everything back', async () => {
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        await userEvent.click(await screen.findByTestId('first-run-pack-toggle-all-recommended'));
+        expect(screen.getByTestId('first-run-pack-install-recommended')).toBeDisabled();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('0 of 2 selected');
+
+        await userEvent.click(screen.getByTestId('first-run-pack-toggle-all-recommended'));
+        expect(screen.getByTestId('first-run-pack-install-recommended')).toBeEnabled();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('2 of 2 selected');
       });
 
       it('shows the honest empty state only when the modules are empty too', async () => {

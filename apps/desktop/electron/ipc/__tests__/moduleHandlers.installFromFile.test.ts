@@ -54,22 +54,22 @@ vi.mock('../../utils/initMainDatabase', () => ({
 }));
 
 vi.mock('../../services/DownloadService', () => ({
-  DownloadService: vi.fn().mockImplementation(() => ({
+  DownloadService: vi.fn().mockImplementation(function () { return {
     onProgress: vi.fn(),
     onError: vi.fn(),
-  })),
+  }; }),
 }));
 
 vi.mock('../../services/InstallationService', () => ({
-  InstallationService: vi.fn().mockImplementation(() => ({})),
+  InstallationService: vi.fn().mockImplementation(function () { return {}; }),
 }));
 
 vi.mock('../../services/ModuleCatalogService', () => ({
-  ModuleCatalogService: vi.fn().mockImplementation(() => ({})),
+  ModuleCatalogService: vi.fn().mockImplementation(function () { return {}; }),
 }));
 
 vi.mock('../../services/ApprovedCatalogKeys', () => ({
-  FileApprovedCatalogKeyStore: vi.fn().mockImplementation(() => ({ list: () => [] })),
+  FileApprovedCatalogKeyStore: vi.fn().mockImplementation(function () { return { list: () => [] }; }),
 }));
 
 vi.mock('../blessedPaths', () => ({
@@ -83,12 +83,12 @@ vi.mock('@bible/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bible/core')>();
   return {
     ...actual,
-    ModuleController: vi.fn().mockImplementation(() => ({
+    ModuleController: vi.fn().mockImplementation(function () { return {
       getInstalledModules: () => [],
-    })),
-    ModuleCatalogController: vi.fn().mockImplementation(() => ({})),
-    ModuleMetadataRepository: vi.fn().mockImplementation(() => ({})),
-    DownloadQueueRepository: vi.fn().mockImplementation(() => ({})),
+    }; }),
+    ModuleCatalogController: vi.fn().mockImplementation(function () { return {}; }),
+    ModuleMetadataRepository: vi.fn().mockImplementation(function () { return {}; }),
+    DownloadQueueRepository: vi.fn().mockImplementation(function () { return {}; }),
   };
 });
 
