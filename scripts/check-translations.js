@@ -84,13 +84,13 @@ function referenceNamespaces(root) {
     .sort();
 }
 
-/** `complete` / `draft` / `unknown`, from the locale's own meta.json. */
+/** `complete` / `beta` / `draft` / `unknown`, from the locale's own meta.json. */
 function localeStatus(root, locale) {
   const metaPath = path.join(root, locale, 'meta.json');
   if (!fs.existsSync(metaPath)) return 'unknown';
   try {
     const status = readJson(metaPath)['locale.status'];
-    return status === 'complete' || status === 'draft' ? status : 'unknown';
+    return status === 'complete' || status === 'beta' || status === 'draft' ? status : 'unknown';
   } catch {
     return 'unknown';
   }
@@ -189,9 +189,11 @@ for (const { label, dir } of ROOTS) {
     const statusNote =
       status === 'draft'
         ? '  [DRAFT - awaiting native-speaker review]'
-        : status === 'unknown'
-          ? '  [no meta.json - status unknown, treated as draft]'
-          : '';
+        : status === 'beta'
+          ? '  [BETA - machine-drafted, unreviewed]'
+          : status === 'unknown'
+            ? '  [no meta.json - status unknown, treated as draft]'
+            : '';
     console.log(`\n[${locale}]${statusNote}`);
     const results = checkLocale(dir, namespaces, locale);
 

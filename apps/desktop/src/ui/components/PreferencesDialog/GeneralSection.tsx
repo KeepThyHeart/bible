@@ -49,31 +49,27 @@ const BUILT_IN_LOCALES: readonly string[] = [
 ];
 
 /**
- * >> THE ONE PLACE TO WIDEN WHEN ANOTHER LANGUAGE IS READY TO SHIP. <<
+ * >> TO SHIP ANOTHER BUILT-IN LANGUAGE, PROMOTE ITS `meta.json` STATUS. <<
  *
- * Which of the BUILT-IN catalogs the app offers as a UI language. Every
- * shipped catalog other than `en` is machine-drafted and has never been
- * through native-speaker review, so offering them invites a user to switch the
- * whole interface into a translation we cannot stand behind - and, once
- * switched, to a UI they may not be able to read well enough to switch back.
+ * Whether a BUILT-IN catalog is offered as a UI language is decided entirely
+ * by its own `locale.status` (see `LocaleStatus` in `II18nService.ts`):
  *
- * Add a code here (and nowhere else) to make that language selectable; the two
- * pickers - this section and `onboarding/LanguageFirstRun.tsx` - both go
- * through `selectableLocales()`, so there is nothing else to change.
+ *  - `draft`    - withheld. Machine-drafted and not yet reviewed enough to
+ *                 offer at all; a user could switch the whole interface into
+ *                 it and not be able to read it well enough to switch back.
+ *  - `beta`     - offered, badged. Machine-drafted but complete and stable
+ *                 enough to try, with an honest "beta" marker.
+ *  - `complete` - offered, no badge. Reviewed by a native speaker.
  *
- * This deliberately does NOT gate user-supplied locales: a folder dropped into
- * `<userData>/locales/` is the user's own translation and keeps working with
- * no code change, which is the whole point of that mechanism.
- */
-export const SELECTABLE_BUILT_IN_LOCALES: readonly string[] = ['en'];
-
-/**
- * The locales a picker may offer: every user-supplied one, plus the built-in
- * ones named in `SELECTABLE_BUILT_IN_LOCALES`.
+ * There is deliberately no separate allowlist to edit: change the locale's
+ * `meta.json`, and both pickers - this section and
+ * `onboarding/LanguageFirstRun.tsx`, which both go through
+ * `selectableLocales()` - pick it up with no other code change.
  *
- * `activeLocale` is always kept, so a user who selected a language before it
- * was withdrawn still sees their current choice in the list rather than a
- * radiogroup with nothing checked.
+ * This does NOT gate user-supplied locales: a folder dropped into
+ * `<userData>/locales/` is the user's own translation and stays reachable
+ * (behind the draft/beta badge, like any other) with no code change, which is
+ * the whole point of that mechanism.
  */
 export function selectableLocales(
   infos: readonly LocaleMetadata[],
@@ -83,24 +79,25 @@ export function selectableLocales(
     (info) =>
       info.code === activeLocale ||
       !BUILT_IN_LOCALES.includes(info.code) ||
-      SELECTABLE_BUILT_IN_LOCALES.includes(info.code),
+      info.status !== 'draft',
   );
 }
 
 /**
  * One selectable language.
  *
- * `status !== 'complete'` MUST render the draft badge. Draft locales are
- * machine-drafted and unreviewed; the badge is the app's only honest signal
- * of that, and hiding it would imply a native-speaker review that never
- * happened. See locales/README.md.
+ * `status !== 'complete'` MUST render a badge - "draft" or "beta" as
+ * appropriate. Both are machine-drafted and unreviewed; the badge is the
+ * app's only honest signal of that, and hiding it would imply a
+ * native-speaker review that never happened. See locales/README.md.
  */
 const LocaleOption: React.FC<{
   info: LocaleMetadata;
   selected: boolean;
   draftLabel: string;
+  betaLabel: string;
   onSelect: (code: string) => void;
-}> = ({ info, selected, draftLabel, onSelect }) => (
+}> = ({ info, selected, draftLabel, betaLabel, onSelect }) => (
   <button
     type="button"
     role="radio"
@@ -140,7 +137,7 @@ const LocaleOption: React.FC<{
     </span>
     {info.status !== 'complete' && (
       <span
-        data-testid={`locale-draft-badge-${info.code}`}
+        data-testid={`locale-${info.status}-badge-${info.code}`}
         className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
         style={{
           backgroundColor: 'var(--theme-bg-tertiary)',
@@ -148,7 +145,7 @@ const LocaleOption: React.FC<{
           border: '1px solid var(--theme-border-primary)',
         }}
       >
-        {draftLabel}
+        {info.status === 'beta' ? betaLabel : draftLabel}
       </span>
     )}
     {selected && (
@@ -172,6 +169,7 @@ export const GeneralSection: React.FC = () => {
 
   const localeInfos = selectableLocales(i18n.availableLocaleInfos, locale);
   const draftLabel = t('preferencesDialog.localeDraftBadge');
+  const betaLabel = t('preferencesDialog.localeBetaBadge');
 
   // Collapsed by default: language is the one setting in this dialog that can
   // make every other setting unreadable, and this section is the first thing
@@ -184,9 +182,13 @@ export const GeneralSection: React.FC = () => {
   const activeLocaleName =
     i18n.availableLocaleInfos.find((info) => info.code === locale)?.nativeName ?? locale;
 
-  // The draft badge and its footnote only mean something when a draft locale
-  // is actually on offer; with English alone they are noise.
-  const anyDraftListed = localeInfos.some((info) => info.status !== 'complete');
+  // The draft/beta footnotes only mean something when such a locale is
+  // actually on offer; with English (or only `complete` locales) alone they
+  // are noise. Draft takes priority over beta when a picker somehow has both
+  // (a user-supplied draft alongside a built-in beta, say) since it is the
+  // stronger caveat.
+  const anyDraftListed = localeInfos.some((info) => info.status === 'draft');
+  const anyBetaListed = localeInfos.some((info) => info.status === 'beta');
 
   return (
     <div className="space-y-8">
@@ -275,6 +277,7 @@ export const GeneralSection: React.FC = () => {
                   info={info}
                   selected={info.code === locale}
                   draftLabel={draftLabel}
+                  betaLabel={betaLabel}
                   onSelect={(code) => { void i18n.setLocale(code); }}
                 />
               ))}
@@ -282,7 +285,9 @@ export const GeneralSection: React.FC = () => {
             <p className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>
               {anyDraftListed
                 ? t('preferencesDialog.languageDraftNote')
-                : t('preferencesDialog.languageMoreComingNote')}
+                : anyBetaListed
+                  ? t('preferencesDialog.languageBetaNote')
+                  : t('preferencesDialog.languageMoreComingNote')}
             </p>
           </div>
         )}

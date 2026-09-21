@@ -48,6 +48,10 @@ vi.mock('../../utils/bookNames', () => ({
 
 vi.mock('../../constants', () => ({
   BOOK_ALIASES: {},
+  // Mirrors the real fallback shape (English aliases merged with a locale's
+  // own table); this fixture has none, so parsing/filtering falls back to
+  // the mocked i18n book names above, same as before this hook existed.
+  localizedBookAliases: () => ({}),
   // MAX_CHAPTERS keys are strings when accessed via bracket notation on a plain object
   MAX_CHAPTERS: {
     1: 50,   // Genesis
@@ -62,9 +66,13 @@ vi.mock('../../constants', () => ({
   } as Record<number, number>,
 }));
 
-vi.mock('@bible/core/browser', () => ({
-  getBibleSection: () => 'nt',
-}));
+vi.mock('@bible/core/browser', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@bible/core/browser')>();
+  return {
+    ...actual,
+    getBibleSection: () => 'nt',
+  };
+});
 
 vi.mock('../../utils/verseId', () => ({
   parseVerseId: (verseId: number) => ({

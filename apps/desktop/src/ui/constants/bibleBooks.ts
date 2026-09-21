@@ -8,6 +8,7 @@
  * desktop-specific and stay here.
  */
 import { LONG_NAMES, ENGLISH_BOOK_NAMES } from '@bible/core';
+import type { Localizer } from '@bible/core';
 
 /** Full English book names, indexed by book number 1-66. */
 export const BOOK_NAMES: Record<number, string> = LONG_NAMES;
@@ -18,6 +19,35 @@ export const BOOK_NAMES: Record<number, string> = LONG_NAMES;
  * reference parser does.
  */
 export const BOOK_ALIASES: Record<string, number> = Object.fromEntries(ENGLISH_BOOK_NAMES);
+
+/**
+ * Locale-aware book display names, from the active locale's Localizer. Falls
+ * back to English wherever a language has no referenceParserConfig yet (i.e.
+ * today, every language but `en`).
+ */
+export function localizedBookNames(localizer: Localizer): Record<number, string> {
+  const names = localizer.referenceParserConfig?.displayNames;
+  if (!names) return BOOK_NAMES;
+  const out: Record<number, string> = {};
+  names.forEach((name, i) => { out[i + 1] = name; });
+  return out;
+}
+
+/**
+ * Locale-aware parsing aliases. English aliases are always merged in
+ * underneath, so English input keeps parsing even in a non-English UI locale
+ * (per this project's "English is always an accepted parse input" rule).
+ */
+export function localizedBookAliases(localizer: Localizer): Record<string, number> {
+  const aliases = localizer.referenceParserConfig?.bookNames;
+  if (!aliases) return BOOK_ALIASES;
+  return { ...BOOK_ALIASES, ...Object.fromEntries(aliases) };
+}
+
+export function localizedAllBooks(localizer: Localizer): Array<{ number: number; name: string }> {
+  const names = localizedBookNames(localizer);
+  return Array.from({ length: 66 }, (_, i) => ({ number: i + 1, name: names[i + 1] }));
+}
 
 export const MAX_CHAPTERS: Record<number, number> = {
   1: 50, 2: 40, 3: 27, 4: 36, 5: 34, 6: 24, 7: 21, 8: 4, 9: 31, 10: 24,

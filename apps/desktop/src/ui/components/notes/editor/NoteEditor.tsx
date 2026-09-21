@@ -39,11 +39,11 @@ import {
   insertBlockAfter,
   type ExpandFailureReason,
 } from '../../../services/verseExpansionService';
-import { ReferenceParser } from '@bible/core';
 import type { PassageInsertOptions } from '../../../services/copyFormats';
 import type { CachedVerse } from '../../../services/verseFetchCache';
 import { VerseIdHelper } from '@bible/core';
 import { useI18n } from '../../../contexts/useI18n';
+import { getLocalizedReferenceParser } from '../../../services/localizedReferenceParser';
 
 interface NoteEditorProps {
   value: string;
@@ -57,9 +57,6 @@ interface NoteEditorProps {
    */
   exportActions?: NoteExportActions;
 }
-
-/** Re-parses the reference stored on an expansion so it can be re-fetched. */
-const referenceParser = new ReferenceParser();
 
 /**
  * Why a Tab expansion did not happen. Tab claims the key synchronously, before
@@ -731,7 +728,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const translation = getActiveTranslation();
     if (!translation) return;
 
-    const parsed = referenceParser.parse(existing.reference);
+    const parsed = getLocalizedReferenceParser().parse(existing.reference);
     if (!parsed.isValid) return;
 
     const verses = await fetchVersesForReference(parsed, translation);

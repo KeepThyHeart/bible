@@ -18,16 +18,30 @@ import type { LocalizedString } from '../types/LocalizedString';
 export type LocaleCode = string; // BCP-47, e.g. 'en', 'es', 'zh-Hant'
 
 /**
- * Translation maturity of a locale.
+ * Translation maturity of a locale, and - for a locale that ships **built
+ * into the app** (see `BUILT_IN_LOCALES` in `GeneralSection.tsx`) - whether it
+ * is offered at all:
  *
  *  - `complete` - reviewed by a native speaker and considered shippable.
- *  - `draft` - machine-drafted and/or awaiting community review. The UI MUST
- *                 surface this so we never imply verified quality.
+ *                 Offered with no badge. "Regular", full support.
+ *  - `beta`     - machine-drafted, not yet reviewed, but complete and stable
+ *                 enough to offer with an honest badge. A built-in locale at
+ *                 this status IS shown in the language pickers.
+ *  - `draft`    - machine-drafted and incomplete, or awaiting its first
+ *                 review pass. A built-in locale at this status is withheld
+ *                 from the pickers entirely (see `selectableLocales()`); a
+ *                 user-supplied one (dropped into `<userData>/locales/`) is
+ *                 still shown, badged, because hiding the user's own catalog
+ *                 would be a regression.
  *
- * Anything we cannot prove is `complete` is treated as `draft`; see
- * `DEFAULT_LOCALE_METADATA` in `I18nService.ts`.
+ * Promote a built-in locale by changing its `meta.json` `locale.status` from
+ * `draft` to `beta` (badge shown) or `complete` (badge dropped) - nothing else
+ * needs to change; `selectableLocales()` and the pickers read this field.
+ *
+ * Anything we cannot prove is `complete` or `beta` is treated as `draft`; see
+ * `DEFAULT_LOCALE_STATUS` in `I18nService.ts`.
  */
-export type LocaleStatus = 'complete' | 'draft';
+export type LocaleStatus = 'complete' | 'beta' | 'draft';
 
 /** Base writing direction. Forward-planning for Arabic/Hebrew UI locales. */
 export type LocaleDirection = 'ltr' | 'rtl';

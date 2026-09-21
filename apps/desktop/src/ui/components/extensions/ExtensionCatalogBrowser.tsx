@@ -43,7 +43,7 @@ export function ExtensionCatalogBrowser({
   onInstalled,
   onManageCatalogs,
 }: ExtensionCatalogBrowserProps): JSX.Element {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [listings, setListings] = useState<CatalogListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +193,7 @@ export function ExtensionCatalogBrowser({
           {visible.map((listing) => {
             const alreadyInstalled = installedIds.includes(listing.id);
             const isBusy = busyId === listing.id;
-            const size = formatSize(listing.sizeBytes);
+            const size = formatSize(listing.sizeBytes, localizer);
             return (
               <li
                 key={`${listing.sourceUrl}::${listing.id}`}

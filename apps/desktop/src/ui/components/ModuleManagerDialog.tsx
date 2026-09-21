@@ -146,7 +146,7 @@ const isPanelTab = (tab: ModuleManagerTab): tab is 'features' | 'repositories' =
   tab === 'features' || tab === 'repositories';
 
 const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, initialModuleType }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const td = useTd();
   const dialogRef = useRef<HTMLDivElement>(null);
   const appliedInitialFilterRef = useRef(false);
@@ -579,7 +579,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
 
   const officialRepo = repositories.find(r => r.type === 'official');
   const lastUpdated = officialRepo?.lastFetched
-    ? new Date(officialRepo.lastFetched).toLocaleDateString()
+    ? localizer.formatDate(new Date(officialRepo.lastFetched))
     : td('moduleManager.lastUpdatedNever', 'Never');
 
   const panelTab = isPanelTab(activeTypeTab);

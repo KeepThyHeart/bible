@@ -24,6 +24,36 @@ export {
   isSingleChapterBook,
 } from './Data/Core/BookNames';
 
+// Locale identity metadata and the per-language `Localizer` interface. Also
+// re-exported from `./browser` (this package's platform-free entry point) -
+// both modules are pure `Intl` + data, so they belong in both barrels.
+export {
+  LOCALE_REGISTRY,
+  resolveLocaleDescriptor,
+  directionForTag,
+} from './Data/Locales/LocaleRegistry';
+export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
+export {
+  EnglishLocalizer,
+  createIntlLocalizer,
+  getLocalizer,
+  registerLocalizer,
+} from './Data/Locales/Localizer';
+export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
+export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
+// Side-effect import: registers every built-in Localizer beyond `en` (see the
+// module doc). Importing `@bible/core` or `@bible/core/browser` is then
+// enough for `getLocalizer('es')` / `getLocalizer('zh-Hans')` to return the
+// full Localizer - no other call site has to know these exist.
+export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
+export {
+  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/es';
+export {
+  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/zhHans';
+
 // Re-export Controllers via the barrel, so the root export surface and the
 // TypeDoc entry point (`src/Controllers/index.ts`) cannot drift apart. They did:
 // the barrel listed only ModuleController and ModuleCatalogController while this

@@ -224,6 +224,8 @@
       &:first-child { margin-top: 0; }
     }
 
+    // Renders the actual passage text being copied - Bible content, kept
+    // physical. See the `.verse--preface` comment in _bible-content.scss.
     blockquote {
       margin: 0 0 8px;
       padding-left: 10px;
@@ -266,7 +268,7 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       font-size: calc(12px * var(--ui-font-scale, 1));
-      margin-left: auto;
+      margin-inline-start: auto;
     }
   }
 

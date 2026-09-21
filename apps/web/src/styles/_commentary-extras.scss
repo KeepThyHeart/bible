@@ -35,7 +35,7 @@
 
   &__pin-indicator {
     color: var(--accent-color);
-    margin-right: 2px;
+    margin-inline-end: 2px;
     opacity: 0.7;
   }
 }
@@ -177,7 +177,7 @@
     font-size: calc(12px * var(--ui-font-scale, 1));
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: auto;
+    margin-inline-start: auto;
     font-weight: 500;
 
     &:hover {
@@ -240,7 +240,7 @@
     color: #b58609;
     font-size: calc(12px * var(--ui-font-scale, 1));
     padding: 3px 10px;
-    margin-left: auto;
+    margin-inline-start: auto;
     font-weight: 500;
 
     &:hover {

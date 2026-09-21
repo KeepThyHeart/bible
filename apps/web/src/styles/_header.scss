@@ -66,7 +66,7 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    border-right: 1px solid var(--border-color);
+    border-inline-end: 1px solid var(--border-color);
   }
 
   &__search-type-btn {
@@ -100,7 +100,7 @@
   &__search-type-dropdown {
     position: absolute;
     top: calc(100% + 8px);
-    left: 0;
+    inset-inline-start: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -169,7 +169,7 @@
   &__ideas-help-popup {
     position: absolute;
     top: calc(100% + 12px);
-    right: -8px;
+    inset-inline-end: -8px;
     width: 340px;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
@@ -187,7 +187,7 @@
 
     ul {
       margin: 6px 0 10px;
-      padding-left: 18px;
+      padding-inline-start: 18px;
 
       li {
         margin-bottom: 4px;
@@ -266,7 +266,7 @@
   // clear button, so the two never contend for the same corner.
   &__search-hint {
     flex-shrink: 0;
-    margin-right: 8px;
+    margin-inline-end: 8px;
     padding: 1px 6px;
     border: 1px solid var(--border-color);
     border-bottom-width: 2px;
@@ -293,8 +293,8 @@
   &__suggestions {
     position: absolute;
     top: calc(100% + 4px);
-    left: 0;
-    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -348,7 +348,7 @@
     display: flex;
     gap: 4px;
     align-items: center;
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   &__offline-badge {
@@ -363,7 +363,7 @@
   &__offline-dot {
     position: absolute;
     top: 4px;
-    right: 4px;
+    inset-inline-end: 4px;
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -393,7 +393,7 @@
   &__theme-dropdown {
     position: absolute;
     top: calc(100% + 6px);
-    right: 0;
+    inset-inline-end: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;

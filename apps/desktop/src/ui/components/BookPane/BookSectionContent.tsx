@@ -32,7 +32,7 @@ export const BookSectionContent: React.FC<BookSectionContentProps> = ({
   navigateToSection,
   navigateToHome,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
 
   return (
     <div className="px-xl py-lg max-w-4xl mx-auto">
@@ -99,7 +99,7 @@ export const BookSectionContent: React.FC<BookSectionContentProps> = ({
           </div>
           {currentSection.word_count && (
             <div className="text-xs text-text-secondary ms-md">
-              {t('bookPane.wordCount', { count: currentSection.word_count.toLocaleString(), })}
+              {t('bookPane.wordCount', { count: localizer.formatNumber(currentSection.word_count), })}
             </div>
           )}
         </div>
@@ -111,7 +111,7 @@ export const BookSectionContent: React.FC<BookSectionContentProps> = ({
           <h3 className="text-lg font-semibold text-text-heading mb-sm">
             {t('bookPane.contentsHeading')}
           </h3>
-          {renderSectionTree(childSections, activeTab.abbreviation, sectionSummaries, navigateToSection, t)}
+          {renderSectionTree(childSections, activeTab.abbreviation, sectionSummaries, navigateToSection, t, localizer)}
         </div>
       )}
 

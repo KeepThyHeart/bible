@@ -1,6 +1,8 @@
 import { useStore } from '../../hooks/useStore';
 import { searchStore } from '../../stores/searchStore';
 import { useTranslation } from 'react-i18next';
+import { useLocalizer } from '../../hooks/useLocalizer';
+import type { Localizer } from '@bible/core/browser';
 
 /** Step number + label for each init stage. */
 const STAGE_INFO: Record<string, { step: number; label: string }> = {
@@ -9,9 +11,9 @@ const STAGE_INFO: Record<string, { step: number; label: string }> = {
   model: { step: 3, label: 'Loading the search engine…' },
 };
 
-function fmtMB(bytes?: number): string {
+function fmtMB(bytes: number | undefined, localizer: Localizer): string {
   if (!bytes) return '';
-  return `${(bytes / 1048576).toFixed(1)} MB`;
+  return `${localizer.formatNumber(bytes / 1048576, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 }
 
 /**
@@ -21,6 +23,7 @@ function fmtMB(bytes?: number): string {
  */
 export function SemanticSearchLoadingOverlay() {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
   const init = useStore(searchStore, () => searchStore.semanticInit);
   const dismissed = useStore(searchStore, () => searchStore.semanticInitDismissed);
 
@@ -44,7 +47,7 @@ export function SemanticSearchLoadingOverlay() {
       {isError ? (
         <>
           <div class="semantic-loading__title">
-            <i class="fa-solid fa-triangle-exclamation" style={{ color: '#c53030', marginRight: '8px' }} />
+            <i class="fa-solid fa-triangle-exclamation" style={{ color: '#c53030', marginInlineEnd: '8px' }} />
             Ideas Search unavailable
           </div>
           <div class="semantic-loading__detail">
@@ -71,8 +74,8 @@ export function SemanticSearchLoadingOverlay() {
             <span>{pct !== null ? `${Math.round(pct * 100)}%` : ''}</span>
             <span>
               {init.total
-                ? `${fmtMB(init.loaded)} / ${fmtMB(init.total)}`
-                : fmtMB(init.loaded)}
+                ? `${fmtMB(init.loaded, localizer)} / ${fmtMB(init.total, localizer)}`
+                : fmtMB(init.loaded, localizer)}
             </span>
           </div>
 

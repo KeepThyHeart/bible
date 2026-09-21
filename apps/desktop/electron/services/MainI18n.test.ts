@@ -39,7 +39,11 @@ describe('MainI18n', () => {
   });
 
   it('falls back to English for a locale that has no entry', () => {
-    setMainLocale('es');
+    // `ar` still has no main.json at all as of this writing (unlike `es`,
+    // which was drafted after this test was first written - see the
+    // globalization task) - it's a stand-in for "a locale missing this
+    // namespace", not a statement about Arabic specifically.
+    setMainLocale('ar');
     expect(t('main.dialog.saveBackup')).toBe('Save Backup File');
   });
 

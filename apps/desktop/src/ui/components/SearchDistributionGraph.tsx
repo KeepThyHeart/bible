@@ -32,7 +32,7 @@ import type { SearchResult } from '@bible/core/types/search';
 import { useI18n } from '../contexts/useI18n';
 import type { SemanticResult } from '../stores/useSearchStore';
 import { sectionColorToken } from '../constants/bibleSections';
-import { BOOK_NAMES } from '../constants/bibleBooks';
+import { localizedBookNames } from '../constants/bibleBooks';
 import { bibleAPI } from '../services/electronAPI';
 import { loadBookNamesCache, getBookNameFromCache } from '../utils/verseReference';
 
@@ -115,14 +115,16 @@ function countByBook(props: DistributionProps): Map<number, number> {
 }
 
 const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const { onSelectBook } = props;
+  const defaultBookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
 
   // Localized book names come from the module database via the same cache the
   // verse-preview tooltip uses. Until it resolves (and if it never does - the
-  // loader swallows its own failure and leaves an empty cache) the English
-  // table is the fallback, so a bar is never nameless.
-  const [bookNames, setBookNames] = useState<Record<number, string>>(BOOK_NAMES);
+  // loader swallows its own failure and leaves an empty cache) the active
+  // locale's table (English until other locales are drafted) is the
+  // fallback, so a bar is never nameless.
+  const [bookNames, setBookNames] = useState<Record<number, string>>(defaultBookNames);
   useEffect(() => {
     let cancelled = false;
     void loadBookNamesCache(bibleAPI).then(() => {
@@ -131,8 +133,8 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
       let differs = false;
       for (let n = 1; n <= BOOK_COUNT; n += 1) {
         const cached = getBookNameFromCache(n);
-        resolved[n] = cached === 'Unknown' ? (BOOK_NAMES[n] ?? String(n)) : cached;
-        if (resolved[n] !== BOOK_NAMES[n]) differs = true;
+        resolved[n] = cached === 'Unknown' ? (defaultBookNames[n] ?? String(n)) : cached;
+        if (resolved[n] !== defaultBookNames[n]) differs = true;
       }
       // No re-render when the module's names are the English ones anyway -
       // which is also what happens when the cache could not be loaded at all.
@@ -141,7 +143,7 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [defaultBookNames]);
 
   const bookName = (bookNumber: number): string => bookNames[bookNumber] ?? String(bookNumber);
 

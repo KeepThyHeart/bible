@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../contexts/useI18n';
+import type { Localizer } from '@bible/core';
 import {
   hostOf,
   isMarketplaceError,
@@ -32,9 +33,9 @@ import {
   type CatalogSource,
 } from './marketplaceTypes';
 
-function formatTimestamp(ts: number | undefined): string {
+function formatTimestamp(ts: number | undefined, localizer: Localizer): string {
   if (ts === undefined || ts <= 0) return '—';
-  return new Date(ts).toLocaleString();
+  return localizer.formatDate(new Date(ts), { dateStyle: 'medium', timeStyle: 'medium' });
 }
 
 export interface ExtensionCatalogSourcesProps {
@@ -45,7 +46,7 @@ export interface ExtensionCatalogSourcesProps {
 export function ExtensionCatalogSources({
   onSourcesChanged,
 }: ExtensionCatalogSourcesProps): JSX.Element {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [sources, setSources] = useState<CatalogSource[]>([]);
   const [blocklist, setBlocklist] = useState<BlocklistEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,7 +328,7 @@ export function ExtensionCatalogSources({
                     <div className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
                       {t(
                         'extensions.catalogs.lastFetched',
-                        { when: formatTimestamp(source.lastFetchedAt), },
+                        { when: formatTimestamp(source.lastFetchedAt, localizer), },
                       )}
                     </div>
                     {!source.isDefault && (

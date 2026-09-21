@@ -15,9 +15,8 @@
  * so it is directly unit-testable.
  */
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { ReferenceParser, type ParsedReference } from '@bible/core';
-
-const parser = new ReferenceParser();
+import type { ParsedReference } from '@bible/core';
+import { getLocalizedReferenceParser } from '../../../services/localizedReferenceParser';
 
 /** A detected Bible reference and the document range it occupies. */
 export interface VerseRefRange {
@@ -50,7 +49,7 @@ export function findVerseReferenceRanges(doc: ProseMirrorNode): VerseRefRange[] 
     if (!node.isText || !node.text) return;
     const text = node.text;
 
-    for (const match of parser.scanText(text)) {
+    for (const match of getLocalizedReferenceParser().scanText(text)) {
       // For a text node, `pos` is the position immediately before the node,
       // so character offset i maps to pos + i exactly.
       const trimmed = trimRange(text, match.start, match.end);

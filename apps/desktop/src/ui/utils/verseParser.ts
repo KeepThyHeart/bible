@@ -1,4 +1,5 @@
-import { VerseId, VerseIdHelper, ENGLISH_BOOK_NAMES, getBookName as coreGetBookName } from '@bible/core';
+import { VerseId, VerseIdHelper, ENGLISH_BOOK_NAMES, getBookName as coreGetBookName, getLocalizer } from '@bible/core';
+import { i18nService } from '../services/I18nService';
 
 /**
  * Utility for parsing Bible verse references from text
@@ -15,7 +16,14 @@ import { VerseId, VerseIdHelper, ENGLISH_BOOK_NAMES, getBookName as coreGetBookN
 // core's ReferenceParser accepts "John 0:1", "John 3:0" and the reversed
 // range "John 3:16-10", all of which this parser correctly rejects, and it
 // fuzzy-matches typos ("Genesus" -> Genesis) which would be wrong here.
-const BOOK_NAME_MAP: ReadonlyMap<string, number> = ENGLISH_BOOK_NAMES;
+//
+// Resolved fresh from the active UI locale on every call (rather than cached
+// at module scope) so it follows a locale change at runtime; falls back to
+// the English table until a locale's book-name table is drafted (see
+// `Localizer.ts`'s module doc).
+function bookNameMap(): ReadonlyMap<string, number> {
+  return getLocalizer(i18nService.currentLocale).referenceParserConfig?.bookNames ?? ENGLISH_BOOK_NAMES;
+}
 
 export interface ParsedReference {
   bookNumber: number;
@@ -51,7 +59,7 @@ export function parseVerseReference(reference: string): ParsedReference | undefi
   }
 
   const [, bookName, chapterStr, verseStartStr, verseEndStr] = match;
-  const bookNum = BOOK_NAME_MAP.get(bookName.trim());
+  const bookNum = bookNameMap().get(bookName.trim());
 
   if (!bookNum) {
     return undefined;
@@ -111,11 +119,16 @@ export function findVerseReferences(text: string): ParsedReference[] {
 }
 
 /**
- * Get the full book name from book number.
- * core's getBookName applies the same `Book <n>` fallback this used inline.
+ * Get the full book name from book number, locale-aware.
+ * Falls back to core's English `getBookName` (which applies the same
+ * `Book <n>` fallback this used inline) until a locale's display names are
+ * drafted.
  */
 function getBookName(bookNum: number): string {
-  return coreGetBookName(bookNum);
+  return (
+    getLocalizer(i18nService.currentLocale).referenceParserConfig?.displayNames?.[bookNum - 1] ??
+    coreGetBookName(bookNum)
+  );
 }
 
 /**

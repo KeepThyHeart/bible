@@ -240,12 +240,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <span class="search-panel-inline__title">
             {strongsMode ? (
               <>
-                <i class="fa-solid fa-language" style={{ opacity: 0.5, marginRight: '6px', fontSize: '0.85em' }} />
+                <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
                 {query} ({t('search.results', { count: totalResults })})
               </>
             ) : (
               <>
-                <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginRight: '6px', fontSize: '0.85em' }} />
+                <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
                 "{query}" ({t('search.results', { count: totalResults })})
               </>
             )}
@@ -329,7 +329,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
       <div class="search-panel-inline__results" ref={resultsRef}>
         {loading && (
           <div class="search-panel-inline__loading">
-            <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+            <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
             {t('search.searching')}
           </div>
         )}
@@ -445,7 +445,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               onClick={() => searchStore.loadAllKeyword()}
             >
               {loadingMore ? (
-                <><i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('search.loadingMore')}</>
+                <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
               ) : (
                 t('search.loadAll', { count: keywordRemaining })
               )}
@@ -461,7 +461,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               onClick={() => (strongsMode ? searchStore.loadMoreStrongs() : searchStore.loadMoreSemantic())}
             >
               {loadingMore ? (
-                <><i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('search.loadingMore')}</>
+                <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
               ) : (
                 t('search.showMore')
               )}
@@ -472,7 +472,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               <button
                 type="button"
                 class="search-panel-inline__load-more-btn"
-                style={{ marginLeft: '8px' }}
+                style={{ marginInlineStart: '8px' }}
                 disabled={loadingMore}
                 onClick={() => searchStore.loadAllStrongs()}
               >

@@ -47,6 +47,37 @@ export type { BookNameFormat } from './Data/Core/BookNames';
 export { ReferenceParser } from './Services/ReferenceParser';
 export type { ParsedReference, IReferenceParser, ReferenceParserConfig } from './Services/ReferenceParser';
 
+// --- Locale identity and per-language processing ----------------------------
+// Shared, translation-free locale metadata (direction, script, digits) plus
+// the `Localizer` interface that gives every planned locale correct
+// number/date/collation/case behavior today, and a place for a language's own
+// book-name table once one is drafted. See `Data/Locales/Localizer.ts`.
+export {
+  LOCALE_REGISTRY,
+  resolveLocaleDescriptor,
+  directionForTag,
+} from './Data/Locales/LocaleRegistry';
+export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
+export {
+  EnglishLocalizer,
+  createIntlLocalizer,
+  getLocalizer,
+  registerLocalizer,
+} from './Data/Locales/Localizer';
+export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
+export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
+// Side-effect import: registers every built-in Localizer beyond `en` (see the
+// module doc). Both books/*.ts files are pure data - no platform deps - so
+// this belongs in the browser barrel too.
+export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
+export {
+  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/es';
+export {
+  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/zhHans';
+
 export { collapseReferences, collapseReferencesStructured } from './Services/ReferenceCollapser';
 export type { CollapseOptions, CollapsedSegment } from './Services/ReferenceCollapser';
 

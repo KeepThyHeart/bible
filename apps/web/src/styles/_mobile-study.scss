@@ -78,8 +78,8 @@
     > .mobile-dictionary,
     > .study-home,
     > .mobile-commentary-detail {
-      padding-left: 12px;
-      padding-right: 12px;
+      padding-inline-start: 12px;
+      padding-inline-end: 12px;
     }
 
     // Prevent double-scrollbar: topics-pane and topics-browser both scroll;
@@ -184,8 +184,8 @@
 .mobile-topics-overlay {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   z-index: 100;
   background: var(--bg-primary);
@@ -232,7 +232,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary, #666);
-    margin-right: 4px;
+    margin-inline-end: 4px;
 
     &::after {
       content: ' —';
@@ -293,7 +293,7 @@
   &__center {
     flex: 1;
     min-width: 0;
-    text-align: left;
+    text-align: start;
     padding: 0 4px;
   }
 
@@ -431,7 +431,7 @@
 .verse-history {
   position: absolute;
   top: calc(100% + 4px);
-  right: 0;
+  inset-inline-end: 0;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
@@ -460,7 +460,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     color: var(--text-primary);
     font-size: calc(14px * var(--ui-font-scale, 1));
     transition: background 0.1s;
@@ -570,8 +570,8 @@
         content: '';
         position: absolute;
         bottom: 0;
-        left: 20%;
-        right: 20%;
+        inset-inline-start: 20%;
+        inset-inline-end: 20%;
         height: 2px;
         background: var(--accent-color);
         border-radius: 1px;
@@ -733,7 +733,7 @@
   &__suggestion {
     display: block;
     width: 100%;
-    text-align: left;
+    text-align: start;
     padding: 10px 14px;
     border: none;
     border-bottom: 1px solid var(--border-color);
@@ -901,7 +901,7 @@
     border-radius: 0;
     background: var(--bg-primary);
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-family: inherit;
     transition: background 0.15s;
     overflow: hidden;
@@ -988,7 +988,7 @@
   }
 
   &__card-level {
-    margin-left: 4px;
+    margin-inline-start: 4px;
     font-style: italic;
   }
 
@@ -1104,6 +1104,8 @@
     a { color: var(--accent-color); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    // Renders a module's own dictionary/commentary prose - content, kept
+    // physical. See the `.verse--preface` comment in _bible-content.scss.
     ul, ol {
       padding-left: 1.5em;
       margin: 0.5em 0;
@@ -1155,7 +1157,7 @@
   font-size: calc(11px * var(--ui-font-scale, 1));
   color: var(--text-muted);
   margin-top: 2px;
-  padding-left: 24px;
+  padding-inline-start: 24px;
 }
 
 .font-size-control {

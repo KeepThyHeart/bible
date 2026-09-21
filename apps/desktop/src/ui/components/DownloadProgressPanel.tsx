@@ -3,7 +3,7 @@ import { useModuleStore, DownloadProgress } from '../stores/useModuleStore';
 import { useI18n } from '../contexts/useI18n';
 
 const DownloadProgressPanel: React.FC = () => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const { activeDownloads, pauseDownload, resumeDownload, cancelDownload } = useModuleStore();
 
   if (activeDownloads.length === 0) {
@@ -31,7 +31,7 @@ const DownloadProgressPanel: React.FC = () => {
   const formatSpeed = (mbps: number | undefined): string => {
     if (!mbps) return '';
     if (mbps < 1) return `${Math.round(mbps * 1024)} KB/s`;
-    return `${mbps.toFixed(2)} MB/s`;
+    return `${localizer.formatNumber(mbps, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MB/s`;
   };
 
   // A finished download is the one state change worth interrupting the user
@@ -156,7 +156,7 @@ const DownloadProgressPanel: React.FC = () => {
               <div className="flex items-center justify-between text-xs text-text-tertiary">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">
-                    {download.progressPercentage.toFixed(1)}%
+                    {localizer.formatNumber(download.progressPercentage, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                   </span>
                   {download.totalBytes && (
                     <span>

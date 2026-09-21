@@ -4,6 +4,9 @@
 // ============================================================
 .semantic-loading {
   position: fixed;
+  // Horizontal-centering idiom, not a directional offset - stays physical.
+  // Logical `inset-inline-start: 50%` plus a physical `translateX(-50%)`
+  // would miscenter this under RTL.
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
@@ -21,7 +24,7 @@
   &__close {
     position: absolute;
     top: 8px;
-    right: 10px;
+    inset-inline-end: 10px;
     background: none;
     border: none;
     color: var(--text-secondary);

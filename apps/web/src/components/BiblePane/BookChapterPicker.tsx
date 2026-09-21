@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { BOOK_ALIASES, MAX_CHAPTERS } from '../../constants';
+import { localizedBookAliases, MAX_CHAPTERS } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { bibleStore } from '../../stores/bibleStore';
 import { searchStore } from '../../stores/searchStore';
 import { useStore } from '../../hooks/useStore';
+import { useLocalizer } from '../../hooks/useLocalizer';
 import { SearchResultItem } from '../Search/SearchResultItem';
 import { TranslationDialog } from './TranslationDialog';
 import { parseVerseId } from '../../utils/verseId';
@@ -32,12 +33,14 @@ const NT_BOOKS = Array.from({ length: 27 }, (_, i) => i + 40);
 // Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
 const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude
 
-function parseReference(input: string): { book: number; chapter: number; verse?: number; endVerse?: number } | null {
+function parseReference(input: string, bookAliases: Record<string, number>): { book: number; chapter: number; verse?: number; endVerse?: number } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   const normalized = normalizeRomanPrefix(trimmed.toLowerCase());
 
-  // Build list of [abbreviation, bookNumber] pairs from i18n book names and BOOK_ALIASES
+  // Build list of [abbreviation, bookNumber] pairs from i18n book names and
+  // the active locale's alias table (English merged in underneath — see
+  // localizedBookAliases).
   const candidates: [string, number][] = [];
   for (const [numStr, name] of Object.entries(getAllBookNames())) {
     const bookNum = parseInt(numStr, 10);
@@ -46,7 +49,7 @@ function parseReference(input: string): { book: number; chapter: number; verse?:
     candidates.push([lowerName.substring(0, 3), bookNum]);
     if (/^\d/.test(lowerName)) candidates.push([lowerName.replace(' ', ''), bookNum]);
   }
-  for (const [alias, bookNum] of Object.entries(BOOK_ALIASES)) {
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
     candidates.push([alias.toLowerCase(), bookNum]);
   }
   // Sort longest-first so longer matches take priority
@@ -113,12 +116,12 @@ function normalizeRomanPrefix(input: string): string {
 }
 
 /** Filter book numbers by matching input text against book names/abbreviations/aliases */
-function filterBooks(books: number[], filter: string): number[] {
+function filterBooks(books: number[], filter: string, bookAliases: Record<string, number>): number[] {
   if (!filter) return books;
   const lower = normalizeRomanPrefix(filter.toLowerCase());
   // Build a reverse lookup: bookNumber -> set of alias strings
   const aliasesByBook = new Map<number, string[]>();
-  for (const [alias, bookNum] of Object.entries(BOOK_ALIASES)) {
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
     const list = aliasesByBook.get(bookNum) ?? [];
     list.push(alias.toLowerCase());
     aliasesByBook.set(bookNum, list);
@@ -152,6 +155,8 @@ function fuzzyMatch(text: string, filter: string): boolean {
 
 export function BookChapterPicker({ isOpen, onClose, onSelect, currentBook, currentChapter, moduleAbbr, onChangeTranslation }: BookChapterPickerProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const [selectedBook, setSelectedBook] = useState<number | null>(null);
   const [refValue, setRefValue] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -297,10 +302,16 @@ export function BookChapterPicker({ isOpen, onClose, onSelect, currentBook, curr
       return;
     }
 
-    // The local parseReference handles i18n book names, aliases, and common
-    // reference formats. (Importing ReferenceParser from @bible/core is not
-    // viable in client-side Rollup builds — see notes in offline/bibleWorker.ts.)
-    const local = parseReference(trimmed);
+    // The local parseReference handles i18n book names and common reference
+    // formats (verse ranges, single-chapter books, roman-numeral prefixes),
+    // matched against the active locale's own alias table — see
+    // localizedBookAliases. (This intentionally reuses that hand-rolled
+    // matcher rather than core's ReferenceParser class, whose range/whole-book
+    // grammar differs from what this reference box accepts; core's worker
+    // build note in offline/bibleWorker.ts is about the isolated Web Worker
+    // bundle, not this component's bundle, where @bible/core/browser is
+    // already used elsewhere in this file.)
+    const local = parseReference(trimmed, bookAliases);
     if (local) {
       onSelect(local.book, local.chapter, local.verse, local.endVerse);
       return;
@@ -329,8 +340,8 @@ export function BookChapterPicker({ isOpen, onClose, onSelect, currentBook, curr
   // Determine the book filter text: only use refValue for filtering when we're on the book list
   // and the text doesn't look like a full reference (no numbers after the book name)
   const bookFilter = !selectedBook ? getBookFilterText(refValue) : '';
-  const filteredOT = filterBooks(OT_BOOKS, bookFilter);
-  const filteredNT = filterBooks(NT_BOOKS, bookFilter);
+  const filteredOT = filterBooks(OT_BOOKS, bookFilter, bookAliases);
+  const filteredNT = filterBooks(NT_BOOKS, bookFilter, bookAliases);
   const hasFilter = bookFilter.length > 0;
 
   const isMobileView = typeof window !== 'undefined' && (window.innerWidth <= 768 || 'ontouchstart' in window);
