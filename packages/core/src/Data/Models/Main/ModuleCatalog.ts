@@ -1,4 +1,4 @@
-import { Metadata } from '../../Core/Types';
+import { Metadata, normalizeModuleType } from '../../Core/Types';
 import { RepositoryCatalog, CatalogSignatureStatus } from '../../Core/CatalogTypes';
 
 /**
@@ -106,7 +106,15 @@ export class ModuleCatalog {
       return undefined;
     }
     try {
-      return JSON.parse(this.catalogJson);
+      const catalog = JSON.parse(this.catalogJson) as RepositoryCatalog;
+      // Publishers spell two types differently from the app (`topical`,
+      // `xref`); settle it here so every consumer sees one vocabulary.
+      if (Array.isArray(catalog.modules)) {
+        for (const module of catalog.modules) {
+          if (module?.module_type) module.module_type = normalizeModuleType(module.module_type) as typeof module.module_type;
+        }
+      }
+      return catalog;
     } catch {
       return undefined;
     }

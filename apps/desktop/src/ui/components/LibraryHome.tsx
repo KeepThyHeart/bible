@@ -83,7 +83,7 @@ const LibrarySection: React.FC<SectionProps> = ({
             </p>
             <button
               type="button"
-              className="px-3 py-1.5 text-sm rounded bg-accent-primary text-on-accent hover:opacity-90 transition-opacity"
+              className="rounded bg-accent px-3 py-1.5 text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={() => onInstall(kind)}
               data-testid={`library-install-${kind}`}
             >

@@ -134,34 +134,25 @@ export function verifyCatalogSignature(
 
   // -- Verify every signature over SHA-256 of the catalog bytes --------
   const digest = createHash('sha256').update(catalogBytes).digest();
-  const signers: string[] = [];
-  for (const entry of entries) {
-    let signatureValid: boolean;
-    try {
-      signatureValid = verify(
-        null,
-        digest,
-        ed25519PublicKey(entry.publicKey),
-        Buffer.from(entry.signature, 'hex'),
-      );
-    } catch (err) {
-      return {
-        status: 'error',
-        message: `Catalog signature verification error: ${(err as Error).message}`,
-      };
-    }
-
-    if (!signatureValid) {
-      return {
-        status: 'invalid',
-        publicKey: entry.publicKey,
-        message:
-          'Catalog signature does not match its contents — the catalog may have been ' +
-          'tampered with in transit.',
-      };
-    }
-    signers.push(entry.publicKey);
+  let check: DigestSignatureCheck;
+  try {
+    check = verifyDigestAgainstEntries(digest, entries);
+  } catch (err) {
+    return {
+      status: 'error',
+      message: `Catalog signature verification error: ${(err as Error).message}`,
+    };
   }
+  if (!check.valid) {
+    return {
+      status: 'invalid',
+      publicKey: check.publicKey,
+      message:
+        'Catalog signature does not match its contents — the catalog may have been ' +
+        'tampered with in transit.',
+    };
+  }
+  const signers = check.signers;
 
   // -- Every signature is valid; is one of them by a key we trust? -----
   if (trustedKeys.length === 0) {
@@ -218,13 +209,58 @@ export function ed25519PublicKey(publicKeyHex: string): KeyObject {
   });
 }
 
+export interface DigestSignatureCheck {
+  valid: boolean;
+  /** Every key whose signature verified, in document order. Only set when `valid`. */
+  signers: string[];
+  /** The key whose signature failed to verify, when not `valid`. */
+  publicKey?: string;
+}
+
+/**
+ * Verify every signature entry against a precomputed digest - the shared core
+ * both catalog signatures (digest of the catalog bytes) and pack manifest
+ * signatures (digest of the domain-separated manifest, see
+ * `ModulePackSignature.ts`) build on, so the Ed25519 call site exists exactly
+ * once. All entries must verify for the result to be `valid`: one bad
+ * signature invalidates the whole document, since something that should not
+ * have changed did.
+ *
+ * Callers decide what an unexpected crypto error (a malformed key that slips
+ * past shape validation, say) means for their own status vocabulary - this
+ * lets it propagate rather than swallowing it into a status of its own.
+ */
+export function verifyDigestAgainstEntries(
+  digest: Buffer,
+  entries: readonly CatalogSignatureEntry[],
+): DigestSignatureCheck {
+  const signers: string[] = [];
+  for (const entry of entries) {
+    const signatureValid = verify(
+      null,
+      digest,
+      ed25519PublicKey(entry.publicKey),
+      Buffer.from(entry.signature, 'hex'),
+    );
+    if (!signatureValid) {
+      return { valid: false, publicKey: entry.publicKey, signers: [] };
+    }
+    signers.push(entry.publicKey);
+  }
+  return { valid: true, signers };
+}
+
 /**
  * The primary signature followed by any in `signatures`, or a message saying
  * why the document is malformed. One malformed entry fails the whole file:
  * publishing tooling never writes one, so it is either a bug to surface or an
  * attack.
+ *
+ * Exported so `ModulePackSignature.ts` can parse a `pack.json.sig` with the
+ * exact same shape rules as a `catalog.json.sig` (both use
+ * `CatalogSignatureEntry`/`signatures[]`) without duplicating them.
  */
-function readSignatureEntries(doc: unknown): CatalogSignatureEntry[] | string {
+export function readSignatureEntries(doc: unknown): CatalogSignatureEntry[] | string {
   if (!isRecord(doc)) return SHAPE_ERROR;
 
   const { signatures } = doc;

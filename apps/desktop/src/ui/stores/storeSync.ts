@@ -16,6 +16,8 @@
 
 import { useBibleStore } from './useBibleStore';
 import { useCommentaryStore } from './useCommentaryStore';
+import { useDictionaryStore } from './useDictionaryStore';
+import { useBookStore } from './useBookStore';
 import { useBookmarkStore } from './useBookmarkStore';
 import { useHighlightStore } from './useHighlightStore';
 import { useNotesStore } from './useNotesStore';
@@ -25,7 +27,9 @@ import { DEFAULT_PANEL_ID } from './helpers/panelStateHelpers';
 import { syncPanesWithVerse } from './syncPanesWithVerse';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
+import { useSessionStore } from './useSessionStore';
 import {
+  setNotifyLibraryChanged,
   setNavigateToVerseInPrimary,
   setPreviewVerseInPrimary,
   setResolvePrimaryBibleVerseId,
@@ -44,6 +48,29 @@ let wired = false;
 let detachedBibleVerseId: number | null = null;
 
 /**
+ * Refresh the Bible store after the set of installed Bibles changed, and seed
+ * the reading pane when this was the first Bible.
+ */
+async function refreshBibles(): Promise<void> {
+  await useBibleStore.getState().loadAvailableBibles();
+
+  // Seed the reading pane only from the true empty state: no Bible open in any
+  // panel, and the saved session (which may be about to restore tabs) already
+  // loaded and not staged for that panel. Anything else already has - or is
+  // about to have - a Bible, and swapping it out would be wrong.
+  if (!useSessionStore.getState().isSessionLoaded) return;
+  const bibleState = useBibleStore.getState();
+  let target: string | undefined;
+  for (const [panelId, ps] of bibleState.panels) {
+    if (ps.openTabs.length > 0) return;
+    if (target === undefined && !bibleState.sessionPanelStates.has(panelId)) target = panelId;
+  }
+  if (target !== undefined) {
+    await bibleState.loadInitialData(target);
+  }
+}
+
+/**
  * Install all cross-store bridges and reactive subscriptions.
  *
  * Safe to call more than once; subsequent calls are a no-op. Tests that need
@@ -57,6 +84,33 @@ export function wireStoreSync(): void {
   // ==========================================================================
   // Cross-store bridges (imperative calls)
   // ==========================================================================
+
+  // The module store raises this once an install/uninstall/update has finished.
+  // Every store that caches "what is installed" for its own pane must hear it,
+  // or the pane keeps saying "nothing installed" until the app restarts - which
+  // is exactly what a first-time user sees after installing from first run.
+  // A changed set of Bibles reaches the Bible store (translation picker and,
+  // when the very first Bible was just installed, the reading pane's seeding);
+  // commentaries, dictionaries and books reach their own stores.
+  setNotifyLibraryChanged(async (change) => {
+    const changed = new Set(change.moduleTypes);
+    const refreshes: Promise<unknown>[] = [];
+
+    if (changed.has('commentary')) {
+      refreshes.push(useCommentaryStore.getState().loadAvailableCommentaries());
+    }
+    if (changed.has('dictionary') || changed.has('lexicon')) {
+      refreshes.push(useDictionaryStore.getState().loadAvailableDictionaries());
+    }
+    if (changed.has('book') || changed.has('devotional')) {
+      refreshes.push(useBookStore.getState().loadAvailableBooks());
+    }
+    if (changed.has('bible')) {
+      refreshes.push(refreshBibles());
+    }
+    // allSettled: one store failing to refresh must not leave the rest stale.
+    await Promise.allSettled(refreshes);
+  });
 
   // Commentary slices call this when the user clicks a verse in the
   // commentary and we want the Bible pane to follow along.

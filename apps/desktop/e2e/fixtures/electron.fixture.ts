@@ -139,7 +139,7 @@ async function dismissFirstRunDialog(window: Page): Promise<void> {
     .catch(() => false);
   if (!appeared) return;
 
-  // Two steps - choose a language ("Continue"), then suggested content
+  // Steps - choose a language ("Continue"), then suggested content
   // ("Start reading") - and it opens straight on the second when only one
   // language is selectable. Advance through whichever step is on screen rather
   // than assuming either shape, so this keeps working if the language question
@@ -148,11 +148,19 @@ async function dismissFirstRunDialog(window: Page): Promise<void> {
   // both be in the DOM at once, so matching them with one selector and taking
   // `.first()` picked "continue" by document order and clicked a button that
   // was not on screen - which advanced nothing and cost a timeout per attempt.
-  for (let step = 0; step < 4; step++) {
+  //
+  // A fresh profile has not answered the network question, so a third step -
+  // network consent - sits between the two. "Stay offline" is the right answer
+  // here: it is deterministic (no native confirmation dialog, no catalog
+  // fetch) and the specs never need the network.
+  for (let step = 0; step < 5; step++) {
     const done = window.locator('[data-testid="first-run-language-done"]:visible');
+    const stayOffline = window.locator('[data-testid="first-run-network-stay-offline"]:visible');
     const advance = (await done.count()) > 0
       ? done.first()
-      : window.locator('[data-testid="first-run-language-continue"]:visible').first();
+      : (await stayOffline.count()) > 0
+        ? stayOffline.first()
+        : window.locator('[data-testid="first-run-language-continue"]:visible').first();
 
     if (await advance.count() === 0) break;
     await advance.click();

@@ -8,6 +8,7 @@ import { registerBuiltinCommands } from './commands';
 import { buildMenuSpec } from './menu/buildMenuSpec';
 import { bindDocumentDirection, restorePersistedLocale } from './utils/documentDirection';
 import { markLocaleCatalogsReady, whenLocaleCatalogsReady } from './services/localeCatalogsReady';
+import { useNetworkStore } from './stores/useNetworkStore';
 import enUi from '../../locales/en/ui.json';
 import enCommands from '../../locales/en/commands.json';
 import enLayout from '../../locales/en/layout.json';
@@ -135,19 +136,6 @@ interface ElectronMenuBridge {
 const electronMenuBridge = (window as unknown as { electron?: { electronMenu?: ElectronMenuBridge } })
   .electron?.electronMenu;
 
-// Master "Allow web requests" switch. Cached in the renderer purely to
-// reflect the checked state of the Privacy -> Allow Web Requests menu toggle;
-// the source of truth is the persisted network config in main.
-interface NetworkBridge {
-  getAllowWebRequests: () => Promise<{ ok: boolean; value?: boolean }>;
-  setAllowWebRequests: (allow: boolean) => Promise<{ ok: boolean; value?: boolean }>;
-}
-const networkBridge = (window as unknown as { electron?: { network?: NetworkBridge } })
-  .electron?.network;
-// Starts false to match the persisted default, so the menu never shows
-// "allowed" before main has answered.
-let allowWebRequests = false;
-
 function pushMenuSpec(): void {
   if (!electronMenuBridge) return;
   try {
@@ -156,7 +144,7 @@ function pushMenuSpec(): void {
       i18n: services.i18n,
       keybindings: services.keybindings,
       isMac: isMacRenderer,
-      allowWebRequests,
+      allowWebRequests: useNetworkStore.getState().allowWebRequests,
     });
     electronMenuBridge.rebuild(spec);
   } catch (err) {
@@ -190,39 +178,18 @@ electronMenuBridge?.onCommandExecute((commandId: string) => {
   void services.registry.execute(commandId);
 });
 
-// Master "Allow web requests" switch. Load the persisted state at boot
-// so the menu reflects it, and flip it when `network.toggleWebRequests` fires.
-if (networkBridge) {
-  void networkBridge
-    .getAllowWebRequests()
-    .then((res) => {
-      if (res.ok && typeof res.value === 'boolean') {
-        allowWebRequests = res.value;
-        pushMenuSpec();
-      }
-    })
-    .catch(() => {
-      /* leave the default (not allowed) */
-    });
+// Master "Allow web requests" switch, owned by `useNetworkStore` (shared with
+// Preferences → Privacy, first run, and the Module Manager offline banner).
+// Re-push the menu on every change so its checkbox never drifts from what
+// those other surfaces show - including a change broadcast from another
+// window (`network:changed`, subscribed inside the store's `load()`).
+useNetworkStore.subscribe(() => pushMenuSpec());
+void useNetworkStore.getState().load();
 
-  window.addEventListener('command:network:toggleWebRequests', () => {
-    void networkBridge
-      .setAllowWebRequests(!allowWebRequests)
-      .then((res) => {
-        // The reply carries the state AFTER main's confirmation dialog, so a
-        // cancelled prompt comes back `false` and the checkbox stays off. Never
-        // assume the requested value took effect.
-        if (res.ok && typeof res.value === 'boolean') {
-          allowWebRequests = res.value;
-          pushMenuSpec();
-        }
-      })
-      .catch((err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('[network] failed to toggle web requests:', err);
-      });
-  });
-}
+window.addEventListener('command:network:toggleWebRequests', () => {
+  const { allowWebRequests, requestAllow } = useNetworkStore.getState();
+  void requestAllow(!allowWebRequests);
+});
 
 root.render(
   <React.StrictMode>

@@ -316,6 +316,7 @@ export const TYPED_IPC_CHANNELS = [
   'module:install-from-file',
   'module:install-from-path',
   'module:install-pack-from-path',
+  'module:inspect-pack',
   'module:bless-dropped-path',
   'module:uninstall',
   'module:update',
