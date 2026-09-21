@@ -236,6 +236,18 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
     const mainDb = new SqliteProvider(mainDbPath);
     const metadataRepo = new ModuleMetadataRepository(mainDb);
 
+    // Modules installed from the catalog by earlier builds were registered as
+    // `topical` / `xref`, which nothing looks up. Rename them in place.
+    for (const [legacy, canonical] of [['topical', 'topical_index'], ['xref', 'cross_reference']]) {
+      try {
+        mainDb.execute('UPDATE module_metadata SET module_type = ? WHERE module_type = ?', [canonical, legacy]);
+      } catch (error) {
+        // An old main.db whose CHECK rejects the canonical name is rebuilt by
+        // migration 005; there is nothing to repair until then.
+        log.warn(`[moduleDetector] Could not rename ${legacy} modules to ${canonical}: ${error}`);
+      }
+    }
+
     // Build a set of already-registered database paths so we can skip known modules
     // This avoids opening every .db file on every startup just to re-read metadata
     //

@@ -5,6 +5,7 @@ import CommentaryPane from './CommentaryPane';
 import BookPane from './BookPane';
 import NewTabPage from './NewTabPage';
 import PaneErrorBoundary from './PaneErrorBoundary';
+import { parseExtensionContentType } from './DockviewTabRenderer';
 
 // Everything below is split out of the first-paint bundle. Bible,
 // Commentary, Book and NewTab stay eager because the default layout mounts
@@ -66,13 +67,12 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
   const { contentType, contentKey } = params;
 
   // Route extension-contributed panels (`ext:<extId>.<panelTypeId>`) to the
-  // ExtensionPanelHost iframe.
+  // ExtensionPanelHost iframe. Parsed by the same helper the tab strip uses,
+  // which splits on the LAST dot: extension ids are themselves dotted.
   if (typeof contentType === 'string' && contentType.startsWith('ext:')) {
-    const rest = contentType.slice('ext:'.length);
-    const dotIdx = rest.indexOf('.');
-    if (dotIdx > 0) {
-      const extensionId = rest.slice(0, dotIdx);
-      const panelTypeId = rest.slice(dotIdx + 1);
+    const parsed = parseExtensionContentType(contentType);
+    if (parsed) {
+      const { extensionId, panelTypeId } = parsed;
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
           <PaneErrorBoundary paneName={contentType}>

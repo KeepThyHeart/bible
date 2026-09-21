@@ -1,6 +1,7 @@
 {
   "main.about.title": "About {productName}",
   "main.about.detail": "Version {version}\n\nA Bible study desktop application.\n\n© {year}",
+  "main.about.build": "Build {buildId}",
   "main.about.ok": "OK",
   "main.dialog.saveBackup": "Save Backup File",
   "main.dialog.selectBackup": "Select Backup File",
@@ -43,5 +44,6 @@
   "main.window.study": "Study - {name}",
   "main.window.studyFallback": "Study",
   "main.window.topics": "Topics - {name}",
-  "main.window.topicsFallback": "Topics"
+  "main.window.topicsFallback": "Topics",
+  "main.window.extensionFallback": "Extension"
 }

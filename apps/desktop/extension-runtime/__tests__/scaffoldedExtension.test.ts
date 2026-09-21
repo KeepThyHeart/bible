@@ -201,12 +201,28 @@ describe('create-bible-extension output loads in the realm', () => {
     try {
       d.settle({
         'ui.registerPanelType': () => ({ id: 'ext.your-name.sample-tools.panel' }),
+        // `api.panels.onMessage` binds its handler in the worker's own
+        // endpoint table AND tells the host a handler now exists, so it awaits
+        // a real round trip. Leave it unsettled and activation parks here
+        // forever - the panel registration above lands, and nothing after this
+        // line in the template ever runs, which reads as "the scaffold stopped
+        // subscribing to verse changes" rather than as a stalled promise.
+        'panels.setMessageHandler': () => undefined,
       });
 
       // The template registers its declared panel type during activate()...
       const panel = d.requests().find((r) => r.method === 'ui.registerPanelType');
       expect(panel).toBeDefined();
-      expect(panel!.args[0]).toBe('ext.your-name.sample-tools.panel');
+
+      // ...as a definition object carrying the SHORT id, not a qualified
+      // string. `handleRegisterPanelType` takes the def's `id` verbatim and
+      // `RendererUiBridge` keys the panel as `${extensionId}.${panelTypeId}`,
+      // so passing the fully-qualified id here produces
+      // `ext:ext.a.b.ext.a.b.panel` - the extension's own prefix, twice. This
+      // assertion previously pinned the older, wrong shape.
+      expect(panel!.args[0]).toEqual(
+        expect.objectContaining({ id: 'panel', uiEntry: 'ui/index.html' }),
+      );
 
       // ...and subscribes to the verse-change channel.
       const subscribe = d.sent.find((e) => e.kind === 'subscribe');

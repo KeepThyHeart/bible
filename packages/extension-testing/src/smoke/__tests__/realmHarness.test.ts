@@ -39,6 +39,13 @@ interface GuestOps {
 interface FakeGuest {
   onInit?: (ops: GuestOps) => void | Promise<void>;
   onEvent?: (channel: string, payload: unknown, ops: GuestOps) => void | Promise<void>;
+  /**
+   * Stands in for the endpoint table `api.runtime.expose(...)` fills in.
+   * A reverse request naming a key here runs it; anything else gets the same
+   * `Unknown reverse RPC method` payload `ExtensionRuntime` sends, which is
+   * how the harness tells an unbound endpoint from a failing handler.
+   */
+  endpoints?: Record<string, (args: unknown[], ops: GuestOps) => unknown>;
   /** Stands in for the extension's `deactivate()` export. */
   onDeactivate?: (ops: GuestOps) => void;
 }
@@ -91,11 +98,40 @@ function fakeRealm(guest: FakeGuest): FakeRealmHandle {
           kind?: string;
           id?: string;
           method?: string;
+          args?: unknown[];
           channel?: string;
           payload?: unknown;
           result?: unknown;
           error?: { message: string };
         };
+        if (env.kind === 'request' && env.method !== 'runtime.init') {
+          // Reverse RPC: the host calling an endpoint the extension exposed.
+          const handler = guest.endpoints?.[env.method as string];
+          if (!handler) {
+            opts.onSend({
+              kind: 'response',
+              id: env.id,
+              error: {
+                code: 'RpcProtocolError',
+                message: `Unknown reverse RPC method: ${String(env.method)}`,
+              },
+            });
+            return;
+          }
+          void (async () => {
+            try {
+              const result = await handler(env.args ?? [], ops);
+              opts.onSend({ kind: 'response', id: env.id, result });
+            } catch (err) {
+              opts.onSend({
+                kind: 'response',
+                id: env.id,
+                error: { code: 'Error', message: (err as Error).message },
+              });
+            }
+          })();
+          return;
+        }
         if (env.kind === 'request' && env.method === 'runtime.init') {
           void (async () => {
             try {
@@ -489,23 +525,69 @@ describe('runSmokeSuite over a realm-backed harness', () => {
     expect(record?.failureReason).toBe('unexpected-network');
   });
 
-  it('skips endpoint hooks with a reason that names the real blocker', async () => {
-    const { harness } = harnessFor({}, {
-      contributes: {
-        commands: [
-          {
-            id: 'ext.test.realm-harness.go',
-            title: { key: 'g' },
-            handlerEndpoint: 'commands.execute',
+  const COMMAND_MANIFEST = {
+    contributes: {
+      commands: [
+        {
+          id: 'ext.test.realm-harness.go',
+          title: { key: 'g' },
+          handlerEndpoint: 'go',
+        },
+      ],
+    },
+  } as Partial<ExtensionManifest>;
+
+  it('drives a command through the realm to the endpoint the guest exposed', async () => {
+    const calls: unknown[][] = [];
+    const { harness } = harnessFor(
+      {
+        endpoints: {
+          go(args) {
+            calls.push(args);
+            return { ran: true };
           },
-        ],
+        },
       },
-    } as Partial<ExtensionManifest>);
+      COMMAND_MANIFEST,
+    );
     await harness.activate();
     const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
     const command = result.records.find((r) => r.hookId.startsWith('command:'));
-    expect(command?.status).toBe('skip');
-    expect(command?.message).toMatch(/reverse-RPC binding/);
+    expect(command?.status).toBe('pass');
+    expect(command?.returnValue).toEqual({ ran: true });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('fails a command whose handler throws inside the realm', async () => {
+    const { harness } = harnessFor(
+      {
+        endpoints: {
+          go() {
+            throw new Error('command exploded');
+          },
+        },
+      },
+      COMMAND_MANIFEST,
+    );
+    await harness.activate();
+    const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
+    const command = result.records.find((r) => r.hookId.startsWith('command:'));
+    expect(command?.status).toBe('fail');
+    expect(command?.failureReason).toBe('threw');
+    expect(command?.message).toContain('command exploded');
+  });
+
+  it('fails a command the guest never bound, rather than skipping it', async () => {
+    // The guest answers `Unknown reverse RPC method`, exactly as
+    // `ExtensionRuntime` does for an endpoint nothing exposed. In the app this
+    // is a palette entry that silently does nothing, so it is a failure.
+    const { harness } = harnessFor({}, COMMAND_MANIFEST);
+    await harness.activate();
+    const result = await runSmokeSuite({ harness, maxInputsPerHook: 1 });
+    const command = result.records.find((r) => r.hookId.startsWith('command:'));
+    expect(command?.status).toBe('fail');
+    expect(command?.failureReason).toBe('unbound-endpoint');
+    expect(command?.message).toMatch(/api\.runtime\.expose/);
   });
 });
 

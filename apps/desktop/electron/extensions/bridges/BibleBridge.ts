@@ -24,6 +24,11 @@ import type { IExtensionBibleBridge } from '../api-impl/IExtensionDataBridges';
 
 type BibleVerseDto = Extensions.BibleVerseDto;
 type BibleBookDto = Extensions.BibleBookDto;
+type BibleChapterDto = Extensions.BibleChapterDto;
+type VerseFormattingDto = Extensions.VerseFormattingDto;
+type VerseBlockDto = Extensions.VerseBlockDto;
+type VerseSpanDto = Extensions.VerseSpanDto;
+type VerseSourceRefDto = Extensions.VerseSourceRefDto;
 type BibleModuleInfoDto = Extensions.BibleModuleInfoDto;
 type ParsedReferenceDto = Extensions.ParsedReferenceDto;
 type VerseIterationResult = Extensions.VerseIterationResult;
@@ -49,6 +54,19 @@ export interface BibleBridgeDeps {
   }[];
   /** Lookup of all 66 Bible books for the listBooks() call. */
   listAllBooks(): BibleBook[];
+  /**
+   * Per-chapter verse counts for one book, ordered by chapter. Wired in
+   * production from `getSharedBookRepo().getChapterInfoByBookNumber(...)`,
+   * which reads main.db's `chapter_info` - the canonical KJV versification
+   * every installed module is normalized to.
+   *
+   * Only the chapter number and its verse count are taken. `chapter_info` also
+   * stores `first_absolute_id` / `last_absolute_id`, but those are
+   * `bible_verse_ref.absolute_id` values (a 1..31102 running index), NOT verse
+   * ids, so the bridge derives the verse-id bounds arithmetically instead of
+   * passing them through and shipping a wrong number under a right-looking name.
+   */
+  listChapterVerseCounts(bookNumber: number): { chapter: number; verseCount: number }[];
   /**
    * Default module abbreviation when an extension omits the `moduleId`
    * argument. The host picks "the first available Bible" today; the
@@ -114,6 +132,22 @@ export class BibleBridge implements IExtensionBibleBridge {
       name: b.bookName,
       testament: b.testament === 'OT' ? 'old' : 'new',
       chapterCount: b.chapterCount,
+    }));
+  }
+
+  listChapters(bookNumber: number, _moduleId?: string): BibleChapterDto[] {
+    // Module-independent, like `listBooks`: every installed module is stored
+    // against the same KJV versification, so the chapter extents come from
+    // main.db rather than from the module. The parameter is accepted so a
+    // future module with its own versification does not need a new method.
+    return this.deps.listChapterVerseCounts(bookNumber).map((c) => ({
+      bookNumber,
+      chapter: c.chapter,
+      verseCount: c.verseCount,
+      firstVerseId: VerseIdHelper.calculate(bookNumber, c.chapter, 1),
+      // INCLUSIVE: verse `verseCount` is a real verse, so this is the id a
+      // caller passes as `verseIdEnd` for the whole chapter.
+      lastVerseId: VerseIdHelper.calculate(bookNumber, c.chapter, c.verseCount),
     }));
   }
 
@@ -191,6 +225,13 @@ export class BibleBridge implements IExtensionBibleBridge {
     this.deps.sendNavigateToVerse(verseId);
   }
 
+  private lastActiveVerse: { verseId: number; module: string } | null = null;
+
+  /** The most recent active verse, so a late subscriber need not wait for a change. */
+  getActiveVerse(): { verseId: number; module: string } | null {
+    return this.lastActiveVerse;
+  }
+
   subscribeActiveVerse(
     handler: (payload: { verseId: number; module: string } | null) => void,
   ): () => void {
@@ -218,6 +259,7 @@ export class BibleBridge implements IExtensionBibleBridge {
    */
   notifyActiveVerse(verseId: number, moduleId?: string): void {
     const payload = { verseId, module: moduleId ?? this.deps.getDefaultModuleAbbreviation() ?? '' };
+    this.lastActiveVerse = payload;
     for (const h of this.activeVerseHandlers) {
       try {
         h(payload);
@@ -243,10 +285,18 @@ export class BibleBridge implements IExtensionBibleBridge {
 
   // --- Private ----------------------------------------------------------
 
+  /**
+   * Accepts either form of module id. `listModules()` hands extensions the
+   * registry id (`'1'`) as `id` - and `CollectionsBridge` depends on it staying
+   * numeric - while repositories are keyed by abbreviation. Without the
+   * mapping, passing back the `id` this bridge itself returned resolved
+   * nothing and every read came back empty. Abbreviations still work.
+   */
   private resolveRepo(moduleId?: string): BibleRepository | null {
-    const abbr = moduleId ?? this.deps.getDefaultModuleAbbreviation();
-    if (!abbr) return null;
-    return this.deps.getBibleRepository(abbr);
+    const requested = moduleId ?? this.deps.getDefaultModuleAbbreviation();
+    if (!requested) return null;
+    const byId = this.deps.listBibleModules().find((m) => m.moduleId === requested);
+    return this.deps.getBibleRepository(byId?.abbreviation ?? requested);
   }
 }
 
@@ -258,12 +308,70 @@ function toVerseDto(v: BibleVerse): BibleVerseDto {
     text: v.text,
   };
   if (v.textPlain !== undefined) dto.textPlain = v.textPlain;
+  // Both representations, always. `BibleVerse` fills in whichever one its
+  // constructor was not given, so these are two views of the same data rather
+  // than two sources of truth - and an extension written against 1.0.0 keeps
+  // reading `formattingData` while a new one reads `formatting`.
   if (v.formattingData !== undefined) {
-    dto.formattingData = v.formattingData as BibleVerseDto['formattingData'];
+    dto.formattingData = v.formattingData;
   }
+  const formatting = toFormattingDto(v.formatting);
+  if (formatting !== undefined) dto.formatting = formatting;
   if (v.wordCount !== undefined) dto.wordCount = v.wordCount;
   if (v.metadata !== undefined) dto.metadata = v.metadata;
   return dto;
+}
+
+/**
+ * Copy the structured formatting payload onto the wire.
+ *
+ * A copy rather than a pass-through for two reasons: the model's arrays are
+ * declared `readonly` and the DTO's are not (the guest gets a value it may
+ * mutate freely), and the model object is shared with the repository's verse
+ * cache, so handing it out by reference would let an in-process consumer edit
+ * another reader's verse. The copy is shallow-per-field and the leaf records
+ * are re-created, which is enough: every leaf is a flat bag of numbers and
+ * strings.
+ *
+ * Returns `undefined` for an empty payload so `formatting` is simply absent on
+ * a verse with no formatting, rather than present-but-meaningless as `{ v: 1 }`.
+ */
+function toFormattingDto(f: BibleVerse['formatting']): VerseFormattingDto | undefined {
+  const dto: VerseFormattingDto = { v: f.v };
+  if (f.block !== undefined) {
+    const block: VerseBlockDto = {};
+    if (f.block.paragraph_start !== undefined) block.paragraph_start = f.block.paragraph_start;
+    if (f.block.lines !== undefined) {
+      block.lines = f.block.lines.map((l) => ({ start: l.start, end: l.end, level: l.level }));
+    }
+    if (f.block.heading !== undefined) block.heading = f.block.heading;
+    // Copied only when the module actually recorded it. Defaulting it to
+    // 'section' here would destroy the "unknown" state the format is careful to
+    // keep - see the doc comment on `VerseBlockDto.heading_kind`.
+    if (f.block.heading_kind !== undefined) block.heading_kind = f.block.heading_kind;
+    if (Object.keys(block).length > 0) dto.block = block;
+  }
+  if (f.spans !== undefined && f.spans.length > 0) {
+    dto.spans = f.spans.map((s) => {
+      const span: VerseSpanDto = { type: s.type, start: s.start, end: s.end };
+      if (s.ref_start !== undefined) span.ref_start = s.ref_start;
+      if (s.ref_end !== undefined) span.ref_end = s.ref_end;
+      return span;
+    });
+  }
+  if (f.source_verses !== undefined && f.source_verses.length > 0) {
+    dto.source_verses = f.source_verses.map((r) => {
+      const ref: VerseSourceRefDto = { verse: r.verse };
+      if (r.chapter !== undefined) ref.chapter = r.chapter;
+      if (r.position !== undefined) ref.position = r.position;
+      if (r.start !== undefined) ref.start = r.start;
+      if (r.end !== undefined) ref.end = r.end;
+      return ref;
+    });
+  }
+  return dto.block === undefined && dto.spans === undefined && dto.source_verses === undefined
+    ? undefined
+    : dto;
 }
 
 function toTokenDto(w: InterlinearWord): VerseTokenDto {

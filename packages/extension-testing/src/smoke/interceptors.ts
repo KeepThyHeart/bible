@@ -64,6 +64,17 @@ const GUARDED_METHODS: readonly GuardedMethod[] = [
   { namespace: 'bookmarks', method: 'list', permission: 'bookmarks:read' },
   { namespace: 'bookmarks', method: 'add', permission: 'bookmarks:write' },
   { namespace: 'bookmarks', method: 'remove', permission: 'bookmarks:write' },
+  // Ordered passage collections reuse the bookmark grants - same rows, so a
+  // separate permission would be a second door into the same table.
+  { namespace: 'collections', method: 'list', permission: 'bookmarks:read' },
+  { namespace: 'collections', method: 'listPassages', permission: 'bookmarks:read' },
+  { namespace: 'collections', method: 'create', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'rename', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'delete', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'addPassage', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'removePassage', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'move', permission: 'bookmarks:write' },
+  { namespace: 'collections', method: 'reorder', permission: 'bookmarks:write' },
   { namespace: 'storage', method: 'get', permission: 'storage' },
   { namespace: 'storage', method: 'set', permission: 'storage' },
   { namespace: 'storage', method: 'delete', permission: 'storage' },

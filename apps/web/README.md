@@ -69,7 +69,7 @@ After placing module files in `data/modules/`, run the init script to register t
 npm run init                                # Register the .db files in data/modules
 npm run init -- --force                     # Recreate main.db from scratch
 npm run init -- --prune                     # Remove registry rows whose file is gone
-npm run init:modules                        # Download the starter set from the development catalog, then register
+npm run init:modules                        # Download the starter set from the official catalog, then register
 npm run init:modules -- --select=KJV,ASV    # Download these modules (or a preset: starter, tests) instead
 npm run init -- --catalog=URL               # Choose from a catalog's list interactively (add --yes for CI)
 ```

@@ -50,6 +50,18 @@ export interface AppConfig {
   readonly productName: string;
   /** Application version, baked in from `package.json` at build time. */
   readonly appVersion: string;
+  /**
+   * Short git SHA of the source revision this build came from, shown in the
+   * About dialog and attached to diagnostics reports. Empty string when git
+   * was not available at build time (a source-zip build) or when the module
+   * is loaded without a bundler, in which case every consumer must omit it
+   * rather than display a blank.
+   *
+   * A version alone cannot identify a build - two builds of `0.1.0` are the
+   * same string and different code - which is what makes this the value a
+   * bug report actually needs.
+   */
+  readonly buildId: string;
   /** Copyright year rendered in the About dialog. */
   readonly copyrightYear: string;
   /**
@@ -84,6 +96,7 @@ declare const __BIBLE_ISSUE_REPORT_URL__: string | undefined;
 declare const __BIBLE_MODULE_CATALOG_URL__: string | undefined;
 declare const __BIBLE_COPYRIGHT_YEAR__: string | undefined;
 declare const __BIBLE_APP_VERSION__: string | undefined;
+declare const __BIBLE_BUILD_ID__: string | undefined;
 declare const __BIBLE_DOCS_URL__: string | undefined;
 declare const __BIBLE_ABOUT_TEXT__: string | undefined;
 
@@ -109,6 +122,7 @@ const definedIssueTarget = typeof __BIBLE_ISSUE_REPORT_URL__ === 'string' ? __BI
 const definedCatalogUrl = typeof __BIBLE_MODULE_CATALOG_URL__ === 'string' ? __BIBLE_MODULE_CATALOG_URL__ : undefined;
 const definedCopyrightYear = typeof __BIBLE_COPYRIGHT_YEAR__ === 'string' ? __BIBLE_COPYRIGHT_YEAR__ : undefined;
 const definedAppVersion = typeof __BIBLE_APP_VERSION__ === 'string' ? __BIBLE_APP_VERSION__ : undefined;
+const definedBuildId = typeof __BIBLE_BUILD_ID__ === 'string' ? __BIBLE_BUILD_ID__ : undefined;
 const definedDocsUrl = typeof __BIBLE_DOCS_URL__ === 'string' ? __BIBLE_DOCS_URL__ : undefined;
 const definedAboutText = typeof __BIBLE_ABOUT_TEXT__ === 'string' ? __BIBLE_ABOUT_TEXT__ : undefined;
 
@@ -133,6 +147,13 @@ export function resolveAppConfig(): AppConfig {
     productName:
       normalize(definedProductName) ?? fromEnv('BIBLE_PRODUCT_NAME') ?? DEFAULT_PRODUCT_NAME,
     appVersion: normalize(definedAppVersion) ?? fromEnv('BIBLE_APP_VERSION') ?? '',
+    // No `fromEnv` fallback, deliberately. `BIBLE_BUILD_ID` is a BUILD-time
+    // variable, read by `electron.vite.config.ts` when it resolves the define;
+    // honouring it again at runtime would let the environment of whoever
+    // launched the app relabel a binary it did not build, and would make the
+    // "omits build_id on dev builds" diagnostics test depend on the ambient
+    // environment. Absent define means absent build id, full stop.
+    buildId: normalize(definedBuildId) ?? '',
     copyrightYear:
       normalize(definedCopyrightYear) ??
       fromEnv('BIBLE_COPYRIGHT_YEAR') ??

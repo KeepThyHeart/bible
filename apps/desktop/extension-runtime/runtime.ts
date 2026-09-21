@@ -102,7 +102,21 @@ export class ExtensionRuntime implements IExtensionRuntime {
     this.emitter = new ExtensionEventEmitter(opts.channel, (channelName, err) => {
       this.errorBoundary.report(`event-handler:${channelName}`, err);
     });
-    this.proxy = createApiProxy({ channel: opts.channel, emitter: this.emitter });
+    // The proxy needs to bind author callbacks into the same table
+    // `handleReverseRequest` dispatches from, so `api.runtime.expose(...)` and
+    // `api.panels.onMessage(...)` land where the host's reverse requests are
+    // looked up. Without this the table stays empty and every reverse request
+    // - every command handler, hover provider and panel message - comes back
+    // `Unknown reverse RPC method`.
+    this.proxy = createApiProxy({
+      channel: opts.channel,
+      emitter: this.emitter,
+      endpoints: {
+        register: (endpoint, handler) => this.registerReverseHandler(endpoint, handler),
+        unregister: (endpoint) => this.unregisterReverseHandler(endpoint),
+        list: () => [...this.reverseHandlers.keys()],
+      },
+    });
     this.moduleLoader = opts.moduleLoader;
     this.activateTimeoutMs = opts.activateTimeoutMs ?? DEFAULT_ACTIVATE_TIMEOUT_MS;
     this.errorBoundary.install();

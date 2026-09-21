@@ -4,6 +4,7 @@
  * Three independent surfaces share the storage namespace and the same
  * api-impl, so the test file groups them by surface:
  *
+ *   - KV tier permission gate (`storage`)
  *   - Secrets tier (`InMemorySecretsKeychain`-backed)
  *   - Settings tier (read + change events)
  *   - `openDatabase` (`ExtensionDatabaseRegistry` with an in-memory factory)
@@ -99,6 +100,84 @@ async function workerCall(
   }
   throw new Error(`workerCall: no response received for ${method}`);
 }
+
+// --- KV tier permission gate ----------------------------------------------
+
+/**
+ * The KV tier is gated on `storage`, like every other tier on this namespace.
+ *
+ * This used to be the one hole in the storage surface: `storage` was a real
+ * permission - declarable in `extension.json`, listed in the install consent
+ * dialog, and enforced by `@bible/extension-testing`'s smoke interceptors -
+ * that the host itself never checked, so an extension that declared nothing
+ * got a 5 MB persistent store anyway and the user's consent decision meant
+ * nothing. Two facts are pinned below so the hole cannot reopen quietly:
+ * ungranted calls are refused, and granted ones still work.
+ */
+describe('StorageApiImpl — KV permission gate', () => {
+  let pair: ReturnType<typeof pairedTransports>;
+  let db: FakeSql;
+
+  function attachWith(grants: string[]): void {
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    new StorageApiImpl({
+      extensionId: 'ext.test.kvgate',
+      router,
+      db,
+      grant: buildGrant('ext.test.kvgate', grants),
+    }).attach();
+  }
+
+  beforeEach(() => {
+    pair = pairedTransports();
+    db = new FakeSql();
+  });
+
+  const kvCalls: ReadonlyArray<readonly [method: string, args: unknown[]]> = [
+    ['storage.get', ['k']],
+    ['storage.set', ['k', 'v']],
+    ['storage.delete', ['k']],
+    ['storage.keys', []],
+  ];
+
+  it.each(kvCalls)('refuses %s without the storage permission', async (method, args) => {
+    attachWith(['bible:read']);
+    const res = await workerCall(pair.workerSide, pair.hostSent, method, args);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+    expect(res.error?.message).toMatch(/storage/);
+  });
+
+  it.each(kvCalls)('allows %s once storage is granted', async (method, args) => {
+    attachWith(['storage']);
+    const res = await workerCall(pair.workerSide, pair.hostSent, method, args);
+    expect(res.error).toBeUndefined();
+  });
+
+  it('writes nothing to the table when the call is refused', async () => {
+    // A gate that threw *after* the row landed would still be a leak.
+    attachWith([]);
+    await workerCall(pair.workerSide, pair.hostSent, 'storage.set', ['leaked', 'value']);
+    const rows = db.queryAll<{ key: string }>(
+      'SELECT key FROM extension_storage WHERE extension_id = ?',
+      ['ext.test.kvgate'],
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it('leaves getSetting reachable without the storage permission', async () => {
+    // Settings are the extension's own declared configuration, written by the
+    // host from a form the user filled in. Gating them behind `storage` would
+    // make an extension ask permission to read something it already owns.
+    attachWith([]);
+    db.execute(
+      'INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES (?, ?, ?, ?)',
+      ['ext.test.kvgate', '__settings.theme', JSON.stringify('dark'), Date.now()],
+    );
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.getSetting', ['theme']);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe('dark');
+  });
+});
 
 // --- Secrets tier ---------------------------------------------------------
 
@@ -502,7 +581,7 @@ describe('StorageApiImpl — diskUsage', () => {
       extensionId: 'ext.test.diskuse',
       router,
       db,
-      grant: buildGrant('ext.test.diskuse', ['storage:secrets', 'storage:database']),
+      grant: buildGrant('ext.test.diskuse', ['storage', 'storage:secrets', 'storage:database']),
       keychain,
       databaseRegistry: registry,
     }).attach();

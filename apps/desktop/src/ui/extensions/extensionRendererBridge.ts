@@ -31,8 +31,13 @@ import type { IWhenContextService } from '../services/IWhenContextService';
 import type { II18nService } from '../services/II18nService';
 import type { CommandRegistration, CommandContext } from '../types/Command';
 import type { LocalizedString } from '../types/LocalizedString';
+import type { Extensions } from '@bible/core';
 import { useLayoutStore, type LayoutPanel } from '../stores/useLayoutStore';
-import { useExtensionUiStore } from './extensionUiStore';
+import {
+  useExtensionUiStore,
+  deliverPanelMessage,
+  type ExtensionPanelType,
+} from './extensionUiStore';
 import { useExtensionConsentStore } from './extensionConsentStore';
 
 interface ExtensionBridgeApi {
@@ -248,6 +253,83 @@ export function attachExtensionRendererBridge(
     }),
   );
 
+  // --- Panel discovery -------------------------------------------------
+  //
+  // Auto-register one "Open <panel title>" command per contributed panel type,
+  // so every extension panel is reachable from the command palette - and, once
+  // menu contributions land, from the application menu - without the extension
+  // author doing anything.
+  //
+  // This is the cheapest lever on the platform's reachability problem.
+  // `ICommandRegistry` is the one registry that already serves the palette, the
+  // keyboard and the menu bar, and `RendererCommandBridge` already puts
+  // extension commands into it. Registering here means a panel that an
+  // extension merely *declares* becomes something a user can find, rather than
+  // something only the extension itself can open.
+  //
+  // The registration is derived state: it is rebuilt from the store on every
+  // change rather than maintained incrementally, because the store is the
+  // authority and a divergent shadow copy is exactly the bug class this whole
+  // workstream exists to fix.
+  {
+    const panelCommandDisposers = new Map<string, () => void>();
+
+    const syncPanelCommands = (panelTypes: ExtensionPanelType[]): void => {
+      const wanted = new Set(panelTypes.map((p) => p.key));
+      for (const [key, dispose] of panelCommandDisposers) {
+        if (!wanted.has(key)) {
+          try { dispose(); } catch { /* swallow */ }
+          panelCommandDisposers.delete(key);
+        }
+      }
+      for (const panel of panelTypes) {
+        if (panelCommandDisposers.has(panel.key)) continue;
+        // Namespaced under the owning extension so it satisfies the registry's
+        // `ext.<extensionId>.` prefix rule and cannot collide with a command
+        // the extension registered itself.
+        //
+        // `extensionId` is a manifest id and so already carries the `ext.`
+        // prefix. Prepending a second one produced `ext.ext.acme.plan.` ids,
+        // which matched only because `CommandRegistry` was concatenating the
+        // same way; both sides are normalised now.
+        const commandId = `${panel.extensionId}.openPanel.${panel.panelTypeId}`;
+        const registration: CommandRegistration = {
+          id: commandId,
+          // The extension supplies an already-localized title; wrap it in the
+          // app's "Open X" phrasing so the palette reads as a verb.
+          title: { key: 'commands.openExtensionPanel', params: { name: panel.def.title } },
+          ownerExtensionId: panel.extensionId,
+          handler: () => {
+            useLayoutStore
+              .getState() // allow-getstate: event handler - imperative open, no subscription needed
+              .addPanel(panel.contentType, undefined, services.i18n.resolve(panel.def.title));
+          },
+        };
+        try {
+          const disposable = services.registry.register(registration);
+          panelCommandDisposers.set(panel.key, () => disposable.dispose());
+        } catch (err) {
+          // A duplicate id is the only realistic failure and it must not take
+          // the bridge down - the panel is still openable from the new-tab page.
+          // eslint-disable-next-line no-console
+          console.warn(`[extensionRendererBridge] could not register ${commandId}:`, err);
+        }
+      }
+    };
+
+    syncPanelCommands(useExtensionUiStore.getState().panelTypes); // allow-getstate: effect/init - prime from the current snapshot
+    const unsubscribe = useExtensionUiStore.subscribe((state) => {
+      syncPanelCommands(state.panelTypes);
+    });
+    disposers.push(() => {
+      unsubscribe();
+      for (const d of panelCommandDisposers.values()) {
+        try { d(); } catch { /* swallow */ }
+      }
+      panelCommandDisposers.clear();
+    });
+  }
+
   return () => {
     for (const d of disposers) {
       try { d(); } catch { /* swallow */ }
@@ -415,12 +497,69 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
         });
       });
     }
-    case 'panelTypeRegistered':
-    case 'panelTypeUnregistered':
-      // Panel-type registry lives in main; the renderer just learns about
-      // them so a future "open extension panel" menu can list them. No
-      // immediate UI work in 6b - the bare list view from 6a is enough.
+    // --- Contributed UI, rendered by the app ---------------------------
+    //
+    // `RendererUiBridge` has always pushed these; nothing handled them, so an
+    // extension calling `ui.registerContextMenu(...)` got a valid
+    // `DisposableHandle`, passed the permission guard, appeared in
+    // `ContributionRegistry.listContextMenuItems()`, and was then dropped on
+    // the floor with no error and no warning.
+    case 'contextMenuItemRegistered': {
+      const [payload] = args as [
+        { extensionId: string; target: Extensions.ContextMenuTarget; item: Extensions.ContextMenuItemDescriptor },
+      ];
+      store.addContextMenuItem(payload.extensionId, payload.target, payload.item);
       return undefined;
+    }
+    case 'contextMenuItemUnregistered': {
+      const [payload] = args as [{ extensionId: string; itemId: string }];
+      store.removeContextMenuItem(payload.extensionId, payload.itemId);
+      return undefined;
+    }
+    case 'statusBarItemRegistered': {
+      const [payload] = args as [{ extensionId: string; item: Extensions.StatusBarItemDescriptor }];
+      store.addStatusBarItem(payload.extensionId, payload.item);
+      return undefined;
+    }
+    case 'statusBarItemUnregistered': {
+      const [payload] = args as [{ extensionId: string; itemId: string }];
+      store.removeStatusBarItem(payload.extensionId, payload.itemId);
+      return undefined;
+    }
+    case 'panelMessage': {
+      // `api.panels.postMessage(...)` from a worker. Fan it out to the mounted
+      // panel hosts, which each decide whether it is addressed to them.
+      // `extensionId` was stamped by the main process from the sending worker,
+      // so it is trustworthy here.
+      const [payload] = args as [
+        { extensionId?: unknown; panelId?: unknown; message?: unknown } | undefined,
+      ];
+      if (!payload || typeof payload.extensionId !== 'string') return undefined;
+      deliverPanelMessage({
+        extensionId: payload.extensionId,
+        ...(typeof payload.panelId === 'string' ? { panelId: payload.panelId } : {}),
+        message: payload.message,
+      });
+      return undefined;
+    }
+    case 'panelTypeRegistered': {
+      // The registry of record still lives in main; the renderer keeps its own
+      // copy so the new-tab page can list contributed panels and so each one
+      // gets a command (below). Before this, `workspace.openPanel` worked but
+      // only the extension itself could call it - nothing in `NewTabPage`, the
+      // application menu or Preferences opened an extension panel, so a panel
+      // an extension contributed was effectively unreachable.
+      const [payload] = args as [
+        { extensionId: string; def: Extensions.ExtensionPanelTypeDef },
+      ];
+      store.addPanelType(payload.extensionId, payload.def);
+      return undefined;
+    }
+    case 'panelTypeUnregistered': {
+      const [payload] = args as [{ extensionId: string; panelTypeId: string }];
+      store.removePanelType(payload.extensionId, payload.panelTypeId);
+      return undefined;
+    }
     default:
       throw new Error(`Unknown ui op: ${op}`);
   }

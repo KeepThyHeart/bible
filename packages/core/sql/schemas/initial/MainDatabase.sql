@@ -278,7 +278,8 @@ CREATE INDEX idx_repo_enabled ON module_repository(is_enabled, priority);
 
 -- No repository is seeded here on purpose. The official catalog URL is not a
 -- compile-time constant: it comes from the BIBLE_MODULE_CATALOG_URL build
--- setting and is inserted at runtime (see applyMigration002 in
+-- setting and is inserted at runtime, on any start that finds no official
+-- repository (see ensureDefaultRepository in
 -- apps/desktop/electron/utils/initMainDatabase.ts). Hardcoding a URL here
 -- would register a repository the build may not actually point at, and left
 -- fresh databases advertising an endpoint that does not resolve.

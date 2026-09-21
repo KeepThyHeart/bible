@@ -28,8 +28,11 @@ const LOG_TRUNCATE_KEEP = 512 * 1024; // keep the last 512 KB after truncate
 
 export class ExtensionLifecycleLogger {
   /**
-   * @param extensionsRoot Absolute path to `data/extensions/` (the parent of
-   *                       per-extension directories).
+   * @param extensionsRoot Absolute path to the per-extension state root (the
+   *                       parent of per-extension directories). `ExtensionHost`
+   *                       passes its `logRoot`, which `main.ts` roots at
+   *                       `getUserDataPath()` so the files are writable in a
+   *                       packaged build - the discovery root is not.
    */
   constructor(private readonly extensionsRoot: string) {}
 

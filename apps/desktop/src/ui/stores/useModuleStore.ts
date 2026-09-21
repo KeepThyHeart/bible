@@ -12,5 +12,6 @@ export type {
   DownloadProgress,
   ModuleCatalog,
   ModuleFilter,
-  ModuleViewMode,
+  ModuleManagerTab,
+  ModuleInstallFilter,
 } from './module/types';

@@ -1,11 +1,13 @@
-# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`,
-# `mac.hardenedRuntime` and `afterSign` all come from
+# `appId`, `productName`, `nsis.shortcutName`, `win.signAndEditExecutable`
+# and `mac.hardenedRuntime` all come from
 # electron-builder.branding.cjs, which reads the environment
 # (BIBLE_PRODUCT_NAME / BIBLE_APP_ID for the neutral profile; CSC_*/APPLE_* to
 # gate optional signing). Do not re-declare them here — a child config overrides
 # its parent and would defeat the env gate.
 extends: file:electron-builder.branding.cjs
-electronVersion: 33.2.0
+# No electronVersion here: electron-builder.branding.cjs sets it from the
+# installed `electron` package, so the installers run the Electron the app is
+# developed and tested on.
 directories:
   output: dist
   buildResources: resources
@@ -67,7 +69,7 @@ extraResources:
   # as plain files under resources/ keeps them readable without unpacking.
   - from: ../../LICENSE
     to: LICENSE
-  - from: ../../THIRD-PARTY-NOTICES.md
+  - from: ../../admin/THIRD-PARTY-NOTICES.md
     to: THIRD-PARTY-NOTICES.md
   - from: src/ui/styles/fonts/FONT-LICENSES.md
     to: FONT-LICENSES.md
@@ -107,6 +109,32 @@ extraResources:
       # Both optional; absent in a plain dev tree and simply skipped.
       - 'search-pipeline.json'
       - 'models/**'
+      # === BUNDLED FIRST-PARTY EXTENSIONS ===
+      #
+      # Licensing posture here is the OPPOSITE of the module entries below, and
+      # that is the whole reason these can be listed at all. A third-party module
+      # is content whose licence we did not write and must check for a
+      # redistribution right before it can ride along in a GPL installer. A
+      # bundled extension is our own source, in this repository, under a
+      # GPL-compatible licence - word-count-example is MIT, deliberately more
+      # permissive than the repository root so it can be copied as the starting
+      # point for someone else's extension. There is no per-file licence
+      # question to answer; the reviewable decision is WHICH packages get
+      # bundled, and that list lives in scripts/stage-extensions.js.
+      #
+      # Named per extension, NOT `extensions/**`. In a developer tree
+      # `data/extensions/` is also the per-user install root: it holds whatever
+      # the developer has sideloaded or installed from a catalog, each
+      # extension's `db/` directory (arbitrary user data) and its lifecycle log.
+      # `extensions/**` would ship all of that - the same fail-open shape this
+      # block exists to avoid. One line per bundled extension, matching one
+      # entry in BUNDLED_EXTENSIONS in scripts/stage-extensions.js, so removing
+      # one from the installer is a two-line, reviewable act.
+      #
+      # The directory is produced by `npm run stage-extensions` (wired into
+      # `package:lean:*`); it is NOT checked in - `data/` is gitignored - so a
+      # build that skips staging simply ships no extensions rather than failing.
+      - 'extensions/ext.bible-app.word-count/**'
   # Only redistribution-safe module content may be bundled. This installer is
   # distributed under the GPL, which grants every recipient the right to
   # redistribute it; a module carrying non-commercial-only terms would make that
@@ -178,18 +206,15 @@ win:
     - target: nsis
       arch:
         - x64
-  # signAndEditExecutable and mac hardenedRuntime/afterSign notarization are
+  # signAndEditExecutable and mac hardenedRuntime/notarization are
   # driven by electron-builder.branding.cjs (the JS parent config), which reads
   # the environment: signing activates ONLY when credentials are present, and an
   # unsigned installer still builds with no secrets set (WS-G/G1). Do not
   # re-declare signAndEditExecutable here — a child value would override the
   # env-driven parent and pin it, defeating the gate.
 nsis:
-  # Disable the default "is the app running?" check, which false-positives on
-  # this product name (nsProcess::FindProcess substring-matches the installer's
-  # and uninstaller's OWN process against "Keep Thy Heart Bible Reader.exe") and loops on
-  # "cannot be closed". See build-installer.nsh for the full explanation.
-  include: build-installer.nsh
+  # Keep electron-builder's default "is the app running?" check. See the note in
+  # electron-builder.code-only.yml before overriding it.
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false

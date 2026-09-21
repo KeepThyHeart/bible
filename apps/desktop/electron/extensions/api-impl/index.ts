@@ -89,6 +89,15 @@ export { FolderStorageApiImpl } from './folderStorageApiImpl';
 export type { FolderStorageApiImplOptions } from './folderStorageApiImpl';
 export { UiApiImpl } from './uiApiImpl';
 export type { UiApiImplOptions } from './uiApiImpl';
+export {
+  PanelsApiImpl,
+  PanelMessageTooLargeError,
+  assertPanelMessageWithinCap,
+  PANEL_MESSAGE_ENDPOINT,
+  PANEL_MESSAGE_TIMEOUT_MS,
+  MAX_PANEL_MESSAGE_BYTES,
+} from './panelsApiImpl';
+export type { PanelsApiImplOptions } from './panelsApiImpl';
 export { WorkspaceApiImpl } from './workspaceApiImpl';
 export type { WorkspaceApiImplOptions } from './workspaceApiImpl';
 export { L10nApiImpl } from './l10nApiImpl';
@@ -104,6 +113,10 @@ export type { HighlightsApiImplOptions } from './highlightsApiImpl';
 export { BookmarksApiImpl } from './bookmarksApiImpl';
 export type { BookmarksApiImplOptions } from './bookmarksApiImpl';
 
+// --- Ordered passage collections ------------------------------------------
+export { CollectionsApiImpl } from './collectionsApiImpl';
+export type { CollectionsApiImplOptions } from './collectionsApiImpl';
+
 export type {
   IExtensionBibleBridge,
   IExtensionCommentaryBridge,
@@ -115,6 +128,7 @@ export type {
   IExtensionNotesBridge,
   IExtensionHighlightsBridge,
   IExtensionBookmarksBridge,
+  IExtensionCollectionsBridge,
   IExtensionFolderBridge,
 } from './IExtensionDataBridges';
 export {
@@ -128,5 +142,6 @@ export {
   InMemoryNotesBridge,
   InMemoryHighlightsBridge,
   InMemoryBookmarksBridge,
+  InMemoryCollectionsBridge,
   InMemoryFolderBridge,
 } from './InMemoryDataBridges';

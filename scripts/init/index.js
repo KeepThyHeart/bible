@@ -52,18 +52,27 @@
  *   --no-link              Desktop target: leave apps/desktop/data/modules as a
  *                          directory of its own instead of linking it to the
  *                          shared data/modules.
+ *   --no-modules           Write main.db with the schema and the canonical verse
+ *                          space but no module rows, and do not look for module
+ *                          files.  This is the template a packaged app ships;
+ *                          run it against a fresh --data-dir (or a clean
+ *                          checkout) so no earlier rows carry over.
  *   --catalog[=URL]        Fetch a catalog and choose modules to download.  With
  *                          no URL: $BIBLE_MODULE_CATALOG_URL, else branding's
  *                          moduleRepositoryUrl (unless that is still undecided).
- *   --select=KJV,ASV       With --catalog, take these instead of prompting.  A
+ *                          An index.json beside that catalog, when there is one,
+ *                          brings in every catalog it lists.
+ *   --select=KJV,ASV      With --catalog, take these instead of prompting.  A
  *                          preset name (below) stands for its whole list.
  *   --yes                  Never prompt; accept defaults.  For CI.
  *   --quiet                Only warnings and errors.
  *   --help
  *
- *   npm run init:modules   The development catalog with --select=starter.
+ *   npm run init:modules   The official catalog with --select=starter
+ *                          (init:modules:dev for the development catalog).
  *   npm run setup          Core build, starter modules, web and desktop init,
- *                          and the Electron native rebuild, in one go.
+ *                          the Electron download and native rebuild, in one go
+ *                          (scripts/init/setup.js; `npm run setup -- --help`).
  *
  * Needs Node.js 20.19 or newer.
  *
@@ -117,7 +126,12 @@ let sqliteDriver = null;
  * that most needs them.
  */
 function sqlite() {
-  if (!sqliteDriver) sqliteDriver = require('better-sqlite3-web');
+  if (!sqliteDriver) {
+    // Resolved from `apps/web`, which depends on it: npm may install it in that
+    // workspace's own node_modules rather than hoisting it to the root.
+    const driverPath = require.resolve('better-sqlite3-web', { paths: [path.join(REPO_ROOT, 'apps/web')] });
+    sqliteDriver = require(driverPath);
+  }
   return sqliteDriver;
 }
 
@@ -238,7 +252,27 @@ const EXPECTED_MODULES = [
  * A preset module the catalog does not offer is warned about and skipped (see
  * catalog.js), since not every catalog carries every module.
  */
+/**
+ * The recommended sets the desktop app offers at first run, by pack_id
+ * (`essentials`, ...), so `--select=essentials` installs the same list the app
+ * suggests.  They come from the one file that defines them for both.
+ */
+const STARTER_PACKS_FILE = path.join(REPO_ROOT, 'packages/core/src/Data/Core/starter-packs.json');
+
+function readStarterPackPresets(file = STARTER_PACKS_FILE) {
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const presets = {};
+  for (const pack of parsed.packs ?? []) {
+    if (pack && typeof pack.pack_id === 'string' && Array.isArray(pack.module_ids)) {
+      presets[pack.pack_id] = pack.module_ids.filter((id) => typeof id === 'string');
+    }
+  }
+  return presets;
+}
+
 const PRESETS = {
+  ...readStarterPackPresets(),
+  // Named sets for a dev install win over a pack that reuses their name.
   starter: EXPECTED_MODULES.filter((m) => m.starter).map((m) => m.abbr),
   tests: EXPECTED_MODULES.filter((m) => m.starter || m.need !== 'optional').map((m) => m.abbr),
 };
@@ -777,7 +811,7 @@ function reportCoverage(installed, log) {
 function parseArgs(argv) {
   const options = {
     target: 'web', dataDir: null, modulesDir: null,
-    force: false, prune: false, config: true, link: true,
+    force: false, prune: false, config: true, link: true, modules: true,
     catalog: null, select: null, yes: false, quiet: false, help: false,
   };
 
@@ -787,6 +821,7 @@ function parseArgs(argv) {
     else if (arg === '--prune') options.prune = true;
     else if (arg === '--no-config') options.config = false;
     else if (arg === '--no-link') options.link = false;
+    else if (arg === '--no-modules') options.modules = false;
     else if (arg === '--yes' || arg === '-y') options.yes = true;
     else if (arg === '--quiet') options.quiet = true;
     else if (arg === '--catalog') options.catalog = true;
@@ -800,6 +835,9 @@ function parseArgs(argv) {
 
   if (!TARGETS[options.target]) {
     return { error: `unknown target "${options.target}" (expected web or desktop)` };
+  }
+  if (!options.modules && options.catalog) {
+    return { error: '--no-modules and --catalog contradict each other' };
   }
   return options;
 }
@@ -833,7 +871,7 @@ function reportNoModules(modulesDir, log) {
   log.error('');
   log.error('Two ways forward:');
   log.error('');
-  log.error('  1. Download the starter set (about 80 MB) from the development catalog:');
+  log.error('  1. Download the starter set (about 80 MB) from the official catalog:');
   log.error('       npm run init:modules');
   log.error('     or every module the test suites name (about 170 MB):');
   log.error('       npm run init:modules -- --select=tests');
@@ -907,7 +945,7 @@ async function main() {
 
   // Before any download, so a desktop `--catalog` run lands its files in the
   // shared store rather than in a directory the link is about to replace.
-  if (options.target === 'desktop' && options.link && !options.modulesDir) {
+  if (options.target === 'desktop' && options.link && options.modules && !options.modulesDir) {
     linkSharedModules(path.join(modulesDir, 'modules'), SHARED_MODULES_DIR, log);
   }
 
@@ -924,8 +962,12 @@ async function main() {
     if (outcome === 'aborted') process.exit(1);
   }
 
-  const scan = scanModules(modulesDir, log);
-  if (scan.missing || scan.found.length === 0) {
+  // --no-modules: the packaged-app template. Scanning is skipped rather than
+  // filtered, so nothing in a developer's modules/ can leak into it.
+  const scan = options.modules
+    ? scanModules(modulesDir, log)
+    : { dir: path.join(modulesDir, 'modules'), missing: false, found: [], rejected: [] };
+  if (options.modules && (scan.missing || scan.found.length === 0)) {
     reportNoModules(path.join(modulesDir, 'modules'), log);
     if (scan.rejected.length > 0) {
       log.error(`${scan.rejected.length} file(s) in that directory are not usable modules:`);
@@ -946,8 +988,10 @@ async function main() {
     writeRegistry({ dataDir, modulesDir, scan, options, target, log });
   }
 
-  log.info('');
-  reportCoverage(scan.found, log);
+  if (options.modules) {
+    log.info('');
+    reportCoverage(scan.found, log);
+  }
   log.info('');
   log.info('Done.');
 }
@@ -1023,5 +1067,5 @@ if (require.main === module) {
 
 module.exports = {
   loadSchemaSql, buildReferenceSpace, readModuleInfo, linkSharedModules, nodeVersionProblem,
-  chooseDefaultBible, EXPECTED_MODULES, PRESETS,
+  chooseDefaultBible, EXPECTED_MODULES, PRESETS, readStarterPackPresets,
 };

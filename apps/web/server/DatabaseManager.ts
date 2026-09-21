@@ -32,6 +32,13 @@ import type {
   WordFamilyService as WordFamilyServiceT,
 } from '@bible/core';
 
+/**
+ * Module databases (Bibles, commentaries, dictionaries, topical indexes,
+ * cross-references) are content the server only reads, so they're opened
+ * read-only: nothing in the app can change them.
+ */
+const MODULE_DB_OPTIONS = { readonly: true, fileMustExist: true } as const;
+
 export class DatabaseManager {
   private abbreviationMap: Map<string, string> | null = null;
   private mainDb: SqliteProvider | null = null;
@@ -129,7 +136,7 @@ export class DatabaseManager {
     }
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       const repo = new BibleRepository(db);
       this.bibleDbs.set(resolved, db);
       this.bibleRepos.set(resolved, repo);
@@ -199,7 +206,7 @@ export class DatabaseManager {
     }
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       const repo = new CommentaryRepository(db);
       this.commentaryDbs.set(resolved, db);
       this.commentaryRepos.set(resolved, repo);
@@ -231,7 +238,7 @@ export class DatabaseManager {
     }
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       const repo = new DictionaryRepository(db);
       this.dictionaryDbs.set(name, db);
       this.dictionaryRepos.set(name, repo);
@@ -378,7 +385,7 @@ export class DatabaseManager {
     if (!existsSync(dbPath)) return null;
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       this.topicalDbs.set(source, db);
       return this.getTopicalRepo(source);
     } catch {
@@ -403,7 +410,7 @@ export class DatabaseManager {
     }
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       const repo = new CrossReferenceRepository(db);
       this.crossRefDbs.set(resolved, db);
       this.crossRefRepos.set(resolved, repo);
@@ -430,7 +437,7 @@ export class DatabaseManager {
     }
 
     try {
-      const db = new SqliteProvider(dbPath);
+      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
       const repo = new TopicalIndexRepository(db);
       this.topicalIndexDbs.set(resolved, db);
       this.topicalIndexRepos.set(resolved, repo);

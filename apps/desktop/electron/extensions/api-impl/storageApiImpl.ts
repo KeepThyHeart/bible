@@ -5,7 +5,7 @@
  * namespace:
  *
  *   - **KV** (`get/set/delete/keys`). Backed by the `extension_storage` SQL
- *     table on the user DB. Default 5 MB quota.
+ *     table on the user DB. Default 5 MB quota. Permission: `storage`.
  *   - **Secrets** (`setSecret/getSecret/deleteSecret`). Routes
  *     through the OS keychain via `ISecretsKeychain`. Per-extension service
  *     namespace `bible-app:ext.<id>`. Permission: `storage:secrets`.
@@ -64,10 +64,17 @@ export interface StorageApiImplOptions {
   /** Override the default quota. Useful for tests. */
   quotaBytes?: number;
   /**
-   * Permission grant for the extension. The KV tier does NOT require any
-   * specific permission - every extension may use a small KV
-   * automatically. Secrets / settings / `openDatabase` are gated through
-   * `requirePermission` calls below.
+   * Permission grant for the extension. Every tier except settings is gated:
+   * KV on `storage`, secrets on `storage:secrets`, `openDatabase` on
+   * `storage:database`.
+   *
+   * Settings (`getSetting`) is the exception, deliberately. Its values come
+   * from the extension's own `contributes.configuration`, written by the
+   * host from a form the *user* filled in; making an extension ask
+   * permission to read back its own declared settings would be asking
+   * permission for something it already owns. `diskUsage` is likewise
+   * ungated - it reports on the extension itself and is what the Extensions
+   * UI calls on the extension's behalf.
    */
   grant: ExtensionPermissionGrant;
   /**
@@ -170,6 +177,7 @@ export class StorageApiImpl {
 
   private async handleGet(args: unknown[]): Promise<unknown> {
     this.assertActive();
+    requirePermission(this.grant, 'storage');
     const key = this.requireKey(args[0], 'storage.get');
     const row = this.db.queryOne<{ value: string }>(
       'SELECT value FROM extension_storage WHERE extension_id = ? AND key = ?',
@@ -185,6 +193,7 @@ export class StorageApiImpl {
 
   private async handleSet(args: unknown[]): Promise<void> {
     this.assertActive();
+    requirePermission(this.grant, 'storage');
     const key = this.requireKey(args[0], 'storage.set');
     if (args.length < 2) {
       throw new RpcProtocolError('storage.set: value is required');
@@ -229,6 +238,7 @@ export class StorageApiImpl {
 
   private async handleDelete(args: unknown[]): Promise<void> {
     this.assertActive();
+    requirePermission(this.grant, 'storage');
     const key = this.requireKey(args[0], 'storage.delete');
     this.db.execute(
       'DELETE FROM extension_storage WHERE extension_id = ? AND key = ?',
@@ -238,6 +248,7 @@ export class StorageApiImpl {
 
   private async handleKeys(): Promise<string[]> {
     this.assertActive();
+    requirePermission(this.grant, 'storage');
     const rows = this.db.queryAll<{ key: string }>(
       'SELECT key FROM extension_storage WHERE extension_id = ?',
       [this.extensionId],
@@ -402,10 +413,6 @@ export class StorageApiImpl {
     if (this.disposed) {
       throw new ExtensionNotActiveError(`storageApiImpl for ${this.extensionId} is disposed`);
     }
-    // The grant reference is kept so a future change can gate writes on a
-    // permission. Touching it here keeps the field used during strict
-    // unused-locals checking.
-    void hasPermission(this.grant, 'storage');
   }
 
   private requireKey(raw: unknown, methodName: string): string {

@@ -6,7 +6,7 @@
   "description": "E2E fixture that reads a verse, persists a KV row, and renders an iframe panel.",
   "engines": { "bibleApp": "^1.0.0" },
   "main": "./main.js",
-  "permissions": ["bible:read"],
+  "permissions": ["bible:read", "storage"],
   "activationEvents": ["onStartup"],
   "contributes": {
     "panelTypes": [

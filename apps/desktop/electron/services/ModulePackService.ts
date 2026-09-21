@@ -46,13 +46,58 @@
  *   - **Non-module payloads**: any entry that isn't named `*.db` or
  *     `*.db.gz` is never written anywhere - it is only ever used as a
  *     rejected-or-skipped label.
+ *
+ * ## Pack trust (signed offline packs, `.zip` and `.biblepack` alike)
+ *
+ * Any pack archive MAY carry a manifest (`pack.json`) and a detached
+ * signature (`pack.json.sig`) - see `ModulePackSignature.ts` for the format
+ * and the domain-separated digest that keeps a pack signature from ever
+ * being mistaken for a catalog signature. This is deliberately not decided
+ * by the archive's extension: `.biblepack` is the recommended name for a
+ * pack meant to be shared as such, but it carries no special trust of its
+ * own - a `.zip` with `pack.json`(`.sig`) inside is checked exactly the same
+ * way, and a `.biblepack` with neither file is exactly as unsigned as a
+ * `.zip` with neither. Deciding trust from a filename would let a hostile
+ * archive simply rename its way past verification. When a caller passes
+ * `ModulePackTrustOptions` (which `moduleHandlers.ts` always does, for every
+ * pack archive), `extractModulePack`:
+ *
+ *   - refuses the whole pack outright (`pack_signature_invalid`) if a
+ *     `.sig` is present but does not verify, a `.sig` has no `pack.json`
+ *     beside it, or the manifest it signs is malformed (a `pack.json` with
+ *     no `.sig` is simply unsigned);
+ *   - refuses it (`pack_unverified`) if it is unsigned or signed by a key
+ *     this install does not trust, unless the caller passed
+ *     `acceptUnverified: true` (an explicit, user-confirmed choice - see
+ *     `moduleHandlers.ts`);
+ *   - once the signature verifies, cross-checks every extracted `.db`/
+ *     `.db.gz` entry against the manifest's declared path/size/SHA-256 (hashed
+ *     while streaming to disk, never re-read afterward) and refuses the whole
+ *     pack (`pack_tampered`) on any mismatch, any unlisted module entry, or
+ *     any manifest entry that never showed up in the archive - all BEFORE a
+ *     single module file is handed to `installOne`.
+ *
+ * A caller that omits `ModulePackTrustOptions` entirely (only
+ * `ModulePackService.test.ts`'s lower-level unit tests do this today) gets
+ * the pre-trust-gate behaviour: no manifest is looked for, and every
+ * `.db`/`.db.gz` entry installs exactly as it always has, module-by-module
+ * through `InstallationService`'s own conformance gate.
  */
 
 import { createWriteStream, existsSync, mkdirSync, rmSync, statSync } from 'fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import type { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import {
+  MAX_PACK_MANIFEST_BYTES,
+  MAX_PACK_SIGNATURE_BYTES,
+  PACK_MANIFEST_FILENAME,
+  PACK_SIGNATURE_FILENAME,
+  verifyPackManifestSignature,
+  type PackManifest,
+  type PackSignatureResult,
+} from './ModulePackSignature';
 // See ExtensionInstaller.ts -- `unzipper` is loaded on first use.
 type UnzipperOpenType = typeof import('unzipper').Open;
 async function unzipperOpen(): Promise<UnzipperOpenType> {
@@ -95,13 +140,38 @@ export type ModulePackErrorCode =
   | 'not_found'
   | 'invalid_archive'
   | 'too_many_entries'
-  | 'archive_too_large';
+  | 'archive_too_large'
+  /** `pack.json.sig` is present but does not verify, has no `pack.json`
+   * beside it, or the `pack.json` it signs is malformed. No override. */
+  | 'pack_signature_invalid'
+  /** Unsigned or signed by an untrusted key, and the caller did not pass
+   * `acceptUnverified: true`. */
+  | 'pack_unverified'
+  /** The pack verified, but an extracted file does not match the manifest
+   * (wrong hash/size, an unlisted module entry, or a listed one that never
+   * showed up). Nothing from the pack is installed. */
+  | 'pack_tampered';
 
 export class ModulePackError extends Error {
   constructor(message: string, readonly code: ModulePackErrorCode) {
     super(message);
     this.name = 'ModulePackError';
   }
+}
+
+/**
+ * Trust check to apply to a pack archive's `pack.json`/`pack.json.sig` - see
+ * the module doc comment for why this is never gated on the archive's
+ * extension (`.zip` and `.biblepack` get the identical check). Omitting it
+ * entirely skips the gate altogether, which only `ModulePackService.test.ts`'s
+ * lower-level unit tests do today; every real caller (`moduleHandlers.ts`)
+ * always passes it.
+ */
+export interface ModulePackTrustOptions {
+  /** Keys trusted for a pack signature - the pinned official keys plus any approved for that scope. */
+  trustedKeys: readonly string[];
+  /** Install anyway when the pack is unsigned or signed by an untrusted key. */
+  acceptUnverified?: boolean;
 }
 
 /** A `.db`/`.db.gz` entry that was safely extracted and is ready to install. */
@@ -125,6 +195,8 @@ export interface ExtractModulePackResult {
   tempDir: string;
   moduleFiles: ExtractedModuleFile[];
   skipped: SkippedPackEntry[];
+  /** Set only when `ModulePackTrustOptions` were passed. */
+  packVerification?: PackSignatureResult;
 }
 
 /**
@@ -144,7 +216,8 @@ export interface ExtractModulePackResult {
 export async function extractModulePack(
   archivePath: string,
   extractionRoot: string,
-  limits: ModulePackLimits = DEFAULT_MODULE_PACK_LIMITS
+  limits: ModulePackLimits = DEFAULT_MODULE_PACK_LIMITS,
+  trust?: ModulePackTrustOptions
 ): Promise<ExtractModulePackResult> {
   if (!existsSync(archivePath) || !statSync(archivePath).isFile()) {
     throw new ModulePackError(`Archive not found: ${archivePath}`, 'not_found');
@@ -172,18 +245,71 @@ export async function extractModulePack(
       );
     }
 
+    // -- Pack trust (only when the caller asked for it - see the module doc) --
+    let packVerification: PackSignatureResult | undefined;
+    let manifest: PackManifest | undefined;
+    if (trust) {
+      const manifestEntry = directory.files.find(
+        (f) => f.type !== 'Directory' && normalizeEntryPath(f.path) === PACK_MANIFEST_FILENAME
+      );
+      const signatureEntry = directory.files.find(
+        (f) => f.type !== 'Directory' && normalizeEntryPath(f.path) === PACK_SIGNATURE_FILENAME
+      );
+      const manifestBytes = manifestEntry
+        ? await readEntryToBufferCapped(manifestEntry, MAX_PACK_MANIFEST_BYTES, PACK_MANIFEST_FILENAME)
+        : undefined;
+      const signatureBytes = signatureEntry
+        ? await readEntryToBufferCapped(signatureEntry, MAX_PACK_SIGNATURE_BYTES, PACK_SIGNATURE_FILENAME)
+        : undefined;
+
+      packVerification = verifyPackManifestSignature(manifestBytes, signatureBytes, trust.trustedKeys);
+
+      if (packVerification.status === 'invalid') {
+        throw new ModulePackError(packVerification.message, 'pack_signature_invalid');
+      }
+      if (
+        (packVerification.status === 'unsigned' || packVerification.status === 'untrusted') &&
+        !trust.acceptUnverified
+      ) {
+        throw new ModulePackError(packVerification.message, 'pack_unverified');
+      }
+      if (packVerification.status === 'verified') {
+        manifest = packVerification.manifest;
+      }
+    }
+
     const moduleFiles: ExtractedModuleFile[] = [];
     const skipped: SkippedPackEntry[] = [];
     let totalDeclaredBytes = 0;
+    // Manifest paths matched to an extracted (and hash-verified) file, so a
+    // listed entry that never showed up in the archive can be caught below.
+    const matchedManifestPaths = new Set<string>();
 
     for (const entry of directory.files) {
       if (entry.type === 'Directory') continue;
 
-      const normalized = entry.path.replace(/\\/g, '/').replace(/^\.\//, '');
+      const normalized = normalizeEntryPath(entry.path);
+
+      if (normalized === PACK_MANIFEST_FILENAME || normalized === PACK_SIGNATURE_FILENAME) {
+        // Pack metadata - never a module, never installed.
+        skipped.push({ entryPath: normalized, reason: 'Pack manifest/signature — never installed.' });
+        continue;
+      }
 
       if (!MODULE_FILE_RE.test(normalized)) {
         skipped.push({ entryPath: normalized, reason: 'Not a module file (.db or .db.gz) — not extracted.' });
         continue;
+      }
+
+      // A verified pack's manifest is the exhaustive list of module files it
+      // may contain - anything else is tampering, full stop, before a single
+      // byte of it is extracted.
+      const manifestEntry = manifest?.modules.find((m) => m.path === normalized);
+      if (manifest && !manifestEntry) {
+        throw new ModulePackError(
+          `"${normalized}" is not listed in the verified pack's manifest — refusing the whole pack.`,
+          'pack_tampered'
+        );
       }
 
       // Zip-slip defense: resolve against the temp root and verify the
@@ -221,29 +347,59 @@ export async function extractModulePack(
       }
 
       mkdirSync(dirname(destPath), { recursive: true });
-      const actualBytes = await copyEntryCapped(entry, destPath, limits.maxEntryBytes, normalized);
+      const { bytes: actualBytes, sha256 } = await copyEntryCapped(entry, destPath, limits.maxEntryBytes, normalized);
+
+      if (manifestEntry) {
+        if (actualBytes !== manifestEntry.size_bytes || sha256 !== manifestEntry.sha256) {
+          throw new ModulePackError(
+            `"${normalized}" does not match the verified pack's manifest — refusing the whole pack.`,
+            'pack_tampered'
+          );
+        }
+        matchedManifestPaths.add(normalized);
+      }
+
       moduleFiles.push({ entryPath: normalized, extractedPath: destPath, sizeBytes: actualBytes });
     }
 
-    return { tempDir, moduleFiles, skipped };
+    if (manifest) {
+      const missing = manifest.modules.filter((m) => !matchedManifestPaths.has(m.path));
+      if (missing.length > 0) {
+        throw new ModulePackError(
+          `The verified pack's manifest lists ${missing.length} file(s) that were never found in the archive ` +
+            `(e.g. "${missing[0].path}") — refusing the whole pack.`,
+          'pack_tampered'
+        );
+      }
+    }
+
+    return { tempDir, moduleFiles, skipped, packVerification };
   } catch (error) {
     rmSync(tempDir, { recursive: true, force: true });
     throw error;
   }
 }
 
+/** Archive entry path -> forward-slash, no leading `./`, matching how manifest paths are written. */
+function normalizeEntryPath(entryPath: string): string {
+  return entryPath.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
 /**
  * Stream one archive entry to disk, counting real bytes as they pass so a
  * DEFLATE stream that expands past its declared (or the configured) size
- * ceiling is cut off mid-write rather than trusted to stop on its own.
+ * ceiling is cut off mid-write rather than trusted to stop on its own. Also
+ * hashes the stream as it passes, so a pack's manifest can be checked against
+ * the bytes actually written without ever re-reading the file from disk.
  */
 async function copyEntryCapped(
   entry: { stream: () => Readable },
   destPath: string,
   cap: number,
   label: string
-): Promise<number> {
+): Promise<{ bytes: number; sha256: string }> {
   let seen = 0;
+  const hash = createHash('sha256');
   try {
     await pipeline(
       entry.stream(),
@@ -256,6 +412,7 @@ async function copyEntryCapped(
               'archive_too_large'
             );
           }
+          hash.update(chunk);
           yield chunk;
         }
       },
@@ -266,7 +423,36 @@ async function copyEntryCapped(
       ? error
       : new ModulePackError(`Failed to extract "${label}": ${(error as Error).message}`, 'invalid_archive');
   }
-  return seen;
+  return { bytes: seen, sha256: hash.digest('hex') };
+}
+
+/**
+ * Read one small archive entry (a pack's `pack.json`/`pack.json.sig`) fully
+ * into memory, applying the same zip-bomb defense as `copyEntryCapped`: the
+ * declared `uncompressedSize` is untrusted, so real bytes are counted as they
+ * stream and the read is aborted the instant it exceeds `cap`.
+ */
+async function readEntryToBufferCapped(
+  entry: { stream: () => Readable },
+  cap: number,
+  label: string
+): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let seen = 0;
+  try {
+    for await (const chunk of entry.stream() as AsyncIterable<Buffer>) {
+      seen += chunk.length;
+      if (seen > cap) {
+        throw new ModulePackError(`"${label}" exceeds the ${cap}-byte metadata size limit.`, 'archive_too_large');
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    throw error instanceof ModulePackError
+      ? error
+      : new ModulePackError(`Failed to read "${label}": ${(error as Error).message}`, 'invalid_archive');
+  }
+  return Buffer.concat(chunks);
 }
 
 /** Remove an extraction temp directory. Safe to call more than once. */
@@ -324,6 +510,8 @@ export interface ModulePackInstallSummary {
    * type-check; always present on summaries this function produces.
    */
   upToDate?: ModulePackUpToDateEntry[];
+  /** Set only when `ModulePackTrustOptions` were passed to `installModulePack`. */
+  packVerification?: PackSignatureResult;
 }
 
 /**
@@ -351,9 +539,15 @@ export async function installModulePack(
      */
     upToDateReason?: string;
   }>,
-  limits: ModulePackLimits = DEFAULT_MODULE_PACK_LIMITS
+  limits: ModulePackLimits = DEFAULT_MODULE_PACK_LIMITS,
+  trust?: ModulePackTrustOptions
 ): Promise<ModulePackInstallSummary> {
-  const { tempDir, moduleFiles, skipped } = await extractModulePack(archivePath, extractionRoot, limits);
+  const { tempDir, moduleFiles, skipped, packVerification } = await extractModulePack(
+    archivePath,
+    extractionRoot,
+    limits,
+    trust
+  );
 
   const installed: ModulePackOutcome[] = [];
   const failed: ModulePackFailure[] = [];
@@ -380,11 +574,55 @@ export async function installModulePack(
     cleanupModulePack(tempDir);
   }
 
-  return { found: moduleFiles.length, installed, failed, skipped, upToDate };
+  return { found: moduleFiles.length, installed, failed, skipped, upToDate, packVerification };
 }
 
 /** True if `filePath`'s extension marks it as a pack archive, not a single module file. */
 export function isModulePackPath(filePath: string): boolean {
   const lower = filePath.toLowerCase();
   return MODULE_PACK_EXTENSIONS.some(ext => lower.endsWith(ext));
+}
+
+/**
+ * Inspect a pack archive's trust status without installing anything: opens
+ * the archive, reads `pack.json`/`pack.json.sig` (if present) and verifies
+ * them, and reports a summary of the manifest for the UI to show before the
+ * user commits to installing. Never extracts or writes a module file.
+ */
+export async function inspectModulePack(
+  archivePath: string,
+  trustedKeys: readonly string[]
+): Promise<PackSignatureResult & { moduleCount?: number; totalBytes?: number }> {
+  if (!existsSync(archivePath) || !statSync(archivePath).isFile()) {
+    throw new ModulePackError(`Archive not found: ${archivePath}`, 'not_found');
+  }
+
+  let directory: Awaited<ReturnType<UnzipperOpenType['file']>>;
+  try {
+    directory = await (await unzipperOpen()).file(archivePath);
+  } catch (error) {
+    throw new ModulePackError(`Could not read archive: ${(error as Error).message}`, 'invalid_archive');
+  }
+
+  const manifestEntry = directory.files.find(
+    (f) => f.type !== 'Directory' && normalizeEntryPath(f.path) === PACK_MANIFEST_FILENAME
+  );
+  const signatureEntry = directory.files.find(
+    (f) => f.type !== 'Directory' && normalizeEntryPath(f.path) === PACK_SIGNATURE_FILENAME
+  );
+  const manifestBytes = manifestEntry
+    ? await readEntryToBufferCapped(manifestEntry, MAX_PACK_MANIFEST_BYTES, PACK_MANIFEST_FILENAME)
+    : undefined;
+  const signatureBytes = signatureEntry
+    ? await readEntryToBufferCapped(signatureEntry, MAX_PACK_SIGNATURE_BYTES, PACK_SIGNATURE_FILENAME)
+    : undefined;
+
+  const result = verifyPackManifestSignature(manifestBytes, signatureBytes, trustedKeys);
+  if (!result.manifest) return result;
+
+  return {
+    ...result,
+    moduleCount: result.manifest.modules.length,
+    totalBytes: result.manifest.modules.reduce((sum, m) => sum + m.size_bytes, 0),
+  };
 }

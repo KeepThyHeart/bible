@@ -1,6 +1,6 @@
 # Sidebar & Layout
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-09
 
 Flexible docking layout using `dockview-react`, with drag-and-drop tab rearrangement, panel splitting, pop-out windows, and session-persistent layout.
 
@@ -22,7 +22,7 @@ Flexible docking layout using `dockview-react`, with drag-and-drop tab rearrange
 | `src/ui/components/LayoutDropdown.tsx` | Dropdown button for applying built-in layout presets (Study Mode, Reading Mode, etc.); checkmarks the currently-applied preset via `layoutPresetService.currentPresetId`, which clears once the user manually rearranges the layout (see "Preset checkmark invalidation" below) |
 | `src/ui/components/AdvancedPaneManagerGateDialog.tsx` | Modal shown when the user tries to drag a pane while `usePreferencesStore`'s `advancedPaneManagerEnabled` is off. Explains the opt-in, reminds the user the Layout button can restore the default arrangement, and requires a checkbox before enabling the preference. See "Advanced Pane Manager drag gate" below |
 | `src/ui/components/PaneOptionsMenu.tsx` | Menu for pane-level options (font size, detach, etc.) |
-| `src/ui/App.tsx` | Main layout using `DockviewLayout` in the content area; passes the saved layout from session data |
+| `src/ui/App.tsx` | Main layout using `DockviewLayout` in the content area; passes the saved layout from session data. Also mounts `StatusBar` as a sibling of the `<main>` element, so the strip sits below the whole workbench rather than inside a pane - and renders nothing at all until an extension contributes an item (see [Status Bar](status-bar.md)) |
 | `src/ui/components/ErrorBoundary.tsx` | React error boundary wrapping the app; catches rendering crashes and shows a fallback UI with a reload button |
 
 ### Stores

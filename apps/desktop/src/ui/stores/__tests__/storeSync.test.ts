@@ -37,6 +37,7 @@ vi.mock('../../services/electronAPI', () => ({
 
 vi.mock('../helpers/sessionNotifier', () => ({
   markSessionDirty: vi.fn(),
+  setSessionDirtyCallback: vi.fn(),
 }));
 
 import { useBibleStore } from '../useBibleStore';

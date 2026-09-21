@@ -18,8 +18,17 @@
  *      URL is tallied and cross-referenced against
  *      `manifest.network.allowedHosts` and the `network` permission.
  *
- * `not-invokable` hook results are classified as `skip`, not `fail`. Reporter
- * (item 4) consumes the returned structure verbatim.
+ * ── Reachability is an assertion, not an excuse ────────────────────────────
+ * `not-invokable` results are classified as `skip`; `unbound-endpoint`
+ * results are classified as `fail`. The invoker decides which is which, and
+ * `hookInvoker.ts` explains the rule in full. The short version: a
+ * contribution the author declared but nothing bound is a defect that is
+ * silent in production (the command sits in the palette and does nothing), so
+ * the smoke run is where it has to surface. Only a contribution with no
+ * invocation semantics at all — a panel type, a highlight style, a
+ * commandless status-bar item — earns a skip.
+ *
+ * Reporter (item 4) consumes the returned structure verbatim.
  */
 
 import { Extensions } from '@bible/core';
@@ -45,7 +54,13 @@ export type SmokeFailureReason =
   | 'timeout'
   | 'invalid-return'
   | 'permission-violation'
-  | 'unexpected-network';
+  | 'unexpected-network'
+  /**
+   * The contribution is declared but nothing the host could call stands behind
+   * it: no `api.runtime.expose` for its endpoint, a command with no
+   * `handlerEndpoint`, or a menu item naming a command that does not exist.
+   */
+  | 'unbound-endpoint';
 
 export type SmokeRecordStatus = 'pass' | 'fail' | 'skip';
 
@@ -167,6 +182,14 @@ export async function runSmokeSuite(
           delta: interceptor.delta(before, after),
         }),
       );
+      // A hook that could not be reached at all did not look at the input, so
+      // the remaining twelve corpus entries would produce twelve identical
+      // rows saying the same thing. Record it once. This keeps a broken
+      // command from drowning the report — and, for a skip, keeps the counts
+      // honest about how much was actually exercised.
+      if (result.status === 'not-invokable' || result.status === 'unbound-endpoint') {
+        break;
+      }
     }
   }
 
@@ -230,6 +253,15 @@ function classify(args: ClassifyArgs): SmokeRecord {
       ...base,
       status: 'skip',
       message: result.reason ?? 'Hook not invokable in current harness mode.',
+    };
+  }
+
+  if (result.status === 'unbound-endpoint') {
+    return {
+      ...base,
+      status: 'fail',
+      failureReason: 'unbound-endpoint',
+      message: result.reason ?? 'Declared contribution has no handler bound.',
     };
   }
 

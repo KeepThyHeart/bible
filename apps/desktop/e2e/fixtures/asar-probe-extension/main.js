@@ -69,24 +69,38 @@ exports.activate = function activate(api) {
   // Deferred so it runs after activate() has returned. Awaiting a host call
   // inside activate() is supported (see `bootstrap.ts`), but keeping this on
   // the post-activate path preserves what the original fixture covered.
-  setTimeout(function () {
+  //
+  // The KV tier is gated on the `storage` permission, and sideloading grants
+  // only DEFAULT_GRANTED_PERMISSIONS - the spec grants `storage` over IPC once
+  // the host has registered us. That grant can land either side of this code
+  // (`onStartup` may have activated us during boot), so retry through the
+  // denial instead of racing it. Only the settled outcome is logged, so the
+  // marker the spec reads is never ambiguous.
+  var attempt = 0;
+  function roundTrip() {
+    attempt++;
     Promise.resolve(api.storage.set('asarProbe', 'round-trip-ok'))
       .then(function () {
         return api.storage.get('asarProbe');
       })
       .then(
         function (value) {
-          console.log(RPC_TAG + ' ' + JSON.stringify({ ok: true, value: value }));
+          console.log(RPC_TAG + ' ' + JSON.stringify({ ok: true, value: value, attempts: attempt }));
         },
         function (err) {
+          var message = err && err.message ? err.message : String(err);
+          var denied = (err && err.code === 'PermissionDeniedError') || /permission/i.test(message);
+          if (denied && attempt < 40) {
+            setTimeout(roundTrip, 250);
+            return;
+          }
           console.log(
-            RPC_TAG +
-              ' ' +
-              JSON.stringify({ ok: false, error: err && err.message ? err.message : String(err) }),
+            RPC_TAG + ' ' + JSON.stringify({ ok: false, error: message, attempts: attempt }),
           );
         },
       );
-  }, 300);
+  }
+  setTimeout(roundTrip, 300);
 };
 
 exports.deactivate = function deactivate() {

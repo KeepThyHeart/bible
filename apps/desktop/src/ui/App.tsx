@@ -6,6 +6,7 @@ import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
 import ToastContainer from './components/ToastContainer';
 import DockviewLayout from './components/DockviewLayout';
+import StatusBar from './components/StatusBar';
 import WelcomeBar from './components/onboarding/WelcomeBar';
 import { useOnboardingStore } from './stores/useOnboardingStore';
 import { useBibleStore } from './stores/useBibleStore';
@@ -430,6 +431,10 @@ function App() {
         <main className="flex-1 min-h-0 overflow-hidden">
           <DockviewLayout savedLayout={savedDockviewLayout} layoutDecided={layoutDecided} />
         </main>
+
+        {/* Renders nothing at all until an extension contributes an item, so
+            it costs no chrome for a user with none. */}
+        <StatusBar />
 
         {/* Advanced Search Dialog (modal overlay) */}
         <AdvancedSearchDialog />

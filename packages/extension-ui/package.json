@@ -1,6 +1,6 @@
 {
   "name": "@bible/extension-ui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Client-side SDK for Bible app extension iframes — verse linking, navigation, popups, and typed host bridge",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,6 +28,6 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.11"
   }
 }

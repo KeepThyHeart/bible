@@ -17,19 +17,19 @@ import {
   DIAGNOSTICS_RING_SIZE,
   DIAGNOSTICS_CRASHES_PER_SESSION_CAP,
 } from '../config/constants';
-
-// Injected at build time by electron.vite.config.ts via Vite's `define`.
-// Resolves to the short git SHA for the source revision this binary was
-// built from (or an empty string when git wasn't available at build time).
-declare const __BIBLE_BUILD_ID__: string;
+import { APP_CONFIG } from '../config/appConfig';
 
 /**
  * Build-time git SHA, safe to read from anywhere in the main process.
  * Exported so the uploader can add it to request headers without having
  * to thread it through the service API.
+ *
+ * Resolved by `appConfig.ts` from the `__BIBLE_BUILD_ID__` define, alongside
+ * every other build-time value, and re-exported here so this module's existing
+ * callers keep the name they use. Still `''` under Vitest, where no bundler
+ * applies the define - which is the case the "omits build_id" test covers.
  */
-export const BUILD_ID: string =
-  typeof __BIBLE_BUILD_ID__ === 'string' ? __BIBLE_BUILD_ID__ : '';
+export const BUILD_ID: string = APP_CONFIG.buildId;
 
 export type DiagnosticsReportType = 'crash' | 'manual' | 'feedback';
 

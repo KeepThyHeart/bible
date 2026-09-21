@@ -6,6 +6,6 @@
   "description": "E2E fixture that proves the extension worker (utilityProcess) actually spawned and executed the extension-runtime bundle from inside app.asar.",
   "engines": { "bibleApp": "^1.0.0" },
   "main": "./main.js",
-  "permissions": [],
+  "permissions": ["storage"],
   "activationEvents": ["onStartup"]
 }

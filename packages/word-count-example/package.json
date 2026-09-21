@@ -14,6 +14,6 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@bible/extension-testing": "^1.0.0"
+    "@bible/extension-testing": "^0.1.0"
   }
 }

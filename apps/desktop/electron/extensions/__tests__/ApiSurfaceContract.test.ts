@@ -242,13 +242,30 @@ describe('API surface contract', () => {
     // the missing handle it replaced: it fails at teardown, asynchronously,
     // usually unobserved.
     //
-    // `events` is the one legitimate exception: the proxy special-cases
-    // `events.subscribe` to the worker-side emitter, which returns a real
-    // local `DisposableHandle` and never issues a request at all. Its
-    // `dispose()` sends an `RpcUnsubscribe` envelope, not a `dispose` call.
+    // Three namespaces are legitimate exceptions, and they are all the same
+    // exception: the proxy special-cases them to worker-local state, so they
+    // hand back a real `DisposableHandle` built in the worker and never issue
+    // a request the host could answer with a `disposalId`.
+    //
+    //   `events`   - `subscribe` goes to the worker-side emitter; its
+    //                `dispose()` sends an `RpcUnsubscribe` envelope.
+    //   `runtime`  - `expose` binds a callback into the worker's own
+    //                reverse-RPC endpoint table; `dispose()` unbinds it. The
+    //                host is never told, because the host was never the one
+    //                holding it.
+    //   `panels`   - `onMessage` is `runtime.expose` under a fixed endpoint
+    //                name. Its `dispose()` unbinds locally *and* sends
+    //                `panels.setMessageHandler(false)`, but that is a state
+    //                update, not a disposal call.
+    //
+    // Adding a namespace here needs the same property: the handle must be
+    // constructed worker-side. A namespace whose handle comes back over the
+    // wire belongs in the checked set, or its `dispose()` rejects at teardown,
+    // asynchronously, usually unobserved.
+    const WORKER_LOCAL_DISPOSABLES = new Set(['events', 'runtime', 'panels']);
     const registered = registeredMethods();
     const missing = [...namespacesReturningDisposables()]
-      .filter((ns) => ns !== 'events')
+      .filter((ns) => !WORKER_LOCAL_DISPOSABLES.has(ns))
       .filter((ns) => registered.get(ns)?.has('dispose') !== true);
     expect(missing).toEqual([]);
   });

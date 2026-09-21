@@ -11,7 +11,17 @@
  * ```
  */
 
-export { createMockApi, type MockApiOverrides } from './createMockApi';
+export {
+  createMockApi,
+  getMockPanelChannel,
+  getMockRuntimeEndpoints,
+  type MockApiOverrides,
+  type MockDbStatement,
+  type MockDbTransactionRecord,
+  type MockExtensionDatabase,
+  type MockPanelChannel,
+  type MockRuntimeEndpoints,
+} from './createMockApi';
 export { createTestHost, type TestHost, type TestHostOptions } from './createTestHost';
 export * as fixtures from './fixtures';
 export * as smoke from './smoke';
@@ -28,6 +38,7 @@ export {
   MODULE_ESV,
   MODULE_HEBREW,
   BOOKS_SAMPLE,
+  CHAPTERS_JOHN,
   COMMENTARY_MODULE_SAMPLE,
   COMMENTARY_ENTRY_JOHN_3_16,
   DICTIONARY_MODULE_SAMPLE,

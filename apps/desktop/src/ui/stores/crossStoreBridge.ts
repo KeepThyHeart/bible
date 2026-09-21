@@ -52,7 +52,25 @@ export type ResolveOpenModuleAbbreviations = () => string[];
  */
 export type ShowSearchResultsPanel = () => void;
 
+/** What changed in the installed-module library. */
+export interface LibraryChange {
+  /**
+   * The module types whose installed set changed (install, uninstall, update or
+   * hide/unhide). Consumers only care about the types they render.
+   */
+  moduleTypes: string[];
+}
+
+/**
+ * Tell the rest of the app that the set of installed modules changed. Raised by
+ * the module store once an install/uninstall/update has *finished* and the
+ * installed list has been reloaded. Implemented by `storeSync.ts`, which
+ * refreshes the Bible store (available translations, first-Bible seeding).
+ */
+export type NotifyLibraryChanged = (change: LibraryChange) => void | Promise<void>;
+
 interface CrossStoreBridges {
+  notifyLibraryChanged: NotifyLibraryChanged | null;
   navigateToVerseInPrimary: NavigateToVerseInPrimary | null;
   previewVerseInPrimary: PreviewVerseInPrimary | null;
   resolvePrimaryBibleVerseId: ResolvePrimaryBibleVerseId | null;
@@ -61,6 +79,7 @@ interface CrossStoreBridges {
 }
 
 const bridges: CrossStoreBridges = {
+  notifyLibraryChanged: null,
   navigateToVerseInPrimary: null,
   previewVerseInPrimary: null,
   resolvePrimaryBibleVerseId: null,
@@ -107,6 +126,24 @@ export function resolvePrimaryBibleVerseId(): number | null {
 
 export function resolveOpenModuleAbbreviations(): string[] {
   return bridges.resolveOpenModuleAbbreviations?.() ?? [];
+}
+
+export function setNotifyLibraryChanged(fn: NotifyLibraryChanged | null): void {
+  bridges.notifyLibraryChanged = fn;
+}
+
+/**
+ * Announce that installed modules of `change.moduleTypes` changed. Resolves once
+ * the listener has finished reacting; a no-op when nothing is wired, and a
+ * listener failure is logged rather than thrown - a finished install must not
+ * report as failed because a pane could not refresh.
+ */
+export async function notifyLibraryChanged(change: LibraryChange): Promise<void> {
+  try {
+    await bridges.notifyLibraryChanged?.(change);
+  } catch (error) {
+    console.error('[crossStoreBridge] notifyLibraryChanged listener failed:', error);
+  }
 }
 
 export function setShowSearchResultsPanel(fn: ShowSearchResultsPanel | null): void {

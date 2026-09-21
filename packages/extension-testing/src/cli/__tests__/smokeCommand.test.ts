@@ -51,6 +51,19 @@ function makeExtension(root: string, body: string): void {
   writeFileSync(join(root, 'index.js'), body, 'utf8');
 }
 
+/**
+ * The baseline "nothing wrong with this extension" body.
+ *
+ * It has to bind `sayHello`, because the manifest above contributes a command
+ * that names it: a declared command with no `api.runtime.expose` behind it is
+ * a failure now, not a skip, and rightly so — in the app it would appear in
+ * the palette and do nothing. Tests that assert exit code 0 need an extension
+ * that is actually clean, and an empty `activate` no longer is.
+ */
+const CLEAN_BODY = `exports.activate = async function(api){
+  await api.runtime.expose('sayHello', function(){ return 'hi'; });
+};`;
+
 describe('runSmokeCommand', () => {
   let workDir: string;
 
@@ -62,17 +75,28 @@ describe('runSmokeCommand', () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
-  it('returns 0 for a clean extension with only enumerable static contributions', async () => {
-    makeExtension(
-      workDir,
-      `exports.activate = function(api){};`,
-    );
+  it('returns 0 for a clean extension whose contributed command is bound', async () => {
+    makeExtension(workDir, CLEAN_BODY);
     const ctx = makeCtx(workDir);
     const code = await runSmokeCommand([workDir], ctx);
     expect(code).toBe(0);
     const output = ctx.out.join('');
     expect(output).toContain('ext.test.cli');
     expect(output).toContain('0 failed');
+  });
+
+  it('returns 1 for a contributed command whose endpoint nothing binds', async () => {
+    // The regression this whole taxonomy exists for. The extension activates
+    // cleanly, the manifest is valid, and the command is dead: nothing calls
+    // `runtime.expose('sayHello', ...)`, so choosing it in the palette would
+    // do nothing at all. Exiting 0 here would certify the bug.
+    makeExtension(workDir, `exports.activate = function(api){};`);
+    const ctx = makeCtx(workDir);
+    const code = await runSmokeCommand([workDir], ctx);
+    expect(code).toBe(1);
+    const output = ctx.out.join('');
+    expect(output).toContain('unbound-endpoint');
+    expect(output).toContain('sayHello');
   });
 
   it('returns 1 when an extension hook throws during activation', async () => {
@@ -101,7 +125,7 @@ describe('runSmokeCommand', () => {
   });
 
   it('--json emits a versioned envelope to stdout', async () => {
-    makeExtension(workDir, `exports.activate = function(api){};`);
+    makeExtension(workDir, CLEAN_BODY);
     const ctx = makeCtx(workDir);
     const code = await runSmokeCommand([workDir, '--json'], ctx);
     expect(code).toBe(0);
@@ -116,7 +140,7 @@ describe('runSmokeCommand', () => {
   });
 
   it('--output writes the report to a file and nothing to stdout', async () => {
-    makeExtension(workDir, `exports.activate = function(api){};`);
+    makeExtension(workDir, CLEAN_BODY);
     const outFile = join(workDir, 'report.json');
     const ctx = makeCtx(workDir);
     const code = await runSmokeCommand([workDir, '--json', `--output=${outFile}`], ctx);
@@ -129,7 +153,7 @@ describe('runSmokeCommand', () => {
   });
 
   it('surfaces a clean error (not a stack trace) when --corpus points to a missing file', async () => {
-    makeExtension(workDir, `exports.activate = function(api){};`);
+    makeExtension(workDir, CLEAN_BODY);
     const ctx = makeCtx(workDir);
     const code = await runSmokeCommand(
       [workDir, '--corpus=/nonexistent/path/smoke.corpus.json'],
@@ -142,7 +166,7 @@ describe('runSmokeCommand', () => {
   });
 
   it('surfaces a clean error when --corpus file is malformed', async () => {
-    makeExtension(workDir, `exports.activate = function(api){};`);
+    makeExtension(workDir, CLEAN_BODY);
     const badCorpus = join(workDir, 'bad.corpus.json');
     writeFileSync(badCorpus, JSON.stringify({ verseIds: ['not-an-int'] }), 'utf8');
     const ctx = makeCtx(workDir);
@@ -164,7 +188,7 @@ describe('runSmokeCommand', () => {
   });
 
   it('--ascii does not emit unicode glyphs', async () => {
-    makeExtension(workDir, `exports.activate = function(api){};`);
+    makeExtension(workDir, CLEAN_BODY);
     const ctx = makeCtx(workDir);
     const code = await runSmokeCommand([workDir, '--ascii'], ctx);
     expect(code).toBe(0);

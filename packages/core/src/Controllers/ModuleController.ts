@@ -61,12 +61,20 @@ export class ModuleController {
   }
 
   /**
-   * Install a module
+   * Install a module.
+   *
+   * @param catalogModuleId - The catalog module id to install.
+   * @param catalogId - When given, resolve `catalogModuleId` only against
+   *                    that catalog (see `IModuleCatalogService.getModuleInfo`)
+   *                    rather than across every enabled catalog. First-run
+   *                    starter-pack installs always pass this, so a
+   *                    third-party catalog can never satisfy an install the
+   *                    user believes is coming from the official one.
    */
-  async installModule(catalogModuleId: string): Promise<InstallationResult> {
+  async installModule(catalogModuleId: string, catalogId?: number): Promise<InstallationResult> {
     try {
       // Get module info from catalog
-      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId);
+      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId, catalogId);
       if (!moduleInfo) {
         return {
           success: false,
@@ -98,12 +106,12 @@ export class ModuleController {
       const fileName = `${moduleInfo.module_id}_v${moduleInfo.version}.db.gz`;
       const tempFilePath = `${this.tempDownloadPath}/${fileName}`;
 
-      // Start download
+      // Start download. The catalog's checksum covers the unpacked module, so
+      // the installation service checks it after unpacking, not the download.
       const downloadedPath = await this.downloadService.startDownload(
         queueEntry.queueId!,
         moduleInfo.download_url,
-        tempFilePath,
-        moduleInfo.checksum.replace('sha256:', '')
+        tempFilePath
       );
 
       // Mark download as completed in queue
@@ -125,7 +133,12 @@ export class ModuleController {
           license: moduleInfo.license,
           license_url: moduleInfo.license_url,
         }
-      });
+      }, moduleInfo.checksum
+        ? {
+            sha256: moduleInfo.checksum.replace('sha256:', ''),
+            maxBytes: moduleInfo.installed_size_bytes || undefined,
+          }
+        : undefined);
 
       return installResult;
     } catch (error) {

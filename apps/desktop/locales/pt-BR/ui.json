@@ -1238,5 +1238,8 @@
   "documentationDialog.bookmarks.movingBody": "Clique com o botão direito em um versículo, escolha <strong>Adicionar aos marcadores</strong> e selecione um marcador existente em vez de criar um novo — ele passa a apontar para cá. Um marcador nomeado mantém o nome; um sem nome passa a exibir a nova referência.",
   "documentationDialog.bookmarks.managingHeading": "Gerenciar a lista",
   "documentationDialog.bookmarks.managingBody": "A fita na barra abre seus marcadores; clique em um para ir até lá. Em <strong>Gerenciar marcadores</strong> você renomeia, reordena arrastando e remove.",
-  "documentationDialog.bookmarks.tip": "Um versículo marcado exibe uma pequena fita vermelha ao lado dele no texto."
+  "documentationDialog.bookmarks.tip": "Um versículo marcado exibe uma pequena fita vermelha ao lado dele no texto.",
+  "statusBar.label": "Barra de status",
+  "commands.openExtensionPanel": "Abrir {name}",
+  "newTabPage.fromExtensions": "De extensões"
 }

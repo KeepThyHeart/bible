@@ -31,6 +31,9 @@ vi.mock('../../../services/electronAPI', () => ({
 vi.mock('../../VersePreviewTooltip', () => ({ default: () => null }));
 
 import NoteEditor from './NoteEditor';
+import { flushTiptapDestroyOnTeardown } from './flushTiptapDestroy';
+
+flushTiptapDestroyOnTeardown();
 
 function renderEditor() {
   const actions = {

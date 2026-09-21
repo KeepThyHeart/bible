@@ -7,6 +7,7 @@ import UserNotesPane from './notes/UserNotesPane';
 import PrayerTab from './notes/tabs/PrayerTab';
 import StudyPane from './StudyPane';
 import TopicsPane from './TopicsPane';
+import ExtensionPanelHost from './extensions/ExtensionPanelHost';
 
 /**
  * Component map - maps component names to actual components
@@ -31,6 +32,16 @@ export const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   PrayerTab: PrayerTab,
   StudyPane: StudyPane,
   TopicsPane: TopicsPane,
+  // Every extension panel detaches into this one component - the panel is an
+  // iframe on the extension's own origin, so the host has nothing type-
+  // specific to render. `extensionId` and `panelTypeId` arrive as props from
+  // the detach payload.
+  //
+  // The load-bearing detail is on the *main* side: `registerExtUiProtocol`
+  // takes a session, and a detached BrowserWindow gets its own. Without the
+  // handler registered on that session the iframe loads nothing and fails
+  // silently. See `WindowManager`.
+  ExtensionPanelHost: ExtensionPanelHost,
 };
 
 export interface InitializePanePayload {
