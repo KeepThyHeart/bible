@@ -640,7 +640,7 @@ const NotInstalledNote: React.FC<{ message: string; moduleType: ModuleType }> = 
         type="button"
         onClick={() => openModuleManager(moduleType)}
         data-testid={`study-install-${moduleType}`}
-        style={{ border: 'none', background: 'none', padding: 0, color: 'var(--theme-accent, #3b76ba)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+        style={{ border: 'none', background: 'none', padding: 0, color: 'var(--theme-accent-primary)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
       >
         {t('studyPane.installLink')}
       </button>
