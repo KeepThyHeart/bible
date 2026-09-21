@@ -4,6 +4,7 @@ import { ipcHandler, IpcKnownError } from './handler-helper';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { initializeSearchSchema } from '../schema/searchSchema';
 import { BibleRepository, BibleSearchRepository, BibleSearchService, SearchController, SemanticSearchService, WordFamilyService, formatVerseText, highlightSearchTerms, clampSearchQuery } from '@bible/core';
+import type { SemanticLevel, SemanticQueryModel } from '@bible/core';
 import { getBibleRepository } from './bibleHandlers';
 import { getDictionaryRepository } from './dictionaryHandlers';
 import { validateString, validatePositiveInt } from '../utils/validation';
@@ -415,17 +416,18 @@ export function registerSearchHandlers(_ipcMain: IpcMain): void {
       );
     }
 
-    // Get query embedding
-    const queryEmbedding = await getQueryEmbedding(query);
+    // Get query embedding, from the model this index was built to match
+    const queryEmbedding = await getQueryEmbedding(query, semanticSearchService.getQueryModel());
     if (!queryEmbedding) {
       throw new Error('Failed to generate query embedding');
     }
 
-    // Search
+    // Search. The similarity floor is the index's own: a truncated or centred
+    // index scores on a different scale from raw full-width cosine.
     const results = semanticSearchService.search(queryEmbedding, {
       maxResults: options?.maxResults ?? 20,
-      levels: (options?.levels ?? ['verse', 'paragraph']) as Array<'verse' | 'paragraph' | 'chapter'>,
-      minSimilarity: 0.3,
+      levels: (options?.levels ?? ['verse', 'paragraph']) as SemanticLevel[],
+      collapsePassages: true,
     });
 
     // Resolve references using book repo
@@ -541,7 +543,7 @@ export function resetSemanticSearch(): void {
   log.info('[SemanticSearch] Cached index and embedder released');
 }
 
-async function getQueryEmbedding(query: string): Promise<Float32Array | null> {
+async function getQueryEmbedding(query: string, queryModel: SemanticQueryModel): Promise<Float32Array | null> {
   try {
     // Lazy-load the embedder
     if (!semanticEmbedder) {
@@ -564,10 +566,14 @@ async function getQueryEmbedding(query: string): Promise<Float32Array | null> {
           }
           env.allowRemoteModels = false;
           env.localModelPath = modelsPath;
-          semanticEmbedder = await pipeline('feature-extraction', 'Xenova/nomic-embed-text-v1', {
-            dtype: 'fp32' as any,
+          // The index names the model and precision it was built to match; a
+          // pack ships exactly that model under models/. Cached until
+          // resetSemanticSearch(), which an install or uninstall always calls,
+          // so the embedder cannot outlive the index it belongs to.
+          semanticEmbedder = await pipeline('feature-extraction', queryModel.modelId, {
+            dtype: queryModel.dtype as any,
           });
-          log.info('[SemanticSearch] Embedding model loaded.');
+          log.info(`[SemanticSearch] Embedding model loaded: ${queryModel.modelId} (${queryModel.dtype})`);
           return semanticEmbedder;
         })();
       }
@@ -582,11 +588,12 @@ async function getQueryEmbedding(query: string): Promise<Float32Array | null> {
       }
     }
 
-    // nomic-embed-text uses 'search_query: ' prefix for queries.
+    // nomic-embed-text marks queries with a task prefix ('search_query: '),
+    // which the index declares alongside its model.
     // Clamped because attention is O(n^2) and the tokenizer's own bound is 8192
     // tokens - an unclamped long query costs seconds of CPU and gigabytes of
     // transient RSS. See MAX_SEARCH_QUERY_CHARS in @bible/core.
-    const output = await semanticEmbedder('search_query: ' + clampSearchQuery(query), { pooling: 'mean', normalize: true });
+    const output = await semanticEmbedder(queryModel.prefix + clampSearchQuery(query), { pooling: 'mean', normalize: true });
 
     // Extract the embedding from the Tensor
     const dims = output.dims;
