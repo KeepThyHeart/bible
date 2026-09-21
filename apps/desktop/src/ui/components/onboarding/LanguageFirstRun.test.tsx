@@ -6,6 +6,8 @@ import {
   useOnboardingStore,
   LANGUAGE_CHOSEN_STORAGE_KEY,
 } from '../../stores/useOnboardingStore';
+import { useNetworkStore } from '../../stores/useNetworkStore';
+import { useModuleStore } from '../../stores/useModuleStore';
 import { markLocaleCatalogsReady } from '../../services/localeCatalogsReady';
 import type { LocaleMetadata } from '../../services/II18nService';
 import { enT } from '../../testing/enCatalog';
@@ -41,6 +43,7 @@ const USER_SUPPLIED: LocaleMetadata[] = [
 // Hoisted so the module mock below can read a value each test sets.
 const h = vi.hoisted(() => ({
   locales: [] as LocaleMetadata[],
+  current: 'en',
   setLocale: vi.fn(async () => {}),
 }));
 
@@ -52,7 +55,9 @@ vi.mock('../../contexts/useI18n', () => ({
     t: (key: string, params?: Record<string, unknown>) => enT(key, params),
     locale: 'en',
     i18n: {
-      currentLocale: 'en',
+      get currentLocale(): string {
+        return h.current;
+      },
       get availableLocaleInfos(): LocaleMetadata[] {
         return h.locales;
       },
@@ -67,9 +72,14 @@ beforeEach(() => {
   window.localStorage.clear();
   useOnboardingStore.setState({ languageChosen: false });
   h.setLocale.mockClear();
+  h.current = 'en';
   h.locales = [...BUILT_IN, ...USER_SUPPLIED];
   getStarterPacks.mockReset();
   getStarterPacks.mockResolvedValue({ ok: true, value: [] });
+  // No `network` bridge by default, matching most of these tests: the store
+  // never loads, so the network step is skipped exactly as it always was
+  // before that step existed (see `useNetworkStore`'s doc comment).
+  useNetworkStore.setState({ allowWebRequests: false, loaded: false });
   (window as unknown as { electron?: unknown }).electron = {
     moduleManager: { getStarterPacks },
   };
@@ -220,6 +230,7 @@ describe('LanguageFirstRun', () => {
             description: 'Louis Segond 1910.',
             version: '1.0.0',
             module_ids: ['ls1910', 'strongsgreek'],
+            source: { catalogId: 1, catalogName: 'Official', verifiedOfficial: true },
           },
         ],
       });
@@ -231,6 +242,157 @@ describe('LanguageFirstRun', () => {
 
       expect(await screen.findByTestId('first-run-pack-starter-fr')).toHaveTextContent('French Starter');
       expect(getStarterPacks).toHaveBeenCalledWith('fr');
+    });
+
+    describe('when the catalog has no starter packs', () => {
+      const searchModules = vi.fn();
+      const RECOMMENDED = [
+        { module_id: 'strongs', module_type: 'dictionary', name: "Strong's", license: 'Public Domain', download_size_bytes: 1_000_000 },
+        { module_id: 'kjv', module_type: 'bible', name: 'King James Version', license: 'Public Domain', download_size_bytes: 5_000_000 },
+      ];
+
+      beforeEach(() => {
+        searchModules.mockReset().mockResolvedValue({ ok: true, value: [] });
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, searchModules },
+        };
+      });
+
+      async function continueWithDefaultLanguage() {
+        render(<LanguageFirstRun />);
+        await screen.findByTestId('first-run-language-dialog');
+        await userEvent.click(screen.getByTestId('first-run-language-continue'));
+      }
+
+      it('offers the recommended modules for the language, Bible first', async () => {
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        const card = await screen.findByTestId('first-run-pack-recommended');
+        expect(screen.queryByTestId('first-run-packs-empty')).not.toBeInTheDocument();
+        expect(searchModules).toHaveBeenCalledWith({ languageCode: 'en', recommended: true });
+        const rows = card.querySelectorAll('li[data-testid^="first-run-pack-module-"]');
+        expect(Array.from(rows).map((r) => r.getAttribute('data-testid'))).toEqual([
+          'first-run-pack-module-kjv',
+          'first-run-pack-module-strongs',
+        ]);
+        // Not from a signed pack, so it must not claim the verified badge.
+        expect(screen.queryByTestId('first-run-pack-verified-recommended')).not.toBeInTheDocument();
+      });
+
+      it('installs them through the same Install flow', async () => {
+        const installModule = vi.fn().mockResolvedValue(true);
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ installModule, loadInstalledModules });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        await userEvent.click(await screen.findByTestId('first-run-pack-install-recommended'));
+
+        await waitFor(() => expect(installModule).toHaveBeenCalledTimes(2));
+        expect(installModule).toHaveBeenNthCalledWith(1, 'kjv', undefined);
+        expect(installModule).toHaveBeenNthCalledWith(2, 'strongs', undefined);
+        expect(await screen.findByTestId('first-run-pack-installed-recommended')).toBeInTheDocument();
+      });
+
+      it('lets the reader untick modules, and installs only the ticked ones', async () => {
+        const installModule = vi.fn().mockResolvedValue(true);
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ installModule, loadInstalledModules });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        // Everything starts ticked, so the one-click path still works.
+        const strongs = await screen.findByTestId('first-run-pack-module-check-strongs');
+        expect(strongs).toBeChecked();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('2 of 2 selected');
+
+        await userEvent.click(strongs);
+        expect(strongs).not.toBeChecked();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('1 of 2 selected');
+
+        await userEvent.click(screen.getByTestId('first-run-pack-install-recommended'));
+        await waitFor(() => expect(installModule).toHaveBeenCalledTimes(1));
+        expect(installModule).toHaveBeenCalledWith('kjv', undefined);
+      });
+
+      it('disables Install when nothing is ticked, and Select all brings everything back', async () => {
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        await userEvent.click(await screen.findByTestId('first-run-pack-toggle-all-recommended'));
+        expect(screen.getByTestId('first-run-pack-install-recommended')).toBeDisabled();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('0 of 2 selected');
+
+        await userEvent.click(screen.getByTestId('first-run-pack-toggle-all-recommended'));
+        expect(screen.getByTestId('first-run-pack-install-recommended')).toBeEnabled();
+        expect(screen.getByTestId('first-run-pack-summary-recommended')).toHaveTextContent('2 of 2 selected');
+      });
+
+      it('shows the honest empty state only when the modules are empty too', async () => {
+        await continueWithDefaultLanguage();
+        expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-pack-recommended')).not.toBeInTheDocument();
+        expect(searchModules).toHaveBeenCalled();
+      });
+
+      it('shows the empty state when the module lookup fails', async () => {
+        searchModules.mockRejectedValue(new Error('offline'));
+        await continueWithDefaultLanguage();
+        expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+      });
+
+      it('prefers packs over recommended modules when both exist', async () => {
+        getStarterPacks.mockResolvedValue({
+          ok: true,
+          value: [
+            {
+              pack_id: 'starter-en',
+              languages: ['en'],
+              name: 'English Starter',
+              description: 'KJV.',
+              version: '1.0.0',
+              module_ids: ['kjv'],
+              source: { catalogId: 1, catalogName: 'Official', verifiedOfficial: true },
+            },
+          ],
+        });
+        searchModules.mockResolvedValue({ ok: true, value: RECOMMENDED });
+        await continueWithDefaultLanguage();
+
+        expect(await screen.findByTestId('first-run-pack-starter-en')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-pack-recommended')).not.toBeInTheDocument();
+        expect(searchModules).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('with a regional locale', () => {
+      it('falls back from en-US to en for both lookups', async () => {
+        const searchModules = vi.fn().mockImplementation(async (filter: { languageCode: string }) => ({
+          ok: true,
+          value:
+            filter.languageCode === 'en'
+              ? [{ module_id: 'kjv', module_type: 'bible', name: 'King James Version', license: 'Public Domain', download_size_bytes: 1 }]
+              : [],
+        }));
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, searchModules },
+        };
+        h.locales = [
+          { code: 'en-US', name: 'English (US)', nativeName: 'English (US)', status: 'complete', direction: 'ltr' },
+          ...BUILT_IN,
+        ];
+        h.current = 'en-US';
+
+        render(<LanguageFirstRun />);
+        await screen.findByTestId('first-run-language-dialog');
+        await userEvent.click(screen.getByTestId('first-run-language-continue'));
+
+        expect(await screen.findByTestId('first-run-pack-recommended')).toBeInTheDocument();
+        // Packs: full code first, then the base language.
+        expect(getStarterPacks.mock.calls.map((c) => c[0])).toEqual(['en-US', 'en']);
+        expect(searchModules.mock.calls.map((c) => c[0].languageCode)).toEqual(['en-US', 'en']);
+      });
     });
 
     it('falls back to the empty state when the pack lookup fails', async () => {
@@ -260,6 +422,179 @@ describe('LanguageFirstRun', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('first-run-language-dialog')).not.toBeInTheDocument()
       );
+    });
+  });
+
+  describe('the network step', () => {
+    const getAllowWebRequests = vi.fn();
+    const setAllowWebRequests = vi.fn();
+    const refreshAllCatalogs = vi.fn();
+
+    beforeEach(() => {
+      getAllowWebRequests.mockReset().mockResolvedValue({ ok: true, value: false });
+      setAllowWebRequests.mockReset();
+      refreshAllCatalogs.mockReset().mockResolvedValue({ ok: true, value: [] });
+      (window as unknown as { electron?: unknown }).electron = {
+        moduleManager: { getStarterPacks, refreshAllCatalogs },
+        network: { getAllowWebRequests, setAllowWebRequests },
+      };
+    });
+
+    /** Render, answer the language question, and wait for the store's `load()`
+     * (fired on mount) to resolve before the language step's Continue click -
+     * otherwise the decision reads an unresolved store and (correctly, per its
+     * own fail-safe) skips straight to content. */
+    async function continueToNetworkStep() {
+      render(<LanguageFirstRun />);
+      await screen.findByTestId('first-run-language-dialog');
+      await waitFor(() => expect(useNetworkStore.getState().loaded).toBe(true));
+      await userEvent.click(screen.getByTestId('first-run-language-continue'));
+      await screen.findByTestId('first-run-network-body');
+    }
+
+    it('is shown when the network is confirmed off', async () => {
+      await continueToNetworkStep();
+      expect(screen.getByTestId('first-run-network-body')).toBeInTheDocument();
+    });
+
+    it('is skipped when the network is already on', async () => {
+      getAllowWebRequests.mockResolvedValue({ ok: true, value: true });
+      render(<LanguageFirstRun />);
+      await screen.findByTestId('first-run-language-dialog');
+      await waitFor(() => expect(useNetworkStore.getState().loaded).toBe(true));
+      await userEvent.click(screen.getByTestId('first-run-language-continue'));
+      expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+      expect(screen.queryByTestId('first-run-network-body')).not.toBeInTheDocument();
+    });
+
+    it('going online with a confirmed dialog refreshes the catalog, then shows content', async () => {
+      setAllowWebRequests.mockResolvedValue({ ok: true, value: true });
+      await continueToNetworkStep();
+
+      await userEvent.click(screen.getByTestId('first-run-network-go-online'));
+
+      expect(setAllowWebRequests).toHaveBeenCalledWith(true);
+      await waitFor(() => expect(refreshAllCatalogs).toHaveBeenCalled());
+      expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+    });
+
+    it('a cancelled confirmation dialog leaves the step exactly as it was', async () => {
+      setAllowWebRequests.mockResolvedValue({ ok: true, value: false });
+      await continueToNetworkStep();
+
+      await userEvent.click(screen.getByTestId('first-run-network-go-online'));
+
+      expect(setAllowWebRequests).toHaveBeenCalledWith(true);
+      expect(refreshAllCatalogs).not.toHaveBeenCalled();
+      expect(screen.getByTestId('first-run-network-body')).toBeInTheDocument();
+    });
+
+    it('"Stay offline" shows the offline content variant with both actions', async () => {
+      await continueToNetworkStep();
+
+      await userEvent.click(screen.getByTestId('first-run-network-stay-offline'));
+
+      expect(await screen.findByTestId('first-run-packs-offline-body')).toBeInTheDocument();
+      expect(screen.getByTestId('first-run-packs-go-online')).toBeInTheDocument();
+      expect(screen.getByTestId('first-run-install-from-file')).toBeInTheDocument();
+      expect(setAllowWebRequests).not.toHaveBeenCalled();
+    });
+
+    it('"Install from a file…" reuses the Module Manager\'s own install-from-file dialog', async () => {
+      const installFromFile = vi.fn().mockResolvedValue({ ok: true, value: { kind: 'single', moduleName: 'KJV' } });
+      (window as unknown as { electron: { moduleManager: Record<string, unknown> } }).electron.moduleManager.installFromFile = installFromFile;
+
+      await continueToNetworkStep();
+      await userEvent.click(screen.getByTestId('first-run-network-stay-offline'));
+      await screen.findByTestId('first-run-packs-offline-body');
+
+      await userEvent.click(screen.getByTestId('first-run-install-from-file'));
+
+      expect(installFromFile).toHaveBeenCalled();
+      expect(await screen.findByTestId('first-run-install-from-file-result')).toHaveTextContent('KJV');
+    });
+  });
+
+  describe('installing a starter pack', () => {
+    const getStarterPackModules = vi.fn();
+    const installModule = vi.fn();
+    const loadInstalledModules = vi.fn();
+
+    const PACK = {
+      pack_id: 'starter-fr',
+      languages: ['fr'],
+      name: 'French Starter',
+      description: 'Louis Segond 1910.',
+      version: '1.0.0',
+      module_ids: ['ls1910', 'strongsgreek'],
+      source: { catalogId: 1, catalogName: 'Official', verifiedOfficial: true },
+    };
+    const MODULES = [
+      { module_id: 'ls1910', name: 'Louis Segond 1910', license: 'Public Domain', download_size_bytes: 5_000_000 },
+      { module_id: 'strongsgreek', name: "Strong's Greek", license: 'Public Domain', download_size_bytes: 1_000_000 },
+    ];
+
+    beforeEach(async () => {
+      getStarterPacks.mockResolvedValue({ ok: true, value: [PACK] });
+      getStarterPackModules.mockReset().mockResolvedValue({ ok: true, value: { pack: PACK, modules: MODULES } });
+      installModule.mockReset().mockResolvedValue(true);
+      loadInstalledModules.mockReset().mockResolvedValue(undefined);
+      useModuleStore.setState({ installModule, loadInstalledModules });
+      (window as unknown as { electron?: unknown }).electron = {
+        moduleManager: { getStarterPacks, getStarterPackModules },
+      };
+    });
+
+    async function openPackList() {
+      render(<LanguageFirstRun />);
+      await screen.findByTestId('first-run-language-dialog');
+      await userEvent.click(screen.getByTestId('first-run-language-more'));
+      await userEvent.click(screen.getByTestId('first-run-language-fr'));
+      await userEvent.click(screen.getByTestId('first-run-language-continue'));
+      await screen.findByTestId('first-run-pack-starter-fr');
+    }
+
+    it('shows the verified badge, since every offered pack comes from the verified official catalog', async () => {
+      await openPackList();
+      expect(screen.getByTestId('first-run-pack-verified-starter-fr')).toHaveTextContent(
+        'Verified: signed by Keep Thy Heart'
+      );
+    });
+
+    it('shows every module’s licence and size before the Install click', async () => {
+      await openPackList();
+
+      const row = await screen.findByTestId('first-run-pack-module-ls1910');
+      expect(row).toHaveTextContent('Louis Segond 1910');
+      expect(row).toHaveTextContent('Public Domain');
+      expect(installModule).not.toHaveBeenCalled();
+    });
+
+    it('the Install button installs every module in the pack', async () => {
+      await openPackList();
+      await screen.findByTestId('first-run-pack-module-ls1910');
+
+      await userEvent.click(screen.getByTestId('first-run-pack-install-starter-fr'));
+
+      await waitFor(() => expect(installModule).toHaveBeenCalledTimes(2));
+      // Scoped to the pack's own catalog id, not resolved across every
+      // enabled catalog - see `ModuleCatalogService.getModuleInfo`'s doc.
+      expect(installModule).toHaveBeenNthCalledWith(1, 'ls1910', 1);
+      expect(installModule).toHaveBeenNthCalledWith(2, 'strongsgreek', 1);
+      expect(await screen.findByTestId('first-run-pack-installed-starter-fr')).toBeInTheDocument();
+      expect(loadInstalledModules).toHaveBeenCalled();
+    });
+
+    it('lists a partial failure and points at the Module Manager', async () => {
+      installModule.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      await openPackList();
+      await screen.findByTestId('first-run-pack-module-ls1910');
+
+      await userEvent.click(screen.getByTestId('first-run-pack-install-starter-fr'));
+
+      const failed = await screen.findByTestId('first-run-pack-failed-starter-fr');
+      expect(failed).toHaveTextContent("Strong's Greek");
+      expect(failed).not.toHaveTextContent('Louis Segond 1910');
     });
   });
 });

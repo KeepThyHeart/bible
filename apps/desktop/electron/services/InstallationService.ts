@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { ISql } from '@bible/core';
-import { ModuleMetadata, ModuleMetadataRepository } from '@bible/core';
+import { ModuleMetadata, ModuleMetadataRepository, normalizeModuleType } from '@bible/core';
 import type { InstallationResult } from '@bible/core';
 import type { IInstallationService, InstallVerification } from '@bible/core';
 import { getSharedUserDb } from './sharedUserDb';
@@ -29,6 +29,12 @@ async function sha256OfFile(filePath: string): Promise<string> {
   }
   return hash.digest('hex');
 }
+
+/** Module types whose files are named with a shorter prefix than the type. */
+const FILE_PREFIX_BY_TYPE: Readonly<Record<string, string>> = {
+  topical_index: 'topical',
+  cross_reference: 'xref',
+};
 
 export class InstallationService implements IInstallationService {
   private moduleMetadataRepo: ModuleMetadataRepository;
@@ -289,7 +295,10 @@ export class InstallationService implements IInstallationService {
    * Uses flat layout: modules/bible_asv.db (matching moduleDetector convention)
    */
   getModulePath(moduleType: string, moduleId: string): string {
-    const filename = `${moduleType}_${moduleId.toLowerCase()}.db`;
+    // File names keep the short prefixes `moduleDetector` recognises
+    // (`topical_*`, `xref_*`); `cross_reference_*` would not be found by it.
+    const filePrefix = FILE_PREFIX_BY_TYPE[moduleType] ?? moduleType;
+    const filename = `${filePrefix}_${moduleId.toLowerCase()}.db`;
     return path.join(this.modulesBasePath, filename);
   }
 
@@ -522,7 +531,7 @@ export class InstallationService implements IInstallationService {
         // `version` -> `content_version`. Fall back to the v1 names so a legacy
         // module still reads, but prefer the v2 columns.
         const metadata: Partial<ModuleMetadata> = {
-          moduleType: info.module_type,
+          moduleType: normalizeModuleType(info.module_type),
           // v2 identity. Absent in v1 modules; the conformance gate in
           // `validateModuleConformance` is what requires it for new content,
           // so reading it optionally here keeps legacy files importable.

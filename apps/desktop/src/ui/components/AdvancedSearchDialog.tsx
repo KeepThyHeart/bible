@@ -110,8 +110,11 @@ const AdvancedSearchDialog: React.FC = () => {
   const restoreFocus = () => {
     // Use setTimeout to ensure the dialog is fully closed before restoring focus
     setTimeout(() => {
-      if (previousFocusRef.current && previousFocusRef.current instanceof HTMLElement) {
-        previousFocusRef.current.focus();
+      // No `instanceof HTMLElement`: this can run after a test file's DOM
+      // globals are torn down, and a detached element has nothing to focus.
+      const previous = previousFocusRef.current as HTMLElement | null;
+      if (previous?.isConnected) {
+        previous.focus();
       }
     }, 50);
   };

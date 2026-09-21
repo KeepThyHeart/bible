@@ -28,6 +28,7 @@ vi.mock('electron-log', () => ({
 }));
 
 import { ipcHandler, IpcKnownError } from '../handler-helper';
+import { NetworkBlockedError } from '../../services/NetworkGateway';
 import type { Result } from '../result';
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<Result<T>> {
@@ -107,6 +108,30 @@ describe('ipcHandler', () => {
         ok: false,
         error: { code: 'invalid_input', message: 'bad input' },
       });
+    });
+  });
+
+  describe('error envelope - NetworkBlockedError', () => {
+    it('classifies it as network_blocked, not internal', async () => {
+      ipcHandler<[], unknown>('catalog:refresh', () => {
+        throw new NetworkBlockedError('refresh all catalogs');
+      });
+      const res = await invoke<unknown>('catalog:refresh');
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.code).toBe('network_blocked');
+        expect(res.error.message).toMatch(/refresh all catalogs/);
+      }
+    });
+
+    it('logs at warn, not error', async () => {
+      const log = (await import('electron-log')).default;
+      ipcHandler<[], unknown>('catalog:refresh2', () => {
+        throw new NetworkBlockedError('x');
+      });
+      await invoke<unknown>('catalog:refresh2');
+      expect(log.warn).toHaveBeenCalled();
+      expect(log.error).not.toHaveBeenCalled();
     });
   });
 

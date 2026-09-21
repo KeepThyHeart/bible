@@ -47,6 +47,9 @@ vi.mock('../../VersePreviewTooltip', () => ({ default: () => null }));
 import NoteEditor from './NoteEditor';
 import { __clearVerseFetchCache } from '../../../services/verseFetchCache';
 import { enString, enT } from '../../../testing/enCatalog';
+import { flushTiptapDestroyOnTeardown } from './flushTiptapDestroy';
+
+flushTiptapDestroyOnTeardown();
 
 const JOHN_3_16 = {
   verse_id: 43003016,

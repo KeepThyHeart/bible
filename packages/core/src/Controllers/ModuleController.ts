@@ -61,12 +61,20 @@ export class ModuleController {
   }
 
   /**
-   * Install a module
+   * Install a module.
+   *
+   * @param catalogModuleId - The catalog module id to install.
+   * @param catalogId - When given, resolve `catalogModuleId` only against
+   *                    that catalog (see `IModuleCatalogService.getModuleInfo`)
+   *                    rather than across every enabled catalog. First-run
+   *                    starter-pack installs always pass this, so a
+   *                    third-party catalog can never satisfy an install the
+   *                    user believes is coming from the official one.
    */
-  async installModule(catalogModuleId: string): Promise<InstallationResult> {
+  async installModule(catalogModuleId: string, catalogId?: number): Promise<InstallationResult> {
     try {
       // Get module info from catalog
-      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId);
+      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId, catalogId);
       if (!moduleInfo) {
         return {
           success: false,

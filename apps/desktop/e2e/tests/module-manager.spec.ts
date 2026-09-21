@@ -1,8 +1,9 @@
 /**
  * Module Manager E2E Tests
  *
- * Tests for the Module Manager dialog: opening it, viewing installed modules,
- * switching tabs, and verifying repository settings are accessible.
+ * Tests for the Module Manager dialog: opening it, viewing installed modules
+ * (type tabs + the Installed filter chip + the module table), opening a row's
+ * details panel, and verifying the Sources (repository) settings are accessible.
  */
 
 import { test, expect } from '../fixtures/electron.fixture';
@@ -14,6 +15,14 @@ import type { Page } from '@playwright/test';
  * `window.__services`. This avoids reliance on Electron menu label text
  * which changes when the i18n layer resolves command titles.
  */
+/**
+ * Rows of the table for one module type. `tr[...]` matters: the row's status
+ * cell, progress span and Install button also carry `module-row-*` test ids.
+ */
+function moduleRows(window: Page, type = 'bible') {
+  return window.locator(`[data-testid="module-table-${type}"] tr[data-testid^="module-row-"]`);
+}
+
 async function openModuleManager(window: Page): Promise<void> {
   await window.waitForFunction(() => Boolean(globalThis.__services), null, { timeout: 15000 });
   // App.tsx registers 'command:module:openManager' in a useEffect, which runs
@@ -43,25 +52,31 @@ test.describe('Module Manager', () => {
     await expect(dialog.locator('text=Module Manager')).toBeVisible();
     await expect(dialog.locator('text=Browse, install, and manage Bible study resources')).toBeVisible();
 
-    // Verify all tabs are present
-    await expect(window.locator('[data-testid="module-manager-available-tab"]')).toBeVisible();
-    await expect(window.locator('[data-testid="module-manager-installed-tab"]')).toBeVisible();
+    // Verify the tab strip: a Bibles type tab, then the Feature packs and
+    // Sources panels on the right.
+    await expect(window.locator('[data-testid="module-manager-type-tab-bible"]')).toBeVisible();
+    await expect(window.locator('[data-testid="module-manager-features-tab"]')).toBeVisible();
     await expect(window.locator('[data-testid="module-manager-repositories-tab"]')).toBeVisible();
 
-    // Switch to the Installed Modules tab
-    await window.click('[data-testid="module-manager-installed-tab"]', { force: true });
+    // The All / Installed / Updates filter chips
+    await expect(window.locator('[data-testid="module-manager-filter-all"]')).toBeVisible();
+    await expect(window.locator('[data-testid="module-manager-filter-updates"]')).toBeVisible();
 
-    const moduleCards = window.locator('[data-testid="module-list-installed"] [data-testid^="module-card-"]');
-    await expect(moduleCards.first()).toBeVisible({ timeout: 20000 });
-    const cardCount = await moduleCards.count();
+    // Narrow the Bibles table to the Installed filter
+    await window.click('[data-testid="module-manager-filter-installed"]', { force: true });
+    await expect(window.locator('[data-testid="module-manager-filter-installed"]')).toHaveAttribute('aria-pressed', 'true');
+
+    await expect(window.locator('[data-testid="module-table-bible"]')).toBeVisible();
+    const moduleRowsLocator = moduleRows(window);
+    await expect(moduleRowsLocator.first()).toBeVisible({ timeout: 20000 });
+    const rowCount = await moduleRowsLocator.count();
 
     // If there are module .db files in data/modules/, there should be installed modules
     // This is the core bug fix verification: installed modules should NOT be empty
-    expect(cardCount).toBeGreaterThan(0);
+    expect(rowCount).toBeGreaterThan(0);
 
-    // Verify the first module card has expected elements
-    const firstCard = moduleCards.first();
-    await expect(firstCard).toBeVisible();
+    // Every row under the Installed filter is an installed module
+    await expect(moduleRowsLocator.first().locator('[data-status="installed"], [data-status="update"]')).toBeVisible();
 
     // Close the dialog
     await window.keyboard.press('Escape');
@@ -104,7 +119,7 @@ test.describe('Module Manager', () => {
     await window.keyboard.press('Escape');
   });
 
-  test('should show module type and abbreviation in installed modules list', async ({ window }) => {
+  test('should show abbreviation and open the details panel for an installed module row', async ({ window }) => {
     // Wait for app to be ready
     await expect(window.locator('[data-testid="app-loaded"]')).toBeVisible();
 
@@ -114,26 +129,38 @@ test.describe('Module Manager', () => {
     const dialog = window.locator('[data-testid="module-manager-dialog"]');
     await expect(dialog).toBeVisible({ timeout: 10000 });
 
-    // Switch to installed tab
-    await window.click('[data-testid="module-manager-installed-tab"]', { force: true });
+    // Installed filter on the (default) Bibles tab
+    await window.click('[data-testid="module-manager-filter-installed"]', { force: true });
 
-    const moduleCards = window.locator('[data-testid="module-list-installed"] [data-testid^="module-card-"]');
-    await expect(moduleCards.first()).toBeVisible({ timeout: 20000 });
-    const count = await moduleCards.count();
+    const rows = moduleRows(window);
+    await expect(rows.first()).toBeVisible({ timeout: 20000 });
+    const count = await rows.count();
 
     // Verify we have modules
     expect(count).toBeGreaterThan(0);
 
-    // Check that each module card has an abbreviation and a module type icon
+    // Each row's test id is `module-row-<abbreviation>`, and the abbreviation
+    // is also shown as text in the row's name cell.
     for (let i = 0; i < Math.min(count, 5); i++) {
-      const card = moduleCards.nth(i);
-      // Abbreviation should be in a font-mono span
-      const abbreviation = card.locator('.font-mono');
-      await expect(abbreviation).toBeVisible();
-      const abbText = await abbreviation.textContent();
-      expect(abbText).toBeTruthy();
-      expect(abbText!.trim().length).toBeGreaterThan(0);
+      const row = rows.nth(i);
+      const testId = await row.getAttribute('data-testid');
+      const abbreviation = testId!.replace(/^module-row-/, '');
+      expect(abbreviation.length).toBeGreaterThan(0);
+      await expect(row).toContainText(abbreviation);
     }
+
+    // Clicking a row opens the details panel inside the dialog (not a nested modal)
+    const firstRow = rows.first();
+    const firstAbbreviation = (await firstRow.getAttribute('data-testid'))!.replace(/^module-row-/, '');
+    await firstRow.click();
+    const panel = dialog.locator('[data-testid="module-details-panel"]');
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    await expect(panel.locator('[data-testid="module-details-abbreviation"]')).toHaveText(firstAbbreviation);
+
+    // Closing the panel leaves the dialog open
+    await panel.locator('[data-testid="module-details-close"]').click();
+    await expect(panel).not.toBeVisible();
+    await expect(dialog).toBeVisible();
 
     // Close
     await window.keyboard.press('Escape');
