@@ -273,77 +273,46 @@ describe('moduleRows', () => {
   });
 
   describe('getTabTypes', () => {
-    it('includes bible even when no bible modules exist', () => {
-      const result = getTabTypes([], []);
-      expect(result).toContain('bible');
-      expect(result[0]).toBe('bible'); // Should be first
+    const INSTALLABLE = ['bible', 'commentary', 'dictionary', 'book', 'devotional', 'topical_index', 'cross_reference'];
+
+    it('shows every installable kind even with nothing in the catalog or installed (fresh, offline)', () => {
+      expect(getTabTypes([], [])).toEqual(INSTALLABLE);
     });
 
-    it('includes only types with modules, plus bible', () => {
+    it('starts with bible', () => {
+      expect(getTabTypes([], [])[0]).toBe('bible');
+    });
+
+    it('leaves out kinds nothing publishes until a module of that kind exists', () => {
+      const result = getTabTypes([catalogModule({ module_type: 'commentary' })], []);
+      expect(result).not.toContain('lexicon');
+      expect(result).not.toContain('tag_graph');
+    });
+
+    it('adds lexicon and tag_graph once a module of that kind is installed', () => {
+      const result = getTabTypes([], [installedModule({ module_type: 'lexicon' })]);
+      expect(result).toContain('lexicon');
+      expect(result).not.toContain('tag_graph');
+    });
+
+    it('maintains MODULE_TYPES order however the modules arrive', () => {
       const catalog = [
-        catalogModule({ module_type: 'commentary' }),
-        catalogModule({ module_type: 'dictionary' })
-      ];
-
-      const result = getTabTypes(catalog, []);
-
-      expect(result).toContain('bible');
-      expect(result).toContain('commentary');
-      expect(result).toContain('dictionary');
-      // Should not include module types with no modules
-      expect(result).not.toContain('book');
-      expect(result).not.toContain('devotional');
-    });
-
-    it('includes types from both catalog and installed modules', () => {
-      const catalog = [catalogModule({ module_type: 'commentary' })];
-      const installed = [installedModule({ module_type: 'dictionary' })];
-
-      const result = getTabTypes(catalog, installed);
-
-      expect(result).toContain('bible');
-      expect(result).toContain('commentary');
-      expect(result).toContain('dictionary');
-    });
-
-    it('maintains MODULE_TYPES order', () => {
-      const catalog = [
-        catalogModule({ module_type: 'dictionary' }),
+        catalogModule({ module_type: 'lexicon' }),
+        catalogModule({ module_type: 'book' }),
         catalogModule({ module_type: 'bible' }),
-        catalogModule({ module_type: 'commentary' }),
-        catalogModule({ module_type: 'book' })
       ];
 
-      const result = getTabTypes(catalog, []);
-
-      // Should follow MODULE_TYPES order: bible, commentary, dictionary, book, ...
-      expect(result.slice(0, 4)).toEqual(['bible', 'commentary', 'dictionary', 'book']);
+      expect(getTabTypes(catalog, [])).toEqual([
+        'bible', 'commentary', 'dictionary', 'book', 'devotional', 'lexicon', 'topical_index', 'cross_reference',
+      ]);
     });
 
-    it('deduplicates types when they appear in both catalog and installed', () => {
-      const catalog = [catalogModule({ module_type: 'bible' })];
-      const installed = [installedModule({ module_type: 'bible' })];
-
-      const result = getTabTypes(catalog, installed);
-
-      const bibleCount = result.filter(t => t === 'bible').length;
-      expect(bibleCount).toBe(1);
-    });
-
-    it('returns bible first even when not present in modules', () => {
-      const catalog = [
-        catalogModule({ module_type: 'commentary' }),
-        catalogModule({ module_type: 'dictionary' })
-      ];
-
-      const result = getTabTypes(catalog, []);
-
-      expect(result[0]).toBe('bible');
-    });
-
-    it('handles empty inputs', () => {
-      const result = getTabTypes([], []);
-      expect(result).toEqual(['bible']);
+    it('lists each type once when it is both in the catalog and installed', () => {
+      const result = getTabTypes(
+        [catalogModule({ module_type: 'bible' })],
+        [installedModule({ module_type: 'bible' })]
+      );
+      expect(result.filter(t => t === 'bible')).toHaveLength(1);
     });
 
     it('includes all MODULE_TYPES that are present', () => {

@@ -113,40 +113,43 @@ export function mergeAndSortModules(
 }
 
 /**
- * Return the list of module types to show as tabs.
- * Only types with >=1 catalog or installed module.
- * 'bible' is always first and always present (even if no modules exist).
- * Other types follow in MODULE_TYPES order.
+ * The module kinds a reader can install, each of which always has a tab.
+ *
+ * The set of types is fixed by the app (`MODULE_TYPES`); an unrecognised type
+ * cannot be installed anyway. Showing a tab only once it held a module meant
+ * that, offline on a fresh install, the dialog offered Bibles alone and gave no
+ * hint that commentaries, dictionaries, books and the rest exist.
+ *
+ * `lexicon` and `tag_graph` are left out of this list: no catalog publishes
+ * them (lexicons ship as dictionaries; tag graphs are internal), so a permanent
+ * tab for each would only ever be empty. They still appear when a module of that
+ * type is present.
+ */
+const ALWAYS_SHOWN_TYPES: ReadonlySet<ModuleType> = new Set<ModuleType>([
+  'bible',
+  'commentary',
+  'dictionary',
+  'book',
+  'devotional',
+  'topical_index',
+  'cross_reference',
+]);
+
+/**
+ * Return the list of module types to show as tabs, in `MODULE_TYPES` order
+ * (Bible first): every installable kind, plus any other type that has at least
+ * one catalog or installed module.
  *
  * @param catalogModules - Available catalog modules
  * @param installedModules - Currently installed modules
- * @returns Array of ModuleType in the order they should appear as tabs
  */
 export function getTabTypes(
   catalogModules: CatalogModule[],
   installedModules: ModuleMetadata[]
 ): ModuleType[] {
-  // Build set of types that have at least one module
-  const presentTypes = new Set<ModuleType>();
+  const present = new Set<ModuleType>(ALWAYS_SHOWN_TYPES);
+  for (const mod of catalogModules) present.add(mod.module_type);
+  for (const mod of installedModules) present.add(mod.module_type);
 
-  for (const mod of catalogModules) {
-    presentTypes.add(mod.module_type);
-  }
-
-  for (const mod of installedModules) {
-    presentTypes.add(mod.module_type);
-  }
-
-  // Always include 'bible' even if no modules of that type exist
-  presentTypes.add('bible');
-
-  // Filter MODULE_TYPES to only those present, maintaining MODULE_TYPES order
-  const result: ModuleType[] = [];
-  for (const type of MODULE_TYPES) {
-    if (presentTypes.has(type)) {
-      result.push(type);
-    }
-  }
-
-  return result;
+  return MODULE_TYPES.filter(type => present.has(type));
 }
