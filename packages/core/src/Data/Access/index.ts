@@ -15,11 +15,15 @@
  * - F6: `Fts5/SidecarFts5Provider` (+ `Fts5/sidecarSchema`), the first
  *   build-capable provider - one `.kwi` file per module revision, with the
  *   full unbuilt/building/ready/stale/failed state machine over real files.
+ * - F7: `IHighlighter` + `Fts5/Fts5Highlighter` - offset-span highlighting
+ *   through a transient in-memory FTS5 table, so a match's `Match[]` no
+ *   longer depends on which provider's index answered it.
  */
 
 export * from './Capabilities';
 export * from './KeywordTypes';
 export * from './IKeywordIndexProvider';
+export * from './IHighlighter';
 export * from './DataAccessConfig';
 export * from './IKeywordIndexRegistry';
 export * from './KeywordIndexRegistry';
@@ -27,4 +31,5 @@ export * from './Fts5/Fts5QueryCompiler';
 export * from './Fts5/InModuleFts5Provider';
 export * from './Fts5/sidecarSchema';
 export * from './Fts5/SidecarFts5Provider';
+export * from './Fts5/Fts5Highlighter';
 export * from './Codec';

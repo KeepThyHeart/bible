@@ -2,6 +2,7 @@ import { BibleVerse, InterlinearWord } from '../Models/Bible/BibleVerse';
 import { BibleModuleInfo } from '../Models/Bible/BibleModuleInfo';
 import { VerseId, BookNumber } from '../Core/Types';
 import { IIndexSource } from '../Access/KeywordTypes';
+import { ISql } from '../Core/ISql';
 
 
 /**
@@ -9,6 +10,15 @@ import { IIndexSource } from '../Access/KeywordTypes';
  * Defines all operations for working with Bible translation databases
  */
 export interface IBibleRepository {
+  /**
+   * This repository's own open connection (F7, task 0027 revision 2). See
+   * `BaseModuleRepository.getSql()`'s doc comment for why this exists:
+   * `BibleSearchService` uses it to give its `Fts5Highlighter` a real,
+   * already-open, FTS5-capable connection per module, without opening a
+   * second one.
+   */
+  getSql(): ISql;
+
   // Module Info Operations
   getModuleInfo(): BibleModuleInfo | undefined;
   updateModuleInfo(info: BibleModuleInfo): void;

@@ -130,6 +130,27 @@ export abstract class BaseModuleRepository<TModuleInfo extends BaseModuleInfo> {
   ) {}
 
   /**
+   * This repository's own open connection.
+   *
+   * Exists for F7 (`Fts5Highlighter`, task 0027 revision 2): a highlighter
+   * needs a real, already-open, FTS5-capable SQLite connection to build its
+   * transient `temp.hl` table on, and every content repository already has
+   * exactly one - there is no reason for a caller like `BibleSearchService`
+   * to open a second connection (or thread a `SidecarDatabaseOpener`-style
+   * dependency through app composition roots) purely to host a scratch
+   * table that never touches this connection's own schema. Read-only or
+   * read-write, it makes no difference: SQLite's temp database is always
+   * writable, independent of how the main file was opened.
+   *
+   * Deliberately the plain `ISql`, not a wider capability - a caller gets
+   * exactly the same surface every repository already builds its own SQL on,
+   * nothing more.
+   */
+  getSql(): ISql {
+    return this.sql;
+  }
+
+  /**
    * Get module metadata from the module_info table.
    * Every module database has exactly one row in module_info (info_id = 1).
    */

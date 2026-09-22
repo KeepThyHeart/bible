@@ -2,6 +2,7 @@ import { ISearchService } from './ISearchService';
 import { SearchQueryParser } from './SearchQueryParser';
 import { compileKeywordQuery } from '../Data/Access/Fts5/Fts5QueryCompiler';
 import { InModuleFts5Provider } from '../Data/Access/Fts5/InModuleFts5Provider';
+import { Fts5Highlighter } from '../Data/Access/Fts5/Fts5Highlighter';
 import {
   KeywordIndexRegistry,
   indexTargetKey,
@@ -65,6 +66,12 @@ export class BibleSearchService implements ISearchService {
    * stays generic - it has no reason to know "moduleAbbr" is a concept.
    */
   private readonly targetKeyToAbbr = new Map<string, string>();
+  /**
+   * One {@link Fts5Highlighter} per module abbreviation, created lazily and
+   * reused for the life of this service (F7, task 0027 revision 2). See
+   * `highlighterFor()`.
+   */
+  private readonly highlighters = new Map<string, Fts5Highlighter>();
   /**
    * Targets skipped by the most recently completed `search()` call (task
    * 0026 subtask M3). `search()`'s public return type is unchanged in this
@@ -244,9 +251,18 @@ export class BibleSearchService implements ISearchService {
    * registry/provider now instead of a direct repo call.
    *
    * `highlightTerms` is passed through to `verseToSearchResultWithHighlight`
-   * as the FALLBACK terms for snippet extraction if the FTS5-highlighted
-   * text itself carries no `<strong><u>` matches to extract from - it does
-   * not affect which verses match.
+   * as the FALLBACK terms for snippet extraction if `query` itself carries
+   * no matches for `Fts5Highlighter` to find - it does not affect which
+   * verses match.
+   *
+   * F7 (task 0027, revision 2): matches (and the `<strong><u>` markup built
+   * from them) now come from `Fts5Highlighter.spans(text, query)` -  the SAME
+   * transient-FTS5-table mechanism whichever provider answered this hit -
+   * rather than from parsing a provider's own `highlight()` output. A hit's
+   * `KeywordHit.snippet` (only ever populated by `InModuleFts5Provider`
+   * today; `SidecarFts5Provider`'s is always `undefined`, since its `kw`
+   * table is contentless) is therefore no longer read here - see
+   * `verseToSearchResultWithHighlight`'s doc comment for the full reasoning.
    */
   private async searchViaKeywordIndex(
     query: KeywordQuery,
@@ -285,8 +301,9 @@ export class BibleSearchService implements ISearchService {
       allResults.push(
         await this.verseToSearchResultWithHighlight(
           verse,
-          hit.snippet ?? verse.textPlain ?? verse.text,
           abbr,
+          repo,
+          query,
           highlightTerms,
           'exact'
         )
@@ -1141,34 +1158,56 @@ export class BibleSearchService implements ISearchService {
   }
 
   /**
-   * Convert BibleVerse to SearchResult using FTS5 pre-highlighted text
-   * This version uses the highlighting from FTS5, which correctly highlights
-   * stemmed variants (e.g., searching "walk" highlights "walking", "walked")
-   * Also creates a snippet that prioritizes showing the matched text
+   * Convert BibleVerse to SearchResult, highlighting through {@link Fts5Highlighter}
+   * (task 0027, revision 2, subtask F7) - which correctly highlights stemmed
+   * variants (e.g., searching "walk" highlights "walking", "walked") because
+   * it runs the SAME compiled `query` through the SAME tokenizer FTS5 itself
+   * used to find the hit, rather than a hand-rolled regex. Also creates a
+   * snippet that prioritizes showing the matched text.
    *
-   * KAN-22: For fuzzy/stem matches, we use the actual matched words from FTS5
-   * (not the original search terms) to ensure the snippet shows the matched variants
+   * ## One highlighter, used regardless of which provider answered (F7's
+   * design intent, design doc §4.5)
+   *
+   * `InModuleFts5Provider` still runs its own `highlight()` against
+   * `bible_verse_fts` internally (unchanged by this subtask - see that
+   * class), so a hit it produces arrives with `KeywordHit.snippet` already
+   * carrying `<strong><u>`-marked text. This method does NOT consume that:
+   * un-highlighting it back to plain text just to feed it through
+   * `Fts5Highlighter` would be wasted work for no behavioural difference (the
+   * two mechanisms use the identical tokenizer and the identical compiled
+   * query, so they agree on every match), and computing matches straight
+   * from `verse.textPlain`/`verse.text` - which this method already reads,
+   * for the snippet - is both simpler and the one path a future
+   * `SidecarFts5Provider`-sourced hit (whose `snippet` is always `undefined`,
+   * since its index is contentless) can share unchanged. That sharing is the
+   * whole point of F7: one highlighting mechanism, not one per provider.
+   *
+   * KAN-22: For fuzzy/stem matches, we use the actual matched words (not the
+   * original search terms) to ensure the snippet shows the matched variants.
    */
   private async verseToSearchResultWithHighlight(
     verse: BibleVerse,
-    highlightedText: string,
     moduleAbbr: string,
+    repo: IBibleRepository,
+    query: KeywordQuery,
     searchTerms: string[],
     matchType: MatchType
   ): Promise<SearchResult> {
-    // Extract matches from the highlighted text by finding <strong><u>...</u></strong> tags
-    // This captures the actual words FTS5 matched (including stemmed variants)
-    const matches = this.extractMatchesFromHighlightedText(highlightedText);
-
-    // Get plain text for snippet creation
     const text = verse.textPlain || verse.text;
+
+    // F7: offset spans from the transient-FTS5-table highlighter, keyed by
+    // module so every hit from the same module reuses one highlighter (and
+    // therefore one `temp.hl` table) instead of paying `CREATE VIRTUAL
+    // TABLE` again per verse - see `highlighterFor()`.
+    const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
+    const highlightedText = this.applyHighlightMarkup(text, matches);
 
     // Create a snippet that prioritizes the matched text (for live search display)
     // Only needed for longer verses where matches might not be visible at the start
     let snippet: string | undefined;
     if (text.length > 100 && matches.length > 0) {
-      // KAN-22: Use the actual matched terms (extracted from FTS5 highlighting)
-      // to ensure fuzzy/stem matches are properly highlighted in the snippet
+      // KAN-22: Use the actual matched terms (from Fts5Highlighter) to
+      // ensure fuzzy/stem matches are properly highlighted in the snippet
       const matchedTerms = matches.map(m => m.term);
       const termsForSnippet = matchedTerms.length > 0 ? matchedTerms : searchTerms;
       const rawSnippet = this.createSnippet(text, termsForSnippet, 120);
@@ -1189,6 +1228,50 @@ export class BibleSearchService implements ISearchService {
       score: 1.0,
       type: matchType,
     };
+  }
+
+  /**
+   * This module's {@link Fts5Highlighter}, created on first use and reused
+   * for the life of this service (F7). One per module rather than one
+   * shared instance: a highlighter's `temp.hl` table lives on the `ISql`
+   * connection it was built on (`repo.getSql()`), and different modules are
+   * different connections.
+   */
+  private highlighterFor(moduleAbbr: string, repo: IBibleRepository): Fts5Highlighter {
+    let highlighter = this.highlighters.get(moduleAbbr);
+    if (!highlighter) {
+      highlighter = new Fts5Highlighter(repo.getSql());
+      this.highlighters.set(moduleAbbr, highlighter);
+    }
+    return highlighter;
+  }
+
+  /**
+   * Wrap each of `matches` in `<strong><u>...</u></strong>`, the markup
+   * convention every consumer of `SearchResult.text` already expects (see
+   * `BibleSearchService.test.ts`'s "Result Highlighting"/"FTS5 Stemmed
+   * Highlighting" suites). `matches` must be in ascending, non-overlapping
+   * order - exactly what `Fts5Highlighter.spans()` returns, since
+   * `highlight()` never nests or overlaps its own markers.
+   *
+   * An empty `matches` returns `text` unchanged, which is also the "no
+   * matches" case `text: highlightedText || text` below guards - kept
+   * anyway as the same last line of defence the repository-level highlight
+   * path always had.
+   */
+  private applyHighlightMarkup(text: string, matches: Match[]): string {
+    if (matches.length === 0) return text;
+
+    let result = '';
+    let cursor = 0;
+    for (const match of matches) {
+      result += text.slice(cursor, match.startPos);
+      result += `<strong><u>${text.slice(match.startPos, match.endPos)}</u></strong>`;
+      cursor = match.endPos;
+    }
+    result += text.slice(cursor);
+
+    return result;
   }
 
   /**
@@ -1225,40 +1308,6 @@ export class BibleSearchService implements ISearchService {
           startPos: match.index,
           endPos: match.index + term.length,
         });
-      }
-    }
-
-    return matches;
-  }
-
-  /**
-   * Extract match positions from FTS5-highlighted text
-   * Finds all <strong><u>...</u></strong> tags and extracts the matched terms and positions
-   */
-  private extractMatchesFromHighlightedText(highlightedText: string): Match[] {
-    const matches: Match[] = [];
-    let plainTextPos = 0;
-
-    // We need to track position in the plain text (without tags)
-    // as we iterate through the highlighted text
-    const parts = highlightedText.split(/(<strong><u>|<\/u><\/strong>)/);
-    let inMatch = false;
-
-    for (const part of parts) {
-      if (part === '<strong><u>') {
-        inMatch = true;
-      } else if (part === '</u></strong>') {
-        inMatch = false;
-      } else if (part.length > 0) {
-        if (inMatch) {
-          // This is a matched term
-          matches.push({
-            term: part,
-            startPos: plainTextPos,
-            endPos: plainTextPos + part.length,
-          });
-        }
-        plainTextPos += part.length;
       }
     }
 
