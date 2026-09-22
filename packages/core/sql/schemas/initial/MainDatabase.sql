@@ -426,7 +426,74 @@ CREATE INDEX idx_verse_position_range ON bible_search_verse_positions(type, docu
 CREATE INDEX idx_search_positions_verse ON bible_search_verse_positions(verse_id);
 CREATE INDEX idx_search_positions_division ON bible_search_verse_positions(type, document, division);
 
--- 3.4 Saved Searches
+-- 3.4 Keyword Index Registry (task 0027, "Module Format v2", subtask F6)
+--
+-- One row per (module, keyword-index provider): what the app believes the
+-- state of that module's keyword index is. The index ITSELF is not here and
+-- never will be -- schema v0.2 moved keyword indexes out of the module files
+-- into provider-owned artifacts, today a `.kwi` sidecar file per module
+-- revision under the app's index directory (see
+-- packages/core/src/Data/Access/Fts5/SidecarFts5Provider.ts).
+--
+-- This table is the app-side registry over those artifacts, and it is
+-- deliberately NOT their source of truth. A provider derives its own status
+-- from the artifact it owns -- the sidecar provider reads each `.kwi` file's
+-- own `kwi_meta` table -- so a row here can never make a missing, stale or
+-- corrupt index look ready. What the table adds is the two things a filesystem
+-- scan cannot supply:
+--
+--   * `state = 'failed'`, with an `error`. A build that could not run at all
+--     (full disk, unwritable directory) produces no artifact, so there is
+--     nowhere on disk for that fact to live. Without a durable record it is
+--     indistinguishable from 'unbuilt' and gets retried on every launch.
+--   * the library UI's answers without touching the disk: which modules are
+--     indexed, how big, how long ago.
+--
+-- `state` is an OPEN set -- no CHECK -- matching `module_type` and
+-- `search_type` elsewhere in this file: providers may grow states, and SQLite
+-- cannot alter a CHECK. Source of truth for the vocabulary is
+-- `KeywordCapability` in Data/Access/Capabilities.ts:
+--     'unbuilt', 'building', 'ready', 'stale', 'failed'
+-- `KeywordCapability`'s sixth state, 'unavailable', is deliberately not
+-- storable: it describes the ENVIRONMENT (no FTS5 engine, no provider
+-- registered), not this module's index, and is computed fresh each run.
+CREATE TABLE keyword_index (
+    module_uuid TEXT NOT NULL,                      -- -> module_metadata.module_uuid. The stable
+                                                    -- identity, not the local module_id, so an index
+                                                    -- record survives a reinstall of the same module.
+    provider_id TEXT NOT NULL,                      -- Which provider owns this index, e.g.
+                                                    -- 'sidecar-fts5'. Part of the key: two providers
+                                                    -- may each hold an index for one module.
+    content_sha256 TEXT NOT NULL,                   -- The module revision this index was built FOR,
+                                                    -- copied from module_info.content_sha256. This is
+                                                    -- the staleness key -- an index is for exactly one
+                                                    -- revision -- so a row whose value no longer
+                                                    -- matches the installed module describes an index
+                                                    -- for content that is gone.
+    state TEXT NOT NULL,                            -- Open set; see the note above this table
+    tokenizer TEXT NOT NULL,                        -- Tokenizer the index was built with, e.g.
+                                                    -- 'porter unicode61'. Changing the app's tokenizer
+                                                    -- makes every existing index stale; this is the
+                                                    -- value that comparison reads.
+    doc_count INTEGER,                              -- Documents indexed. NULL until a build succeeds.
+    size_bytes INTEGER,                             -- On-disk size of the artifact, for the storage UI.
+                                                    -- A snapshot at build time, not kept live -- same
+                                                    -- posture as module_metadata.size_bytes.
+    built_at TEXT,                                  -- ISO-8601 UTC of the last successful build. NULL
+                                                    -- while unbuilt, and left at the previous success
+                                                    -- when a REBUILD fails, because the older index is
+                                                    -- still what is on disk.
+    error TEXT,                                     -- Why the last build failed. Meaningful only with
+                                                    -- state = 'failed'; cleared on the next success.
+
+    PRIMARY KEY (module_uuid, provider_id)
+);
+
+-- Finding work: every module whose index still needs building or rebuilding,
+-- without scanning the whole table.
+CREATE INDEX idx_keyword_index_state ON keyword_index(state);
+
+-- 3.5 Saved Searches
 CREATE TABLE saved_search (
     search_id INTEGER PRIMARY KEY AUTOINCREMENT,    -- Saved-search id
     name TEXT NOT NULL,                             -- User's label for this search
@@ -461,7 +528,7 @@ CREATE INDEX idx_saved_search_last_used ON saved_search(last_used DESC);
 CREATE INDEX idx_saved_search_use_count ON saved_search(use_count DESC);
 CREATE INDEX idx_saved_search_date ON saved_search(created_date DESC);
 
--- 3.5 Search History (canonical definition)
+-- 3.6 Search History (canonical definition)
 --
 -- This is the only `search_history` table in the system. The user database's
 -- per-profile equivalent is deliberately named `user_search_history`: two

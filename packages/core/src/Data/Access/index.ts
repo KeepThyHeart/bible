@@ -12,6 +12,9 @@
  *
  * - F4: `Codec/`, the read side of `module_info.compression` - one codec per
  *   module, resolved once at open, bare standard frames in the cells.
+ * - F6: `Fts5/SidecarFts5Provider` (+ `Fts5/sidecarSchema`), the first
+ *   build-capable provider - one `.kwi` file per module revision, with the
+ *   full unbuilt/building/ready/stale/failed state machine over real files.
  */
 
 export * from './Capabilities';
@@ -22,4 +25,6 @@ export * from './IKeywordIndexRegistry';
 export * from './KeywordIndexRegistry';
 export * from './Fts5/Fts5QueryCompiler';
 export * from './Fts5/InModuleFts5Provider';
+export * from './Fts5/sidecarSchema';
+export * from './Fts5/SidecarFts5Provider';
 export * from './Codec';
