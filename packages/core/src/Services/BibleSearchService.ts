@@ -1,6 +1,16 @@
 import { ISearchService } from './ISearchService';
 import { SearchQueryParser } from './SearchQueryParser';
 import { compileKeywordQuery } from '../Data/Access/Fts5/Fts5QueryCompiler';
+import { InModuleFts5Provider } from '../Data/Access/Fts5/InModuleFts5Provider';
+import {
+  KeywordIndexRegistry,
+  indexTargetKey,
+  IndexTarget,
+  KeywordQuery,
+  KeywordSearchResponse,
+  RuntimeEnvironment,
+} from '../Data/Access';
+import { KeywordCapability } from '../Data/Access/Capabilities';
 import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
@@ -32,11 +42,72 @@ export class BibleSearchService implements ISearchService {
   private parser: SearchQueryParser;
   private wordFamilyService: WordFamilyService | null = null;
 
+  // -- Keyword-index registry wiring (task 0026, revision 2, subtask M3) ---
+  //
+  // See `indexTargetFor()` / `registerModuleWithProvider()` below for the
+  // full explanation of the IndexTarget <-> moduleAbbr <-> repo bridge this
+  // service builds. Short version: `searchMultiWord`, `searchPhrase`,
+  // `searchVerseProximity` and `searchBoolean` now go through
+  // `keywordIndexRegistry.search()` instead of calling each module's
+  // repository directly in a loop; `fts5Provider` is the (currently only)
+  // provider registered with it, wrapping today's `bible_verse_fts` tables
+  // unchanged. `searchProximity` (the book-level `~Nw` word-proximity path,
+  // over the SEPARATE `book_search_index` derived cache) deliberately does
+  // NOT go through the registry in this pass - see that method's comment.
+  private readonly keywordIndexRegistry: KeywordIndexRegistry;
+  private readonly fts5Provider: InModuleFts5Provider;
+  /**
+   * `IndexTarget` key (`indexTargetKey()`) -> moduleAbbr. The reverse of
+   * what `fts5Provider` tracks (target -> repo): a `KeywordHit` carries only
+   * a `target`, not an abbreviation, but `SearchResult.module` and the repo
+   * lookups the search methods still need (to fetch full verse data) both
+   * speak `moduleAbbr`. Kept here, not on the provider, so the provider
+   * stays generic - it has no reason to know "moduleAbbr" is a concept.
+   */
+  private readonly targetKeyToAbbr = new Map<string, string>();
+  /**
+   * Targets skipped by the most recently completed `search()` call (task
+   * 0026 subtask M3). `search()`'s public return type is unchanged in this
+   * pass - `SearchResult[]`, same as always; surfacing capability to the UI
+   * is M9's job - so this is the escape hatch for a caller that wants to
+   * know what got skipped rather than it vanishing unremarked. Also logged
+   * via `console.warn` as each one is observed; see `reportSkippedTargets()`.
+   * Reset at the top of every `search()` call and accumulated across every
+   * keyword-index call that one `search()` makes (multi-word/phrase/etc.,
+   * the character-variant retry, and the auto-fuzzy supplement).
+   */
+  private lastSkippedTargets: KeywordSearchResponse['skipped'] = [];
+
   constructor(
     private bibleModules: Map<string, IBibleRepository>,
     private bibleBookRepo: IBibleBookRepository
   ) {
     this.parser = new SearchQueryParser();
+
+    // `RuntimeEnvironment` is part of the `IKeywordIndexProvider.supports()`
+    // signature (M1), but `InModuleFts5Provider.supports()` does not
+    // currently look at it - see that class's doc comment: for this pass,
+    // "supported" means "registered with this provider instance", full
+    // stop. This value is therefore a valid-but-unused placeholder until a
+    // later subtask (M11) threads a real environment down from wherever the
+    // app composes its data-access layer.
+    const env: RuntimeEnvironment = {
+      runtime: 'node-server',
+      sqlite: { fts5: true, writableModules: false },
+      codecs: new Set(),
+      indexDir: null,
+    };
+    this.keywordIndexRegistry = new KeywordIndexRegistry(env);
+    this.fts5Provider = new InModuleFts5Provider();
+    this.keywordIndexRegistry.register(this.fts5Provider);
+
+    // Modules passed in through the constructor need registering with the
+    // provider exactly like a module added later through addBibleModule()
+    // does - route both through the same helper instead of duplicating the
+    // registration logic.
+    for (const [abbreviation, repository] of this.bibleModules) {
+      this.registerModuleWithProvider(abbreviation, repository);
+    }
   }
 
   /**
@@ -54,6 +125,7 @@ export class BibleSearchService implements ISearchService {
   addBibleModule(abbreviation: string, repository: IBibleRepository): void {
     if (!this.bibleModules.has(abbreviation)) {
       this.bibleModules.set(abbreviation, repository);
+      this.registerModuleWithProvider(abbreviation, repository);
     }
   }
 
@@ -62,6 +134,166 @@ export class BibleSearchService implements ISearchService {
    */
   getRegisteredModules(): string[] {
     return Array.from(this.bibleModules.keys());
+  }
+
+  // ========================================================================
+  // Keyword-index registry bridge (task 0026, revision 2, subtask M3)
+  // ========================================================================
+
+  /**
+   * Derive this module's `IndexTarget`.
+   *
+   * `IndexTarget` (M1) is keyed by `{ moduleUuid, contentSha256 }`, but
+   * there is no real module registry yet (M7/M11) that can resolve one from
+   * a `moduleAbbr` or vice versa - so this service derives it itself,
+   * straight from the repository's own `module_info` row:
+   *
+   * - `moduleUuid` comes from `getModuleInfo()?.moduleUuid`, falling back to
+   *   the abbreviation - the same fallback `BaseModuleInfo.getIdentity()`
+   *   uses - for a module that carries no v2 identity block at all.
+   * - `contentSha256` comes from `getModuleInfo()?.contentSha256`, falling
+   *   back to `''` when absent. F3 (not yet landed) is what computes this
+   *   reliably; until then this is a KNOWN GAP: two modules that both lack a
+   *   hash collide on the same `IndexTarget` key (`uuid:''`). It is
+   *   harmless today only because this service ALSO keys everything by
+   *   `moduleAbbr` via `bibleModules`/`targetKeyToAbbr`, so a collision here
+   *   cannot misroute a query to the wrong repository - the abbr, not the
+   *   target, is what ultimately selects which repo answers a hit. A real
+   *   module registry (M7/M11) will need a better answer once modules can
+   *   be looked up BY target alone.
+   *
+   * Deterministic and side-effect-free, so it is safe to call again at
+   * search time (see `targetsForModules()`) rather than caching a second
+   * abbr -> target map alongside `targetKeyToAbbr`.
+   */
+  private indexTargetFor(abbreviation: string, repository: IBibleRepository): IndexTarget {
+    const info = repository.getModuleInfo();
+    return {
+      moduleUuid: info?.moduleUuid ?? abbreviation,
+      moduleType: 'bible',
+      contentSha256: info?.contentSha256 ?? '',
+    };
+  }
+
+  /**
+   * Register a module's repository with `fts5Provider` and record the
+   * `IndexTarget -> moduleAbbr` reverse mapping. Called from the
+   * constructor (for the initial module map) and from `addBibleModule()`
+   * (for a module added later) - the single place either path touches the
+   * provider, so they can never drift apart.
+   */
+  private registerModuleWithProvider(abbreviation: string, repository: IBibleRepository): void {
+    const target = this.indexTargetFor(abbreviation, repository);
+    this.fts5Provider.register(target, repository);
+    this.targetKeyToAbbr.set(indexTargetKey(target), abbreviation);
+  }
+
+  /** `IndexTarget[]` for every module in a `moduleAbbr -> repo` map (typically `getModulesToSearch()`'s result). */
+  private targetsForModules(modules: Map<string, IBibleRepository>): IndexTarget[] {
+    const targets: IndexTarget[] = [];
+    for (const [abbreviation, repository] of modules) {
+      targets.push(this.indexTargetFor(abbreviation, repository));
+    }
+    return targets;
+  }
+
+  /** The inverse of `indexTargetFor()`, via `targetKeyToAbbr`. */
+  private abbrForTarget(target: IndexTarget): string | undefined {
+    return this.targetKeyToAbbr.get(indexTargetKey(target));
+  }
+
+  /**
+   * Record targets the keyword-index registry could not search (a module
+   * with no usable index for it - see `KeywordIndexRegistry`'s and
+   * `InModuleFts5Provider`'s degrade-rather-than-fail behaviour). Never
+   * throws and never lets `skipped` affect the returned `SearchResult[]`
+   * beyond simply not containing that module's hits - the whole point of
+   * this subtask is that one bad module no longer kills the rest of the
+   * search. See `lastSkippedTargets`'s doc comment for what a caller can do
+   * with this.
+   */
+  private reportSkippedTargets(skipped: KeywordSearchResponse['skipped']): void {
+    if (skipped.length === 0) return;
+
+    this.lastSkippedTargets.push(...skipped);
+    for (const s of skipped) {
+      const abbr = this.abbrForTarget(s.target) ?? s.target.moduleUuid;
+      console.warn(
+        `[BibleSearchService] module "${abbr}" skipped during keyword search: ${JSON.stringify(s.reason)}`
+      );
+    }
+  }
+
+  /**
+   * Targets skipped by the most recently completed `search()` call. See
+   * `lastSkippedTargets`'s doc comment.
+   */
+  getLastSkippedModules(): ReadonlyArray<{ target: IndexTarget; reason: KeywordCapability }> {
+    return this.lastSkippedTargets;
+  }
+
+  /**
+   * Run a `KeywordQuery` across `modules` via the keyword-index registry -
+   * ONE registry call, fanning out across every target internally - and
+   * reconstruct `SearchResult[]` from the returned hits using the exact
+   * same downstream formatting (`verseToSearchResultWithHighlight`) the
+   * direct-repo-call loop used before this refactor. Shared by
+   * `searchMultiWord`, `searchPhrase` and `searchBoolean` - the three
+   * methods whose "how do I find matching verse rows across N modules" step
+   * was, and remains, "one MATCH query per module", just executed by the
+   * registry/provider now instead of a direct repo call.
+   *
+   * `highlightTerms` is passed through to `verseToSearchResultWithHighlight`
+   * as the FALLBACK terms for snippet extraction if the FTS5-highlighted
+   * text itself carries no `<strong><u>` matches to extract from - it does
+   * not affect which verses match.
+   */
+  private async searchViaKeywordIndex(
+    query: KeywordQuery,
+    modules: Map<string, IBibleRepository>,
+    options: SearchOptions,
+    highlightTerms: string[]
+  ): Promise<SearchResult[]> {
+    const targets = this.targetsForModules(modules);
+    const response = await this.keywordIndexRegistry.search(query, {
+      targets,
+      limit: options.maxResults || 200,
+    });
+
+    this.reportSkippedTargets(response.skipped);
+
+    const allResults: SearchResult[] = [];
+
+    for (const hit of response.hits) {
+      const abbr = this.abbrForTarget(hit.target);
+      if (!abbr) continue; // defensive: every hit's target came from `targets` above
+      const repo = modules.get(abbr);
+      if (!repo) continue;
+
+      const verseId = hit.rowId as VerseId;
+
+      // Pre-filter by range before the getVerse()/highlight work below -
+      // same optimization `searchMultiWord` always had, now shared by every
+      // caller of this helper (harmless for the two that previously relied
+      // solely on the central filter in `search()`, since that filter still
+      // runs afterward and would remove the same rows).
+      if (options.range && !this.isVerseInRange(verseId, options.range)) continue;
+
+      const verse = repo.getVerse(verseId);
+      if (!verse) continue;
+
+      allResults.push(
+        await this.verseToSearchResultWithHighlight(
+          verse,
+          hit.snippet ?? verse.textPlain ?? verse.text,
+          abbr,
+          highlightTerms,
+          'exact'
+        )
+      );
+    }
+
+    return allResults;
   }
 
   // ========================================================================
@@ -90,6 +322,12 @@ export class BibleSearchService implements ISearchService {
    * @throws Error if the query has invalid syntax
    */
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
+    // Reset the skipped-targets record for this top-level call; see
+    // `lastSkippedTargets`'s doc comment. Accumulated (not overwritten) by
+    // `reportSkippedTargets()` across every keyword-index call this one
+    // `search()` invocation makes below.
+    this.lastSkippedTargets = [];
+
     // Validate query
     const validationError = this.parser.validate(query);
     if (validationError) {
@@ -282,40 +520,17 @@ export class BibleSearchService implements ISearchService {
    */
   private async searchMultiWord(terms: string[], options: SearchOptions): Promise<SearchResult[]> {
     const modules = this.getModulesToSearch(options);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
-      // Build the FTS5 MATCH string through the single compiler (task 0026
-      // subtask M2) instead of escaping ad hoc. "all: true" keeps the
-      // explicit AND-join multi-word search has always used, since FTS5
-      // defaults to OR when terms are merely space-separated.
-      const fts5Query = compileKeywordQuery({ kind: 'terms', terms, all: true });
+    // "all: true" keeps the explicit AND-join multi-word search has always
+    // used, since FTS5 defaults to OR when terms are merely space-separated.
+    // Compiled by the provider (task 0026 subtask M3), not here - this
+    // service now builds the provider-neutral KeywordQuery (M1) and hands
+    // it to the keyword-index registry, which fans it out across every
+    // module's repository (subtask M2's compileKeywordQuery() call moved
+    // into InModuleFts5Provider, the one place that now executes it).
+    const query: KeywordQuery = { kind: 'terms', terms, all: true };
 
-      // Search using verse-level FTS5 with highlighting
-      const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
-
-      // Pre-filter by range here as well as centrally in search(): each surviving
-      // row costs an awaited highlight conversion below, so discarding
-      // out-of-range rows first is worth it on a whole-Bible FTS hit.
-      const filteredResults = options.range
-        ? results.filter(result => this.isVerseInRange(result.verse.verseId, options.range!))
-        : results;
-
-      // Convert to SearchResult objects using FTS5 highlighting
-      for (const result of filteredResults) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            terms,
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
+    return this.searchViaKeywordIndex(query, modules, options, terms);
   }
 
   /**
@@ -324,29 +539,14 @@ export class BibleSearchService implements ISearchService {
    */
   private async searchPhrase(phrase: string, options: SearchOptions): Promise<SearchResult[]> {
     const modules = this.getModulesToSearch(options);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
-      // FTS5 phrase query, compiled (and escaped) through the single
-      // compiler (task 0026 subtask M2) so a phrase containing a literal
-      // `"` no longer produces invalid MATCH syntax.
-      const fts5Query = compileKeywordQuery({ kind: 'phrase', phrase });
-      const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
+    // Phrase query - escaped/quoted by the provider (task 0026 subtask M3;
+    // was compiled here directly through M2's compileKeywordQuery before
+    // this refactor) so a phrase containing a literal `"` still produces
+    // valid MATCH syntax.
+    const query: KeywordQuery = { kind: 'phrase', phrase };
 
-      for (const result of results) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            [phrase],
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
+    return this.searchViaKeywordIndex(query, modules, options, [phrase]);
   }
 
   /**
@@ -364,27 +564,64 @@ export class BibleSearchService implements ISearchService {
     const modules = this.getModulesToSearch(options);
     const allResults: SearchResult[] = [];
     const fuzzyDistance = options.fuzzyDistance || 0;
+    const targets = this.targetsForModules(modules);
 
-    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set.
-    // Compiled through the single FTS5 compiler (task 0026 subtask M2)
-    // instead of passing raw text straight to MATCH, so a term with an
-    // apostrophe or hyphen no longer breaks the query.
-    const searchPatterns = fuzzyDistance > 0
-      ? terms.map(t => compileKeywordQuery({ kind: 'prefix', stem: t }))
-      : terms.map(t => compileKeywordQuery({ kind: 'terms', terms: [t], all: true }));
+    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set. Built
+    // as provider-neutral KeywordQuery objects (task 0026 subtask M3) rather
+    // than pre-compiled MATCH strings - Fts5QueryCompiler's escaping (so a
+    // term with an apostrophe or hyphen doesn't break the query) now runs
+    // inside the provider, once per query, when it actually executes.
+    const termQueries: KeywordQuery[] = fuzzyDistance > 0
+      ? terms.map((t): KeywordQuery => ({ kind: 'prefix', stem: t }))
+      : terms.map((t): KeywordQuery => ({ kind: 'terms', terms: [t], all: true }));
+
+    // 1. Search each term independently to build per-module verse sets.
+    //
+    // One registry call PER TERM, fanning out across every target module
+    // internally, replaces what used to be a module-outer/term-inner loop
+    // calling each repo directly - and, same as `searchMultiWord` etc., a
+    // module whose FTS5 table is missing or broken now degrades to
+    // `skipped` (see `reportSkippedTargets`) instead of throwing and taking
+    // down verse-proximity search for every OTHER module too (the direct
+    // `repo.searchVerses()` call this replaced had no try/catch at all).
+    //
+    // Every module gets an entry for every term, even one with zero hits,
+    // matching the invariant the untouched code below (steps 2-4) depends
+    // on: `termVerseMap.get(terms[i])!` is a non-null assertion, so a term
+    // with no matches must still map to an EMPTY Set, never a missing key.
+    const perModuleTermVerseMap = new Map<string, Map<string, Set<VerseId>>>();
+    for (const moduleAbbr of modules.keys()) {
+      const termVerseMap = new Map<string, Set<VerseId>>();
+      for (const term of terms) {
+        termVerseMap.set(term, new Set<VerseId>());
+      }
+      perModuleTermVerseMap.set(moduleAbbr, termVerseMap);
+    }
+
+    for (let i = 0; i < terms.length; i++) {
+      const response = await this.keywordIndexRegistry.search(termQueries[i], {
+        targets,
+        limit: 10000,
+      });
+      this.reportSkippedTargets(response.skipped);
+
+      for (const hit of response.hits) {
+        const abbr = this.abbrForTarget(hit.target);
+        if (!abbr) continue; // defensive: every hit's target came from `targets` above
+        perModuleTermVerseMap.get(abbr)?.get(terms[i])?.add(hit.rowId as VerseId);
+      }
+    }
 
     for (const [moduleAbbr, repo] of modules) {
-      // 1. Search each term independently to build verse sets
-      // Use fuzzy patterns when searching
-      const termVerseMap = new Map<string, Set<VerseId>>();
-
-      for (let i = 0; i < terms.length; i++) {
-        const searchPattern = searchPatterns[i];
-        const verses = repo.searchVerses(searchPattern, { limit: 10000 });
-        termVerseMap.set(terms[i], new Set(verses.map(v => v.verseId)));
-      }
+      const termVerseMap = perModuleTermVerseMap.get(moduleAbbr)!;
 
       // 2. Check if all terms were found
+      //
+      // Pre-existing dead code, unchanged: this `continue` only skips to the
+      // next term-verseSet PAIR within this inner for-loop, not the module -
+      // it never actually did what its own comment says. Not this
+      // subtask's to fix (pure refactor; see the M-guardrail), but flagged
+      // here since a future subtask touching this method should know.
       for (const [_term, verseSet] of termVerseMap) {
         if (verseSet.size === 0) {
           // At least one term not found, skip this module
@@ -636,10 +873,7 @@ export class BibleSearchService implements ISearchService {
     expression: BooleanExpression,
     options: SearchOptions
   ): Promise<SearchResult[]> {
-    // Compiled through the single FTS5 compiler (task 0026 subtask M2); the
-    // AND/OR/NOT/parenthesisation logic that used to live in this file's own
-    // compileBooleanToFts5/combine/isBareNegation moved there unchanged.
-    const fts5Query = compileKeywordQuery({ kind: 'boolean', expr: expression });
+    const query: KeywordQuery = { kind: 'boolean', expr: expression };
 
     // Only an unsatisfiable expression compiles to '' - today that means a
     // bare negation such as `(NOT evil)`. FTS5's NOT is binary: it excludes
@@ -648,35 +882,20 @@ export class BibleSearchService implements ISearchService {
     // that asks for almost the whole Bible. Returning nothing is the honest
     // answer; returning the *matches* for `evil` here would be the exact
     // opposite of what was asked.
-    if (fts5Query === '') return [];
+    //
+    // This is the one remaining direct call to compileKeywordQuery() in this
+    // service (task 0026 subtask M3 moved every other call into
+    // InModuleFts5Provider, the one place that now executes a compiled
+    // query against SQLite) - it is a pure business-logic short-circuit, not
+    // a duplicate execution: it never touches the registry/provider or SQL
+    // at all, and the provider still does its own internal compile of the
+    // same `query` object below when (and only when) it actually runs it.
+    if (compileKeywordQuery(query) === '') return [];
 
     const modules = this.getModulesToSearch(options);
     const terms = this.collectPositiveTerms(expression);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
-      const results = repo.searchVersesWithHighlighting(fts5Query, {
-        limit: options.maxResults || 200,
-      });
-
-      const filteredResults = options.range
-        ? results.filter(result => this.isVerseInRange(result.verse.verseId, options.range!))
-        : results;
-
-      for (const result of filteredResults) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            terms,
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
+    return this.searchViaKeywordIndex(query, modules, options, terms);
   }
 
   /**
