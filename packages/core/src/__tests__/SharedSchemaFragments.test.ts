@@ -24,12 +24,32 @@ const SCHEMA_FILES = readdirSync(INITIAL_DIR)
 /** Tables that must never be declared inline in `initial/`. */
 const SHARED_TABLES = [
   'module_info',
+  'compression_dictionary',
   'verse_link',
   'schema_version',
   'schema_migration',
   'setting',
   'module_feature'
 ] as const;
+
+/** The eight module-type schemas (excludes `MainDatabase.sql` and `UserDatabase.sql`). */
+const MODULE_SCHEMA_FILES = SCHEMA_FILES.filter(
+  name => name !== 'MainDatabase.sql' && name !== 'UserDatabase.sql'
+);
+
+/**
+ * DDL for one table, normalized to compare shape across schemas: SQLite's
+ * `sql` column reproduces the source text verbatim (including whitespace),
+ * which differs across files (`BibleTranslation.sql` vs `TagGraph.sql` wrap
+ * their include comments differently), so compare collapsed whitespace
+ * instead of the raw string.
+ */
+function normalizedTableSql(db: Database.Database, table: string): string | undefined {
+  const row = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(table) as { sql: string } | undefined;
+  return row?.sql.replace(/\s+/gu, ' ').trim();
+}
 
 function readSchema(name: string): string {
   return readFileSync(join(INITIAL_DIR, name), 'utf8');
@@ -96,5 +116,73 @@ describe('shared schema fragments', () => {
 
   it('reports an unreadable include rather than emitting broken SQL', () => {
     expect(() => loadSchemaSql(join(INITIAL_DIR, 'NoSuchSchema.sql'))).toThrow(SchemaLoadError);
+  });
+
+  /**
+   * F2 (schema v0.2): every module file's keyword index moved out of the
+   * module -- into an app-side sidecar, not covered by this subtask -- so no
+   * module schema should declare an fts5 virtual table any more. Checked only
+   * over the eight module schemas: `MainDatabase.sql`'s `bible_search_index`
+   * and `UserDatabase.sql`'s `user_note_fts` are deliberately out of scope for
+   * F2 and keep their fts5 tables.
+   */
+  it.each(MODULE_SCHEMA_FILES)('%s declares no fts5 virtual table', name => {
+    expect(readSchema(name)).not.toMatch(/using\s+fts5/iu);
+  });
+
+  /**
+   * `compression_dictionary` and `module_feature` are each one definition,
+   * shared by all eight module schemas. Byte-for-byte DDL equality (modulo
+   * whitespace) across all eight is the point of sharing rather than copying.
+   */
+  it.each(['compression_dictionary', 'module_feature'] as const)(
+    'gives every module schema an identical %s table',
+    table => {
+      const shapes = MODULE_SCHEMA_FILES.map(name => {
+        const db = new Database(':memory:');
+        try {
+          db.exec(loadSchemaSql(join(INITIAL_DIR, name)));
+          return { name, sql: normalizedTableSql(db, table) };
+        } finally {
+          db.close();
+        }
+      });
+
+      for (const shape of shapes) {
+        expect(shape.sql, `${shape.name} is missing table ${table}`).toBeDefined();
+      }
+      const reference = shapes[0]!.sql;
+      for (const shape of shapes) {
+        expect(shape.sql).toEqual(reference);
+      }
+    }
+  );
+
+  it('gives module_info a compression column defaulting to none', () => {
+    const db = new Database(':memory:');
+    try {
+      db.exec(loadSchemaSql(join(INITIAL_DIR, 'BibleTranslation.sql')));
+      const column = db
+        .prepare('SELECT * FROM pragma_table_info(?) WHERE name = ?')
+        .get('module_info', 'compression') as { dflt_value: string; notnull: number } | undefined;
+      expect(column).toBeDefined();
+      expect(column!.notnull).toBe(1);
+      expect(column!.dflt_value).toBe("'none'");
+    } finally {
+      db.close();
+    }
+  });
+
+  it('defaults module_info.format_version to 0.2', () => {
+    const db = new Database(':memory:');
+    try {
+      db.exec(loadSchemaSql(join(INITIAL_DIR, 'BibleTranslation.sql')));
+      const column = db
+        .prepare('SELECT * FROM pragma_table_info(?) WHERE name = ?')
+        .get('module_info', 'format_version') as { dflt_value: string } | undefined;
+      expect(column?.dflt_value).toBe("'0.2'");
+    } finally {
+      db.close();
+    }
   });
 });

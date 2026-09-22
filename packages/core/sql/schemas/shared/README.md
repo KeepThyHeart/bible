@@ -9,14 +9,17 @@ A table defined in more than one schema has exactly one definition, here. The sc
 | Fragment | Included by |
 |---|---|
 | `module_info.sql` | The eight module schemas |
+| `compression_dictionary.sql` | The eight module schemas |
 | `verse_link.sql` | The eight module schemas and `UserDatabase` |
 | `schema_version.sql` | The eight module schemas |
 | `schema_version_migratable.sql` | `MainDatabase`, `UserDatabase` |
 | `schema_migration.sql` | `MainDatabase`, `UserDatabase` |
 | `setting.sql` | `MainDatabase`, `UserDatabase` |
-| `module_feature.sql` | `BibleTranslation` only, so far |
+| `module_feature.sql` | The eight module schemas |
 
-`module_feature` is here despite having one consumer: nothing about a capability flag is specific to a bible, and when another module type wants one it should add a one-line include, not a second definition.
+`module_feature` is here despite originally having one consumer: nothing about a capability flag is specific to a bible, and every module type now includes it with the same one-line include rather than a second definition.
+
+`compression_dictionary` holds the optional trained dictionary backing `module_info.compression`. A row exists iff frames were encoded against a dictionary; `compression = 'none'` (the default) means the table is empty. Keyed by `codec`, so a module carries at most one dictionary per codec.
 
 ## Assembling a schema
 
@@ -50,4 +53,4 @@ db.exec(loadSchemaSql('sql/schemas/initial/BibleTranslation.sql'));
 
 ## Enforcement
 
-`src/__tests__/SharedSchemaFragments.test.ts` asserts that no schema declares a shared table inline, that every schema assembles with all includes resolved, that each one creates a database, and that `module_info` has identical columns across all eight module schemas.
+`src/__tests__/SharedSchemaFragments.test.ts` asserts that no schema declares a shared table inline, that every schema assembles with all includes resolved, that each one creates a database, that `module_info` has identical columns across all eight module schemas, that `compression_dictionary` and `module_feature` exist with identical DDL in all eight, and that no assembled schema declares an `fts5` virtual table.
