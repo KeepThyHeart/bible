@@ -49,6 +49,10 @@ export * from './Core/Types';
 // Module Format v2 - format constants, the version gate, and the content registry.
 export * from './Format/ModuleFormat';
 
+// F3 (task 0027, revision 2): the canonical content digest, computed over a
+// module's DECODED content so it is stable across compression codecs.
+export * from './Format/contentDigest';
+
 // Swappable Data Access layer (task 0026) - types and the keyword-index
 // registry. Pure addition: nothing outside ./Access calls any of this yet.
 export * from './Access';
