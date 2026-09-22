@@ -1,19 +1,13 @@
-import type { ISql } from '../Data/Core/ISql';
 import type { IModuleMetadataRepository } from '../Data/Repositories/IModuleMetadataRepository';
+import type { IModuleConnection, IModuleStore } from '../Data/Access/ModuleStore';
+import type { ICodecRegistry } from '../Data/Access/Codec';
+import type { IModuleRepositoryFactory, ModuleRepositoryByType } from '../Data/Access/ModuleRepositoryFactory';
 
 /**
  * Resolves a module's database_path (relative, from module_metadata) to an absolute filesystem path.
  */
 export interface PathResolver {
   resolveModulePath(databasePath: string): string;
-}
-
-/**
- * Creates ISql provider instances. Platform packages supply the concrete implementation
- * (e.g., better-sqlite3 for Electron, sql.js for browser).
- */
-export interface SqlProviderFactory {
-  create(absolutePath: string): ISql;
 }
 
 /**
@@ -24,11 +18,55 @@ export interface ModuleLoaderLogger {
 }
 
 /**
+ * What `ModuleLoader` needs to turn an open connection into a `TRepo`, for the
+ * ONE module type this loader instance handles.
+ *
+ * Deliberately narrower than the general {@link IModuleRepositoryFactory}
+ * (task 0026, revision 2, subtask M11): that interface is keyed by
+ * `keyof ModuleRepositoryByType` and returns whichever repository a caller
+ * asks for, because one factory instance can back several module types.
+ * `ModuleLoader` only ever handles one - `moduleType` is fixed for its whole
+ * lifetime - so binding it to `ModuleRepositoryByType`'s key union would only
+ * add a type parameter every caller has to thread through for no benefit.
+ * Instead, `ModuleLoader` stays exactly as generic over `TRepo` as it always
+ * was; a real `IModuleRepositoryFactory` is adapted to this shape with one
+ * closure - see {@link moduleRepositoryFactoryFor} - and a caller that has no
+ * use for the full factory abstraction (the desktop `ModuleLoader` wrapper,
+ * whose own callers hand it an arbitrary `createRepo`) can build one by hand
+ * just as easily.
+ */
+export interface ModuleConnectionFactory<TRepo> {
+  create(conn: IModuleConnection): TRepo | null;
+}
+
+/**
+ * Adapt a real {@link IModuleRepositoryFactory} (keyed by module type) into
+ * the narrower per-instance {@link ModuleConnectionFactory} shape
+ * `ModuleLoader` takes - one closure, capturing the module type and codec
+ * registry this loader instance was built for.
+ */
+export function moduleRepositoryFactoryFor<K extends keyof ModuleRepositoryByType>(
+  factory: IModuleRepositoryFactory,
+  type: K,
+  codecs: ICodecRegistry
+): ModuleConnectionFactory<ModuleRepositoryByType[K]> {
+  return {
+    create: (conn: IModuleConnection) => factory.create(conn, type, codecs),
+  };
+}
+
+/**
  * Generic factory for lazy-loading module repositories with connection caching.
  *
  * This is the platform-agnostic version of the module loading pattern used by
  * both the desktop (Electron) and web (Express) apps. Platform-specific concerns
- * (path resolution, SQLite driver, logging) are injected via constructor.
+ * (path resolution, connection opening, logging) are injected via constructor.
+ *
+ * Task 0026, revision 2, subtask M11: this constructor takes an
+ * {@link IModuleStore} plus a per-type {@link ModuleConnectionFactory} instead
+ * of a raw SQL-provider factory and a `createRepo` callback, and an explicit
+ * `readonly` - see that option's own doc comment for why the default is now
+ * `true`.
  *
  * @example
  * ```typescript
@@ -36,8 +74,8 @@ export interface ModuleLoaderLogger {
  *   moduleType: 'commentary',
  *   metadataRepo: moduleMetadataRepo,
  *   pathResolver: { resolveModulePath: (p) => join(dataDir, p) },
- *   sqlFactory: { create: (p) => new SqliteProvider(p) },
- *   createRepo: (db) => new CommentaryRepository(db),
+ *   store: sqliteModuleStore,
+ *   factory: moduleRepositoryFactoryFor(sqliteRepositoryFactory, 'commentary', codecs),
  * });
  *
  * const repo = loader.get('mhc');  // lazy-loads and caches
@@ -46,7 +84,7 @@ export interface ModuleLoaderLogger {
  */
 export class ModuleLoader<TRepo> {
   private repos = new Map<string, TRepo>();
-  private dbs = new Map<string, ISql>();
+  private connections = new Map<string, IModuleConnection>();
   /** Timestamp (ms) when each module was loaded - used for TTL-based staleness checks. */
   private loadedAt = new Map<string, number>();
   /**
@@ -64,8 +102,9 @@ export class ModuleLoader<TRepo> {
   private moduleType: string;
   private metadataRepo: IModuleMetadataRepository;
   private pathResolver: PathResolver;
-  private sqlFactory: SqlProviderFactory;
-  private createRepo: (db: ISql) => TRepo;
+  private store: IModuleStore;
+  private factory: ModuleConnectionFactory<TRepo>;
+  private readonlyConnections: boolean;
   private onRepoCreated?: (repo: TRepo, abbreviation: string) => void;
   private fileExists: (path: string) => boolean;
   private logger?: ModuleLoaderLogger;
@@ -82,8 +121,24 @@ export class ModuleLoader<TRepo> {
     moduleType: string;
     metadataRepo: IModuleMetadataRepository;
     pathResolver: PathResolver;
-    sqlFactory: SqlProviderFactory;
-    createRepo: (db: ISql) => TRepo;
+    store: IModuleStore;
+    factory: ModuleConnectionFactory<TRepo>;
+    /**
+     * Whether module connections open read-only. Defaults to `true`.
+     *
+     * Every write path into a module's own content tables
+     * (`BibleRepository.batchInsertVerses`, `.deleteVerse`, the equivalent
+     * methods on `CommentaryRepository`/`DictionaryRepository`/
+     * `BookRepository`, ...) was already unreachable from any
+     * `ModuleLoader`-obtained repository before this subtask: those methods
+     * exist for the standalone import/build scripts (`scripts/import-*.js`),
+     * which open their own connection directly and never go through
+     * `ModuleLoader`. M5 (task 0026, revision 2) removed the one production
+     * write path that DID run through a loaded module - the in-module search
+     * index - so opening read-only by default changes nothing observable for
+     * any caller that does not pass `false` explicitly.
+     */
+    readonly?: boolean;
     onRepoCreated?: (repo: TRepo, abbreviation: string) => void;
     /** Check if a file exists. Defaults to always returning true (caller responsible). */
     fileExists?: (path: string) => boolean;
@@ -96,8 +151,9 @@ export class ModuleLoader<TRepo> {
     this.moduleType = options.moduleType;
     this.metadataRepo = options.metadataRepo;
     this.pathResolver = options.pathResolver;
-    this.sqlFactory = options.sqlFactory;
-    this.createRepo = options.createRepo;
+    this.store = options.store;
+    this.factory = options.factory;
+    this.readonlyConnections = options.readonly ?? true;
     this.onRepoCreated = options.onRepoCreated;
     this.fileExists = options.fileExists ?? (() => true);
     this.logger = options.logger;
@@ -153,10 +209,18 @@ export class ModuleLoader<TRepo> {
     }
 
     try {
-      const db = this.sqlFactory.create(dbPath);
-      const repo = this.createRepo(db);
+      const conn = this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
+      const repo = this.factory.create(conn);
+      if (repo === null) {
+        conn.close();
+        this.recordFailure(
+          abbreviation,
+          `[ModuleLoader:${this.moduleType}] Factory produced no repository for ${dbPath}`,
+        );
+        return null;
+      }
 
-      this.dbs.set(abbreviation, db);
+      this.connections.set(abbreviation, conn);
       this.repos.set(abbreviation, repo);
       this.loadedAt.set(abbreviation, Date.now());
       this.failedAt.delete(abbreviation);
@@ -201,15 +265,15 @@ export class ModuleLoader<TRepo> {
    * Useful when a module file has been updated or reinstalled.
    */
   evict(abbreviation: string): void {
-    const db = this.dbs.get(abbreviation);
-    if (db) {
+    const conn = this.connections.get(abbreviation);
+    if (conn) {
       try {
-        db.close();
+        conn.close();
       } catch {
         // Ignore close errors
       }
     }
-    this.dbs.delete(abbreviation);
+    this.connections.delete(abbreviation);
     this.repos.delete(abbreviation);
     this.loadedAt.delete(abbreviation);
     // An explicit evict means "this module changed on disk" - forget the miss
@@ -219,14 +283,14 @@ export class ModuleLoader<TRepo> {
 
   /** Close all database connections. Call on app shutdown. */
   closeAll(): void {
-    for (const db of this.dbs.values()) {
+    for (const conn of this.connections.values()) {
       try {
-        db.close();
+        conn.close();
       } catch {
         // Ignore close errors during shutdown
       }
     }
-    this.dbs.clear();
+    this.connections.clear();
     this.repos.clear();
     this.loadedAt.clear();
     this.failedAt.clear();

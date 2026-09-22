@@ -1,6 +1,6 @@
 import log from 'electron-log';
 import { existsSync } from 'fs';
-import type { ISql } from '@bible/core';
+import type { ISql, SqlDriverFactory } from '@bible/core';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { resolveModulePath } from '../utils/appPaths';
 import { getSharedModuleMetadataRepo } from './sharedMainDb';
@@ -173,17 +173,31 @@ export function getModuleDatabaseRegistry(): ModuleDatabaseRegistry {
   return singleton;
 }
 
-/** Expose the ISql factory shape that the core ModuleLoader expects. */
-export function createRegistrySqlFactory(moduleType: string): { create: (path: string) => ISql } {
+/**
+ * Expose the registry as a `SqlDriverFactory` (`@bible/core`'s
+ * `Data/Access/SqliteModuleStore.ts`) - the driver the desktop `ModuleLoader`
+ * wrapper hands to a `SqliteModuleStore` (task 0026, revision 2, subtask M11)
+ * so every module content connection, however it is looked up, still shares
+ * one cache with `openByModuleId`'s (studyHandlers.ts's own, out-of-scope-for-
+ * M11 moduleId-based path).
+ *
+ * `opts.readonly` is threaded straight through to `openByPath` rather than
+ * left to that method's own default - `ModuleLoader`'s default is `true`
+ * (M11), but `openByPath`'s own default (`false`) is deliberately left
+ * unchanged: it is shared, general-purpose infrastructure also used for
+ * genuinely writable connections outside module content (e.g. user databases
+ * in `studyHandlers.ts`), so changing IT would have silently made those
+ * writable-by-design connections read-only too.
+ */
+export function createRegistrySqlFactory(moduleType: string): SqlDriverFactory {
   return {
-    create: (absolutePath: string): ISql => {
+    create: (absolutePath: string, opts: { readonly: boolean }): ISql => {
       const registry = getModuleDatabaseRegistry();
-      const provider = registry.openByPath(absolutePath);
+      const provider = registry.openByPath(absolutePath, { readonly: opts.readonly });
       if (!provider) {
         // The ModuleLoader contract wants a thrown error here so the
-        // `try { sqlFactory.create(...) } catch` in the core loader turns
-        // this into a clean null return rather than a partially-initialized
-        // cache entry.
+        // `try { ... } catch` in the core loader turns this into a clean
+        // null return rather than a partially-initialized cache entry.
         throw new Error(`[ModuleDatabaseRegistry] Could not open ${moduleType} module at ${absolutePath}`);
       }
       return provider;

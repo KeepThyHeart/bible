@@ -3,12 +3,21 @@ import log from 'electron-log';
 import { getSharedModuleMetadataRepo } from './sharedMainDb';
 import { resolveModulePath } from '../utils/appPaths';
 import { createRegistrySqlFactory } from './ModuleDatabaseRegistry';
-import { ModuleLoader as CoreModuleLoader } from '@bible/core';
-import type { ISql } from '@bible/core';
+import { ModuleLoader as CoreModuleLoader, SqliteModuleStore } from '@bible/core';
+import type { ISql, IModuleConnection } from '@bible/core';
 
 /**
  * Desktop-specific ModuleLoader that wraps the core ModuleLoader with
  * Electron platform bindings (electron-log, better-sqlite3, app paths).
+ *
+ * Task 0026, revision 2, subtask M11: internally this now builds a
+ * `SqliteModuleStore` (driven by the same `ModuleDatabaseRegistry`-backed
+ * SQLite driver the old `sqlFactory` used) and a tiny per-instance
+ * connection factory that just forwards to the `createRepo` callback this
+ * class's own callers already supply - the public constructor below is
+ * UNCHANGED (`ipc/bibleHandlers.ts` and its siblings, which are not part of
+ * this subtask's scope, all keep calling `new ModuleLoader('bible', (db) =>
+ * new BibleRepository(db), ...)` exactly as before).
  *
  * @example
  * ```typescript
@@ -30,15 +39,25 @@ export class ModuleLoader<TRepo> {
     createRepo: (db: ISql) => TRepo,
     onRepoCreated?: (repo: TRepo, abbreviation: string) => void
   ) {
-    // SQL factory delegates to ModuleDatabaseRegistry so every module DB
-    // connection - whether opened via abbreviation (ModuleLoader) or numeric
-    // moduleId (studyHandlers) - shares a single handle owned by the registry.
-    this.core = new CoreModuleLoader({
+    // The store's driver delegates to ModuleDatabaseRegistry so every module
+    // DB connection - whether opened via abbreviation (this class) or
+    // numeric moduleId (studyHandlers) - shares a single handle owned by the
+    // registry.
+    const store = new SqliteModuleStore(createRegistrySqlFactory(moduleType));
+
+    this.core = new CoreModuleLoader<TRepo>({
       moduleType,
       metadataRepo: getSharedModuleMetadataRepo(),
       pathResolver: { resolveModulePath },
-      sqlFactory: createRegistrySqlFactory(moduleType),
-      createRepo,
+      store,
+      // `IModuleConnection.sql` is present for every connection this store
+      // opens (it only ever opens SQLite files) - `createRepo` gets exactly
+      // the `ISql` it always got.
+      factory: { create: (conn: IModuleConnection) => (conn.sql ? createRepo(conn.sql) : null) },
+      // Defaults to true at the core level (M5 removed every production
+      // write path into module content); left implicit here rather than
+      // repeated, since this class has only ever opened module content, never
+      // a user database.
       onRepoCreated,
       fileExists: existsSync,
       logger: log,

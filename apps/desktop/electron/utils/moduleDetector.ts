@@ -17,7 +17,8 @@ import {
   isCrossReferenceSourceCommentaryPath,
   hasSqliteHeader,
   validateModuleFile,
-  nodeCodecRegistry
+  nodeCodecRegistry,
+  SQLITE_MODULE_EXTENSIONS
 } from '@bible/core';
 import type { FormatVersionKind } from '@bible/core';
 
@@ -65,6 +66,16 @@ interface ModuleDetectionResult {
  * @example
  * - "bible_kjv.db" -> "bible"
  * - "commentary_wesley.db" -> "commentary"
+ *
+ * M11 (task 0026, revision 2) moved the accepted FILE EXTENSION off a literal
+ * onto `IModuleStore.extensions` (see the `.filter()` call above), but
+ * deliberately leaves this prefix -> `ModuleType` mapping as it is: nothing in
+ * `IModuleStore` names a filename-prefix convention (only `extensions` and
+ * `canOpen()`/`open()`, which operate on a whole locator, not a type
+ * decision), and only one store exists to ask today, so adding a speculative
+ * "which store claims this prefix" concept here would be new surface with no
+ * real second implementation to justify its shape yet. This stays a small,
+ * self-contained, well-tested mapping.
  */
 function getModuleTypeFromFilename(filename: string): ModuleType | null {
   // tag_graph.db carries no abbreviation segment, so match it before splitting.
@@ -199,7 +210,20 @@ function getModuleInfoFromDatabase(
       case 'devotional':
       case 'tag_graph': {
         // For now, we'll extract basic info from the database
-        // TODO: Implement BookRepository and DevotionalRepository with getModuleInfo()
+        // TODO: Implement DevotionalRepository with getModuleInfo()
+        //
+        // M11 (task 0026, revision 2) considered routing the 'book' branch
+        // through the now-implemented `BookRepository.getModuleInfo()`
+        // (`@bible/core`) instead of this raw query, and deliberately left it
+        // as is: `BaseModuleInfo` has no fallback for a missing `full_name`
+        // ("Unknown"), a missing `abbreviation` (derived from the name here)
+        // or a missing `language_code` ("en") the way this defensive branch
+        // does, so swapping would be an observable behavior change for any
+        // legacy/malformed book file that is missing one of those columns -
+        // exactly the input this fallback exists to tolerate. 'devotional'
+        // has no repository class at all, and 'tag_graph' (`TagGraphRepository`)
+        // has no `getModuleInfo()`/module_info concept whatsoever, so neither
+        // of those two can route through a repository regardless.
         const row = db.queryOne('SELECT * FROM module_info WHERE info_id = 1');
         if (row) {
           const fullName = String(row.full_name || row.title || 'Unknown');
@@ -326,13 +350,21 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
     // `xref_<slug>.db` need not live in the same directory (one can be bundled
     // and the other downloaded), so the shadowing rule cannot be evaluated one
     // directory at a time.
+    // M11 (task 0026, revision 2): the accepted extension list is
+    // `SQLITE_MODULE_EXTENSIONS` (`@bible/core`, currently just `['.db']`) -
+    // the same constant `SqliteModuleStore.extensions` is built from -
+    // rather than a literal repeated here. Every module file this app can
+    // currently open is SQLite, so this resolves to exactly the old
+    // `f.endsWith('.db')` today; a second store (a CSV/JSON backend) would
+    // extend the accepted set in one place instead of here.
     const filesByDir = moduleDirs.map(dir => ({
       dir,
-      moduleFiles: readdirSync(dir.path).filter(f =>
-        f.endsWith('.db') &&
-        !f.startsWith('main') &&
-        !f.startsWith('user')
-      )
+      moduleFiles: readdirSync(dir.path).filter(f => {
+        const lower = f.toLowerCase();
+        return SQLITE_MODULE_EXTENSIONS.some(ext => lower.endsWith(ext)) &&
+          !f.startsWith('main') &&
+          !f.startsWith('user');
+      })
     }));
     const xrefSlugs = crossReferenceSlugs(filesByDir.flatMap(entry => entry.moduleFiles));
 

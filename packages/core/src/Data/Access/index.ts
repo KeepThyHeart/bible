@@ -18,9 +18,18 @@
  * - F7: `IHighlighter` + `Fts5/Fts5Highlighter` - offset-span highlighting
  *   through a transient in-memory FTS5 table, so a match's `Match[]` no
  *   longer depends on which provider's index answered it.
+ *
+ * Task 0026, revision 2, subtask M11 - "Store and factory": `ModuleStore.ts`
+ * (`IModuleStore`/`IModuleConnection`), `ModuleRepositoryFactory.ts`
+ * (`IModuleRepositoryFactory`/`ModuleRepositoryByType`), and their one SQLite
+ * implementation, `SqliteModuleStore.ts` / `SqliteModuleRepositoryFactory.ts`.
  */
 
 export * from './Capabilities';
+export * from './ModuleStore';
+export * from './ModuleRepositoryFactory';
+export * from './SqliteModuleStore';
+export * from './SqliteModuleRepositoryFactory';
 export * from './KeywordTypes';
 export * from './IKeywordIndexProvider';
 export * from './IHighlighter';
