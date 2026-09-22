@@ -65,7 +65,9 @@ export type { SearchResult, Match, MatchType, FTS5Match, BooleanExpression, Prox
 
 // Re-export Services
 export * from './Services/BibleSearchService';
-export * from './Services/FtsQuery';
+// escapeFts5Term/escapeFts5Query/compileKeywordQuery moved to
+// Data/Access/Fts5/Fts5QueryCompiler (task 0026 subtask M2); already
+// re-exported via `export * from './Data'` above.
 export * from './Services/BibleSections';
 export * from './Services/CollectionService';
 export * from './Services/ReferenceParser';

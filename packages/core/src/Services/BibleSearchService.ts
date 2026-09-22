@@ -1,6 +1,6 @@
 import { ISearchService } from './ISearchService';
 import { SearchQueryParser } from './SearchQueryParser';
-import { escapeFts5Term } from './FtsQuery';
+import { compileKeywordQuery } from '../Data/Access/Fts5/Fts5QueryCompiler';
 import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
@@ -285,12 +285,11 @@ export class BibleSearchService implements ISearchService {
     const allResults: SearchResult[] = [];
 
     for (const [moduleAbbr, repo] of modules) {
-      // Escape FTS5 special characters in each term
-      const escapedTerms = terms.map(term => this.escapeFTS5(term));
-
-      // FTS5 defaults to OR when terms are space-separated; explicit AND ensures
-      // all terms must appear in the verse (matching user expectation for multi-word search).
-      const fts5Query = escapedTerms.join(' AND ');
+      // Build the FTS5 MATCH string through the single compiler (task 0026
+      // subtask M2) instead of escaping ad hoc. "all: true" keeps the
+      // explicit AND-join multi-word search has always used, since FTS5
+      // defaults to OR when terms are merely space-separated.
+      const fts5Query = compileKeywordQuery({ kind: 'terms', terms, all: true });
 
       // Search using verse-level FTS5 with highlighting
       const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
@@ -328,8 +327,10 @@ export class BibleSearchService implements ISearchService {
     const allResults: SearchResult[] = [];
 
     for (const [moduleAbbr, repo] of modules) {
-      // FTS5 phrase query with quotes
-      const fts5Query = `"${phrase}"`;
+      // FTS5 phrase query, compiled (and escaped) through the single
+      // compiler (task 0026 subtask M2) so a phrase containing a literal
+      // `"` no longer produces invalid MATCH syntax.
+      const fts5Query = compileKeywordQuery({ kind: 'phrase', phrase });
       const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
 
       for (const result of results) {
@@ -364,10 +365,13 @@ export class BibleSearchService implements ISearchService {
     const allResults: SearchResult[] = [];
     const fuzzyDistance = options.fuzzyDistance || 0;
 
-    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set
+    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set.
+    // Compiled through the single FTS5 compiler (task 0026 subtask M2)
+    // instead of passing raw text straight to MATCH, so a term with an
+    // apostrophe or hyphen no longer breaks the query.
     const searchPatterns = fuzzyDistance > 0
-      ? terms.map(t => this.buildFuzzyPattern(t, fuzzyDistance))
-      : terms;
+      ? terms.map(t => compileKeywordQuery({ kind: 'prefix', stem: t }))
+      : terms.map(t => compileKeywordQuery({ kind: 'terms', terms: [t], all: true }));
 
     for (const [moduleAbbr, repo] of modules) {
       // 1. Search each term independently to build verse sets
@@ -495,11 +499,6 @@ export class BibleSearchService implements ISearchService {
     const allResults: SearchResult[] = [];
     const fuzzyDistance = options.fuzzyDistance || 0;
 
-    // KAN-22: Build fuzzy patterns for NEAR query if fuzzyDistance is set
-    const searchTerms = fuzzyDistance > 0
-      ? terms.map(t => this.buildFuzzyPattern(t, fuzzyDistance))
-      : terms;
-
     for (const [moduleAbbr, repo] of modules) {
       // Ensure search tables exist in this module
       repo.ensureSearchTablesExist();
@@ -538,118 +537,89 @@ export class BibleSearchService implements ISearchService {
           }
         }
 
-        // Build FTS5 NEAR query (with fuzzy patterns if enabled)
-        const fts5Query = `NEAR(${searchTerms.join(' ')}, ${distance})`;
+        // Build FTS5 NEAR query (with fuzzy prefix patterns if enabled),
+        // through the single compiler (task 0026 subtask M2) so a hyphenated
+        // or apostrophe'd term no longer breaks NEAR() syntax. KeywordQuery's
+        // 'near' kind escapes plain terms; the fuzzy/prefix-wildcard variant
+        // isn't part of that shape, so each term is compiled as its own
+        // 'prefix' query and NEAR(...) is assembled from the results.
+        const fts5Query = fuzzyDistance > 0
+          ? `NEAR(${terms.map(t => compileKeywordQuery({ kind: 'prefix', stem: t })).join(' ')}, ${distance})`
+          : compileKeywordQuery({ kind: 'near', terms, distance });
 
         // Perform proximity search (now at module level)
         const matches = repo.searchBookFTS5(bookNumber, fts5Query);
 
-        // If we got matches, find the specific verses
+        // If we got matches, find the specific verses.
+        //
+        // R-M2: `searchBookFTS5` only ever runs offsets() for a non-NEAR
+        // query, and this method only ever sends it NEAR(...) (see
+        // `fts5Query` above) - so `matches[*].offsets` is always '' and the
+        // offsets()-based branch that used to live here was unreachable dead
+        // code. Removed along with its counterpart in
+        // `BibleRepository.searchBookFTS5`; see that method's comment.
         if (matches.length > 0) {
-          // For NEAR queries, offsets() doesn't work, so use alternate method
-          if (matches[0].offsets === '') {
-            // Use searchProximityInBook to find matching verses
-            // Pass original terms (without wildcards) for the proximity check
-            const matchingVerseIds = repo.searchProximityInBook(bookNumber, terms, distance);
+          // Use searchProximityInBook to find matching verses
+          // Pass original terms (without wildcards) for the proximity check
+          const matchingVerseIds = repo.searchProximityInBook(bookNumber, terms, distance);
 
-            if (matchingVerseIds.length === 0) continue;
+          if (matchingVerseIds.length === 0) continue;
 
-            // Get all verses involved in the match
-            const verses = matchingVerseIds.map(id => repo.getVerse(id)).filter(v => v !== undefined) as BibleVerse[];
+          // Get all verses involved in the match
+          const verses = matchingVerseIds.map(id => repo.getVerse(id)).filter(v => v !== undefined) as BibleVerse[];
 
-            if (verses.length === 0) continue;
+          if (verses.length === 0) continue;
 
-            if (verses.length === 1) {
-              // Single verse result
-              const verse = verses[0];
-              const verseText = verse.textPlain || verse.text;
+          if (verses.length === 1) {
+            // Single verse result
+            const verse = verses[0];
+            const verseText = verse.textPlain || verse.text;
 
-              // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-              const highlightTerms = fuzzyDistance > 0
-                ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
-                : terms;
-              // Fall back to original terms if no fuzzy matches found
-              const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
+            // KAN-22: Find actual matched words for highlighting (supports fuzzy)
+            const highlightTerms = fuzzyDistance > 0
+              ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
+              : terms;
+            // Fall back to original terms if no fuzzy matches found
+            const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
 
-              allResults.push({
-                verseId: verse.verseId,
-                module: moduleAbbr,
-                reference: this.formatReference(verse.verseId),
-                text: await this.highlightMatches(verseText, finalHighlightTerms),
-                matches: this.extractMatches(verseText, finalHighlightTerms),
-                score: 1.0,
-                type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-              });
-            } else {
-              // Multi-verse result - show full range from first to last verse
-              // Sort verses to ensure proper order
-              const sortedVerses = verses.sort((a, b) => a.verseId - b.verseId);
-              const firstVerse = sortedVerses[0];
-              const lastVerse = sortedVerses[sortedVerses.length - 1];
-              const combinedText = sortedVerses.map(v => v.textPlain || v.text).join(' ');
-
-              // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-              const highlightTerms = fuzzyDistance > 0
-                ? this.findFuzzyMatchedWords(combinedText, terms, fuzzyDistance)
-                : terms;
-              // Fall back to original terms if no fuzzy matches found
-              const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
-
-              // Create snippet showing matched terms with context and ellipses
-              const snippet = this.createSnippet(combinedText, finalHighlightTerms, 200);
-
-              allResults.push({
-                verseId: firstVerse.verseId,
-                verseIds: matchingVerseIds,
-                module: moduleAbbr,
-                reference: this.formatVerseRange(firstVerse.verseId, lastVerse.verseId),
-                text: await this.highlightMatches(combinedText, finalHighlightTerms),
-                snippet: await this.highlightMatches(snippet, finalHighlightTerms),
-                matches: this.extractMatches(combinedText, finalHighlightTerms),
-                score: 1.0,
-                type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-              });
-            }
+            allResults.push({
+              verseId: verse.verseId,
+              module: moduleAbbr,
+              reference: this.formatReference(verse.verseId),
+              text: await this.highlightMatches(verseText, finalHighlightTerms),
+              matches: this.extractMatches(verseText, finalHighlightTerms),
+              score: 1.0,
+              type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
+            });
           } else {
-            // Use offsets to find matching verses (original method)
-            for (const match of matches) {
-              const offsets = match.offsets.split(' ').map(n => parseInt(n, 10));
-              const matchPositions = new Set<number>();
+            // Multi-verse result - show full range from first to last verse
+            // Sort verses to ensure proper order
+            const sortedVerses = verses.sort((a, b) => a.verseId - b.verseId);
+            const firstVerse = sortedVerses[0];
+            const lastVerse = sortedVerses[sortedVerses.length - 1];
+            const combinedText = sortedVerses.map(v => v.textPlain || v.text).join(' ');
 
-              for (let i = 0; i < offsets.length; i += 4) {
-                matchPositions.add(offsets[i + 2]);
-              }
+            // KAN-22: Find actual matched words for highlighting (supports fuzzy)
+            const highlightTerms = fuzzyDistance > 0
+              ? this.findFuzzyMatchedWords(combinedText, terms, fuzzyDistance)
+              : terms;
+            // Fall back to original terms if no fuzzy matches found
+            const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
 
-              // For each match position, find which verse it belongs to
-              for (const position of matchPositions) {
-                const verseId = repo.getVerseIdAtPosition(bookNumber, position);
+            // Create snippet showing matched terms with context and ellipses
+            const snippet = this.createSnippet(combinedText, finalHighlightTerms, 200);
 
-                if (verseId) {
-                  const versePosition = repo.getVersePosition(bookNumber, verseId);
-                  let verseText = '';
-
-                  if (versePosition) {
-                    verseText = match.text.substring(versePosition.startIndex, versePosition.endIndex);
-                  }
-
-                  // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-                  const highlightTerms = fuzzyDistance > 0
-                    ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
-                    : terms;
-                  const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
-
-                  allResults.push({
-                    verseId,
-                    module: moduleAbbr,
-                    reference: this.formatReference(verseId),
-                    text: await this.highlightMatches(verseText, finalHighlightTerms),
-                    matches: this.extractMatches(verseText, finalHighlightTerms),
-                    score: 1.0,
-                    type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-                  });
-                }
-              }
-            }
+            allResults.push({
+              verseId: firstVerse.verseId,
+              verseIds: matchingVerseIds,
+              module: moduleAbbr,
+              reference: this.formatVerseRange(firstVerse.verseId, lastVerse.verseId),
+              text: await this.highlightMatches(combinedText, finalHighlightTerms),
+              snippet: await this.highlightMatches(snippet, finalHighlightTerms),
+              matches: this.extractMatches(combinedText, finalHighlightTerms),
+              score: 1.0,
+              type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
+            });
           }
         }
       }
@@ -666,16 +636,19 @@ export class BibleSearchService implements ISearchService {
     expression: BooleanExpression,
     options: SearchOptions
   ): Promise<SearchResult[]> {
-    const fts5Query = this.compileBooleanToFts5(expression);
+    // Compiled through the single FTS5 compiler (task 0026 subtask M2); the
+    // AND/OR/NOT/parenthesisation logic that used to live in this file's own
+    // compileBooleanToFts5/combine/isBareNegation moved there unchanged.
+    const fts5Query = compileKeywordQuery({ kind: 'boolean', expr: expression });
 
-    // Only an unsatisfiable expression compiles to null - today that means a
+    // Only an unsatisfiable expression compiles to '' - today that means a
     // bare negation such as `(NOT evil)`. FTS5's NOT is binary: it excludes
     // from a left-hand match set, and there is no "every verse" operand to
     // subtract from, so the alternative would be a full-corpus scan on a query
     // that asks for almost the whole Bible. Returning nothing is the honest
     // answer; returning the *matches* for `evil` here would be the exact
     // opposite of what was asked.
-    if (fts5Query === null) return [];
+    if (fts5Query === '') return [];
 
     const modules = this.getModulesToSearch(options);
     const terms = this.collectPositiveTerms(expression);
@@ -707,72 +680,6 @@ export class BibleSearchService implements ISearchService {
   }
 
   /**
-   * Compile a parsed boolean tree into a single FTS5 MATCH expression.
-   *
-   * FTS5 implements AND, OR, NOT and parentheses natively, so the whole tree
-   * can be handed to SQLite as one query rather than evaluated here with set
-   * operations over several round trips. Every leaf goes through the same
-   * escaper the other search paths use, so a term that collides with FTS5
-   * syntax (`not`, an apostrophe, a hyphen) is quoted rather than reinterpreted
-   * as an operator.
-   *
-   * Returns null when the expression cannot be expressed - see `searchBoolean`.
-   */
-  private compileBooleanToFts5(expression: BooleanExpression | string): string | null {
-    if (typeof expression === 'string') {
-      const terms = this.parser.parse(expression).terms || [];
-      if (terms.length === 0) return null;
-      return terms.map(term => this.escapeFTS5(term)).join(' AND ');
-    }
-
-    const { operator, left, right } = expression;
-
-    // A unary NOT as an operand IS expressible when it has something to
-    // subtract from: `faith AND NOT works` is FTS5's `faith NOT works`.
-    if (operator === 'AND' && right !== undefined && this.isBareNegation(right)) {
-      return this.combine(left, (right as BooleanExpression).left, 'NOT');
-    }
-
-    if (right === undefined) {
-      // Unary NOT at this position has no left-hand set to exclude from.
-      if (operator === 'NOT') return null;
-      return this.compileBooleanToFts5(left);
-    }
-
-    // `a OR NOT b` has no FTS5 equivalent for the same reason as a bare
-    // negation: the right operand is a complement, not a match set.
-    if (this.isBareNegation(right)) return null;
-
-    return this.combine(left, right, operator);
-  }
-
-  /** Is this operand a negation with nothing of its own to exclude from? */
-  private isBareNegation(operand: BooleanExpression | string): boolean {
-    return (
-      typeof operand !== 'string' &&
-      operand.operator === 'NOT' &&
-      operand.right === undefined
-    );
-  }
-
-  private combine(
-    left: BooleanExpression | string,
-    right: BooleanExpression | string,
-    operator: 'AND' | 'OR' | 'NOT'
-  ): string | null {
-    const compiledLeft = this.compileBooleanToFts5(left);
-    const compiledRight = this.compileBooleanToFts5(right);
-
-    // An empty operand collapses rather than poisoning the whole query: for
-    // AND and NOT the surviving side still constrains the result, and for OR
-    // it is the only alternative left.
-    if (compiledLeft === null) return operator === 'NOT' ? null : compiledRight;
-    if (compiledRight === null) return compiledLeft;
-
-    return `(${compiledLeft} ${operator} ${compiledRight})`;
-  }
-
-  /**
    * The terms a matching verse actually contains, for highlighting.
    *
    * Everything under a NOT is excluded: those words are guaranteed absent from
@@ -796,6 +703,22 @@ export class BibleSearchService implements ISearchService {
     }
 
     return [...new Set(terms)];
+  }
+
+  /**
+   * Is this operand a negation with nothing of its own to exclude from?
+   *
+   * Used only by `collectPositiveTerms` above (a bare-negation right operand
+   * contributes no positive terms to highlight). The FTS5-syntax version of
+   * this same check now lives with the rest of the boolean-to-MATCH compiler
+   * in `Fts5QueryCompiler`; this copy is about highlighting, not syntax.
+   */
+  private isBareNegation(operand: BooleanExpression | string): boolean {
+    return (
+      typeof operand !== 'string' &&
+      operand.operator === 'NOT' &&
+      operand.right === undefined
+    );
   }
 
   /**
@@ -1646,14 +1569,6 @@ export class BibleSearchService implements ISearchService {
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  /**
-   * Escape special FTS5 characters. Shared with the dictionary search, which
-   * hits the same syntax errors on apostrophes, hyphens and reserved words.
-   */
-  private escapeFTS5(term: string): string {
-    return escapeFts5Term(term);
   }
 
   // ========================================================================

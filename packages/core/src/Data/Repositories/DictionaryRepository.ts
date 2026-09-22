@@ -8,7 +8,7 @@ import { BaseModuleRepository, mapModuleIdentity, buildIdentityAssignments } fro
 import { ModuleInfoRow, DictionaryEntryRow, WordOccurrenceRow } from '../Core/RowTypes';
 import { parseJsonField, stringifyJsonField } from '../Core/JsonHelpers';
 import { buildPagination } from '../Core/SafeQuery';
-import { escapeFts5Query } from '../../Services/FtsQuery';
+import { escapeFts5Query } from '../Access/Fts5/Fts5QueryCompiler';
 import { VerseLinkRepository } from './VerseLinkRepository';
 
 /**

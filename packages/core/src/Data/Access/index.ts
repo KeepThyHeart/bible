@@ -10,3 +10,4 @@ export * from './IKeywordIndexProvider';
 export * from './DataAccessConfig';
 export * from './IKeywordIndexRegistry';
 export * from './KeywordIndexRegistry';
+export * from './Fts5/Fts5QueryCompiler';

@@ -9,7 +9,7 @@ import { BaseModuleRepository, mapModuleIdentity } from './BaseModuleRepository'
 import { ModuleInfoRow, TopicRow } from '../Core/RowTypes';
 import { parseJsonField } from '../Core/JsonHelpers';
 import { VerseLinkRepository } from './VerseLinkRepository';
-import { escapeFts5Term } from '../../Services/FtsQuery';
+import { escapeFts5Term } from '../Access/Fts5/Fts5QueryCompiler';
 
 /**
  * Repository for Topical Index module databases (topical_*.db)
