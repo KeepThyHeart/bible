@@ -137,7 +137,20 @@ export interface CommentaryEntryRow extends BaseRow {
   verse_id_start: number;
   verse_id_end?: number;
   entry_level?: string;
-  content?: string;
+  /**
+   * TEXT, or - in a module whose `module_info.compression` is not `'none'` -
+   * a BLOB holding one bare codec frame (task 0027 F4). Read it through
+   * `BaseModuleRepository.text()`, never directly; see
+   * `CommentaryRepository.mapRowToEntry`.
+   *
+   * Commentary is the only row type widened so far, because
+   * `CommentaryRepository` is the only repository wired to `text()` in this
+   * pass. The other prose columns `CONTENT_MAP` lists
+   * (`dictionary_entry.definition`/`usage_notes`, `book_section.content`,
+   * `devotional_entry.content`) get the same treatment as their mappers are
+   * wired.
+   */
+  content?: string | Uint8Array;
   content_file?: string;
   word_count?: number;
   metadata?: string;  // JSON

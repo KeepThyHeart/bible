@@ -2,8 +2,15 @@ import { ISql, SqlParameter, SqlRow } from '../Core/ISql';
 import { ModuleInfoRow } from '../Core/RowTypes';
 import { BaseModuleInfo, BaseModuleInfoData } from '../Models/BaseModuleInfo';
 import { ModuleType } from '../Core/Types';
-import { CONTENT_MAP } from '../Format/ModuleFormat';
+import { CompressionCodec, CONTENT_MAP } from '../Format/ModuleFormat';
 import { IIndexSource, IndexDocument, IndexTarget } from '../Access/KeywordTypes';
+import {
+  ContentCodecUnavailableError,
+  ICodecRegistry,
+  ResolvedModuleCodec,
+  nodeCodecRegistry,
+  resolveModuleCodec,
+} from '../Access/Codec';
 import { stripHtml } from '../../Services/PassageFormat/formatHelpers';
 
 /**
@@ -109,7 +116,18 @@ export function buildIdentityAssignments(
  *
  */
 export abstract class BaseModuleRepository<TModuleInfo extends BaseModuleInfo> {
-  constructor(protected sql: ISql) {}
+  /**
+   * @param sql    The open module database.
+   * @param codecs The codec set this reader has. Defaults to the
+   *        Node/Electron composition root ({@link nodeCodecRegistry}); a
+   *        different runtime, or a test pinning a deliberately incomplete
+   *        set, passes its own. Nothing here names a codec: see
+   *        `Data/Access/Codec/NodeCodecs.ts`.
+   */
+  constructor(
+    protected sql: ISql,
+    private readonly codecs: ICodecRegistry = nodeCodecRegistry()
+  ) {}
 
   /**
    * Get module metadata from the module_info table.
@@ -121,6 +139,110 @@ export abstract class BaseModuleRepository<TModuleInfo extends BaseModuleInfo> {
   }
 
   protected abstract mapRowToModuleInfo(row: ModuleInfoRow): TModuleInfo;
+
+  // ==========================================================================
+  // F4 (task 0027, revision 2): content compression
+  // ==========================================================================
+  //
+  // `module_info.compression` names ONE codec for the whole module file -
+  // there is no per-table or per-column codec - so the decoder is resolved
+  // ONCE per repository (per connection), not once per row. This is the same
+  // "five call sites can't disagree" argument as `buildIndexSource` above:
+  // Bible/Commentary/Dictionary/Book/TopicalIndex all extend this class, so
+  // they all get one resolution and one accessor rather than five copies.
+
+  private resolvedCodec?: ResolvedModuleCodec;
+
+  /**
+   * This module's codec, resolved on first use and memoized for the life of
+   * the repository.
+   *
+   * Lazy rather than resolved in the constructor, for two reasons that both
+   * matter in practice: a repository is routinely constructed over databases
+   * with no `module_info` table at all (in-memory fixtures, partial files),
+   * and constructing a repository must never be the thing that throws; and a
+   * repository that never reads prose (`getEntrySummariesForRange`,
+   * `getVerseMentions`) should not pay for a `module_info` read it has no use
+   * for. "Once per open" is preserved either way - this runs at most one
+   * time per instance.
+   */
+  protected moduleCodec(): ResolvedModuleCodec {
+    if (!this.resolvedCodec) {
+      this.resolvedCodec = resolveModuleCodec(this.sql, this.codecs);
+    }
+    return this.resolvedCodec;
+  }
+
+  /**
+   * What this reader can do with this module's content encoding - exactly the
+   * shape of `ModuleCapabilities.compression` (`Data/Access/Capabilities.ts`).
+   *
+   * Nothing populates `ModuleCapabilities` for real yet: M1 defined the type
+   * and the install/capability-surface subtasks (M7/F8/M9) that would fill it
+   * in have not landed. This is deliberately the whole of the wiring for now
+   * - a question this layer can answer honestly today, in the shape the
+   * consumer will want - rather than a speculative capability pipeline built
+   * around a single field. When that surface arrives, `supported === false`
+   * is what it turns into `readContent: false, unavailableReason:
+   * 'missing-codec'`.
+   *
+   * Never throws, and never reads content: a module whose codec is missing
+   * still opens, still reports `module_info`, and still answers this.
+   */
+  getCompressionCapability(): { codec: CompressionCodec; supported: boolean } {
+    const resolved = this.moduleCodec();
+    return { codec: resolved.compression, supported: resolved.supported };
+  }
+
+  /**
+   * Decode one prose cell. The accessor every content repository's
+   * `mapRowTo*` reads a compressed column through.
+   *
+   *   - `null` (or a missing column) ⇒ `''`.
+   *   - a `string` ⇒ returned unchanged. NOT an error even in a module whose
+   *     `compression` is `'deflate'` or `'zstd'`: the publisher keeps the
+   *     compressed blob only where it is actually smaller than the text, so a
+   *     short entry in a compressed module is legitimately still `TEXT`.
+   *   - a `Uint8Array`/`Buffer` ⇒ one bare codec frame, decoded by this
+   *     module's resolved codec.
+   *
+   * ### When this reader has no codec for the module
+   *
+   * It throws {@link ContentCodecUnavailableError}, naming the codec - and
+   * only on the BLOB branch, so a missing codec never breaks `module_info`,
+   * metadata, or the plain-text cells of the same module.
+   *
+   * Throwing is the right answer here *today*, and is a considered choice
+   * rather than the easy one. The design's rule is that a missing codec must
+   * become a capability answer (`readContent: false`, reason
+   * `'missing-codec'`) rather than an exception that kills module loading -
+   * but the caller that would turn it into one does not exist yet (M7/F8/M9).
+   * Given that, the alternatives were: return `''`, which puts an empty page
+   * in front of the user with nothing anywhere saying why, and which would
+   * ALSO be the correct-looking result for a genuinely empty entry; or throw
+   * something typed and greppable that names the codec and points at
+   * {@link getCompressionCapability}. A silent blank is precisely the failure
+   * mode this format was designed to avoid, so: throw. The capability surface,
+   * when it lands, checks `getCompressionCapability().supported` and never
+   * reaches this branch.
+   *
+   * A codec that IS present but throws while decoding (corrupt frame, wrong
+   * dictionary, truncated blob) propagates unchanged. That is a damaged file,
+   * not a capability question, and swallowing it would hide real corruption.
+   */
+  protected text(raw: string | Uint8Array | null): string {
+    if (raw === null || raw === undefined) {
+      return '';
+    }
+    if (typeof raw === 'string') {
+      return raw;
+    }
+    const { codec, compression } = this.moduleCodec();
+    if (!codec) {
+      throw new ContentCodecUnavailableError(compression);
+    }
+    return codec.decode(raw);
+  }
 
   // ==========================================================================
   // M5 (task 0026, revision 2): getIndexSource() shared plumbing
@@ -316,11 +438,22 @@ function* streamContentDocuments(
  * space keeps the joined text readable in test failures without meaning
  * anything different to the tokenizer than a newline would.
  *
- * Compression: F4 (the compression/codec accessor) has not landed. Every real
- * module file as of this pass carries `module_info.compression = 'none'` (or
- * lacks the column entirely - it predates F2's schema). So every column read
- * here is already plain TEXT; this is a deliberate, temporary simplification,
- * not an oversight - a real decode call belongs here once F4 lands.
+ * Compression: F4 has now landed - `BaseModuleRepository.text()` above is the
+ * decode accessor, and `moduleCodec()` the resolved codec - but this indexing
+ * path is deliberately NOT yet wired to it, and is a named follow-up rather
+ * than an oversight. Two reasons. It is a free function reached through a
+ * generator, so the codec has to be threaded down through
+ * `streamContentDocuments` rather than read off `this`, which is a different
+ * (if small) change from swapping one column read in a mapper. And decoding
+ * here needs a policy for a module whose codec is MISSING that a mapper does
+ * not: `text()` throws, which is right for one cell a caller asked for, and
+ * wrong for a whole-module index build that should skip the module and report
+ * it, not abort. Both belong with the follow-up that wires the remaining
+ * repositories' mappers. Until then this stays correct for every module that
+ * exists: every real module file today carries `module_info.compression =
+ * 'none'` (or lacks the column entirely - it predates F2's schema), so every
+ * column read here is already plain TEXT, and a non-string value is filtered
+ * out below rather than indexed as garbage.
  *
  * `startVerseId`/`endVerseId`: populated only when `rangeColumns` is set
  * (today, only `commentary`'s `verse_id_start`/`verse_id_end`), and only when
