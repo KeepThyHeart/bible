@@ -7,9 +7,16 @@ import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateBookNumber, validateChapter, validateVerseId, validateString } from '../utils/validation';
 import { pickDefaultBible } from './defaultBible';
 
+// readonly: false - book-level proximity search (BibleSearchService's `~Nw`
+// word-distance queries) still lazily writes its index into the module's own
+// file on first use via BibleRepository.buildBookIndex() (M3/M5, task 0026
+// revision 2, deliberately left this one path unmigrated). The desktop
+// ModuleLoader's core default flipped to readonly: true in M11; every other
+// module type here is genuinely read-only now, but Bible is not yet - see
+// ModuleLoader.ts's own doc comment for the regression this override fixes.
 const bibleLoader = new ModuleLoader('bible', (db) => new BibleRepository(db), (repo) => {
   repo.ensureSearchTablesExist();
-});
+}, false);
 
 /**
  * Get or create a Bible repository for a specific module.
