@@ -45,6 +45,9 @@
 export * from './Core/ISql';
 export * from './Core/IRepository';
 export * from './Core/Types';
+
+// Module Format v2 - format constants, the version gate, and the content registry.
+export * from './Format/ModuleFormat';
 export * from './Core/CatalogTypes';
 export * from './Core/FeaturePackTypes';
 export * from './Core/StarterPackTypes';
