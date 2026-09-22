@@ -6,6 +6,7 @@ import { BibleSearchVersePosition } from '../Models/Main/BibleSearchVersePositio
 import { IBibleRepository } from './IBibleRepository';
 import { BaseModuleRepository, mapModuleIdentity, buildIdentityAssignments } from './BaseModuleRepository';
 import { ModuleInfoRow, BibleVerseRow, InterlinearWordRow } from '../Core/RowTypes';
+import { IIndexSource } from '../Access/KeywordTypes';
 import { parseJsonField, stringifyJsonField, parseBoolField } from '../Core/JsonHelpers';
 import { isReadOnlyDatabaseError } from '../Core/Errors';
 import { parseVerseFormatting, stringifyVerseFormatting } from '../Text';
@@ -934,6 +935,15 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     );
 
     return rows.map(row => row.gloss);
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('bible');
   }
 
   // ========================================================================

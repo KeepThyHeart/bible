@@ -14,6 +14,7 @@ import { ModuleInfoRow, CommentaryEntryRow } from '../Core/RowTypes';
 import { parseJsonField, stringifyJsonField } from '../Core/JsonHelpers';
 import { verseRangeOverlapsRange, verseRangeOverlapsRangeNullable } from '../Core/VerseRangeQuery';
 import { VerseLinkRepository } from './VerseLinkRepository';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Repository for Commentary module databases (commentary_*.db)
@@ -422,6 +423,15 @@ export class CommentaryRepository extends BaseModuleRepository<CommentaryModuleI
       entryLevel: row.entry_level as CommentaryEntryLevel,
       wordCount: row.word_count as number
     }));
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('commentary');
   }
 
   // ========================================================================

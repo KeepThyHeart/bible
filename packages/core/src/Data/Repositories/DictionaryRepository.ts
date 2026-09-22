@@ -10,6 +10,7 @@ import { parseJsonField, stringifyJsonField } from '../Core/JsonHelpers';
 import { buildPagination } from '../Core/SafeQuery';
 import { escapeFts5Query } from '../Access/Fts5/Fts5QueryCompiler';
 import { VerseLinkRepository } from './VerseLinkRepository';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Repository for Dictionary module databases (dictionary_*.db)
@@ -473,6 +474,15 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
       `SELECT COUNT(*) AS count FROM dictionary_entry WHERE entry_key != '' AND entry_key NOT LIKE ' %'`
     );
     return row?.count ?? 0;
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('dictionary');
   }
 
   // ========================================================================

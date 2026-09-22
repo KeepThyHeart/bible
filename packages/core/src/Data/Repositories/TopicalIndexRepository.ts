@@ -10,6 +10,7 @@ import { ModuleInfoRow, TopicRow } from '../Core/RowTypes';
 import { parseJsonField } from '../Core/JsonHelpers';
 import { VerseLinkRepository } from './VerseLinkRepository';
 import { escapeFts5Term } from '../Access/Fts5/Fts5QueryCompiler';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Repository for Topical Index module databases (topical_*.db)
@@ -352,6 +353,15 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
     }
     return total;
     
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('topical_index');
   }
 
   // ========================================================================
