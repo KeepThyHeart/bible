@@ -4,6 +4,7 @@ import * as zlib from 'zlib';
 import * as crypto from 'crypto';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
+import log from 'electron-log';
 import type { ISql, SqlParameter, SqlResult, SqlRow } from '@bible/core';
 import {
   ModuleMetadata,
@@ -17,6 +18,7 @@ import type { InstallationResult } from '@bible/core';
 import type { IInstallationService, InstallVerification } from '@bible/core';
 import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
+import type { KeywordIndexService } from './KeywordIndexService';
 
 /**
  * Installation service implementation
@@ -113,9 +115,18 @@ export class InstallationService implements IInstallationService {
   private modulesBasePath: string;
   private mainDb: ISql;
 
+  /**
+   * Optional: when supplied, a successful install triggers a best-effort
+   * keyword-index build (F8, task 0027 revision 2) and a successful uninstall
+   * prunes that module's index. Optional so every existing caller - including
+   * every test in `__tests__/` that constructs this service directly - keeps
+   * working unchanged; `moduleHandlers.ts`'s `initializeModuleManager()` is
+   * the one real caller that supplies it.
+   */
   constructor(
     mainDb: ISql,
-    modulesBasePath: string
+    modulesBasePath: string,
+    private readonly keywordIndexService?: KeywordIndexService
   ) {
     this.mainDb = mainDb;
     this.moduleMetadataRepo = new ModuleMetadataRepository(mainDb);
@@ -255,6 +266,19 @@ export class InstallationService implements IInstallationService {
       // Register in database
       const registeredModuleId = await this.registerModule(metadata);
 
+      // Best-effort keyword-index build (F8, task 0027 revision 2). The
+      // module is already fully installed and readable at this point -
+      // registerModule() above succeeded - so this is a strictly separate,
+      // NON-blocking second phase: fire-and-forget, never awaited, so a slow
+      // or failed build can never add latency to this call or turn a
+      // successful install into a reported failure. See
+      // `KeywordIndexService.triggerBuildAfterInstall`'s doc comment for the
+      // full reasoning behind not awaiting it even wrapped in a try/catch.
+      this.keywordIndexService?.triggerBuildAfterInstall({
+        moduleType,
+        absoluteDatabasePath: destinationPath,
+      });
+
       // Clean up compressed file if it exists
       if (sourcePath.endsWith('.gz') && fs.existsSync(sourcePath)) {
         fs.unlinkSync(sourcePath);
@@ -335,6 +359,25 @@ export class InstallationService implements IInstallationService {
       const module = this.moduleMetadataRepo.getById(moduleId);
       if (!module) {
         return false;
+      }
+
+      // Prune this module's keyword index (F8, task 0027 revision 2) before
+      // the module file itself is deleted below, so nothing is left pointing
+      // at a file that is about to disappear. Best-effort and awaited (unlike
+      // the post-install build): this is a bounded delete of at most one
+      // small `.kwi` file and one `keyword_index` row, not a build, so there
+      // is no latency concern - but a failure here must still never stop the
+      // uninstall itself from completing, which is why it is swallowed rather
+      // than propagated. `module.moduleUuid` can be null/empty for a module
+      // registered before stable identity existed (pre-F3); such a module was
+      // never a valid `SidecarFts5Provider` target in the first place (see
+      // that provider's `unsupportedReason()`), so there is nothing to prune.
+      if (this.keywordIndexService && module.moduleUuid) {
+        try {
+          await this.keywordIndexService.pruneIndex(module.moduleUuid, module.moduleType);
+        } catch (error) {
+          log.warn(`[InstallationService] Failed to prune keyword index for module ${moduleId}:`, error);
+        }
       }
 
       // Delete module file - resolve relative databasePath against modules base

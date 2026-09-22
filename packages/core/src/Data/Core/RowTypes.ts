@@ -333,6 +333,26 @@ export interface ModuleMetadataRow extends BaseRow {
   metadata?: string;         // JSON
 }
 
+/**
+ * Row from the `keyword_index` table (task 0027 revision 2, F8) - the durable
+ * record of one provider's keyword index for one module. See the doc comment
+ * above `keyword_index` in `sql/schemas/initial/MainDatabase.sql` for what
+ * this table is for and why it exists alongside `SidecarFts5Provider`'s own
+ * on-disk state machine.
+ */
+export interface KeywordIndexRow extends BaseRow {
+  module_uuid: string;
+  provider_id: string;
+  content_sha256: string;
+  /** Open set - see the schema's own doc comment. Source of truth: KeywordCapability. */
+  state: string;
+  tokenizer: string;
+  doc_count?: number | null;
+  size_bytes?: number | null;
+  built_at?: string | null;
+  error?: string | null;
+}
+
 /** Row from the module_repository table */
 export interface ModuleCatalogRow extends BaseRow {
   repository_id: number;

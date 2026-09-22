@@ -64,6 +64,16 @@ vi.mock('../../services/InstallationService', () => ({
   InstallationService: vi.fn().mockImplementation(function () { return {}; }),
 }));
 
+// F8 (task 0027 revision 2): initializeModuleManager() now also constructs a
+// KeywordIndexService. Mocked for the same reason InstallationService is
+// above - its real constructor's default `indexDir` resolves through
+// `getKeywordIndexRoot()`, which touches the real filesystem, and this
+// suite's `./appPaths` mock supplies a Windows-shaped fake path that is not
+// meaningful on whatever OS the test runs on.
+vi.mock('../../services/KeywordIndexService', () => ({
+  KeywordIndexService: vi.fn().mockImplementation(function () { return {}; }),
+}));
+
 vi.mock('../../services/ModuleCatalogService', () => ({
   ModuleCatalogService: vi.fn().mockImplementation(function () { return {}; }),
 }));

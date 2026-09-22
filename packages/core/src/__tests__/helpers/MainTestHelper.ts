@@ -185,6 +185,7 @@ export class MainTestHelper {
       'module_update',
       'module_download_queue',
       'module_repository',
+      'keyword_index',
       'module_metadata',
       'chapter_info',
       'bible_book',
