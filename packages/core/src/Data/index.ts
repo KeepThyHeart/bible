@@ -53,6 +53,10 @@ export * from './Format/ModuleFormat';
 // module's DECODED content so it is stable across compression codecs.
 export * from './Format/contentDigest';
 
+// F5 (task 0027, revision 2): the one conformance rule table for a module
+// file, shared by the install gate and the boot-time filesystem scan.
+export * from './Format/validateModuleFile';
+
 // Swappable Data Access layer (task 0026) - types and the keyword-index
 // registry. Pure addition: nothing outside ./Access calls any of this yet.
 export * from './Access';

@@ -1,4 +1,4 @@
-import { readdirSync, statSync, existsSync, mkdirSync } from 'fs';
+import { readdirSync, statSync, existsSync, mkdirSync, openSync, readSync, closeSync } from 'fs';
 import { join } from 'path';
 import log from 'electron-log';
 import { getDataPath, getUserModulesPath, resolveMainDbPath } from './appPaths';
@@ -14,8 +14,37 @@ import {
   ModuleType,
   crossReferenceSlugs,
   isCrossReferenceSourceCommentary,
-  isCrossReferenceSourceCommentaryPath
+  isCrossReferenceSourceCommentaryPath,
+  hasSqliteHeader,
+  validateModuleFile,
+  nodeCodecRegistry
 } from '@bible/core';
+import type { FormatVersionKind } from '@bible/core';
+
+/**
+ * First 16 bytes of `path`, or `null` if fewer than 16 could be read at all.
+ * Never throws - this scan is best-effort over a directory that may contain
+ * anything, including a truncated download or a non-module file a user
+ * dropped in by hand. The byte comparison itself is `hasSqliteHeader()`, in
+ * `@bible/core` - kept in exactly one place so this file and
+ * `InstallationService.ts`'s equivalent helper can never drift against each
+ * other (see F5, task 0027).
+ */
+function readHeaderBytes(path: string): Uint8Array | null {
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, 'r');
+    const buffer = Buffer.alloc(16);
+    const bytesRead = readSync(fd, buffer, 0, 16, 0);
+    return bytesRead < 16 ? null : buffer;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) {
+      try { closeSync(fd); } catch { /* already closed */ }
+    }
+  }
+}
 
 /**
  * Module detection and registration helper
@@ -58,17 +87,35 @@ function getModuleTypeFromFilename(filename: string): ModuleType | null {
   return prefixMap[prefix] ?? null;
 }
 
+/** What `getModuleInfoFromDatabase` reports about a module file. */
+interface DetectedModuleInfo {
+  moduleUuid?: string;
+  moduleName: string;
+  abbreviation: string;
+  version?: string;
+  languageCode?: string;
+  /**
+   * `module_info.format_version`'s classification, from the same F5 rule
+   * table `InstallationService.validateModuleForInstall` uses - `undefined`
+   * only if `module_info` itself could not be read (which the `moduleUuid`
+   * check just above this field's one call site already guards against, so
+   * in practice this is always set whenever `moduleUuid` is too). See
+   * `validateModuleFile`'s doc comment in `@bible/core`.
+   */
+  formatVersionKind?: FormatVersionKind;
+}
+
 /**
  * Read module info from a module database
  */
 function getModuleInfoFromDatabase(
   moduleType: ModuleType,
   dbPath: string
-): { moduleUuid?: string; moduleName: string; abbreviation: string; version?: string; languageCode?: string } | null {
+): DetectedModuleInfo | null {
   try {
     const db = new SqliteProvider(dbPath);
 
-    let result: { moduleUuid?: string; moduleName: string; abbreviation: string; version?: string; languageCode?: string } | null = null;
+    let result: DetectedModuleInfo | null = null;
 
     // Read module_info based on module type
     switch (moduleType) {
@@ -167,6 +214,19 @@ function getModuleInfoFromDatabase(
         }
         break;
       }
+    }
+
+    // F5 (task 0027): the boot scan's format_version gap. Reuses the SAME
+    // open connection above rather than a second query written by hand here
+    // - `validateModuleFile()` is the one place the allow-list check lives
+    // (never re-implemented locally, per its doc comment). Only the
+    // classification is carried out; `moduleUuid`'s presence just below this
+    // function's one call site is still that separate, pre-existing check -
+    // and `compression`/codec availability is not this call site's concern
+    // at all (blank cell for the boot scan in the F5 design doc's table).
+    if (result) {
+      const validation = validateModuleFile(db, nodeCodecRegistry());
+      result.formatVersionKind = validation.formatVersionKind;
     }
 
     db.close();
@@ -331,6 +391,21 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
         result.detected++;
 
         try {
+          // F5 (task 0027): the SQLite header, checked BEFORE anything opens
+          // the file - a real byte comparison, not "did opening throw". This
+          // is the gap the boot scan had: a truncated download or a
+          // non-SQLite file dropped into the modules folder used to either
+          // crash this scan or fall through to a confusing error out of
+          // `getModuleInfoFromDatabase` below. See `hasSqliteHeader`'s doc
+          // comment in `@bible/core`.
+          const header = readHeaderBytes(fullPath);
+          if (!header || !hasSqliteHeader(header)) {
+            const error = `Skipping ${file}: does not begin with the SQLite file header (corrupt file, or not a module database)`;
+            log.error(error);
+            result.errors.push(error);
+            continue;
+          }
+
           // Only open .db files for NEW modules not yet registered
           const moduleInfo = getModuleInfoFromDatabase(moduleType, fullPath);
 
@@ -350,6 +425,18 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
           // dropped into the modules directory land here.
           if (!moduleInfo.moduleUuid) {
             const error = `Skipping ${file}: no module_info.module_uuid (pre-2.0 module; re-export in the current format)`;
+            log.error(error);
+            result.errors.push(error);
+            continue;
+          }
+
+          // F5: format_version, skip + report rather than crash or silently
+          // mis-register - see this function's `validateModuleFile()` call
+          // above. A legacy '2.0' module classifies as 'legacy', not
+          // 'unsupported', and registers normally; only a genuinely unknown
+          // or newer-than-this-build version is skipped here.
+          if (moduleInfo.formatVersionKind === 'unsupported') {
+            const error = `Skipping ${file}: unsupported module format_version (this build cannot read it; re-export in a supported format)`;
             log.error(error);
             result.errors.push(error);
             continue;
