@@ -48,6 +48,10 @@ export * from './Core/Types';
 
 // Module Format v2 - format constants, the version gate, and the content registry.
 export * from './Format/ModuleFormat';
+
+// Swappable Data Access layer (task 0026) - types and the keyword-index
+// registry. Pure addition: nothing outside ./Access calls any of this yet.
+export * from './Access';
 export * from './Core/CatalogTypes';
 export * from './Core/FeaturePackTypes';
 export * from './Core/StarterPackTypes';
