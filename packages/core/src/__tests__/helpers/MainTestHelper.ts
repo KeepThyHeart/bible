@@ -180,8 +180,6 @@ export class MainTestHelper {
     const tables = [
       'search_history',
       'saved_search',
-      'bible_search_verse_positions',
-      'bible_search_index_metadata',
       'module_update',
       'module_download_queue',
       'module_repository',
@@ -197,13 +195,6 @@ export class MainTestHelper {
       } catch (_e) {
         // Table may not exist
       }
-    }
-
-    // Clear FTS5 virtual table separately
-    try {
-      provider.execute(`DELETE FROM bible_search_index`);
-    } catch (_e) {
-      // FTS5 may not be available
     }
   }
 

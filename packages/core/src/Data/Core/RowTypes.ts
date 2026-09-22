@@ -536,28 +536,12 @@ export interface PinnedItemRow extends BaseRow {
 }
 
 // --- Search ----------------------------------------------------------
-
-/** Row from the bible_search_index table */
-export interface BibleSearchIndexRow extends BaseRow {
-  index_id: number;
-  type: string;
-  document: string;
-  division?: string;
-  last_indexed?: string;
-  is_indexed?: number;  // 0 or 1
-  metadata?: string;     // JSON
-}
-
-/** Row from the bible_search_verse_position table */
-export interface BibleSearchVersePositionRow extends BaseRow {
-  position_id: number;
-  type: string;
-  document: string;
-  division?: string;
-  verse_id: number;
-  start_index: number;
-  end_index: number;
-}
+//
+// `BibleSearchIndexRow` and `BibleSearchVersePositionRow` (rows from the
+// former `bible_search_index_metadata` and `bible_search_verse_positions`
+// tables) were removed by task 0026 subtask M12, along with the tables and
+// the `IBibleSearchRepository` methods that read them -- see
+// `BibleSearchRepository.ts`.
 
 /** Row from the saved_search table */
 export interface SavedSearchRow extends BaseRow {

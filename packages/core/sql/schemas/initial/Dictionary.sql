@@ -176,11 +176,11 @@ CREATE INDEX idx_entry_word ON dictionary_entry(word);
 --     translation is revised, and it disappears when the module is uninstalled.
 --     For such a translation this table is pure duplication.
 --
---   * Derived search structures live in main.db. `bible_search_index` and
---     friends are built per module per book and rebuilt as modules come and go
---     (MainDatabase.sql section 3). A module database cannot play that role: it
---     is read-only content, replaced wholesale on update, so nothing here can
---     be pruned in response to what the user installs.
+--   * Derived search structures live in main.db. `keyword_index` and friends
+--     are built per module and rebuilt as modules come and go (MainDatabase.sql
+--     section 3). A module database cannot play that role: it is read-only
+--     content, replaced wholesale on update, so nothing here can be pruned in
+--     response to what the user installs.
 --
 -- Consequences for readers:
 --

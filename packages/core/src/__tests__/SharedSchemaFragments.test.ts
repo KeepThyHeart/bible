@@ -122,9 +122,12 @@ describe('shared schema fragments', () => {
    * F2 (schema v0.2): every module file's keyword index moved out of the
    * module -- into an app-side sidecar, not covered by this subtask -- so no
    * module schema should declare an fts5 virtual table any more. Checked only
-   * over the eight module schemas: `MainDatabase.sql`'s `bible_search_index`
-   * and `UserDatabase.sql`'s `user_note_fts` are deliberately out of scope for
-   * F2 and keep their fts5 tables.
+   * over the eight module schemas: `UserDatabase.sql`'s `user_note_fts` is
+   * deliberately out of scope for F2 and keeps its fts5 table. (MainDatabase.sql
+   * had its own `bible_search_index` fts5 table too at the time, likewise out
+   * of scope for F2; task 0026 subtask M12 later deleted it as dead code, so
+   * MainDatabase.sql -- excluded above for a different reason, see
+   * `MODULE_SCHEMA_FILES` -- no longer declares any fts5 table at all.)
    */
   it.each(MODULE_SCHEMA_FILES)('%s declares no fts5 virtual table', name => {
     expect(readSchema(name)).not.toMatch(/using\s+fts5/iu);

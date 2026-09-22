@@ -204,9 +204,13 @@ CREATE TABLE module_metadata (
                                                     -- stays portable across machines and OSes.
     size_bytes INTEGER,                             -- On-disk size of that file, for the storage UI.
                                                     -- A snapshot at install/update, not kept live.
-    is_indexed INTEGER DEFAULT 0,                   -- 1 once this module's book-level rows exist in
-                                                    -- bible_search_index (section 3). Bible modules
-                                                    -- only; stays 0 for every other type.
+    is_indexed INTEGER DEFAULT 0,                   -- 1 once this module's proximity search index has
+                                                    -- been built. Bible modules only; stays 0 for
+                                                    -- every other type. The index itself lives inside
+                                                    -- the module (book_search_index, per BibleRepository),
+                                                    -- not in this database -- this flag is a
+                                                    -- denormalised cache of that fact so the library
+                                                    -- list does not have to open every module to ask.
     last_indexed_date TEXT,                         -- ISO-8601 UTC of that indexing run
     features TEXT,                                  -- JSON array of feature flags this module provides
                                                     -- (e.g. "strongs", "red_letter"). Vocabulary and
@@ -349,84 +353,26 @@ CREATE INDEX idx_update_available ON module_update(user_ignored) WHERE user_igno
 -- ============================================================================
 -- 3. Shared Search Index
 -- ============================================================================
--- Verse-level FTS lives inside each bible_*.db. These book-level structures
--- live here, in main.db, because the index is built per module per book and is
--- shared across users.
-
--- 3.1 Book-level FTS index (enables proximity search across verse boundaries)
+-- Verse-level FTS lives inside each bible_*.db, and so does the book-level
+-- proximity index (`book_search_index`, via `BibleRepository`). What is
+-- shared across users and lives here instead is the app-side registry over
+-- keyword-index artifacts (3.1), plus saved searches and search history
+-- (3.2-3.3), none of which belong to any one module.
 --
--- One row per (module, book). The whole book is indexed as a single document so
--- a NEAR query can match across a verse boundary -- something the per-verse FTS
--- inside each bible_*.db cannot do, since there each verse is its own document.
--- The cost is that a hit is an offset into book text, not a verse; 3.3 maps it
--- back.
---
--- (type, document, division) is the composite key shared by all three tables in
--- this section. All three columns are TEXT, including `division`, so the triple
--- stays one uniform shape as `type` grows beyond "bible".
-CREATE VIRTUAL TABLE bible_search_index USING fts5(
-    type UNINDEXED,           -- Content kind. "bible" today; the column exists so
-                              -- commentaries and books can share these tables later.
-    document UNINDEXED,       -- Which module, by abbreviation. A soft key -- see the
-                              -- warning on `abbreviation` in 2.1. Safe only because
-                              -- these rows are a derived cache scoped to one machine
-                              -- and are rebuilt, never synced or exported.
-    division UNINDEXED,       -- Book number as a STRING ("1".."66"), to keep the key
-                              -- triple uniformly TEXT.
-    text,                     -- Complete book text, verses concatenated in canonical
-                              -- order. The only indexed column.
-    tokenize='porter unicode61'
-);
+-- (Until task 0026 subtask M12, this section also held a library-wide
+-- `bible_search_index` FTS5 table with its own `..._metadata` and
+-- `..._verse_positions` companions -- a second, main.db-level keyword index
+-- alongside 3.1's registry. It never had a production caller: proximity
+-- search was already served per module via `book_search_index` above, and
+-- keyword search generally via the registry below. The design's own
+-- decision record had already chosen per-module sidecars (task 0027
+-- subtask F6) over ever building a library-wide provider without a
+-- demonstrated need for one, so M12 deleted the table and the
+-- `IBibleSearchRepository` methods built on it rather than implementing a
+-- `SharedFts5Provider` on top of it. See that interface's doc-comment for
+-- the full account.)
 
--- 3.2 Index status
-CREATE TABLE bible_search_index_metadata (
-    index_id INTEGER PRIMARY KEY AUTOINCREMENT,     -- Status-row id
-    type TEXT NOT NULL,                             -- Key triple, matching 3.1. A row may exist here
-    document TEXT NOT NULL,                         -- with is_indexed = 0 before any bible_search_index
-    division TEXT NOT NULL,                         -- row is written -- that is how work is queued.
-    last_indexed TEXT,                              -- ISO-8601 UTC of the last successful pass. NULL
-                                                    -- while pending.
-    is_indexed INTEGER DEFAULT 0,                   -- 1 = this (module, book) is fully indexed. The
-                                                    -- partial index below makes finding the 0s cheap.
-    word_count INTEGER,                             -- Words indexed for this book, for progress
-                                                    -- reporting and rough result-density estimates
-    metadata TEXT,                                  -- JSON: anything not modelled above
-
-    UNIQUE(type, document, division),
-    CHECK (is_indexed IN (0, 1))
-);
-
-CREATE INDEX idx_search_index_status ON bible_search_index_metadata(is_indexed) WHERE is_indexed = 0;
-CREATE INDEX idx_search_index_lookup ON bible_search_index_metadata(type, document, division);
-CREATE INDEX idx_search_metadata_type_doc ON bible_search_index_metadata(type, document);
-
--- 3.3 Verse position mapping (FTS match position -> verse_id)
-CREATE TABLE bible_search_verse_positions (
-    position_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Position-row id
-    type TEXT NOT NULL,                             -- Key triple, matching 3.1 -- identifies which
-    document TEXT NOT NULL,                         -- book document these offsets are measured in.
-    division TEXT NOT NULL,                         --
-    verse_id INTEGER NOT NULL,                      -- The verse occupying that span, in the standard
-                                                    -- book*1000000 + chapter*1000 + verse encoding
-    start_index INTEGER NOT NULL,                   -- Offset into bible_search_index.text. INCLUSIVE.
-                                                    -- Half-open [start, end) here -- deliberately
-                                                    -- unlike verse_id ranges elsewhere, which are
-                                                    -- inclusive on both ends. These are string offsets
-                                                    -- in a concatenated document, so adjacent verses
-                                                    -- must abut exactly: verse N's end IS verse N+1's
-                                                    -- start.
-    end_index INTEGER NOT NULL,                     -- EXCLUSIVE -- see start_index
-
-    CHECK (start_index >= 0),
-    CHECK (end_index > start_index)
-);
-
-CREATE INDEX idx_verse_position_lookup ON bible_search_verse_positions(type, document, division, verse_id);
-CREATE INDEX idx_verse_position_range ON bible_search_verse_positions(type, document, division, start_index, end_index);
-CREATE INDEX idx_search_positions_verse ON bible_search_verse_positions(verse_id);
-CREATE INDEX idx_search_positions_division ON bible_search_verse_positions(type, document, division);
-
--- 3.4 Keyword Index Registry (task 0027, "Module Format v2", subtask F6)
+-- 3.1 Keyword Index Registry (task 0027, "Module Format v2", subtask F6)
 --
 -- One row per (module, keyword-index provider): what the app believes the
 -- state of that module's keyword index is. The index ITSELF is not here and
@@ -493,7 +439,7 @@ CREATE TABLE keyword_index (
 -- without scanning the whole table.
 CREATE INDEX idx_keyword_index_state ON keyword_index(state);
 
--- 3.5 Saved Searches
+-- 3.2 Saved Searches
 CREATE TABLE saved_search (
     search_id INTEGER PRIMARY KEY AUTOINCREMENT,    -- Saved-search id
     name TEXT NOT NULL,                             -- User's label for this search
@@ -528,7 +474,7 @@ CREATE INDEX idx_saved_search_last_used ON saved_search(last_used DESC);
 CREATE INDEX idx_saved_search_use_count ON saved_search(use_count DESC);
 CREATE INDEX idx_saved_search_date ON saved_search(created_date DESC);
 
--- 3.6 Search History (canonical definition)
+-- 3.3 Search History (canonical definition)
 --
 -- This is the only `search_history` table in the system. The user database's
 -- per-profile equivalent is deliberately named `user_search_history`: two

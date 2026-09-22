@@ -52,11 +52,12 @@
  * The FTS5 tokenizer every `.kwi` is built with, and the value `status()`
  * compares `kwi_meta.tokenizer` against to decide staleness.
  *
- * Identical to the tokenizer the shipped schemas use (`main.db`'s
- * `bible_search_index`, and the in-module `*_fts` tables F2 removed), so a
- * query that matched through `InModuleFts5Provider` matches the same
- * documents through this one - Porter stemming and unicode61 folding behave
- * the same either side of the strangler.
+ * Identical to the tokenizer the remaining shipped fts5 schema uses
+ * (`UserDatabase.sql`'s `user_note_fts`; the in-module `*_fts` tables F2
+ * removed, and main.db's own `bible_search_index` task 0026 subtask M12
+ * removed), so a query that matched through `InModuleFts5Provider` matches
+ * the same documents through this one - Porter stemming and unicode61
+ * folding behave the same either side of the strangler.
  *
  * Changing this value is a breaking index change: every existing `.kwi`
  * immediately reports `stale` and is rebuilt in place. That is the intended
