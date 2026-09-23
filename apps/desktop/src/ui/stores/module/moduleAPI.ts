@@ -8,6 +8,9 @@
 import { requireElectronAPI } from '../../services/electronAPI';
 import { unwrap } from '../../services/ipcResult';
 import { searchAPI } from '../../services/electronAPI';
+import type { KeywordIndexStatusDto } from '../../../../electron/services/KeywordIndexService';
+
+export type { KeywordIndexStatusDto };
 
 export const moduleAPI = {
   async init() {
@@ -52,6 +55,15 @@ export const moduleAPI = {
   },
   async getModuleDetails(moduleId: number) {
     return unwrap(requireElectronAPI().moduleManager.getModuleDetails(moduleId));
+  },
+  async getKeywordIndexStatus(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.getKeywordIndexStatus(moduleId));
+  },
+  async rebuildKeywordIndex(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.rebuildKeywordIndex(moduleId));
+  },
+  async deleteKeywordIndex(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.deleteKeywordIndex(moduleId));
   },
   async getDownloadProgress(queueId: number) {
     return unwrap(requireElectronAPI().moduleManager.getDownloadProgress(queueId));

@@ -14,6 +14,13 @@ vi.mock('../../stores/module/moduleAPI', () => ({
     inspectPack: vi.fn(),
     installPackFromPath: vi.fn(),
     getModuleDetails: vi.fn().mockResolvedValue(null),
+    getKeywordIndexStatus: vi.fn().mockResolvedValue({
+      moduleUuid: 'mock-uuid',
+      providerId: 'sidecar-fts5',
+      state: 'unbuilt',
+    }),
+    rebuildKeywordIndex: vi.fn(),
+    deleteKeywordIndex: vi.fn(),
   },
 }));
 

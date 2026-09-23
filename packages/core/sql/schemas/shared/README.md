@@ -9,14 +9,17 @@ A table defined in more than one schema has exactly one definition, here. The sc
 | Fragment | Included by |
 |---|---|
 | `module_info.sql` | The eight module schemas |
+| `compression_dictionary.sql` | The eight module schemas |
 | `verse_link.sql` | The eight module schemas and `UserDatabase` |
 | `schema_version.sql` | The eight module schemas |
 | `schema_version_migratable.sql` | `MainDatabase`, `UserDatabase` |
 | `schema_migration.sql` | `MainDatabase`, `UserDatabase` |
 | `setting.sql` | `MainDatabase`, `UserDatabase` |
-| `module_feature.sql` | `BibleTranslation` only, so far |
+| `module_feature.sql` | The eight module schemas |
 
-`module_feature` is here despite having one consumer: nothing about a capability flag is specific to a bible, and when another module type wants one it should add a one-line include, not a second definition.
+`module_feature` is here despite originally having one consumer: nothing about a capability flag is specific to a bible, and every module type now includes it with the same one-line include rather than a second definition.
+
+`compression_dictionary` holds the optional trained dictionary backing `module_info.compression`. A row exists iff frames were encoded against a dictionary; `compression = 'none'` (the default) means the table is empty. Keyed by `codec`, so a module carries at most one dictionary per codec.
 
 ## Assembling a schema
 
@@ -29,6 +32,23 @@ db.exec(loadSchemaSql('sql/schemas/initial/BibleTranslation.sql'));
 ```
 
 `loadSchemaSql` resolves each include relative to the file containing it, recursively, and fails loudly on a missing file or an include cycle. It is exported from the package precisely so that anything creating a conforming database -- the app, the converters, an external tool -- can do this without reimplementing it.
+
+## What a publisher consumes (task 0027 F9)
+
+`bible-scripts` -- the out-of-repo C++ SWORD-to-module converter -- builds the module files this package's readers open. The design's decision (task 0027 §6.1) is that it produces v0.2 by *consuming* this package's exports, not by copying the format's rules into its own codebase: every earlier drift bug in this series traced back to a rule that had been hand-copied somewhere and quietly fell out of step with the real one. `@bible/core`'s public root (`import { ... } from '@bible/core'`) is the whole contract a publisher needs:
+
+| Export | For |
+|---|---|
+| `loadSchemaSql` | Assemble a schema file into runnable SQL (see above). |
+| `CONTENT_MAP`, `ContentShape` | Which table(s) a module type's prose/indexed content lives in, and which columns are which -- so a publisher writes to the columns this package will actually read, without duplicating the registry. |
+| `FORMAT_VERSION`, `READABLE_FORMAT_VERSIONS`, `LEGACY_FORMAT_VERSIONS`, `parseFormatVersion`, `isReadableFormatVersion` | Which `module_info.format_version` value to write, and to classify one already on disk. |
+| `IContentCodec`, `NoneCodec`, `DeflateCodec`, `ZstdCodec`, `CodecRegistry`, `createNodeCodecRegistry` | Encode prose cells with the exact frame layout (bare, standard DEFLATE/zstd -- see `IContentCodec`'s doc comment) a reader will decode, rather than a hand-rolled equivalent. |
+| `computeContentSha256` | Compute `module_info.content_sha256` over the module's decoded content, the same way the install gate and boot-time scan verify it. |
+| `validateModuleFile`, `hasSqliteHeader` | Run the conformance rule table a built file must pass before it is fit to ship, against the same code path the app validates with. |
+
+`src/__tests__/PublisherExportsContract.test.ts` is this table's enforcement: it builds a conforming module using only symbols imported the way an external consumer would import them, and fails to resolve -- not just to pass -- if a future refactor drops one of them from a barrel.
+
+**Known gap: no dictionary trainer.** The design (§3.3) describes `compression_dictionary` rows trained from a corpus of a module's own content. `packages/core` does not export a training function, and this subtask deliberately does not add one: Node's built-in `zlib` zstd support has no `ZDICT_*`-style training API, and adding one would mean a new native dependency, which is exactly what choosing Node's built-in zstd was meant to avoid (see `ZstdCodec.ts`'s doc comment). Until a trainer subtask is scoped, `bible-scripts` must produce `compression_dictionary` rows some other way -- for example, shelling out to the standalone `zstd` CLI's own dictionary trainer -- which is that project's concern, not this package's.
 
 ## Type-specific columns
 
@@ -50,4 +70,4 @@ db.exec(loadSchemaSql('sql/schemas/initial/BibleTranslation.sql'));
 
 ## Enforcement
 
-`src/__tests__/SharedSchemaFragments.test.ts` asserts that no schema declares a shared table inline, that every schema assembles with all includes resolved, that each one creates a database, and that `module_info` has identical columns across all eight module schemas.
+`src/__tests__/SharedSchemaFragments.test.ts` asserts that no schema declares a shared table inline, that every schema assembles with all includes resolved, that each one creates a database, that `module_info` has identical columns across all eight module schemas, that `compression_dictionary` and `module_feature` exist with identical DDL in all eight, and that no assembled schema declares an `fts5` virtual table.

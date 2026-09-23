@@ -14,11 +14,15 @@ vi.mock('../../stores/module/moduleAPI', () => ({
   moduleAPI: {
     getModuleDetails: vi.fn(),
     reindexModule: vi.fn(),
+    getKeywordIndexStatus: vi.fn(),
+    rebuildKeywordIndex: vi.fn(),
+    deleteKeywordIndex: vi.fn(),
   },
 }));
 
 const getModuleDetails = vi.mocked(moduleAPI.getModuleDetails);
 const reindexModule = vi.mocked(moduleAPI.reindexModule);
+const getKeywordIndexStatus = vi.mocked(moduleAPI.getKeywordIndexStatus);
 
 beforeEach(() => {
   Object.defineProperty(window, 'matchMedia', {
@@ -137,6 +141,11 @@ describe('ModuleDetailsPanel', () => {
     vi.clearAllMocks();
     getModuleDetails.mockResolvedValue({ ...installedEsv });
     reindexModule.mockResolvedValue(undefined as never);
+    getKeywordIndexStatus.mockResolvedValue({
+      moduleUuid: 'esv-uuid',
+      providerId: 'sidecar-fts5',
+      state: 'unbuilt',
+    });
     useModuleStore.setState({
       selectedModule: null,
       selectedModuleDetails: null,
@@ -186,6 +195,7 @@ describe('ModuleDetailsPanel', () => {
       expect(screen.queryByTestId('module-details-uninstall')).not.toBeInTheDocument();
       expect(screen.queryByTestId('module-details-indexed')).not.toBeInTheDocument();
       expect(screen.queryByTestId('module-details-usage')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('keyword-index-status')).not.toBeInTheDocument();
     });
 
     it('omits fields that do not exist', () => {
@@ -233,6 +243,21 @@ describe('ModuleDetailsPanel', () => {
   });
 
   describe('installed module', () => {
+    it('renders the F8 keyword-index status for the installed module id', async () => {
+      getKeywordIndexStatus.mockResolvedValue({
+        moduleUuid: 'esv-uuid',
+        providerId: 'sidecar-fts5',
+        state: 'ready',
+      });
+      renderPanel(rowFor([], [installedEsv], 'ESV'));
+
+      expect(screen.getByTestId('keyword-index-status')).toBeInTheDocument();
+      expect(getKeywordIndexStatus).toHaveBeenCalledWith(7);
+      await waitFor(() =>
+        expect(screen.getByTestId('keyword-index-badge')).toHaveAttribute('data-state', 'ready')
+      );
+    });
+
     it('loads details through the store and shows installed-only fields', async () => {
       getModuleDetails.mockResolvedValue({ ...installedEsv, is_indexed: true, usage_count: 42 });
       renderPanel(rowFor([], [installedEsv], 'ESV'));

@@ -18,6 +18,7 @@ import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
 import { InstallationService } from '../services/InstallationService';
+import { KeywordIndexService, type KeywordIndexStatusDto } from '../services/KeywordIndexService';
 import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../services/ModuleCatalogService';
 import { FileApprovedCatalogKeyStore } from '../services/ApprovedCatalogKeys';
 import { getOfficialPublicKeys, OFFICIAL_CATALOG_URL_PREFIXES } from '../services/trustedCatalogKeys';
@@ -102,6 +103,11 @@ let moduleController: ModuleController | null = null;
 let catalogController: ModuleCatalogController | null = null;
 let mainDb: SqliteProvider | null = null;
 let installationService: InstallationService | null = null;
+// F8 (task 0027 revision 2): keyword-index status/rebuild/delete. Held
+// separately from `installationService`, mirroring `catalogService` below -
+// the IPC handlers for it are module-scoped queries with no controller-level
+// state, so they talk to the service directly.
+let keywordIndexService: KeywordIndexService | null = null;
 // Held separately from `catalogController`: the starter-pack queries are
 // catalog-document reads with no controller-level state, so they talk to the
 // service directly rather than widening the controller's surface.
@@ -159,7 +165,8 @@ function initializeModuleManager(): void {
 
     // Create services
     const downloadService = new DownloadService();
-    installationService = new InstallationService(mainDb, modulesPath);
+    keywordIndexService = new KeywordIndexService(mainDb);
+    installationService = new InstallationService(mainDb, modulesPath, keywordIndexService);
     catalogService = new ModuleCatalogService(mainDb, undefined, {
       approveVouchedKey: confirmVouchedCatalogKey,
       approvedKeys: new FileApprovedCatalogKeyStore(),
@@ -214,6 +221,16 @@ function requireCatalogService(): ModuleCatalogService {
     throw new IpcKnownError('unavailable', 'Module manager not initialized');
   }
   return catalogService;
+}
+
+/**
+ * Require the keyword-index service to be initialized, or throw an IpcKnownError.
+ */
+function requireKeywordIndexService(): KeywordIndexService {
+  if (!keywordIndexService) {
+    throw new IpcKnownError('unavailable', 'Module manager not initialized');
+  }
+  return keywordIndexService;
 }
 
 /**
@@ -877,6 +894,62 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
     }
   );
 
+  // Keyword index (F8, task 0027 revision 2, design doc §5.3). Three
+  // handlers over `KeywordIndexService`, keyed by the same numeric `moduleId`
+  // every other module handler above uses - the renderer never needs a
+  // module's `moduleUuid` for these. Search itself does not read any of this
+  // yet (it always degrades through `KeywordIndexRegistry`, unaffected by
+  // whatever this module reports); these exist so a "keyword index" section
+  // of the module details UI can show status and offer Rebuild/Delete
+  // actions without any further backend work.
+
+  // Current status: unavailable / unbuilt / building / ready / stale / failed.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:get-keyword-index-status',
+    (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = requireKeywordIndexService().getStatusForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
+    }
+  );
+
+  // Trigger (and await) a rebuild. Same build path `installModule` triggers
+  // automatically, callable on demand - the "Rebuild" action. Resolves with
+  // the resulting status rather than throwing on a build failure: the
+  // failure is already recorded in `keyword_index`, and the renderer reads it
+  // back the same way `module:get-keyword-index-status` reports one.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:rebuild-keyword-index',
+    async (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = await requireKeywordIndexService().rebuildForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
+    }
+  );
+
+  // Delete this module's index (the on-disk `.kwi` and its `keyword_index`
+  // row) without uninstalling the module itself - the "Delete index" action.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:delete-keyword-index',
+    async (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = await requireKeywordIndexService().deleteIndexForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
+    }
+  );
+
   // Download management
 
   ipcHandler<[number], unknown>(
@@ -1035,5 +1108,6 @@ export function closeModuleManager(): void {
   catalogController = null;
   catalogService = null;
   installationService = null;
+  keywordIndexService = null;
   log.info('[ModuleManager] Closed');
 }

@@ -548,4 +548,65 @@ describe.skipIf(!testDataAvailable('BookRepository (book_concord.db)', DB_PATH))
       expect(range.getVerseCount()).toBe(3);
     });
   });
+
+  // ==========================================================================
+  // getIndexSource (M5, task 0026 revision 2)
+  // ==========================================================================
+
+  describe('getIndexSource', () => {
+    it('carries an IndexTarget with this module\'s uuid, type and contentSha256', () => {
+      const source = repo.getIndexSource();
+      const info = repo.getModuleInfo();
+
+      expect(source.target.moduleType).toBe('book');
+      expect(source.target.moduleUuid).toBe(info?.moduleUuid);
+      expect(source.target.contentSha256).toBe(info?.contentSha256 ?? '');
+    });
+
+    it('count() matches a raw COUNT(*) over book_section', () => {
+      const raw = provider.queryOne<{ c: number }>('SELECT COUNT(*) as c FROM book_section');
+
+      expect(repo.getIndexSource().count()).toBe(raw?.c ?? -1);
+      expect(repo.getIndexSource().count()).toBe(309); // book_concord.db ships 309 sections
+    });
+
+    it('documents() yields one document per book_section row', () => {
+      const source = repo.getIndexSource();
+      const docs = Array.from(source.documents());
+
+      expect(docs).toHaveLength(source.count());
+      for (let i = 1; i < docs.length; i++) {
+        expect(docs[i].rowId).toBeGreaterThan(docs[i - 1].rowId);
+      }
+    });
+
+    it('concatenates title + content and strips the HTML the real module carries', () => {
+      // section_id 2 ("Editors_Introduction") is confirmed (by direct
+      // inspection of book_concord.db) to carry heading/paragraph markup
+      // around its prose.
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 2);
+
+      expect(doc).toBeDefined();
+      expect(doc!.text).toContain('Editors_Introduction');
+      expect(doc!.text).toContain('Triglot Concordia');
+      expect(doc!.text).not.toMatch(/<[a-zA-Z/][^>]*>/);
+    });
+
+    it('does not anchor a book-section document to a verse (no range in CONTENT_MAP)', () => {
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 2);
+
+      expect(doc).toBeDefined();
+      expect(doc!.startVerseId).toBeUndefined();
+      expect(doc!.endVerseId).toBeUndefined();
+    });
+
+    it('documents() returns a generator (Iterable), not a materialised array', () => {
+      const iterable = repo.getIndexSource().documents();
+
+      expect(Array.isArray(iterable)).toBe(false);
+      expect(typeof (iterable as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    });
+  });
 });

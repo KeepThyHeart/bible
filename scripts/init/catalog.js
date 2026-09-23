@@ -1038,6 +1038,38 @@ function reportUnavailable(unavailable, log) {
 }
 
 // ============================================================================
+// Format version gate
+// ============================================================================
+
+/**
+ * Mirrors `FORMAT_VERSION` / `READABLE_FORMAT_VERSIONS` / `LEGACY_FORMAT_VERSIONS`
+ * in `packages/core/src/Data/Format/ModuleFormat.ts`. Duplicated rather than
+ * imported from `@bible/core` for the same reason the catalog-signature
+ * verification above is duplicated (see the module doc comment): `npm run
+ * init` does not depend on `build:core`, so this script cannot assume the
+ * package's compiled `dist/` exists. These three constants are small enough
+ * that keeping a mirror here is cheaper than adding that build dependency for
+ * one check. If `ModuleFormat.ts`'s allow-list changes, this one must change
+ * with it.
+ */
+const FORMAT_VERSION = '0.2';
+const READABLE_FORMAT_VERSIONS = ['0.1', '0.2'];
+const LEGACY_FORMAT_VERSIONS = ['2.0'];
+
+/**
+ * True for any `format_version` this script can still read -- current,
+ * readable, or legacy. Allow-list lookup only, never a numeric comparison:
+ * see `ModuleFormat.ts`'s doc comment on why a range would be wrong. An
+ * absent `format_version` is not this function's concern; callers only
+ * invoke it when the entry actually carries one.
+ */
+function isReadableFormatVersion(raw) {
+  return raw === FORMAT_VERSION
+    || READABLE_FORMAT_VERSIONS.includes(raw)
+    || LEGACY_FORMAT_VERSIONS.includes(raw);
+}
+
+// ============================================================================
 // Download
 // ============================================================================
 
@@ -1075,9 +1107,24 @@ function reportUnavailable(unavailable, log) {
  * produce.  A file that differs -- an older edition, or one a running app has
  * written to -- is downloaded again as before.
  *
- * Returns `{ target, skipped }`.
+ * Also checked before anything is fetched: `entry.format_version`, when
+ * present, against this script's own `isReadableFormatVersion` (mirroring
+ * `ModuleController.installModule`'s catalog-level gate). Absence is not a
+ * violation -- an entry from a catalog that predates this field simply has
+ * nothing to check. A present-but-unreadable value is not thrown on: this is
+ * a batch tool selecting several modules, and one bad test entry should not
+ * abort the whole run, so it is logged as a warning and skipped like any
+ * already-up-to-date module.
+ *
+ * Returns `{ target, skipped }`, or `{ target: null, skipped: true,
+ * unreadable: true }` when `format_version` blocked the download.
  */
 async function downloadModule(entry, modulesDir, catalogUrl, log) {
+  if (entry.format_version && !isReadableFormatVersion(entry.format_version)) {
+    log.warn(`  ${entry.abbreviation}: format_version ${entry.format_version} is not one this script can read; skipped.`);
+    return { target: null, skipped: true, unreadable: true };
+  }
+
   const url = new URL(entry.download_url, catalogUrl).toString();
   const remoteName = path.posix.basename(new URL(url).pathname);
   const compressed = remoteName.endsWith('.gz');
@@ -1205,11 +1252,17 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
     log.info('');
     log.info(`Installing ${chosen.length} module(s), up to ${formatSize(total)} to download:`);
     let skipped = 0;
+    let unreadable = 0;
     for (const entry of chosen) {
-      if ((await downloadModule(entry, modulesDir, sourceOf.get(entry), log)).skipped) skipped += 1;
+      const result = await downloadModule(entry, modulesDir, sourceOf.get(entry), log);
+      if (result.unreadable) unreadable += 1;
+      else if (result.skipped) skipped += 1;
     }
     if (skipped > 0) {
       log.info(`  ${skipped} of ${chosen.length} were already up to date.`);
+    }
+    if (unreadable > 0) {
+      log.warn(`  ${unreadable} of ${chosen.length} were skipped: unreadable format_version.`);
     }
     return 'installed';
   } catch (err) {

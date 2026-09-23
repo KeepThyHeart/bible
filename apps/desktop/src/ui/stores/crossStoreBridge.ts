@@ -42,6 +42,14 @@ export type ResolvePrimaryBibleVerseId = () => number | null;
 export type ResolveOpenModuleAbbreviations = () => string[];
 
 /**
+ * Resolve an installed module's abbreviation to its numeric `module_id`, or
+ * `undefined` when nothing installed matches. Used by the search store to look
+ * up F8 keyword-index status (task 0033) for the modules a keyword search hit,
+ * without importing the module store directly.
+ */
+export type ResolveInstalledModuleId = (abbreviation: string) => number | undefined;
+
+/**
  * Open - or, if it already exists anywhere in the workbench, focus - the
  * dockview panel that shows search results. Implemented by useLayoutStore.
  *
@@ -75,6 +83,7 @@ interface CrossStoreBridges {
   previewVerseInPrimary: PreviewVerseInPrimary | null;
   resolvePrimaryBibleVerseId: ResolvePrimaryBibleVerseId | null;
   resolveOpenModuleAbbreviations: ResolveOpenModuleAbbreviations | null;
+  resolveInstalledModuleId: ResolveInstalledModuleId | null;
   showSearchResultsPanel: ShowSearchResultsPanel | null;
 }
 
@@ -84,6 +93,7 @@ const bridges: CrossStoreBridges = {
   previewVerseInPrimary: null,
   resolvePrimaryBibleVerseId: null,
   resolveOpenModuleAbbreviations: null,
+  resolveInstalledModuleId: null,
   showSearchResultsPanel: null,
 };
 
@@ -126,6 +136,14 @@ export function resolvePrimaryBibleVerseId(): number | null {
 
 export function resolveOpenModuleAbbreviations(): string[] {
   return bridges.resolveOpenModuleAbbreviations?.() ?? [];
+}
+
+export function setResolveInstalledModuleId(fn: ResolveInstalledModuleId | null): void {
+  bridges.resolveInstalledModuleId = fn;
+}
+
+export function resolveInstalledModuleId(abbreviation: string): number | undefined {
+  return bridges.resolveInstalledModuleId?.(abbreviation);
 }
 
 export function setNotifyLibraryChanged(fn: NotifyLibraryChanged | null): void {

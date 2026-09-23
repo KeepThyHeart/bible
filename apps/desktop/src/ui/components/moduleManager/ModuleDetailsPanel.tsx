@@ -28,6 +28,7 @@ import type { ModuleRow } from '../../stores/module/moduleRows';
 import type { DownloadProgress as ActiveDownload } from '../../stores/module/types';
 import { useTd } from './moduleManagerI18n';
 import { ProgressRing } from '../shared/ProgressRing';
+import { KeywordIndexStatus } from './KeywordIndexStatus';
 
 export interface ModuleDetailsPanelProps {
   row: ModuleRow;
@@ -510,6 +511,8 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
                 </p>
               )}
             </div>
+
+            <KeywordIndexStatus moduleId={installedModuleId} moduleName={row.name} />
 
             <div className="pt-3 border-t border-border space-y-2">
               <label className="flex items-start gap-2 text-xs text-text-secondary cursor-pointer">

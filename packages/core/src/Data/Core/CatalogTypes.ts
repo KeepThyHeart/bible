@@ -1,4 +1,5 @@
 import { ModuleType } from './Types';
+import { CompressionCodec } from '../Format/ModuleFormat';
 
 /**
  * Repository catalog metadata
@@ -47,6 +48,28 @@ export interface CatalogModule {
   requires_module?: string | null;
   created_date: string;
   updated_date: string;
+  /**
+   * Module Format v2's `module_info.format_version` (task 0027), copied
+   * verbatim into the catalog so a client can decline a download it cannot
+   * read before spending the bandwidth to fetch it - see ModuleFormat.ts's
+   * doc comment on why the allow-list is exact, not a range: an older client
+   * has no rule that lets it guess a newer 0.x is fine, so this field existing
+   * in the catalog (rather than only being discoverable after download) is
+   * what makes that refusal possible before the fact rather than after.
+   * Absent on a catalog entry published before this field existed, or for a
+   * module type this catalog schema doesn't model with a format version at
+   * all - absence is not a violation, there is simply nothing to check.
+   */
+  format_version?: string;
+  /**
+   * `module_info.compression` (task 0027) - which codec this module's content
+   * cells use, if any. Informational at the catalog level: a client without
+   * the codec still installs the module (it opens; only readContent degrades -
+   * see ICodecRegistry's own doc comment), so this is not itself a download
+   * gate the way `format_version` is. Absent on a catalog entry published
+   * before this field existed, or for an uncompressed module.
+   */
+  compression?: CompressionCodec;
 }
 
 /**
