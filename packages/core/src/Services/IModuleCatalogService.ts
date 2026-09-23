@@ -13,15 +13,17 @@ export interface IModuleCatalogService {
    * loop, oversized response) or when the signature is present but invalid.
    *
    * @param url - Repository catalog URL
-   * @param expectedPublicKey - Key the catalog must be signed by, when known
-   *                            (pinned official key, or the key recorded on a
-   *                            previous fetch). Omit to accept any key.
+   * @param expectedPublicKey - Key, or keys, the catalog must be signed by when
+   *                            known (the key recorded on a previous fetch); any
+   *                            one of them is accepted. Omit to accept any key.
+   *                            The official catalog's pinned keys apply
+   *                            regardless.
    * @param requireSignature - Reject an unsigned catalog outright.
    * @returns The parsed catalog plus its signature verification result
    */
   fetchCatalog(
     url: string,
-    expectedPublicKey?: string,
+    expectedPublicKey?: string | readonly string[],
     requireSignature?: boolean
   ): Promise<FetchedCatalog>;
 
@@ -59,11 +61,19 @@ export interface IModuleCatalogService {
   getAllAvailableModules(): CatalogModule[];
 
   /**
-   * Get module by ID from catalogs
+   * Get module by ID from catalogs.
    * @param moduleId - Module identifier
+   * @param catalogId - When given, resolve `moduleId` only against this
+   *                    catalog's own `modules` array, never across every
+   *                    enabled catalog. A third-party catalog can otherwise
+   *                    "shadow" an official module id it never legitimately
+   *                    published; scoping to the catalog a caller already
+   *                    trusts (e.g. a starter pack's `source.catalogId`)
+   *                    closes that gap. Omit to search every enabled catalog,
+   *                    as before.
    * @returns Module info or undefined
    */
-  getModuleInfo(moduleId: string): CatalogModule | undefined;
+  getModuleInfo(moduleId: string, catalogId?: number): CatalogModule | undefined;
 
   /**
    * Validate catalog JSON structure

@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TopicCard from './TopicCard';
-import { enT } from '../../testing/enCatalog';
+import { enT, enLocalizer } from '../../testing/enCatalog';
 
 // The card localizes its count badges now, which pulls `useI18n` in.
 vi.mock('../../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: {} }),
+  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: {}, localizer: enLocalizer }),
 }));
 
 describe('TopicCard', () => {

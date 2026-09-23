@@ -13,7 +13,7 @@
  * (`subscribe` returning an unsubscribe), so `useStore` drives re-renders the
  * way it does in the app. `eventBus` and `focusSearchField` are real.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/preact';
 
 /**
@@ -432,7 +432,7 @@ describe('keyboard shortcuts', () => {
 });
 
 describe('broadcasting the selected verse', () => {
-  let emit: ReturnType<typeof vi.spyOn>;
+  let emit: MockInstance<typeof eventBus.emit>;
 
   beforeEach(() => {
     emit = vi.spyOn(eventBus, 'emit');

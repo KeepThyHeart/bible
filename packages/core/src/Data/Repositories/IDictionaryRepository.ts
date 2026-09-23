@@ -2,6 +2,7 @@ import { DictionaryEntry, WordOccurrence, ExampleVerse } from '../Models/Diction
 import { DictionaryModuleInfo } from '../Models/Dictionary/DictionaryModuleInfo';
 import { VerseLinkRecord } from '../Models/Common/VerseLinkRecord';
 import { VerseId } from '../Core/Types';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Interface for Dictionary repository
@@ -50,4 +51,14 @@ export interface IDictionaryRepository {
   browseByLetter(letter: string | null, limit: number, offset: number): { entries: Array<{ entryKey: string; word: string }>; total: number };
   getAdjacentEntries(entryKey: string): { prev: { entryKey: string; word: string } | null; next: { entryKey: string; word: string } | null };
   getEntryCount(): number;
+
+  /**
+   * The keyword-index source for this module's content (M5, task 0026
+   * revision 2): every `dictionary_entry` row, streamed as `IndexDocument`s.
+   *
+   * Purely additive - `searchEntries`/`searchByTitle` above (no
+   * registry-backed provider exists yet for dictionary content) are
+   * unrelated and unchanged.
+   */
+  getIndexSource(): IIndexSource;
 }

@@ -212,7 +212,7 @@
 
   &__content-line {
     margin-top: 5px;
-    padding-left: 26px; // align with text after checkbox
+    padding-inline-start: 26px; // align with text after checkbox
   }
 
   &__badge {
@@ -243,7 +243,7 @@
 
   &__desc {
     margin-top: 3px;
-    padding-left: 26px; // align with text after checkbox
+    padding-inline-start: 26px; // align with text after checkbox
     font-size: calc(11px * var(--ui-font-scale, 1));
     color: var(--text-muted);
     line-height: 1.4;

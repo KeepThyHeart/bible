@@ -16,7 +16,7 @@
  */
 import type { Editor } from '@tiptap/core';
 import { closeHistory } from '@tiptap/pm/history';
-import { ReferenceParser, VerseIdHelper, type ParsedReference } from '@bible/core';
+import { VerseIdHelper, type ParsedReference } from '@bible/core';
 import { sanitizeHtml } from '../utils/sanitize';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { formatVersesWithFormat, getLastUsedFormatOptions, type VerseContext } from './verseCopyService';
@@ -30,8 +30,7 @@ import {
 } from '@bible/core';
 import { loadPassageMarkupOptions } from './copyFormats/passageMarkupPreferences';
 import { getVersesCached, type CachedVerse } from './verseFetchCache';
-
-const parser = new ReferenceParser();
+import { getLocalizedReferenceParser } from './localizedReferenceParser';
 
 /**
  * Upper bound on how many verses a single expansion may insert.
@@ -274,7 +273,7 @@ export async function fetchVersesForReference(
 export function buildVerseContext(verses: CachedVerse[], translation: string): VerseContext {
   const first = verses[0];
   return {
-    bookName: parser.getBookName(first.book_number),
+    bookName: getLocalizedReferenceParser().getBookName(first.book_number),
     chapter: first.chapter,
     translation,
   };

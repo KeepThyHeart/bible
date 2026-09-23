@@ -61,6 +61,7 @@ PRAGMA cache_size = -32000;  -- 32MB cache
 -- For this module type the writer sets module_type = 'tag_graph' and
 -- format = 'tag-graph-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- THE FOUR-FAMILY PATTERN (sections 1-4)
@@ -564,6 +565,8 @@ CREATE UNIQUE INDEX idx_entity_verse_link_unique
 -- no CHECK on source_type or link_type in either table. Both are
 -- open/extensible sets; validation lives in TypeScript
 -- (packages/core/src/Data/Core/Types.ts) and is enforced at the repository boundary.
+
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
 -- 8. Schema Version

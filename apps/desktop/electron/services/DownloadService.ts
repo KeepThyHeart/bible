@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import * as crypto from 'crypto';
 import type { ClientRequest } from 'electron';
 import type { DownloadProgress } from '@bible/core';
@@ -146,6 +147,10 @@ export class DownloadService implements IDownloadService {
         const len = Array.isArray(contentLength) ? contentLength[0] : contentLength;
         state.totalBytes = parseInt(len, 10) + startByte;
       }
+
+      // The download directory is not created anywhere else, and a fresh
+      // profile has none - without this, every first install fails with ENOENT.
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
 
       // Create write stream (append mode if resuming)
       const writeStream = fs.createWriteStream(destination, {

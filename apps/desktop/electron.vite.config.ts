@@ -1,4 +1,4 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { resolve } from 'path';
@@ -217,10 +217,10 @@ export default defineConfig({
     // is a workspace symlink, moving it back to `dependencies` breaks asar
     // packaging with "packages/core/LICENSE must be under apps/desktop/".
     //
-    // `keytar` is in `optionalDependencies`, which the plugin does not read, so it
-    // is named here: it is native, and must stay a runtime `require` that
-    // encryptionKeyManager can catch when the module is absent.
-    plugins: [externalizeDepsPlugin({ exclude: ['@bible/core'], include: ['keytar'] }), quickjsGuestBundlePlugin()],
+    // `keytar` is in `optionalDependencies`, which `externalizeDeps` does not
+    // read, so it is named here: it is native, and must stay a runtime `require`
+    // that encryptionKeyManager can catch when the module is absent.
+    plugins: [quickjsGuestBundlePlugin()],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
@@ -237,6 +237,7 @@ export default defineConfig({
       ...APP_CONFIG_DEFINES,
     },
     build: {
+      externalizeDeps: { exclude: ['@bible/core'], include: ['keytar'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'electron/main.ts'),
@@ -257,13 +258,13 @@ export default defineConfig({
     // throws "module not found" under sandbox and aborts the whole preload
     // (blank window). Excluding it inlines electron-log/renderer; require("electron")
     // stays external (provided by the runtime).
-    plugins: [externalizeDepsPlugin({ exclude: ['electron-log'] })],
     // The preload hands the resolved app config across the context bridge, so
     // it needs the same defines the main bundle gets.
     define: {
       ...APP_CONFIG_DEFINES,
     },
     build: {
+      externalizeDeps: { exclude: ['electron-log'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'electron/preload.ts')

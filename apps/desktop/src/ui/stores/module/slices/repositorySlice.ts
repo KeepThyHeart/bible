@@ -1,6 +1,13 @@
 import type { StateCreator } from 'zustand';
 import { moduleAPI } from '../moduleAPI';
+import { IpcResultError } from '../../../services/ipcResult';
 import { ModuleState, ModuleCatalog } from '../types';
+
+/** `error instanceof IpcResultError` narrowed to just the code, or `null` for
+ * an error with no such classification (a plain `Error`, a thrown string). */
+function codeOf(error: unknown): ModuleState['errorCode'] {
+  return error instanceof IpcResultError ? error.code : null;
+}
 
 export interface RepositorySlice {
   repositories: ModuleCatalog[];
@@ -21,7 +28,7 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
 
   // Load repositories
   loadRepositories: async () => {
-    set({ loadingRepositories: true, error: null });
+    set({ loadingRepositories: true, error: null, errorCode: null });
     try {
       const repositories = await moduleAPI.getAllRepositories();
       set({
@@ -32,6 +39,7 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
       console.error('[ModuleStore] Error loading repositories:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to load repositories',
+        errorCode: codeOf(error),
         loadingRepositories: false
       });
     }
@@ -39,7 +47,7 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
 
   // Refresh single repository catalog
   refreshCatalog: async (repositoryId: number) => {
-    set({ loadingRepositories: true, error: null });
+    set({ loadingRepositories: true, error: null, errorCode: null });
     try {
       await moduleAPI.refreshCatalog(repositoryId);
       // Reload repositories and available modules
@@ -51,6 +59,9 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
       console.error('[ModuleStore] Error refreshing catalog:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh catalog',
+        // `network_blocked` (offline) lets the dialog show its banner instead
+        // of the generic red error - see `ModuleManagerDialog.tsx`.
+        errorCode: codeOf(error),
         loadingRepositories: false
       });
     }
@@ -58,7 +69,7 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
 
   // Refresh all repository catalogs
   refreshAllCatalogs: async () => {
-    set({ loadingRepositories: true, error: null });
+    set({ loadingRepositories: true, error: null, errorCode: null });
     try {
       await moduleAPI.refreshAllCatalogs();
       // Reload repositories and available modules
@@ -70,6 +81,7 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
       console.error('[ModuleStore] Error refreshing catalogs:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh catalogs',
+        errorCode: codeOf(error),
         loadingRepositories: false
       });
     }
@@ -77,56 +89,56 @@ export const createRepositorySlice: StateCreator<ModuleState, [], [], Repository
 
   // Add repository
   addRepository: async (name: string, url: string, type: string, abbreviation?: string) => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
     try {
       await moduleAPI.addRepository(name, url, type, abbreviation);
       await get().loadRepositories();
       return true;
     } catch (error) {
       console.error('[ModuleStore] Error adding repository:', error);
-      set({ error: error instanceof Error ? error.message : 'Failed to add repository' });
+      set({ error: error instanceof Error ? error.message : 'Failed to add repository', errorCode: codeOf(error) });
       return false;
     }
   },
 
   // Remove repository
   removeRepository: async (repositoryId: number) => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
     try {
       await moduleAPI.removeRepository(repositoryId);
       await get().loadRepositories();
       return true;
     } catch (error) {
       console.error('[ModuleStore] Error removing repository:', error);
-      set({ error: error instanceof Error ? error.message : 'Failed to remove repository' });
+      set({ error: error instanceof Error ? error.message : 'Failed to remove repository', errorCode: codeOf(error) });
       return false;
     }
   },
 
   // Update repository URL
   updateRepositoryUrl: async (repositoryId: number, newUrl: string) => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
     try {
       await moduleAPI.updateRepositoryUrl(repositoryId, newUrl);
       await get().loadRepositories();
       return true;
     } catch (error) {
       console.error('[ModuleStore] Error updating repository URL:', error);
-      set({ error: error instanceof Error ? error.message : 'Failed to update repository URL' });
+      set({ error: error instanceof Error ? error.message : 'Failed to update repository URL', errorCode: codeOf(error) });
       return false;
     }
   },
 
   // Enable/disable repository
   setRepositoryEnabled: async (repositoryId: number, enabled: boolean) => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
     try {
       await moduleAPI.setRepositoryEnabled(repositoryId, enabled);
       await get().loadRepositories();
       return true;
     } catch (error) {
       console.error('[ModuleStore] Error updating repository:', error);
-      set({ error: error instanceof Error ? error.message : 'Failed to update repository' });
+      set({ error: error instanceof Error ? error.message : 'Failed to update repository', errorCode: codeOf(error) });
       return false;
     }
   },

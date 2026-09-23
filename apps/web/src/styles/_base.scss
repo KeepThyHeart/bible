@@ -36,3 +36,32 @@ body {
   height: 100vh;
   height: 100dvh;
 }
+
+// ---------------------------------------------------------------------------
+// RTL conventions, matching desktop's (apps/desktop/src/ui/styles/globals.css)
+// ---------------------------------------------------------------------------
+
+// Mirror a directional glyph (an arrow/chevron icon or bare-text arrow span)
+// under an RTL UI. Apply only to leaf glyph elements - not to a flex
+// container, whose `display: flex` this would otherwise replace.
+// `display: inline-block` lives inside the `[dir='rtl']` block on purpose:
+// LTR rendering is bit-for-bit unchanged.
+[dir='rtl'] .rtl-mirror {
+  display: inline-block;
+  scale: -1 1;
+}
+
+// Opt-in bidi isolation for a Latin/numeric island inside RTL prose: verse
+// numbers, Strong's tags, references, module abbreviations. Equivalent to
+// wrapping the run in <bdi>, but usable where the markup is fixed.
+.bidi-isolate {
+  unicode-bidi: isolate;
+}
+
+// The Bible pane's verse text carries its own `dir` derived from the
+// MODULE's language (see utils/textDirection.ts), which may differ from the
+// UI direction. `isolate` stops a differing content direction from leaking
+// out into the surrounding chrome.
+[data-content-dir] {
+  unicode-bidi: isolate;
+}

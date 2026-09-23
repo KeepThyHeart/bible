@@ -6,7 +6,7 @@
  * all, so the click must also reveal the pane. These tests pin the reveal
  * step.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 
@@ -65,7 +65,7 @@ function renderHandlers(overrides: {
   currentVerses?: unknown[];
   selectedVerseId?: number | null;
   selectionEndVerseId?: number | null;
-  setContextMenu?: ReturnType<typeof vi.fn>;
+  setContextMenu?: Mock;
 } = {}) {
   return renderHook(() => useVerseInteractionHandlers({
     currentVerses: overrides.currentVerses ?? [],

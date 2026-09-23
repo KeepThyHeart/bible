@@ -5,7 +5,9 @@ import { bibleStore } from '../../stores/bibleStore';
 import { studyStore } from '../../stores/studyStore';
 import { offlineStore } from '../../stores/offlineStore';
 import { useStore } from '../../hooks/useStore';
+import { useLocalizer } from '../../hooks/useLocalizer';
 import { useVersePopup } from '../../hooks/useVersePopup';
+import type { Localizer } from '@bible/core/browser';
 import { processCommentaryLinks } from '../../../../../packages/core/src/Services/CommentaryLinkProcessor';
 import { parseVerseId, formatVerseRange, isTskModule } from '../../utils/verseId';
 import { filterCommentaryEntries } from '../../utils/commentaryEntries';
@@ -47,6 +49,7 @@ function renderCard(
   levelColor: Record<ContentLevel, string>,
   setViewingModule: (detail: { abbr: string; name: string } | null) => void,
   t: (key: string) => string,
+  localizer: Localizer,
 ) {
   return (
     <button
@@ -85,7 +88,7 @@ function renderCard(
         <div class="mobile-commentary__card-name">{isDigestModule(card.moduleAbbr) ? '' : card.moduleName}</div>
         {card.wordCount > 0 && (
           <div class="mobile-commentary__card-words">
-            {card.wordCount.toLocaleString()} {t('mobileCommentary.words')}
+            {localizer.formatNumber(card.wordCount)} {t('mobileCommentary.words')}
             <span class="mobile-commentary__card-level">
               {card.level === 'verse' ? t('mobileCommentary.verse') : card.level === 'passage' ? t('mobileCommentary.passage') : ''}
             </span>
@@ -106,6 +109,7 @@ interface MobileCommentaryProps {
 
 export function MobileCommentary({ bibleProvider, onOpenSettings, viewingModule, onViewModule }: MobileCommentaryProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
   const setViewingModule = onViewModule ?? ((_: { abbr: string; name: string } | null) => {});
   const [filter, setFilter] = useState('');
   const filterRef = useRef<HTMLInputElement>(null);
@@ -264,7 +268,7 @@ export function MobileCommentary({ bibleProvider, onOpenSettings, viewingModule,
               <i class="fa-solid fa-star" /> {t('mobileCommentary.starred')}
             </div>
             <div class="mobile-commentary__cards">
-              {starredCards.map((card) => renderCard(card, levelColor, setViewingModule, t))}
+              {starredCards.map((card) => renderCard(card, levelColor, setViewingModule, t, localizer))}
             </div>
           </div>
         )}
@@ -275,7 +279,7 @@ export function MobileCommentary({ bibleProvider, onOpenSettings, viewingModule,
               <div class="mobile-commentary__section-label">{t('mobileCommentary.all')}</div>
             )}
             <div class="mobile-commentary__cards">
-              {regularCards.map((card) => renderCard(card, levelColor, setViewingModule, t))}
+              {regularCards.map((card) => renderCard(card, levelColor, setViewingModule, t, localizer))}
             </div>
           </div>
         )}
@@ -284,7 +288,7 @@ export function MobileCommentary({ bibleProvider, onOpenSettings, viewingModule,
           <div class="mobile-commentary__section">
             <div class="mobile-commentary__section-label mobile-commentary__section-label--muted">{t('mobileCommentary.muted')}</div>
             <div class="mobile-commentary__cards">
-              {mutedCards.map((card) => renderCard(card, levelColor, setViewingModule, t))}
+              {mutedCards.map((card) => renderCard(card, levelColor, setViewingModule, t, localizer))}
             </div>
           </div>
         )}

@@ -39,7 +39,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   onPopOut,
   exportActions,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
 
   const sidebarToggleLabel = showEditorSidebar
     ? t('userNotesPane.hideSidebar')
@@ -160,7 +160,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
       <div className="border-t border-border px-4 py-1.5 text-xs text-text-secondary bg-surface-secondary flex items-center gap-3">
         <span>
           {lastSaved
-            ? t('userNotesPane.lastSavedAt', { time: new Date(lastSaved).toLocaleTimeString(), })
+            ? t('userNotesPane.lastSavedAt', { time: localizer.formatDate(new Date(lastSaved), { timeStyle: 'medium' }), })
             : ''}
         </span>
       </div>

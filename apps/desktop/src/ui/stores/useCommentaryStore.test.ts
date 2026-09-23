@@ -322,6 +322,42 @@ describe('useCommentaryStore', () => {
     });
   });
 
+  describe('installing a commentary after the overview was built', () => {
+    it('rebuilds the overview for the verse the panel is on, instead of keeping the empty one', async () => {
+      const { commentaryAPI } = await import('../services/electronAPI');
+      const entries = commentaryAPI.getEntriesForVerse as ReturnType<typeof vi.fn>;
+      const available = commentaryAPI.getAvailableCommentaries as ReturnType<typeof vi.fn>;
+
+      // Fresh install: nothing installed, overview cached for the verse as empty.
+      available.mockResolvedValueOnce([]);
+      await useCommentaryStore.getState().loadAvailableCommentaries();
+      const panels = new Map(useCommentaryStore.getState().panels);
+      panels.set(TEST_PANEL, { ...getPs(), currentVerseId: 43003016, homeDataVerseId: 43003016, homeData: [] });
+      useCommentaryStore.setState({ panels });
+
+      // A commentary is installed; the list is refreshed.
+      entries.mockResolvedValue([{ entry_id: 1, content: 'Content', entry_level: 'verse', word_count: 50 }]);
+      available.mockResolvedValueOnce([{ abbreviation: 'Wesley', name: 'Wesley', database_path: 'w.db' }]);
+      await useCommentaryStore.getState().loadAvailableCommentaries();
+
+      await vi.waitFor(() => expect(getPs().homeData.map(m => m.abbreviation)).toEqual(['Wesley']));
+    });
+
+    it('does not touch the overview when the installed set is unchanged', async () => {
+      const { commentaryAPI } = await import('../services/electronAPI');
+      const entries = commentaryAPI.getEntriesForVerse as ReturnType<typeof vi.fn>;
+      const available = commentaryAPI.getAvailableCommentaries as ReturnType<typeof vi.fn>;
+      const list = [{ abbreviation: 'Wesley', name: 'Wesley', database_path: 'w.db' }];
+
+      available.mockResolvedValue(list);
+      await useCommentaryStore.getState().loadAvailableCommentaries();
+      entries.mockClear();
+
+      await useCommentaryStore.getState().loadAvailableCommentaries();
+      expect(entries).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Browse Mode', () => {
     it('should toggle browse mode for a tab', () => {
       useCommentaryStore.getState().openCommentary(TEST_PANEL, 'TSK', 'TSK');

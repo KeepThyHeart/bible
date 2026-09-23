@@ -2,15 +2,35 @@ import { Router, Response } from 'express';
 import { join } from 'path';
 import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { gzipSync } from 'zlib';
+import { createRequire } from 'module';
 import type { Request } from 'express';
 import BetterSqlite3 from 'better-sqlite3-web';
 import type { DatabaseManager } from '../DatabaseManager.js';
-import type { ModuleType } from '@bible/core';
+import type { ModuleType, ContentShape } from '@bible/core';
 import { validateModuleName } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { getSettingsKey, isModuleActive, getModuleEntry, buildDescriptions, buildSortOrders } from '../siteSettings.js';
 import { registerRoute } from './routeRegistry.js';
+
+// `@bible/core` is CJS; Node ESM can't do named *value* imports from it (only
+// type imports, which are erased at compile time -- see `ModuleType` above).
+// `server/core.ts` bridges this the same way for its own set of re-exports;
+// this file needs exactly one more value (`CONTENT_MAP`) and pulls it in via
+// the same proven `createRequire` pattern rather than growing that unrelated
+// bridge file's list for one consumer.
+const require = createRequire(import.meta.url);
+
+/**
+ * The content registry from `@bible/core` (`Data/Format/ModuleFormat.ts`):
+ * for each `ModuleType`, which table(s) hold its actual content, keyed by
+ * rowid column, with which columns are prose/indexed. Drives which table(s)
+ * `sendLiteBibleModule` below copies, so this file cannot silently drift
+ * from the registry the way `validate-module.js` and others already have --
+ * see `ModuleFormat.ts`'s doc comment on "one content registry, N
+ * consumers"; this makes it one more.
+ */
+const CONTENT_MAP: Record<ModuleType, readonly ContentShape[]> = require('@bible/core').CONTENT_MAP;
 
 /** Suffix of the pre-compressed sibling written beside a cached lite copy. */
 const GZ_SUFFIX = '.gz';
@@ -123,8 +143,169 @@ function sendDbFile(
   res.sendFile(filePath);
 }
 
+/**
+ * Copy a metadata table (`module_info`, `schema_version`) verbatim: schema
+ * and every row, no batching. These are small, fixed-shape tables -- unlike
+ * `copyContentTable` below, they never need paging.
+ *
+ * `table` is call-site controlled only (a hardcoded literal at every call in
+ * this file), never user input, so interpolating it directly is safe -- the
+ * same posture `contentDigest.ts` documents for its own `CONTENT_MAP`-driven
+ * SQL.
+ */
+function copyMetadataTable(sourceDb: BetterSqlite3.Database, liteDb: BetterSqlite3.Database, table: string): void {
+  const schema = sourceDb.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
+  ).get(table) as { sql: string } | undefined;
+  if (!schema) return;
+
+  liteDb.exec(schema.sql);
+  const rows = sourceDb.prepare(`SELECT * FROM ${table}`).all();
+  if (rows.length === 0) return;
+
+  const cols = Object.keys(rows[0] as Record<string, unknown>);
+  const placeholders = cols.map(() => '?').join(', ');
+  const insert = liteDb.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`);
+  for (const row of rows) {
+    insert.run(...cols.map((c) => (row as Record<string, unknown>)[c]));
+  }
+}
+
+/**
+ * Copy one `CONTENT_MAP` content table (e.g. `bible_verse`) from `sourceDb`
+ * to `liteDb`, `rowid`-ordered in batches of 5000 to avoid loading a large
+ * module fully into memory, then copy whatever index SQLite has on it (e.g.
+ * the `verse_id` index) so the lite copy reads exactly as fast as the
+ * source.
+ *
+ * Only the columns actually present on the first row of each batch are
+ * copied (`Object.keys(batch[0])`) -- a correctness/memory-safety property
+ * carried over unchanged from the table-specific version this replaced, not
+ * something this generalization touches.
+ *
+ * `table`/`rowid` are passed in from `CONTENT_MAP[moduleType][0]`, never a
+ * literal, so a future non-Bible lite copy (today only Bible calls this)
+ * needs no rewrite here -- only a caller that resolves a different
+ * `moduleType`.
+ */
+function copyContentTable(sourceDb: BetterSqlite3.Database, liteDb: BetterSqlite3.Database, table: string, rowid: string): void {
+  const schema = sourceDb.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
+  ).get(table) as { sql: string } | undefined;
+  if (!schema) return;
+  liteDb.exec(schema.sql);
+
+  const count = (sourceDb.prepare(`SELECT COUNT(*) as c FROM ${table}`).get() as { c: number }).c;
+  const batchSize = 5000;
+  for (let offset = 0; offset < count; offset += batchSize) {
+    const batch = sourceDb.prepare(`SELECT * FROM ${table} ORDER BY ${rowid} LIMIT ? OFFSET ?`).all(batchSize, offset);
+    if (batch.length === 0) break;
+    const cols = Object.keys(batch[0] as Record<string, unknown>);
+    const placeholders = cols.map(() => '?').join(', ');
+    const insert = liteDb.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`);
+    const tx = liteDb.transaction(() => {
+      for (const row of batch) {
+        insert.run(...cols.map((c) => (row as Record<string, unknown>)[c]));
+      }
+    });
+    tx();
+  }
+
+  const indexes = sourceDb.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL"
+  ).all(table) as { sql: string }[];
+  for (const idx of indexes) {
+    liteDb.exec(idx.sql);
+  }
+}
+
+/**
+ * Build (or serve from disk cache) the interlinear-free "lite" copy of a
+ * Bible module, and send it as the response body.
+ *
+ * Per Module Format v2 (design doc §8 D6), the web app no longer ships a
+ * "full" Bible file with the interlinear word table and FTS5 index baked
+ * in -- every Bible this server hands out is interlinear-free, full stop;
+ * `/api/interlinear` (`interlinearRoutes.ts`) is the only source of
+ * interlinear data for the web client now. `GET /modules/:name/download`
+ * and `GET /modules/:name/download-lite` both call this for a
+ * `moduleType === 'bible'` module, so they converge on the exact same cache
+ * entry -- `litePath` is keyed only by module name, never by which route
+ * asked -- meaning a reader who hits one and later the other gets identical
+ * bytes, and this function never builds the lite copy twice for one module.
+ *
+ * The disk cache mechanism itself (mtime-based staleness against the source
+ * DB, the pre-compressed `.gz` sibling) is unchanged from the original
+ * `download-lite`-only version of this code; only what feeds the *build*
+ * (which table(s) count as "content") now comes from `CONTENT_MAP` instead
+ * of a hard-coded `'bible_verse'` string.
+ */
+function sendLiteBibleModule(
+  res: Response,
+  req: Request,
+  moduleType: ModuleType,
+  filename: string,
+  dbPath: string,
+  litePath: string
+): void {
+  // Check for cached lite copy (valid if newer than source DB)
+  if (existsSync(litePath)) {
+    const sourceMtime = statSync(dbPath).mtimeMs;
+    const liteMtime = statSync(litePath).mtimeMs;
+    if (liteMtime >= sourceMtime) {
+      // Backfill the compressed sibling for a cache entry that predates it
+      // (or whose source has since been replaced). Costs one request the
+      // ~230 ms to build it; every request after this is served from disk
+      // with no compression work at all.
+      if (!freshGzSibling(litePath)) writeGzSibling(litePath);
+
+      sendDbFile(res, litePath, filename, req, { compressible: true });
+      return;
+    }
+  }
+
+  // Generate lite copy: open source DB read-only, copy only module_info,
+  // this module type's CONTENT_MAP content table(s), and schema_version.
+  const sourceDb = new BetterSqlite3(dbPath, { readonly: true });
+  const liteDb = new BetterSqlite3(':memory:');
+
+  try {
+    copyMetadataTable(sourceDb, liteDb, 'module_info');
+
+    // `module_info` and `schema_version` are identity/version metadata, not
+    // content, so they stay hard-coded above and below -- only the content
+    // table name(s) come from the registry.
+    const [shape] = CONTENT_MAP[moduleType];
+    if (shape) {
+      copyContentTable(sourceDb, liteDb, shape.table, shape.rowid);
+    }
+
+    copyMetadataTable(sourceDb, liteDb, 'schema_version');
+
+    // Serialize and cache to disk for future requests
+    const buffer = liteDb.serialize();
+    writeFileSync(litePath, buffer);
+    // Compress once, here, so no request ever pays for it. See writeGzSibling.
+    writeGzSibling(litePath);
+    console.log(`[LiteCache] Generated ${litePath} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
+
+    sendDbFile(res, litePath, filename, req, { compressible: true });
+  } finally {
+    liteDb.close();
+    sourceDb.close();
+  }
+}
+
 export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettings | null): Router {
   const router = Router();
+
+  // Lite Bible copies (see `sendLiteBibleModule`) are cached to disk after
+  // first generation, keyed by module name, and shared by `/download` (for a
+  // `moduleType === 'bible'` module) and `/download-lite`.
+  const liteCacheDir = join(db['dataDir'], 'lite-cache');
+  if (!existsSync(liteCacheDir)) {
+    mkdirSync(liteCacheDir, { recursive: true });
+  }
 
   router.get('/modules', (_req, res) => {
     try {
@@ -244,6 +425,18 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         return;
       }
 
+      // D6: every Bible this server hands out is interlinear-free -- there is
+      // no more "full" vs. "lite" Bible file. A Bible module therefore
+      // converges onto the exact same build/cache path as `/download-lite`
+      // (see `sendLiteBibleModule`). Every other module type (commentary,
+      // dictionary, ...) has no interlinear concept in `CONTENT_MAP` to strip
+      // in the first place, so it keeps serving the file as-is.
+      if (mod.moduleType === 'bible') {
+        const litePath = join(liteCacheDir, `${name.toLowerCase()}-lite.db`);
+        sendLiteBibleModule(res, req, mod.moduleType, `${name}.db`, dbPath, litePath);
+        return;
+      }
+
       sendDbFile(res, dbPath, `${name}.db`, req);
     } catch (error) {
       console.error('Error downloading module:', error);
@@ -254,11 +447,6 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
   // Download a lite (reading-only) copy of a Bible module — strips FTS5 indexes and interlinear data.
   // Typical reduction: 17MB → ~2.5MB (85% smaller), KJV 79MB → ~3.5MB (95% smaller).
   // Lite copies are cached to disk after first generation to avoid repeated CPU work.
-  const liteCacheDir = join(db['dataDir'], 'lite-cache');
-  if (!existsSync(liteCacheDir)) {
-    mkdirSync(liteCacheDir, { recursive: true });
-  }
-
   router.get('/modules/:name/download-lite', (req, res): void => {
     try {
       const name = validateModuleName(req.params.name);
@@ -282,106 +470,8 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         return;
       }
 
-      // Check for cached lite copy (valid if newer than source DB)
       const litePath = join(liteCacheDir, `${name.toLowerCase()}-lite.db`);
-      if (existsSync(litePath)) {
-        const sourceMtime = statSync(dbPath).mtimeMs;
-        const liteMtime = statSync(litePath).mtimeMs;
-        if (liteMtime >= sourceMtime) {
-          // Backfill the compressed sibling for a cache entry that predates it
-          // (or whose source has since been replaced). Costs one request the
-          // ~230 ms to build it; every request after this is served from disk
-          // with no compression work at all.
-          if (!freshGzSibling(litePath)) writeGzSibling(litePath);
-
-          // Serve cached lite copy
-          sendDbFile(res, litePath, `${name}-lite.db`, req, { compressible: true });
-          return;
-        }
-      }
-
-      // Generate lite copy: open source DB read-only, copy only essential tables
-      const sourceDb = new BetterSqlite3(dbPath, { readonly: true });
-      const liteDb = new BetterSqlite3(':memory:');
-
-      try {
-        // Copy module_info table
-        const moduleInfoSchema = sourceDb.prepare(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name='module_info'"
-        ).get() as { sql: string } | undefined;
-        if (moduleInfoSchema) {
-          liteDb.exec(moduleInfoSchema.sql);
-          const rows = sourceDb.prepare('SELECT * FROM module_info').all();
-          if (rows.length > 0) {
-            const cols = Object.keys(rows[0] as Record<string, unknown>);
-            const placeholders = cols.map(() => '?').join(', ');
-            const insert = liteDb.prepare(`INSERT INTO module_info (${cols.join(', ')}) VALUES (${placeholders})`);
-            for (const row of rows) {
-              insert.run(...cols.map(c => (row as Record<string, unknown>)[c]));
-            }
-          }
-        }
-
-        // Copy bible_verse table (the main content)
-        const verseSchema = sourceDb.prepare(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name='bible_verse'"
-        ).get() as { sql: string } | undefined;
-        if (verseSchema) {
-          liteDb.exec(verseSchema.sql);
-          // Copy in batches to avoid memory spikes on large modules
-          const count = (sourceDb.prepare('SELECT COUNT(*) as c FROM bible_verse').get() as { c: number }).c;
-          const batchSize = 5000;
-          for (let offset = 0; offset < count; offset += batchSize) {
-            const batch = sourceDb.prepare(`SELECT * FROM bible_verse ORDER BY verse_id LIMIT ? OFFSET ?`).all(batchSize, offset);
-            if (batch.length === 0) break;
-            const cols = Object.keys(batch[0] as Record<string, unknown>);
-            const placeholders = cols.map(() => '?').join(', ');
-            const insert = liteDb.prepare(`INSERT INTO bible_verse (${cols.join(', ')}) VALUES (${placeholders})`);
-            const tx = liteDb.transaction(() => {
-              for (const row of batch) {
-                insert.run(...cols.map(c => (row as Record<string, unknown>)[c]));
-              }
-            });
-            tx();
-          }
-          // Copy the verse_id index
-          const indexes = sourceDb.prepare(
-            "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='bible_verse' AND sql IS NOT NULL"
-          ).all() as { sql: string }[];
-          for (const idx of indexes) {
-            liteDb.exec(idx.sql);
-          }
-        }
-
-        // Copy schema_version if it exists
-        const schemaVersionSchema = sourceDb.prepare(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name='schema_version'"
-        ).get() as { sql: string } | undefined;
-        if (schemaVersionSchema) {
-          liteDb.exec(schemaVersionSchema.sql);
-          const rows = sourceDb.prepare('SELECT * FROM schema_version').all();
-          if (rows.length > 0) {
-            const cols = Object.keys(rows[0] as Record<string, unknown>);
-            const placeholders = cols.map(() => '?').join(', ');
-            const insert = liteDb.prepare(`INSERT INTO schema_version (${cols.join(', ')}) VALUES (${placeholders})`);
-            for (const row of rows) {
-              insert.run(...cols.map(c => (row as Record<string, unknown>)[c]));
-            }
-          }
-        }
-
-        // Serialize and cache to disk for future requests
-        const buffer = liteDb.serialize();
-        writeFileSync(litePath, buffer);
-        // Compress once, here, so no request ever pays for it. See writeGzSibling.
-        writeGzSibling(litePath);
-        console.log(`[LiteCache] Generated ${litePath} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
-
-        sendDbFile(res, litePath, `${name}-lite.db`, req, { compressible: true });
-      } finally {
-        liteDb.close();
-        sourceDb.close();
-      }
+      sendLiteBibleModule(res, req, mod.moduleType, `${name}-lite.db`, dbPath, litePath);
     } catch (error) {
       console.error('Error creating lite module:', error);
       sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Lite download failed');

@@ -6,7 +6,7 @@ import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validatePositiveInt, validateString, validateVerseId } from '../utils/validation';
 
-const loader = new ModuleLoader('book', (db) => new BookRepository(db));
+const loader = new ModuleLoader('book', 'book');
 
 export function getBookRepository(abbreviation: string): BookRepository | null {
   return loader.get(abbreviation);
@@ -109,8 +109,15 @@ export function registerBookHandlers(_ipcMain: IpcMain): void {
   });
 
   // Handler: Get book module info
-  ipcHandler<[string], BookInfoDto>('book:getBookInfo', (abbreviation) => {
+  ipcHandler<[string], BookInfoDto>('book:getBookInfo', async (abbreviation) => {
     validateAbbreviation(abbreviation);
+    // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b): opens
+    // the module if it is not already cached. Every `requireBookRepository`/
+    // `getBookRepository` call below this point - here and in every other
+    // handler in this file - stays the plain synchronous `.get()` it always
+    // was; it is safe inline (including in a loop) once the module has been
+    // ensured once.
+    await loader.ensure(abbreviation);
     const repo = requireBookRepository(abbreviation);
 
     const info = repo.getModuleInfo();

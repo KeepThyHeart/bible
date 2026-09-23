@@ -23,6 +23,8 @@ import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
 import { followStore } from './stores/followStore';
 import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from './present/controlLink';
+import i18n, { ensureLocaleLoaded } from './i18n';
+
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
 // icons for offline/PWA use. Only the core + solid + regular styles are imported; the
@@ -60,6 +62,14 @@ async function init() {
   // paint, alongside `presentStore.restore` below, for the same reason: the
   // reading app has to work whether or not this is a follow-along session.
   const followCode = takeFollowLinkFromUrl();
+
+  // Kicked off now, awaited just before the first render (below): `en`'s
+  // catalogs are already bundled eagerly (see `i18n.ts`), so this resolves
+  // instantly unless detection landed on a lazily-loaded locale, in which
+  // case the app's first paint waits for its namespace catalogs rather than
+  // flashing English (or worse, painting a non-English `lang` attribute over
+  // English text).
+  const localeReadyPromise = ensureLocaleLoaded(i18n.language);
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.
@@ -251,6 +261,7 @@ async function init() {
   }
 
   // Render the app (ErrorBoundary catches component crashes)
+  await localeReadyPromise;
   render(<ErrorBoundary><App providers={providers} /></ErrorBoundary>, document.getElementById('app')!);
 
   // Everything the first frame depends on is settled. Drop the boot splash once

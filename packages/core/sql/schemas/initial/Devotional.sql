@@ -25,6 +25,7 @@ PRAGMA cache_size = -16000;  -- 16MB cache
 -- For this module type the writer sets module_type = 'devotional' and
 -- format = 'devotional-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- Devotional specifics. Added by ALTER because the included block is shared with
 -- every other module type and must stay one definition. SQLite requires a
@@ -82,7 +83,8 @@ CREATE TABLE devotional_entry (
     UNIQUE(day_number)
 );
 
-CREATE INDEX idx_devotional_day ON devotional_entry(day_number);
+-- idx_devotional_day was dropped: day_number already carries a UNIQUE
+-- constraint above, which SQLite backs with its own autoindex.
 CREATE INDEX idx_devotional_date ON devotional_entry(date_label);
 CREATE INDEX idx_devotional_sort ON devotional_entry(sort_order);
 
@@ -94,45 +96,10 @@ CREATE INDEX idx_devotional_sort ON devotional_entry(sort_order);
 -- source_id = devotional_entry.entry_id.
 -- @include ../shared/verse_link.sql
 
--- ============================================================================
--- 3. Full-Text Search
--- ============================================================================
-
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
-CREATE VIRTUAL TABLE devotional_entry_fts USING fts5(
-    entry_id UNINDEXED,       -- Carried for retrieval only, never matched against
-    title,                    -- Entry title
-    content,                  -- Devotional body text
-    content='devotional_entry',
-    content_rowid='entry_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers
--- External-content FTS5 tables do not own their data, so rows must be removed with
--- the special 'delete' command carrying the OLD column values. A plain
--- DELETE/UPDATE against the FTS table leaves stale terms in the index.
-CREATE TRIGGER devotional_entry_fts_insert AFTER INSERT ON devotional_entry BEGIN
-    INSERT INTO devotional_entry_fts(rowid, entry_id, title, content)
-    VALUES (new.entry_id, new.entry_id, new.title, new.content);
-END;
-
-CREATE TRIGGER devotional_entry_fts_delete AFTER DELETE ON devotional_entry BEGIN
-    INSERT INTO devotional_entry_fts(devotional_entry_fts, rowid, entry_id, title, content)
-    VALUES ('delete', old.entry_id, old.entry_id, old.title, old.content);
-END;
-
-CREATE TRIGGER devotional_entry_fts_update AFTER UPDATE ON devotional_entry BEGIN
-    INSERT INTO devotional_entry_fts(devotional_entry_fts, rowid, entry_id, title, content)
-    VALUES ('delete', old.entry_id, old.entry_id, old.title, old.content);
-    INSERT INTO devotional_entry_fts(rowid, entry_id, title, content)
-    VALUES (new.entry_id, new.entry_id, new.title, new.content);
-END;
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 4. Schema Version
+-- 3. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

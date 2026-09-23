@@ -4,6 +4,60 @@ import { useI18n } from '../contexts/useI18n';
 import { getModuleCatalogUrl } from '../config/appConfig';
 
 /**
+ * Signature-status badge for one catalog row.
+ *
+ * Mirrors `ExtensionsSection.tsx`'s `TrustBadge` in spirit (theme tokens only,
+ * a red/warning treatment for anything the user should look at) but the
+ * vocabulary is a catalog's, not an extension's - see
+ * `CatalogSignatureStatus` in `@bible/core` for what each status means.
+ * `undefined` (never fetched) renders nothing: there is nothing yet to report,
+ * and an "Unsigned" badge on a catalog that has never even been reached would
+ * be misleading.
+ */
+const CatalogSignatureBadge: React.FC<{ repo: ModuleCatalog }> = ({ repo }) => {
+  const { t } = useI18n();
+  const status = repo.signatureStatus;
+  if (!status) return null;
+
+  if (status === 'verified') {
+    const official = repo.type === 'official';
+    return (
+      <span
+        className="text-xs px-2 py-0.5 bg-success-soft text-success-text rounded"
+        data-testid={`repository-signature-badge-${repo.catalogId}`}
+        data-signature-status={status}
+      >
+        {official ? t('repositorySettings.signatureVerifiedOfficial') : t('repositorySettings.signatureSigned')}
+      </span>
+    );
+  }
+
+  if (status === 'unsigned') {
+    return (
+      <span
+        className="text-xs px-2 py-0.5 bg-background-tertiary text-text-secondary rounded"
+        data-testid={`repository-signature-badge-${repo.catalogId}`}
+        data-signature-status={status}
+      >
+        {t('repositorySettings.signatureUnsigned')}
+      </span>
+    );
+  }
+
+  // `untrusted_key` / `invalid` / `error` - something needs the user's attention.
+  return (
+    <span
+      className="text-xs px-2 py-0.5 bg-danger-soft text-danger-text rounded"
+      data-testid={`repository-signature-badge-${repo.catalogId}`}
+      data-signature-status={status}
+      title={status}
+    >
+      {t('repositorySettings.signatureProblem')}
+    </span>
+  );
+};
+
+/**
  * RepositorySettings component
  * Allows users to view, add, edit, and remove module repositories.
  */
@@ -12,7 +66,7 @@ const RepositorySettings: React.FC = () => {
   // default - in that case the URL inputs must not show an example URL that
   // reads like a working default.
   const defaultCatalogUrl = getModuleCatalogUrl();
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const urlPlaceholder = defaultCatalogUrl ?? t('repositorySettings.urlPlaceholder');
   const {
     repositories,
@@ -156,6 +210,7 @@ const RepositorySettings: React.FC = () => {
                         {t('repositorySettings.disabled')}
                       </span>
                     )}
+                    <CatalogSignatureBadge repo={repo} />
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -256,7 +311,7 @@ const RepositorySettings: React.FC = () => {
                 {/* Metadata */}
                 <div className="flex items-center gap-4 text-xs text-text-tertiary">
                   {repo.lastFetched && (
-                    <span>{t('repositorySettings.lastFetched', { date: new Date(repo.lastFetched).toLocaleDateString() })}</span>
+                    <span>{t('repositorySettings.lastFetched', { date: localizer.formatDate(new Date(repo.lastFetched)) })}</span>
                   )}
                   {!repo.lastFetched && (
                     <span className="text-warning">{t('repositorySettings.neverFetched')}</span>

@@ -4,6 +4,7 @@ import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sig
 import {
   verifyCatalogSignature,
   isCatalogUsable,
+  MAX_CATALOG_SIGNATURES,
 } from '../CatalogSignatureVerifier';
 
 /** DER prefix for a raw 32-byte Ed25519 private key wrapped as PKCS#8. */
@@ -83,6 +84,19 @@ describe('verifyCatalogSignature', () => {
 
       expect(result.status).toBe('verified');
     });
+
+    it('accepts a signature from any key in a pinned set', () => {
+      // Rotation: old and new keys are pinned together and the catalog may be
+      // signed by either - including one that is not first in the list.
+      const oldKey = makeKey();
+      const newKey = makeKey();
+      const result = verifyCatalogSignature(CATALOG, signCatalog(CATALOG, newKey), {
+        expectedPublicKey: [oldKey.publicKeyHex, newKey.publicKeyHex],
+      });
+
+      expect(result.status).toBe('verified');
+      expect(result.publicKey).toBe(newKey.publicKeyHex);
+    });
   });
 
   describe('tampering', () => {
@@ -113,6 +127,18 @@ describe('verifyCatalogSignature', () => {
 
       expect(result.status).toBe('untrusted_key');
       expect(result.publicKey).toBe(attackerKey.publicKeyHex);
+      expect(isCatalogUsable(result)).toBe(false);
+    });
+
+    it('rejects a signature from a key outside the pinned set', () => {
+      const pinned = [makeKey().publicKeyHex, makeKey().publicKeyHex];
+      const attackerKey = makeKey();
+
+      const result = verifyCatalogSignature(CATALOG, signCatalog(CATALOG, attackerKey), {
+        expectedPublicKey: pinned,
+      });
+
+      expect(result.status).toBe('untrusted_key');
       expect(isCatalogUsable(result)).toBe(false);
     });
 
@@ -183,6 +209,80 @@ describe('verifyCatalogSignature', () => {
 
       const result = verifyCatalogSignature(CATALOG, JSON.stringify(sig));
       expect(result.status).toBe('error');
+    });
+  });
+
+  describe('multiple signatures', () => {
+    /** First key is the primary signature; the rest go in `signatures`. */
+    function multiSigned(...keys: TestKey[]): string {
+      const [primary, ...rest] = keys.map((key) => JSON.parse(signCatalog(CATALOG, key)));
+      return JSON.stringify(rest.length > 0 ? { ...primary, signatures: rest } : primary);
+    }
+
+    it('accepts the catalog when a later signature is by the pinned key', () => {
+      const outgoing = makeKey();
+      const incoming = makeKey();
+      const result = verifyCatalogSignature(CATALOG, multiSigned(outgoing, incoming), {
+        expectedPublicKey: incoming.publicKeyHex,
+      });
+
+      expect(result.status).toBe('verified');
+      expect(result.publicKey).toBe(incoming.publicKeyHex);
+      expect(result.signers).toEqual([outgoing.publicKeyHex, incoming.publicKeyHex]);
+    });
+
+    it('keeps the primary readable by apps that predate multiple signatures', () => {
+      // Older apps read only the top-level fields; they must verify on their own.
+      const outgoing = makeKey();
+      const doc = JSON.parse(multiSigned(outgoing, makeKey()));
+      delete doc.signatures;
+
+      const result = verifyCatalogSignature(CATALOG, JSON.stringify(doc), {
+        expectedPublicKey: outgoing.publicKeyHex,
+      });
+      expect(result.status).toBe('verified');
+    });
+
+    it('lists every signer when none of them is trusted', () => {
+      const a = makeKey();
+      const b = makeKey();
+      const result = verifyCatalogSignature(CATALOG, multiSigned(a, b), {
+        expectedPublicKey: makeKey().publicKeyHex,
+      });
+
+      expect(result.status).toBe('untrusted_key');
+      expect(result.signers).toEqual([a.publicKeyHex, b.publicKeyHex]);
+    });
+
+    it('rejects the catalog if any one signature does not verify', () => {
+      const pinned = makeKey();
+      const doc = JSON.parse(multiSigned(pinned, makeKey()));
+      doc.signatures[0].signature = 'f'.repeat(128);
+
+      const result = verifyCatalogSignature(CATALOG, JSON.stringify(doc), {
+        expectedPublicKey: pinned.publicKeyHex,
+      });
+      expect(result.status).toBe('invalid');
+    });
+
+    it('errors on a malformed extra signature', () => {
+      const doc = JSON.parse(signCatalog(CATALOG, makeKey()));
+      doc.signatures = [{ publicKey: 'ab' }];
+
+      expect(verifyCatalogSignature(CATALOG, JSON.stringify(doc)).status).toBe('error');
+    });
+
+    it('errors when "signatures" is not an array', () => {
+      const doc = JSON.parse(signCatalog(CATALOG, makeKey()));
+      doc.signatures = 'nope';
+
+      expect(verifyCatalogSignature(CATALOG, JSON.stringify(doc)).status).toBe('error');
+    });
+
+    it(`errors on more than ${MAX_CATALOG_SIGNATURES} signatures`, () => {
+      const keys = Array.from({ length: MAX_CATALOG_SIGNATURES + 1 }, () => makeKey());
+
+      expect(verifyCatalogSignature(CATALOG, multiSigned(...keys)).status).toBe('error');
     });
   });
 

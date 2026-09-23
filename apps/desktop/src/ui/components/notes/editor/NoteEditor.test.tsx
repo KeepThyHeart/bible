@@ -23,6 +23,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor, fireEvent } from '@testing-library/react';
 import NoteEditor from './NoteEditor';
 import { ContextProvider, type AppServices } from '../../../contexts/ContextProvider';
+import { flushTiptapDestroyOnTeardown } from './flushTiptapDestroy';
+
+flushTiptapDestroyOnTeardown();
 
 const NBSP = '&nbsp;'; // html-entity form, matches getHTML()/innerHTML serialization of U+00A0
 

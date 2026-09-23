@@ -55,7 +55,7 @@
   &__sort {
     position: relative;
     flex-shrink: 0;
-    margin-left: 4px;
+    margin-inline-start: 4px;
   }
 
   &__sort-btn {
@@ -84,7 +84,7 @@
   &__sort-menu {
     position: absolute;
     top: calc(100% + 4px);
-    right: 0;
+    inset-inline-end: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -105,7 +105,7 @@
     color: var(--text-secondary);
     font-size: calc(12px * var(--ui-font-scale, 1));
     padding: 6px 12px;
-    text-align: left;
+    text-align: start;
 
     &:hover {
       background: var(--bg-tertiary);
@@ -156,7 +156,7 @@
     border-radius: 3px;
     background: var(--accent-secondary);
     opacity: 0.6;
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   &__item-name {
@@ -169,7 +169,7 @@
     font-size: calc(11px * var(--ui-font-scale, 1));
     color: var(--text-muted);
     white-space: nowrap;
-    margin-left: auto;
+    margin-inline-start: auto;
     position: relative;
     top: -7px;
   }

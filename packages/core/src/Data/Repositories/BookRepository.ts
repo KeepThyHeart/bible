@@ -10,6 +10,7 @@ import { ModuleInfoRow, BookSectionRow } from '../Core/RowTypes';
 import { parseJsonField, stringifyJsonField } from '../Core/JsonHelpers';
 import { verseRangeOverlapsRangeNullable } from '../Core/VerseRangeQuery';
 import { VerseLinkRepository } from './VerseLinkRepository';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Repository for Book module databases (book_*.db)
@@ -490,6 +491,15 @@ export class BookRepository extends BaseModuleRepository<BookModuleInfo> impleme
    */
   deleteScriptureReference(referenceId: number): boolean {
     return this.verseLinks.delete(referenceId);
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('book');
   }
 
   // ========================================================================

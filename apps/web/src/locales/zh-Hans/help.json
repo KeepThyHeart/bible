@@ -1,0 +1,63 @@
+{
+  "$schema": "../schemas/help.schema.json",
+  "title": "帮助",
+  "docs": {
+    "cta": "打开用户指南",
+    "desc": "含截图与分步说明的文档"
+  },
+  "feedback": {
+    "cta": "发送反馈",
+    "desc": "报告问题或分享想法"
+  },
+  "gettingStarted": {
+    "title": "快速入门",
+    "intro": "Keep Thy Heart 是一款圣经研读工具。使用搜索栏可跳转到任意经文出处，或搜索字词与短语。",
+    "introContext": {
+      "desktop": "网页版",
+      "mobile": ""
+    },
+    "referenceHint": "输入类似 <strong>约翰福音 3:16</strong> 或 <strong>创 1</strong> 这样的经文出处，即可跳转到该段经文。",
+    "searchHint": "输入任意字词或短语，即可在已启用的译本中搜索。",
+    "searchTypeHint": "使用搜索栏上的下拉菜单，在<strong>标准搜索</strong>（关键词匹配）与<strong>概念搜索</strong>（将查询内容的概念与经节中的概念相匹配）之间切换。",
+    "searchTypeHintMobile": "通过搜索栏下拉菜单在<strong>标准搜索</strong>与<strong>概念搜索</strong>之间切换。"
+  },
+  "biblePaneDesktop": {
+    "title": "圣经窗格",
+    "compareTabs": "打开多个标签页，即可并排比较经文段落。",
+    "translationSelector": "使用<strong>译本选择器</strong>切换圣经译本。",
+    "displayModes": "切换显示模式：<strong>阅读</strong>（不显示节号）、<strong>标准</strong>，或<strong>研经</strong>（含斯特朗编号与原文对照数据）。",
+    "strongsClick": "在研经模式下点击<strong>斯特朗编号</strong>，即可查看相应的词典条目。",
+    "copyDialog": "右键点击任意经节，即可打开<strong>复制经文</strong>对话框。"
+  },
+  "readingMobile": {
+    "title": "阅读",
+    "compareTabs": "打开多个标签页以比较经文段落。",
+    "translationSelector": "使用<strong>译本选择器</strong>切换圣经译本。",
+    "displayModes": "切换显示模式：<strong>阅读</strong>、<strong>标准</strong>，或<strong>研经</strong>（含斯特朗编号与原文对照数据）。",
+    "longPress": "长按经节即可查看<strong>复制</strong>等选项。"
+  },
+  "navigation": {
+    "title": "导航",
+    "bottomTabs": "使用<strong>底部标签栏</strong>在阅读、搜索、研经和注释之间切换。",
+    "studyTab": "<strong>研经</strong>标签页显示串珠、主题和原文对照数据。",
+    "commentaryTab": "<strong>注释</strong>标签页显示当前经节的注释内容。"
+  },
+  "commentaryAndSearch": {
+    "title": "注释与搜索",
+    "rightPane": "右侧窗格显示当前经文段落的<strong>注释</strong>，会随浏览内容自动更新。",
+    "switchPanes": "使用右侧窗格顶部的标签页，在注释与搜索结果之间切换。",
+    "ctrlClick": "对搜索结果使用<strong>Ctrl+点击</strong>，即可在新标签页中打开。"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "focusSearch": "聚焦搜索栏",
+    "focusSearchAlt": "聚焦搜索栏（未在输入时）",
+    "copyDialog": "打开复制对话框（未选中文本时）",
+    "closeDialog": "关闭任意打开的对话框或弹出窗口"
+  },
+  "settings": {
+    "title": "设置",
+    "descMobile": "点击齿轮图标，可自定义主题、字体和离线设置。",
+    "descDesktop": "点击齿轮图标，可自定义主题、字体族、字号、行高和离线模式设置。"
+  }
+}

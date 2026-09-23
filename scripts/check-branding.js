@@ -30,7 +30,6 @@ const TOUCHPOINTS = [
     files: [
       'apps/desktop/electron-builder.yml',
       'apps/desktop/electron-builder.curated.yml',
-      'apps/desktop/build-installer.nsh',
       'apps/desktop/index.html',
       'apps/desktop/detached.html',
       'apps/desktop/electron/main.ts',

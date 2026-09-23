@@ -316,11 +316,15 @@ export const TYPED_IPC_CHANNELS = [
   'module:install-from-file',
   'module:install-from-path',
   'module:install-pack-from-path',
+  'module:inspect-pack',
   'module:bless-dropped-path',
   'module:uninstall',
   'module:update',
   'module:check-for-updates',
   'module:get-details',
+  'module:get-keyword-index-status',
+  'module:rebuild-keyword-index',
+  'module:delete-keyword-index',
   // Feature packs (optional downloadable capabilities - currently semantic
   // search). Separate from `module:*` because a pack is not a module: it
   // carries no `module_info`, is never registered in `module_metadata`, and

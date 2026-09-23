@@ -2,14 +2,13 @@ import { join, dirname } from 'path';
 import { closeSync, existsSync, mkdirSync, openSync, readSync, rmSync, statSync } from 'fs';
 import log from 'electron-log';
 import {
-  CommentaryRepository,
-  CrossReferenceRepository,
-  TopicalIndexRepository,
-  TagGraphRepository,
   CommentaryAggregationService,
   CrossRefAggregationService,
   TopicAggregationService,
   EntityAggregationService,
+  SqliteModuleRepositoryFactory,
+  nodeCodecRegistry,
+  wrapSqlConnection,
 } from '@bible/core';
 import type {
   AggregationModule,
@@ -21,10 +20,29 @@ import type {
   ICrossReferenceRepository,
   ITagGraphRepository,
   ITopicAggregationService,
+  ITopicalIndexRepository,
+  ICodecRegistry,
+  IModuleRepositoryFactory,
 } from '@bible/core';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { getDataPath, getUserDataPath, resolveModulePath } from '../utils/appPaths';
 import { getSharedModuleMetadataRepo } from './sharedMainDb';
+
+/**
+ * Task 0034 (finishing M11): the factory `buildContext()` routes
+ * construction through below, instead of `new XRepository(sql)` per module.
+ * This is CONSTRUCTION only - `buildContext()` keeps opening each module's
+ * connection directly via `new SqliteProvider(...)` rather than through
+ * `ModuleDatabaseRegistry`/`ModuleLoader`, and that part is deliberately
+ * unmigrated (see `buildContext()`'s own comment: the background sweep holds
+ * these connections for minutes and must neither compete with the UI's
+ * shared handles nor be evicted out from under itself). Repository
+ * construction has no such lifetime concern - `IModuleRepositoryFactory.create()`
+ * is a pure, stateless build over an already-open connection - so it shares
+ * the same seam every other site in this codebase now does.
+ */
+const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const codecs: ICodecRegistry = nodeCodecRegistry();
 
 /**
  * Where a chapter's overview came from. Diagnostics, and what the tests assert
@@ -443,15 +461,22 @@ export class StudyCacheService {
       return out;
     };
 
-    const commentaryModules = open('commentary', sql => new CommentaryRepository(sql));
-    const crossRefModules = open('cross_reference', sql => new CrossReferenceRepository(sql));
-    const topicalModules = open('topical_index', sql => new TopicalIndexRepository(sql));
+    const commentaryModules = open('commentary', sql =>
+      repositoryFactory.create(wrapSqlConnection(sql), 'commentary', codecs) as ICommentaryRepository
+    );
+    const crossRefModules = open('cross_reference', sql =>
+      repositoryFactory.create(wrapSqlConnection(sql), 'crossRef', codecs) as ICrossReferenceRepository
+    );
+    const topicalModules = open('topical_index', sql =>
+      repositoryFactory.create(wrapSqlConnection(sql), 'topicalIndex', codecs) as ITopicalIndexRepository
+    );
 
     let tagGraph: ITagGraphRepository | null = null;
     const tagGraphPath = join(getDataPath(), 'tag_graph.db');
     if (existsSync(tagGraphPath)) {
       try {
-        tagGraph = new TagGraphRepository(new SqliteProvider(tagGraphPath, { readonly: true }));
+        const sql = new SqliteProvider(tagGraphPath, { readonly: true });
+        tagGraph = repositoryFactory.create(wrapSqlConnection(sql), 'tagGraph', codecs);
       } catch (error) {
         log.warn('[StudyCache] Tag graph unavailable:', error);
       }

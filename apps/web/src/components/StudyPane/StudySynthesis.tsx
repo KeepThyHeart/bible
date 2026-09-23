@@ -77,7 +77,7 @@ export function StudySynthesis({ bibleProvider }: StudySynthesisProps) {
     <StudySection id="synthesis" label={t('studySynthesis.title')} defaultExpanded={false}>
       {loading ? (
         <div class="study-crossrefs__loading">
-          <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('studySynthesis.loading')}
+          <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('studySynthesis.loading')}
         </div>
       ) : (
         <div class="study-synthesis">

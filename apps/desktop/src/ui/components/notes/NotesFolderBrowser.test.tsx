@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('../../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: {} }),
+  useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => enT(key, params), locale: 'en', i18n: {}, localizer: enLocalizer }),
 }));
 
 vi.mock('../../services/fileNotesAPI', () => ({
@@ -22,7 +22,7 @@ vi.mock('../../services/fileNotesAPI', () => ({
 
 import NotesFolderBrowser from './NotesFolderBrowser';
 import type { FileEntry } from '../../services/fileNotesAPI';
-import { enT } from '../../testing/enCatalog';
+import { enT, enLocalizer } from '../../testing/enCatalog';
 
 const NOTE: FileEntry = {
   name: 'Romans 8',

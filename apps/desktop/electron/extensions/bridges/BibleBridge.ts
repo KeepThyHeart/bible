@@ -17,7 +17,8 @@
  */
 
 import type { BibleRepository, BibleVerse, BibleBook, InterlinearWord } from '@bible/core';
-import { ReferenceParser, VerseIdHelper } from '@bible/core';
+import { VerseIdHelper } from '@bible/core';
+import { getLocalizedReferenceParser } from '../../services/localizedReferenceParser';
 import type { Extensions } from '@bible/core';
 
 import type { IExtensionBibleBridge } from '../api-impl/IExtensionDataBridges';
@@ -84,7 +85,6 @@ export interface BibleBridgeDeps {
 
 export class BibleBridge implements IExtensionBibleBridge {
   private readonly deps: BibleBridgeDeps;
-  private readonly parser = new ReferenceParser();
   private readonly activeVerseHandlers = new Set<
     (payload: { verseId: number; module: string } | null) => void
   >();
@@ -152,7 +152,7 @@ export class BibleBridge implements IExtensionBibleBridge {
   }
 
   parseReference(input: string, _locale?: string): ParsedReferenceDto | null {
-    const parsed = this.parser.parse(input);
+    const parsed = getLocalizedReferenceParser().parse(input);
     if (!parsed.isValid || parsed.book === undefined) return null;
     const dto: ParsedReferenceDto = {
       bookNumber: parsed.book,

@@ -301,7 +301,7 @@ const CommentaryHomeModule: React.FC<{
   onTogglePromote: () => void;
   isMutedSection?: boolean;
 }> = ({ module, expanded, onToggle, isTabOpen, onOpenTab, maxWords, contextBookNumber, isPromoted, isMuted, onToggleMute, onTogglePromote, isMutedSection }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const widthPercent = Math.min(100, (module.totalWordCount / maxWords) * 100);
   // The Overview grid is where readers choose what to trust, so machine-generated
   // modules are labelled in the collapsed row too - not only once expanded.
@@ -371,7 +371,7 @@ const CommentaryHomeModule: React.FC<{
             {!isDigestModule(module.abbreviation) && module.name !== module.abbreviation ? module.name : ''}
           </span>
           <span className="text-[11px] flex-shrink-0 ms-auto whitespace-nowrap" style={{ color: 'var(--theme-text-muted, #999)', position: 'relative', top: '-5px' }}>
-            {module.totalWordCount.toLocaleString()} words
+            {localizer.formatNumber(module.totalWordCount)} words
           </span>
         </div>
       </div>

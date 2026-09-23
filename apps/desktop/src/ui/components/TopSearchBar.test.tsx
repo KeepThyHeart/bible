@@ -34,21 +34,30 @@ vi.mock('../contexts/useWhenContext', () => ({
   useWhenContext: () => ({ snapshot: {} }),
 }));
 
-// Mock ReferenceParser
-vi.mock('@bible/core', () => ({
-  ReferenceParser: vi.fn().mockImplementation(() => ({
-    parse: vi.fn().mockReturnValue({ isValid: false }),
-    format: vi.fn().mockReturnValue(''),
-    validate: vi.fn().mockReturnValue(null),
-    getBookName: vi.fn().mockReturnValue(''),
-  })),
-}));
+// Mock ReferenceParser. The component calls these with `new`, so the
+// implementations must be functions, not arrows. Everything else (including
+// `getLocalizer`, which `useI18n()` now calls on every render) passes through
+// to the real module.
+vi.mock('@bible/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@bible/core')>();
+  return {
+    ...actual,
+    ReferenceParser: vi.fn().mockImplementation(function () {
+      return {
+        parse: vi.fn().mockReturnValue({ isValid: false }),
+        format: vi.fn().mockReturnValue(''),
+        validate: vi.fn().mockReturnValue(null),
+        getBookName: vi.fn().mockReturnValue(''),
+      };
+    }),
+  };
+});
 
 // Mock ReferenceClassifier
 vi.mock('../services/ReferenceClassifier', () => ({
-  ReferenceClassifier: vi.fn().mockImplementation(() => ({
-    looksLikeReference: vi.fn().mockReturnValue(false),
-  })),
+  ReferenceClassifier: vi.fn().mockImplementation(function () {
+    return { looksLikeReference: vi.fn().mockReturnValue(false) };
+  }),
 }));
 
 // Mock debounce

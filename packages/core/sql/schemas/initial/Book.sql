@@ -20,6 +20,7 @@ PRAGMA cache_size = -32000;  -- 32MB cache
 -- For this module type the writer sets module_type = 'book' and
 -- format = 'book-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- 1. Book Structure
@@ -46,7 +47,8 @@ CREATE TABLE book_section (
     FOREIGN KEY (parent_section_id) REFERENCES book_section(section_id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_section_parent ON book_section(parent_section_id);
+-- idx_section_parent (parent_section_id) was dropped: it is a strict prefix of
+-- idx_section_sort (parent_section_id, sort_order) below.
 CREATE INDEX idx_section_number ON book_section(section_number);
 CREATE INDEX idx_section_sort ON book_section(parent_section_id, sort_order);
 
@@ -59,46 +61,10 @@ CREATE INDEX idx_section_sort ON book_section(parent_section_id, sort_order);
 -- source_id = book_section.section_id.
 -- @include ../shared/verse_link.sql
 
--- ============================================================================
--- 2. Full-Text Search
--- ============================================================================
-
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
-CREATE VIRTUAL TABLE book_section_fts USING fts5(
-    section_id UNINDEXED,     -- Carried for retrieval only, never matched against
-    title,                    -- Section heading -- indexed, so a heading-only
-                              -- match still finds the section
-    content,                  -- Section body text
-    content='book_section',
-    content_rowid='section_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers
--- External-content FTS5 tables do not own their data, so rows must be removed with
--- the special 'delete' command carrying the OLD column values. A plain
--- DELETE/UPDATE against the FTS table leaves stale terms in the index.
-CREATE TRIGGER book_section_fts_insert AFTER INSERT ON book_section BEGIN
-    INSERT INTO book_section_fts(rowid, section_id, title, content)
-    VALUES (new.section_id, new.section_id, new.title, new.content);
-END;
-
-CREATE TRIGGER book_section_fts_delete AFTER DELETE ON book_section BEGIN
-    INSERT INTO book_section_fts(book_section_fts, rowid, section_id, title, content)
-    VALUES ('delete', old.section_id, old.section_id, old.title, old.content);
-END;
-
-CREATE TRIGGER book_section_fts_update AFTER UPDATE ON book_section BEGIN
-    INSERT INTO book_section_fts(book_section_fts, rowid, section_id, title, content)
-    VALUES ('delete', old.section_id, old.section_id, old.title, old.content);
-    INSERT INTO book_section_fts(rowid, section_id, title, content)
-    VALUES (new.section_id, new.section_id, new.title, new.content);
-END;
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 3. Schema Version
+-- 2. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

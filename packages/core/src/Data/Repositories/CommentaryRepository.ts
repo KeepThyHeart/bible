@@ -14,6 +14,8 @@ import { ModuleInfoRow, CommentaryEntryRow } from '../Core/RowTypes';
 import { parseJsonField, stringifyJsonField } from '../Core/JsonHelpers';
 import { verseRangeOverlapsRange, verseRangeOverlapsRangeNullable } from '../Core/VerseRangeQuery';
 import { VerseLinkRepository } from './VerseLinkRepository';
+import { IIndexSource } from '../Access/KeywordTypes';
+import { ICodecRegistry } from '../Access/Codec';
 
 /**
  * Repository for Commentary module databases (commentary_*.db)
@@ -39,8 +41,15 @@ import { VerseLinkRepository } from './VerseLinkRepository';
 export class CommentaryRepository extends BaseModuleRepository<CommentaryModuleInfo> implements ICommentaryRepository {
   private readonly verseLinks: VerseLinkRepository;
 
-  constructor(sql: ISql) {
-    super(sql);
+  /**
+   * @param codecs Optional codec set, forwarded to
+   *        {@link BaseModuleRepository}. Omitted everywhere in the app (the
+   *        Node/Electron composition root is the default); it exists so a
+   *        test can pin a deliberately incomplete set and check what a reader
+   *        without this module's codec does.
+   */
+  constructor(sql: ISql, codecs?: ICodecRegistry) {
+    super(sql, codecs);
     this.verseLinks = new VerseLinkRepository(sql);
   }
 
@@ -425,6 +434,15 @@ export class CommentaryRepository extends BaseModuleRepository<CommentaryModuleI
   }
 
   // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('commentary');
+  }
+
+  // ========================================================================
   // Private Mapping Methods
   // ========================================================================
 
@@ -445,13 +463,34 @@ export class CommentaryRepository extends BaseModuleRepository<CommentaryModuleI
     });
   }
 
+  /**
+   * Map one `commentary_entry` row.
+   *
+   * `content` goes through {@link BaseModuleRepository.text} (task 0027 F4):
+   * `CONTENT_MAP.commentary.prose` is `['content']`, so in a module whose
+   * `module_info.compression` is not `'none'` this column holds a BLOB - one
+   * bare codec frame - rather than TEXT. `text()` returns a string unchanged,
+   * decodes a BLOB with the codec resolved once when this repository first
+   * needed it, and turns a NULL into `''` (which `content TEXT NOT NULL`
+   * should make unreachable, but `row.content as string` silently produced
+   * `undefined` for it before, and `CommentaryEntry.content` is typed
+   * `string`).
+   *
+   * Commentary is the ONE repository wired to `text()` in this pass, as a
+   * worked proof that the accessor is correct end to end against a real
+   * compressed fixture (`CommentaryRepository.compression.test.ts`). Bible is
+   * deliberately not a candidate at all - `CONTENT_MAP.bible.prose` is empty,
+   * because verse text is never compressed - and Dictionary/Book/
+   * TopicalIndex/Devotional are mechanical repetitions of this same one-line
+   * change, left to the follow-up that does them together.
+   */
   private mapRowToEntry(row: CommentaryEntryRow): CommentaryEntry {
     return new CommentaryEntry({
       entryId: row.entry_id,
       verseIdStart: row.verse_id_start,
       verseIdEnd: row.verse_id_end,
       entryLevel: row.entry_level as CommentaryEntryLevel,
-      content: row.content as string,
+      content: this.text(row.content ?? null),
       contentFile: row.content_file,
       wordCount: row.word_count,
       metadata: parseJsonField(row.metadata)

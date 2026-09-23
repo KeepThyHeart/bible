@@ -21,6 +21,7 @@ PRAGMA cache_size = -32000;  -- 32MB cache
 -- For this module type the writer sets module_type = 'commentary' and
 -- format = 'commentary-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- 1. Commentary Entries
@@ -63,7 +64,8 @@ CREATE TABLE commentary_entry (
     -- repository boundary.
 );
 
-CREATE INDEX idx_entry_verse_start ON commentary_entry(verse_id_start);
+-- idx_entry_verse_start (verse_id_start) was dropped: it is a strict prefix of
+-- idx_entry_range (verse_id_start, verse_id_end) below.
 CREATE INDEX idx_entry_range ON commentary_entry(verse_id_start, verse_id_end);
 CREATE INDEX idx_entry_level ON commentary_entry(entry_level);
 
@@ -77,45 +79,10 @@ CREATE INDEX idx_entry_level ON commentary_entry(entry_level);
 -- source_id = commentary_entry.entry_id.
 -- @include ../shared/verse_link.sql
 
--- ============================================================================
--- 2. Full-Text Search
--- ============================================================================
-
--- 2.1 Commentary FTS
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
-CREATE VIRTUAL TABLE commentary_entry_fts USING fts5(
-    entry_id UNINDEXED,       -- Carried for retrieval only, never matched against
-    content,                  -- The commentary text; the only indexed column
-    content='commentary_entry',
-    content_rowid='entry_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers
--- External-content FTS5 tables do not own their data, so rows must be removed with
--- the special 'delete' command carrying the OLD column values. A plain
--- DELETE/UPDATE against the FTS table leaves stale terms in the index.
-CREATE TRIGGER commentary_entry_fts_insert AFTER INSERT ON commentary_entry BEGIN
-    INSERT INTO commentary_entry_fts(rowid, entry_id, content)
-    VALUES (new.entry_id, new.entry_id, new.content);
-END;
-
-CREATE TRIGGER commentary_entry_fts_delete AFTER DELETE ON commentary_entry BEGIN
-    INSERT INTO commentary_entry_fts(commentary_entry_fts, rowid, entry_id, content)
-    VALUES ('delete', old.entry_id, old.entry_id, old.content);
-END;
-
-CREATE TRIGGER commentary_entry_fts_update AFTER UPDATE ON commentary_entry BEGIN
-    INSERT INTO commentary_entry_fts(commentary_entry_fts, rowid, entry_id, content)
-    VALUES ('delete', old.entry_id, old.entry_id, old.content);
-    INSERT INTO commentary_entry_fts(rowid, entry_id, content)
-    VALUES (new.entry_id, new.entry_id, new.content);
-END;
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 3. Schema Version
+-- 2. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

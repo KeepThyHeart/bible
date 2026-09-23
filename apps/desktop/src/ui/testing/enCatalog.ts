@@ -30,6 +30,14 @@ import searchBar from '../../../locales/en/searchBar.json';
 import ui from '../../../locales/en/ui.json';
 import { I18nService } from '../services/I18nService';
 import type { II18nService } from '../services/II18nService';
+import { EnglishLocalizer, type Localizer } from '@bible/core';
+
+/**
+ * The `en` `Localizer`, for tests whose `useI18n()` mock needs a `localizer`
+ * field (any component that formats a number/date through it). Real
+ * `Intl`-backed behavior, no test double.
+ */
+export const enLocalizer: Localizer = EnglishLocalizer;
 
 /**
  * Every English namespace merged into one flat key -> string map, the same

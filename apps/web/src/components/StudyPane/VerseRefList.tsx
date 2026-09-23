@@ -210,7 +210,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
         <div class="verse-ref-list__expanded">
           {textsLoading && (
             <div class="verse-ref-list__loading">
-              <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }} />{t('verseRefList.loadingVerses')}
+              <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('verseRefList.loadingVerses')}
             </div>
           )}
           {verses.map(v => {

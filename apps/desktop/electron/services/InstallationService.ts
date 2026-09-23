@@ -1,31 +1,132 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
-import type { ISql } from '@bible/core';
-import { ModuleMetadata, ModuleMetadataRepository } from '@bible/core';
+import * as crypto from 'crypto';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
+import log from 'electron-log';
+import type { ISql, SqlParameter, SqlResult, SqlRow } from '@bible/core';
+import {
+  ModuleMetadata,
+  ModuleMetadataRepository,
+  normalizeModuleType,
+  validateModuleFile,
+  hasSqliteHeader,
+  nodeCodecRegistry,
+} from '@bible/core';
 import type { InstallationResult } from '@bible/core';
-import type { IInstallationService } from '@bible/core';
+import type { IInstallationService, InstallVerification } from '@bible/core';
 import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
+import type { KeywordIndexService } from './KeywordIndexService';
 
 /**
  * Installation service implementation
  * Handles module installation, verification, and removal
  */
-/** RFC 4122 UUID (any version/variant) - `module_info.module_uuid` MUST match. */
-const MODULE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REQUIRED_CANON = 'protestant-66';
 const REQUIRED_VERSIFICATION = 'kjv-english';
 const MAX_BOOK_NUMBER = 66;
+
+/** SHA-256 of a file, streamed so a large module is never held in memory whole. */
+async function sha256OfFile(filePath: string): Promise<string> {
+  const hash = crypto.createHash('sha256');
+  for await (const chunk of fs.createReadStream(filePath)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * First 16 bytes of `path`, or `null` if fewer than 16 could be read at all
+ * (missing, empty, permission error, or a file shorter than a SQLite header
+ * could ever be). Never throws - `hasSqliteHeader()` is the byte comparison;
+ * this is only the driver-agnostic read of the bytes it compares, mirrored in
+ * `moduleDetector.ts` (which cannot share this exact function - Electron main
+ * and this file are not otherwise coupled - but shares the comparison itself
+ * via `hasSqliteHeader()`).
+ */
+function readHeaderBytes(path: string): Uint8Array | null {
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(path, 'r');
+    const buffer = Buffer.alloc(16);
+    const bytesRead = fs.readSync(fd, buffer, 0, 16, 0);
+    return bytesRead < 16 ? null : buffer;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch { /* already closed */ }
+    }
+  }
+}
+
+/**
+ * Minimal read-only `ISql` view over an already-open `better-sqlite3`-style
+ * handle, so `validateModuleFile()` - written against `ISql`, not a specific
+ * driver - can run against the SAME connection `validateModuleForInstall`
+ * already opened, instead of opening the file a second time. Only the two
+ * read methods it actually calls (`queryOne`, `queryAll`) are meaningfully
+ * implemented; this adapter is never handed to anything that would write.
+ */
+class ReadOnlyRawDbSql implements ISql {
+  constructor(private readonly db: any, private readonly dbPath: string) {}
+
+  queryOne<T = SqlRow>(sql: string, params?: SqlParameter[] | { [key: string]: SqlParameter }): T | undefined {
+    const stmt = this.db.prepare(sql);
+    return (params ? stmt.get(params) : stmt.get()) as T | undefined;
+  }
+
+  queryAll<T = SqlRow>(sql: string, params?: SqlParameter[] | { [key: string]: SqlParameter }): T[] {
+    const stmt = this.db.prepare(sql);
+    return (params ? stmt.all(params) : stmt.all()) as T[];
+  }
+
+  execute(): SqlResult {
+    throw new Error('ReadOnlyRawDbSql is read-only: validateModuleFile() never writes.');
+  }
+
+  transaction<T>(callback: () => T): T {
+    return callback();
+  }
+
+  close(): void {
+    // Owned and closed by validateModuleForInstall's own `finally`, not here.
+  }
+
+  isOpen(): boolean {
+    return true;
+  }
+
+  getDatabasePath(): string {
+    return this.dbPath;
+  }
+}
+
+/** Module types whose files are named with a shorter prefix than the type. */
+const FILE_PREFIX_BY_TYPE: Readonly<Record<string, string>> = {
+  topical_index: 'topical',
+  cross_reference: 'xref',
+};
 
 export class InstallationService implements IInstallationService {
   private moduleMetadataRepo: ModuleMetadataRepository;
   private modulesBasePath: string;
   private mainDb: ISql;
 
+  /**
+   * Optional: when supplied, a successful install triggers a best-effort
+   * keyword-index build (F8, task 0027 revision 2) and a successful uninstall
+   * prunes that module's index. Optional so every existing caller - including
+   * every test in `__tests__/` that constructs this service directly - keeps
+   * working unchanged; `moduleHandlers.ts`'s `initializeModuleManager()` is
+   * the one real caller that supplies it.
+   */
   constructor(
     mainDb: ISql,
-    modulesBasePath: string
+    modulesBasePath: string,
+    private readonly keywordIndexService?: KeywordIndexService
   ) {
     this.mainDb = mainDb;
     this.moduleMetadataRepo = new ModuleMetadataRepository(mainDb);
@@ -34,10 +135,15 @@ export class InstallationService implements IInstallationService {
 
   /**
    * Install a native format module
+   *
+   * @param verification - For a download: the checksum its catalog publishes
+   *   for the unpacked module, and the unpacked size to stop at. The file is
+   *   checked against it before anything opens it, and discarded if it fails.
    */
   async installModule(
     sourcePath: string,
-    moduleInfo: Partial<ModuleMetadata>
+    moduleInfo: Partial<ModuleMetadata>,
+    verification?: InstallVerification
   ): Promise<InstallationResult> {
     try {
       // Verify source file exists
@@ -49,11 +155,31 @@ export class InstallationService implements IInstallationService {
       }
 
       // Decompress if .gz file
-      let dbPath = sourcePath;
-      if (sourcePath.endsWith('.gz')) {
-        const decompressedPath = sourcePath.replace(/\.gz$/, '');
-        await this.decompressModule(sourcePath, decompressedPath);
-        dbPath = decompressedPath;
+      const dbPath = sourcePath.endsWith('.gz') ? sourcePath.replace(/\.gz$/, '') : sourcePath;
+      try {
+        if (dbPath !== sourcePath) {
+          await this.decompressModule(sourcePath, dbPath, verification?.maxBytes);
+        }
+
+        // A download is checked against the checksum its catalog publishes -
+        // which covers the unpacked module - before anything opens it. Until
+        // then the file is untrusted, and SQLite parsing a hostile database is
+        // a far larger attack surface than gunzip.
+        if (verification) {
+          const actual = await sha256OfFile(dbPath);
+          if (actual !== verification.sha256.toLowerCase()) {
+            throw new Error(`Checksum verification failed (expected ${verification.sha256}, got ${actual})`);
+          }
+        }
+      } catch (error) {
+        // A download that fails is discarded rather than kept to be resumed or
+        // retried from. A user's own file (no verification) is never deleted.
+        if (verification) {
+          for (const file of new Set([sourcePath, dbPath])) {
+            fs.rmSync(file, { force: true });
+          }
+        }
+        throw error;
       }
 
       // Verify module - file-format header check first, then a structural +
@@ -87,7 +213,11 @@ export class InstallationService implements IInstallationService {
       //
       // This runs BEFORE the rename below: a refused module must be left where
       // it was found, not moved into the modules tree.
-      if (!moduleInfo.moduleUuid) {
+      //
+      // A catalog entry does not carry the module's identity; the file does, and
+      // it has passed every check above, so it is safe to read it from there.
+      const moduleUuid = moduleInfo.moduleUuid ?? (await this.extractModuleInfo(dbPath)).moduleUuid;
+      if (!moduleUuid) {
         return {
           success: false,
           error:
@@ -121,7 +251,7 @@ export class InstallationService implements IInstallationService {
         // Carried through from `module_info.module_uuid` so the registry row
         // has the stable identity the install-policy check keys on. Guaranteed
         // present by the gate above.
-        moduleUuid: moduleInfo.moduleUuid,
+        moduleUuid,
         moduleName: moduleInfo.moduleName!,
         abbreviation: moduleInfo.abbreviation,
         version: moduleInfo.version,
@@ -135,6 +265,19 @@ export class InstallationService implements IInstallationService {
 
       // Register in database
       const registeredModuleId = await this.registerModule(metadata);
+
+      // Best-effort keyword-index build (F8, task 0027 revision 2). The
+      // module is already fully installed and readable at this point -
+      // registerModule() above succeeded - so this is a strictly separate,
+      // NON-blocking second phase: fire-and-forget, never awaited, so a slow
+      // or failed build can never add latency to this call or turn a
+      // successful install into a reported failure. See
+      // `KeywordIndexService.triggerBuildAfterInstall`'s doc comment for the
+      // full reasoning behind not awaiting it even wrapped in a try/catch.
+      this.keywordIndexService?.triggerBuildAfterInstall({
+        moduleType,
+        absoluteDatabasePath: destinationPath,
+      });
 
       // Clean up compressed file if it exists
       if (sourcePath.endsWith('.gz') && fs.existsSync(sourcePath)) {
@@ -169,18 +312,11 @@ export class InstallationService implements IInstallationService {
         return false;
       }
 
-      // Try to open the database (this will be platform-specific)
-      // For now, we'll do a basic file format check
-      const header = Buffer.alloc(16);
-      const fd = fs.openSync(dbPath, 'r');
-      fs.readSync(fd, header, 0, 16, 0);
-      fs.closeSync(fd);
-
-      // Check SQLite file header
-      const sqliteHeader = 'SQLite format 3\0';
-      const headerStr = header.toString('utf8', 0, 16);
-
-      return headerStr === sqliteHeader;
+      // The byte comparison itself lives once, in packages/core, so this and
+      // `validateModuleForInstall`'s own header gate (and moduleDetector's)
+      // never drift against each other - see hasSqliteHeader's doc comment.
+      const header = readHeaderBytes(dbPath);
+      return header !== null && hasSqliteHeader(header);
     } catch (error) {
       return false;
     }
@@ -225,6 +361,25 @@ export class InstallationService implements IInstallationService {
         return false;
       }
 
+      // Prune this module's keyword index (F8, task 0027 revision 2) before
+      // the module file itself is deleted below, so nothing is left pointing
+      // at a file that is about to disappear. Best-effort and awaited (unlike
+      // the post-install build): this is a bounded delete of at most one
+      // small `.kwi` file and one `keyword_index` row, not a build, so there
+      // is no latency concern - but a failure here must still never stop the
+      // uninstall itself from completing, which is why it is swallowed rather
+      // than propagated. `module.moduleUuid` can be null/empty for a module
+      // registered before stable identity existed (pre-F3); such a module was
+      // never a valid `SidecarFts5Provider` target in the first place (see
+      // that provider's `unsupportedReason()`), so there is nothing to prune.
+      if (this.keywordIndexService && module.moduleUuid) {
+        try {
+          await this.keywordIndexService.pruneIndex(module.moduleUuid, module.moduleType);
+        } catch (error) {
+          log.warn(`[InstallationService] Failed to prune keyword index for module ${moduleId}:`, error);
+        }
+      }
+
       // Delete module file - resolve relative databasePath against modules base
       const absolutePath = path.resolve(path.dirname(this.modulesBasePath), module.databasePath);
       if (fs.existsSync(absolutePath)) {
@@ -248,25 +403,44 @@ export class InstallationService implements IInstallationService {
    * Uses flat layout: modules/bible_asv.db (matching moduleDetector convention)
    */
   getModulePath(moduleType: string, moduleId: string): string {
-    const filename = `${moduleType}_${moduleId.toLowerCase()}.db`;
+    // File names keep the short prefixes `moduleDetector` recognises
+    // (`topical_*`, `xref_*`); `cross_reference_*` would not be found by it.
+    const filePrefix = FILE_PREFIX_BY_TYPE[moduleType] ?? moduleType;
+    const filename = `${filePrefix}_${moduleId.toLowerCase()}.db`;
     return path.join(this.modulesBasePath, filename);
   }
 
   /**
    * Decompress a gzipped module file
+   *
+   * With `maxBytes`, unpacking stops once the output passes it, so a small
+   * download cannot inflate to fill the disk. A partial or over-long output is
+   * removed rather than left to be mistaken for a module.
    */
-  async decompressModule(sourcePath: string, destinationPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const input = fs.createReadStream(sourcePath);
-      const output = fs.createWriteStream(destinationPath);
-      const gunzip = zlib.createGunzip();
-
-      input
-        .pipe(gunzip)
-        .pipe(output)
-        .on('finish', resolve)
-        .on('error', reject);
+  async decompressModule(sourcePath: string, destinationPath: string, maxBytes?: number): Promise<void> {
+    let unpacked = 0;
+    const cap = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        unpacked += chunk.length;
+        if (maxBytes !== undefined && unpacked > maxBytes) {
+          callback(new Error(`Module unpacks to more than the ${maxBytes} bytes its catalog declares`));
+          return;
+        }
+        callback(null, chunk);
+      }
     });
+
+    try {
+      await pipeline(
+        fs.createReadStream(sourcePath),
+        zlib.createGunzip(),
+        cap,
+        fs.createWriteStream(destinationPath)
+      );
+    } catch (error) {
+      fs.rmSync(destinationPath, { force: true });
+      throw error;
+    }
   }
 
   /**
@@ -282,28 +456,52 @@ export class InstallationService implements IInstallationService {
   }
 
   /**
-   * Structural + canon conformance gate for the untrusted install path (E3).
+   * Structural + canon conformance gate for the untrusted install path (E3),
+   * plus the install column of the F5 module-file rule table (design doc
+   * §2.8): a readable `format_version` is now an install-time hard error, not
+   * just a nice-to-have, and an unregistered `compression` codec is a
+   * warning that lets the install proceed with reduced capability rather than
+   * failing it.
    *
    * Mirrors the critical MUST checks of `scripts/validate-module.js`, but runs
    * under Electron's `better-sqlite3` (the script's `sqlite3` driver cannot be
    * loaded in the main process). The module is opened READ-ONLY so this never
    * mutates the file being validated.
    *
-   * Checks: `module_info` present with a single `info_id = 1` row; a valid
-   * `module_uuid`; `canon` / `versification` carry the only accepted values;
-   * `verse_link` and `schema_version` are present; and no Bible verse falls
-   * outside the 66-book canon or exceeds a book's canonical chapter/verse counts
-   * (the shifted-canon rejection). Text-hygiene checks are intentionally omitted
-   * here - they gauge conversion quality, not reference-space safety.
+   * Checks: the SQLite file header (real byte check, before the file is even
+   * opened - see `hasSqliteHeader`'s doc comment for why); `module_info`
+   * present with a single `info_id = 1` row; a valid `module_uuid`; a
+   * `format_version` this build can read; `compression` (when the column
+   * exists) naming a codec this build has - all four of those last routed
+   * through `validateModuleFile()` in `@bible/core`, the one place the F5
+   * rule table is implemented, rather than re-checked here by hand; `canon` /
+   * `versification` carrying the only accepted values (bespoke to this app,
+   * not part of the design doc's table); `verse_link` and `schema_version`
+   * present; and no Bible verse falling outside the 66-book canon or
+   * exceeding a book's canonical chapter/verse counts (the shifted-canon
+   * rejection). Text-hygiene checks are intentionally omitted here - they
+   * gauge conversion quality, not reference-space safety.
    */
-  validateModuleForInstall(dbPath: string): { ok: boolean; errors: string[] } {
+  validateModuleForInstall(dbPath: string): { ok: boolean; errors: string[]; warnings: string[] } {
     const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Real byte check, not "did opening throw" - refuses a truncated download
+    // or a non-SQLite file before any SQLite driver ever touches it. Runs
+    // again here even though `installModule` already ran `verifyModule`
+    // first, because this method is public and callable on its own (tests,
+    // and any future call site) and must stand on its own.
+    const header = readHeaderBytes(dbPath);
+    if (!header || !hasSqliteHeader(header)) {
+      return { ok: false, errors: [`Not a SQLite database (missing or corrupt file header): ${dbPath}`], warnings: [] };
+    }
+
     const Database = require('better-sqlite3-multiple-ciphers');
     let db: any;
     try {
       db = new Database(dbPath, { readonly: true });
     } catch (e) {
-      return { ok: false, errors: [`Cannot open database: ${(e as Error).message}`] };
+      return { ok: false, errors: [`Cannot open database: ${(e as Error).message}`], warnings: [] };
     }
 
     try {
@@ -321,9 +519,15 @@ export class InstallationService implements IInstallationService {
         if (!info) {
           errors.push('`module_info` has no row with info_id = 1.');
         } else {
-          if (!info.module_uuid || !MODULE_UUID_RE.test(String(info.module_uuid))) {
-            errors.push('`module_info.module_uuid` is missing or not a valid UUID.');
+          // module_uuid / format_version / compression: the F5 rule table,
+          // via the one shared implementation - see validateModuleFile's doc
+          // comment for the allow-list philosophy and why the codec check is
+          // a warning rather than an error.
+          const validation = validateModuleFile(new ReadOnlyRawDbSql(db, dbPath), nodeCodecRegistry());
+          for (const issue of validation.issues) {
+            (issue.severity === 'error' ? errors : warnings).push(issue.message);
           }
+
           if (info.canon !== undefined && info.canon !== REQUIRED_CANON) {
             errors.push(`\`canon\` = ${JSON.stringify(info.canon)}; only '${REQUIRED_CANON}' is accepted.`);
           }
@@ -348,7 +552,7 @@ export class InstallationService implements IInstallationService {
       try { db.close(); } catch { /* already closed */ }
     }
 
-    return { ok: errors.length === 0, errors };
+    return { ok: errors.length === 0, errors, warnings };
   }
 
   /**
@@ -465,7 +669,7 @@ export class InstallationService implements IInstallationService {
         // `version` -> `content_version`. Fall back to the v1 names so a legacy
         // module still reads, but prefer the v2 columns.
         const metadata: Partial<ModuleMetadata> = {
-          moduleType: info.module_type,
+          moduleType: normalizeModuleType(info.module_type),
           // v2 identity. Absent in v1 modules; the conformance gate in
           // `validateModuleConformance` is what requires it for new content,
           // so reading it optionally here keeps legacy files importable.

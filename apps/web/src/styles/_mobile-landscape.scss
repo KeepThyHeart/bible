@@ -11,7 +11,7 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border-color);
+    border-inline-end: 1px solid var(--border-color);
     overflow-y: auto;
     overflow-x: hidden;
     width: auto;
@@ -24,7 +24,7 @@
       border-bottom: 1px solid var(--border-color);
 
       i {
-        margin-right: 4px;
+        margin-inline-end: 4px;
       }
     }
 
@@ -57,7 +57,7 @@
     &__theme-dropdown {
       position: absolute;
       top: 100%;
-      left: 0;
+      inset-inline-start: 0;
       background: var(--bg-primary);
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -114,11 +114,11 @@
     .bible-tab-bar {
       &__tab {
         border-bottom: none;
-        border-left: 4px solid transparent;
+        border-inline-start: 4px solid transparent;
         padding: 8px 10px;
 
         &--active {
-          border-left-color: var(--accent-color);
+          border-inline-start-color: var(--accent-color);
           border-bottom-color: transparent;
         }
       }
@@ -145,11 +145,11 @@
     .commentary-tab-bar {
       &__tab {
         border-bottom: none;
-        border-left: 3px solid transparent;
+        border-inline-start: 3px solid transparent;
 
         &--active {
           border-bottom-color: transparent;
-          border-left-color: var(--accent-color);
+          border-inline-start-color: var(--accent-color);
         }
       }
 
@@ -185,7 +185,7 @@
   .mobile-nav {
     flex-direction: column;
     border-top: none;
-    border-left: 1px solid var(--border-color);
+    border-inline-start: 1px solid var(--border-color);
     width: auto;
 
     &__btn {
@@ -198,7 +198,7 @@
 
       &--active::before {
         top: 50%;
-        left: 0;
+        inset-inline-start: 0;
         transform: translateY(-50%);
         width: 3px;
         height: 24px;
@@ -210,8 +210,8 @@
   // Tooltip adjusts for landscape
   .mobile-nav-tooltip {
     bottom: auto;
-    right: 52px;
-    left: auto;
+    inset-inline-end: 52px;
+    inset-inline-start: auto;
     transform: none;
   }
 }

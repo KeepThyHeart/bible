@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchStore } from '../stores/useSearchStore';
 import { SearchScope, BibleRange } from '@bible/core';
 import { useI18n } from '../contexts/useI18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { ALL_BOOKS, BOOK_NAMES, MAX_CHAPTERS, PREDEFINED_RANGES } from '../constants/bibleBooks';
+import { MAX_CHAPTERS, PREDEFINED_RANGES, localizedBookNames, localizedAllBooks } from '../constants/bibleBooks';
 
 /**
  * How the user is specifying the "Specific range" scope.
@@ -26,7 +26,9 @@ type RangeMode = 'single' | 'books' | 'preset';
  * - OK/Cancel actions
  */
 const AdvancedSearchDialog: React.FC = () => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
+  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
+  const allBooks = useMemo(() => localizedAllBooks(localizer), [localizer]);
   const {
     query,
     searchOptions,
@@ -108,8 +110,11 @@ const AdvancedSearchDialog: React.FC = () => {
   const restoreFocus = () => {
     // Use setTimeout to ensure the dialog is fully closed before restoring focus
     setTimeout(() => {
-      if (previousFocusRef.current && previousFocusRef.current instanceof HTMLElement) {
-        previousFocusRef.current.focus();
+      // No `instanceof HTMLElement`: this can run after a test file's DOM
+      // globals are torn down, and a detached element has nothing to focus.
+      const previous = previousFocusRef.current as HTMLElement | null;
+      if (previous?.isConnected) {
+        previous.focus();
       }
     }, 50);
   };
@@ -193,8 +198,8 @@ const AdvancedSearchDialog: React.FC = () => {
   const rangeSummary = (() => {
     const range = buildRange();
     if (!range) return '';
-    const startName = BOOK_NAMES[range.startBook ?? 1];
-    const endName = BOOK_NAMES[range.endBook ?? 66];
+    const startName = bookNames[range.startBook ?? 1];
+    const endName = bookNames[range.endBook ?? 66];
     const start = range.startChapter ? `${startName} ${range.startChapter}` : startName;
     const end = range.endChapter ? `${endName} ${range.endChapter}` : endName;
     const span = start === end ? start : `${start} – ${end}`;
@@ -320,7 +325,7 @@ const AdvancedSearchDialog: React.FC = () => {
                         onChange={(e) => setRangeStartBook(parseInt(e.target.value, 10))}
                         className={fieldClass}
                       >
-                        {ALL_BOOKS.map(b => (
+                        {allBooks.map(b => (
                           <option key={b.number} value={b.number}>{b.name}</option>
                         ))}
                       </select>
@@ -340,8 +345,8 @@ const AdvancedSearchDialog: React.FC = () => {
                       >
                         {PREDEFINED_RANGES.map(r => (
                           <option key={r.id} value={r.id}>
-                            {t(r.labelKey)} ({BOOK_NAMES[r.startBook]}
-                            {r.startBook === r.endBook ? '' : `–${BOOK_NAMES[r.endBook]}`})
+                            {t(r.labelKey)} ({bookNames[r.startBook]}
+                            {r.startBook === r.endBook ? '' : `–${bookNames[r.endBook]}`})
                           </option>
                         ))}
                       </select>
@@ -367,7 +372,7 @@ const AdvancedSearchDialog: React.FC = () => {
                           }}
                           className={fieldClass}
                         >
-                          {ALL_BOOKS.map(b => (
+                          {allBooks.map(b => (
                             <option key={b.number} value={b.number}>{b.name}</option>
                           ))}
                         </select>
@@ -386,7 +391,7 @@ const AdvancedSearchDialog: React.FC = () => {
                           }}
                           className={fieldClass}
                         >
-                          {ALL_BOOKS.map(b => (
+                          {allBooks.map(b => (
                             <option key={b.number} value={b.number}>{b.name}</option>
                           ))}
                         </select>

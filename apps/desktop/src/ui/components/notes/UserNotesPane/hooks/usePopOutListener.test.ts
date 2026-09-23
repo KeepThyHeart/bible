@@ -12,14 +12,14 @@
  * ordering as well as the happy path.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePopOutListener } from './usePopOutListener';
 
 const PANEL = 'panel-notes-1';
 
-let handleSaveNote: ReturnType<typeof vi.fn>;
-let loadDirectory: ReturnType<typeof vi.fn>;
+let handleSaveNote: Mock;
+let loadDirectory: Mock;
 
 function baseArgs(overrides: Partial<Parameters<typeof usePopOutListener>[0]> = {}) {
   return {

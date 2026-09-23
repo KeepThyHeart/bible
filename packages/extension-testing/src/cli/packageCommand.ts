@@ -39,7 +39,7 @@ Options:
                           Produces an archive the app may refuse to install.
   -h, --help              Show this help
 
-Files are excluded via .bibleignore (one pattern per line, # for comments) on
+Files are excluded via .extensionignore (one pattern per line, # for comments) on
 top of a built-in list: node_modules/, .git/, *.zip, *.tgz, *.map.
 
 Exit codes:
@@ -170,7 +170,7 @@ export function runPackageCommand(
     typeof parsed.flags['out'] === 'string' ? parsed.flags['out'] : 'build',
   );
 
-  const ignoreFile = join(loaded.extensionRoot, '.bibleignore');
+  const ignoreFile = join(loaded.extensionRoot, '.extensionignore');
   const userPatterns = existsSync(ignoreFile)
     ? parseIgnoreFile(readFileSync(ignoreFile, 'utf8'))
     : [];
@@ -199,7 +199,7 @@ export function runPackageCommand(
             path: '/',
             code: 'package.manifest-excluded',
             message:
-              'extension.json is excluded by .bibleignore; an archive without a manifest cannot be installed',
+              'extension.json is excluded by .extensionignore; an archive without a manifest cannot be installed',
           },
         ],
       },

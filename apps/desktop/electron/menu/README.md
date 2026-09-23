@@ -53,7 +53,9 @@ View
 +- Toggle Developer Tools   (development builds only)
 
 Privacy
-+- Allow Web Requests (checkbox; the master network switch)
++- Allow Web Requests (checkbox; the master network switch - same switch as
+   Preferences -> Privacy, first run's network step, and the Module
+   Manager's offline banner, all sharing `src/ui/stores/useNetworkStore.ts`)
 
 Help
 +- Take a Tour

@@ -25,33 +25,55 @@
  * `catalog.json` stays byte-identical to what was signed and no JSON
  * canonicalization is required.
  *
+ * Multiple signatures
+ * -------------------
+ * A `.sig` may carry further signatures over the same bytes in a `signatures`
+ * array beside the top-level (primary) one, so a catalog can be signed by an
+ * outgoing and an incoming key at once during a rotation. Apps that predate
+ * the array read only the primary, which keeps the shape and place it always
+ * had. Every signature present must verify - one that does not means something
+ * changed that should not have - and one by a trusted key is enough.
+ *
  * Trust model
  * -----------
  * A valid signature is not by itself sufficient - anyone can generate a key.
  * The key must also be trusted for that catalog:
  *
- *   - Official catalog: the key is pinned in `trustedCatalogKeys.ts` and
- *     compiled into the app.
+ *   - Official catalog: the keys are pinned in `trustedCatalogKeys.ts` and
+ *     compiled into the app. A signature by any pinned key is accepted, so an
+ *     old and a new key can overlap during rotation. A key vouched for by a
+ *     trusted key can be added with the user's approval (`ModuleCatalogService`).
  *   - Third-party catalogs: trust-on-first-use. The key seen when the catalog
  *     is added is stored on the catalog row; a later change to a different key
  *     yields `untrusted_key` so key rotation/compromise is visible instead of
  *     silent.
  */
 
-import { createHash, createPublicKey, verify } from 'crypto';
+import { createHash, createPublicKey, verify, type KeyObject } from 'crypto';
 
-import type { CatalogSignature, CatalogVerificationResult } from '@bible/core';
+import type { CatalogSignatureEntry, CatalogVerificationResult } from '@bible/core';
 
 /** DER prefix for a 32-byte Ed25519 SPKI public key. */
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
+/**
+ * Most signatures one catalog may carry. A rotation needs two; the cap bounds
+ * the verification work a hostile `.sig` can demand.
+ */
+export const MAX_CATALOG_SIGNATURES = 8;
+
+const SHAPE_ERROR =
+  'Catalog signature has an invalid shape (expected publicKey, signature, ' +
+  'algorithm: "ed25519-sha256").';
+
 export interface CatalogTrustOptions {
   /**
-   * Key that must have produced the signature. When set (a pinned official
-   * key, or the TOFU key recorded when the catalog was added), a valid
-   * signature from any other key is reported as `untrusted_key`.
+   * Key, or set of keys, that may have produced the signature. When set (the
+   * pinned official keys, or the TOFU key recorded when the catalog was added),
+   * a catalog with no signature by a listed key is reported as `untrusted_key`.
+   * An empty string or empty list means no expectation, like omitting it.
    */
-  expectedPublicKey?: string;
+  expectedPublicKey?: string | readonly string[];
   /**
    * When true, an absent `.sig` is reported as `invalid` rather than
    * `unsigned`. Used for catalogs that have previously served a signature -
@@ -72,6 +94,9 @@ export function verifyCatalogSignature(
   options: CatalogTrustOptions = {},
 ): CatalogVerificationResult {
   const { expectedPublicKey, requireSignature = false } = options;
+  const trustedKeys = (
+    typeof expectedPublicKey === 'string' ? [expectedPublicKey] : (expectedPublicKey ?? [])
+  ).filter((key) => key.length > 0);
 
   // -- No signature served ---------------------------------------------
   if (signatureJson === undefined || signatureJson.trim() === '') {
@@ -92,9 +117,9 @@ export function verifyCatalogSignature(
   }
 
   // -- Parse and shape-check the sig file ------------------------------
-  let sig: CatalogSignature;
+  let parsed: unknown;
   try {
-    sig = JSON.parse(signatureJson) as CatalogSignature;
+    parsed = JSON.parse(signatureJson);
   } catch (err) {
     return {
       status: 'error',
@@ -102,79 +127,64 @@ export function verifyCatalogSignature(
     };
   }
 
-  if (
-    !sig ||
-    typeof sig.publicKey !== 'string' ||
-    typeof sig.signature !== 'string' ||
-    sig.algorithm !== 'ed25519-sha256'
-  ) {
-    return {
-      status: 'error',
-      message:
-        'Catalog signature has an invalid shape (expected publicKey, signature, ' +
-        'algorithm: "ed25519-sha256").',
-    };
+  const entries = readSignatureEntries(parsed);
+  if (typeof entries === 'string') {
+    return { status: 'error', message: entries };
   }
 
-  if (!/^[0-9a-f]{64}$/i.test(sig.publicKey)) {
-    return {
-      status: 'error',
-      message: 'Catalog signature publicKey must be 64 hex characters (32-byte Ed25519 key).',
-    };
-  }
-  if (!/^[0-9a-f]{128}$/i.test(sig.signature)) {
-    return {
-      status: 'error',
-      message: 'Catalog signature must be 128 hex characters (64-byte Ed25519 signature).',
-    };
-  }
-
-  // -- Verify the signature over SHA-256 of the catalog bytes ----------
-  let signatureValid: boolean;
+  // -- Verify every signature over SHA-256 of the catalog bytes --------
+  const digest = createHash('sha256').update(catalogBytes).digest();
+  let check: DigestSignatureCheck;
   try {
-    const keyObject = createPublicKey({
-      key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(sig.publicKey, 'hex')]),
-      format: 'der',
-      type: 'spki',
-    });
-
-    const digest = createHash('sha256').update(catalogBytes).digest();
-    signatureValid = verify(null, digest, keyObject, Buffer.from(sig.signature, 'hex'));
+    check = verifyDigestAgainstEntries(digest, entries);
   } catch (err) {
     return {
       status: 'error',
       message: `Catalog signature verification error: ${(err as Error).message}`,
     };
   }
-
-  if (!signatureValid) {
+  if (!check.valid) {
     return {
       status: 'invalid',
-      publicKey: sig.publicKey,
+      publicKey: check.publicKey,
       message:
         'Catalog signature does not match its contents — the catalog may have been ' +
         'tampered with in transit.',
     };
   }
+  const signers = check.signers;
 
-  // -- Signature is valid; is the key the one we expect? ---------------
-  if (expectedPublicKey && !equalsIgnoreCase(expectedPublicKey, sig.publicKey)) {
+  // -- Every signature is valid; is one of them by a key we trust? -----
+  if (trustedKeys.length === 0) {
+    return {
+      status: 'verified',
+      publicKey: signers[0],
+      signers,
+      message: `Catalog signature verified (key ${short(signers[0])} recorded on first use).`,
+    };
+  }
+
+  const trustedSigner = signers.find((signer) =>
+    trustedKeys.some((key) => equalsIgnoreCase(key, signer)),
+  );
+  if (trustedSigner === undefined) {
     return {
       status: 'untrusted_key',
-      publicKey: sig.publicKey,
+      publicKey: signers[0],
+      signers,
       message:
         'Catalog is signed by a different key than the one previously trusted for ' +
-        `this source (expected ${short(expectedPublicKey)}, got ${short(sig.publicKey)}). ` +
+        `this source (expected ${trustedKeys.map(short).join(' or ')}, ` +
+        `got ${signers.map(short).join(', ')}). ` +
         'If the publisher rotated keys, re-add the catalog to accept the new key.',
     };
   }
 
   return {
     status: 'verified',
-    publicKey: sig.publicKey,
-    message: expectedPublicKey
-      ? 'Catalog signature verified against the trusted key.'
-      : `Catalog signature verified (key ${short(sig.publicKey)} recorded on first use).`,
+    publicKey: trustedSigner,
+    signers,
+    message: 'Catalog signature verified against the trusted key.',
   };
 }
 
@@ -188,6 +198,108 @@ export function verifyCatalogSignature(
  */
 export function isCatalogUsable(result: CatalogVerificationResult): boolean {
   return result.status === 'verified' || result.status === 'unsigned';
+}
+
+/** An Ed25519 public key object from its raw 64-hex-character form. */
+export function ed25519PublicKey(publicKeyHex: string): KeyObject {
+  return createPublicKey({
+    key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(publicKeyHex, 'hex')]),
+    format: 'der',
+    type: 'spki',
+  });
+}
+
+export interface DigestSignatureCheck {
+  valid: boolean;
+  /** Every key whose signature verified, in document order. Only set when `valid`. */
+  signers: string[];
+  /** The key whose signature failed to verify, when not `valid`. */
+  publicKey?: string;
+}
+
+/**
+ * Verify every signature entry against a precomputed digest - the shared core
+ * both catalog signatures (digest of the catalog bytes) and pack manifest
+ * signatures (digest of the domain-separated manifest, see
+ * `ModulePackSignature.ts`) build on, so the Ed25519 call site exists exactly
+ * once. All entries must verify for the result to be `valid`: one bad
+ * signature invalidates the whole document, since something that should not
+ * have changed did.
+ *
+ * Callers decide what an unexpected crypto error (a malformed key that slips
+ * past shape validation, say) means for their own status vocabulary - this
+ * lets it propagate rather than swallowing it into a status of its own.
+ */
+export function verifyDigestAgainstEntries(
+  digest: Buffer,
+  entries: readonly CatalogSignatureEntry[],
+): DigestSignatureCheck {
+  const signers: string[] = [];
+  for (const entry of entries) {
+    const signatureValid = verify(
+      null,
+      digest,
+      ed25519PublicKey(entry.publicKey),
+      Buffer.from(entry.signature, 'hex'),
+    );
+    if (!signatureValid) {
+      return { valid: false, publicKey: entry.publicKey, signers: [] };
+    }
+    signers.push(entry.publicKey);
+  }
+  return { valid: true, signers };
+}
+
+/**
+ * The primary signature followed by any in `signatures`, or a message saying
+ * why the document is malformed. One malformed entry fails the whole file:
+ * publishing tooling never writes one, so it is either a bug to surface or an
+ * attack.
+ *
+ * Exported so `ModulePackSignature.ts` can parse a `pack.json.sig` with the
+ * exact same shape rules as a `catalog.json.sig` (both use
+ * `CatalogSignatureEntry`/`signatures[]`) without duplicating them.
+ */
+export function readSignatureEntries(doc: unknown): CatalogSignatureEntry[] | string {
+  if (!isRecord(doc)) return SHAPE_ERROR;
+
+  const { signatures } = doc;
+  if (signatures !== undefined && !Array.isArray(signatures)) {
+    return 'Catalog signature "signatures" must be an array.';
+  }
+
+  const entries: unknown[] = [doc, ...((signatures as unknown[] | undefined) ?? [])];
+  if (entries.length > MAX_CATALOG_SIGNATURES) {
+    return `Catalog carries ${entries.length} signatures; at most ${MAX_CATALOG_SIGNATURES} are accepted.`;
+  }
+
+  for (const entry of entries) {
+    const problem = entryProblem(entry);
+    if (problem) return problem;
+  }
+  return entries as CatalogSignatureEntry[];
+}
+
+function entryProblem(entry: unknown): string | undefined {
+  if (
+    !isRecord(entry) ||
+    typeof entry.publicKey !== 'string' ||
+    typeof entry.signature !== 'string' ||
+    entry.algorithm !== 'ed25519-sha256'
+  ) {
+    return SHAPE_ERROR;
+  }
+  if (!/^[0-9a-f]{64}$/i.test(entry.publicKey)) {
+    return 'Catalog signature publicKey must be 64 hex characters (32-byte Ed25519 key).';
+  }
+  if (!/^[0-9a-f]{128}$/i.test(entry.signature)) {
+    return 'Catalog signature must be 128 hex characters (64-byte Ed25519 signature).';
+  }
+  return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function equalsIgnoreCase(a: string, b: string): boolean {
