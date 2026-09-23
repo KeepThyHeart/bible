@@ -244,6 +244,44 @@ describe('BibleApiImpl', () => {
     expect(res.error?.code).toBe('PermissionDeniedError');
   });
 
+  it('navigateToVerse forwards to the bridge, which activates the Bible pane', async () => {
+    // The renderer side of this call - `navigateToVerseInPrimary` - resolves
+    // or creates the primary Bible pane AND calls the target dockview
+    // panel's `api.setActive()` to bring its tab to front (see
+    // `sharedSlice.navigateToVerseInPrimary.test.ts`, which covers that part
+    // of the path in full). This test covers the extension-facing half: that
+    // `api.bible.navigateToVerse(verseId)` actually reaches the bridge with
+    // the right verseId and the right permission gate - the task 0032 "Show
+    // in Bible" acceptance case (0024's task folded it in).
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      43003016,
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastNavigatedVerse).toBe(43003016);
+  });
+
+  it('navigateToVerse rejects a non-numeric verseId', async () => {
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      'not-a-number',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('navigateToVerse rejects without bible:read', async () => {
+    const router2 = new ExtensionRpcRouter(pair.hostSide);
+    const api = new BibleApiImpl({
+      extensionId: 'ext.test.bible',
+      router: router2,
+      bridge,
+      grant: buildGrant('ext.test.bible', []),
+    });
+    api.attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      43003016,
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+  });
+
   it('emits onDidChangeActiveVerse only when the worker subscribed', async () => {
     // No subscription yet - fire should be a no-op.
     bridge.fireActiveVerse({ verseId: 43003016, module: 'kjv' });
@@ -490,6 +528,40 @@ describe('UiApiImpl', () => {
     expect(bridge.notifications[0]?.message).toBe('Hello');
   });
 
+  it('resolves showNotification with whatever the bridge resolves (the clicked action id)', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryUiBridge();
+    bridge.notificationActionResponse = 'retry';
+    new UiApiImpl({
+      extensionId: 'ext.test.ui',
+      router,
+      bridge,
+      grant: buildGrant('ext.test.ui', ['ui:notification']),
+    }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.showNotification', [
+      'Failed',
+      { actions: [{ id: 'retry', label: 'Retry' }] },
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe('retry');
+  });
+
+  it('resolves showNotification with undefined when dismissed with no action clicked', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryUiBridge();
+    new UiApiImpl({
+      extensionId: 'ext.test.ui',
+      router,
+      bridge,
+      grant: buildGrant('ext.test.ui', ['ui:notification']),
+    }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.showNotification', ['Hi']);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBeUndefined();
+  });
+
   it('rejects showNotification without ui:notification', async () => {
     const pair = pairedTransports();
     const router = new ExtensionRpcRouter(pair.hostSide);
@@ -573,6 +645,123 @@ describe('WorkspaceApiImpl', () => {
     bridge.openPanel('commentary');
     const events = pair.hostSent.filter((e) => isEventOn(e, 'workspace.onDidOpenPanel'));
     expect(events).toHaveLength(1);
+  });
+
+  it('revealPanel focuses an already-open panel and resolves true, with no ownership check', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('bible'); // a built-in panel this extension does not own
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.revealPanel', [panelId]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe(true);
+    expect(bridge.revealedPanelIds).toEqual([panelId]);
+  });
+
+  it('revealPanel resolves false for a panel that is not open', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.revealPanel', [
+      'nope',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe(false);
+  });
+
+  it('setPanelTitle succeeds on the extension\'s own panel', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.test.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      '5 due',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastSetTitle).toEqual({ panelId, title: '5 due' });
+  });
+
+  it('setPanelTitle rejects a panel the extension does not own', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('bible'); // built-in
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      'Not the Bible anymore',
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+    expect(bridge.lastSetTitle).toBeUndefined();
+  });
+
+  it('setPanelTitle rejects another extension\'s panel', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.other.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      'Hijacked',
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+  });
+
+  it('setPanelTitle rejects a panelId that is not open', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      'nope',
+      'X',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('setPanelBadge succeeds on the extension\'s own panel and can be cleared', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.test.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      5,
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastSetBadge).toEqual({ panelId, badge: 5 });
+
+    await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      null,
+    ]);
+    expect(bridge.lastSetBadge).toEqual({ panelId, badge: undefined });
+  });
+
+  it('setPanelBadge rejects a panel the extension does not own', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('commentary');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      1,
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
   });
 });
 

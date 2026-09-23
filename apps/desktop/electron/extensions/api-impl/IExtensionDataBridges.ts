@@ -185,11 +185,12 @@ export interface IExtensionBookBridge {
  * the api-impl without an Electron window.
  */
 export interface IExtensionUiBridge {
+  /** Resolves with the clicked action's id, or undefined - see `IUiApi.showNotification`. */
   showNotification(
     extensionId: string,
     message: LocalizedString,
     opts?: NotificationOpts,
-  ): Promise<void>;
+  ): Promise<string | undefined>;
 
   showQuickPick<T>(
     extensionId: string,
@@ -303,6 +304,12 @@ export interface IExtensionWorkspaceBridge {
   getOpenPanels(): PanelInfoDto[];
   openPanel(contentType: string, opts?: OpenPanelOpts): string;
   closePanel(panelId: string): void;
+  /** Change an open panel's tab title. The api-impl has already checked ownership. */
+  setPanelTitle(panelId: string, title: LocalizedString): void;
+  /** Set (or, with `undefined`, clear) an open panel's tab badge. The api-impl has already checked ownership. */
+  setPanelBadge(panelId: string, badge: string | number | undefined): void;
+  /** Focus an open panel's tab. Returns whether `panelId` was found (and so focused). */
+  revealPanel(panelId: string): boolean;
   subscribeActivePanel(handler: (panel: PanelInfoDto | null) => void): () => void;
   subscribeOpenPanel(handler: (panel: PanelInfoDto) => void): () => void;
   subscribeClosePanel(

@@ -271,7 +271,9 @@ function createMockUiApi(): Extensions.IUiApi {
     registerDisplayMode: asyncMock(mockDisposable()),
     registerStatusBarItem: asyncMock(mockDisposable()),
     updateStatusBarItem: asyncMock<void>(undefined),
-    showNotification: asyncMock<void>(undefined),
+    // Resolves undefined by default (as if dismissed with no action clicked).
+    // Override with `overrides.ui.showNotification` to simulate an action click.
+    showNotification: asyncMock(undefined as string | undefined),
     showQuickPick: asyncMock(undefined),
     showInputBox: asyncMock(undefined),
     showConfirm: asyncMock(false),
@@ -286,6 +288,9 @@ function createMockWorkspaceApi(): Extensions.IWorkspaceApi {
     getOpenPanels: asyncMock([] as Extensions.PanelInfoDto[]),
     openPanel: asyncMock('mock-panel-id'),
     closePanel: asyncMock<void>(undefined),
+    setPanelTitle: asyncMock<void>(undefined),
+    setPanelBadge: asyncMock<void>(undefined),
+    revealPanel: asyncMock(true),
     onDidChangeActivePanel: mockEvent(),
     onDidOpenPanel: mockEvent(),
     onDidClosePanel: mockEvent(),

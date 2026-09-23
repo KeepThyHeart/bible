@@ -135,7 +135,7 @@ export class UiApiImpl {
     return { disposalId };
   }
 
-  private async handleShowNotification(args: unknown[]): Promise<void> {
+  private async handleShowNotification(args: unknown[]): Promise<string | undefined> {
     this.assertActive();
     requirePermission(this.grant, 'ui:notification');
     const message = args[0];
@@ -146,7 +146,7 @@ export class UiApiImpl {
     if (opts !== undefined && opts !== null && typeof opts !== 'object') {
       throw new RpcProtocolError('ui.showNotification: opts must be an object when provided');
     }
-    await this.bridge.showNotification(
+    return this.bridge.showNotification(
       this.extensionId,
       message,
       (opts ?? undefined) as Extensions.NotificationOpts | undefined,

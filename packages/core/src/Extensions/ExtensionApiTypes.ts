@@ -562,8 +562,16 @@ export interface IUiApi {
     patch: Partial<Omit<StatusBarItemDescriptor, 'id'>>,
   ): Promise<void>;
 
-  /** Show a non-modal toast. */
-  showNotification(msg: LocalizedString, opts?: NotificationOpts): Promise<void>;
+  /**
+   * Show a non-modal toast. Resolves with the `id` of the action the user
+   * clicked, if `opts.actions` was given and they clicked one; otherwise
+   * resolves `undefined` - the user dismissed it, another notification
+   * replaced it, or it auto-dismissed after `opts.durationMs`.
+   *
+   * Awaiting the result is optional - a toast with no actions and nothing
+   * awaiting it behaves exactly as it always did.
+   */
+  showNotification(msg: LocalizedString, opts?: NotificationOpts): Promise<string | undefined>;
 
   /**
    * Show a quick-pick prompt. The promise resolves with the user's selection
@@ -602,6 +610,38 @@ export interface IWorkspaceApi {
   /** Returns the panelId. */
   openPanel(contentType: string, opts?: OpenPanelOpts): Promise<string>;
   closePanel(panelId: string): Promise<void>;
+
+  /**
+   * Change an already-open panel's tab title. Restricted to the extension's
+   * own panels - `panelId` must name a panel whose `contentType` is one of
+   * this extension's own (`ext:<this extension's id>.*`). Renaming a
+   * built-in tab or another extension's tab would be a spoofing vector, not
+   * a legitimate UI adjustment, so this rejects with `PermissionDeniedError`
+   * for anything else, or a plain error if `panelId` is not currently open.
+   */
+  setPanelTitle(panelId: string, title: LocalizedString): Promise<void>;
+
+  /**
+   * Set, or clear (pass `undefined`), a small badge on an already-open
+   * panel's tab - e.g. a due/unread count. Same ownership rule as
+   * `setPanelTitle`.
+   */
+  setPanelBadge(panelId: string, badge: string | number | undefined): Promise<void>;
+
+  /**
+   * Bring an already-open panel's tab to the front, without changing its
+   * content. This is the "stop working around it" call for an extension
+   * that owns a tab and wants a "Show in <panel>" action to land the user on
+   * it, rather than only on the status bar. Unlike `setPanelTitle` /
+   * `setPanelBadge` this needs no ownership check - focusing a tab is
+   * exactly as visible and reversible as `openPanel` / `closePanel`, which
+   * are also unrestricted.
+   *
+   * Resolves `true` if `panelId` was open and got focused, `false` if it was
+   * not found (already closed, or never existed).
+   */
+  revealPanel(panelId: string): Promise<boolean>;
+
   onDidChangeActivePanel: IEventApi<PanelInfoDto | null>;
   onDidOpenPanel: IEventApi<PanelInfoDto>;
   onDidClosePanel: IEventApi<{ panelId: string; contentType: string }>;

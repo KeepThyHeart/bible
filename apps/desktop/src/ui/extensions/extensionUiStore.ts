@@ -23,6 +23,7 @@ export interface ExtensionNotification {
   message: LocalizedString;
   level: 'info' | 'warning' | 'error';
   ttlMs: number;
+  actions?: { id: string; label: LocalizedString }[];
 }
 
 export interface ExtensionQuickPickModal {
@@ -111,8 +112,29 @@ interface ExtensionUiState {
    * everyone else.
    */
   panelTypes: ExtensionPanelType[];
-  pushNotification(extensionId: string, message: LocalizedString, opts: NotificationOpts | null): void;
+  /**
+   * Badge text/count for a panel's tab, by dockview panel id - set via
+   * `workspace.setPanelBadge`. Dockview has no native badge concept, so
+   * `DockviewTabRenderer` reads this directly for `ext:`-content-type tabs
+   * rather than the badge living on dockview's own panel state.
+   */
+  panelBadges: Record<string, string | number>;
+  /** Set (or, with `undefined`, clear) a panel's tab badge. */
+  setPanelBadge(panelId: string, badge: string | number | undefined): void;
+  /**
+   * Resolves once the notification is gone - clicked action, manual
+   * dismiss, or auto-dismiss timeout - with the clicked action's id, or
+   * undefined for anything else. See `IUiApi.showNotification`.
+   */
+  pushNotification(
+    extensionId: string,
+    message: LocalizedString,
+    opts: NotificationOpts | null,
+  ): Promise<string | undefined>;
+  /** Manual dismiss (the toast's own × button, or programmatic). Resolves the pending promise with undefined. */
   dismissNotification(id: number): void;
+  /** The user clicked one of `opts.actions`. Resolves the pending promise with that action's id. */
+  resolveNotificationAction(id: number, actionId: string): void;
   setModal(modal: ExtensionModal | null): void;
   addContextMenuItem(
     extensionId: string,
@@ -183,12 +205,43 @@ export function deliverPanelMessage(msg: PanelMessageEnvelope): void {
 
 let nextNotificationId = 1;
 
+/**
+ * Pending `showNotification` resolvers, keyed by notification id.
+ *
+ * Not store state: a resolver is a one-shot side effect (settle the
+ * extension's promise), not something a component reads or re-renders on -
+ * the same reasoning as `panelMessageListeners` above. `pushNotification`
+ * inserts a resolver here when it fires; `dismissNotification` and
+ * `resolveNotificationAction` (and the auto-dismiss timeout) drain it
+ * exactly once, whichever happens first.
+ */
+const notificationResolvers = new Map<number, (actionId: string | undefined) => void>();
+
+function settleNotification(id: number, actionId: string | undefined): void {
+  const resolve = notificationResolvers.get(id);
+  if (!resolve) return; // already settled (e.g. dismiss raced the timeout)
+  notificationResolvers.delete(id);
+  resolve(actionId);
+}
+
 export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
   notifications: [],
   modal: null,
   contextMenuItems: [],
   statusBarItems: [],
   panelTypes: [],
+  panelBadges: {},
+
+  setPanelBadge(panelId, badge) {
+    set((s) => {
+      if (badge === undefined) {
+        if (!(panelId in s.panelBadges)) return s;
+        const { [panelId]: _dropped, ...rest } = s.panelBadges;
+        return { panelBadges: rest };
+      }
+      return { panelBadges: { ...s.panelBadges, [panelId]: badge } };
+    });
+  },
 
   pushNotification(extensionId, message, opts) {
     const id = nextNotificationId++;
@@ -196,21 +249,32 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
     const requested = opts?.durationMs ?? 4000;
     const ttlMs = requested === 0 ? 0 : Math.max(500, Math.min(requested, 60_000));
     const severity = opts?.severity ?? 'info';
-    set((s) => ({
-      notifications: [
-        ...s.notifications,
-        { id, extensionId, message, level: severity, ttlMs },
-      ],
-    }));
-    if (ttlMs > 0) {
-      setTimeout(() => {
-        set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
-      }, ttlMs);
-    }
+    const actions = opts?.actions;
+    return new Promise<string | undefined>((resolve) => {
+      notificationResolvers.set(id, resolve);
+      set((s) => ({
+        notifications: [
+          ...s.notifications,
+          { id, extensionId, message, level: severity, ttlMs, ...(actions ? { actions } : {}) },
+        ],
+      }));
+      if (ttlMs > 0) {
+        setTimeout(() => {
+          set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+          settleNotification(id, undefined);
+        }, ttlMs);
+      }
+    });
   },
 
   dismissNotification(id) {
     set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+    settleNotification(id, undefined);
+  },
+
+  resolveNotificationAction(id, actionId) {
+    set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+    settleNotification(id, actionId);
   },
 
   setModal(modal) {

@@ -36,6 +36,7 @@ const ExtensionUiHost: React.FC = () => {
   const { t: tUi } = useI18n();
   const notifications = useExtensionUiStore((s) => s.notifications);
   const dismissNotification = useExtensionUiStore((s) => s.dismissNotification);
+  const resolveNotificationAction = useExtensionUiStore((s) => s.resolveNotificationAction);
   const modal = useExtensionUiStore((s) => s.modal);
   const t = (v: LocalizedString | undefined) => resolveLocalizedString(v, i18n);
 
@@ -91,7 +92,32 @@ const ExtensionUiHost: React.FC = () => {
               gap: 8,
             }}
           >
-            <span style={{ flex: 1 }}>{t(n.message)}</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span>{t(n.message)}</span>
+              {n.actions && n.actions.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {n.actions.map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      data-testid="extension-notification-action"
+                      onClick={() => resolveNotificationAction(n.id, action.id)}
+                      style={{
+                        background: 'transparent',
+                        color: 'inherit',
+                        border: '1px solid currentColor',
+                        borderRadius: 4,
+                        padding: '2px 8px',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t(action.label)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => dismissNotification(n.id)}

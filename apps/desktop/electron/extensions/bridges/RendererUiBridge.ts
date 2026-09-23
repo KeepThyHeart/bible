@@ -72,8 +72,13 @@ export class RendererUiBridge implements IExtensionUiBridge {
     extensionId: string,
     message: LocalizedString,
     opts?: NotificationOpts,
-  ): Promise<void> {
-    await this.rpc.request<void>('showNotification', [extensionId, message, opts ?? null]);
+  ): Promise<string | undefined> {
+    const actionId = await this.rpc.request<string | null>('showNotification', [
+      extensionId,
+      message,
+      opts ?? null,
+    ]);
+    return actionId === null || actionId === undefined ? undefined : actionId;
   }
 
   async showQuickPick<T>(

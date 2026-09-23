@@ -422,6 +422,8 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
   inputBoxResponse: string | undefined = undefined;
   confirmResponse: boolean = false;
   quickPickResponse: unknown | undefined = undefined;
+  /** What `showNotification` resolves with - simulates the user clicking this action id (or undefined = dismissed). */
+  notificationActionResponse: string | undefined = undefined;
 
   private readonly panelTypes = new Map<string, ExtensionPanelTypeDef>();
   private readonly panelTypeOwners = new Map<string, string>();
@@ -430,8 +432,9 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     extensionId: string,
     message: LocalizedString,
     opts?: NotificationOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     this.notifications.push({ extensionId, message, ...(opts !== undefined ? { opts } : {}) });
+    return this.notificationActionResponse;
   }
 
   async showQuickPick<T>(
@@ -658,6 +661,31 @@ export class InMemoryWorkspaceBridge implements IExtensionWorkspaceBridge {
     for (const h of this.closeHandlers) {
       h({ panelId, contentType: panel.contentType });
     }
+  }
+
+  /** Test assertion helper: last title/badge passed to setPanelTitle/setPanelBadge. */
+  lastSetTitle: { panelId: string; title: LocalizedString } | undefined;
+  lastSetBadge: { panelId: string; badge: string | number | undefined } | undefined;
+  /** Test assertion helper: panelIds revealPanel was actually asked to focus. */
+  readonly revealedPanelIds: string[] = [];
+
+  setPanelTitle(panelId: string, title: LocalizedString): void {
+    this.lastSetTitle = { panelId, title };
+    const panel = this.panels.get(panelId);
+    if (panel) this.panels.set(panelId, { ...panel, title });
+  }
+
+  setPanelBadge(panelId: string, badge: string | number | undefined): void {
+    this.lastSetBadge = { panelId, badge };
+  }
+
+  revealPanel(panelId: string): boolean {
+    const found = this.panels.has(panelId);
+    if (found) {
+      this.revealedPanelIds.push(panelId);
+      this.activePanelId = panelId;
+    }
+    return found;
   }
 
   subscribeActivePanel(handler: (p: PanelInfoDto | null) => void): () => void {

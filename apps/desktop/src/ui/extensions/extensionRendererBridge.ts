@@ -158,7 +158,7 @@ export function attachExtensionRendererBridge(
     api.on('ext-bridge:workspace', (raw) => {
       const payload = raw as { requestId: number; op: string; args: unknown[] };
       try {
-        const result = handleWorkspaceRequest(payload.op, payload.args);
+        const result = handleWorkspaceRequest(payload.op, payload.args, services);
         api.send('ext-bridge:workspace:response', {
           requestId: payload.requestId,
           ok: true,
@@ -447,8 +447,7 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
   switch (op) {
     case 'showNotification': {
       const [extensionId, message, opts] = args as [string, LocalizedString, unknown];
-      store.pushNotification(extensionId, message, opts as never);
-      return undefined;
+      return await store.pushNotification(extensionId, message, opts as never);
     }
     case 'showQuickPick': {
       const [extensionId, items, opts] = args as [
@@ -567,7 +566,11 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
 
 // --- Workspace request handler --------------------------------------
 
-function handleWorkspaceRequest(op: string, args: unknown[]): unknown {
+function handleWorkspaceRequest(
+  op: string,
+  args: unknown[],
+  services: ExtensionRendererServices,
+): unknown {
   const layout = useLayoutStore.getState();
   switch (op) {
     case 'openPanel': {
@@ -580,6 +583,25 @@ function handleWorkspaceRequest(op: string, args: unknown[]): unknown {
     case 'closePanel': {
       const [panelId] = args as [string];
       layout.removePanel(panelId);
+      return undefined;
+    }
+    case 'setPanelTitle': {
+      const [panelId, title] = args as [string, LocalizedString];
+      // The api-impl already checked ownership (contentType prefix); this
+      // side just needs to find the live dockview panel and rename its tab.
+      // A missing panel (closed between the check and here) is a silent
+      // no-op, same as `closePanel` on an id that's already gone.
+      layout.dockviewApi?.getPanel(panelId)?.api.setTitle(services.i18n.resolve(title));
+      return undefined;
+    }
+    case 'setPanelBadge': {
+      const [panelId, badge] = args as [string, string | number | null];
+      useExtensionUiStore.getState().setPanelBadge(panelId, badge === null ? undefined : badge);
+      return undefined;
+    }
+    case 'revealPanel': {
+      const [panelId] = args as [string];
+      layout.dockviewApi?.getPanel(panelId)?.api.setActive();
       return undefined;
     }
     default:
