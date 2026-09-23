@@ -385,7 +385,23 @@ export class TasksApiImpl {
   private notifyStatus(): void {
     if (!this.statusBridge?.onTaskUpdate) return;
     try {
-      this.statusBridge.onTaskUpdate(this.extensionId, this.snapshot());
+      // Unlike `tasks.list()`, which reports every tracked task, the status
+      // bridge only ever hears about ones that opted in (the default).
+      // `descriptor.showInStatusBar` was declared and documented from the
+      // start but nothing ever read it - production wiring showed nothing
+      // at all (see `RendererTaskStatusBridge.ts`), so the flag has never
+      // had a behavior to opt out of until now.
+      const visible = Array.from(this.tasks.values()).filter(
+        (t) => t.descriptor.showInStatusBar !== false,
+      );
+      const out: BackgroundTaskInfo[] = visible.map((t) => ({
+        id: t.id,
+        title: t.descriptor.title,
+        startedAt: t.startedAt,
+        state: t.state,
+        ...(t.progress ? { progress: { ...t.progress } } : {}),
+      }));
+      this.statusBridge.onTaskUpdate(this.extensionId, out);
     } catch {
       /* swallow - observer errors must not break the task */
     }

@@ -64,9 +64,11 @@ import { RendererCommandBridge } from './extensions/bridges/RendererCommandBridg
 import { RendererContextBridge } from './extensions/bridges/RendererContextBridge';
 import { RendererUiBridge } from './extensions/bridges/RendererUiBridge';
 import { RendererWorkspaceBridge } from './extensions/bridges/RendererWorkspaceBridge';
+import { RendererTaskStatusBridge } from './extensions/bridges/RendererTaskStatusBridge';
 import { RendererL10nBridge } from './extensions/bridges/RendererL10nBridge';
 import { CollectionsBridge } from './extensions/bridges/CollectionsBridge';
 import { CollectionRepository, CollectionService } from '@bible/core';
+import type { Extensions } from '@bible/core';
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
@@ -857,6 +859,15 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     const uiBridge = new RendererUiBridge(getMainWindow);
     const workspaceBridge = new RendererWorkspaceBridge(getMainWindow);
     const l10nBridge = new RendererL10nBridge(getMainWindow);
+    // `ITasksApi.run` has always documented "the host shows a progress entry
+    // in the status bar" and lets an extension ask for a completion toast
+    // (`notifyOnComplete`) - both piggy-back on `uiBridge` rather than a
+    // bridge of their own. See `RendererTaskStatusBridge.ts` for why the
+    // status surface is the existing status bar API, not a new one.
+    const taskStatusBridge = new RendererTaskStatusBridge(uiBridge);
+    const taskNotifier = (extensionId: string, message: Extensions.LocalizedString): void => {
+      void uiBridge.showNotification(extensionId, message).catch(() => undefined);
+    };
 
     // Secrets tier (safeStorage-backed per-extension files) + per-extension
     // SQLite database registry. Both adapters are owned by
@@ -928,6 +939,8 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       collectionsBridge,
       secretsKeychain,
       extensionDatabaseRegistry,
+      taskStatusBridge,
+      taskNotifier,
     });
     await extensionHost.loadAll();
     // Wire the `ext-ui://` file handler now that the host can resolve
