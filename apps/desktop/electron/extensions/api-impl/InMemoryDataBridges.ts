@@ -61,7 +61,6 @@ type DecorationDto = Extensions.DecorationDto;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
@@ -501,7 +500,6 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
   readonly decorationUpdates: { extensionId: string; groupId: string; decorations: DecorationDto[] }[] = [];
   readonly hoverProviders: { extensionId: string; descriptor: VerseHoverProviderDescriptor }[] = [];
   readonly contextMenuItems: { extensionId: string; target: ContextMenuTarget; item: ContextMenuItemDescriptor }[] = [];
-  readonly displayModes: { extensionId: string; descriptor: DisplayModeDescriptor }[] = [];
   readonly statusBarItems: { extensionId: string; item: StatusBarItemDescriptor }[] = [];
   readonly filePickRequests: { extensionId: string; opts?: PickFileOpts }[] = [];
   readonly fileSaveRequests: { extensionId: string; content: string | ArrayBuffer | Uint8Array; opts?: SaveFileOpts }[] = [];
@@ -546,15 +544,6 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     return () => {
       const idx = this.contextMenuItems.indexOf(entry);
       if (idx >= 0) this.contextMenuItems.splice(idx, 1);
-    };
-  }
-
-  registerDisplayMode(extensionId: string, descriptor: DisplayModeDescriptor): () => void {
-    const entry = { extensionId, descriptor };
-    this.displayModes.push(entry);
-    return () => {
-      const idx = this.displayModes.indexOf(entry);
-      if (idx >= 0) this.displayModes.splice(idx, 1);
     };
   }
 
@@ -603,7 +592,6 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
       this.decorators,
       this.hoverProviders,
       this.contextMenuItems,
-      this.displayModes,
       this.statusBarItems,
     ] as { extensionId: string }[][];
     for (const arr of arrays) {

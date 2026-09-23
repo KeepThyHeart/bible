@@ -54,7 +54,6 @@ const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> 
   'commentary:provide': 'extensionConsent.permission.commentaryProvide',
   'dictionary:provide': 'extensionConsent.permission.dictionaryProvide',
   'book:provide': 'extensionConsent.permission.bookProvide',
-  'display-mode:provide': 'extensionConsent.permission.displayModeProvide',
   'ui:contribute-pane': 'extensionConsent.permission.uiContributePane',
   'ui:verse-decorator': 'extensionConsent.permission.uiVerseDecorator',
   'ui:verse-hover': 'extensionConsent.permission.uiVerseHover',

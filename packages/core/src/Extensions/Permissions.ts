@@ -25,13 +25,17 @@ export const PERM_BOOKMARKS_WRITE = 'bookmarks:write' as const;
  * Provider registration.
  *
  * `search:provide`, `import:provide`, `tts:provide` and `ai:provide` used to
- * live here as reserved slots, but unlike `display-mode:provide` (which has
- * a real, if rejecting, `ui.registerDisplayMode` method behind it - see
- * `uiApiImpl.ts`) they had no API surface behind them at all: nothing an
- * extension could call, and nothing that would ever fail loudly. Asking a
- * user to grant a capability the host cannot deliver, silently, forever, is
- * worse than not asking - so they were removed outright rather than kept as
- * dead weight. Re-add a permission here (and to `ALLOWED_PERMISSIONS` in
+ * live here as reserved slots, and so did `display-mode:provide` - but each
+ * had, or ended up with, no API surface behind it at all: nothing an
+ * extension could call, and nothing that would ever fail loudly.
+ * `display-mode:provide` did briefly have a real, if rejecting,
+ * `ui.registerDisplayMode` method (see `uiApiImpl.ts`'s history), but once
+ * that reserved slot was removed outright (round 3, P2.13 - custom display
+ * modes were never built and nothing renders one), the stated reason for
+ * keeping the permission went with it. Asking a user to grant a capability
+ * the host cannot deliver, silently, forever, is worse than not asking - so
+ * all five were removed outright rather than kept as dead weight. Re-add a
+ * permission here (and to `ALLOWED_PERMISSIONS` in
  * `ExtensionManifestValidator.ts` and the schema's `Permission` enum) only
  * once there is a real API namespace to gate.
  */
@@ -39,7 +43,6 @@ export const PERM_BIBLE_PROVIDE = 'bible:provide' as const;
 export const PERM_COMMENTARY_PROVIDE = 'commentary:provide' as const;
 export const PERM_DICTIONARY_PROVIDE = 'dictionary:provide' as const;
 export const PERM_BOOK_PROVIDE = 'book:provide' as const;
-export const PERM_DISPLAY_MODE_PROVIDE = 'display-mode:provide' as const;
 
 /** Storage */
 export const PERM_STORAGE = 'storage' as const;
@@ -100,7 +103,6 @@ export type ExtensionPermission =
   | typeof PERM_COMMENTARY_PROVIDE
   | typeof PERM_DICTIONARY_PROVIDE
   | typeof PERM_BOOK_PROVIDE
-  | typeof PERM_DISPLAY_MODE_PROVIDE
   | typeof PERM_STORAGE
   | typeof PERM_STORAGE_SECRETS
   | typeof PERM_STORAGE_DATABASE

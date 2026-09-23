@@ -2005,7 +2005,6 @@
   "extensionConsent.permission.commentaryProvide": "Supply commentary entries to the app.",
   "extensionConsent.permission.dictionaryProvide": "Supply dictionary and lexicon entries to the app.",
   "extensionConsent.permission.bookProvide": "Supply books to the app.",
-  "extensionConsent.permission.displayModeProvide": "Offer its own way of displaying verses.",
   "extensionConsent.permission.uiContributePane": "Add its own panel to the app.",
   "extensionConsent.permission.uiVerseDecorator": "Add marks or badges beside verses.",
   "extensionConsent.permission.uiVerseHover": "Show extra information when you hover over a verse.",

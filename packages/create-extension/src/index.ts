@@ -769,7 +769,7 @@ Key fields:
 - **main**: Path to the compiled entry point
 - **permissions**: Array of permissions your extension needs
 - **activationEvents**: When the extension should be activated
-- **contributes**: Static declarations (commands, panels, menus, etc.)
+- **contributes**: Static declarations (commands, panels, settings schema, api exports, bible providers)
 
 ## API Usage
 

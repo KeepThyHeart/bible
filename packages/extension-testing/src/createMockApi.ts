@@ -264,11 +264,6 @@ function createMockUiApi(): Extensions.IUiApi {
     updateVerseDecorations: asyncMock<void>(undefined),
     registerVerseHover: asyncMock(mockDisposable()),
     registerContextMenu: asyncMock(mockDisposable()),
-    // RESERVED in the real host: `UiApiImpl.handleRegisterDisplayMode` rejects
-    // every call with `MethodNotImplementedYet`. The mock still resolves so an
-    // extension that calls it can be unit-tested at all, but a green test here
-    // says nothing about runtime - custom verse display modes do not exist.
-    registerDisplayMode: asyncMock(mockDisposable()),
     registerStatusBarItem: asyncMock(mockDisposable()),
     updateStatusBarItem: asyncMock<void>(undefined),
     // Resolves undefined by default (as if dismissed with no action clicked).

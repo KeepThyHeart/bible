@@ -84,14 +84,6 @@ describe('validateManifest - happy path', () => {
             uiEntry: 'ui/lexicon.html',
           },
         ],
-        fonts: [
-          {
-            id: 'sblgreek',
-            family: 'SBL Greek',
-            files: ['fonts/SBLGreek.woff2'],
-          },
-        ],
-        styles: [{ path: 'styles/decorations.css', scope: 'verse' }],
       },
     };
     const result = validateManifest(m);
@@ -236,11 +228,18 @@ describe('validateManifest - beyond-schema rules', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('rejects a font path that contains `..`', () => {
+  // These two path-containment tests used to declare a `fonts` / `styles`
+  // contribution. Task 0024 round 3 (P2.13) deleted both fields as dead
+  // manifest code, so `panelTypes[].uiEntry` - validated with the exact same
+  // `validatePackagePath` call - is now the only surviving `contributes` path
+  // to exercise this rule against. The `path.absolute` case in particular is
+  // a **security** assertion about path traversal (see design doc §8); it is
+  // moved here, not dropped, so the traversal rule stays covered.
+  it('rejects a panelTypes uiEntry path that contains `..`', () => {
     const m = baseManifest();
     (m as Record<string, unknown>).contributes = {
-      fonts: [
-        { id: 'evil', family: 'Evil', files: ['../../etc/passwd'] },
+      panelTypes: [
+        { id: 'evil', title: { key: 'evil' }, uiEntry: '../../etc/passwd' },
       ],
     };
     const r = validateManifest(m);
@@ -250,10 +249,12 @@ describe('validateManifest - beyond-schema rules', () => {
     }
   });
 
-  it('rejects an absolute style path', () => {
+  it('rejects an absolute panelTypes uiEntry path', () => {
     const m = baseManifest();
     (m as Record<string, unknown>).contributes = {
-      styles: [{ path: '/etc/passwd', scope: 'verse' }],
+      panelTypes: [
+        { id: 'evil', title: { key: 'evil' }, uiEntry: '/etc/passwd' },
+      ],
     };
     const r = validateManifest(m);
     expect(r.ok).toBe(false);
@@ -308,22 +309,152 @@ describe('validateManifest - auto-prefix round-trip', () => {
     }
   });
 
-  it('auto-prefixes panel type, font, icon, and theme IDs together', () => {
+  it('auto-prefixes panel type and bible provider IDs together', () => {
+    // `fonts` / `icons` / `themes` used to be exercised here too, alongside
+    // `panelTypes`, to prove several contribution kinds auto-prefix the same
+    // way. Task 0024 round 3 (P2.13) deleted all three as dead manifest code;
+    // `bibleProviders` (fixed in the same round - see §3 of the design doc)
+    // takes their place as the second live auto-prefixing contribution kind.
     const m = baseManifest();
     (m as Record<string, unknown>).contributes = {
       panelTypes: [{ id: 'lexicon', title: 'Lexicon', uiEntry: 'ui/x.html' }],
-      fonts: [{ id: 'sblgreek', family: 'SBL Greek', files: ['fonts/x.woff2'] }],
-      icons: [{ id: 'lexicon-icon', path: 'icons/x.svg' }],
-      themes: [{ id: 'papyrus', label: 'Papyrus', path: 'themes/p.json' }],
+      bibleProviders: [
+        {
+          id: 'geneva-1599',
+          name: 'Geneva Bible 1599',
+          abbreviation: 'GEN99',
+          capabilities: ['lookup'],
+          fetchEndpoint: 'fetchGeneva',
+        },
+      ],
     };
     const r = validateManifest(m);
     expect(r.ok).toBe(true);
     if (r.ok) {
       const c = r.manifest.contributes!;
       expect(c.panelTypes?.[0]?.id).toBe('ext.example.greek-tools.lexicon');
-      expect(c.fonts?.[0]?.id).toBe('ext.example.greek-tools.sblgreek');
-      expect(c.icons?.[0]?.id).toBe('ext.example.greek-tools.lexicon-icon');
-      expect(c.themes?.[0]?.id).toBe('ext.example.greek-tools.papyrus');
+      expect(c.bibleProviders?.[0]?.id).toBe('ext.example.greek-tools.geneva-1599');
+    }
+  });
+});
+
+describe('validateManifest - bibleProviders (task 0024 round 3, P2.13 fix)', () => {
+  it('accepts a well-formed contributes.bibleProviders entry', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      bibleProviders: [
+        {
+          id: 'geneva-1599',
+          name: { key: 'Geneva Bible 1599' },
+          abbreviation: 'GEN99',
+          language: 'en',
+          capabilities: ['lookup', 'range'],
+          fetchEndpoint: 'fetchGeneva',
+          rangeEndpoint: 'rangeGeneva',
+        },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.contributes?.bibleProviders?.[0]).toMatchObject({
+        id: 'ext.example.greek-tools.geneva-1599',
+        abbreviation: 'GEN99',
+        capabilities: ['lookup', 'range'],
+        fetchEndpoint: 'fetchGeneva',
+        rangeEndpoint: 'rangeGeneva',
+      });
+    }
+  });
+
+  it('rejects a bibleProviders entry missing fetchEndpoint', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      bibleProviders: [
+        {
+          id: 'geneva-1599',
+          name: { key: 'Geneva Bible 1599' },
+          abbreviation: 'GEN99',
+          capabilities: ['lookup'],
+        },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(
+        r.errors.some((e) => e.path === '/contributes/bibleProviders/0/fetchEndpoint'),
+      ).toBe(true);
+    }
+  });
+
+  it('rejects a bibleProviders entry with an invalid capability', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      bibleProviders: [
+        {
+          id: 'geneva-1599',
+          name: { key: 'Geneva Bible 1599' },
+          abbreviation: 'GEN99',
+          capabilities: ['not-a-real-capability'],
+          fetchEndpoint: 'fetchGeneva',
+        },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(
+        r.errors.some((e) => e.path === '/contributes/bibleProviders/0/capabilities/0'),
+      ).toBe(true);
+    }
+  });
+});
+
+describe('validateManifest - deleted contributes fields are rejected (task 0024 round 3, P2.13)', () => {
+  // Locks the P2.13 deletion in: if someone later re-adds one of these keys
+  // to the JSON Schema without also updating `ALLOWED_CONTRIBUTES_KEYS`, this
+  // test (and the schema/validator parity test below) catches the drift that
+  // produced the pre-fix `bibleProviders` bug in the first place.
+  const deletedFields = [
+    'menus',
+    'providers',
+    'displayModes',
+    'themes',
+    'fonts',
+    'icons',
+    'styles',
+    'fileImporters',
+    'commentaryProviders',
+    'dictionaryProviders',
+    'bookProviders',
+  ];
+
+  it.each(deletedFields)('rejects contributes.%s as an unknown property', (field) => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = { [field]: [] };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(
+        r.errors.some(
+          (e) => e.path === `/contributes/${field}` && e.code === 'additionalProperty',
+        ),
+      ).toBe(true);
+    }
+  });
+});
+
+describe('validateManifest - display-mode:provide is rejected (task 0024 round 3, P2.13)', () => {
+  it('rejects a manifest declaring the removed display-mode:provide permission', () => {
+    const m = baseManifest();
+    (m as { permissions: string[] }).permissions = ['bible:read', 'display-mode:provide'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(
+        r.errors.some((e) => e.path === '/permissions/1' && e.code === 'enum'),
+      ).toBe(true);
     }
   });
 });

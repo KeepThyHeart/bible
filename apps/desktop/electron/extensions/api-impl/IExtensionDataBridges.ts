@@ -44,7 +44,6 @@ type DecorationDto = Extensions.DecorationDto;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
@@ -264,12 +263,6 @@ export interface IExtensionUiBridge {
     extensionId: string,
     target: ContextMenuTarget,
     item: ContextMenuItemDescriptor,
-  ): () => void;
-
-  /** Register an extension-contributed display mode. Returns a disposer. */
-  registerDisplayMode(
-    extensionId: string,
-    descriptor: DisplayModeDescriptor,
   ): () => void;
 
   /** Register a status bar item. Returns a disposer. */

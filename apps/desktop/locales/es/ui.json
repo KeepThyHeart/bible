@@ -1883,7 +1883,6 @@
   "extensionConsent.permission.commentaryProvide": "Proporcionar entradas de comentario a la aplicación.",
   "extensionConsent.permission.dictionaryProvide": "Proporcionar entradas de diccionario y léxico a la aplicación.",
   "extensionConsent.permission.bookProvide": "Proporcionar libros a la aplicación.",
-  "extensionConsent.permission.displayModeProvide": "Ofrecer su propia forma de mostrar los versículos.",
   "extensionConsent.permission.uiContributePane": "Añadir su propio panel a la aplicación.",
   "extensionConsent.permission.uiVerseDecorator": "Añadir marcas o distintivos junto a los versículos.",
   "extensionConsent.permission.uiVerseHover": "Mostrar información adicional al pasar el cursor sobre un versículo.",

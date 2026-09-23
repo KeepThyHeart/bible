@@ -42,7 +42,6 @@ import type {
   DictionaryIterationResult,
   DictionaryModuleInfoDto,
   DictionaryProviderDescriptor,
-  DisplayModeDescriptor,
   DisposableHandle,
   ExtensionCommandRegistration,
   ExtensionPanelTypeDef,
@@ -526,27 +525,6 @@ export interface IUiApi {
     target: ContextMenuTarget,
     item: ContextMenuItemDescriptor,
   ): Promise<DisposableHandle>;
-
-  /**
-   * RESERVED - NOT IMPLEMENTED. Always rejects.
-   *
-   * Custom verse display modes were never built: nothing in the host renders a
-   * registered mode, and the Bible pane's Display Mode picker is a fixed
-   * Simple/Standard/Study set. This declaration shipped ahead of the decision,
-   * and until it was made to reject, a call returned a valid `DisposableHandle`
-   * and then did nothing at all - no error, no warning, no rendering.
-   *
-   * It now rejects with an `ExtensionApiError` whose `code` is
-   * `'MethodNotImplementedYet'`. Do not call it. The signature is kept so that
-   * implementing display modes later is not a breaking change.
-   *
-   * The intended behaviour, when it exists: the mode appears in the Bible pane's
-   * Display Mode picker alongside Simple/Standard/Study; the host calls
-   * `renderEndpoint` for each visible verse; the extension returns either
-   * decorations to overlay on the standard rendering, or an iframe URL to fully
-   * replace the verse's rendering.
-   */
-  registerDisplayMode(def: DisplayModeDescriptor): Promise<DisposableHandle>;
 
   /**
    * Contribute a status bar item. Useful for "X items indexed", "Connected

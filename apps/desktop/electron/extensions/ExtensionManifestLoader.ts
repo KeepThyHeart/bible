@@ -79,6 +79,20 @@ export function loadManifest(installPath: string): ManifestLoadResult {
     return { ok: false, installPath, manifestPath, errors: result.errors };
   }
 
+  // `contributes.bibleProviders` validates (task 0024 round 3, P2.13 fixed
+  // the schema/validator mismatch) but nothing merges declared entries into
+  // the live bible-provider registry at activation yet - that is deferred to
+  // P1.5's lazy-activation work, which reads `contributes` arrays at load
+  // time for the same reason. Warn once at load so an author who writes the
+  // field is not left guessing why nothing happens; this is cheap and
+  // removable once P1.5 lands.
+  if ((result.manifest.contributes?.bibleProviders?.length ?? 0) > 0) {
+    console.warn(
+      `[extensions] ${result.manifest.id}: contributes.bibleProviders is validated but not yet ` +
+        'registered at activation; use api.bible.registerProvider until lazy activation lands.',
+    );
+  }
+
   return { ok: true, manifest: result.manifest, installPath, manifestPath };
 }
 

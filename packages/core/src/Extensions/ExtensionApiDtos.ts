@@ -1061,16 +1061,6 @@ export interface ExtensionPanelTypeDef {
   defaultWindowSize?: { width: number; height: number };
 }
 
-export interface DisplayModeDescriptor {
-  id: string;
-  label: LocalizedString;
-  /** 'overlay' adds decorations on top of the standard rendering; 'replace' substitutes an iframe. */
-  kind: 'overlay' | 'replace';
-  /** Reverse-RPC: (verseId[]) -> DecorationDto[] for overlay; (verseId) -> uiEntry path for replace. */
-  renderEndpoint: string;
-  /** Languages this mode applies to. Empty = all. */
-  applicableLanguages?: string[];
-}
 
 export interface StatusBarItemDescriptor {
   id: string;

@@ -28,13 +28,13 @@ describe('createSmokeHarness', () => {
               handlerEndpoint: 'sayHello',
             },
           ],
-          commentaryProviders: [
+          bibleProviders: [
             {
-              id: 'matthew-henry',
-              name: { key: 'Matthew Henry' },
-              abbreviation: 'MH',
+              id: 'geneva-1599',
+              name: { key: 'Geneva Bible 1599' },
+              abbreviation: 'GEN99',
               capabilities: ['lookup'],
-              fetchEndpoint: 'fetchMH',
+              fetchEndpoint: 'fetchGeneva',
             },
           ],
         },
@@ -48,10 +48,15 @@ describe('createSmokeHarness', () => {
     // unvalidated: `enumerateHooks` applies the same `ext.<publisher>.<name>.`
     // prefix the manifest validator would have, so a hand-built manifest and
     // one loaded from disk enumerate under identical ids.
+    //
+    // `bibleProviders` (rather than `commentaryProviders`, used here before
+    // task 0024 round 3) is the only provider-role `contributes` array left
+    // after P2.13 deleted `commentaryProviders` / `dictionaryProviders` /
+    // `bookProviders` as dead manifest code - see `ExtensionManifestValidator.ts`.
     expect(
-      hooks.find((h) => h.hookId === 'commentaryProvider:ext.test.harness.matthew-henry')
+      hooks.find((h) => h.hookId === 'bibleProvider:ext.test.harness.geneva-1599')
         ?.endpoint,
-    ).toBe('fetchMH');
+    ).toBe('fetchGeneva');
     await harness.deactivate();
   });
 

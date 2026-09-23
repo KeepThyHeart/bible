@@ -38,7 +38,6 @@ export type HookKind =
   | 'statusBar'
   | 'hover'
   | 'decorator'
-  | 'displayMode'
   | 'bibleProvider'
   | 'commentaryProvider'
   | 'dictionaryProvider'
@@ -188,7 +187,6 @@ export interface CapturedRegistrations {
     target: Extensions.ContextMenuTarget;
     item: Extensions.ContextMenuItemDescriptor;
   }>;
-  displayModes: Extensions.DisplayModeDescriptor[];
   statusBarItems: Extensions.StatusBarItemDescriptor[];
   highlightStyles: Extensions.HighlightStyleDescriptor[];
   bibleProviders: Extensions.BibleProviderDescriptor[];

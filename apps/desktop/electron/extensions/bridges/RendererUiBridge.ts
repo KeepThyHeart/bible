@@ -32,7 +32,6 @@ type DecorationDto = Extensions.DecorationDto;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
@@ -52,8 +51,6 @@ export class RendererUiBridge implements IExtensionUiBridge {
   private readonly hoverOwners = new Map<string, string>();
   private readonly contextMenuItems = new Map<string, { target: ContextMenuTarget; item: ContextMenuItemDescriptor }>();
   private readonly contextMenuOwners = new Map<string, string>();
-  private readonly displayModes = new Map<string, DisplayModeDescriptor>();
-  private readonly displayModeOwners = new Map<string, string>();
   private readonly statusBarItems = new Map<string, StatusBarItemDescriptor>();
   private readonly statusBarOwners = new Map<string, string>();
 
@@ -230,36 +227,6 @@ export class RendererUiBridge implements IExtensionUiBridge {
     };
   }
 
-  /**
-   * RESERVED, and unreachable from the extension API.
-   * `UiApiImpl.handleRegisterDisplayMode` now rejects every call with
-   * `MethodNotImplementedYet`, so nothing calls this except tests.
-   *
-   * The `displayModeRegistered` / `displayModeUnregistered` notifications are
-   * GONE, not merely unused. They had no listener anywhere in `src/ui` - the
-   * Bible pane's Display Mode picker is the fixed Simple/Standard/Study set from
-   * `useBibleStore` - so every notify was a message into a void. Keeping them
-   * would have been worse than removing them: an IPC channel with no receiver
-   * reads to the next person as a wired-up feature and is the thing you check
-   * last when the feature turns out not to exist. Removing them makes the whole
-   * path honest - the API rejects, the bridge is inert, and nothing pretends.
-   *
-   * The registry maps stay so the method still satisfies `IExtensionUiBridge`
-   * and so `disposeUiContributionsByOwner` keeps one code shape across all T2
-   * contributions. Restore the notifies alongside a renderer that listens for
-   * them when display modes are actually built.
-   */
-  registerDisplayMode(extensionId: string, descriptor: DisplayModeDescriptor): () => void {
-    const key = `${extensionId}::${descriptor.id}`;
-    this.displayModes.set(key, descriptor);
-    this.displayModeOwners.set(key, extensionId);
-    return () => {
-      if (this.displayModes.delete(key)) {
-        this.displayModeOwners.delete(key);
-      }
-    };
-  }
-
   registerStatusBarItem(extensionId: string, item: StatusBarItemDescriptor): () => void {
     const key = `${extensionId}::${item.id}`;
     this.statusBarItems.set(key, item);
@@ -352,7 +319,6 @@ export class RendererUiBridge implements IExtensionUiBridge {
       [this.decorators, this.decoratorOwners],
       [this.hoverProviders, this.hoverOwners],
       [this.contextMenuItems, this.contextMenuOwners],
-      [this.displayModes, this.displayModeOwners],
       [this.statusBarItems, this.statusBarOwners],
     ];
     for (const [dataMap, ownerMap] of registries) {
