@@ -28,12 +28,14 @@ import { syncPanesWithVerse } from './syncPanesWithVerse';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
 import { useSessionStore } from './useSessionStore';
+import { useModuleStore } from './module/useModuleStore';
 import {
   setNotifyLibraryChanged,
   setNavigateToVerseInPrimary,
   setPreviewVerseInPrimary,
   setResolvePrimaryBibleVerseId,
   setResolveOpenModuleAbbreviations,
+  setResolveInstalledModuleId,
   setShowSearchResultsPanel,
 } from './crossStoreBridge';
 
@@ -192,6 +194,16 @@ export function wireStoreSync(): void {
       ps.openTabs.forEach(tab => collect(tab.abbreviation));
     });
     return result;
+  });
+
+  // The search store looks up a hit module's F8 keyword-index status (task
+  // 0033) by numeric module id; the search results themselves only carry the
+  // abbreviation.
+  setResolveInstalledModuleId((abbreviation) => {
+    const match = useModuleStore
+      .getState()
+      .installedModules.find((m) => m.abbreviation === abbreviation);
+    return typeof match?.module_id === 'number' ? match.module_id : undefined;
   });
 
   // The search store calls this once a search has produced results, so the

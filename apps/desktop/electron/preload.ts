@@ -54,6 +54,7 @@ import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
 import type { ModulePackInstallSummary } from './services/ModulePackService';
 import type { ModuleInstallPolicy } from './ipc/moduleHandlers';
+import type { KeywordIndexStatusDto } from './services/KeywordIndexService';
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { APP_CONFIG, type AppConfig } from './config/appConfig';
 
@@ -457,6 +458,13 @@ export interface ElectronAPI {
     checkForUpdates: (moduleId: number) => Promise<Result<{ hasUpdate: boolean; currentVersion?: string; availableVersion?: string }>>;
     // Get module details
     getModuleDetails: (moduleId: number) => Promise<Result<any>>;
+    // Keyword index (F8, task 0027 revision 2): status + Rebuild/Delete for a
+    // module's keyword-search sidecar index. See `KeywordIndexStatusDto`'s own
+    // doc comment for the state machine. `rebuild`/`delete` resolve with the
+    // resulting status rather than rejecting on a build failure.
+    getKeywordIndexStatus: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    rebuildKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    deleteKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -1057,6 +1065,13 @@ const electronAPI: ElectronAPI = {
     checkForUpdates: (moduleId: number) => typedInvoke('module:check-for-updates', moduleId),
     // Get module details
     getModuleDetails: (moduleId: number) => typedInvoke('module:get-details', moduleId),
+    // Keyword index (F8)
+    getKeywordIndexStatus: (moduleId: number) =>
+      typedInvoke('module:get-keyword-index-status', moduleId),
+    rebuildKeywordIndex: (moduleId: number) =>
+      typedInvoke('module:rebuild-keyword-index', moduleId),
+    deleteKeywordIndex: (moduleId: number) =>
+      typedInvoke('module:delete-keyword-index', moduleId),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),
