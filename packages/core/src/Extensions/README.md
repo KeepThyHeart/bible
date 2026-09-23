@@ -77,7 +77,7 @@ valid and anything it rejects will not load.
 Headlines and one-line descriptions only - this list is a signpost, not a design
 document.
 
-> These are deliberately **not implemented** in 1.0.0. Designing them without
+> These are deliberately **not implemented**. Designing them without
 > a real consumer risks bloat and bad fits. The list exists so contributors
 > working in this folder can see the deferred ideas, and so the additive-only
 > versioning policy can plan around them.
@@ -93,7 +93,7 @@ document.
 9. **Theme / font / icon contributions.** Defer until the host theme system is settled.
 10. **Custom verse display modes (`ui.registerDisplayMode`).** Alternative renderer for the Bible pane (overlay or replace) - interlinear, color-coded grammar, paraphrase comparison.
 11. **`IAiApi` host UI.** Where AI responses render, how streaming is shown, how prompts compose. Reserved namespace exists; surface needs a real provider implementation first.
-12. **TTS / audio provider role.** Reserved as `ttsVoice`. Defer until the host's own TTS work is mature enough to know what to expose.
+12. **TTS / audio provider role, and a search-provider / content-importer role.** `tts:provide`, `search:provide` and `import:provide` used to sit here as reserved permissions with nothing behind them; task 0024 removed all three outright (see `Permissions.ts`) rather than leave the user asked to grant a capability the host cannot deliver. Re-add the permission (here, in the schema, and in the validator's allowlist) only alongside a real API namespace - same rule `ui.registerDisplayMode` already follows for `display-mode:provide`, which was kept because it does have one, even a rejecting one.
 13. **Custom note types contribution.** Memory verse, prayer request, sermon outline - `contributes.noteTypes` with a JSON Schema for fields.
 14. **Reading-progress signals.** Events when the user finishes today's reading, completes a chapter, etc.
 15. **Webhook / external trigger receiver.** Localhost HTTP endpoint other apps POST to in order to trigger extension activation.

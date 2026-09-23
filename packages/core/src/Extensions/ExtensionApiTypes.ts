@@ -104,8 +104,20 @@ import type {
  *   contribution points, extension points, provider roles.
  * - **Major**: breaking change. Ships side-by-side with the previous major
  *   for at least 12 months.
+ *
+ * 1.2.0 (task 0024, "host extension hooks"): mostly additive -
+ * `ui.updateStatusBarItem`, `workspace.setPanelTitle`/`setPanelBadge`/
+ * `revealPanel`, `commands:execute-builtin`, and `showNotification`'s
+ * widened `Promise<string | undefined>` return (a strict superset of
+ * `Promise<void>` - existing callers that ignore the result are
+ * unaffected). The one non-additive part: `search:provide`, `import:provide`,
+ * `tts:provide` and `ai:provide` were removed outright (no API ever existed
+ * behind any of them - see `Permissions.ts`). Treated as pre-launch cleanup
+ * rather than a major bump, since no extension has shipped against this API
+ * yet - the 12-month dual-support policy above exists to protect extensions
+ * already in the wild, and none are.
  */
-export const EXTENSION_API_VERSION = '1.1.0' as const;
+export const EXTENSION_API_VERSION = '1.2.0' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker

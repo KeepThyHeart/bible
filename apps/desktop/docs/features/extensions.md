@@ -1,6 +1,6 @@
 # Extensions
 
-**Last verified:** 2026-09-09
+**Last verified:** 2026-09-23
 
 Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `utilityProcess`. It never touches the renderer, never gets a Node.js global, and reaches the app only through an RPC surface the host defines. This doc is the file map for finding your way around that surface.
 
@@ -142,6 +142,42 @@ Both size caps exist because the worker is a QuickJS-in-WASM realm with a bounde
 - **Status bar** (`src/ui/components/StatusBar.tsx`), which did not exist as a component at all. Full detail in [Status Bar](status-bar.md).
 - **Tools menu** (`src/ui/menu/buildMenuSpec.ts`, `buildExtensionToolsSubmenu`). The only place in the application menu an extension can reach. Commands carrying an `ownerExtensionId` and not marked `hidden`, grouped by owning extension in id order, then by the command's `order`, then by resolved label. Omitted entirely when empty, so a fresh install has no Tools menu at all. Labels come from the extension's own already-localized command title, not from the `menu.*` catalog - the app cannot know a phrase for something it did not ship.
 
+## Permission enforcement that was declared but not checked
+
+Two confused-deputy holes: any installed extension, with zero granted permissions, could register a command (`commands:register` was in `DEFAULT_GRANTED_PERMISSIONS` but never actually checked) and could execute *any* built-in command through `commands.execute` - including ones that write notes, open Preferences, or change the layout - because `commandsApiImpl.ts` had no permission gate on it at all and simply forwarded to the same `ICommandRegistry` the menu uses.
+
+- `commandsApiImpl.ts` now checks `commands:register` on `commands.register`.
+- `commands.execute` now always permits an extension's own commands (anything under its `ext.<id>.` prefix - structurally guaranteed, since `CommandRegistry.register` refuses anything outside that prefix) and gates everything else behind a new permission, `commands:execute-builtin`, **and** a reviewed, hand-maintained allowlist (`BUILTIN_COMMAND_ALLOWLIST` in `commandsApiImpl.ts`) of which built-ins are safe to expose - adding a new built-in command never silently widens what an already-permissioned extension can reach. Another extension's command (also `ext.`-prefixed, but under a different id) is never reachable this way; that is what `api.extensions.call` is for.
+- The four permissions with no API behind them at all - `search:provide`, `import:provide`, `tts:provide`, `ai:provide` - were removed outright (schema, validator, consent dialog), following the precedent `ui.registerDisplayMode` set: don't ask the user to grant a capability the host cannot deliver. `display-mode:provide` was kept, because `ui.registerDisplayMode` exists and rejects loudly rather than doing nothing.
+- Found along the way: `bible:provide` was in the manifest JSON schema's permission enum but missing from `ExtensionManifestValidator`'s `ALLOWED_PERMISSIONS`, so a manifest declaring it - to use the real, already-implemented `bible:provide` gate in `bibleApiImpl.ts` - was unconditionally rejected at install time. Fixed as part of the same pass.
+
+## Workspace: panel presence (`api.workspace`)
+
+`getOpenPanels()`/`getActivePanel()` could see a panel, but an extension that owned a tab had no way to say anything about it beyond the status bar - no "5 due" on its own tab, no way to bring it forward from elsewhere in the UI.
+
+| Method | Gate | Notes |
+|---|---|---|
+| `workspace.setPanelTitle(panelId, title)` | Restricted to panels whose `contentType` is the caller's own (`ext:<extensionId>.*`) | Renaming a built-in or another extension's tab would be a spoofing vector; `workspaceApiImpl.assertOwnsPanel` checks via the same synchronous `getOpenPanels()` cache read the unrestricted methods already use. Renderer side calls dockview's `panel.api.setTitle()` (`extensionRendererBridge.ts`'s `setPanelTitle` op) |
+| `workspace.setPanelBadge(panelId, badge)` | Same ownership check | Writes into `extensionUiStore.panelBadges`; `DockviewTabRenderer.tsx` renders a small badge pill next to the tab title for `ext:`-content-type tabs |
+| `workspace.revealPanel(panelId)` | Unrestricted, like `openPanel`/`closePanel` | Focuses an already-open tab without touching its content - calls the same `panel.api.setActive()` `navigateToVerseInPrimary` and the `revealNotesPanel`/`revealDictionaryPanel` helpers already use. Resolves `false` if the panel is no longer open |
+
+`api.bible.navigateToVerse` already activates the Bible pane's tab (`sharedSlice.ts`'s `navigateToVerseInPrimary` calls `dockPanel.api.setActive()`) as of a change already on this branch before task 0024 - no host change was needed for that half of the "Show in Bible" case task 0032 asked for; `BibleApiImpl`'s `navigateToVerse` test closes the extension-API-facing half of the coverage.
+
+## Notifications that resolve with an action
+
+`ui.showNotification`'s `opts.actions` was validated and sent to the renderer, and nothing rendered it - a toast was a message and a dismiss button, and the promise resolved the instant the toast was queued rather than when the user did anything. It now resolves with the clicked action's `id`, or `undefined` if dismissed, replaced, or auto-dismissed - the same "wait for the user" shape `showConfirm`/`showQuickPick`/`showInputBox` already have. `extensionUiStore.ts` tracks one resolver per notification (settled exactly once, by whichever of action-click / manual dismiss / timeout happens first); `ExtensionUiHost.tsx` renders `opts.actions` as buttons.
+
+## Task progress in the status bar
+
+`api.tasks.run` has always documented "the host shows a progress entry in the status bar"; `electron/main.ts` never supplied `taskStatusBridge` to `ExtensionHost`, so nothing did. `RendererTaskStatusBridge.ts` closes that by piggy-backing on the same status bar surface described in [Status Bar](status-bar.md#background-tasks) rather than a second one. `taskNotifier` (for `notifyOnComplete`) is wired the same pass, as a one-line adapter onto `uiBridge.showNotification`.
+
+## Panel iframe SDK: verse events and popups
+
+`packages/extension-ui/src/BibleExtUI.ts` declared `onActiveVerseChanged` and `showVersePopup`/`hideVersePopup` from the start; none of the three worked.
+
+- **`onActiveVerseChanged`**: `useIframeBridge.ts` forwarded only `theme.changed` to panel iframes. It now also forwards `verse.activeChanged`, sourced from a new renderer-local pub/sub (`src/ui/extensions/activeVerseBroadcast.ts`) that `verseSlice.ts` publishes to from the same two call sites it already uses to IPC an active-verse change to workers (`bible.onDidChangeActiveVerse`) - so a panel iframe sees exactly the same active-verse changes a worker extension does, not a second, possibly-diverging notion of "active". The SDK's payload shape was also wrong: the channel's declared shape is `{ verseId, source }` (`ExtensionPointTypes.ts`), but `onActiveVerseChanged` expected a bare number. Fixed as a clean break (no SDK release has shipped) rather than a compat shim.
+- **`showVersePopup(verseId, rect)` / `hideVersePopup()`**: `useIframeBridge.ts` accepted both and discarded them ("Future: wire to the host's verse popup overlay"). `showVersePopup` now translates `rect` (iframe-local) into host-page coordinates via the iframe element's own `getBoundingClientRect()` and shows a real popup - reusing `VersePreviewTooltip`, the same component the host's built-in cross-reference and note hovers use, rather than a bespoke extension-only one. Neither call is permission-gated beyond the panel already needing `ui:contribute-pane` to exist, matching `bible.navigateToVerse`'s existing trust model in the same bridge.
+
 ## Popping an extension panel out
 
 Extension panels detach into their own window like any other pane. Two things stopped that working before:
@@ -193,9 +229,10 @@ Licensing here is the opposite of the module allowlist beside it: a bundled exte
 
 ## Tests
 
-- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`
+- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`, `CommandsContextIntegration` (permission gates + the built-in allowlist), `RendererTaskStatusBridge`, `TasksApi` (`showInStatusBar` filtering)
 - **Runtime:** `extension-runtime/__tests__/` - realm behaviour, guest bundle, bundle size, worker bootstrap, supervisor, smoke harness
-- **UI:** `src/ui/components/extensions/ExtensionMarketplace.test.tsx`, `extensionSettingsSchema.test.ts`, `src/ui/components/extensions/useIframeBridge.test.tsx`, `src/ui/extensions/contributedUi.test.tsx` (verse context menu + status bar), `src/ui/components/extensionPopOut.test.ts`, `src/ui/menu/extensionToolsMenu.test.ts`
+- **UI:** `src/ui/components/extensions/ExtensionMarketplace.test.tsx`, `extensionSettingsSchema.test.ts`, `src/ui/components/extensions/useIframeBridge.test.tsx` (including `verse.activeChanged` forwarding and verse popups), `src/ui/extensions/contributedUi.test.tsx` (verse context menu + status bar), `src/ui/extensions/notifications.test.tsx` (action-click resolution), `src/ui/extensions/workspaceBridge.test.ts` (`setPanelTitle`/`setPanelBadge`/`revealPanel` renderer wiring), `src/ui/components/extensionPopOut.test.ts`, `src/ui/menu/extensionToolsMenu.test.ts`
+- **SDK:** `packages/extension-ui/src/BibleExtUI.test.ts` - `onActiveVerseChanged`'s payload shape, `showVersePopup`/`hideVersePopup` request dispatch
 - **Runtime endpoint binding:** `extension-runtime/__tests__/reverseEndpointBinding.test.ts` - that `api.runtime.expose` and `api.panels.onMessage` land in the table `handleReverseRequest` dispatches from
 - **E2E:** `e2e/tests/extension-host-asar.spec.ts`
 - `electron/extensions/__tests__/fakeSql.ts` is a hand-rolled in-memory `ISql`; it exists so these tests avoid better-sqlite3's Electron ABI. Adding a table or column to `extensionSchema.ts` usually means teaching `fakeSql` the new query shape. `makeZip.ts` beside it builds the archives the installer tests unpack.

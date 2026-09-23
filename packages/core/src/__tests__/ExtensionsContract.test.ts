@@ -30,12 +30,14 @@ import {
  * These are pure contract assertions - no host runtime is involved.
  */
 describe('Extensions contract', () => {
-  // 1.1.0, not 1.0.0: the `runtime`, `panels` and `collections` namespaces
-  // were added to `BibleExtensionAPI`. Purely additive - nothing was removed
-  // or given a new signature - so a minor bump is right and an extension
-  // written against 1.0.0 still runs unchanged.
-  it('exports EXTENSION_API_VERSION 1.1.0 at the package root', () => {
-    expect(EXTENSION_API_VERSION).toBe('1.1.0');
+  // 1.2.0, not 1.1.0: task 0024 added ui.updateStatusBarItem,
+  // workspace.setPanelTitle/setPanelBadge/revealPanel, and
+  // commands:execute-builtin, and widened showNotification's return type
+  // (a strict superset of the old Promise<void>). See the doc comment on
+  // EXTENSION_API_VERSION for why removing the four permissions with no API
+  // behind them (search/import/tts/ai:provide) did not become a major bump.
+  it('exports EXTENSION_API_VERSION 1.2.0 at the package root', () => {
+    expect(EXTENSION_API_VERSION).toBe('1.2.0');
   });
 
   it('exports the same version through the Extensions namespace alias', () => {
