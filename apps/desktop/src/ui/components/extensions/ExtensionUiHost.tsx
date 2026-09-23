@@ -18,6 +18,7 @@ import { isLocalizedKey, type LocalizedString } from '../../types/LocalizedStrin
 import type { II18nService } from '../../services/II18nService';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import VersePreviewTooltip from '../VersePreviewTooltip';
 
 function resolveLocalizedString(
   value: LocalizedString | undefined,
@@ -38,6 +39,8 @@ const ExtensionUiHost: React.FC = () => {
   const dismissNotification = useExtensionUiStore((s) => s.dismissNotification);
   const resolveNotificationAction = useExtensionUiStore((s) => s.resolveNotificationAction);
   const modal = useExtensionUiStore((s) => s.modal);
+  const versePopup = useExtensionUiStore((s) => s.versePopup);
+  const hideVersePopup = useExtensionUiStore((s) => s.hideVersePopup);
   const t = (v: LocalizedString | undefined) => resolveLocalizedString(v, i18n);
 
   return (
@@ -139,6 +142,21 @@ const ExtensionUiHost: React.FC = () => {
 
       {/* Modal - only ever one at a time */}
       {modal && <ExtensionModalHost />}
+
+      {/*
+        Verse popup requested by a panel iframe's `BibleExtUI.showVersePopup`.
+        Reuses the same `VersePreviewTooltip` the host's own built-in verse
+        hovers (cross-references, notes) show, rather than a bespoke
+        extension-only popup - a reference is a reference regardless of which
+        pane asked to preview it.
+      */}
+      {versePopup && (
+        <VersePreviewTooltip
+          verseId={versePopup.verseId}
+          position={versePopup.position}
+          onClose={hideVersePopup}
+        />
+      )}
     </>
   );
 };

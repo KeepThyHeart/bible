@@ -18,7 +18,8 @@
 import { useEffect, useCallback } from 'react';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { usePreferencesStore } from '../../stores/usePreferencesStore';
-import { subscribeToPanelMessages } from '../../extensions/extensionUiStore';
+import { subscribeToPanelMessages, useExtensionUiStore } from '../../extensions/extensionUiStore';
+import { subscribeActiveVerseBroadcast } from '../../extensions/activeVerseBroadcast';
 
 // -- Inlined envelope types (kept in sync with @bible/core RpcEnvelope) ---
 
@@ -87,7 +88,7 @@ export function useIframeBridge({
       if (!isRpcRequest(event.data)) return;
 
       const req = event.data;
-      handleRequest(req, { extensionId, panelId, panelTypeId }).then(
+      handleRequest(req, { extensionId, panelId, panelTypeId, iframeRef }).then(
         (result) => {
           sendToIframe({ kind: 'response', id: req.id, result });
         },
@@ -140,6 +141,25 @@ export function useIframeBridge({
     });
     return unsub;
   }, [sendToIframe]);
+
+  // Active-verse changes. `BibleExtUI.onActiveVerseChanged` declared this
+  // channel from the start; nothing ever sent it - `useIframeBridge`
+  // forwarded only `theme.changed`. See `activeVerseBroadcast.ts` for why
+  // this subscribes there rather than to `useBibleStore` directly: it is the
+  // same signal a worker extension gets via `bible.onDidChangeActiveVerse`,
+  // published from the same two call sites.
+  useEffect(() => {
+    return subscribeActiveVerseBroadcast(({ verseId }) => {
+      sendToIframe({
+        kind: 'event',
+        channel: 'verse.activeChanged',
+        // `source` is reserved for a future finer-grained provenance (click
+        // vs. search vs. another extension's navigateToVerse) the host does
+        // not yet track - see BibleExtUI.onActiveVerseChanged.
+        payload: { verseId, source: 'host' },
+      });
+    });
+  }, [sendToIframe]);
 }
 
 // -- Request dispatch -----------------------------------------------------
@@ -152,6 +172,8 @@ interface PanelIdentity {
   extensionId: string;
   panelId?: string;
   panelTypeId?: string;
+  /** Needed to translate a `showVersePopup` rect (iframe-local) into host-page coordinates. */
+  iframeRef: React.RefObject<HTMLIFrameElement | null>;
 }
 
 async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<unknown> {
@@ -233,12 +255,27 @@ async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<
     }
 
     case 'ui.showVersePopup': {
-      // Future: wire to the host's verse popup overlay.
-      // For now, accept silently - the host decides whether to show.
+      const verseId = req.args[0];
+      const rect = req.args[1] as
+        | { x: number; y: number; width: number; height: number }
+        | undefined;
+      if (typeof verseId !== 'number' || !rect) return undefined; // best-effort, per the SDK's own contract
+      const iframeEl = identity.iframeRef.current;
+      if (!iframeEl) return undefined; // iframe unmounted mid-flight; nothing to anchor to
+      // `rect` is relative to the iframe's own document. Translate into host
+      // page coordinates via the iframe element's own rect, then hand off to
+      // the same VersePreviewTooltip the host's built-in verse hovers use -
+      // see ExtensionUiHost.tsx.
+      const iframeRect = iframeEl.getBoundingClientRect();
+      useExtensionUiStore.getState().showVersePopup(identity.extensionId, verseId, {
+        x: iframeRect.left + rect.x,
+        y: iframeRect.top + rect.y + rect.height,
+      });
       return undefined;
     }
 
     case 'ui.hideVersePopup': {
+      useExtensionUiStore.getState().hideVersePopup();
       return undefined;
     }
 

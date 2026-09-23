@@ -53,6 +53,22 @@ export type ExtensionModal =
   | ExtensionInputBoxModal
   | ExtensionConfirmModal;
 
+/**
+ * A verse popup requested by an extension panel iframe via
+ * `BibleExtUI.showVersePopup`. Non-modal and hover-driven (unlike
+ * `ExtensionModal`, which blocks on a user choice), so it is its own field
+ * rather than a fourth `ExtensionModal` kind - the panel that asked for it
+ * keeps running underneath, exactly like the host's own verse hover
+ * previews (`VersePreviewTooltip`) do for built-in panes. Only one at a
+ * time: a second request (from any panel) replaces it, which is also what
+ * happens when the user's mouse moves from one reference to another.
+ */
+export interface ExtensionVersePopup {
+  extensionId: string;
+  verseId: number;
+  position: { x: number; y: number };
+}
+
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
@@ -97,6 +113,9 @@ export interface ExtensionPanelType {
 interface ExtensionUiState {
   notifications: ExtensionNotification[];
   modal: ExtensionModal | null;
+  versePopup: ExtensionVersePopup | null;
+  showVersePopup(extensionId: string, verseId: number, position: { x: number; y: number }): void;
+  hideVersePopup(): void;
   /**
    * Contributed context menu items, in registration order. Sorting by `order`
    * happens where they are rendered, not here, so the store stays a plain
@@ -227,6 +246,7 @@ function settleNotification(id: number, actionId: string | undefined): void {
 export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
   notifications: [],
   modal: null,
+  versePopup: null,
   contextMenuItems: [],
   statusBarItems: [],
   panelTypes: [],
@@ -279,6 +299,14 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
 
   setModal(modal) {
     set({ modal });
+  },
+
+  showVersePopup(extensionId, verseId, position) {
+    set({ versePopup: { extensionId, verseId, position } });
+  },
+
+  hideVersePopup() {
+    set({ versePopup: null });
   },
 
   addContextMenuItem(extensionId, target, item) {
