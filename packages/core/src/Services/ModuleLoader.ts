@@ -17,6 +17,11 @@ export interface ModuleLoaderLogger {
   error(message: string, ...args: unknown[]): void;
 }
 
+/** Duck-types a `Promise` without an `instanceof` check, which fails across realms. */
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return typeof value === 'object' && value !== null && typeof (value as PromiseLike<unknown>).then === 'function';
+}
+
 /**
  * What `ModuleLoader` needs to turn an open connection into a `TRepo`, for the
  * ONE module type this loader instance handles.
@@ -68,6 +73,38 @@ export function moduleRepositoryFactoryFor<K extends keyof ModuleRepositoryByTyp
  * `readonly` - see that option's own doc comment for why the default is now
  * `true`.
  *
+ * ## `ensure()` vs `get()` (task 0034, 0029 design doc §04 S3b)
+ *
+ * `IModuleStore.open()` may now return a `Promise` (a store that reads a
+ * module over the network genuinely cannot open synchronously).
+ *
+ * - {@link ensure} loads the module if it is not already cached - awaiting
+ *   `store.open()` when it returns a `Promise` - and resolves once the
+ *   repository is cached. Always works, for either kind of store.
+ * - {@link get} keeps its original, pre-0034 contract: synchronous,
+ *   loads on a cache miss exactly as it always did, and returns the loaded
+ *   repository (or `null` if the module cannot be loaded). This is
+ *   deliberately NOT narrowed to "cache hit or null" - every existing
+ *   caller of `.get()` (the six desktop `ModuleLoader`-owning handler files,
+ *   `DatabaseManager.ts`'s four consolidated loaders, ...) relies on it to
+ *   load lazily, and narrowing it would have silently broken every one of
+ *   them without a single compile error - `TRepo | null` is exactly the same
+ *   return type either way, so nothing at a `.get()` call site would have
+ *   caught a caller that needed to be migrated to `ensure()` first. Instead,
+ *   `get()` still loads synchronously - which is exactly what "SqliteModuleStore
+ *   never returns a Promise" already guarantees for every store this codebase
+ *   ships - and only when `store.open()` itself hands back a `Promise` (a
+ *   genuinely async store) does `get()` decline to load: it cannot await, so
+ *   a cache miss against an async store returns `null` from `get()` without
+ *   recording it as a failure (the module may well be loadable - the caller
+ *   just needs {@link ensure}, which is the one place a `Promise` is awaited).
+ *
+ * `ensure()` exists for a caller that wants to force a load and knows it may
+ * need to await - a handler that ensures a module before a hot inline
+ * `.map()` of further `.get()` calls (safe either way, since `.get()` itself
+ * still loads on a miss), or, eventually, an async store this codebase does
+ * not have yet.
+ *
  * @example
  * ```typescript
  * const loader = new ModuleLoader({
@@ -78,7 +115,8 @@ export function moduleRepositoryFactoryFor<K extends keyof ModuleRepositoryByTyp
  *   factory: moduleRepositoryFactoryFor(sqliteRepositoryFactory, 'commentary', codecs),
  * });
  *
- * const repo = loader.get('mhc');  // lazy-loads and caches
+ * const repo = loader.get('mhc');   // loads lazily on a miss, exactly as before 0034
+ * await loader.ensure('mhc');       // equivalent, but awaits an async store's open()
  * loader.closeAll();                // on app shutdown
  * ```
  */
@@ -162,26 +200,34 @@ export class ModuleLoader<TRepo> {
   }
 
   /**
-   * Get or create a repository for the given module abbreviation.
-   * Returns null if the module doesn't exist or can't be loaded.
+   * The cached repository for `abbreviation`, applying the TTL-staleness
+   * check both `get()` and `ensure()` start with. Returns `undefined` on a
+   * genuine miss (nothing cached, or a stale entry just evicted) so callers
+   * can tell "no cached value" apart from "cached value is null-ish" - `TRepo`
+   * itself is never expected to be `undefined`.
    */
-  get(abbreviation: string): TRepo | null {
+  private cachedOrEvict(abbreviation: string): TRepo | undefined {
     const cached = this.repos.get(abbreviation);
-    if (cached) {
-      // If TTL is configured and the cache entry is stale, evict and reload
-      if (this.ttlMs > 0) {
-        const age = Date.now() - (this.loadedAt.get(abbreviation) ?? 0);
-        if (age > this.ttlMs) {
-          this.evict(abbreviation);
-          // Fall through to reload below
-        } else {
-          return cached;
-        }
-      } else {
-        return cached;
+    if (!cached) return undefined;
+
+    if (this.ttlMs > 0) {
+      const age = Date.now() - (this.loadedAt.get(abbreviation) ?? 0);
+      if (age > this.ttlMs) {
+        this.evict(abbreviation);
+        return undefined;
       }
     }
 
+    return cached;
+  }
+
+  /**
+   * The metadata/file checks both load paths start with, shared so `get()`
+   * and `ensure()` cannot drift apart on what counts as "loadable". Returns
+   * the resolved absolute path, or `null` (having already recorded the
+   * failure) when the module cannot be loaded at all.
+   */
+  private resolveLoadablePath(abbreviation: string): string | null {
     // A remembered failure short-circuits before any lookup, stat or logging.
     // Without this the whole body below ran on every call for a module that is
     // simply not installed.
@@ -208,28 +254,84 @@ export class ModuleLoader<TRepo> {
       return null;
     }
 
+    return dbPath;
+  }
+
+  /** Build the repo from an opened connection, cache both, and record the outcome. Shared by `get()`/`ensure()`. */
+  private finishLoad(abbreviation: string, dbPath: string, conn: IModuleConnection): TRepo | null {
+    const repo = this.factory.create(conn);
+    if (repo === null) {
+      conn.close();
+      this.recordFailure(
+        abbreviation,
+        `[ModuleLoader:${this.moduleType}] Factory produced no repository for ${dbPath}`,
+      );
+      return null;
+    }
+
+    this.connections.set(abbreviation, conn);
+    this.repos.set(abbreviation, repo);
+    this.loadedAt.set(abbreviation, Date.now());
+    this.failedAt.delete(abbreviation);
+
+    if (this.onRepoCreated) {
+      this.onRepoCreated(repo, abbreviation);
+    }
+
+    return repo;
+  }
+
+  /**
+   * Ensure a repository is loaded and cached for the given module
+   * abbreviation - opening it (awaiting `store.open()` if it returns a
+   * `Promise`) on a cache miss. Returns null if the module doesn't exist or
+   * can't be loaded. Works for either kind of store - see this class's own
+   * doc comment.
+   */
+  async ensure(abbreviation: string): Promise<TRepo | null> {
+    const cached = this.cachedOrEvict(abbreviation);
+    if (cached !== undefined) return cached;
+
+    const dbPath = this.resolveLoadablePath(abbreviation);
+    if (dbPath === null) return null;
+
     try {
-      const conn = this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
-      const repo = this.factory.create(conn);
-      if (repo === null) {
-        conn.close();
-        this.recordFailure(
-          abbreviation,
-          `[ModuleLoader:${this.moduleType}] Factory produced no repository for ${dbPath}`,
-        );
+      const conn = await this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
+      return this.finishLoad(abbreviation, dbPath, conn);
+    } catch (error) {
+      this.recordFailure(
+        abbreviation,
+        `[ModuleLoader:${this.moduleType}] Failed to load ${abbreviation}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get a repository for the given module abbreviation, loading it on a
+   * cache miss exactly as this method always has (pre-0034 behaviour,
+   * preserved on purpose - see this class's own doc comment). The one case
+   * this cannot service is a `store.open()` that returns a `Promise` (a
+   * genuinely async store): synchronous code cannot await it, so that case
+   * returns `null` without recording a failure - the module may well be
+   * loadable, the caller just needs {@link ensure} instead.
+   */
+  get(abbreviation: string): TRepo | null {
+    const cached = this.cachedOrEvict(abbreviation);
+    if (cached !== undefined) return cached;
+
+    const dbPath = this.resolveLoadablePath(abbreviation);
+    if (dbPath === null) return null;
+
+    try {
+      const maybeConn = this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
+      if (isThenable(maybeConn)) {
+        // An async store - `get()` cannot await. Not a failure: `ensure()`
+        // against the same abbreviation can still succeed.
         return null;
       }
-
-      this.connections.set(abbreviation, conn);
-      this.repos.set(abbreviation, repo);
-      this.loadedAt.set(abbreviation, Date.now());
-      this.failedAt.delete(abbreviation);
-
-      if (this.onRepoCreated) {
-        this.onRepoCreated(repo, abbreviation);
-      }
-
-      return repo;
+      return this.finishLoad(abbreviation, dbPath, maybeConn);
     } catch (error) {
       this.recordFailure(
         abbreviation,

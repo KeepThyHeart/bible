@@ -117,3 +117,14 @@ export type { StrongsLanguage, ParsedStrongsNumber } from './Data/Core/StrongsNu
 // --- Plugin hook registry ---------------------------------------------------
 export { HookRegistry } from './Plugin/HookRegistry';
 export type { FilterHandler, ActionHandler } from './Plugin/HookRegistry';
+
+// --- Data-provider seam (task 0034) -----------------------------------------
+// DTO types plus the ten Promise-returning provider interfaces - pure data
+// and interface declarations, no platform dependency. See `Providers/interfaces.ts`'s
+// own doc comment for what this is and why it (not the module repositories)
+// is where a remote/licensed content source plugs in. Namespaced (like
+// `Extensions`/`Usfm` above) because two DTO names (`SearchOptions`,
+// `TopicVerseData`) collide with pre-existing, differently-shaped root
+// exports (`Data/Models/Main/SavedSearch.ts`, `Services/Search/TopicExpansion.ts`) -
+// a flat `export *` would be ambiguous for both.
+export * as Providers from './Providers';

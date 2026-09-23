@@ -5,7 +5,7 @@ import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validatePositiveInt, validateString, validateVerseId } from '../utils/validation';
 
-const loader = new ModuleLoader('dictionary', (db) => new DictionaryRepository(db));
+const loader = new ModuleLoader('dictionary', 'dictionary');
 
 export function getDictionaryRepository(abbreviation: string): DictionaryRepository | null {
   return loader.get(abbreviation);
@@ -135,8 +135,12 @@ export function registerDictionaryHandlers(_ipcMain: IpcMain): void {
   // Handler: Get dictionary module info
   ipcHandler<[string], DictionaryInfoDto>(
     'dictionary:getDictionaryInfo',
-    (abbreviation) => {
+    async (abbreviation) => {
       validateAbbreviation(abbreviation);
+      // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b) -
+      // every other `requireDictionaryRepository`/`getDictionaryRepository`
+      // call in this file stays the plain synchronous `.get()` it always was.
+      await loader.ensure(abbreviation);
       const repo = requireDictionaryRepository(abbreviation);
 
       const info = repo.getModuleInfo();

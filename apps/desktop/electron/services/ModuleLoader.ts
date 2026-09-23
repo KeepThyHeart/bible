@@ -3,22 +3,86 @@ import log from 'electron-log';
 import { getSharedModuleMetadataRepo } from './sharedMainDb';
 import { resolveModulePath } from '../utils/appPaths';
 import { createRegistrySqlFactory } from './ModuleDatabaseRegistry';
-import { ModuleLoader as CoreModuleLoader, SqliteModuleStore } from '@bible/core';
-import type { ISql, IModuleConnection } from '@bible/core';
+import {
+  ModuleLoader as CoreModuleLoader,
+  SqliteModuleStore,
+  SqliteModuleRepositoryFactory,
+  moduleRepositoryFactoryFor,
+  nodeCodecRegistry,
+} from '@bible/core';
+import type {
+  ModuleRepositoryByType,
+  ModuleConnectionFactory,
+  ICodecRegistry,
+  BibleRepository,
+  CommentaryRepository,
+  DictionaryRepository,
+  BookRepository,
+  TopicalIndexRepository,
+  CrossReferenceRepository,
+  TagGraphRepository,
+} from '@bible/core';
+
+/**
+ * One `SqliteModuleRepositoryFactory` and one codec registry, shared by
+ * every desktop `ModuleLoader` instance (task 0034, finishing M11's
+ * construction migration - this is the same "cheap to construct, share it"
+ * posture `apps/web/server/DatabaseManager.ts` already takes with its own
+ * instances of these two).
+ */
+const repositoryFactory = new SqliteModuleRepositoryFactory();
+const codecs: ICodecRegistry = nodeCodecRegistry();
+
+/**
+ * `IModuleRepositoryFactory.create()` (and so `moduleRepositoryFactoryFor()`)
+ * is typed to hand back the per-type INTERFACE (`IBibleRepository`, ...) -
+ * deliberately, per M11's design doc, so a caller of the factory abstraction
+ * never depends on a concrete repository's extra surface. Every caller of
+ * THIS class, unchanged by task 0034, was written against the CONCRETE class
+ * (`BibleRepository`, not `IBibleRepository`) - matching every other desktop
+ * file that already imports these types directly, and the extension bridges
+ * (`extensions/bridges/*.ts`), whose `deps` interfaces name the concrete
+ * classes too. This maps each `ModuleRepositoryByType` key to the concrete
+ * class `SqliteModuleRepositoryFactory` is KNOWN to build for it - matching
+ * `apps/web/server/DatabaseManager.ts`'s own `asConcreteFactory` for exactly
+ * the same reason - so this class can keep returning the concrete type its
+ * six callers already depend on.
+ */
+interface ConcreteModuleRepositoryByType {
+  bible: BibleRepository;
+  commentary: CommentaryRepository;
+  dictionary: DictionaryRepository;
+  book: BookRepository;
+  topicalIndex: TopicalIndexRepository;
+  crossRef: CrossReferenceRepository;
+  tagGraph: TagGraphRepository;
+}
+
+function asConcreteFactory<K extends keyof ModuleRepositoryByType>(
+  factory: ModuleConnectionFactory<ModuleRepositoryByType[K]>
+): ModuleConnectionFactory<ConcreteModuleRepositoryByType[K]> {
+  return factory as unknown as ModuleConnectionFactory<ConcreteModuleRepositoryByType[K]>;
+}
 
 /**
  * Desktop-specific ModuleLoader that wraps the core ModuleLoader with
  * Electron platform bindings (electron-log, better-sqlite3, app paths).
  *
- * Task 0026, revision 2, subtask M11: internally this now builds a
+ * Task 0026, revision 2, subtask M11: internally this builds a
  * `SqliteModuleStore` (driven by the same `ModuleDatabaseRegistry`-backed
- * SQLite driver the old `sqlFactory` used) and a tiny per-instance
- * connection factory that just forwards to the `createRepo` callback this
- * class's own callers already supply - the public constructor's first three
- * parameters are UNCHANGED (`ipc/bibleHandlers.ts` and its siblings, which
- * are not part of this subtask's scope, all keep calling
- * `new ModuleLoader('bible', (db) => new BibleRepository(db), ...)` exactly
- * as before).
+ * SQLite driver the old `sqlFactory` used).
+ *
+ * Task 0034 (finishing M11): the constructor's second parameter changed
+ * from a raw `createRepo: (db: ISql) => TRepo` callback to `repoType: K`, a
+ * key of `ModuleRepositoryByType` - every one of this class's six callers
+ * passed exactly `(db) => new XRepository(db)` (or, for `'commentary'`,
+ * with `codecs` already defaulted internally), which is now `moduleType`'s
+ * own `X` looked up through the shared `IModuleRepositoryFactory` seam
+ * instead of hand-rolled per call site. `TRepo` is now derived from `K`
+ * (`ModuleRepositoryByType[K]`) rather than an independent type parameter -
+ * every caller already constructed exactly that concrete class, so nothing
+ * observable changes; see `ipc/bibleHandlers.ts` and its five siblings for
+ * the updated call sites.
  *
  * A fourth, optional `readonly` parameter was added as a same-day follow-up
  * fix to M11's own commit, once independent verification caught what the
@@ -46,17 +110,22 @@ import type { ISql, IModuleConnection } from '@bible/core';
  *
  * @example
  * ```typescript
- * const loader = new ModuleLoader('commentary', (db) => new CommentaryRepository(db));
- * const repo = loader.get('mhc'); // lazy-loads and caches
- * loader.closeAll();               // on app shutdown
+ * const loader = new ModuleLoader('commentary', 'commentary');
+ * await loader.ensure('mhc');       // opens (may await), caches
+ * const repo = loader.get('mhc');   // cache hit - sync, cheap, safe in a loop
+ * loader.closeAll();                // on app shutdown
  * ```
  */
-export class ModuleLoader<TRepo> {
-  private core: CoreModuleLoader<TRepo>;
+export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
+  private core: CoreModuleLoader<ConcreteModuleRepositoryByType[K]>;
 
   /**
    * @param moduleType - Expected module type string (e.g., 'bible', 'commentary')
-   * @param createRepo - Factory function that creates a repository from an ISql provider
+   * @param repoType - Which `ModuleRepositoryByType` key this loader
+   *   constructs - `moduleType` and `repoType` name the same content but do
+   *   not always spell it the same way (`'cross_reference'` vs `'crossRef'`,
+   *   `'topical_index'` vs `'topicalIndex'`); both are required because
+   *   `moduleType` is also the string `module_metadata.module_type` stores.
    * @param onRepoCreated - Optional callback after a repo is created (e.g., for ensureSearchTablesExist)
    * @param readonly - Whether module connections open read-only. Defaults to
    *   `true` (matches the core `ModuleLoader`'s own default - see this
@@ -65,8 +134,8 @@ export class ModuleLoader<TRepo> {
    */
   constructor(
     moduleType: string,
-    createRepo: (db: ISql) => TRepo,
-    onRepoCreated?: (repo: TRepo, abbreviation: string) => void,
+    repoType: K,
+    onRepoCreated?: (repo: ConcreteModuleRepositoryByType[K], abbreviation: string) => void,
     readonly?: boolean
   ) {
     // The store's driver delegates to ModuleDatabaseRegistry so every module
@@ -75,15 +144,12 @@ export class ModuleLoader<TRepo> {
     // registry.
     const store = new SqliteModuleStore(createRegistrySqlFactory(moduleType));
 
-    this.core = new CoreModuleLoader<TRepo>({
+    this.core = new CoreModuleLoader<ConcreteModuleRepositoryByType[K]>({
       moduleType,
       metadataRepo: getSharedModuleMetadataRepo(),
       pathResolver: { resolveModulePath },
       store,
-      // `IModuleConnection.sql` is present for every connection this store
-      // opens (it only ever opens SQLite files) - `createRepo` gets exactly
-      // the `ISql` it always got.
-      factory: { create: (conn: IModuleConnection) => (conn.sql ? createRepo(conn.sql) : null) },
+      factory: asConcreteFactory<K>(moduleRepositoryFactoryFor(repositoryFactory, repoType, codecs)),
       readonly,
       onRepoCreated,
       fileExists: existsSync,
@@ -92,15 +158,25 @@ export class ModuleLoader<TRepo> {
   }
 
   /**
-   * Get or create a repository for the given module abbreviation.
-   * Returns null if the module doesn't exist or can't be loaded.
+   * Ensure a repository is loaded and cached for the given module
+   * abbreviation - opening it if it is not already cached. Call this once
+   * per module, before the (synchronous) `get()` reads that follow it - see
+   * `@bible/core`'s `ModuleLoader.ensure()`/`.get()` doc comment (task 0034).
    */
-  get(abbreviation: string): TRepo | null {
+  ensure(abbreviation: string): Promise<ConcreteModuleRepositoryByType[K] | null> {
+    return this.core.ensure(abbreviation);
+  }
+
+  /**
+   * Get an already-cached repository for the given module abbreviation.
+   * Returns null on a cache miss - call `ensure()` first to load one.
+   */
+  get(abbreviation: string): ConcreteModuleRepositoryByType[K] | null {
     return this.core.get(abbreviation);
   }
 
   /** Get all currently loaded repositories. */
-  getAll(): Map<string, TRepo> {
+  getAll(): Map<string, ConcreteModuleRepositoryByType[K]> {
     return this.core.getAll();
   }
 

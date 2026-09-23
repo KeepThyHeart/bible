@@ -114,6 +114,19 @@ describe('ModuleLoader failure memoization', () => {
 
     expect(loader.get('SYNTHESIS')).toEqual({ id: 'repo' });
   });
+
+  // The same memoization applies to `ensure()` (task 0034) - it shares the
+  // same `resolveLoadablePath` check `get()` uses.
+  it('also memoizes a missing module through ensure()', async () => {
+    const loader = build();
+
+    for (let i = 0; i < 5; i++) {
+      expect(await loader.ensure('SYNTHESIS')).toBeNull();
+    }
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(getByAbbreviation).toHaveBeenCalledTimes(1);
+  });
 });
 
 /**
@@ -201,5 +214,100 @@ describe('ModuleLoader store/factory wiring (M11)', () => {
     const { loader } = buildWith({ closeSpy, create: () => null });
     expect(loader.get('SYNTHESIS')).toBeNull();
     expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Task 0034 (async-readiness prerequisite, 0029 design doc §04 S3b):
+ * `IModuleStore.open()` may now return `IModuleConnection | Promise<IModuleConnection>`.
+ *
+ * `get()` keeps its original, pre-0034 contract (synchronous, loads on a
+ * miss) for every store whose `open()` resolves synchronously - which is
+ * every store this codebase ships, so no existing caller had to change.
+ * `ensure()` is the one addition: it always works, awaiting when `open()`
+ * returns a `Promise` - the one case `get()` cannot service on its own.
+ */
+describe('ModuleLoader ensure()/get() (task 0034)', () => {
+  const dbPath = 'modules/commentary_synthesis.db';
+  let getByAbbreviation: Mock;
+
+  beforeEach(() => {
+    getByAbbreviation = vi.fn().mockReturnValue({ moduleType: 'commentary', databasePath: dbPath });
+  });
+
+  const buildAsyncStore = () => {
+    const store: IModuleStore = {
+      id: 'fake-async',
+      extensions: ['.db'],
+      canOpen: () => true,
+      open: (loc: ModuleLocator): Promise<IModuleConnection> =>
+        Promise.resolve({ locator: loc, writable: false, close: () => {} }),
+    };
+    const factory: ModuleConnectionFactory<{ id: string }> = {
+      create: () => ({ id: 'repo' }),
+    };
+    return new ModuleLoader<{ id: string }>({
+      moduleType: 'commentary',
+      metadataRepo: { getByAbbreviation } as unknown as IModuleMetadataRepository,
+      pathResolver: { resolveModulePath: (p: string) => p },
+      store,
+      factory,
+    });
+  };
+
+  it('get() still loads synchronously on a miss - unchanged pre-0034 behaviour', () => {
+    const store: IModuleStore = {
+      id: 'fake',
+      extensions: ['.db'],
+      canOpen: () => true,
+      open: (loc: ModuleLocator): IModuleConnection => ({ locator: loc, writable: false, close: () => {} }),
+    };
+    const factory: ModuleConnectionFactory<{ id: string }> = { create: () => ({ id: 'repo' }) };
+    const loader = new ModuleLoader<{ id: string }>({
+      moduleType: 'commentary',
+      metadataRepo: { getByAbbreviation } as unknown as IModuleMetadataRepository,
+      pathResolver: { resolveModulePath: (p: string) => p },
+      store,
+      factory,
+    });
+
+    expect(loader.get('SYNTHESIS')).toEqual({ id: 'repo' });
+  });
+
+  it('ensure() awaits a store whose open() returns a Promise', async () => {
+    const loader = buildAsyncStore();
+    await expect(loader.ensure('SYNTHESIS')).resolves.toEqual({ id: 'repo' });
+    // Cached now, so a plain get() sees it without touching the store again.
+    expect(loader.get('SYNTHESIS')).toEqual({ id: 'repo' });
+  });
+
+  it('get() cannot service an async store on its own - returns null without recording a failure', async () => {
+    const loader = buildAsyncStore();
+
+    expect(loader.get('SYNTHESIS')).toBeNull();
+
+    // Not treated as a failure: ensure() against the same abbreviation still succeeds.
+    await expect(loader.ensure('SYNTHESIS')).resolves.toEqual({ id: 'repo' });
+  });
+
+  it('ensure() on an already-cached module resolves without re-opening', async () => {
+    const openSpy = vi.fn((loc: ModuleLocator): IModuleConnection => ({
+      locator: loc,
+      writable: false,
+      close: () => {},
+    }));
+    const store: IModuleStore = { id: 'fake', extensions: ['.db'], canOpen: () => true, open: openSpy };
+    const factory: ModuleConnectionFactory<{ id: string }> = { create: () => ({ id: 'repo' }) };
+    const loader = new ModuleLoader<{ id: string }>({
+      moduleType: 'commentary',
+      metadataRepo: { getByAbbreviation } as unknown as IModuleMetadataRepository,
+      pathResolver: { resolveModulePath: (p: string) => p },
+      store,
+      factory,
+    });
+
+    await loader.ensure('SYNTHESIS');
+    await loader.ensure('SYNTHESIS');
+    expect(openSpy).toHaveBeenCalledTimes(1);
   });
 });

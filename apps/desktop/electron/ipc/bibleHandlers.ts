@@ -1,6 +1,7 @@
 import { IpcMain } from 'electron';
 import log from 'electron-log/main';
-import { BibleRepository, VerseIdHelper, formatVerseText } from '@bible/core';
+import { VerseIdHelper, formatVerseText } from '@bible/core';
+import type { BibleRepository } from '@bible/core';
 import { getSharedModuleMetadataRepo, getSharedBookRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
@@ -14,16 +15,27 @@ import { pickDefaultBible } from './defaultBible';
 // ModuleLoader's core default flipped to readonly: true in M11; every other
 // module type here is genuinely read-only now, but Bible is not yet - see
 // ModuleLoader.ts's own doc comment for the regression this override fixes.
-const bibleLoader = new ModuleLoader('bible', (db) => new BibleRepository(db), (repo) => {
+const bibleLoader = new ModuleLoader('bible', 'bible', (repo) => {
   repo.ensureSearchTablesExist();
 }, false);
 
 /**
- * Get or create a Bible repository for a specific module.
- * Exported so it can be used in other handlers (e.g., search).
+ * Get a Bible repository for a specific module IF it is already cached.
+ * Exported so it can be used in other handlers (e.g., search). Never opens a
+ * connection - see {@link ensureBibleRepository}.
  */
 export function getBibleRepository(abbreviation: string): BibleRepository | null {
   return bibleLoader.get(abbreviation);
+}
+
+/**
+ * Ensure a Bible repository is loaded and cached for a specific module,
+ * opening it if it is not already (task 0034, 0029 design doc §04 S3b).
+ * Exported so other handler files (`studyHandlers.ts`) can warm the same
+ * shared loader before falling back to `getBibleRepository`.
+ */
+export function ensureBibleRepository(abbreviation: string): Promise<BibleRepository | null> {
+  return bibleLoader.ensure(abbreviation);
 }
 
 /**
@@ -87,9 +99,15 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
   });
 
   // Handler: Get a single verse
-  ipcHandler<[string, number], any>('bible:getVerse', (abbreviation, verseId) => {
+  ipcHandler<[string, number], any>('bible:getVerse', async (abbreviation, verseId) => {
     validateAbbreviation(abbreviation);
     validateVerseId(verseId);
+    // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b) -
+    // every other `requireBibleRepository`/`getBibleRepository` call in this
+    // file (and in `studyHandlers.ts`/`searchHandlers.ts`, which share this
+    // loader through the getter) stays the plain synchronous `.get()` it
+    // always was.
+    await bibleLoader.ensure(abbreviation);
     const bibleRepo = requireBibleRepository(abbreviation);
 
     const verse = bibleRepo.getVerse(verseId);

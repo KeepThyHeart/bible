@@ -1,6 +1,13 @@
 import * as fs from 'fs';
 import log from 'electron-log';
-import type { ISql, ModuleType, IIndexSource, SidecarDatabaseOpener } from '@bible/core';
+import type {
+  ISql,
+  ModuleType,
+  IIndexSource,
+  SidecarDatabaseOpener,
+  ICodecRegistry,
+  IModuleRepositoryFactory,
+} from '@bible/core';
 import {
   SidecarFts5Provider,
   SidecarIndexBuildError,
@@ -9,14 +16,19 @@ import {
   SIDECAR_TOKENIZER,
   KeywordIndexRepository,
   ModuleMetadataRepository,
-  BibleRepository,
-  CommentaryRepository,
-  DictionaryRepository,
-  BookRepository,
-  TopicalIndexRepository,
+  SqliteModuleRepositoryFactory,
+  nodeCodecRegistry,
+  wrapSqlConnection,
 } from '@bible/core';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { getKeywordIndexRoot, resolveModulePath } from '../utils/appPaths';
+
+/**
+ * Task 0034 (finishing M11): the factory `repositoryForIndexing()` routes
+ * construction through below, instead of `new XRepository(db)` per branch.
+ */
+const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const indexingCodecs: ICodecRegistry = nodeCodecRegistry();
 
 /**
  * Status the renderer reads for one module's keyword index (F8, task 0027
@@ -96,18 +108,19 @@ export function moduleTypeSupportsKeywordIndex(moduleType: ModuleType): boolean 
  * build", never an error - the caller treats it as a normal, silent no-op.
  */
 function repositoryForIndexing(moduleType: ModuleType, db: ISql): { getIndexSource(): IIndexSource } | null {
+  const conn = wrapSqlConnection(db);
   switch (moduleType) {
     case 'bible':
-      return new BibleRepository(db);
+      return repositoryFactory.create(conn, 'bible', indexingCodecs);
     case 'commentary':
-      return new CommentaryRepository(db);
+      return repositoryFactory.create(conn, 'commentary', indexingCodecs);
     case 'dictionary':
     case 'lexicon':
-      return new DictionaryRepository(db);
+      return repositoryFactory.create(conn, 'dictionary', indexingCodecs);
     case 'book':
-      return new BookRepository(db);
+      return repositoryFactory.create(conn, 'book', indexingCodecs);
     case 'topical_index':
-      return new TopicalIndexRepository(db);
+      return repositoryFactory.create(conn, 'topicalIndex', indexingCodecs);
     case 'cross_reference':
     case 'tag_graph':
     case 'devotional':

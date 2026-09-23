@@ -5,11 +5,8 @@ import { getDataPath, getUserModulesPath, resolveMainDbPath } from './appPaths';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import {
   ModuleMetadataRepository,
-  BibleRepository,
-  CommentaryRepository,
-  DictionaryRepository,
-  TopicalIndexRepository,
-  CrossReferenceRepository,
+  SqliteModuleRepositoryFactory,
+  wrapSqlConnection,
   ModuleMetadata,
   ModuleType,
   crossReferenceSlugs,
@@ -20,7 +17,16 @@ import {
   nodeCodecRegistry,
   SQLITE_MODULE_EXTENSIONS
 } from '@bible/core';
-import type { FormatVersionKind } from '@bible/core';
+import type { FormatVersionKind, ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
+
+/**
+ * Task 0034 (finishing M11): the factory `getModuleInfoFromDatabase()` routes
+ * construction through below, instead of `new XRepository(db)` per branch.
+ * Codecs deliberately default via `nodeCodecRegistry()`, matching what each
+ * repository's own constructor fell back to before this migration.
+ */
+const detectorRepositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const detectorCodecs: ICodecRegistry = nodeCodecRegistry();
 
 /**
  * First 16 bytes of `path`, or `null` if fewer than 16 could be read at all.
@@ -128,11 +134,14 @@ function getModuleInfoFromDatabase(
 
     let result: DetectedModuleInfo | null = null;
 
-    // Read module_info based on module type
+    // Read module_info based on module type. Task 0034 (finishing M11): each
+    // branch constructs its repository through `IModuleRepositoryFactory`
+    // instead of `new XRepository(db)`.
+    const conn = wrapSqlConnection(db);
     switch (moduleType) {
       case 'bible': {
-        const repo = new BibleRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'bible', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -146,8 +155,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'commentary': {
-        const repo = new CommentaryRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'commentary', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -162,8 +171,8 @@ function getModuleInfoFromDatabase(
 
       case 'dictionary':
       case 'lexicon': {
-        const repo = new DictionaryRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'dictionary', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -177,8 +186,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'topical_index': {
-        const repo = new TopicalIndexRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'topicalIndex', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -192,8 +201,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'cross_reference': {
-        const repo = new CrossReferenceRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'crossRef', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,

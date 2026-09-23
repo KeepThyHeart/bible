@@ -37,6 +37,7 @@ import type {
   SqliteModuleRepositoryFactory as SqliteModuleRepositoryFactoryT,
   moduleRepositoryFactoryFor as moduleRepositoryFactoryForT,
   nodeCodecRegistry as nodeCodecRegistryT,
+  wrapSqlConnection as wrapSqlConnectionT,
   SqlDriverFactory,
   IModuleStore,
   IModuleRepositoryFactory,
@@ -66,6 +67,8 @@ const SqliteModuleStore: typeof SqliteModuleStoreT = coreCjs.SqliteModuleStore;
 const SqliteModuleRepositoryFactory: typeof SqliteModuleRepositoryFactoryT = coreCjs.SqliteModuleRepositoryFactory;
 const moduleRepositoryFactoryFor: typeof moduleRepositoryFactoryForT = coreCjs.moduleRepositoryFactoryFor;
 const nodeCodecRegistry: typeof nodeCodecRegistryT = coreCjs.nodeCodecRegistry;
+/** Task 0034 (finishing M11): wraps an already-open `SqliteProvider` as an `IModuleConnection` for `repositoryFactory.create()`. */
+const wrapSqlConnection: typeof wrapSqlConnectionT = coreCjs.wrapSqlConnection;
 
 /**
  * `IModuleRepositoryFactory.create()` (and so `moduleRepositoryFactoryFor()`)
@@ -257,6 +260,11 @@ export class DatabaseManager {
     return this.mainDb;
   }
 
+  /**
+   * `BibleBookRepository` reads main.db, not a module file - it has no
+   * `IModuleRepositoryFactory` entry by design; see `ModuleRepositoryFactory.ts`'s
+   * doc comment (task 0034).
+   */
   getBookRepo(): BibleBookRepositoryT {
     if (!this.bookRepo) {
       this.bookRepo = new BibleBookRepository(this.getMainDb());
@@ -345,7 +353,19 @@ export class DatabaseManager {
 
     try {
       const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new DictionaryRepository(db);
+      // Construction (not connection-opening) routed through the shared
+      // factory (task 0034, finishing M11). Resolution here deliberately
+      // stays a direct filename lookup, not `ModuleLoader` - see the
+      // consolidation comment above this class's loader fields for why.
+      // The factory is typed to hand back the per-type INTERFACE
+      // (`IDictionaryRepository`); it is known to build the concrete
+      // `DictionaryRepository` here - a truthful narrowing, matching this
+      // file's own `asConcreteFactory` above.
+      const repo = this.repositoryFactory.create(wrapSqlConnection(db), 'dictionary', this.codecs) as DictionaryRepositoryT | null;
+      if (!repo) {
+        db.close();
+        return null;
+      }
       this.dictionaryDbs.set(name, db);
       this.dictionaryRepos.set(name, repo);
       return repo;
@@ -381,6 +401,9 @@ export class DatabaseManager {
 
     try {
       const mainDb = this.getMainDb();
+      // `BibleSearchRepository` reads main.db, not a module file - it has no
+      // `IModuleRepositoryFactory` entry by design; see
+      // `ModuleRepositoryFactory.ts`'s doc comment (task 0034).
       this.searchRepo = new BibleSearchRepository(mainDb);
       const bookRepo = this.getBookRepo();
       const bibleModules = new Map<string, BibleRepositoryT>();
@@ -533,7 +556,12 @@ export class DatabaseManager {
 
     try {
       this._tagGraphDb = new SqliteProvider(dbPath);
-      this._tagGraphRepo = new TagGraphRepository(this._tagGraphDb);
+      // Construction routed through the shared factory (task 0034, finishing
+      // M11) - a truthful narrowing back to the concrete class, matching
+      // this file's own `asConcreteFactory` above.
+      this._tagGraphRepo = this.repositoryFactory.create(
+        wrapSqlConnection(this._tagGraphDb), 'tagGraph', this.codecs
+      ) as TagGraphRepositoryT | null;
       return this._tagGraphRepo;
     } catch {
       return null;

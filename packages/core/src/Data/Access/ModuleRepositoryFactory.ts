@@ -33,6 +33,7 @@ import type { ICodecRegistry } from './Codec';
 import type { ModuleCapabilities } from './Capabilities';
 import type { RuntimeEnvironment } from './IKeywordIndexProvider';
 import type { IModuleConnection } from './ModuleStore';
+import type { ModuleType } from '../Core/Types';
 import type { IBibleRepository } from '../Repositories/IBibleRepository';
 import type { ICommentaryRepository } from '../Repositories/ICommentaryRepository';
 import type { IDictionaryRepository } from '../Repositories/IDictionaryRepository';
@@ -79,3 +80,72 @@ export interface IModuleRepositoryFactory {
   ): ModuleRepositoryByType[K] | null;
   capabilities(conn: IModuleConnection, env: RuntimeEnvironment): ModuleCapabilities;
 }
+
+/**
+ * Maps a `ModuleType` (the published module-FILE taxonomy - what
+ * `module_metadata.module_type` and a module's filename prefix carry) onto
+ * the narrower key {@link IModuleRepositoryFactory} uses
+ * ({@link ModuleRepositoryByType}). The two diverge exactly where
+ * `ModuleRepositoryByType`'s own doc comment says they do: `lexicon` shares
+ * `dictionary`'s repository (both are dictionary-shaped content), and
+ * `devotional` has no repository class to construct at all yet. A caller
+ * that discovers or indexes a module by its `ModuleType` (module detection,
+ * keyword indexing - task 0034, finishing M11) uses this instead of
+ * repeating the mapping inline at each call site.
+ *
+ * `null` means "this module type has no factory-constructible repository" -
+ * never an error; every caller of this function already treats that as a
+ * normal no-op (see `moduleDetector.ts`'s and `KeywordIndexService.ts`'s own
+ * `'book' | 'devotional' | 'tag_graph'` / `'cross_reference' | 'tag_graph' |
+ * 'devotional'` branches, which predate this helper and reflect the same
+ * fact).
+ */
+export function moduleRepositoryTypeFor(moduleType: ModuleType): keyof ModuleRepositoryByType | null {
+  switch (moduleType) {
+    case 'bible':
+      return 'bible';
+    case 'commentary':
+      return 'commentary';
+    case 'dictionary':
+    case 'lexicon':
+      return 'dictionary';
+    case 'book':
+      return 'book';
+    case 'topical_index':
+      return 'topicalIndex';
+    case 'cross_reference':
+      return 'crossRef';
+    case 'tag_graph':
+      return 'tagGraph';
+    case 'devotional':
+    default:
+      return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Why `IBibleSearchRepository` and `IBibleBookRepository` have no factory
+// entry (task 0034, 0029 design doc §03/§04 S3c - "give each either a
+// factory entry or an explicit, documented reason why not").
+//
+// `IModuleRepositoryFactory`/`IModuleStore` exist to make the storage scheme
+// BEHIND A MODULE FILE swappable - a Bible, a commentary, a dictionary, ...
+// one open connection per installed module. Both of these repositories
+// instead read `main.db`, the single shared application database that is
+// not a "module" in that sense at all (no `module_info`, no per-file
+// identity, one instance for the whole app, opened once at startup - see
+// `IBibleSearchRepository.ts`'s own doc comment for what it covers today:
+// saved searches and search history; `IBibleBookRepository.ts` covers Bible
+// book/chapter metadata the same way). There is nothing here for a second
+// storage scheme to swap - a document store or a remote mirror still needs
+// exactly one `main.db`-shaped place to keep saved searches and book
+// metadata, however the MODULE content ends up stored - so folding either
+// interface into `ModuleRepositoryByType` would misrepresent what the
+// factory abstracts over. Every construction site for these two
+// (`apps/web/server/DatabaseManager.ts`, `apps/desktop/electron/services/
+// sharedMainDb.ts`, `apps/desktop/electron/ipc/collectionHandlers.ts`,
+// `apps/desktop/electron/ipc/searchHandlers.ts`) keeps constructing them
+// directly (`new BibleBookRepository(mainDb)` / `new
+// BibleSearchRepository(mainDb)`) and points back to this comment instead of
+// routing through the factory.
+// ---------------------------------------------------------------------------

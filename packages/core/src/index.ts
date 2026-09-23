@@ -141,3 +141,12 @@ export * as Usfm from './Export';
 // The entry points are also available unqualified, since their names are unique.
 export { toUSFM, toUSFMBook, UsfmExportError } from './Export/toUSFM';
 export { parseUSFM, UsfmParseError } from './Export/parseUSFM';
+
+// Data-provider seam (task 0034, finishing 0029's S3a): DTO types plus the
+// ten Promise-returning provider interfaces (`IBibleDataProvider` and nine
+// siblings) - the app-wide content-source seam a remote/licensed Bible
+// version implements, instead of a module repository. Also re-exported from
+// `./browser`, since it is pure data/interfaces with no platform dependency.
+// Namespaced (like `Extensions`/`Usfm` above): two DTO names collide with
+// pre-existing root exports - see `browser.ts`'s copy of this comment.
+export * as Providers from './Providers';

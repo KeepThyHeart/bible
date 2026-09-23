@@ -52,6 +52,21 @@ export interface IModuleConnection {
  * the M11 seam. `extensions` is what module discovery (`moduleDetector.ts`)
  * asks every registered store for, instead of hard-coding `.db` - see that
  * file's doc comment.
+ *
+ * Task 0034 (async-readiness prerequisite, 0029 design doc §04 S3b):
+ * `open()`'s return type is `IModuleConnection | Promise<IModuleConnection>`,
+ * not a bare `IModuleConnection`. `ModuleLocator` already has a
+ * `{ kind: 'remote'; url }` member that a synchronous `open()` could
+ * structurally never honour - genuine network I/O cannot return
+ * synchronously. This union is the whole change: {@link SqliteModuleStore},
+ * the one store implemented today, keeps returning a bare
+ * `IModuleConnection` (a concrete type is always assignable to a wider
+ * union), so nothing about it - or any repository it opens - changes. A
+ * future store that genuinely needs to fetch bytes over the network returns
+ * a `Promise` instead; callers that only ever see the sync store pay
+ * nothing extra, and `Services/ModuleLoader.ts`'s `ensure()`/`get()` split
+ * is what keeps this union from cascading into every inline repository
+ * lookup - see that file's own doc comment.
  */
 export interface IModuleStore {
   /** 'sqlite', 'csv-dictionary', 'json-bible', ... */
@@ -59,5 +74,33 @@ export interface IModuleStore {
   /** File extensions this store's `canOpen()` accepts, lower-case, each including its leading dot. */
   readonly extensions: string[];
   canOpen(loc: ModuleLocator): boolean;
-  open(loc: ModuleLocator, opts: { readonly: boolean }): IModuleConnection;
+  open(loc: ModuleLocator, opts: { readonly: boolean }): IModuleConnection | Promise<IModuleConnection>;
+}
+
+/**
+ * Wrap an already-open `ISql` as a minimal {@link IModuleConnection}, for a
+ * caller that owns its connection's lifecycle some other way - a
+ * registry-cached handle keyed by module id or path, a boot-time scan that
+ * opens and closes its own file directly - but still wants to construct its
+ * repository through {@link IModuleRepositoryFactory} (`./ModuleRepositoryFactory.ts`)
+ * rather than `new XRepository(sql)` (task 0034, finishing M11). Every
+ * `IModuleRepositoryFactory` implementation reads only `conn.sql` to build a
+ * repository; `locator` and `writable` are informational only there, so a
+ * caller that has no real `ModuleLocator` on hand (a connection reached by
+ * module id, not by path) may pass none and get an inert placeholder.
+ *
+ * `close` defaults to a no-op deliberately: most callers of this helper do
+ * not want the factory (or a `ModuleLoader`) closing a connection someone
+ * else owns.
+ */
+export function wrapSqlConnection(
+  sql: ISql,
+  options: { locator?: ModuleLocator; writable?: boolean; close?: () => void } = {}
+): IModuleConnection {
+  return {
+    locator: options.locator ?? { kind: 'file', path: '' },
+    writable: options.writable ?? false,
+    sql,
+    close: options.close ?? ((): void => {}),
+  };
 }

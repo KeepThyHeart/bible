@@ -3,8 +3,24 @@ import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { initializeSearchSchema } from '../schema/searchSchema';
-import { BibleRepository, BibleSearchRepository, BibleSearchService, SearchController, SemanticSearchService, WordFamilyService, formatVerseText, highlightSearchTerms, clampSearchQuery } from '@bible/core';
-import type { SemanticLevel, SemanticQueryModel } from '@bible/core';
+import {
+  BibleRepository,
+  // `BibleSearchRepository` reads main.db (saved searches/history), not a
+  // module file - it has no `IModuleRepositoryFactory` entry by design; see
+  // `ModuleRepositoryFactory.ts`'s doc comment (task 0034).
+  BibleSearchRepository,
+  BibleSearchService,
+  SearchController,
+  SemanticSearchService,
+  WordFamilyService,
+  SqliteModuleRepositoryFactory,
+  nodeCodecRegistry,
+  wrapSqlConnection,
+  formatVerseText,
+  highlightSearchTerms,
+  clampSearchQuery,
+} from '@bible/core';
+import type { SemanticLevel, SemanticQueryModel, ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
 import { getBibleRepository } from './bibleHandlers';
 import { getDictionaryRepository } from './dictionaryHandlers';
 import { validateString, validatePositiveInt } from '../utils/validation';
@@ -39,6 +55,10 @@ let semanticEmbedderLoading: Promise<any> | null = null;
  * entry (and on Windows, a lock on a file the installer is about to replace).
  */
 let semanticDbPathInUse: string | null = null;
+
+/** Task 0034 (finishing M11): the factory `bibleRepo`'s construction below routes through. */
+const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const codecs: ICodecRegistry = nodeCodecRegistry();
 
 function initializeSearchServices(): void {
   if (!searchRepo) {
@@ -78,7 +98,11 @@ function initializeSearchServices(): void {
       try {
         bibleDb = getModuleDatabaseRegistry().openByAbbreviation(abbreviation, 'bible');
         if (bibleDb) {
-          bibleRepo = new BibleRepository(bibleDb);
+          // Factory is typed to hand back `IBibleRepository`; the SQLite
+          // factory is known to build the concrete `BibleRepository` here -
+          // a truthful narrowing (matching `DatabaseManager.ts`'s own
+          // `asConcreteFactory`).
+          bibleRepo = repositoryFactory.create(wrapSqlConnection(bibleDb), 'bible', codecs) as BibleRepository | null;
           searchBibleAbbreviation = abbreviation;
           log.info('Bible repository for search initialized successfully');
         } else {
