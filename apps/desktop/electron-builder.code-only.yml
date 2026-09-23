@@ -75,9 +75,10 @@ files:
   # Un-excluding onnxruntime-node + @huggingface/transformers builds cleanly
   # (app.asar 67.8 MB, win-unpacked 842 MB) versus 34.3 MB / 323 MB without them.
   # So the cost of making semantic search work on a code-only install is about
-  # +519 MB unpacked. Whether that is worth paying when the pack it enables is
-  # itself ~2.1 GB is the open payload question in WS-G/G7 — deliberately not
-  # decided here.
+  # +519 MB unpacked. Whether that is worth paying is the open payload question
+  # in WS-G/G7 — deliberately not decided here. The pack it enables was ~2.1 GB
+  # in its original full-width float32 form; the compact 256-d int8 pack built
+  # by scripts/build-feature-pack.js is ~210 MB to download, ~280 MB installed.
   #
   # IF YOU ADD THEM BACK, prune the three non-target ORT platform trees (~197 MB
   # of the 259 MB `bin/napi-v6` tree) with an `afterPack` hook that deletes them.
@@ -169,9 +170,20 @@ win:
       arch:
         - x64
 nsis:
-  # Disable the default "is the app running?" check, which false-positives on
-  # this product name and loops on "cannot be closed". See build-installer.nsh.
-  include: build-installer.nsh
+  # Keep electron-builder's default "is the app running?" check; do not stub
+  # out customCheckAppRunning. With it stubbed, an upgrade run while the app is
+  # open cannot move the old install's locked files, the old uninstaller exits
+  # 2, and the installer shows "<product> cannot be closed" and then "Failed to
+  # uninstall old application files ...: 2". The default check closes the app
+  # first. The false positive that once justified stubbing it (the installer
+  # prefix-matching its own "<product> Setup <ver>.exe" process) happens only
+  # in per-machine installs, which use nsProcess. Per-user installs, which all
+  # three configs build, use an exact-name `tasklist` match.
+  #
+  # The same two dialogs appear when upgrading over a pre-asar build (0.1.x,
+  # "Bible Desktop App"). Its unpacked node_modules paths exceed MAX_PATH once
+  # the old uninstaller moves them into %TEMP%. Uninstall that build by hand
+  # first. asar keeps installed paths short, so current builds are unaffected.
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false

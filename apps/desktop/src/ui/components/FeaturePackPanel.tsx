@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { featurePackAPI } from '../services/electronAPI';
 import { useSearchStore } from '../stores/useSearchStore';
+import { getLocalizer, type Localizer } from '@bible/core';
 
 /**
  * "Features" tab of the Module Manager: optional capabilities the user can add
@@ -61,15 +62,21 @@ interface FeaturePackStatus {
 
 const POLL_INTERVAL_MS = 750;
 
-export function formatBytes(bytes: number): string {
+/**
+ * Byte-size label, e.g. "2.5 GB". `localizer` defaults to `en` so existing
+ * callers (and this function's own unit tests) keep their historical output;
+ * pass the active `Localizer` from `useI18n()` to format the number for the
+ * chosen UI locale.
+ */
+export function formatBytes(bytes: number, localizer: Localizer = getLocalizer('en')): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
   const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  return `${Math.round(bytes / (1024 * 1024))} MB`;
+  if (gb >= 1) return `${localizer.formatNumber(gb, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GB`;
+  return `${localizer.formatNumber(Math.round(bytes / (1024 * 1024)))} MB`;
 }
 
 const FeaturePackPanel: React.FC = () => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [available, setAvailable] = useState<FeaturePackListing[]>([]);
   const [status, setStatus] = useState<FeaturePackStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -259,8 +266,8 @@ const FeaturePackPanel: React.FC = () => {
             )}
         </span>
         <span>
-          {formatBytes(p.bytesDownloaded)} / {formatBytes(p.totalBytes)}
-          {p.speedBps > 0 && ` · ${formatBytes(p.speedBps)}/s`}
+          {formatBytes(p.bytesDownloaded, localizer)} / {formatBytes(p.totalBytes, localizer)}
+          {p.speedBps > 0 && ` · ${formatBytes(p.speedBps, localizer)}/s`}
         </span>
       </div>
     </div>
@@ -324,11 +331,11 @@ const FeaturePackPanel: React.FC = () => {
                   <span>
                     {t(
                       'featurePacks.downloadSize',
-                      { size: formatBytes(pack.download_size_bytes), },
+                      { size: formatBytes(pack.download_size_bytes, localizer), },
                     )}
                   </span>
                   <span>
-                    {t('featurePacks.diskSize', { size: formatBytes(pack.installed_size_bytes), })}
+                    {t('featurePacks.diskSize', { size: formatBytes(pack.installed_size_bytes, localizer), })}
                   </span>
                   <span>
                     {t('featurePacks.license', { license: pack.license })}
@@ -402,7 +409,7 @@ const FeaturePackPanel: React.FC = () => {
               <div className="text-xs text-text-tertiary mt-2">
                 {t(
                   'featurePacks.diskSize',
-                  { size: formatBytes(status.manifest.installedSizeBytes), },
+                  { size: formatBytes(status.manifest.installedSizeBytes, localizer), },
                 )}
               </div>
             </div>

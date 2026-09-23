@@ -72,6 +72,7 @@ export function initializeMainDatabase(mainDbPath: string, seedDbPath?: string):
   ensureModuleUuidColumn(db);
   ensureDefaultRepository(db);
   ensureReferenceData(db, seedDbPath);
+  ensureKeywordIndexTable(db);
 
   log.info('[MainDB] Database initialization complete');
   return db;
@@ -222,6 +223,47 @@ function ensureModuleUuidColumn(db: SqliteProvider): void {
   db.execute(
     `CREATE INDEX IF NOT EXISTS idx_module_metadata_uuid ON module_metadata(module_uuid)`
   );
+}
+
+/**
+ * Add the `keyword_index` table if this database predates it.
+ *
+ * Task 0027 revision 2 (F8) added `keyword_index` to the canonical schema
+ * (`packages/core/sql/schemas/initial/MainDatabase.sql`), but - exactly like
+ * `module_metadata.module_uuid` above - that canonical file only builds a
+ * BRAND NEW database. Every `main.db` this app has ever shipped or a user has
+ * ever had running predates this table, and core ships no migration files at
+ * all (see `ensureModuleUuidColumn`'s doc comment), so an existing database
+ * never acquires it except through this legacy upgrader.
+ *
+ * Unlike `ensureModuleUuidColumn` (an ALTER TABLE on a table that already
+ * exists) this is a brand new table, so `CREATE TABLE IF NOT EXISTS` is
+ * already the whole idempotency story - no presence check needed first, and
+ * safe to run unconditionally on every launch, matching the `module_download_queue`
+ * / `module_update` tables in `applyMigration002` below.
+ *
+ * The DDL here is intentionally column-for-column identical to
+ * `sql/schemas/initial/MainDatabase.sql`'s `keyword_index` table (see that
+ * file for the field-by-field rationale) - the two are checked against each
+ * other in `initMainDatabase.test.ts` precisely so they cannot drift apart
+ * the way `module_metadata` did before `ensureModuleUuidColumn` existed.
+ */
+function ensureKeywordIndexTable(db: SqliteProvider): void {
+  db.execute(`
+    CREATE TABLE IF NOT EXISTS keyword_index (
+      module_uuid    TEXT NOT NULL,
+      provider_id    TEXT NOT NULL,
+      content_sha256 TEXT NOT NULL,
+      state          TEXT NOT NULL,
+      tokenizer      TEXT NOT NULL,
+      doc_count      INTEGER,
+      size_bytes     INTEGER,
+      built_at       TEXT,
+      error          TEXT,
+      PRIMARY KEY (module_uuid, provider_id)
+    )
+  `);
+  db.execute('CREATE INDEX IF NOT EXISTS idx_keyword_index_state ON keyword_index(state)');
 }
 
 /**

@@ -10,167 +10,25 @@ import { IUserNoteRepository, NoteSummary } from '../../Data/Repositories/IUserN
 import { ICollectionRepository } from '../../Data/Repositories/ICollectionRepository';
 import { IBibleBookRepository } from '../../Data/Repositories/IBibleBookRepository';
 import { SavedSearch } from '../../Data/Models/Main/SavedSearch';
-import { BibleSearchIndex } from '../../Data/Models/Main/BibleSearchIndex';
-import { BibleSearchVersePosition } from '../../Data/Models/Main/BibleSearchVersePosition';
 import { UserNote } from '../../Data/Models/User/UserNote';
 import { Collection, PinnedItem } from '../../Data/Models/User/Collection';
 import { BibleBook } from '../../Data/Models/Main/BibleBook';
 import { ChapterInfo } from '../../Data/Models/Main/ChapterInfo';
-import { FTS5Match } from '../../types/search';
 import { VerseId, NoteType, Testament } from '../../Data/Core/Types';
 import { RepositoryQueryOptions } from '../../Data/Core/IRepository';
 
 /**
  * Mock implementation of IBibleSearchRepository
  * Used for testing saved searches without a database
+ *
+ * Used to also mock book-level FTS5 index management, proximity search and
+ * verse position mapping; task 0026 subtask M12 removed those methods from
+ * `IBibleSearchRepository` (zero production callers -- see that interface),
+ * and this mock shrank with it.
  */
 export class MockBibleSearchRepository implements IBibleSearchRepository {
   private savedSearches: Map<number, SavedSearch> = new Map();
-  private indexes: Map<string, BibleSearchIndex> = new Map();
-  private versePositions: Map<string, BibleSearchVersePosition[]> = new Map();
   private nextSearchId = 1;
-
-  // ========================================================================
-  // Index Management
-  // ========================================================================
-
-  isBookIndexed(document: string, division: string): boolean {
-    const key = `${document}:${division}`;
-    const index = this.indexes.get(key);
-    return index?.isIndexed === true;
-  }
-
-  getIndexMetadata(document: string, division: string): BibleSearchIndex | undefined {
-    const key = `${document}:${division}`;
-    return this.indexes.get(key);
-  }
-
-  buildBookIndex(
-    document: string,
-    division: string,
-    _bookText: string,
-    versePositions: BibleSearchVersePosition[]
-  ): void {
-    const key = `${document}:${division}`;
-    const index = new BibleSearchIndex({
-      // `type` is required and the timestamp field is `lastIndexed`; there is
-      // no `bookText` on the model. The mock must only build records the
-      // repository could actually return.
-      type: 'bible',
-      document,
-      division,
-      isIndexed: true,
-      lastIndexed: new Date().toISOString(),
-    });
-    this.indexes.set(key, index);
-    this.versePositions.set(key, versePositions);
-  }
-
-  clearBookIndex(document: string, division: string): void {
-    const key = `${document}:${division}`;
-    const index = this.indexes.get(key);
-    if (index) {
-      index.isIndexed = false;
-      index.lastIndexed = undefined;
-    }
-  }
-
-  deleteBookIndex(document: string, division: string): void {
-    const key = `${document}:${division}`;
-    this.indexes.delete(key);
-    this.versePositions.delete(key);
-  }
-
-  getUnindexedBooks(document: string): BibleSearchIndex[] {
-    return Array.from(this.indexes.values()).filter(
-      idx => idx.document === document && !idx.isIndexed
-    );
-  }
-
-  getIndexedBooks(document: string): BibleSearchIndex[] {
-    return Array.from(this.indexes.values()).filter(
-      idx => idx.document === document && idx.isIndexed
-    );
-  }
-
-  // ========================================================================
-  // Proximity Search (Book-Level FTS5)
-  // ========================================================================
-
-  searchProximity(
-    _document: string,
-    _terms: string[],
-    _maxDistance: number,
-    _division?: string
-  ): FTS5Match[] {
-    // Simple mock - return empty array
-    // Real implementation uses SQLite FTS5
-    return [];
-  }
-
-  searchPhrase(_document: string, _phrase: string, _division?: string): FTS5Match[] {
-    // Simple mock - return empty array
-    return [];
-  }
-
-  searchFTS5(_document: string, _fts5Query: string, _division?: string): FTS5Match[] {
-    // Simple mock - return empty array
-    return [];
-  }
-
-  // ========================================================================
-  // Verse Position Mapping
-  // ========================================================================
-
-  getVerseIdAtPosition(
-    document: string,
-    division: string,
-    position: number
-  ): VerseId | undefined {
-    const key = `${document}:${division}`;
-    const positions = this.versePositions.get(key) || [];
-
-    for (const pos of positions) {
-      if (position >= pos.startIndex && position < pos.endIndex) {
-        return pos.verseId;
-      }
-    }
-
-    return undefined;
-  }
-
-  getVersePosition(
-    document: string,
-    division: string,
-    verseId: VerseId
-  ): BibleSearchVersePosition | undefined {
-    const key = `${document}:${division}`;
-    const positions = this.versePositions.get(key) || [];
-    return positions.find(p => p.verseId === verseId);
-  }
-
-  getVersesInRange(
-    document: string,
-    division: string,
-    startPos: number,
-    endPos: number
-  ): BibleSearchVersePosition[] {
-    const key = `${document}:${division}`;
-    const positions = this.versePositions.get(key) || [];
-
-    return positions.filter(
-      p => p.startIndex < endPos && p.endIndex > startPos
-    );
-  }
-
-  batchInsertVersePositions(positions: BibleSearchVersePosition[]): void {
-    for (const pos of positions) {
-      const key = `${pos.document}:${pos.division}`;
-      const existing = this.versePositions.get(key) || [];
-      existing.push(pos);
-      this.versePositions.set(key, existing);
-    }
-  }
 
   // ========================================================================
   // Saved Searches
@@ -223,8 +81,6 @@ export class MockBibleSearchRepository implements IBibleSearchRepository {
 
   clear(): void {
     this.savedSearches.clear();
-    this.indexes.clear();
-    this.versePositions.clear();
     this.nextSearchId = 1;
   }
 }

@@ -45,7 +45,10 @@ import { isRedirectStatus, parseHttpUrl, resolveRedirectTarget } from '../utils/
  * "never throw" (the extension gateway) map this to their own error union.
  */
 export class NetworkBlockedError extends Error {
-  readonly code = 'NetworkBlocked' as const;
+  // Matches the `IpcErrorCode` value `handler-helper.ts` classifies this into
+  // (`network_blocked`), so a caller checking either the thrown error or the
+  // IPC `Result<T>` envelope's `error.code` sees the same string.
+  readonly code = 'network_blocked' as const;
   constructor(context: string) {
     super(`Network egress blocked by offline mode: ${context}`);
     this.name = 'NetworkBlockedError';

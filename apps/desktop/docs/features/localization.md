@@ -14,16 +14,18 @@ Every folder under `apps/desktop/locales/`, with the `locale.status` / `locale.d
 |---|---|---|---|
 | `en` | complete | ltr | Source of truth |
 | `ar` | **draft** | **rtl** | Arabic - the locale the RTL work was done against |
-| `es` | **draft** | ltr | Spanish |
+| `es` | **beta** | ltr | Spanish - every namespace complete, machine-drafted, unreviewed |
 | `hi` | **draft** | ltr | Hindi - quotes **no** Scripture at all (see its `locale.notes`) |
 | `pt-BR` | **draft** | ltr | Portuguese (Brazil) |
 | `ru` | **draft** | ltr | Russian |
-| `zh-Hans` | **draft** | ltr | Chinese (Simplified) |
+| `zh-Hans` | **beta** | ltr | Chinese (Simplified) - every namespace complete, machine-drafted, unreviewed |
 | `xx-pseudo` | draft (generated) | ltr | Dev-only pseudo-locale for spotting unlocalized strings |
 
 Every non-`en` folder except `xx-pseudo` is machine-drafted and carries a `locale.notes` recording which public-domain Scripture edition its samples quote. New folders are added independently of this document; the direction plumbing picks up whatever is present, so the table may lag the directory. See **Right-to-left (RTL)** below.
 
-**Shipped does not mean selectable.** Every catalog here is loaded and usable, but the pickers currently offer only `en` out of the built-in set, because the rest are machine-drafted. See [Which locales are offered](#which-locales-are-offered).
+`es` and `zh-Hans` were promoted to `beta` once a content-drafting pass filled in `main.json`/`menu.json` (previously missing entirely) and completed `ui.json` to 100% - they now appear in the pickers with a "Beta" badge instead of being withheld. `ar`, `hi`, `pt-BR` and `ru` are still `draft`: each is still missing `main.json` and `menu.json` entirely and `ui.json` is only about 64% complete. Promoting one is a content decision (fill the gaps first, see the globalization task), not a code change; see [Which locales are offered](#which-locales-are-offered).
+
+**Shipped does not mean selectable.** Every catalog here is loaded and usable, but the pickers offer a built-in locale only once its own status is `beta` or `complete` - `draft` ones are withheld. Today that means `en`, `es` and `zh-Hans`. See [Which locales are offered](#which-locales-are-offered).
 
 ## Files
 
@@ -41,7 +43,7 @@ Every non-`en` folder except `xx-pseudo` is machine-drafted and carries a `local
 | `src/ui/utils/textDirection.ts` | Content (module-language) direction, independent of the UI locale. |
 | `src/ui/testing/enCatalog.ts` | Test-only. Loads the real `en/` catalogs so a component test can assert the wording a user reads rather than a key. |
 | `src/ui/utils/paneNames.ts` | `PANE_NAME_KEYS` + `localizePaneLabel()` - the catalog key for each pane's name, and the rule that turns a dockview panel's *persisted* English title into a localized one at render time. |
-| `src/ui/components/PreferencesDialog/GeneralSection.tsx` | The Preferences language picker. Also owns `BUILT_IN_LOCALES`, `SELECTABLE_BUILT_IN_LOCALES` and `selectableLocales()` - the single gate on which shipped locales either picker offers. |
+| `src/ui/components/PreferencesDialog/GeneralSection.tsx` | The Preferences language picker. Also owns `BUILT_IN_LOCALES` and `selectableLocales()` - the single gate on which shipped locales either picker offers, driven by each locale's own `status`. |
 | `src/ui/components/onboarding/LanguageFirstRun.tsx` | The first-run language question. Filters through the same `selectableLocales()`, and skips the question entirely when it leaves one language. |
 | `electron/ipc/i18nHandlers.ts` | Main-process handlers that enumerate and read catalog files from the app bundle and from `<userData>/locales/`: `i18n:listBuiltinCatalogs`, `i18n:readBuiltinCatalog`, `i18n:listUserCatalogs`, `i18n:readUserCatalog`, and `i18n:setLocale` from the renderer. |
 | `electron/preload.ts` | Exposes those five channels to the renderer, which is what `LocaleCatalogLoader` calls. |
@@ -65,17 +67,19 @@ Each locale folder carries a `meta.json` with flat `locale.*` keys:
 {
   "locale.name": "Spanish",
   "locale.nativeName": "Español",
-  "locale.status": "draft",
+  "locale.status": "beta",
   "locale.direction": "ltr"
 }
 ```
+
+`locale.status` is one of three tiers (`LocaleStatus` in `II18nService.ts`): `draft` (withheld from the built-in picker, see below), `beta` (offered, badged "Beta"), `complete` (offered, no badge - reviewed by a native speaker). Promoting a built-in locale is exactly: change this one field.
 
 It is deliberately a normal catalog namespace, so the existing catalog IPC bridge loads it with no main-process changes and a user can add a language by dropping a folder into `<userData>/locales/`.
 
 Renderer API:
 
 * `i18n.getLocaleMetadata(code)` - resolved from that locale's **own** catalog, never through the English fallback (otherwise every locale would report itself as English and `complete`). Unknown/absent status defaults to `draft`, direction to `ltr`.
-* `i18n.availableLocaleInfos` - every loaded locale with metadata, sorted English -> `complete` -> `draft` -> native name, ready to render in a picker.
+* `i18n.availableLocaleInfos` - every loaded locale with metadata, sorted English -> `complete` -> `beta` -> `draft` -> native name, ready to render in a picker.
 * `i18n.currentDirection` - `ltr`/`rtl` for the active locale. Bound to `<html dir>` by `utils/documentDirection.ts` (see below).
 
 ## English data in modules: resolve at render, never at import
@@ -116,22 +120,22 @@ There are two pickers - `PreferencesDialog/GeneralSection.tsx` (the app's only c
 
 `selectableLocales()` lives in `GeneralSection.tsx` and is the **only** gate. It keeps:
 
-* every **user-supplied** locale - anything whose code is not in `BUILT_IN_LOCALES`, i.e. a folder dropped into `<userData>/locales/`;
-* the **built-in** locales named in `SELECTABLE_BUILT_IN_LOCALES`, currently `['en']`;
+* every **user-supplied** locale - anything whose code is not in `BUILT_IN_LOCALES`, i.e. a folder dropped into `<userData>/locales/` - regardless of its status;
+* the **built-in** locales whose own `status` is not `draft` (i.e. `beta` or `complete`);
 * the **active** locale, always, so a user already running a withdrawn language still sees what they are on rather than an unchecked radio group.
 
-Every shipped catalog other than `en` is machine-drafted and has never had a native-speaker review, so offering them invites a user to switch the whole interface into a translation we cannot stand behind - and possibly into one they cannot read well enough to switch back from. **To ship another language, add its code to `SELECTABLE_BUILT_IN_LOCALES` and change nothing else.**
+A built-in catalog still at `draft` is machine-drafted and has never had a native-speaker review, and - unlike `beta` - may not even be complete enough to try, so offering it invites a user to switch the whole interface into a translation we cannot stand behind, possibly into one they cannot read well enough to switch back from. **To ship another built-in language, promote its `meta.json` `locale.status` to `beta` (badged) or `complete` (reviewed) - there is no separate list to edit.**
 
 The filtering is deliberately at the two call sites and **not** inside `I18nService`: `availableLocaleInfos` is also the mechanism by which a user adds their own language, and that must keep working untouched. `LocaleMetadata` carries no provenance field, so `BUILT_IN_LOCALES` names the shipped codes instead; a code missing from that list is treated as user-supplied and shown, which is the safe direction to fail.
 
 Consequences for the two pickers:
 
-* **Preferences** - the section is a disclosure, **collapsed by default** (see [Settings & Preferences](settings-preferences.md#language-section)). Its footnote switches between the draft warning (`preferencesDialog.languageDraftNote`) and `preferencesDialog.languageMoreComingNote` depending on whether any draft is actually listed.
-* **First run** - with a single language on offer there is no question to ask, so step 1 is skipped rather than rendered as a one-item radio group: the locale is committed, the answer recorded, and the dialog opens on the suggested-content step. Widening the allowlist brings the question back with no further change.
+* **Preferences** - the section is a disclosure, **collapsed by default** (see [Settings & Preferences](settings-preferences.md#language-section)). Its footnote picks, in order: the draft warning (`preferencesDialog.languageDraftNote`) if any listed locale is `draft` (only possible for a user-supplied one, since built-in drafts are withheld), else the beta note (`preferencesDialog.languageBetaNote`) if any is `beta`, else `preferencesDialog.languageMoreComingNote`.
+* **First run** - with a single language on offer there is no question to ask, so step 1 is skipped rather than rendered as a one-item radio group: the locale is committed, the answer recorded, and the dialog opens on the suggested-content step. Promoting a built-in locale out of `draft` brings the question back with no further change.
 
-### The draft badge
+### The draft/beta badges
 
-Each row shows the endonym (`nativeName`) plus the English name and BCP-47 code, and **every locale whose `status` is not `complete` carries a visible `preferencesDialog.localeDraftBadge` badge** ("Draft — community review pending", `data-testid="locale-draft-badge-<code>"`). That badge is not optional: it is the app's only honest signal that a translation is machine-drafted and unreviewed. Do not hide it behind a tooltip or a settings flag. It applies to user-supplied catalogs too - one with no `meta.json` defaults to `draft`.
+Each row shows the endonym (`nativeName`) plus the English name and BCP-47 code, and **every locale whose `status` is not `complete` carries a visible badge** naming its tier: `preferencesDialog.localeDraftBadge` ("Draft — community review pending", `data-testid="locale-draft-badge-<code>"`) or `preferencesDialog.localeBetaBadge` ("Beta — community review pending", `data-testid="locale-beta-badge-<code>"`). Neither is optional: together they are the app's only honest signal that a translation is machine-drafted and unreviewed, whether or not it is otherwise complete enough to offer. Do not hide either behind a tooltip or a settings flag. Both apply to user-supplied catalogs too - one with no `meta.json` defaults to `draft`. The onboarding picker (`LanguageFirstRun.tsx`) makes the same distinction with `onboarding.language.draftBadge` / `onboarding.language.betaBadge`.
 
 Switching applies immediately - direction included. The one thing that does not follow live is an already-detached pane window; it picks up the new locale when reopened, and the picker's help text says so.
 

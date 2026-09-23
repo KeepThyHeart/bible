@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 // Deep import, not the `@bible/core` barrel: the barrel's `export * from
 // './Data'` chain drags in modules that assume a filesystem/Node runtime.
 // This mirrors the existing `@bible/core/*` path mapping in tsconfig.json
@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 // the one standalone, dependency-free file keeps the renderer bundle safe.
 import type { SearchResult } from '@bible/core/types/search';
 import { useI18n } from '../contexts/useI18n';
-import { BOOK_NAMES, BOOK_ALIASES, MAX_CHAPTERS, OT_BOOKS, NT_BOOKS } from '../constants/bibleBooks';
+import { MAX_CHAPTERS, OT_BOOKS, NT_BOOKS, localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
 import { VerseIdHelper } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
 import { sanitizeHtml } from '../utils/sanitize';
@@ -31,20 +31,24 @@ function normalizeRomanPrefix(input: string): string {
     .replace(/^i\b\s*/i, '1 ');
 }
 
-function parseReference(input: string): { book: number; chapter: number; verse?: number } | null {
+function parseReference(
+  input: string,
+  bookNames: Record<number, string>,
+  bookAliases: Record<string, number>,
+): { book: number; chapter: number; verse?: number } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   const normalized = normalizeRomanPrefix(trimmed.toLowerCase());
 
   const candidates: [string, number][] = [];
-  for (const [numStr, name] of Object.entries(BOOK_NAMES)) {
+  for (const [numStr, name] of Object.entries(bookNames)) {
     const bookNum = parseInt(numStr, 10);
     const lowerName = name.toLowerCase();
     candidates.push([lowerName, bookNum]);
     candidates.push([lowerName.substring(0, 3), bookNum]);
     if (/^\d/.test(lowerName)) candidates.push([lowerName.replace(' ', ''), bookNum]);
   }
-  for (const [alias, bookNum] of Object.entries(BOOK_ALIASES)) {
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
     candidates.push([alias.toLowerCase(), bookNum]);
   }
   candidates.sort((a, b) => b[0].length - a[0].length);
@@ -85,17 +89,22 @@ function fuzzyMatch(text: string, filter: string): boolean {
   return true;
 }
 
-function filterBooks(books: number[], filter: string): number[] {
+function filterBooks(
+  books: number[],
+  filter: string,
+  bookNames: Record<number, string>,
+  bookAliases: Record<string, number>,
+): number[] {
   if (!filter) return books;
   const lower = normalizeRomanPrefix(filter.toLowerCase());
   const aliasesByBook = new Map<number, string[]>();
-  for (const [alias, bookNum] of Object.entries(BOOK_ALIASES)) {
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
     const list = aliasesByBook.get(bookNum) ?? [];
     list.push(alias.toLowerCase());
     aliasesByBook.set(bookNum, list);
   }
   return books.filter(num => {
-    const name = BOOK_NAMES[num]?.toLowerCase() ?? '';
+    const name = bookNames[num]?.toLowerCase() ?? '';
     if (name.startsWith(lower)) return true;
     if (name.substring(0, 3).startsWith(lower)) return true;
     if (/^\d/.test(name) && name.replace(' ', '').startsWith(lower)) return true;
@@ -116,7 +125,9 @@ function getBookFilterText(input: string): string {
 }
 
 const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, onSelect, currentBook, currentChapter }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
+  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const [selectedBook, setSelectedBook] = useState<number | null>(null);
   const [refValue, setRefValue] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -191,7 +202,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
     e.preventDefault();
     const trimmed = refValue.trim();
     if (!trimmed) return;
-    const ref = parseReference(trimmed);
+    const ref = parseReference(trimmed, bookNames, bookAliases);
     if (ref) {
       onSelect(ref.book, ref.chapter, ref.verse);
       return;
@@ -228,8 +239,8 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
   };
 
   const bookFilter = !selectedBook && !searchMode ? getBookFilterText(refValue) : '';
-  const filteredOT = filterBooks(OT_BOOKS, bookFilter);
-  const filteredNT = filterBooks(NT_BOOKS, bookFilter);
+  const filteredOT = filterBooks(OT_BOOKS, bookFilter, bookNames, bookAliases);
+  const filteredNT = filterBooks(NT_BOOKS, bookFilter, bookNames, bookAliases);
   const hasFilter = bookFilter.length > 0;
 
   // The offer is shown live as the user types, whenever the input has text
@@ -266,7 +277,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
                 <span aria-hidden="true" className="rtl-mirror">&larr;</span>{' '}
                 {t('bookChapterPicker.back')}
               </button>
-              <h3 id="book-chapter-picker-title" className="text-lg font-semibold flex-1">{BOOK_NAMES[selectedBook]}</h3>
+              <h3 id="book-chapter-picker-title" className="text-lg font-semibold flex-1">{bookNames[selectedBook]}</h3>
             </>
           ) : (
             <h3 id="book-chapter-picker-title" className="text-lg font-semibold flex-1">{t('bookChapterPicker.goToPassage')}</h3>
@@ -372,7 +383,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
                          which book, so it reads as a passage, not a digit. */
                       aria-label={t(
                         'bookChapterPicker.chapterOption',
-                        { book: BOOK_NAMES[selectedBook], chapter: ch, },
+                        { book: bookNames[selectedBook], chapter: ch, },
                       )}
                       className={`py-2 text-sm rounded border transition-colors ${
                         isCurrent
@@ -408,7 +419,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
                         }`}
                         onClick={() => handleBookClick(num)}
                       >
-                        {BOOK_NAMES[num]}
+                        {bookNames[num]}
                       </button>
                     ))}
                   </div>
@@ -432,7 +443,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
                         }`}
                         onClick={() => handleBookClick(num)}
                       >
-                        {BOOK_NAMES[num]}
+                        {bookNames[num]}
                       </button>
                     ))}
                   </div>

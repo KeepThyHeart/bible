@@ -5,7 +5,8 @@ import {
   STORAGE_KEY_COMMENTARY_PROMOTED,
   readLocalStorageArray,
 } from '../../../constants';
-import { CommentaryState, CommentaryModule } from '../types';
+import { updatePanelState } from '../../helpers/panelStateHelpers';
+import { CommentaryState, CommentaryModule, createDefaultPanelState } from '../types';
 
 export interface SharedSlice {
   availableCommentaries: CommentaryModule[];
@@ -30,8 +31,21 @@ export const createSharedSlice: StateCreator<CommentaryState, [], [], SharedSlic
   loadAvailableCommentaries: async () => {
     set({ loadingCommentaries: true });
     try {
+      const before = get().availableCommentaries.map(c => c.abbreviation).join('\u0000');
       const commentaries = await commentaryAPI.getAvailableCommentaries();
       set({ availableCommentaries: commentaries, loadingCommentaries: false });
+
+      // The overview tab's per-verse data is built from this list and cached
+      // against the verse, so it would keep showing the old set (on a fresh
+      // install: "0 of 0 modules") until the reader moved to another verse.
+      // Drop the cache and rebuild it for the verse each panel is on.
+      const after = commentaries.map(c => c.abbreviation).join('\u0000');
+      if (before !== after) {
+        for (const [panelId, ps] of get().panels) {
+          set({ panels: updatePanelState(get().panels, panelId, { homeData: [], homeDataVerseId: null }, createDefaultPanelState) });
+          if (ps.currentVerseId !== null) void get().loadHomeData(panelId, ps.currentVerseId);
+        }
+      }
     } catch (error) {
       console.error('Error loading available commentaries:', error);
       set({ loadingCommentaries: false });

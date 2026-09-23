@@ -37,6 +37,9 @@ function createMockDict(entries: Array<{ key: string; definition: string }>): ID
     browseByLetter: () => ({ entries: [], total: 0 }),
     getAdjacentEntries: () => ({ prev: null, next: null }),
     getEntryCount: () => dictEntries.length,
+    getIndexSource: () => {
+      throw new Error('not used by WordFamilyService tests');
+    },
   };
 }
 

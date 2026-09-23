@@ -130,7 +130,7 @@ The digest tab is labelled **"Combined Summary"** (`DIGEST_DISPLAY_NAME`), never
 - `CommentaryPane.tsx`'s **Add Commentary** list. `ModuleSelector` renders `module.abbreviation` as each row's secondary line, so the guard is at the call site - the generic selector has no business knowing about one module. That makes `ModuleItem.abbreviation` display text; `ModuleItem.id` is the identity, and this call site's `onSelect`/`onRemove` act on `id`.
 - `CommentaryTreeView.tsx` - the "Browse {abbreviation} Commentary" heading, which is prose about the module rather than a reference to its identity.
 
-The `electron-builder*.yml` file lists and `ModuleCard.tsx` (Module Manager, where the real abbreviation is the point) keep the raw string deliberately.
+The `electron-builder*.yml` file and the Module Manager's details panel keep the raw string deliberately.
 
 ## Closing a commentary
 

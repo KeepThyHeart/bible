@@ -5,7 +5,7 @@ import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateVerseId } from '../utils/validation';
 
-const loader = new ModuleLoader('cross_reference', (db) => new CrossReferenceRepository(db));
+const loader = new ModuleLoader('cross_reference', 'crossRef');
 
 function getXrefRepository(abbreviation: string): CrossReferenceRepository | null {
   return loader.get(abbreviation);
@@ -80,6 +80,10 @@ export function registerCrossReferenceHandlers(_ipcMain: IpcMain): void {
   ipcHandler<[string, number], XrefGroupWithEntries[]>('xref:getGroupsForVerse', async (abbreviation, verseId) => {
     validateAbbreviation(abbreviation);
     validateVerseId(verseId);
+    // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b) - every
+    // other `getXrefRepository` call in this file stays the plain
+    // synchronous `.get()` it always was.
+    await loader.ensure(abbreviation);
     const repo = getXrefRepository(abbreviation);
     if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
 

@@ -3,6 +3,7 @@ import { BookModuleInfo } from '../Models/Book/BookModuleInfo';
 import { ScriptureReference } from '../Models/Book/ScriptureReference';
 import { VerseLinkRecord } from '../Models/Common/VerseLinkRecord';
 import { VerseId } from '../Core/Types';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Interface for Book repository
@@ -147,4 +148,13 @@ export interface IBookRepository {
    * Delete a scripture reference
    */
   deleteScriptureReference(referenceId: number): boolean;
+
+  /**
+   * The keyword-index source for this module's content (M5, task 0026
+   * revision 2): every `book_section` row, streamed as `IndexDocument`s.
+   *
+   * Purely additive - `searchSections` above (no registry-backed provider
+   * exists yet for book content) is unrelated and unchanged.
+   */
+  getIndexSource(): IIndexSource;
 }

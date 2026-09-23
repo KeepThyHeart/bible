@@ -1,6 +1,17 @@
 import { ISearchService } from './ISearchService';
 import { SearchQueryParser } from './SearchQueryParser';
-import { escapeFts5Term } from './FtsQuery';
+import { compileKeywordQuery } from '../Data/Access/Fts5/Fts5QueryCompiler';
+import { InModuleFts5Provider } from '../Data/Access/Fts5/InModuleFts5Provider';
+import { Fts5Highlighter } from '../Data/Access/Fts5/Fts5Highlighter';
+import {
+  KeywordIndexRegistry,
+  indexTargetKey,
+  IndexTarget,
+  KeywordQuery,
+  KeywordSearchResponse,
+  RuntimeEnvironment,
+} from '../Data/Access';
+import { KeywordCapability } from '../Data/Access/Capabilities';
 import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
@@ -32,11 +43,78 @@ export class BibleSearchService implements ISearchService {
   private parser: SearchQueryParser;
   private wordFamilyService: WordFamilyService | null = null;
 
+  // -- Keyword-index registry wiring (task 0026, revision 2, subtask M3) ---
+  //
+  // See `indexTargetFor()` / `registerModuleWithProvider()` below for the
+  // full explanation of the IndexTarget <-> moduleAbbr <-> repo bridge this
+  // service builds. Short version: `searchMultiWord`, `searchPhrase`,
+  // `searchVerseProximity` and `searchBoolean` now go through
+  // `keywordIndexRegistry.search()` instead of calling each module's
+  // repository directly in a loop; `fts5Provider` is the (currently only)
+  // provider registered with it, wrapping today's `bible_verse_fts` tables
+  // unchanged. `searchProximity` (the book-level `~Nw` word-proximity path,
+  // over the SEPARATE `book_search_index` derived cache) deliberately does
+  // NOT go through the registry in this pass - see that method's comment.
+  private readonly keywordIndexRegistry: KeywordIndexRegistry;
+  private readonly fts5Provider: InModuleFts5Provider;
+  /**
+   * `IndexTarget` key (`indexTargetKey()`) -> moduleAbbr. The reverse of
+   * what `fts5Provider` tracks (target -> repo): a `KeywordHit` carries only
+   * a `target`, not an abbreviation, but `SearchResult.module` and the repo
+   * lookups the search methods still need (to fetch full verse data) both
+   * speak `moduleAbbr`. Kept here, not on the provider, so the provider
+   * stays generic - it has no reason to know "moduleAbbr" is a concept.
+   */
+  private readonly targetKeyToAbbr = new Map<string, string>();
+  /**
+   * One {@link Fts5Highlighter} per module abbreviation, created lazily and
+   * reused for the life of this service (F7, task 0027 revision 2). See
+   * `highlighterFor()`.
+   */
+  private readonly highlighters = new Map<string, Fts5Highlighter>();
+  /**
+   * Targets skipped by the most recently completed `search()` call (task
+   * 0026 subtask M3). `search()`'s public return type is unchanged in this
+   * pass - `SearchResult[]`, same as always; surfacing capability to the UI
+   * is M9's job - so this is the escape hatch for a caller that wants to
+   * know what got skipped rather than it vanishing unremarked. Also logged
+   * via `console.warn` as each one is observed; see `reportSkippedTargets()`.
+   * Reset at the top of every `search()` call and accumulated across every
+   * keyword-index call that one `search()` makes (multi-word/phrase/etc.,
+   * the character-variant retry, and the auto-fuzzy supplement).
+   */
+  private lastSkippedTargets: KeywordSearchResponse['skipped'] = [];
+
   constructor(
     private bibleModules: Map<string, IBibleRepository>,
     private bibleBookRepo: IBibleBookRepository
   ) {
     this.parser = new SearchQueryParser();
+
+    // `RuntimeEnvironment` is part of the `IKeywordIndexProvider.supports()`
+    // signature (M1), but `InModuleFts5Provider.supports()` does not
+    // currently look at it - see that class's doc comment: for this pass,
+    // "supported" means "registered with this provider instance", full
+    // stop. This value is therefore a valid-but-unused placeholder until a
+    // later subtask (M11) threads a real environment down from wherever the
+    // app composes its data-access layer.
+    const env: RuntimeEnvironment = {
+      runtime: 'node-server',
+      sqlite: { fts5: true, writableModules: false },
+      codecs: new Set(),
+      indexDir: null,
+    };
+    this.keywordIndexRegistry = new KeywordIndexRegistry(env);
+    this.fts5Provider = new InModuleFts5Provider();
+    this.keywordIndexRegistry.register(this.fts5Provider);
+
+    // Modules passed in through the constructor need registering with the
+    // provider exactly like a module added later through addBibleModule()
+    // does - route both through the same helper instead of duplicating the
+    // registration logic.
+    for (const [abbreviation, repository] of this.bibleModules) {
+      this.registerModuleWithProvider(abbreviation, repository);
+    }
   }
 
   /**
@@ -54,6 +132,7 @@ export class BibleSearchService implements ISearchService {
   addBibleModule(abbreviation: string, repository: IBibleRepository): void {
     if (!this.bibleModules.has(abbreviation)) {
       this.bibleModules.set(abbreviation, repository);
+      this.registerModuleWithProvider(abbreviation, repository);
     }
   }
 
@@ -62,6 +141,176 @@ export class BibleSearchService implements ISearchService {
    */
   getRegisteredModules(): string[] {
     return Array.from(this.bibleModules.keys());
+  }
+
+  // ========================================================================
+  // Keyword-index registry bridge (task 0026, revision 2, subtask M3)
+  // ========================================================================
+
+  /**
+   * Derive this module's `IndexTarget`.
+   *
+   * `IndexTarget` (M1) is keyed by `{ moduleUuid, contentSha256 }`, but
+   * there is no real module registry yet (M7/M11) that can resolve one from
+   * a `moduleAbbr` or vice versa - so this service derives it itself,
+   * straight from the repository's own `module_info` row:
+   *
+   * - `moduleUuid` comes from `getModuleInfo()?.moduleUuid`, falling back to
+   *   the abbreviation - the same fallback `BaseModuleInfo.getIdentity()`
+   *   uses - for a module that carries no v2 identity block at all.
+   * - `contentSha256` comes from `getModuleInfo()?.contentSha256`, falling
+   *   back to `''` when absent. F3 (not yet landed) is what computes this
+   *   reliably; until then this is a KNOWN GAP: two modules that both lack a
+   *   hash collide on the same `IndexTarget` key (`uuid:''`). It is
+   *   harmless today only because this service ALSO keys everything by
+   *   `moduleAbbr` via `bibleModules`/`targetKeyToAbbr`, so a collision here
+   *   cannot misroute a query to the wrong repository - the abbr, not the
+   *   target, is what ultimately selects which repo answers a hit. A real
+   *   module registry (M7/M11) will need a better answer once modules can
+   *   be looked up BY target alone.
+   *
+   * Deterministic and side-effect-free, so it is safe to call again at
+   * search time (see `targetsForModules()`) rather than caching a second
+   * abbr -> target map alongside `targetKeyToAbbr`.
+   */
+  private indexTargetFor(abbreviation: string, repository: IBibleRepository): IndexTarget {
+    const info = repository.getModuleInfo();
+    return {
+      moduleUuid: info?.moduleUuid ?? abbreviation,
+      moduleType: 'bible',
+      contentSha256: info?.contentSha256 ?? '',
+    };
+  }
+
+  /**
+   * Register a module's repository with `fts5Provider` and record the
+   * `IndexTarget -> moduleAbbr` reverse mapping. Called from the
+   * constructor (for the initial module map) and from `addBibleModule()`
+   * (for a module added later) - the single place either path touches the
+   * provider, so they can never drift apart.
+   */
+  private registerModuleWithProvider(abbreviation: string, repository: IBibleRepository): void {
+    const target = this.indexTargetFor(abbreviation, repository);
+    this.fts5Provider.register(target, repository);
+    this.targetKeyToAbbr.set(indexTargetKey(target), abbreviation);
+  }
+
+  /** `IndexTarget[]` for every module in a `moduleAbbr -> repo` map (typically `getModulesToSearch()`'s result). */
+  private targetsForModules(modules: Map<string, IBibleRepository>): IndexTarget[] {
+    const targets: IndexTarget[] = [];
+    for (const [abbreviation, repository] of modules) {
+      targets.push(this.indexTargetFor(abbreviation, repository));
+    }
+    return targets;
+  }
+
+  /** The inverse of `indexTargetFor()`, via `targetKeyToAbbr`. */
+  private abbrForTarget(target: IndexTarget): string | undefined {
+    return this.targetKeyToAbbr.get(indexTargetKey(target));
+  }
+
+  /**
+   * Record targets the keyword-index registry could not search (a module
+   * with no usable index for it - see `KeywordIndexRegistry`'s and
+   * `InModuleFts5Provider`'s degrade-rather-than-fail behaviour). Never
+   * throws and never lets `skipped` affect the returned `SearchResult[]`
+   * beyond simply not containing that module's hits - the whole point of
+   * this subtask is that one bad module no longer kills the rest of the
+   * search. See `lastSkippedTargets`'s doc comment for what a caller can do
+   * with this.
+   */
+  private reportSkippedTargets(skipped: KeywordSearchResponse['skipped']): void {
+    if (skipped.length === 0) return;
+
+    this.lastSkippedTargets.push(...skipped);
+    for (const s of skipped) {
+      const abbr = this.abbrForTarget(s.target) ?? s.target.moduleUuid;
+      console.warn(
+        `[BibleSearchService] module "${abbr}" skipped during keyword search: ${JSON.stringify(s.reason)}`
+      );
+    }
+  }
+
+  /**
+   * Targets skipped by the most recently completed `search()` call. See
+   * `lastSkippedTargets`'s doc comment.
+   */
+  getLastSkippedModules(): ReadonlyArray<{ target: IndexTarget; reason: KeywordCapability }> {
+    return this.lastSkippedTargets;
+  }
+
+  /**
+   * Run a `KeywordQuery` across `modules` via the keyword-index registry -
+   * ONE registry call, fanning out across every target internally - and
+   * reconstruct `SearchResult[]` from the returned hits using the exact
+   * same downstream formatting (`verseToSearchResultWithHighlight`) the
+   * direct-repo-call loop used before this refactor. Shared by
+   * `searchMultiWord`, `searchPhrase` and `searchBoolean` - the three
+   * methods whose "how do I find matching verse rows across N modules" step
+   * was, and remains, "one MATCH query per module", just executed by the
+   * registry/provider now instead of a direct repo call.
+   *
+   * `highlightTerms` is passed through to `verseToSearchResultWithHighlight`
+   * as the FALLBACK terms for snippet extraction if `query` itself carries
+   * no matches for `Fts5Highlighter` to find - it does not affect which
+   * verses match.
+   *
+   * F7 (task 0027, revision 2): matches (and the `<strong><u>` markup built
+   * from them) now come from `Fts5Highlighter.spans(text, query)` -  the SAME
+   * transient-FTS5-table mechanism whichever provider answered this hit -
+   * rather than from parsing a provider's own `highlight()` output. A hit's
+   * `KeywordHit.snippet` (only ever populated by `InModuleFts5Provider`
+   * today; `SidecarFts5Provider`'s is always `undefined`, since its `kw`
+   * table is contentless) is therefore no longer read here - see
+   * `verseToSearchResultWithHighlight`'s doc comment for the full reasoning.
+   */
+  private async searchViaKeywordIndex(
+    query: KeywordQuery,
+    modules: Map<string, IBibleRepository>,
+    options: SearchOptions,
+    highlightTerms: string[]
+  ): Promise<SearchResult[]> {
+    const targets = this.targetsForModules(modules);
+    const response = await this.keywordIndexRegistry.search(query, {
+      targets,
+      limit: options.maxResults || 200,
+    });
+
+    this.reportSkippedTargets(response.skipped);
+
+    const allResults: SearchResult[] = [];
+
+    for (const hit of response.hits) {
+      const abbr = this.abbrForTarget(hit.target);
+      if (!abbr) continue; // defensive: every hit's target came from `targets` above
+      const repo = modules.get(abbr);
+      if (!repo) continue;
+
+      const verseId = hit.rowId as VerseId;
+
+      // Pre-filter by range before the getVerse()/highlight work below -
+      // same optimization `searchMultiWord` always had, now shared by every
+      // caller of this helper (harmless for the two that previously relied
+      // solely on the central filter in `search()`, since that filter still
+      // runs afterward and would remove the same rows).
+      if (options.range && !this.isVerseInRange(verseId, options.range)) continue;
+
+      const verse = repo.getVerse(verseId);
+      if (!verse) continue;
+
+      allResults.push(
+        await this.verseToSearchResultWithHighlight(
+          verse,
+          abbr,
+          repo,
+          query,
+          highlightTerms,
+          'exact'
+        )
+      );
+    }
+
+    return allResults;
   }
 
   // ========================================================================
@@ -90,6 +339,12 @@ export class BibleSearchService implements ISearchService {
    * @throws Error if the query has invalid syntax
    */
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
+    // Reset the skipped-targets record for this top-level call; see
+    // `lastSkippedTargets`'s doc comment. Accumulated (not overwritten) by
+    // `reportSkippedTargets()` across every keyword-index call this one
+    // `search()` invocation makes below.
+    this.lastSkippedTargets = [];
+
     // Validate query
     const validationError = this.parser.validate(query);
     if (validationError) {
@@ -281,49 +536,18 @@ export class BibleSearchService implements ISearchService {
    * Uses verse-level FTS5 from each Bible module
    */
   private async searchMultiWord(terms: string[], options: SearchOptions): Promise<SearchResult[]> {
-    // Escape FTS5 special characters in each term
-    const escapedTerms = terms.map(term => this.escapeFTS5(term));
-
-    // FTS5 defaults to OR when terms are space-separated; explicit AND ensures
-    // all terms must appear in the verse (matching user expectation for multi-word search).
-    return this.searchVersesFts(escapedTerms.join(' AND '), terms, options);
-  }
-
-  /**
-   * Run an already-built FTS5 MATCH expression over the searched modules.
-   * `terms` are only what results fall back to for highlighting.
-   */
-  private async searchVersesFts(fts5Query: string, terms: string[], options: SearchOptions): Promise<SearchResult[]> {
     const modules = this.getModulesToSearch(options);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
+    // "all: true" keeps the explicit AND-join multi-word search has always
+    // used, since FTS5 defaults to OR when terms are merely space-separated.
+    // Compiled by the provider (task 0026 subtask M3), not here - this
+    // service now builds the provider-neutral KeywordQuery (M1) and hands
+    // it to the keyword-index registry, which fans it out across every
+    // module's repository (subtask M2's compileKeywordQuery() call moved
+    // into InModuleFts5Provider, the one place that now executes it).
+    const query: KeywordQuery = { kind: 'terms', terms, all: true };
 
-      // Search using verse-level FTS5 with highlighting
-      const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
-
-      // Pre-filter by range here as well as centrally in search(): each surviving
-      // row costs an awaited highlight conversion below, so discarding
-      // out-of-range rows first is worth it on a whole-Bible FTS hit.
-      const filteredResults = options.range
-        ? results.filter(result => this.isVerseInRange(result.verse.verseId, options.range!))
-        : results;
-
-      // Convert to SearchResult objects using FTS5 highlighting
-      for (const result of filteredResults) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            terms,
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
+    return this.searchViaKeywordIndex(query, modules, options, terms);
   }
 
   /**
@@ -332,27 +556,14 @@ export class BibleSearchService implements ISearchService {
    */
   private async searchPhrase(phrase: string, options: SearchOptions): Promise<SearchResult[]> {
     const modules = this.getModulesToSearch(options);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
-      // FTS5 phrase query with quotes
-      const fts5Query = `"${phrase}"`;
-      const results = repo.searchVersesWithHighlighting(fts5Query, { limit: options.maxResults || 200 });
+    // Phrase query - escaped/quoted by the provider (task 0026 subtask M3;
+    // was compiled here directly through M2's compileKeywordQuery before
+    // this refactor) so a phrase containing a literal `"` still produces
+    // valid MATCH syntax.
+    const query: KeywordQuery = { kind: 'phrase', phrase };
 
-      for (const result of results) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            [phrase],
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
+    return this.searchViaKeywordIndex(query, modules, options, [phrase]);
   }
 
   /**
@@ -370,24 +581,64 @@ export class BibleSearchService implements ISearchService {
     const modules = this.getModulesToSearch(options);
     const allResults: SearchResult[] = [];
     const fuzzyDistance = options.fuzzyDistance || 0;
+    const targets = this.targetsForModules(modules);
 
-    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set
-    const searchPatterns = fuzzyDistance > 0
-      ? terms.map(t => this.buildFuzzyPattern(t, fuzzyDistance))
-      : terms;
+    // KAN-22: Build fuzzy patterns for search if fuzzyDistance is set. Built
+    // as provider-neutral KeywordQuery objects (task 0026 subtask M3) rather
+    // than pre-compiled MATCH strings - Fts5QueryCompiler's escaping (so a
+    // term with an apostrophe or hyphen doesn't break the query) now runs
+    // inside the provider, once per query, when it actually executes.
+    const termQueries: KeywordQuery[] = fuzzyDistance > 0
+      ? terms.map((t): KeywordQuery => ({ kind: 'prefix', stem: t }))
+      : terms.map((t): KeywordQuery => ({ kind: 'terms', terms: [t], all: true }));
+
+    // 1. Search each term independently to build per-module verse sets.
+    //
+    // One registry call PER TERM, fanning out across every target module
+    // internally, replaces what used to be a module-outer/term-inner loop
+    // calling each repo directly - and, same as `searchMultiWord` etc., a
+    // module whose FTS5 table is missing or broken now degrades to
+    // `skipped` (see `reportSkippedTargets`) instead of throwing and taking
+    // down verse-proximity search for every OTHER module too (the direct
+    // `repo.searchVerses()` call this replaced had no try/catch at all).
+    //
+    // Every module gets an entry for every term, even one with zero hits,
+    // matching the invariant the untouched code below (steps 2-4) depends
+    // on: `termVerseMap.get(terms[i])!` is a non-null assertion, so a term
+    // with no matches must still map to an EMPTY Set, never a missing key.
+    const perModuleTermVerseMap = new Map<string, Map<string, Set<VerseId>>>();
+    for (const moduleAbbr of modules.keys()) {
+      const termVerseMap = new Map<string, Set<VerseId>>();
+      for (const term of terms) {
+        termVerseMap.set(term, new Set<VerseId>());
+      }
+      perModuleTermVerseMap.set(moduleAbbr, termVerseMap);
+    }
+
+    for (let i = 0; i < terms.length; i++) {
+      const response = await this.keywordIndexRegistry.search(termQueries[i], {
+        targets,
+        limit: 10000,
+      });
+      this.reportSkippedTargets(response.skipped);
+
+      for (const hit of response.hits) {
+        const abbr = this.abbrForTarget(hit.target);
+        if (!abbr) continue; // defensive: every hit's target came from `targets` above
+        perModuleTermVerseMap.get(abbr)?.get(terms[i])?.add(hit.rowId as VerseId);
+      }
+    }
 
     for (const [moduleAbbr, repo] of modules) {
-      // 1. Search each term independently to build verse sets
-      // Use fuzzy patterns when searching
-      const termVerseMap = new Map<string, Set<VerseId>>();
-
-      for (let i = 0; i < terms.length; i++) {
-        const searchPattern = searchPatterns[i];
-        const verses = repo.searchVerses(searchPattern, { limit: 10000 });
-        termVerseMap.set(terms[i], new Set(verses.map(v => v.verseId)));
-      }
+      const termVerseMap = perModuleTermVerseMap.get(moduleAbbr)!;
 
       // 2. Check if all terms were found
+      //
+      // Pre-existing dead code, unchanged: this `continue` only skips to the
+      // next term-verseSet PAIR within this inner for-loop, not the module -
+      // it never actually did what its own comment says. Not this
+      // subtask's to fix (pure refactor; see the M-guardrail), but flagged
+      // here since a future subtask touching this method should know.
       for (const [_term, verseSet] of termVerseMap) {
         if (verseSet.size === 0) {
           // At least one term not found, skip this module
@@ -502,11 +753,6 @@ export class BibleSearchService implements ISearchService {
     const allResults: SearchResult[] = [];
     const fuzzyDistance = options.fuzzyDistance || 0;
 
-    // KAN-22: Build fuzzy patterns for NEAR query if fuzzyDistance is set
-    const searchTerms = fuzzyDistance > 0
-      ? terms.map(t => this.buildFuzzyPattern(t, fuzzyDistance))
-      : terms;
-
     for (const [moduleAbbr, repo] of modules) {
       // Ensure search tables exist in this module
       repo.ensureSearchTablesExist();
@@ -545,118 +791,89 @@ export class BibleSearchService implements ISearchService {
           }
         }
 
-        // Build FTS5 NEAR query (with fuzzy patterns if enabled)
-        const fts5Query = `NEAR(${searchTerms.join(' ')}, ${distance})`;
+        // Build FTS5 NEAR query (with fuzzy prefix patterns if enabled),
+        // through the single compiler (task 0026 subtask M2) so a hyphenated
+        // or apostrophe'd term no longer breaks NEAR() syntax. KeywordQuery's
+        // 'near' kind escapes plain terms; the fuzzy/prefix-wildcard variant
+        // isn't part of that shape, so each term is compiled as its own
+        // 'prefix' query and NEAR(...) is assembled from the results.
+        const fts5Query = fuzzyDistance > 0
+          ? `NEAR(${terms.map(t => compileKeywordQuery({ kind: 'prefix', stem: t })).join(' ')}, ${distance})`
+          : compileKeywordQuery({ kind: 'near', terms, distance });
 
         // Perform proximity search (now at module level)
         const matches = repo.searchBookFTS5(bookNumber, fts5Query);
 
-        // If we got matches, find the specific verses
+        // If we got matches, find the specific verses.
+        //
+        // R-M2: `searchBookFTS5` only ever runs offsets() for a non-NEAR
+        // query, and this method only ever sends it NEAR(...) (see
+        // `fts5Query` above) - so `matches[*].offsets` is always '' and the
+        // offsets()-based branch that used to live here was unreachable dead
+        // code. Removed along with its counterpart in
+        // `BibleRepository.searchBookFTS5`; see that method's comment.
         if (matches.length > 0) {
-          // For NEAR queries, offsets() doesn't work, so use alternate method
-          if (matches[0].offsets === '') {
-            // Use searchProximityInBook to find matching verses
-            // Pass original terms (without wildcards) for the proximity check
-            const matchingVerseIds = repo.searchProximityInBook(bookNumber, terms, distance);
+          // Use searchProximityInBook to find matching verses
+          // Pass original terms (without wildcards) for the proximity check
+          const matchingVerseIds = repo.searchProximityInBook(bookNumber, terms, distance);
 
-            if (matchingVerseIds.length === 0) continue;
+          if (matchingVerseIds.length === 0) continue;
 
-            // Get all verses involved in the match
-            const verses = matchingVerseIds.map(id => repo.getVerse(id)).filter(v => v !== undefined) as BibleVerse[];
+          // Get all verses involved in the match
+          const verses = matchingVerseIds.map(id => repo.getVerse(id)).filter(v => v !== undefined) as BibleVerse[];
 
-            if (verses.length === 0) continue;
+          if (verses.length === 0) continue;
 
-            if (verses.length === 1) {
-              // Single verse result
-              const verse = verses[0];
-              const verseText = verse.textPlain || verse.text;
+          if (verses.length === 1) {
+            // Single verse result
+            const verse = verses[0];
+            const verseText = verse.textPlain || verse.text;
 
-              // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-              const highlightTerms = fuzzyDistance > 0
-                ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
-                : terms;
-              // Fall back to original terms if no fuzzy matches found
-              const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
+            // KAN-22: Find actual matched words for highlighting (supports fuzzy)
+            const highlightTerms = fuzzyDistance > 0
+              ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
+              : terms;
+            // Fall back to original terms if no fuzzy matches found
+            const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
 
-              allResults.push({
-                verseId: verse.verseId,
-                module: moduleAbbr,
-                reference: this.formatReference(verse.verseId),
-                text: await this.highlightMatches(verseText, finalHighlightTerms),
-                matches: this.extractMatches(verseText, finalHighlightTerms),
-                score: 1.0,
-                type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-              });
-            } else {
-              // Multi-verse result - show full range from first to last verse
-              // Sort verses to ensure proper order
-              const sortedVerses = verses.sort((a, b) => a.verseId - b.verseId);
-              const firstVerse = sortedVerses[0];
-              const lastVerse = sortedVerses[sortedVerses.length - 1];
-              const combinedText = sortedVerses.map(v => v.textPlain || v.text).join(' ');
-
-              // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-              const highlightTerms = fuzzyDistance > 0
-                ? this.findFuzzyMatchedWords(combinedText, terms, fuzzyDistance)
-                : terms;
-              // Fall back to original terms if no fuzzy matches found
-              const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
-
-              // Create snippet showing matched terms with context and ellipses
-              const snippet = this.createSnippet(combinedText, finalHighlightTerms, 200);
-
-              allResults.push({
-                verseId: firstVerse.verseId,
-                verseIds: matchingVerseIds,
-                module: moduleAbbr,
-                reference: this.formatVerseRange(firstVerse.verseId, lastVerse.verseId),
-                text: await this.highlightMatches(combinedText, finalHighlightTerms),
-                snippet: await this.highlightMatches(snippet, finalHighlightTerms),
-                matches: this.extractMatches(combinedText, finalHighlightTerms),
-                score: 1.0,
-                type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-              });
-            }
+            allResults.push({
+              verseId: verse.verseId,
+              module: moduleAbbr,
+              reference: this.formatReference(verse.verseId),
+              text: await this.highlightMatches(verseText, finalHighlightTerms),
+              matches: this.extractMatches(verseText, finalHighlightTerms),
+              score: 1.0,
+              type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
+            });
           } else {
-            // Use offsets to find matching verses (original method)
-            for (const match of matches) {
-              const offsets = match.offsets.split(' ').map(n => parseInt(n, 10));
-              const matchPositions = new Set<number>();
+            // Multi-verse result - show full range from first to last verse
+            // Sort verses to ensure proper order
+            const sortedVerses = verses.sort((a, b) => a.verseId - b.verseId);
+            const firstVerse = sortedVerses[0];
+            const lastVerse = sortedVerses[sortedVerses.length - 1];
+            const combinedText = sortedVerses.map(v => v.textPlain || v.text).join(' ');
 
-              for (let i = 0; i < offsets.length; i += 4) {
-                matchPositions.add(offsets[i + 2]);
-              }
+            // KAN-22: Find actual matched words for highlighting (supports fuzzy)
+            const highlightTerms = fuzzyDistance > 0
+              ? this.findFuzzyMatchedWords(combinedText, terms, fuzzyDistance)
+              : terms;
+            // Fall back to original terms if no fuzzy matches found
+            const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
 
-              // For each match position, find which verse it belongs to
-              for (const position of matchPositions) {
-                const verseId = repo.getVerseIdAtPosition(bookNumber, position);
+            // Create snippet showing matched terms with context and ellipses
+            const snippet = this.createSnippet(combinedText, finalHighlightTerms, 200);
 
-                if (verseId) {
-                  const versePosition = repo.getVersePosition(bookNumber, verseId);
-                  let verseText = '';
-
-                  if (versePosition) {
-                    verseText = match.text.substring(versePosition.startIndex, versePosition.endIndex);
-                  }
-
-                  // KAN-22: Find actual matched words for highlighting (supports fuzzy)
-                  const highlightTerms = fuzzyDistance > 0
-                    ? this.findFuzzyMatchedWords(verseText, terms, fuzzyDistance)
-                    : terms;
-                  const finalHighlightTerms = highlightTerms.length > 0 ? highlightTerms : terms;
-
-                  allResults.push({
-                    verseId,
-                    module: moduleAbbr,
-                    reference: this.formatReference(verseId),
-                    text: await this.highlightMatches(verseText, finalHighlightTerms),
-                    matches: this.extractMatches(verseText, finalHighlightTerms),
-                    score: 1.0,
-                    type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
-                  });
-                }
-              }
-            }
+            allResults.push({
+              verseId: firstVerse.verseId,
+              verseIds: matchingVerseIds,
+              module: moduleAbbr,
+              reference: this.formatVerseRange(firstVerse.verseId, lastVerse.verseId),
+              text: await this.highlightMatches(combinedText, finalHighlightTerms),
+              snippet: await this.highlightMatches(snippet, finalHighlightTerms),
+              matches: this.extractMatches(combinedText, finalHighlightTerms),
+              score: 1.0,
+              type: fuzzyDistance > 0 ? 'fuzzy' : 'exact',
+            });
           }
         }
       }
@@ -673,110 +890,29 @@ export class BibleSearchService implements ISearchService {
     expression: BooleanExpression,
     options: SearchOptions
   ): Promise<SearchResult[]> {
-    const fts5Query = this.compileBooleanToFts5(expression);
+    const query: KeywordQuery = { kind: 'boolean', expr: expression };
 
-    // Only an unsatisfiable expression compiles to null - today that means a
+    // Only an unsatisfiable expression compiles to '' - today that means a
     // bare negation such as `(NOT evil)`. FTS5's NOT is binary: it excludes
     // from a left-hand match set, and there is no "every verse" operand to
     // subtract from, so the alternative would be a full-corpus scan on a query
     // that asks for almost the whole Bible. Returning nothing is the honest
     // answer; returning the *matches* for `evil` here would be the exact
     // opposite of what was asked.
-    if (fts5Query === null) return [];
+    //
+    // This is the one remaining direct call to compileKeywordQuery() in this
+    // service (task 0026 subtask M3 moved every other call into
+    // InModuleFts5Provider, the one place that now executes a compiled
+    // query against SQLite) - it is a pure business-logic short-circuit, not
+    // a duplicate execution: it never touches the registry/provider or SQL
+    // at all, and the provider still does its own internal compile of the
+    // same `query` object below when (and only when) it actually runs it.
+    if (compileKeywordQuery(query) === '') return [];
 
     const modules = this.getModulesToSearch(options);
     const terms = this.collectPositiveTerms(expression);
-    const allResults: SearchResult[] = [];
 
-    for (const [moduleAbbr, repo] of modules) {
-      const results = repo.searchVersesWithHighlighting(fts5Query, {
-        limit: options.maxResults || 200,
-      });
-
-      const filteredResults = options.range
-        ? results.filter(result => this.isVerseInRange(result.verse.verseId, options.range!))
-        : results;
-
-      for (const result of filteredResults) {
-        allResults.push(
-          await this.verseToSearchResultWithHighlight(
-            result.verse,
-            result.highlightedPlainText,
-            moduleAbbr,
-            terms,
-            'exact'
-          )
-        );
-      }
-    }
-
-    return allResults;
-  }
-
-  /**
-   * Compile a parsed boolean tree into a single FTS5 MATCH expression.
-   *
-   * FTS5 implements AND, OR, NOT and parentheses natively, so the whole tree
-   * can be handed to SQLite as one query rather than evaluated here with set
-   * operations over several round trips. Every leaf goes through the same
-   * escaper the other search paths use, so a term that collides with FTS5
-   * syntax (`not`, an apostrophe, a hyphen) is quoted rather than reinterpreted
-   * as an operator.
-   *
-   * Returns null when the expression cannot be expressed - see `searchBoolean`.
-   */
-  private compileBooleanToFts5(expression: BooleanExpression | string): string | null {
-    if (typeof expression === 'string') {
-      const terms = this.parser.parse(expression).terms || [];
-      if (terms.length === 0) return null;
-      return terms.map(term => this.escapeFTS5(term)).join(' AND ');
-    }
-
-    const { operator, left, right } = expression;
-
-    // A unary NOT as an operand IS expressible when it has something to
-    // subtract from: `faith AND NOT works` is FTS5's `faith NOT works`.
-    if (operator === 'AND' && right !== undefined && this.isBareNegation(right)) {
-      return this.combine(left, (right as BooleanExpression).left, 'NOT');
-    }
-
-    if (right === undefined) {
-      // Unary NOT at this position has no left-hand set to exclude from.
-      if (operator === 'NOT') return null;
-      return this.compileBooleanToFts5(left);
-    }
-
-    // `a OR NOT b` has no FTS5 equivalent for the same reason as a bare
-    // negation: the right operand is a complement, not a match set.
-    if (this.isBareNegation(right)) return null;
-
-    return this.combine(left, right, operator);
-  }
-
-  /** Is this operand a negation with nothing of its own to exclude from? */
-  private isBareNegation(operand: BooleanExpression | string): boolean {
-    return (
-      typeof operand !== 'string' &&
-      operand.operator === 'NOT' &&
-      operand.right === undefined
-    );
-  }
-
-  private combine(
-    left: BooleanExpression | string,
-    right: BooleanExpression | string,
-    operator: 'AND' | 'OR' | 'NOT'
-  ): string | null {
-    const compiledLeft = this.compileBooleanToFts5(left);
-    const compiledRight = this.compileBooleanToFts5(right);
-
-    // An empty operand collapses rather than poisoning the whole query: for
-    // AND and NOT the surviving side still constrains the result, and for OR
-    // it is the only alternative left.
-    if (compiledLeft === null) return operator === 'NOT' ? null : compiledRight;
-    if (compiledRight === null) return compiledLeft;
-
-    return `(${compiledLeft} ${operator} ${compiledRight})`;
+    return this.searchViaKeywordIndex(query, modules, options, terms);
   }
 
   /**
@@ -803,6 +939,22 @@ export class BibleSearchService implements ISearchService {
     }
 
     return [...new Set(terms)];
+  }
+
+  /**
+   * Is this operand a negation with nothing of its own to exclude from?
+   *
+   * Used only by `collectPositiveTerms` above (a bare-negation right operand
+   * contributes no positive terms to highlight). The FTS5-syntax version of
+   * this same check now lives with the rest of the boolean-to-MATCH compiler
+   * in `Fts5QueryCompiler`; this copy is about highlighting, not syntax.
+   */
+  private isBareNegation(operand: BooleanExpression | string): boolean {
+    return (
+      typeof operand !== 'string' &&
+      operand.operator === 'NOT' &&
+      operand.right === undefined
+    );
   }
 
   /**
@@ -1006,34 +1158,56 @@ export class BibleSearchService implements ISearchService {
   }
 
   /**
-   * Convert BibleVerse to SearchResult using FTS5 pre-highlighted text
-   * This version uses the highlighting from FTS5, which correctly highlights
-   * stemmed variants (e.g., searching "walk" highlights "walking", "walked")
-   * Also creates a snippet that prioritizes showing the matched text
+   * Convert BibleVerse to SearchResult, highlighting through {@link Fts5Highlighter}
+   * (task 0027, revision 2, subtask F7) - which correctly highlights stemmed
+   * variants (e.g., searching "walk" highlights "walking", "walked") because
+   * it runs the SAME compiled `query` through the SAME tokenizer FTS5 itself
+   * used to find the hit, rather than a hand-rolled regex. Also creates a
+   * snippet that prioritizes showing the matched text.
    *
-   * KAN-22: For fuzzy/stem matches, we use the actual matched words from FTS5
-   * (not the original search terms) to ensure the snippet shows the matched variants
+   * ## One highlighter, used regardless of which provider answered (F7's
+   * design intent, design doc §4.5)
+   *
+   * `InModuleFts5Provider` still runs its own `highlight()` against
+   * `bible_verse_fts` internally (unchanged by this subtask - see that
+   * class), so a hit it produces arrives with `KeywordHit.snippet` already
+   * carrying `<strong><u>`-marked text. This method does NOT consume that:
+   * un-highlighting it back to plain text just to feed it through
+   * `Fts5Highlighter` would be wasted work for no behavioural difference (the
+   * two mechanisms use the identical tokenizer and the identical compiled
+   * query, so they agree on every match), and computing matches straight
+   * from `verse.textPlain`/`verse.text` - which this method already reads,
+   * for the snippet - is both simpler and the one path a future
+   * `SidecarFts5Provider`-sourced hit (whose `snippet` is always `undefined`,
+   * since its index is contentless) can share unchanged. That sharing is the
+   * whole point of F7: one highlighting mechanism, not one per provider.
+   *
+   * KAN-22: For fuzzy/stem matches, we use the actual matched words (not the
+   * original search terms) to ensure the snippet shows the matched variants.
    */
   private async verseToSearchResultWithHighlight(
     verse: BibleVerse,
-    highlightedText: string,
     moduleAbbr: string,
+    repo: IBibleRepository,
+    query: KeywordQuery,
     searchTerms: string[],
     matchType: MatchType
   ): Promise<SearchResult> {
-    // Extract matches from the highlighted text by finding <strong><u>...</u></strong> tags
-    // This captures the actual words FTS5 matched (including stemmed variants)
-    const matches = this.extractMatchesFromHighlightedText(highlightedText);
-
-    // Get plain text for snippet creation
     const text = verse.textPlain || verse.text;
+
+    // F7: offset spans from the transient-FTS5-table highlighter, keyed by
+    // module so every hit from the same module reuses one highlighter (and
+    // therefore one `temp.hl` table) instead of paying `CREATE VIRTUAL
+    // TABLE` again per verse - see `highlighterFor()`.
+    const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
+    const highlightedText = this.applyHighlightMarkup(text, matches);
 
     // Create a snippet that prioritizes the matched text (for live search display)
     // Only needed for longer verses where matches might not be visible at the start
     let snippet: string | undefined;
     if (text.length > 100 && matches.length > 0) {
-      // KAN-22: Use the actual matched terms (extracted from FTS5 highlighting)
-      // to ensure fuzzy/stem matches are properly highlighted in the snippet
+      // KAN-22: Use the actual matched terms (from Fts5Highlighter) to
+      // ensure fuzzy/stem matches are properly highlighted in the snippet
       const matchedTerms = matches.map(m => m.term);
       const termsForSnippet = matchedTerms.length > 0 ? matchedTerms : searchTerms;
       const rawSnippet = this.createSnippet(text, termsForSnippet, 120);
@@ -1054,6 +1228,50 @@ export class BibleSearchService implements ISearchService {
       score: 1.0,
       type: matchType,
     };
+  }
+
+  /**
+   * This module's {@link Fts5Highlighter}, created on first use and reused
+   * for the life of this service (F7). One per module rather than one
+   * shared instance: a highlighter's `temp.hl` table lives on the `ISql`
+   * connection it was built on (`repo.getSql()`), and different modules are
+   * different connections.
+   */
+  private highlighterFor(moduleAbbr: string, repo: IBibleRepository): Fts5Highlighter {
+    let highlighter = this.highlighters.get(moduleAbbr);
+    if (!highlighter) {
+      highlighter = new Fts5Highlighter(repo.getSql());
+      this.highlighters.set(moduleAbbr, highlighter);
+    }
+    return highlighter;
+  }
+
+  /**
+   * Wrap each of `matches` in `<strong><u>...</u></strong>`, the markup
+   * convention every consumer of `SearchResult.text` already expects (see
+   * `BibleSearchService.test.ts`'s "Result Highlighting"/"FTS5 Stemmed
+   * Highlighting" suites). `matches` must be in ascending, non-overlapping
+   * order - exactly what `Fts5Highlighter.spans()` returns, since
+   * `highlight()` never nests or overlaps its own markers.
+   *
+   * An empty `matches` returns `text` unchanged, which is also the "no
+   * matches" case `text: highlightedText || text` below guards - kept
+   * anyway as the same last line of defence the repository-level highlight
+   * path always had.
+   */
+  private applyHighlightMarkup(text: string, matches: Match[]): string {
+    if (matches.length === 0) return text;
+
+    let result = '';
+    let cursor = 0;
+    for (const match of matches) {
+      result += text.slice(cursor, match.startPos);
+      result += `<strong><u>${text.slice(match.startPos, match.endPos)}</u></strong>`;
+      cursor = match.endPos;
+    }
+    result += text.slice(cursor);
+
+    return result;
   }
 
   /**
@@ -1090,40 +1308,6 @@ export class BibleSearchService implements ISearchService {
           startPos: match.index,
           endPos: match.index + term.length,
         });
-      }
-    }
-
-    return matches;
-  }
-
-  /**
-   * Extract match positions from FTS5-highlighted text
-   * Finds all <strong><u>...</u></strong> tags and extracts the matched terms and positions
-   */
-  private extractMatchesFromHighlightedText(highlightedText: string): Match[] {
-    const matches: Match[] = [];
-    let plainTextPos = 0;
-
-    // We need to track position in the plain text (without tags)
-    // as we iterate through the highlighted text
-    const parts = highlightedText.split(/(<strong><u>|<\/u><\/strong>)/);
-    let inMatch = false;
-
-    for (const part of parts) {
-      if (part === '<strong><u>') {
-        inMatch = true;
-      } else if (part === '</u></strong>') {
-        inMatch = false;
-      } else if (part.length > 0) {
-        if (inMatch) {
-          // This is a matched term
-          matches.push({
-            term: part,
-            startPos: plainTextPos,
-            endPos: plainTextPos + part.length,
-          });
-        }
-        plainTextPos += part.length;
       }
     }
 
@@ -1625,15 +1809,15 @@ export class BibleSearchService implements ISearchService {
     const existingIds = new Set(existingResults.map(r => r.verseId));
     const found = new Map<string, SearchResult>();
     for (const combo of combos) {
-      // Built here rather than through `escapeFTS5`, which quotes any term
-      // containing `*` and so turns a prefix into a literal ("lov*" would then
-      // match only the token "lov"). `"stem"*` is the quoted prefix form; the
-      // stem is letters and digits only, so it needs no further escaping.
-      const fts5Query = combo.map(i => `"${prefixes[i]}"*`).join(' AND ');
-      const rows = await this.searchVersesFts(fts5Query, combo.map(i => prefixes[i]), {
+      // A 'prefixes' query, not 'terms': a term containing `*` is quoted by the
+      // compiler and so turns the prefix into a literal ("lov*" would then
+      // match only the token "lov").
+      const stems = combo.map(i => prefixes[i]);
+      const query: KeywordQuery = { kind: 'prefixes', stems, all: true };
+      const rows = await this.searchViaKeywordIndex(query, this.getModulesToSearch(options), {
         ...options,
         maxResults: BibleSearchService.FUZZY_PER_COMBINATION_LIMIT,
-      });
+      }, stems);
       for (const row of rows) {
         if (existingIds.has(row.verseId)) continue;
         found.set(`${row.module}|${row.verseId}`, row);
@@ -1833,14 +2017,6 @@ export class BibleSearchService implements ISearchService {
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  /**
-   * Escape special FTS5 characters. Shared with the dictionary search, which
-   * hits the same syntax errors on apostrophes, hyphens and reserved words.
-   */
-  private escapeFTS5(term: string): string {
-    return escapeFts5Term(term);
   }
 
   // ========================================================================

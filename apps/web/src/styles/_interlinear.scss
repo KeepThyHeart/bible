@@ -1,5 +1,10 @@
 // ============================================================
 // Interlinear original word display
+//
+// Word-level Bible content (glosses, transliteration, Strong's links) - kept
+// physical (not converted to logical properties) for the same reason as
+// `_bible-content.scss`'s verse/word rules: content direction is not yet
+// separated from UI direction. See that file's `.verse--preface` comment.
 // ============================================================
 .verse__interlinear-original {
   font-size: 0.75em;

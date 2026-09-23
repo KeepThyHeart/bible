@@ -73,7 +73,7 @@ bible-ext package  [path]   Build the distributable .zip
 
 **`package`** produces the artifact the app actually installs: a `.zip` with `extension.json` at the root. This is not what `npm pack` produces -- that is a registry tarball with everything under `package/`, and nothing in the platform can read it. The archive is validated before it is written, and refused if a referenced file is missing.
 
-Files are excluded by a `.bibleignore` (one pattern per line, `#` for comments, trailing `/` for a directory) on top of a built-in list: `node_modules/`, `.git/`, `*.zip`, `*.tgz`, `*.map`. It is a deliberately small subset of gitignore syntax rather than a near-miss reimplementation, because the failure mode of *almost* gitignore is an author shipping a file they believed was excluded.
+Files are excluded by a `.extensionignore` (one pattern per line, `#` for comments, trailing `/` for a directory) on top of a built-in list: `node_modules/`, `.git/`, `*.zip`, `*.tgz`, `*.map`. It is a deliberately small subset of gitignore syntax rather than a near-miss reimplementation, because the failure mode of *almost* gitignore is an author shipping a file they believed was excluded.
 
 Archives are **byte-for-byte reproducible**: every entry carries a fixed timestamp rather than its mtime, so the same input tree always yields the same SHA-256. `installFromCatalog` verifies a published digest before unpacking, and a hash that changed on every build would make that check impossible for an author to reproduce. `package` prints the digest for exactly that use.
 

@@ -5,6 +5,7 @@
 
 import { VerseReferenceIndexingService, ISql } from '@bible/core';
 import log from 'electron-log/main';
+import { getLocalizedReferenceParser } from '../services/localizedReferenceParser';
 
 /**
  * Content type for verse links
@@ -26,7 +27,7 @@ export async function indexContentVerseReferences(
   }
 ): Promise<void> {
   try {
-    const indexingService = new VerseReferenceIndexingService();
+    const indexingService = new VerseReferenceIndexingService(getLocalizedReferenceParser());
 
     // Extract verse references from content
     const references = indexingService.extractVerseReferences(content, {

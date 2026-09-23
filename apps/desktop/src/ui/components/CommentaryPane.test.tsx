@@ -493,4 +493,16 @@ describe('CommentaryPane: startup restore gating (5.2)', () => {
     expect(screen.queryByTestId('commentary-loading-skeleton')).not.toBeInTheDocument();
     expect(screen.getByTestId('commentary-empty-state')).toBeInTheDocument();
   });
+
+  it('says so on the Overview tab too when no commentary is installed at all', () => {
+    useSessionStore.setState({ isSessionLoaded: true });
+    mockUseCommentaryPanel.mockReturnValue({ ...defaultPanelState, openTabs: [], availableCommentaries: [], loadingCommentaries: false });
+    renderWithProviders(<CommentaryPane isDetached overviewActive />);
+
+    // Not "no commentaries have content for this verse" - the verse is not the problem.
+    expect(screen.getByTestId('commentary-empty-state')).toBeInTheDocument();
+    expect(screen.getByText(enT('onboarding.empty.commentary.noneTitle'))).toBeInTheDocument();
+    expect(screen.getByTestId('commentary-empty-install')).toBeInTheDocument();
+  });
 });
+

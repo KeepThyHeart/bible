@@ -1,7 +1,9 @@
 import { Store } from './Store';
 import { bibleStore } from './bibleStore';
-import { parseReference } from '../components/Header';
+import { parseReference, headerBookAliases } from '../components/Header';
 import { formatPassageRef } from '../constants';
+import { getLocalizer } from '@bible/core/browser';
+import i18n from '../i18n';
 import type { ISearchProvider } from '../providers/interfaces';
 import type { SearchResultData, SearchResultSet, WordFamilyMemberData } from '../types';
 import type { SemanticInitProgress } from '../search/BrowserSearchProxy';
@@ -260,8 +262,11 @@ class SearchStore extends Store {
     this.strongsTotalAvailable = 0;
     this.lastClickedId = null;
 
-    // Detect verse reference in query (e.g., "John 3:16", "John 3")
-    const ref = parseReference(query);
+    // Detect verse reference in query (e.g., "John 3:16", "John 3"). Not a
+    // hook context (this is a plain store), so the locale-aware alias table
+    // is built directly from i18next's current language rather than
+    // useLocalizer().
+    const ref = parseReference(query, headerBookAliases(getLocalizer(i18n.language)));
     this.detectedRefVerseId = ref ? refToVerseId(ref.book, ref.chapter, ref.verse) : null;
 
     this.notify();

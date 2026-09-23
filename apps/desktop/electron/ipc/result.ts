@@ -16,10 +16,21 @@
  *   - `unauthorized` - caller lacks permission
  *   - `conflict` - state conflict (e.g., duplicate insert)
  *   - `unavailable` - required service / DB not initialized yet
+ *   - `network_blocked` - refused by the master "Allow web requests" switch,
+ *     not a failure (see `NetworkBlockedError` in `../services/NetworkGateway`)
+ *   - `pack_signature_invalid` - a `.biblepack`'s `pack.json.sig` is present
+ *     but does not verify, only one of `pack.json`/`pack.json.sig` is
+ *     present, or the manifest is malformed. No override (see
+ *     `ModulePackService.ts`, `ModulePackError`).
+ *   - `pack_unverified` - a `.biblepack` is unsigned or signed by an
+ *     untrusted key, and the caller did not pass `acceptUnverified: true`.
+ *   - `pack_tampered` - a verified `.biblepack`'s manifest does not match the
+ *     archive's actual file bytes (wrong hash/size, an unlisted module, or a
+ *     listed one that never showed up). Nothing was installed.
  *   - `internal` - unexpected error (DB failure, FS failure, bug)
  *
- * Handlers should classify expected user-facing errors with one of the first
- * five codes; anything unexpected falls back to `internal`.
+ * Handlers should classify expected user-facing errors with one of the codes
+ * above other than `internal`; anything unexpected falls back to `internal`.
  */
 
 export type IpcErrorCode =
@@ -28,6 +39,10 @@ export type IpcErrorCode =
   | 'unauthorized'
   | 'conflict'
   | 'unavailable'
+  | 'network_blocked'
+  | 'pack_signature_invalid'
+  | 'pack_unverified'
+  | 'pack_tampered'
   | 'internal';
 
 export interface IpcError {

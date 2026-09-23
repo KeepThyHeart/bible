@@ -177,6 +177,28 @@ export const MODULE_TYPES = [
 /** Module types supported by the application. */
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
+/**
+ * Older spellings of a module type, mapped to the name the app uses.
+ *
+ * The published catalog and the `module_info` inside its files say `topical`
+ * and `xref` (matching the `topical_*.db` / `xref_*.db` file names), while the
+ * app looks modules up by `topical_index` / `cross_reference`. A module
+ * registered under the short spelling installed fine and then never showed up:
+ * no Study-pane topics or cross-references, and no tab in the Module Manager.
+ */
+const MODULE_TYPE_ALIASES: Readonly<Record<string, ModuleType>> = {
+  topical: 'topical_index',
+  xref: 'cross_reference'
+};
+
+/**
+ * The canonical spelling of a module type. A type that is not a known alias is
+ * returned unchanged, so an unrecognised value still surfaces as itself.
+ */
+export function normalizeModuleType<T extends string>(type: T): T | ModuleType {
+  return MODULE_TYPE_ALIASES[type] ?? type;
+}
+
 const moduleTypeValidator = enumValidators('module_type', MODULE_TYPES);
 export const isModuleType = moduleTypeValidator.is;
 export const assertModuleType = moduleTypeValidator.assert;

@@ -81,6 +81,7 @@ const defaultSearchState = {
   keywordResultLimit: 200,
   isShowingAllKeywordResults: false,
   showAllKeywordResults: vi.fn(),
+  keywordIndexNotice: null,
   semanticVisibleCount: 30,
   showMoreSemanticResults: vi.fn(),
   isSemanticMode: false,
@@ -154,6 +155,34 @@ describe('SearchResultsPane', () => {
     expect(screen.getByText('2 results found')).toBeInTheDocument();
     expect(screen.getByText('John 3:16')).toBeInTheDocument();
     expect(screen.getByText('1 Cor 13:4')).toBeInTheDocument();
+  });
+
+  it('shows the pending keyword-index note when set', () => {
+    Object.assign(mockSearchStore, {
+      ...defaultSearchState,
+      resultsForQuery: 'love',
+      searchResults: [
+        { verseId: 43003016, reference: 'John 3:16', text: 'For God so loved the world', type: 'exact', module: 'KJV' },
+      ],
+      keywordIndexNotice: { pending: 1, total: 2 },
+    });
+    renderWithProviders(<SearchResultsPane />);
+    expect(screen.getByTestId('keyword-index-pending-notice')).toHaveTextContent(
+      "1 of 2 modules searched have a keyword index that isn't ready yet"
+    );
+  });
+
+  it('shows no pending-index note when every module involved is ready', () => {
+    Object.assign(mockSearchStore, {
+      ...defaultSearchState,
+      resultsForQuery: 'love',
+      searchResults: [
+        { verseId: 43003016, reference: 'John 3:16', text: 'For God so loved the world', type: 'exact', module: 'KJV' },
+      ],
+      keywordIndexNotice: null,
+    });
+    renderWithProviders(<SearchResultsPane />);
+    expect(screen.queryByTestId('keyword-index-pending-notice')).not.toBeInTheDocument();
   });
 
   it('shows result count as singular', () => {

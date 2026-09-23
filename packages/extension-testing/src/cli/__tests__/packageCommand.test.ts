@@ -164,12 +164,12 @@ describe('runPackageCommand', () => {
     expect(names).not.toContain('dist/main.js.map');
   });
 
-  it('honours .bibleignore patterns', () => {
+  it('honours .extensionignore patterns', () => {
     writeExtension(workDir);
     mkdirSync(join(workDir, 'test'), { recursive: true });
     writeFileSync(join(workDir, 'test', 'main.test.ts'), '', 'utf8');
     writeFileSync(join(workDir, 'notes.txt'), 'scratch', 'utf8');
-    writeFileSync(join(workDir, '.bibleignore'), '# comment\ntest/\nnotes.txt\n', 'utf8');
+    writeFileSync(join(workDir, '.extensionignore'), '# comment\ntest/\nnotes.txt\n', 'utf8');
     const ctx = makeCtx(workDir);
     runPackageCommand([workDir], ctx);
 
@@ -177,7 +177,7 @@ describe('runPackageCommand', () => {
     const names = listZipEntries(archive).map((e) => e.name);
     expect(names.some((n) => n.startsWith('test/'))).toBe(false);
     expect(names).not.toContain('notes.txt');
-    expect(names).not.toContain('.bibleignore');
+    expect(names).not.toContain('.extensionignore');
   });
 
   it('does not archive its own previous output', () => {
@@ -209,9 +209,9 @@ describe('runPackageCommand', () => {
     expect(runPackageCommand([workDir, '--skip-validate'], ctx)).toBe(0);
   });
 
-  it('refuses when .bibleignore would exclude the manifest itself', () => {
+  it('refuses when .extensionignore would exclude the manifest itself', () => {
     writeExtension(workDir);
-    writeFileSync(join(workDir, '.bibleignore'), 'extension.json\n', 'utf8');
+    writeFileSync(join(workDir, '.extensionignore'), 'extension.json\n', 'utf8');
     const ctx = makeCtx(workDir);
 
     expect(runPackageCommand([workDir], ctx)).toBe(1);

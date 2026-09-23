@@ -11,6 +11,8 @@
 .mobile-nav-tooltip {
   position: fixed;
   bottom: 56px;
+  // Horizontal-centering idiom, not a directional offset - stays physical
+  // (see the note in _semantic-loading.scss).
   left: 50%;
   transform: translateX(-50%);
   background: var(--tooltip-bg, #333);
@@ -63,6 +65,7 @@
         content: '';
         position: absolute;
         top: 0;
+        // Centering idiom - stays physical, see _semantic-loading.scss.
         left: 50%;
         transform: translateX(-50%);
         width: 48px;

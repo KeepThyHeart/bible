@@ -388,4 +388,65 @@ describe.skipIf(!DB_EXISTS)('DictionaryRepository (Easton)', () => {
       expect(entry!.getStrongsLanguage()).toBeNull();
     });
   });
+
+  // ==========================================================================
+  // getIndexSource (M5, task 0026 revision 2)
+  // ==========================================================================
+
+  describe('getIndexSource', () => {
+    it('carries an IndexTarget with this module\'s uuid, type and contentSha256', () => {
+      const source = repo.getIndexSource();
+      const info = repo.getModuleInfo();
+
+      expect(source.target.moduleType).toBe('dictionary');
+      expect(source.target.moduleUuid).toBe(info?.moduleUuid);
+      expect(source.target.contentSha256).toBe(info?.contentSha256 ?? '');
+    });
+
+    it('count() matches a raw COUNT(*) over dictionary_entry', () => {
+      const raw = provider.queryOne<{ c: number }>('SELECT COUNT(*) as c FROM dictionary_entry');
+
+      expect(repo.getIndexSource().count()).toBe(raw?.c ?? -1);
+      expect(repo.getIndexSource().count()).toBeGreaterThan(3900); // Easton has 3,961 entries
+    });
+
+    it('documents() yields one document per dictionary_entry row', () => {
+      const source = repo.getIndexSource();
+      const docs = Array.from(source.documents());
+
+      expect(docs).toHaveLength(source.count());
+      for (let i = 1; i < docs.length; i++) {
+        expect(docs[i].rowId).toBeGreaterThan(docs[i - 1].rowId);
+      }
+    });
+
+    it('concatenates word + definition (+ usage_notes when present) into text', () => {
+      // entry_id 2 is "AARON" (confirmed by direct inspection of
+      // dictionary_easton.db): word='AARON', definition starts "Aaron Aaron
+      // The eldest son of Amram and Jochebed...", usage_notes is NULL on every
+      // Easton row, so it contributes nothing.
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 2);
+
+      expect(doc).toBeDefined();
+      expect(doc!.text).toContain('AARON');
+      expect(doc!.text).toContain('eldest son of Amram');
+    });
+
+    it('does not anchor a dictionary document to a verse (no range in CONTENT_MAP)', () => {
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 2);
+
+      expect(doc).toBeDefined();
+      expect(doc!.startVerseId).toBeUndefined();
+      expect(doc!.endVerseId).toBeUndefined();
+    });
+
+    it('documents() returns a generator (Iterable), not a materialised array', () => {
+      const iterable = repo.getIndexSource().documents();
+
+      expect(Array.isArray(iterable)).toBe(false);
+      expect(typeof (iterable as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    });
+  });
 });

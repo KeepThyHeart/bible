@@ -19,6 +19,10 @@ import type {
   CommentaryHomeData,
   CommentaryHomeModule,
 } from '../types';
+// The interface itself now lives in `@bible/core` (task 0034) - imported
+// through this app's own re-export so the rest of this file's imports stay
+// relative, matching its siblings.
+import type { IStudyOverviewProvider } from './interfaces';
 
 // ── Compact cache shapes (matching generate-study-cache.js output) ──
 
@@ -81,32 +85,6 @@ interface StudyOverviewResponse {
 interface ChapterCache {
   data: StudyOverviewResponse;
   fetchedAt: number;
-}
-
-export interface IStudyOverviewProvider {
-  /**
-   * Ensure study overview data is loaded for a chapter.
-   * Returns immediately if already cached.
-   */
-  loadChapter(book: number, chapter: number): Promise<void>;
-
-  /** Get commentary home data for a specific verse from the cached chapter data. */
-  getCommentaryHomeForVerse(book: number, chapter: number, verse: number): CommentaryHomeData;
-
-  /** Get topics for a specific verse from the cached chapter data. */
-  getTopicsForVerse(book: number, chapter: number, verseId: number): VerseTopicData[];
-
-  /** Get cross-reference groups for a specific verse from the cached chapter data. */
-  getCrossRefsForVerse(book: number, chapter: number, verseId: number): CrossRefGroupData[];
-
-  /** Get tag graph entities for a specific verse from the cached chapter data. */
-  getEntitiesForVerse(book: number, chapter: number, verseId: number): TagGraphEntityData[];
-
-  /** Whether the cache has data for this chapter. */
-  hasChapter(book: number, chapter: number): boolean;
-
-  /** Whether the cache is available (server returned cached: true). */
-  isCacheAvailable(): boolean;
 }
 
 export class StudyOverviewProvider implements IStudyOverviewProvider {

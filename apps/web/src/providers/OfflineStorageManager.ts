@@ -45,7 +45,27 @@ export class OfflineStorageManager {
   }
 
   /**
-   * Download a Bible module for offline use
+   * Download a module for offline use, from `GET /api/modules/:name/download`.
+   *
+   * For a Bible module this is now the same interlinear-free content
+   * `downloadModuleLite()` below fetches from `/download-lite` -- per Module
+   * Format v2 (design doc §8 D6), the server strips the interlinear word
+   * table and FTS5 index from every Bible it serves, so there is no longer a
+   * "full" vs. "lite" Bible file to choose between; this method and
+   * `downloadModuleLite()` exist as two client methods only because they're
+   * called from different places (this one from `SettingsPanel.tsx`'s
+   * explicit "download for offline use" action, `downloadModuleLite()` from
+   * `autoDownloadManager.ts`'s automatic background downloads) and hit two
+   * (identically-behaving, for a Bible) server routes. For any other module
+   * type (commentary, dictionary, ...) `/download` is unaffected and this
+   * still fetches the file as stored.
+   *
+   * Interlinear data for an offline Bible comes from `/api/interlinear` on
+   * demand, not from this downloaded file -- see
+   * `OfflineBibleProvider.withKnownInterlinear()`, which already re-asserts
+   * `hasInterlinearData: true` for a locally-cached chapter when the server
+   * previously reported the module has interlinear data, so the UI falls
+   * back to the live endpoint transparently.
    */
   async downloadModule(abbreviation: string, name: string): Promise<void> {
     offlineStore.setDownloadProgress(abbreviation, {
@@ -235,9 +255,17 @@ export class OfflineStorageManager {
   }
 
   /**
-   * Download a lite (reading-only) copy of a Bible module.
-   * Strips FTS5 indexes and interlinear data, reducing size by ~85%.
-   * Used for auto-downloads when the user selects a translation.
+   * Download a Bible module for offline use, from
+   * `GET /api/modules/:name/download-lite`. Used for auto-downloads when the
+   * user selects a translation (see `autoDownloadManager.ts`).
+   *
+   * Strips FTS5 indexes and interlinear data, reducing size by ~85%. As of
+   * Module Format v2 (design doc §8 D6) this is no longer a "lite" variant
+   * distinct from a "full" one -- `downloadModule()`'s `/download` now
+   * serves the exact same interlinear-free content for a Bible module (see
+   * its doc comment for why there are still two client methods). Interlinear
+   * data itself comes from `/api/interlinear` on demand; see
+   * `OfflineBibleProvider.withKnownInterlinear()`.
    */
   async downloadModuleLite(abbreviation: string, name: string): Promise<void> {
     // Don't show progress UI for lite/auto downloads

@@ -1,5 +1,5 @@
 import { IpcMain, dialog, app } from 'electron';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { existsSync, statSync } from 'fs';
 import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
@@ -14,23 +14,28 @@ import {
   ModuleFilter,
   compareModuleVersions
 } from '@bible/core';
-import type { StarterPack, CatalogModule } from '@bible/core';
+import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
 import { InstallationService } from '../services/InstallationService';
+import { KeywordIndexService, type KeywordIndexStatusDto } from '../services/KeywordIndexService';
 import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../services/ModuleCatalogService';
 import { FileApprovedCatalogKeyStore } from '../services/ApprovedCatalogKeys';
+import { getOfficialPublicKeys, OFFICIAL_CATALOG_URL_PREFIXES } from '../services/trustedCatalogKeys';
 import { blessPath, isPathBlessed } from './blessedPaths';
 import { t } from '../services/MainI18n';
 import {
   installModulePack,
+  inspectModulePack,
   isModulePackPath,
+  ModulePackError,
   MODULE_PACK_EXTENSIONS,
   type ModulePackInstallSummary,
   type ModulePackOutcome,
   type ModulePackFailure,
   type ModulePackUpToDateEntry,
-  type SkippedPackEntry
+  type SkippedPackEntry,
+  type ModulePackTrustOptions
 } from '../services/ModulePackService';
 
 /**
@@ -82,7 +87,11 @@ function normalizeInstallPolicy(
  * result shape from before multi-select existed is preserved verbatim
  * (`kind: 'single'`) for the still-common case of picking exactly one
  * `.db`/`.db.gz`, and every other case (2+ files, or one pack archive)
- * returns a `'batch'` summary.
+ * returns a `'batch'` summary. `null` means "nothing to report": the user
+ * cancelled the picker, OR every picked pack turned out unsigned/untrusted
+ * and the user declined the native "install anyway?" prompt for all of them
+ * (see `resolvePackFileTrust`) - both read the same to the person who asked
+ * for this, so both get the same no-feedback-needed result.
  */
 export type ModuleInstallDialogResult =
   | { kind: 'single'; moduleId?: number; moduleName?: string; overwritten?: boolean }
@@ -94,6 +103,11 @@ let moduleController: ModuleController | null = null;
 let catalogController: ModuleCatalogController | null = null;
 let mainDb: SqliteProvider | null = null;
 let installationService: InstallationService | null = null;
+// F8 (task 0027 revision 2): keyword-index status/rebuild/delete. Held
+// separately from `installationService`, mirroring `catalogService` below -
+// the IPC handlers for it are module-scoped queries with no controller-level
+// state, so they talk to the service directly.
+let keywordIndexService: KeywordIndexService | null = null;
 // Held separately from `catalogController`: the starter-pack queries are
 // catalog-document reads with no controller-level state, so they talk to the
 // service directly rather than widening the controller's surface.
@@ -151,7 +165,8 @@ function initializeModuleManager(): void {
 
     // Create services
     const downloadService = new DownloadService();
-    installationService = new InstallationService(mainDb, modulesPath);
+    keywordIndexService = new KeywordIndexService(mainDb);
+    installationService = new InstallationService(mainDb, modulesPath, keywordIndexService);
     catalogService = new ModuleCatalogService(mainDb, undefined, {
       approveVouchedKey: confirmVouchedCatalogKey,
       approvedKeys: new FileApprovedCatalogKeyStore(),
@@ -206,6 +221,16 @@ function requireCatalogService(): ModuleCatalogService {
     throw new IpcKnownError('unavailable', 'Module manager not initialized');
   }
   return catalogService;
+}
+
+/**
+ * Require the keyword-index service to be initialized, or throw an IpcKnownError.
+ */
+function requireKeywordIndexService(): KeywordIndexService {
+  if (!keywordIndexService) {
+    throw new IpcKnownError('unavailable', 'Module manager not initialized');
+  }
+  return keywordIndexService;
 }
 
 /**
@@ -302,6 +327,109 @@ async function installModuleFromPath(
 }
 
 /**
+ * Keys trusted for a pack's signature (`.zip` or `.biblepack` alike - see
+ * `installModulePackFromPath`'s doc comment): the pinned official keys, plus
+ * any the user separately approved for the official scope through a vouch
+ * (`ApprovedCatalogKeys`) - the same trust set `ModuleCatalogService` applies
+ * to the official catalog itself. A pack has no URL of its own to record a
+ * trust-on-first-use key against, so unlike a third-party catalog there is no
+ * weaker fallback: a pack is either backed by this trust set or it is not
+ * verified, full stop.
+ *
+ * Reads the on-disk approvals fresh each call (a new store, not the one held
+ * by `catalogService`) rather than threading it through - it is the same file,
+ * and a pack install is infrequent enough that this costs nothing.
+ */
+function getPackTrustedKeys(): string[] {
+  const scope = OFFICIAL_CATALOG_URL_PREFIXES[0];
+  const approved = scope ? new FileApprovedCatalogKeyStore().list(scope) : [];
+  return [...getOfficialPublicKeys(), ...approved];
+}
+
+/**
+ * Re-throw a `ModulePackError` classified for the trust gate as an
+ * `IpcKnownError` carrying the matching `IpcErrorCode`, so the renderer can
+ * branch on it instead of parsing a message string. Every other
+ * `ModulePackError` (bad archive, ceilings) falls through unchanged and is
+ * classified `internal` by `ipcHandler`, as before this feature existed.
+ */
+function rethrowClassified(error: unknown): never {
+  if (
+    error instanceof ModulePackError &&
+    (error.code === 'pack_signature_invalid' ||
+      error.code === 'pack_unverified' ||
+      error.code === 'pack_tampered' ||
+      error.code === 'not_found')
+  ) {
+    throw new IpcKnownError(error.code, error.message);
+  }
+  throw error;
+}
+
+/** What to do with one picked pack archive, decided by `resolvePackFileTrust`. */
+type PackFileTrustDecision =
+  | { outcome: 'proceed'; acceptUnverified: boolean }
+  /** The user was asked and declined - a clean no-op, never a failure. */
+  | { outcome: 'declined' }
+  /** Signature present but broken, or the manifest is malformed - no install, no override. */
+  | { outcome: 'invalid'; message: string };
+
+/**
+ * Inspect a pack archive picked through the "Install from File" dialog and,
+ * when it needs a decision the renderer cannot make on the app's behalf,
+ * raise a NATIVE dialog for it right here in main.
+ *
+ * This flow (pick + install in one round trip via `dialog.showOpenDialog`)
+ * has no later point at which a renderer-side confirmation could run, so the
+ * confirmation has to happen in main - which is also a STRONGER guarantee
+ * than a renderer confirm would be: a compromised renderer cannot suppress,
+ * skip, or fake the user's answer to a dialog it never gets to render. The
+ * decision here still changes nothing about verification itself -
+ * `installModulePackFromPath` re-verifies the signature and the manifest from
+ * scratch regardless of what is returned.
+ *
+ * Mirrors `confirmEnable` (`networkHandlers.ts`) and `confirmVouchedCatalogKey`
+ * above: an unparented `dialog.showMessageBox`, Cancel as both the default and
+ * the Escape/close outcome (`cancelId`), so a dismissed dialog can never be
+ * mistaken for consent.
+ */
+async function resolvePackFileTrust(filePath: string): Promise<PackFileTrustDecision> {
+  const inspection = await inspectModulePack(filePath, getPackTrustedKeys());
+  const fileName = basename(filePath);
+
+  if (inspection.status === 'invalid') {
+    dialog.showErrorBox(
+      "This pack can't be installed",
+      `"${fileName}" has been altered or its signature is broken, so it can't be installed.\n\n${inspection.message}`
+    );
+    return { outcome: 'invalid', message: inspection.message };
+  }
+
+  if (inspection.status === 'unsigned' || inspection.status === 'untrusted') {
+    const { response } = await dialog.showMessageBox({
+      type: 'warning',
+      buttons: ['Cancel', 'Install anyway'],
+      defaultId: 0,
+      cancelId: 0,
+      title: "This pack isn't verified",
+      message: `"${fileName}" isn't signed by Keep Thy Heart.`,
+      detail:
+        `${inspection.message}\n\n` +
+        'Only install it if you trust where it came from. Each module is still checked ' +
+        'before it is installed.',
+      noLink: true,
+    });
+    if (response !== 1) {
+      return { outcome: 'declined' };
+    }
+    return { outcome: 'proceed', acceptUnverified: true };
+  }
+
+  // 'verified'
+  return { outcome: 'proceed', acceptUnverified: false };
+}
+
+/**
  * Root directory pack archives are extracted into. Deliberately placed under
  * the same user-data root as `getUserModulesPath()` (rather than the OS temp
  * directory) so the per-module install's final `fs.renameSync` move - from
@@ -326,22 +454,44 @@ function getModulePackExtractionRoot(): string {
  * reinstall) is expected to bring stale modules up to date while leaving
  * current ones untouched. Modules left alone are reported in the summary's
  * `upToDate` bucket, NOT as failures.
+ *
+ * Every pack archive - a `.zip` exactly like a `.biblepack` - is subject to
+ * the signature/manifest trust gate: `acceptUnverified` must be explicitly
+ * `true` to install one that is unsigned or signed by an untrusted key, and a
+ * pack whose signature is invalid, or whose file bytes do not match a
+ * verified manifest, is refused with no override at all. The archive's
+ * EXTENSION decides nothing here - a `.zip` with no `pack.json` verifies as
+ * plain `unsigned` and needs the same confirmation a renamed `.biblepack`
+ * would, and a `.zip` that does carry `pack.json`(`.sig`) is checked exactly
+ * like a `.biblepack`. Deciding trust from a filename extension - something
+ * the archive itself controls - would let a hostile file simply rename its
+ * way past the gate. This check runs HERE, in main, every time - a
+ * renderer's earlier `module:inspect-pack` call, or its own decision to ask
+ * the user, is only ever a preview; it is never trusted in place of
+ * re-verifying now.
  */
 async function installModulePackFromPath(
   archivePath: string,
-  policy: ModuleInstallPolicy | boolean = 'replace-if-newer'
+  policy: ModuleInstallPolicy | boolean = 'replace-if-newer',
+  acceptUnverified = false
 ): Promise<ModulePackInstallSummary> {
   const effectivePolicy = normalizeInstallPolicy(policy, 'replace-if-newer');
-  log.info(`[ModuleManager] Installing module pack from: ${archivePath} (policy=${effectivePolicy})`);
+  const trust: ModulePackTrustOptions = { trustedKeys: getPackTrustedKeys(), acceptUnverified };
+  log.info(
+    `[ModuleManager] Installing module pack from: ${archivePath} (policy=${effectivePolicy}, acceptUnverified=${acceptUnverified})`
+  );
   const summary = await installModulePack(
     archivePath,
     getModulePackExtractionRoot(),
-    (filePath) => installModuleFromPath(filePath, effectivePolicy)
+    (filePath) => installModuleFromPath(filePath, effectivePolicy),
+    undefined,
+    trust
   );
   log.info(
     `[ModuleManager] Pack install complete: ${summary.installed.length} installed, ` +
     `${summary.failed.length} failed, ${summary.upToDate?.length ?? 0} already current, ` +
-    `${summary.skipped.length} skipped`
+    `${summary.skipped.length} skipped` +
+    (summary.packVerification ? `, signature=${summary.packVerification.status}` : '')
   );
   return summary;
 }
@@ -384,9 +534,12 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
   );
 
   // Starter packs recommended for a UI locale. Returns [] when the language
-  // has no pack - a normal outcome, not an error (several supported UI
-  // languages have no legally redistributable study content yet).
-  ipcHandler<[string], StarterPack[]>(
+  // has no pack, or when no catalog is currently the verified official one -
+  // both normal outcomes, never an error. Every entry carries `source`
+  // (which verified-official catalog it came from) so a subsequent
+  // `module:get-starter-pack-modules` / `module:install` call can be pinned
+  // to that same catalog - see `ModuleCatalogService.getAvailableStarterPacks`.
+  ipcHandler<[string], OfferedStarterPack[]>(
     'module:get-starter-packs',
     (languageCode) => {
       validateString(languageCode, 'languageCode', 35);
@@ -397,13 +550,16 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
 
   // Resolve a starter pack's module ids to the catalog entries they name, so
   // the first-run screen can show what would be installed (with licences and
-  // sizes) before the user commits to anything.
-  ipcHandler<[string], { pack?: StarterPack; modules: CatalogModule[] }>(
+  // sizes) before the user commits to anything. `catalogId` (a pack's own
+  // `source.catalogId`) scopes resolution to that one catalog - see the
+  // service method's doc comment for why cross-catalog resolution is unsafe.
+  ipcHandler<[string, number], { pack?: StarterPack; modules: CatalogModule[] }>(
     'module:get-starter-pack-modules',
-    (packId) => {
+    (packId, catalogId) => {
       validateString(packId, 'packId', 100);
+      validatePositiveInt(catalogId, 'catalogId');
       initializeModuleManager();
-      return requireCatalogService().getStarterPackModules(packId);
+      return requireCatalogService().getStarterPackModules(packId, catalogId);
     }
   );
 
@@ -417,15 +573,20 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
     }
   );
 
-  // Install module
-  ipcHandler<[string], { moduleId?: number; moduleName?: string }>(
+  // Install module. `catalogId`, when given, restricts resolution to that one
+  // catalog (see `IModuleCatalogService.getModuleInfo`) - first-run starter-
+  // pack installs always pass their pack's `source.catalogId` so a
+  // third-party catalog can never "shadow" an official module id. The Module
+  // Manager's own per-module install omits it, unchanged.
+  ipcHandler<[string, number | undefined], { moduleId?: number; moduleName?: string }>(
     'module:install',
-    async (moduleId) => {
+    async (moduleId, catalogId) => {
       validateString(moduleId, 'moduleId', 200);
+      if (catalogId !== undefined) validatePositiveInt(catalogId, 'catalogId');
       initializeModuleManager();
       const ctrl = requireModuleController();
-      log.info(`[IPC] Installing module: ${moduleId}`);
-      const result = await ctrl.installModule(moduleId);
+      log.info(`[IPC] Installing module: ${moduleId}${catalogId !== undefined ? ` (catalog ${catalogId})` : ''}`);
+      const result = await ctrl.installModule(moduleId, catalogId);
       log.info('[IPC] Install result:', result);
       if (!result.success) {
         throw new IpcKnownError('unavailable', result.error ?? 'Installation failed');
@@ -486,12 +647,32 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
 
       for (const filePath of result.filePaths) {
         if (isModulePackPath(filePath)) {
-          const packSummary = await installModulePackFromPath(filePath, 'replace-if-newer');
-          found += packSummary.found;
-          installed.push(...packSummary.installed);
-          failed.push(...packSummary.failed);
-          skipped.push(...packSummary.skipped);
-          upToDate.push(...(packSummary.upToDate ?? []));
+          try {
+            // This whole flow is one main-process round trip with no later
+            // chance for a renderer confirmation, so an unsigned/untrusted
+            // pack is confirmed HERE with a native dialog rather than
+            // silently refused - see `resolvePackFileTrust`'s doc comment.
+            const decision = await resolvePackFileTrust(filePath);
+            if (decision.outcome === 'declined') {
+              continue; // the user said no - a clean no-op, not a failure
+            }
+            if (decision.outcome === 'invalid') {
+              failed.push({ entryPath: filePath, reason: decision.message });
+              continue;
+            }
+            const packSummary = await installModulePackFromPath(
+              filePath,
+              'replace-if-newer',
+              decision.acceptUnverified
+            );
+            found += packSummary.found;
+            installed.push(...packSummary.installed);
+            failed.push(...packSummary.failed);
+            skipped.push(...packSummary.skipped);
+            upToDate.push(...(packSummary.upToDate ?? []));
+          } catch (error) {
+            failed.push({ entryPath: filePath, reason: (error as Error).message });
+          }
           continue;
         }
         found += 1;
@@ -509,6 +690,14 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
         } catch (error) {
           failed.push({ entryPath: filePath, reason: (error as Error).message });
         }
+      }
+
+      // Every picked pack was declined and nothing else was selected: from
+      // the user's point of view this is indistinguishable from cancelling
+      // the picker, so it gets the same `null` ("no feedback needed")
+      // result rather than a batch panel reporting all zeroes.
+      if (found === 0 && installed.length === 0 && failed.length === 0 && skipped.length === 0 && upToDate.length === 0) {
+        return null;
       }
 
       return { kind: 'batch', summary: { found, installed, failed, skipped, upToDate } };
@@ -544,12 +733,23 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
   );
 
   // Install a module pack archive from a given (blessed) file path. Same
-  // trust model as `module:install-from-path`: the path must have been
+  // path-trust model as `module:install-from-path`: the path must have been
   // chosen through a main-process dialog, or authorized via
   // `module:bless-dropped-path` for a genuine OS drag-and-drop.
-  ipcHandler<[string, ModuleInstallPolicy | boolean | undefined], ModulePackInstallSummary>(
+  //
+  // `options.acceptUnverified` is the renderer's record of the user having
+  // confirmed an "install anyway" prompt for an unsigned/untrusted
+  // `.biblepack` (see `module:inspect-pack`) - it is NOT trusted on its own:
+  // `installModulePackFromPath` re-verifies the signature here regardless of
+  // what the renderer believes it already knows, and tampering (an invalid
+  // signature, or a verified manifest that does not match the archive's
+  // actual bytes) is refused unconditionally, with no flag that overrides it.
+  ipcHandler<
+    [string, ModuleInstallPolicy | boolean | undefined, { acceptUnverified?: boolean } | undefined],
+    ModulePackInstallSummary
+  >(
     'module:install-pack-from-path',
-    async (archivePath, policy) => {
+    async (archivePath, policy, options) => {
       validateString(archivePath, 'archivePath', 1000);
       if (!isPathBlessed(archivePath)) {
         throw new IpcKnownError(
@@ -558,7 +758,64 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
         );
       }
       initializeModuleManager();
-      return await installModulePackFromPath(archivePath, normalizeInstallPolicy(policy, 'replace-if-newer'));
+      try {
+        return await installModulePackFromPath(
+          archivePath,
+          normalizeInstallPolicy(policy, 'replace-if-newer'),
+          options?.acceptUnverified ?? false
+        );
+      } catch (error) {
+        rethrowClassified(error);
+      }
+    }
+  );
+
+  // Inspect a pack archive's signature/manifest WITHOUT installing anything -
+  // lets the renderer show "Verified: signed by Keep Thy Heart" or an
+  // "install anyway?" confirmation before calling
+  // `module:install-pack-from-path`. Purely a preview: the install call above
+  // always re-verifies independently, so a stale or fabricated result here
+  // can never substitute for that check. Applies equally to `.zip` and
+  // `.biblepack` (see `installModulePackFromPath`'s doc comment for why the
+  // extension decides nothing); a single module file (`.db`/`.db.gz`, not an
+  // archive at all) has no manifest to inspect and always reports `unsigned`
+  // with no manifest summary.
+  ipcHandler<
+    [string],
+    { status: 'verified' | 'unsigned' | 'untrusted' | 'invalid'; manifest?: { name: string; version: string; languages: string[]; moduleCount: number; totalBytes: number }; signer?: string; message: string }
+  >(
+    'module:inspect-pack',
+    async (archivePath) => {
+      validateString(archivePath, 'archivePath', 1000);
+      if (!isPathBlessed(archivePath)) {
+        throw new IpcKnownError(
+          'unauthorized',
+          'This file path was not authorized. Choose the file through "Install from File" or drop it onto the window.'
+        );
+      }
+      if (!isModulePackPath(archivePath)) {
+        return { status: 'unsigned', message: 'Not a pack archive — nothing to verify.' };
+      }
+      initializeModuleManager();
+      try {
+        const result = await inspectModulePack(archivePath, getPackTrustedKeys());
+        return {
+          status: result.status,
+          manifest: result.manifest
+            ? {
+                name: result.manifest.name,
+                version: result.manifest.version,
+                languages: result.manifest.languages,
+                moduleCount: result.moduleCount ?? result.manifest.modules.length,
+                totalBytes: result.totalBytes ?? 0,
+              }
+            : undefined,
+          signer: result.publicKey,
+          message: result.message,
+        };
+      } catch (error) {
+        rethrowClassified(error);
+      }
     }
   );
 
@@ -634,6 +891,62 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
         throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
       }
       return module;
+    }
+  );
+
+  // Keyword index (F8, task 0027 revision 2, design doc §5.3). Three
+  // handlers over `KeywordIndexService`, keyed by the same numeric `moduleId`
+  // every other module handler above uses - the renderer never needs a
+  // module's `moduleUuid` for these. Search itself does not read any of this
+  // yet (it always degrades through `KeywordIndexRegistry`, unaffected by
+  // whatever this module reports); these exist so a "keyword index" section
+  // of the module details UI can show status and offer Rebuild/Delete
+  // actions without any further backend work.
+
+  // Current status: unavailable / unbuilt / building / ready / stale / failed.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:get-keyword-index-status',
+    (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = requireKeywordIndexService().getStatusForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
+    }
+  );
+
+  // Trigger (and await) a rebuild. Same build path `installModule` triggers
+  // automatically, callable on demand - the "Rebuild" action. Resolves with
+  // the resulting status rather than throwing on a build failure: the
+  // failure is already recorded in `keyword_index`, and the renderer reads it
+  // back the same way `module:get-keyword-index-status` reports one.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:rebuild-keyword-index',
+    async (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = await requireKeywordIndexService().rebuildForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
+    }
+  );
+
+  // Delete this module's index (the on-disk `.kwi` and its `keyword_index`
+  // row) without uninstalling the module itself - the "Delete index" action.
+  ipcHandler<[number], KeywordIndexStatusDto>(
+    'module:delete-keyword-index',
+    async (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const status = await requireKeywordIndexService().deleteIndexForModule(moduleId);
+      if (!status) {
+        throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
+      }
+      return status;
     }
   );
 
@@ -795,5 +1108,6 @@ export function closeModuleManager(): void {
   catalogController = null;
   catalogService = null;
   installationService = null;
+  keywordIndexService = null;
   log.info('[ModuleManager] Closed');
 }

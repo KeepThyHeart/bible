@@ -11,7 +11,7 @@
     &__right-pane {
       position: fixed;
       top: 48px;
-      right: 0;
+      inset-inline-end: 0;
       width: 350px !important;
       height: calc(100vh - 48px);
       z-index: 40;
@@ -79,7 +79,7 @@
   .bible-content__chapter-title {
     flex: 1 !important;
     text-align: center;
-    margin-left: 4px;
+    margin-inline-start: 4px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -110,6 +110,8 @@
   .bible-content--standard .verse--block {
     display: block;
 
+    // Bible verse-content rendering, kept physical - see the
+    // `.verse--preface` comment in _bible-content.scss.
     .verse__number-left {
       float: left;
       width: auto;

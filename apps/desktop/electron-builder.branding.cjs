@@ -247,8 +247,8 @@ module.exports = {
     // `@bible/desktop` -> `@bibledesktop`, which electron-builder refuses for
     // the AppImage ("executableName contains characters that cannot be safely
     // used in file paths"), so the Linux release build failed.
-    // Linux only: on Windows the .exe keeps productName, which
-    // build-installer.nsh depends on. Child configs' `linux:` blocks are
+    // Linux only: on Windows the .exe keeps productName, which the NSIS
+    // running-app check matches on. Child configs' `linux:` blocks are
     // deep-merged with this one, so their targets are unaffected.
     executableName: linuxName(),
   },

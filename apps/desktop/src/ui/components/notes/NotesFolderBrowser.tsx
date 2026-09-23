@@ -65,7 +65,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   sideTab = 'browse',
   onCreateNote,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
@@ -99,7 +99,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return localizer.formatDate(date, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -159,13 +159,13 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
     const m = trimmed.match(/^([123]?\s*[a-z]+(?:\s+of\s+[a-z]+)?)\s*(\d+)?(?::(\d+))?$/);
     if (!m) return null;
     const bookKey = m[1].trim();
-    const bookNumber = ENGLISH_BOOK_NAMES.get(bookKey);
+    const bookNumber = localizer.referenceParserConfig?.bookNames?.get(bookKey) ?? ENGLISH_BOOK_NAMES.get(bookKey);
     if (bookNumber === undefined) return null;
-    const bookName = getBookName(bookNumber);
+    const bookName = localizer.referenceParserConfig?.displayNames?.[bookNumber - 1] ?? getBookName(bookNumber);
     const chapter = m[2] ? parseInt(m[2], 10) : undefined;
     const verse = m[3] ? parseInt(m[3], 10) : undefined;
     return { bookName, chapter, verse };
-  }, []);
+  }, [localizer]);
 
   /** Recursively search folders below `basePath` for entries matching `query` */
   const deepSearch = useCallback(async (query: string, basePath: string, searchId: number) => {

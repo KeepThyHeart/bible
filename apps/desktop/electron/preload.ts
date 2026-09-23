@@ -54,7 +54,8 @@ import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
 import type { ModulePackInstallSummary } from './services/ModulePackService';
 import type { ModuleInstallPolicy } from './ipc/moduleHandlers';
-import type { StarterPack, CatalogModule } from '@bible/core';
+import type { KeywordIndexStatusDto } from './services/KeywordIndexService';
+import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { APP_CONFIG, type AppConfig } from './config/appConfig';
 
 // Define the API interface for type safety
@@ -392,15 +393,28 @@ export interface ElectronAPI {
     searchModules: (filter: any) => Promise<Result<any[]>>;
     /**
      * Starter packs recommended for a UI locale. An empty array is a normal
-     * answer - not every supported language has redistributable content.
+     * answer - not every supported language has redistributable content, and
+     * none is offered until the official catalog has been fetched and
+     * verified. Every pack carries `source` (which verified-official catalog
+     * it came from) - pass `source.catalogId` to `getStarterPackModules` and
+     * `installModule` below.
      */
-    getStarterPacks: (languageCode: string) => Promise<Result<StarterPack[]>>;
-    /** Resolve a starter pack's module ids to their catalog entries. */
+    getStarterPacks: (languageCode: string) => Promise<Result<OfferedStarterPack[]>>;
+    /** Resolve a starter pack's module ids to their catalog entries, scoped to `catalogId` (its `source.catalogId`). */
     getStarterPackModules: (
-      packId: string
+      packId: string,
+      catalogId: number
     ) => Promise<Result<{ pack?: StarterPack; modules: CatalogModule[] }>>;
-    // Install module
-    installModule: (moduleId: string) => Promise<Result<{ moduleId?: number; moduleName?: string }>>;
+    /**
+     * Install module. `catalogId`, when given, restricts resolution to that
+     * one catalog so a third-party catalog can never satisfy an install meant
+     * for the official one - pass a starter pack's `source.catalogId`. Omit
+     * for the Module Manager's own per-module install, unchanged.
+     */
+    installModule: (
+      moduleId: string,
+      catalogId?: number
+    ) => Promise<Result<{ moduleId?: number; moduleName?: string }>>;
     // Install module(s) from file (opens file dialog; supports multi-select
     // and pack archives). null means user cancelled.
     installFromFile: () => Promise<Result<ModuleInstallDialogResult>>;
@@ -415,11 +429,27 @@ export interface ElectronAPI {
     ) => Promise<Result<{ moduleId?: number; moduleName?: string; overwritten?: boolean; upToDateReason?: string }>>;
     // Install a pack archive (.zip/.biblepack) from a given (blessed) file
     // path - the drag-and-drop counterpart to selecting a pack via the file
-    // dialog.
+    // dialog. `acceptUnverified` is the user's confirmed choice to install a
+    // `.biblepack` that `inspectPack` reported as unsigned/untrusted; main
+    // re-verifies regardless (see `moduleHandlers.ts`).
     installPackFromPath: (
       archivePath: string,
-      policy?: ModuleInstallPolicy | boolean
+      policy?: ModuleInstallPolicy | boolean,
+      options?: { acceptUnverified?: boolean }
     ) => Promise<Result<ModulePackInstallSummary>>;
+    /**
+     * Preview a pack archive's signature/manifest without installing
+     * anything - drives the "Verified: signed by Keep Thy Heart" message or
+     * the "install anyway?" confirmation before calling
+     * `installPackFromPath`. A file that isn't a `.biblepack` always reports
+     * `unsigned` with no manifest.
+     */
+    inspectPack: (archivePath: string) => Promise<Result<{
+      status: 'verified' | 'unsigned' | 'untrusted' | 'invalid';
+      manifest?: { name: string; version: string; languages: string[]; moduleCount: number; totalBytes: number };
+      signer?: string;
+      message: string;
+    }>>;
     // Uninstall module
     uninstallModule: (moduleId: number, removeUserData?: boolean) => Promise<Result<boolean>>;
     // Update module
@@ -428,6 +458,13 @@ export interface ElectronAPI {
     checkForUpdates: (moduleId: number) => Promise<Result<{ hasUpdate: boolean; currentVersion?: string; availableVersion?: string }>>;
     // Get module details
     getModuleDetails: (moduleId: number) => Promise<Result<any>>;
+    // Keyword index (F8, task 0027 revision 2): status + Rebuild/Delete for a
+    // module's keyword-search sidecar index. See `KeywordIndexStatusDto`'s own
+    // doc comment for the state machine. `rebuild`/`delete` resolve with the
+    // resulting status rather than rejecting on a build failure.
+    getKeywordIndexStatus: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    rebuildKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    deleteKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -503,6 +540,13 @@ export interface ElectronAPI {
     getOfflineMode: () => Promise<Result<boolean>>;
     /** @deprecated Inverse of the above; kept for existing callers. */
     setOfflineMode: (offline: boolean) => Promise<Result<boolean>>;
+    /**
+     * Fires whenever the switch changes in ANY window (this one's menu/
+     * Preferences/first-run, or another window's) so every renderer's
+     * `useNetworkStore` stays in sync without polling. Returns an unsubscribe
+     * function.
+     */
+    onChanged: (cb: (allow: boolean) => void) => () => void;
   };
 
   // Manual "Check for Updates". `getInfo()` is pre-flight and makes
@@ -995,18 +1039,23 @@ const electronAPI: ElectronAPI = {
     // Starter packs for a UI locale, and the catalog entries one names.
     getStarterPacks: (languageCode: string) =>
       typedInvoke('module:get-starter-packs', languageCode),
-    getStarterPackModules: (packId: string) =>
-      typedInvoke('module:get-starter-pack-modules', packId),
+    getStarterPackModules: (packId: string, catalogId: number) =>
+      typedInvoke('module:get-starter-pack-modules', packId, catalogId),
     // Install module
-    installModule: (moduleId: string) => typedInvoke('module:install', moduleId),
+    installModule: (moduleId: string, catalogId?: number) =>
+      typedInvoke('module:install', moduleId, catalogId),
     // Install module from file (opens file dialog)
     installFromFile: () => typedInvoke('module:install-from-file'),
     // Install module from a given file path (for drag-and-drop)
     installFromPath: (filePath: string, policy?: ModuleInstallPolicy | boolean) =>
       typedInvoke('module:install-from-path', filePath, policy ?? true),
     // Install a pack archive from a given (blessed) file path (drag-and-drop)
-    installPackFromPath: (archivePath: string, policy?: ModuleInstallPolicy | boolean) =>
-      typedInvoke('module:install-pack-from-path', archivePath, policy ?? 'replace-if-newer'),
+    installPackFromPath: (
+      archivePath: string,
+      policy?: ModuleInstallPolicy | boolean,
+      options?: { acceptUnverified?: boolean }
+    ) => typedInvoke('module:install-pack-from-path', archivePath, policy ?? 'replace-if-newer', options),
+    inspectPack: (archivePath: string) => typedInvoke('module:inspect-pack', archivePath),
     // Uninstall module
     uninstallModule: (moduleId: number, removeUserData?: boolean) =>
       typedInvoke('module:uninstall', moduleId, removeUserData),
@@ -1016,6 +1065,13 @@ const electronAPI: ElectronAPI = {
     checkForUpdates: (moduleId: number) => typedInvoke('module:check-for-updates', moduleId),
     // Get module details
     getModuleDetails: (moduleId: number) => typedInvoke('module:get-details', moduleId),
+    // Keyword index (F8)
+    getKeywordIndexStatus: (moduleId: number) =>
+      typedInvoke('module:get-keyword-index-status', moduleId),
+    rebuildKeywordIndex: (moduleId: number) =>
+      typedInvoke('module:rebuild-keyword-index', moduleId),
+    deleteKeywordIndex: (moduleId: number) =>
+      typedInvoke('module:delete-keyword-index', moduleId),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),
@@ -1103,6 +1159,13 @@ const electronAPI: ElectronAPI = {
     getOfflineMode: () => typedInvoke('network:get-offline-mode'),
     setOfflineMode: (offline: boolean) =>
       typedInvoke('network:set-offline-mode', offline),
+    onChanged: (cb: (allow: boolean) => void) => {
+      const wrapped = (_event: unknown, allow: boolean): void => cb(allow);
+      ipcRenderer.on('network:changed', wrapped);
+      return () => {
+        ipcRenderer.removeListener('network:changed', wrapped);
+      };
+    },
   },
 
   updates: {

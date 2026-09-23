@@ -1,0 +1,268 @@
+{
+  "$schema": "../schemas/modules.schema.json",
+  "digest": {
+    "displayName": "综合摘要",
+    "subtitle": "自动生成的综合笔记摘要",
+    "disclaimer": "这是根据多部公共领域注释自动生成的摘要。计算机在摘要过程中有时会出错，注释本身也可能包含错误的教义。"
+  },
+  "bibles": {
+    "KJV": {
+      "description": "1769年。直译。新约译自公认经文；旧约译自马所拉文本。包含斯特朗编号。",
+      "tagline": "1769年 — 直译，公认经文，附斯特朗编号"
+    },
+    "BSB": {
+      "description": "2020年。最佳对等。新约译自 NA/UBS 校勘本；旧约译自马所拉文本。",
+      "tagline": "2020年 — 最佳对等，NA/UBS 校勘本"
+    },
+    "ASV": {
+      "description": "1901年。直译。新约译自威斯科特-霍特校勘本；旧约译自马所拉文本。",
+      "tagline": "1901年 — 直译，威斯科特-霍特校勘本"
+    },
+    "YLT": {
+      "description": "1898年。严格直译，保留原文动词时态。新约译自公认经文；旧约译自马所拉文本。",
+      "tagline": "1898年 — 严格直译，公认经文，保留原文时态"
+    },
+    "AB": {
+      "description": "译自希腊文七十士译本（LXX）。含旧约及次经典籍。"
+    },
+    "ABP": {
+      "description": "译自七十士译本（LXX）的原文对照式译本。"
+    },
+    "ACV": {
+      "description": "直译。新约译自公认经文。全本圣经。"
+    },
+    "AKJV": {
+      "description": "钦定本文本（公认经文），采用现代美式拼写。全本圣经。"
+    },
+    "Anderson": {
+      "description": "1864年。译自公认经文。仅新约。"
+    },
+    "BBE": {
+      "description": "1949／1964年。采用限定850词的基础英语词汇。全本圣经。"
+    },
+    "BWE": {
+      "description": "1969年。为国际读者编写的简化英语译本。仅新约。"
+    },
+    "CPDV": {
+      "description": "2009年。天主教译本。译自拉丁武加大译本。含次经典籍。"
+    },
+    "Common": {
+      "description": "现代英语。译自校勘本。仅新约。"
+    },
+    "DRC": {
+      "description": "1749–1752年（查隆修订版）。译自拉丁武加大译本。天主教译本。全本圣经，含次经。"
+    },
+    "Darby": {
+      "description": "1890年。直译。新约译自校勘本；旧约译自马所拉文本。全本圣经。"
+    },
+    "EMTV": {
+      "description": "2012年。译自拜占庭文本／多数文本。仅新约。"
+    },
+    "Etheridge": {
+      "description": "1849年。译自叙利亚文别西大译本。仅新约。"
+    },
+    "Geneva1599": {
+      "description": "1599年。直译。新约译自公认经文；旧约译自马所拉文本。全本圣经。"
+    },
+    "Godbey": {
+      "description": "1902年。译自威斯科特-霍特校勘本。仅新约。"
+    },
+    "GodsWord": {
+      "description": "1995年。意译。新约译自校勘本，旧约译自马所拉文本。全本圣经。"
+    },
+    "Haweis": {
+      "description": "1795年。译自公认经文。仅新约。"
+    },
+    "ISV": {
+      "description": "2011年。均衡对等。新约译自校勘本，旧约译自马所拉文本。全本圣经。"
+    },
+    "JPS": {
+      "description": "1917年。犹太出版协会译本。译自马所拉文本。仅旧约。"
+    },
+    "Jubilee2000": {
+      "description": "2000年。钦定本传统修订版。新约译自公认经文，旧约译自马所拉文本。全本圣经。"
+    },
+    "KJVA": {
+      "description": "1769年。钦定本（公认经文），附斯特朗编号，含次经。"
+    },
+    "KJVPCE": {
+      "description": "1900年（纯正剑桥版）。经过细致标准化的钦定本文本。公认经文。全本圣经。"
+    },
+    "LEB": {
+      "description": "2012年。直译。新约译自校勘本，旧约译自马所拉文本／BHS。全本圣经。"
+    },
+    "LITV": {
+      "description": "1985年。严格直译。新约译自公认经文，旧约译自马所拉文本。全本圣经。"
+    },
+    "LO": {
+      "description": "1826年。亚历山大·坎贝尔译自校勘本的译本。仅新约。"
+    },
+    "MKJV": {
+      "description": "1962年。现代化的钦定本。新约译自公认经文，旧约译自马所拉文本。全本圣经。"
+    },
+    "Montgomery": {
+      "description": "1924年。意译。译自校勘本。仅新约。"
+    },
+    "Murdock": {
+      "description": "1852年。译自叙利亚文别西大译本。仅新约。"
+    },
+    "NETfree": {
+      "description": "2019年。均衡对等。译自 NA/UBS 校勘本。免费版本，注释有限。全本圣经。"
+    },
+    "NETtext": {
+      "description": "2019年。NET 圣经正文，译自 NA/UBS 校勘本，附脚注标记。全本圣经。"
+    },
+    "NHEB": {
+      "description": "2020年（持续更新中）。公共领域译本。新约译自校勘本，旧约译自马所拉文本。全本圣经。"
+    },
+    "NHEBJE": {
+      "description": "2020年（持续更新中）。NHEB 的变体版本，神的名号采用“耶和华”。全本圣经。"
+    },
+    "NHEBME": {
+      "description": "2020年（持续更新中）。NHEB 的变体版本，恢复了希伯来文人名地名。全本圣经。"
+    },
+    "Noyes": {
+      "description": "1869年。学术性译本，新约译自校勘本，旧约译自马所拉文本。全本圣经。"
+    },
+    "OEB": {
+      "description": "持续更新中。现代英语，美式拼写。译自校勘本。尚未完成全本。"
+    },
+    "OEBcth": {
+      "description": "持续更新中。现代英语，英联邦拼写。译自校勘本。尚未完成全本。"
+    },
+    "OrthJBC": {
+      "description": "正统犹太教视角，大量保留希伯来语风格表达。译自公认经文。仅新约。"
+    },
+    "RKJNT": {
+      "description": "钦定本新约的现代语言修订版。译自公认经文。仅新约。"
+    },
+    "RLT": {
+      "description": "2018年。钦定本的直译修订版，附斯特朗编号。译自公认经文。全本圣经。"
+    },
+    "RNKJV": {
+      "description": "钦定本（公认经文），神的名号恢复为希伯来文形式。全本圣经。"
+    },
+    "Rotherham": {
+      "description": "1902年。直译。新约译自校勘本，旧约译自马所拉文本。使用排版强调符号。全本圣经。"
+    },
+    "RWebster": {
+      "description": "1833年。诺亚·韦伯斯特对钦定本的修订版。译自公认经文。全本圣经。"
+    },
+    "SPE": {
+      "description": "译自撒玛利亚五经。仅摩西五经。"
+    },
+    "Twenty": {
+      "description": "1904年。意译。译自威斯科特-霍特校勘本。仅新约。"
+    },
+    "Tyndale": {
+      "description": "1525／1530年。译自伊拉斯谟希腊文文本及武加大译本。含新约与摩西五经。"
+    },
+    "UKJV": {
+      "description": "钦定本（公认经文），更新为现代英语。全本圣经。"
+    },
+    "Webster": {
+      "description": "1833年。诺亚·韦伯斯特对钦定本的修订版。译自公认经文。全本圣经。"
+    },
+    "Weymouth": {
+      "description": "1912年。意译。译自校勘本。仅新约。"
+    },
+    "Worsley": {
+      "description": "1770年。译自公认经文。仅新约。"
+    }
+  },
+  "commentaries": {
+    "SYNTHESIS": {
+      "description": "根据多部公共领域注释自动生成的综合笔记摘要。"
+    },
+    "Barnes": {
+      "description": "巴恩斯（Albert Barnes）详尽而易懂的注释——最受欢迎的研经注释之一。新约。"
+    },
+    "gill": {
+      "description": "约翰·吉尔（John Gill）深入的学术性释经，附大量参考资料。全本圣经。"
+    },
+    "Clarke": {
+      "description": "亚当·克拉克（Adam Clarke）附考据注释的注释书——卫理公会的经典参考书。全本圣经。"
+    },
+    "pulpit": {
+      "description": "《讲坛注释》（The Pulpit Commentary）——多位作者合著的鸿篇巨制，兼具讲道学与释经。全本圣经。"
+    },
+    "kd": {
+      "description": "凯尔与德里慈（Keil & Delitzsch）——旧约标准的保守派学术注释。仅旧约。"
+    },
+    "CalvinCommentaries": {
+      "description": "约翰·加尔文（John Calvin）注释全集——归正宗释经的奠基之作。涵盖大部分书卷。"
+    },
+    "poole": {
+      "description": "马太·普尔（Matthew Poole）的《圣经提要》——简明而详尽的全本圣经注释。全本圣经。"
+    },
+    "cambridge": {
+      "description": "《剑桥学校与学院圣经注释》——为学生编写的清晰学术注释。全本圣经。"
+    },
+    "lange": {
+      "description": "《兰格注释》（Lange's Commentary）——德裔美籍学者所著的鸿篇考据与教义注释。全本圣经。"
+    },
+    "expositors": {
+      "description": "《释经者圣经》（The Expositor's Bible）——维多利亚时代学者所著、文笔优美易读的释经著作。全本圣经。"
+    },
+    "TSK": {
+      "description": "《圣经知识宝库》（Treasury of Scripture Knowledge）——为每节经文提供详尽串珠。全本圣经。"
+    },
+    "Wesley": {
+      "description": "约翰·卫斯理（John Wesley）对全本圣经简明实用的注释。"
+    },
+    "Scofield": {
+      "description": "《司可福串注圣经注释》（1917年）——极具影响力的时代论研经注释。全本圣经。"
+    },
+    "Geneva": {
+      "description": "《日内瓦圣经》译本注释——宗教改革时期的旁注。全本圣经。"
+    },
+    "RWP": {
+      "description": "《罗伯逊新约字词研究》（Robertson's Word Pictures）——新约希腊文字词研究。仅新约。"
+    },
+    "PNT": {
+      "description": "《大众新约注释》（The People's New Testament）——B·W·约翰逊清晰实用的注释。仅新约。"
+    },
+    "Abbott": {
+      "description": "莱曼·阿博特（Lyman Abbott）的《新约图解》——附带文化背景说明的注释。仅新约。"
+    },
+    "Burkitt": {
+      "description": "威廉·伯基特（William Burkitt）的《释经札记》——温情而富有灵修性的注释。仅新约。"
+    },
+    "Lightfoot": {
+      "description": "约翰·莱特福特（John Lightfoot）的注释——丰富的希伯来与塔木德背景资料。"
+    },
+    "Luther": {
+      "description": "马丁·路德（Martin Luther）对精选经文的注释——宗教改革的洞见。"
+    },
+    "tod": {
+      "description": "司布真（Spurgeon）的《大卫宝库》——诗篇经典灵修注释。仅诗篇。"
+    },
+    "Catena": {
+      "description": "多马·阿奎那（Thomas Aquinas）的《黄金锁链》（Catena Aurea）——汇集早期教父对四福音书注解的“金链”文集。仅福音书。"
+    },
+    "DTN": {
+      "description": "《达秘译本注释》（Darby Translation Notes）——J·N·达秘（J. N. Darby）的翻译与经文考据注释。"
+    },
+    "Family": {
+      "description": "《家庭圣经注释》（Family Bible Notes）——简短易懂、适合家庭共读的注释。"
+    },
+    "NETnotesfree": {
+      "description": "NET 圣经译者脚注（免费版）——说明翻译决策的学术注释。"
+    },
+    "Personal": {
+      "description": "《个人注释》（Personal Commentary）——简短的个人研经笔记与观察。"
+    },
+    "TFG": {
+      "description": "《四重福音书》（The Fourfold Gospel）——附注释的四福音合参。含福音书与使徒行传。"
+    },
+    "Kingcomments": {
+      "description": "格尔·德科宁（Ger de Koning）对全本圣经的注释——实用且富有灵修性。全本圣经。"
+    },
+    "QuotingPassages": {
+      "description": "串珠工具，显示圣经何处引用了其他经文段落。"
+    },
+    "Spurious": {
+      "description": "提申多夫（Tischendorf）关于希腊文新约异文与存疑经文的注释。仅新约。"
+    }
+  }
+}

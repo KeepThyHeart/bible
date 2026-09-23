@@ -43,6 +43,9 @@ const META_KEY_DIRECTION = 'locale.direction';
  */
 const DEFAULT_LOCALE_STATUS: LocaleStatus = 'draft';
 const DEFAULT_LOCALE_DIRECTION: LocaleDirection = 'ltr';
+
+/** Sort weight for `availableLocaleInfos`: complete, then beta, then draft. */
+const STATUS_ORDER: Record<LocaleStatus, number> = { complete: 0, beta: 1, draft: 2 };
 const isDev =
   typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
 
@@ -115,13 +118,14 @@ export class I18nService implements II18nService {
 
   get availableLocaleInfos(): LocaleMetadata[] {
     const infos = Array.from(this.catalogs.keys()).map((code) => this.getLocaleMetadata(code));
-    // Fallback locale first, then complete before draft, then by native name.
+    // Fallback locale first, then complete, then beta, then draft, then by
+    // native name within a group.
     return infos.sort((a, b) => {
       if (a.code !== b.code) {
         if (a.code === FALLBACK_LOCALE) return -1;
         if (b.code === FALLBACK_LOCALE) return 1;
       }
-      if (a.status !== b.status) return a.status === 'complete' ? -1 : 1;
+      if (a.status !== b.status) return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
       return a.nativeName.localeCompare(b.nativeName);
     });
   }
@@ -140,7 +144,10 @@ export class I18nService implements II18nService {
       code: locale,
       name: read(META_KEY_NAME) ?? locale,
       nativeName: read(META_KEY_NATIVE_NAME) ?? read(META_KEY_NAME) ?? locale,
-      status: status === 'complete' || status === 'draft' ? status : DEFAULT_LOCALE_STATUS,
+      status:
+        status === 'complete' || status === 'beta' || status === 'draft'
+          ? status
+          : DEFAULT_LOCALE_STATUS,
       direction: direction === 'ltr' || direction === 'rtl' ? direction : DEFAULT_LOCALE_DIRECTION,
     };
   }

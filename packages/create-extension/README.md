@@ -56,7 +56,7 @@ my-extension/
   esbuild.config.mjs    - Bundles src/main.ts to dist/main.js (--watch supported)
   vitest.config.ts      - Test config
   .gitignore
-  .bibleignore          - What `bible-ext package` leaves out of the .zip
+  .extensionignore          - What `bible-ext package` leaves out of the .zip
   src/main.ts           - Entry point with activate() / deactivate()
   src/verseUtils.ts     - Verse id helpers
   src/bible-env.d.ts    - Ambient types for the sandbox realm

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@bible/core';
 import { searchAPI, dictionaryAPI } from '../services/electronAPI';
-import { resolveOpenModuleAbbreviations, showSearchResultsPanel } from './crossStoreBridge';
+import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
 import { whenContextService } from '../services/WhenContextService';
 import { useToastStore } from './useToastStore';
+import { moduleAPI } from './module/moduleAPI';
 
 // ============================================================================
 // Semantic Mode Persistence
@@ -95,6 +96,27 @@ interface SearchState {
    * so the button doesn't come back for a query that genuinely fills even that.
    */
   isShowingAllKeywordResults: boolean;
+
+  /**
+   * Lightweight, best-effort note for the module manager's F8 keyword index
+   * (task 0033 follow-up to 0027's F8): how many of the *installed* modules
+   * that produced hits in the current keyword result set report a keyword
+   * index that is not `ready`. `null` when nothing to say - no keyword
+   * results yet, or every module involved is `ready`.
+   *
+   * Purely informational. The backend already degrades search gracefully for
+   * a module whose keyword index is not ready (see `KeywordIndexService`'s
+   * own doc comment - search never consults this status itself), so this
+   * never blocks, retries or errors the search; a lookup failure for one
+   * module is silently excluded from the count rather than surfaced.
+   *
+   * Only covers modules that appear in `searchResults`, not the full search
+   * scope - a module whose stale/degraded index still returned zero hits has
+   * no representation here. That is the same limit "N of M" notes like this
+   * one accept elsewhere in the app: an honest count of what is known, not a
+   * claim about what isn't.
+   */
+  keywordIndexNotice: { pending: number; total: number } | null;
 
   // Live search suggestions
   liveSuggestions: SearchResult[];
@@ -323,6 +345,7 @@ function emptyResultsPatch(): Partial<SearchState> {
     searchResults: [],
     keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
     isShowingAllKeywordResults: false,
+    keywordIndexNotice: null,
     semanticResults: [],
     semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
     autoSwitchedToSemantic: false,
@@ -331,6 +354,48 @@ function emptyResultsPatch(): Partial<SearchState> {
     retriedModules: [],
     lastClickedId: null,
   };
+}
+
+/**
+ * Refresh `keywordIndexNotice` for the modules that produced hits in `results`
+ * (task 0033: the search-results side of F8's keyword-index UI). Fire-and-
+ * forget from the search actions below - it runs after the search itself has
+ * already set `searchResults`, and never affects `isSearching`/`error`.
+ *
+ * Looks up each distinct module abbreviation's installed `module_id` via the
+ * cross-store bridge (search results only carry the abbreviation), fetches
+ * its `KeywordIndexStatusDto` and counts how many are not `ready`. A module
+ * with no installed match (should not normally happen - a search result came
+ * from *some* installed module) or a failed status lookup is simply excluded
+ * from both the numerator and the denominator, never treated as "pending".
+ */
+async function refreshKeywordIndexNotice(results: SearchResult[]): Promise<void> {
+  const abbreviations = Array.from(
+    new Set(results.map((r) => r.module).filter((m): m is string => !!m))
+  );
+
+  const moduleIds = abbreviations
+    .map(resolveInstalledModuleId)
+    .filter((id): id is number => typeof id === 'number');
+
+  if (moduleIds.length === 0) {
+    useSearchStore.setState({ keywordIndexNotice: null });
+    return;
+  }
+
+  const outcomes = await Promise.allSettled(
+    moduleIds.map((id) => moduleAPI.getKeywordIndexStatus(id))
+  );
+
+  let pending = 0;
+  let known = 0;
+  for (const outcome of outcomes) {
+    if (outcome.status !== 'fulfilled') continue;
+    known += 1;
+    if (outcome.value.state !== 'ready') pending += 1;
+  }
+
+  useSearchStore.setState({ keywordIndexNotice: pending > 0 ? { pending, total: known } : null });
 }
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -342,6 +407,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   error: null,
   keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
   isShowingAllKeywordResults: false,
+  keywordIndexNotice: null,
 
   liveSuggestions: [],
   isLiveSearching: false,
@@ -463,6 +529,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       // `useLayoutStore.openSearchResultsPanel`.
       showSearchResultsPanel();
 
+      // Best-effort keyword-index status note for the modules just searched
+      // (task 0033) - fire-and-forget, never blocks or fails the search.
+      void refreshKeywordIndexNotice(results);
+
       // If a Strong's number was searched, kick off the word-family fetch
       // (fire-and-forget - updates strongsMeta when ready).
       if (isStrongs) {
@@ -561,6 +631,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       error: null,
       keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
       isShowingAllKeywordResults: false,
+      keywordIndexNotice: null,
       // Keep persisted semantic mode selection when clearing; only reset auto-switch.
       autoSwitchedToSemantic: false,
       semanticResults: [],
@@ -704,6 +775,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         isShowingAllKeywordResults: true,
         isSearching: false,
       });
+
+      void refreshKeywordIndexNotice(results);
     } catch (error) {
       console.error('Show-all search failed:', error);
       set({
@@ -759,6 +832,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
           ? state.retriedModules
           : [...state.retriedModules, moduleAbbr],
       }));
+
+      void refreshKeywordIndexNotice(results);
     } catch (error) {
       console.error('Retry search in module failed:', error);
       set({

@@ -1,4 +1,5 @@
 import { LONG_NAMES, ENGLISH_BOOK_NAMES } from '@bible/core/browser';
+import type { Localizer } from '@bible/core/browser';
 import { getLocalizedBookName } from './utils/bookNames';
 
 /**
@@ -13,8 +14,24 @@ export const BOOK_NAMES: Record<number, string> = LONG_NAMES;
  * Alternate book names/abbreviations mapped to their book number, for
  * reference parsing and book filtering. Sourced from '@bible/core', which
  * holds the repo-wide alias table; this file used to keep a 52-entry subset.
+ *
+ * Always English. For a UI-locale-aware alias table, use
+ * {@link localizedBookAliases} instead — this is its fallback.
  */
 export const BOOK_ALIASES: Record<string, number> = Object.fromEntries(ENGLISH_BOOK_NAMES);
+
+/**
+ * Locale-aware parsing aliases: the active locale's own book-name/abbreviation
+ * table (`Localizer.referenceParserConfig.bookNames`), merged over
+ * {@link BOOK_ALIASES} so English input keeps parsing even in a non-English UI
+ * locale — matching desktop's `constants/bibleBooks.ts`. Falls back to
+ * `BOOK_ALIASES` alone for a locale with no drafted book-name table yet.
+ */
+export function localizedBookAliases(localizer: Localizer): Record<string, number> {
+  const aliases = localizer.referenceParserConfig?.bookNames;
+  if (!aliases) return BOOK_ALIASES;
+  return { ...BOOK_ALIASES, ...Object.fromEntries(aliases) };
+}
 
 export const MAX_CHAPTERS: Record<number, number> = {
   1: 50, 2: 40, 3: 27, 4: 36, 5: 34, 6: 24, 7: 21, 8: 4, 9: 31, 10: 24,

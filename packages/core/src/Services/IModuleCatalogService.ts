@@ -61,11 +61,19 @@ export interface IModuleCatalogService {
   getAllAvailableModules(): CatalogModule[];
 
   /**
-   * Get module by ID from catalogs
+   * Get module by ID from catalogs.
    * @param moduleId - Module identifier
+   * @param catalogId - When given, resolve `moduleId` only against this
+   *                    catalog's own `modules` array, never across every
+   *                    enabled catalog. A third-party catalog can otherwise
+   *                    "shadow" an official module id it never legitimately
+   *                    published; scoping to the catalog a caller already
+   *                    trusts (e.g. a starter pack's `source.catalogId`)
+   *                    closes that gap. Omit to search every enabled catalog,
+   *                    as before.
    * @returns Module info or undefined
    */
-  getModuleInfo(moduleId: string): CatalogModule | undefined;
+  getModuleInfo(moduleId: string, catalogId?: number): CatalogModule | undefined;
 
   /**
    * Validate catalog JSON structure

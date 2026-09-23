@@ -6,6 +6,7 @@ import { BibleSearchVersePosition } from '../Models/Main/BibleSearchVersePositio
 import { IBibleRepository } from './IBibleRepository';
 import { BaseModuleRepository, mapModuleIdentity, buildIdentityAssignments } from './BaseModuleRepository';
 import { ModuleInfoRow, BibleVerseRow, InterlinearWordRow } from '../Core/RowTypes';
+import { IIndexSource } from '../Access/KeywordTypes';
 import { parseJsonField, stringifyJsonField, parseBoolField } from '../Core/JsonHelpers';
 import { isReadOnlyDatabaseError } from '../Core/Errors';
 import { parseVerseFormatting, stringifyVerseFormatting } from '../Text';
@@ -627,45 +628,34 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
 
   /**
    * Search book text using FTS5 with custom query (e.g., NEAR for proximity)
-   * Note: offsets() doesn't work with NEAR queries, so we return empty offsets
+   *
+   * R-M2 (task 0026 subtask M2): this used to branch on whether `fts5Query`
+   * was a NEAR(...) query, running `offsets()` - an FTS3/FTS4 leftover that
+   * doesn't exist in FTS5 - for every other query shape. `offsets` in the
+   * return type is kept for interface stability but is now always `''`: the
+   * sole caller, `BibleSearchService.searchProximity`, only ever builds a
+   * NEAR(...) query here, so the offsets() branch was dead code (verified:
+   * no other caller in the codebase passes a non-NEAR query to this method).
+   * Its offset-parsing counterpart in `BibleSearchService.searchProximity`
+   * was removed alongside it.
    */
   searchBookFTS5(bookNumber: number, fts5Query: string): Array<{ bookNumber: number; text: string; offsets: string }> {
     // Without the index there is nothing to match; callers fall back to ordinary
     // verse search rather than failing.
     if (!this.ensureSearchTablesExist()) return [];
 
-    // Check if this is a NEAR query (offsets() doesn't work with NEAR)
-    const isNearQuery = fts5Query.toUpperCase().includes('NEAR(');
+    const rows = this.sql.queryAll(
+      `SELECT book_number, text
+       FROM book_search_index
+       WHERE book_search_index MATCH ? AND book_number = ?`,
+      [fts5Query, bookNumber]
+    );
 
-    if (isNearQuery) {
-      // For NEAR queries, we can't use offsets()
-      const rows = this.sql.queryAll(
-        `SELECT book_number, text
-         FROM book_search_index
-         WHERE book_search_index MATCH ? AND book_number = ?`,
-        [fts5Query, bookNumber]
-      );
-
-      return rows.map(row => ({
-        bookNumber: row.book_number as number,
-        text: row.text as string,
-        offsets: '' // Empty offsets for NEAR queries
-      }));
-    } else {
-      // For non-NEAR queries, use offsets()
-      const rows = this.sql.queryAll(
-        `SELECT book_number, text, offsets(book_search_index) as match_offsets
-         FROM book_search_index
-         WHERE book_search_index MATCH ? AND book_number = ?`,
-        [fts5Query, bookNumber]
-      );
-
-      return rows.map(row => ({
-        bookNumber: row.book_number as number,
-        text: row.text as string,
-        offsets: row.match_offsets as string
-      }));
-    }
+    return rows.map(row => ({
+      bookNumber: row.book_number as number,
+      text: row.text as string,
+      offsets: '' // Always empty; see this method's doc comment.
+    }));
   }
 
   /**
@@ -945,6 +935,15 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     );
 
     return rows.map(row => row.gloss);
+  }
+
+  // ========================================================================
+  // Keyword-Index Support (M5, task 0026 revision 2)
+  // ========================================================================
+
+  /** @inheritdoc */
+  getIndexSource(): IIndexSource {
+    return this.buildIndexSource('bible');
   }
 
   // ========================================================================
