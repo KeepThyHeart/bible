@@ -75,6 +75,7 @@ export function attachApiImpls(
       extensionId,
       router,
       bridge: ctx.commandBridge,
+      grant,
     });
     commandsApi.attach();
     active.commandsApi = commandsApi;

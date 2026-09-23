@@ -314,6 +314,108 @@ describe('ui.registerStatusBarItem', () => {
     ]);
     expect(res.error?.code).toBe('RpcProtocolError');
   });
+
+  it('re-registering the same id replaces the entry instead of stacking a duplicate', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '2 indexed' },
+    ]);
+    // One live entry, carrying the latest data - not two.
+    expect(bridge.statusBarItems).toHaveLength(1);
+    expect(bridge.statusBarItems[0].item.text).toBe('2 indexed');
+  });
+
+  it('a disposalId from a superseded registration becomes a no-op, not a delete of the current one', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    const first = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const firstDisposalId = (first.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '2 indexed' },
+    ]);
+
+    // The bridge's own disposer for `firstDisposalId` would, if invoked,
+    // delete whatever currently occupies the `indexCount` key (see
+    // InMemoryUiBridge.registerStatusBarItem) - i.e. the *second*
+    // registration. UiApiImpl must not let that happen.
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [firstDisposalId]);
+    expect(bridge.statusBarItems).toHaveLength(1);
+    expect(bridge.statusBarItems[0].item.text).toBe('2 indexed');
+  });
+});
+
+// --- updateStatusBarItem ---------------------------------------------------
+
+describe('ui.updateStatusBarItem', () => {
+  it('patches only the given fields, keeping the rest', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed', tooltip: 'Index status', alignment: 'left', priority: 5 },
+    ]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.statusBarItems).toHaveLength(1);
+    const updated = bridge.statusBarItems[0].item;
+    expect(updated.text).toBe('2 indexed');
+    expect(updated.tooltip).toBe('Index status');
+    expect(updated.alignment).toBe('left');
+    expect(updated.priority).toBe(5);
+  });
+
+  it('does not mint a new disposer per update', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    const first = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const firstDisposalId = (first.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    // The pre-update handle is superseded, exactly like re-registration -
+    // disposing it must not remove the item that the update produced.
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [firstDisposalId]);
+    expect(bridge.statusBarItems).toHaveLength(1);
+  });
+
+  it('rejects updating an id this extension never registered', async () => {
+    const { pair } = makeUi(['ui:status-bar']);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'neverRegistered',
+      { text: 'x' },
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('rejects updating an id that was already disposed', async () => {
+    const { pair } = makeUi(['ui:status-bar']);
+    const reg = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const disposalId = (reg.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [disposalId]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('rejects without ui:status-bar', async () => {
+    const { pair } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'x',
+      { text: 'y' },
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+  });
 });
 
 // --- registerDisplayMode -------------------------------------------------

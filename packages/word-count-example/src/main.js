@@ -72,17 +72,18 @@ exports.activate = async function activate(api) {
     priority: 100,
   });
 
-  // Listen for active verse changes
+  // Listen for active verse changes. Each change only updates the item's
+  // *text* and *tooltip* - `updateStatusBarItem` patches those two fields in
+  // place and keeps `alignment`/`priority` as registered, instead of
+  // re-registering the whole descriptor (which used to be the only way to
+  // change one field, and leaked a disposal handle per verse change).
   eventHandle = await api.bible.onDidChangeActiveVerse.subscribe(
     async function onVerseChanged(payload) {
       if (!payload) {
         // No active verse — reset display
-        await api.ui.registerStatusBarItem({
-          id: 'ext.bible-app.word-count.display',
+        await api.ui.updateStatusBarItem('ext.bible-app.word-count.display', {
           text: 'Words: --',
           tooltip: 'Word count for the current chapter',
-          alignment: 'right',
-          priority: 100,
         });
         return;
       }
@@ -106,8 +107,7 @@ exports.activate = async function activate(api) {
         }
 
         // Update the status bar
-        await api.ui.registerStatusBarItem({
-          id: 'ext.bible-app.word-count.display',
+        await api.ui.updateStatusBarItem('ext.bible-app.word-count.display', {
           text: 'Words: ' + totalWords,
           tooltip:
             'Word count for chapter ' +
@@ -115,8 +115,6 @@ exports.activate = async function activate(api) {
             ' (' +
             verses.length +
             ' verses)',
-          alignment: 'right',
-          priority: 100,
         });
       } catch (err) {
         // Silently handle errors — the status bar just keeps its last value

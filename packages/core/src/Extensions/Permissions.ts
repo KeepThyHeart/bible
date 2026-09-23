@@ -21,18 +21,25 @@ export const PERM_HIGHLIGHTS_WRITE = 'highlights:write' as const;
 export const PERM_BOOKMARKS_READ = 'bookmarks:read' as const;
 export const PERM_BOOKMARKS_WRITE = 'bookmarks:write' as const;
 
-/** Provider registration */
+/**
+ * Provider registration.
+ *
+ * `search:provide`, `import:provide`, `tts:provide` and `ai:provide` used to
+ * live here as reserved slots, but unlike `display-mode:provide` (which has
+ * a real, if rejecting, `ui.registerDisplayMode` method behind it - see
+ * `uiApiImpl.ts`) they had no API surface behind them at all: nothing an
+ * extension could call, and nothing that would ever fail loudly. Asking a
+ * user to grant a capability the host cannot deliver, silently, forever, is
+ * worse than not asking - so they were removed outright rather than kept as
+ * dead weight. Re-add a permission here (and to `ALLOWED_PERMISSIONS` in
+ * `ExtensionManifestValidator.ts` and the schema's `Permission` enum) only
+ * once there is a real API namespace to gate.
+ */
 export const PERM_BIBLE_PROVIDE = 'bible:provide' as const;
 export const PERM_COMMENTARY_PROVIDE = 'commentary:provide' as const;
 export const PERM_DICTIONARY_PROVIDE = 'dictionary:provide' as const;
 export const PERM_BOOK_PROVIDE = 'book:provide' as const;
-export const PERM_SEARCH_PROVIDE = 'search:provide' as const;
 export const PERM_DISPLAY_MODE_PROVIDE = 'display-mode:provide' as const;
-export const PERM_IMPORT_PROVIDE = 'import:provide' as const;
-/** RESERVED - registering AI providers (no host UI in v1). */
-export const PERM_AI_PROVIDE = 'ai:provide' as const;
-/** RESERVED - registering text-to-speech voices. */
-export const PERM_TTS_PROVIDE = 'tts:provide' as const;
 
 /** Storage */
 export const PERM_STORAGE = 'storage' as const;
@@ -51,6 +58,14 @@ export const PERM_UI_MEDIA = 'ui:media' as const;
 
 /** Commands & tasks */
 export const PERM_COMMANDS_REGISTER = 'commands:register' as const;
+/**
+ * Lets `commands.execute` reach a built-in (host-owned) command from the
+ * host's allowlist (see `BUILTIN_COMMAND_ALLOWLIST` in `commandsApiImpl.ts`).
+ * An extension may always execute its *own* commands (those under its
+ * `ext.<id>.` prefix) without this permission - it is only the confused-
+ * deputy path into host functionality that is gated. Not default-granted.
+ */
+export const PERM_COMMANDS_EXECUTE_BUILTIN = 'commands:execute-builtin' as const;
 export const PERM_TASKS = 'tasks' as const;
 
 /** Network */
@@ -85,11 +100,7 @@ export type ExtensionPermission =
   | typeof PERM_COMMENTARY_PROVIDE
   | typeof PERM_DICTIONARY_PROVIDE
   | typeof PERM_BOOK_PROVIDE
-  | typeof PERM_SEARCH_PROVIDE
   | typeof PERM_DISPLAY_MODE_PROVIDE
-  | typeof PERM_IMPORT_PROVIDE
-  | typeof PERM_AI_PROVIDE
-  | typeof PERM_TTS_PROVIDE
   | typeof PERM_STORAGE
   | typeof PERM_STORAGE_SECRETS
   | typeof PERM_STORAGE_DATABASE
@@ -101,6 +112,7 @@ export type ExtensionPermission =
   | typeof PERM_UI_STATUS_BAR
   | typeof PERM_UI_MEDIA
   | typeof PERM_COMMANDS_REGISTER
+  | typeof PERM_COMMANDS_EXECUTE_BUILTIN
   | typeof PERM_TASKS
   | typeof PERM_NETWORK
   | typeof PERM_NETWORK_OAUTH

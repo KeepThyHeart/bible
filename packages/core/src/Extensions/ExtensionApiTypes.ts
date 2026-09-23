@@ -544,6 +544,24 @@ export interface IUiApi {
     item: StatusBarItemDescriptor,
   ): Promise<DisposableHandle>;
 
+  /**
+   * Patch an already-registered status bar item in place. Only the fields
+   * present in `patch` change; everything else - including fields the
+   * original `registerStatusBarItem` call left unset - is kept. Use this
+   * instead of disposing and re-registering when only the data changes
+   * (e.g. a counter ticking up): re-registering the same `id` repeatedly is
+   * wasteful (a full descriptor round-trip, permission check and
+   * validation for one changed field) and, before this method existed, was
+   * also the only way an author could avoid stacking up disposal handles.
+   *
+   * Rejects if `itemId` was never registered by this extension, or was
+   * already disposed.
+   */
+  updateStatusBarItem(
+    itemId: string,
+    patch: Partial<Omit<StatusBarItemDescriptor, 'id'>>,
+  ): Promise<void>;
+
   /** Show a non-modal toast. */
   showNotification(msg: LocalizedString, opts?: NotificationOpts): Promise<void>;
 

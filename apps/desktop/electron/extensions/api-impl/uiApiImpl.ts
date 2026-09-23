@@ -56,6 +56,16 @@ export class UiApiImpl {
   private readonly bridge: IExtensionUiBridge;
   private readonly grant: ExtensionPermissionGrant;
   private readonly disposers = new Map<string, () => void>();
+  /**
+   * Status bar bookkeeping, keyed by the extension-facing item `id` (not the
+   * `${extensionId}::${id}` bridge key - this instance is already scoped to
+   * one extension). Lets `updateStatusBarItem` patch-and-reregister without
+   * requiring the caller to resend the whole descriptor, and lets
+   * re-registering the same id replace its disposer instead of stacking a
+   * new one on top - see `registerOrReplaceStatusBarItem`.
+   */
+  private readonly statusBarDescriptors = new Map<string, Extensions.StatusBarItemDescriptor>();
+  private readonly statusBarDisposalIdByItemId = new Map<string, string>();
   private nextDisposalId = 1;
   private disposed = false;
 
@@ -82,6 +92,7 @@ export class UiApiImpl {
       registerContextMenu: (args) => this.handleRegisterContextMenu(args),
       registerDisplayMode: (args) => this.handleRegisterDisplayMode(args),
       registerStatusBarItem: (args) => this.handleRegisterStatusBarItem(args),
+      updateStatusBarItem: (args) => this.handleUpdateStatusBarItem(args),
       pickFile: (args) => this.handlePickFile(args),
       saveFile: (args) => this.handleSaveFile(args),
     });
@@ -103,6 +114,8 @@ export class UiApiImpl {
       }
     }
     this.disposers.clear();
+    this.statusBarDescriptors.clear();
+    this.statusBarDisposalIdByItemId.clear();
   }
 
   // --- T1 RPC handlers ---------------------------------------------------
@@ -193,6 +206,17 @@ export class UiApiImpl {
       disposer();
     } catch {
       /* best-effort */
+    }
+    // If this handle was the current registration of a tracked status bar
+    // item, drop the tracking too - otherwise a later `updateStatusBarItem`
+    // for the same id would silently revive an item the extension just
+    // disposed instead of rejecting.
+    for (const [itemId, id] of this.statusBarDisposalIdByItemId) {
+      if (id === disposalId) {
+        this.statusBarDisposalIdByItemId.delete(itemId);
+        this.statusBarDescriptors.delete(itemId);
+        break;
+      }
     }
   }
 
@@ -322,9 +346,69 @@ export class UiApiImpl {
         'ui.registerStatusBarItem: expected StatusBarItemDescriptor as first arg',
       );
     }
+    return this.registerOrReplaceStatusBarItem(item);
+  }
+
+  private async handleUpdateStatusBarItem(args: unknown[]): Promise<void> {
+    this.assertActive();
+    requirePermission(this.grant, 'ui:status-bar');
+    const itemId = args[0];
+    if (typeof itemId !== 'string' || itemId.length === 0) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: itemId must be a non-empty string');
+    }
+    const patch = args[1];
+    if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: patch must be an object');
+    }
+    const current = this.statusBarDescriptors.get(itemId);
+    if (!current) {
+      throw new RpcProtocolError(
+        `ui.updateStatusBarItem: '${itemId}' is not a currently-registered status bar item for this extension`,
+      );
+    }
+    const merged: Extensions.StatusBarItemDescriptor = {
+      ...current,
+      ...(patch as Partial<Extensions.StatusBarItemDescriptor>),
+      id: itemId, // `id` is never patchable - strip anything the caller sent for it.
+    };
+    if (!isStatusBarItemDescriptor(merged)) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: patch produced an invalid descriptor');
+    }
+    this.registerOrReplaceStatusBarItem(merged);
+  }
+
+  /**
+   * Register `item` with the bridge, replacing any earlier registration of
+   * the same `item.id` from this extension.
+   *
+   * Before this existed, re-registering an id minted a brand-new
+   * `disposalId` and added it to `this.disposers` on every call without
+   * ever dropping the previous one - `this.disposers` grew by one entry per
+   * call for the extension's whole lifetime, and an author who later
+   * invoked one of the earlier (stale) handles would delete the *current*
+   * bridge entry out from under the latest registration, since the bridge
+   * itself keys status bar items by `${extensionId}::${item.id}` and knows
+   * nothing about which host-side handle is "current".
+   *
+   * The fix: track the current `disposalId` per `item.id` here, and when a
+   * new registration for the same id lands, drop the old `disposalId` entry
+   * from `this.disposers` *without invoking it* - invoking it would delete
+   * the bridge entry this call is about to (re)write. The old handle
+   * becomes a harmless no-op (`ui.dispose` on an unknown id is a no-op by
+   * design), and only one live entry per status bar item ever exists.
+   */
+  private registerOrReplaceStatusBarItem(
+    item: Extensions.StatusBarItemDescriptor,
+  ): { disposalId: string } {
+    const previousDisposalId = this.statusBarDisposalIdByItemId.get(item.id);
+    if (previousDisposalId !== undefined) {
+      this.disposers.delete(previousDisposalId);
+    }
     const disposer = this.bridge.registerStatusBarItem(this.extensionId, item);
     const disposalId = `statusbar-${this.nextDisposalId++}`;
     this.disposers.set(disposalId, disposer);
+    this.statusBarDisposalIdByItemId.set(item.id, disposalId);
+    this.statusBarDescriptors.set(item.id, item);
     return { disposalId };
   }
 

@@ -270,6 +270,7 @@ function createMockUiApi(): Extensions.IUiApi {
     // says nothing about runtime - custom verse display modes do not exist.
     registerDisplayMode: asyncMock(mockDisposable()),
     registerStatusBarItem: asyncMock(mockDisposable()),
+    updateStatusBarItem: asyncMock<void>(undefined),
     showNotification: asyncMock<void>(undefined),
     showQuickPick: asyncMock(undefined),
     showInputBox: asyncMock(undefined),

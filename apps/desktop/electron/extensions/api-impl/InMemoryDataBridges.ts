@@ -555,12 +555,28 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     };
   }
 
+  /**
+   * Keyed by `${extensionId}::${item.id}`, mirroring production
+   * `RendererUiBridge`: registering the same id again replaces the entry in
+   * place rather than appending a duplicate, and the returned disposer
+   * removes *whatever currently occupies that key* - not necessarily the
+   * entry this particular call created. That is deliberate: it is the same
+   * "last write wins, any handle can delete the current occupant" shape the
+   * production bridge has, which is exactly what `UiApiImpl` must not rely
+   * on a stale handle to interact with (see `registerOrReplaceStatusBarItem`).
+   */
   registerStatusBarItem(extensionId: string, item: StatusBarItemDescriptor): () => void {
+    const key = `${extensionId}::${item.id}`;
     const entry = { extensionId, item };
-    this.statusBarItems.push(entry);
+    const idx = this.statusBarItems.findIndex((e) => `${e.extensionId}::${e.item.id}` === key);
+    if (idx >= 0) {
+      this.statusBarItems.splice(idx, 1, entry);
+    } else {
+      this.statusBarItems.push(entry);
+    }
     return () => {
-      const idx = this.statusBarItems.indexOf(entry);
-      if (idx >= 0) this.statusBarItems.splice(idx, 1);
+      const i = this.statusBarItems.findIndex((e) => `${e.extensionId}::${e.item.id}` === key);
+      if (i >= 0) this.statusBarItems.splice(i, 1);
     };
   }
 

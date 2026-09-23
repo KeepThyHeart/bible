@@ -21,6 +21,7 @@ import {
   InMemoryCommandBridge,
   InMemoryContextBridge,
 } from '../api-impl';
+import { buildGrant } from '../ExtensionPermissionGuard';
 import { CommandRegistry } from '../../../src/ui/services/CommandRegistry';
 import { WhenContextService } from '../../../src/ui/services/WhenContextService';
 import { I18nService } from '../../../src/ui/services/I18nService';
@@ -75,7 +76,10 @@ interface Harness {
   contextApi: ContextApiImpl;
 }
 
-function makeHarness(extensionId = 'demo'): Harness {
+function makeHarness(
+  extensionId = 'demo',
+  permissions: string[] = ['commands:register'],
+): Harness {
   const i18n = new I18nService();
   const whenContext = new WhenContextService();
   const registry = new CommandRegistry({ i18n, whenContext });
@@ -85,6 +89,7 @@ function makeHarness(extensionId = 'demo'): Harness {
     extensionId,
     router,
     bridge: new InMemoryCommandBridge(registry),
+    grant: buildGrant(extensionId, permissions),
   });
   const contextApi = new ContextApiImpl({
     extensionId,
@@ -201,14 +206,29 @@ describe('Commands / context integration', () => {
     await execPromise;
   });
 
+  // --- commands.register permission gate ---------------------------------
+
+  it('commands.register is refused without commands:register', async () => {
+    h = makeHarness('demo', []);
+    await workerSend(h, {
+      kind: 'request',
+      id: 'w1',
+      method: 'commands.register',
+      args: [{ id: 'ext.demo.greet', title: 'Greet', handlerEndpoint: 'cmd.greet' }],
+    });
+    expect(lastResponse(h).error?.code).toBe('PermissionDeniedError');
+    expect(h.registry.get('ext.demo.greet')).toBeUndefined();
+  });
+
   // --- commands.execute (extension-initiated) ---------------------------
 
-  it('commands.execute routes through the bridge', async () => {
-    // Pre-register a built-in command directly on the registry.
+  it('commands.execute always reaches the extension\'s own command', async () => {
+    h = makeHarness('demo', []); // no commands:execute-builtin needed for own commands
     let invoked = false;
     h.registry.register({
-      id: 'test.builtin',
-      title: 'Builtin',
+      id: 'ext.demo.ownCommand',
+      ownerExtensionId: 'demo',
+      title: 'Own',
       handler: () => {
         invoked = true;
       },
@@ -217,10 +237,91 @@ describe('Commands / context integration', () => {
       kind: 'request',
       id: 'w1',
       method: 'commands.execute',
-      args: ['test.builtin'],
+      args: ['ext.demo.ownCommand'],
     });
     expect(invoked).toBe(true);
     expect(lastResponse(h).error).toBeUndefined();
+  });
+
+  it('commands.execute refuses a built-in without commands:execute-builtin', async () => {
+    h = makeHarness('demo', []);
+    let invoked = false;
+    h.registry.register({
+      id: 'app.openPreferences',
+      title: 'Preferences',
+      handler: () => {
+        invoked = true;
+      },
+    });
+    await workerSend(h, {
+      kind: 'request',
+      id: 'w1',
+      method: 'commands.execute',
+      args: ['app.openPreferences'],
+    });
+    expect(invoked).toBe(false);
+    expect(lastResponse(h).error?.code).toBe('PermissionDeniedError');
+  });
+
+  it('commands.execute refuses a built-in not on the allowlist even with the permission', async () => {
+    h = makeHarness('demo', ['commands:execute-builtin']);
+    let invoked = false;
+    h.registry.register({
+      id: 'app.toggleDevTools',
+      title: 'Toggle DevTools',
+      handler: () => {
+        invoked = true;
+      },
+    });
+    await workerSend(h, {
+      kind: 'request',
+      id: 'w1',
+      method: 'commands.execute',
+      args: ['app.toggleDevTools'],
+    });
+    expect(invoked).toBe(false);
+    expect(lastResponse(h).error?.code).toBe('PermissionDeniedError');
+  });
+
+  it('commands.execute reaches an allowlisted built-in with commands:execute-builtin', async () => {
+    h = makeHarness('demo', ['commands:execute-builtin']);
+    let invoked = false;
+    h.registry.register({
+      id: 'app.openPreferences',
+      title: 'Preferences',
+      handler: () => {
+        invoked = true;
+      },
+    });
+    await workerSend(h, {
+      kind: 'request',
+      id: 'w1',
+      method: 'commands.execute',
+      args: ['app.openPreferences'],
+    });
+    expect(invoked).toBe(true);
+    expect(lastResponse(h).error).toBeUndefined();
+  });
+
+  it('commands.execute refuses another extension\'s command even with commands:execute-builtin', async () => {
+    h = makeHarness('demo', ['commands:execute-builtin']);
+    let invoked = false;
+    h.registry.register({
+      id: 'ext.other.secret',
+      ownerExtensionId: 'other',
+      title: 'Secret',
+      handler: () => {
+        invoked = true;
+      },
+    });
+    await workerSend(h, {
+      kind: 'request',
+      id: 'w1',
+      method: 'commands.execute',
+      args: ['ext.other.secret'],
+    });
+    expect(invoked).toBe(false);
+    expect(lastResponse(h).error?.code).toBe('PermissionDeniedError');
   });
 
   // --- commands.dispose + bulk disposeByOwner ---------------------------
