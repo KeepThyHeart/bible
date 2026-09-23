@@ -75,6 +75,8 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     keywordResultLimit,
     isShowingAllKeywordResults,
     showAllKeywordResults,
+    // Keyword-index status note (F8 follow-up, task 0033)
+    keywordIndexNotice,
     semanticVisibleCount,
     showMoreSemanticResults,
     // Semantic search
@@ -564,6 +566,23 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
             {/* Results List */}
             {searchResults.length > 0 && (
               <>
+                {/*
+                  Lightweight, best-effort note: some of the modules that hit
+                  above have a keyword index that isn't ready (F8 follow-up,
+                  task 0033). Informational only - it never blocks or slows
+                  the results themselves, which already came back above.
+                */}
+                {keywordIndexNotice && (
+                  <div
+                    className="px-md py-xs text-xs text-text-tertiary bg-surface-secondary border-b border-border"
+                    data-testid="keyword-index-pending-notice"
+                  >
+                    {t('searchResultsPane.keywordIndexPending', {
+                      pending: keywordIndexNotice.pending,
+                      total: keywordIndexNotice.total,
+                    })}
+                  </div>
+                )}
                 <div ref={isSemanticMode ? undefined : listRef}>
                   <SearchDistributionGraph
                     mode="keyword"

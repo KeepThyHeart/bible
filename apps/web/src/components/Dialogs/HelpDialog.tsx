@@ -44,7 +44,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
     <div class="settings-panel-overlay" onClick={onClose}>
       <div class="help-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="help-dialog__header">
-          <h3><i class="fa-solid fa-circle-question" style={{ marginRight: '8px', opacity: 0.5 }} />{t('title')}</h3>
+          <h3><i class="fa-solid fa-circle-question" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('title')}</h3>
           <button class="help-dialog__close" onClick={onClose}>
             <i class="fa-solid fa-xmark" />
           </button>

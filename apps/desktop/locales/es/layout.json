@@ -11,7 +11,15 @@
   "layout.dropdown.label": "Diseño",
   "layout.dropdown.tooltip": "Restablecer a un diseño predefinido",
   "layout.reset.label": "Restablecer al diseño predeterminado",
+  "layout.newTab.createFailed": "No se ha podido abrir ese panel. Vuelva a intentarlo.",
+  "layout.collapsePane.tooltip": "Contraer este panel para dejarlo fuera de la vista",
+  "layout.expandCollapsed.label": "Mostrar los paneles ocultos",
+  "layout.expandCollapsed.tooltip": "Volver a mostrar los paneles de estudio contraídos",
+  "layout.expandCollapsed.tooltipNamed": "Volver a mostrar: {titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "{count, plural, one {Se ha reorganizado # pestaña.} other {Se han reorganizado # pestañas.}}",
   "layout.undo.button": "Deshacer",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "Modo de diseño avanzado",
+  "layout.advancedMode.helpTooltip": "Permite arrastrar los paneles para reorganizarlos, dividirlos o volver a acoplarlos manualmente. Abre la configuración completa.",
+  "layout.advancedMode.helpAria": "Acerca del modo de diseño avanzado"
 }

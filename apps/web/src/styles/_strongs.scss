@@ -1,5 +1,10 @@
 // ============================================================
 // Strong's popup (click-to-open full detail)
+//
+// Displays original-language word content (the Strong's number, the Greek/
+// Hebrew word, transliteration, pronunciation) - kept physical for the same
+// reason as `_bible-content.scss`'s verse/word rules; see that file's
+// `.verse--preface` comment.
 // ============================================================
 .strongs-popup-overlay {
   position: fixed;

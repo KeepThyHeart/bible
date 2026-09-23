@@ -4,6 +4,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore, getCommentaryPopularity } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
+import { useLocalizer } from '../../hooks/useLocalizer';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { processCommentaryLinks } from '../../../../../packages/core/src/Services/CommentaryLinkProcessor';
 import { renderMarkdownToHtml } from '../../utils/markdownRenderer';
@@ -40,6 +41,7 @@ interface CommentaryHomeProps {
 
 export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
   const homeData = useStore(commentaryStore, () => commentaryStore.homeData);
   const homeLoading = useStore(commentaryStore, () => commentaryStore.homeLoading);
   const liveBook = useStore(commentaryStore, () => commentaryStore.syncedBook);
@@ -99,7 +101,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   if (homeLoading) {
     return (
       <div class="commentary-content commentary-content--loading">
-        <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+        <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
         Loading commentaries...
       </div>
     );
@@ -126,7 +128,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         {verseNum
           ? <p>{t('commentaryHome.noCommentariesHaveContentFor')}</p>
           : <div class="commentary-content commentary-content--loading">
-              <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+              <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
               Loading commentaries...
             </div>
         }
@@ -362,7 +364,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
                 "Combined Summary", so comparing against the raw abbreviation
                 let the resolved name through as a duplicate. */}
             <span class="commentary-home__item-name">{!isDigestModule(mod.moduleAbbr) && mod.moduleName !== mod.moduleAbbr ? mod.moduleName : ''}</span>
-            {showBar && <span class="commentary-home__item-words">{mod.wordCount.toLocaleString()} words</span>}
+            {showBar && <span class="commentary-home__item-words">{localizer.formatNumber(mod.wordCount)} words</span>}
           </div>
         </div>
         {isExpanded && (

@@ -4,7 +4,7 @@
  *
  * Display names and verse-id parsing come from @bible/core.
  */
-import { VerseIdHelper, getBookName as coreGetBookName } from '@bible/core';
+import { VerseIdHelper, getBookName as coreGetBookName, getLocalizer, type Localizer } from '@bible/core';
 
 
 // Book abbreviations.
@@ -98,12 +98,15 @@ export function formatVerseRange(startVerseId: number, endVerseId?: number, useA
 }
 
 /**
- * Format date for display
+ * Format date for display. Pass the caller's active `Localizer` (from
+ * `useI18n()`) so this follows the chosen UI locale rather than always
+ * formatting in English; callers that omit it keep the historical `en`
+ * formatting.
  */
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string, localizer: Localizer = getLocalizer('en')): string {
   try {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return localizer.formatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return dateString;
   }

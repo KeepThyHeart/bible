@@ -137,7 +137,20 @@ export interface CommentaryEntryRow extends BaseRow {
   verse_id_start: number;
   verse_id_end?: number;
   entry_level?: string;
-  content?: string;
+  /**
+   * TEXT, or - in a module whose `module_info.compression` is not `'none'` -
+   * a BLOB holding one bare codec frame (task 0027 F4). Read it through
+   * `BaseModuleRepository.text()`, never directly; see
+   * `CommentaryRepository.mapRowToEntry`.
+   *
+   * Commentary is the only row type widened so far, because
+   * `CommentaryRepository` is the only repository wired to `text()` in this
+   * pass. The other prose columns `CONTENT_MAP` lists
+   * (`dictionary_entry.definition`/`usage_notes`, `book_section.content`,
+   * `devotional_entry.content`) get the same treatment as their mappers are
+   * wired.
+   */
+  content?: string | Uint8Array;
   content_file?: string;
   word_count?: number;
   metadata?: string;  // JSON
@@ -318,6 +331,26 @@ export interface ModuleMetadataRow extends BaseRow {
   features?: string;         // JSON array
   sword_metadata?: string;   // JSON
   metadata?: string;         // JSON
+}
+
+/**
+ * Row from the `keyword_index` table (task 0027 revision 2, F8) - the durable
+ * record of one provider's keyword index for one module. See the doc comment
+ * above `keyword_index` in `sql/schemas/initial/MainDatabase.sql` for what
+ * this table is for and why it exists alongside `SidecarFts5Provider`'s own
+ * on-disk state machine.
+ */
+export interface KeywordIndexRow extends BaseRow {
+  module_uuid: string;
+  provider_id: string;
+  content_sha256: string;
+  /** Open set - see the schema's own doc comment. Source of truth: KeywordCapability. */
+  state: string;
+  tokenizer: string;
+  doc_count?: number | null;
+  size_bytes?: number | null;
+  built_at?: string | null;
+  error?: string | null;
 }
 
 /** Row from the module_repository table */
@@ -503,28 +536,12 @@ export interface PinnedItemRow extends BaseRow {
 }
 
 // --- Search ----------------------------------------------------------
-
-/** Row from the bible_search_index table */
-export interface BibleSearchIndexRow extends BaseRow {
-  index_id: number;
-  type: string;
-  document: string;
-  division?: string;
-  last_indexed?: string;
-  is_indexed?: number;  // 0 or 1
-  metadata?: string;     // JSON
-}
-
-/** Row from the bible_search_verse_position table */
-export interface BibleSearchVersePositionRow extends BaseRow {
-  position_id: number;
-  type: string;
-  document: string;
-  division?: string;
-  verse_id: number;
-  start_index: number;
-  end_index: number;
-}
+//
+// `BibleSearchIndexRow` and `BibleSearchVersePositionRow` (rows from the
+// former `bible_search_index_metadata` and `bible_search_verse_positions`
+// tables) were removed by task 0026 subtask M12, along with the tables and
+// the `IBibleSearchRepository` methods that read them -- see
+// `BibleSearchRepository.ts`.
 
 /** Row from the saved_search table */
 export interface SavedSearchRow extends BaseRow {

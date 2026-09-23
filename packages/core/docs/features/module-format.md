@@ -9,6 +9,11 @@ A module file is an **immutable artifact**: it carries a `content_sha256` over
 its own content, and the app never writes to a shipped module. Derived data
 (search indexes, caches) lives outside the module.
 
+A module's prose columns may be compressed: `module_info.compression` names the
+codec (`'none'`, `'deflate'` or `'zstd'`; open set, no CHECK), and
+`compression_dictionary` optionally carries a trained dictionary for it. See
+"Compression" below.
+
 ## Files
 
 ### Core files
@@ -20,26 +25,33 @@ its own content, and the app never writes to a shipped module. Derived data
 | `src/Data/Models/BaseModuleInfo.ts` | Shared `module_info` model: the identity/provenance block, `getIdentity()`, `isPublicDomain()`. |
 | `src/Data/Core/ModuleVersion.ts` | `compareModuleVersions` / `isUpgrade` - orders publisher-authored version strings, returning `incomparable` rather than guessing. |
 
-### Schemas (0.1.0)
+### Schemas (0.2.0)
 
 | File | Purpose |
 |---|---|
-| `sql/schemas/initial/BibleTranslation.sql` | `bible_verse`, `interlinear_word`, `verse_link`, `bible_verse_fts`, `module_feature`. |
-| `sql/schemas/initial/Commentary.sql` | `commentary_entry`, `verse_link`, `commentary_entry_fts`. |
-| `sql/schemas/initial/Dictionary.sql` | `dictionary_entry`, `word_occurrence`, `verse_link`, `dictionary_entry_fts`. |
-| `sql/schemas/initial/Book.sql` | `book_section`, `verse_link`, `book_section_fts`. |
-| `sql/schemas/initial/Devotional.sql` | `devotional_entry`, `verse_link`, `devotional_entry_fts`. |
-| `sql/schemas/initial/CrossReference.sql` | `cross_reference_group` + `verse_link`. |
-| `sql/schemas/initial/TopicalIndex.sql` | `topic` + `verse_link` + `topic_fts`. |
-| `sql/schemas/initial/TagGraph.sql` | People / places / objects / themes, `tag_association`, `entity_facet`, `verse_link`, `entity_verse_link`. |
+| `sql/schemas/initial/BibleTranslation.sql` | `bible_verse`, `interlinear_word`, `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/Commentary.sql` | `commentary_entry`, `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/Dictionary.sql` | `dictionary_entry`, `word_occurrence`, `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/Book.sql` | `book_section`, `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/Devotional.sql` | `devotional_entry`, `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/CrossReference.sql` | `cross_reference_group` + `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/TopicalIndex.sql` | `topic` + `verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/TagGraph.sql` | People / places / objects / themes, `tag_association`, `entity_facet`, `verse_link`, `entity_verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/MainDatabase.sql` | `main.db`: `bible_book`, `chapter_info`, `module_metadata`, `module_repository`, `module_download_queue`, `module_update`, search tables, `setting`, `schema_migration`. |
 | `sql/schemas/initial/UserDatabase.sql` | `user_*.db` - see [User data](user-data.md). |
 
+As of schema v0.2, no module schema declares an FTS5 virtual table. Each
+module type shipped its own keyword index (`bible_verse_fts`,
+`commentary_entry_fts`, etc.) through v0.1; those tables and their
+sync triggers are gone. Full-text search over module content now lives in an
+app-side sidecar index outside the module file, out of scope for this
+document.
+
 ### Shared fragments
 
-`module_info`, `verse_link`, `schema_version`, `schema_migration`, `setting` and
-`module_feature` are each defined **once**, under `sql/schemas/shared/`, and
-pulled into the schemas that carry them:
+`module_info`, `verse_link`, `schema_version`, `schema_migration`, `setting`,
+`module_feature` and `compression_dictionary` are each defined **once**, under
+`sql/schemas/shared/`, and pulled into the schemas that carry them:
 
 ```sql
 -- @include ../shared/module_info.sql
@@ -107,13 +119,35 @@ safe; every value binds as a parameter.
 `module_uuid` - not `abbreviation` - is the cross-database join key. An
 abbreviation is a display and lookup convenience and is not stable.
 
+### Compression
+
+`module_info.compression` (default `'none'`) names the codec applied to a
+module's prose columns: `'none'` (plain TEXT), `'deflate'` (raw DEFLATE
+frames, RFC 1951) or `'zstd'` (RFC 8878). It is an open set with no CHECK, like
+every other `module_info` vocabulary column. A reader that does not have the
+named codec cannot read content and reports `readContent = false`, reason
+`'missing-codec'` -- but must still be able to read `module_info` itself, since
+identity and metadata are never compressed.
+
+`compression_dictionary` is a small, usually-empty side table: a row exists
+only when frames were encoded against a trained dictionary (`compression =
+'none'` always means the table is empty). It is keyed by `codec`, so a module
+carries at most one dictionary per codec, holding the raw `dict_blob` plus its
+`dict_id` and JSON `trained_from` provenance.
+
+`format_version` now defaults to `'0.2'` (was `'0.1'`); see `ModuleFormat.ts`
+for the full `FORMAT_VERSION` / `READABLE_FORMAT_VERSIONS` /
+`LEGACY_FORMAT_VERSIONS` story.
+
 ## Gotchas
 
-- **`bible_verse_fts` column order is load-bearing.** It is declared
-  `(verse_id UNINDEXED, text)`, so `text` is column 1. FTS5 `highlight()` does
-  not raise on a bad column index - it returns an empty string, and the failure
-  is silent and total: the reference renders, the verse text is blank. The
-  repository falls back to the row's own text rather than serving a blank.
+- **No module schema ships an FTS5 keyword index as of v0.2.** Every module
+  type's own `*_fts` table and its sync triggers (`bible_verse_fts`,
+  `commentary_entry_fts`, `dictionary_entry_fts`, `book_section_fts`,
+  `devotional_entry_fts`, `topic_fts`) were removed from the schema files.
+  Full-text search over module content is being rebuilt as an app-side
+  sidecar index, out of scope for this document -- do not expect any of those
+  tables to exist in a v0.2 module.
 
 - **`isPublicDomain()` falls back to substring-matching the freeform
   `copyright` string** when `license_spdx` is absent. That is why the shipped

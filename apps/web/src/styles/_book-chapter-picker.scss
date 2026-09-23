@@ -170,7 +170,7 @@
     border: 1px solid var(--border-color);
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     color: var(--text-primary);
     font-size: calc(13px * var(--ui-font-scale, 1));
     border-radius: 8px;
@@ -308,7 +308,7 @@
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     gap: 8px;
     transition: background 0.1s;
 

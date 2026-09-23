@@ -1,16 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ModuleManagerDialog from './ModuleManagerDialog';
 import { useModuleStore } from '../stores/useModuleStore';
+import { useNetworkStore } from '../stores/useNetworkStore';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { enT } from '../testing/enCatalog';
+import { moduleAPI } from '../stores/module/moduleAPI';
 
 // Mock moduleAPI
 vi.mock('../stores/module/moduleAPI', () => ({
   moduleAPI: {
     installFromFile: vi.fn().mockResolvedValue(null),
+    getModuleDetails: vi.fn().mockResolvedValue(null),
+    inspectPack: vi.fn(),
+    installPackFromPath: vi.fn(),
   },
 }));
 
@@ -39,13 +44,19 @@ describe('ModuleManagerDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Online by default so the existing tests below exercise the ordinary
+    // (network-available) rendering; the offline-specific tests further down
+    // set this back to `false` themselves.
+    useNetworkStore.setState({ allowWebRequests: true, loaded: true });
     useModuleStore.setState({
       isInitialized: true,
       initError: null,
-      viewMode: 'available',
+      activeTypeTab: 'bible',
+      installFilter: 'all',
       loadingAvailable: false,
       loadingInstalled: false,
       error: null,
+      errorCode: null,
       activeDownloads: [],
       repositories: [],
       activeFilter: {},
@@ -53,7 +64,8 @@ describe('ModuleManagerDialog', () => {
       installedModules: [],
       searchQuery: '',
       initialize: vi.fn().mockResolvedValue(undefined),
-      setViewMode: vi.fn(),
+      setActiveTypeTab: vi.fn(),
+      setInstallFilter: vi.fn(),
       searchModules: vi.fn(),
       setFilter: vi.fn(),
       clearFilter: vi.fn(),
@@ -70,25 +82,38 @@ describe('ModuleManagerDialog', () => {
 
   it('renders the dialog', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    // The module manager should render with tabs
-    expect(screen.getByText('Available Modules')).toBeInTheDocument();
-    expect(screen.getByText('Installed Modules')).toBeInTheDocument();
+    // Type tabs on the left, the Feature packs / Sources panels on the right.
+    expect(screen.getByTestId('module-manager-type-tab-bible')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-features-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-repositories-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('module-table-bible')).toBeInTheDocument();
   });
 
-  it('shows Available Modules tab as active by default', () => {
+  it('shows the Bibles tab and the All filter as active by default', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    const availableTab = screen.getByTestId('module-manager-available-tab');
-    expect(availableTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('module-manager-type-tab-bible')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('module-manager-filter-all')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('module-manager-filter-installed')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('switches to Installed tab when clicked', async () => {
+  it('switches to the Installed filter when its chip is clicked', async () => {
     const user = userEvent.setup();
-    const setViewMode = vi.fn();
-    useModuleStore.setState({ setViewMode });
+    const setInstallFilter = vi.fn();
+    useModuleStore.setState({ setInstallFilter });
 
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    await user.click(screen.getByTestId('module-manager-installed-tab'));
-    expect(setViewMode).toHaveBeenCalledWith('installed');
+    await user.click(screen.getByTestId('module-manager-filter-installed'));
+    expect(setInstallFilter).toHaveBeenCalledWith('installed');
+  });
+
+  it('switches to a panel tab (Sources) when its trailing tab is clicked', async () => {
+    const user = userEvent.setup();
+    const setActiveTypeTab = vi.fn();
+    useModuleStore.setState({ setActiveTypeTab });
+
+    renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+    await user.click(screen.getByTestId('module-manager-repositories-tab'));
+    expect(setActiveTypeTab).toHaveBeenCalledWith('repositories');
   });
 
   it('renders search input', () => {
@@ -108,8 +133,204 @@ describe('ModuleManagerDialog', () => {
     expect(screen.getByTestId('module-manager-repositories-tab')).toBeInTheDocument();
   });
 
-  it('shows Updates tab', () => {
+  it('shows the Updates filter chip', () => {
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
-    expect(screen.getByText('Updates')).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-filter-updates')).toHaveTextContent('Updates');
+  });
+
+  describe('offline banner', () => {
+    beforeEach(() => {
+      useNetworkStore.setState({ allowWebRequests: false, loaded: true });
+    });
+
+    it('shows the banner on a module tab (All filter) when the network is off', () => {
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.getByTestId('module-manager-offline-banner')).toBeInTheDocument();
+    });
+
+    it('does not show the banner once the network is on', () => {
+      useNetworkStore.setState({ allowWebRequests: true, loaded: true });
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.queryByTestId('module-manager-offline-banner')).not.toBeInTheDocument();
+    });
+
+    it('does not show the banner under the Installed filter', () => {
+      useModuleStore.setState({ installFilter: 'installed' });
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.queryByTestId('module-manager-offline-banner')).not.toBeInTheDocument();
+    });
+
+    it('"Turn on" asks the network store, and refreshes on success', async () => {
+      const user = userEvent.setup();
+      const requestAllow = vi.fn().mockResolvedValue(true);
+      const refreshAllCatalogs = vi.fn().mockResolvedValue(undefined);
+      useNetworkStore.setState({ requestAllow });
+      useModuleStore.setState({ refreshAllCatalogs });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      await user.click(screen.getByTestId('module-manager-offline-turn-on'));
+
+      expect(requestAllow).toHaveBeenCalledWith(true);
+      expect(refreshAllCatalogs).toHaveBeenCalled();
+    });
+
+    it('"Turn on" does not refresh when the confirmation dialog is cancelled', async () => {
+      const user = userEvent.setup();
+      const requestAllow = vi.fn().mockResolvedValue(false);
+      const refreshAllCatalogs = vi.fn().mockResolvedValue(undefined);
+      useNetworkStore.setState({ requestAllow });
+      useModuleStore.setState({ refreshAllCatalogs });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      await user.click(screen.getByTestId('module-manager-offline-turn-on'));
+
+      expect(requestAllow).toHaveBeenCalledWith(true);
+      expect(refreshAllCatalogs).not.toHaveBeenCalled();
+    });
+
+    it('renders the "Install from a file…" action', () => {
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.getByTestId('module-manager-offline-install-file')).toBeInTheDocument();
+    });
+
+    it('does not render `network_blocked` as the generic red error banner', () => {
+      useModuleStore.setState({ error: 'Network egress blocked by offline mode: refresh all catalogs', errorCode: 'network_blocked' });
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.queryByText(/Network egress blocked/)).not.toBeInTheDocument();
+      // The offline banner still renders - the condition is not "no message at all".
+      expect(screen.getByTestId('module-manager-offline-banner')).toBeInTheDocument();
+    });
+
+    it('keeps showing a real (non-network) error in the generic red banner', () => {
+      useModuleStore.setState({ error: 'Disk is full', errorCode: 'internal' });
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      expect(screen.getByText('Disk is full')).toBeInTheDocument();
+    });
+  });
+
+  describe('pack drag-and-drop trust gate (.zip and .biblepack alike)', () => {
+    const getPathForFile = vi.fn().mockResolvedValue('C:\\fake\\starter.biblepack');
+
+    beforeEach(() => {
+      vi.mocked(moduleAPI.inspectPack).mockReset();
+      vi.mocked(moduleAPI.installPackFromPath).mockReset();
+      getPathForFile.mockReset().mockResolvedValue('C:\\fake\\starter.biblepack');
+      // Preserve the other stubbed members `vitest.setup.ts` installs (log,
+      // diagnostics, window) - only `webUtils` is new here.
+      (window as unknown as { electron: Record<string, unknown> }).electron = {
+        ...(window as unknown as { electron: Record<string, unknown> }).electron,
+        webUtils: { getPathForFile },
+      };
+    });
+
+    function dropFile(name: string) {
+      const dialog = screen.getByTestId('module-manager-dialog');
+      const file = new File(['irrelevant'], name);
+      Object.defineProperty(file, 'name', { value: name });
+      fireEvent.drop(dialog, { dataTransfer: { files: [file], types: ['Files'] } });
+    }
+
+    it('an unsigned pack asks "install anyway?", and confirming installs with acceptUnverified: true', async () => {
+      vi.mocked(moduleAPI.inspectPack).mockResolvedValue({
+        status: 'unsigned',
+        message: 'This pack is not signed.',
+      });
+      vi.mocked(moduleAPI.installPackFromPath).mockResolvedValue({
+        found: 1,
+        installed: [{ entryPath: 'kjv.db', moduleName: 'KJV' }],
+        failed: [],
+        skipped: [],
+      });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      dropFile('starter.biblepack');
+
+      const confirmButton = await screen.findByTestId('confirm-dialog-confirm');
+      expect(screen.getByTestId('confirm-dialog')).toHaveTextContent("This pack isn");
+      await userEvent.click(confirmButton);
+
+      await waitFor(() =>
+        expect(moduleAPI.installPackFromPath).toHaveBeenCalledWith(
+          'C:\\fake\\starter.biblepack',
+          true,
+          { acceptUnverified: true }
+        )
+      );
+    });
+
+    it('declining the confirmation never calls installPackFromPath', async () => {
+      vi.mocked(moduleAPI.inspectPack).mockResolvedValue({
+        status: 'untrusted',
+        message: 'Signed, but not by a key this app trusts.',
+      });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      dropFile('starter.biblepack');
+
+      const cancelButton = await screen.findByTestId('confirm-dialog-cancel');
+      await userEvent.click(cancelButton);
+
+      expect(moduleAPI.installPackFromPath).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
+    });
+
+    it('applies the exact same gate to a plain .zip - the extension decides nothing', async () => {
+      getPathForFile.mockResolvedValue('C:\\fake\\bundle.zip');
+      vi.mocked(moduleAPI.inspectPack).mockResolvedValue({
+        status: 'unsigned',
+        message: 'This pack is not signed.',
+      });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      dropFile('bundle.zip');
+
+      // Asked exactly like a `.biblepack` would be - a renamed unsigned
+      // archive gets no free pass.
+      const confirmDialog = await screen.findByTestId('confirm-dialog');
+      expect(confirmDialog).toHaveTextContent("This pack isn");
+      expect(moduleAPI.inspectPack).toHaveBeenCalledWith('C:\\fake\\bundle.zip');
+
+      await userEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      expect(moduleAPI.installPackFromPath).not.toHaveBeenCalled();
+    });
+
+    it('an invalid (tampered) pack shows an error and offers no install option', async () => {
+      vi.mocked(moduleAPI.inspectPack).mockResolvedValue({
+        status: 'invalid',
+        message: 'pack.json.sig does not match pack.json.',
+      });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      dropFile('starter.biblepack');
+
+      await waitFor(() => expect(screen.getByText(/altered or its signature is broken/)).toBeInTheDocument());
+      expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
+      expect(moduleAPI.installPackFromPath).not.toHaveBeenCalled();
+    });
+
+    it('a verified pack installs straight away with no confirmation', async () => {
+      vi.mocked(moduleAPI.inspectPack).mockResolvedValue({
+        status: 'verified',
+        message: 'Verified: signed by Keep Thy Heart.',
+      });
+      vi.mocked(moduleAPI.installPackFromPath).mockResolvedValue({
+        found: 1,
+        installed: [{ entryPath: 'kjv.db', moduleName: 'KJV' }],
+        failed: [],
+        skipped: [],
+      });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      dropFile('starter.biblepack');
+
+      await waitFor(() =>
+        expect(moduleAPI.installPackFromPath).toHaveBeenCalledWith(
+          'C:\\fake\\starter.biblepack',
+          true,
+          { acceptUnverified: false }
+        )
+      );
+      expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
+    });
   });
 });

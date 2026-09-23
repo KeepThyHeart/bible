@@ -1,18 +1,15 @@
 import { join } from 'path';
 import { existsSync, readdirSync } from 'fs';
+import { createRequire } from 'module';
 import { SqliteProvider } from './providers/SqliteProvider.js';
 import {
   BibleBookRepository,
   ModuleMetadataRepository,
-  BibleRepository,
-  CommentaryRepository,
   DictionaryRepository,
   BibleSearchRepository,
   BibleSearchService,
   SearchController,
   SemanticSearchService,
-  CrossReferenceRepository,
-  TopicalIndexRepository,
   TagGraphRepository,
   WordFamilyService,
 } from './core.js';
@@ -30,6 +27,21 @@ import type {
   TopicalIndexRepository as TopicalIndexRepositoryT,
   TagGraphRepository as TagGraphRepositoryT,
   WordFamilyService as WordFamilyServiceT,
+  IBibleRepository,
+  ICommentaryRepository,
+  ICrossReferenceRepository,
+  ITopicalIndexRepository,
+  ModuleLoader as ModuleLoaderT,
+  ModuleConnectionFactory,
+  SqliteModuleStore as SqliteModuleStoreT,
+  SqliteModuleRepositoryFactory as SqliteModuleRepositoryFactoryT,
+  moduleRepositoryFactoryFor as moduleRepositoryFactoryForT,
+  nodeCodecRegistry as nodeCodecRegistryT,
+  wrapSqlConnection as wrapSqlConnectionT,
+  SqlDriverFactory,
+  IModuleStore,
+  IModuleRepositoryFactory,
+  ICodecRegistry,
 } from '@bible/core';
 
 /**
@@ -39,13 +51,46 @@ import type {
  */
 const MODULE_DB_OPTIONS = { readonly: true, fileMustExist: true } as const;
 
+/**
+ * `@bible/core` is CJS; `core.ts` bridges it for every OTHER value this file
+ * uses (see its own doc comment). `ModuleLoader`/`SqliteModuleStore`/
+ * `SqliteModuleRepositoryFactory`/`moduleRepositoryFactoryFor`/
+ * `nodeCodecRegistry` are pulled the same way, directly here, rather than by
+ * editing `core.ts` - that file is not part of this subtask's (task 0026
+ * revision 2, M11) scope, and this is the exact bridging pattern it already
+ * uses for every other CJS value.
+ */
+const coreRequire = createRequire(import.meta.url);
+const coreCjs = coreRequire('@bible/core');
+const ModuleLoader: typeof ModuleLoaderT = coreCjs.ModuleLoader;
+const SqliteModuleStore: typeof SqliteModuleStoreT = coreCjs.SqliteModuleStore;
+const SqliteModuleRepositoryFactory: typeof SqliteModuleRepositoryFactoryT = coreCjs.SqliteModuleRepositoryFactory;
+const moduleRepositoryFactoryFor: typeof moduleRepositoryFactoryForT = coreCjs.moduleRepositoryFactoryFor;
+const nodeCodecRegistry: typeof nodeCodecRegistryT = coreCjs.nodeCodecRegistry;
+/** Task 0034 (finishing M11): wraps an already-open `SqliteProvider` as an `IModuleConnection` for `repositoryFactory.create()`. */
+const wrapSqlConnection: typeof wrapSqlConnectionT = coreCjs.wrapSqlConnection;
+
+/**
+ * `IModuleRepositoryFactory.create()` (and so `moduleRepositoryFactoryFor()`)
+ * is typed to hand back the per-type INTERFACE (`IBibleRepository`, ...) -
+ * deliberately, per M11's design doc, so a caller of the factory abstraction
+ * never depends on a concrete repository's extra surface. This class's own
+ * public methods, unchanged by this subtask, return the CONCRETE class
+ * (`BibleRepositoryT = BibleRepository` from `@bible/core`, matching every
+ * caller outside this file that was already written against it). This
+ * narrows back to the concrete type the factory is KNOWN to build here
+ * (`SqliteModuleRepositoryFactory`'s `create('bible', ...)` literally
+ * `new BibleRepository(...)`s) - a truthful cast, not a widening one.
+ */
+function asConcreteFactory<TInterface, TConcrete extends TInterface>(
+  factory: ModuleConnectionFactory<TInterface>
+): ModuleConnectionFactory<TConcrete> {
+  return factory as unknown as ModuleConnectionFactory<TConcrete>;
+}
+
 export class DatabaseManager {
   private abbreviationMap: Map<string, string> | null = null;
   private mainDb: SqliteProvider | null = null;
-  private bibleRepos = new Map<string, BibleRepositoryT>();
-  private bibleDbs = new Map<string, SqliteProvider>();
-  private commentaryRepos = new Map<string, CommentaryRepositoryT>();
-  private commentaryDbs = new Map<string, SqliteProvider>();
   private dictionaryRepos = new Map<string, DictionaryRepositoryT>();
   private dictionaryDbs = new Map<string, SqliteProvider>();
   private bookRepo: BibleBookRepositoryT | null = null;
@@ -57,14 +102,49 @@ export class DatabaseManager {
   private semanticService: SemanticSearchServiceT | null = null;
   private enrichmentsDb: SqliteProvider | null = null;
   private topicalDbs: Map<string, SqliteProvider> = new Map();
-  private crossRefRepos = new Map<string, CrossReferenceRepositoryT>();
-  private crossRefDbs = new Map<string, SqliteProvider>();
-  private topicalIndexRepos = new Map<string, TopicalIndexRepositoryT>();
-  private topicalIndexDbs = new Map<string, SqliteProvider>();
   private _tagGraphDb: SqliteProvider | null = null;
   private _tagGraphRepo: TagGraphRepositoryT | null = null;
   private wordFamilySvc: WordFamilyServiceT | null = null;
   private _studyCacheDb: SqliteProvider | null = null;
+
+  /**
+   * M11 (task 0026, revision 2): a `SqliteModuleStore` (driven by this app's
+   * own `SqliteProvider`) and a `SqliteModuleRepositoryFactory`, shared by
+   * the four `ModuleLoader`s below. Cheap to construct - neither touches disk
+   * until a loader actually opens a module - so building them eagerly here
+   * (rather than lazily like everything else in this class) costs nothing and
+   * keeps the four loaders' own construction below uniform.
+   */
+  private readonly codecs: ICodecRegistry = nodeCodecRegistry();
+  private readonly moduleStore: IModuleStore = new SqliteModuleStore({
+    create: (path, opts) => new SqliteProvider(path, { readonly: opts.readonly, fileMustExist: true }),
+  } satisfies SqlDriverFactory);
+  private readonly repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory(this.codecs);
+
+  /**
+   * Five hand-rolled `Map<abbreviation, repo>` / `Map<abbreviation, db>`
+   * pairs collapsed into one `ModuleLoader` each (M11) - Bible, commentary,
+   * cross-reference and topical-index. Each is created lazily, on first use,
+   * exactly like the single `bookRepo`/`moduleMetadataRepo` fields above
+   * already were - constructing a `ModuleLoader` needs `getModuleMetadataRepo()`,
+   * which opens `main.db`, and this class's whole contract is that nothing
+   * touches disk before the first real request.
+   *
+   * Dictionary is NOT part of this consolidation. `getDictionaryRepo()` below
+   * does not look `module_metadata` up at all - it resolves a path directly
+   * from a filename convention with a case-folding fallback
+   * (`dictionary_<name>.db` / `dictionary_<name.toLowerCase()>.db`), which
+   * `ModuleLoader.get()` cannot reproduce: it unconditionally starts from
+   * `metadataRepo.getByAbbreviation()`. Routing dictionary through
+   * `ModuleLoader` would mean registering every dictionary in
+   * `module_metadata` first, which is a real, observable change to how
+   * dictionaries are resolved - out of scope for a pure construction refactor.
+   * See this subtask's final report for the full reasoning.
+   */
+  private bibleLoader: ModuleLoaderT<BibleRepositoryT> | null = null;
+  private commentaryLoader: ModuleLoaderT<CommentaryRepositoryT> | null = null;
+  private crossRefLoader: ModuleLoaderT<CrossReferenceRepositoryT> | null = null;
+  private topicalIndexLoader: ModuleLoaderT<TopicalIndexRepositoryT> | null = null;
 
   /**
    * @param dataDir  Directory for app-level data (main.db, settings.json, semantic DBs, etc.)
@@ -73,6 +153,81 @@ export class DatabaseManager {
    *                    instead of dataDir. Allows shared module storage across packages.
    */
   constructor(private dataDir: string, private modulesDir?: string) {}
+
+  /**
+   * `readonly: true` is passed explicitly on every one of the four loaders
+   * below, rather than relied on as `ModuleLoader`'s own default -
+   * `MODULE_DB_OPTIONS` above already states why every module database this
+   * server opens is read-only, and a future reader should see that decision
+   * at each call site, not have to go check what `ModuleLoader` defaults to.
+   */
+  private getBibleLoader(): ModuleLoaderT<BibleRepositoryT> {
+    if (!this.bibleLoader) {
+      this.bibleLoader = new ModuleLoader<BibleRepositoryT>({
+        moduleType: 'bible',
+        metadataRepo: this.getModuleMetadataRepo(),
+        pathResolver: { resolveModulePath: (p: string) => this.resolveModulePath(p) },
+        store: this.moduleStore,
+        factory: asConcreteFactory<IBibleRepository, BibleRepositoryT>(
+          moduleRepositoryFactoryFor(this.repositoryFactory, 'bible', this.codecs)
+        ),
+        readonly: MODULE_DB_OPTIONS.readonly,
+        fileExists: existsSync,
+      });
+    }
+    return this.bibleLoader;
+  }
+
+  private getCommentaryLoader(): ModuleLoaderT<CommentaryRepositoryT> {
+    if (!this.commentaryLoader) {
+      this.commentaryLoader = new ModuleLoader<CommentaryRepositoryT>({
+        moduleType: 'commentary',
+        metadataRepo: this.getModuleMetadataRepo(),
+        pathResolver: { resolveModulePath: (p: string) => this.resolveModulePath(p) },
+        store: this.moduleStore,
+        factory: asConcreteFactory<ICommentaryRepository, CommentaryRepositoryT>(
+          moduleRepositoryFactoryFor(this.repositoryFactory, 'commentary', this.codecs)
+        ),
+        readonly: MODULE_DB_OPTIONS.readonly,
+        fileExists: existsSync,
+      });
+    }
+    return this.commentaryLoader;
+  }
+
+  private getCrossRefLoader(): ModuleLoaderT<CrossReferenceRepositoryT> {
+    if (!this.crossRefLoader) {
+      this.crossRefLoader = new ModuleLoader<CrossReferenceRepositoryT>({
+        moduleType: 'cross_reference',
+        metadataRepo: this.getModuleMetadataRepo(),
+        pathResolver: { resolveModulePath: (p: string) => this.resolveModulePath(p) },
+        store: this.moduleStore,
+        factory: asConcreteFactory<ICrossReferenceRepository, CrossReferenceRepositoryT>(
+          moduleRepositoryFactoryFor(this.repositoryFactory, 'crossRef', this.codecs)
+        ),
+        readonly: MODULE_DB_OPTIONS.readonly,
+        fileExists: existsSync,
+      });
+    }
+    return this.crossRefLoader;
+  }
+
+  private getTopicalIndexLoader(): ModuleLoaderT<TopicalIndexRepositoryT> {
+    if (!this.topicalIndexLoader) {
+      this.topicalIndexLoader = new ModuleLoader<TopicalIndexRepositoryT>({
+        moduleType: 'topical_index',
+        metadataRepo: this.getModuleMetadataRepo(),
+        pathResolver: { resolveModulePath: (p: string) => this.resolveModulePath(p) },
+        store: this.moduleStore,
+        factory: asConcreteFactory<ITopicalIndexRepository, TopicalIndexRepositoryT>(
+          moduleRepositoryFactoryFor(this.repositoryFactory, 'topicalIndex', this.codecs)
+        ),
+        readonly: MODULE_DB_OPTIONS.readonly,
+        fileExists: existsSync,
+      });
+    }
+    return this.topicalIndexLoader;
+  }
 
   /** Resolve a module's database_path against the modules directory. */
   resolveModulePath(databasePath: string): string {
@@ -105,6 +260,11 @@ export class DatabaseManager {
     return this.mainDb;
   }
 
+  /**
+   * `BibleBookRepository` reads main.db, not a module file - it has no
+   * `IModuleRepositoryFactory` entry by design; see `ModuleRepositoryFactory.ts`'s
+   * doc comment (task 0034).
+   */
   getBookRepo(): BibleBookRepositoryT {
     if (!this.bookRepo) {
       this.bookRepo = new BibleBookRepository(this.getMainDb());
@@ -121,30 +281,7 @@ export class DatabaseManager {
 
   getBibleRepo(abbreviation: string): BibleRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
-    if (this.bibleRepos.has(resolved)) {
-      return this.bibleRepos.get(resolved)!;
-    }
-
-    const moduleMetadata = this.getModuleMetadataRepo().getByAbbreviation(resolved);
-    if (!moduleMetadata || moduleMetadata.moduleType !== 'bible') {
-      return null;
-    }
-
-    const dbPath = this.resolveModulePath(moduleMetadata.databasePath);
-    if (!existsSync(dbPath)) {
-      return null;
-    }
-
-    try {
-      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new BibleRepository(db);
-      this.bibleDbs.set(resolved, db);
-      this.bibleRepos.set(resolved, repo);
-      return repo;
-    } catch (err) {
-      console.debug(`Failed to open Bible module ${resolved}:`, err);
-      return null;
-    }
+    return this.getBibleLoader().get(resolved);
   }
 
   /**
@@ -191,30 +328,7 @@ export class DatabaseManager {
 
   getCommentaryRepo(abbreviation: string): CommentaryRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
-    if (this.commentaryRepos.has(resolved)) {
-      return this.commentaryRepos.get(resolved)!;
-    }
-
-    const moduleMetadata = this.getModuleMetadataRepo().getByAbbreviation(resolved);
-    if (!moduleMetadata || moduleMetadata.moduleType !== 'commentary') {
-      return null;
-    }
-
-    const dbPath = this.resolveModulePath(moduleMetadata.databasePath);
-    if (!existsSync(dbPath)) {
-      return null;
-    }
-
-    try {
-      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new CommentaryRepository(db);
-      this.commentaryDbs.set(resolved, db);
-      this.commentaryRepos.set(resolved, repo);
-      return repo;
-    } catch (err) {
-      console.debug(`Failed to open commentary module ${resolved}:`, err);
-      return null;
-    }
+    return this.getCommentaryLoader().get(resolved);
   }
 
   getDictionaryRepo(name: string): DictionaryRepositoryT | null {
@@ -239,7 +353,19 @@ export class DatabaseManager {
 
     try {
       const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new DictionaryRepository(db);
+      // Construction (not connection-opening) routed through the shared
+      // factory (task 0034, finishing M11). Resolution here deliberately
+      // stays a direct filename lookup, not `ModuleLoader` - see the
+      // consolidation comment above this class's loader fields for why.
+      // The factory is typed to hand back the per-type INTERFACE
+      // (`IDictionaryRepository`); it is known to build the concrete
+      // `DictionaryRepository` here - a truthful narrowing, matching this
+      // file's own `asConcreteFactory` above.
+      const repo = this.repositoryFactory.create(wrapSqlConnection(db), 'dictionary', this.codecs) as DictionaryRepositoryT | null;
+      if (!repo) {
+        db.close();
+        return null;
+      }
       this.dictionaryDbs.set(name, db);
       this.dictionaryRepos.set(name, repo);
       return repo;
@@ -275,6 +401,9 @@ export class DatabaseManager {
 
     try {
       const mainDb = this.getMainDb();
+      // `BibleSearchRepository` reads main.db, not a module file - it has no
+      // `IModuleRepositoryFactory` entry by design; see
+      // `ModuleRepositoryFactory.ts`'s doc comment (task 0034).
       this.searchRepo = new BibleSearchRepository(mainDb);
       const bookRepo = this.getBookRepo();
       const bibleModules = new Map<string, BibleRepositoryT>();
@@ -395,56 +524,12 @@ export class DatabaseManager {
 
   getCrossRefRepo(abbreviation: string): CrossReferenceRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
-    if (this.crossRefRepos.has(resolved)) {
-      return this.crossRefRepos.get(resolved)!;
-    }
-
-    const moduleMetadata = this.getModuleMetadataRepo().getByAbbreviation(resolved);
-    if (!moduleMetadata || moduleMetadata.moduleType !== 'cross_reference') {
-      return null;
-    }
-
-    const dbPath = this.resolveModulePath(moduleMetadata.databasePath);
-    if (!existsSync(dbPath)) {
-      return null;
-    }
-
-    try {
-      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new CrossReferenceRepository(db);
-      this.crossRefDbs.set(resolved, db);
-      this.crossRefRepos.set(resolved, repo);
-      return repo;
-    } catch {
-      return null;
-    }
+    return this.getCrossRefLoader().get(resolved);
   }
 
   getTopicalIndexRepo(abbreviation: string): TopicalIndexRepositoryT | null {
     const resolved = this.resolveAbbreviation(abbreviation);
-    if (this.topicalIndexRepos.has(resolved)) {
-      return this.topicalIndexRepos.get(resolved)!;
-    }
-
-    const moduleMetadata = this.getModuleMetadataRepo().getByAbbreviation(resolved);
-    if (!moduleMetadata || moduleMetadata.moduleType !== 'topical_index') {
-      return null;
-    }
-
-    const dbPath = this.resolveModulePath(moduleMetadata.databasePath);
-    if (!existsSync(dbPath)) {
-      return null;
-    }
-
-    try {
-      const db = new SqliteProvider(dbPath, MODULE_DB_OPTIONS);
-      const repo = new TopicalIndexRepository(db);
-      this.topicalIndexDbs.set(resolved, db);
-      this.topicalIndexRepos.set(resolved, repo);
-      return repo;
-    } catch {
-      return null;
-    }
+    return this.getTopicalIndexLoader().get(resolved);
   }
 
   /** Get all topical index repos (loads them lazily) */
@@ -471,7 +556,12 @@ export class DatabaseManager {
 
     try {
       this._tagGraphDb = new SqliteProvider(dbPath);
-      this._tagGraphRepo = new TagGraphRepository(this._tagGraphDb);
+      // Construction routed through the shared factory (task 0034, finishing
+      // M11) - a truthful narrowing back to the concrete class, matching
+      // this file's own `asConcreteFactory` above.
+      this._tagGraphRepo = this.repositoryFactory.create(
+        wrapSqlConnection(this._tagGraphDb), 'tagGraph', this.codecs
+      ) as TagGraphRepositoryT | null;
       return this._tagGraphRepo;
     } catch {
       return null;
@@ -503,12 +593,16 @@ export class DatabaseManager {
   }
 
   closeAll(): void {
-    for (const db of this.bibleDbs.values()) {
-      try { db.close(); } catch (err) { console.debug('Error closing Bible DB:', err); }
-    }
-    for (const db of this.commentaryDbs.values()) {
-      try { db.close(); } catch (err) { console.debug('Error closing commentary DB:', err); }
-    }
+    // The four consolidated ModuleLoaders close (and forget) every connection
+    // they opened - the same job the old per-type `for (const db of
+    // xxxDbs.values())` loops did, minus a per-connection console.debug on a
+    // close error (ModuleLoader.closeAll() swallows close errors the same
+    // way, just without a log line - see this subtask's final report).
+    this.bibleLoader?.closeAll();
+    this.commentaryLoader?.closeAll();
+    this.crossRefLoader?.closeAll();
+    this.topicalIndexLoader?.closeAll();
+
     for (const db of this.dictionaryDbs.values()) {
       try { db.close(); } catch (err) { console.debug('Error closing dictionary DB:', err); }
     }
@@ -517,12 +611,6 @@ export class DatabaseManager {
     }
     for (const db of this.topicalDbs.values()) {
       try { db.close(); } catch (err) { console.debug('Error closing topical DB:', err); }
-    }
-    for (const db of this.crossRefDbs.values()) {
-      try { db.close(); } catch (err) { console.debug('Error closing cross-ref DB:', err); }
-    }
-    for (const db of this.topicalIndexDbs.values()) {
-      try { db.close(); } catch (err) { console.debug('Error closing topical index DB:', err); }
     }
     if (this._tagGraphDb) {
       try { this._tagGraphDb.close(); } catch (err) { console.debug('Error closing tag-graph DB:', err); }
@@ -538,16 +626,12 @@ export class DatabaseManager {
       try { this.mainDb.close(); } catch (err) { console.debug('Error closing main DB:', err); }
     }
 
-    this.bibleRepos.clear();
-    this.bibleDbs.clear();
-    this.commentaryRepos.clear();
-    this.commentaryDbs.clear();
+    this.bibleLoader = null;
+    this.commentaryLoader = null;
+    this.crossRefLoader = null;
+    this.topicalIndexLoader = null;
     this.dictionaryRepos.clear();
     this.dictionaryDbs.clear();
-    this.crossRefRepos.clear();
-    this.crossRefDbs.clear();
-    this.topicalIndexRepos.clear();
-    this.topicalIndexDbs.clear();
     this._tagGraphDb = null;
     this._tagGraphRepo = null;
     this._studyCacheDb = null;

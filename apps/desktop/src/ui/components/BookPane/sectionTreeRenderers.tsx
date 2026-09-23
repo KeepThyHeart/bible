@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookSection, BookSectionSummary } from '../../stores/useBookStore';
+import type { Localizer } from '@bible/core';
 
 export type NavSectionInfo = { section_id: number; title: string; section_number?: string };
 
@@ -72,6 +73,7 @@ export function renderSectionTree(
   allSummaries: BookSectionSummary[],
   navigateToSection: (abbreviation: string, sectionId: number) => void,
   t: TranslateFn,
+  localizer: Localizer,
   depth: number = 0
 ): React.ReactNode {
   if (sections.length === 0) return null;
@@ -101,13 +103,13 @@ export function renderSectionTree(
                 <span className="text-xs text-text-secondary ms-sm">
                   {t(
                     'bookPane.wordCountParenthetical',
-                    { count: section.word_count.toLocaleString(), },
+                    { count: localizer.formatNumber(section.word_count), },
                   )}
                 </span>
               )}
             </button>
             {hasFullSummaries && children.length > 0 &&
-              renderSectionTree(children, abbreviation, allSummaries, navigateToSection, t, depth + 1)}
+              renderSectionTree(children, abbreviation, allSummaries, navigateToSection, t, localizer, depth + 1)}
           </li>
         );
       })}
@@ -120,8 +122,9 @@ export function renderCompleteTableOfContents(
   abbreviation: string,
   allSummaries: BookSectionSummary[],
   navigateToSection: (abbreviation: string, sectionId: number) => void,
-  t: TranslateFn
+  t: TranslateFn,
+  localizer: Localizer
 ): React.ReactNode {
   const topLevelSections = allSummaries.filter(s => !s.parent_section_id);
-  return renderSectionTree(topLevelSections, abbreviation, allSummaries, navigateToSection, t, 0);
+  return renderSectionTree(topLevelSections, abbreviation, allSummaries, navigateToSection, t, localizer, 0);
 }

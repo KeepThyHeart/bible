@@ -68,7 +68,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
       <div class="feedback-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="feedback-dialog__header">
           <h3>
-            <i class="fa-solid fa-comment-dots" style={{ marginRight: '8px', opacity: 0.5 }} />
+            <i class="fa-solid fa-comment-dots" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />
             {t('feedbackDialog.title')}
           </h3>
           <button class="feedback-dialog__close" onClick={onClose} title={t('feedbackDialog.close')}>

@@ -21,10 +21,10 @@
  * this.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ReferenceParser } from '@bible/core';
 import { useBibleStore } from '../../../stores/useBibleStore';
 import { getActiveTranslation, resolveReferenceRange } from '../../../services/verseExpansionService';
 import { getVersesCached, type CachedVerse } from '../../../services/verseFetchCache';
+import { getLocalizedReferenceParser } from '../../../services/localizedReferenceParser';
 
 /** How long the field stays quiet before a keystroke turns into a fetch. */
 const DEBOUNCE_MS = 300;
@@ -172,7 +172,7 @@ export function usePassageResolver({
       // "John" here is unambiguous - unlike in the search box, where it is a
       // word to look for. The help popover beside the field has always
       // advertised it.
-      const parsed = new ReferenceParser().parse(text, { allowWholeBook: true });
+      const parsed = getLocalizedReferenceParser().parse(text, { allowWholeBook: true });
       // The range maths lives in `resolveReferenceRange`, which is the same one
       // the notes expansion path uses. Computing it here instead had quietly
       // broken three of the six forms the help popover promises: "John 3"

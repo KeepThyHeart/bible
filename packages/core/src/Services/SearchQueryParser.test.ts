@@ -512,4 +512,44 @@ describe('SearchQueryParser', () => {
       expect(result.searchType).toBe('boolean');
     });
   });
+
+  // ==========================================================================
+  // toKeywordQuery (task 0026, subtask M2)
+  // ==========================================================================
+
+  describe('toKeywordQuery', () => {
+    it('classifies multi-word input as terms (all: true)', () => {
+      const result = parser.toKeywordQuery('love joy peace');
+      expect(result).toEqual({ kind: 'terms', terms: ['love', 'joy', 'peace'], all: true });
+    });
+
+    it('classifies a quoted phrase as phrase', () => {
+      const result = parser.toKeywordQuery('"For God so loved"');
+      expect(result).toEqual({ kind: 'phrase', phrase: 'For God so loved' });
+    });
+
+    it('classifies word proximity as near', () => {
+      const result = parser.toKeywordQuery('ant sluggard ~50w');
+      expect(result).toEqual({ kind: 'near', terms: ['ant', 'sluggard'], distance: 50 });
+    });
+
+    it('classifies fuzzy (~word) as prefix', () => {
+      const result = parser.toKeywordQuery('~neighbor');
+      expect(result).toEqual({ kind: 'prefix', stem: 'neighbor' });
+    });
+
+    it('classifies a boolean expression as boolean, carrying the parsed tree', () => {
+      const result = parser.toKeywordQuery('(faith AND works)');
+      expect(result).toEqual({
+        kind: 'boolean',
+        expr: { operator: 'AND', left: 'faith', right: 'works' },
+      });
+    });
+
+    it('throws for search types with no KeywordQuery equivalent', () => {
+      expect(() => parser.toKeywordQuery('faith hope ~5v')).toThrow(); // verse-proximity
+      expect(() => parser.toKeywordQuery('/beg[ai]n/')).toThrow(); // regex
+      expect(() => parser.toKeywordQuery('G26')).toThrow(); // strongs
+    });
+  });
 });

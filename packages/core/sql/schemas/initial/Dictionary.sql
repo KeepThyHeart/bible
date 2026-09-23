@@ -51,6 +51,7 @@ PRAGMA cache_size = -16000;  -- 16MB cache
 -- For this module type the writer sets module_type = 'dictionary' and
 -- format = 'dictionary-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- Dictionary specifics. Added by ALTER because the included block is shared with
 -- every other module type and must stay one definition. `dictionary_type` is an
@@ -150,7 +151,8 @@ CREATE TABLE dictionary_entry (
     -- source_id=entry_id, which makes them queryable and range-aware.
 );
 
-CREATE INDEX idx_entry_key ON dictionary_entry(entry_key);
+-- idx_entry_key was dropped: entry_key already carries a UNIQUE constraint
+-- above, which SQLite backs with its own autoindex covering that column.
 CREATE INDEX idx_entry_word ON dictionary_entry(word);
 
 -- ============================================================================
@@ -174,11 +176,11 @@ CREATE INDEX idx_entry_word ON dictionary_entry(word);
 --     translation is revised, and it disappears when the module is uninstalled.
 --     For such a translation this table is pure duplication.
 --
---   * Derived search structures live in main.db. `bible_search_index` and
---     friends are built per module per book and rebuilt as modules come and go
---     (MainDatabase.sql section 3). A module database cannot play that role: it
---     is read-only content, replaced wholesale on update, so nothing here can
---     be pruned in response to what the user installs.
+--   * Derived search structures live in main.db. `keyword_index` and friends
+--     are built per module and rebuilt as modules come and go (MainDatabase.sql
+--     section 3). A module database cannot play that role: it is read-only
+--     content, replaced wholesale on update, so nothing here can be pruned in
+--     response to what the user installs.
 --
 -- Consequences for readers:
 --
@@ -241,51 +243,10 @@ CREATE INDEX idx_occurrence_verse ON word_occurrence(verse_id);
 -- source_id = dictionary_entry.entry_id.
 -- @include ../shared/verse_link.sql
 
--- ============================================================================
--- 4. Full-Text Search
--- ============================================================================
-
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
---
--- `entry_key` is UNINDEXED because exact-key lookup is served by the UNIQUE
--- index on the base table; FTS here is for prose search, not key resolution.
-CREATE VIRTUAL TABLE dictionary_entry_fts USING fts5(
-    entry_id UNINDEXED,       -- Carried for retrieval only, never matched against
-    entry_key UNINDEXED,      -- Likewise -- see the note above
-    word,                     -- Headword
-    definition,               -- Entry body; the column that carries most matches
-    usage_notes,              -- Usually empty outside lexicons, and harmless when
-                              -- it is -- an empty column contributes no terms
-    content='dictionary_entry',
-    content_rowid='entry_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers
--- External-content FTS5 tables do not own their data, so rows must be removed with
--- the special 'delete' command carrying the OLD column values. A plain
--- DELETE/UPDATE against the FTS table leaves stale terms in the index.
-CREATE TRIGGER dictionary_entry_fts_insert AFTER INSERT ON dictionary_entry BEGIN
-    INSERT INTO dictionary_entry_fts(rowid, entry_id, entry_key, word, definition, usage_notes)
-    VALUES (new.entry_id, new.entry_id, new.entry_key, new.word, new.definition, new.usage_notes);
-END;
-
-CREATE TRIGGER dictionary_entry_fts_delete AFTER DELETE ON dictionary_entry BEGIN
-    INSERT INTO dictionary_entry_fts(dictionary_entry_fts, rowid, entry_id, entry_key, word, definition, usage_notes)
-    VALUES ('delete', old.entry_id, old.entry_id, old.entry_key, old.word, old.definition, old.usage_notes);
-END;
-
-CREATE TRIGGER dictionary_entry_fts_update AFTER UPDATE ON dictionary_entry BEGIN
-    INSERT INTO dictionary_entry_fts(dictionary_entry_fts, rowid, entry_id, entry_key, word, definition, usage_notes)
-    VALUES ('delete', old.entry_id, old.entry_id, old.entry_key, old.word, old.definition, old.usage_notes);
-    INSERT INTO dictionary_entry_fts(rowid, entry_id, entry_key, word, definition, usage_notes)
-    VALUES (new.entry_id, new.entry_id, new.entry_key, new.word, new.definition, new.usage_notes);
-END;
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 5. Schema Version
+-- 4. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

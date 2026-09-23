@@ -16,6 +16,7 @@ import { tagRerank } from './Search/TagReranking';
 import { expandTopics } from './Search/TopicExpansion';
 import { resolveScoringConfig, filterTopicEntries } from './Search/ScoringUtils';
 import { extractMeaningfulTerms } from './Search/StopWords';
+import { compileKeywordQuery } from '../Data/Access/Fts5/Fts5QueryCompiler';
 
 // -- Topic entry interface (mirrors web's TopicEntry) ----------------
 
@@ -401,7 +402,14 @@ export class SearchOrchestrationService {
     try {
       const terms = extractMeaningfulTerms(query);
       if (!terms) return [];
-      const strictQuery = terms.map(w => `"${w}"`).join(' AND ');
+      // Each word is quoted individually (an exact, non-stemmed match per
+      // word - deliberately stricter than an ordinary multi-word search) and
+      // AND-joined. Routed through the single FTS5 compiler (task 0026
+      // subtask M2) so a word containing a literal `"` is escaped instead of
+      // breaking the quoting; behaviour is otherwise unchanged, since a
+      // quoted word was already safe from the apostrophe/hyphen syntax
+      // errors the other call sites had.
+      const strictQuery = terms.map(w => compileKeywordQuery({ kind: 'phrase', phrase: w })).join(' AND ');
 
       const mods = modules && modules.length > 0 ? modules : ['KJV'];
       const results = await searchService.search(strictQuery, { modules: mods, maxResults } as any);

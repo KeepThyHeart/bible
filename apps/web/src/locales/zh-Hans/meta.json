@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/meta.schema.json",
+  "locale.name": "Chinese (Simplified)",
+  "locale.nativeName": "简体中文",
+  "locale.status": "beta",
+  "locale.direction": "ltr"
+}

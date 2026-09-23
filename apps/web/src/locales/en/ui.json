@@ -75,12 +75,12 @@
   },
   "bibleContent": {
     "votdLabel": "Verse of the Day",
-    "votdHoliday": "{{holiday}} — Verse of the Day",
+    "votdHoliday": "{holiday} — Verse of the Day",
     "noTabSelected": "No tab selected",
     "enterPassage": "Enter a passage to begin reading",
     "refPlaceholder": "e.g. John 3:16, Genesis 1",
     "go": "Go",
-    "refNotFound": "Could not find \"{{ref}}\". Try e.g. \"John 3:16\" or \"Genesis 1\".",
+    "refNotFound": "Could not find \"{ref}\". Try e.g. \"John 3:16\" or \"Genesis 1\".",
     "goToBookChapter": "Go to book & chapter",
     "loading": "Loading...",
     "retry": "Retry",
@@ -92,11 +92,11 @@
     "coverageNone": "No content is available in this translation.",
     "coverageNTOnly": "This translation only has content for the New Testament.",
     "coverageOTOnly": "This translation only has content for the Old Testament.",
-    "coverageSingleBook": "This translation only has content for {{bookName}}.",
-    "coverageFewBooks": "This translation does not have the entire Bible. Books included: {{names}}.",
-    "coveragePartialNT": "This translation has partial New Testament content. Books included: {{names}}.",
-    "coveragePartialOT": "This translation has partial Old Testament content. Books included: {{names}}.",
-    "coveragePartial": "This translation does not have the entire Bible. It includes {{parts}} books."
+    "coverageSingleBook": "This translation only has content for {bookName}.",
+    "coverageFewBooks": "This translation does not have the entire Bible. Books included: {names}.",
+    "coveragePartialNT": "This translation has partial New Testament content. Books included: {names}.",
+    "coveragePartialOT": "This translation has partial Old Testament content. Books included: {names}.",
+    "coveragePartial": "This translation does not have the entire Bible. It includes {parts} books."
   },
   "chapterNav": {
     "prev": "← Prev",
@@ -112,13 +112,12 @@
     "keywordHint": "Searches for exact words in the Bible text.",
     "ideasHint": "Ideas search tries to find passages by meaning, even if the wording is different.",
     "closeSearch": "Close search",
-    "results": "{{count}} results",
+    "results": "{count, plural, one {# result} other {# results}}",
     "searching": "Searching...",
-    "keywordBanner_one": "There is also {{count}} keyword match.",
-    "keywordBanner_other": "There are also {{count}} keyword matches.",
+    "keywordBanner": "{count, plural, one {There is also # keyword match.} other {There are also # keyword matches.}}",
     "viewInstead": "View those instead?",
     "enterSearchTerm": "Enter a search term above to find passages.",
-    "noKeywordResults": "No results found for those exact keywords in <strong>{{module}}</strong>.",
+    "noKeywordResults": "No results found for those exact keywords in <strong>{module}</strong>.",
     "tryIn": "Try in",
     "orTryIdeas": "Or try an",
     "ideasSearchLink": "Ideas search",
@@ -127,11 +126,11 @@
     "offlineNotice": "You're offline. Reconnect to search.",
     "loadingMore": "Loading...",
     "showMore": "Show more results",
-    "loadAll": "Load all ({{count}} more)",
+    "loadAll": "{count, plural, one {Load all (# more)} other {Load all (# more)}}",
     "wordFamily": "Word family:",
     "includeRelated": "Include related words",
     "strongsFullEntry": "Full entry",
-    "strongsFullEntryTitle": "Open the full {{number}} entry in the dictionary",
+    "strongsFullEntryTitle": "Open the full {number} entry in the dictionary",
     "approximateBadge": "Approximate",
     "approximateHeading": "Approximate matches",
     "approximateHint": "Close spellings and related word forms. They are not counted in the chart above.",
@@ -139,18 +138,13 @@
       "label": "Where the results are, across the Bible",
       "oldTestament": "Old Testament",
       "newTestament": "New Testament",
-      "bar_one": "{{book}} — {{count}} result",
-      "bar_other": "{{book}} — {{count}} results",
-      "barEmpty": "{{book}} — no matches",
-      "captionKeyword_one": "{{count}} result, by book. Word-form matches count; approximate spellings do not.",
-      "captionKeyword_other": "{{count}} results, by book. Word-form matches count; approximate spellings do not.",
-      "captionStrongs_one": "{{count}} occurrence below, by book.",
-      "captionStrongs_other": "{{count}} occurrences below, by book.",
-      "captionSemantic_one": "{{count}} passage retrieved, by book — not a tally of the whole Bible.",
-      "captionSemantic_other": "{{count}} passages retrieved, by book — not a tally of the whole Bible.",
+      "bar": "{book} — {count, plural, one {# result} other {# results}}",
+      "barEmpty": "{book} — no matches",
+      "captionKeyword": "{count, plural, one {# result, by book. Word-form matches count; approximate spellings do not.} other {# results, by book. Word-form matches count; approximate spellings do not.}}",
+      "captionStrongs": "{count, plural, one {# occurrence below, by book.} other {# occurrences below, by book.}}",
+      "captionSemantic": "{count, plural, one {# passage retrieved, by book — not a tally of the whole Bible.} other {# passages retrieved, by book — not a tally of the whole Bible.}}",
       "captionCapped": "Only the results loaded so far are counted; there are more to load.",
-      "captionCeiling_one": "Only the first {{count}} match is counted; the search stops there.",
-      "captionCeiling_other": "Only the first {{count}} matches are counted; the search stops there."
+      "captionCeiling": "{count, plural, one {Only the first # match is counted; the search stops there.} other {Only the first # matches are counted; the search stops there.}}"
     }
   },
   "contextMenu": {
@@ -210,9 +204,9 @@
       "uiText": "UI Text",
       "bibleLineHeight": "Bible Line Height",
       "studyLineHeight": "Study Line Height",
-      "pxValue": "{{size}}px",
-      "decreaseSetting": "Decrease {{setting}}",
-      "increaseSetting": "Increase {{setting}}",
+      "pxValue": "{size}px",
+      "decreaseSetting": "Decrease {setting}",
+      "increaseSetting": "Increase {setting}",
       "resetTextSizes": "Reset Text Sizes",
       "resetTextSizesTitle": "Restore the default text sizes and line heights",
       "interlinearStackedShort": "Stacked",
@@ -271,7 +265,12 @@
     "language": {
       "title": "Language",
       "description": "Choose the language for the app interface.",
-      "auto": "Auto-detect"
+      "auto": "Auto-detect",
+      "localeDraftBadge": "Draft — community review pending",
+      "localeBetaBadge": "Beta — community review pending",
+      "draftNote": "Languages marked as drafts are machine-translated and have not yet been reviewed by a native speaker.",
+      "betaNote": "Languages marked as beta are machine-translated and complete, but have not yet been reviewed by a native speaker. Corrections are welcome.",
+      "moreComingNote": "More languages are on the way. Only translations that have been reviewed by a native speaker are offered here without a badge."
     }
   },
   "copyDialog": {
@@ -311,7 +310,7 @@
           "description": "A heading per verse with the verse quoted beneath it"
         }
       },
-      "formatShortcutHint": "Press {{first}}–{{last}} to pick a format",
+      "formatShortcutHint": "Press {first}–{last} to pick a format",
       "referenceLabel": "Reference",
       "referenceBefore": "Before",
       "referenceAfter": "After",
@@ -459,11 +458,11 @@
     "usage": "Usage",
     "previous": "Previous",
     "next": "Next",
-    "noResults": "No entry for \"{{query}}\" in {{module}}.",
+    "noResults": "No entry for \"{query}\" in {module}.",
     "loadingEntry": "Loading entry...",
     "browseEntriesIn": "Browse entries in",
-    "searchOccurrences": "Search all occurrences of {{number}}",
-    "loadMore": "Load more ({{count}} remaining)"
+    "searchOccurrences": "Search all occurrences of {number}",
+    "loadMore": "Load more ({count} remaining)"
   },
   "dictionaryHome": {
     "searchAll": "Search all dictionaries...",
@@ -537,35 +536,35 @@
     "loading": "Loading topics...",
     "noTopicsVerse": "No topics found for this verse.",
     "topicalIndexes": "Topical Indexes",
-    "topicsForVerse": "Topics for {{verse}}",
+    "topicsForVerse": "Topics for {verse}",
     "relatedEntities": "Related Entities",
     "searching": "Searching...",
-    "searchResultsFor": "Search results for '{{query}}'",
-    "noTopicsSearch": "No topics found for \"{{query}}\"",
+    "searchResultsFor": "Search results for '{query}'",
+    "noTopicsSearch": "No topics found for \"{query}\"",
     "entities": "Entities",
     "loadingEntity": "Loading entity...",
-    "inTopicalIndexes": "In Topical Indexes ({{count}})",
+    "inTopicalIndexes": "In Topical Indexes ({count})",
     "entityTypes": {
       "people": "People",
       "places": "Places",
       "themes": "Themes",
       "objects": "Objects"
     },
-    "related": "Related ({{count}})",
+    "related": "Related ({count})",
     "filterRelated": "Filter related...",
     "showFewer": "Show fewer",
     "showMore": "Show",
-    "noRelatedMatch": "No related entities match \"{{query}}\"",
-    "verses": "Verses ({{count}})",
+    "noRelatedMatch": "No related entities match \"{query}\"",
+    "verses": "Verses ({count})",
     "loadingTopic": "Loading topic...",
-    "subTopics": "Sub-topics ({{count}})",
+    "subTopics": "Sub-topics ({count})",
     "filterSubTopics": "Filter...",
     "sortAZ": "Sort A-Z",
     "sortDefault": "Default order",
     "sortAZShort": "A-Z",
     "sortDefaultShort": "Default",
     "sub": "sub",
-    "noSubTopicsMatch": "No sub-topics match \"{{query}}\"",
+    "noSubTopicsMatch": "No sub-topics match \"{query}\"",
     "loadingShort": "Loading...",
     "loadMoreVerses": "Load more verses",
     "home": "Home",
@@ -577,16 +576,16 @@
     "topicLoadFailed": "Could not load this topic. Check your connection and try again.",
     "entityUnavailable": "This entry could not be loaded.",
     "seeAlso": "See",
-    "verseTotal": "{{count}} verses",
+    "verseTotal": "{count, plural, one {# verse} other {# verses}}",
     "topicHasNoEntries": "This topic has no verses or sub-topics of its own."
   },
   "verseRefList": {
     "loading": "loading...",
     "and": "and",
-    "showVerses": "Show Verses ({{count}})",
+    "showVerses": "Show Verses ({count})",
     "hideVerses": "Hide Verses",
     "loadingVerses": "Loading verse text...",
-    "loadMore": "Load more ({{count}} remaining)",
+    "loadMore": "Load more ({count} remaining)",
     "loadingMore": "Loading..."
   },
   "mobileCommentary": {
@@ -606,8 +605,8 @@
     "offlineNotice": "You're offline. Commentary isn't available without a connection.",
     "loading": "Loading...",
     "noCommentary": "No commentary for this verse",
-    "prevVerse": "Previous (v.{{verse}})",
-    "nextVerse": "Next (v.{{verse}})"
+    "prevVerse": "Previous (v.{verse})",
+    "nextVerse": "Next (v.{verse})"
   },
   "mobileDictionary": {
     "searchPlaceholder": "Search dictionaries...",
@@ -653,9 +652,9 @@
   },
   "verseHistory": {
     "justNow": "just now",
-    "minutesAgo": "{{count}}m ago",
-    "hoursAgo": "{{count}}h ago",
-    "daysAgo": "{{count}}d ago",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago",
     "noHistory": "No verse history yet",
     "recentVerses": "Recent Verses"
   },
@@ -663,7 +662,7 @@
     "loading": "Loading...",
     "cancel": "Cancel",
     "close": "Close",
-    "book": "Book {{number}}"
+    "book": "Book {number}"
   },
   "bookChapterPicker": {
     "typeAReferenceOrSearch": "Type a reference or search... (e.g. John 3:16, redemption)",
@@ -674,7 +673,7 @@
     "topics": "Topics",
     "goToPassage": "Go to Passage",
     "noResults": "No results.",
-    "searchFor": "Search for \"{{query}}\""
+    "searchFor": "Search for \"{query}\""
   },
   "helpDialog": {
     "esc": "Esc"
@@ -693,7 +692,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "Dismiss",
     "loading": "Loading Ideas Search…",
-    "step": "Step {{step}} of 3 — {{label}}"
+    "step": "Step {step} of 3 — {label}"
   },
   "login": {
     "title": "Bible - Login",

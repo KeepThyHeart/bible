@@ -1,5 +1,7 @@
-import type { ISql } from '../Data/Core/ISql';
 import type { IModuleMetadataRepository } from '../Data/Repositories/IModuleMetadataRepository';
+import type { IModuleConnection, IModuleStore } from '../Data/Access/ModuleStore';
+import type { ICodecRegistry } from '../Data/Access/Codec';
+import type { IModuleRepositoryFactory, ModuleRepositoryByType } from '../Data/Access/ModuleRepositoryFactory';
 
 /**
  * Resolves a module's database_path (relative, from module_metadata) to an absolute filesystem path.
@@ -9,18 +11,53 @@ export interface PathResolver {
 }
 
 /**
- * Creates ISql provider instances. Platform packages supply the concrete implementation
- * (e.g., better-sqlite3 for Electron, sql.js for browser).
- */
-export interface SqlProviderFactory {
-  create(absolutePath: string): ISql;
-}
-
-/**
  * Optional logger for module loading diagnostics.
  */
 export interface ModuleLoaderLogger {
   error(message: string, ...args: unknown[]): void;
+}
+
+/** Duck-types a `Promise` without an `instanceof` check, which fails across realms. */
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return typeof value === 'object' && value !== null && typeof (value as PromiseLike<unknown>).then === 'function';
+}
+
+/**
+ * What `ModuleLoader` needs to turn an open connection into a `TRepo`, for the
+ * ONE module type this loader instance handles.
+ *
+ * Deliberately narrower than the general {@link IModuleRepositoryFactory}
+ * (task 0026, revision 2, subtask M11): that interface is keyed by
+ * `keyof ModuleRepositoryByType` and returns whichever repository a caller
+ * asks for, because one factory instance can back several module types.
+ * `ModuleLoader` only ever handles one - `moduleType` is fixed for its whole
+ * lifetime - so binding it to `ModuleRepositoryByType`'s key union would only
+ * add a type parameter every caller has to thread through for no benefit.
+ * Instead, `ModuleLoader` stays exactly as generic over `TRepo` as it always
+ * was; a real `IModuleRepositoryFactory` is adapted to this shape with one
+ * closure - see {@link moduleRepositoryFactoryFor} - and a caller that has no
+ * use for the full factory abstraction (the desktop `ModuleLoader` wrapper,
+ * whose own callers hand it an arbitrary `createRepo`) can build one by hand
+ * just as easily.
+ */
+export interface ModuleConnectionFactory<TRepo> {
+  create(conn: IModuleConnection): TRepo | null;
+}
+
+/**
+ * Adapt a real {@link IModuleRepositoryFactory} (keyed by module type) into
+ * the narrower per-instance {@link ModuleConnectionFactory} shape
+ * `ModuleLoader` takes - one closure, capturing the module type and codec
+ * registry this loader instance was built for.
+ */
+export function moduleRepositoryFactoryFor<K extends keyof ModuleRepositoryByType>(
+  factory: IModuleRepositoryFactory,
+  type: K,
+  codecs: ICodecRegistry
+): ModuleConnectionFactory<ModuleRepositoryByType[K]> {
+  return {
+    create: (conn: IModuleConnection) => factory.create(conn, type, codecs),
+  };
 }
 
 /**
@@ -28,7 +65,45 @@ export interface ModuleLoaderLogger {
  *
  * This is the platform-agnostic version of the module loading pattern used by
  * both the desktop (Electron) and web (Express) apps. Platform-specific concerns
- * (path resolution, SQLite driver, logging) are injected via constructor.
+ * (path resolution, connection opening, logging) are injected via constructor.
+ *
+ * Task 0026, revision 2, subtask M11: this constructor takes an
+ * {@link IModuleStore} plus a per-type {@link ModuleConnectionFactory} instead
+ * of a raw SQL-provider factory and a `createRepo` callback, and an explicit
+ * `readonly` - see that option's own doc comment for why the default is now
+ * `true`.
+ *
+ * ## `ensure()` vs `get()` (task 0034, 0029 design doc §04 S3b)
+ *
+ * `IModuleStore.open()` may now return a `Promise` (a store that reads a
+ * module over the network genuinely cannot open synchronously).
+ *
+ * - {@link ensure} loads the module if it is not already cached - awaiting
+ *   `store.open()` when it returns a `Promise` - and resolves once the
+ *   repository is cached. Always works, for either kind of store.
+ * - {@link get} keeps its original, pre-0034 contract: synchronous,
+ *   loads on a cache miss exactly as it always did, and returns the loaded
+ *   repository (or `null` if the module cannot be loaded). This is
+ *   deliberately NOT narrowed to "cache hit or null" - every existing
+ *   caller of `.get()` (the six desktop `ModuleLoader`-owning handler files,
+ *   `DatabaseManager.ts`'s four consolidated loaders, ...) relies on it to
+ *   load lazily, and narrowing it would have silently broken every one of
+ *   them without a single compile error - `TRepo | null` is exactly the same
+ *   return type either way, so nothing at a `.get()` call site would have
+ *   caught a caller that needed to be migrated to `ensure()` first. Instead,
+ *   `get()` still loads synchronously - which is exactly what "SqliteModuleStore
+ *   never returns a Promise" already guarantees for every store this codebase
+ *   ships - and only when `store.open()` itself hands back a `Promise` (a
+ *   genuinely async store) does `get()` decline to load: it cannot await, so
+ *   a cache miss against an async store returns `null` from `get()` without
+ *   recording it as a failure (the module may well be loadable - the caller
+ *   just needs {@link ensure}, which is the one place a `Promise` is awaited).
+ *
+ * `ensure()` exists for a caller that wants to force a load and knows it may
+ * need to await - a handler that ensures a module before a hot inline
+ * `.map()` of further `.get()` calls (safe either way, since `.get()` itself
+ * still loads on a miss), or, eventually, an async store this codebase does
+ * not have yet.
  *
  * @example
  * ```typescript
@@ -36,17 +111,18 @@ export interface ModuleLoaderLogger {
  *   moduleType: 'commentary',
  *   metadataRepo: moduleMetadataRepo,
  *   pathResolver: { resolveModulePath: (p) => join(dataDir, p) },
- *   sqlFactory: { create: (p) => new SqliteProvider(p) },
- *   createRepo: (db) => new CommentaryRepository(db),
+ *   store: sqliteModuleStore,
+ *   factory: moduleRepositoryFactoryFor(sqliteRepositoryFactory, 'commentary', codecs),
  * });
  *
- * const repo = loader.get('mhc');  // lazy-loads and caches
+ * const repo = loader.get('mhc');   // loads lazily on a miss, exactly as before 0034
+ * await loader.ensure('mhc');       // equivalent, but awaits an async store's open()
  * loader.closeAll();                // on app shutdown
  * ```
  */
 export class ModuleLoader<TRepo> {
   private repos = new Map<string, TRepo>();
-  private dbs = new Map<string, ISql>();
+  private connections = new Map<string, IModuleConnection>();
   /** Timestamp (ms) when each module was loaded - used for TTL-based staleness checks. */
   private loadedAt = new Map<string, number>();
   /**
@@ -64,8 +140,9 @@ export class ModuleLoader<TRepo> {
   private moduleType: string;
   private metadataRepo: IModuleMetadataRepository;
   private pathResolver: PathResolver;
-  private sqlFactory: SqlProviderFactory;
-  private createRepo: (db: ISql) => TRepo;
+  private store: IModuleStore;
+  private factory: ModuleConnectionFactory<TRepo>;
+  private readonlyConnections: boolean;
   private onRepoCreated?: (repo: TRepo, abbreviation: string) => void;
   private fileExists: (path: string) => boolean;
   private logger?: ModuleLoaderLogger;
@@ -82,8 +159,24 @@ export class ModuleLoader<TRepo> {
     moduleType: string;
     metadataRepo: IModuleMetadataRepository;
     pathResolver: PathResolver;
-    sqlFactory: SqlProviderFactory;
-    createRepo: (db: ISql) => TRepo;
+    store: IModuleStore;
+    factory: ModuleConnectionFactory<TRepo>;
+    /**
+     * Whether module connections open read-only. Defaults to `true`.
+     *
+     * Every write path into a module's own content tables
+     * (`BibleRepository.batchInsertVerses`, `.deleteVerse`, the equivalent
+     * methods on `CommentaryRepository`/`DictionaryRepository`/
+     * `BookRepository`, ...) was already unreachable from any
+     * `ModuleLoader`-obtained repository before this subtask: those methods
+     * exist for the standalone import/build scripts (`scripts/import-*.js`),
+     * which open their own connection directly and never go through
+     * `ModuleLoader`. M5 (task 0026, revision 2) removed the one production
+     * write path that DID run through a loaded module - the in-module search
+     * index - so opening read-only by default changes nothing observable for
+     * any caller that does not pass `false` explicitly.
+     */
+    readonly?: boolean;
     onRepoCreated?: (repo: TRepo, abbreviation: string) => void;
     /** Check if a file exists. Defaults to always returning true (caller responsible). */
     fileExists?: (path: string) => boolean;
@@ -96,8 +189,9 @@ export class ModuleLoader<TRepo> {
     this.moduleType = options.moduleType;
     this.metadataRepo = options.metadataRepo;
     this.pathResolver = options.pathResolver;
-    this.sqlFactory = options.sqlFactory;
-    this.createRepo = options.createRepo;
+    this.store = options.store;
+    this.factory = options.factory;
+    this.readonlyConnections = options.readonly ?? true;
     this.onRepoCreated = options.onRepoCreated;
     this.fileExists = options.fileExists ?? (() => true);
     this.logger = options.logger;
@@ -106,26 +200,34 @@ export class ModuleLoader<TRepo> {
   }
 
   /**
-   * Get or create a repository for the given module abbreviation.
-   * Returns null if the module doesn't exist or can't be loaded.
+   * The cached repository for `abbreviation`, applying the TTL-staleness
+   * check both `get()` and `ensure()` start with. Returns `undefined` on a
+   * genuine miss (nothing cached, or a stale entry just evicted) so callers
+   * can tell "no cached value" apart from "cached value is null-ish" - `TRepo`
+   * itself is never expected to be `undefined`.
    */
-  get(abbreviation: string): TRepo | null {
+  private cachedOrEvict(abbreviation: string): TRepo | undefined {
     const cached = this.repos.get(abbreviation);
-    if (cached) {
-      // If TTL is configured and the cache entry is stale, evict and reload
-      if (this.ttlMs > 0) {
-        const age = Date.now() - (this.loadedAt.get(abbreviation) ?? 0);
-        if (age > this.ttlMs) {
-          this.evict(abbreviation);
-          // Fall through to reload below
-        } else {
-          return cached;
-        }
-      } else {
-        return cached;
+    if (!cached) return undefined;
+
+    if (this.ttlMs > 0) {
+      const age = Date.now() - (this.loadedAt.get(abbreviation) ?? 0);
+      if (age > this.ttlMs) {
+        this.evict(abbreviation);
+        return undefined;
       }
     }
 
+    return cached;
+  }
+
+  /**
+   * The metadata/file checks both load paths start with, shared so `get()`
+   * and `ensure()` cannot drift apart on what counts as "loadable". Returns
+   * the resolved absolute path, or `null` (having already recorded the
+   * failure) when the module cannot be loaded at all.
+   */
+  private resolveLoadablePath(abbreviation: string): string | null {
     // A remembered failure short-circuits before any lookup, stat or logging.
     // Without this the whole body below ran on every call for a module that is
     // simply not installed.
@@ -152,20 +254,84 @@ export class ModuleLoader<TRepo> {
       return null;
     }
 
+    return dbPath;
+  }
+
+  /** Build the repo from an opened connection, cache both, and record the outcome. Shared by `get()`/`ensure()`. */
+  private finishLoad(abbreviation: string, dbPath: string, conn: IModuleConnection): TRepo | null {
+    const repo = this.factory.create(conn);
+    if (repo === null) {
+      conn.close();
+      this.recordFailure(
+        abbreviation,
+        `[ModuleLoader:${this.moduleType}] Factory produced no repository for ${dbPath}`,
+      );
+      return null;
+    }
+
+    this.connections.set(abbreviation, conn);
+    this.repos.set(abbreviation, repo);
+    this.loadedAt.set(abbreviation, Date.now());
+    this.failedAt.delete(abbreviation);
+
+    if (this.onRepoCreated) {
+      this.onRepoCreated(repo, abbreviation);
+    }
+
+    return repo;
+  }
+
+  /**
+   * Ensure a repository is loaded and cached for the given module
+   * abbreviation - opening it (awaiting `store.open()` if it returns a
+   * `Promise`) on a cache miss. Returns null if the module doesn't exist or
+   * can't be loaded. Works for either kind of store - see this class's own
+   * doc comment.
+   */
+  async ensure(abbreviation: string): Promise<TRepo | null> {
+    const cached = this.cachedOrEvict(abbreviation);
+    if (cached !== undefined) return cached;
+
+    const dbPath = this.resolveLoadablePath(abbreviation);
+    if (dbPath === null) return null;
+
     try {
-      const db = this.sqlFactory.create(dbPath);
-      const repo = this.createRepo(db);
+      const conn = await this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
+      return this.finishLoad(abbreviation, dbPath, conn);
+    } catch (error) {
+      this.recordFailure(
+        abbreviation,
+        `[ModuleLoader:${this.moduleType}] Failed to load ${abbreviation}:`,
+        error,
+      );
+      return null;
+    }
+  }
 
-      this.dbs.set(abbreviation, db);
-      this.repos.set(abbreviation, repo);
-      this.loadedAt.set(abbreviation, Date.now());
-      this.failedAt.delete(abbreviation);
+  /**
+   * Get a repository for the given module abbreviation, loading it on a
+   * cache miss exactly as this method always has (pre-0034 behaviour,
+   * preserved on purpose - see this class's own doc comment). The one case
+   * this cannot service is a `store.open()` that returns a `Promise` (a
+   * genuinely async store): synchronous code cannot await it, so that case
+   * returns `null` without recording a failure - the module may well be
+   * loadable, the caller just needs {@link ensure} instead.
+   */
+  get(abbreviation: string): TRepo | null {
+    const cached = this.cachedOrEvict(abbreviation);
+    if (cached !== undefined) return cached;
 
-      if (this.onRepoCreated) {
-        this.onRepoCreated(repo, abbreviation);
+    const dbPath = this.resolveLoadablePath(abbreviation);
+    if (dbPath === null) return null;
+
+    try {
+      const maybeConn = this.store.open({ kind: 'file', path: dbPath }, { readonly: this.readonlyConnections });
+      if (isThenable(maybeConn)) {
+        // An async store - `get()` cannot await. Not a failure: `ensure()`
+        // against the same abbreviation can still succeed.
+        return null;
       }
-
-      return repo;
+      return this.finishLoad(abbreviation, dbPath, maybeConn);
     } catch (error) {
       this.recordFailure(
         abbreviation,
@@ -201,15 +367,15 @@ export class ModuleLoader<TRepo> {
    * Useful when a module file has been updated or reinstalled.
    */
   evict(abbreviation: string): void {
-    const db = this.dbs.get(abbreviation);
-    if (db) {
+    const conn = this.connections.get(abbreviation);
+    if (conn) {
       try {
-        db.close();
+        conn.close();
       } catch {
         // Ignore close errors
       }
     }
-    this.dbs.delete(abbreviation);
+    this.connections.delete(abbreviation);
     this.repos.delete(abbreviation);
     this.loadedAt.delete(abbreviation);
     // An explicit evict means "this module changed on disk" - forget the miss
@@ -219,14 +385,14 @@ export class ModuleLoader<TRepo> {
 
   /** Close all database connections. Call on app shutdown. */
   closeAll(): void {
-    for (const db of this.dbs.values()) {
+    for (const conn of this.connections.values()) {
       try {
-        db.close();
+        conn.close();
       } catch {
         // Ignore close errors during shutdown
       }
     }
-    this.dbs.clear();
+    this.connections.clear();
     this.repos.clear();
     this.loadedAt.clear();
     this.failedAt.clear();

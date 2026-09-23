@@ -102,7 +102,7 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
             onClose();
           }}
         >
-          <i class="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }} />
+          <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
           {t('strongsPopup.searchOccurrences')}
         </button>
       </div>

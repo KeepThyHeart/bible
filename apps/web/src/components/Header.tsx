@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../stores/bibleStore';
 import { searchStore } from '../stores/searchStore';
 import { settingsStore } from '../stores/settingsStore';
 import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
+import { useLocalizer } from '../hooks/useLocalizer';
 import { getAllBookNames, getLocalizedBookName } from '../utils/bookNames';
 import { focusSearchField } from '../utils/focusSearchField';
+import { localizedBookAliases } from '../constants';
+import type { Localizer } from '@bible/core/browser';
 
 
 // Common abbreviation mappings (lowercase)
@@ -46,6 +49,20 @@ const BOOK_ABBREV_MAP: Record<string, number> = {
 };
 
 /**
+ * The candidate table {@link parseReference} and {@link fuzzyMatchReference}
+ * match against: this file's own English abbreviations ({@link BOOK_ABBREV_MAP})
+ * plus the active locale's own book-name/abbreviation table (English merged in
+ * underneath — see `constants.ts`'s `localizedBookAliases`). English input
+ * keeps parsing in every locale; a locale's own abbreviations ("Jn", "Gn")
+ * additionally parse once the UI locale is switched to it. Exported so
+ * `searchStore.ts` — a plain store, not a component — can build the same
+ * table without a hook.
+ */
+export function headerBookAliases(localizer: Localizer): Record<string, number> {
+  return { ...BOOK_ABBREV_MAP, ...localizedBookAliases(localizer) };
+}
+
+/**
  * Damerau-Levenshtein distance (counts transpositions as single edit).
  */
 function damerauLevenshtein(a: string, b: string): number {
@@ -74,15 +91,15 @@ function damerauLevenshtein(a: string, b: string): number {
  * Returns { book, rest } if a match is found, or null.
  * `rest` is the remaining string after the matched book name (e.g., "3:16").
  */
-function fuzzyMatchReference(input: string): { book: number; rest: string; matchedName: string } | null {
+function fuzzyMatchReference(input: string, bookAliases: Record<string, number>): { book: number; rest: string; matchedName: string } | null {
   const lowerInput = input.toLowerCase();
 
-  // Build candidate list from i18n book names and BOOK_ABBREV_MAP
+  // Build candidate list from i18n book names and the locale-aware alias table
   const candidates: Array<{ name: string; bookNum: number }> = [];
   for (const [numStr, name] of Object.entries(getAllBookNames())) {
     candidates.push({ name: name.toLowerCase(), bookNum: parseInt(numStr, 10) });
   }
-  for (const [abbr, bookNum] of Object.entries(BOOK_ABBREV_MAP)) {
+  for (const [abbr, bookNum] of Object.entries(bookAliases)) {
     candidates.push({ name: abbr, bookNum });
   }
 
@@ -144,7 +161,7 @@ function fuzzyMatchReference(input: string): { book: number; rest: string; match
   return null;
 }
 
-export function parseReference(input: string): { book: number; chapter: number; verse?: number; endVerse?: number; fuzzyMatch?: boolean; correctedBookName?: string } | null {
+export function parseReference(input: string, bookAliases: Record<string, number> = BOOK_ABBREV_MAP): { book: number; chapter: number; verse?: number; endVerse?: number; fuzzyMatch?: boolean; correctedBookName?: string } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -175,27 +192,29 @@ export function parseReference(input: string): { book: number; chapter: number; 
     }
   }
 
-  // Try abbreviation map - sort by longest match first to avoid partial matches
+  // Try the alias table (this file's English abbreviations, plus the active
+  // locale's own — see headerBookAliases) - sort by longest match first to
+  // avoid partial matches.
   const lowerInput = trimmed.toLowerCase();
-  const sortedAbbrevs = Object.keys(BOOK_ABBREV_MAP).sort((a, b) => b.length - a.length);
+  const sortedAbbrevs = Object.keys(bookAliases).sort((a, b) => b.length - a.length);
   for (const abbr of sortedAbbrevs) {
     if (lowerInput.startsWith(abbr)) {
       const rest = trimmed.substring(abbr.length).trim();
       const match = rest.match(/^(\d+)(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
       if (match) {
         return {
-          book: BOOK_ABBREV_MAP[abbr],
+          book: bookAliases[abbr],
           chapter: parseInt(match[1], 10),
           verse: match[2] ? parseInt(match[2], 10) : undefined,
           endVerse: match[3] ? parseInt(match[3], 10) : undefined,
         };
       }
-      if (!rest) return { book: BOOK_ABBREV_MAP[abbr], chapter: 1 };
+      if (!rest) return { book: bookAliases[abbr], chapter: 1 };
     }
   }
 
   // Try fuzzy matching as a fallback for typos like "jonh 3:16"
-  const fuzzy = fuzzyMatchReference(trimmed);
+  const fuzzy = fuzzyMatchReference(trimmed, bookAliases);
   if (fuzzy) {
     const match = fuzzy.rest.match(/^(\d+)(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
     if (match) {
@@ -271,6 +290,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const searchQuery = useStore(searchStore, () => searchStore.query);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
+  const localizer = useLocalizer();
+  const bookAliases = useMemo(() => headerBookAliases(localizer), [localizer]);
 
   // Sync search box when a search is performed externally (e.g., Strong's click)
   useEffect(() => {
@@ -324,7 +345,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
     const trimmed = value.trim();
     if (!trimmed) return;
 
-    const ref = parseReference(trimmed);
+    const ref = parseReference(trimmed, bookAliases);
     if (ref) {
       bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { endVerse: ref.endVerse });
       if (ref.fuzzyMatch && ref.correctedBookName) {

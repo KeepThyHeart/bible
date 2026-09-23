@@ -513,4 +513,72 @@ describe.skipIf(!testDataAvailable('TopicalIndexRepository (topical_nave.db)', D
       expect(topic.getDescriptionExcerpt()).toBe('');
     });
   });
+
+  // ==========================================================================
+  // getIndexSource (M5, task 0026 revision 2)
+  // ==========================================================================
+
+  describe('getIndexSource', () => {
+    it('carries an IndexTarget with this module\'s uuid, type and contentSha256', () => {
+      const source = repo.getIndexSource();
+      const info = repo.getModuleInfo();
+
+      expect(source.target.moduleType).toBe('topical_index');
+      expect(source.target.moduleUuid).toBe(info?.moduleUuid);
+      expect(source.target.contentSha256).toBe(info?.contentSha256 ?? '');
+    });
+
+    it('count() matches a raw COUNT(*) over topic', () => {
+      const raw = provider.queryOne<{ c: number }>('SELECT COUNT(*) as c FROM topic');
+
+      expect(repo.getIndexSource().count()).toBe(raw?.c ?? -1);
+      expect(repo.getIndexSource().count()).toBe(27006); // topical_nave.db ships 27,006 topics
+    });
+
+    it('documents() yields one document per topic row', () => {
+      const source = repo.getIndexSource();
+      const docs = Array.from(source.documents());
+
+      expect(docs).toHaveLength(source.count());
+      for (let i = 1; i < docs.length; i++) {
+        expect(docs[i].rowId).toBeGreaterThan(docs[i - 1].rowId);
+      }
+    });
+
+    it("does NOT throw on CONTENT_MAP's 'content' column, which this real module predates", () => {
+      // CONTENT_MAP.topical_index.indexed is ['name', 'content'], matching the
+      // CURRENT schema (sql/schemas/initial/TopicalIndex.sql). The real,
+      // currently-shipped topical_nave.db fixture predates that schema: its
+      // `topic` table has no `content` column at all (confirmed by direct
+      // inspection - `PRAGMA table_info(topic)` lists only topic_id,
+      // parent_topic_id, name, description, sort_order, metadata), and its own
+      // shipped `topic_fts` index reflects that - it indexes `name` only, not
+      // `content` either. This is the genuine CONTENT_MAP-vs-real-module
+      // mismatch this pass's report flags; `getIndexSource()` is defensive
+      // against it (only columns actually present are read) rather than
+      // throwing "no such column: content".
+      const source = repo.getIndexSource();
+      expect(() => Array.from(source.documents())).not.toThrow();
+
+      const doc = Array.from(source.documents()).find(d => d.rowId === 1);
+      expect(doc).toBeDefined();
+      expect(doc!.text).toContain('Aaron');
+    });
+
+    it('does not anchor a topic document to a verse (no range in CONTENT_MAP)', () => {
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 1);
+
+      expect(doc).toBeDefined();
+      expect(doc!.startVerseId).toBeUndefined();
+      expect(doc!.endVerseId).toBeUndefined();
+    });
+
+    it('documents() returns a generator (Iterable), not a materialised array', () => {
+      const iterable = repo.getIndexSource().documents();
+
+      expect(Array.isArray(iterable)).toBe(false);
+      expect(typeof (iterable as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    });
+  });
 });

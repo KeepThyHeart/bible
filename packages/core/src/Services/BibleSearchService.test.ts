@@ -3,6 +3,7 @@ import { BibleSearchService } from './BibleSearchService';
 import { KJVTestHelper } from '../__tests__/helpers/KJVTestHelper';
 import { SearchOptions } from '../types/search';
 import { Book, VerseIdHelper } from '../Data/Core/Types';
+import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 
 // Gated so a checkout without module data skips with a warning rather than
 // erroring in beforeAll. See __tests__/helpers/testData.ts.
@@ -962,6 +963,81 @@ describe.skipIf(!KJV_AVAILABLE)('BibleSearchService', () => {
       // opposite of the query.
       const results = await searchService.search('(NOT wicked)', options);
       expect(results).toEqual([]);
+    });
+  });
+
+  // ==========================================================================
+  // Multi-Module Resilience (task 0026 subtask M3)
+  // ==========================================================================
+  //
+  // Before this subtask, a module whose bible_verse_fts table is missing or
+  // broken (e.g. a v0.2-schema module - see F2) would throw straight out of
+  // the per-module loop in searchMultiWord/searchPhrase/searchVerseProximity/
+  // searchBoolean, killing the WHOLE multi-module search - there was no
+  // try/catch there at all (word-proximity's ensureSearchTablesExist()
+  // degrade-to-no-results was the only isolation the Bible search path had,
+  // and it doesn't apply here: bible_verse_fts is a different table). These
+  // tests assert the new behaviour: a broken module is skipped, not thrown
+  // on, and every other module's results still come back.
+  describe('Multi-Module Resilience (task 0026 subtask M3)', () => {
+    /**
+     * A fake IBibleRepository whose searchVersesWithHighlighting() always
+     * throws, simulating a module whose bible_verse_fts table is missing or
+     * broken - constructed in-memory just for this suite rather than a real
+     * on-disk fixture, since only the one method BibleSearchService actually
+     * calls for this scenario needs a real implementation.
+     */
+    function brokenRepo(): IBibleRepository {
+      return {
+        getModuleInfo: () => undefined,
+        searchVersesWithHighlighting: () => {
+          throw new Error('no such table: bible_verse_fts');
+        },
+      } as unknown as IBibleRepository;
+    }
+
+    it('a module with a broken FTS5 table no longer kills a multi-word search across other modules', async () => {
+      const service = new BibleSearchService(
+        new Map([
+          ['kjv', KJVTestHelper.getKJVRepository()],
+          ['broken', brokenRepo()],
+        ]),
+        KJVTestHelper.getBibleBookRepository()
+      );
+
+      const options: SearchOptions = {
+        modules: ['kjv', 'broken'],
+        maxResults: 50,
+        autoFuzzy: false,
+      };
+
+      const results = await service.search('love', options);
+
+      // KJV's results still come back...
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every(r => r.module === 'kjv')).toBe(true);
+
+      // ...and the broken module is recorded as skipped, not silently
+      // dropped without a trace.
+      const skipped = service.getLastSkippedModules();
+      expect(skipped.some(s => s.target.moduleUuid === 'broken')).toBe(true);
+    });
+
+    it('a module with a broken FTS5 table no longer kills a boolean search across other modules', async () => {
+      const service = new BibleSearchService(
+        new Map([
+          ['kjv', KJVTestHelper.getKJVRepository()],
+          ['broken', brokenRepo()],
+        ]),
+        KJVTestHelper.getBibleBookRepository()
+      );
+
+      const options: SearchOptions = { modules: ['kjv', 'broken'], maxResults: 50, autoFuzzy: false };
+
+      const results = await service.search('(faith OR hope)', options);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every(r => r.module === 'kjv')).toBe(true);
     });
   });
 });

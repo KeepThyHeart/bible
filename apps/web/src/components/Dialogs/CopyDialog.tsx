@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId } from 'preact/hooks';
+import { useState, useEffect, useRef, useId, useMemo } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import { useTranslation } from 'react-i18next';
 import {
@@ -35,7 +35,8 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { formatPassageRef } from '../../constants';
+import { useLocalizer } from '../../hooks/useLocalizer';
+import { formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames } from '../../utils/bookNames';
 import { mapWithConcurrency } from '../../utils/concurrency';
 import { sanitizeHtml } from '../../utils/sanitize';
@@ -154,10 +155,22 @@ interface ParsedReference {
  * chapter-fetching effect below can act on. Core's parser answers a different
  * question (what passage does this string name, in isolation) and has no notion
  * of "the chapter the user is looking at".
+ *
+ * Book matching uses the active locale's alias table (`bookAliases`, from
+ * `localizedBookAliases` — English merged in underneath) alongside the
+ * i18n display names, so typing a locale's own abbreviations ("Gn", "Jn 3:16")
+ * works the same as it does in BookChapterPicker, not just the English ones.
  */
-function parseReferenceRange(input: string): ParsedReference | null {
+function parseReferenceRange(input: string, bookAliases: Record<string, number>): ParsedReference | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
+
+  const aliasesByBook = new Map<number, string[]>();
+  for (const [alias, bookNum] of Object.entries(bookAliases)) {
+    const list = aliasesByBook.get(bookNum) ?? [];
+    list.push(alias.toLowerCase());
+    aliasesByBook.set(bookNum, list);
+  }
 
   // Try to match a book name at the start
   const bookEntries = Object.entries(getAllBookNames());
@@ -167,6 +180,10 @@ function parseReferenceRange(input: string): ParsedReference | null {
     const lowerInput = trimmed.toLowerCase();
     const abbrevs = [lowerName, lowerName.substring(0, 3)];
     if (/^\d/.test(lowerName)) abbrevs.push(lowerName.replace(' ', ''));
+    abbrevs.push(...(aliasesByBook.get(bookNum) ?? []));
+    // Longest first, so a more specific alias ("1 corintios") is tried before
+    // a shorter one that happens to be its own prefix ("1co").
+    abbrevs.sort((a, b) => b.length - a.length);
 
     for (const abbr of abbrevs) {
       if (lowerInput.startsWith(abbr)) {
@@ -310,6 +327,8 @@ function MarkupPreview({
 
 export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const formats = offeredFormats();
 
   const [formatId, setFormatId] = useState<PassageMarkupFormatId>(() =>
@@ -513,7 +532,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   const handleRefChange = (value: string) => {
     setRefInput(value);
-    const parsed = parseReferenceRange(value);
+    const parsed = parseReferenceRange(value, bookAliases);
     if (parsed) {
       setStartVerse(parsed.startVerse);
       setEndVerse(parsed.endVerse);

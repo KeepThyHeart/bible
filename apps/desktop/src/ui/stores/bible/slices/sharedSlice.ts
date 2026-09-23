@@ -59,6 +59,9 @@ export interface SharedSlice {
   getTabFromAnyPanel: (tabId: string) => BibleTab | undefined;
 }
 
+/** Panels whose `loadInitialData` is currently awaiting the main process. */
+const initialLoadInFlight = new Set<string>();
+
 export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = (set, get) => ({
   // === SHARED initial state ===
   availableBibles: [],
@@ -93,6 +96,12 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
       return;
     }
 
+    // One seeding per panel at a time: with the zero-Bible path no longer
+    // latching `initialLoadComplete`, a second caller (boot effect vs. the
+    // library-changed bridge) could otherwise seed the same panel twice.
+    if (initialLoadInFlight.has(targetPanelId)) return;
+    initialLoadInFlight.add(targetPanelId);
+
     set({ loadingBibles: true });
 
     try {
@@ -103,11 +112,15 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
       const data = await bibleAPI.getInitialData(get().getDefaultBible(), 43, 3);
 
       if (!data.defaultBible || data.defaultVerses.length === 0) {
-        // No Bibles available, just update available list
+        // No Bibles available, just update available list. Deliberately NOT
+        // marking the initial load complete: nothing was seeded, and the first
+        // Bible installed later must still be able to seed the pane (see the
+        // library-changed bridge in storeSync.ts). Re-entry is safe - the effect
+        // that calls this only re-runs when its inputs change, not on this
+        // state update, and concurrent calls are collapsed below.
         set({
           availableBibles: data.availableBibles,
-          loadingBibles: false,
-          initialLoadComplete: true
+          loadingBibles: false
         });
         return;
       }
@@ -199,6 +212,8 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
     } catch (error) {
       console.error('[useBibleStore] Error loading initial data:', error);
       set({ loadingBibles: false, initialLoadComplete: true });
+    } finally {
+      initialLoadInFlight.delete(targetPanelId);
     }
   },
 
