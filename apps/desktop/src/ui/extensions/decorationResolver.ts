@@ -1,6 +1,6 @@
 /**
  * Pure target-matching + composition for extension verse decorations (task
- * 0036, P0.1a; design doc §10, amended by design amendments A1-A5).
+ * 0036, P0.1a/P0.1b; design doc §10, amended by design amendments A1-A5).
  *
  * No React, no IPC, no Zustand - everything here is a plain function over
  * plain data, so it is fully unit-testable and shared by every surface that
@@ -8,18 +8,20 @@
  * is exactly: call `ensureRange`, call `getDecorationsForVerse`, feed the
  * result plus your own rendered word sequence to `resolveVerseDecorations`").
  *
- * P0.1a scope: target kinds `'verse'`/`'passage'` only (`'word'`/`'tokens'`
- * are matched starting P0.1b - see A5); appearance kinds `'tint'`/
- * `'underline'`/`'gutter'` only (`'emphasis'`/`'strike'`/`'badge'` compose
- * starting P0.1b). `WordPaint` already carries every field the full P0.1
- * vocabulary needs (amendment A1), so P0.1b/c only add to the `compose`
- * switch below, not to any type or renderer plumbing.
+ * P0.1a shipped target kinds `'verse'`/`'passage'` and appearance kinds
+ * `'tint'`/`'underline'`/`'gutter'` (`compose()` already handled `'emphasis'`/
+ * `'strike'`/`'badge'` too - only `collect()`'s target matching was P0.1a-
+ * scoped). P0.1b adds `'word'` (§4.2) and `'tokens'` (§4.3, resolved directly
+ * per amendment A5 - no offset fallback, no `plainStart`/`plainEnd`) target
+ * matching, below.
  */
 
 import type { Extensions } from '@bible/core';
+import type { WordInfo } from '../utils/wordIndexing';
 
 type DecorationDto = Extensions.DecorationDto;
 type DecorationTarget = Extensions.DecorationTarget;
+type WordDecorationTarget = Extract<DecorationTarget, { kind: 'word' }>;
 type LocalizedString = Extensions.LocalizedString;
 type Surface = 'standard' | 'study' | 'reading';
 
@@ -89,35 +91,104 @@ function candidateSort(a: Candidate, b: Candidate): number {
   return a.decorationIndex - b.decorationIndex; // array position asc
 }
 
-/** True if `target` (verse/passage only, in P0.1a) covers `verseId`. */
-function targetCoversVerse(target: DecorationTarget, verseId: number): boolean {
+/** True for a `'verse'`/`'passage'` target that covers `verseId`. Gutter marks only ever match this shape (design doc §3.3: "Verse and passage targets only"). */
+function targetCoversVerseWide(target: DecorationTarget, verseId: number): boolean {
   switch (target.kind) {
     case 'verse':
       return target.verseId === verseId;
     case 'passage':
       return verseId >= target.startVerseId && verseId <= target.endVerseId;
-    case 'tokens':
-    case 'word':
-      // Word/token-level matching lands in P0.1b (amendment A5 / design §4.2).
-      // A well-formed target of this kind is accepted by validation but
-      // simply resolves to nothing yet, rather than being treated as an error.
-      return false;
     default:
       return false;
   }
 }
 
+/** NFC-normalizes, and lowercases unless `matchCase` (design doc §4.2). */
+function normalizeWordText(text: string, matchCase: boolean | undefined): string {
+  const n = text.normalize('NFC');
+  return matchCase ? n : n.toLowerCase();
+}
+
+/**
+ * How many rendered `words` match `text` under the target's own case rule -
+ * exported so callers can precompute the cumulative prior-match count a
+ * passage-scoped, `occurrence`-bearing `'word'` target needs for verses
+ * earlier in its scope (§4.2: "occurrence 3 of 'faith' in Hebrews 11 means
+ * the third in the passage, not the third in some verse"). `resolveVerseDecorations`
+ * itself only ever sees one verse's `words`, so cross-verse accumulation is
+ * necessarily the caller's job - see `priorWordMatchCounts` below and
+ * `useResolvedVerseDecorations.ts`.
+ */
+export function countWordTextMatches(
+  text: string,
+  matchCase: boolean | undefined,
+  words: Pick<WordInfo, 'text'>[],
+): number {
+  const norm = normalizeWordText(text, matchCase);
+  let count = 0;
+  for (const w of words) if (normalizeWordText(w.text, matchCase) === norm) count++;
+  return count;
+}
+
+/**
+ * Rendered word indexes a `'word'` target selects in THIS verse (design doc
+ * §4.2). `priorMatchCount` is the number of matches already counted in
+ * earlier verses of the target's scope (0 for verse scope, or the first verse
+ * of a passage scope) - `occurrence` is 1-based and global to the scope, so a
+ * local match at position `j` (1-based) has global occurrence
+ * `priorMatchCount + j`.
+ */
+function matchWordTargetIndexes(
+  target: WordDecorationTarget,
+  words: Pick<WordInfo, 'text'>[],
+  priorMatchCount: number,
+): number[] {
+  const norm = normalizeWordText(target.text, target.matchCase);
+  const localMatches: number[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (normalizeWordText(words[i].text, target.matchCase) === norm) localMatches.push(i);
+  }
+  if (target.occurrence === undefined) return localMatches; // every match, unqualified
+  const globalOccurrence = target.occurrence;
+  const j = localMatches.findIndex((_, localIndex) => priorMatchCount + localIndex + 1 === globalOccurrence);
+  return j === -1 ? [] : [localMatches[j]];
+}
+
+function wordTargetInScope(target: WordDecorationTarget, verseId: number): boolean {
+  return 'verseId' in target.scope
+    ? target.scope.verseId === verseId
+    : verseId >= target.scope.startVerseId && verseId <= target.scope.endVerseId;
+}
+
 export interface ResolveVerseDecorationsInput {
   verseId: number;
-  /** Number of rendered words in this verse (from `extractWordsWithFormatting`). Every word is painted for a verse/passage-scoped decoration. */
+  /** Number of rendered words in this verse (from `extractWordsWithFormatting`). Every word is painted for a verse/passage-scoped decoration. Ignored when `words` is given - `words.length` wins. */
   wordCount: number;
+  /**
+   * The rendered word sequence's text (P0.1b) - needed to match `kind: 'word'`
+   * targets. Omit for gutter-only calls (`useVerseGutterMarks`) or any caller
+   * that doesn't need word-level matching; `'word'` targets then simply match
+   * nothing, same as P0.1a's behaviour for every target kind this file didn't
+   * yet resolve.
+   */
+  words?: Pick<WordInfo, 'text'>[];
   layers: LayerDecorations[];
   surface: Surface;
   resolveColor: ThemeColorResolver;
+  /**
+   * For an `occurrence`-bearing, passage-scoped `'word'` target: how many
+   * matches were already counted in earlier verses of its scope, keyed
+   * `${layerKey}#${decorationIndex}:${targetIndex}` (`targetIndex` is the
+   * position within `DecorationDto.target` when it's an array; `0` when it's
+   * a single target). Missing entries default to 0 - correct for verse scope,
+   * and for the first verse of a passage. See `countWordTextMatches`.
+   */
+  priorWordMatchCounts?: Map<string, number>;
 }
 
 export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): ResolvedVerse {
-  const { verseId, wordCount, layers, surface, resolveColor } = input;
+  const { verseId, words, layers, surface, resolveColor, priorWordMatchCounts } = input;
+  const wordCount = words ? words.length : input.wordCount;
 
   // --- Collect (design doc §10.3 step 1) ----------------------------------
   const perWord: Candidate[][] = Array.from({ length: wordCount }, () => []);
@@ -127,18 +198,53 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
     if (!layer.surfaces.includes(surface)) continue;
     layer.decorations.forEach((d, decorationIndex) => {
       const targets = Array.isArray(d.target) ? d.target : [d.target];
-      const covers = targets.some((t) => targetCoversVerse(t, verseId));
-      if (!covers) return;
       const sourceKey = `${layer.layerKey}#${decorationIndex}`;
+
       if (d.appearance.kind === 'gutter') {
         // Gutter marks are never in Reading mode, even if the layer opted in
         // (amendment A4) - and are collected separately, never re-sorted by
-        // `order` (design doc §10.3 step 5).
-        if (surface !== 'reading') {
+        // `order` (design doc §10.3 step 5). Gutter only ever matches a
+        // verse/passage target (design doc §3.3).
+        const covers = targets.some((t) => targetCoversVerseWide(t, verseId));
+        if (covers && surface !== 'reading') {
           gutterCandidates.push({ layerSeq: layer.layerSeq, layerKey: layer.layerKey, appearance: d.appearance });
         }
         return;
       }
+
+      // Union every target this decoration carries (design doc §3.4 allows
+      // `target` to be an array). A `'verse'`/`'passage'` match paints every
+      // word; `'tokens'`/`'word'` match specific rendered indexes (P0.1b).
+      let verseWide = false;
+      const matchedIndexes = new Set<number>();
+      targets.forEach((t, targetIndex) => {
+        switch (t.kind) {
+          case 'verse':
+          case 'passage':
+            if (targetCoversVerseWide(t, verseId)) verseWide = true;
+            break;
+          case 'tokens': {
+            if (t.verseId !== verseId) break;
+            const end = t.endTokenIndex ?? t.startTokenIndex;
+            // Amendment A5: rendered indexes map directly, no offset fallback.
+            // Out of range (or a reversed range) -> drop this target, not fatal
+            // to the decoration as a whole.
+            if (t.startTokenIndex < 0 || end < t.startTokenIndex) break;
+            if (t.startTokenIndex >= wordCount || end >= wordCount) break;
+            for (let i = t.startTokenIndex; i <= end; i++) matchedIndexes.add(i);
+            break;
+          }
+          case 'word': {
+            if (!words) break;
+            if (!wordTargetInScope(t, verseId)) break;
+            const prior = priorWordMatchCounts?.get(`${sourceKey}:${targetIndex}`) ?? 0;
+            for (const i of matchWordTargetIndexes(t, words, prior)) matchedIndexes.add(i);
+            break;
+          }
+        }
+      });
+      if (!verseWide && matchedIndexes.size === 0) return;
+
       const candidate: Candidate = {
         layerSeq: layer.layerSeq,
         order: d.order ?? 0,
@@ -147,19 +253,23 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
         appearance: d.appearance,
         hoverContent: d.hoverContent,
       };
-      for (let i = 0; i < wordCount; i++) perWord[i].push(candidate);
+      if (verseWide) {
+        for (let i = 0; i < wordCount; i++) perWord[i].push(candidate);
+      } else {
+        for (const i of matchedIndexes) perWord[i].push(candidate);
+      }
     });
   }
 
   // --- Sort + cap + compose (design doc §10.3 steps 2-4) ------------------
-  const words = new Map<number, WordPaint>();
+  const wordPaints = new Map<number, WordPaint>();
   for (let i = 0; i < wordCount; i++) {
     const candidates = perWord[i];
     if (candidates.length === 0) continue;
     candidates.sort(candidateSort);
     const capped = candidates.slice(0, MAX_CONTRIBUTIONS_PER_WORD);
     const paint = compose(capped, resolveColor);
-    if (paint) words.set(i, paint);
+    if (paint) wordPaints.set(i, paint);
   }
 
   // --- Gutter (design doc §10.3 step 5) ------------------------------------
@@ -172,7 +282,7 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
   }));
   const gutterOverflow = Math.max(0, gutterCandidates.length - MAX_GUTTER_MARKS);
 
-  return { words, gutter, gutterOverflow };
+  return { words: wordPaints, gutter, gutterOverflow };
 }
 
 function compose(candidates: Candidate[], resolveColor: ThemeColorResolver): WordPaint | null {

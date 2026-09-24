@@ -136,6 +136,7 @@ function createMockBibleApi(): Extensions.IBibleApi {
     iterateVerses: asyncMock({ verses: [], hasMore: false } as Extensions.VerseIterationResult),
     parseReference: asyncMock(null),
     getVerseTokens: asyncMock(null),
+    getTokensForRange: asyncMock({} as Record<number, Extensions.VerseTokenDto[]>),
     navigateToVerse: asyncMock<void>(undefined),
     registerProvider: asyncMock(mockDisposable()),
   };

@@ -173,6 +173,7 @@ const stubBibleBridge = {
   subscribeActiveVerse: () => () => {},
   iterateVerses: () => ({ verses: [], hasMore: false }),
   getVerseTokens: () => null,
+  getTokensForRange: () => ({}),
   subscribeWordSelection: () => () => {},
   navigateToVerse: async () => {},
 };

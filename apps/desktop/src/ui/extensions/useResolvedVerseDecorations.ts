@@ -1,6 +1,7 @@
 /**
  * Bible-pane-facing hook: subscribes to `verseDecorationStore` and returns a
- * verse's resolved paint (task 0036, P0.1a, amendment A1).
+ * verse's resolved paint (task 0036, P0.1a, amendment A1; word/token
+ * targeting added P0.1b).
  *
  * `surface` is `undefined` for any caller that hasn't opted a surface in
  * (Parallel view, and any future one) - the hook returns `null` in that
@@ -8,11 +9,17 @@
  * decorations at all without needing their own conditional.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { WordInfo } from '../utils/wordIndexing';
 import { useVerseDecorationStore } from './verseDecorationStore';
-import { resolveVerseDecorations, type LayerDecorations, type ResolvedVerse } from './decorationResolver';
+import {
+  resolveVerseDecorations,
+  countWordTextMatches,
+  type LayerDecorations,
+  type ResolvedVerse,
+} from './decorationResolver';
 import { resolveThemeColor } from './themeColorResolver';
+import { registerVerseWords, sumCachedMatches } from './verseWordTextCache';
 
 const EMPTY_LAYERS: LayerDecorations[] = [];
 
@@ -26,17 +33,62 @@ export function useResolvedVerseDecorations(
     surface ? s.getDecorationsForVerse(verseId, moduleId) : EMPTY_LAYERS,
   );
 
+  // Registers this verse's rendered words for any sibling verse's cumulative
+  // `occurrence` count (P0.1b - see `verseWordTextCache.ts`). Cheap and
+  // idempotent; runs even when `surface` is undefined so a Parallel-view
+  // verse (which renders no decorations of its own) still contributes its
+  // words to a passage scope another surface might be resolving.
+  useEffect(() => {
+    registerVerseWords(moduleId, verseId, words);
+  }, [moduleId, verseId, words]);
+
   return useMemo(() => {
     if (!surface) return null;
     if (layers.length === 0) return null;
     return resolveVerseDecorations({
       verseId,
       wordCount: words.length,
+      words,
       layers,
       surface,
       resolveColor: resolveThemeColor,
+      priorWordMatchCounts: computePriorWordMatchCounts(verseId, moduleId, layers),
     });
-  }, [verseId, words.length, layers, surface]);
+  }, [verseId, moduleId, words, layers, surface]);
+}
+
+/**
+ * For every `occurrence`-bearing, passage-scoped `'word'` target among
+ * `layers`' decorations: how many matches of its text already occurred in
+ * earlier verses of its scope, summed from `verseWordTextCache` (P0.1b, see
+ * that module's ordering note). Verses the cache has no entry for yet
+ * (scope extends outside the loaded chapter, or simply hasn't rendered)
+ * contribute 0 - the same "paints the part that is on screen" tolerance the
+ * design doc already applies to a passage extending past the loaded chapter
+ * (§4.1).
+ */
+function computePriorWordMatchCounts(
+  verseId: number,
+  moduleId: number,
+  layers: LayerDecorations[],
+): Map<string, number> | undefined {
+  let counts: Map<string, number> | undefined;
+  for (const layer of layers) {
+    layer.decorations.forEach((d, decorationIndex) => {
+      const targets = Array.isArray(d.target) ? d.target : [d.target];
+      targets.forEach((t, targetIndex) => {
+        if (t.kind !== 'word' || t.occurrence === undefined) return;
+        if (!('startVerseId' in t.scope)) return; // verse scope needs no prior count
+        if (verseId <= t.scope.startVerseId) return; // first verse of scope (or before it) - prior is 0
+        const prior = sumCachedMatches(moduleId, t.scope.startVerseId, verseId, (cachedWords) =>
+          countWordTextMatches(t.text, t.matchCase, cachedWords.map((text) => ({ text }))),
+        );
+        if (prior === 0) return; // default; no entry needed
+        (counts ??= new Map()).set(`${layer.layerKey}#${decorationIndex}:${targetIndex}`, prior);
+      });
+    });
+  }
+  return counts;
 }
 
 /**

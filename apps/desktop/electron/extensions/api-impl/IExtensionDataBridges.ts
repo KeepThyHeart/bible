@@ -97,6 +97,13 @@ export interface IExtensionBibleBridge {
   getVerseTokens(verseId: number, moduleId?: string): VerseTokenDto[] | null;
 
   /**
+   * Batch form of `getVerseTokens` over an inclusive verse-id range (task
+   * 0036, P0.1b; design doc §4.4). Keyed by verse id; a verse with no token
+   * data is simply absent, never a `null`/empty entry.
+   */
+  getTokensForRange(startVerseId: number, endVerseId: number, moduleId?: string): Record<number, VerseTokenDto[]>;
+
+  /**
    * Navigate the primary Bible pane to a specific verse. The bridge sends an
    * IPC message to the renderer which calls `navigateToVerseInPrimary`. The
    * existing `broadcast-verse-change` flow dispatches `verse.activeChanged`

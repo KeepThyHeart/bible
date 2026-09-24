@@ -8,6 +8,7 @@ import type { Extensions } from '@bible/core';
 import { resolveVerseDecorations, buildWordPaintStyle, type LayerDecorations, type WordPaint } from './decorationResolver';
 
 type DecorationDto = Extensions.DecorationDto;
+type WordTarget = Extract<Extensions.DecorationTarget, { kind: 'word' }>;
 
 const resolveColor = (key: string, alpha = 1): string => `C(${key}/${alpha})`;
 
@@ -54,17 +55,196 @@ describe('resolveVerseDecorations - target matching', () => {
     expect(resolved.words.size).toBe(0);
   });
 
-  it('word/tokens targets resolve to nothing in P0.1a (deferred to P0.1b) without throwing', () => {
+  it('a word target with no `words` given resolves to nothing, without throwing', () => {
     const layers = [
       layer({
         decorations: [
           { target: { kind: 'word', text: 'faith', scope: { verseId: 1 } }, appearance: { kind: 'tint', color: 'accent' } },
-          { target: { kind: 'tokens', verseId: 1, startTokenIndex: 0 }, appearance: { kind: 'tint', color: 'accent' } },
         ],
       }),
     ];
     const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 3, layers, surface: 'standard', resolveColor });
     expect(resolved.words.size).toBe(0);
+  });
+});
+
+describe('resolveVerseDecorations - word targets (P0.1b, design doc §4.2)', () => {
+  const words = (texts: string[]) => texts.map((text) => ({ text }));
+
+  function wordDec(text: string, opts?: { scope?: WordTarget['scope']; occurrence?: number; matchCase?: boolean }): DecorationDto {
+    return {
+      target: {
+        kind: 'word',
+        text,
+        scope: opts?.scope ?? { verseId: 1 },
+        ...(opts?.occurrence !== undefined ? { occurrence: opts.occurrence } : {}),
+        ...(opts?.matchCase !== undefined ? { matchCase: opts.matchCase } : {}),
+      },
+      appearance: { kind: 'tint', color: 'accent' },
+    };
+  }
+
+  it('matches every occurrence of the clean, case-folded word text within verse scope by default', () => {
+    const layers = [layer({ decorations: [wordDec('god')] })];
+    const resolved = resolveVerseDecorations({
+      verseId: 1,
+      wordCount: 4,
+      words: words(['For', 'God', 'so', 'God']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+    });
+    expect([...resolved.words.keys()].sort()).toEqual([1, 3]);
+  });
+
+  it('matchCase: true requires an exact-case match', () => {
+    const layers = [layer({ decorations: [wordDec('God', { matchCase: true })] })];
+    const resolved = resolveVerseDecorations({
+      verseId: 1,
+      wordCount: 2,
+      words: words(['god', 'God']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+    });
+    expect([...resolved.words.keys()]).toEqual([1]);
+  });
+
+  it('a word outside its verse scope does not match', () => {
+    const layers = [layer({ decorations: [wordDec('faith', { scope: { verseId: 2 } })] })];
+    const resolved = resolveVerseDecorations({
+      verseId: 1,
+      wordCount: 1,
+      words: words(['faith']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+    });
+    expect(resolved.words.size).toBe(0);
+  });
+
+  it('occurrence (1-based) within a single verse picks only the nth match', () => {
+    const layers = [layer({ decorations: [wordDec('faith', { occurrence: 2 })] })];
+    const resolved = resolveVerseDecorations({
+      verseId: 1,
+      wordCount: 3,
+      words: words(['faith', 'is', 'faith']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+    });
+    expect([...resolved.words.keys()]).toEqual([2]);
+  });
+
+  it('occurrence in passage scope counts cumulatively using priorWordMatchCounts', () => {
+    const layers = [
+      layer({
+        decorations: [wordDec('faith', { scope: { startVerseId: 1, endVerseId: 3 }, occurrence: 3 })],
+      }),
+    ];
+    // 2 matches already counted in verse 1 - this verse's (verse 2's) first
+    // match is therefore the global 3rd.
+    const resolved = resolveVerseDecorations({
+      verseId: 2,
+      wordCount: 2,
+      words: words(['faith', 'hope']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+      priorWordMatchCounts: new Map([['ext.a::dec#0:0', 2]]),
+    });
+    expect([...resolved.words.keys()]).toEqual([0]);
+  });
+
+  it('occurrence in passage scope with no priorWordMatchCounts entry defaults to 0 (this verse treated as first)', () => {
+    const layers = [
+      layer({ decorations: [wordDec('faith', { scope: { startVerseId: 1, endVerseId: 3 }, occurrence: 1 })] }),
+    ];
+    const resolved = resolveVerseDecorations({
+      verseId: 2,
+      wordCount: 1,
+      words: words(['faith']),
+      layers,
+      surface: 'standard',
+      resolveColor,
+    });
+    expect([...resolved.words.keys()]).toEqual([0]);
+  });
+});
+
+describe('resolveVerseDecorations - tokens targets (P0.1b, amendment A5 - direct index, no offset fallback)', () => {
+  function tokensDec(startTokenIndex: number, endTokenIndex?: number): DecorationDto {
+    return {
+      target: { kind: 'tokens', verseId: 1, startTokenIndex, ...(endTokenIndex !== undefined ? { endTokenIndex } : {}) },
+      appearance: { kind: 'tint', color: 'accent' },
+    };
+  }
+
+  it('a single-index token target (no endTokenIndex) maps directly to that rendered index', () => {
+    const layers = [layer({ decorations: [tokensDec(1)] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 3, layers, surface: 'standard', resolveColor });
+    expect([...resolved.words.keys()]).toEqual([1]);
+  });
+
+  it('a token range maps to every rendered index in the inclusive range', () => {
+    const layers = [layer({ decorations: [tokensDec(0, 2)] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 4, layers, surface: 'standard', resolveColor });
+    expect([...resolved.words.keys()].sort()).toEqual([0, 1, 2]);
+  });
+
+  it('a token target out of the rendered verse bounds is dropped, not clamped', () => {
+    const layers = [layer({ decorations: [tokensDec(5, 8)] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 4, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.size).toBe(0);
+  });
+
+  it('a token target that only partially overflows the bound is dropped wholesale, not truncated', () => {
+    const layers = [layer({ decorations: [tokensDec(2, 6)] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 4, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.size).toBe(0);
+  });
+
+  it('a token target for a different verse does not match', () => {
+    const layers = [
+      layer({ decorations: [{ target: { kind: 'tokens', verseId: 2, startTokenIndex: 0 }, appearance: { kind: 'tint', color: 'accent' } }] }),
+    ];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 3, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.size).toBe(0);
+  });
+});
+
+describe('resolveVerseDecorations - emphasis/strike/badge composition (P0.1b acceptance)', () => {
+  it('emphasis sets bold on the target word(s)', () => {
+    const layers = [layer({ decorations: [{ target: { kind: 'verse', verseId: 1 }, appearance: { kind: 'emphasis' } }] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 1, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.get(0)?.bold).toBe(true);
+  });
+
+  it('strike defaults to the "text" theme color when none is given', () => {
+    const layers = [layer({ decorations: [{ target: { kind: 'verse', verseId: 1 }, appearance: { kind: 'strike' } }] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 1, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.get(0)?.strike?.color).toBe('C(text/1)');
+  });
+
+  it('strike honours an explicit color', () => {
+    const layers = [layer({ decorations: [{ target: { kind: 'verse', verseId: 1 }, appearance: { kind: 'strike', color: 'danger' } }] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 1, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.get(0)?.strike?.color).toBe('C(danger/1)');
+  });
+
+  it('emphasis/strike/badge all compose on a word/token target, not just verse/passage', () => {
+    const layers = [
+      layer({
+        decorations: [
+          { target: { kind: 'tokens', verseId: 1, startTokenIndex: 0 }, appearance: { kind: 'emphasis' } },
+          { target: { kind: 'tokens', verseId: 1, startTokenIndex: 0 }, appearance: { kind: 'badge', label: 'G26' } },
+        ],
+      }),
+    ];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 2, layers, surface: 'standard', resolveColor });
+    expect(resolved.words.get(0)?.bold).toBe(true);
+    expect(resolved.words.get(0)?.badges.map((b) => b.label)).toEqual(['G26']);
+    expect(resolved.words.has(1)).toBe(false);
   });
 });
 

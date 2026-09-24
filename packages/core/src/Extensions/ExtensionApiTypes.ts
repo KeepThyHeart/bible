@@ -234,6 +234,23 @@ export interface IBibleApi {
   ): Promise<VerseTokenDto[] | null>;
 
   /**
+   * Batch form of {@link getVerseTokens} over an inclusive verse-id range
+   * (task 0036, P0.1b; design doc §4.4). Without this, a decorator that
+   * colours every verse of a chapter by Strong's number or morphology would
+   * need one `getVerseTokens` round-trip per verse - up to 176 for Psalm 119 -
+   * inside `decorateEndpoint`'s single 3-second budget, which cannot work.
+   *
+   * Keyed by verse id; a verse with no token data (or no verses at all in
+   * range) is simply absent from the result, never a `null` entry. Same
+   * permission as `getVerseTokens` (`bible:read`, default-granted).
+   */
+  getTokensForRange(
+    startVerseId: number,
+    endVerseId: number,
+    opts?: { module?: string },
+  ): Promise<Record<number, VerseTokenDto[]>>;
+
+  /**
    * Programmatically navigate the primary Bible pane to a specific verse.
    * The host resolves after the renderer has processed the navigation
    * request and dispatches `verse.activeChanged` (`api.events.subscribe`)

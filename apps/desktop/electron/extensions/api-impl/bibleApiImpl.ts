@@ -75,6 +75,7 @@ export class BibleApiImpl {
       parseReference: (args) => this.handleParseReference(args),
       iterateVerses: (args) => this.handleIterateVerses(args),
       getVerseTokens: (args) => this.handleGetVerseTokens(args),
+      getTokensForRange: (args) => this.handleGetTokensForRange(args),
       navigateToVerse: (args) => this.handleNavigateToVerse(args),
       registerProvider: (args) => this.handleRegisterProvider(args),
       dispose: (args) => this.registrations.handleDispose(args),
@@ -213,6 +214,31 @@ export class BibleApiImpl {
     }
     const moduleId = readOptionalModule(args[1], 'bible.getVerseTokens');
     return this.bridge.getVerseTokens(verseId, moduleId);
+  }
+
+  private async handleGetTokensForRange(args: unknown[]): Promise<unknown> {
+    this.assertActive();
+    requirePermission(this.grant, 'bible:read');
+    const start = args[0];
+    const end = args[1];
+    if (
+      typeof start !== 'number' ||
+      typeof end !== 'number' ||
+      !Number.isFinite(start) ||
+      !Number.isFinite(end)
+    ) {
+      throw new RpcProtocolError('bible.getTokensForRange: startVerseId and endVerseId must be finite numbers');
+    }
+    if (end < start) {
+      throw new RpcProtocolError('bible.getTokensForRange: endVerseId must be >= startVerseId');
+    }
+    if (end - start + 1 > MAX_RANGE_SIZE) {
+      throw new RpcProtocolError(
+        `bible.getTokensForRange: range size exceeds the ${MAX_RANGE_SIZE}-verse maximum`,
+      );
+    }
+    const moduleId = readOptionalModule(args[2], 'bible.getTokensForRange');
+    return this.bridge.getTokensForRange(start, end, moduleId);
   }
 
   private async handleNavigateToVerse(args: unknown[]): Promise<unknown> {

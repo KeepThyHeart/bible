@@ -153,6 +153,14 @@ export class InMemoryBibleBridge implements IExtensionBibleBridge {
     return this.tokens.get(verseId) ?? null;
   }
 
+  getTokensForRange(startVerseId: number, endVerseId: number, _moduleId?: string): Record<number, VerseTokenDto[]> {
+    const result: Record<number, VerseTokenDto[]> = {};
+    for (const [verseId, tokens] of this.tokens) {
+      if (verseId >= startVerseId && verseId <= endVerseId && tokens.length > 0) result[verseId] = tokens;
+    }
+    return result;
+  }
+
   listModules(): BibleModuleInfoDto[] {
     return [...this.modules];
   }

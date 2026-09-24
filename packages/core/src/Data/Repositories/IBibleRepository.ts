@@ -74,6 +74,14 @@ export interface IBibleRepository {
   // Interlinear Operations (for original language texts)
   getInterlinearWords(verseId: VerseId): InterlinearWord[];
   getInterlinearWordsForChapter(book: BookNumber, chapter: number): Map<VerseId, InterlinearWord[]>;
+  /**
+   * Get interlinear words for every verse in an inclusive verse-id range
+   * (batch query, task 0036 P0.1b / design doc §4.4). Unlike
+   * `getInterlinearWordsForChapter`, `startVerseId`/`endVerseId` need not be
+   * one chapter - backs `bible.getTokensForRange`, which a decorator can call
+   * once per chapter-sized fetch instead of once per verse.
+   */
+  getInterlinearWordsForRange(startVerseId: VerseId, endVerseId: VerseId): Map<VerseId, InterlinearWord[]>;
   hasInterlinearData(): boolean;
 
   // Strong's Number Search Operations
