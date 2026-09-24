@@ -29,7 +29,6 @@ import { CHAPTERS_JOHN } from './fixtures';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
 type DisposableHandle = Extensions.DisposableHandle;
-type IEventApi<T> = Extensions.IEventApi<T>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,13 +99,6 @@ function mockDisposable(): DisposableHandle {
   return { dispose: asyncMock<void>(undefined) };
 }
 
-/** Create a mock IEventApi<T>. */
-function mockEvent<T>(): IEventApi<T> {
-  return {
-    subscribe: asyncMock(mockDisposable()) as IEventApi<T>['subscribe'],
-  };
-}
-
 // ─── Namespace mock builders ──────────────────────────────────────────────────
 
 function createMockBibleApi(): Extensions.IBibleApi {
@@ -146,8 +138,6 @@ function createMockBibleApi(): Extensions.IBibleApi {
     getVerseTokens: asyncMock(null),
     navigateToVerse: asyncMock<void>(undefined),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveVerse: mockEvent(),
-    onDidSelectVerseWord: mockEvent(),
   };
 }
 
@@ -158,7 +148,6 @@ function createMockCommentaryApi(): Extensions.ICommentaryApi {
     getEntriesForRange: asyncMock([] as Extensions.CommentaryEntryDto[]),
     iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.CommentaryIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveCommentary: mockEvent(),
   };
 }
 
@@ -169,7 +158,6 @@ function createMockDictionaryApi(): Extensions.IDictionaryApi {
     search: asyncMock([] as Extensions.DictionaryEntryDto[]),
     iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.DictionaryIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveDictionary: mockEvent(),
   };
 }
 
@@ -180,7 +168,6 @@ function createMockBookApi(): Extensions.IBookApi {
     listSections: asyncMock([] as Extensions.BookSectionSummaryDto[]),
     iterateSections: asyncMock({ sections: [], hasMore: false } as Extensions.BookIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveBook: mockEvent(),
   };
 }
 
@@ -191,7 +178,6 @@ function createMockNotesApi(): Extensions.INotesApi {
     create: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
     update: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
     delete: asyncMock<void>(undefined),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -203,7 +189,6 @@ function createMockHighlightsApi(): Extensions.IHighlightsApi {
     delete: asyncMock<void>(undefined),
     registerStyle: asyncMock(mockDisposable()),
     listStyles: asyncMock([] as Extensions.HighlightStyleDescriptor[]),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -286,9 +271,6 @@ function createMockWorkspaceApi(): Extensions.IWorkspaceApi {
     setPanelTitle: asyncMock<void>(undefined),
     setPanelBadge: asyncMock<void>(undefined),
     revealPanel: asyncMock(true),
-    onDidChangeActivePanel: mockEvent(),
-    onDidOpenPanel: mockEvent(),
-    onDidClosePanel: mockEvent(),
   };
 }
 
@@ -296,7 +278,6 @@ function createMockContextApi(): Extensions.IContextApi {
   return {
     get: asyncMock(undefined),
     set: asyncMock<void>(undefined),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -501,7 +482,6 @@ function createMockStorageApi(): Extensions.IStorageApi {
       secrets.delete(key);
     }),
     getSetting: asyncMock(undefined),
-    onDidChangeSettings: mockEvent(),
     // Keyed by name, so a test can re-open the same database to inspect what
     // the extension did to it. A closed handle is replaced rather than
     // resurrected, which is what a second `openDatabase` gets on the host.
@@ -536,13 +516,13 @@ function createMockL10nApi(): Extensions.IL10nApi {
   return {
     t: asyncMock(''),
     currentLocale: asyncMock('en'),
-    onDidChangeLocale: mockEvent(),
   };
 }
 
 function createMockEventsApi(): Extensions.IEventsApi {
   return {
     subscribe: asyncMock(mockDisposable()) as Extensions.IEventsApi['subscribe'],
+    publish: asyncMock<void>(undefined),
   };
 }
 
@@ -594,8 +574,6 @@ function createMockExtensionsApi(): Extensions.IExtensionsApi {
     call: asyncMock(undefined as unknown) as Extensions.IExtensionsApi['call'],
     isActive: asyncMock(false),
     listProviders: asyncMock([] as Extensions.ExtensionProviderInfo[]),
-    onDidActivate: mockEvent(),
-    onDidDeactivate: mockEvent(),
   };
 }
 

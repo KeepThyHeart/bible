@@ -62,6 +62,7 @@ import {
   fireActivationEvent as lifecycleFireActivationEvent,
   dispatchExtensionPoint as lifecycleDispatchExtensionPoint,
 } from './ExtensionHostLifecycle';
+import { wireExtensionPoints } from './ExtensionPointWiring';
 
 // Re-exports so existing callers (`main.ts`, `RendererConsentPrompter.ts`,
 // tests) continue to import these names from `./ExtensionHost`.
@@ -194,6 +195,14 @@ export class ExtensionHost implements IExtensionHost {
         );
       }
     }
+
+    // Subscribe every bridge-sourced extension point once, for the lifetime
+    // of this host - see `ExtensionPointWiring.ts`. `ExtensionHost` has no
+    // explicit shutdown path today (it lives for the app's whole process
+    // lifetime), so the returned disposer has nothing to be called from; it
+    // exists for symmetry with `installReplayHooks` and for a future
+    // `dispose()` to pick up.
+    wireExtensionPoints(this.ctx);
   }
 
   /** Wire the consent prompter after construction (e.g. once the window exists). */
@@ -430,10 +439,10 @@ export class ExtensionHost implements IExtensionHost {
 
   // --- Extension point dispatch ------------------------------------------
 
-  dispatchExtensionPoint<TPayload, TReturn>(
-    pointId: ExtensionPointId,
-    payload: TPayload,
-  ): Promise<TReturn> {
-    return lifecycleDispatchExtensionPoint<TPayload, TReturn>(this.ctx, pointId, payload);
+  dispatchExtensionPoint<K extends ExtensionPointId>(
+    pointId: K,
+    payload: Extensions.ExtensionPointPayloadMap[K],
+  ): Promise<Extensions.ExtensionPointReturnMap[K]> {
+    return lifecycleDispatchExtensionPoint(this.ctx, pointId, payload);
   }
 }

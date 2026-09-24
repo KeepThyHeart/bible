@@ -2,7 +2,8 @@
  * Renderer-local fan-out of "the active verse changed", published from the
  * same two call sites in `verseSlice.ts` that already IPC it to the main
  * process (`window.electron.window.broadcastVerseChange`, which main
- * forwards to worker extensions as `bible.onDidChangeActiveVerse`).
+ * forwards to worker extensions as `verse.activeChanged` via
+ * `api.events.subscribe`).
  *
  * Panel iframes (`useIframeBridge.ts`) need the same signal to forward as
  * `verse.activeChanged` to `BibleExtUI.onActiveVerseChanged`, but they run in

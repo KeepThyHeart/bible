@@ -9,10 +9,16 @@
  *   - **Secrets** (`setSecret/getSecret/deleteSecret`). Routes
  *     through the OS keychain via `ISecretsKeychain`. Per-extension service
  *     namespace `bible-app:ext.<id>`. Permission: `storage:secrets`.
- *   - **Settings** (`getSetting`, `onDidChangeSettings`). Read-only
- *     mirror of `contributes.configuration`. Reads `__settings.<key>` rows
- *     populated by `ExtensionHost.setSettings` (which calls
- *     `notifySettingsChanged` on this api-impl after a successful write).
+ *   - **Settings** (`getSetting`, and `settings.changed` via
+ *     `api.events.subscribe`). Read-only mirror of `contributes.configuration`.
+ *     Reads `__settings.<key>` rows populated by `ExtensionHost.setSettings`
+ *     (which calls `notifySettingsChanged` on this api-impl after a
+ *     successful write). `settings.changed` is fired only to the *owning*
+ *     worker - deliberately not through the host-wide
+ *     `dispatchExtensionPoint`/`ExtensionPointWiring.ts` fan-out every other
+ *     channel uses (task 0024 round 3, P0.3), because settings are private
+ *     to the extension that owns them and that dispatcher has no per-worker
+ *     targeting.
  *   - **`openDatabase`**. Per-extension SQLite file under
  *     `data/extensions/<id>/db/<name>.db` via `ExtensionDatabaseRegistry`.
  *     Reverse-RPC handles dispatch to `db.exec/query/queryOne/run/begin/
@@ -53,8 +59,13 @@ export const DEFAULT_KV_QUOTA_BYTES = 5 * 1024 * 1024;
 const RESERVED_KEY_PREFIXES = ['__settings.'];
 const SETTINGS_PREFIX = '__settings.';
 
-/** Channel name the worker subscribes to via `api.storage.onDidChangeSettings`. */
-const SETTINGS_CHANGE_CHANNEL = 'storage.onDidChangeSettings';
+/**
+ * Channel name the worker subscribes to via `api.events.subscribe('settings.changed', ...)`.
+ * Kept as an `ExtensionPointId` literal so a rename here would be a
+ * type error, even though this call site fires directly rather than
+ * through `dispatchExtensionPoint` - see the class doc comment.
+ */
+const SETTINGS_CHANGE_CHANNEL: Extensions.ExtensionPointId = 'settings.changed';
 
 export interface StorageApiImplOptions {
   extensionId: string;
@@ -164,9 +175,9 @@ export class StorageApiImpl {
   // --- Settings change emit (called from ExtensionHost.setSettings) ------
 
   /**
-   * Push a `storage.onDidChangeSettings` event to the worker. The host calls
-   * this after writing new settings via `setSettings`. The router silently
-   * drops the emit if the worker has not subscribed.
+   * Push a `settings.changed` event to this extension's own worker. The host
+   * calls this after writing new settings via `setSettings`. The router
+   * silently drops the emit if the worker has not subscribed.
    */
   notifySettingsChanged(keys: string[]): void {
     if (this.disposed) return;

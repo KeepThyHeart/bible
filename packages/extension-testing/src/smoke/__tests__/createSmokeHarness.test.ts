@@ -72,14 +72,14 @@ describe('createSmokeHarness', () => {
           id: 'hover-1',
           hoverEndpoint: 'onHover',
         });
-        await api.bible.onDidChangeActiveVerse.subscribe(() => {});
+        await api.events.subscribe('verse.activeChanged', () => {});
       },
     });
     await harness.activate();
     const hooks = harness.enumerate();
     expect(hooks.some((h) => h.hookId === 'statusBar:sb-1')).toBe(true);
     expect(hooks.find((h) => h.hookId === 'hover:hover-1')?.endpoint).toBe('onHover');
-    expect(hooks.some((h) => h.hookId === 'event:bible.onDidChangeActiveVerse')).toBe(true);
+    expect(hooks.some((h) => h.hookId === 'event:verse.activeChanged')).toBe(true);
   });
 
   it('invokes an event hook by firing captured subscribers', async () => {
@@ -87,14 +87,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe((payload) => {
+        await api.events.subscribe('verse.activeChanged', (payload) => {
           received = payload;
         });
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       { verseId: 43003016, module: 'kjv' },
     );
     expect(result.status).toBe('ok');
@@ -105,14 +105,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(
+        await api.events.subscribe('verse.activeChanged', 
           () => new Promise(() => {}),
         );
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       null,
       { timeoutMs: 25 },
     );
@@ -123,14 +123,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(() => {
+        await api.events.subscribe('verse.activeChanged', () => {
           throw new Error('boom');
         });
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       null,
     );
     expect(result.status).toBe('threw');

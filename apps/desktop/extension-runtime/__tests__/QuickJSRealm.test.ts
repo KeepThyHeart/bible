@@ -177,7 +177,7 @@ describe('word-count runs end-to-end inside the realm', () => {
     // ...and it subscribed to the verse-change channel.
     const subscribe = h.sent.find((e) => e.kind === 'subscribe');
     expect(subscribe).toBeDefined();
-    expect((subscribe as Extensions.RpcSubscribe).channel).toBe('bible.onDidChangeActiveVerse');
+    expect((subscribe as Extensions.RpcSubscribe).channel).toBe('verse.activeChanged');
 
     // ...and told the host it activated cleanly.
     const ack = h.sent.find((e) => e.kind === 'response' && e.id === 'host-init');
@@ -215,7 +215,7 @@ describe('word-count runs end-to-end inside the realm', () => {
     // event in -> RPC out -> response in -> continuation -> RPC out.
     h.realm.deliver({
       kind: 'event',
-      channel: 'bible.onDidChangeActiveVerse',
+      channel: 'verse.activeChanged',
       payload: { verseId: 43003016 },
     });
     h.settle(handlers);

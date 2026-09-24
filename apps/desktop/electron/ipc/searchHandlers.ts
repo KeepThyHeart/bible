@@ -33,6 +33,17 @@ import {
   applySearchHighlighting as applyHighlighting,
   formatSemanticReference,
 } from './searchHelpers';
+import type { ExtensionHost } from '../extensions/ExtensionHost';
+
+/**
+ * Options for `registerSearchHandlers`. `getExtensionHost` is a *lazy*
+ * accessor - see `NotesHandlersOptions`'s doc comment in `notesHandlers.ts`
+ * for why a plain `extensionHost` parameter would not work here (`main.ts`
+ * registers IPC handlers before constructing `ExtensionHost`).
+ */
+export interface SearchHandlersOptions {
+  getExtensionHost?: () => ExtensionHost | null | undefined;
+}
 
 // Database connections (singleton)
 let bibleDb: SqliteProvider | null = null;
@@ -171,13 +182,13 @@ function applySearchHighlighting(html: string, matches: Array<{ term: string }>)
   return applyHighlighting(html, matches, highlightSearchTerms);
 }
 
-export function registerSearchHandlers(_ipcMain: IpcMain): void {
+export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOptions = {}): void {
   // Initialize services
   initializeSearchServices();
 
   // Handler: Perform search
-  ipcHandler<[string, any], any[]>('search:performSearch', async (query, options) => {
-    validateString(query, 'search query', 1000);
+  ipcHandler<[string, any], any[]>('search:performSearch', async (queryArg, optionsArg) => {
+    validateString(queryArg, 'search query', 1000);
     // A Bible installed after startup is picked up on the first search that
     // needs it, rather than leaving search off until the app restarts.
     if (!searchController) {
@@ -185,6 +196,32 @@ export function registerSearchHandlers(_ipcMain: IpcMain): void {
     }
     if (!searchController || !searchService) {
       throw new IpcKnownError('unavailable', 'Search controller not initialized');
+    }
+
+    // `search.beforeQuery` (task 0024 round 3, P0.3) lets an extension
+    // rewrite the query before it reaches the index - lemma/morphology
+    // expansion, a saved-alias vocabulary, transliteration normalisation are
+    // the motivating cases (design-p0.3-p2.14-event-system.md §5.2). This
+    // channel carries a tighter per-subscriber timeout
+    // (`EXTENSION_POINT_TIMEOUT_MS_OVERRIDE`) than the filter default,
+    // because a slow extension here is felt directly as search latency.
+    let query = queryArg;
+    let options = optionsArg;
+    const host = opts.getExtensionHost?.();
+    if (host) {
+      const transformed = await host.dispatchExtensionPoint('search.beforeQuery', {
+        query: {
+          query,
+          ...(options?.scope !== undefined ? { scope: options.scope } : {}),
+        },
+        ...(options?.scope !== undefined ? { scope: options.scope } : {}),
+      });
+      if (transformed) {
+        query = transformed.query;
+        if (transformed.scope !== undefined) {
+          options = { ...options, scope: transformed.scope };
+        }
+      }
     }
 
     log.info('Performing search:', query, options);

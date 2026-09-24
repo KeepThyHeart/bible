@@ -4,8 +4,20 @@ import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateVerseId } from '../utils/validation';
+import type { ExtensionHost } from '../extensions/ExtensionHost';
 
 const loader = new ModuleLoader('cross_reference', 'crossRef');
+
+/**
+ * Options for `registerCrossReferenceHandlers`. `getExtensionHost` is a
+ * *lazy* accessor - see `NotesHandlersOptions`'s doc comment in
+ * `notesHandlers.ts` for why a plain `extensionHost` parameter would not
+ * work here (`main.ts` registers IPC handlers before constructing
+ * `ExtensionHost`).
+ */
+export interface CrossReferenceHandlersOptions {
+  getExtensionHost?: () => ExtensionHost | null | undefined;
+}
 
 function getXrefRepository(abbreviation: string): CrossReferenceRepository | null {
   return loader.get(abbreviation);
@@ -60,7 +72,10 @@ interface XrefRangeReverseRefDto extends XrefReverseRefDto {
   target_verse_id_end: number;
 }
 
-export function registerCrossReferenceHandlers(_ipcMain: IpcMain): void {
+export function registerCrossReferenceHandlers(
+  _ipcMain: IpcMain,
+  opts: CrossReferenceHandlersOptions = {},
+): void {
 
   // Get available cross-reference modules
   ipcHandler<[], XrefModuleSummary[]>('xref:getAvailable', async () => {
@@ -88,7 +103,7 @@ export function registerCrossReferenceHandlers(_ipcMain: IpcMain): void {
     if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
 
     const groupsWithEntries = repo.getGroupsWithEntries(verseId);
-    return groupsWithEntries.map(({ group, entries }) => ({
+    const builtIn: XrefGroupWithEntries[] = groupsWithEntries.map(({ group, entries }) => ({
       group: {
         group_id: group.groupId,
         verse_id: group.verseId,
@@ -107,6 +122,39 @@ export function registerCrossReferenceHandlers(_ipcMain: IpcMain): void {
         metadata: e.metadata
       }))
     }));
+
+    // `crossReferences.requested` (task 0024 round 3, P0.3) lets an
+    // extension contribute its own cross references - a user's own set, or
+    // a module format the host does not read natively - merged in *after*
+    // the built-ins, per `design-p0.3-p2.14-event-system.md` §5.2. Each
+    // contributed `CrossReferenceDto` becomes its own single-entry group,
+    // since the flat DTO shape has no group/phrase concept of its own.
+    const host = opts.getExtensionHost?.();
+    if (!host) return builtIn;
+    const contributed = await host.dispatchExtensionPoint('crossReferences.requested', { verseId });
+    if (contributed.length === 0) return builtIn;
+    const fromExtensions: XrefGroupWithEntries[] = contributed.map((dto) => ({
+      group: {
+        group_id: undefined,
+        verse_id: dto.fromVerseId,
+        verse_id_end: dto.fromVerseId,
+        phrase: undefined,
+        sort_order: undefined,
+        metadata: dto.metadata,
+      },
+      entries: [
+        {
+          entry_id: undefined,
+          group_id: undefined,
+          target_verse_id: dto.toVerseId,
+          target_verse_end_id: dto.toEndVerseId,
+          note: dto.note,
+          sort_order: undefined,
+          metadata: { source: dto.source, ...dto.metadata },
+        },
+      ],
+    }));
+    return [...builtIn, ...fromExtensions];
   });
 
   // Phrase-grouped cross-references for a whole verse RANGE (one chapter).

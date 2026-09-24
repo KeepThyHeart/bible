@@ -93,7 +93,7 @@ function writeFixture(root: string, opts: FixtureOpts): void {
     name: { key: 'extension.name' },
     version: '1.0.0',
     publisher: 'test',
-    engines: { bibleApp: opts.engines ?? '^1.0.0' },
+    engines: { bibleApp: opts.engines ?? '^0.1.0' },
     main: './main.js',
     permissions: ['bible:read'],
   };
@@ -136,7 +136,7 @@ describe('Version check + activation events', () => {
   });
 
   it('accepts an extension whose engines.bibleApp matches the host version', async () => {
-    writeFixture(tmpRoot, { id: 'ext.test.compat', engines: '^1.0.0' });
+    writeFixture(tmpRoot, { id: 'ext.test.compat', engines: '^0.1.0' });
     host = new ExtensionHost({
       db: new FakeSql(),
       extensionsRoot: tmpRoot,

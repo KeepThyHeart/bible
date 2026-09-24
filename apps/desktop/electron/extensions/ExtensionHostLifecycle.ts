@@ -1,17 +1,22 @@
 /**
- * Worker lifecycle + activation/deactivation + crash handling + extension
- * point dispatch for `ExtensionHost`.
+ * Worker lifecycle + activation/deactivation + crash handling for
+ * `ExtensionHost`.
  *
  * Covers:
- *   - `activate` (spawn worker, delegate api-impl wiring to
- *     `ExtensionHostRpc.attachApiImpls`, run the init handshake, roll back
- *     on failure).
- *   - `deactivate` (tear the worker down + notify onDidDeactivate observers).
+ *   - `activate` (spawn worker, install replay hooks, delegate api-impl
+ *     wiring to `ExtensionHostRpc.attachApiImpls`, run the init handshake,
+ *     roll back on failure).
+ *   - `deactivate` (tear the worker down + notify `extension.deactivated`
+ *     subscribers).
  *   - `fireActivationEvent` (activation-event fan-out).
  *   - `handleWorkerExit` (crash accounting + auto-disable).
- *   - `dispatchExtensionPoint` (fan-out to active workers).
  *
- * RPC namespace wiring lives in `ExtensionHostRpc.ts`.
+ * RPC namespace wiring lives in `ExtensionHostRpc.ts`. The extension-point
+ * dispatcher itself (`dispatchExtensionPoint`, covering all three channel
+ * kinds), the bridge-sourced wiring that calls it, and the replay-hook
+ * installer used below all live in `ExtensionPointWiring.ts` - re-exported
+ * from here so `ExtensionHost.dispatchExtensionPoint` (the public method
+ * other host subsystems and tests call) does not need to know it moved.
  */
 
 import log from 'electron-log';
@@ -27,8 +32,9 @@ import {
   type ExtensionHostContext,
 } from './ExtensionHostTypes';
 import { attachApiImpls, disposeApiImpls } from './ExtensionHostRpc';
+import { installReplayHooks } from './ExtensionPointWiring';
 
-type ExtensionPointId = Extensions.ExtensionPointId;
+export { dispatchExtensionPoint } from './ExtensionPointWiring';
 
 export async function activate(
   ctx: ExtensionHostContext,
@@ -182,6 +188,12 @@ export async function activate(
     });
     active = { worker, router, consecutiveTimeouts: 0 };
 
+    // Install the replay-on-subscribe hooks for this worker's router before
+    // any api-impl attaches - `EXTENSION_POINT_REPLAY` channels (currently
+    // just `verse.activeChanged`) must be able to answer the very first
+    // subscribe this worker sends, including one sent during `activate()`.
+    installReplayHooks(ctx, router);
+
     attachApiImpls(ctx, extensionId, entry, router, active);
 
     ctx.activeWorkers.set(extensionId, active);
@@ -197,7 +209,10 @@ export async function activate(
       installPath: entry.installPath,
       grantedPermissions: entry.grantedPermissions,
       hostApiVersion: Extensions.EXTENSION_API_VERSION,
-      hostMinSupportedApiVersion: '1.0.0',
+      // No dual-support window exists yet (see EXTENSION_API_VERSION's doc
+      // comment - retrograded to 0.1.0, pre-release) - the host supports
+      // exactly the one version it serves.
+      hostMinSupportedApiVersion: Extensions.EXTENSION_API_VERSION,
       locale: 'en',
       hostFeatures: [] as string[],
     };
@@ -235,10 +250,20 @@ export async function activate(
     message: 'Activated',
   });
 
-  // Notify all other active workers that this extension activated, so `extensions.onDidActivate` events fire.
+  // Notify all other active workers that this extension activated, so
+  // `extension.activated` (`api.events.subscribe`) subscribers fire. Fired
+  // directly here rather than through the generic `dispatchExtensionPoint`
+  // fan-out below: the newly-activated worker is deliberately excluded (its
+  // own activation is not news to it, and its replay hooks/subscriptions may
+  // not exist yet at this exact tick), which the generic dispatcher's
+  // `subscribers()` has no way to express.
   for (const [id, w] of ctx.activeWorkers) {
     if (id === extensionId) continue;
-    w.extensionsApi?.emitDidActivate(extensionId);
+    try {
+      w.router.emitEvent('extension.activated', { extensionId });
+    } catch (err) {
+      log.warn(`[ExtensionHost] extension.activated notify failed for ${id}:`, err);
+    }
   }
 }
 
@@ -276,9 +301,14 @@ export async function deactivate(
     message: 'Deactivated',
   });
 
-  // Notify remaining active workers that this extension deactivated, so `extensions.onDidDeactivate` events fire.
-  for (const w of ctx.activeWorkers.values()) {
-    w.extensionsApi?.emitDidDeactivate(extensionId);
+  // Notify remaining active workers that this extension deactivated, so
+  // `extension.deactivated` (`api.events.subscribe`) subscribers fire.
+  for (const [id, w] of ctx.activeWorkers) {
+    try {
+      w.router.emitEvent('extension.deactivated', { extensionId });
+    } catch (err) {
+      log.warn(`[ExtensionHost] extension.deactivated notify failed for ${id}:`, err);
+    }
   }
 }
 
@@ -304,29 +334,6 @@ export async function fireActivationEvent(
       );
     }
   }
-}
-
-export async function dispatchExtensionPoint<TPayload, TReturn>(
-  ctx: ExtensionHostContext,
-  pointId: ExtensionPointId,
-  payload: TPayload,
-): Promise<TReturn> {
-  // Event-kind hooks: fan out to every active worker that subscribed via
-  // `api.events.subscribe(pointId, ...)`. The router only emits if there
-  // is at least one subscription on the channel, so this stays cheap when
-  // no one cares. Filter / provider hooks (T2/T3) will land their own
-  // request/response shapes here in follow-up chunks.
-  for (const active of ctx.activeWorkers.values()) {
-    try {
-      active.router.emitEvent(pointId, payload);
-    } catch (err) {
-      log.warn(
-        `[ExtensionHost] dispatchExtensionPoint(${pointId}) failed for one worker:`,
-        err,
-      );
-    }
-  }
-  return undefined as unknown as TReturn;
 }
 
 export function handleWorkerExit(

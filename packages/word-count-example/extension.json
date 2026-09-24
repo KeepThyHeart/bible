@@ -6,7 +6,7 @@
   "publisher": "bible-app",
   "description": "Shows a word count for the current Bible passage in the status bar.",
   "engines": {
-    "bibleApp": "^1.0.0"
+    "bibleApp": "^0.1.0"
   },
   "main": "src/main.js",
   "permissions": [

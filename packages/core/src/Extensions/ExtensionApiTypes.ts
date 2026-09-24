@@ -50,7 +50,6 @@ import type {
   FolderGrantHandle,
   FolderUsageInfo,
   HighlightStyleDescriptor,
-  IEventApi,
   IExtensionDatabase,
   InputBoxOpts,
   IterateBookOpts,
@@ -89,34 +88,46 @@ import type {
   VerseHoverProviderDescriptor,
   VerseIterationResult,
   VerseTokenDto,
-  VerseWordSelection,
   WhenContextValue,
 } from './ExtensionApiDtos';
+import type {
+  ExtensionPointPayloadMap,
+  ExtensionPointReturnMap,
+} from './ExtensionPointTypes';
 
 /**
  * The current extension API version. Used by the host and worker to negotiate
- * compatibility (see `engines.bibleApp` in the manifest). Bumped according to
- * strict semver:
+ * compatibility (see `engines.bibleApp` in the manifest).
  *
- * - **Patch**: bug fixes only. No surface change.
- * - **Minor**: additive only - new methods, optional fields, permissions,
- *   contribution points, extension points, provider roles.
- * - **Major**: breaking change. Ships side-by-side with the previous major
- *   for at least 12 months.
+ * **Retrograded to `0.1.0` (task 0024, round 3).** Earlier work on this task
+ * bumped this through `1.1.0` and `1.2.0` under a strict-semver policy
+ * (patch/minor/major, with a 12-month major dual-support window). The human
+ * reviewing round 3 pointed out that policy assumes a stable, publicly
+ * distributed API - which does not exist yet: no beta has shipped, and the
+ * only extension written against this API (`bible-memory`) is written by the
+ * same person approving this task. Resetting to a pre-1.0, unstable-by-
+ * definition `0.1.0` says plainly that nothing here is a compatibility
+ * promise yet, and removes the temptation to read a `1.x`/`2.x` number as
+ * one. (The human suggested the bare string "0.1" - this file uses `0.1.0`
+ * instead because `semverRange.ts`'s `parseVersion` requires a strict
+ * three-segment `\d+.\d+.\d+`, and `engines.bibleApp` range matching against
+ * `EXTENSION_API_VERSION` would otherwise silently fail to parse and refuse
+ * every extension. `0.1.0` is the three-segment form of the same version.)
  *
- * 1.2.0 (task 0024, "host extension hooks"): mostly additive -
- * `ui.updateStatusBarItem`, `workspace.setPanelTitle`/`setPanelBadge`/
- * `revealPanel`, `commands:execute-builtin`, and `showNotification`'s
- * widened `Promise<string | undefined>` return (a strict superset of
- * `Promise<void>` - existing callers that ignore the result are
- * unaffected). The one non-additive part: `search:provide`, `import:provide`,
- * `tts:provide` and `ai:provide` were removed outright (no API ever existed
- * behind any of them - see `Permissions.ts`). Treated as pre-launch cleanup
- * rather than a major bump, since no extension has shipped against this API
- * yet - the 12-month dual-support policy above exists to protect extensions
- * already in the wild, and none are.
+ * The strict-semver / 12-month-dual-support policy above is retired along
+ * with the number; it can be reinstated verbatim once a real beta or public
+ * release makes versioning promises meaningful. Until then, treat every
+ * change - additive or breaking - as pre-release churn: bump the middle
+ * segment (`0.2.0`, `0.3.0`, ...) for any surface change worth noting in an
+ * extension's `engines.bibleApp` range, and do not read more into the number
+ * than that.
+ *
+ * This round's breaking changes (the `onDid*` -> `api.events.subscribe`
+ * unification below) ship under this same `0.1.0` - there is no
+ * dual-support window to honor, and `bible-memory` is updated in lockstep in
+ * its own task.
  */
-export const EXTENSION_API_VERSION = '1.2.0' as const;
+export const EXTENSION_API_VERSION = '0.1.0' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker
@@ -225,7 +236,8 @@ export interface IBibleApi {
   /**
    * Programmatically navigate the primary Bible pane to a specific verse.
    * The host resolves after the renderer has processed the navigation
-   * request and fires `onDidChangeActiveVerse` once the verse is visible.
+   * request and dispatches `verse.activeChanged` (`api.events.subscribe`)
+   * once the verse is visible.
    *
    * Requires `bible:read` permission (navigation is a read-adjacent action).
    */
@@ -238,12 +250,6 @@ export interface IBibleApi {
   registerProvider(
     provider: BibleProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  /** Stable event: the user navigated to a new active verse anywhere in the app. */
-  onDidChangeActiveVerse: IEventApi<{ verseId: number; module: string } | null>;
-
-  /** A token / word inside a verse was selected (click, double-click, or selection). */
-  onDidSelectVerseWord: IEventApi<VerseWordSelection>;
 }
 
 // --- ICommentaryApi *(T1 reads; provider/iterate are T2)* ------------------
@@ -269,8 +275,6 @@ export interface ICommentaryApi {
   registerProvider(
     provider: CommentaryProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  onDidChangeActiveCommentary: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- IDictionaryApi *(T1 reads; provider/iterate are T2)* ------------------
@@ -298,8 +302,6 @@ export interface IDictionaryApi {
   registerProvider(
     provider: DictionaryProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  onDidChangeActiveDictionary: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- IBookApi *(T1 reads; provider/iterate are T2)* ------------------------
@@ -320,8 +322,6 @@ export interface IBookApi {
   iterateSections(opts: IterateBookOpts): Promise<BookIterationResult>;
 
   registerProvider(provider: BookProviderDescriptor): Promise<DisposableHandle>;
-
-  onDidChangeActiveBook: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- INotesApi / IHighlightsApi / IBookmarksApi *(T1 CRUD; styles are T2)* -
@@ -332,7 +332,6 @@ export interface INotesApi {
   create(note: NewNoteDto): Promise<UserNoteDto>;
   update(id: string, patch: Partial<UserNoteDto>): Promise<UserNoteDto>;
   delete(id: string): Promise<void>;
-  onDidChange: IEventApi<{ id: string; type: 'created' | 'updated' | 'deleted' }>;
 }
 
 export interface IHighlightsApi {
@@ -350,8 +349,6 @@ export interface IHighlightsApi {
 
   /** List all registered highlight styles (built-in + extension-contributed). */
   listStyles(): Promise<HighlightStyleDescriptor[]>;
-
-  onDidChange: IEventApi<{ verseId: number }>;
 }
 
 export interface IBookmarksApi {
@@ -631,10 +628,6 @@ export interface IWorkspaceApi {
    * not found (already closed, or never existed).
    */
   revealPanel(panelId: string): Promise<boolean>;
-
-  onDidChangeActivePanel: IEventApi<PanelInfoDto | null>;
-  onDidOpenPanel: IEventApi<PanelInfoDto>;
-  onDidClosePanel: IEventApi<{ panelId: string; contentType: string }>;
 }
 
 // --- IContextApi *(T1)* ----------------------------------------------------
@@ -648,8 +641,6 @@ export interface IContextApi {
    * built-in keys (only `ext.<id>.*` keys are writable from extensions).
    */
   set(key: string, value: WhenContextValue): Promise<void>;
-
-  onDidChange: IEventApi<{ keys: string[] }>;
 }
 
 // --- IStorageApi *(T1 KV/secrets/settings; T2 openDatabase)* ---------------
@@ -687,7 +678,6 @@ export interface IStorageApi {
    * `get('__settings.<key>')` but type-safe against the schema.
    */
   getSetting<T = unknown>(key: string): Promise<T | undefined>;
-  onDidChangeSettings: IEventApi<{ keys: string[] }>;
 
   // ---- Per-extension SQLite database ----
   /**
@@ -792,24 +782,113 @@ export interface IL10nApi {
   // describes. `ApiSurfaceContract.test.ts` now rejects bare data properties.
   /** The host's current UI locale, e.g. `'en'` or `'pt-BR'`. */
   currentLocale(): Promise<string>;
-  onDidChangeLocale: IEventApi<string>;
 }
 
 // --- IEventsApi *(T1)* -----------------------------------------------------
 
 /**
- * Wraps the cross-cutting subscription model so extensions can subscribe to
- * host-emitted hook events (the ~30 hooks listed in `ExtensionPointTypes.ts`).
+ * Options for `IEventsApi.subscribe`.
+ */
+export interface SubscribeOptions {
+  /**
+   * Ordering hint for `filter` and `provider` channels. Lower runs first.
+   * Clamped to `ORDER_PLUGIN_MIN..ORDER_PLUGIN_MAX` (100..1000); defaults to
+   * `ORDER_DEFAULT` (500) when omitted. Ignored for `event` channels - see
+   * `EXTENSION_POINT_KINDS` in `ExtensionPointTypes.ts`.
+   */
+  order?: number;
+}
+
+/**
+ * A channel an extension may `publish` on: its own namespace, `ext.<its
+ * own id>.<anything>`. Distinct from `ExtensionPointId`, the closed set of
+ * host-emitted channels - this is the open set of extension-to-extension
+ * broadcast channels (P1.8). The host enforces the namespace prefix at
+ * `publish` time; nothing about the *type* prevents naming another
+ * extension's namespace, because the id segment is only known at runtime.
+ */
+export type ExtensionScopedChannel = `ext.${string}.${string}`;
+
+/**
+ * Every channel `api.events.subscribe` accepts: the closed, host-emitted
+ * `ExtensionPointId` vocabulary, plus the open `ext.<id>.*` namespace an
+ * extension may `publish` on.
+ */
+export type ExtensionChannel = ExtensionPointId | ExtensionScopedChannel;
+
+/**
+ * One subscription surface for every host-emitted hook channel (see the
+ * 14-member `ExtensionPointId` union and its kind/payload/return maps in
+ * `ExtensionPointTypes.ts`) and for extension-to-extension broadcast
+ * channels (`ext.<id>.*`, P1.8's `publish`).
  *
- * The host wraps every emit with a try/catch and a 2-second timeout per
- * subscriber; a slow or throwing subscriber gets its handle disposed with a
- * logged warning, but never blocks the host or other subscribers.
+ * Replaces the earlier `onDid*` properties scattered across eleven
+ * namespaces (the active-verse and word-selection events on `api.bible`, the
+ * change event on `api.notes`, and so on) and the speculative
+ * `ExtensionPointId` vocabulary that had zero call sites -
+ * two systems collapsed into one channel string, one table
+ * (`EXTENSION_POINT_KINDS`), and one drift test
+ * (`ApiSurfaceContract.test.ts`). There is **no per-namespace subscribe
+ * sugar** - `api.events.subscribe('verse.activeChanged', cb)` is the only
+ * way in, deliberately: per-namespace properties are exactly what required
+ * a second, hand-maintained table (the old `EVENT_PROPERTIES`) to keep in
+ * sync with the first, and that drift is what this design removes.
+ *
+ * Dispatch semantics by kind (`EXTENSION_POINT_KINDS[channel]`):
+ *
+ * - **event** - fire-and-forget, parallel, the host does not await
+ *   subscribers. A throw is logged and skipped.
+ * - **filter** - the host calls subscribers sequentially; each may replace
+ *   the payload for the next (or return `'continue'`/`'cancel'` for a
+ *   cancelable filter - see `EXTENSION_POINT_CANCELABLE`). A subscriber that
+ *   throws or times out is skipped, never treated as `'cancel'` - hooks fail
+ *   open.
+ * - **provider** - the host calls every subscriber in parallel and
+ *   concatenates each one's array result, ordered by `opts.order` then by
+ *   extension id.
+ *
+ * A channel in `EXTENSION_POINT_REPLAY` (currently only
+ * `'verse.activeChanged'`) replays its current value to a subscriber
+ * immediately, rather than waiting for the next change - the active verse is
+ * state, not a stream, and a handler registered during `activate()` would
+ * otherwise see nothing until the user next navigated.
  */
 export interface IEventsApi {
-  subscribe<T>(
-    channel: ExtensionPointId,
-    handler: (payload: T) => void | Promise<void>,
+  subscribe<K extends ExtensionPointId>(
+    channel: K,
+    handler: (
+      payload: ExtensionPointPayloadMap[K],
+    ) =>
+      | ExtensionPointReturnMap[K]
+      | void
+      | Promise<ExtensionPointReturnMap[K] | void>,
+    opts?: SubscribeOptions,
   ): Promise<DisposableHandle>;
+  /**
+   * Subscribe to another extension's broadcast channel (`ext.<its id>.*`,
+   * published via that extension's own `api.events.publish`). Always
+   * `event`-kind semantics: fire-and-forget, no cancel, no collect, no
+   * replay. The payload type is whatever the publisher chose to send -
+   * there is no host-declared shape for an extension-owned channel.
+   */
+  subscribe(
+    channel: ExtensionScopedChannel,
+    handler: (payload: unknown) => void | Promise<void>,
+    opts?: SubscribeOptions,
+  ): Promise<DisposableHandle>;
+
+  /**
+   * Broadcast `payload` to every other active extension subscribed to
+   * `channel` (P1.8). `channel` must start with `ext.<this extension's
+   * id>.` - the same structural rule `commands.register` already enforces
+   * for command ids - so one extension can never speak on another's
+   * namespace, and there is no free-form pub/sub bus (see
+   * `Extensions/README.md`'s explicit prohibition on one). The publisher
+   * never receives its own message. Resolves once every subscribed worker
+   * has been sent the event; delivery itself is fire-and-forget, like any
+   * other `event`-kind channel.
+   */
+  publish(channel: ExtensionScopedChannel, payload: unknown): Promise<void>;
 }
 
 // --- IRuntimeApi *(T1 - reverse-RPC endpoint binding)* ---------------------
@@ -933,53 +1012,53 @@ export interface IPanelsApi {
 /**
  * String literal union of every host-emitted extension point. Payload and
  * return types live in `ExtensionPointTypes.ts`.
+ *
+ * **Pruned from 40 to 14 members (task 0024, round 3, P0.3).** The union was
+ * written speculatively, well ahead of any call site - `dispatchExtensionPoint`
+ * had zero callers repo-wide before this round. The 26 members deleted below
+ * had no host chokepoint that would ever fire them; keeping a channel nothing
+ * emits is a permanent lie in the public type, indistinguishable from inside
+ * an extension from an event that simply has not fired yet (the same failure
+ * mode the old `onDid*` surface had). Re-adding a channel later is additive;
+ * leaving dead ones in was not. Deleted:
+ * `verse.beforeRender`, `verse.afterRender`, `verse.hover`,
+ * `verse.contextMenu`, `verse.word.contextMenu`, `verse.decorate`,
+ * `verse.beforeFormat`, `commentary.providerRegistered`,
+ * `commentary.beforeShow`, `commentary.similarRequested`,
+ * `dictionary.lookupRequested`, `dictionary.beforeShow`, `book.beforeShow`,
+ * `notes.beforeSave`, `notes.afterSave` (replaced by `notes.changed`, which
+ * matches the unified create/update/delete notification the bridge actually
+ * emits), `bookmarks.afterAdd`, `search.afterResults`,
+ * `search.suggestionsRequested`, `layout.presetApplied`,
+ * `bible.referenceParsed`, `command.beforeExecute` (would need a
+ * renderer-side dispatch proxy over `RendererCommandBridge` - `CommandRegistry.execute`
+ * lives in the renderer, not the main process where `dispatchExtensionPoint`
+ * runs - its own task), `app.ready` (redundant with `activationEvents`),
+ * `session.restored`, `theme.changed` (no theme bridge exists yet - re-add
+ * with the bridge, not before), `permissions.changed`, `module.installed`,
+ * `module.updated`, `module.removed` (the module manager may grow these
+ * later, but "likely" is exactly the standard that produced 40 channels and
+ * 0 call sites).
  */
 export type ExtensionPointId =
-  // Verse rendering and interaction
-  | 'verse.beforeRender'
-  | 'verse.afterRender'
-  | 'verse.hover'
-  | 'verse.contextMenu'
-  | 'verse.word.contextMenu'
-  | 'verse.decorate'
+  // Verse
   | 'verse.activeChanged'
   | 'verse.wordSelected'
-  | 'verse.beforeFormat'
-  // Content modules
-  | 'commentary.providerRegistered'
-  | 'commentary.beforeShow'
-  | 'commentary.similarRequested'
-  | 'dictionary.lookupRequested'
-  | 'dictionary.beforeShow'
-  | 'book.beforeShow'
-  | 'crossReferences.requested'
-  // Notes / highlights / bookmarks
-  | 'notes.beforeSave'
-  | 'notes.afterSave'
+  // Notes / highlights
+  | 'notes.changed'
   | 'notes.beforeDelete'
   | 'highlights.afterChange'
-  | 'bookmarks.afterAdd'
   // Search
   | 'search.beforeQuery'
-  | 'search.afterResults'
-  | 'search.suggestionsRequested'
-  // Workspace and lifecycle
+  // Cross references
+  | 'crossReferences.requested'
+  // Workspace
   | 'panel.opened'
   | 'panel.closed'
   | 'panel.focused'
-  | 'layout.presetApplied'
-  | 'bible.referenceParsed'
-  | 'command.beforeExecute'
-  | 'app.ready'
-  | 'session.restored'
-  | 'theme.changed'
-  | 'locale.changed'
+  // Host lifecycle
   | 'settings.changed'
-  | 'permissions.changed'
-  // Modules and extensions
-  | 'module.installed'
-  | 'module.updated'
-  | 'module.removed'
+  | 'locale.changed'
   | 'extension.activated'
   | 'extension.deactivated';
 
@@ -1057,9 +1136,11 @@ export interface ITasksApi {
 // --- IExtensionsApi *(T2)* -------------------------------------------------
 
 /**
- * The narrow surface (no events, no streaming) is intentional. If two
- * extensions need a tighter coupling, they can both depend on a third
- * extension that owns the shared state.
+ * The narrow surface (no streaming) is intentional. If two extensions need a
+ * tighter coupling, they can both depend on a third extension that owns the
+ * shared state. `extension.activated`/`extension.deactivated`
+ * (`api.events.subscribe`) cover the one pair of events this namespace used
+ * to carry as direct properties before task 0024 round 3's event unification.
  */
 export interface IExtensionsApi {
   /**
@@ -1083,9 +1164,6 @@ export interface IExtensionsApi {
 
   /** List extensions that export at least one API method. */
   listProviders(): Promise<ExtensionProviderInfo[]>;
-
-  onDidActivate: IEventApi<{ extensionId: string }>;
-  onDidDeactivate: IEventApi<{ extensionId: string }>;
 }
 
 // --- IAiApi (RESERVED) *(T1 stub - full surface is T3)* --------------------

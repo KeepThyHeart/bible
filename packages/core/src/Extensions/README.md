@@ -18,9 +18,9 @@ README is the navigation aid.
 | `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. |
 | `ActivationEvents.ts` | Activation event identifiers and string-composition helpers. |
 | `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. |
-| `ExtensionPointTypes.ts` | Payload and return types for the ~30 host-emitted extension points. |
+| `ExtensionPointTypes.ts` | Kinds, payload and return types for the 14 host-emitted extension points (pruned from a speculative 40-member union with zero call sites - task 0024 round 3), plus the cancelable/replay/permission/timeout tables the dispatcher reads. |
 | `ExtensionManifest.ts` | The TypeScript shape of `extension.json`. |
-| `ExtensionManifestSchema.json` | JSON Schema (draft-07) the manifest loader validates against. The schema is the only validator. |
+| `ExtensionManifestSchema.json` | JSON Schema (draft-07), an **authoring aid for editors only** (autocomplete/validation) - it is never loaded at runtime. The sole runtime gate is the hand-written `ExtensionManifestValidator.ts`; the two must be kept in sync by hand, and `ExtensionManifestSchemaParity.test.ts` asserts they agree on the `contributes.*` keys and the `Permission` enum. |
 
 ## Entry point resolution (`manifest.main`)
 
@@ -68,9 +68,11 @@ project - manifest, TypeScript config, bundler config, entry point and a passing
 test. `packages/word-count-example/` is a worked reference extension to read
 alongside it.
 
-For the manifest itself, `ExtensionManifestSchema.json` in this folder is the
-authority: it is the only validator the loader runs, so anything it accepts is
-valid and anything it rejects will not load.
+For the manifest itself, `ExtensionManifestSchema.json` in this folder is an
+authoring aid for editors (autocomplete, inline validation) - it is never
+loaded at runtime. The hand-written `ExtensionManifestValidator.ts` is the
+sole runtime gate, kept in sync with the schema by hand (see
+`ExtensionManifestSchemaParity.test.ts`).
 
 ## Future enhancements (T3)
 
@@ -98,6 +100,7 @@ document.
 14. **Reading-progress signals.** Events when the user finishes today's reading, completes a chapter, etc.
 15. **Webhook / external trigger receiver.** Localhost HTTP endpoint other apps POST to in order to trigger extension activation.
 16. **Plugin marketplace + discovery UI.** Marketplace metadata fields are already reserved in the manifest.
+17. **The 27 extension points pruned in task 0024 round 3.** `ExtensionPointTypes.ts` went from a speculative 40-member `ExtensionPointId` union to 14 real channels with actual call sites - see that file's doc comment for the full list. The likeliest to come back, with what each needs first: `verse.beforeRender` / `verse.afterRender` / `verse.hover` / `verse.decorate` / `verse.contextMenu` / `verse.word.contextMenu` (item 2's decorator/hover generalization, and task 0036's verse-decorator work), `command.beforeExecute` (a renderer-side dispatch proxy over `RendererCommandBridge` - `CommandRegistry.execute` lives in the renderer, not the main process where the dispatcher runs), `theme.changed` (no theme bridge exists yet - add it with the bridge, not before), `module.installed` / `module.updated` / `module.removed` (the module manager is live and may grow these, but "likely" was exactly the standard that produced the 40-channel union in the first place - wait for an actual consumer). The rest (`commentary.*`, `dictionary.*`, `book.beforeShow`, `notes.beforeSave`, `bookmarks.afterAdd`, `search.afterResults` / `suggestionsRequested`, `layout.presetApplied`, `bible.referenceParsed`, `app.ready`, `session.restored`, `permissions.changed`) had no chokepoint identified at all - re-add only alongside a real one.
 
 ### Deliberately NOT on this list (and why)
 

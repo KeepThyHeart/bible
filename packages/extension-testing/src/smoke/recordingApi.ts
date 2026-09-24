@@ -27,25 +27,6 @@ function makeDisposable(): DisposableHandle {
   return { dispose: () => Promise.resolve() };
 }
 
-/** Event properties the harness captures when an extension calls `.subscribe(...)`. */
-const EVENT_PATHS: ReadonlyArray<readonly [keyof BibleExtensionAPI, string]> = [
-  ['bible', 'onDidChangeActiveVerse'],
-  ['bible', 'onDidSelectVerseWord'],
-  ['commentary', 'onDidChangeActiveCommentary'],
-  ['dictionary', 'onDidChangeActiveDictionary'],
-  ['book', 'onDidChangeActiveBook'],
-  ['notes', 'onDidChange'],
-  ['highlights', 'onDidChange'],
-  ['workspace', 'onDidChangeActivePanel'],
-  ['workspace', 'onDidOpenPanel'],
-  ['workspace', 'onDidClosePanel'],
-  ['context', 'onDidChange'],
-  ['storage', 'onDidChangeSettings'],
-  ['l10n', 'onDidChangeLocale'],
-  ['extensions', 'onDidActivate'],
-  ['extensions', 'onDidDeactivate'],
-];
-
 export function createRecordingApi(overrides?: MockApiOverrides): RecordingApi {
   const api = createMockApi(overrides);
   const captured: CapturedRegistrations = {
@@ -136,23 +117,21 @@ export function createRecordingApi(overrides?: MockApiOverrides): RecordingApi {
     return makeDisposable();
   };
 
-  // ── Event subscriptions ────────────────────────────────────────────────
-  for (const [ns, prop] of EVENT_PATHS) {
-    const namespace = api[ns] as unknown as Record<string, unknown>;
-    const event = namespace[prop] as Extensions.IEventApi<unknown> | undefined;
-    if (!event) continue;
-    const key = `${String(ns)}.${prop}`;
-    namespace[prop] = {
-      subscribe: async (
-        handler: (payload: unknown) => void | Promise<void>,
-      ): Promise<DisposableHandle> => {
-        const list = captured.eventSubscribers.get(key) ?? [];
-        list.push(handler);
-        captured.eventSubscribers.set(key, list);
-        return makeDisposable();
-      },
-    } satisfies Extensions.IEventApi<unknown>;
-  }
+  // ── events.subscribe ────────────────────────────────────────────────────
+  // Task 0024 round 3 unified every `onDid*` property and the dead
+  // `ExtensionPointId` vocabulary into this one method - a per-namespace
+  // `EVENT_PATHS` table is no longer needed; `captured.eventSubscribers` is
+  // now keyed directly by the channel string an extension passes
+  // (`'verse.activeChanged'`, `'notes.changed'`, `'ext.<id>.foo'`, ...).
+  api.events.subscribe = (async (
+    channel: string,
+    handler: (payload: unknown) => unknown | Promise<unknown>,
+  ): Promise<DisposableHandle> => {
+    const list = captured.eventSubscribers.get(channel) ?? [];
+    list.push(handler);
+    captured.eventSubscribers.set(channel, list);
+    return makeDisposable();
+  }) as Extensions.IEventsApi['subscribe'];
 
   return { api, captured };
 }

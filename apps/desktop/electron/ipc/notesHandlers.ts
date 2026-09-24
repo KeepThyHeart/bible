@@ -11,6 +11,23 @@ import { indexContentVerseReferences } from '../utils/verseIndexing';
 import { getSharedUserDb } from '../services/sharedUserDb';
 import { initializeUserSchema } from '../schema/userSchema';
 import { ipcHandler, IpcKnownError } from './handler-helper';
+import type { ExtensionHost } from '../extensions/ExtensionHost';
+
+/**
+ * Options for `registerNotesHandlers`. `getExtensionHost` is a *lazy*
+ * accessor rather than the host itself, because `main.ts` registers every
+ * IPC handler module before constructing `ExtensionHost` - a plain
+ * `extensionHost?: ExtensionHost` parameter would always be `undefined` at
+ * registration time. Passing `() => extensionHost` (closing over `main.ts`'s
+ * module-level `let`) reads the *current* value at call time instead. Tests
+ * and any caller that omits the option get the pre-task-0024 behaviour
+ * unfiltered - see `dispatchExtensionPoint`'s zero-subscriber rule for why
+ * that is equivalent to "no extension is subscribed", not "extensions are
+ * broken".
+ */
+export interface NotesHandlersOptions {
+  getExtensionHost?: () => ExtensionHost | null | undefined;
+}
 
 /** Shape of note data received over IPC for creation */
 interface CreateNoteData {
@@ -185,7 +202,7 @@ function getCommentaryRepository(): UserCommentaryRepository {
  * lives in `src/ui/services/notesAPI.ts` and `prayerListsAPI.ts`, both of
  * which use `unwrap` from `src/ui/services/ipcResult.ts`.
  */
-export function registerNotesHandlers() {
+export function registerNotesHandlers(opts: NotesHandlersOptions = {}): void {
   // Get note by ID - returns null if not found (empty state, not an error).
   ipcHandler<[number], SerializedNote | null>('notes:get-by-id', (noteId) => {
     const controller = getNotesController();
@@ -405,8 +422,16 @@ export function registerNotesHandlers() {
     return controller.countDescendants(noteId);
   });
 
-  // Delete note
-  ipcHandler<[number], boolean>('notes:delete', (noteId) => {
+  // Delete note. `notes.beforeDelete` (task 0024 round 3, P0.3) gives an
+  // extension that owns derived data keyed by note id (e.g. a spaced-
+  // repetition review schedule) a chance to veto the delete before it
+  // happens - see `design-p0.3-p2.14-event-system.md` §5.2.
+  ipcHandler<[number], boolean>('notes:delete', async (noteId) => {
+    const host = opts.getExtensionHost?.();
+    if (host) {
+      const verdict = await host.dispatchExtensionPoint('notes.beforeDelete', { noteId });
+      if (verdict === 'cancel') return false;
+    }
     const controller = getNotesController();
     return controller.deleteNote(noteId);
   });

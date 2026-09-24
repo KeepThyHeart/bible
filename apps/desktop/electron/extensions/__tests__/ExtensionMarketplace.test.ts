@@ -69,7 +69,13 @@ function makeBundle(id: string, version: string): Buffer {
         name: { key: 'ext.name' },
         version,
         publisher: 'example',
-        engines: { bibleApp: `^${Extensions.EXTENSION_API_VERSION.split('.')[0]}.0.0` },
+        // Caret against the exact current host version, not
+        // `^${major}.0.0` - that formula only produces a workable range
+        // once `EXTENSION_API_VERSION`'s major is >= 1. For a pre-1.0
+        // version (see `ExtensionApiTypes.ts`'s doc comment on the
+        // constant), `^0.0.0` collapses to an exact-patch match and would
+        // stop matching the very version it was derived from.
+        engines: { bibleApp: `^${Extensions.EXTENSION_API_VERSION}` },
         main: './main.js',
         permissions: [],
       }),

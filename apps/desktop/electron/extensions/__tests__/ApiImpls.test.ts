@@ -8,9 +8,12 @@
  *     arrives;
  *   - permission gates throw `PermissionDeniedError` over the wire when the
  *     grant is missing the required permission;
- *   - the storage api enforces its quota and reserved key prefixes;
- *   - the bridge `subscribe*` channels emit `RpcEvent` envelopes only when
- *     the worker has actually subscribed.
+ *   - the storage api enforces its quota and reserved key prefixes.
+ *
+ * The bridge-sourced forward events (active verse, panel open/close/focus,
+ * locale change, ...) used to be tested here too, but task 0024 round 3
+ * (P0.3) moved that subscription out of the api-impls entirely and into
+ * `ExtensionPointWiring.ts` - see `ExtensionPointWiring.test.ts`.
  *
  * The aim is confidence that the contract is glued end-to-end, without
  * standing up a real worker process or Electron window. The full e2e test
@@ -45,8 +48,6 @@ import { FakeSql } from './fakeSql';
 
 type RpcRequest = Extensions.RpcRequest;
 type RpcResponse = Extensions.RpcResponse;
-type RpcEvent = Extensions.RpcEvent;
-type RpcSubscribe = Extensions.RpcSubscribe;
 
 // --- Paired transports - same shape as in ExtensionRpcRouter.test.ts -------
 
@@ -282,38 +283,14 @@ describe('BibleApiImpl', () => {
     expect(res.error?.code).toBe('PermissionDeniedError');
   });
 
-  it('emits onDidChangeActiveVerse only when the worker subscribed', async () => {
-    // No subscription yet - fire should be a no-op.
-    bridge.fireActiveVerse({ verseId: 43003016, module: 'kjv' });
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'bible.onDidChangeActiveVerse'))).toHaveLength(
-      0,
-    );
-
-    // Subscribe and fire - should emit.
-    const sub: RpcSubscribe = {
-      kind: 'subscribe',
-      id: 'sub-1',
-      channel: 'bible.onDidChangeActiveVerse',
-    };
-    pair.workerSide.send(sub);
-    await new Promise((r) => setImmediate(r));
-    bridge.fireActiveVerse({ verseId: 43003017, module: 'kjv' });
-    const events = pair.hostSent.filter((e) =>
-      isEventOn(e, 'bible.onDidChangeActiveVerse'),
-    );
-    expect(events).toHaveLength(1);
-    expect((events[0] as RpcEvent).payload).toEqual({ verseId: 43003017, module: 'kjv' });
-  });
+  // The active-verse forward event (`verse.activeChanged`) used to be tested
+  // here, constructing a bare `BibleApiImpl` and firing the bridge directly.
+  // Task 0024 round 3 (P0.3) moved that subscription out of `BibleApiImpl`
+  // entirely and into `ExtensionPointWiring.ts`, which needs a full
+  // `ExtensionHostContext` (not just a bridge + router) to fan out to every
+  // active worker - see `ExtensionPointWiring.test.ts` for the equivalent
+  // coverage against the new module.
 });
-
-function isEventOn(env: unknown, channel: string): boolean {
-  return (
-    typeof env === 'object' &&
-    env !== null &&
-    (env as RpcEvent).kind === 'event' &&
-    (env as RpcEvent).channel === channel
-  );
-}
 
 // --- Commentary / Dictionary / Book api-impls -----------------------------
 
@@ -631,21 +608,11 @@ describe('WorkspaceApiImpl', () => {
     expect((after.result as unknown[]).length).toBe(0);
   });
 
-  it('forwards onDidOpenPanel only when the worker subscribed', async () => {
-    const pair = pairedTransports();
-    const router = new ExtensionRpcRouter(pair.hostSide);
-    const bridge = new InMemoryWorkspaceBridge();
-    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
-
-    bridge.openPanel('bible'); // no subscription yet
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'workspace.onDidOpenPanel'))).toHaveLength(0);
-
-    pair.workerSide.send({ kind: 'subscribe', id: 's1', channel: 'workspace.onDidOpenPanel' });
-    await new Promise((r) => setImmediate(r));
-    bridge.openPanel('commentary');
-    const events = pair.hostSent.filter((e) => isEventOn(e, 'workspace.onDidOpenPanel'));
-    expect(events).toHaveLength(1);
-  });
+  // The panel.opened/closed/focused forward events used to be tested here,
+  // constructing a bare `WorkspaceApiImpl` and firing the bridge directly.
+  // Task 0024 round 3 (P0.3) moved that subscription out of
+  // `WorkspaceApiImpl` entirely and into `ExtensionPointWiring.ts` - see
+  // `ExtensionPointWiring.test.ts`.
 
   it('revealPanel focuses an already-open panel and resolves true, with no ownership check', async () => {
     const pair = pairedTransports();
@@ -781,18 +748,9 @@ describe('L10nApiImpl', () => {
     expect(res.result).toBe('Hello, World');
   });
 
-  it('emits l10n.onDidChangeLocale only when subscribed', async () => {
-    const pair = pairedTransports();
-    const router = new ExtensionRpcRouter(pair.hostSide);
-    const bridge = new InMemoryL10nBridge();
-    new L10nApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
-    bridge.setLocale('fr');
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'l10n.onDidChangeLocale'))).toHaveLength(0);
-    pair.workerSide.send({ kind: 'subscribe', id: 's1', channel: 'l10n.onDidChangeLocale' });
-    await new Promise((r) => setImmediate(r));
-    bridge.setLocale('es');
-    const events = pair.hostSent.filter((e) => isEventOn(e, 'l10n.onDidChangeLocale'));
-    expect(events).toHaveLength(1);
-    expect((events[0] as RpcEvent).payload).toBe('es');
-  });
+  // The locale-change forward event used to be tested here, constructing a
+  // bare `L10nApiImpl` and firing the bridge directly. Task 0024 round 3
+  // (P0.3) moved that subscription out of `L10nApiImpl` entirely and into
+  // `ExtensionPointWiring.ts` (which also wraps the bridge's bare locale
+  // string as `{ locale }`) - see `ExtensionPointWiring.test.ts`.
 });

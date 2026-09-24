@@ -99,7 +99,7 @@ export interface IExtensionBibleBridge {
   /**
    * Navigate the primary Bible pane to a specific verse. The bridge sends an
    * IPC message to the renderer which calls `navigateToVerseInPrimary`. The
-   * existing `broadcast-verse-change` flow fires `onDidChangeActiveVerse`
+   * existing `broadcast-verse-change` flow dispatches `verse.activeChanged`
    * after the renderer processes the navigation.
    */
   navigateToVerse(verseId: number): Promise<void>;

@@ -190,7 +190,7 @@ describe('Minimal fixture acceptance', () => {
     const list = await host.listExtensions();
     expect(list).toHaveLength(1);
     expect(list[0]!.manifest.id).toBe('ext.test.minimal');
-    expect(list[0]!.manifest.engines.bibleApp).toBe('^1.0.0');
+    expect(list[0]!.manifest.engines.bibleApp).toBe('^0.1.0');
   });
 
   it('activating the fixture writes lastVerse=43003016 into extension_storage', async () => {

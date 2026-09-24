@@ -361,9 +361,25 @@ export function attachApiImpls(
   }
 
   // Events api is always wired - see eventsApiImpl.ts header for the
-  // worker-side / dispatch-side split.
+  // worker-side / dispatch-side split. `publish` (P1.8) is the one method
+  // here that is a real host RPC handler; it needs `ctx.activeWorkers`,
+  // which only this function can see, so the fan-out closure is built here
+  // and handed in rather than given the whole `ctx`.
   {
-    const eventsApi = new EventsApiImpl({ extensionId });
+    const eventsApi = new EventsApiImpl({
+      extensionId,
+      router,
+      publish: (channel, payload) => {
+        for (const [otherId, other] of ctx.activeWorkers) {
+          if (otherId === extensionId) continue; // the publisher never hears its own message
+          try {
+            other.router.emitEvent(channel, payload);
+          } catch (err) {
+            log.warn(`[ExtensionHost] events.publish(${channel}) failed for ${otherId}:`, err);
+          }
+        }
+      },
+    });
     eventsApi.attach();
     active.eventsApi = eventsApi;
   }

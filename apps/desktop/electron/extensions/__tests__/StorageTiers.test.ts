@@ -285,7 +285,7 @@ describe('StorageApiImpl — settings tier', () => {
     expect(res.result).toBeUndefined();
   });
 
-  it('emits storage.onDidChangeSettings only after a worker subscribes', async () => {
+  it('emits settings.changed only after a worker subscribes', async () => {
     // Fire before subscribe -> no event delivered.
     api.notifySettingsChanged(['theme']);
     expect(
@@ -294,14 +294,14 @@ describe('StorageApiImpl — settings tier', () => {
           typeof e === 'object' &&
           e !== null &&
           (e as RpcEvent).kind === 'event' &&
-          (e as RpcEvent).channel === 'storage.onDidChangeSettings',
+          (e as RpcEvent).channel === 'settings.changed',
       ),
     ).toHaveLength(0);
 
     const sub: RpcSubscribe = {
       kind: 'subscribe',
       id: 'sub-settings',
-      channel: 'storage.onDidChangeSettings',
+      channel: 'settings.changed',
     };
     pair.workerSide.send(sub);
     await new Promise((r) => setImmediate(r));
@@ -311,7 +311,7 @@ describe('StorageApiImpl — settings tier', () => {
         typeof e === 'object' &&
         e !== null &&
         (e as RpcEvent).kind === 'event' &&
-        (e as RpcEvent).channel === 'storage.onDidChangeSettings',
+        (e as RpcEvent).channel === 'settings.changed',
     );
     expect(events).toHaveLength(1);
     expect((events[0] as RpcEvent).payload).toEqual({ keys: ['theme', 'apiKey'] });

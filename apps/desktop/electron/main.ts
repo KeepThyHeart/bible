@@ -277,8 +277,8 @@ function registerWindowHandlers(): void {
       if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.id !== senderId) {
         mainWindow.webContents.send('verse-changed', verseId);
       }
-      // Also fan the change out to any extension worker that subscribed via
-      // `api.bible.onDidChangeActiveVerse`.
+      // Also fan the change out to any extension worker that subscribed to
+      // `verse.activeChanged` via `api.events.subscribe`.
       extensionBibleBridge?.notifyActiveVerse(verseId, moduleId);
       return { success: true };
     } catch (error) {
@@ -493,7 +493,14 @@ async function createWindow(): Promise<void> {
   registerCommentaryHandlers(ipcMain);
   registerDictionaryHandlers(ipcMain);
   registerBookHandlers(ipcMain);
-  registerSearchHandlers(ipcMain);
+  // `getExtensionHost: () => extensionHost` is a lazy accessor, not the host
+  // itself: these three handlers (search, notes, cross-reference) are the
+  // task 0024 round 3 (P0.3) filter/provider call sites
+  // (`search.beforeQuery`, `notes.beforeDelete`, `crossReferences.requested`),
+  // and IPC handlers are registered here, well before `extensionHost` is
+  // constructed further down this function. The closure reads the
+  // module-level `let extensionHost` at call time, once it exists.
+  registerSearchHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   // Registered synchronously; the promise it returns resolves when the
   // encrypted user DB is actually open, and every session handler awaits that
   // internally (see `sessionRepoReady` in sessionHandlers.ts). Deliberately not
@@ -501,14 +508,14 @@ async function createWindow(): Promise<void> {
   // `loadURL` below, so the renderer could not even start fetching its bundle
   // until the key had been derived.
   void registerSessionHandlers(ipcMain);
-  registerNotesHandlers();
+  registerNotesHandlers({ getExtensionHost: () => extensionHost });
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerI18nHandlers(ipcMain);
   registerTopicalIndexHandlers(ipcMain);
-  registerCrossReferenceHandlers(ipcMain);
+  registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   registerTagGraphHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerBackupHandlers();

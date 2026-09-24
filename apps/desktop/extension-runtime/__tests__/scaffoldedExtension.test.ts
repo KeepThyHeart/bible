@@ -227,7 +227,7 @@ describe('create-bible-extension output loads in the realm', () => {
       // ...and subscribes to the verse-change channel.
       const subscribe = d.sent.find((e) => e.kind === 'subscribe');
       expect((subscribe as Extensions.RpcSubscribe | undefined)?.channel).toBe(
-        'bible.onDidChangeActiveVerse',
+        'verse.activeChanged',
       );
 
       // Activation reported success and nothing threw on the way.

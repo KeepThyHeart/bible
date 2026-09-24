@@ -54,15 +54,6 @@ export interface DisposableHandle {
   dispose(): Promise<void>;
 }
 
-/**
- * Worker-side subscription handle exposed by every `IXxxApi.onDidXxx` event.
- * Mirrors VSCode's `Event<T>` shape - `subscribe` returns a `DisposableHandle`
- * the worker can dispose to stop receiving events.
- */
-export interface IEventApi<T> {
-  subscribe(handler: (payload: T) => void | Promise<void>): Promise<DisposableHandle>;
-}
-
 // --- Verse ranges & token data ---------------------------------------------
 
 /**
@@ -249,9 +240,6 @@ export interface ContextMenuItemDescriptor {
   separatorBefore?: boolean;
   separatorAfter?: boolean;
 }
-
-/** Alias preserved for spec parity - the descriptor IS the wire DTO. */
-export type ContextMenuItemDto = ContextMenuItemDescriptor;
 
 /**
  * What a `verse` context menu item's command receives under `args.verse`:
@@ -1252,22 +1240,14 @@ export interface IExtensionDatabase {
 }
 
 // --- Filter / search DTOs used by extension points -------------------------
-
-export interface RenderOverride {
-  /** If present, replaces the standard verse text content. */
-  text?: string;
-  /** If present, replaces the formatting metadata. */
-  formattingData?: BibleVerseFormattingDataDto;
-  /** Optional opaque marker the host preserves alongside the override. */
-  reason?: string;
-}
-
-export interface FormatOverride {
-  /** Replacement text after formatting transforms. */
-  text?: string;
-  /** Replacement formatting metadata. */
-  formattingData?: BibleVerseFormattingDataDto;
-}
+//
+// `RenderOverride`, `FormatOverride`, `SearchResultsDto`, `SearchHitDto` and
+// `SearchSuggestionDto` used to live here, backing `verse.beforeRender`,
+// `verse.beforeFormat`, `search.afterResults` and
+// `search.suggestionsRequested` - all deleted in task 0024 round 3 (P0.3)
+// as speculative `ExtensionPointId` channels with zero call sites. None of
+// the four had any other user, so they went with the channels. `SearchQueryDto`
+// stays - `search.beforeQuery` (a filter/transform channel) keeps it live.
 
 export interface SearchQueryDto {
   query: string;
@@ -1276,29 +1256,6 @@ export interface SearchQueryDto {
   filters?: Record<string, unknown>;
   limit?: number;
   offset?: number;
-}
-
-export interface SearchResultsDto {
-  query: SearchQueryDto;
-  total: number;
-  /** Hit list - shape mirrors the host's internal SearchResult, plain JSON only. */
-  hits: SearchHitDto[];
-}
-
-export interface SearchHitDto {
-  verseId: number;
-  moduleId: string;
-  /** Snippet with optional highlight markup. */
-  snippet: string;
-  /** Relevance score (0..1 or arbitrary backend score). */
-  score: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface SearchSuggestionDto {
-  text: string;
-  /** Optional category label, e.g. 'reference', 'word', 'phrase'. */
-  category?: string;
 }
 
 // --- Error code names ------------------------------------------------------

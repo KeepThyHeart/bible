@@ -8,9 +8,10 @@
  * methods (`openPanel`, `closePanel`) are unrestricted - opening a panel is
  * a user-visible action that the user can always close. `revealPanel`
  * (focus an already-open tab, change nothing about it) is unrestricted for
- * the same reason. The three event channels (`onDidChangeActivePanel`,
- * `onDidOpenPanel`, `onDidClosePanel`) are wired through the router's
- * `emitEvent`, so the worker only sees them when it has actually subscribed.
+ * the same reason. The three event channels (`panel.focused`, `panel.opened`,
+ * `panel.closed`, via `api.events.subscribe`) are wired host-wide in
+ * `ExtensionPointWiring.ts` now (task 0024 round 3, P0.3), not per-worker
+ * here - see `attach()`'s comment.
  *
  * `setPanelTitle` / `setPanelBadge` are the one place this namespace *does*
  * gate: they change how another panel's tab presents itself, which -
@@ -28,10 +29,6 @@ import type { IExtensionWorkspaceBridge } from './IExtensionDataBridges';
 
 const { ExtensionNotActiveError, PermissionDeniedError, RpcProtocolError } = Extensions;
 
-const ACTIVE_PANEL_CHANNEL = 'workspace.onDidChangeActivePanel';
-const OPEN_PANEL_CHANNEL = 'workspace.onDidOpenPanel';
-const CLOSE_PANEL_CHANNEL = 'workspace.onDidClosePanel';
-
 export interface WorkspaceApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
@@ -42,9 +39,6 @@ export class WorkspaceApiImpl {
   private readonly extensionId: string;
   private readonly router: ExtensionRpcRouter;
   private readonly bridge: IExtensionWorkspaceBridge;
-  private unsubActive: (() => void) | undefined;
-  private unsubOpen: (() => void) | undefined;
-  private unsubClose: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: WorkspaceApiImplOptions) {
@@ -63,36 +57,14 @@ export class WorkspaceApiImpl {
       setPanelBadge: (args) => this.handleSetPanelBadge(args),
       revealPanel: (args) => this.handleRevealPanel(args),
     });
-
-    this.unsubActive = this.bridge.subscribeActivePanel((panel) => {
-      if (this.disposed) return;
-      this.router.emitEvent(ACTIVE_PANEL_CHANNEL, panel);
-    });
-    this.unsubOpen = this.bridge.subscribeOpenPanel((panel) => {
-      if (this.disposed) return;
-      this.router.emitEvent(OPEN_PANEL_CHANNEL, panel);
-    });
-    this.unsubClose = this.bridge.subscribeClosePanel((info) => {
-      if (this.disposed) return;
-      this.router.emitEvent(CLOSE_PANEL_CHANNEL, info);
-    });
+    // `bridge.subscribeActivePanel/subscribeOpenPanel/subscribeClosePanel` ->
+    // `panel.focused`/`panel.opened`/`panel.closed` used to be wired here,
+    // one subscription per active worker. See `ExtensionPointWiring.ts`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const u of [this.unsubActive, this.unsubOpen, this.unsubClose]) {
-      if (u) {
-        try {
-          u();
-        } catch {
-          /* best-effort */
-        }
-      }
-    }
-    this.unsubActive = undefined;
-    this.unsubOpen = undefined;
-    this.unsubClose = undefined;
   }
 
   // --- RPC handlers ------------------------------------------------------

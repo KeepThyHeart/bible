@@ -77,7 +77,8 @@ exports.activate = async function activate(api) {
   // place and keeps `alignment`/`priority` as registered, instead of
   // re-registering the whole descriptor (which used to be the only way to
   // change one field, and leaked a disposal handle per verse change).
-  eventHandle = await api.bible.onDidChangeActiveVerse.subscribe(
+  eventHandle = await api.events.subscribe(
+    'verse.activeChanged',
     async function onVerseChanged(payload) {
       if (!payload) {
         // No active verse — reset display

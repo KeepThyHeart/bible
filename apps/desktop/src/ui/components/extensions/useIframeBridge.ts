@@ -146,8 +146,8 @@ export function useIframeBridge({
   // channel from the start; nothing ever sent it - `useIframeBridge`
   // forwarded only `theme.changed`. See `activeVerseBroadcast.ts` for why
   // this subscribes there rather than to `useBibleStore` directly: it is the
-  // same signal a worker extension gets via `bible.onDidChangeActiveVerse`,
-  // published from the same two call sites.
+  // same signal a worker extension gets via `verse.activeChanged`
+  // (`api.events.subscribe`), published from the same two call sites.
   useEffect(() => {
     return subscribeActiveVerseBroadcast(({ verseId }) => {
       sendToIframe({
