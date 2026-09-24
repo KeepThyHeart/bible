@@ -7,7 +7,7 @@
   "engines": { "bibleApp": "^0.1.0" },
   "main": "./main.js",
   "permissions": ["bible:read", "storage", "ui:notification", "ui:contribute-pane"],
-  "activationEvents": ["onStartup"],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "panelTypes": [
       {

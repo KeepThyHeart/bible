@@ -36,7 +36,31 @@ import { installReplayHooks } from './ExtensionPointWiring';
 
 export { dispatchExtensionPoint } from './ExtensionPointWiring';
 
-export async function activate(
+/**
+ * Activate `extensionId`, coalescing concurrent calls (task 0024 round 3,
+ * P1.5). Before this existed, two callers invoking `activate()` for the same
+ * extension in close succession - e.g. a declared command's shortcut fired
+ * twice while the worker was still spawning, or `fireActivationEvent` racing
+ * an explicit `extensions:activate` - each ran the full body below, because
+ * `ctx.activeWorkers.set()` (the only early-return guard) does not happen
+ * until *after* `worker.spawn()` resolves. Two workers spawned for one
+ * extension, one silently orphaned. Every caller now awaits the same
+ * in-flight promise instead.
+ */
+export function activate(
+  ctx: ExtensionHostContext,
+  extensionId: string,
+): Promise<void> {
+  const inFlight = ctx.activating.get(extensionId);
+  if (inFlight) return inFlight;
+  const p = activateInner(ctx, extensionId).finally(() => {
+    ctx.activating.delete(extensionId);
+  });
+  ctx.activating.set(extensionId, p);
+  return p;
+}
+
+async function activateInner(
   ctx: ExtensionHostContext,
   extensionId: string,
 ): Promise<void> {
@@ -240,6 +264,15 @@ export async function activate(
       if (active) await disposeApiImpls(active);
       await worker.terminate();
     }
+    // A declared command may have superseded its placeholder before the rest
+    // of activation failed (the extension's own `activate()` can call
+    // `commands.register` before `runtime.init` resolves). The dispose above
+    // already cleared the stale real registration
+    // (`RendererCommandBridge.disposeByOwner`), so this re-places the
+    // placeholder rather than leaving the command unreachable. A no-op host
+    // (no `DeclaredContributions` wired - every test that doesn't exercise
+    // P1.5's declarative layer) has no hook here at all.
+    ctx.onDeclaredResync?.(extensionId);
     throw err;
   }
 
@@ -310,6 +343,16 @@ export async function deactivate(
       log.warn(`[ExtensionHost] extension.deactivated notify failed for ${id}:`, err);
     }
   }
+
+  // Re-place this extension's declared command/panel placeholders now that
+  // `disposeApiImpls` has torn down whatever it registered imperatively - the
+  // command must come back, not vanish, if the extension is still enabled
+  // (task 0024 round 3, P1.5). `syncDeclared` itself checks enabled/status,
+  // so this is correct whether `deactivate` was called directly (extension
+  // stays enabled, e.g. a manual "Stop") or as a step inside `disable()`
+  // (checked again below - it recomputes from the registry's current state,
+  // not a snapshot taken here).
+  ctx.onDeclaredResync?.(extensionId);
 }
 
 export async function fireActivationEvent(
@@ -364,6 +407,9 @@ export function handleWorkerExit(
         ctx.registry.setStatus(extensionId, entry.enabled ? 'installed' : 'disabled');
       }
     }
+    // The worker is gone either way - re-place declared placeholders (or
+    // drop them, if the extension turns out disabled/uninstalled by now).
+    ctx.onDeclaredResync?.(extensionId);
     return;
   }
 
@@ -395,4 +441,14 @@ export function handleWorkerExit(
       message: `Crashed (exit=${info.code}, hung=${info.hung})`,
     });
   }
+
+  // Always resync after a crash - `syncDeclared` itself decides which way
+  // this cuts, by re-reading the status this function just set. An ordinary
+  // crash (still enabled, not auto-disabled) restores the placeholder so the
+  // command remains invocable and simply retries activation next time. A
+  // crash that just auto-disabled the extension DROPS the placeholder
+  // instead - `activate()` refuses an auto-disabled extension outright (see
+  // the guard near the top of `activateInner`), so a restored placeholder
+  // would only ever reject, and a dead palette entry is worse than none.
+  ctx.onDeclaredResync?.(extensionId);
 }

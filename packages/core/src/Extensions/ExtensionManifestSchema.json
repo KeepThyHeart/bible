@@ -124,6 +124,7 @@
 
     "activationEvents": {
       "type": "array",
+      "description": "When to activate this extension. See packages/core/src/Extensions/ActivationEvents.ts for the full vocabulary (e.g. 'onStartupFinished', 'onCommand:<id>', 'onView:<panelTypeId>'). This schema does not enumerate the vocabulary itself - ExtensionManifestValidator.ts is the runtime authority and rejects anything outside it.",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
     },

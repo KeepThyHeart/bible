@@ -470,3 +470,148 @@ describe('validateManifest - typed result', () => {
     }
   });
 });
+
+describe('validateManifest - activation event vocabulary (task 0024 round 3, P1.5)', () => {
+  it('rejects the pre-P1.5 "onStartup" spelling as unknown', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onStartup'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'activation.unknown')).toBe(true);
+    }
+  });
+
+  it('accepts "onStartupFinished"', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onStartupFinished'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+  });
+
+  it('rejects "*" unconditionally - no built-in carve-out exists in this codebase', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['*'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'activation.builtin-only')).toBe(true);
+    }
+  });
+
+  it('normalizes a short onCommand: argument to the long form matching the command id', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onCommand:openLexicon'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents).toContain(
+        'onCommand:ext.example.greek-tools.openLexicon',
+      );
+    }
+  });
+
+  it('leaves an already-long onCommand: argument unchanged', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = [
+      'onCommand:ext.example.greek-tools.openLexicon',
+    ];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents).toContain(
+        'onCommand:ext.example.greek-tools.openLexicon',
+      );
+    }
+  });
+
+  it('normalizes a long onView: argument to the short form matching the panel id', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = [
+      'onView:ext.example.greek-tools.lexicon',
+    ];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents).toContain('onView:lexicon');
+    }
+  });
+
+  it('leaves an already-short onView: argument unchanged (existing onView:bible case)', () => {
+    // `baseManifest()`'s own `activationEvents: ['onView:bible']` - `bible` is
+    // a built-in content type, not one of this extension's own panel ids, so
+    // it must pass through untouched rather than being treated as a foreign
+    // prefix error (see `normalizeActivationArgument`'s doc comment: an
+    // `onCommand:`/`onView:` argument naming something else is inert, not a
+    // spoofing risk).
+    const r = validateManifest(baseManifest());
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents).toContain('onView:bible');
+    }
+  });
+
+  it('accepts a known-but-unfired prefix (onLanguage:) without complaint', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onLanguage:el'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+  });
+
+  it('rejects an unknown prefix', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onSomethingMadeUp:x'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'activation.unknown')).toBe(true);
+    }
+  });
+});
+
+describe('validateManifest - shortcut on a hidden command is rejected (task 0024 round 3, P1.5)', () => {
+  it('rejects a contributed command with both shortcut and hidden: true', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      commands: [
+        {
+          id: 'openLexicon',
+          title: { key: 'cmd.openLexicon' },
+          hidden: true,
+          shortcut: { key: 'Ctrl+Shift+L' },
+        },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'shortcut.hidden')).toBe(true);
+    }
+  });
+
+  it('accepts a shortcut on a non-hidden command', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      commands: [
+        {
+          id: 'openLexicon',
+          title: { key: 'cmd.openLexicon' },
+          shortcut: { key: 'Ctrl+Shift+L' },
+        },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts hidden: true without a shortcut', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).contributes = {
+      commands: [
+        { id: 'openLexicon', title: { key: 'cmd.openLexicon' }, hidden: true },
+      ],
+    };
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+  });
+});

@@ -48,6 +48,12 @@ import type {
   KeybindingDescriptor,
   LocalizedString,
 } from './ExtensionApiDtos';
+import {
+  ACT_PREFIX_ON_COMMAND,
+  ACT_PREFIX_ON_VIEW,
+  isBuiltinOnlyEvent,
+  isKnownActivationEvent,
+} from './ActivationEvents';
 
 // --- Result shape ----------------------------------------------------------
 
@@ -563,7 +569,25 @@ function hostMatches(candidate: string, allowedPattern: string): boolean {
 
 // --- Activation events -----------------------------------------------------
 
-function validateActivationEvents(v: Validator, value: unknown): string[] | undefined {
+/**
+ * Validate `activationEvents` against `ActivationEvents.ts`'s known
+ * vocabulary (task 0024 round 3, P1.5). Before this, any non-empty string
+ * was accepted, so a typo'd event looked exactly like a working one - and
+ * `'onStartup'` (not `'onStartupFinished'`) validated even though nothing in
+ * `ActivationEvents.ts` declared it and nothing but two hard-coded
+ * `main.ts` fires matched it.
+ *
+ * `onCommand:`/`onView:` arguments are normalized here so `fireActivationEvent`'s
+ * `events.includes(eventId)` exact-match check (`ExtensionHostLifecycle.ts`)
+ * works regardless of which spelling the author wrote - see
+ * `normalizeActivationArgument`'s own doc comment for the short-vs-long-id
+ * rule this mirrors from `normalizeId`.
+ */
+function validateActivationEvents(
+  v: Validator,
+  value: unknown,
+  ctx: ContributionContext,
+): string[] | undefined {
   if (!v.requireArray('/activationEvents', value)) return undefined;
   const out: string[] = [];
   const seen = new Set<string>();
@@ -577,10 +601,70 @@ function validateActivationEvents(v: Validator, value: unknown): string[] | unde
       v.add(path, 'unique', `duplicate activation event "${entry}"`);
       return;
     }
+    if (isBuiltinOnlyEvent(entry)) {
+      v.add(
+        path,
+        'activation.builtin-only',
+        `activation event "${entry}" is reserved for built-in extensions`,
+      );
+      return;
+    }
+    if (!isKnownActivationEvent(entry)) {
+      v.add(
+        path,
+        'activation.unknown',
+        `unknown activation event "${entry}" (see packages/core/src/Extensions/ActivationEvents.ts)`,
+      );
+      return;
+    }
     seen.add(entry);
-    out.push(entry);
+    out.push(normalizeActivationArgument(entry, ctx));
   });
   return out;
+}
+
+/**
+ * Normalize an `onCommand:`/`onView:` activation event's argument so it
+ * lines up with how the contribution it names is actually addressed, and
+ * pass every other event through unchanged.
+ *
+ * - `onCommand:<x>` -> the LONG form, matching `contributes.commands[].id`
+ *   after `normalizeId` (e.g. `onCommand:helloWorld` and
+ *   `onCommand:ext.pub.name.helloWorld` both become the latter) - commands
+ *   are keyed by their fully-qualified id everywhere (`CommandRegistry.ts`).
+ * - `onView:<x>` -> the SHORT form, with any leading `ext.<id>.` stripped -
+ *   panel types are keyed by their short id in the renderer
+ *   (`RendererUiBridge.registerPanelType`'s `${extensionId}.${def.id}`,
+ *   `extensionUiStore.ts`'s `contentType: ext:${extensionId}.${def.id}`); a
+ *   long-form argument here would never match what actually opens.
+ * - Anything else (including an argument that turns out to reference a
+ *   *different* extension, which is inert rather than a spoofing risk since
+ *   an activation event only affects the declaring extension's own
+ *   activation) is left exactly as written.
+ */
+function normalizeActivationArgument(entry: string, ctx: ContributionContext): string {
+  if (entry.startsWith(ACT_PREFIX_ON_COMMAND)) {
+    const arg = entry.slice(ACT_PREFIX_ON_COMMAND.length);
+    return ACT_PREFIX_ON_COMMAND + longContributionId(arg, ctx);
+  }
+  if (entry.startsWith(ACT_PREFIX_ON_VIEW)) {
+    const arg = entry.slice(ACT_PREFIX_ON_VIEW.length);
+    return ACT_PREFIX_ON_VIEW + shortContributionId(arg, ctx);
+  }
+  return entry;
+}
+
+/** `helloWorld` -> `ext.pub.name.helloWorld`; already-long ids pass through. */
+function longContributionId(id: string, ctx: ContributionContext): string {
+  if (id.startsWith('ext.') || !ctx.extId) return id;
+  return `ext.${stripExtPrefix(ctx.extId)}.${id}`;
+}
+
+/** `ext.pub.name.panel` -> `panel`; already-short ids pass through. */
+function shortContributionId(id: string, ctx: ContributionContext): string {
+  if (!ctx.extId) return id;
+  const prefix = `${ctx.extId}.`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
 }
 
 // --- Runtime config -------------------------------------------------------
@@ -780,6 +864,18 @@ function validateContributedCommands(
       }
     }
     if ('hidden' in cmd && v.requireBool(`${path}/hidden`, cmd.hidden)) command.hidden = cmd.hidden;
+    // A `shortcut` rides the Tools-menu accelerator built from every
+    // *visible* extension command (`buildExtensionToolsSubmenu`,
+    // `buildMenuSpec.ts` - skips `hidden: true`), so a shortcut on a hidden
+    // command would be silently unreachable (task 0024 round 3, P1.5 - the
+    // `commands[].shortcut` decision, P2.13's deferred Q1).
+    if (command.shortcut !== undefined && command.hidden === true) {
+      v.add(
+        `${path}/shortcut`,
+        'shortcut.hidden',
+        'a `shortcut` on a `hidden` command is unreachable - hidden commands get no menu entry',
+      );
+    }
     out.push(command);
   });
   return out;
@@ -1077,7 +1173,7 @@ export function validateManifest(json: unknown): ManifestValidationResult {
 
   let activationEvents: string[] | undefined;
   if ('activationEvents' in json) {
-    activationEvents = validateActivationEvents(v, json.activationEvents);
+    activationEvents = validateActivationEvents(v, json.activationEvents, { extId: id });
   }
 
   let main: string | undefined;

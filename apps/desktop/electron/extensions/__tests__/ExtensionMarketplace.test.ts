@@ -525,6 +525,7 @@ describe('blocklist enforcement at activation', () => {
       registry,
       blocklist,
       activeWorkers: new Map(),
+      activating: new Map(),
       logger: { appendLog: (): void => {} },
       workerFactory: {},
     };
@@ -569,6 +570,7 @@ describe('blocklist enforcement at activation', () => {
       registry,
       blocklist,
       activeWorkers: new Map(),
+      activating: new Map(),
       logger: { appendLog: (): void => {} },
       workerFactory: undefined,
     };
@@ -601,6 +603,7 @@ describe('blocklist enforcement at activation', () => {
       registry,
       blocklist: undefined,
       activeWorkers: new Map(),
+      activating: new Map(),
       logger: { appendLog: (): void => {} },
       workerFactory: undefined,
     };

@@ -130,6 +130,42 @@ export class RendererUiBridge implements IExtensionUiBridge {
     };
   }
 
+  // --- Declared panel types (task 0024 round 3, P1.5) ---------------------
+
+  /**
+   * Pre-register a declared (`contributes.panelTypes`) panel type. Strips
+   * the extension-id prefix `ExtensionManifestValidator.normalizeId` added -
+   * the renderer addresses panel types by their SHORT id
+   * (`registerPanelType`'s own `${extensionId}.${def.id}` key,
+   * `extensionUiStore.ts`'s `contentType: ext:${extensionId}.${def.id}`), so
+   * pre-registering the normalized (long) id verbatim would produce a
+   * second, ghost panel type under a doubled prefix.
+   *
+   * Idempotent and safe to call repeatedly - `registerPanelType` replaces by
+   * key either way, and a later imperative
+   * `api.ui.registerPanelType({ id: 'panel', ... })` from the same extension
+   * is simply a later write to the same key, not a second row. Unlike
+   * commands, panel types need no supersede/restore choreography: there is
+   * no duplicate-id rejection to avoid (`extensionUiStore.addPanelType`
+   * replaces, it never throws).
+   */
+  registerDeclaredPanelType(extensionId: string, def: ExtensionPanelTypeDef): void {
+    const prefix = `${extensionId}.`;
+    const shortId = def.id.startsWith(prefix) ? def.id.slice(prefix.length) : def.id;
+    this.registerPanelType(extensionId, shortId === def.id ? def : { ...def, id: shortId });
+  }
+
+  /**
+   * Drop every panel type owned by `extensionId` once it is no longer
+   * eligible (disabled/uninstalled). Declared and imperative panel types
+   * share one map keyed by `${extensionId}.<id>`, so there is nothing
+   * declared-specific left to distinguish - this is `disposePanelTypesByOwner`
+   * under a name that reads correctly at its `DeclaredContributions` call site.
+   */
+  unregisterDeclaredPanelTypes(extensionId: string): void {
+    this.disposePanelTypesByOwner(extensionId);
+  }
+
   disposePanelTypesByOwner(extensionId: string): number {
     let removed = 0;
     for (const [key, owner] of this.panelTypeOwners) {

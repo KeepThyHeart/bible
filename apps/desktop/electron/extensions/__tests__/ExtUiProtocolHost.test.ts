@@ -179,7 +179,7 @@ describe('the reserved hostname cannot be claimed by an extension', () => {
       engines: { bibleApp: '^1.0.0' },
       main: 'dist/extension.js',
       permissions: [],
-      activationEvents: ['onStartup'],
+      activationEvents: ['onStartupFinished'],
     };
 
     const result = validateManifest(manifest);

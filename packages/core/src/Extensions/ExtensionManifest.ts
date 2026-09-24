@@ -160,9 +160,17 @@ export interface ExtensionContributes {
    * Mirrors what an extension would otherwise call via
    * `api.bible.registerProvider`. Validated, but **not yet registered at
    * activation** - the only working path today is the imperative
-   * `api.bible.registerProvider(descriptor)` call. Declarative registration
-   * is deferred to lazy activation (P1.5), which reads `contributes` arrays
-   * at load time for the same reason.
+   * `api.bible.registerProvider(descriptor)` call.
+   *
+   * Declarative registration remains deferred **past** lazy activation
+   * (P1.5, task 0024 round 3): P1.5 reads `contributes.commands` and
+   * `contributes.panelTypes` at load time (their host-provided renderer
+   * counterparts - the command palette, the Tools menu, the panel registry -
+   * already exist to present a placeholder before activation), but a bible
+   * provider has no equivalent host-side placeholder to register against, so
+   * there is nothing for a declarative reader to pre-register here yet. This
+   * field is a schema/validator fix only (see task 0024 P2.13); it does not
+   * promise a specific future task will pick this up.
    */
   bibleProviders?: BibleProviderDescriptor[];
 }

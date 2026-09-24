@@ -5,7 +5,7 @@
  *
  *   - `engines.bibleApp` mismatches abort `activate()` with
  *     `IncompatibleApiVersionError` *before* a worker is forked.
- *   - `fireActivationEvent('onStartup')` activates only the extensions whose
+ *   - `fireActivationEvent('onStartupFinished')` activates only the extensions whose
  *     manifest opted into the event.
  */
 
@@ -154,7 +154,7 @@ describe('Version check + activation events', () => {
   it('fireActivationEvent activates only matching extensions', async () => {
     writeFixture(tmpRoot, {
       id: 'ext.test.startup',
-      activationEvents: ['onStartup'],
+      activationEvents: ['onStartupFinished'],
     });
     writeFixture(tmpRoot, {
       id: 'ext.test.lazy',
@@ -169,7 +169,7 @@ describe('Version check + activation events', () => {
     });
     await host.loadAll();
 
-    await host.fireActivationEvent('onStartup');
+    await host.fireActivationEvent('onStartupFinished');
 
     expect(host.isActive('ext.test.startup')).toBe(true);
     expect(host.isActive('ext.test.lazy')).toBe(false);
@@ -181,7 +181,7 @@ describe('Version check + activation events', () => {
   it('fireActivationEvent skips disabled and auto-disabled extensions', async () => {
     writeFixture(tmpRoot, {
       id: 'ext.test.disabled',
-      activationEvents: ['onStartup'],
+      activationEvents: ['onStartupFinished'],
     });
     host = new ExtensionHost({
       db: new FakeSql(),
@@ -193,7 +193,7 @@ describe('Version check + activation events', () => {
     await host.loadAll();
     await host.disable('ext.test.disabled');
 
-    await host.fireActivationEvent('onStartup');
+    await host.fireActivationEvent('onStartupFinished');
     expect(host.isActive('ext.test.disabled')).toBe(false);
   });
 });

@@ -330,6 +330,14 @@ export function attachExtensionRendererBridge(
     });
   }
 
+  // Tell main this bridge is attached and listening (task 0024 round 3,
+  // P1.5). `BridgeRpc` drops a send made before any renderer is listening and
+  // keeps no queue, so `DeclaredContributions.syncAll()` - run once at boot,
+  // before this bridge necessarily exists yet - can otherwise lose every
+  // placeholder registration silently. Sent last, once every listener above
+  // is actually wired, so nothing declared before "ready" is dropped either.
+  api.send('ext-bridge:command:ready', {});
+
   return () => {
     for (const d of disposers) {
       try { d(); } catch { /* swallow */ }

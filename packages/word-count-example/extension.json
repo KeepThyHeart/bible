@@ -14,7 +14,7 @@
     "ui:status-bar"
   ],
   "activationEvents": [
-    "onStartup"
+    "onStartupFinished"
   ],
   "categories": ["Utilities"],
   "keywords": ["word count", "statistics", "status bar"]

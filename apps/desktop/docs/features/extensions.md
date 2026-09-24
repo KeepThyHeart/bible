@@ -10,7 +10,8 @@ Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `util
 |---|---|
 | `electron/extensions/ExtensionHost.ts` | Public entry point; composes the subsystems below |
 | `electron/extensions/ExtensionHostTypes.ts` | `ExtensionHostContext` - the internal object passed to every subsystem |
-| `electron/extensions/ExtensionHostLifecycle.ts` | Activate / deactivate / crash handling. **Blocklist enforcement lives here**, before the worker spawns |
+| `electron/extensions/ExtensionHostLifecycle.ts` | Activate / deactivate / crash handling. **Blocklist enforcement lives here**, before the worker spawns. `activate()` coalesces concurrent calls for the same extension (task 0024 round 3, P1.5) |
+| `electron/extensions/DeclaredContributions.ts` | Reads `contributes.commands`/`contributes.panelTypes` and pre-registers placeholders before the owning worker exists (P1.5) - see "Lazy activation" below |
 | `electron/extensions/ExtensionHostDiscovery.ts` | Scans the extensions root and lists installed extensions |
 | `electron/extensions/ExtensionHostInstaller.ts`, `ExtensionInstaller.ts` | Install from folder or `.zip`, including zip-slip refusal |
 | `electron/extensions/ExtensionRegistry.ts` | SQLite-backed record of what is installed, enabled, granted, and where it came from |
@@ -24,7 +25,7 @@ Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `util
 | `electron/extensions/ExtensionDevConfig.ts`, `ExtensionDevWatcher.ts`, `ExtensionHostDevMode.ts` | Developer Mode: the opt-in config, the reload-on-change watcher, and the host wiring. Off until the user turns it on |
 | `electron/extensions/extUiProtocol.ts` | The `ext-ui://` scheme handler that serves an extension's panel assets to the iframe |
 | `electron/ipc/extensionHandlers.ts` | The renderer-facing `extensions:*` channels (everything that is not marketplace) |
-| `electron/main.ts` | The **only production composition site** - `initializeExtensionHostInBackground()` builds the `ExtensionHost` with the real worker factory, gateways, bridges and keychain, then registers the IPC surfaces and fires `onStartup` / `*` |
+| `electron/main.ts` | The **only production composition site** - `initializeExtensionHostInBackground()` builds the `ExtensionHost` with the real worker factory, gateways, bridges and keychain, wires `DeclaredContributions`, then registers the IPC surfaces and fires `onStartupFinished` |
 
 ## Host - sandbox and RPC
 
@@ -176,6 +177,28 @@ The settings **form** itself changed underneath both of these: `ExtensionsSectio
 
 Not fixed here: a `{ $ref: string }` `contributes.configuration` (a schema file reference rather than an inline object) still renders no fields and so accepts no `setSetting` key - `extractFields` does not resolve `$ref`, matching the form's pre-existing limitation. No manifest in this repository uses it.
 
+## Lazy activation (task 0024 round 3, P1.5)
+
+Every installed, enabled extension used to activate (spawn its worker) unconditionally at boot. `DeclaredContributions.ts` reads `contributes.commands`/`contributes.panelTypes` at load time and pre-registers a *placeholder* for each - an ordinary command/panel type as far as the palette, the Tools menu, the keyboard and the new-tab page are concerned - so the extension itself starts only on first real use.
+
+**Activation events the host actually fires**, as of this round (`ActivationEvents.ts`'s `FIRED_ACTIVATION_EVENTS`):
+
+| Event | Fires | Notes |
+|---|---|---|
+| `onStartupFinished` | Once, after the window is shown (`main.ts`'s boot sequence) | The one bare "activate at boot" event. Replaces the inert pre-round-3 `'onStartup'`, which is now rejected outright - there is no compatibility alias (`EXTENSION_API_VERSION` is `0.1.0`, pre-release; one first-party extension exists and was updated in the same round) |
+| `onCommand:<fully-qualified command id>` | When a declared command's placeholder is invoked (palette, Tools menu, or its `shortcut`'s accelerator) and the extension is not already active | `RendererCommandBridge.invokeDeclared` |
+| `onView:<short panel type id>` | When a declared panel type's content is about to mount and the extension is not already active | `extensionHandlers.ts`'s `extensions:getPanelTypeUiEntry` - every way a panel opens (palette, new-tab page, restored layout, pop-out) passes through this one handler |
+
+The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`, etc.) remain in the accepted vocabulary - declaring one is not an error - but the host has no firing site for them yet; `DeclaredContributions.warnOnUnfiredEvents()` logs a one-time note per extension to that effect. `'*'` (built-ins only) is now enforced by the validator and rejected unconditionally - there is no built-in-extension concept in this codebase, so nothing may legally declare it.
+
+**The state machine**, per declared command id: `placeholder` (worker not active, the declared invoker is registered) -> `superseded` (the worker activated and called `api.commands.register` for the same id itself - the placeholder is disposed and the real registration takes over) -> back to `placeholder` if the real registration is later disposed (the worker deactivates, crashes, or disposes it itself) - the command comes back, it does not vanish. A declared command with a `handlerEndpoint` but no imperative registration is called directly via reverse RPC (`ExtensionHost.callWorkerEndpoint`, mirroring `commandsApiImpl.ts`'s own dispatch) once activation succeeds - `IRuntimeApi.expose`'s own doc comment already specified this: "the host may call before any imperative registration has run". A declared command with neither rejects as unresolved (logged once, not on every invocation) but the placeholder is left in place, so it starts working the moment the manifest or `activate()` is fixed. Panel types have no such states - `RendererUiBridge.registerPanelType` already replaces by key, so a declared pre-registration and a later imperative one are simply one row, written twice.
+
+**A subtlety worth knowing if you touch this code:** `contributes.panelTypes[].id` is validated and stored in its LONG form (`ext.<publisher.name>.<id>`), like every other contribution id - but the renderer addresses a panel type by its SHORT id (`RendererUiBridge.registerPanelType`'s `${extensionId}.${def.id}` key, `extensionUiStore.ts`'s `contentType: ext:${extensionId}.${def.id}`). `RendererUiBridge.registerDeclaredPanelType` strips the prefix back off before registering; forgetting this produces a ghost panel type under a doubled prefix (`ext:ext.pub.name.ext.pub.name.panel`) that never collides with the real one and just silently never opens.
+
+**`commands[].shortcut`** (deferred from P2.13, settled here): rides the existing native-menu-accelerator path, not `KeybindingService`. A declared command's `shortcut` is copied onto the placeholder's registration exactly as the imperative `api.commands.register({ shortcut })` path already does; `buildExtensionToolsSubmenu` (`buildMenuSpec.ts`) builds a Tools-menu entry with that accelerator for every visible extension command, dispatching by command id - so a shortcut on a not-yet-active extension's command activates it, exactly like a palette invocation. `KeybindingService`'s dedicated `'extension'` source is deliberately not fed yet: its `keydown` listener would double-fire alongside the OS accelerator, and its `user > extension > builtin` priority table has no built-ins registered in it today, so an `'extension'` entry would win every conflict by default rather than lose to one. A `shortcut` on a `hidden: true` command is rejected at validation time - `buildExtensionToolsSubmenu` skips hidden commands, so the accelerator would be silently unreachable.
+
+**Concurrency:** `ExtensionHostLifecycle.activate` coalesces concurrent calls for the same extension id - a fixed bug, not new-for-this-feature: before this, two callers invoking `activate()` for the same extension in close succession (e.g. a shortcut fired twice while a worker was still spawning) could each spawn their own worker, since the only prior guard (`activeWorkers.has(id)`) does not become true until well after the worker process exists.
+
 ## Notifications that resolve with an action
 
 `ui.showNotification`'s `opts.actions` was validated and sent to the renderer, and nothing rendered it - a toast was a message and a dismiss button, and the promise resolved the instant the toast was queued rather than when the user did anything. It now resolves with the clicked action's `id`, or `undefined` if dismissed, replaced, or auto-dismissed - the same "wait for the user" shape `showConfirm`/`showQuickPick`/`showInputBox` already have. `extensionUiStore.ts` tracks one resolver per notification (settled exactly once, by whichever of action-click / manual dismiss / timeout happens first); `ExtensionUiHost.tsx` renders `opts.actions` as buttons.
@@ -251,7 +274,7 @@ Licensing here is the opposite of the module allowlist beside it: a bundled exte
 
 ## Tests
 
-- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`, `CommandsContextIntegration` (permission gates + the built-in allowlist), `RendererTaskStatusBridge`, `TasksApi` (`showInStatusBar` filtering)
+- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`, `CommandsContextIntegration` (permission gates + the built-in allowlist), `RendererTaskStatusBridge`, `TasksApi` (`showInStatusBar` filtering), `LazyActivation` (P1.5 end-to-end: boot laziness, enable/disable/auto-disable eligibility, `activate()` coalescing and failure retry), `DeclaredContributionsBridges` (the declared-command/panel-type placeholder state machine inside `RendererCommandBridge`/`RendererUiBridge` directly - one of the few files here that mocks `electron` to unit-test a production `Renderer*Bridge`)
 - **Runtime:** `extension-runtime/__tests__/` - realm behaviour, guest bundle, bundle size, worker bootstrap, supervisor, smoke harness
 - **UI:** `src/ui/components/extensions/ExtensionMarketplace.test.tsx`, `extensionSettingsSchema.test.ts`, `src/ui/components/extensions/useIframeBridge.test.tsx` (including `verse.activeChanged` forwarding and verse popups), `src/ui/extensions/contributedUi.test.tsx` (verse context menu + status bar), `src/ui/extensions/notifications.test.tsx` (action-click resolution), `src/ui/extensions/workspaceBridge.test.ts` (`setPanelTitle`/`setPanelBadge`/`revealPanel` renderer wiring), `src/ui/components/extensionPopOut.test.ts`, `src/ui/menu/extensionToolsMenu.test.ts`
 - **SDK:** `packages/extension-ui/src/BibleExtUI.test.ts` - `onActiveVerseChanged`'s payload shape, `showVersePopup`/`hideVersePopup` request dispatch

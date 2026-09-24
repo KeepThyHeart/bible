@@ -54,6 +54,7 @@ import { startStudyCacheSweep, stopStudyCacheSweep } from './services/StudyCache
 import { closeSharedUserDb, getSharedUserDb } from './services/sharedUserDb';
 import { getModuleDatabaseRegistry } from './services/ModuleDatabaseRegistry';
 import { ExtensionHost } from './extensions/ExtensionHost';
+import { DeclaredContributions } from './extensions/DeclaredContributions';
 import { ExtensionDevConfig } from './extensions/ExtensionDevConfig';
 import { electronUtilityProcessFactory } from './extensions/electronUtilityProcessFactory';
 import { BibleBridge } from './extensions/bridges/BibleBridge';
@@ -67,8 +68,7 @@ import { RendererWorkspaceBridge } from './extensions/bridges/RendererWorkspaceB
 import { RendererTaskStatusBridge } from './extensions/bridges/RendererTaskStatusBridge';
 import { RendererL10nBridge } from './extensions/bridges/RendererL10nBridge';
 import { CollectionsBridge } from './extensions/bridges/CollectionsBridge';
-import { CollectionRepository, CollectionService } from '@bible/core';
-import type { Extensions } from '@bible/core';
+import { CollectionRepository, CollectionService, Extensions } from '@bible/core';
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
@@ -861,7 +861,38 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     // renderer side of the protocol lives in
     // `src/ui/extensions/extensionRendererBridge.ts`.
     const getMainWindow = (): BrowserWindow | null => mainWindow;
-    const commandBridge = new RendererCommandBridge(getMainWindow);
+    // Set once `extensionHost.loadAll()` has run, further down this
+    // function (task 0024 round 3, P1.5). `commandBridge` below is
+    // constructed first and only calls into it through the lazy accessors
+    // it is handed, the same pattern `getExtensionHost: () => extensionHost`
+    // already uses a few lines up for the search/notes/xref handlers.
+    let declaredContributions: DeclaredContributions | null = null;
+    // Activate a declared command's owner on its first invocation: fire the
+    // matching `onCommand:` event (best-effort - `fireActivationEvent`
+    // already logs a per-extension failure and continues, so a rejection
+    // here would only be something structural) and then activate directly
+    // regardless, so the command still works even if the manifest forgot to
+    // declare a matching `activationEvents` entry. Both go through the same
+    // coalesced `activate()`, so this never double-spawns a worker.
+    const activateForDeclaredCommand = async (
+      extensionId: string,
+      activationEvent: string,
+    ): Promise<void> => {
+      try {
+        await extensionHost!.fireActivationEvent(activationEvent);
+      } catch {
+        /* see comment above - the direct activate() below surfaces a real failure */
+      }
+      await extensionHost!.activate(extensionId);
+    };
+    const commandBridge = new RendererCommandBridge(getMainWindow, {
+      activate: activateForDeclaredCommand,
+      callWorkerEndpoint: (extensionId, endpoint, args) =>
+        extensionHost!.callWorkerEndpoint(extensionId, endpoint, args),
+      log: (extensionId, level, message) =>
+        extensionHost!.appendLog(extensionId, { ts: Date.now(), level, message }),
+      onRendererReady: () => declaredContributions?.syncAll(),
+    });
     const contextBridge = new RendererContextBridge(getMainWindow);
     const uiBridge = new RendererUiBridge(getMainWindow);
     const workspaceBridge = new RendererWorkspaceBridge(getMainWindow);
@@ -950,6 +981,23 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       taskNotifier,
     });
     await extensionHost.loadAll();
+
+    // Declarative contributions (task 0024 round 3, P1.5). Registered BEFORE
+    // any activation event fires, so a lazily-activated extension's declared
+    // commands and panel types are already reachable - in the palette, the
+    // Tools menu, the new-tab page - the moment the user first looks for
+    // them, not just after the extension has happened to run once.
+    declaredContributions = new DeclaredContributions({
+      listEntries: () => extensionHost!.listEntries(),
+      commandBridge,
+      uiBridge,
+      log: (extensionId, level, message) =>
+        extensionHost!.appendLog(extensionId, { ts: Date.now(), level, message }),
+    });
+    extensionHost.setDeclaredResync((extensionId) => declaredContributions!.syncDeclared(extensionId));
+    declaredContributions.syncAll();
+    declaredContributions.warnOnUnfiredEvents();
+
     // Wire the `ext-ui://` file handler now that the host can resolve
     // extension IDs to install paths.
     try {
@@ -957,19 +1005,23 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     } catch (err) {
       log.error('[Background] Failed to register ext-ui:// protocol handler:', err);
     }
-    // Register the renderer-facing extensions IPC surface
-    // and fire startup activation events so any extension that opted in via
-    // `activationEvents: ['onStartup', '*']` actually starts running.
+    // Register the renderer-facing extensions IPC surface and fire the one
+    // bare "activate at boot" event any extension that opted in via
+    // `activationEvents: ['onStartupFinished']` gets. Lazy activation
+    // (`onCommand:`/`onView:`) covers everything else - see
+    // `DeclaredContributions.ts` and `extensionHandlers.ts`'s
+    // `getPanelTypeUiEntry`. There is no `'*'` fire: `ActivationEvents.ts`'s
+    // `isBuiltinOnlyEvent` is now enforced by the validator, so no installed
+    // extension can legally declare it.
     registerExtensionHandlers(extensionHost, { uiBridge });
     registerMarketplaceHandlers({ host: extensionHost, catalogService, blocklist });
     // The blocklist's only fetch trigger: the manual "Check for Updates" flow.
     // Never a timer, never startup - see `updateHandlers.setBlocklistRefresher`.
     setBlocklistRefresher(() => blocklist.refresh());
     try {
-      await extensionHost.fireActivationEvent('onStartup');
-      await extensionHost.fireActivationEvent('*');
+      await extensionHost.fireActivationEvent(Extensions.ACT_ON_STARTUP_FINISHED);
     } catch (err) {
-      log.warn('[Background] fireActivationEvent(onStartup) failed:', err);
+      log.warn('[Background] fireActivationEvent(onStartupFinished) failed:', err);
     }
     const installed = await extensionHost.listExtensions();
     log.info(`[Background] ExtensionHost ready (${installed.length} extension(s))`);

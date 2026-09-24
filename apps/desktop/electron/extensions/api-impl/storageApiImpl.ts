@@ -53,11 +53,13 @@ import type {
 // `storage.setSetting` and `ExtensionSettingsRenderer.tsx` can never disagree
 // about which keys exist or what a valid value looks like - both walk the
 // same `contributes.configuration` schema through the same pure functions.
-// This is a plain-TS module (no React/DOM), and `apps/desktop` builds
-// `src/**` and `electron/**` as one TypeScript program (see `tsconfig.json`),
-// so importing it from the main process is a type-level dependency only, not
-// a bundling one - `hostThemeCss.ts` / `hostControlsCss.ts` already cross
-// this same boundary for the panel-CSS assets.
+// This IS a real (value) import into the main process, not a type-only one -
+// but the target module has no imports of its own (no React, no DOM, nothing
+// transitive), so it is safe to pull into the main-process bundle. Reviewed
+// and confirmed safe in round 3's slice-3 approval [14-me]; `hostThemeCss.ts`
+// / `hostControlsCss.ts` cross the same `electron/` <-> `src/ui/` boundary,
+// but only for CSS assets, not logic, so they are a precedent for the
+// boundary being crossable at all, not for this specific kind of import.
 import {
   extractFields,
   findField,
