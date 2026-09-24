@@ -559,6 +559,18 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
       store.removePanelType(payload.extensionId, payload.panelTypeId);
       return undefined;
     }
+    case 'openSettings': {
+      // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). No store
+      // of its own - App.tsx owns the Preferences dialog's open/closed state,
+      // the same shape as the pre-existing `open-preferences-fonts` event
+      // (see App.tsx), so this just asks the DOM to route the request there
+      // rather than reaching into a store the dialog doesn't use.
+      const [payload] = args as [{ extensionId: string; section?: string }];
+      window.dispatchEvent(
+        new CustomEvent('open-preferences-extension-settings', { detail: payload }),
+      );
+      return undefined;
+    }
     default:
       throw new Error(`Unknown ui op: ${op}`);
   }

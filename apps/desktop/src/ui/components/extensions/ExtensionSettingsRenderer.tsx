@@ -47,6 +47,12 @@ interface ExtensionSettingsRendererProps {
   io?: SettingsIo;
   /** Notified when the form is saved (after a successful IPC write). */
   onSaved?: (values: Record<string, unknown>) => void;
+  /**
+   * A field's dot-path key to scroll into view once the form has loaded.
+   * Set by `api.ui.openSettings(section)` (task 0024 round 3, P1.7), routed
+   * here through `ExtensionsSection`'s `initialExpand.section`.
+   */
+  scrollToKey?: string;
 }
 
 const ExtensionSettingsRenderer: React.FC<ExtensionSettingsRendererProps> = ({
@@ -54,6 +60,7 @@ const ExtensionSettingsRenderer: React.FC<ExtensionSettingsRendererProps> = ({
   schema,
   io,
   onSaved,
+  scrollToKey,
 }) => {
   const { t } = useI18n();
   const fields = React.useMemo(() => extractFields(schema), [schema]);
@@ -87,6 +94,15 @@ const ExtensionSettingsRenderer: React.FC<ExtensionSettingsRendererProps> = ({
       cancelled = true;
     };
   }, [extensionId, fields, transport]);
+
+  React.useEffect(() => {
+    if (!scrollToKey || loading) return;
+    const id = `ext-setting-${scrollToKey.replace(/\./g, '-')}`;
+    // The target field may not exist (a bad `section` argument, or one hidden
+    // by `x-bibleAppDependsOn`) - scrolling is a courtesy, not a contract, so
+    // a miss is silently a no-op rather than an error.
+    document.getElementById(id)?.scrollIntoView({ block: 'center' });
+  }, [scrollToKey, loading]);
 
   const setFieldValue = React.useCallback((key: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [key]: value }));

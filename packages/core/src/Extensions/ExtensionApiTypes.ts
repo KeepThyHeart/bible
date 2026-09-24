@@ -587,6 +587,19 @@ export interface IUiApi {
     content: string | ArrayBuffer | Uint8Array,
     opts?: SaveFileOpts,
   ): Promise<boolean>;
+
+  /**
+   * Open the host's Extensions preferences page, expanded to this
+   * extension's own settings form. `section` optionally names one of this
+   * extension's own `contributes.configuration` property keys (dot-path,
+   * as declared - e.g. `'advanced.endpoint'`) to scroll into view; omitted,
+   * the page just opens expanded to the top of the extension's settings.
+   *
+   * This is the "let me finish setting this extension up" call - the
+   * counterpart to `storage.setSetting`, which lets the *code* change a
+   * setting; this lets the code ask the *user* to.
+   */
+  openSettings(section?: string): Promise<void>;
 }
 
 // --- IWorkspaceApi *(T1)* --------------------------------------------------
@@ -678,6 +691,21 @@ export interface IStorageApi {
    * `get('__settings.<key>')` but type-safe against the schema.
    */
   getSetting<T = unknown>(key: string): Promise<T | undefined>;
+
+  /**
+   * Write one setting declared in this extension's own
+   * `contributes.configuration` schema. Rejects (`RpcProtocolError`) if
+   * `key` is not a property declared there, or if `value` does not match
+   * the declared type (or, for `enum`, is not one of the declared values) -
+   * the host validates against the same schema the settings form renders
+   * from, so this call and the form can never disagree about what a valid
+   * value is. On success, fires `settings.changed` to this extension's own
+   * worker, exactly as a user-driven edit through the form does.
+   *
+   * An extension cannot invent new settings this way - only keys it already
+   * declared in its manifest are writable.
+   */
+  setSetting(key: string, value: unknown): Promise<void>;
 
   // ---- Per-extension SQLite database ----
   /**

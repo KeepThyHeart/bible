@@ -37,6 +37,11 @@ interface PreferencesDialogProps {
   initialSection?: string;
   /** If opening to the Fonts section, which pane to expand initially */
   initialFontPane?: PaneType;
+  /**
+   * If opening to the Extensions section via `api.ui.openSettings(...)`,
+   * which extension (and optionally which of its settings keys) to expand.
+   */
+  initialExtensionTarget?: { extensionId: string; section?: string };
   /** Close callback */
   onClose: () => void;
 }
@@ -44,6 +49,7 @@ interface PreferencesDialogProps {
 const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
   initialSection = 'general',
   initialFontPane,
+  initialExtensionTarget,
   onClose
 }) => {
   const { t } = useI18n();
@@ -169,7 +175,9 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'fonts' && <FontsSection initialPane={initialFontPane} />}
             {activeSection === 'themes' && <ThemesSection />}
             {activeSection === 'privacy' && <PrivacySection />}
-            {activeSection === 'extensions' && <ExtensionsSection />}
+            {activeSection === 'extensions' && (
+              <ExtensionsSection initialExpand={initialExtensionTarget} />
+            )}
             {activeSection === 'diagnostics' && <DiagnosticsSettings />}
           </div>
 

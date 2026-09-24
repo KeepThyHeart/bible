@@ -586,6 +586,12 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     return this.saveFileResponse;
   }
 
+  readonly openSettingsRequests: { extensionId: string; section?: string }[] = [];
+
+  openSettings(extensionId: string, section?: string): void {
+    this.openSettingsRequests.push({ extensionId, ...(section !== undefined ? { section } : {}) });
+  }
+
   disposeUiContributionsByOwner(extensionId: string): number {
     let removed = 0;
     const arrays = [

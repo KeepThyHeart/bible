@@ -281,6 +281,16 @@ export interface IExtensionUiBridge {
     opts?: SaveFileOpts,
   ): Promise<boolean>;
 
+  /**
+   * Open the host's Extensions preferences page, expanded to `extensionId`'s
+   * own settings form. `section` optionally names one of its
+   * `contributes.configuration` property keys (dot-path) to scroll to.
+   * Fire-and-forget, like `postPanelMessage` - the renderer decides what
+   * "open" means (mount the dialog if it is not already showing, switch tabs
+   * if it is).
+   */
+  openSettings(extensionId: string, section?: string): void;
+
   /** Drop every T2 UI registration owned by `extensionId`. */
   disposeUiContributionsByOwner(extensionId: string): number;
 }

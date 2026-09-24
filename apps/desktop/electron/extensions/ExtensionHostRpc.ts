@@ -155,6 +155,11 @@ export function attachApiImpls(
       ...(ctx.extensionDatabaseRegistry
         ? { databaseRegistry: ctx.extensionDatabaseRegistry }
         : {}),
+      // Task 0024 round 3, P1.7: `storage.setSetting` validates against the
+      // extension's own declared schema, so it needs it at hand.
+      ...(entry.manifest.contributes?.configuration !== undefined
+        ? { configurationSchema: entry.manifest.contributes.configuration }
+        : {}),
     });
     storageApi.attach();
     active.storageApi = storageApi;

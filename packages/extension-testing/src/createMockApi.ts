@@ -259,6 +259,7 @@ function createMockUiApi(): Extensions.IUiApi {
     showConfirm: asyncMock(false),
     pickFile: asyncMock(undefined),
     saveFile: asyncMock(false),
+    openSettings: asyncMock<void>(undefined),
   };
 }
 
@@ -482,6 +483,7 @@ function createMockStorageApi(): Extensions.IStorageApi {
       secrets.delete(key);
     }),
     getSetting: asyncMock(undefined),
+    setSetting: asyncMock<void>(undefined),
     // Keyed by name, so a test can re-open the same database to inspect what
     // the extension did to it. A closed handle is replaced rather than
     // resurrected, which is what a second `openDatabase` gets on the host.

@@ -313,6 +313,12 @@ export class RendererUiBridge implements IExtensionUiBridge {
     return true;
   }
 
+  openSettings(extensionId: string, section?: string): void {
+    this.rpc.notify('openSettings', [
+      { extensionId, ...(section !== undefined ? { section } : {}) },
+    ]);
+  }
+
   disposeUiContributionsByOwner(extensionId: string): number {
     let removed = 0;
     const registries: [Map<string, unknown>, Map<string, string>][] = [

@@ -165,6 +165,9 @@ function App() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferencesInitialSection, setPreferencesInitialSection] = useState<string>('general');
   const [preferencesFontPane, setPreferencesFontPane] = useState<PaneType | undefined>(undefined);
+  const [preferencesExtensionTarget, setPreferencesExtensionTarget] = useState<
+    { extensionId: string; section?: string } | undefined
+  >(undefined);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showDocumentation, setShowDocumentation] = useState(false);
   const [showManageBookmarks, setShowManageBookmarks] = useState(false);
@@ -268,6 +271,22 @@ function App() {
     window.addEventListener('open-preferences-fonts', handler);
     return () => window.removeEventListener('open-preferences-fonts', handler);
   }, [openPreferencesToFonts]);
+
+  // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). Same shape as
+  // `open-preferences-fonts` above: the extension bridge dispatches this
+  // event (see `extensionRendererBridge.ts`) rather than reaching into a
+  // store, since App.tsx already owns every "which Preferences section is
+  // open" flag.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { extensionId: string; section?: string };
+      setPreferencesExtensionTarget(detail);
+      setPreferencesInitialSection('extensions');
+      setShowPreferences(true);
+    };
+    window.addEventListener('open-preferences-extension-settings', handler);
+    return () => window.removeEventListener('open-preferences-extension-settings', handler);
+  }, []);
 
   // Command bus subscriptions. The KeybindingService now owns global
   // shortcuts and dispatches commands; the command handlers in
@@ -461,7 +480,11 @@ function App() {
           <PreferencesDialog
             initialSection={preferencesInitialSection}
             initialFontPane={preferencesFontPane}
-            onClose={() => setShowPreferences(false)}
+            initialExtensionTarget={preferencesExtensionTarget}
+            onClose={() => {
+              setShowPreferences(false);
+              setPreferencesExtensionTarget(undefined);
+            }}
           />
         )}
 

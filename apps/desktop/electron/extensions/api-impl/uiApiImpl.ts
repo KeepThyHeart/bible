@@ -88,6 +88,7 @@ export class UiApiImpl {
       updateStatusBarItem: (args) => this.handleUpdateStatusBarItem(args),
       pickFile: (args) => this.handlePickFile(args),
       saveFile: (args) => this.handleSaveFile(args),
+      openSettings: (args) => this.handleOpenSettings(args),
     });
   }
 
@@ -387,6 +388,18 @@ export class UiApiImpl {
       this.extensionId,
       content,
       (opts ?? undefined) as Extensions.SaveFileOpts | undefined,
+    );
+  }
+
+  private async handleOpenSettings(args: unknown[]): Promise<void> {
+    this.assertActive();
+    const section = args[0];
+    if (section !== undefined && section !== null && typeof section !== 'string') {
+      throw new RpcProtocolError('ui.openSettings: section must be a string when provided');
+    }
+    this.bridge.openSettings(
+      this.extensionId,
+      typeof section === 'string' ? section : undefined,
     );
   }
 

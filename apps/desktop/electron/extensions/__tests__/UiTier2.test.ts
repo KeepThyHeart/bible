@@ -476,6 +476,34 @@ describe('ui.saveFile', () => {
   });
 });
 
+// --- openSettings (task 0024 round 3, P1.7) -------------------------------
+
+describe('ui.openSettings', () => {
+  it('forwards to the bridge with no section, ungated (no permission required)', async () => {
+    const { pair, bridge } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', []);
+    expect(res.error).toBeUndefined();
+    expect(bridge.openSettingsRequests).toEqual([{ extensionId: 'ext.test.ui' }]);
+  });
+
+  it('forwards the section argument through', async () => {
+    const { pair, bridge } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', [
+      'advanced.endpoint',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.openSettingsRequests).toEqual([
+      { extensionId: 'ext.test.ui', section: 'advanced.endpoint' },
+    ]);
+  });
+
+  it('rejects a non-string section', async () => {
+    const { pair } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', [42]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+});
+
 // --- dispose cleanup -----------------------------------------------------
 
 describe('UiApiImpl.dispose() cleanup', () => {
