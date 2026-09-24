@@ -30,6 +30,7 @@ import { useBackupStore } from './stores/useBackupStore';
 import { getIssueReportUrl, getProductName } from './config/appConfig';
 import { useI18n } from './contexts/useI18n';
 import './styles/highlights.css';
+import './styles/extensionDecorations.css';
 import './styles/dockview-overrides.css';
 
 // EXP-E: dialogs and onboarding overlays are split out of the first-paint

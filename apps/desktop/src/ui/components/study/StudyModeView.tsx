@@ -16,6 +16,7 @@ import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { isTextSelectionActive } from '../../utils/selectionUtils';
 import { isInSelectedRange } from '../../stores/bible/internals/verseRange';
 import { findVerseElement, restartArrivalFlash } from '../../hooks/verseScrollTarget';
+import { VerseGutter, useHasEnabledDecoratorLayers } from '../../extensions/VerseGutterLane';
 
 interface BibleVerse {
   verse_id: number;
@@ -302,6 +303,10 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
     if (e.shiftKey) e.preventDefault();
   };
 
+  // Task 0036 (P0.1a, amendment A4): the gutter lane's presence, in Study
+  // mode too, next to the verse number.
+  const hasGutterLane = useHasEnabledDecoratorLayers();
+
   return (
     <div className="px-xl py-lg" ref={rootRef}>
       <div className="max-w-4xl mx-auto">
@@ -382,6 +387,9 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                     verse's first line; the flex default `stretch` would centre it
                     against the full height of a multi-line verse. */}
                 <div className="flex items-start gap-4">
+                  {hasGutterLane && (
+                    <VerseGutter verseId={verse.verse_id} moduleId={moduleId} surface="study" />
+                  )}
                   {!isPreface && (
                     <span
                       /* No hover fill: the verse text beside it is the click
@@ -442,6 +450,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                           verseId={verse.verse_id}
                           verseHTML={verse.text_html || verse.text}
                           moduleId={moduleId}
+                          surface="study"
                         />
                       </p>
                     )}

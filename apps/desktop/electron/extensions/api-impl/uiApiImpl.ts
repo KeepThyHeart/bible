@@ -25,10 +25,17 @@ import {
   requirePermission,
 } from '../ExtensionPermissionGuard';
 import type { IExtensionUiBridge } from './IExtensionDataBridges';
+import type { ContributionRegistry } from '../ContributionRegistry';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
+const { THEME_COLOR_KEYS, HOST_ICON_KEYS } = Extensions;
 
 type ExtensionPanelTypeDef = Extensions.ExtensionPanelTypeDef;
+type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
+type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
+type DecorationDto = Extensions.DecorationDto;
+type DecorationTarget = Extensions.DecorationTarget;
+type DecorationAppearance = Extensions.DecorationAppearance;
 
 // Valid context menu targets - kept in sync with ExtensionApiDtos.ts.
 const VALID_CONTEXT_MENU_TARGETS = new Set([
@@ -37,11 +44,27 @@ const VALID_CONTEXT_MENU_TARGETS = new Set([
   'panel.tab',
 ]);
 
+// Task 0036 (P0.1) - verse decorators/hovers. Design doc §9.
+const DECORATION_FETCH_TIMEOUT_MS = 3_000;
+const HOVER_FETCH_TIMEOUT_MS = 2_000;
+const MAX_DECORATOR_LAYERS_PER_EXTENSION = 4;
+const MAX_HOVER_PROVIDERS_PER_EXTENSION = 4;
+const MAX_TARGETS_PER_DECORATION = 64;
+const MAX_DECORATIONS_PER_PUSH = 2_000;
+const DECORATOR_ID_RE = /^[a-z0-9][a-z0-9._-]*$/i;
+const VALID_INVALIDATE_ON = new Set(['theme.changed', 'settings.changed', 'manual']);
+const VALID_SURFACES = new Set(['standard', 'study', 'reading']);
+const VALID_HOVER_SCOPES = new Set(['verse', 'word', 'both']);
+const VALID_MODIFIERS = new Set(['ctrl', 'alt', 'shift', 'meta']);
+const THEME_COLOR_KEY_SET = new Set<string>(THEME_COLOR_KEYS as readonly string[]);
+const HOST_ICON_KEY_SET = new Set<string>(HOST_ICON_KEYS as readonly string[]);
+
 export interface UiApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
   bridge: IExtensionUiBridge;
   grant: ExtensionPermissionGrant;
+  contributionRegistry?: ContributionRegistry;
 }
 
 export class UiApiImpl {
@@ -62,12 +85,18 @@ export class UiApiImpl {
   private readonly statusBarDisposalIdByItemId = new Map<string, string>();
   private nextDisposalId = 1;
   private disposed = false;
+  private readonly contributionRegistry: ContributionRegistry | undefined;
+  private decoratorCount = 0;
+  private hoverProviderCount = 0;
+  private readonly decoratorIds = new Set<string>();
+  private readonly hoverIds = new Set<string>();
 
   constructor(opts: UiApiImplOptions) {
     this.extensionId = opts.extensionId;
     this.router = opts.router;
     this.bridge = opts.bridge;
     this.grant = opts.grant;
+    this.contributionRegistry = opts.contributionRegistry;
   }
 
   attach(): void {
@@ -82,7 +111,9 @@ export class UiApiImpl {
       // T2
       registerVerseDecorator: (args) => this.handleRegisterVerseDecorator(args),
       updateVerseDecorations: (args) => this.handleUpdateVerseDecorations(args),
+      invalidateVerseDecorations: (args) => this.handleInvalidateVerseDecorations(args),
       registerVerseHover: (args) => this.handleRegisterVerseHover(args),
+      listThemeColorKeys: () => this.handleListThemeColorKeys(),
       registerContextMenu: (args) => this.handleRegisterContextMenu(args),
       registerStatusBarItem: (args) => this.handleRegisterStatusBarItem(args),
       updateStatusBarItem: (args) => this.handleUpdateStatusBarItem(args),
@@ -225,9 +256,35 @@ export class UiApiImpl {
         'ui.registerVerseDecorator: expected VerseDecoratorDescriptor as first arg',
       );
     }
-    const disposer = this.bridge.registerVerseDecorator(this.extensionId, d);
+    if (this.decoratorIds.has(d.id)) {
+      throw new RpcProtocolError(`ui.registerVerseDecorator: duplicate decorator id '${d.id}'`);
+    }
+    if (this.decoratorCount >= MAX_DECORATOR_LAYERS_PER_EXTENSION) {
+      throw new RpcProtocolError(
+        `ui.registerVerseDecorator: extension already has ${MAX_DECORATOR_LAYERS_PER_EXTENSION} decorators registered`,
+      );
+    }
+    // Mirrors commandsApiImpl.ts:205-213 - build the reverse-RPC closure the
+    // fetch service calls once per chapter fetch, and hand it (not the raw
+    // endpoint string) to the bridge, since the endpoint string alone is not
+    // callable from the renderer/main side.
+    const fetch = (request: Extensions.DecorationRequestDto): Promise<unknown> =>
+      this.router.request(d.decorateEndpoint, [request], {
+        timeoutMs: DECORATION_FETCH_TIMEOUT_MS,
+      });
+    const bridgeDisposer = this.bridge.registerVerseDecorator(this.extensionId, d, fetch);
+    const registryDispose = this.contributionRegistry
+      ? this.contributionRegistry.register(this.extensionId, 'verseDecorator', d.id, d)
+      : (): void => {};
+    this.decoratorCount++;
+    this.decoratorIds.add(d.id);
     const disposalId = `decorator-${this.nextDisposalId++}`;
-    this.disposers.set(disposalId, disposer);
+    this.disposers.set(disposalId, () => {
+      bridgeDisposer();
+      registryDispose();
+      this.decoratorCount--;
+      this.decoratorIds.delete(d.id);
+    });
     return { disposalId };
   }
 
@@ -242,7 +299,28 @@ export class UiApiImpl {
     if (!Array.isArray(decorations)) {
       throw new RpcProtocolError('ui.updateVerseDecorations: decorations must be an array');
     }
-    await this.bridge.updateVerseDecorations(this.extensionId, groupId, decorations);
+    if (decorations.length > MAX_DECORATIONS_PER_PUSH) {
+      throw new RpcProtocolError(
+        `ui.updateVerseDecorations: at most ${MAX_DECORATIONS_PER_PUSH} decorations per call`,
+      );
+    }
+    const validated = decorations
+      .map((d) => validateDecorationDto(d))
+      .filter((d): d is DecorationDto => d !== null);
+    await this.bridge.updateVerseDecorations(this.extensionId, groupId, validated);
+  }
+
+  private async handleInvalidateVerseDecorations(args: unknown[]): Promise<void> {
+    this.assertActive();
+    requirePermission(this.grant, 'ui:verse-decorator');
+    const opts = args[0];
+    if (opts !== undefined && opts !== null && typeof opts !== 'object') {
+      throw new RpcProtocolError('ui.invalidateVerseDecorations: opts must be an object when provided');
+    }
+    await this.bridge.invalidateVerseDecorations(
+      this.extensionId,
+      (opts ?? undefined) as { decoratorId?: string; startVerseId?: number; endVerseId?: number } | undefined,
+    );
   }
 
   private async handleRegisterVerseHover(args: unknown[]): Promise<{ disposalId: string }> {
@@ -254,10 +332,37 @@ export class UiApiImpl {
         'ui.registerVerseHover: expected VerseHoverProviderDescriptor as first arg',
       );
     }
-    const disposer = this.bridge.registerVerseHover(this.extensionId, h);
+    if (this.hoverIds.has(h.id)) {
+      throw new RpcProtocolError(`ui.registerVerseHover: duplicate hover provider id '${h.id}'`);
+    }
+    if (this.hoverProviderCount >= MAX_HOVER_PROVIDERS_PER_EXTENSION) {
+      throw new RpcProtocolError(
+        `ui.registerVerseHover: extension already has ${MAX_HOVER_PROVIDERS_PER_EXTENSION} hover providers registered`,
+      );
+    }
+    const fetch = (request: Extensions.VerseHoverRequestDto): Promise<unknown> =>
+      this.router.request(h.hoverEndpoint, [request], {
+        timeoutMs: HOVER_FETCH_TIMEOUT_MS,
+      });
+    const bridgeDisposer = this.bridge.registerVerseHover(this.extensionId, h, fetch);
+    const registryDispose = this.contributionRegistry
+      ? this.contributionRegistry.register(this.extensionId, 'verseHover', h.id, h)
+      : (): void => {};
+    this.hoverProviderCount++;
+    this.hoverIds.add(h.id);
     const disposalId = `hover-${this.nextDisposalId++}`;
-    this.disposers.set(disposalId, disposer);
+    this.disposers.set(disposalId, () => {
+      bridgeDisposer();
+      registryDispose();
+      this.hoverProviderCount--;
+      this.hoverIds.delete(h.id);
+    });
     return { disposalId };
+  }
+
+  private async handleListThemeColorKeys(): Promise<string[]> {
+    this.assertActive();
+    return [...THEME_COLOR_KEYS];
   }
 
   private async handleRegisterContextMenu(args: unknown[]): Promise<{ disposalId: string }> {
@@ -427,20 +532,149 @@ function isExtensionPanelTypeDef(value: unknown): value is ExtensionPanelTypeDef
   return true;
 }
 
-function isVerseDecoratorDescriptor(value: unknown): value is Extensions.VerseDecoratorDescriptor {
+function isValidDecoratorId(id: unknown): id is string {
+  return typeof id === 'string' && id.length > 0 && id.length <= 64 && DECORATOR_ID_RE.test(id);
+}
+
+function isValidSurfaces(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!Array.isArray(value)) return false;
+  return value.every((s) => typeof s === 'string' && VALID_SURFACES.has(s));
+}
+
+function isVerseDecoratorDescriptor(value: unknown): value is VerseDecoratorDescriptor {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || v.id.length === 0) return false;
-  if (typeof v.decorateEndpoint !== 'string' || v.decorateEndpoint.length === 0) return false;
+  if (!isValidDecoratorId(v.id)) return false;
+  if (typeof v.decorateEndpoint !== 'string' || v.decorateEndpoint.length === 0 || v.decorateEndpoint.length > 128) {
+    return false;
+  }
+  if (v.invalidateOn !== undefined) {
+    if (!Array.isArray(v.invalidateOn)) return false;
+    if (!v.invalidateOn.every((i) => typeof i === 'string' && VALID_INVALIDATE_ON.has(i))) return false;
+  }
+  if (!isValidSurfaces(v.surfaces)) return false;
+  if (v.title !== undefined && !isLocalizedString(v.title)) return false;
   return true;
 }
 
-function isVerseHoverProviderDescriptor(value: unknown): value is Extensions.VerseHoverProviderDescriptor {
+function isVerseHoverProviderDescriptor(value: unknown): value is VerseHoverProviderDescriptor {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || v.id.length === 0) return false;
-  if (typeof v.hoverEndpoint !== 'string' || v.hoverEndpoint.length === 0) return false;
+  if (!isValidDecoratorId(v.id)) return false;
+  if (typeof v.hoverEndpoint !== 'string' || v.hoverEndpoint.length === 0 || v.hoverEndpoint.length > 128) {
+    return false;
+  }
+  if (v.scope !== undefined && (typeof v.scope !== 'string' || !VALID_HOVER_SCOPES.has(v.scope))) return false;
+  if (v.modifiers !== undefined) {
+    if (!Array.isArray(v.modifiers)) return false;
+    if (!v.modifiers.every((m) => typeof m === 'string' && VALID_MODIFIERS.has(m))) return false;
+  }
+  if (v.order !== undefined && typeof v.order !== 'number') return false;
+  if (!isValidSurfaces(v.surfaces)) return false;
+  if (v.title !== undefined && !isLocalizedString(v.title)) return false;
   return true;
+}
+
+// --- Decoration DTO validation (design doc §3.8) --------------------------
+//
+// Shared by both the pull response path (`VerseDecorationService`, applied
+// per fetched layer) and the push path (`handleUpdateVerseDecorations`
+// above). A malformed decoration is dropped, not fatal - the rest of the
+// array still renders.
+
+function isValidVerseId(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0;
+}
+
+function isDecorationTarget(value: unknown): value is DecorationTarget {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  switch (v.kind) {
+    case 'verse':
+      return isValidVerseId(v.verseId);
+    case 'passage':
+      return (
+        isValidVerseId(v.startVerseId) &&
+        isValidVerseId(v.endVerseId) &&
+        (v.endVerseId as number) >= (v.startVerseId as number)
+      );
+    case 'tokens':
+      return (
+        isValidVerseId(v.verseId) &&
+        typeof v.startTokenIndex === 'number' &&
+        v.startTokenIndex >= 0 &&
+        (v.endTokenIndex === undefined || (typeof v.endTokenIndex === 'number' && v.endTokenIndex >= v.startTokenIndex))
+      );
+    case 'word': {
+      if (typeof v.text !== 'string' || v.text.length === 0) return false;
+      const scope = v.scope as Record<string, unknown> | undefined;
+      if (typeof scope !== 'object' || scope === null) return false;
+      const scopeOk =
+        isValidVerseId(scope.verseId) ||
+        (isValidVerseId(scope.startVerseId) && isValidVerseId(scope.endVerseId));
+      if (!scopeOk) return false;
+      if (v.occurrence !== undefined && (typeof v.occurrence !== 'number' || v.occurrence < 1)) return false;
+      if (v.matchCase !== undefined && typeof v.matchCase !== 'boolean') return false;
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+function resolveColorKeyOrDrop<T extends { color?: unknown }>(v: T): boolean {
+  if (v.color === undefined) return true;
+  return typeof v.color === 'string' && THEME_COLOR_KEY_SET.has(v.color);
+}
+
+function isDecorationAppearance(value: unknown): value is DecorationAppearance {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  switch (v.kind) {
+    case 'tint':
+      if (typeof v.color !== 'string' || !THEME_COLOR_KEY_SET.has(v.color)) return false;
+      if (v.intensity !== undefined && !['subtle', 'normal', 'strong'].includes(v.intensity as string)) return false;
+      return true;
+    case 'underline':
+      if (typeof v.color !== 'string' || !THEME_COLOR_KEY_SET.has(v.color)) return false;
+      if (v.style !== undefined && !['solid', 'dashed', 'dotted'].includes(v.style as string)) return false;
+      if (v.thickness !== undefined && !['thin', 'medium', 'thick'].includes(v.thickness as string)) return false;
+      return true;
+    case 'gutter':
+      if (typeof v.icon !== 'string' || !HOST_ICON_KEY_SET.has(v.icon)) return false;
+      if (!resolveColorKeyOrDrop(v)) return false;
+      if (v.tooltip !== undefined && !isLocalizedString(v.tooltip)) return false;
+      return true;
+    case 'emphasis':
+      return true;
+    case 'strike':
+      return resolveColorKeyOrDrop(v);
+    case 'badge':
+      if (typeof v.label !== 'string' || v.label.length === 0 || v.label.length > 12) return false;
+      if (!/^[\p{L}\p{N} .:·+#/-]{1,12}$/u.test(v.label)) return false;
+      return resolveColorKeyOrDrop(v);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Validates one `DecorationDto`. Returns `null` (drop it) if malformed.
+ * Exported for `VerseDecorationService`, which applies the same validator to
+ * pull responses (design doc §3.8: one validator, both push and pull).
+ */
+export function validateDecorationDto(value: unknown): DecorationDto | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Record<string, unknown>;
+  const targets = Array.isArray(v.target) ? v.target : [v.target];
+  if (targets.length === 0 || targets.length > MAX_TARGETS_PER_DECORATION) return null;
+  if (!targets.every((t) => isDecorationTarget(t))) return null;
+  if (!isDecorationAppearance(v.appearance)) return null;
+  if (v.order !== undefined && (typeof v.order !== 'number' || v.order < -1000 || v.order > 1000)) return null;
+  if (v.groupId !== undefined && typeof v.groupId !== 'string') return null;
+  if (v.hoverContent !== undefined && typeof v.hoverContent !== 'object') return null;
+  return v as unknown as DecorationDto;
 }
 
 function isContextMenuItemDescriptor(value: unknown): value is Extensions.ContextMenuItemDescriptor {

@@ -1,0 +1,47 @@
+/*
+ * Extension verse decoration paint (task 0036, P0.1a; design doc §6,
+ * amendment A2).
+ *
+ * Ownership split (amendment A2's table): user highlights/underlines own
+ * `background-color` and `text-decoration-*`; host states (find, selection,
+ * drag) own `background-color`/`box-shadow`/`color`; extensions own
+ * `background-image`/`-position`/`-size` (via these custom properties),
+ * `font-weight` (via a class) and `::after` content. Tint/underline/strike
+ * are all layers of ONE `background-image`, so they can never fight the
+ * user's own `text-decoration !important` rule or find's `box-shadow`.
+ *
+ * Class names here must never contain `highlight-` or `underline-`:
+ * this file and `themes.css` both already select on
+ * `[class*="highlight-"]` / `[class*="underline-"]`.
+ */
+
+.word.ext-deco {
+  background-image: var(--ext-bg-image);
+  background-position: var(--ext-bg-position);
+  background-size: var(--ext-bg-size);
+  background-repeat: no-repeat;
+}
+
+/* An extension tint never hides a find match - find's own background wins. */
+.word.ext-deco.find-match,
+.word.ext-deco.find-match-current {
+  background-image: none;
+}
+
+.word.ext-bold {
+  font-weight: 700;
+}
+
+.word.ext-badge::after {
+  content: var(--ext-badge);
+  color: var(--ext-badge-color);
+  font-size: 0.7em;
+  padding: 0 0.35em;
+  margin-inline-start: 0.25em;
+  border: 1px solid currentColor;
+  border-radius: 0.6em;
+  vertical-align: 0.1em;
+  /* Purely visual, generated content - never selectable or copyable with
+     the verse text, and never a DOM node a screen reader announces as text. */
+  user-select: none;
+}

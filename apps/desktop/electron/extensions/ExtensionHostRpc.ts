@@ -259,6 +259,7 @@ export function attachApiImpls(
       router,
       bridge: ctx.uiBridge,
       grant,
+      contributionRegistry: ctx.contributionRegistry,
     });
     api.attach();
     active.uiApi = api;

@@ -96,7 +96,7 @@ test.describe('Highlight diagnosis (real Electron)', () => {
         Every renderer a verse can go through must highlight identically.
 
         Standard, Reading and Study's plain text render through
-        HighlightedVerse -> applyHighlightsToVerse, which emits one
+        HighlightedVerse -> renderVerseWords, which emits one
         `<span class="word" data-word-index=N>` per word inside a
         `[data-verse-id]` wrapper. Everything about highlighting is built on
         those two attributes: useBibleHighlights.buildSelectionFromDOM maps a
@@ -111,7 +111,7 @@ test.describe('Highlight diagnosis (real Electron)', () => {
         Study+interlinear matters most, because `showInterlinear` defaults to
         true for a tab created in Study mode and so is the *default* Study
         experience. InterlinearDisplay builds its own JSX spans but resolves them
-        through the same highlightAttrsForWord() the string path uses, over the
+        through the same wordRenderAttrs() the string path uses, over the
         same English word indices. Note `setDisplayMode` does NOT set showInterlinear - the
         interlinear case forces and asserts the toggle explicitly.
       */

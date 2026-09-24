@@ -19,6 +19,57 @@ import { ExtensionCatalogBrowser } from './extensions/ExtensionCatalogBrowser';
 import { ExtensionCatalogSources } from './extensions/ExtensionCatalogSources';
 import ExtensionSettingsRenderer from './extensions/ExtensionSettingsRenderer';
 import type { BlockDecision } from './extensions/marketplaceTypes';
+import { useExtensionUiStore } from '../extensions/extensionUiStore';
+import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
+
+/**
+ * "Show verse decorations" toggle (task 0036, P0.1a; design doc §13).
+ *
+ * Rendered only when `extensionId` has at least one registered decorator or
+ * hover provider - `useExtensionUiStore`'s `verseDecorators`/
+ * `verseHoverProviders` answer that directly, the same "what has been
+ * contributed" surface `ContributionRegistry` backs on the main side.
+ *
+ * Session-scoped in P0.1a: this toggles `verseDecorationStore`'s in-memory
+ * `disabledDecorationExtensions` set (renderer) and, via
+ * `setLayerEnabled`/`invokeUiBridge`, tells `VerseDecorationService`
+ * (main) to stop fetching for this extension too. It does not yet persist
+ * across app restarts - no host-settings-file backing for this exists in
+ * the codebase yet, and building one was out of this round's scope. Noted
+ * in this task's delivery message, not silently decided.
+ */
+function VerseDecorationsToggle({ extensionId }: { extensionId: string }): JSX.Element | null {
+  const decorators = useExtensionUiStore((s) => s.verseDecorators);
+  const hoverProviders = useExtensionUiStore((s) => s.verseHoverProviders);
+  const disabled = useExtensionUiStore((s) => s.disabledDecorationExtensions.has(extensionId));
+  const setDecorationsEnabled = useExtensionUiStore((s) => s.setDecorationsEnabled);
+
+  const hasAny =
+    decorators.some((d) => d.extensionId === extensionId) ||
+    hoverProviders.some((h) => h.extensionId === extensionId);
+  if (!hasAny) return null;
+
+  const toggle = (): void => {
+    const nextEnabled = disabled; // currently disabled -> enabling
+    setDecorationsEnabled(extensionId, nextEnabled);
+    // Layer keys aren't known here (they're per-decorator); the store enables
+    // by extension across every one of its decorators.
+    for (const d of decorators) {
+      if (d.extensionId === extensionId) {
+        useVerseDecorationStore.getState().setLayerEnabled(extensionId, d.descriptor.id, nextEnabled);
+      }
+    }
+  };
+
+  return (
+    <div className="text-xs">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={!disabled} onChange={toggle} />
+        Show verse decorations
+      </label>
+    </div>
+  );
+}
 
 type ExtensionsTab = 'installed' | 'browse' | 'catalogs';
 
@@ -784,6 +835,8 @@ export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JS
                         </ul>
                       )}
                     </div>
+
+                    <VerseDecorationsToggle extensionId={id} />
 
                     {/*
                       Settings, rendered from `contributes.configuration` by

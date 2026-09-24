@@ -500,22 +500,47 @@ export interface IUiApi {
   /** Contribute a new panel/content type. */
   registerPanelType(def: ExtensionPanelTypeDef): Promise<DisposableHandle>;
 
-  /** Contribute a verse decorator. */
+  /**
+   * Contribute a verse decorator. `d.decorateEndpoint` is called with a
+   * `DecorationRequestDto` (a passage, not a verse-id array) and must
+   * resolve with `DecorationDto[]`. See task 0036's design doc for the full
+   * data model, caching and layering rules.
+   */
   registerVerseDecorator(d: VerseDecoratorDescriptor): Promise<DisposableHandle>;
 
   /**
-   * Update an existing decoration group (matched by `groupId`). Use this when
-   * data behind a decoration changes - e.g. a stemming overlay rebuilds.
+   * Replace a decoration group (matched by `groupId`) atomically. Use this to
+   * push decorations the host did not ask for - e.g. a set too large to
+   * recompute on every chapter turn. A pushed group is independent of any
+   * decorator layer and survives navigation to a chapter that is not
+   * currently loaded (it paints on arrival). Pass an empty array to clear
+   * the group.
    */
   updateVerseDecorations(
     groupId: string,
     decorations: DecorationDto[],
   ): Promise<void>;
 
+  /**
+   * Drop the host's cached pull results for this extension's decorators, so
+   * the next time a chapter needs them the host asks again. This is what
+   * `invalidateOn: ['manual']` means.
+   */
+  invalidateVerseDecorations(opts?: {
+    /** Limit to one decorator. Omitted: all of this extension's decorators. */
+    decoratorId?: string;
+    /** Limit to a passage. Omitted: everything cached. */
+    startVerseId?: number;
+    endVerseId?: number;
+  }): Promise<void>;
+
   /** Contribute hover content for verses. */
   registerVerseHover(
     h: VerseHoverProviderDescriptor,
   ): Promise<DisposableHandle>;
+
+  /** The full theme-colour allowlist decorations may reference (`THEME_COLOR_KEYS`). No permission beyond `ui:verse-decorator`/`ui:verse-hover`. */
+  listThemeColorKeys(): Promise<string[]>;
 
   /** Add an item to a built-in context menu. */
   registerContextMenu(

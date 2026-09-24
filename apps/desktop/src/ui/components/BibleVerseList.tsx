@@ -19,6 +19,9 @@ import { isInSelectedRange } from '../stores/bible/internals/verseRange';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 import { openModuleManager } from '../utils/openModuleManager';
+import { VerseIdHelper } from '@bible/core';
+import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
+import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -74,6 +77,25 @@ const BibleVerseList: React.FC = () => {
   // Brief chapter loads (cache hit, fast query) shouldn't flicker a loading
   // UI in at all - only fetches still running past 80ms show it.
   const isLoading = useDeferredLoading(rawIsLoading);
+
+  // Task 0036 (P0.1a): ask for this chapter's decorations as soon as we know
+  // which chapter and module we're on. Verse text never waits on this - it
+  // is a fire-and-forget cache-fill (`ensureRange` dedupes and no-ops when
+  // nothing is registered/stale), and decorations paint whenever they
+  // arrive via each verse's own store subscription.
+  const moduleId = activeTab?.moduleId ?? 0;
+  const moduleAbbrev = activeTab?.abbreviation;
+  React.useEffect(() => {
+    if (isParallelViewMode || !moduleAbbrev || !currentBook || !currentChapter) return;
+    const range = VerseIdHelper.getChapterRange(currentBook, currentChapter);
+    useVerseDecorationStore.getState().ensureRange({
+      moduleId,
+      moduleAbbrev,
+      startVerseId: range.startVerseId,
+      endVerseId: range.endVerseId ?? range.startVerseId,
+    });
+  }, [isParallelViewMode, moduleId, moduleAbbrev, currentBook, currentChapter]);
+  const hasGutterLane = useHasEnabledDecoratorLayers();
 
   /**
    * Is this verse part of the passage being previewed?
@@ -387,6 +409,7 @@ const BibleVerseList: React.FC = () => {
                                             verseId={verse.verse_id}
                                             verseHTML={verse.text_html || verse.text}
                                             moduleId={activeTab!.moduleId ?? 0}
+                                            surface="reading"
                                             suffix={renderVerseIndicators(verse.verse_id, 'w-3 h-3', 'ms-0.5')}
                                           />
                                         </span>
@@ -453,6 +476,9 @@ const BibleVerseList: React.FC = () => {
                                 onClick={(e) => handleVerseBodyClick(verse.verse_id, e.shiftKey)}
                                 onContextMenu={(e) => handleVerseContextMenu(e, verse)}
                               >
+                                {hasGutterLane && (
+                                  <VerseGutter verseId={verse.verse_id} moduleId={moduleId} surface="standard" />
+                                )}
                                 {!isPreface && (
                                   /*
                                     The whole row selects the verse (see handleVerseBodyClick),
@@ -495,6 +521,7 @@ const BibleVerseList: React.FC = () => {
                                   verseId={verse.verse_id}
                                   verseHTML={verse.text_html || verse.text}
                                   moduleId={activeTab!.moduleId ?? 0}
+                                  surface="standard"
                                   suffix={renderVerseIndicators(verse.verse_id, 'w-3.5 h-3.5', 'ms-1')}
                                 />
                               </div>

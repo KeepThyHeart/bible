@@ -19,6 +19,8 @@ import type { Extensions } from '@bible/core';
 
 import type { IExtensionUiBridge } from '../api-impl/IExtensionDataBridges';
 import { BridgeRpc } from './RendererBridgeRpc';
+import { VerseDecorationService } from '../VerseDecorationService';
+import type { ContributionRegistry } from '../ContributionRegistry';
 
 type LocalizedString = Extensions.LocalizedString;
 type NotificationOpts = Extensions.NotificationOpts;
@@ -36,6 +38,13 @@ type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
 type SaveFileOpts = Extensions.SaveFileOpts;
+type DecorationRequestDto = Extensions.DecorationRequestDto;
+type DecorationFetchRequest = Extensions.DecorationFetchRequest;
+type VerseHoverRequestDto = Extensions.VerseHoverRequestDto;
+
+export interface RendererUiBridgeDeps {
+  contributionRegistry?: ContributionRegistry;
+}
 
 export class RendererUiBridge implements IExtensionUiBridge {
   private readonly rpc: BridgeRpc;
@@ -44,23 +53,45 @@ export class RendererUiBridge implements IExtensionUiBridge {
   private readonly panelTypes = new Map<string, ExtensionPanelTypeDef>();
   private readonly panelTypeOwners = new Map<string, string>();
 
-  // T2 registries - keyed by `${extensionId}::${descriptor.id}`.
-  private readonly decorators = new Map<string, VerseDecoratorDescriptor>();
-  private readonly decoratorOwners = new Map<string, string>();
-  private readonly hoverProviders = new Map<string, VerseHoverProviderDescriptor>();
-  private readonly hoverOwners = new Map<string, string>();
+  // T2 registries (context menu / status bar) - keyed by `${extensionId}::${id}`.
   private readonly contextMenuItems = new Map<string, { target: ContextMenuTarget; item: ContextMenuItemDescriptor }>();
   private readonly contextMenuOwners = new Map<string, string>();
   private readonly statusBarItems = new Map<string, StatusBarItemDescriptor>();
   private readonly statusBarOwners = new Map<string, string>();
 
-  constructor(getWindow: () => BrowserWindow | null) {
+  /**
+   * Verse decorator/hover registration, the fetch fan-out and push-group
+   * storage (task 0036, P0.1a) all live in `VerseDecorationService` - it is
+   * substantial enough to be its own testable unit rather than more maps on
+   * this class. This bridge is just where `IExtensionUiBridge` requires the
+   * methods to exist.
+   */
+  readonly verseDecorations: VerseDecorationService;
+
+  constructor(getWindow: () => BrowserWindow | null, deps?: RendererUiBridgeDeps) {
     this.getWindow = getWindow;
     this.rpc = new BridgeRpc({
       outboundChannel: 'ext-bridge:ui',
       responseChannel: 'ext-bridge:ui:response',
+      inboundChannel: 'ext-bridge:ui:invoke',
       getWindow,
     });
+    this.verseDecorations = new VerseDecorationService(this.rpc, deps?.contributionRegistry);
+    this.rpc.attachInboundHandler((op, args) => this.handleInbound(op, args));
+  }
+
+  private async handleInbound(op: string, args: unknown[]): Promise<unknown> {
+    switch (op) {
+      case 'fetchVerseDecorations':
+        return this.verseDecorations.fetch(args[0] as DecorationFetchRequest);
+      case 'setVerseDecorationsEnabled': {
+        const [extensionId, enabled] = args as [string, boolean];
+        this.verseDecorations.setExtensionEnabled(extensionId, enabled);
+        return undefined;
+      }
+      default:
+        throw new Error(`Unknown ui:invoke op: ${op}`);
+    }
   }
 
   // --- Dialog / notification surface (renderer-backed) -------------------
@@ -212,17 +243,12 @@ export class RendererUiBridge implements IExtensionUiBridge {
 
   // --- T2 UI methods -------------------------------------------------------
 
-  registerVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): () => void {
-    const key = `${extensionId}::${descriptor.id}`;
-    this.decorators.set(key, descriptor);
-    this.decoratorOwners.set(key, extensionId);
-    this.rpc.notify('verseDecoratorRegistered', [{ extensionId, descriptor }]);
-    return () => {
-      if (this.decorators.delete(key)) {
-        this.decoratorOwners.delete(key);
-        this.rpc.notify('verseDecoratorUnregistered', [{ extensionId, decoratorId: descriptor.id }]);
-      }
-    };
+  registerVerseDecorator(
+    extensionId: string,
+    descriptor: VerseDecoratorDescriptor,
+    fetch: (request: DecorationRequestDto) => Promise<unknown>,
+  ): () => void {
+    return this.verseDecorations.registerDecorator(extensionId, descriptor, fetch);
   }
 
   async updateVerseDecorations(
@@ -230,20 +256,22 @@ export class RendererUiBridge implements IExtensionUiBridge {
     groupId: string,
     decorations: DecorationDto[],
   ): Promise<void> {
-    this.rpc.notify('verseDecorationsUpdated', [{ extensionId, groupId, decorations }]);
+    await this.verseDecorations.updatePush(extensionId, groupId, decorations);
   }
 
-  registerVerseHover(extensionId: string, descriptor: VerseHoverProviderDescriptor): () => void {
-    const key = `${extensionId}::${descriptor.id}`;
-    this.hoverProviders.set(key, descriptor);
-    this.hoverOwners.set(key, extensionId);
-    this.rpc.notify('verseHoverRegistered', [{ extensionId, descriptor }]);
-    return () => {
-      if (this.hoverProviders.delete(key)) {
-        this.hoverOwners.delete(key);
-        this.rpc.notify('verseHoverUnregistered', [{ extensionId, hoverId: descriptor.id }]);
-      }
-    };
+  registerVerseHover(
+    extensionId: string,
+    descriptor: VerseHoverProviderDescriptor,
+    fetch: (request: VerseHoverRequestDto) => Promise<unknown>,
+  ): () => void {
+    return this.verseDecorations.registerHoverProvider(extensionId, descriptor, fetch);
+  }
+
+  async invalidateVerseDecorations(
+    extensionId: string,
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number },
+  ): Promise<void> {
+    await this.verseDecorations.invalidate(extensionId, opts);
   }
 
   registerContextMenu(
@@ -358,8 +386,6 @@ export class RendererUiBridge implements IExtensionUiBridge {
   disposeUiContributionsByOwner(extensionId: string): number {
     let removed = 0;
     const registries: [Map<string, unknown>, Map<string, string>][] = [
-      [this.decorators, this.decoratorOwners],
-      [this.hoverProviders, this.hoverOwners],
       [this.contextMenuItems, this.contextMenuOwners],
       [this.statusBarItems, this.statusBarOwners],
     ];
@@ -372,6 +398,12 @@ export class RendererUiBridge implements IExtensionUiBridge {
         }
       }
     }
+    // Verse decorators/hovers are defense-in-depth here too - `uiApiImpl`'s
+    // own `dispose()` already runs each registration's individual disposer,
+    // but a worker that crashed before that loop ran (or a permission
+    // revocation, which never goes through `uiApiImpl.dispose()`) still
+    // needs its layers gone.
+    this.verseDecorations.disposeByOwner(extensionId);
     return removed;
   }
 }

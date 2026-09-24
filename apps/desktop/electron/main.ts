@@ -54,6 +54,7 @@ import { startStudyCacheSweep, stopStudyCacheSweep } from './services/StudyCache
 import { closeSharedUserDb, getSharedUserDb } from './services/sharedUserDb';
 import { getModuleDatabaseRegistry } from './services/ModuleDatabaseRegistry';
 import { ExtensionHost } from './extensions/ExtensionHost';
+import { ContributionRegistry } from './extensions/ContributionRegistry';
 import { DeclaredContributions } from './extensions/DeclaredContributions';
 import { ExtensionDevConfig } from './extensions/ExtensionDevConfig';
 import { electronUtilityProcessFactory } from './extensions/electronUtilityProcessFactory';
@@ -894,7 +895,14 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       onRendererReady: () => declaredContributions?.syncAll(),
     });
     const contextBridge = new RendererContextBridge(getMainWindow);
-    const uiBridge = new RendererUiBridge(getMainWindow);
+    // Created explicitly (rather than left to `ExtensionHost`'s internal
+    // `opts.contributionRegistry ?? new ContributionRegistry()` default) so
+    // `uiBridge`'s `VerseDecorationService` - constructed here, before
+    // `ExtensionHost` exists - registers verse decorators/hovers into the
+    // SAME registry `attachApiImpls` hands every other api-impl as
+    // `ctx.contributionRegistry` (task 0036, P0.1a).
+    const contributionRegistry = new ContributionRegistry();
+    const uiBridge = new RendererUiBridge(getMainWindow, { contributionRegistry });
     const workspaceBridge = new RendererWorkspaceBridge(getMainWindow);
     const l10nBridge = new RendererL10nBridge(getMainWindow);
     // `ITasksApi.run` has always documented "the host shows a progress entry
@@ -965,6 +973,7 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       // Developer Mode is off until the user turns it on; passing the config is
       // what makes the toggle exist at all.
       devConfig: new ExtensionDevConfig(),
+      contributionRegistry,
       bibleBridge,
       commentaryBridge,
       dictionaryBridge,

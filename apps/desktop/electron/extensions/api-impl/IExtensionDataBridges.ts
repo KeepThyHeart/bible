@@ -239,10 +239,16 @@ export interface IExtensionUiBridge {
 
   // --- T2 UI methods -------------------------------------------------------
 
-  /** Register a verse decorator. Returns a disposer. */
+  /**
+   * Register a verse decorator. `fetch` is the reverse-RPC closure the
+   * api-impl built for `descriptor.decorateEndpoint` (mirrors
+   * `commandsApiImpl.ts`'s `invoke` closure) - the bridge/service calls it
+   * once per chapter fetch. Returns a disposer.
+   */
   registerVerseDecorator(
     extensionId: string,
     descriptor: VerseDecoratorDescriptor,
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>,
   ): () => void;
 
   /** Replace all decorations in a group atomically. */
@@ -252,11 +258,22 @@ export interface IExtensionUiBridge {
     decorations: DecorationDto[],
   ): Promise<void>;
 
-  /** Register a verse hover provider. Returns a disposer. */
+  /**
+   * Register a verse hover provider. `fetch` is the reverse-RPC closure for
+   * `descriptor.hoverEndpoint`, same shape as `registerVerseDecorator`'s.
+   * Returns a disposer.
+   */
   registerVerseHover(
     extensionId: string,
     descriptor: VerseHoverProviderDescriptor,
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>,
   ): () => void;
+
+  /** Drop cached pull results for this extension's decorators - see `IUiApi.invalidateVerseDecorations`. */
+  invalidateVerseDecorations(
+    extensionId: string,
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number },
+  ): Promise<void>;
 
   /** Register a context menu item on a target. Returns a disposer. */
   registerContextMenu(

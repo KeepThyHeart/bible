@@ -496,9 +496,21 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
 
   // --- T2 UI methods -------------------------------------------------------
 
-  readonly decorators: { extensionId: string; descriptor: VerseDecoratorDescriptor }[] = [];
+  readonly decorators: {
+    extensionId: string;
+    descriptor: VerseDecoratorDescriptor;
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>;
+  }[] = [];
   readonly decorationUpdates: { extensionId: string; groupId: string; decorations: DecorationDto[] }[] = [];
-  readonly hoverProviders: { extensionId: string; descriptor: VerseHoverProviderDescriptor }[] = [];
+  readonly hoverProviders: {
+    extensionId: string;
+    descriptor: VerseHoverProviderDescriptor;
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>;
+  }[] = [];
+  readonly invalidateCalls: {
+    extensionId: string;
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number };
+  }[] = [];
   readonly contextMenuItems: { extensionId: string; target: ContextMenuTarget; item: ContextMenuItemDescriptor }[] = [];
   readonly statusBarItems: { extensionId: string; item: StatusBarItemDescriptor }[] = [];
   readonly filePickRequests: { extensionId: string; opts?: PickFileOpts }[] = [];
@@ -508,8 +520,12 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
   pickFileResponse: PickedFileDto | undefined = undefined;
   saveFileResponse = true;
 
-  registerVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): () => void {
-    const entry = { extensionId, descriptor };
+  registerVerseDecorator(
+    extensionId: string,
+    descriptor: VerseDecoratorDescriptor,
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>,
+  ): () => void {
+    const entry = { extensionId, descriptor, fetch };
     this.decorators.push(entry);
     return () => {
       const idx = this.decorators.indexOf(entry);
@@ -525,8 +541,19 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     this.decorationUpdates.push({ extensionId, groupId, decorations });
   }
 
-  registerVerseHover(extensionId: string, descriptor: VerseHoverProviderDescriptor): () => void {
-    const entry = { extensionId, descriptor };
+  async invalidateVerseDecorations(
+    extensionId: string,
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number },
+  ): Promise<void> {
+    this.invalidateCalls.push({ extensionId, ...(opts !== undefined ? { opts } : {}) });
+  }
+
+  registerVerseHover(
+    extensionId: string,
+    descriptor: VerseHoverProviderDescriptor,
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>,
+  ): () => void {
+    const entry = { extensionId, descriptor, fetch };
     this.hoverProviders.push(entry);
     return () => {
       const idx = this.hoverProviders.indexOf(entry);

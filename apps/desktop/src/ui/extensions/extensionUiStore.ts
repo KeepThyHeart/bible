@@ -95,6 +95,29 @@ export interface ExtensionStatusBarItem {
   item: StatusBarItemDescriptor;
 }
 
+type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
+type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
+
+/**
+ * One extension-contributed verse decorator (task 0036, P0.1a). This is the
+ * *registration record* - "extension X has a decorator named Y" - for the
+ * settings toggle and diagnostics. The decoration *data* it produces lives in
+ * `verseDecorationStore`, a separate, much hotter-churning store (design doc
+ * §14.1 vs §14.2).
+ */
+export interface ExtensionVerseDecorator {
+  key: string;
+  extensionId: string;
+  descriptor: VerseDecoratorDescriptor;
+}
+
+/** One extension-contributed verse hover provider. */
+export interface ExtensionVerseHoverProvider {
+  key: string;
+  extensionId: string;
+  descriptor: VerseHoverProviderDescriptor;
+}
+
 /**
  * One extension-contributed panel type.
  *
@@ -165,6 +188,24 @@ interface ExtensionUiState {
   addPanelType(extensionId: string, def: ExtensionPanelTypeDef): void;
   removePanelType(extensionId: string, panelTypeId: string): void;
   removeStatusBarItem(extensionId: string, itemId: string): void;
+  /** Registered verse decorators, in registration order. */
+  verseDecorators: ExtensionVerseDecorator[];
+  /** Registered verse hover providers, in registration order. */
+  verseHoverProviders: ExtensionVerseHoverProvider[];
+  addVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): void;
+  removeVerseDecorator(extensionId: string, decoratorId: string): void;
+  addVerseHoverProvider(extensionId: string, descriptor: VerseHoverProviderDescriptor): void;
+  removeVerseHoverProvider(extensionId: string, hoverId: string): void;
+  /**
+   * The per-extension "show verse decorations" toggle (design doc §13).
+   * Session-scoped (in-memory only in P0.1a - see this task's delivery
+   * notes for the persistence gap). Disabled extensions are excluded here
+   * AND synced to `VerseDecorationService` via
+   * `invokeUiBridge('setVerseDecorationsEnabled', ...)`, so main stops
+   * fetching for them too.
+   */
+  disabledDecorationExtensions: Set<string>;
+  setDecorationsEnabled(extensionId: string, enabled: boolean): void;
   /** Drop every contribution owned by one extension. Used on deactivate. */
   removeContributionsByOwner(extensionId: string): void;
 }
@@ -251,6 +292,9 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
   statusBarItems: [],
   panelTypes: [],
   panelBadges: {},
+  verseDecorators: [],
+  verseHoverProviders: [],
+  disabledDecorationExtensions: new Set(),
 
   setPanelBadge(panelId, badge) {
     set((s) => {
@@ -363,11 +407,52 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
     set((s) => ({ panelTypes: s.panelTypes.filter((p) => p.key !== key) }));
   },
 
+  addVerseDecorator(extensionId, descriptor) {
+    const key = `${extensionId}::${descriptor.id}`;
+    set((s) => ({
+      verseDecorators: [
+        ...s.verseDecorators.filter((d) => d.key !== key),
+        { key, extensionId, descriptor },
+      ],
+    }));
+  },
+
+  removeVerseDecorator(extensionId, decoratorId) {
+    const key = `${extensionId}::${decoratorId}`;
+    set((s) => ({ verseDecorators: s.verseDecorators.filter((d) => d.key !== key) }));
+  },
+
+  addVerseHoverProvider(extensionId, descriptor) {
+    const key = `${extensionId}::${descriptor.id}`;
+    set((s) => ({
+      verseHoverProviders: [
+        ...s.verseHoverProviders.filter((h) => h.key !== key),
+        { key, extensionId, descriptor },
+      ],
+    }));
+  },
+
+  removeVerseHoverProvider(extensionId, hoverId) {
+    const key = `${extensionId}::${hoverId}`;
+    set((s) => ({ verseHoverProviders: s.verseHoverProviders.filter((h) => h.key !== key) }));
+  },
+
+  setDecorationsEnabled(extensionId, enabled) {
+    set((s) => {
+      const next = new Set(s.disabledDecorationExtensions);
+      if (enabled) next.delete(extensionId);
+      else next.add(extensionId);
+      return { disabledDecorationExtensions: next };
+    });
+  },
+
   removeContributionsByOwner(extensionId) {
     set((s) => ({
       contextMenuItems: s.contextMenuItems.filter((c) => c.extensionId !== extensionId),
       statusBarItems: s.statusBarItems.filter((c) => c.extensionId !== extensionId),
       panelTypes: s.panelTypes.filter((p) => p.extensionId !== extensionId),
+      verseDecorators: s.verseDecorators.filter((d) => d.extensionId !== extensionId),
+      verseHoverProviders: s.verseHoverProviders.filter((h) => h.extensionId !== extensionId),
     }));
   },
 }));
