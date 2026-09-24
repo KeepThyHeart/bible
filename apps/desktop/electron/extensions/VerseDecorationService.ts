@@ -21,7 +21,7 @@
  */
 
 import type { Extensions } from '@bible/core';
-import { validateDecorationDto } from './api-impl/uiApiImpl';
+import { validateDecorationDto, validateHoverContentArray } from './api-impl/uiApiImpl';
 import type { ContributionRegistry } from './ContributionRegistry';
 
 type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
@@ -31,6 +31,9 @@ type DecorationRequestDto = Extensions.DecorationRequestDto;
 type DecorationFetchRequest = Extensions.DecorationFetchRequest;
 type DecorationFetchResponse = Extensions.DecorationFetchResponse;
 type DecorationFetchResult = Extensions.DecorationFetchResult;
+type VerseHoverFetchRequest = Extensions.VerseHoverFetchRequest;
+type VerseHoverFetchResponse = Extensions.VerseHoverFetchResponse;
+type VerseHoverFetchResult = Extensions.VerseHoverFetchResult;
 
 // Design doc §9.
 const MAX_LAYERS_GLOBAL = 32;
@@ -38,6 +41,13 @@ const MAX_DECORATIONS_PER_CHUNK = 2_000;
 const MAX_PUSH_DECORATIONS_PER_EXTENSION = 5_000;
 const BACKOFF_STEPS_MS = [30_000, 60_000, 120_000, 300_000];
 const DEGRADED_AFTER_CONSECUTIVE_FAILURES = 5;
+const DEFAULT_SURFACES: ('standard' | 'study' | 'reading')[] = ['standard', 'study'];
+
+interface LayerFailure {
+  consecutive: number;
+  backoffUntil: number;
+  lastError?: string;
+}
 
 interface DecoratorLayer {
   kind: 'decorator';
@@ -47,7 +57,7 @@ interface DecoratorLayer {
   layerSeq: number;
   revision: number;
   enabled: boolean;
-  failure: { consecutive: number; backoffUntil: number; lastError?: string };
+  failure: LayerFailure;
 }
 
 interface HoverLayer {
@@ -56,6 +66,15 @@ interface HoverLayer {
   descriptor: VerseHoverProviderDescriptor;
   fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>;
   layerSeq: number;
+  /**
+   * Same per-extension toggle as decorators (design doc §13) - `setExtensionEnabled`
+   * gates both, so turning an extension's verse decorations off also stops
+   * asking it for hover content, rather than leaving one half of "verse
+   * decorations" quietly still live.
+   */
+  enabled: boolean;
+  /** Same backoff policy as decorators (§5.4), tracked separately per layer. */
+  failure: LayerFailure;
 }
 
 interface PushGroup {
@@ -132,6 +151,8 @@ export class VerseDecorationService {
       descriptor,
       fetch,
       layerSeq: this.nextLayerSeq++,
+      enabled: true,
+      failure: { consecutive: 0, backoffUntil: 0 },
     };
     this.hoverProviders.set(key, layer);
     const registryDispose = this.contributionRegistry
@@ -204,9 +225,16 @@ export class VerseDecorationService {
     this.contributionRegistry?.removeAllByExtension(extensionId);
   }
 
-  /** The per-extension "show verse decorations" toggle (design doc §13). */
+  /**
+   * The per-extension "show verse decorations" toggle (design doc §13).
+   * Gates both halves of "verse decorations": pull/push decorators AND
+   * hover providers from the same extension.
+   */
   setExtensionEnabled(extensionId: string, enabled: boolean): void {
     for (const layer of this.decorators.values()) {
+      if (layer.extensionId === extensionId) layer.enabled = enabled;
+    }
+    for (const layer of this.hoverProviders.values()) {
       if (layer.extensionId === extensionId) layer.enabled = enabled;
     }
   }
@@ -247,7 +275,12 @@ export class VerseDecorationService {
         } catch (err) {
           const isTimeout =
             err instanceof Error && (err.name === 'RpcTimeoutError' || /timed out/i.test(err.message));
-          this.recordFailure(layer, err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          this.recordFailure(layer, message, () => {
+            this.notifier.notify('verseDecorationLayerDegraded', [
+              { extensionId: layer.extensionId, decoratorId: layer.descriptor.id, lastError: message },
+            ]);
+          });
           return {
             layerKey: key,
             revision: layer.revision,
@@ -267,21 +300,81 @@ export class VerseDecorationService {
     };
   }
 
-  private recordSuccess(layer: DecoratorLayer): void {
+  // --- Hover fetch (renderer -> main, `ext-bridge:ui:invoke`, P0.1c) -------
+  //
+  // Unlike decoration fetch, this is not chunk-cached: it fires once per
+  // hover dwell (design doc §11.3's 250ms), which is already the throttle -
+  // fetching fresh every time means no staleness/revision bookkeeping is
+  // needed here at all.
+
+  async fetchHover(req: VerseHoverFetchRequest): Promise<VerseHoverFetchResponse> {
+    const now = Date.now();
+    const hasWord = req.word !== undefined;
+    const targets = [...this.hoverProviders.values()].filter((layer) => {
+      if (!layer.enabled) return false;
+      const surfaces = layer.descriptor.surfaces ?? DEFAULT_SURFACES;
+      if (!surfaces.includes(req.surface)) return false;
+      const scope = layer.descriptor.scope ?? 'verse';
+      if (hasWord ? scope === 'verse' : scope === 'word') return false;
+      const required = layer.descriptor.modifiers ?? [];
+      if (required.length > 0 && !required.every((m) => req.modifiers.includes(m))) return false;
+      return true;
+    });
+
+    const results = await Promise.allSettled(
+      targets.map(async (layer): Promise<VerseHoverFetchResult> => {
+        const base = {
+          extensionId: layer.extensionId,
+          providerId: layer.descriptor.id,
+          ...(layer.descriptor.title !== undefined ? { title: layer.descriptor.title } : {}),
+        };
+        if (now < layer.failure.backoffUntil) {
+          return { ...base, status: 'skipped', content: [] };
+        }
+        const request: Extensions.VerseHoverRequestDto = {
+          verseId: req.verseId,
+          moduleId: req.moduleId,
+          moduleAbbrev: req.moduleAbbrev,
+          ...(req.word !== undefined ? { word: req.word } : {}),
+          modifiers: req.modifiers,
+        };
+        try {
+          const raw = await layer.fetch(request);
+          this.recordSuccess(layer);
+          return { ...base, status: 'ok', content: validateHoverContentArray(raw) };
+        } catch (err) {
+          const isTimeout =
+            err instanceof Error && (err.name === 'RpcTimeoutError' || /timed out/i.test(err.message));
+          this.recordFailure(layer, err instanceof Error ? err.message : String(err), () => {
+            this.notifier.notify('verseHoverLayerDegraded', [
+              { extensionId: layer.extensionId, hoverId: layer.descriptor.id, lastError: err instanceof Error ? err.message : String(err) },
+            ]);
+          });
+          return { ...base, status: isTimeout ? 'timeout' : 'error', content: [] };
+        }
+      }),
+    );
+
+    return {
+      results: results.map((r) =>
+        r.status === 'fulfilled' ? r.value : { extensionId: 'unknown', providerId: 'unknown', status: 'error' as const, content: [] },
+      ),
+    };
+  }
+
+  private recordSuccess(layer: { failure: LayerFailure }): void {
     layer.failure.consecutive = 0;
     layer.failure.backoffUntil = 0;
     delete layer.failure.lastError;
   }
 
-  private recordFailure(layer: DecoratorLayer, message: string): void {
+  private recordFailure(layer: { failure: LayerFailure }, message: string, onDegraded: () => void): void {
     layer.failure.consecutive++;
     layer.failure.lastError = message;
     const step = Math.min(layer.failure.consecutive, BACKOFF_STEPS_MS.length) - 1;
     layer.failure.backoffUntil = Date.now() + BACKOFF_STEPS_MS[Math.max(0, step)];
     if (layer.failure.consecutive >= DEGRADED_AFTER_CONSECUTIVE_FAILURES) {
-      this.notifier.notify('verseDecorationLayerDegraded', [
-        { extensionId: layer.extensionId, decoratorId: layer.descriptor.id, lastError: message },
-      ]);
+      onDegraded();
     }
   }
 

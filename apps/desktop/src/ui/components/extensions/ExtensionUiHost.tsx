@@ -19,6 +19,7 @@ import type { II18nService } from '../../services/II18nService';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import VersePreviewTooltip from '../VersePreviewTooltip';
+import { ExtensionHoverPopup } from '../../extensions/ExtensionHoverPopup';
 
 function resolveLocalizedString(
   value: LocalizedString | undefined,
@@ -157,6 +158,10 @@ const ExtensionUiHost: React.FC = () => {
           onClose={hideVersePopup}
         />
       )}
+
+      {/* Extension verse/word hover popup (task 0036, P0.1c) - self-contained,
+          reads its own state from `verseHoverPopupStore`. */}
+      <ExtensionHoverPopup />
     </>
   );
 };

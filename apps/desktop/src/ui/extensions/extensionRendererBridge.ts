@@ -613,9 +613,10 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
     }
     case 'verseDecorationLayerDegraded':
     case 'verseDecorationsPushCapExceeded':
+    case 'verseHoverLayerDegraded':
       // Diagnostics-only notifications (extension detail panel). No store
-      // consumes them yet in P0.1a - acknowledged so they don't hit the
-      // `default:` "unknown op" throw below.
+      // consumes them yet - acknowledged so they don't hit the `default:`
+      // "unknown op" throw below.
       return undefined;
     case 'panelMessage': {
       // `api.panels.postMessage(...)` from a worker. Fan it out to the mounted

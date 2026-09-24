@@ -322,6 +322,33 @@ export interface VerseHoverRequestDto {
   modifiers: ('ctrl' | 'alt' | 'shift' | 'meta')[];
 }
 
+/**
+ * Renderer -> main `ext-bridge:ui:invoke` payload for `fetchVerseHover` (task
+ * 0036, P0.1c; design doc §11). Adds `surface` on top of the extension-
+ * facing `VerseHoverRequestDto` - the host needs it to filter which
+ * providers to even ask (`VerseHoverProviderDescriptor.surfaces`), but an
+ * extension's `hoverEndpoint` never sees it, since providers don't behave
+ * differently per surface, only render on some or none (amendment A4).
+ */
+export interface VerseHoverFetchRequest extends VerseHoverRequestDto {
+  surface: 'standard' | 'study' | 'reading';
+}
+
+export type VerseHoverFetchStatus = 'ok' | 'timeout' | 'error' | 'skipped';
+
+export interface VerseHoverFetchResult {
+  extensionId: string;
+  providerId: string;
+  title?: LocalizedString;
+  status: VerseHoverFetchStatus;
+  /** A provider may return several sections itself; empty on any non-'ok' status. */
+  content: HoverContentDto[];
+}
+
+export interface VerseHoverFetchResponse {
+  results: VerseHoverFetchResult[];
+}
+
 /** What the host asks a decorator for (design doc §3.6). */
 export interface DecorationRequestDto {
   /** Inclusive passage. v1 always a whole chapter; later possibly narrower. */

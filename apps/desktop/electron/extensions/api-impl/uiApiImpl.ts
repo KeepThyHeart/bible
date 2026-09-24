@@ -673,8 +673,49 @@ export function validateDecorationDto(value: unknown): DecorationDto | null {
   if (!isDecorationAppearance(v.appearance)) return null;
   if (v.order !== undefined && (typeof v.order !== 'number' || v.order < -1000 || v.order > 1000)) return null;
   if (v.groupId !== undefined && typeof v.groupId !== 'string') return null;
-  if (v.hoverContent !== undefined && typeof v.hoverContent !== 'object') return null;
+  if (v.hoverContent !== undefined && !isHoverContentDto(v.hoverContent)) return null;
   return v as unknown as DecorationDto;
+}
+
+// --- Hover content validation (task 0036, P0.1c; design doc §3.7, §11) ----
+//
+// Shared by `DecorationDto.hoverContent` (static, validated above) and
+// `VerseDecorationService.fetchHover`'s callback-provider responses (one
+// provider may return several sections - `validateHoverContentArray`).
+
+const VALID_HOVER_KINDS = new Set(['text', 'markdown', 'iframe']);
+/** Generous but bounded - a hover popup is not a document viewer. */
+const MAX_HOVER_TEXT_LENGTH = 4_000;
+/** Per provider, per fetch - mirrors the badge/gutter-style "cap, don't reject" caps elsewhere in this vocabulary. */
+export const MAX_HOVER_SECTIONS_PER_PROVIDER = 8;
+
+export function isHoverContentDto(value: unknown): value is Extensions.HoverContentDto {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.kind !== 'string' || !VALID_HOVER_KINDS.has(v.kind)) return false;
+  switch (v.kind) {
+    case 'text':
+      return typeof v.text === 'string' && v.text.length > 0 && v.text.length <= MAX_HOVER_TEXT_LENGTH;
+    case 'markdown':
+      if (typeof v.markdown !== 'string' || v.markdown.length === 0 || v.markdown.length > MAX_HOVER_TEXT_LENGTH) {
+        return false;
+      }
+      return v.allowImages === undefined || typeof v.allowImages === 'boolean';
+    case 'iframe':
+      if (typeof v.uiEntry !== 'string' || v.uiEntry.length === 0) return false;
+      if (v.width !== undefined && typeof v.width !== 'number') return false;
+      if (v.height !== undefined && typeof v.height !== 'number') return false;
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Validates a callback hover provider's raw response. Drops malformed items; caps the rest. */
+export function validateHoverContentArray(raw: unknown): Extensions.HoverContentDto[] {
+  if (!Array.isArray(raw)) return [];
+  const valid = raw.filter((item): item is Extensions.HoverContentDto => isHoverContentDto(item));
+  return valid.slice(0, MAX_HOVER_SECTIONS_PER_PROVIDER);
 }
 
 function isContextMenuItemDescriptor(value: unknown): value is Extensions.ContextMenuItemDescriptor {

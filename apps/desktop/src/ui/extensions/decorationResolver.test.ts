@@ -373,6 +373,73 @@ describe('resolveVerseDecorations - surfaces filtering', () => {
   });
 });
 
+describe('resolveVerseDecorations - static hover content (P0.1c, design doc §11.1)', () => {
+  function verseTintWithHover(hoverText: string, order?: number): DecorationDto {
+    return {
+      target: { kind: 'verse', verseId: 1 },
+      appearance: { kind: 'tint', color: 'accent' },
+      hoverContent: { kind: 'text', text: hoverText },
+      ...(order !== undefined ? { order } : {}),
+    };
+  }
+
+  it('a verse-target decoration with hoverContent lands in verseHovers ONCE, not duplicated per word', () => {
+    const layers = [layer({ decorations: [verseTintWithHover('hello')] })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 3, layers, surface: 'standard', resolveColor });
+    expect(resolved.verseHovers).toHaveLength(1);
+    expect(resolved.verseHovers[0].content).toEqual({ kind: 'text', text: 'hello' });
+    expect(resolved.verseHovers[0].extensionId).toBe('ext.a');
+    // Not present on any individual word's own hovers - it's a verse-level hover.
+    expect(resolved.words.get(0)?.hovers).toBeUndefined();
+  });
+
+  it('a word/token-target decoration with hoverContent lands only on that word, not in verseHovers', () => {
+    const layers = [
+      layer({
+        decorations: [
+          {
+            target: { kind: 'tokens', verseId: 1, startTokenIndex: 1 },
+            appearance: { kind: 'tint', color: 'accent' },
+            hoverContent: { kind: 'text', text: 'word hover' },
+          },
+        ],
+      }),
+    ];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 3, layers, surface: 'standard', resolveColor });
+    expect(resolved.verseHovers).toHaveLength(0);
+    expect(resolved.words.get(1)?.hovers).toEqual([
+      { layerKey: 'ext.a::dec', extensionId: 'ext.a', content: { kind: 'text', text: 'word hover' }, order: 0 },
+    ]);
+    expect(resolved.words.get(0)?.hovers).toBeUndefined();
+  });
+
+  it('multiple verse-level hovers sort by order desc, layerSeq asc, array position asc - same as paint', () => {
+    const layers = [
+      layer({ decorations: [verseTintWithHover('low', 1), verseTintWithHover('high', 5)] }),
+    ];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 1, layers, surface: 'standard', resolveColor });
+    expect(resolved.verseHovers.map((h) => (h.content as { text: string }).text)).toEqual(['high', 'low']);
+  });
+
+  it('a word gets an empty-appearance paint entry when it has ONLY hover content and no visual appearance candidate survives', () => {
+    // A word/token decoration whose appearance is capped out of the top-8
+    // visual slots can still carry hover content - the hover collection is
+    // not capped by the same MAX_CONTRIBUTIONS_PER_WORD gate as paint.
+    const decs: DecorationDto[] = Array.from({ length: 9 }, (_, i) => ({
+      target: { kind: 'tokens', verseId: 1, startTokenIndex: 0 },
+      appearance: { kind: 'badge', label: `b${i}` },
+      order: 10 - i,
+      ...(i === 8 ? { hoverContent: { kind: 'text' as const, text: 'ninth' } } : {}),
+    }));
+    const layers = [layer({ decorations: decs })];
+    const resolved = resolveVerseDecorations({ verseId: 1, wordCount: 1, layers, surface: 'standard', resolveColor });
+    // The 9th (lowest-priority) decoration's badge is capped out of paint...
+    expect(resolved.words.get(0)?.badges.map((b) => b.label)).not.toContain('b8');
+    // ...but its hover content still reaches the popup.
+    expect(resolved.words.get(0)?.hovers?.some((h) => (h.content as { text: string }).text === 'ninth')).toBe(true);
+  });
+});
+
 describe('buildWordPaintStyle', () => {
   const emptyPaint: WordPaint = { underlines: [], bold: false, badges: [], sourceKeys: [] };
 

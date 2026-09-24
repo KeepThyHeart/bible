@@ -22,6 +22,9 @@ import { openModuleManager } from '../utils/openModuleManager';
 import { VerseIdHelper } from '@bible/core';
 import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
+import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
+import { resolveVerseDecorations } from '../extensions/decorationResolver';
+import { resolveThemeColor } from '../extensions/themeColorResolver';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -96,6 +99,31 @@ const BibleVerseList: React.FC = () => {
     });
   }, [isParallelViewMode, moduleId, moduleAbbrev, currentBook, currentChapter]);
   const hasGutterLane = useHasEnabledDecoratorLayers();
+
+  // Task 0036 (P0.1c): word/verse hover popups. `surface` matches whichever
+  // of Reading/Standard is actually rendered below - `displayMode` never
+  // holds 'study' in this branch (StudyModeView owns that mode entirely).
+  const hoverSurface: 'standard' | 'reading' = displayMode === 'reading' ? 'reading' : 'standard';
+  const hoverTrigger = useVerseHoverTrigger(moduleId, moduleAbbrev, hoverSurface);
+  /**
+   * Verse-level hover content, resolved lazily on the row's own
+   * `mouseenter` rather than via a hook (there is no per-verse component to
+   * hang one off - `VerseGutter` gets to be its own component; a whole verse
+   * row does not). `resolveVerseDecorations` is a pure function and
+   * `getDecorationsForVerse` a plain store read, so calling both imperatively
+   * here is correct, not a rules-of-hooks violation.
+   */
+  const handleVerseRowMouseEnter = React.useCallback(
+    (verseId: number) => (event: React.MouseEvent) => {
+      const layers = useVerseDecorationStore.getState().getDecorationsForVerse(verseId, moduleId); // allow-getstate: imperative read at hover time
+      const verseHovers =
+        layers.length === 0
+          ? []
+          : resolveVerseDecorations({ verseId, wordCount: 0, layers, surface: hoverSurface, resolveColor: resolveThemeColor }).verseHovers;
+      hoverTrigger.onVerseMouseEnter(verseId, verseHovers, event);
+    },
+    [moduleId, hoverSurface, hoverTrigger],
+  );
 
   /**
    * Is this verse part of the passage being previewed?
@@ -404,6 +432,8 @@ const BibleVerseList: React.FC = () => {
                                           onMouseDown={handleVerseMouseDown}
                                           onClick={(e) => handleVerseBodyClick(verse.verse_id, e.shiftKey)}
                                           onContextMenu={(e) => handleVerseContextMenu(e, verse)}
+                                          onMouseEnter={handleVerseRowMouseEnter(verse.verse_id)}
+                                          onMouseLeave={hoverTrigger.onVerseMouseLeave}
                                         >
                                           <HighlightedVerse
                                             verseId={verse.verse_id}
@@ -411,6 +441,8 @@ const BibleVerseList: React.FC = () => {
                                             moduleId={activeTab!.moduleId ?? 0}
                                             surface="reading"
                                             suffix={renderVerseIndicators(verse.verse_id, 'w-3 h-3', 'ms-0.5')}
+                                            onWordMouseEnter={hoverTrigger.onWordMouseEnter}
+                                            onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                                           />
                                         </span>
                                         {vi < para.length - 1 && ' '}
@@ -475,6 +507,8 @@ const BibleVerseList: React.FC = () => {
                                 onMouseDown={handleVerseMouseDown}
                                 onClick={(e) => handleVerseBodyClick(verse.verse_id, e.shiftKey)}
                                 onContextMenu={(e) => handleVerseContextMenu(e, verse)}
+                                onMouseEnter={handleVerseRowMouseEnter(verse.verse_id)}
+                                onMouseLeave={hoverTrigger.onVerseMouseLeave}
                               >
                                 {hasGutterLane && (
                                   <VerseGutter verseId={verse.verse_id} moduleId={moduleId} surface="standard" />
@@ -523,6 +557,8 @@ const BibleVerseList: React.FC = () => {
                                   moduleId={activeTab!.moduleId ?? 0}
                                   surface="standard"
                                   suffix={renderVerseIndicators(verse.verse_id, 'w-3.5 h-3.5', 'ms-1')}
+                                  onWordMouseEnter={hoverTrigger.onWordMouseEnter}
+                                  onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                                 />
                               </div>
                             </React.Fragment>

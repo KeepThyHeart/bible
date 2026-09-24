@@ -44,6 +44,18 @@ export interface LayerDecorations {
   decorations: DecorationDto[];
 }
 
+/**
+ * Static hover content from one decoration (task 0036, P0.1c; design doc
+ * §11.1). Never from a callback provider - that path has no target and is
+ * fetched separately, on dwell (see `useVerseHoverContent`).
+ */
+export interface ResolvedHover {
+  layerKey: string;
+  extensionId: string;
+  content: Extensions.HoverContentDto;
+  order: number;
+}
+
 /** Everything one rendered word needs painted onto it (amendment A1/A2). */
 export interface WordPaint {
   tint?: { color: string };
@@ -55,6 +67,14 @@ export interface WordPaint {
   badges: { label: string; color: string }[];
   /** Which decorations painted this word, as `${layerKey}#${decorationIndex}` - used for the continuous-wash `spaceInsideSpan` rule. */
   sourceKeys: string[];
+  /**
+   * Static hover content from `'word'`/`'tokens'`-targeted decorations
+   * covering this specific word (P0.1c, design doc §11.1's "a word" row).
+   * Optional (not always present) so every existing `WordPaint` literal in
+   * tests/HighlightRenderer stays valid without adding an empty array
+   * everywhere.
+   */
+  hovers?: ResolvedHover[];
 }
 
 export interface GutterMark {
@@ -71,6 +91,14 @@ export interface ResolvedVerse {
   gutter: GutterMark[];
   /** How many gutter marks were dropped past the cap of 3. */
   gutterOverflow: number;
+  /**
+   * Static hover content from `'verse'`/`'passage'`-targeted decorations
+   * covering this verse (P0.1c, design doc §11.1's "a verse" row) - collected
+   * ONCE per verse, not duplicated onto every word the way visual paint is.
+   * Sorted the same way as everything else (`order` desc, `layerSeq` asc,
+   * array position asc).
+   */
+  verseHovers: ResolvedHover[];
 }
 
 /** Resolves a `ThemeColorKeyRef` (or an intensity) to a CSS colour string. Renderer-supplied - see `themeColorResolver.ts`. */
@@ -81,8 +109,13 @@ interface Candidate {
   order: number;
   decorationIndex: number;
   sourceKey: string;
+  extensionId: string;
   appearance: Extensions.DecorationAppearance;
   hoverContent: Extensions.HoverContentDto | undefined;
+}
+
+function toResolvedHover(c: Candidate): ResolvedHover {
+  return { layerKey: c.sourceKey.split('#')[0], extensionId: c.extensionId, content: c.hoverContent!, order: c.order };
 }
 
 function candidateSort(a: Candidate, b: Candidate): number {
@@ -193,6 +226,12 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
   // --- Collect (design doc §10.3 step 1) ----------------------------------
   const perWord: Candidate[][] = Array.from({ length: wordCount }, () => []);
   const gutterCandidates: { layerSeq: number; layerKey: string; appearance: Extract<Extensions.DecorationAppearance, { kind: 'gutter' }> }[] = [];
+  // Static hover content (P0.1c, design doc §11.1) - collected separately
+  // from `perWord` because a verse/passage-target's hover belongs to the
+  // WHOLE verse once, not duplicated onto every one of its words the way
+  // visual paint legitimately is.
+  const verseHoverCandidates: Candidate[] = [];
+  const wordHoverCandidates: Candidate[][] = Array.from({ length: wordCount }, () => []);
 
   for (const layer of layers) {
     if (!layer.surfaces.includes(surface)) continue;
@@ -250,13 +289,18 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
         order: d.order ?? 0,
         decorationIndex,
         sourceKey,
+        extensionId: layer.extensionId,
         appearance: d.appearance,
         hoverContent: d.hoverContent,
       };
       if (verseWide) {
         for (let i = 0; i < wordCount; i++) perWord[i].push(candidate);
+        if (d.hoverContent) verseHoverCandidates.push(candidate);
       } else {
-        for (const i of matchedIndexes) perWord[i].push(candidate);
+        for (const i of matchedIndexes) {
+          perWord[i].push(candidate);
+          if (d.hoverContent) wordHoverCandidates[i].push(candidate);
+        }
       }
     });
   }
@@ -265,10 +309,15 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
   const wordPaints = new Map<number, WordPaint>();
   for (let i = 0; i < wordCount; i++) {
     const candidates = perWord[i];
-    if (candidates.length === 0) continue;
+    const hoverCandidates = wordHoverCandidates[i];
+    if (candidates.length === 0 && hoverCandidates.length === 0) continue;
     candidates.sort(candidateSort);
     const capped = candidates.slice(0, MAX_CONTRIBUTIONS_PER_WORD);
-    const paint = compose(capped, resolveColor);
+    const paint = candidates.length > 0 ? compose(capped, resolveColor) : { underlines: [], bold: false, badges: [], sourceKeys: [] };
+    if (hoverCandidates.length > 0 && paint) {
+      hoverCandidates.sort(candidateSort);
+      paint.hovers = hoverCandidates.map(toResolvedHover);
+    }
     if (paint) wordPaints.set(i, paint);
   }
 
@@ -282,7 +331,11 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
   }));
   const gutterOverflow = Math.max(0, gutterCandidates.length - MAX_GUTTER_MARKS);
 
-  return { words: wordPaints, gutter, gutterOverflow };
+  // --- Verse-level static hover content (design doc §11.1) -----------------
+  verseHoverCandidates.sort(candidateSort);
+  const verseHovers = verseHoverCandidates.map(toResolvedHover);
+
+  return { words: wordPaints, gutter, gutterOverflow, verseHovers };
 }
 
 function compose(candidates: Candidate[], resolveColor: ThemeColorResolver): WordPaint | null {

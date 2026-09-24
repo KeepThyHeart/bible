@@ -10,6 +10,10 @@
 
 import { create } from 'zustand';
 import type { Extensions } from '@bible/core';
+import { useAmbientPopupStore } from '../stores/useAmbientPopupStore';
+
+/** This store's identity in `useAmbientPopupStore` (design amendment A6). */
+const VERSE_POPUP_OWNER_ID = 'extension-verse-popup';
 
 type LocalizedString = Extensions.LocalizedString;
 type NotificationOpts = Extensions.NotificationOpts;
@@ -346,11 +350,13 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
   },
 
   showVersePopup(extensionId, verseId, position) {
+    useAmbientPopupStore.getState().claim(VERSE_POPUP_OWNER_ID);
     set({ versePopup: { extensionId, verseId, position } });
   },
 
   hideVersePopup() {
     set({ versePopup: null });
+    useAmbientPopupStore.getState().release(VERSE_POPUP_OWNER_ID);
   },
 
   addContextMenuItem(extensionId, target, item) {
@@ -453,6 +459,22 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
       panelTypes: s.panelTypes.filter((p) => p.extensionId !== extensionId),
       verseDecorators: s.verseDecorators.filter((d) => d.extensionId !== extensionId),
       verseHoverProviders: s.verseHoverProviders.filter((h) => h.extensionId !== extensionId),
+      // A popup an extension's own panel requested must not outlive the
+      // panel (or the whole extension) being disposed - it used to (see
+      // task 0036's P0.1c delivery notes), leaving a stale popup on screen
+      // pointing at content nothing owns any more.
+      ...(s.versePopup?.extensionId === extensionId ? { versePopup: null } : {}),
     }));
   },
 }));
+
+// Close the extension verse popup the moment another ambient popup (design
+// amendment A6) claims the shared slot - the same coordination
+// `verseHoverPopupStore.ts` does for its own popup. One module-level
+// subscription for the app's lifetime, mirroring `panelMessageListeners`
+// above.
+useAmbientPopupStore.subscribe((s) => {
+  if (s.owner !== VERSE_POPUP_OWNER_ID && useExtensionUiStore.getState().versePopup !== null) {
+    useExtensionUiStore.setState({ versePopup: null });
+  }
+});

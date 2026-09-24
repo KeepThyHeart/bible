@@ -118,6 +118,31 @@ export function useVerseGutterMarks(
   }, [verseId, layers, surface]);
 }
 
+/**
+ * Just this verse's static hover content (task 0036, P0.1c, design doc
+ * §11.1's "a verse" row) - for a verse-level hover trigger (hovering the
+ * verse row itself, outside any specific word), which needs it without
+ * reaching into `HighlightedVerse`'s internals, the same reasoning as
+ * `useVerseGutterMarks`.
+ */
+export function useVerseHoverStaticContent(
+  verseId: number,
+  moduleId: number,
+  surface: 'standard' | 'study' | 'reading',
+): ResolvedVerse['verseHovers'] {
+  const layers = useVerseDecorationStore((s) => s.getDecorationsForVerse(verseId, moduleId));
+  return useMemo(() => {
+    if (layers.length === 0) return [];
+    return resolveVerseDecorations({
+      verseId,
+      wordCount: 0,
+      layers,
+      surface,
+      resolveColor: resolveThemeColor,
+    }).verseHovers;
+  }, [verseId, layers, surface]);
+}
+
 /** True while at least one verse decorator layer is registered and enabled - the gutter LANE's presence gate (amendment A4). */
 export function useHasEnabledDecoratorLayers(): boolean {
   return useVerseDecorationStore((s) => {

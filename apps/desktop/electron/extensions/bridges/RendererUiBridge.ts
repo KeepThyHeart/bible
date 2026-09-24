@@ -41,6 +41,7 @@ type SaveFileOpts = Extensions.SaveFileOpts;
 type DecorationRequestDto = Extensions.DecorationRequestDto;
 type DecorationFetchRequest = Extensions.DecorationFetchRequest;
 type VerseHoverRequestDto = Extensions.VerseHoverRequestDto;
+type VerseHoverFetchRequest = Extensions.VerseHoverFetchRequest;
 
 export interface RendererUiBridgeDeps {
   contributionRegistry?: ContributionRegistry;
@@ -84,6 +85,8 @@ export class RendererUiBridge implements IExtensionUiBridge {
     switch (op) {
       case 'fetchVerseDecorations':
         return this.verseDecorations.fetch(args[0] as DecorationFetchRequest);
+      case 'fetchVerseHover':
+        return this.verseDecorations.fetchHover(args[0] as VerseHoverFetchRequest);
       case 'setVerseDecorationsEnabled': {
         const [extensionId, enabled] = args as [string, boolean];
         this.verseDecorations.setExtensionEnabled(extensionId, enabled);
