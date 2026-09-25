@@ -22,7 +22,7 @@
 
 import { API_BASE } from '../../utils/apiUrl';
 import type { PresentClosedPayload, PresentState } from '../protocol';
-import { isNewer } from './frames';
+import { isNewer, renderEquivalent } from './frames';
 import { openLocalChannel } from './localChannel';
 
 export type ReceiverEvent =
@@ -61,7 +61,14 @@ export function openPresentReceiver(joinCode: string, options: { preview?: boole
 
   function accept(state: PresentState, origin: 'network' | 'local'): void {
     if (!isNewer(latest, { origin, state })) return;
+    // A network frame confirming exactly what a local prediction already
+    // showed is not a second change -- see `renderEquivalent`. `latest` still
+    // moves on (the network frame is definitely correct, and a later local
+    // guess should be judged against it, not against the prediction it
+    // confirmed), but subscribers are not re-told something they already saw.
+    const redundant = latest !== null && renderEquivalent(latest, state);
     latest = state;
+    if (redundant) return;
     emit({ type: 'state', state });
   }
 

@@ -44,3 +44,26 @@ export function isNewer(current: PresentState | null, incoming: PresentFrame): b
   if (incoming.state.version < current.version) return false;
   return incoming.origin === 'network';
 }
+
+/**
+ * Whether two states would look identical to a viewer: same item, position
+ * and display, ignoring `session.viewerCount` (no viewer displays it, and a
+ * locally predicted frame never carries a real one anyway).
+ *
+ * This is what a receiver uses to decide whether a frame that *wins* `isNewer`
+ * is actually worth telling its subscribers about. The common case it exists
+ * for: a controller predicts a `show` locally and publishes it over
+ * `BroadcastChannel`, and the network's own answer to that same POST arrives
+ * moments later at the same version, confirming exactly what was predicted.
+ * Both frames are legitimately "newer" by `isNewer`'s own rule (the tie goes
+ * to the network), but replaying an identical render is not a second change
+ * -- it is the same change told twice, and for an item whose content is still
+ * loading (a hymn's slides, fetched separately by every viewer), that second,
+ * uncurtained re-render is what showed up as a visible double flash.
+ */
+export function renderEquivalent(a: PresentState, b: PresentState): boolean {
+  return a.version === b.version
+    && JSON.stringify(a.live) === JSON.stringify(b.live)
+    && JSON.stringify(a.position) === JSON.stringify(b.position)
+    && JSON.stringify(a.display) === JSON.stringify(b.display);
+}

@@ -151,9 +151,36 @@ describe('openPresentReceiver', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(events).toEqual([{ type: 'state', state: stateAt(5) }]);
 
-    // ...and the network's answer to the same version still wins the tie.
+    // ...and the network's answer to the same version wins the tie, but is
+    // not re-emitted on top of it: it confirms exactly what was already
+    // shown, so a subscriber (a viewer mid-render of that same state) is not
+    // told about it a second time. See `renderEquivalent` in `frames.ts` --
+    // this is what used to show up as a visible double flash for an item
+    // whose content was still loading (a hymn) when the local prediction hit.
     FakeEventSource.instances[0].emit('state', stateAt(5));
-    expect(events).toHaveLength(2);
+    expect(events).toHaveLength(1);
+
+    writer.close();
+    receiver.close();
+  });
+
+  it('still emits a network frame that corrects a local guess at the same version', async () => {
+    const receiver = openPresentReceiver('ABCD2345');
+    const events: ReceiverEvent[] = [];
+    receiver.subscribe(e => events.push(e));
+
+    // The local prediction guessed wrong -- a blank, say, when the real
+    // answer left the wall unblanked -- so the two frames render differently.
+    const writer = openLocalChannel('ABCD2345');
+    writer.publish({ ...stateAt(5), display: { ...stateAt(5).display, blanked: true } });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(events).toHaveLength(1);
+
+    FakeEventSource.instances[0].emit('state', stateAt(5));
+    expect(events).toEqual([
+      { type: 'state', state: { ...stateAt(5), display: { ...stateAt(5).display, blanked: true } } },
+      { type: 'state', state: stateAt(5) },
+    ]);
 
     writer.close();
     receiver.close();
