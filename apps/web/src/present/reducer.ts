@@ -353,7 +353,7 @@ export function initialState(sessionId: string, joinCode: string): StoredPresent
     version: 0,
     live: null,
     position: { index: 0, highlight: null },
-    display: { fontStep: DEFAULT_FONT_STEP, blanked: false, theme: 'dark' },
+    display: { fontStep: DEFAULT_FONT_STEP, blanked: false, theme: 'light' },
     session: { id: sessionId, joinCode, joinsLocked: false },
   };
 }

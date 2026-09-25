@@ -14,7 +14,7 @@ import { displayedState, usePresentStream, type PresentConnection } from './useP
 import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
 import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
-import { fontScaleForStep, prefersReducedMotion, shrinkToFit } from './typography';
+import { fontScaleForStep, prefersReducedMotion, shrinkToFit, shrinkToFitWidth } from './typography';
 import {
   effectiveDisplay, itemTransitionKey, MAX_OVERSCAN, useFullscreen, useHoverMenu, useItemTransitionFlash,
   useLocalOverride, useOverscan, useSetupKeys, useWakeLock,
@@ -66,7 +66,7 @@ export function ViewerApp(): preact.JSX.Element {
   // and every other screen keep seeing what `state.display` actually says.
   const override = useLocalOverride();
   const display = effectiveDisplay(
-    state?.display ?? { theme: 'dark', fontStep: 5 },
+    state?.display ?? { theme: 'light', fontStep: 5 },
     { theme: override.theme ?? undefined, fontStep: override.fontStep ?? undefined },
   );
 
@@ -196,10 +196,13 @@ function PassageView(props: {
 }): preact.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLParagraphElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const previousKey = useRef<string | null>(null);
+  const previousAnchor = useRef<number | null>(null);
   // "Max visibility" reproduces the old LiveScreen layout: every verse at full
-  // contrast, and the current one centred in the middle of the screen rather
-  // than pinned near the top. Dark and Light keep this app's own layout.
+  // contrast. Dark and Light keep this app's own layout otherwise, but all
+  // three now centre the current verse the same way -- see the `top`
+  // calculation below.
   const isMax = props.theme === 'max';
 
   useLayoutEffect(() => {
@@ -212,21 +215,42 @@ function PassageView(props: {
     shrinkToFit(target, scroller.clientHeight);
 
     // Jumping to a different passage should not animate a scroll through the
-    // whole of the previous one. Moving *within* a passage should.
+    // whole of the previous one, and neither should a change that leaves the
+    // anchor verse exactly where it was -- a font-size adjustment, say, which
+    // only needs the new size to take effect, not a scroll animated through
+    // the gap between the old height and the new one. Only genuinely moving
+    // to a different verse *within* the same passage (`next`/`previous`,
+    // clicking another verse) earns the smooth scroll.
     const isNewPassage = previousKey.current !== props.passage.key;
+    const isNewAnchor = previousAnchor.current !== props.anchor;
     previousKey.current = props.passage.key;
+    previousAnchor.current = props.anchor;
 
-    const top = isMax
-      // Keep the current verse in the vertical middle of the screen, as the
-      // old viewer did, rather than pinned to the top.
-      ? Math.max(target.offsetTop - scroller.offsetTop - (scroller.clientHeight - target.clientHeight) / 2, 0)
-      : Math.max(target.offsetTop - scroller.offsetTop, 0);
+    // Keep the current verse in the vertical middle of the screen, so context
+    // before and after is visible when there is room -- the same positioning
+    // in every theme now, including Max visibility, which is simply where the
+    // old LiveScreen viewer always put it.
+    const top = Math.max(target.offsetTop - scroller.offsetTop - (scroller.clientHeight - target.clientHeight) / 2, 0);
 
     scroller.scrollTo({
       top,
-      behavior: isNewPassage || prefersReducedMotion() ? 'auto' : 'smooth',
+      behavior: (isNewPassage || !isNewAnchor || prefersReducedMotion()) ? 'auto' : 'smooth',
     });
-  }, [props.passage.key, props.anchor, props.fontStep, props.verses, isMax]);
+  }, [props.passage.key, props.anchor, props.fontStep, props.verses]);
+
+  // At least as large as the body text and bold (`.pv-heading`'s base rule),
+  // shrinking only as far as needed to keep book + chapter on one line --
+  // reusing `shrinkToFit`'s own binary search and floor via `shrinkToFitWidth`
+  // rather than a second implementation. A name that still will not fit even
+  // at that floor is allowed to wrap after all: shrinking exists to *avoid* a
+  // line break, not to guarantee none at any cost.
+  useLayoutEffect(() => {
+    const heading = headingRef.current;
+    if (!heading) return;
+    heading.style.whiteSpace = 'nowrap';
+    shrinkToFitWidth(heading, heading.clientWidth);
+    if (heading.scrollWidth > heading.clientWidth) heading.style.whiteSpace = 'normal';
+  }, [props.passage.bookName, props.passage.chapter, props.fontStep]);
 
   return (
     <div class={`pv-passage${isMax ? ' pv-passage--max' : ''}`}>
@@ -236,7 +260,7 @@ function PassageView(props: {
         screen -- and the congregation can see which verse is which from the
         numbers in the text.
       */}
-      <h1 class="pv-heading">{props.passage.bookName} {props.passage.chapter}</h1>
+      <h1 class="pv-heading" ref={headingRef}>{props.passage.bookName} {props.passage.chapter}</h1>
       <div class="pv-scroll" ref={scrollRef}>
         {props.verses.map(verse => (
           <p
@@ -320,9 +344,22 @@ function VerseText(props: {
 // ---------------------------------------------------------------------------
 
 function TextSlide(props: { title?: string; body: string; attribution?: string }): preact.JSX.Element {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Same fit-then-fall-back-to-wrap treatment as the passage heading, and for
+  // the same reason: a presenter's own title is free text and can be as long
+  // as `PassageView`'s book-and-chapter heading, or longer.
+  useLayoutEffect(() => {
+    const heading = headingRef.current;
+    if (!heading) return;
+    heading.style.whiteSpace = 'nowrap';
+    shrinkToFitWidth(heading, heading.clientWidth);
+    if (heading.scrollWidth > heading.clientWidth) heading.style.whiteSpace = 'normal';
+  }, [props.title]);
+
   return (
     <div class="pv-passage">
-      {props.title ? <h1 class="pv-heading">{props.title}</h1> : null}
+      {props.title ? <h1 class="pv-heading" ref={headingRef}>{props.title}</h1> : null}
       <div class="pv-scroll">
         {/*
           Rendered as text nodes, never as markup. This is the one thing on this

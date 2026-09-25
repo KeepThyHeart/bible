@@ -15,9 +15,9 @@ import { MAX_OVERSCAN } from './viewerChrome';
 import { buildFollowLink } from './controlLink';
 
 const THEMES: Array<{ value: PresentTheme; label: string }> = [
-  { value: 'max', label: 'Max visibility' },
-  { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'max', label: 'Max visibility' },
 ];
 
 export function ScreenMenu(props: {

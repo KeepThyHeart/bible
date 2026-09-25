@@ -75,6 +75,45 @@ export function shrinkToFit(element: HTMLElement, availableHeight: number): numb
 }
 
 /**
+ * Shrink one *single-line* element until it fits the available width, and
+ * report the scale. The same binary search as `shrinkToFit`, against
+ * `scrollWidth`/`clientWidth` rather than height -- what a heading pinned to
+ * one line (`white-space: nowrap`) needs to avoid wrapping, instead of what a
+ * wrapped verse needs to avoid overflowing vertically.
+ *
+ * Shares `MIN_SHRINK` with `shrinkToFit`: a heading is not allowed to shrink
+ * away to nothing chasing an extremely long book name any more than a verse
+ * is. Below that floor the caller's own fallback (allowing the heading to
+ * wrap after all) takes over -- see `ViewerApp.tsx`'s `PassageView`.
+ *
+ * Returns 1 when no shrinking was needed, so the caller can skip the write.
+ */
+export function shrinkToFitWidth(element: HTMLElement, availableWidth: number): number {
+  if (availableWidth <= 0) return 1;
+
+  element.style.removeProperty('--heading-shrink');
+  if (element.scrollWidth <= availableWidth) return 1;
+
+  let low = MIN_SHRINK;
+  let high = 1;
+  let best = MIN_SHRINK;
+
+  for (let probe = 0; probe < 6; probe++) {
+    const mid = (low + high) / 2;
+    element.style.setProperty('--heading-shrink', String(mid));
+    if (element.scrollWidth <= availableWidth) {
+      best = mid;
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  element.style.setProperty('--heading-shrink', String(best));
+  return best;
+}
+
+/**
  * Whether to animate at all.
  *
  * Honoured for the same reason it is honoured anywhere, and one more: a viewer
