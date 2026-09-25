@@ -72,7 +72,7 @@ build or copy them in. The server serves them (and the model) at `/data/...`.
 | `semantic_128d_int8.bin` | Flat binary int8 vectors (~47 MB) for browser-side search |
 | `semantic_128d_int8.meta.json` | Row metadata + mean vector (~60 MB) for browser-side search |
 | `semantic_browser.db` | Legacy truncated embeddings (384-dim float16) — superseded by compact index. Still served by `GET /api/modules/semantic-index/download` |
-| `scripts/fetch-embedding-model.mjs` | Build-time download of the ONNX embedding model for self-hosted (offline) browser search. Run via `npm run fetch:model`; also runs automatically as `prebuild`. Idempotent (skips existing files; `FORCE_MODEL_FETCH=1` to re-download). It writes to `$BIBLE_DATA_DIR/models/`, defaulting (like the server) to the repo-root `data/models/` |
+| `scripts/fetch-embedding-model.mjs` | Build-time download of the ONNX embedding model for self-hosted (offline) browser search. Run via `npm run fetch:model`; also runs automatically as `prebuild`. Only fetches when `search.mode` resolves to `'browser'` (the default); skipped for `'server'`/`'off'`, or unconditionally with `SKIP_MODEL_FETCH=1`. Idempotent (skips existing files; `FORCE_MODEL_FETCH=1` to re-download). Best-effort: a failed download (e.g. offline) only warns and lets the build continue — semantic search degrades gracefully at runtime instead of blocking setup. It writes to `$BIBLE_DATA_DIR/models/`, defaulting (like the server) to the repo-root `data/models/` |
 | `data/models/nomic-ai/nomic-embed-text-v1.5/` | Self-hosted q8 ONNX model + tokenizer, served at `/data/models/...`. Populated by `fetch:model` |
 
 The scripts that build the index files are **not in this repo**: they lived in a
