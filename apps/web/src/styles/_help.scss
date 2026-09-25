@@ -46,6 +46,33 @@
     color: var(--text-primary);
   }
 
+  // A tab row for a help dialog with more than one page of content (the
+  // Present help overlay), styled to match `.present-panel__tabs`, which a
+  // presenter has usually just come from.
+  &__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__tab {
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-muted);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    cursor: pointer;
+
+    &--active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-color);
+      font-weight: 700;
+    }
+  }
+
   // Entry points to things that live outside the dialog (the documentation
   // site, the feedback form). Sits above the help text because it is the
   // shortest path to an answer we do not have room to write here.

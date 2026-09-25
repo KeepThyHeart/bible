@@ -5,6 +5,7 @@ import { presentStore } from '../../stores/presentStore';
 import { API_BASE } from '../../utils/apiUrl';
 import { buildControlLink, buildViewerLink, typedWatchAddress } from '../../present/controlLink';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from '../../present/protocol';
+import { PresentHelp } from './PresentHelp';
 import { PresentHymns } from './PresentHymns';
 import { PresentPlanList } from './PresentPlanList';
 import { PresentPreview } from './PresentPreview';
@@ -34,9 +35,20 @@ import { usePresenter } from './usePresenter';
  * `previewInline` (default on) is what lets the floating popup fallback
  * (`PresentPanel`, which has nowhere else to put a persistent panel) keep the
  * old inline placement, while `PresentTab` turns it off.
+ *
+ * Layout, as of the hamburger-menu rework: two things a presenter reaches for
+ * constantly -- the running order and the hymn picker -- stay one tap away as
+ * plain pills, the way they always were. Everything reached for once a
+ * service (screen theme and size, joining and handoff) moved behind a single
+ * "Settings" toggle instead of competing with them as equally-weighted tabs,
+ * which is what the human's notes singled out as confusing. The one
+ * exception: a brand-new session, with nothing planned and nothing on the
+ * wall, opens straight into Settings, because getting the screen and the join
+ * code right *is* the first thing a presenter needs then -- closing it once
+ * hands back the running order as the default from that point on.
  */
 
-type Section = 'plan' | 'hymns' | 'screen' | 'join';
+type Section = 'plan' | 'hymns';
 
 /**
  * The handoff link as something a phone can photograph.
@@ -79,11 +91,13 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
   const plan = useStore(presentStore, () => presentStore.plan);
   const acceptClickerKeys = useStore(presentStore, () => presentStore.acceptClickerKeys);
 
+  const [section, setSection] = useState<Section>('plan');
   // A session with nothing on the wall and nothing planned has just been
-  // created, and the first thing its presenter needs is the join code.
-  const [section, setSection] = useState<Section>(
-    () => (!view.wall?.live && plan.length === 0 ? 'join' : 'plan'),
-  );
+  // created, and the first thing its presenter needs is the screen set up
+  // and a way for someone to join it -- so Settings starts open rather than
+  // buried behind its own toggle the first time it matters most.
+  const [menuOpen, setMenuOpen] = useState<boolean>(() => !view.wall?.live && plan.length === 0);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [showHandoff, setShowHandoff] = useState(false);
   const [copied, setCopied] = useState<'viewer' | 'control' | null>(null);
@@ -111,8 +125,8 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
   const tab = (id: Section, label: string) => (
     <button
       type="button"
-      class={`present-panel__tab ${section === id ? 'present-panel__tab--active' : ''}`}
-      onClick={() => setSection(id)}
+      class={`present-panel__tab ${!menuOpen && section === id ? 'present-panel__tab--active' : ''}`}
+      onClick={() => { setSection(id); setMenuOpen(false); }}
     >
       {label}
     </button>
@@ -123,8 +137,25 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
       <div class="present-panel__tabs">
         {tab('plan', t('present.runningOrder'))}
         {tab('hymns', t('present.hymns'))}
-        {tab('screen', t('present.screen'))}
-        {tab('join', t('present.joining'))}
+        <button
+          type="button"
+          class={`present-panel__menu-toggle ${menuOpen ? 'present-panel__menu-toggle--active' : ''}`}
+          onClick={() => setMenuOpen(open => !open)}
+          aria-expanded={menuOpen}
+          title={t('present.menu')}
+        >
+          <i class="fa-solid fa-bars" aria-hidden="true" />
+          <span class="present-panel__menu-toggle-text">{t('present.menu')}</span>
+        </button>
+        <button
+          type="button"
+          class="present-panel__help-toggle"
+          onClick={() => setHelpOpen(true)}
+          aria-label={t('present.help')}
+          title={t('present.help')}
+        >
+          <i class="fa-solid fa-circle-question" aria-hidden="true" />
+        </button>
         {props.onClose && (
           <button
             type="button"
@@ -138,201 +169,210 @@ export function PresentPanelBody(props: { compact?: boolean; onClose?: () => voi
       </div>
 
       <div class="present-panel__body">
-        {section === 'plan' && <PresentPlanList />}
+        {menuOpen ? (
+          <div class="present-panel__menu">
+            <p class="present-panel__hint">{t('present.menuHint')}</p>
 
-        {section === 'hymns' && <PresentHymns />}
+            <section class="present-panel__menu-section">
+              <h2 class="present-panel__menu-heading">{t('present.screen')}</h2>
 
-        {section === 'screen' && (
-          <div class="present-panel__screen">
-            {/*
-              A preview on a phone would be a postage stamp competing for the
-              only screen the presenter has. On a phone the actual television is
-              usually in the room anyway. On desktop, `PresentTab` shows the
-              same preview in its own always-visible panel instead (see
-              `previewInline` above), so there is nothing to render here.
-            */}
-            {props.compact && (
-              <p class="present-panel__note">{t('present.previewDesktopOnly')}</p>
-            )}
-            {!props.compact && previewInline && (
-              <PresentPreview joinCode={session.joinCode} />
-            )}
-
-            <div class="present-panel__row">
-              <span class="present-panel__row-label">{t('present.textSize')}</span>
-              <button
-                type="button" class="present-panel__step"
-                onClick={() => setFont(fontStep - 1)}
-                disabled={fontStep <= MIN_FONT_STEP}
-                aria-label={t('present.textSmaller')}
-              >
-                <i class="fa-solid fa-minus" aria-hidden="true" />
-              </button>
-              <span class="present-panel__step-value">{fontStep}</span>
-              <button
-                type="button" class="present-panel__step"
-                onClick={() => setFont(fontStep + 1)}
-                disabled={fontStep >= MAX_FONT_STEP}
-                aria-label={t('present.textLarger')}
-              >
-                <i class="fa-solid fa-plus" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div class="present-panel__row">
-              <span class="present-panel__row-label">{t('present.theme')}</span>
-              {(['max', 'dark', 'light'] as const).map(theme => (
-                <button
-                  key={theme}
-                  type="button"
-                  class={`present-panel__choice ${view.wall?.display.theme === theme ? 'present-panel__choice--active' : ''}`}
-                  onClick={() => void presentStore.send({ type: 'setTheme', theme })}
-                >
-                  {theme === 'max' ? t('present.themeMax') : theme === 'dark' ? t('present.themeDark') : t('present.themeLight')}
-                </button>
-              ))}
-            </div>
-
-            <label class="present-panel__toggle">
-              <input
-                type="checkbox"
-                checked={acceptClickerKeys}
-                onChange={event => presentStore.setAcceptClickerKeys((event.target as HTMLInputElement).checked)}
-              />
-              {t('present.acceptClickerKeys')}
-            </label>
-            <p class="present-panel__hint">{t('present.acceptClickerKeysHint')}</p>
-          </div>
-        )}
-
-        {section === 'join' && (
-          <div class="present-panel__join">
-            {/*
-              The same code the lobby screen shows. It is here as well because
-              the presenter is often asked for it directly, and because once a
-              passage is up the wall no longer carries it.
-            */}
-            <img
-              class="present-panel__qr"
-              src={`${API_BASE}/api/present/j/${encodeURIComponent(session.joinCode)}/qr.svg`}
-              alt={t('present.qrAlt', { code: session.joinCode })}
-            />
-            <div class="present-panel__join-detail">
-              <p class="present-panel__code">{session.joinCode}</p>
-              <p class="present-panel__link">{buildViewerLink(session.joinCode)}</p>
               {/*
-                A link is easy to scan or paste, but hard to *type* -- and a
-                presenter without a working camera, or a room with the code on
-                a slide rather than a phone in hand, needs something a person
-                can key in by hand. A short, fixed address plus the code
-                already on screen (or spoken aloud) does that; `/watch` asks
-                for the code and sends the browser on to the right place.
+                A preview on a phone would be a postage stamp competing for the
+                only screen the presenter has. On a phone the actual television is
+                usually in the room anyway. On desktop, `PresentTab` shows the
+                same preview in its own always-visible panel instead (see
+                `previewInline` above), so there is nothing to render here.
               */}
-              <p class="present-panel__hint present-panel__typed-hint">
-                {t('present.joinTypedHint')} <strong>{typedWatchAddress()}</strong>
-              </p>
-              <div class="present-panel__join-actions">
-                <a
-                  class="present-panel__button"
-                  href={buildViewerLink(session.joinCode)}
-                  target="_blank"
-                  rel="noopener"
-                >
-                  <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
-                  {t('present.openViewer')}
-                </a>
+              {props.compact && (
+                <p class="present-panel__note">{t('present.previewDesktopOnly')}</p>
+              )}
+              {!props.compact && previewInline && (
+                <PresentPreview joinCode={session.joinCode} />
+              )}
+
+              <div class="present-panel__row">
+                <span class="present-panel__row-label">{t('present.textSize')}</span>
                 <button
-                  type="button"
-                  class="present-panel__button"
-                  onClick={() => void copy(buildViewerLink(session.joinCode), 'viewer')}
+                  type="button" class="present-panel__step"
+                  onClick={() => setFont(fontStep - 1)}
+                  disabled={fontStep <= MIN_FONT_STEP}
+                  aria-label={t('present.textSmaller')}
                 >
-                  <i class="fa-solid fa-copy" aria-hidden="true" />
-                  {copied === 'viewer' ? t('present.copied') : t('present.copyLink')}
+                  <i class="fa-solid fa-minus" aria-hidden="true" />
                 </button>
+                <span class="present-panel__step-value">{fontStep}</span>
+                <button
+                  type="button" class="present-panel__step"
+                  onClick={() => setFont(fontStep + 1)}
+                  disabled={fontStep >= MAX_FONT_STEP}
+                  aria-label={t('present.textLarger')}
+                >
+                  <i class="fa-solid fa-plus" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div class="present-panel__row">
+                <span class="present-panel__row-label">{t('present.theme')}</span>
+                {(['light', 'dark', 'max'] as const).map(theme => (
+                  <button
+                    key={theme}
+                    type="button"
+                    class={`present-panel__choice ${view.wall?.display.theme === theme ? 'present-panel__choice--active' : ''}`}
+                    onClick={() => void presentStore.send({ type: 'setTheme', theme })}
+                  >
+                    {theme === 'max' ? t('present.themeMax') : theme === 'dark' ? t('present.themeDark') : t('present.themeLight')}
+                  </button>
+                ))}
               </div>
 
               <label class="present-panel__toggle">
                 <input
                   type="checkbox"
-                  checked={view.wall?.session.joinsLocked ?? false}
-                  onChange={event => void presentStore.send({
-                    type: 'lockJoins',
-                    locked: (event.target as HTMLInputElement).checked,
-                  })}
+                  checked={acceptClickerKeys}
+                  onChange={event => presentStore.setAcceptClickerKeys((event.target as HTMLInputElement).checked)}
                 />
-                {t('present.lockJoins')}
+                {t('present.acceptClickerKeys')}
               </label>
-              <p class="present-panel__hint">{t('present.lockJoinsHint')}</p>
-            </div>
+              <p class="present-panel__hint">{t('present.acceptClickerKeysHint')}</p>
+            </section>
 
-            <div class="present-panel__danger">
+            <section class="present-panel__menu-section">
+              <h2 class="present-panel__menu-heading">{t('present.joining')}</h2>
+
               {/*
-                Moving control to another device is what makes preparing on a
-                desktop and presenting from a phone work. It is also the one
-                link that grants control, so it stays behind a deliberate click
-                and says plainly what it does -- and never goes near the wall.
+                The same code the lobby screen shows. It is here as well because
+                the presenter is often asked for it directly, and because once a
+                passage is up the wall no longer carries it.
               */}
-              {showHandoff ? (
-                <div class="present-panel__handoff">
-                  <p class="present-panel__warning">
-                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
-                    {t('present.handoffWarning')}
-                  </p>
-                  <HandoffQr link={buildControlLink(session)} />
-                  <code class="present-panel__handoff-link">{buildControlLink(session)}</code>
+              <img
+                class="present-panel__qr"
+                src={`${API_BASE}/api/present/j/${encodeURIComponent(session.joinCode)}/qr.svg`}
+                alt={t('present.qrAlt', { code: session.joinCode })}
+              />
+              <div class="present-panel__join-detail">
+                <p class="present-panel__code">{session.joinCode}</p>
+                <p class="present-panel__link">{buildViewerLink(session.joinCode)}</p>
+                {/*
+                  A link is easy to scan or paste, but hard to *type* -- and a
+                  presenter without a working camera, or a room with the code on
+                  a slide rather than a phone in hand, needs something a person
+                  can key in by hand. A short, fixed address plus the code
+                  already on screen (or spoken aloud) does that; `/watch` asks
+                  for the code and sends the browser on to the right place.
+                */}
+                <p class="present-panel__hint present-panel__typed-hint">
+                  {t('present.joinTypedHint')} <strong>{typedWatchAddress()}</strong>
+                </p>
+                <div class="present-panel__join-actions">
+                  <a
+                    class="present-panel__button"
+                    href={buildViewerLink(session.joinCode)}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+                    {t('present.openViewer')}
+                  </a>
                   <button
                     type="button"
                     class="present-panel__button"
-                    onClick={() => void copy(buildControlLink(session), 'control')}
+                    onClick={() => void copy(buildViewerLink(session.joinCode), 'viewer')}
                   >
                     <i class="fa-solid fa-copy" aria-hidden="true" />
-                    {copied === 'control' ? t('present.copied') : t('present.copyControlLink')}
+                    {copied === 'viewer' ? t('present.copied') : t('present.copyLink')}
                   </button>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  class="present-panel__button"
-                  onClick={() => setShowHandoff(true)}
-                >
-                  <i class="fa-solid fa-mobile-screen" aria-hidden="true" />
-                  {t('present.handoff')}
-                </button>
-              )}
 
-              {confirmEnd ? (
-                <div class="present-panel__confirm">
-                  <span>{t('present.endConfirm')}</span>
+                <label class="present-panel__toggle">
+                  <input
+                    type="checkbox"
+                    checked={view.wall?.session.joinsLocked ?? false}
+                    onChange={event => void presentStore.send({
+                      type: 'lockJoins',
+                      locked: (event.target as HTMLInputElement).checked,
+                    })}
+                  />
+                  {t('present.lockJoins')}
+                </label>
+                <p class="present-panel__hint">{t('present.lockJoinsHint')}</p>
+              </div>
+
+              <div class="present-panel__danger">
+                {/*
+                  Moving control to another device is what makes preparing on a
+                  desktop and presenting from a phone work. It is also the one
+                  link that grants control, so it stays behind a deliberate click
+                  and says plainly what it does -- and never goes near the wall.
+                */}
+                {showHandoff ? (
+                  <div class="present-panel__handoff">
+                    <p class="present-panel__warning">
+                      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                      {t('present.handoffWarning')}
+                    </p>
+                    <HandoffQr link={buildControlLink(session)} />
+                    <code class="present-panel__handoff-link">{buildControlLink(session)}</code>
+                    <button
+                      type="button"
+                      class="present-panel__button"
+                      onClick={() => void copy(buildControlLink(session), 'control')}
+                    >
+                      <i class="fa-solid fa-copy" aria-hidden="true" />
+                      {copied === 'control' ? t('present.copied') : t('present.copyControlLink')}
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    class="present-panel__button present-panel__button--danger"
-                    onClick={() => void presentStore.end()}
+                    class="present-panel__button"
+                    onClick={() => setShowHandoff(true)}
                   >
-                    {t('present.endYes')}
+                    <i class="fa-solid fa-mobile-screen" aria-hidden="true" />
+                    {t('present.handoff')}
                   </button>
-                  <button type="button" class="present-panel__button" onClick={() => setConfirmEnd(false)}>
-                    {t('common.cancel')}
-                  </button>
-                </div>
-              ) : (
-                <div class="present-panel__join-actions">
-                  <button type="button" class="present-panel__button" onClick={() => presentStore.leave()}>
-                    {t('present.leave')}
-                  </button>
-                  <button
-                    type="button"
-                    class="present-panel__button present-panel__button--danger"
-                    onClick={() => setConfirmEnd(true)}
-                  >
-                    {t('present.end')}
-                  </button>
-                </div>
-              )}
-              <p class="present-panel__hint">{t('present.leaveHint')}</p>
-            </div>
+                )}
+
+                {confirmEnd ? (
+                  <div class="present-panel__confirm">
+                    <span>{t('present.endConfirm')}</span>
+                    <button
+                      type="button"
+                      class="present-panel__button present-panel__button--danger"
+                      onClick={() => void presentStore.end()}
+                    >
+                      {t('present.endYes')}
+                    </button>
+                    <button type="button" class="present-panel__button" onClick={() => setConfirmEnd(false)}>
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                ) : (
+                  <div class="present-panel__join-actions">
+                    <button type="button" class="present-panel__button" onClick={() => presentStore.leave()}>
+                      {t('present.leave')}
+                    </button>
+                    <button
+                      type="button"
+                      class="present-panel__button present-panel__button--danger"
+                      onClick={() => setConfirmEnd(true)}
+                    >
+                      {t('present.end')}
+                    </button>
+                  </div>
+                )}
+                <p class="present-panel__hint">{t('present.leaveHint')}</p>
+              </div>
+            </section>
           </div>
+        ) : (
+          <>
+            {section === 'plan' && <PresentPlanList />}
+            {section === 'hymns' && <PresentHymns />}
+          </>
         )}
       </div>
+
+      <PresentHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

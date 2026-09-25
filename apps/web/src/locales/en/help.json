@@ -59,5 +59,31 @@
     "title": "Settings",
     "descMobile": "Tap the gear icon to customize theme, font, and offline settings.",
     "descDesktop": "Click the gear icon to customize theme, font family, font size, line height, and offline mode settings."
+  },
+  "present": {
+    "title": "Presenting",
+    "close": "Close",
+    "tabSending": "Sending & Navigation",
+    "tabHymnsQuotes": "Hymns & Quotes",
+    "tabJoining": "Joining & Handoff",
+    "sending": {
+      "title": "Sending & Navigation",
+      "stage": "Tap or click a verse in the Bible pane to stage it -- what <strong>Send</strong> would put on screen.",
+      "sendShortcut": "<strong>Alt+Enter</strong> sends what's staged. <strong>Alt+Left</strong>/<strong>Alt+Right</strong> steps to the previous or next verse of whatever is already on screen.",
+      "studyArrows": "Plain <strong>Up</strong>/<strong>Down</strong> arrows move the staged verse without touching what's on screen yet -- a safe way to look ahead.",
+      "blank": "<strong>Ctrl+Enter</strong>, or the Blank button, fades the screen to black without losing what's on it."
+    },
+    "hymnsQuotes": {
+      "title": "Hymns & Quotes",
+      "search": "Search the hymn picker by title, first line, author, or hymnal number -- someone calling out \"460\" from the back works too.",
+      "quote": "<strong>Add a quote</strong> puts someone else's words on screen, set apart from your own text and announcements.",
+      "plan": "Add a hymn or quote to the running order to reuse it later in the service, in whatever order you'll actually use them."
+    },
+    "joining": {
+      "title": "Joining & Handoff",
+      "share": "Share the join code, link, or QR so a television or a phone can watch along.",
+      "handoff": "<strong>Move control to another device</strong> hands the presenter role to a phone -- it's a one-way door until the session ends, so keep it to people you trust.",
+      "lock": "<strong>Lock joins</strong> stops new screens joining without ending the session for whoever is already watching."
+    }
   }
 }
