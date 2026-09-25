@@ -117,6 +117,13 @@ export function usePresenterShortcuts(): void {
 
     const onKey = (event: KeyboardEvent): void => {
       if (isTyping(event.target)) return;
+      // This listener is on `window`, the last stop a bubbling keydown makes,
+      // so a more specific handler closer to the focused element -- a
+      // dropdown's own arrow-key navigation, a dialog's -- has already run.
+      // Its `preventDefault()` is this hook's cue to stand down rather than
+      // also acting on the same press (moving the study verse while someone
+      // is arrowing through, say, the translation picker).
+      if (event.defaultPrevented) return;
       const action = resolveShortcutAction(event, { hasStaged: staged !== null, acceptClickerKeys });
       if (!action) return;
 
