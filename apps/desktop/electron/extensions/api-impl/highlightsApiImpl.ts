@@ -3,7 +3,10 @@
  *
  * CRUD over the user-data highlights tables, plus `registerStyle` / `listStyles`
  * for custom highlight styles (built-in + extension-contributed share the same
- * picker). Permission gates: `highlights:read` for list/listStyles,
+ * picker). The change notification lives on
+ * `api.events.subscribe('highlights.afterChange', ...)` now, wired host-wide
+ * in `ExtensionPointWiring.ts` rather than per-worker here (task 0024 round
+ * 3, P0.3). Permission gates: `highlights:read` for list/listStyles,
  * `highlights:write` for create/update/delete/registerStyle.
  */
 
@@ -19,8 +22,6 @@ import { RegistrationDisposers } from './registrationDisposers';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 
-const CHANGE_CHANNEL = 'highlights.onDidChange';
-
 export interface HighlightsApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
@@ -34,7 +35,6 @@ export class HighlightsApiImpl {
   private readonly bridge: IExtensionHighlightsBridge;
   private readonly grant: ExtensionPermissionGrant;
   private readonly registrations = new RegistrationDisposers('style');
-  private unsubscribe: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: HighlightsApiImplOptions) {
@@ -54,33 +54,19 @@ export class HighlightsApiImpl {
       listStyles: () => this.handleListStyles(),
       dispose: (args) => this.registrations.handleDispose(args),
     });
-
-    this.unsubscribe = this.bridge.subscribeChange((payload) => {
-      if (this.disposed) return;
-      this.router.emitEvent(CHANGE_CHANNEL, payload);
-    });
+    // `bridge.subscribeChange(...)` -> `highlights.afterChange` used to be
+    // wired here, one subscription per active worker. See
+    // `ExtensionPointWiring.ts`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    // Individual disposers first, then the bulk sweep as a backstop for
-    // anything registered outside this map. The bulk call is not redundant:
-    // it is the only path that catches styles a future bridge might register
-    // on the extension's behalf.
     this.registrations.disposeAll();
     try {
       this.bridge.disposeStylesByOwner(this.extensionId);
     } catch {
       /* best-effort */
-    }
-    if (this.unsubscribe) {
-      try {
-        this.unsubscribe();
-      } catch {
-        /* best-effort */
-      }
-      this.unsubscribe = undefined;
     }
   }
 

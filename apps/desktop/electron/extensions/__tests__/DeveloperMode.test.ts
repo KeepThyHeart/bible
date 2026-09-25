@@ -40,7 +40,7 @@ function manifest(version = '1.0.0', extra: Record<string, unknown> = {}): strin
     engines: { bibleApp: '^1.0.0' },
     main: 'dist/main.js',
     permissions: ['bible:read'],
-    activationEvents: ['onStartup'],
+    activationEvents: ['onStartupFinished'],
     ...extra,
   });
 }

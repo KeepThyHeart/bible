@@ -2,8 +2,8 @@
  * Normalize an extension's contributions into a flat `HookDescriptor[]`.
  *
  * Combines two sources:
- *   - Static `contributes` from the manifest (commands, menus, providers,
- *     panelTypes, displayModes).
+ *   - Static `contributes` from the manifest (commands, panelTypes,
+ *     bibleProviders).
  *   - Dynamic registrations captured by the recording mock API while the
  *     extension's `activate(api)` runs.
  *
@@ -44,7 +44,6 @@ export const INPUT_SHAPE_BY_KIND: Record<HookKind, HookDescriptor['inputShape']>
   statusBar: 'none',
   hover: 'verseId',
   decorator: 'verseRange',
-  displayMode: 'verseRange',
   bibleProvider: 'verseId',
   commentaryProvider: 'verseId',
   dictionaryProvider: 'dictionaryKey',
@@ -65,7 +64,6 @@ export const INPUT_SHAPE_BY_KIND: Record<HookKind, HookDescriptor['inputShape']>
 const QUALIFIED_ID_KINDS: ReadonlySet<HookKind> = new Set<HookKind>([
   'command',
   'panelType',
-  'displayMode',
   'bibleProvider',
   'commentaryProvider',
   'dictionaryProvider',
@@ -141,57 +139,28 @@ export function enumerateHooks(opts: EnumerateOptions): HookDescriptor[] {
   for (const panel of contrib.panelTypes ?? []) {
     addHook('panelType', panel.id, 'manifest', panel, panelTypeTarget(panel.id));
   }
-  if (contrib.menus) {
-    for (const [target, items] of Object.entries(contrib.menus)) {
-      for (const item of items) {
-        // Scope the id by target the same way the runtime branch below does,
-        // so a menu item contributed in the manifest and re-registered during
-        // activate merges into one hook instead of appearing twice.
-        const id = `${target}:${item.id ?? item.command}`;
-        addHook(
-          'contextMenu',
-          id,
-          'manifest',
-          { target, item },
-          viaCommandTarget(commands, item.command, `menu item "${id}"`),
-        );
-      }
-    }
-  }
-  for (const mode of contrib.displayModes ?? []) {
+  // `menus`, `displayModes`, `commentaryProviders`, `dictionaryProviders` and
+  // `bookProviders` used to be enumerated here as static `contributes`
+  // sources. Task 0024 round 3 (P2.13) deleted all five manifest fields as
+  // dead code (validated, never read at runtime) - see
+  // `ExtensionManifestValidator.ts`. Their *imperative* runtime-capture
+  // counterparts below are unaffected and still enumerate contextMenu /
+  // commentaryProvider / dictionaryProvider / bookProvider hooks registered
+  // via `api.ui.registerContextMenu` / `api.commentary.registerProvider` /
+  // etc.; `displayMode` has no such counterpart any more, since
+  // `ui.registerDisplayMode` itself was deleted in the same round.
+  //
+  // `bibleProviders`, by contrast, is a *new* static source here: P2.13 fixed
+  // the field's schema/validator mismatch, so it now validates (though it
+  // still does nothing at runtime until P1.5's lazy-activation work reads it
+  // - see `ExtensionManifest.ts`'s doc comment on the field).
+  for (const p of contrib.bibleProviders ?? []) {
     addHook(
-      'displayMode',
-      mode.id,
-      'manifest',
-      mode,
-      endpointTarget(mode.renderEndpoint, `display mode "${mode.id}"`, 'renderEndpoint'),
-    );
-  }
-  for (const p of contrib.commentaryProviders ?? []) {
-    addHook(
-      'commentaryProvider',
+      'bibleProvider',
       p.id,
       'manifest',
       p,
-      endpointTarget(p.fetchEndpoint, `commentary provider "${p.id}"`, 'fetchEndpoint'),
-    );
-  }
-  for (const p of contrib.dictionaryProviders ?? []) {
-    addHook(
-      'dictionaryProvider',
-      p.id,
-      'manifest',
-      p,
-      endpointTarget(p.fetchEndpoint, `dictionary provider "${p.id}"`, 'fetchEndpoint'),
-    );
-  }
-  for (const p of contrib.bookProviders ?? []) {
-    addHook(
-      'bookProvider',
-      p.id,
-      'manifest',
-      p,
-      endpointTarget(p.fetchEndpoint, `book provider "${p.id}"`, 'fetchEndpoint'),
+      endpointTarget(p.fetchEndpoint, `bible provider "${p.id}"`, 'fetchEndpoint'),
     );
   }
 
@@ -229,15 +198,6 @@ export function enumerateHooks(opts: EnumerateOptions): HookDescriptor[] {
         'runtime',
         m,
         viaCommandTarget(commands, m.item.command, `menu item "${id}"`),
-      );
-    }
-    for (const mode of captured.displayModes) {
-      addHook(
-        'displayMode',
-        mode.id,
-        'runtime',
-        mode,
-        endpointTarget(mode.renderEndpoint, `display mode "${mode.id}"`, 'renderEndpoint'),
       );
     }
     for (const item of captured.statusBarItems) {

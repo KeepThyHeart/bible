@@ -9,10 +9,20 @@
  *   - **Secrets** (`setSecret/getSecret/deleteSecret`). Routes
  *     through the OS keychain via `ISecretsKeychain`. Per-extension service
  *     namespace `bible-app:ext.<id>`. Permission: `storage:secrets`.
- *   - **Settings** (`getSetting`, `onDidChangeSettings`). Read-only
- *     mirror of `contributes.configuration`. Reads `__settings.<key>` rows
- *     populated by `ExtensionHost.setSettings` (which calls
- *     `notifySettingsChanged` on this api-impl after a successful write).
+ *   - **Settings** (`getSetting`/`setSetting`, and `settings.changed` via
+ *     `api.events.subscribe`). Mirrors `contributes.configuration`. Reads
+ *     `__settings.<key>` rows populated either by `ExtensionHost.setSettings`
+ *     (the user-driven form write - replaces the whole settings object) or
+ *     by this class's own `setSetting` (task 0024 round 3, P1.7 - a single
+ *     extension-initiated key write, validated against the extension's own
+ *     declared schema so it can never write an undeclared key or a
+ *     wrong-typed value). Either path calls `notifySettingsChanged` after a
+ *     successful write. `settings.changed` is fired only to the *owning*
+ *     worker - deliberately not through the host-wide
+ *     `dispatchExtensionPoint`/`ExtensionPointWiring.ts` fan-out every other
+ *     channel uses (task 0024 round 3, P0.3), because settings are private
+ *     to the extension that owns them and that dispatcher has no per-worker
+ *     targeting.
  *   - **`openDatabase`**. Per-extension SQLite file under
  *     `data/extensions/<id>/db/<name>.db` via `ExtensionDatabaseRegistry`.
  *     Reverse-RPC handles dispatch to `db.exec/query/queryOne/run/begin/
@@ -39,6 +49,22 @@ import type {
   ExtensionDatabaseRegistry,
   OpenExtensionDatabaseOpts,
 } from '../ExtensionDatabaseRegistry';
+// Reused from the renderer's settings form (task 0024 round 3, P1.7) so
+// `storage.setSetting` and `ExtensionSettingsRenderer.tsx` can never disagree
+// about which keys exist or what a valid value looks like - both walk the
+// same `contributes.configuration` schema through the same pure functions.
+// This IS a real (value) import into the main process, not a type-only one -
+// but the target module has no imports of its own (no React, no DOM, nothing
+// transitive), so it is safe to pull into the main-process bundle. Reviewed
+// and confirmed safe in round 3's slice-3 approval [14-me]; `hostThemeCss.ts`
+// / `hostControlsCss.ts` cross the same `electron/` <-> `src/ui/` boundary,
+// but only for CSS assets, not logic, so they are a precedent for the
+// boundary being crossable at all, not for this specific kind of import.
+import {
+  extractFields,
+  findField,
+  validateSettingValue,
+} from '../../../src/ui/components/extensions/extensionSettingsSchema';
 
 const { ExtensionNotActiveError, QuotaExceededError, RpcProtocolError } = Extensions;
 
@@ -53,8 +79,13 @@ export const DEFAULT_KV_QUOTA_BYTES = 5 * 1024 * 1024;
 const RESERVED_KEY_PREFIXES = ['__settings.'];
 const SETTINGS_PREFIX = '__settings.';
 
-/** Channel name the worker subscribes to via `api.storage.onDidChangeSettings`. */
-const SETTINGS_CHANGE_CHANNEL = 'storage.onDidChangeSettings';
+/**
+ * Channel name the worker subscribes to via `api.events.subscribe('settings.changed', ...)`.
+ * Kept as an `ExtensionPointId` literal so a rename here would be a
+ * type error, even though this call site fires directly rather than
+ * through `dispatchExtensionPoint` - see the class doc comment.
+ */
+const SETTINGS_CHANGE_CHANNEL: Extensions.ExtensionPointId = 'settings.changed';
 
 export interface StorageApiImplOptions {
   extensionId: string;
@@ -89,6 +120,16 @@ export interface StorageApiImplOptions {
    * `RpcProtocolError`.
    */
   databaseRegistry?: ExtensionDatabaseRegistry;
+  /**
+   * The extension's own `contributes.configuration` JSON Schema (or
+   * `undefined`/a `$ref` object if it declared none inline - `extractFields`
+   * degrades to no fields either way, same as `ExtensionSettingsRenderer.tsx`
+   * does for a `$ref` schema today). Used to validate `storage.setSetting`
+   * calls. A snapshot taken at activation time, like `grant` above - a
+   * manifest change requires reactivating the extension, which reconstructs
+   * this api-impl with the new manifest's schema.
+   */
+  configurationSchema?: unknown;
 }
 
 export class StorageApiImpl {
@@ -99,6 +140,7 @@ export class StorageApiImpl {
   private readonly grant: ExtensionPermissionGrant;
   private readonly keychain: ISecretsKeychain | undefined;
   private readonly databaseRegistry: ExtensionDatabaseRegistry | undefined;
+  private readonly configurationSchema: unknown;
   private disposed = false;
 
   constructor(opts: StorageApiImplOptions) {
@@ -109,6 +151,7 @@ export class StorageApiImpl {
     this.grant = opts.grant;
     this.keychain = opts.keychain;
     this.databaseRegistry = opts.databaseRegistry;
+    this.configurationSchema = opts.configurationSchema;
   }
 
   attach(): void {
@@ -126,6 +169,7 @@ export class StorageApiImpl {
 
       // Settings tier
       getSetting: (args) => this.handleGetSetting(args),
+      setSetting: (args) => this.handleSetSetting(args),
 
       // openDatabase + reverse-RPC handles
       openDatabase: (args) => this.handleOpenDatabase(args),
@@ -164,9 +208,9 @@ export class StorageApiImpl {
   // --- Settings change emit (called from ExtensionHost.setSettings) ------
 
   /**
-   * Push a `storage.onDidChangeSettings` event to the worker. The host calls
-   * this after writing new settings via `setSettings`. The router silently
-   * drops the emit if the worker has not subscribed.
+   * Push a `settings.changed` event to this extension's own worker. The host
+   * calls this after writing new settings via `setSettings`. The router
+   * silently drops the emit if the worker has not subscribed.
    */
   notifySettingsChanged(keys: string[]): void {
     if (this.disposed) return;
@@ -303,6 +347,65 @@ export class StorageApiImpl {
     } catch {
       return row.value;
     }
+  }
+
+  /**
+   * Write one setting the extension declared in its own
+   * `contributes.configuration`. Unlike the wholesale
+   * `ExtensionHostPermissions.setSettings` the user-driven form calls (which
+   * replaces every `__settings.*` row), this upserts exactly one key so an
+   * extension writing its own setting cannot clobber the others.
+   *
+   * No permission gate, deliberately - same reasoning as `getSetting`: an
+   * extension declaring a setting in its own manifest already owns it. What
+   * *is* gated is the key itself: unless `key` is a property `extractFields`
+   * finds in this extension's own schema, and `value` type-checks against
+   * that property's declared type, the write is rejected before it reaches
+   * the database.
+   */
+  private async handleSetSetting(args: unknown[]): Promise<void> {
+    this.assertActive();
+    if (typeof args[0] !== 'string' || args[0].length === 0) {
+      throw new RpcProtocolError('storage.setSetting: key must be a non-empty string');
+    }
+    const key = args[0];
+    if (args.length < 2) {
+      throw new RpcProtocolError('storage.setSetting: value is required');
+    }
+    const value = args[1];
+
+    const fields = extractFields(this.configurationSchema);
+    const field = findField(fields, key);
+    if (!field) {
+      throw new RpcProtocolError(
+        `storage.setSetting: '${key}' is not declared in this extension's contributes.configuration`,
+      );
+    }
+    const check = validateSettingValue(field, value);
+    if (!check.ok) {
+      throw new RpcProtocolError(`storage.setSetting: ${check.error}`);
+    }
+
+    let serialized: string;
+    try {
+      serialized = JSON.stringify(value);
+    } catch (err) {
+      throw new RpcProtocolError(
+        `storage.setSetting: value is not JSON-serializable: ${(err as Error).message}`,
+      );
+    }
+    if (serialized === undefined) {
+      throw new RpcProtocolError('storage.setSetting: value is not JSON-serializable');
+    }
+
+    const now = Date.now();
+    this.db.execute(
+      `INSERT INTO extension_storage (extension_id, key, value, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(extension_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [this.extensionId, `${SETTINGS_PREFIX}${key}`, serialized, now],
+    );
+    this.notifySettingsChanged([key]);
   }
 
   // --- openDatabase tier -------------------------------------------------

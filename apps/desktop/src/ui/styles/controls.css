@@ -1,0 +1,157 @@
+/**
+ * Shared UI chrome: toolbar bands, toolbar cells and back/forward/home nav
+ * buttons - the pieces every reading pane already wears (see
+ * `components/shared/PaneToolbar.tsx` and `components/shared/
+ * PaneNavHeader.tsx`) and the ones an extension panel is most likely to want
+ * to reproduce (a "back to the host" affordance, a small toolbar of its own).
+ *
+ * ## Why this exists
+ *
+ * Before this file, "the Bible pane's toolbar" was ~30 lines of Tailwind
+ * utility classes plus a handful of inline styles, private to that one
+ * component. `PaneToolbar.tsx` already pulled the *shape* out for reuse
+ * inside the host (see its own header comment: five copies of the same "Aa"
+ * button, three different shapes for "go to the previous thing"), but the
+ * styling itself still lived only in JSX class strings, reachable only from
+ * inside the app's own renderer bundle. An extension panel - a sandboxed
+ * iframe on its own `ext-ui://<extensionId>` origin - cannot see Tailwind's
+ * generated CSS or the app's component tree at all, so every extension author
+ * who wanted a toolbar or a back button had to invent one, and it never quite
+ * matched. That is the "drift" this file exists to stop.
+ *
+ * `hostThemeCss.ts` already solves the colour half of that problem by serving
+ * the app's `--theme-*` tokens to `ext-ui://host/theme.css`, but deliberately
+ * stops at tokens: "Tokens are an offer; component CSS would be a takeover."
+ * This file is the deliberate, reviewed exception for a short, named list of
+ * CONTROLS - not a general component library. It is served alongside the
+ * token sheet at `ext-ui://host/controls.css` (see `extUiProtocol.ts` /
+ * `hostControlsCss.ts`), and it is plain CSS built only from those same
+ * `--theme-*` custom properties, so it needs nothing else to render correctly
+ * in a bare iframe.
+ *
+ * ## Host usage
+ *
+ * The host renderer uses these same classes - `PaneToolbar.tsx` and
+ * `PaneNavHeader.tsx` render them, not a parallel Tailwind-only copy - so
+ * there is exactly one definition of "what a toolbar cell looks like" and an
+ * extension that opts in automatically matches the app it lives inside,
+ * today and after the next theme tweak.
+ *
+ * ## Extension usage
+ *
+ * Adopting this is entirely optional: an extension panel that emits its own
+ * plain HTML and does nothing else stays visually neutral (inherits the host
+ * theme's background/text colour via `theme.css`, nothing more). Opting in is
+ * a `<link rel="stylesheet" href="ext-ui://host/controls.css">` plus the class
+ * names below, or copying the class names verbatim into a bundled
+ * stylesheet - `ext-ui://host` is same-origin only for the sandboxed panel
+ * document itself, and a panel is free to inline instead of link.
+ */
+
+/* --- Toolbar band -------------------------------------------------------- */
+
+/**
+ * The horizontal strip a pane's controls live in (`PaneToolbar`). Two flex
+ * groups - leading and trailing - separated by `justify-content: space-between`.
+ */
+.control-toolbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border-bottom: 1px solid var(--theme-border-primary);
+  background: var(--theme-bg-secondary);
+}
+
+/** One side of the toolbar (leading or trailing group of cells). */
+.control-toolbar__group {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  flex-shrink: 1;
+}
+
+/** The trailing group never gives up its width to the leading one. */
+.control-toolbar__group--trailing {
+  flex-shrink: 0;
+}
+
+/* --- Toolbar cell (icon button) ------------------------------------------ */
+
+/**
+ * One flush, full-height cell in a `.control-toolbar` (`PaneToolbarButton`).
+ * Square corners and full-height padding are what make a row of these read as
+ * one control strip instead of a row of loose buttons.
+ */
+.control-toolbar-button {
+  display: flex;
+  align-items: center;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.control-toolbar-button:hover:not(:disabled) {
+  background: var(--theme-bg-active);
+}
+
+.control-toolbar-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/** A hairline rule between adjacent cells - add on whichever side abuts a neighbor. */
+.control-toolbar-button--divider-end {
+  border-inline-end: 1px solid var(--theme-border-primary);
+}
+.control-toolbar-button--divider-start {
+  border-inline-start: 1px solid var(--theme-border-primary);
+}
+
+/** A thicker rule marks the end of a group of related cells. */
+.control-toolbar-button--divider-strong.control-toolbar-button--divider-end {
+  border-inline-end-width: 2px;
+}
+.control-toolbar-button--divider-strong.control-toolbar-button--divider-start {
+  border-inline-start-width: 2px;
+}
+
+/** Sizing for an inline SVG icon inside a toolbar cell or nav button. */
+.control-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* --- Back / forward / home nav buttons ----------------------------------- */
+
+/**
+ * A single Back/Forward/Home control (`PaneNavHeader`), smaller and plainer
+ * than a toolbar cell - it sits in a compact nav strip, not a full-height
+ * band. `:disabled` carries both the dimmed color and the "nothing to do
+ * here" cursor, matching how the host computes `canGoBack` / `canGoForward`.
+ */
+.control-nav-button {
+  padding: 4px 8px;
+  font-size: 13px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.control-nav-button:disabled {
+  color: var(--theme-text-secondary);
+  cursor: default;
+  opacity: 0.4;
+}

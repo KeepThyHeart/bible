@@ -154,7 +154,7 @@ describe('ExtensionRuntime', () => {
 
     const handler = vi.fn();
     const api = runtime.getApi();
-    const handle = await api.bible.onDidChangeActiveVerse.subscribe(handler);
+    const handle = await api.events.subscribe('verse.activeChanged', handler);
 
     // The emitter should have sent a subscribe envelope.
     const sub = sent.find((e) => e.kind === 'subscribe');
@@ -163,7 +163,7 @@ describe('ExtensionRuntime', () => {
     // Inject an event from the host.
     await runtime.dispatch({
       kind: 'event',
-      channel: 'bible.onDidChangeActiveVerse',
+      channel: 'verse.activeChanged',
       payload: { verseId: 1, module: 'kjv' },
     });
     expect(handler).toHaveBeenCalledWith({ verseId: 1, module: 'kjv' });

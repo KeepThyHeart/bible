@@ -265,7 +265,7 @@ describe('worker entry pre-init envelope handling (bug B)', () => {
     const runtime = bootstrap(pp.port, {
       moduleLoader: async () => ({
         activate: async (api) => {
-          await api.bible.onDidChangeActiveVerse.subscribe(eventHandler);
+          await api.events.subscribe('verse.activeChanged', eventHandler);
           await blocked;
         },
       }),
@@ -277,7 +277,7 @@ describe('worker entry pre-init envelope handling (bug B)', () => {
     await tick();
 
     // Both arrive mid-activation.
-    pp.deliver({ kind: 'event', channel: 'bible.onDidChangeActiveVerse', payload: { verseId: 1 } });
+    pp.deliver({ kind: 'event', channel: 'verse.activeChanged', payload: { verseId: 1 } });
     pp.deliver({ kind: 'request', id: 'host-cmd', method: 'commands.execute', args: ['greet'] });
     await tick();
 

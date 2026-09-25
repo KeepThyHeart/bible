@@ -1,10 +1,10 @@
 # Status Bar
 
-**Last verified:** 2026-09-09
+**Last verified:** 2026-09-23
 
 A one-line strip along the bottom of the main window, filled entirely by extension-contributed items. It renders nothing at all when no extension has contributed one, so a user with no extensions sees exactly the chrome they saw before it existed.
 
-Nothing in the app itself writes to it in v1. It exists because three unrelated things already assumed it did: `ui:status-bar` has been a defined permission since the extension API shipped, `ITasksApi.run` documents that "the host shows a progress entry in the status bar", and `packages/word-count-example` - the platform's only reference extension - exists for the sole purpose of writing to it. An extension calling `ui.registerStatusBarItem()` got a valid `DisposableHandle`, passed the permission guard, landed in `ContributionRegistry`, and then nothing appeared anywhere.
+Nothing in the app's own UI writes to it directly - the strip is 100% extension-contributed items, now including a built-in one: `api.tasks.run`'s progress (see [Background Tasks](#background-tasks) below). `ui:status-bar` has been a defined permission since the extension API shipped, and `packages/word-count-example` - the platform's only reference extension - exists for the sole purpose of writing to it.
 
 ## Files
 
@@ -22,8 +22,9 @@ Nothing in the app itself writes to it in v1. It exists because three unrelated 
 
 | File | Description |
 |---|---|
-| `electron/extensions/api-impl/uiApiImpl.ts` | `ui.registerStatusBarItem` - permission gate (`ui:status-bar`), descriptor validation, and the disposer the returned handle disposes |
-| `electron/extensions/bridges/RendererUiBridge.ts` | Keeps the registry of live items and pushes the register/unregister notifications at the renderer |
+| `electron/extensions/api-impl/uiApiImpl.ts` | `ui.registerStatusBarItem` - permission gate (`ui:status-bar`), descriptor validation, and the disposer the returned handle disposes. `ui.updateStatusBarItem(itemId, patch)` patches just the given fields of an already-registered item and reuses its handle, instead of the author re-registering the whole descriptor to change one field |
+| `electron/extensions/bridges/RendererUiBridge.ts` | Keeps the registry of live items, keyed `${extensionId}::${item.id}` - re-registering (or updating) an id replaces the entry, it never stacks a second one - and pushes the register/unregister notifications at the renderer |
+| `electron/extensions/bridges/RendererTaskStatusBridge.ts` | The `api.tasks.run` -> status bar path: one active task becomes one status bar item, id-namespaced `__task.<taskId>` so it can never collide with an id the extension itself registers |
 | `packages/core/src/Extensions/ExtensionApiDtos.ts` | `StatusBarItemDescriptor`: `id`, `text`, optional `tooltip`, `command`, `alignment` and `priority` |
 | `packages/core/src/Extensions/Permissions.ts` | `PERM_UI_STATUS_BAR` (`ui:status-bar`) |
 
@@ -48,6 +49,10 @@ Nothing in the app itself writes to it in v1. It exists because three unrelated 
 4. `StatusBar` re-renders. If this was the first item, the strip appears; if the last item goes away, it disappears again.
 5. Clicking an item with a `command` calls `registry.execute(command)` - the same `ICommandRegistry` that serves the command palette, the keyboard and the Tools menu, so no new IPC path exists for this.
 
+## Background Tasks
+
+`api.tasks.run(descriptor)` has always documented "the host shows a progress entry in the status bar"; `RendererTaskStatusBridge` is what makes that true. It piggy-backs on this same surface rather than a second status-bar widget: `TasksApiImpl` fans out a snapshot of the extension's running tasks on every `reportProgress` call, and the bridge turns each one into a status bar item (`__task.<taskId>`, right-aligned, low priority so it does not routinely push an extension's own items aside), reading `descriptor.showInStatusBar` (default `true`) to decide whether a given task appears at all. A task's item is removed the moment it settles (completes/cancels/fails) or the extension deactivates.
+
 ## Design notes
 
 **Empty means invisible, not empty.** The one real cost of a status bar is that it is a permanent strip in a shipping app's layout, and a strip that is blank most of the time is a tax on everyone to serve a few. `StatusBar` returns `null` when `statusBarItems` is empty, so the cost is paid only by users who installed something that uses it.
@@ -59,3 +64,5 @@ Nothing in the app itself writes to it in v1. It exists because three unrelated 
 **Not rendered in detached windows.** A popped-out pane is a single document surface, and a second copy of the app's global status would be noise. `DetachedWindow` mounts the pane component and nothing else; see [Pop-Out / Detach Pane](pop-out.md).
 
 **Text is the extension's, localized by the extension.** `text` and `tooltip` are `LocalizedString`s resolved through `i18n.resolve`, which means the extension's own catalog answers for them. The app cannot know a phrase for something it did not ship, which is the same rule the Tools menu follows for command titles.
+
+**Update in place, don't re-register.** `word-count-example` used to call `registerStatusBarItem` again on every active-verse change - the only way to change one field before `updateStatusBarItem` existed. That re-registered the whole descriptor (permission check, validation, a full IPC round trip) and minted a new disposal handle every time without ever dropping the previous one, so the handle table grew for the extension's whole session. `updateStatusBarItem(itemId, patch)` keeps every field the patch does not mention and reuses the same handle - re-registering (or updating) an id now always replaces its entry, never stacks a new one.

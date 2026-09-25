@@ -51,6 +51,12 @@ export interface RpcSubscribe {
   /** Reused as the unsubscribe handle. */
   id: RpcRequestId;
   channel: string;
+  /**
+   * Ordering hint for `filter`/`provider` channels (`IEventsApi.SubscribeOptions.order`
+   * in `ExtensionApiTypes.ts`). Ignored for `event` channels. Omitted when
+   * the subscriber did not specify one - the host defaults to `ORDER_DEFAULT`.
+   */
+  order?: number;
 }
 
 export interface RpcUnsubscribe {

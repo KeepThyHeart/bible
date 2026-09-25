@@ -113,7 +113,7 @@ exports.activate = async function activate(api) {
     uiEntry: './ui.html',
   });
 
-  await api.bible.onDidChangeActiveVerse.subscribe(async function (payload) {
+  await api.events.subscribe('verse.activeChanged', async function (payload) {
     exports.__lastVerse = payload;
   });
 };
@@ -122,7 +122,7 @@ exports.activate = async function activate(api) {
 /** Same extension, but its event handler touches a permission it never declared. */
 const OVERREACHING_SOURCE = `
 exports.activate = async function activate(api) {
-  await api.bible.onDidChangeActiveVerse.subscribe(async function () {
+  await api.events.subscribe('verse.activeChanged', async function () {
     await api.notes.create({ content: 'written without notes:write' });
   });
 };
@@ -155,7 +155,7 @@ exports.activate = async function activate(api) {
 /** Same extension, but its event handler throws. */
 const THROWING_SOURCE = `
 exports.activate = async function activate(api) {
-  await api.bible.onDidChangeActiveVerse.subscribe(async function () {
+  await api.events.subscribe('verse.activeChanged', async function () {
     throw new Error('handler exploded');
   });
 };
@@ -233,9 +233,9 @@ describe('realm-mode smoke harness', () => {
 
   it('turns guest subscriptions into enumerable event hooks', async () => {
     const harness = await activateInRealm(FIXTURE_SOURCE);
-    expect(harness.subscribedChannels()).toContain('bible.onDidChangeActiveVerse');
+    expect(harness.subscribedChannels()).toContain('verse.activeChanged');
     expect(harness.enumerate().map((h) => h.hookId)).toContain(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
     );
   }, 60_000);
 
@@ -321,7 +321,7 @@ describe('runSmokeSuite against a realm-backed harness', () => {
     const result = await runSmokeSuite({ harness, maxInputsPerHook: 3 });
 
     const eventRecords = result.records.filter(
-      (r) => r.hookId === 'event:bible.onDidChangeActiveVerse',
+      (r) => r.hookId === 'event:verse.activeChanged',
     );
     expect(eventRecords.length).toBeGreaterThan(0);
     expect(eventRecords.every((r) => r.status === 'pass')).toBe(true);

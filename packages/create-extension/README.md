@@ -68,7 +68,7 @@ my-extension/
 
 `extension.json` carries a `$schema` pointing into `node_modules/@bible/core`, so an editor validates the manifest as you type it and completes `permissions`, `activationEvents` and every contribution point. The schema ships with the package; there is no network fetch and nothing to configure.
 
-The generated `main.ts` demonstrates the lifecycle the host actually calls: it activates, binds its command handler with `api.runtime.expose`, subscribes to `bible.onDidChangeActiveVerse`, and deactivates cleanly. `api` is typed as `Extensions.BibleExtensionAPI` via `import type`, which is erased at build time -- so the bundle carries no dependency on `@bible/core` and an MIT extension takes on none of its licence.
+The generated `main.ts` demonstrates the lifecycle the host actually calls: it activates, binds its command handler with `api.runtime.expose`, subscribes to `'verse.activeChanged'` via `api.events.subscribe`, and deactivates cleanly. `api` is typed as `Extensions.BibleExtensionAPI` via `import type`, which is erased at build time -- so the bundle carries no dependency on `@bible/core` and an MIT extension takes on none of its licence.
 
 **The `runtime.expose` call is the load-bearing one.** A `handlerEndpoint` in `extension.json` is a *name*, not a function: a function cannot survive the RPC hop to the host. Declaring a command without binding its endpoint produces an item in the command palette and the Tools menu that silently does nothing. The generated test asserts the binding for exactly that reason.
 

@@ -18,6 +18,8 @@ import { isLocalizedKey, type LocalizedString } from '../../types/LocalizedStrin
 import type { II18nService } from '../../services/II18nService';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import VersePreviewTooltip from '../VersePreviewTooltip';
+import { ExtensionHoverPopup } from '../../extensions/ExtensionHoverPopup';
 
 function resolveLocalizedString(
   value: LocalizedString | undefined,
@@ -36,7 +38,10 @@ const ExtensionUiHost: React.FC = () => {
   const { t: tUi } = useI18n();
   const notifications = useExtensionUiStore((s) => s.notifications);
   const dismissNotification = useExtensionUiStore((s) => s.dismissNotification);
+  const resolveNotificationAction = useExtensionUiStore((s) => s.resolveNotificationAction);
   const modal = useExtensionUiStore((s) => s.modal);
+  const versePopup = useExtensionUiStore((s) => s.versePopup);
+  const hideVersePopup = useExtensionUiStore((s) => s.hideVersePopup);
   const t = (v: LocalizedString | undefined) => resolveLocalizedString(v, i18n);
 
   return (
@@ -91,7 +96,32 @@ const ExtensionUiHost: React.FC = () => {
               gap: 8,
             }}
           >
-            <span style={{ flex: 1 }}>{t(n.message)}</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span>{t(n.message)}</span>
+              {n.actions && n.actions.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {n.actions.map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      data-testid="extension-notification-action"
+                      onClick={() => resolveNotificationAction(n.id, action.id)}
+                      style={{
+                        background: 'transparent',
+                        color: 'inherit',
+                        border: '1px solid currentColor',
+                        borderRadius: 4,
+                        padding: '2px 8px',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t(action.label)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => dismissNotification(n.id)}
@@ -113,6 +143,25 @@ const ExtensionUiHost: React.FC = () => {
 
       {/* Modal - only ever one at a time */}
       {modal && <ExtensionModalHost />}
+
+      {/*
+        Verse popup requested by a panel iframe's `BibleExtUI.showVersePopup`.
+        Reuses the same `VersePreviewTooltip` the host's own built-in verse
+        hovers (cross-references, notes) show, rather than a bespoke
+        extension-only popup - a reference is a reference regardless of which
+        pane asked to preview it.
+      */}
+      {versePopup && (
+        <VersePreviewTooltip
+          verseId={versePopup.verseId}
+          position={versePopup.position}
+          onClose={hideVersePopup}
+        />
+      )}
+
+      {/* Extension verse/word hover popup (task 0036, P0.1c) - self-contained,
+          reads its own state from `verseHoverPopupStore`. */}
+      <ExtensionHoverPopup />
     </>
   );
 };

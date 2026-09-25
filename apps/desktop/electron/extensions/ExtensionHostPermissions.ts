@@ -77,7 +77,7 @@ export async function setSettings(
     fields: { keys: Object.keys(values) },
   });
 
-  // Push `storage.onDidChangeSettings` to the running worker (if any). The api-impl drops the emit if the worker is not
+  // Push `settings.changed` to the running worker (if any). The api-impl drops the emit if the worker is not
   // subscribed, so this is safe to call unconditionally.
   const active = ctx.activeWorkers.get(extensionId);
   if (active?.storageApi) {

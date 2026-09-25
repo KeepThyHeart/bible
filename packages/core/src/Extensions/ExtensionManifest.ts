@@ -14,11 +14,7 @@
 
 import type { ExtensionPermission } from './Permissions';
 import type {
-  BookProviderDescriptor,
-  CommentaryProviderDescriptor,
-  ContextMenuItemDescriptor,
-  DictionaryProviderDescriptor,
-  DisplayModeDescriptor,
+  BibleProviderDescriptor,
   ExtensionPanelTypeDef,
   KeybindingDescriptor,
   LocalizedString,
@@ -153,34 +149,30 @@ export interface ExtensionWebviewsConfig {
 export interface ExtensionContributes {
   commands?: ContributedCommand[];
   panelTypes?: ExtensionPanelTypeDef[];
-  /** Keyed by ContextMenuTarget; values are arrays of menu item refs. */
-  menus?: Record<string, ContributedMenuItem[]>;
   /**
    * JSON Schema (draft-07) defining user-editable settings. Either an inline
    * schema object or a `$ref` to a schema file inside the package.
    */
   configuration?: ContributedConfiguration;
-  /**
-   * Map from provider role ID to the in-extension provider key the user can
-   * pick. The host shows these in Preferences -> Extensions -> Provider Roles.
-   */
-  providers?: Record<string, string>;
-  displayModes?: DisplayModeDescriptor[];
-  themes?: ContributedTheme[];
-  fonts?: ContributedFont[];
-  icons?: ContributedIcon[];
-  styles?: ContributedStyle[];
-  fileImporters?: ContributedFileImporter[];
   apiExports?: ContributedApiExport[];
   /**
-   * Provider descriptors statically declared in the manifest. Mirrors what an
-   * extension would otherwise call via `api.commentary.registerProvider` /
-   * `api.dictionary.registerProvider` / `api.book.registerProvider` so the
-   * host can pre-register the provider before the worker starts.
+   * Bible-module provider descriptors statically declared in the manifest.
+   * Mirrors what an extension would otherwise call via
+   * `api.bible.registerProvider`. Validated, but **not yet registered at
+   * activation** - the only working path today is the imperative
+   * `api.bible.registerProvider(descriptor)` call.
+   *
+   * Declarative registration remains deferred **past** lazy activation
+   * (P1.5, task 0024 round 3): P1.5 reads `contributes.commands` and
+   * `contributes.panelTypes` at load time (their host-provided renderer
+   * counterparts - the command palette, the Tools menu, the panel registry -
+   * already exist to present a placeholder before activation), but a bible
+   * provider has no equivalent host-side placeholder to register against, so
+   * there is nothing for a declarative reader to pre-register here yet. This
+   * field is a schema/validator fix only (see task 0024 P2.13); it does not
+   * promise a specific future task will pick this up.
    */
-  commentaryProviders?: CommentaryProviderDescriptor[];
-  dictionaryProviders?: DictionaryProviderDescriptor[];
-  bookProviders?: BookProviderDescriptor[];
+  bibleProviders?: BibleProviderDescriptor[];
 }
 
 export interface ContributedCommand {
@@ -195,55 +187,9 @@ export interface ContributedCommand {
   hidden?: boolean;
 }
 
-/**
- * Menu item declared statically. Mirrors `ContextMenuItemDescriptor` minus
- * the `id` (the loader generates one) and minus runtime-only fields.
- */
-export type ContributedMenuItem = Omit<ContextMenuItemDescriptor, 'id'> & {
-  /** Optional explicit ID; the loader generates one if absent. */
-  id?: string;
-};
-
 export type ContributedConfiguration =
   | { $ref: string }
   | Record<string, unknown>;
-
-export interface ContributedTheme {
-  id: string;
-  label: LocalizedString;
-  /** Path under the extension package root. */
-  path: string;
-}
-
-export interface ContributedFont {
-  id: string;
-  family: string;
-  /** Paths under the extension package root. */
-  files: string[];
-  fallback?: string;
-}
-
-export interface ContributedIcon {
-  id: string;
-  /** Path under the extension package root. */
-  path: string;
-}
-
-export interface ContributedStyle {
-  /** Path under the extension package root. */
-  path: string;
-  /** Where the host scopes the stylesheet to. */
-  scope: 'verse' | 'panel' | 'global';
-}
-
-export interface ContributedFileImporter {
-  id: string;
-  label: LocalizedString;
-  /** File extensions handled, including the leading dot. */
-  extensions: string[];
-  /** Reverse-RPC endpoint that receives the file contents. */
-  handlerEndpoint: string;
-}
 
 export interface ContributedApiExport {
   /** Method name. Must be a valid identifier. */

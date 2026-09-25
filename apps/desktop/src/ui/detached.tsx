@@ -7,6 +7,7 @@ import { DetachedWindow } from './components/DetachedWindow';
 
 import './styles/globals.css';
 import './styles/highlights.css';
+import './styles/extensionDecorations.css';
 
 // Create a minimal services bundle for the detached window.
 // The detached window needs useI18n() (and transitively useAppServices()) to work.

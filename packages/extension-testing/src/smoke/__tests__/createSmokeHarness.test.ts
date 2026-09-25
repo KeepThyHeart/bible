@@ -28,13 +28,13 @@ describe('createSmokeHarness', () => {
               handlerEndpoint: 'sayHello',
             },
           ],
-          commentaryProviders: [
+          bibleProviders: [
             {
-              id: 'matthew-henry',
-              name: { key: 'Matthew Henry' },
-              abbreviation: 'MH',
+              id: 'geneva-1599',
+              name: { key: 'Geneva Bible 1599' },
+              abbreviation: 'GEN99',
               capabilities: ['lookup'],
-              fetchEndpoint: 'fetchMH',
+              fetchEndpoint: 'fetchGeneva',
             },
           ],
         },
@@ -48,10 +48,15 @@ describe('createSmokeHarness', () => {
     // unvalidated: `enumerateHooks` applies the same `ext.<publisher>.<name>.`
     // prefix the manifest validator would have, so a hand-built manifest and
     // one loaded from disk enumerate under identical ids.
+    //
+    // `bibleProviders` (rather than `commentaryProviders`, used here before
+    // task 0024 round 3) is the only provider-role `contributes` array left
+    // after P2.13 deleted `commentaryProviders` / `dictionaryProviders` /
+    // `bookProviders` as dead manifest code - see `ExtensionManifestValidator.ts`.
     expect(
-      hooks.find((h) => h.hookId === 'commentaryProvider:ext.test.harness.matthew-henry')
+      hooks.find((h) => h.hookId === 'bibleProvider:ext.test.harness.geneva-1599')
         ?.endpoint,
-    ).toBe('fetchMH');
+    ).toBe('fetchGeneva');
     await harness.deactivate();
   });
 
@@ -67,14 +72,14 @@ describe('createSmokeHarness', () => {
           id: 'hover-1',
           hoverEndpoint: 'onHover',
         });
-        await api.bible.onDidChangeActiveVerse.subscribe(() => {});
+        await api.events.subscribe('verse.activeChanged', () => {});
       },
     });
     await harness.activate();
     const hooks = harness.enumerate();
     expect(hooks.some((h) => h.hookId === 'statusBar:sb-1')).toBe(true);
     expect(hooks.find((h) => h.hookId === 'hover:hover-1')?.endpoint).toBe('onHover');
-    expect(hooks.some((h) => h.hookId === 'event:bible.onDidChangeActiveVerse')).toBe(true);
+    expect(hooks.some((h) => h.hookId === 'event:verse.activeChanged')).toBe(true);
   });
 
   it('invokes an event hook by firing captured subscribers', async () => {
@@ -82,14 +87,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe((payload) => {
+        await api.events.subscribe('verse.activeChanged', (payload) => {
           received = payload;
         });
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       { verseId: 43003016, module: 'kjv' },
     );
     expect(result.status).toBe('ok');
@@ -100,14 +105,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(
+        await api.events.subscribe('verse.activeChanged', 
           () => new Promise(() => {}),
         );
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       null,
       { timeoutMs: 25 },
     );
@@ -118,14 +123,14 @@ describe('createSmokeHarness', () => {
     const harness = createSmokeHarness({
       manifest: minimalManifest(),
       activate: async (api) => {
-        await api.bible.onDidChangeActiveVerse.subscribe(() => {
+        await api.events.subscribe('verse.activeChanged', () => {
           throw new Error('boom');
         });
       },
     });
     await harness.activate();
     const result = await harness.invokeHook(
-      'event:bible.onDidChangeActiveVerse',
+      'event:verse.activeChanged',
       null,
     );
     expect(result.status).toBe('threw');
