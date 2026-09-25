@@ -186,6 +186,9 @@ export function compileKeywordQuery(query: KeywordQuery): string {
     case 'prefix':
       return `${escapeFts5Term(query.stem)}*`;
 
+    case 'prefixes':
+      return query.stems.map(stem => `${escapeFts5Term(stem)}*`).join(query.all ? ' AND ' : ' OR ');
+
     case 'near': {
       const escaped = query.terms.map(escapeFts5Term);
       return `NEAR(${escaped.join(' ')}, ${query.distance})`;

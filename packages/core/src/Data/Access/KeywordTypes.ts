@@ -16,6 +16,7 @@ export type KeywordQuery =
   | { kind: 'terms'; terms: string[]; all: boolean }
   | { kind: 'phrase'; phrase: string }
   | { kind: 'prefix'; stem: string }
+  | { kind: 'prefixes'; stems: string[]; all: boolean }
   | { kind: 'near'; terms: string[]; distance: number }
   | { kind: 'boolean'; expr: BooleanExpression };
 
