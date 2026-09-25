@@ -1,0 +1,63 @@
+{
+  "$schema": "../schemas/help.schema.json",
+  "title": "Ayuda",
+  "docs": {
+    "cta": "Abrir la guía del usuario",
+    "desc": "Documentación con capturas de pantalla y guías paso a paso"
+  },
+  "feedback": {
+    "cta": "Enviar comentarios",
+    "desc": "Informar de un problema o compartir una idea"
+  },
+  "gettingStarted": {
+    "title": "Primeros pasos",
+    "intro": "Keep Thy Heart es una herramienta de estudio bíblico. Utilice la barra de búsqueda para ir a cualquier pasaje o buscar palabras y frases.",
+    "introContext": {
+      "desktop": "basada en la web ",
+      "mobile": ""
+    },
+    "referenceHint": "Escriba una referencia como <strong>Juan 3:16</strong> o <strong>Gn 1</strong> para ir directamente a un pasaje.",
+    "searchHint": "Escriba cualquier palabra o frase para buscar en las traducciones activas.",
+    "searchTypeHint": "Utilice el menú desplegable de la barra de búsqueda para alternar entre <strong>Búsqueda estándar</strong> (coincidencia de palabras clave) y <strong>Búsqueda de ideas</strong> (relaciona los conceptos de la consulta con los conceptos de los versículos bíblicos).",
+    "searchTypeHintMobile": "Alterne entre <strong>Estándar</strong> y <strong>Búsqueda de ideas</strong> desde el menú desplegable de la barra de búsqueda."
+  },
+  "biblePaneDesktop": {
+    "title": "Panel de la Biblia",
+    "compareTabs": "Abra varias pestañas para comparar pasajes en paralelo.",
+    "translationSelector": "Utilice el <strong>selector de traducción</strong> para cambiar de versión bíblica.",
+    "displayModes": "Cambie el modo de visualización: <strong>Lectura</strong> (sin números de versículo), <strong>Estándar</strong> o <strong>Estudio</strong> (con números Strong y datos interlineales).",
+    "strongsClick": "Haga clic en un <strong>número Strong</strong> en el modo Estudio para ver su entrada en el diccionario.",
+    "copyDialog": "Haga clic con el botón derecho en cualquier versículo para acceder al cuadro de diálogo <strong>Copiar pasaje</strong>."
+  },
+  "readingMobile": {
+    "title": "Lectura",
+    "compareTabs": "Abra varias pestañas para comparar pasajes.",
+    "translationSelector": "Utilice el <strong>selector de traducción</strong> para cambiar de versión bíblica.",
+    "displayModes": "Cambie el modo de visualización: <strong>Lectura</strong>, <strong>Estándar</strong> o <strong>Estudio</strong> (con números Strong y datos interlineales).",
+    "longPress": "Mantenga pulsado un versículo para acceder a opciones como <strong>Copiar</strong>."
+  },
+  "navigation": {
+    "title": "Navegación",
+    "bottomTabs": "Utilice las <strong>pestañas inferiores</strong> para cambiar entre Lectura, Búsqueda, Estudio y Comentario.",
+    "studyTab": "La pestaña <strong>Estudio</strong> muestra referencias cruzadas, temas y datos interlineales.",
+    "commentaryTab": "La pestaña <strong>Comentario</strong> muestra los comentarios del versículo actual."
+  },
+  "commentaryAndSearch": {
+    "title": "Comentario y búsqueda",
+    "rightPane": "El panel derecho muestra el <strong>comentario</strong> del pasaje actual, y se actualiza a medida que se navega.",
+    "switchPanes": "Cambie entre el comentario y los resultados de búsqueda con las pestañas de la parte superior del panel derecho.",
+    "ctrlClick": "Pulse <strong>Ctrl+clic</strong> en un resultado de búsqueda para abrirlo en una pestaña nueva."
+  },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "focusSearch": "Enfocar la barra de búsqueda",
+    "focusSearchAlt": "Enfocar la barra de búsqueda (cuando no se está escribiendo)",
+    "copyDialog": "Abrir el cuadro de diálogo de copiar (cuando no hay texto seleccionado)",
+    "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta"
+  },
+  "settings": {
+    "title": "Configuración",
+    "descMobile": "Toque el icono del engranaje para personalizar el tema, la fuente y la configuración sin conexión.",
+    "descDesktop": "Haga clic en el icono del engranaje para personalizar el tema, la familia tipográfica, el tamaño de fuente, el interlineado y la configuración del modo sin conexión."
+  }
+}

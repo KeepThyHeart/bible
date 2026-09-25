@@ -1,4 +1,4 @@
-import { scryptSync, randomBytes, timingSafeEqual } from 'crypto';
+import { scryptSync, randomBytes, timingSafeEqual, createHmac } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import uiCatalog from '../../src/locales/en/ui.json' with { type: 'json' };
 
@@ -7,6 +7,29 @@ export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex');
   const hash = scryptSync(password, salt, 64).toString('hex');
   return `${salt}:${hash}`;
+}
+
+/**
+ * The auth cookie's value for a given password hash.
+ *
+ * This used to be the constant "1", so anyone could set `bible_auth=1` by hand
+ * and skip the password. It is now an HMAC keyed by the stored password hash:
+ * only the server can produce it, it stays valid across restarts, and changing
+ * the password signs everyone out.
+ */
+export function authCookieValue(passwordHash: string): string {
+  return createHmac('sha256', passwordHash).update('bible_auth:v1').digest('hex');
+}
+
+/** True if the Cookie header carries a bible_auth cookie with the expected value. */
+function hasAuthCookie(cookieHeader: string, expected: string): boolean {
+  const want = Buffer.from(expected);
+  return cookieHeader.split(';').some(part => {
+    const eq = part.indexOf('=');
+    if (eq < 0 || part.slice(0, eq).trim() !== 'bible_auth') return false;
+    const got = Buffer.from(part.slice(eq + 1).trim());
+    return got.length === want.length && timingSafeEqual(got, want);
+  });
 }
 
 /** Verify a password against a "salt:hash" string using timing-safe comparison. */
@@ -103,6 +126,7 @@ export function createPasswordGate(options: {
   const { passwordHash } = options;
   const privacyMode = options.privacyMode ?? 'strict';
   const maxAgeClause = privacyMode === 'relaxed' ? '; Max-Age=31536000' : '';
+  const authValue = authCookieValue(passwordHash);
 
   return (req: Request, res: Response, next: NextFunction) => {
     // Skip auth for static assets — these are non-sensitive build artifacts that must
@@ -121,8 +145,7 @@ export function createPasswordGate(options: {
 
     // Check for auth cookie
     const cookies = req.headers.cookie || '';
-    const authed = cookies.split(';').some(c => c.trim() === 'bible_auth=1');
-    if (authed) return next();
+    if (hasAuthCookie(cookies, authValue)) return next();
 
     // For non-navigation requests (fetch/XHR that expect JSON, not a browser navigating
     // to a page), answer with a JSON 401 instead of the HTML login page. Sending login
@@ -144,7 +167,7 @@ export function createPasswordGate(options: {
       if (verifyPassword(req.body?.password || '', passwordHash)) {
         clearAttempts(ip);
         const secure = req.protocol === 'https' ? '; Secure' : '';
-        res.setHeader('Set-Cookie', `bible_auth=1; Path=/; HttpOnly; SameSite=Lax${maxAgeClause}${secure}`);
+        res.setHeader('Set-Cookie', `bible_auth=${authValue}; Path=/; HttpOnly; SameSite=Lax${maxAgeClause}${secure}`);
         return res.redirect('/');
       }
 
@@ -153,7 +176,7 @@ export function createPasswordGate(options: {
     }
 
     // Show login form — clear any stale auth cookie so the browser doesn't loop
-    res.setHeader('Set-Cookie', 'bible_auth=1; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    res.setHeader('Set-Cookie', 'bible_auth=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
     res.status(401).send(loginPage());
   };
 }

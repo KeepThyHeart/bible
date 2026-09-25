@@ -45,6 +45,21 @@ official domain.  Only the index's top-level `published` is stamped.  Re-sign
 it when a catalog is added or removed; adding a module to one catalog needs
 only that catalog re-signed.
 
+## Signing an offline pack (.biblepack)
+
+`sign-pack` signs a starter pack's manifest (`pack.json`, written by
+`scripts/build-module-pack.js`) for `apps/desktop/electron/services/
+ModulePackSignature.ts` to verify. The signed message is NOT the manifest
+bytes themselves (that would let a pack signature double as a catalog
+signature, since both would then be "Ed25519 over sha256(some bytes)") but
+`sha256(PACK_MANIFEST_SIGNATURE_DOMAIN + manifest bytes)` - a different
+32-byte digest, so a signature made for one can never verify as the other,
+whatever the file contains. `sign` refuses to sign a pack manifest (and
+`sign-pack` refuses anything that is not one), so the two commands can never be
+used on the wrong kind of file by mistake. There is no publish-date stamping
+for a pack - `created` is set once, by `build-module-pack.js`'s `manifest`
+subcommand, and never rewritten here.
+
 ## Vouching for a new key
 
 `vouch` signs a statement that a NEW key may sign the official catalog, and
@@ -67,6 +82,11 @@ the new key and makes you type its last 8 characters before it signs.
     # Sign a catalog (or the index); writes catalog.json.sig beside it.
     python3 scripts/yubikey-sign.py sign path/to/catalog.json
     python3 scripts/yubikey-sign.py sign path/to/index.json
+
+    # Sign a starter pack's manifest (built by build-module-pack.js manifest);
+    # writes pack.json.sig beside it. Optional - an unsigned pack still
+    # installs, after the user confirms "install anyway?".
+    python3 scripts/yubikey-sign.py sign-pack path/to/pack.json
 
     # Vouch for the key on a new YubiKey (run with the OLD YubiKey plugged in).
     python3 scripts/yubikey-sign.py vouch path/to/catalog.json.vouches --new-key <hex>
@@ -103,6 +123,14 @@ MAX_SIGNATURES = 8
 
 # Mirrors CATALOG_INDEX_FORMAT in CatalogIndex.ts.
 INDEX_FORMAT = 'kth-bible-catalog-index'
+
+# Mirror PACK_MANIFEST_FORMAT / PACK_MANIFEST_SIGNATURE_DOMAIN in
+# ModulePackSignature.ts. The domain prefix is hashed together with the
+# manifest bytes -- NOT signed as a separate message -- so the digest a pack
+# signature covers can never equal sha256(catalog bytes) or any other
+# document's digest, whatever the manifest contains.
+PACK_MANIFEST_FORMAT = 'keepthyheart.biblepack/1'
+PACK_MANIFEST_SIGNATURE_DOMAIN = 'keepthyheart.biblepack.manifest.v1\n'
 
 # Mirror CatalogKeyVouches.ts.
 VOUCH_FORMAT = 'kth-bible-key-vouches'
@@ -190,6 +218,12 @@ def official_scope() -> str:
     return prefixes[0]
 
 
+def pack_manifest_digest(manifest_bytes: bytes) -> bytes:
+    """The exact digest a pack manifest signature covers -- a pure function so it can be
+    exercised without a YubiKey; must match packManifestDigest() in ModulePackSignature.ts."""
+    return hashlib.sha256(PACK_MANIFEST_SIGNATURE_DOMAIN.encode('utf-8') + manifest_bytes).digest()
+
+
 def vouch_message(scope: str, vouching_key: str, new_key: str, issued: str) -> bytes:
     """The exact bytes a vouch signature covers -- must match vouchMessage() in CatalogKeyVouches.ts."""
     return (f'{VOUCH_MAGIC}\n'
@@ -201,11 +235,14 @@ def vouch_message(scope: str, vouching_key: str, new_key: str, issued: str) -> b
 
 def load_signable(path: Path) -> dict:
     """Parse the file and insist it is a catalog or a catalog index, so `sign` can never be
-    pointed at anything else."""
+    pointed at anything else -- in particular, never at a pack manifest (that is `sign-pack`'s
+    job, over a differently-domain-separated digest; see the module doc comment)."""
     try:
         doc = json.loads(path.read_bytes())
     except (OSError, ValueError) as err:
         sys.exit(f'{path} is not readable JSON ({err}).')
+    if isinstance(doc, dict) and doc.get('format') == PACK_MANIFEST_FORMAT:
+        sys.exit(f'{path} is a pack manifest ("{PACK_MANIFEST_FORMAT}"); use `sign-pack`, not `sign`.')
     if isinstance(doc, dict) and doc.get('format') == INDEX_FORMAT:
         if not isinstance(doc.get('catalogs'), list):
             sys.exit(f'{path} is a catalog index with no "catalogs" list; refusing to sign it.')
@@ -215,6 +252,21 @@ def load_signable(path: Path) -> dict:
             or not isinstance(doc.get('modules'), list)):
         sys.exit(f'{path} is neither a module catalog (with "repository" and "modules") nor a '
                  'catalog index; refusing to sign it.')
+    return doc
+
+
+def load_pack_manifest(path: Path) -> dict:
+    """Parse the file and insist it is a pack manifest, so `sign-pack` can never be pointed at
+    anything else -- in particular, never at a catalog (that would sign it as a pack, over a
+    different digest than `sign` uses, and it would then correctly fail to verify as either)."""
+    try:
+        doc = json.loads(path.read_bytes())
+    except (OSError, ValueError) as err:
+        sys.exit(f'{path} is not readable JSON ({err}).')
+    if (not isinstance(doc, dict) or doc.get('format') != PACK_MANIFEST_FORMAT
+            or not isinstance(doc.get('modules'), list)):
+        sys.exit(f'{path} is not a pack manifest (expected "format": "{PACK_MANIFEST_FORMAT}" and a '
+                 '"modules" list); refusing to sign it.')
     return doc
 
 
@@ -353,6 +405,51 @@ def cmd_sign(args):
     print(f'Wrote {out} ({len(entries)} signature(s))', file=sys.stderr)
 
 
+def cmd_sign_pack(args):
+    target = Path(args.file)
+    out = Path(args.out) if args.out else target.with_name(target.name + '.sig')
+    load_pack_manifest(target)  # refuses anything that is not a pack manifest
+    manifest_bytes = target.read_bytes()  # never rewritten -- no stamping for a pack (see module doc)
+    digest = pack_manifest_digest(manifest_bytes)
+    kept = still_valid_signatures(out, digest)
+
+    if kept:
+        print(f'{out} already holds {len(kept)} valid signature(s); adding this key\'s. '
+              'The file is not modified.', file=sys.stderr)
+
+    pin = read_pin(args)
+
+    conn, session, _info = open_session()
+    with conn:
+        public_key = card_public_key(session)
+        public_hex = raw_public_key(public_key)
+        pinned = pinned_keys()
+        if pinned and public_hex not in pinned:
+            print(f'WARNING: this key ({public_hex[:8]}...) is not in OFFICIAL_PUBLIC_KEYS. Installs '
+                  'accept it for a pack only if another signature on it is by a pinned key, or if the '
+                  'user explicitly confirms installing an unverified pack.', file=sys.stderr)
+        signature = card_sign(session, digest, pin)
+
+    try:
+        public_key.verify(signature, digest)
+    except InvalidSignature:
+        sys.exit('The YubiKey returned a signature that does not verify. Nothing was written.')
+
+    entry = {'publicKey': public_hex, 'signature': signature.hex(), 'algorithm': ALGORITHM}
+    entries = [entry if existing['publicKey'] == public_hex else existing for existing in kept]
+    if entry not in entries:
+        entries.append(entry)
+    if len(entries) > MAX_SIGNATURES:
+        sys.exit(f'A pack may carry at most {MAX_SIGNATURES} signatures. Nothing was written.')
+
+    sig_doc = dict(entries[0])
+    if len(entries) > 1:
+        sig_doc['signatures'] = entries[1:]
+
+    out.write_text(json.dumps(sig_doc, indent=2) + '\n', encoding='utf-8')
+    print(f'Wrote {out} ({len(entries)} signature(s))', file=sys.stderr)
+
+
 def cmd_vouch(args):
     new_key = args.new_key.strip().lower()
     if not re.fullmatch(r'[0-9a-f]{64}', new_key):
@@ -420,6 +517,12 @@ def main():
                       help='do not set the published date; sign the file exactly as it is')
     sign.add_argument('--pin-stdin', action='store_true', help='read the user PIN from stdin')
     sign.set_defaults(func=cmd_sign)
+
+    sign_pack = sub.add_parser('sign-pack', help='write (or add to) a detached <pack.json>.sig for a starter pack manifest')
+    sign_pack.add_argument('file', help='the pack.json manifest to sign (built by build-module-pack.js manifest)')
+    sign_pack.add_argument('--out', help='signature path (default: <file>.sig)')
+    sign_pack.add_argument('--pin-stdin', action='store_true', help='read the user PIN from stdin')
+    sign_pack.set_defaults(func=cmd_sign_pack)
 
     vouch = sub.add_parser('vouch', help='vouch that a NEW key may sign the official catalog')
     vouch.add_argument('vouches_file',

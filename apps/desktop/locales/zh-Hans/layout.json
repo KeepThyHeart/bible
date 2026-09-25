@@ -5,10 +5,21 @@
   "layout.readingMode.description": "只显示圣经，并留出阅读页边距",
   "layout.studyModeQuad.name": "研经模式（四窗格）",
   "layout.studyModeQuad.description": "2×2 布局：左上为注释，右上为圣经，左下为词典，右下为笔记",
+  "layout.writerMode.name": "写作模式",
+  "layout.writerMode.description": "圣经在左，写作空间在右",
   "layout.applyPreset.title": "应用{presetName}",
   "layout.dropdown.label": "布局",
   "layout.dropdown.tooltip": "恢复为内置布局",
+  "layout.reset.label": "重置为默认布局",
+  "layout.newTab.createFailed": "无法打开该窗格，请重试。",
+  "layout.collapsePane.tooltip": "折叠此窗格，暂不显示",
+  "layout.expandCollapsed.label": "显示隐藏的窗格",
+  "layout.expandCollapsed.tooltip": "将已折叠的研经窗格重新显示出来",
+  "layout.expandCollapsed.tooltipNamed": "恢复显示：{titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "已重新排列 {count} 个标签页。",
   "layout.undo.button": "撤销",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "高级布局模式",
+  "layout.advancedMode.helpTooltip": "可通过拖动手动排列、拆分或重新停靠窗格。打开完整设置。",
+  "layout.advancedMode.helpAria": "关于高级布局模式"
 }

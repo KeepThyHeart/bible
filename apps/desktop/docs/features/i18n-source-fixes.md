@@ -115,7 +115,7 @@ The product name is a placeholder, not a literal: `documentationDialog.footerVer
 
 * **The font-size bounds are duplicated.** `PaneFontSettings.tsx` writes `14` and `30` inline in four places - the slider's `min`/`max` and the two end labels - so the input and its labels can drift apart.
 
-* **Decimal separator in `ui.preferences.lineHeightValue`.** The value is pre-formatted with `Number.toFixed(2)`, so `1.75` keeps a full stop in locales that write `1,75`. Passing the number and using an ICU number skeleton would fix it, but `naiveFormat` would print the skeleton verbatim on first paint. Worth doing together with teaching `naiveFormat` to strip argument types.
+* ~~**Decimal separator in `ui.preferences.lineHeightValue`.**~~ Fixed: `PaneFontSettings.tsx` now formats the value with the active locale's `Localizer.formatNumber()` (`minimumFractionDigits`/`maximumFractionDigits: 2`) before passing it as a `t()` param, so `1.75` renders `1,75` in locales that use a comma - with no ICU number skeleton in the catalog string, so no `naiveFormat` skeleton-printing risk.
 
 ## Finding violations
 

@@ -39,7 +39,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
   variant = 'child',
   onClick,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const isRelated = variant === 'related';
 
   return (
@@ -116,7 +116,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
               opacity: Math.max(0.2, strength),
               flexShrink: 0,
             }}
-            title={`Strength: ${(strength * 100).toFixed(0)}%`}
+            title={`Strength: ${localizer.formatNumber(strength, { style: 'percent', maximumFractionDigits: 0 })}`}
           />
         )}
         <span style={{

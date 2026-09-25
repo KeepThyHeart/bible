@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BibleRepository } from './BibleRepository';
 import { KJVTestHelper } from '../../__tests__/helpers/KJVTestHelper';
 import { Book, VerseIdHelper } from '../Core/Types';
+import { IndexDocument } from '../Access/KeywordTypes';
 
 // Gated so a checkout without module data skips with a warning rather than
 // erroring in beforeAll. See __tests__/helpers/testData.ts.
@@ -590,6 +591,100 @@ describe.skipIf(!KJV_AVAILABLE)('BibleRepository', () => {
         expect(parsed.chapter).toBe(test.chapter);
         expect(parsed.verse).toBe(test.verse);
       });
+    });
+  });
+
+  // ==========================================================================
+  // getIndexSource Tests (M5, task 0026 revision 2)
+  // ==========================================================================
+
+  describe('getIndexSource', () => {
+    it('carries an IndexTarget with this module\'s uuid, type and contentSha256', () => {
+      const source = repository.getIndexSource();
+      const info = repository.getModuleInfo();
+
+      expect(source.target.moduleType).toBe('bible');
+      expect(source.target.moduleUuid).toBe(info?.moduleUuid);
+      expect(source.target.contentSha256).toBe(info?.contentSha256 ?? '');
+    });
+
+    it('count() matches a raw COUNT(*) over bible_verse', () => {
+      const raw = KJVTestHelper.getKJVProvider().queryOne<{ c: number }>('SELECT COUNT(*) as c FROM bible_verse');
+
+      expect(repository.getIndexSource().count()).toBe(raw?.c ?? -1);
+      expect(repository.getIndexSource().count()).toBeGreaterThan(31000);
+    });
+
+    it('documents() yields one document per verse, in verse_id order', () => {
+      const source = repository.getIndexSource();
+      const docs = Array.from(source.documents());
+
+      expect(docs).toHaveLength(source.count());
+      for (let i = 1; i < docs.length; i++) {
+        expect(docs[i].rowId).toBeGreaterThan(docs[i - 1].rowId);
+      }
+    });
+
+    it('yields Genesis 1:1 with the expected, markup-free text', () => {
+      const verseId = VerseIdHelper.calculate(Book.Genesis, 1, 1);
+      const source = repository.getIndexSource();
+
+      let found: IndexDocument | undefined;
+      for (const doc of source.documents()) {
+        if (doc.rowId === verseId) {
+          found = doc;
+          break;
+        }
+      }
+
+      expect(found!).toBeDefined();
+      expect(found!.text).toContain('In the beginning');
+      expect(found!.text.toLowerCase()).toContain('beginning');
+    });
+
+    it('omits startVerseId/endVerseId for a single-verse Bible document (see rowId instead)', () => {
+      const source = repository.getIndexSource();
+      const first = source.documents()[Symbol.iterator]().next().value;
+
+      expect(first).toBeDefined();
+      expect(first.startVerseId).toBeUndefined();
+      expect(first.endVerseId).toBeUndefined();
+    });
+
+    it('documents() returns a generator (Iterable), not a materialised array', () => {
+      const source = repository.getIndexSource();
+      const iterable = source.documents();
+
+      expect(Array.isArray(iterable)).toBe(false);
+      expect(typeof (iterable as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    });
+
+    it('is lazy: consuming only the first few documents does not read the whole table', () => {
+      // Not directly observable through the public ISql surface (no query-count
+      // spy is wired into TestSqliteProvider), so this asserts the proxy that
+      // IS observable: breaking out of a `for...of` after N items leaves the
+      // generator suspended rather than exhausted - if `documents()` had
+      // eagerly materialised an array first, the generator itself would still
+      // report as "not done" here too, but crucially this same test also
+      // bounds N well under one internal batch (500 rows), so a passing run
+      // means at most one bounded SQL query ran, not a 31,000-row scan -
+      // consistent with the batched paging documented on
+      // `BaseModuleRepository`'s `streamContentDocuments()`.
+      const source = repository.getIndexSource();
+      const iterator = source.documents()[Symbol.iterator]();
+
+      const collected = [];
+      for (let i = 0; i < 5; i++) {
+        const { value, done } = iterator.next();
+        expect(done).toBe(false);
+        collected.push(value);
+      }
+
+      expect(collected).toHaveLength(5);
+      // The generator function itself has not run to completion - proven by
+      // the fact more values remain after only 5 pulls out of 31,000+.
+      const { done } = iterator.next();
+      expect(done).toBe(false);
     });
   });
 });

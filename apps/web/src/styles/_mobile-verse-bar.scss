@@ -4,6 +4,9 @@
 .verse-action-bar {
   display: none;
   position: absolute;
+  // Horizontal-centering idiom, not a directional offset - stays physical.
+  // Logical `inset-inline-start: 50%` plus a physical `translateX(-50%)`
+  // would miscenter this under RTL.
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;

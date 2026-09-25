@@ -166,7 +166,7 @@ Everything above describes extensions as the host sees them. This section is the
 | `packages/extension-testing/src/cli/packageCommand.ts` | `bible-ext package` — the installable `.zip` |
 | `packages/extension-testing/src/cli/createZip.ts` | Dependency-free ZIP writer (deflate via `node:zlib`), producing reproducible archives |
 | `packages/extension-testing/src/cli/manifestAssets.ts` | The "does the file the manifest names actually exist" check, shared by both commands |
-| `packages/extension-testing/src/cli/ignoreRules.ts` | `.bibleignore` matching |
+| `packages/extension-testing/src/cli/ignoreRules.ts` | `.extensionignore` matching |
 
 Three decisions worth not re-litigating:
 

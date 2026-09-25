@@ -1,58 +1,25 @@
 /**
  * Centralized search database schema.
  *
- * All search-related tables (FTS index, metadata, positions, saved
- * searches, history) are defined here. Applied to main.db.
+ * All search-related tables (saved searches, history) are defined here.
+ * Applied to main.db.
+ *
+ * Used to also create a library-wide `bible_search_index` FTS5 table with
+ * `bible_search_index_metadata` and `bible_search_verse_positions`
+ * companions -- the runtime-DDL mirror of `MainDatabase.sql`'s former
+ * section 3.1-3.3 (see that file's canonical schema and the removal note in
+ * `IBibleSearchRepository.ts`). Task 0026 subtask M12 deleted all three: the
+ * table had zero production callers, and the design had already chosen
+ * per-module sidecars (task 0027 subtask F6) over ever building a
+ * library-wide provider on top of it.
  */
 import type { ISql } from '@bible/core';
 
 /**
- * Create all search tables, indexes, and FTS virtual tables.
+ * Create all search tables and indexes.
  * Safe to call multiple times (idempotent via IF NOT EXISTS).
  */
 export function initializeSearchSchema(db: ISql): void {
-  // --- FTS5 Search Index ------------------------------------------------
-  db.execute(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS bible_search_index USING fts5(
-      type UNINDEXED,
-      document UNINDEXED,
-      division UNINDEXED,
-      text,
-      tokenize='porter unicode61'
-    )
-  `);
-
-  // --- Index Metadata ---------------------------------------------------
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS bible_search_index_metadata (
-      index_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
-      document TEXT NOT NULL,
-      division TEXT NOT NULL,
-      last_indexed TEXT NOT NULL,
-      is_indexed INTEGER NOT NULL DEFAULT 1,
-      word_count INTEGER,
-      metadata TEXT,
-      UNIQUE(type, document, division),
-      CHECK (is_indexed IN (0, 1))
-    )
-  `);
-
-  // --- Verse Positions -------------------------------------------------
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS bible_search_verse_positions (
-      position_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
-      document TEXT NOT NULL,
-      division TEXT NOT NULL,
-      verse_id INTEGER NOT NULL,
-      start_index INTEGER NOT NULL,
-      end_index INTEGER NOT NULL,
-      CHECK (start_index >= 0),
-      CHECK (end_index > start_index)
-    )
-  `);
-
   // --- Saved Searches --------------------------------------------------
   db.execute(`
     CREATE TABLE IF NOT EXISTS saved_search (
@@ -82,9 +49,6 @@ export function initializeSearchSchema(db: ISql): void {
   `);
 
   // --- Indexes ---------------------------------------------------------
-  db.execute('CREATE INDEX IF NOT EXISTS idx_search_metadata_type_doc ON bible_search_index_metadata(type, document)');
-  db.execute('CREATE INDEX IF NOT EXISTS idx_search_positions_verse ON bible_search_verse_positions(verse_id)');
-  db.execute('CREATE INDEX IF NOT EXISTS idx_search_positions_division ON bible_search_verse_positions(type, document, division)');
   db.execute('CREATE INDEX IF NOT EXISTS idx_saved_search_date ON saved_search(created_date DESC)');
   db.execute('CREATE INDEX IF NOT EXISTS idx_search_history_date ON search_history(searched_date DESC)');
 }

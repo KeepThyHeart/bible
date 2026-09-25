@@ -44,6 +44,10 @@ export function getSharedModuleMetadataRepo(): ModuleMetadataRepository {
 
 /**
  * Get the shared BibleBookRepository.
+ *
+ * `BibleBookRepository` reads main.db, not a module file - it has no
+ * `IModuleRepositoryFactory` entry by design; see `ModuleRepositoryFactory.ts`'s
+ * doc comment (task 0034).
  */
 export function getSharedBookRepo(): BibleBookRepository {
   if (!bookRepo) {

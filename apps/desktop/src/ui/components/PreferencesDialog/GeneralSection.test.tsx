@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { GeneralSection, SELECTABLE_BUILT_IN_LOCALES, selectableLocales } from './GeneralSection';
+import { GeneralSection, selectableLocales } from './GeneralSection';
 import type { LocaleMetadata } from '../../services/II18nService';
 
 /**
@@ -12,9 +12,10 @@ import type { LocaleMetadata } from '../../services/II18nService';
  *    first tab of Preferences, and an uncollapsed row would let one stray
  *    click switch the entire UI - including into a language the user may not
  *    read well enough to switch back from.
- * 2. Only the catalogs named in `SELECTABLE_BUILT_IN_LOCALES` are offered out
- *    of the ones that ship with the app. A catalog the user dropped into
- *    `<userData>/locales/` is theirs and must keep working untouched.
+ * 2. A shipped catalog is offered only once its own `locale.status` is
+ *    `beta` or `complete` - `draft` ones are withheld. A catalog the user
+ *    dropped into `<userData>/locales/` is theirs and must keep working
+ *    untouched, whatever its status.
  */
 
 const BUILT_IN: LocaleMetadata[] = [
@@ -61,8 +62,15 @@ beforeEach(() => {
 });
 
 describe('selectableLocales', () => {
-  it('drops the shipped catalogs that are not in the allowlist', () => {
-    expect(selectableLocales(BUILT_IN).map((i) => i.code)).toEqual([...SELECTABLE_BUILT_IN_LOCALES]);
+  it('drops shipped catalogs whose status is draft', () => {
+    expect(selectableLocales(BUILT_IN).map((i) => i.code)).toEqual(['en']);
+  });
+
+  it('offers a shipped catalog once its status is promoted to beta', () => {
+    const withBeta = BUILT_IN.map((info) =>
+      info.code === 'es' ? { ...info, status: 'beta' as const } : info,
+    );
+    expect(selectableLocales(withBeta).map((i) => i.code)).toEqual(['en', 'es']);
   });
 
   it('never hides a locale the user dropped in themselves', () => {
@@ -115,6 +123,18 @@ describe('GeneralSection language picker', () => {
     // logic and must not disappear along with the shipped drafts.
     expect(screen.getByTestId('locale-draft-badge-fr')).toBeInTheDocument();
     expect(screen.queryByTestId('locale-draft-badge-en')).not.toBeInTheDocument();
+  });
+
+  it('offers a promoted built-in locale with a beta badge, not a draft one', async () => {
+    h.locales = BUILT_IN.map((info) =>
+      info.code === 'es' ? { ...info, status: 'beta' as const } : info,
+    );
+    render(<GeneralSection />);
+    await userEvent.click(screen.getByTestId('language-disclosure'));
+
+    expect(screen.getByTestId('locale-option-es')).toBeInTheDocument();
+    expect(screen.getByTestId('locale-beta-badge-es')).toBeInTheDocument();
+    expect(screen.queryByTestId('locale-draft-badge-es')).not.toBeInTheDocument();
   });
 
   it('switches locale when a row is chosen', async () => {

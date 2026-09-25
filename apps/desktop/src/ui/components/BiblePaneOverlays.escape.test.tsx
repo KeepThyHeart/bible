@@ -15,7 +15,7 @@ import type { ComponentProps } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
+  useI18n: () => ({ t: (key: string) => key, localizer: enLocalizer }),
 }));
 
 // Pulls in the whole Bible store otherwise; the picker's Compare button is the
@@ -25,6 +25,7 @@ vi.mock('../stores/useBibleStore', () => ({
 }));
 
 import BiblePaneOverlays from './BiblePaneOverlays';
+import { enLocalizer } from '../testing/enCatalog';
 
 const setShowParallelPicker = vi.fn();
 

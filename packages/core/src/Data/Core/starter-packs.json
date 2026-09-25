@@ -1,0 +1,28 @@
+{
+  "$comment": "Recommended module sets offered at first run. Each pack is a LIST of catalog module_ids - nothing is bundled; every module is still downloaded and verified from the signed official catalog. To add a tier, append an object to \"packs\". Fields: pack_id (unique, lowercase), languages (BCP-47 tags it is offered for), name and description (shown to the user), version, module_ids (installed in this order; an id the catalog does not offer is skipped). A catalog that publishes its own starter_packs with the same pack_id takes precedence. `npm run setup -- --select=<pack_id>` installs the same list.",
+  "packs": [
+    {
+      "pack_id": "essentials",
+      "languages": ["en"],
+      "name": "Essentials",
+      "description": "Two Bible translations with commentaries, cross-references, Strong's lexicons, dictionaries and topical indexes - everything the study tools use.",
+      "version": "1.0.0",
+      "module_ids": [
+        "bible_kjv",
+        "bible_webbe",
+        "commentary_synthesis",
+        "commentary_mhc",
+        "commentary_barnes",
+        "commentary_gill",
+        "commentary_wesley",
+        "xref_tsk",
+        "dictionary_strongsgreek",
+        "dictionary_strongshebrew",
+        "dictionary_easton",
+        "dictionary_webster1828",
+        "topical_nave",
+        "topical_torrey"
+      ]
+    }
+  ]
+}

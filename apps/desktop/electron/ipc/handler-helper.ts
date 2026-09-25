@@ -38,6 +38,7 @@ import { ipcMain } from 'electron';
 import log from 'electron-log';
 import type { IpcError, Result } from './result';
 import { IpcKnownError } from './result';
+import { NetworkBlockedError } from '../services/NetworkGateway';
 
 /**
  * Register an IPC handler whose response is wrapped in a `Result<T>` envelope.
@@ -119,6 +120,15 @@ function classifyError(channel: string, err: unknown): IpcError {
   if (err instanceof IpcKnownError) {
     logKnownError(channel, err);
     return { code: err.code, message: err.message };
+  }
+
+  // The master "Allow web requests" switch being off is an expected state on
+  // a fresh (or deliberately offline) install, not a bug - warn, not error,
+  // and carry a code the renderer can branch on (e.g. to show an offline
+  // banner instead of a generic failure).
+  if (err instanceof NetworkBlockedError) {
+    log.warn(`[${channel}] network_blocked: ${err.message}`);
+    return { code: 'network_blocked', message: err.message };
   }
 
   const message = err instanceof Error ? err.message : String(err);

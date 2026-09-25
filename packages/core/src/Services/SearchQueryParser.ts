@@ -1,4 +1,5 @@
 import { ParsedQuery, BooleanExpression } from '../types/search';
+import { KeywordQuery } from '../Data/Access/KeywordTypes';
 
 /**
  * Search Query Parser
@@ -133,6 +134,61 @@ export class SearchQueryParser {
       searchType: 'multi-word',
       terms: this.extractTerms(trimmedQuery),
     };
+  }
+
+  /**
+   * Parse raw user search input into a provider-neutral `KeywordQuery` (M1,
+   * task 0026 subtask M2) instead of `parse()`'s `ParsedQuery`.
+   *
+   * Only the search types that resolve to a single full-text query have a
+   * `KeywordQuery` shape: multi-word -> terms, phrase -> phrase, word
+   * proximity -> near, and boolean -> boolean. Fuzzy (`~word`) maps to prefix,
+   * matching how this service actually implements it today (a trailing-`*`
+   * wildcard pattern, see `buildFuzzyPattern` in `BibleSearchService`) rather
+   * than true edit-distance matching.
+   *
+   * Verse proximity has no `KeywordQuery` equivalent: it is evaluated as
+   * several independent term lookups plus JS-side verse-distance math, never
+   * as one query. Regex and Strong's-number searches are not full-text
+   * queries at all. `parse()` remains the entry point for those.
+   *
+   * @throws Error if `query` is empty (same as `parse()`), or if it parses to
+   *         a search type with no `KeywordQuery` equivalent.
+   */
+  toKeywordQuery(query: string): KeywordQuery {
+    const parsed = this.parse(query);
+
+    switch (parsed.searchType) {
+      case 'multi-word':
+        return { kind: 'terms', terms: parsed.terms || [], all: true };
+
+      case 'phrase':
+        return { kind: 'phrase', phrase: parsed.phrase || '' };
+
+      case 'proximity':
+        return {
+          kind: 'near',
+          terms: parsed.proximity?.terms || [],
+          distance: parsed.proximity?.distance ?? 10,
+        };
+
+      case 'fuzzy':
+        return { kind: 'prefix', stem: parsed.fuzzy?.term || '' };
+
+      case 'boolean':
+        // parse() only sets searchType: 'boolean' alongside a populated
+        // `boolean` field, so this is unreachable in practice; the check
+        // keeps the function total rather than trusting that invariant.
+        if (!parsed.boolean) {
+          throw new Error(`Boolean query failed to parse: ${query}`);
+        }
+        return { kind: 'boolean', expr: parsed.boolean };
+
+      default:
+        throw new Error(
+          `"${parsed.searchType}" search has no KeywordQuery equivalent - it is not a single full-text query`
+        );
+    }
   }
 
   /**

@@ -8,12 +8,14 @@ import type {
   FeaturePack,
   FetchedCatalog,
   StarterPack,
+  OfferedStarterPack,
 } from '@bible/core';
 import {
   ModuleCatalog,
   ModuleCatalogRepository,
   parseFeaturePacks,
   parseStarterPacks,
+  BUNDLED_STARTER_PACKS,
   selectStarterPacksForLanguage,
 } from '@bible/core';
 import type { IModuleCatalogService } from '@bible/core';
@@ -23,7 +25,7 @@ import {
   CATALOG_SIGNATURE_MAX_RESPONSE_BYTES,
   CATALOG_VOUCHES_MAX_RESPONSE_BYTES,
 } from '../config/constants';
-import { getNetworkGateway, type INetworkGateway } from './NetworkGateway';
+import { getNetworkGateway, NetworkBlockedError, type INetworkGateway } from './NetworkGateway';
 import { verifyCatalogSignature, isCatalogUsable } from './CatalogSignatureVerifier';
 import { findVouchedKey, type KeyVouch } from './CatalogKeyVouches';
 import { CATALOG_INDEX_FILENAME, parseCatalogIndex } from './CatalogIndex';
@@ -531,20 +533,43 @@ export class ModuleCatalogService implements IModuleCatalogService {
 
   /**
    * Refresh all enabled catalog sources, and the catalogs their indexes add.
+   *
+   * Offline is checked up front and thrown as `NetworkBlockedError` rather
+   * than left to surface once per enabled source: every source would fail
+   * with the identical cause, so attempting each one would just repeat the
+   * same log line N times and hide the real reason behind "no modules
+   * found". The IPC layer classifies this error as `network_blocked` (see
+   * `handler-helper.ts`) so the renderer can show an offline banner instead
+   * of a generic failure.
    */
   async refreshAllCatalogs(): Promise<ModuleCatalog[]> {
+    if (this.gateway.isOffline()) {
+      throw new NetworkBlockedError('refresh all catalogs');
+    }
+
     // Pick up catalogs the official index lists first, so a newly published
     // catalog is fetched in this same pass.
     await this.syncOfficialIndexes();
 
+    const enabled = this.catalogRepo.getEnabled();
     const refreshed: ModuleCatalog[] = [];
-    for (const entry of this.catalogRepo.getEnabled()) {
+    const failures: string[] = [];
+    for (const entry of enabled) {
       try {
         refreshed.push(...(await this.refreshSource(entry)));
       } catch (error) {
-        // Log error but continue with other catalogs
+        // Log error but continue with other catalogs - one broken source
+        // must not hide the others that did refresh.
         log.error(`Failed to refresh catalog ${entry.name}:`, error);
+        failures.push(`${entry.name}: ${error instanceof Error ? error.message : String(error)}`);
       }
+    }
+
+    // Every enabled source failing is worth surfacing as a single error
+    // (transient outage, DNS trouble) rather than a silent empty result -
+    // a partial success, though, is still success.
+    if (enabled.length > 0 && failures.length === enabled.length) {
+      throw new Error(`Could not refresh any catalog: ${failures.join('; ')}`);
     }
 
     return refreshed;
@@ -712,33 +737,64 @@ export class ModuleCatalogService implements IModuleCatalogService {
     return this.getAvailableFeaturePacks().find(pack => pack.pack_id === packId);
   }
 
+  /** Whether `entry` is the official catalog, verified against the pinned key right now. */
+  private static isVerifiedOfficialEntry(entry: ModuleCatalog): boolean {
+    return isPinnedOfficialCatalog(entry.url) && entry.signatureStatus === 'verified';
+  }
+
   /**
-   * Every validated starter pack across all enabled catalogs.
+   * The starter packs one (already verified official) catalog can offer: the
+   * ones it publishes itself, then the bundled ones (`starter-packs.json`) it
+   * does not already publish under the same `pack_id`.
    *
-   * Same trust discipline as `getAvailableFeaturePacks`: the raw section is
+   * The catalog's own packs win so its maintainers can change a list without
+   * an app release; the bundled ones mean a catalog that publishes none still
+   * gets a sensible "install the basics" choice. Bundled packs only name
+   * `module_ids`, which are then resolved against THIS catalog like any other.
+   */
+  private static starterPacksOf(catalog: RepositoryCatalog, catalogName: string): StarterPack[] {
+    const { packs: published, rejected } = parseStarterPacks(catalog.starter_packs ?? []);
+    for (const rejection of rejected) {
+      log.warn(
+        `[ModuleCatalog] Ignoring starter pack #${rejection.index} from ${catalogName}: ${rejection.errors.join('; ')}`
+      );
+    }
+    const publishedIds = new Set(published.map(pack => pack.pack_id));
+    return [...published, ...BUNDLED_STARTER_PACKS.filter(pack => !publishedIds.has(pack.pack_id))];
+  }
+
+  /**
+   * Every validated starter pack from a catalog first run is willing to
+   * offer: the official catalog, verified against the pinned key, right now.
+   *
+   * Third-party and unsigned catalogs are excluded outright - a starter pack
+   * is content offered with the implicit endorsement "Keep Thy Heart put this
+   * in front of you," and that endorsement is only true for the catalog whose
+   * signature this install has actually checked. Each survivor carries its
+   * `source` (which catalog it came from), so a caller can resolve its
+   * `module_ids` against THAT catalog only - see `getStarterPackModules`.
+   *
+   * Same parsing discipline as `getAvailableFeaturePacks`: the raw section is
    * `unknown[]`, each entry goes through `parseStarterPacks`, and a malformed
    * entry is dropped with a log line rather than poisoning the rest.
-   *
-   * Unlike feature packs, a starter pack carries no artifact URLs - it names
-   * `module_id`s that must resolve against the catalog that declared them.
-   * Resolution happens in `getStarterPackModules` rather than here so that
-   * listing packs stays cheap for the first-run screen.
    */
-  getAvailableStarterPacks(): StarterPack[] {
+  getAvailableStarterPacks(): OfferedStarterPack[] {
     const catalogs = this.catalogRepo.getEnabled();
-    const packs: StarterPack[] = [];
+    const packs: OfferedStarterPack[] = [];
 
     for (const entry of catalogs) {
-      const catalog = entry.getParsedCatalog();
-      if (!catalog?.starter_packs) continue;
+      if (!ModuleCatalogService.isVerifiedOfficialEntry(entry)) continue;
 
-      const { packs: valid, rejected } = parseStarterPacks(catalog.starter_packs);
-      for (const rejection of rejected) {
-        log.warn(
-          `[ModuleCatalog] Ignoring starter pack #${rejection.index} from ${entry.name}: ${rejection.errors.join('; ')}`
-        );
+      const catalog = entry.getParsedCatalog();
+      if (!catalog) continue;
+
+      const valid = ModuleCatalogService.starterPacksOf(catalog, entry.name);
+      for (const pack of valid) {
+        packs.push({
+          ...pack,
+          source: { catalogId: entry.catalogId!, catalogName: entry.name, verifiedOfficial: true },
+        });
       }
-      packs.push(...valid);
     }
 
     return packs;
@@ -749,15 +805,27 @@ export class ModuleCatalogService implements IModuleCatalogService {
    *
    * An empty array is a normal, expected answer - several supported UI
    * languages have no public-domain study content we can legally ship yet
-   * (see `SUPPORTED_CONTENT_LANGUAGES` in `StarterPackTypes.ts`). Callers
-   * must render that as "nothing to suggest", never as an error.
+   * (see `SUPPORTED_CONTENT_LANGUAGES` in `StarterPackTypes.ts`), and first
+   * run offers no packs at all until the official catalog has been fetched
+   * and verified at least once. Callers must render that as "nothing to
+   * suggest", never as an error.
    */
-  getStarterPacksForLanguage(languageCode: string): StarterPack[] {
-    return selectStarterPacksForLanguage(this.getAvailableStarterPacks(), languageCode);
+  getStarterPacksForLanguage(languageCode: string): OfferedStarterPack[] {
+    return selectStarterPacksForLanguage(this.getAvailableStarterPacks(), languageCode) as OfferedStarterPack[];
   }
 
   /**
-   * Resolve a starter pack's `module_ids` to the catalog entries they name.
+   * Resolve a starter pack's `module_ids` to the catalog entries they name,
+   * against `catalogId`'s own `modules` array ONLY - never any other enabled
+   * catalog's. Resolving across every catalog (as `getAllAvailableModules`
+   * does) would let a third-party catalog "shadow" an official module id with
+   * content of its own choosing, which a user who trusts the official catalog
+   * would never knowingly install.
+   *
+   * Re-checks that `catalogId` is still enabled and still the verified
+   * official catalog at call time (not just when the pack was listed) -
+   * a catalog can be disabled, or lose its verification, between the two
+   * calls a first-run install makes.
    *
    * Ids that resolve to nothing are dropped with a warning rather than
    * failing the pack: a catalog that withdraws a module (a licence lapsed, a
@@ -766,12 +834,20 @@ export class ModuleCatalogService implements IModuleCatalogService {
    * install. The caller can compare `modules.length` against
    * `pack.module_ids.length` when it wants to say so.
    */
-  getStarterPackModules(packId: string): { pack?: StarterPack; modules: CatalogModule[] } {
-    const pack = this.getAvailableStarterPacks().find(p => p.pack_id === packId);
+  getStarterPackModules(packId: string, catalogId: number): { pack?: StarterPack; modules: CatalogModule[] } {
+    const entry = this.catalogRepo.getById(catalogId);
+    if (!entry || !entry.isEnabled || !ModuleCatalogService.isVerifiedOfficialEntry(entry)) {
+      return { modules: [] };
+    }
+
+    const catalog = entry.getParsedCatalog();
+    if (!catalog) return { modules: [] };
+
+    const pack = ModuleCatalogService.starterPacksOf(catalog, entry.name).find(p => p.pack_id === packId);
     if (!pack) return { modules: [] };
 
-    const available = this.getAllAvailableModules();
-    const byId = new Map(available.map(m => [m.module_id, m]));
+    const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
+    const byId = new Map((catalog.modules ?? []).map((m: CatalogModule) => [m.module_id, m]));
 
     const modules: CatalogModule[] = [];
     for (const moduleId of pack.module_ids) {
@@ -780,18 +856,37 @@ export class ModuleCatalogService implements IModuleCatalogService {
         log.warn(`[ModuleCatalog] Starter pack "${packId}" references unknown module "${moduleId}" — skipping.`);
         continue;
       }
-      modules.push(match);
+      // Relative download URLs resolve against the catalog document, as
+      // `getAllAvailableModules` does for the cross-catalog listing.
+      modules.push({ ...match, download_url: new URL(match.download_url, catalogUrl).toString() });
     }
 
     return { pack, modules };
   }
 
   /**
-   * Get module by ID from catalogs
+   * Get module by ID from catalogs.
+   *
+   * @param catalogId - When given, resolve `moduleId` only against that
+   *                    catalog's own `modules` array (see
+   *                    `IModuleCatalogService.getModuleInfo`'s doc comment for
+   *                    why). Omit to search every enabled catalog, as before -
+   *                    the Module Manager's own "install this module" action
+   *                    keeps working exactly as it always has.
    */
-  getModuleInfo(moduleId: string): CatalogModule | undefined {
-    const allModules = this.getAllAvailableModules();
-    return allModules.find(module => module.module_id === moduleId);
+  getModuleInfo(moduleId: string, catalogId?: number): CatalogModule | undefined {
+    if (catalogId === undefined) {
+      return this.getAllAvailableModules().find(module => module.module_id === moduleId);
+    }
+
+    const entry = this.catalogRepo.getById(catalogId);
+    if (!entry || !entry.isEnabled) return undefined;
+    const catalog = entry.getParsedCatalog();
+    const match = catalog?.modules?.find((m: CatalogModule) => m.module_id === moduleId);
+    if (!match) return undefined;
+
+    const catalogUrl = ModuleCatalogService.resolveCatalogUrl(entry.url);
+    return { ...match, download_url: new URL(match.download_url, catalogUrl).toString() };
   }
 
   /**

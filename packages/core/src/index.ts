@@ -24,6 +24,36 @@ export {
   isSingleChapterBook,
 } from './Data/Core/BookNames';
 
+// Locale identity metadata and the per-language `Localizer` interface. Also
+// re-exported from `./browser` (this package's platform-free entry point) -
+// both modules are pure `Intl` + data, so they belong in both barrels.
+export {
+  LOCALE_REGISTRY,
+  resolveLocaleDescriptor,
+  directionForTag,
+} from './Data/Locales/LocaleRegistry';
+export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
+export {
+  EnglishLocalizer,
+  createIntlLocalizer,
+  getLocalizer,
+  registerLocalizer,
+} from './Data/Locales/Localizer';
+export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
+export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
+export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
+// Side-effect import: registers every built-in Localizer beyond `en` (see the
+// module doc). Importing `@bible/core` or `@bible/core/browser` is then
+// enough for `getLocalizer('es')` / `getLocalizer('zh-Hans')` to return the
+// full Localizer - no other call site has to know these exist.
+export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
+export {
+  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/es';
+export {
+  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
+} from './Data/Locales/books/zhHans';
+
 // Re-export Controllers via the barrel, so the root export surface and the
 // TypeDoc entry point (`src/Controllers/index.ts`) cannot drift apart. They did:
 // the barrel listed only ModuleController and ModuleCatalogController while this
@@ -35,7 +65,9 @@ export type { SearchResult, Match, MatchType, FTS5Match, BooleanExpression, Prox
 
 // Re-export Services
 export * from './Services/BibleSearchService';
-export * from './Services/FtsQuery';
+// escapeFts5Term/escapeFts5Query/compileKeywordQuery moved to
+// Data/Access/Fts5/Fts5QueryCompiler (task 0026 subtask M2); already
+// re-exported via `export * from './Data'` above.
 export * from './Services/BibleSections';
 export * from './Services/CollectionService';
 export * from './Services/ReferenceParser';
@@ -109,3 +141,12 @@ export * as Usfm from './Export';
 // The entry points are also available unqualified, since their names are unique.
 export { toUSFM, toUSFMBook, UsfmExportError } from './Export/toUSFM';
 export { parseUSFM, UsfmParseError } from './Export/parseUSFM';
+
+// Data-provider seam (task 0034, finishing 0029's S3a): DTO types plus the
+// ten Promise-returning provider interfaces (`IBibleDataProvider` and nine
+// siblings) - the app-wide content-source seam a remote/licensed Bible
+// version implements, instead of a module repository. Also re-exported from
+// `./browser`, since it is pure data/interfaces with no platform dependency.
+// Namespaced (like `Extensions`/`Usfm` above): two DTO names collide with
+// pre-existing root exports - see `browser.ts`'s copy of this comment.
+export * as Providers from './Providers';

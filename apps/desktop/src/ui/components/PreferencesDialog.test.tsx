@@ -54,6 +54,9 @@ vi.mock('./PreferencesDialog/FontsSection', () => ({
 vi.mock('./PreferencesDialog/ThemesSection', () => ({
   ThemesSection: () => <div data-testid="themes-section">Themes Content</div>,
 }));
+vi.mock('./PreferencesDialog/PrivacySection', () => ({
+  PrivacySection: () => <div data-testid="privacy-section">Privacy Content</div>,
+}));
 vi.mock('./ExtensionsSection', () => ({
   ExtensionsSection: () => <div data-testid="extensions-section">Extensions Content</div>,
 }));
@@ -76,14 +79,15 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(6);
+    expect(tabs).toHaveLength(7);
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
     expect(tabs[2]).toHaveTextContent('Fonts');
     expect(tabs[3]).toHaveTextContent('Themes');
-    expect(tabs[4]).toHaveTextContent('Extensions');
-    expect(tabs[5]).toHaveTextContent('Diagnostics');
+    expect(tabs[4]).toHaveTextContent('Privacy');
+    expect(tabs[5]).toHaveTextContent('Extensions');
+    expect(tabs[6]).toHaveTextContent('Diagnostics');
   });
 
   it('shows General section by default', () => {
@@ -107,6 +111,14 @@ describe('PreferencesDialog', () => {
     const themesButtons = screen.getAllByText('Themes');
     await user.click(themesButtons[0]);
     expect(screen.getByTestId('themes-section')).toBeInTheDocument();
+  });
+
+  it('switches to Privacy section when clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PreferencesDialog onClose={onClose} />);
+    const privacyButtons = screen.getAllByText('Privacy');
+    await user.click(privacyButtons[0]);
+    expect(screen.getByTestId('privacy-section')).toBeInTheDocument();
   });
 
   it('switches to Extensions section when clicked', async () => {
@@ -159,7 +171,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(6);
+    expect(tabs).toHaveLength(7);
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {

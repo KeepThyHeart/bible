@@ -213,11 +213,8 @@ win:
   # re-declare signAndEditExecutable here — a child value would override the
   # env-driven parent and pin it, defeating the gate.
 nsis:
-  # Disable the default "is the app running?" check, which false-positives on
-  # this product name (nsProcess::FindProcess substring-matches the installer's
-  # and uninstaller's OWN process against "Keep Thy Heart Bible Reader.exe") and loops on
-  # "cannot be closed". See build-installer.nsh for the full explanation.
-  include: build-installer.nsh
+  # Keep electron-builder's default "is the app running?" check. See the note in
+  # electron-builder.code-only.yml before overriding it.
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false

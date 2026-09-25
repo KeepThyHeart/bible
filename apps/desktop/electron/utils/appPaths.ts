@@ -114,6 +114,37 @@ export function getFeaturePackRoot(packType: string): string {
 }
 
 /**
+ * Root directory for `SidecarFts5Provider`'s `.kwi` sidecar files (task 0027
+ * revision 2, F6/F8) - the same `indexDir` every module's build/status/prune
+ * call is keyed against, and the same value handed to `RuntimeEnvironment
+ * .indexDir` (M1) wherever this app supplies one.
+ *
+ * Fixed at `<userData>/index/keyword/`, matching task 0026/0027's location
+ * convention: a derived, machine-local, rebuildable cache lives under
+ * `index/`, a sibling of `feature-packs/` (an installed capability) rather
+ * than `modules/` (the shipped/downloaded artifacts themselves) - deleting
+ * this whole directory is always safe and never loses user data.
+ *
+ * Unlike {@link getFeaturePackRoot}, this function DOES create the directory:
+ * every `getFeaturePackRoot` call site already does its own `mkdirSync`
+ * immediately before writing into it (see `SemanticPackService.ts`), but this
+ * path is instead handed straight to `SidecarFts5Provider` as `indexDir`
+ * configuration, and that provider deliberately never resolves or creates a
+ * platform directory itself (see its own doc comment, "What this provider
+ * does NOT do") - `build()` treats a missing `indexDir` as a hard
+ * {@link SidecarIndexBuildError} rather than papering over it. So creating it
+ * is this function's job, once, here - not a duplicated `mkdirSync` at every
+ * one of this function's call sites.
+ */
+export function getKeywordIndexRoot(): string {
+  const dir = join(getUserDataPath(), 'index', 'keyword');
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
  * Absolute path to the semantic index, or `null` if semantic search is not
  * installed.
  *

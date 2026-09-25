@@ -165,7 +165,7 @@ const VerseLinksDisplay: React.FC<VerseLinksDisplayProps> = ({
   onNavigateToNote,
   onNavigateToJournal
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
     title: string;
@@ -242,8 +242,8 @@ const VerseLinksDisplay: React.FC<VerseLinksDisplayProps> = ({
 
     return Object.entries(groupedByDate).map(([date, entries]) => {
       const label = entries.length > 1
-        ? `Journal: ${formatDate(date)} and ${entries.length - 1} more...`
-        : `Journal: ${formatDate(date)}`;
+        ? `Journal: ${formatDate(date, localizer)} and ${entries.length - 1} more...`
+        : `Journal: ${formatDate(date, localizer)}`;
 
       return (
         <LinkButton

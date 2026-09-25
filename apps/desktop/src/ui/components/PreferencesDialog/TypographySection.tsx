@@ -84,7 +84,7 @@ const SliderRow: React.FC<SliderRowProps> = ({
 );
 
 export const TypographySection: React.FC = () => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const { typography, setTypography, resetTypography } = usePreferencesStore();
 
   // Shared between the Text Size and Line Height groups; the group heading is
@@ -259,7 +259,7 @@ export const TypographySection: React.FC = () => {
           min={1.2}
           max={2.5}
           step={0.05}
-          displayValue={typography.bibleLineHeight.toFixed(2)}
+          displayValue={localizer.formatNumber(typography.bibleLineHeight, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           onChange={(n) => setTypography({ bibleLineHeight: n })}
         />
 
@@ -271,7 +271,7 @@ export const TypographySection: React.FC = () => {
           min={1.2}
           max={2.5}
           step={0.05}
-          displayValue={typography.studyLineHeight.toFixed(2)}
+          displayValue={localizer.formatNumber(typography.studyLineHeight, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           onChange={(n) => setTypography({ studyLineHeight: n })}
         />
 
@@ -283,7 +283,7 @@ export const TypographySection: React.FC = () => {
           min={1.2}
           max={2.5}
           step={0.05}
-          displayValue={typography.uiLineHeight.toFixed(2)}
+          displayValue={localizer.formatNumber(typography.uiLineHeight, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           onChange={(n) => setTypography({ uiLineHeight: n })}
         />
       </section>

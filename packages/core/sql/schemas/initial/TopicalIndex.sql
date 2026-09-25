@@ -20,6 +20,7 @@ PRAGMA cache_size = -16000;  -- 16MB cache
 -- For this module type the writer sets module_type = 'topical_index' and
 -- format = 'topical-index-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- 1. Topics
@@ -92,52 +93,10 @@ CREATE INDEX idx_topic_name ON topic(name COLLATE NOCASE);
 -- and a range's verse count is
 --     COALESCE(verse_id_end, verse_id_start) - verse_id_start + 1
 
--- ============================================================================
--- 2. Full-Text Search
--- ============================================================================
-
--- 2.1 Topic FTS
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
---
--- Column ordering is load-bearing: column 0 = name, column 1 = content.
--- `highlight()` / `snippet()` callers index by position.
---
--- `description` is deliberately NOT indexed. It holds "See APOTHECARY. See
--- BRASS. See BREAD." redirect lists, which are navigation rather than prose: a
--- search for "bread" would otherwise match every topic that merely points at it.
-CREATE VIRTUAL TABLE topic_fts USING fts5(
-    name,                     -- Column 0. Topic heading.
-    content,                  -- Column 1. The topic's prose body, where it has
-                              -- one. Empty for most topics, which costs nothing --
-                              -- an empty column contributes no terms.
-    content='topic',
-    content_rowid='topic_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers
--- External-content FTS5 tables do not own their data, so rows must be removed with
--- the special 'delete' command carrying the OLD column values. A plain
--- DELETE/UPDATE against the FTS table leaves stale terms in the index.
-CREATE TRIGGER topic_fts_insert AFTER INSERT ON topic BEGIN
-    INSERT INTO topic_fts(rowid, name, content) VALUES (new.topic_id, new.name, new.content);
-END;
-
-CREATE TRIGGER topic_fts_delete AFTER DELETE ON topic BEGIN
-    INSERT INTO topic_fts(topic_fts, rowid, name, content)
-    VALUES('delete', old.topic_id, old.name, old.content);
-END;
-
-CREATE TRIGGER topic_fts_update AFTER UPDATE ON topic BEGIN
-    INSERT INTO topic_fts(topic_fts, rowid, name, content)
-    VALUES('delete', old.topic_id, old.name, old.content);
-    INSERT INTO topic_fts(rowid, name, content) VALUES (new.topic_id, new.name, new.content);
-END;
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 3. Schema Version
+-- 2. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

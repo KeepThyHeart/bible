@@ -42,6 +42,14 @@ export type ResolvePrimaryBibleVerseId = () => number | null;
 export type ResolveOpenModuleAbbreviations = () => string[];
 
 /**
+ * Resolve an installed module's abbreviation to its numeric `module_id`, or
+ * `undefined` when nothing installed matches. Used by the search store to look
+ * up F8 keyword-index status (task 0033) for the modules a keyword search hit,
+ * without importing the module store directly.
+ */
+export type ResolveInstalledModuleId = (abbreviation: string) => number | undefined;
+
+/**
  * Open - or, if it already exists anywhere in the workbench, focus - the
  * dockview panel that shows search results. Implemented by useLayoutStore.
  *
@@ -52,19 +60,40 @@ export type ResolveOpenModuleAbbreviations = () => string[];
  */
 export type ShowSearchResultsPanel = () => void;
 
+/** What changed in the installed-module library. */
+export interface LibraryChange {
+  /**
+   * The module types whose installed set changed (install, uninstall, update or
+   * hide/unhide). Consumers only care about the types they render.
+   */
+  moduleTypes: string[];
+}
+
+/**
+ * Tell the rest of the app that the set of installed modules changed. Raised by
+ * the module store once an install/uninstall/update has *finished* and the
+ * installed list has been reloaded. Implemented by `storeSync.ts`, which
+ * refreshes the Bible store (available translations, first-Bible seeding).
+ */
+export type NotifyLibraryChanged = (change: LibraryChange) => void | Promise<void>;
+
 interface CrossStoreBridges {
+  notifyLibraryChanged: NotifyLibraryChanged | null;
   navigateToVerseInPrimary: NavigateToVerseInPrimary | null;
   previewVerseInPrimary: PreviewVerseInPrimary | null;
   resolvePrimaryBibleVerseId: ResolvePrimaryBibleVerseId | null;
   resolveOpenModuleAbbreviations: ResolveOpenModuleAbbreviations | null;
+  resolveInstalledModuleId: ResolveInstalledModuleId | null;
   showSearchResultsPanel: ShowSearchResultsPanel | null;
 }
 
 const bridges: CrossStoreBridges = {
+  notifyLibraryChanged: null,
   navigateToVerseInPrimary: null,
   previewVerseInPrimary: null,
   resolvePrimaryBibleVerseId: null,
   resolveOpenModuleAbbreviations: null,
+  resolveInstalledModuleId: null,
   showSearchResultsPanel: null,
 };
 
@@ -107,6 +136,32 @@ export function resolvePrimaryBibleVerseId(): number | null {
 
 export function resolveOpenModuleAbbreviations(): string[] {
   return bridges.resolveOpenModuleAbbreviations?.() ?? [];
+}
+
+export function setResolveInstalledModuleId(fn: ResolveInstalledModuleId | null): void {
+  bridges.resolveInstalledModuleId = fn;
+}
+
+export function resolveInstalledModuleId(abbreviation: string): number | undefined {
+  return bridges.resolveInstalledModuleId?.(abbreviation);
+}
+
+export function setNotifyLibraryChanged(fn: NotifyLibraryChanged | null): void {
+  bridges.notifyLibraryChanged = fn;
+}
+
+/**
+ * Announce that installed modules of `change.moduleTypes` changed. Resolves once
+ * the listener has finished reacting; a no-op when nothing is wired, and a
+ * listener failure is logged rather than thrown - a finished install must not
+ * report as failed because a pane could not refresh.
+ */
+export async function notifyLibraryChanged(change: LibraryChange): Promise<void> {
+  try {
+    await bridges.notifyLibraryChanged?.(change);
+  } catch (error) {
+    console.error('[crossStoreBridge] notifyLibraryChanged listener failed:', error);
+  }
 }
 
 export function setShowSearchResultsPanel(fn: ShowSearchResultsPanel | null): void {

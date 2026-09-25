@@ -32,6 +32,7 @@ import { DEFAULT_PANEL_ID, panelIdFromLayout, panelIdsFromLayout } from '../stor
 import { BOOK_DICT_PANEL_TYPES } from '../stores/helpers/bookDictPanelTypes';
 import { DEFAULT_COMMENTARY_PREFERENCE, DEFAULT_VERSE_ID } from '../constants';
 import { isDigestModule } from '../moduleDescriptions';
+import { pruneSessionTabs } from './pruneSessionTabs';
 
 /**
  * Dockview panel IDs created by `createDefaultLayout` in DockviewLayout.
@@ -144,6 +145,22 @@ export interface AppInitOptions {
    * layout and the default should be built.
    */
   onLayoutReady?: (layout: Record<string, unknown> | null) => void;
+}
+
+/**
+ * Abbreviations a pane could open right now, or `null` when the list could not
+ * be fetched (the caller then keeps every tab rather than guess).
+ */
+async function installedAbbreviations(
+  list: () => Promise<{ ok: boolean; value?: Array<{ abbreviation: string }> }>,
+): Promise<Set<string> | null> {
+  try {
+    const result = await list();
+    if (!result.ok || !result.value) return null;
+    return new Set(result.value.map(m => m.abbreviation));
+  } catch {
+    return null;
+  }
 }
 
 export async function initializeApp(
@@ -277,15 +294,37 @@ export async function initializeApp(
       // themselves carries a generated one, and a session saved before the
       // default gained a Dictionary slot has neither.
       const bookDictPanelId = panelIdFromLayout(sessionData.dockviewState, BOOK_DICT_PANEL_TYPES);
+      // A tab for a module that is not installed here (uninstalled since, or a
+      // session carried onto a fresh install) can only ever fail, and would log
+      // an error for every request it makes. Leave those tabs out.
+      const [commentaryInstalled, dictionaryInstalled, bookInstalled] = await Promise.all([
+        installedAbbreviations(() => window.electron.commentary.getAvailableCommentaries()),
+        installedAbbreviations(() => window.electron.dictionary.getAvailableDictionaries()),
+        installedAbbreviations(() => window.electron.book.getAvailableBooks()),
+      ]);
+      const commentarySession = pruneSessionTabs(sessionData.commentary, commentaryInstalled);
+      const dictionarySession = pruneSessionTabs(sessionData.dictionary, dictionaryInstalled, 'dictionary');
+      // One strip holds books and dictionaries: book tabs are pruned against
+      // the installed books, and its dictionary entries against dictionaries.
+      const bookSessionPruned = pruneSessionTabs(sessionData.book, bookInstalled, 'book');
+      const bookSessionOrdered = bookSessionPruned?.tabOrder && dictionaryInstalled
+        ? {
+            ...bookSessionPruned,
+            tabOrder: bookSessionPruned.tabOrder.filter(
+              (ref: { type: string; abbreviation: string }) =>
+                ref.type !== 'dictionary' || dictionaryInstalled.has(ref.abbreviation)
+            ),
+          }
+        : bookSessionPruned;
       await Promise.all([
-        sessionData.commentary
-          ? useCommentaryStore.getState().restoreFromSession(commentaryPanelId, sessionData.commentary)
+        commentarySession
+          ? useCommentaryStore.getState().restoreFromSession(commentaryPanelId, commentarySession)
           : Promise.resolve(),
-        sessionData.dictionary && bookDictPanelId
-          ? useDictionaryStore.getState().restoreFromSession(bookDictPanelId, sessionData.dictionary)
+        dictionarySession && bookDictPanelId
+          ? useDictionaryStore.getState().restoreFromSession(bookDictPanelId, dictionarySession)
           : Promise.resolve(),
-        sessionData.book && bookDictPanelId
-          ? useBookStore.getState().restoreFromSession(bookDictPanelId, sessionData.book)
+        bookSessionOrdered && bookDictPanelId
+          ? useBookStore.getState().restoreFromSession(bookDictPanelId, bookSessionOrdered)
           : Promise.resolve(),
         sessionData.notes
           ? useNotesStore.getState().restoreFromSession(DEFAULT_PANEL_ID, sessionData.notes)

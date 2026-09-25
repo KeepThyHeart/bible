@@ -40,9 +40,16 @@ CREATE TABLE module_info (
                                                     -- 'cross-reference-module', 'tag-graph-module'.
                                                     -- Hyphenated, unlike module_type's underscores --
                                                     -- these are two vocabularies, not one.
-    format_version TEXT NOT NULL DEFAULT '0.1',     -- Spec version this file conforms to
+    format_version TEXT NOT NULL DEFAULT '0.2',     -- Spec version this file conforms to
     content_version TEXT,                           -- The module's own content revision
     content_sha256 TEXT,                            -- Integrity / dedup hash of the content
+    -- Content encoding of this module's prose columns. Open set, no CHECK.
+    --   'none'     columns hold TEXT
+    --   'deflate'  raw DEFLATE frames (RFC 1951), optional preset dictionary
+    --   'zstd'     standard zstd frames (RFC 8878), optional trained dictionary
+    -- A reader without the codec cannot read content: it reports
+    -- readContent = false, reason 'missing-codec'. It must still read module_info.
+    compression TEXT NOT NULL DEFAULT 'none',
 
     -- Descriptive
     author TEXT,                                    -- Translator, editor or compiler of the CONTENT --

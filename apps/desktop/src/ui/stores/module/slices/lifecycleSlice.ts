@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { moduleAPI } from '../moduleAPI';
-import { ModuleState, ModuleViewMode } from '../types';
+import type { IpcErrorCode } from '../../../services/ipcResult';
+import { ModuleState, ModuleManagerTab, ModuleInstallFilter } from '../types';
 
 export interface LifecycleSlice {
   // Initialization
@@ -8,22 +9,41 @@ export interface LifecycleSlice {
   initError: string | null;
 
   // View state
-  viewMode: ModuleViewMode;
+  /**
+   * Active Module Manager tab: a module type (`openModuleManager('bible')`
+   * maps straight onto it) or one of the `features` / `repositories` panels.
+   */
+  activeTypeTab: ModuleManagerTab;
+  /** All / Installed / Updates filter applied inside a module-type tab. */
+  installFilter: ModuleInstallFilter;
 
   // Errors
   error: string | null;
+  /**
+   * Classification of `error`, when it came from an IPC `Result<T>` envelope
+   * (`IpcResultError#code`) - `null` for errors with no such classification.
+   * Lets the UI tell an expected condition like `network_blocked` apart from
+   * a genuine failure without parsing the message string. Only
+   * `repositorySlice`'s catalog-refresh actions set this today; every other
+   * action clears it alongside `error` so a stale code can never outlive the
+   * error it described.
+   */
+  errorCode: IpcErrorCode | null;
 
   // Actions
   initialize: () => Promise<void>;
-  setViewMode: (mode: ModuleViewMode) => void;
+  setActiveTypeTab: (tab: ModuleManagerTab) => void;
+  setInstallFilter: (filter: ModuleInstallFilter) => void;
   clearError: () => void;
 }
 
 export const createLifecycleSlice: StateCreator<ModuleState, [], [], LifecycleSlice> = (set, get) => ({
   isInitialized: false,
   initError: null,
-  viewMode: 'available',
+  activeTypeTab: 'bible',
+  installFilter: 'all',
   error: null,
+  errorCode: null,
 
   // Initialize module manager
   initialize: async () => {
@@ -45,13 +65,16 @@ export const createLifecycleSlice: StateCreator<ModuleState, [], [], LifecycleSl
     }
   },
 
-  // Set view mode
-  setViewMode: (mode: ModuleViewMode) => {
-    set({ viewMode: mode });
+  setActiveTypeTab: (tab: ModuleManagerTab) => {
+    set({ activeTypeTab: tab });
+  },
+
+  setInstallFilter: (filter: ModuleInstallFilter) => {
+    set({ installFilter: filter });
   },
 
   // Clear error
   clearError: () => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
   },
 });

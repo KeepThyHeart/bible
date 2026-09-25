@@ -39,6 +39,7 @@
   "app.startTour.category": "Aplicación",
   "app.checkForUpdates": "Buscar actualizaciones…",
   "app.checkForUpdates.category": "Aplicación",
+  "app.checkForUpdates.alias.0": "actualizar",
   "app.toggleDevTools": "Alternar herramientas de desarrollo",
   "app.toggleDevTools.category": "Aplicación",
   "app.toggleDevTools.alias.0": "devtools",

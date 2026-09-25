@@ -11,7 +11,7 @@
  * notice both read correctly here for that reason.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import StudyPane from './StudyPane';
@@ -148,7 +148,15 @@ interface ElectronStubOptions {
   entriesByModule?: Record<string, Array<{ entry_id: number; entry_level: string; content: string }>>;
   xrefModules?: Array<{ abbreviation: string; name: string }>;
   xrefGroups?: unknown[];
+  topicalModules?: Array<{ abbreviation: string; name: string }>;
 }
+
+/** One module of every kind: installed, but with nothing for the verse. */
+const ALL_INSTALLED: ElectronStubOptions = {
+  commentaries: [{ abbreviation: 'Wesley', name: 'Wesley' }],
+  xrefModules: [{ abbreviation: 'TSK', name: 'TSK' }],
+  topicalModules: [{ abbreviation: 'Nave', name: 'Nave' }],
+};
 
 function stubElectron(options: ElectronStubOptions = {}): void {
   const commentaries = options.commentaries ?? [];
@@ -161,7 +169,10 @@ function stubElectron(options: ElectronStubOptions = {}): void {
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
     diagnostics: { reportRendererError: vi.fn() },
     window: { detachPane: vi.fn() },
-    topical: { getTopicsForVerse: vi.fn().mockResolvedValue([]) },
+    topical: {
+      getTopicsForVerse: vi.fn().mockResolvedValue([]),
+      getAvailable: vi.fn().mockResolvedValue(options.topicalModules ?? []),
+    },
     commentary: {
       getAvailableCommentaries: vi.fn().mockResolvedValue(commentaries),
       getEntriesForVerse: vi.fn().mockImplementation((abbr: string) =>
@@ -310,6 +321,7 @@ describe('StudyPane', () => {
 
     it('empty-section notes ("noTopics"/"noCommentaries"/"noCrossReferences") are not hardcoded px', async () => {
       mockUseStudyPanel.mockReturnValue({ ...defaultPanelState, currentVerseId: JOHN_3_16 });
+      stubElectron(ALL_INSTALLED);
       renderWithProviders(<StudyPane panelId="study_default" />);
 
       const noTopics = await screen.findByText(enString('studyPane.noTopics'));
@@ -502,10 +514,28 @@ describe('StudyPane', () => {
     });
 
     it('shows an empty note per section rather than nothing', async () => {
+      stubElectron(ALL_INSTALLED);
       renderWithProviders(<StudyPane panelId="study_default" />);
       expect(await screen.findByText(enString('studyPane.noTopics'))).toBeInTheDocument();
       expect(screen.getByText(enString('studyPane.noCommentaries'))).toBeInTheDocument();
       expect(screen.getByText(enString('studyPane.noCrossReferences'))).toBeInTheDocument();
+    });
+
+    it('says which kind of module is missing, and offers the Module Manager, when none is installed', async () => {
+      const opened = vi.fn();
+      window.addEventListener('command:module:openManager', opened);
+      stubElectron();
+      renderWithProviders(<StudyPane panelId="study_default" />);
+
+      expect(await screen.findByText(enString('studyPane.noTopicalInstalled'), { exact: false })).toBeInTheDocument();
+      expect(screen.getByText(enString('studyPane.noCommentaryInstalled'), { exact: false })).toBeInTheDocument();
+      expect(screen.getByText(enString('studyPane.noCrossReferencesInstalled'), { exact: false })).toBeInTheDocument();
+      // "No commentary entries for this verse" would blame the verse.
+      expect(screen.queryByText(enString('studyPane.noCommentaries'))).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('study-install-commentary'));
+      expect((opened.mock.calls[0][0] as CustomEvent).detail).toEqual({ moduleType: 'commentary' });
+      window.removeEventListener('command:module:openManager', opened);
     });
   });
 

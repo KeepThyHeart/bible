@@ -45,9 +45,25 @@
 export * from './Core/ISql';
 export * from './Core/IRepository';
 export * from './Core/Types';
+
+// Module Format v2 - format constants, the version gate, and the content registry.
+export * from './Format/ModuleFormat';
+
+// F3 (task 0027, revision 2): the canonical content digest, computed over a
+// module's DECODED content so it is stable across compression codecs.
+export * from './Format/contentDigest';
+
+// F5 (task 0027, revision 2): the one conformance rule table for a module
+// file, shared by the install gate and the boot-time filesystem scan.
+export * from './Format/validateModuleFile';
+
+// Swappable Data Access layer (task 0026) - types and the keyword-index
+// registry. Pure addition: nothing outside ./Access calls any of this yet.
+export * from './Access';
 export * from './Core/CatalogTypes';
 export * from './Core/FeaturePackTypes';
 export * from './Core/StarterPackTypes';
+export * from './Core/BundledStarterPacks';
 export * from './Core/ModuleVersion';
 export * from './Core/StrongsNumberHelper';
 export * from './Core/JsonHelpers';
@@ -156,6 +172,8 @@ export * from './Repositories/ICrossReferenceRepository';
 export * from './Repositories/ITagGraphRepository';
 export * from './Repositories/IEnrichmentRepository';
 export * from './Repositories/IVerseLinkRepository';
+// F8 (task 0027 revision 2): durable keyword-index state in main.db.
+export * from './Repositories/IKeywordIndexRepository';
 
 // Repository implementations
 export * from './Repositories/BibleBookRepository';
@@ -180,6 +198,7 @@ export * from './Repositories/TagGraphRepository';
 export * from './Repositories/EnrichmentRepository';
 export * from './Repositories/BibleSearchRepository';
 export * from './Repositories/VerseLinkRepository';
+export * from './Repositories/KeywordIndexRepository';
 
 // Text normalization + formatting types
 export * from './Text';

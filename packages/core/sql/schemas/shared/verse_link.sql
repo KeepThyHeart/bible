@@ -73,7 +73,8 @@ CREATE TABLE verse_link (
 );
 
 CREATE INDEX idx_verse_link_source ON verse_link(source_type, source_id, sort_order);
-CREATE INDEX idx_verse_link_start  ON verse_link(verse_id_start);
+-- idx_verse_link_start (verse_id_start) was dropped: it is a strict prefix of
+-- idx_verse_link_range (verse_id_start, verse_id_end) below.
 CREATE INDEX idx_verse_link_range  ON verse_link(verse_id_start, verse_id_end);
 -- R-2: the reverse pair, so a containment probe (start <= X AND end >= X) can be
 -- driven from either side. Cheap, and only useful once end is NOT NULL.

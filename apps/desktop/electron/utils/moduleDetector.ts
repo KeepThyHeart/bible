@@ -1,21 +1,57 @@
-import { readdirSync, statSync, existsSync, mkdirSync } from 'fs';
+import { readdirSync, statSync, existsSync, mkdirSync, openSync, readSync, closeSync } from 'fs';
 import { join } from 'path';
 import log from 'electron-log';
 import { getDataPath, getUserModulesPath, resolveMainDbPath } from './appPaths';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import {
   ModuleMetadataRepository,
-  BibleRepository,
-  CommentaryRepository,
-  DictionaryRepository,
-  TopicalIndexRepository,
-  CrossReferenceRepository,
+  SqliteModuleRepositoryFactory,
+  wrapSqlConnection,
   ModuleMetadata,
   ModuleType,
   crossReferenceSlugs,
   isCrossReferenceSourceCommentary,
-  isCrossReferenceSourceCommentaryPath
+  isCrossReferenceSourceCommentaryPath,
+  hasSqliteHeader,
+  validateModuleFile,
+  nodeCodecRegistry,
+  SQLITE_MODULE_EXTENSIONS
 } from '@bible/core';
+import type { FormatVersionKind, ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
+
+/**
+ * Task 0034 (finishing M11): the factory `getModuleInfoFromDatabase()` routes
+ * construction through below, instead of `new XRepository(db)` per branch.
+ * Codecs deliberately default via `nodeCodecRegistry()`, matching what each
+ * repository's own constructor fell back to before this migration.
+ */
+const detectorRepositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const detectorCodecs: ICodecRegistry = nodeCodecRegistry();
+
+/**
+ * First 16 bytes of `path`, or `null` if fewer than 16 could be read at all.
+ * Never throws - this scan is best-effort over a directory that may contain
+ * anything, including a truncated download or a non-module file a user
+ * dropped in by hand. The byte comparison itself is `hasSqliteHeader()`, in
+ * `@bible/core` - kept in exactly one place so this file and
+ * `InstallationService.ts`'s equivalent helper can never drift against each
+ * other (see F5, task 0027).
+ */
+function readHeaderBytes(path: string): Uint8Array | null {
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, 'r');
+    const buffer = Buffer.alloc(16);
+    const bytesRead = readSync(fd, buffer, 0, 16, 0);
+    return bytesRead < 16 ? null : buffer;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) {
+      try { closeSync(fd); } catch { /* already closed */ }
+    }
+  }
+}
 
 /**
  * Module detection and registration helper
@@ -36,6 +72,16 @@ interface ModuleDetectionResult {
  * @example
  * - "bible_kjv.db" -> "bible"
  * - "commentary_wesley.db" -> "commentary"
+ *
+ * M11 (task 0026, revision 2) moved the accepted FILE EXTENSION off a literal
+ * onto `IModuleStore.extensions` (see the `.filter()` call above), but
+ * deliberately leaves this prefix -> `ModuleType` mapping as it is: nothing in
+ * `IModuleStore` names a filename-prefix convention (only `extensions` and
+ * `canOpen()`/`open()`, which operate on a whole locator, not a type
+ * decision), and only one store exists to ask today, so adding a speculative
+ * "which store claims this prefix" concept here would be new surface with no
+ * real second implementation to justify its shape yet. This stays a small,
+ * self-contained, well-tested mapping.
  */
 function getModuleTypeFromFilename(filename: string): ModuleType | null {
   // tag_graph.db carries no abbreviation segment, so match it before splitting.
@@ -58,23 +104,44 @@ function getModuleTypeFromFilename(filename: string): ModuleType | null {
   return prefixMap[prefix] ?? null;
 }
 
+/** What `getModuleInfoFromDatabase` reports about a module file. */
+interface DetectedModuleInfo {
+  moduleUuid?: string;
+  moduleName: string;
+  abbreviation: string;
+  version?: string;
+  languageCode?: string;
+  /**
+   * `module_info.format_version`'s classification, from the same F5 rule
+   * table `InstallationService.validateModuleForInstall` uses - `undefined`
+   * only if `module_info` itself could not be read (which the `moduleUuid`
+   * check just above this field's one call site already guards against, so
+   * in practice this is always set whenever `moduleUuid` is too). See
+   * `validateModuleFile`'s doc comment in `@bible/core`.
+   */
+  formatVersionKind?: FormatVersionKind;
+}
+
 /**
  * Read module info from a module database
  */
 function getModuleInfoFromDatabase(
   moduleType: ModuleType,
   dbPath: string
-): { moduleUuid?: string; moduleName: string; abbreviation: string; version?: string; languageCode?: string } | null {
+): DetectedModuleInfo | null {
   try {
     const db = new SqliteProvider(dbPath);
 
-    let result: { moduleUuid?: string; moduleName: string; abbreviation: string; version?: string; languageCode?: string } | null = null;
+    let result: DetectedModuleInfo | null = null;
 
-    // Read module_info based on module type
+    // Read module_info based on module type. Task 0034 (finishing M11): each
+    // branch constructs its repository through `IModuleRepositoryFactory`
+    // instead of `new XRepository(db)`.
+    const conn = wrapSqlConnection(db);
     switch (moduleType) {
       case 'bible': {
-        const repo = new BibleRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'bible', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -88,8 +155,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'commentary': {
-        const repo = new CommentaryRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'commentary', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -104,8 +171,8 @@ function getModuleInfoFromDatabase(
 
       case 'dictionary':
       case 'lexicon': {
-        const repo = new DictionaryRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'dictionary', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -119,8 +186,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'topical_index': {
-        const repo = new TopicalIndexRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'topicalIndex', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -134,8 +201,8 @@ function getModuleInfoFromDatabase(
       }
 
       case 'cross_reference': {
-        const repo = new CrossReferenceRepository(db);
-        const info = repo.getModuleInfo();
+        const repo = detectorRepositoryFactory.create(conn, 'crossRef', detectorCodecs);
+        const info = repo?.getModuleInfo();
         if (info) {
           result = {
             moduleUuid: info.moduleUuid,
@@ -152,7 +219,20 @@ function getModuleInfoFromDatabase(
       case 'devotional':
       case 'tag_graph': {
         // For now, we'll extract basic info from the database
-        // TODO: Implement BookRepository and DevotionalRepository with getModuleInfo()
+        // TODO: Implement DevotionalRepository with getModuleInfo()
+        //
+        // M11 (task 0026, revision 2) considered routing the 'book' branch
+        // through the now-implemented `BookRepository.getModuleInfo()`
+        // (`@bible/core`) instead of this raw query, and deliberately left it
+        // as is: `BaseModuleInfo` has no fallback for a missing `full_name`
+        // ("Unknown"), a missing `abbreviation` (derived from the name here)
+        // or a missing `language_code` ("en") the way this defensive branch
+        // does, so swapping would be an observable behavior change for any
+        // legacy/malformed book file that is missing one of those columns -
+        // exactly the input this fallback exists to tolerate. 'devotional'
+        // has no repository class at all, and 'tag_graph' (`TagGraphRepository`)
+        // has no `getModuleInfo()`/module_info concept whatsoever, so neither
+        // of those two can route through a repository regardless.
         const row = db.queryOne('SELECT * FROM module_info WHERE info_id = 1');
         if (row) {
           const fullName = String(row.full_name || row.title || 'Unknown');
@@ -167,6 +247,19 @@ function getModuleInfoFromDatabase(
         }
         break;
       }
+    }
+
+    // F5 (task 0027): the boot scan's format_version gap. Reuses the SAME
+    // open connection above rather than a second query written by hand here
+    // - `validateModuleFile()` is the one place the allow-list check lives
+    // (never re-implemented locally, per its doc comment). Only the
+    // classification is carried out; `moduleUuid`'s presence just below this
+    // function's one call site is still that separate, pre-existing check -
+    // and `compression`/codec availability is not this call site's concern
+    // at all (blank cell for the boot scan in the F5 design doc's table).
+    if (result) {
+      const validation = validateModuleFile(db, nodeCodecRegistry());
+      result.formatVersionKind = validation.formatVersionKind;
     }
 
     db.close();
@@ -236,6 +329,18 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
     const mainDb = new SqliteProvider(mainDbPath);
     const metadataRepo = new ModuleMetadataRepository(mainDb);
 
+    // Modules installed from the catalog by earlier builds were registered as
+    // `topical` / `xref`, which nothing looks up. Rename them in place.
+    for (const [legacy, canonical] of [['topical', 'topical_index'], ['xref', 'cross_reference']]) {
+      try {
+        mainDb.execute('UPDATE module_metadata SET module_type = ? WHERE module_type = ?', [canonical, legacy]);
+      } catch (error) {
+        // An old main.db whose CHECK rejects the canonical name is rebuilt by
+        // migration 005; there is nothing to repair until then.
+        log.warn(`[moduleDetector] Could not rename ${legacy} modules to ${canonical}: ${error}`);
+      }
+    }
+
     // Build a set of already-registered database paths so we can skip known modules
     // This avoids opening every .db file on every startup just to re-read metadata
     //
@@ -254,13 +359,21 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
     // `xref_<slug>.db` need not live in the same directory (one can be bundled
     // and the other downloaded), so the shadowing rule cannot be evaluated one
     // directory at a time.
+    // M11 (task 0026, revision 2): the accepted extension list is
+    // `SQLITE_MODULE_EXTENSIONS` (`@bible/core`, currently just `['.db']`) -
+    // the same constant `SqliteModuleStore.extensions` is built from -
+    // rather than a literal repeated here. Every module file this app can
+    // currently open is SQLite, so this resolves to exactly the old
+    // `f.endsWith('.db')` today; a second store (a CSV/JSON backend) would
+    // extend the accepted set in one place instead of here.
     const filesByDir = moduleDirs.map(dir => ({
       dir,
-      moduleFiles: readdirSync(dir.path).filter(f =>
-        f.endsWith('.db') &&
-        !f.startsWith('main') &&
-        !f.startsWith('user')
-      )
+      moduleFiles: readdirSync(dir.path).filter(f => {
+        const lower = f.toLowerCase();
+        return SQLITE_MODULE_EXTENSIONS.some(ext => lower.endsWith(ext)) &&
+          !f.startsWith('main') &&
+          !f.startsWith('user');
+      })
     }));
     const xrefSlugs = crossReferenceSlugs(filesByDir.flatMap(entry => entry.moduleFiles));
 
@@ -319,6 +432,21 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
         result.detected++;
 
         try {
+          // F5 (task 0027): the SQLite header, checked BEFORE anything opens
+          // the file - a real byte comparison, not "did opening throw". This
+          // is the gap the boot scan had: a truncated download or a
+          // non-SQLite file dropped into the modules folder used to either
+          // crash this scan or fall through to a confusing error out of
+          // `getModuleInfoFromDatabase` below. See `hasSqliteHeader`'s doc
+          // comment in `@bible/core`.
+          const header = readHeaderBytes(fullPath);
+          if (!header || !hasSqliteHeader(header)) {
+            const error = `Skipping ${file}: does not begin with the SQLite file header (corrupt file, or not a module database)`;
+            log.error(error);
+            result.errors.push(error);
+            continue;
+          }
+
           // Only open .db files for NEW modules not yet registered
           const moduleInfo = getModuleInfoFromDatabase(moduleType, fullPath);
 
@@ -338,6 +466,18 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
           // dropped into the modules directory land here.
           if (!moduleInfo.moduleUuid) {
             const error = `Skipping ${file}: no module_info.module_uuid (pre-2.0 module; re-export in the current format)`;
+            log.error(error);
+            result.errors.push(error);
+            continue;
+          }
+
+          // F5: format_version, skip + report rather than crash or silently
+          // mis-register - see this function's `validateModuleFile()` call
+          // above. A legacy '2.0' module classifies as 'legacy', not
+          // 'unsupported', and registers normally; only a genuinely unknown
+          // or newer-than-this-build version is skipped here.
+          if (moduleInfo.formatVersionKind === 'unsupported') {
+            const error = `Skipping ${file}: unsupported module format_version (this build cannot read it; re-export in a supported format)`;
             log.error(error);
             result.errors.push(error);
             continue;

@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next._
+_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next.  ALSO: I am reworking the module format somewhat before a first beta release, as well as some of the architecture, and so the development clone may be temporarily broken but should be fixed soon._
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
@@ -104,6 +104,9 @@ A module is one SQLite `.db` file with a type prefix: `bible_kjv.db`, `commentar
 |---|---|---|
 | `starter` (the default) | about 80 MB | KJV, ASV, Barnes, Easton, StrongsGreek, StrongsHebrew, NaveTopics, TSKxref, Scofield, Wesley |
 | `tests` | about 170 MB | `starter` plus Clarke, Concord, AmTract and MHC: every module a test suite names |
+| `essentials` | about 240 MB | The recommended set the desktop app offers at first run: KJV, WEBBE, Combined Summary (SYNTHESIS), MHC, Barnes, Gill, Wesley, TSK, Strong's Greek and Hebrew, Easton, Webster 1828, Nave's and Torrey's topical |
+
+Any pack in `packages/core/src/Data/Core/starter-packs.json` can be named the same way (`npm run init:modules -- --select=essentials`).
 
 The sizes are downloads; unpacked, the modules take several times as much disk space.
 

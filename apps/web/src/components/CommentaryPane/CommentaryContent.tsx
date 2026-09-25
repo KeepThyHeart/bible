@@ -95,7 +95,7 @@ export function CommentaryContent({ bibleProvider }: CommentaryContentProps) {
   if (loading) {
     return (
       <div class="commentary-content commentary-content--loading">
-        <i class="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }} />
+        <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
         {t('commentaryContent.loading')}
       </div>
     );

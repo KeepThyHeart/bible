@@ -5,11 +5,11 @@ import { useBibleStore } from '../stores/useBibleStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useCommands } from '../contexts/useCommands';
 import { useWhenContext } from '../contexts/useWhenContext';
-import { ReferenceParser } from '@bible/core';
 import type { ParsedReference, SearchResult } from '@bible/core';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import { tElements } from '../utils/tElements';
 import { ReferenceClassifier } from '../services/ReferenceClassifier';
+import { getLocalizedReferenceParser } from '../services/localizedReferenceParser';
 import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
@@ -29,7 +29,6 @@ const FOCUS_SHORTCUT_LABEL =
   typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘L' : 'Ctrl+L';
 
 const classifierInstance = new ReferenceClassifier();
-const referenceParserInstance = new ReferenceParser();
 
 // ============================================================================
 // Mode detection
@@ -53,7 +52,7 @@ function determineMode(input: string): SearchBarMode {
  * render memoized from. See `resolveLiveQuery` below.
  */
 function parseReference(input: string): ParsedReference | undefined {
-  const parsed = referenceParserInstance.parse(input.trim());
+  const parsed = getLocalizedReferenceParser().parse(input.trim());
   if (!parsed.isValid || !parsed.book || !parsed.chapter) return undefined;
   return parsed;
 }
@@ -152,12 +151,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
 
   const referenceText = useMemo(() => {
     if (!parsedReference) return undefined;
-    return referenceParserInstance.format(parsedReference);
+    return getLocalizedReferenceParser().format(parsedReference);
   }, [parsedReference]);
 
   const referenceTarget = useMemo(() => {
     if (!parsedReference) return undefined;
-    const bookName = referenceParserInstance.getBookName(parsedReference.book!);
+    const bookName = getLocalizedReferenceParser().getBookName(parsedReference.book!);
     if (parsedReference.verse) {
       return `${bookName} ${parsedReference.chapter}:${parsedReference.verse}`;
     }
@@ -289,7 +288,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     const target = reference ?? parsedReference;
     if (!target) return;
 
-    const validationError = referenceParserInstance.validate(target);
+    const validationError = getLocalizedReferenceParser().validate(target);
     if (validationError) {
       console.error('Reference validation failed:', validationError);
       return;

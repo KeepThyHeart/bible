@@ -109,6 +109,28 @@ export interface StarterPack {
   archive?: StarterPackArchive | null;
 }
 
+/**
+ * A `StarterPack` the app is actually willing to offer, with the provenance
+ * that made it eligible.
+ *
+ * First run offers packs ONLY from the official catalog, verified against the
+ * pinned key (`verifiedOfficial: true`) - see `trustedCatalogKeys.ts`'s
+ * `isPinnedOfficialCatalog` and a catalog's `signatureStatus`. A pack's
+ * `module_ids` must also resolve against `catalogId`'s own `modules` array,
+ * never any other enabled catalog's - otherwise a third-party catalog could
+ * "shadow" an official module id with content of its own choosing. See
+ * `ModuleCatalogService.getStarterPacksForLanguage` /
+ * `getStarterPackModules` (desktop) for where this is enforced.
+ */
+export interface OfferedStarterPack extends StarterPack {
+  source: {
+    catalogId: number;
+    catalogName: string;
+    /** Always `true` today - `getStarterPacksForLanguage` filters to only these. */
+    verifiedOfficial: boolean;
+  };
+}
+
 /** Upper bound on starter packs read from one catalog. */
 export const MAX_STARTER_PACKS = 64;
 /** Upper bound on modules one pack may reference. */

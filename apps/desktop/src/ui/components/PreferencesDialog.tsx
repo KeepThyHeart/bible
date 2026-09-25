@@ -29,6 +29,7 @@ import { GeneralSection } from './PreferencesDialog/GeneralSection';
 import { TypographySection } from './PreferencesDialog/TypographySection';
 import { FontsSection } from './PreferencesDialog/FontsSection';
 import { ThemesSection } from './PreferencesDialog/ThemesSection';
+import { PrivacySection } from './PreferencesDialog/PrivacySection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
 
 interface PreferencesDialogProps {
@@ -167,6 +168,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'typography' && <TypographySection />}
             {activeSection === 'fonts' && <FontsSection initialPane={initialFontPane} />}
             {activeSection === 'themes' && <ThemesSection />}
+            {activeSection === 'privacy' && <PrivacySection />}
             {activeSection === 'extensions' && <ExtensionsSection />}
             {activeSection === 'diagnostics' && <DiagnosticsSettings />}
           </div>
