@@ -76,8 +76,15 @@ describe('bodyMetrics', () => {
   });
 
   test('the body shrinks by the chrome, and never below one row', () => {
-    expect(bodyMetrics({ columns: 88, rows: 24 }).height).toBe(18);
+    // Closed (the default): header, rule, body, rule, hints — 4 rows of chrome.
+    expect(bodyMetrics({ columns: 88, rows: 24 }).height).toBe(20);
     expect(bodyMetrics({ columns: 88, rows: 4 }).height).toBeGreaterThanOrEqual(1);
+  });
+
+  test('the open input line costs the body a row, closing it gives that row back', () => {
+    const closed = bodyMetrics({ columns: 88, rows: 24 }, 0, false).height;
+    const open = bodyMetrics({ columns: 88, rows: 24 }, 0, true).height;
+    expect(open).toBe(closed - 2); // the input row, and the rule beside it.
   });
 
   test('a short terminal drops chrome rather than the body', () => {
@@ -113,8 +120,9 @@ describe('header', () => {
 describe('input line and hints', () => {
   test('the cursor is reported at the end of what is typed', () => {
     const rendered = frame({ input: '16-17' });
-    expect(rendered.cursor.column).toBe(2 + '16-17'.length);
-    expect(stripAnsi(rendered.lines[rendered.cursor.row]!)).toBe('> 16-17');
+    expect(rendered.cursor).toBeDefined();
+    expect(rendered.cursor!.column).toBe(2 + '16-17'.length);
+    expect(stripAnsi(rendered.lines[rendered.cursor!.row]!)).toBe('> 16-17');
   });
 
   test('a message replaces the hints rather than shifting the layout', () => {
@@ -128,10 +136,24 @@ describe('input line and hints', () => {
   test('a notice sits directly above the input line', () => {
     const rendered = frame({ notice: [[{ text: 'John 3:16-17 selected' }]] });
     const noticeRow = rendered.lines.findIndex((l) => stripAnsi(l).includes('selected'));
-    const inputRow = rendered.cursor.row;
+    expect(rendered.cursor).toBeDefined();
+    const inputRow = rendered.cursor!.row;
     expect(noticeRow).toBeGreaterThan(-1);
     // Notice, then a rule, then the input line.
     expect(inputRow - noticeRow).toBe(2);
+  });
+
+  test('the input row does not exist while the line is closed', () => {
+    const rendered = frame({ inputOpen: false });
+    expect(rendered.cursor).toBeUndefined();
+    expect(rendered.lines.some((l) => stripAnsi(l).startsWith('> '))).toBe(false);
+  });
+
+  test('the footer says how to open the line only while it is closed', () => {
+    const closed = stripAnsi(frame({ inputOpen: false }).lines[23]!);
+    const open = stripAnsi(frame({ inputOpen: true }).lines[23]!);
+    expect(closed).toContain('/ go to or search');
+    expect(open).not.toContain('/ go to or search');
   });
 });
 

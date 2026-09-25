@@ -3,11 +3,14 @@
 A lightweight, read-only terminal Bible reader, built as a single
 self-contained executable: no runtime to install.
 
-One screen (`src/screens/Main.ts`): a Bible pane, and a Study pane beside it on
-a wide terminal (or swapped in for it on a narrow one). The Study pane shows
-cross references, commentaries, topics, dictionaries, books, history,
-bookmarks, options and search results, all through the same "type a number,
-press Enter" list. The module library (`^O`) is a second screen pushed on top.
+One screen (`src/screens/Main.ts`): a main pane on the left — the Bible in
+reading mode, or the open study resource in study mode — and, on a wide
+enough terminal, a narrower right-hand pane showing the current verse and the
+keyboard-shortcut legend for whatever is active. Study mode's resources
+(cross references, commentaries, topics, dictionaries, books, history,
+bookmarks, options, search results) mostly use the same "type a number, press
+Enter" list; options is a plain up/down-then-left/right menu. The module
+library (`^O`) is a second screen pushed on top.
 
 ## Requirements
 
@@ -105,7 +108,7 @@ src/
     library.ts          open modules, the canon, core's navigation service
     state.ts            ~/.bible/state.db: last place, options, bookmarks,
                         last commentary; the only file this app writes
-    layoutConfig.ts     constants for the wide/narrow split
+    layoutConfig.ts     constants for the main/right-pane split
     history.ts          this-session navigation history (`h`)
     studyPanes.ts       pure data for x/c/m/t/d/k: no rendering, no keys
     commentaryMarkup.ts HTML/Markdown module content -> terminal rows
@@ -120,7 +123,7 @@ src/
     bookIndex.ts  proximity-search index
   screens/
     types.ts      the screen contract
-    Main.ts       the Bible pane, the Study pane and every study view
+    Main.ts       the main pane, the right pane and every study view
     Modules.ts    the module library (`^O`), with a reason for every
                   unusable file
   term/
@@ -148,28 +151,44 @@ only place that turns that data into rows and owns a key.
 
 ## Keys
 
-The Study pane's hints line lists these live, with a count beside each where
-one applies; this is the same table for reference.
+The right pane's legend lists these live, with a count beside each where one
+applies (on a terminal too narrow for it, the footer's one-line hint does the
+same job, and `s` peeks at the full legend — see below); this is the same
+table for reference.
+
+**Reading mode** (main pane: the Bible):
 
 | Key | Does |
 |---|---|
 | `up` `down` | Move the verse cursor, rolling into the neighbouring chapter at either end |
 | `n` `>` / `p` `<` | Next / previous chapter |
-| `x` `c` `m` `t` `d` `k` | Cross-references, commentaries, last commentary, topics, dictionaries, books |
-| `h` `o` `b` | History, options (translation, layout, colour, ...), bookmarks |
-| `s` | Show/hide the Study pane (wide) or swap to/from it (narrow) |
-| `/` | Go to a passage, or search if it doesn't parse as one |
-| `pgup` `pgdn` / `space` | Scroll the Study pane (the arrows stay verse keys everywhere) |
+| `x` `c` `m` `t` `d` `k` | Cross-references, commentaries, last commentary, topics, dictionaries, books — each enters study mode |
+| `h` `o` `b` | History, options (translation, layout, colour, ...), bookmarks — also study mode |
+| `s` | On a narrow terminal (no right pane): peek at the shortcut legend, without leaving reading mode. No effect on a wide one — the right pane already shows it |
+| `/` | Go to a passage, or search if it doesn't parse as one — opens a popup with usage text and, once something is typed, a live preview of where it goes |
 | `shift+up` `shift+down` | Extend a range. `v` then `down` if your terminal keeps shift+arrow |
 | `alt+c` or `y` | Copy the cursor verse, or the selected range |
 | `^O` | The module library |
 | `q` | Quit |
-| a digit, then `Enter` | Pick a numbered row in whichever list is open |
-| anything else printable | Typed into the input line, once `/` has opened it |
+
+**Study mode** (main pane: the open resource — `x`/`c`/`m`/`t`/`d`/`k`/`h`/`o`/`b` above):
+
+| Key | Does |
+|---|---|
+| `up` `down` / `pgup` `pgdn` / `space` | Scroll the resource — the verse cursor is untouched |
+| `<` `>` | Step the verse cursor one at a time, staying on the same resource, for the views that follow the cursor (cross references, commentaries, topics). In a commentary entry, a step that would land inside the passage already showing is held rather than applied — `f` shows it anyway |
+| a digit, then `Enter` | Pick a numbered row, in the views that list one |
+| `up` `down` (in Options) | Select a setting |
+| `left` `right` (in Options) | Change the selected setting's value |
+| `?` | Expand/collapse the right pane's shortcut legend, for when there are more than fit |
+| `esc` | Back — one level, or out to reading mode |
+| `s` | Back to reading mode |
+
+`/` is shared: it always opens the popup, wherever you are.
 
 **A letter command fires only while the input line is empty (closed).** With
-the line open, every printable key is text: `s` is either "study" or the
-first letter of `still small voice`, and both cannot be true of the same
+the line open, every printable key is text: `s` is either "back to reading" or
+the first letter of `still small voice`, and both cannot be true of the same
 keystroke. `/` opens the line; there is no separate search prefix or command
 character to remember, and `//text` forces a search for text that would
 otherwise parse as a reference.

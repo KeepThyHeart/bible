@@ -95,6 +95,16 @@ export interface ScreenContext {
   readonly display: DisplaySettings;
   /** What is currently typed on the input line. */
   readonly input: string;
+  /**
+   * Whether the input line is open.
+   *
+   * A screen never sees a printable key while this is true (`app/App.ts`'s
+   * invariant), so it has had no reason to know this — until the "/" popup:
+   * `MainScreen` draws its usage/suggestions overlay only while the line is
+   * open, and needs to know that independently of `input`, which is `''` both
+   * before `/` is pressed and in the instant just after it.
+   */
+  readonly inputOpen: boolean;
   /** Every bookmark, in the user's own order (`b`). The shell owns
    * the list; a screen changes it with the `bookmarks` action. */
   readonly bookmarks: readonly Bookmark[];

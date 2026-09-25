@@ -99,6 +99,7 @@ function context(
     tab: DEFAULT_TAB,
     display: DEFAULT_DISPLAY,
     input,
+    inputOpen: input.length > 0,
     bookmarks: [],
     lastCommentary: undefined,
   };

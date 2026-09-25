@@ -42,10 +42,12 @@ function context(
   tab: Partial<TabState> = {},
   rows = 30,
   columns = 88,
-  extra: Partial<Pick<ScreenContext, 'bookmarks' | 'lastCommentary'>> = {},
+  extra: Partial<
+    Pick<ScreenContext, 'bookmarks' | 'lastCommentary' | 'input' | 'inputOpen' | 'display'>
+  > = {},
 ): ScreenContext {
   const size = { columns, rows };
-  const { width, height } = bodyMetrics(size);
+  const { width, height } = bodyMetrics(size, 0, extra.inputOpen ?? false);
   return {
     size,
     bodyWidth: width,
@@ -56,6 +58,7 @@ function context(
     tab: { ...DEFAULT_TAB, ...tab },
     display: DEFAULT_DISPLAY,
     input: '',
+    inputOpen: false,
     bookmarks: [],
     lastCommentary: undefined,
     ...extra,
@@ -114,13 +117,16 @@ describe.skipIf(!hasKjv)('the main screen — reading', () => {
     expect(text).not.toContain('Cross-References');
   });
 
-  test('`s` swaps the narrow screen to Study and back', () => {
+  test('`s` peeks at the shortcut legend on a narrow terminal, and back', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 80);
 
     const opened = syncAction(screen.key(key('char', 's'), ctx));
     expect(opened.kind).toBe('redraw');
     expect(textOf(screen.view(ctx))).toContain('Cross-References');
+    // Still reading mode underneath: up/down still move the verse, not the legend.
+    const moved = syncAction(screen.key(key('down'), ctx));
+    expect(moved.kind).toBe('tab');
 
     const closed = syncAction(screen.key(key('char', 's'), ctx));
     expect(closed.kind).toBe('redraw');
@@ -129,13 +135,15 @@ describe.skipIf(!hasKjv)('the main screen — reading', () => {
     expect(text).toContain('For God so loved the world');
   });
 
-  test('`s` hides and shows the wide Study pane', () => {
+  test('a wide terminal shows the shortcut legend continuously, and `s` has nothing to add there', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     expect(textOf(screen.view(ctx))).toContain('History');
 
     syncAction(screen.key(key('char', 's'), ctx));
-    expect(textOf(screen.view(ctx))).not.toContain('History');
+    // Still there — a wide terminal's right pane shows it whether or not the
+    // (narrow-only) peek flag is set.
+    expect(textOf(screen.view(ctx))).toContain('History');
   });
 
   test('up/down move the verse cursor and record it in history', () => {
@@ -163,9 +171,14 @@ describe.skipIf(!hasKjv)('the main screen — reading', () => {
 
     syncAction(screen.key(key('char', 'h'), ctx2));
     const historyText = textOf(screen.view(ctx2));
-    // Exactly one line for the pages through John — not three. Only the History
-    // pane's own numbered rows count: the chapter beside it may say "John" too.
-    const johnLines = historyText.split('\n').filter((l) => /│\s*▸?\d+\s+John \d+/.test(l));
+    // Exactly one line for the pages through John — not three. Only the
+    // History list's own numbered rows count: history is now the *main*
+    // pane's content (left of the divider), and the right pane's own current-
+    // verse title may say "John" too, so only the left side is searched.
+    const johnLines = historyText
+      .split('\n')
+      .map((l) => l.split('│')[0] ?? '')
+      .filter((l) => /▸?\d+\s+John \d+/.test(l));
     expect(johnLines).toHaveLength(1);
   });
 
@@ -212,6 +225,113 @@ describe.skipIf(!hasKjv)('the main screen — reading', () => {
   test('`q` quits', () => {
     const screen = new MainScreen();
     expect(syncAction(screen.key(key('char', 'q'), context(at(GENESIS, 1, 1)))).kind).toBe('quit');
+  });
+});
+
+describe.skipIf(!hasKjv)('the main screen — settings bugs (0041)', () => {
+  test('the Layout setting is no longer hardcoded to paragraph mode', () => {
+    const screen = new MainScreen();
+    const paragraph = textOf(screen.view(context(at(JOHN, 3, 16))));
+    expect(paragraph).toContain('¹⁶For God so loved');
+
+    // Same `screen` instance, same verse — only `displayMode` differs, which
+    // also exercises the cache-key fix: a fresh `MainScreen` would prove
+    // nothing about the cache, since it would recompute from cold either way.
+    const numbered = textOf(screen.view(context({ ...at(JOHN, 3, 16), displayMode: 'numbered' })));
+    expect(numbered).not.toContain('¹⁶For God so loved');
+    expect(numbered).toContain('For God so loved');
+  });
+
+  test('"break on verse" takes effect on its own, with no other setting touched first', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16));
+    const off = textOf(screen.view(ctx)); // seed the cache at the default (break on verse: off)
+
+    const on = context(at(JOHN, 3, 16), 30, 88, { display: { ...DEFAULT_DISPLAY, breakOnVerse: true } });
+    const withBreaks = textOf(screen.view(on));
+
+    // A blank line between every verse: far more paragraph breaks than the
+    // module's own formatting alone produces over the same window — not
+    // dependent on which two verses the current scroll position happens to
+    // show adjacent to each other.
+    const blanksOff = (off.match(/\n\n/g) ?? []).length;
+    const blanksOn = (withBreaks.match(/\n\n/g) ?? []).length;
+    expect(blanksOn).toBeGreaterThan(blanksOff);
+  });
+
+  test('verse numbers take effect on their own, with no other setting touched first', () => {
+    const screen = new MainScreen();
+    const withNumbers = textOf(screen.view(context(at(JOHN, 3, 16))));
+    expect(withNumbers).toContain('¹⁶For God so loved');
+
+    const hidden = context(at(JOHN, 3, 16), 30, 88, {
+      display: { ...DEFAULT_DISPLAY, verseNumbers: 'hidden' },
+    });
+    const withoutNumbers = textOf(screen.view(hidden));
+    expect(withoutNumbers).not.toContain('¹⁶');
+    expect(withoutNumbers).toContain('For God so loved');
+  });
+});
+
+describe.skipIf(!hasKjv)('the main screen — the two-pane layout', () => {
+  test('a wide terminal shows the current verse and the shortcut legend in the right pane', () => {
+    const screen = new MainScreen();
+    const text = textOf(screen.view(context(at(JOHN, 3, 16), 30, 140)));
+    expect(text).toContain('For God so loved the world'); // main pane: the chapter
+    expect(text).toContain('John 3:16'); // right pane: current verse reference
+    expect(text).toContain('Cross-References'); // right pane: the shortcut legend
+  });
+
+  test('the right pane disappears below the breakpoint; the footer hint carries the shortcuts instead', () => {
+    const screen = new MainScreen();
+    const view = screen.view(context(at(JOHN, 3, 16), 30, 80));
+    expect(textOf(view)).not.toContain('Cross-References');
+    expect(view.hints).toContain('/ go to or search');
+  });
+
+  test('study mode puts the resource in the main pane; the right pane keeps showing the current verse', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140);
+    screen.view(ctx);
+    syncAction(screen.key(key('char', 'x'), ctx));
+    const text = textOf(screen.view(ctx));
+    expect(text).toContain('Cross-References'); // main pane, now the resource
+    expect(text).toContain('John 3:16'); // right pane, still the current verse
+  });
+});
+
+describe.skipIf(!hasKjv)('the main screen — the "/" popup', () => {
+  test('the line closed draws no popup; opened it shows usage text', () => {
+    const screen = new MainScreen();
+    const closed = screen.view(context(at(JOHN, 3, 16), 30, 140, { inputOpen: false }));
+    expect(closed.overlay).toBeUndefined();
+
+    const opened = screen.view(context(at(JOHN, 3, 16), 30, 140, { inputOpen: true, input: '' }));
+    expect(opened.overlay).toBeDefined();
+    expect(opened.overlay?.title).toBe('Go to or search');
+  });
+
+  test('typing a reference previews where it goes; typing plain text previews a search', () => {
+    const screen = new MainScreen();
+    const rowsText = (ctx: ScreenContext): string =>
+      (screen.view(ctx).overlay?.rows ?? [])
+        .map((r) => stripAnsi(renderStyledLine(r, theme.depth)))
+        .join('\n');
+
+    const ref = context(at(JOHN, 3, 16), 30, 140, { inputOpen: true, input: 'romans 8:28' });
+    expect(rowsText(ref)).toContain('Romans 8:28');
+
+    const search = context(at(JOHN, 3, 16), 30, 140, { inputOpen: true, input: 'everlasting life' });
+    expect(rowsText(search)).toContain('Search for "everlasting life"');
+  });
+
+  test('typing the start of a book name suggests matches', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140, { inputOpen: true, input: 'jo' });
+    const text = (screen.view(ctx).overlay?.rows ?? [])
+      .map((r) => stripAnsi(renderStyledLine(r, theme.depth)))
+      .join('\n');
+    expect(text).toContain('Books:');
   });
 });
 
@@ -332,7 +452,7 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes', () => {
     if (action.kind === 'message') expect(action.tone).toBe('error');
   });
 
-  test('`pagedown` scrolls the Study pane while the arrows still move the verse', () => {
+  test('in study mode, `pagedown` and `↓` both scroll the list — the verse cursor is untouched', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
@@ -342,9 +462,27 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes', () => {
     const scrolled = syncAction(screen.key(key('pagedown'), ctx));
     expect(scrolled.kind).toBe('redraw');
 
-    // The verse cursor is untouched by paging the Study pane.
+    // `↓` scrolls too now (Navigation: study mode's arrows browse the
+    // resource, not the verse) — it is `redraw`, not a `tab` action.
     const moved = syncAction(screen.key(key('down'), ctx));
-    expect(moved.kind).toBe('tab');
+    expect(moved.kind).toBe('redraw');
+  });
+
+  test('in study mode, `<`/`>` step the verse cursor while staying on cross references', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140);
+    screen.view(ctx);
+    syncAction(screen.key(key('char', 'x'), ctx));
+
+    const action = syncAction(screen.key(key('char', '>'), ctx));
+    expect(action.kind).toBe('tab');
+    if (action.kind === 'tab') {
+      expect(VerseIdHelper.parse(action.tab.cursorVerse).verse).toBe(17);
+    }
+    // Still on cross references — a verse step within study mode does not
+    // pop back to reading the way picking a cross reference does.
+    const ctx2 = action.kind === 'tab' ? context(action.tab, 30, 140) : ctx;
+    expect(textOf(screen.view(ctx2))).toContain('Cross-References');
   });
 });
 
@@ -445,7 +583,7 @@ describe.skipIf(!hasBook)('the main screen — books', () => {
 });
 
 describe.skipIf(!hasKjv)('the main screen — options', () => {
-  test('`o` lists every setting, numbered', () => {
+  test('`o` lists every setting, with the first one selected', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
@@ -456,63 +594,82 @@ describe.skipIf(!hasKjv)('the main screen — options', () => {
     expect(listed).toContain('Translation');
     expect(listed).toContain('Layout');
     expect(listed).toContain('Colour');
+    expect(listed).toMatch(/▸ Translation/);
   });
 
-  test('row 2 (Layout) cycles the tab’s display mode, not a global display setting', () => {
+  test('↑/↓ move the selected row without changing any value', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
 
     syncAction(screen.key(key('char', 'o'), ctx));
-    syncAction(screen.key(key('char', '0'), ctx));
-    syncAction(screen.key(key('char', '2'), ctx));
-    const action = syncAction(screen.key(key('enter'), ctx));
+    const moved = syncAction(screen.key(key('down'), ctx));
+    expect(moved.kind).toBe('redraw');
+    expect(textOf(screen.view(ctx))).toMatch(/▸ Layout/);
+
+    // Up past the top stays on the first row rather than wrapping or erroring.
+    syncAction(screen.key(key('up'), ctx));
+    syncAction(screen.key(key('up'), ctx));
+    expect(textOf(screen.view(ctx))).toMatch(/▸ Translation/);
+  });
+
+  test('↓ to Layout (row 2), then → changes the tab’s display mode, not a global display setting', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140);
+    screen.view(ctx);
+
+    syncAction(screen.key(key('char', 'o'), ctx));
+    syncAction(screen.key(key('down'), ctx));
+    const action = syncAction(screen.key(key('right'), ctx));
     expect(action.kind).toBe('tab');
     if (action.kind === 'tab') expect(action.tab.displayMode).toBe('numbered');
   });
 
-  test('row 4 (Break on verse) cycles a global display setting', () => {
+  test('↓ to Break on verse (row 4), then → changes a global display setting', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
 
     syncAction(screen.key(key('char', 'o'), ctx));
-    syncAction(screen.key(key('char', '0'), ctx));
-    syncAction(screen.key(key('char', '4'), ctx));
-    const action = syncAction(screen.key(key('enter'), ctx));
+    syncAction(screen.key(key('down'), ctx));
+    syncAction(screen.key(key('down'), ctx));
+    syncAction(screen.key(key('down'), ctx));
+    const action = syncAction(screen.key(key('right'), ctx));
     expect(action.kind).toBe('display');
     if (action.kind === 'display') expect(action.display.breakOnVerse).toBe(true);
   });
 
-  test('row 1 (Translation) returns a tab action naming the next installed Bible, wrapping round', () => {
+  test('→ on Translation (row 1) returns a tab action naming the next installed Bible, wrapping round; ← steps back', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
 
     syncAction(screen.key(key('char', 'o'), ctx));
-    syncAction(screen.key(key('char', '0'), ctx));
-    syncAction(screen.key(key('char', '1'), ctx));
-    const action = syncAction(screen.key(key('enter'), ctx));
-    expect(action.kind).toBe('tab');
+    const forward = syncAction(screen.key(key('right'), ctx));
+    expect(forward.kind).toBe('tab');
     // Whatever is installed, alphabetically: with only KJV that is KJV again.
     const installed = library()
       .bibleModules()
       .map((m) => m.abbreviation.toUpperCase())
       .sort((a, b) => a.localeCompare(b));
     const expected = installed[(installed.indexOf('KJV') + 1) % installed.length];
-    if (action.kind === 'tab') expect(action.tab.translation).toBe(expected);
+    if (forward.kind === 'tab') expect(forward.tab.translation).toBe(expected);
+
+    // `left` is evaluated against the same, unchanged `ctx` (still KJV) — a
+    // step backward from KJV, not an undo of the step forward above.
+    const back = syncAction(screen.key(key('left'), ctx));
+    expect(back.kind).toBe('tab');
+    const expectedBack = installed[(installed.indexOf('KJV') - 1 + installed.length) % installed.length];
+    if (back.kind === 'tab') expect(back.tab.translation).toBe(expectedBack);
   });
 
-  test('an out-of-range setting number reports an error instead of crashing', () => {
+  test('a digit does nothing — there is no numbered entry any more', () => {
     const screen = new MainScreen();
     const ctx = context(at(JOHN, 3, 16), 30, 140);
     screen.view(ctx);
     syncAction(screen.key(key('char', 'o'), ctx));
-    syncAction(screen.key(key('char', '9'), ctx));
-    syncAction(screen.key(key('char', '9'), ctx));
-    const action = syncAction(screen.key(key('enter'), ctx));
-    expect(action.kind).toBe('message');
-    if (action.kind === 'message') expect(action.tone).toBe('error');
+    const action = syncAction(screen.key(key('char', '9'), ctx));
+    expect(action.kind).toBe('none');
   });
 
   test('`esc` backs out of Options to the hints', () => {
@@ -712,6 +869,40 @@ describe.skipIf(!hasStudyModules)('the main screen — `m` persists the last com
     // Already the remembered one — nothing new to persist.
     expect(reopened.kind).toBe('redraw');
     expect(textOf(screen.view(remembered))).toBe(firstText);
+  });
+});
+
+describe.skipIf(!hasStudyModules)('the main screen — `<`/`>` in a commentary entry', () => {
+  // These stop short of asserting the "same passage" notice's exact wording
+  // against a specific MHC entry: which verses share an entry is a fact of
+  // the installed module's content, not this screen's logic. What is this
+  // screen's logic — that stepping never crashes, never falls back to
+  // chapter navigation, and `f` is inert with nothing pending — is asserted
+  // directly.
+
+  test('`f` does nothing when no step is being held', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140);
+    screen.view(ctx);
+    syncAction(screen.key(key('char', 'm'), ctx));
+    const action = syncAction(screen.key(key('char', 'f'), ctx));
+    expect(action.kind).toBe('none');
+  });
+
+  test('`>` either steps the verse or holds it for confirmation — never a chapter jump', () => {
+    const screen = new MainScreen();
+    const ctx = context(at(JOHN, 3, 16), 30, 140);
+    screen.view(ctx);
+    syncAction(screen.key(key('char', 'm'), ctx));
+
+    const action = syncAction(screen.key(key('char', '>'), ctx));
+    expect(['tab', 'redraw']).toContain(action.kind);
+    if (action.kind === 'tab') {
+      // A verse step stays in the same chapter; `moveChapter` is what would
+      // cross one, and that is not what `>` means here.
+      expect(action.tab.bookNumber).toBe(JOHN);
+      expect(action.tab.chapter).toBe(3);
+    }
   });
 });
 

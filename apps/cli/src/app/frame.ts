@@ -1,7 +1,8 @@
 /**
  * The frame every screen is drawn inside.
  *
- * Six rows of chrome:
+ * The input line is **not permanent**. Closed — the common case — the frame
+ * is header, rule, body, rule, hints:
  *
  * ```
  *   ▸John 3  Romans 8  Psalm 23                          KJV  v16/36  ¶   header
@@ -9,10 +10,23 @@
  *   John 3                                                                body
  *   ¹⁶For God so loved the world…                                         ⋮
  *  ────────────────────────────────────────────────────────────────────   rule
- *  > 16-17█                                                               input
- *  ────────────────────────────────────────────────────────────────────   rule
- *  ↑↓ verse  < > chapter  s study  y copy                                 hints
+ *  ↑↓ verse  < > chapter  s study  y copy  / go to or search               hints
  * ```
+ *
+ * `/` opens it, and the frame grows a rule and an input row (a screen typically
+ * also returns an `overlay` at this point — its usage popup — which is drawn
+ * over the bottom of the body, directly above the new input row):
+ *
+ * ```
+ *  ┌─ Go to or search ─────────────────────────────────────────────────┐
+ *  │ Type a reference or search text. Enter to go, Esc to cancel.       │
+ *  └──────────────────────────────────────────────────────────────────┘
+ *  ────────────────────────────────────────────────────────────────────   rule
+ *  > 16-17█                                                               input
+ * ```
+ *
+ * Closed, the terminal cursor is not drawn at all — see {@link Frame.cursor} —
+ * which is the terminal's own way of saying nothing is being typed.
  *
  * The one thing worth stating: **no row leaves here wider than the terminal.**
  * A row that overshoots wraps, and a wrapped row shifts everything below it by
@@ -38,12 +52,66 @@ export const MAX_TEXT_WIDTH = 84;
 /** Columns of blank margin on each side of the body. */
 export const MARGIN = 2;
 
-/** Rows of chrome: header, rule, rule, input, rule, hints. */
-export const CHROME_ROWS = 6;
-
 /** Below this the rules and the hints line are dropped, in that order. */
 const COMPACT_ROWS = 12;
 const MINIMAL_ROWS = 8;
+
+/**
+ * Which chrome rows exist for a given terminal height and input state.
+ *
+ * The input line is not always there — see the module docblock's rewrite of
+ * why the entry box is no longer permanent — so the rules either side of it
+ * are conditional on it too: closed, the rule that used to separate the body
+ * from the input instead separates the body straight from the hints, rather
+ * than leaving two blank rules with nothing between them.
+ *
+ * `rows` is every row this plan spends before/after the body: `bodyMetrics`
+ * and `renderFrame` both need it and must agree, which is the whole reason
+ * this is a function rather than two copies of the same arithmetic.
+ */
+interface ChromePlan {
+  readonly ruleAfterHeader: boolean;
+  readonly ruleBeforeInput: boolean;
+  readonly input: boolean;
+  readonly ruleBeforeHints: boolean;
+  readonly hints: boolean;
+  /** Total rows this plan spends outside the body and the notice. */
+  readonly rows: number;
+}
+
+function chromePlan(rows: number, inputOpen: boolean): ChromePlan {
+  if (rows < MINIMAL_ROWS) {
+    // Header, and the input line if it is open. No room for rules or hints.
+    return {
+      ruleAfterHeader: false,
+      ruleBeforeInput: false,
+      input: inputOpen,
+      ruleBeforeHints: false,
+      hints: false,
+      rows: inputOpen ? 2 : 1,
+    };
+  }
+  if (rows < COMPACT_ROWS) {
+    // Header, a rule, and the input line if it is open. Still no hints.
+    return {
+      ruleAfterHeader: true,
+      ruleBeforeInput: inputOpen,
+      input: inputOpen,
+      ruleBeforeHints: false,
+      hints: false,
+      rows: inputOpen ? 4 : 2,
+    };
+  }
+  // Full chrome: header, rule, body, [rule, input], rule, hints.
+  return {
+    ruleAfterHeader: true,
+    ruleBeforeInput: inputOpen,
+    input: inputOpen,
+    ruleBeforeHints: true,
+    hints: true,
+    rows: inputOpen ? 6 : 4,
+  };
+}
 
 export interface FrameTab {
   readonly label: string;
@@ -69,9 +137,10 @@ export interface FrameOptions {
   /**
    * Whether the input line is open.
    *
-   * Drawn differently in each state, because the app has exactly one mode and a
-   * mode the user cannot see is a trap. Open shows the prompt and the caret;
-   * closed shows what the two keys that open it are for.
+   * Governs whether the input row (and the rule that would separate it from
+   * the rest of the frame) is drawn at all — see the module docblock. Closed
+   * is the common case and reclaims that row for the body; `/` grows the
+   * frame back by it.
    */
   readonly inputOpen: boolean;
   readonly hints: string;
@@ -83,37 +152,41 @@ export interface FrameOptions {
 
 export interface Frame {
   readonly lines: string[];
-  readonly cursor: CursorPosition;
+  /**
+   * `undefined` while the input line is closed — nothing is being typed, so
+   * the terminal's own hardware cursor is hidden rather than parked
+   * somewhere arbitrary (`term/screen.ts`'s `draw` leaves it hidden when no
+   * cursor is given).
+   */
+  readonly cursor: CursorPosition | undefined;
 }
 
 /** How much room a screen's body actually gets, given the terminal. */
-export function bodyMetrics(size: TerminalSize, noticeRows = 0): {
+export function bodyMetrics(
+  size: TerminalSize,
+  noticeRows = 0,
+  inputOpen = false,
+): {
   width: number;
   height: number;
 } {
   const width = Math.max(20, Math.min(size.columns - MARGIN * 2, MAX_TEXT_WIDTH));
-  const height = Math.max(1, size.rows - chromeRows(size.rows) - noticeRows);
+  const height = Math.max(1, size.rows - chromePlan(size.rows, inputOpen).rows - noticeRows);
   return { width, height };
-}
-
-function chromeRows(rows: number): number {
-  if (rows < MINIMAL_ROWS) return 2; // header + input only
-  if (rows < COMPACT_ROWS) return 4; // header, rule, rule, input
-  return CHROME_ROWS;
 }
 
 export function renderFrame(options: FrameOptions): Frame {
   const { size, theme } = options;
   const columns = Math.max(20, size.columns);
   const rows = Math.max(3, size.rows);
-  const chrome = chromeRows(rows);
+  const plan = chromePlan(rows, options.inputOpen);
   const notice = options.notice ?? [];
 
-  const bodyHeight = Math.max(0, rows - chrome - notice.length);
+  const bodyHeight = Math.max(0, rows - plan.rows - notice.length);
   const lines: StyledLine[] = [];
 
   lines.push(headerLine(options, columns));
-  if (chrome >= 4) lines.push(ruleLine(theme, columns));
+  if (plan.ruleAfterHeader) lines.push(ruleLine(theme, columns));
 
   const body = composite(options, bodyHeight, columns).slice(0, bodyHeight);
   for (const row of body) lines.push(indent(row));
@@ -121,12 +194,15 @@ export function renderFrame(options: FrameOptions): Frame {
 
   for (const row of notice) lines.push(indent(row));
 
-  if (chrome >= 4) lines.push(ruleLine(theme, columns));
-  const inputRow = lines.length;
-  lines.push(inputLine(options, theme));
+  let inputRow: number | undefined;
+  if (plan.input) {
+    if (plan.ruleBeforeInput) lines.push(ruleLine(theme, columns));
+    inputRow = lines.length;
+    lines.push(inputLine(options, theme));
+  }
 
-  if (chrome >= 6) {
-    lines.push(ruleLine(theme, columns));
+  if (plan.hints) {
+    if (plan.ruleBeforeHints) lines.push(ruleLine(theme, columns));
     lines.push(hintsLine(options, theme));
   }
 
@@ -136,22 +212,16 @@ export function renderFrame(options: FrameOptions): Frame {
       .map((line) => renderStyledLine(fit(line, columns), theme.depth)),
     // The hardware cursor sits after the typed text: this is a terminal, and a
     // text cursor that is not where the text is reads as a hung application.
-    cursor: {
-      row: inputRow,
-      column: options.inputOpen ? PROMPT.length + stringWidth(options.input) : 0,
-    },
+    cursor:
+      inputRow === undefined
+        ? undefined
+        : { row: inputRow, column: PROMPT.length + stringWidth(options.input) },
   };
 }
 
 const PROMPT = '> ';
 
-/**
- * What the input row says while the line is closed.
- *
- * Two columns wide like {@link PROMPT}, so the row does not shift as the line
- * opens and closes.
- */
-const CLOSED_PROMPT = '  ';
+/** Said in the footer hints while the line is closed — see `hintsLine`. */
 const CLOSED_HINT = '/ go to or search';
 
 /**
@@ -257,24 +327,25 @@ function ruleLine(theme: Theme, columns: number): StyledLine {
   return [{ text: '─'.repeat(columns), style: theme.rule }];
 }
 
+/** Only ever called while the line is open — closed, this row does not exist. */
 function inputLine(options: FrameOptions, theme: Theme): StyledLine {
-  if (options.inputOpen) {
-    return [
-      { text: PROMPT, style: theme.prompt },
-      { text: options.input },
-    ];
-  }
-
-  // Closed. This row is the only place the opening key is guaranteed to be
-  // visible -- the hints line belongs to the screen and can say anything -- so it
-  // states it rather than drawing an inert prompt that looks broken when typing
-  // into it does nothing.
   return [
-    { text: CLOSED_PROMPT, style: theme.muted },
-    { text: CLOSED_HINT, style: theme.muted },
+    { text: PROMPT, style: theme.prompt },
+    { text: options.input },
   ];
 }
 
+/**
+ * The hints line — and, closed, the only place the opening key is guaranteed
+ * to be visible.
+ *
+ * With the input row gone while closed (see the module docblock), nothing
+ * else says `/` opens it: a screen's own `hints` can say anything, and a
+ * short terminal drops this row entirely before it drops the input row (see
+ * `chromePlan`), so this is a best-effort guarantee rather than an absolute
+ * one — the same trade the rest of this frame already makes under space
+ * pressure.
+ */
 function hintsLine(options: FrameOptions, theme: Theme): StyledLine {
   const message = options.message;
   if (message !== undefined) {
@@ -283,7 +354,8 @@ function hintsLine(options: FrameOptions, theme: Theme): StyledLine {
       { text: message.text, style: message.tone === 'error' ? theme.error : theme.muted },
     ];
   }
-  return [{ text: ' ' }, { text: options.hints, style: theme.muted }];
+  const text = options.inputOpen ? options.hints : `${options.hints}   ${CLOSED_HINT}`;
+  return [{ text: ' ' }, { text, style: theme.muted }];
 }
 
 function indent(line: StyledLine): StyledLine {

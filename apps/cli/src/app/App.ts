@@ -692,7 +692,7 @@ export class App {
   }
 
   private context(noticeRows = this.noticeRows): ScreenContext {
-    const { width, height } = bodyMetrics(this.size, noticeRows);
+    const { width, height } = bodyMetrics(this.size, noticeRows, this.lineOpen);
     return {
       size: this.size,
       bodyWidth: width,
@@ -703,6 +703,7 @@ export class App {
       tab: this.activeTab(),
       display: this.display,
       input: this.line,
+      inputOpen: this.lineOpen,
       bookmarks: this.bookmarks,
       lastCommentary: this.lastCommentary,
     };
@@ -719,7 +720,7 @@ export class App {
   }
 
   /** Exposed for tests: the frame as it would be written, without a terminal. */
-  frame(): { lines: string[]; cursor: { row: number; column: number } } {
+  frame(): { lines: string[]; cursor: { row: number; column: number } | undefined } {
     // Two passes, because the body's height depends on how many rows the screen
     // pins above the input line and that is only known once it has been asked.
     // The count is then remembered, so the second pass is skipped on every
@@ -759,11 +760,19 @@ export class App {
   private render(): void {
     if (!this.renderer.isStarted()) return;
     const { lines, cursor } = this.frame();
+    // `cursor` is `undefined` exactly when the line is closed (`renderFrame`
+    // ties the two together), which is also when there is no caret to place —
+    // the renderer leaves the hardware cursor hidden rather than parking it
+    // somewhere arbitrary.
+    if (cursor === undefined) {
+      this.renderer.draw(lines);
+      return;
+    }
     // The caret can sit mid-line, so the drawn cursor is placed by the *text
     // before it* rather than by the whole line's width.
     this.renderer.draw(lines, {
       row: cursor.row,
-      column: this.lineOpen ? 2 + stringWidth(this.line.slice(0, this.caret)) : cursor.column,
+      column: 2 + stringWidth(this.line.slice(0, this.caret)),
     });
   }
 

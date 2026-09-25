@@ -1,16 +1,31 @@
 /**
- * The main screen, and the app's only one: a single passage shown in a Bible
- * pane, with a Study pane that sits beside it (wide terminal) or is swapped in
- * for it (narrow), plus a session history.
+ * The main screen, and the app's only one: a two-pane layout — a main pane
+ * (the Bible in reading mode, or the open study resource in study mode) and a
+ * narrower right-hand pane (the current verse, then the keyboard-shortcut
+ * legend) — plus a session history.
  *
- * Study views (`StudyView`): `hints` (the default key menu), `x` cross
- * references, `c`/`m` commentaries, `t` topics, `d` dictionaries, `k` books,
- * `h` history, `o` options, `b` bookmarks and `/` search results. Each is a view
- * the Study pane switches into, **not** a pushed `Screen`: the Bible pane and
- * the verse cursor stay live beside every one of them ("every study view
- * follows the verse cursor"), which only works if `MainScreen` keeps owning
- * the cursor while a study view is showing. The data behind each view is pure
- * and lives in `app/studyPanes.ts`, `app/history.ts`, `app/bookmarks.ts` and
+ * **Reading mode vs. study mode.** `studyView === 'hints'` *is* reading mode:
+ * the main pane shows the chapter, `↑`/`↓` move the verse cursor, and the
+ * right pane's legend is the full command list (`hintsRows`). Any other
+ * `StudyView` is study mode: the main pane shows that resource instead, `↑`/
+ * `↓` scroll it rather than the verse (`scrollStudy`), and `<`/`>` step the
+ * verse cursor while staying on the resource, for the views where that means
+ * something (`VERSE_STEP_VIEWS`) — see `stepStudyVerse`. This mapping is why
+ * there is no separate "is the study pane open" flag any more: the main
+ * pane's content and `studyView` are the same fact. The right pane itself
+ * only exists on a wide-enough terminal (`RIGHT_PANE_BREAKPOINT_COLUMNS`);
+ * narrower than that, `narrowStudyRows` folds a one-line verse header into the
+ * top of the main pane instead, and the footer's one-line hint carries the
+ * shortcuts.
+ *
+ * Study views (`StudyView`): `hints` (reading mode), `x` cross references,
+ * `c`/`m` commentaries, `t` topics, `d` dictionaries, `k` books, `h` history,
+ * `o` options, `b` bookmarks and `/` search results. Each is a view the main
+ * pane switches into, **not** a pushed `Screen`: the verse cursor stays live
+ * beside every one of them ("every study view follows the verse cursor"),
+ * which only works if `MainScreen` keeps owning the cursor while a study view
+ * is showing. The data behind each view is pure and lives in
+ * `app/studyPanes.ts`, `app/history.ts`, `app/bookmarks.ts` and
  * `app/search.ts` (no rendering, no keys); this screen turns their rows into
  * `StyledLine`s and owns every key.
  *
@@ -22,10 +37,12 @@
  *   `d` drills list, letter index, that letter's entries, one entry; `k` drills
  *   list, table of contents (recursively, one level of children at a time,
  *   via `bookSectionStack`), one section. Both leaf reading views reuse
- *   `layoutCommentary`, as a commentary entry does.
- * - **Options** (`o`) is one numbered row per setting (`OPTION_ROWS`): a typed
- *   number plus Enter cycles that row to its next value and stays put, rather
- *   than navigating away like `PICKER_VIEWS` does.
+ *   `layoutCommentary`, as a commentary entry does. Neither is in
+ *   `VERSE_STEP_VIEWS`: `<`/`>` has nothing to step them by.
+ * - **Options** (`o`) is a plain menu, not a picker: `↑`/`↓` move the selected
+ *   row (`optionsSelected`) and `←`/`→` change its value — see `optionsKey`
+ *   and `stepOptionRow`. It used to be a numbered row plus Enter, which cycled
+ *   the value instead of setting it; that interaction is gone.
  * - **Bookmarks** (`app/bookmarks.ts`) are a flat, user-ordered list in
  *   `~/.bible/state.db`: a typed row number plus a letter acts on it: `a`dd,
  *   `r`ename, re-`p`oint, `d`elete (twice, to confirm), `[`/`]` to reorder;
@@ -38,6 +55,11 @@
  *   same numbered-picker pattern as every other list.
  * - `m` reopens the last-opened commentary (`ctx.lastCommentary`, persisted
  *   through the `lastCommentary` action).
+ * - **The "/" popup** (`commandPopup`) replaces the input line's old
+ *   permanently-open entry box (`app/frame.ts`'s docblock): while `ctx.input`
+ *   is open this screen returns an `overlay` with usage text, a live preview
+ *   of how the typed text classifies (`classifyInput`), and up to five
+ *   matching book names.
  *
  * Reuses `term/reading.ts`'s `layoutReading` for the chapter itself (paragraph
  * flow, the cursor highlight, verse numbers), `app/selection.ts` for
@@ -47,7 +69,7 @@
  * the input line, persistence and the screen contract (`screens/types.ts`).
  * `screens/Modules.ts` (`^O`, the module library) is a separate screen.
  */
-import { VerseIdHelper } from '@bible/core';
+import { ENGLISH_BOOK_NAMES, VerseIdHelper, type CommentaryEntry } from '@bible/core';
 
 import {
   addBookmark,
@@ -58,7 +80,7 @@ import {
   rePointBookmark,
   type Bookmark,
 } from '../app/bookmarks';
-import type { Intent, ResolvedReference } from '../app/input';
+import { classifyInput, type Intent, type ResolvedReference } from '../app/input';
 import {
   addHistoryEntry,
   arrayIndexToDisplayIndex,
@@ -72,8 +94,8 @@ import {
 import {
   MIN_PANE_WIDTH,
   PANE_SEPARATOR_WIDTH,
-  STUDY_PANE_WIDTH_FRACTION,
-  WIDE_BREAKPOINT_COLUMNS,
+  RIGHT_PANE_BREAKPOINT_COLUMNS,
+  RIGHT_PANE_WIDTH,
 } from '../app/layoutConfig';
 import { MARGIN } from '../app/frame';
 import type { Chapter, OpenBible } from '../app/library';
@@ -123,6 +145,7 @@ import type { ColorDepth, StyledLine } from '../term/style';
 import { layoutCommentary } from '../app/commentaryMarkup';
 import type {
   DisplaySettings,
+  Overlay,
   Screen,
   ScreenAction,
   ScreenContext,
@@ -142,12 +165,13 @@ interface Laid {
 }
 
 interface Dimensions {
-  readonly wide: boolean;
+  /** Whether the terminal is wide enough to draw the right-hand pane at all. */
+  readonly showRightPane: boolean;
   readonly totalWidth: number;
-  /** Width of the Bible pane — the full width outside wide+study-open. */
-  readonly bibleWidth: number;
-  /** Width of the Study pane; `0` when it is not drawn beside the Bible pane. */
-  readonly studyWidth: number;
+  /** Width of the main pane — the full width when the right pane is not shown. */
+  readonly mainWidth: number;
+  /** Width of the right-hand pane; `0` when it is not shown. */
+  readonly rightWidth: number;
 }
 
 type StudyView =
@@ -181,6 +205,28 @@ const PICKER_VIEWS: ReadonlySet<StudyView> = new Set([
   'bookList',
   'bookSections',
   'searchResults',
+]);
+
+/**
+ * The study views `<`/`>` step the verse cursor in, one verse at a time,
+ * while staying on the same resource (`stepStudyVerse`) — the Navigation
+ * requirement's "prev/next verse while keeping the current resource".
+ *
+ * Every one of these already re-reads `ctx.tab.cursorVerse` on every render
+ * (`crossReferenceGroups`, `commentaryListRows`/`bestCommentaryEntry`,
+ * `topicListRows`, `topicVerseRows`'s parent list), so stepping the cursor is
+ * enough to make the view follow — no view-specific refresh logic is needed.
+ * Left out on purpose: dictionaries, books, bookmarks, history and search are
+ * keyed by a word, a section, a saved point, a session or a query, not by the
+ * cursor verse, so `<`/`>` would move an invisible cursor with nothing on
+ * screen to show for it.
+ */
+const VERSE_STEP_VIEWS: ReadonlySet<StudyView> = new Set([
+  'crossReferences',
+  'commentaryList',
+  'commentaryEntry',
+  'topicsList',
+  'topicVerses',
 ]);
 
 /**
@@ -343,15 +389,40 @@ const OPTION_ROWS: readonly OptionRow[] = [
   },
 ];
 
-/** The next choice in a row's cycle, wrapping past the end. */
-function cycleOptionRow(row: OptionRow, ctx: ScreenContext): ScreenAction {
+/**
+ * The choice one step away from a row's current value, wrapping at either
+ * end — `←`/`→` in the options menu (`optionsKey`).
+ *
+ * Used to cycle a numbered row to its *next* value with no way to go back;
+ * `direction` replaces that with an ordinary two-way stepper, which is what
+ * "up/down navigates options sensibly" (the Navigation requirement) needed
+ * for the value itself, not just which row is selected.
+ */
+function stepOptionRow(row: OptionRow, ctx: ScreenContext, direction: 1 | -1): ScreenAction {
   const choices = row.choices(ctx);
   if (choices.length === 0) {
     return { kind: 'message', text: `No ${row.label.toLowerCase()} to choose from.`, tone: 'error' };
   }
   const at = choices.findIndex((c) => c.label === row.current(ctx));
-  const next = choices[(at + 1) % choices.length] ?? choices[0]!;
+  const from = at === -1 ? 0 : at;
+  const next = choices[(from + direction + choices.length) % choices.length] ?? choices[0]!;
   return next.apply(ctx);
+}
+
+// --- study-mode verse stepping (`<`/`>`) ------------------------------------
+
+/**
+ * Whether two commentary entries are the same underlying passage —
+ * `stepStudyVerse`'s "don't silently jump" guard.
+ *
+ * `entryId` is the real identity when the repository set one; falling back to
+ * the verse span covers a module or a code path that leaves it unset, since
+ * two entries covering exactly the same verses are, for this purpose, the
+ * same entry even if nothing else is known about them.
+ */
+function sameCommentaryEntry(a: CommentaryEntry, b: CommentaryEntry): boolean {
+  if (a.entryId !== undefined && b.entryId !== undefined) return a.entryId === b.entryId;
+  return a.verseIdStart === b.verseIdStart && a.verseIdEnd === b.verseIdEnd;
 }
 
 // --- bookmarks (`b`) --------------------------------------------------------
@@ -401,11 +472,16 @@ export class MainScreen implements Screen {
   /** Session history — lasts for this run only. */
   private history: HistorySlot = emptyHistory();
 
-  /** Whether the Study pane is drawn beside the Bible pane, in a wide terminal. */
-  private wideStudyVisible = true;
-  /** Whether the Study *screen* has replaced the Bible pane, in a narrow terminal. */
-  private narrowStudyActive = false;
   private studyView: StudyView = 'hints';
+  /**
+   * `s`, in reading mode, on a terminal too narrow for the right pane: shows
+   * the shortcut legend (`hintsRows`) in the main pane in place of the Bible
+   * text, without leaving reading mode — `↑`/`↓` still move the verse, not
+   * the legend. A wide terminal never consults this: the right pane already
+   * shows the legend all the time, so there is nothing for `s` to reveal
+   * (`character`'s `s` handler is a harmless no-op there).
+   */
+  private narrowHintsPeek = false;
   /** Digits typed while choosing a history row — a screen key, not the shell's line (§ shell docs). */
   private historyBuffer = '';
   /** Digits typed while choosing a numbered row in `PICKER_VIEWS` — same idea, one field for all four. */
@@ -414,10 +490,29 @@ export class MainScreen implements Screen {
   private studyScroll = 0;
   /** What `studyScroll` was last computed against; changing this resets it to 0. */
   private studyAnchor = '';
+  /** The selected row in the options menu (`↑`/`↓`) — replaces the old numbered picker. */
+  private optionsSelected = 0;
+  /**
+   * Whether the right pane's shortcut legend has taken over the space the
+   * verse preview would use — `?` toggles it (Navigation/usability: "showing
+   * more shortcuts if needed"). Ephemeral, like every other UI toggle here:
+   * it is not worth a row in `state.db` for what is a per-session reading aid.
+   */
+  private shortcutsExpanded = false;
   /** The commentary `commentaryEntry` is reading. `m` and the commentary list both set this. */
   private commentaryModuleAbbreviation: string | undefined;
   /** Where `esc` from `commentaryEntry` goes back to. */
   private commentaryEntryOrigin: 'commentaryList' | 'hints' = 'commentaryList';
+  /**
+   * A `<`/`>` step in `commentaryEntry` that would land inside the *same*
+   * commentary passage as the one already showing — held here rather than
+   * applied, so the entry stays put and a notice explains why, instead of a
+   * step that visibly does nothing. `f` (`commentaryEntryKey`) commits it: the
+   * cursor verse moves to it, even though the text on screen does not change.
+   * Set by `stepStudyVerse`, cleared by `confirmCommentaryStep`, by leaving
+   * `commentaryEntry`, and by opening a (possibly different) commentary afresh.
+   */
+  private commentaryPendingVerse: number | undefined;
   /** The topic `topicVerses` is listing, and the module it came from. */
   private topicModuleAbbreviation: string | undefined;
   private topicId: number | undefined;
@@ -454,13 +549,55 @@ export class MainScreen implements Screen {
 
     const dims = this.dimensions(ctx);
     const bodyHeight = Math.max(1, ctx.bodyHeight);
-    const studyOpen = dims.wide ? this.wideStudyVisible : this.narrowStudyActive;
+    const reading = this.studyView === 'hints';
+    // See `narrowHintsPeek`'s docblock: reading mode, peeking at the legend,
+    // on a terminal with no right pane to show it in continuously.
+    const peeking = reading && !dims.showRightPane && this.narrowHintsPeek;
+    const showBible = reading && !peeking;
 
+    const mainRows = showBible
+      ? this.bibleRows(ctx, laid, bodyHeight)
+      : dims.showRightPane
+        ? this.studyRows(ctx, dims.mainWidth, bodyHeight)
+        : this.narrowStudyRows(ctx, laid, dims.mainWidth, bodyHeight);
+
+    const range = selectedRange(ctx.tab);
+    const notice =
+      showBible && hasSelection(ctx.tab)
+        ? selectionSummary({
+            reference: referenceOf(laid, range),
+            texts: textsIn(laid, range),
+            theme: ctx.theme,
+            width: dims.mainWidth,
+          })
+        : undefined;
+
+    const body = dims.showRightPane
+      ? composeSideBySide(
+          mainRows,
+          this.rightPaneRows(ctx, laid, dims.rightWidth, bodyHeight),
+          dims,
+          bodyHeight,
+          ctx.theme,
+        )
+      : mainRows;
+
+    return {
+      status: status(laid, ctx),
+      body,
+      hints: this.hintsText(dims.showRightPane, reading),
+      ...(notice === undefined ? {} : { notice }),
+      ...(ctx.inputOpen ? { overlay: this.commandPopup(ctx) } : {}),
+    };
+  }
+
+  /** The chapter itself — reading mode's main-pane content. */
+  private bibleRows(ctx: ScreenContext, laid: Laid, bodyHeight: number): StyledLine[] {
     const range = selectedRange(ctx.tab);
     const lit = highlightSelection(laid.lines, range, ctx.theme);
     const window = Math.max(1, bodyHeight - TITLE_ROWS);
     const offset = clampScroll(lit, cursorVerseNumber(ctx.tab), ctx.tab.scrollOffset, window);
-    const bibleRows = padRows(
+    return padRows(
       [
         [{ text: `${laid.chapter.bookName} ${laid.chapter.chapter}`, style: ctx.theme.title }],
         [],
@@ -468,52 +605,22 @@ export class MainScreen implements Screen {
       ],
       bodyHeight,
     );
+  }
 
-    const notice = hasSelection(ctx.tab)
-      ? selectionSummary({
-          reference: referenceOf(laid, range),
-          texts: textsIn(laid, range),
-          theme: ctx.theme,
-          width: dims.bibleWidth,
-        })
-      : undefined;
-
-    if (dims.wide) {
-      const studyRows = studyOpen ? this.studyRows(ctx, dims.studyWidth, bodyHeight) : [];
-      const body = studyOpen
-        ? composeSideBySide(bibleRows, studyRows, dims, bodyHeight, ctx.theme)
-        : bibleRows;
-      return {
-        status: status(laid, ctx),
-        body,
-        hints: this.hintsText(true, studyOpen),
-        ...(notice === undefined ? {} : { notice }),
-      };
-    }
-
-    if (studyOpen) {
-      const cursorNum = cursorVerseNumber(ctx.tab);
-      const preview = laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments);
-      const header: StyledLine = [
-        { text: `${laid.chapter.bookName} ${laid.chapter.chapter}:${cursorNum}`, style: ctx.theme.title },
-      ];
-      const previewRows = [header, ...preview, []];
-      const body = padRows(
-        [
-          ...previewRows,
-          ...this.studyRows(ctx, dims.totalWidth, Math.max(0, bodyHeight - previewRows.length)),
-        ],
-        bodyHeight,
-      );
-      return { status: status(laid, ctx), body, hints: this.hintsText(false, true) };
-    }
-
-    return {
-      status: status(laid, ctx),
-      body: bibleRows,
-      hints: this.hintsText(false, false),
-      ...(notice === undefined ? {} : { notice }),
-    };
+  /**
+   * Study mode's main-pane content on a terminal too narrow for the right
+   * pane — the current verse folded into a one-line header (what the right
+   * pane would otherwise be showing) above the resource itself, so the
+   * "current verse" fact is not lost, only its dedicated column.
+   */
+  private narrowStudyRows(ctx: ScreenContext, laid: Laid, width: number, height: number): StyledLine[] {
+    const cursorNum = cursorVerseNumber(ctx.tab);
+    const header: StyledLine = [
+      { text: `${laid.chapter.bookName} ${laid.chapter.chapter}:${cursorNum}`, style: ctx.theme.title },
+    ];
+    const preview = laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments);
+    const top = [header, ...preview, []];
+    return padRows([...top, ...this.studyRows(ctx, width, Math.max(0, height - top.length))], height);
   }
 
   key(key: Key, ctx: ScreenContext): ScreenResult {
@@ -524,24 +631,27 @@ export class MainScreen implements Screen {
     if (handled !== undefined) return handled;
 
     const window = Math.max(1, ctx.bodyHeight - TITLE_ROWS);
+    const studying = this.studyView !== 'hints';
 
-    if (key.shift && (key.name === 'up' || key.name === 'down')) {
-      return this.extend(ctx, laid, key.name === 'up' ? -1 : 1, window);
+    // Study mode: up/down scroll the resource, not the verse (Navigation
+    // requirement). Shift makes it a page, matching pgup/pgdn below, since
+    // there is no selection to extend outside reading mode.
+    if (key.name === 'up' || key.name === 'down') {
+      if (studying) {
+        const step = key.shift ? Math.max(1, ctx.bodyHeight - 2) : 1;
+        return this.scrollStudy(key.name === 'up' ? -step : step);
+      }
+      if (key.shift) return this.extend(ctx, laid, key.name === 'up' ? -1 : 1, window);
+      const active = isSelectionArmed(ctx.tab) ? ctx : { ...ctx, tab: clearSelection(ctx.tab) };
+      return this.moveVerse(active, laid, key.name === 'up' ? -1 : 1, window);
     }
 
-    const moving = key.name === 'up' || key.name === 'down';
-    const active = moving && !isSelectionArmed(ctx.tab) ? { ...ctx, tab: clearSelection(ctx.tab) } : ctx;
-
     switch (key.name) {
-      case 'up':
-        return this.moveVerse(active, laid, -1, window);
-      case 'down':
-        return this.moveVerse(active, laid, 1, window);
       case 'escape':
         return hasSelection(ctx.tab) ? { kind: 'tab', tab: clearSelection(ctx.tab) } : { kind: 'none' };
       case 'pageup':
       case 'pagedown':
-        return this.studyOpen(ctx)
+        return studying
           ? this.scrollStudy(key.name === 'pagedown' ? Math.max(1, ctx.bodyHeight - 2) : -Math.max(1, ctx.bodyHeight - 2))
           : { kind: 'none' };
       case 'char':
@@ -549,13 +659,13 @@ export class MainScreen implements Screen {
         if (key.ctrl) return { kind: 'none' };
         if (key.alt && key.char === 'c') return this.copy(ctx, laid);
         if (key.alt) return { kind: 'none' };
-        // `space` pages the Study pane when it is open and has not claimed
-        // the key some other way (`subViewKey` already ran); otherwise it falls
+        // `space` pages study mode's content when it has not claimed the key
+        // some other way (`subViewKey` already ran); otherwise it falls
         // through as an ordinary character.
-        if (key.name === 'space' && this.studyOpen(ctx)) {
+        if (key.name === 'space' && studying) {
           return this.scrollStudy(Math.max(1, ctx.bodyHeight - 2));
         }
-        return this.character(key.char ?? '', ctx, laid);
+        return this.character(key.char ?? '', ctx, laid, window);
       default:
         return { kind: 'none' };
     }
@@ -599,43 +709,64 @@ export class MainScreen implements Screen {
       { maxResults: MAX_SEARCH_RESULTS },
     );
     this.pickerBuffer = '';
-    this.openStudy(ctx);
     this.studyView = 'searchResults';
     return { kind: 'redraw' };
   }
 
   // --- single-key commands -------------------------------------------------
 
-  private character(char: string, ctx: ScreenContext, laid: Laid): ScreenAction {
+  private character(char: string, ctx: ScreenContext, laid: Laid, window: number): ScreenAction {
     if (char === 'q') return { kind: 'quit' };
     if (char === 'y') return this.copy(ctx, laid);
     if (char === 'v') return { kind: 'tab', tab: beginSelection(ctx.tab) };
-    if (char === 'n' || char === '>') return this.moveChapter(ctx, laid, 1);
-    if (char === 'p' || char === '<') return this.moveChapter(ctx, laid, -1);
+    if (char === 'n') return this.moveChapter(ctx, laid, 1);
+    if (char === 'p') return this.moveChapter(ctx, laid, -1);
 
+    // Reading mode: `<`/`>` step the chapter, same as `n`/`p`. Study mode:
+    // they step the verse cursor instead, staying on the same resource — the
+    // Navigation requirement's "prev/next verse while keeping the current
+    // resource" — for the views that follow the cursor at all.
+    if (char === '>' || char === '<') {
+      const delta = char === '>' ? 1 : -1;
+      if (this.studyView === 'hints') return this.moveChapter(ctx, laid, delta);
+      if (!VERSE_STEP_VIEWS.has(this.studyView)) return { kind: 'none' };
+      return this.stepStudyVerse(ctx, laid, delta, window);
+    }
+
+    // `?` — the right pane's shortcut legend takes over the verse preview's
+    // space, for when there are more shortcuts than fit (usability pass).
+    if (char === '?') {
+      this.shortcutsExpanded = !this.shortcutsExpanded;
+      return { kind: 'redraw' };
+    }
+
+    // Study mode: leave it, back to reading. Reading mode: toggle
+    // `narrowHintsPeek` (a no-op on a wide terminal — see its docblock).
+    // Replaces the old wide/narrow show-or-hide toggle, which has no
+    // equivalent left now that the main pane always shows *something* and a
+    // wide terminal's right pane shows the legend continuously.
     if (char === 's') {
-      const { wide } = this.dimensions(ctx);
-      if (wide) this.wideStudyVisible = !this.wideStudyVisible;
-      else this.narrowStudyActive = !this.narrowStudyActive;
+      if (this.studyView !== 'hints') {
+        this.studyView = 'hints';
+        return { kind: 'redraw' };
+      }
+      this.narrowHintsPeek = !this.narrowHintsPeek;
       return { kind: 'redraw' };
     }
 
     if (char === 'h') {
-      this.openStudy(ctx);
       this.studyView = 'history';
       this.historyBuffer = '';
       return { kind: 'redraw' };
     }
 
     if (char === 'x') {
-      this.openStudy(ctx);
       this.studyView = 'crossReferences';
       this.pickerBuffer = '';
       return { kind: 'redraw' };
     }
 
     if (char === 'c') {
-      this.openStudy(ctx);
       this.studyView = 'commentaryList';
       this.pickerBuffer = '';
       return { kind: 'redraw' };
@@ -644,35 +775,30 @@ export class MainScreen implements Screen {
     if (char === 'm') return this.openLastCommentary(ctx);
 
     if (char === 't') {
-      this.openStudy(ctx);
       this.studyView = 'topicsList';
       this.pickerBuffer = '';
       return { kind: 'redraw' };
     }
 
     if (char === 'd') {
-      this.openStudy(ctx);
       this.studyView = 'dictionaryList';
       this.pickerBuffer = '';
       return { kind: 'redraw' };
     }
 
     if (char === 'k') {
-      this.openStudy(ctx);
       this.studyView = 'bookList';
       this.pickerBuffer = '';
       return { kind: 'redraw' };
     }
 
     if (char === 'o') {
-      this.openStudy(ctx);
       this.studyView = 'options';
-      this.pickerBuffer = '';
+      this.optionsSelected = 0;
       return { kind: 'redraw' };
     }
 
     if (char === 'b') {
-      this.openStudy(ctx);
       this.studyView = 'bookmarksList';
       this.pickerBuffer = '';
       this.bookmarkDeleteConfirm = undefined;
@@ -682,16 +808,7 @@ export class MainScreen implements Screen {
     return { kind: 'none' };
   }
 
-  private openStudy(ctx: ScreenContext): void {
-    if (this.dimensions(ctx).wide) this.wideStudyVisible = true;
-    else this.narrowStudyActive = true;
-  }
-
-  private studyOpen(ctx: ScreenContext): boolean {
-    return this.dimensions(ctx).wide ? this.wideStudyVisible : this.narrowStudyActive;
-  }
-
-  /** `pgup`/`pgdn`/`space` — the arrows stay verse keys, so the pane scrolls on its own keys. */
+  /** `pgup`/`pgdn`/`space`/`↑↓` in study mode — the pane scrolls on its own keys. */
   private scrollStudy(delta: number): ScreenAction {
     // Clamped against the real content length in `studyRows`, which is the
     // only place that number is known; a deliberate overshoot here is how
@@ -700,9 +817,55 @@ export class MainScreen implements Screen {
     return { kind: 'redraw' };
   }
 
+  /**
+   * `<`/`>` in a `VERSE_STEP_VIEWS` view — step the verse cursor one at a
+   * time, staying on the resource. Every such view already re-reads
+   * `ctx.tab.cursorVerse` on every render, so most of them just follow.
+   *
+   * `commentaryEntry` is the exception: its one entry can span several
+   * verses, so a step that would land inside the entry already showing is
+   * held rather than applied (`commentaryPendingVerse`) — see the class
+   * docblock and `commentaryEntryRows`'s notice.
+   */
+  private stepStudyVerse(ctx: ScreenContext, laid: Laid, delta: number, window: number): ScreenAction {
+    const proposed = this.moveVerse(ctx, laid, delta, window);
+    if (proposed.kind !== 'tab') return proposed;
+
+    if (this.studyView !== 'commentaryEntry' || this.commentaryModuleAbbreviation === undefined) {
+      this.commentaryPendingVerse = undefined;
+      return proposed;
+    }
+
+    const module = ctx.library.studyModule('commentary', this.commentaryModuleAbbreviation);
+    if (module === undefined) {
+      this.commentaryPendingVerse = undefined;
+      return proposed;
+    }
+
+    const current = bestCommentaryEntry(module, ctx.tab.cursorVerse);
+    const target = bestCommentaryEntry(module, proposed.tab.cursorVerse);
+    if (current !== undefined && target !== undefined && sameCommentaryEntry(current, target)) {
+      this.commentaryPendingVerse = proposed.tab.cursorVerse;
+      return { kind: 'redraw' };
+    }
+
+    this.commentaryPendingVerse = undefined;
+    return proposed;
+  }
+
+  /** `f` — commit a step `stepStudyVerse` held because it stayed inside the same commentary passage. */
+  private confirmCommentaryStep(ctx: ScreenContext): ScreenAction {
+    const verseId = this.commentaryPendingVerse;
+    this.commentaryPendingVerse = undefined;
+    if (verseId === undefined) return { kind: 'none' };
+
+    const { bookNumber, chapter } = VerseIdHelper.parse(verseId);
+    const tab: TabState = { ...ctx.tab, bookNumber, chapter, cursorVerse: verseId, selectionAnchor: undefined };
+    return { kind: 'tab', tab };
+  }
+
   /** `m` — the last commentary opened this session (`ctx.lastCommentary`, persisted by the shell), or the first with something here. */
   private openLastCommentary(ctx: ScreenContext): ScreenAction {
-    this.openStudy(ctx);
     const rows = commentaryListRows(ctx.library, ctx.tab.cursorVerse);
     if (rows.length === 0) return { kind: 'message', text: 'No commentary is installed.' };
 
@@ -711,6 +874,7 @@ export class MainScreen implements Screen {
 
     this.commentaryModuleAbbreviation = chosen.abbreviation;
     this.commentaryEntryOrigin = 'hints';
+    this.commentaryPendingVerse = undefined;
     this.studyView = 'commentaryEntry';
     return chosen.abbreviation === wanted
       ? { kind: 'redraw' }
@@ -722,7 +886,7 @@ export class MainScreen implements Screen {
   /** Dispatches a key to whichever sub-view owns the Study pane. `undefined` means "not claimed". */
   private subViewKey(key: Key, ctx: ScreenContext): ScreenResult | undefined {
     if (this.studyView === 'history') return this.historyKey(key, ctx);
-    if (this.studyView === 'commentaryEntry') return this.commentaryEntryKey(key);
+    if (this.studyView === 'commentaryEntry') return this.commentaryEntryKey(key, ctx);
     if (this.studyView === 'dictionaryEntry') return this.dictionaryReadingKey(key);
     if (this.studyView === 'bookEntry') return this.bookReadingKey(key);
     if (this.studyView === 'options') return this.optionsKey(key, ctx);
@@ -754,11 +918,21 @@ export class MainScreen implements Screen {
     return undefined;
   }
 
-  /** `esc` from a commentary entry — back to the list it was opened from, or to the hints (`m`). */
-  private commentaryEntryKey(key: Key): ScreenResult | undefined {
-    if (key.name !== 'escape') return undefined;
-    this.studyView = this.commentaryEntryOrigin;
-    return { kind: 'redraw' };
+  /**
+   * `esc` from a commentary entry — back to the list it was opened from, or
+   * to the hints (`m`). `f` — while `stepStudyVerse` is holding a step inside
+   * the same passage — commits it (`confirmCommentaryStep`).
+   */
+  private commentaryEntryKey(key: Key, ctx: ScreenContext): ScreenResult | undefined {
+    if (key.name === 'escape') {
+      this.studyView = this.commentaryEntryOrigin;
+      this.commentaryPendingVerse = undefined;
+      return { kind: 'redraw' };
+    }
+    if (this.commentaryPendingVerse !== undefined && key.name === 'char' && key.char === 'f') {
+      return this.confirmCommentaryStep(ctx);
+    }
+    return undefined;
   }
 
   /** `esc` from an open dictionary entry — back to that letter's entry list. */
@@ -776,37 +950,29 @@ export class MainScreen implements Screen {
   }
 
   /**
-   * `o` — one numbered row per setting, "type a number, Enter to change it"
-   * (the same shape `PICKER_VIEWS` uses, but Enter *cycles the row in place*
-   * instead of navigating away — `cycleOption`).
+   * `o` — a plain menu: `↑`/`↓` move `optionsSelected`, `←`/`→` step that
+   * row's value (`stepOptionRow`), `enter` is a `→` alias for whoever reaches
+   * for it out of habit. Replaces the old "type a number, Enter cycles it" —
+   * see the class docblock and the Navigation requirement it answers.
    */
   private optionsKey(key: Key, ctx: ScreenContext): ScreenResult | undefined {
     if (key.name === 'escape') {
       this.studyView = 'hints';
-      this.pickerBuffer = '';
       return { kind: 'redraw' };
     }
-    if (key.name === 'backspace') {
-      this.pickerBuffer = this.pickerBuffer.slice(0, -1);
+    if (key.name === 'up') {
+      this.optionsSelected = Math.max(0, this.optionsSelected - 1);
       return { kind: 'redraw' };
     }
-    if (key.name === 'char' && key.char !== undefined && /^[0-9]$/.test(key.char)) {
-      this.pickerBuffer = (this.pickerBuffer + key.char).slice(0, 2);
+    if (key.name === 'down') {
+      this.optionsSelected = Math.min(OPTION_ROWS.length - 1, this.optionsSelected + 1);
       return { kind: 'redraw' };
     }
-    if (key.name === 'enter') {
-      return this.cycleOption(ctx);
-    }
+    const row = OPTION_ROWS[this.optionsSelected];
+    if (row === undefined) return undefined;
+    if (key.name === 'left') return stepOptionRow(row, ctx, -1);
+    if (key.name === 'right' || key.name === 'enter') return stepOptionRow(row, ctx, 1);
     return undefined;
-  }
-
-  private cycleOption(ctx: ScreenContext): ScreenAction {
-    const typed = Number.parseInt(this.pickerBuffer, 10);
-    this.pickerBuffer = '';
-    if (Number.isNaN(typed)) return { kind: 'message', text: 'Type a setting number, then Enter.', tone: 'error' };
-    const row = OPTION_ROWS[typed - 1];
-    if (row === undefined) return { kind: 'message', text: 'No such setting.', tone: 'error' };
-    return cycleOptionRow(row, ctx);
   }
 
   /**
@@ -984,10 +1150,10 @@ export class MainScreen implements Screen {
     if (key.name === 'enter') {
       return this.pickerSelect(ctx);
     }
-    // Any other key falls through — arrows still move the verse and every
-    // picker's rows follow it, since every study view follows the verse
-    // cursor (dictionaries and books don't read the verse,
-    // so the arrows just move the Bible pane underneath, harmlessly).
+    // Any other key falls through — `↑`/`↓` scroll the list (the generic
+    // study-mode handler in `key()`) and `<`/`>` step the verse cursor for the
+    // views that follow it (`VERSE_STEP_VIEWS`), with every such picker's rows
+    // following along, since every study view follows the verse cursor.
     return undefined;
   }
 
@@ -1111,6 +1277,7 @@ export class MainScreen implements Screen {
 
     this.commentaryModuleAbbreviation = row.abbreviation;
     this.commentaryEntryOrigin = 'commentaryList';
+    this.commentaryPendingVerse = undefined;
     this.studyView = 'commentaryEntry';
     return row.abbreviation === ctx.lastCommentary
       ? { kind: 'redraw' }
@@ -1169,7 +1336,6 @@ export class MainScreen implements Screen {
 
     this.recordHistory(ctx, next);
     this.studyView = 'hints';
-    if (!this.dimensions(ctx).wide) this.narrowStudyActive = false;
     return { kind: 'tab', tab: next };
   }
 
@@ -1184,7 +1350,6 @@ export class MainScreen implements Screen {
 
     this.history = result.slot;
     this.studyView = 'hints';
-    if (!this.dimensions(ctx).wide) this.narrowStudyActive = false;
 
     const { entry } = result;
     const window = Math.max(1, ctx.bodyHeight - TITLE_ROWS);
@@ -1395,14 +1560,32 @@ export class MainScreen implements Screen {
 
   private dimensions(ctx: ScreenContext): Dimensions {
     const totalWidth = Math.max(MIN_PANE_WIDTH, ctx.size.columns - MARGIN * 2);
-    const wide = totalWidth >= WIDE_BREAKPOINT_COLUMNS;
-    if (!wide) return { wide, totalWidth, bibleWidth: totalWidth, studyWidth: 0 };
+    const showRightPane = totalWidth >= RIGHT_PANE_BREAKPOINT_COLUMNS;
+    if (!showRightPane) return { showRightPane, totalWidth, mainWidth: totalWidth, rightWidth: 0 };
 
-    const studyWidth = Math.max(MIN_PANE_WIDTH, Math.round(totalWidth * STUDY_PANE_WIDTH_FRACTION));
-    const bibleWidth = Math.max(MIN_PANE_WIDTH, totalWidth - studyWidth - PANE_SEPARATOR_WIDTH);
-    return { wide, totalWidth, bibleWidth, studyWidth };
+    const rightWidth = RIGHT_PANE_WIDTH;
+    const mainWidth = Math.max(MIN_PANE_WIDTH, totalWidth - rightWidth - PANE_SEPARATOR_WIDTH);
+    return { showRightPane, totalWidth, mainWidth, rightWidth };
   }
 
+  /**
+   * Lay out and cache the current chapter.
+   *
+   * **Bug fixes, both here:**
+   * - `mode` used to be hardcoded to `'paragraph'`, so the Layout setting
+   *   (`ctx.tab.displayMode`) had no way to reach `layoutReading` at all —
+   *   "modifying layout has no visible effect" was this line, not a rendering
+   *   bug in `term/reading.ts`.
+   * - The cache `key` used to omit `ctx.display.verseNumbers` and
+   *   `ctx.display.breakOnVerse`. Both are read below and both change what
+   *   `layoutReading` draws, so leaving them out of the key meant a change to
+   *   *either one alone* was served the old, cached layout — until some other
+   *   setting (say, red-letter) changed the key for an unrelated reason and
+   *   the recompute picked up every pending change at once. That is exactly
+   *   "break on verse does nothing, until I change something else and then it
+   *   does" — a stale cache, not a missing re-render, and not fixed by adding
+   *   one: an extra `redraw` action would still return the same cached `Laid`.
+   */
   private layout(ctx: ScreenContext): Laid | undefined {
     const bible = ctx.library.bible(ctx.tab.translation);
     if (bible === undefined) return undefined;
@@ -1410,8 +1593,19 @@ export class MainScreen implements Screen {
     const chapter = ctx.library.chapter(bible, ctx.tab.bookNumber, ctx.tab.chapter);
     if (chapter === undefined) return undefined;
 
-    const width = this.dimensions(ctx).bibleWidth;
-    const key = `${bible.abbreviation}|${chapter.bookNumber}|${chapter.chapter}|${width}|${cursorVerseNumber(ctx.tab)}|${ctx.display.redLetter}|${ctx.display.showSupplied}`;
+    const width = this.dimensions(ctx).mainWidth;
+    const key = [
+      bible.abbreviation,
+      chapter.bookNumber,
+      chapter.chapter,
+      width,
+      cursorVerseNumber(ctx.tab),
+      ctx.display.redLetter,
+      ctx.display.showSupplied,
+      ctx.tab.displayMode,
+      ctx.display.verseNumbers,
+      ctx.display.breakOnVerse,
+    ].join('|');
     if (this.cache !== undefined && this.cache.key === key) return this.cache.laid;
 
     const verses = chapter.verses.map((verse) =>
@@ -1424,7 +1618,7 @@ export class MainScreen implements Screen {
 
     const lines = layoutReading(verses, {
       width,
-      mode: 'paragraph',
+      mode: ctx.tab.displayMode,
       theme: ctx.theme,
       cursorVerse: cursorVerseNumber(ctx.tab),
       verseNumbers: ctx.display.verseNumbers,
@@ -1519,6 +1713,7 @@ export class MainScreen implements Screen {
     this.studyScroll = 0;
   }
 
+  /** Reading mode's shortcut legend — the right pane's bottom half, and the whole of `studyContent` for `'hints'`. */
   private hintsRows(ctx: ScreenContext): StyledLine[] {
     const counts = studyCounts(ctx, ctx.tab.cursorVerse);
     const muted = ctx.theme.muted;
@@ -1541,7 +1736,10 @@ export class MainScreen implements Screen {
       [],
       line('h - History'),
       line('o - Options'),
-      line(this.wideStudyVisible || this.narrowStudyActive ? 's - Hide study pane' : 's - Show study pane'),
+      // Only reachable at all on a narrow terminal (`narrowHintsPeek`'s
+      // docblock): a wide one's right pane shows this list continuously, so
+      // `s` has nothing to do there and the line would mislead.
+      ...(this.dimensions(ctx).showRightPane ? [] : [line('s - Hide shortcuts')]),
       line(`b - Bookmarks           (${ctx.bookmarks.length})`),
       [],
       [{ text: 'alt+c, y  Copy', style: muted }],
@@ -1550,6 +1748,7 @@ export class MainScreen implements Screen {
       [{ text: 'p, <      Previous chapter', style: muted }],
       [{ text: '↑         Previous verse', style: muted }],
       [{ text: '↓         Next verse', style: muted }],
+      [{ text: '?         More/fewer shortcuts', style: muted }],
     ];
   }
 
@@ -1619,16 +1818,33 @@ export class MainScreen implements Screen {
     }
 
     const header: StyledLine = [{ text: module.moduleName, style: ctx.theme.title }];
+    const notice = this.commentaryStepNotice(ctx);
     const entry = bestCommentaryEntry(module, ctx.tab.cursorVerse);
     if (entry === undefined) {
       return [
         header,
         [],
+        ...notice,
         [{ text: `${module.moduleName} has nothing on this verse.`, style: ctx.theme.muted }],
       ];
     }
 
-    return [header, [], ...layoutCommentary(entry.content, { width, theme: ctx.theme })];
+    return [header, [], ...notice, ...layoutCommentary(entry.content, { width, theme: ctx.theme })];
+  }
+
+  /**
+   * `stepStudyVerse`'s "this verse is part of the same passage" notice — see
+   * `commentaryPendingVerse`. `undefined` (as `[]`) once nothing is pending.
+   */
+  private commentaryStepNotice(ctx: ScreenContext): readonly StyledLine[] {
+    const pending = this.commentaryPendingVerse;
+    if (pending === undefined) return [];
+    const direction = pending > ctx.tab.cursorVerse ? 'next' : 'previous';
+    return [
+      [{ text: `This verse is part of the ${direction} commentary passage.`, style: ctx.theme.muted }],
+      [{ text: 'Press f to show it anyway.', style: ctx.theme.muted }],
+      [],
+    ];
   }
 
   /** `t` — every topic on the cursor verse, alphabetical, numbered straight through. */
@@ -1923,19 +2139,20 @@ export class MainScreen implements Screen {
     return rows;
   }
 
-  /** `o` — one row per setting, its current value, and the number that changes it. */
+  /** `o` — one row per setting; the selected one is marked, `←`/`→` change its value. */
   private optionsRows(ctx: ScreenContext): StyledLine[] {
     const title: StyledLine = [{ text: 'Options', style: ctx.theme.title }];
     const out: StyledLine[] = [title, []];
     OPTION_ROWS.forEach((row, i) => {
-      const number = String(i + 1).padStart(2, '0');
+      const selected = i === this.optionsSelected;
+      const style = selected ? ctx.theme.cursorVerse : undefined;
       out.push([
-        { text: `${number}  ${padTo(row.label, 16)} ` },
-        { text: row.current(ctx) },
+        { text: `${selected ? '▸' : ' '} ${padTo(row.label, 16)} `, style },
+        { text: row.current(ctx), style },
       ]);
     });
     out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a setting number, Enter to change it'));
+    out.push([{ text: '↑↓ select a setting   ← → change its value', style: ctx.theme.muted }]);
     return out;
   }
 
@@ -2019,25 +2236,187 @@ export class MainScreen implements Screen {
     return out;
   }
 
-  private hintsText(wide: boolean, studyOpen: boolean): string {
-    if (this.studyView === 'history') return '0-9 number  enter go  esc back';
-    if (this.studyView === 'options') return '0-9 number  enter change  pgup/pgdn scroll  esc back';
-    if (this.studyView === 'bookmarksList') {
-      return '0-9 number  enter go  a add  r rename  p re-point  d delete  [ ] reorder  esc back';
+  // --- the right pane: current verse, then the shortcut legend ------------
+
+  /**
+   * The right-hand pane: the current verse reference (and, unless the legend
+   * is expanded, its text) on top, the shortcut legend on the bottom,
+   * expanding to fill the pane when the legend does not otherwise fit — the
+   * Layout requirement's "expandable to show more shortcuts when there are
+   * more than fit".
+   */
+  private rightPaneRows(ctx: ScreenContext, laid: Laid, width: number, height: number): StyledLine[] {
+    const cursorNum = cursorVerseNumber(ctx.tab);
+    const rows: StyledLine[] = [
+      [{ text: `${laid.chapter.bookName} ${laid.chapter.chapter}:${cursorNum}`, style: ctx.theme.title }],
+    ];
+
+    if (this.shortcutsExpanded) {
+      rows.push([{ text: '? for the verse text', style: ctx.theme.muted }]);
+    } else {
+      rows.push(...laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments));
     }
-    if (PICKER_VIEWS.has(this.studyView)) return '0-9 number  enter go  pgup/pgdn scroll  esc back';
-    if (
-      this.studyView === 'commentaryEntry' ||
-      this.studyView === 'dictionaryEntry' ||
-      this.studyView === 'bookEntry'
-    ) {
-      return 'pgup/pgdn/space scroll  esc back';
+    rows.push([]);
+
+    const shortcuts = this.shortcutLines(ctx);
+    const budget = Math.max(0, height - rows.length);
+    if (shortcuts.length > budget && budget > 0) {
+      const shown = shortcuts.slice(0, budget - 1);
+      rows.push(...shown);
+      rows.push([{ text: `+${shortcuts.length - shown.length} more — ? for all`, style: ctx.theme.muted }]);
+    } else {
+      rows.push(...shortcuts.slice(0, budget));
     }
-    if (!studyOpen) return 's study   / go to or search';
-    return wide
-      ? '↑↓ verse  n p chapter  s hide study  y copy  / go to or search'
-      : 's bible   ↑↓ verse  / go to or search';
+
+    return padRows(
+      rows.map((r) => padLineTo(truncateLineToWidth(r, width), width)),
+      height,
+    );
   }
+
+  /**
+   * The shortcut legend for whatever `studyView` is active — reading mode
+   * reuses `hintsRows` wholesale (it is already this shape); every study view
+   * gets its own short list, built from the same view-membership sets the key
+   * handlers use, so the two cannot say different things about what a key does.
+   */
+  private shortcutLines(ctx: ScreenContext): StyledLine[] {
+    if (this.studyView === 'hints') return this.hintsRows(ctx);
+
+    const muted = ctx.theme.muted;
+    const row = (keys: string, desc: string): StyledLine => [
+      { text: padTo(keys, 9) },
+      { text: desc, style: muted },
+    ];
+
+    if (this.studyView === 'options') {
+      return [row('↑↓', 'select a setting'), row('←→', 'change its value'), row('esc', 'back')];
+    }
+
+    const lines: StyledLine[] = [row('↑↓', 'scroll')];
+    if (VERSE_STEP_VIEWS.has(this.studyView)) {
+      lines.push(row('< >', this.studyView === 'commentaryEntry' ? 'verse, same commentary' : 'verse, same view'));
+    }
+    if (this.studyView === 'commentaryEntry' && this.commentaryPendingVerse !== undefined) {
+      lines.push(row('f', 'show that verse anyway'));
+    }
+    if (PICKER_VIEWS.has(this.studyView)) lines.push(row('0-9 ⏎', 'open'));
+    if (this.studyView === 'history') lines.push(row('0-9 ⏎', 'go there'));
+    if (this.studyView === 'bookmarksList') {
+      lines.push(row('0-9 ⏎', 'go there'));
+      lines.push(row('a', 'add this verse'));
+      lines.push(row('r', 'rename'));
+      lines.push(row('p', 're-point'));
+      lines.push(row('d', 'delete (twice)'));
+      lines.push(row('[ ]', 'reorder'));
+    }
+    lines.push(row('esc', 'back'));
+    return lines;
+  }
+
+  // --- the "/" popup --------------------------------------------------------
+
+  /**
+   * The overlay `view()` returns while the input line is open — replaces the
+   * old permanently-open entry box (`app/frame.ts`'s docblock). Usage text,
+   * plus, once something is typed, a live preview of how it classifies
+   * (`classifyInput` — the same function the shell will actually call on
+   * Enter, so the preview cannot say something different from what happens)
+   * and up to five book names it could be the start of.
+   */
+  private commandPopup(ctx: ScreenContext): Overlay {
+    const query = ctx.input.trim();
+    const rows: StyledLine[] = [
+      [{ text: 'Type a reference (john 3:16, 3:16-18, +5) or free text to search.' }],
+      [{ text: 'Enter to go  ·  Esc to cancel', style: ctx.theme.muted }],
+    ];
+
+    if (query.length === 0) {
+      rows.push([]);
+      rows.push([{ text: 'Examples: john 3:16   3:16-18   ps 23   +5   faith', style: ctx.theme.muted }]);
+      return { title: 'Go to or search', rows };
+    }
+
+    const intent = classifyInput(query, { book: ctx.tab.bookNumber, chapter: ctx.tab.chapter });
+    rows.push([]);
+    rows.push(this.classificationPreview(ctx, intent));
+
+    const matches = bookSuggestions(ctx, query);
+    if (matches.length > 0) {
+      rows.push([]);
+      rows.push([{ text: `Books: ${matches.join(', ')}`, style: ctx.theme.muted }]);
+    }
+
+    return { title: 'Go to or search', rows };
+  }
+
+  /** What Enter would do with the text typed so far, in the popup. */
+  private classificationPreview(ctx: ScreenContext, intent: Intent): StyledLine {
+    const style = ctx.theme.title;
+    switch (intent.kind) {
+      case 'reference':
+        return [{ text: `→ ${formatResolvedReference(ctx, intent.reference)}`, style }];
+      case 'search':
+        return [{ text: `→ Search for "${intent.query}"`, style }];
+      case 'step-unit':
+        return [{ text: `→ ${intent.delta > 0 ? 'Next' : 'Previous'} chapter`, style }];
+      case 'step-verse':
+        return [
+          {
+            text: `→ ${intent.delta > 0 ? '+' : ''}${intent.delta} verse${Math.abs(intent.delta) === 1 ? '' : 's'}`,
+            style,
+          },
+        ];
+      case 'empty':
+        return [];
+    }
+  }
+
+  // --- footer hints (the narrow-terminal fallback) --------------------------
+
+  /**
+   * The one-line footer hint. On a wide terminal this is a fallback — the
+   * right pane's `shortcutLines` says the same things at more leisure — but on
+   * a narrow one, with no right pane, it is the only shortcut legend there is.
+   */
+  private hintsText(showRightPane: boolean, reading: boolean): string {
+    if (this.studyView === 'options') return '↑↓ select  ← → change  esc back';
+    if (this.studyView === 'history') return '↑↓ scroll  0-9 number  enter go  esc back';
+    if (this.studyView === 'bookmarksList') {
+      return '↑↓ scroll  0-9 number  enter go  a add  r rename  p re-point  d delete  esc back';
+    }
+    if (PICKER_VIEWS.has(this.studyView)) {
+      const step = VERSE_STEP_VIEWS.has(this.studyView) ? '  < > verse' : '';
+      return `↑↓ scroll  0-9 number  enter open${step}  esc back`;
+    }
+    if (this.studyView === 'commentaryEntry') {
+      const confirm = this.commentaryPendingVerse === undefined ? '' : '  f show anyway';
+      return `↑↓ scroll  < > verse${confirm}  esc back`;
+    }
+    if (this.studyView === 'dictionaryEntry' || this.studyView === 'bookEntry') {
+      return '↑↓ scroll  esc back';
+    }
+    if (!reading) return '↑↓ scroll  esc back';
+    if (showRightPane) return '↑↓ verse  n p chapter  y copy  / go to or search';
+    return '↑↓ verse  s shortcuts  / go to or search';
+  }
+}
+
+/** Up to five book names `query` could be the start of — the "/" popup's autocomplete. */
+function bookSuggestions(ctx: ScreenContext, query: string): string[] {
+  const prefix = query.toLowerCase();
+  if (prefix.length === 0) return [];
+
+  const seen = new Set<number>();
+  const names: string[] = [];
+  for (const [key, book] of ENGLISH_BOOK_NAMES) {
+    if (!key.startsWith(prefix)) continue;
+    if (seen.has(book)) continue;
+    seen.add(book);
+    names.push(ctx.library.bookName(book));
+    if (names.length >= 5) break;
+  }
+  return names;
 }
 
 function status(laid: Laid, ctx: ScreenContext): string {
@@ -2076,16 +2455,16 @@ function padRows(rows: readonly StyledLine[], height: number): StyledLine[] {
 }
 
 function composeSideBySide(
-  bibleRows: readonly StyledLine[],
-  studyRows: readonly StyledLine[],
+  mainRows: readonly StyledLine[],
+  rightRows: readonly StyledLine[],
   dims: Dimensions,
   height: number,
   theme: ScreenContext['theme'],
 ): StyledLine[] {
   const rows: StyledLine[] = [];
   for (let i = 0; i < height; i += 1) {
-    const left = padLineTo(truncateLineToWidth(bibleRows[i] ?? [], dims.bibleWidth), dims.bibleWidth);
-    const right = padLineTo(truncateLineToWidth(studyRows[i] ?? [], dims.studyWidth), dims.studyWidth);
+    const left = padLineTo(truncateLineToWidth(mainRows[i] ?? [], dims.mainWidth), dims.mainWidth);
+    const right = padLineTo(truncateLineToWidth(rightRows[i] ?? [], dims.rightWidth), dims.rightWidth);
     rows.push([...left, { text: ' │ ', style: theme.rule }, ...right]);
   }
   return rows;
