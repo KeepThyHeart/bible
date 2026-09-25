@@ -37,9 +37,22 @@ describe('resolveShortcutAction', () => {
     expect(resolveShortcutAction(key({ ctrlKey: true, key: 'Enter' }), noClicker)).toEqual({ type: 'toggleBlank' });
   });
 
-  it('does nothing for a bare arrow key when clicker keys are off', () => {
+  it('does nothing for a bare left/right arrow or letter key when clicker keys are off', () => {
     expect(resolveShortcutAction(key({ key: 'ArrowRight' }), noClicker)).toBeNull();
+    expect(resolveShortcutAction(key({ key: 'ArrowLeft' }), noClicker)).toBeNull();
     expect(resolveShortcutAction(key({ key: 'b' }), noClicker)).toBeNull();
+  });
+
+  it('steps the study verse on a bare up/down arrow when clicker keys are off', () => {
+    expect(resolveShortcutAction(key({ key: 'ArrowDown' }), noClicker))
+      .toEqual({ type: 'stepStudy', direction: 'next' });
+    expect(resolveShortcutAction(key({ key: 'ArrowUp' }), noClicker))
+      .toEqual({ type: 'stepStudy', direction: 'previous' });
+  });
+
+  it('ignores a modified up/down arrow even with clicker keys off', () => {
+    expect(resolveShortcutAction(key({ key: 'ArrowDown', shiftKey: true }), noClicker)).toBeNull();
+    expect(resolveShortcutAction(key({ key: 'ArrowUp', ctrlKey: true }), noClicker)).toBeNull();
   });
 
   it('never fires a modified combination it does not recognise', () => {

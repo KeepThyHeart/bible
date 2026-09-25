@@ -1,5 +1,6 @@
 import { useEffect } from 'preact/hooks';
 import { useStore } from '../../hooks/useStore';
+import { bibleStore } from '../../stores/bibleStore';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
 
@@ -8,23 +9,31 @@ import { usePresenter } from './usePresenter';
  * matter which tab or pane is on screen -- the strip, the panel, or (once the
  * controls live in the Study pane) the Present tab itself.
  *
- * Two layers:
+ * Three layers:
  *
  *  - **Always on, always with a modifier.** Alt+Enter sends what is staged,
  *    Alt+Left/Right steps, Ctrl+Enter blanks. A bare key belongs to the
  *    reader underneath, so every one of these carries a modifier without
  *    exception -- the moment a session starts must not quietly repurpose a
  *    key the reader was already using.
+ *  - **Bare up/down, off a clicker.** Plain ArrowUp/ArrowDown move the study
+ *    verse shown in the Bible pane -- what stepping through a passage to
+ *    decide what to send next already looks like without a session running --
+ *    never the wall itself. This is safe to leave on by default (unlike the
+ *    clicker layer below) because nothing the room sees moves until Send is
+ *    pressed.
  *  - **Opt-in: a presentation remote/clicker.** Off-the-shelf clickers send
  *    plain Page Up/Down, plain arrow keys, and often `b` for a black screen
  *    (the PowerPoint convention, and what the old single-machine program read
- *    directly). Those *are* bare keys, which is exactly why this layer is
- *    gated behind `presentStore.acceptClickerKeys` rather than always on --
- *    turning it on is a presenter saying "I have a clicker plugged in, and I
- *    accept that these keys are mine now."
+ *    directly). Once accepted, those same bare arrow keys drive the wall
+ *    directly instead of the study verse -- exactly one meaning for a bare
+ *    arrow is active at a time -- which is why this layer is gated behind
+ *    `presentStore.acceptClickerKeys` rather than always on: turning it on is
+ *    a presenter saying "I have a clicker plugged in, and I accept that a
+ *    stray press now moves what the room sees, not just what I'm staging."
  *
  * Typing anywhere (a search box, a note, a paste-references textarea) is
- * exempt from both layers.
+ * exempt from every layer.
  */
 
 /** Keys held down mid-service must not reach the reader underneath. */
@@ -39,7 +48,8 @@ export type ShortcutAction =
   | { type: 'send' }
   | { type: 'next' }
   | { type: 'previous' }
-  | { type: 'toggleBlank' };
+  | { type: 'toggleBlank' }
+  | { type: 'stepStudy'; direction: 'next' | 'previous' };
 
 /**
  * Pure key-to-action mapping, so the whole decision -- modifiers, the
@@ -64,6 +74,14 @@ export function resolveShortcutAction(
     if (event.key === 'ArrowRight') return { type: 'next' };
     if (event.key === 'ArrowLeft') return { type: 'previous' };
     return null;
+  }
+
+  // A bare up/down arrow, with no clicker accepted, moves the study verse
+  // instead -- see the module doc's "bare up/down" layer. Checked before the
+  // clicker layer below so the two can never both claim the same key.
+  if (!context.acceptClickerKeys && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+    if (event.key === 'ArrowUp') return { type: 'stepStudy', direction: 'previous' };
+    if (event.key === 'ArrowDown') return { type: 'stepStudy', direction: 'next' };
   }
 
   // Everything past here is a bare key, so it only ever fires once a
@@ -115,6 +133,9 @@ export function usePresenterShortcuts(): void {
           break;
         case 'toggleBlank':
           void presentStore.toggleBlank();
+          break;
+        case 'stepStudy':
+          bibleStore.stepStudyVerse(action.direction);
           break;
       }
     };

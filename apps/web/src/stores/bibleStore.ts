@@ -556,6 +556,39 @@ class BibleStore extends Store {
   }
 
   /**
+   * Move the study verse to the next/previous verse of the loaded chapter --
+   * the up/down-arrow analogue of clicking a verse, used while presenting so
+   * that stepping through a passage to decide what to send also moves the
+   * study focus shown in the Bible pane, rather than keeping presenter-only
+   * state the reader underneath never sees. Never crosses a chapter boundary:
+   * "next chapter" is a bigger decision than an arrow key should make.
+   *
+   * With nothing selected yet, this starts at the chapter's first verse
+   * rather than guessing a direction from nothing.
+   */
+  stepStudyVerse(direction: 'next' | 'previous'): void {
+    const tab = this.getActiveTab();
+    if (!tab || tab.verses.length === 0) return;
+
+    const currentIndex = tab.studyVerse !== null
+      ? tab.verses.findIndex(v => v.verse_id === tab.studyVerse)
+      : -1;
+    const nextIndex = currentIndex === -1
+      ? 0
+      : Math.min(Math.max(currentIndex + (direction === 'next' ? 1 : -1), 0), tab.verses.length - 1);
+
+    const verse = tab.verses[nextIndex];
+    if (!verse || verse.verse_id === tab.studyVerse) return;
+
+    tab.previewVerse = null;
+    tab.previewVerseEnd = null;
+    tab.selectionEndVerse = null;
+    tab.studyVerse = verse.verse_id;
+    this.rememberVerseInCurrentEntry(tab);
+    this.notify();
+  }
+
+  /**
    * Extend the selection from the study verse out to `verseId` (shift-click).
    *
    * With no anchor yet there is nothing to extend from, so this behaves as a
