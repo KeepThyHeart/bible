@@ -60,20 +60,10 @@ function collectRefs(manifest: Extensions.ExtensionManifest): AssetRef[] {
   contributes.panelTypes?.forEach((panel, i) => {
     push(`/contributes/panelTypes/${i}/uiEntry`, panel.uiEntry);
   });
-  contributes.themes?.forEach((theme, i) => {
-    push(`/contributes/themes/${i}/path`, theme.path);
-  });
-  contributes.icons?.forEach((icon, i) => {
-    push(`/contributes/icons/${i}/path`, icon.path);
-  });
-  contributes.styles?.forEach((style, i) => {
-    push(`/contributes/styles/${i}/path`, style.path);
-  });
-  contributes.fonts?.forEach((font, i) => {
-    font.files?.forEach((file, j) => {
-      push(`/contributes/fonts/${i}/files/${j}`, file);
-    });
-  });
+  // `themes`, `icons`, `styles` and `fonts` used to be checked here too.
+  // Task 0024 round 3 (P2.13) deleted all four `contributes` fields as dead
+  // code - see `ExtensionManifestValidator.ts`. `panelTypes[].uiEntry` is now
+  // the only package-relative path this function needs to check.
 
   return refs;
 }

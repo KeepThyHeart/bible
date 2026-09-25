@@ -10,6 +10,10 @@
 
 import { create } from 'zustand';
 import type { Extensions } from '@bible/core';
+import { useAmbientPopupStore } from '../stores/useAmbientPopupStore';
+
+/** This store's identity in `useAmbientPopupStore` (design amendment A6). */
+const VERSE_POPUP_OWNER_ID = 'extension-verse-popup';
 
 type LocalizedString = Extensions.LocalizedString;
 type NotificationOpts = Extensions.NotificationOpts;
@@ -23,6 +27,7 @@ export interface ExtensionNotification {
   message: LocalizedString;
   level: 'info' | 'warning' | 'error';
   ttlMs: number;
+  actions?: { id: string; label: LocalizedString }[];
 }
 
 export interface ExtensionQuickPickModal {
@@ -52,6 +57,22 @@ export type ExtensionModal =
   | ExtensionInputBoxModal
   | ExtensionConfirmModal;
 
+/**
+ * A verse popup requested by an extension panel iframe via
+ * `BibleExtUI.showVersePopup`. Non-modal and hover-driven (unlike
+ * `ExtensionModal`, which blocks on a user choice), so it is its own field
+ * rather than a fourth `ExtensionModal` kind - the panel that asked for it
+ * keeps running underneath, exactly like the host's own verse hover
+ * previews (`VersePreviewTooltip`) do for built-in panes. Only one at a
+ * time: a second request (from any panel) replaces it, which is also what
+ * happens when the user's mouse moves from one reference to another.
+ */
+export interface ExtensionVersePopup {
+  extensionId: string;
+  verseId: number;
+  position: { x: number; y: number };
+}
+
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
@@ -78,6 +99,29 @@ export interface ExtensionStatusBarItem {
   item: StatusBarItemDescriptor;
 }
 
+type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
+type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
+
+/**
+ * One extension-contributed verse decorator (task 0036, P0.1a). This is the
+ * *registration record* - "extension X has a decorator named Y" - for the
+ * settings toggle and diagnostics. The decoration *data* it produces lives in
+ * `verseDecorationStore`, a separate, much hotter-churning store (design doc
+ * §14.1 vs §14.2).
+ */
+export interface ExtensionVerseDecorator {
+  key: string;
+  extensionId: string;
+  descriptor: VerseDecoratorDescriptor;
+}
+
+/** One extension-contributed verse hover provider. */
+export interface ExtensionVerseHoverProvider {
+  key: string;
+  extensionId: string;
+  descriptor: VerseHoverProviderDescriptor;
+}
+
 /**
  * One extension-contributed panel type.
  *
@@ -96,6 +140,9 @@ export interface ExtensionPanelType {
 interface ExtensionUiState {
   notifications: ExtensionNotification[];
   modal: ExtensionModal | null;
+  versePopup: ExtensionVersePopup | null;
+  showVersePopup(extensionId: string, verseId: number, position: { x: number; y: number }): void;
+  hideVersePopup(): void;
   /**
    * Contributed context menu items, in registration order. Sorting by `order`
    * happens where they are rendered, not here, so the store stays a plain
@@ -111,8 +158,29 @@ interface ExtensionUiState {
    * everyone else.
    */
   panelTypes: ExtensionPanelType[];
-  pushNotification(extensionId: string, message: LocalizedString, opts: NotificationOpts | null): void;
+  /**
+   * Badge text/count for a panel's tab, by dockview panel id - set via
+   * `workspace.setPanelBadge`. Dockview has no native badge concept, so
+   * `DockviewTabRenderer` reads this directly for `ext:`-content-type tabs
+   * rather than the badge living on dockview's own panel state.
+   */
+  panelBadges: Record<string, string | number>;
+  /** Set (or, with `undefined`, clear) a panel's tab badge. */
+  setPanelBadge(panelId: string, badge: string | number | undefined): void;
+  /**
+   * Resolves once the notification is gone - clicked action, manual
+   * dismiss, or auto-dismiss timeout - with the clicked action's id, or
+   * undefined for anything else. See `IUiApi.showNotification`.
+   */
+  pushNotification(
+    extensionId: string,
+    message: LocalizedString,
+    opts: NotificationOpts | null,
+  ): Promise<string | undefined>;
+  /** Manual dismiss (the toast's own × button, or programmatic). Resolves the pending promise with undefined. */
   dismissNotification(id: number): void;
+  /** The user clicked one of `opts.actions`. Resolves the pending promise with that action's id. */
+  resolveNotificationAction(id: number, actionId: string): void;
   setModal(modal: ExtensionModal | null): void;
   addContextMenuItem(
     extensionId: string,
@@ -124,6 +192,24 @@ interface ExtensionUiState {
   addPanelType(extensionId: string, def: ExtensionPanelTypeDef): void;
   removePanelType(extensionId: string, panelTypeId: string): void;
   removeStatusBarItem(extensionId: string, itemId: string): void;
+  /** Registered verse decorators, in registration order. */
+  verseDecorators: ExtensionVerseDecorator[];
+  /** Registered verse hover providers, in registration order. */
+  verseHoverProviders: ExtensionVerseHoverProvider[];
+  addVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): void;
+  removeVerseDecorator(extensionId: string, decoratorId: string): void;
+  addVerseHoverProvider(extensionId: string, descriptor: VerseHoverProviderDescriptor): void;
+  removeVerseHoverProvider(extensionId: string, hoverId: string): void;
+  /**
+   * The per-extension "show verse decorations" toggle (design doc §13).
+   * Session-scoped (in-memory only in P0.1a - see this task's delivery
+   * notes for the persistence gap). Disabled extensions are excluded here
+   * AND synced to `VerseDecorationService` via
+   * `invokeUiBridge('setVerseDecorationsEnabled', ...)`, so main stops
+   * fetching for them too.
+   */
+  disabledDecorationExtensions: Set<string>;
+  setDecorationsEnabled(extensionId: string, enabled: boolean): void;
   /** Drop every contribution owned by one extension. Used on deactivate. */
   removeContributionsByOwner(extensionId: string): void;
 }
@@ -183,12 +269,47 @@ export function deliverPanelMessage(msg: PanelMessageEnvelope): void {
 
 let nextNotificationId = 1;
 
+/**
+ * Pending `showNotification` resolvers, keyed by notification id.
+ *
+ * Not store state: a resolver is a one-shot side effect (settle the
+ * extension's promise), not something a component reads or re-renders on -
+ * the same reasoning as `panelMessageListeners` above. `pushNotification`
+ * inserts a resolver here when it fires; `dismissNotification` and
+ * `resolveNotificationAction` (and the auto-dismiss timeout) drain it
+ * exactly once, whichever happens first.
+ */
+const notificationResolvers = new Map<number, (actionId: string | undefined) => void>();
+
+function settleNotification(id: number, actionId: string | undefined): void {
+  const resolve = notificationResolvers.get(id);
+  if (!resolve) return; // already settled (e.g. dismiss raced the timeout)
+  notificationResolvers.delete(id);
+  resolve(actionId);
+}
+
 export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
   notifications: [],
   modal: null,
+  versePopup: null,
   contextMenuItems: [],
   statusBarItems: [],
   panelTypes: [],
+  panelBadges: {},
+  verseDecorators: [],
+  verseHoverProviders: [],
+  disabledDecorationExtensions: new Set(),
+
+  setPanelBadge(panelId, badge) {
+    set((s) => {
+      if (badge === undefined) {
+        if (!(panelId in s.panelBadges)) return s;
+        const { [panelId]: _dropped, ...rest } = s.panelBadges;
+        return { panelBadges: rest };
+      }
+      return { panelBadges: { ...s.panelBadges, [panelId]: badge } };
+    });
+  },
 
   pushNotification(extensionId, message, opts) {
     const id = nextNotificationId++;
@@ -196,25 +317,46 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
     const requested = opts?.durationMs ?? 4000;
     const ttlMs = requested === 0 ? 0 : Math.max(500, Math.min(requested, 60_000));
     const severity = opts?.severity ?? 'info';
-    set((s) => ({
-      notifications: [
-        ...s.notifications,
-        { id, extensionId, message, level: severity, ttlMs },
-      ],
-    }));
-    if (ttlMs > 0) {
-      setTimeout(() => {
-        set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
-      }, ttlMs);
-    }
+    const actions = opts?.actions;
+    return new Promise<string | undefined>((resolve) => {
+      notificationResolvers.set(id, resolve);
+      set((s) => ({
+        notifications: [
+          ...s.notifications,
+          { id, extensionId, message, level: severity, ttlMs, ...(actions ? { actions } : {}) },
+        ],
+      }));
+      if (ttlMs > 0) {
+        setTimeout(() => {
+          set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+          settleNotification(id, undefined);
+        }, ttlMs);
+      }
+    });
   },
 
   dismissNotification(id) {
     set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+    settleNotification(id, undefined);
+  },
+
+  resolveNotificationAction(id, actionId) {
+    set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
+    settleNotification(id, actionId);
   },
 
   setModal(modal) {
     set({ modal });
+  },
+
+  showVersePopup(extensionId, verseId, position) {
+    useAmbientPopupStore.getState().claim(VERSE_POPUP_OWNER_ID);
+    set({ versePopup: { extensionId, verseId, position } });
+  },
+
+  hideVersePopup() {
+    set({ versePopup: null });
+    useAmbientPopupStore.getState().release(VERSE_POPUP_OWNER_ID);
   },
 
   addContextMenuItem(extensionId, target, item) {
@@ -271,11 +413,68 @@ export const useExtensionUiStore = create<ExtensionUiState>((set) => ({
     set((s) => ({ panelTypes: s.panelTypes.filter((p) => p.key !== key) }));
   },
 
+  addVerseDecorator(extensionId, descriptor) {
+    const key = `${extensionId}::${descriptor.id}`;
+    set((s) => ({
+      verseDecorators: [
+        ...s.verseDecorators.filter((d) => d.key !== key),
+        { key, extensionId, descriptor },
+      ],
+    }));
+  },
+
+  removeVerseDecorator(extensionId, decoratorId) {
+    const key = `${extensionId}::${decoratorId}`;
+    set((s) => ({ verseDecorators: s.verseDecorators.filter((d) => d.key !== key) }));
+  },
+
+  addVerseHoverProvider(extensionId, descriptor) {
+    const key = `${extensionId}::${descriptor.id}`;
+    set((s) => ({
+      verseHoverProviders: [
+        ...s.verseHoverProviders.filter((h) => h.key !== key),
+        { key, extensionId, descriptor },
+      ],
+    }));
+  },
+
+  removeVerseHoverProvider(extensionId, hoverId) {
+    const key = `${extensionId}::${hoverId}`;
+    set((s) => ({ verseHoverProviders: s.verseHoverProviders.filter((h) => h.key !== key) }));
+  },
+
+  setDecorationsEnabled(extensionId, enabled) {
+    set((s) => {
+      const next = new Set(s.disabledDecorationExtensions);
+      if (enabled) next.delete(extensionId);
+      else next.add(extensionId);
+      return { disabledDecorationExtensions: next };
+    });
+  },
+
   removeContributionsByOwner(extensionId) {
     set((s) => ({
       contextMenuItems: s.contextMenuItems.filter((c) => c.extensionId !== extensionId),
       statusBarItems: s.statusBarItems.filter((c) => c.extensionId !== extensionId),
       panelTypes: s.panelTypes.filter((p) => p.extensionId !== extensionId),
+      verseDecorators: s.verseDecorators.filter((d) => d.extensionId !== extensionId),
+      verseHoverProviders: s.verseHoverProviders.filter((h) => h.extensionId !== extensionId),
+      // A popup an extension's own panel requested must not outlive the
+      // panel (or the whole extension) being disposed - it used to (see
+      // task 0036's P0.1c delivery notes), leaving a stale popup on screen
+      // pointing at content nothing owns any more.
+      ...(s.versePopup?.extensionId === extensionId ? { versePopup: null } : {}),
     }));
   },
 }));
+
+// Close the extension verse popup the moment another ambient popup (design
+// amendment A6) claims the shared slot - the same coordination
+// `verseHoverPopupStore.ts` does for its own popup. One module-level
+// subscription for the app's lifetime, mirroring `panelMessageListeners`
+// above.
+useAmbientPopupStore.subscribe((s) => {
+  if (s.owner !== VERSE_POPUP_OWNER_ID && useExtensionUiStore.getState().versePopup !== null) {
+    useExtensionUiStore.setState({ versePopup: null });
+  }
+});

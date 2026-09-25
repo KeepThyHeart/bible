@@ -31,6 +31,8 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import log from 'electron-log';
 
+import { Extensions } from '@bible/core';
+
 import type { ExtensionHost } from '../extensions/ExtensionHost';
 import type { IExtensionUiBridge } from '../extensions/api-impl/IExtensionDataBridges';
 import { t } from '../services/MainI18n';
@@ -299,6 +301,31 @@ export function registerExtensionHandlers(
       // can mount the iframe with the right `ext-ui://` URL.
       const def = options.uiBridge?.getPanelType(extensionId, panelTypeId);
       if (!def) return null;
+
+      // Lazy activation (task 0024 round 3, P1.5): every way a panel opens
+      // (palette command, new-tab page, restored layout, pop-out) mounts
+      // `ExtensionPanelHost`, which calls this handler on mount - the one
+      // true seam for `onView:`. The owning worker must be up before the
+      // iframe starts calling `extensions:panelInvoke`. Fire the activation
+      // event first (so a manifest that *did* declare `onView:<id>` gets its
+      // normal path) and then activate directly regardless (so a panel type
+      // still works even if the manifest forgot to declare a matching
+      // `onView:` entry - the panel was declared, so it must open). Both
+      // calls are coalesced with any other in-flight activation
+      // (`ExtensionHostLifecycle.activate`), so this never double-spawns. A
+      // failure here is not fatal - the iframe still renders; only worker
+      // messaging is unavailable, and that already surfaces its own error.
+      if (!host.isActive(extensionId)) {
+        try {
+          await host.fireActivationEvent(Extensions.onView(panelTypeId));
+          await host.activate(extensionId);
+        } catch (err) {
+          log.warn(
+            `[extensions] lazy activation for ${extensionId} panel ${panelTypeId} failed:`,
+            err,
+          );
+        }
+      }
       // Check if the extension has ui:media permission for autoplay support.
       const state = await host.getExtension(extensionId);
       const allowAutoplay =

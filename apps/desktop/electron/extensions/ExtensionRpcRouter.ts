@@ -110,6 +110,8 @@ export class ExtensionRpcRouter {
   private readonly methods = new Map<string, RpcMethodHandler>();
   private readonly subscriptions = new Map<string, Set<RpcRequestId>>();
   private readonly subscriptionChannels = new Map<RpcRequestId, string>();
+  /** `RpcSubscribe.order`, recorded per subscription id. Absent means "not given". */
+  private readonly subscriptionOrder = new Map<RpcRequestId, number>();
   private readonly pending = new Map<RpcRequestId, PendingReverseRequest>();
   private nextReverseId = 1;
   private closed = false;
@@ -178,6 +180,22 @@ export class ExtensionRpcRouter {
     return !!subs && subs.size > 0;
   }
 
+  /**
+   * The `order` hint the worker gave when subscribing to `channel` (used by
+   * `filter`/`provider` dispatch to sort subscribers). `undefined` if the
+   * worker has no subscription on the channel, or subscribed without an
+   * `order` - the caller applies `ORDER_DEFAULT` in that case.
+   */
+  getSubscriptionOrder(channel: string): number | undefined {
+    const subs = this.subscriptions.get(channel);
+    if (!subs) return undefined;
+    for (const id of subs) {
+      const order = this.subscriptionOrder.get(id);
+      if (order !== undefined) return order;
+    }
+    return undefined;
+  }
+
   // --- Reverse RPC (host -> worker) ---------------------------------------
 
   /**
@@ -232,6 +250,7 @@ export class ExtensionRpcRouter {
     }
     this.subscriptions.clear();
     this.subscriptionChannels.clear();
+    this.subscriptionOrder.clear();
     try {
       this.transport.close();
     } catch {
@@ -353,6 +372,7 @@ export class ExtensionRpcRouter {
     }
     set.add(sub.id);
     this.subscriptionChannels.set(sub.id, sub.channel);
+    if (sub.order !== undefined) this.subscriptionOrder.set(sub.id, sub.order);
     // After the subscription is recorded, so a listener's `emitEvent` reaches
     // the worker that just asked.
     for (const listener of this.subscribeListeners.get(sub.channel) ?? []) {
@@ -368,6 +388,7 @@ export class ExtensionRpcRouter {
     const channel = this.subscriptionChannels.get(unsub.id);
     if (!channel) return;
     this.subscriptionChannels.delete(unsub.id);
+    this.subscriptionOrder.delete(unsub.id);
     const set = this.subscriptions.get(channel);
     if (!set) return;
     set.delete(unsub.id);

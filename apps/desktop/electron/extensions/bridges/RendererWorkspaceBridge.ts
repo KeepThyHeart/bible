@@ -19,6 +19,7 @@ import { BridgeRpc } from './RendererBridgeRpc';
 
 type PanelInfoDto = Extensions.PanelInfoDto;
 type OpenPanelOpts = Extensions.OpenPanelOpts;
+type LocalizedString = Extensions.LocalizedString;
 
 export class RendererWorkspaceBridge implements IExtensionWorkspaceBridge {
   private readonly rpc: BridgeRpc;
@@ -101,6 +102,25 @@ export class RendererWorkspaceBridge implements IExtensionWorkspaceBridge {
 
   closePanel(panelId: string): void {
     void this.rpc.request('closePanel', [panelId]).catch(() => undefined);
+  }
+
+  setPanelTitle(panelId: string, title: LocalizedString): void {
+    void this.rpc.request('setPanelTitle', [panelId, title]).catch(() => undefined);
+  }
+
+  setPanelBadge(panelId: string, badge: string | number | undefined): void {
+    void this.rpc.request('setPanelBadge', [panelId, badge ?? null]).catch(() => undefined);
+  }
+
+  revealPanel(panelId: string): boolean {
+    // Answer from the local cache immediately (the api-impl interface is
+    // synchronous, like every other read here) and fire the real focus
+    // request only when the panel is actually known to be open.
+    const found = this.panels.has(panelId);
+    if (found) {
+      void this.rpc.request('revealPanel', [panelId]).catch(() => undefined);
+    }
+    return found;
   }
 
   subscribeActivePanel(handler: (p: PanelInfoDto | null) => void): () => void {

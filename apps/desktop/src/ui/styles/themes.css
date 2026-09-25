@@ -159,9 +159,13 @@
 
   /* Morphology colors */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #D97706;
@@ -285,9 +289,13 @@
 
   /* Morphology colors - brighter for dark backgrounds */
   --theme-morph-verb: #60A5FA;
+  --theme-morph-verb-rgb: 96 165 250;
   --theme-morph-noun: #4ADE80;
+  --theme-morph-noun-rgb: 74 222 128;
   --theme-morph-adjective: #C084FC;
+  --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
+  --theme-morph-pronoun-rgb: 251 146 60;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #FBBF24;
@@ -409,9 +417,13 @@
 
   /* Morphology colors - warm tones for sepia */
   --theme-morph-verb: #2563EB;
+  --theme-morph-verb-rgb: 37 99 235;
   --theme-morph-noun: #166534;
+  --theme-morph-noun-rgb: 22 101 52;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #B45309;
@@ -535,9 +547,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -661,9 +677,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -787,9 +807,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -913,9 +937,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1039,9 +1067,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1165,9 +1197,13 @@
 
   /* Morphology colors reused wholesale from the dark theme */
   --theme-morph-verb: #60A5FA;
+  --theme-morph-verb-rgb: 96 165 250;
   --theme-morph-noun: #4ADE80;
+  --theme-morph-noun-rgb: 74 222 128;
   --theme-morph-adjective: #C084FC;
+  --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
+  --theme-morph-pronoun-rgb: 251 146 60;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);
@@ -1291,9 +1327,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1417,9 +1457,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1543,9 +1587,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1669,9 +1717,13 @@
 
   /* Morphology colors reused wholesale from the dark theme */
   --theme-morph-verb: #60A5FA;
+  --theme-morph-verb-rgb: 96 165 250;
   --theme-morph-noun: #4ADE80;
+  --theme-morph-noun-rgb: 74 222 128;
   --theme-morph-adjective: #C084FC;
+  --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
+  --theme-morph-pronoun-rgb: 251 146 60;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);
@@ -1795,9 +1847,13 @@
 
   /* Morphology colors reused wholesale from the light theme */
   --theme-morph-verb: #1D4ED8;
+  --theme-morph-verb-rgb: 29 78 216;
   --theme-morph-noun: #15803D;
+  --theme-morph-noun-rgb: 21 128 61;
   --theme-morph-adjective: #7E22CE;
+  --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
+  --theme-morph-pronoun-rgb: 194 65 12;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1921,9 +1977,13 @@
 
   /* Morphology colors reused wholesale from the dark theme */
   --theme-morph-verb: #60A5FA;
+  --theme-morph-verb-rgb: 96 165 250;
   --theme-morph-noun: #4ADE80;
+  --theme-morph-noun-rgb: 74 222 128;
   --theme-morph-adjective: #C084FC;
+  --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
+  --theme-morph-pronoun-rgb: 251 146 60;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);

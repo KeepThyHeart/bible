@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -72,6 +72,54 @@ describe('loadManifest', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.errors[0]?.code).not.toBe('manifest.missing');
       expect(result.errors[0]?.code).not.toBe('manifest.parse-error');
+    }
+  });
+
+  it('warns once when contributes.bibleProviders is declared (task 0024 P2.13 Q3)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const installPath = writeManifest('bible-provider-ext', {
+        id: 'ext.example.tools',
+        name: { key: 'extension.name' },
+        version: '1.0.0',
+        publisher: 'example',
+        engines: { bibleApp: '^1.0.0' },
+        contributes: {
+          bibleProviders: [
+            {
+              id: 'geneva-1599',
+              name: { key: 'Geneva Bible 1599' },
+              abbreviation: 'GEN99',
+              capabilities: ['lookup'],
+              fetchEndpoint: 'fetchGeneva',
+            },
+          ],
+        },
+      });
+      const result = loadManifest(installPath);
+      expect(result.ok).toBe(true);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('contributes.bibleProviders');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('does not warn when contributes.bibleProviders is absent', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const installPath = writeManifest('no-bible-provider-ext', {
+        id: 'ext.example.tools',
+        name: { key: 'extension.name' },
+        version: '1.0.0',
+        publisher: 'example',
+        engines: { bibleApp: '^1.0.0' },
+      });
+      const result = loadManifest(installPath);
+      expect(result.ok).toBe(true);
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
     }
   });
 });

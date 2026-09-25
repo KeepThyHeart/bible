@@ -16,28 +16,21 @@
  *   - `permissions` containing `network` requires `network.allowedHosts`
  *     non-empty.
  *   - `permissions` containing `network:oauth` requires `network`.
- *   - Command / panel / provider / display-mode / file-importer / theme /
- *     font / icon / api-export IDs must start with `ext.<id>.` or be
- *     unprefixed (validator auto-prepends).
+ *   - Command / panel / bible-provider / api-export IDs must start with
+ *     `ext.<id>.` or be unprefixed (validator auto-prepends).
  *   - `apiExports[*].method` must be a valid JS identifier.
  *   - `webviews.csp` URL sources (anything with `://` or `*.host`) must
  *     reference a host in `network.allowedHosts`. CSP keyword tokens
  *     (`self`, `data:`, `blob:`, `none`, `unsafe-inline`, `unsafe-eval`)
  *     are allowed.
- *   - Font/style/icon/theme `path` entries must not contain `..` segments
- *     and must not start with `/` (must resolve under the package root).
+ *   - `panelTypes[*].uiEntry` must not contain `..` segments and must not
+ *     start with `/` (must resolve under the package root).
  */
 
 import type {
   AllowedNetworkHost,
   ContributedApiExport,
   ContributedCommand,
-  ContributedFileImporter,
-  ContributedFont,
-  ContributedIcon,
-  ContributedMenuItem,
-  ContributedStyle,
-  ContributedTheme,
   ExtensionContributes,
   ExtensionManifest,
   ExtensionNetworkConfig,
@@ -50,14 +43,17 @@ import type {
 } from './ExtensionManifest';
 import type { ExtensionPermission } from './Permissions';
 import type {
-  BookProviderDescriptor,
-  CommentaryProviderDescriptor,
-  DictionaryProviderDescriptor,
-  DisplayModeDescriptor,
+  BibleProviderDescriptor,
   ExtensionPanelTypeDef,
   KeybindingDescriptor,
   LocalizedString,
 } from './ExtensionApiDtos';
+import {
+  ACT_PREFIX_ON_COMMAND,
+  ACT_PREFIX_ON_VIEW,
+  isBuiltinOnlyEvent,
+  isKnownActivationEvent,
+} from './ActivationEvents';
 
 // --- Result shape ----------------------------------------------------------
 
@@ -81,7 +77,14 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$
 const PUBLISHER_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
-const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
+/**
+ * Exported (not just an implementation constant) so a schema/validator
+ * parity test can assert this set equals the JSON Schema's `Permission` enum
+ * - see `ExtensionManifestSchemaParity.test.ts`. That divergence is exactly
+ * what produced the pre-round-3 `bibleProviders` bug (task 0024 §3): the
+ * schema promised a field the validator rejected.
+ */
+export const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
   'bible:read',
   'commentary:read',
   'dictionary:read',
@@ -92,14 +95,10 @@ const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
   'highlights:write',
   'bookmarks:read',
   'bookmarks:write',
+  'bible:provide',
   'commentary:provide',
   'dictionary:provide',
   'book:provide',
-  'search:provide',
-  'display-mode:provide',
-  'import:provide',
-  'ai:provide',
-  'tts:provide',
   'storage',
   'storage:secrets',
   'storage:database',
@@ -109,7 +108,20 @@ const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
   'ui:context-menu',
   'ui:notification',
   'ui:status-bar',
+  /**
+   * Found missing here by the schema/validator parity test added in task
+   * 0024 round 3 (P2.13, Q4): `ui:media` was declared in the JSON Schema's
+   * `Permission` enum, in `Permissions.ts`'s `ExtensionPermission` union, and
+   * consumed live (`extensionHandlers.ts`'s autoplay gate,
+   * `ExtensionPanelHost.tsx`), but never added here - so a manifest
+   * declaring `permissions: ['ui:media']` was rejected at load as an
+   * "unknown permission". The exact same class of bug as the pre-fix
+   * `bibleProviders` mismatch (§3), just on the permission enum instead of
+   * `contributes`.
+   */
+  'ui:media',
   'commands:register',
+  'commands:execute-builtin',
   'tasks',
   'network',
   'network:oauth',
@@ -121,26 +133,8 @@ const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
 
 const ALLOWED_HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] as const;
 const ALLOWED_PRICING: readonly PricingTier[] = ['free', 'freemium', 'paid'];
-const ALLOWED_DISPLAY_MODE_KINDS = ['overlay', 'replace'] as const;
-const ALLOWED_STYLE_SCOPES = ['verse', 'panel', 'global'] as const;
 const ALLOWED_PANEL_BUCKETS = ['left', 'right', 'bottom', 'unknown'] as const;
-const ALLOWED_COMMENTARY_CAPABILITIES = [
-  'lookup',
-  'range',
-  'iterate',
-  'similarity',
-  'remote',
-] as const;
-const ALLOWED_DICTIONARY_CAPABILITIES = [
-  'lookup',
-  'search',
-  'iterate',
-  'strongs',
-  'lemma',
-  'morphology',
-  'remote',
-] as const;
-const ALLOWED_BOOK_CAPABILITIES = ['lookup', 'iterate', 'remote'] as const;
+const ALLOWED_BIBLE_CAPABILITIES = ['lookup', 'range', 'iterate', 'remote'] as const;
 
 const CSP_KEYWORD_TOKENS = new Set([
   'self',
@@ -181,22 +175,13 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
   'l10n',
 ]);
 
-const ALLOWED_CONTRIBUTES_KEYS = new Set([
+/** Exported for the same reason as `ALLOWED_PERMISSIONS` above. */
+export const ALLOWED_CONTRIBUTES_KEYS = new Set([
   'commands',
   'panelTypes',
-  'menus',
   'configuration',
-  'providers',
-  'displayModes',
-  'themes',
-  'fonts',
-  'icons',
-  'styles',
-  'fileImporters',
   'apiExports',
-  'commentaryProviders',
-  'dictionaryProviders',
-  'bookProviders',
+  'bibleProviders',
 ]);
 
 // --- Validator core --------------------------------------------------------
@@ -584,7 +569,25 @@ function hostMatches(candidate: string, allowedPattern: string): boolean {
 
 // --- Activation events -----------------------------------------------------
 
-function validateActivationEvents(v: Validator, value: unknown): string[] | undefined {
+/**
+ * Validate `activationEvents` against `ActivationEvents.ts`'s known
+ * vocabulary (task 0024 round 3, P1.5). Before this, any non-empty string
+ * was accepted, so a typo'd event looked exactly like a working one - and
+ * `'onStartup'` (not `'onStartupFinished'`) validated even though nothing in
+ * `ActivationEvents.ts` declared it and nothing but two hard-coded
+ * `main.ts` fires matched it.
+ *
+ * `onCommand:`/`onView:` arguments are normalized here so `fireActivationEvent`'s
+ * `events.includes(eventId)` exact-match check (`ExtensionHostLifecycle.ts`)
+ * works regardless of which spelling the author wrote - see
+ * `normalizeActivationArgument`'s own doc comment for the short-vs-long-id
+ * rule this mirrors from `normalizeId`.
+ */
+function validateActivationEvents(
+  v: Validator,
+  value: unknown,
+  ctx: ContributionContext,
+): string[] | undefined {
   if (!v.requireArray('/activationEvents', value)) return undefined;
   const out: string[] = [];
   const seen = new Set<string>();
@@ -598,10 +601,70 @@ function validateActivationEvents(v: Validator, value: unknown): string[] | unde
       v.add(path, 'unique', `duplicate activation event "${entry}"`);
       return;
     }
+    if (isBuiltinOnlyEvent(entry)) {
+      v.add(
+        path,
+        'activation.builtin-only',
+        `activation event "${entry}" is reserved for built-in extensions`,
+      );
+      return;
+    }
+    if (!isKnownActivationEvent(entry)) {
+      v.add(
+        path,
+        'activation.unknown',
+        `unknown activation event "${entry}" (see packages/core/src/Extensions/ActivationEvents.ts)`,
+      );
+      return;
+    }
     seen.add(entry);
-    out.push(entry);
+    out.push(normalizeActivationArgument(entry, ctx));
   });
   return out;
+}
+
+/**
+ * Normalize an `onCommand:`/`onView:` activation event's argument so it
+ * lines up with how the contribution it names is actually addressed, and
+ * pass every other event through unchanged.
+ *
+ * - `onCommand:<x>` -> the LONG form, matching `contributes.commands[].id`
+ *   after `normalizeId` (e.g. `onCommand:helloWorld` and
+ *   `onCommand:ext.pub.name.helloWorld` both become the latter) - commands
+ *   are keyed by their fully-qualified id everywhere (`CommandRegistry.ts`).
+ * - `onView:<x>` -> the SHORT form, with any leading `ext.<id>.` stripped -
+ *   panel types are keyed by their short id in the renderer
+ *   (`RendererUiBridge.registerPanelType`'s `${extensionId}.${def.id}`,
+ *   `extensionUiStore.ts`'s `contentType: ext:${extensionId}.${def.id}`); a
+ *   long-form argument here would never match what actually opens.
+ * - Anything else (including an argument that turns out to reference a
+ *   *different* extension, which is inert rather than a spoofing risk since
+ *   an activation event only affects the declaring extension's own
+ *   activation) is left exactly as written.
+ */
+function normalizeActivationArgument(entry: string, ctx: ContributionContext): string {
+  if (entry.startsWith(ACT_PREFIX_ON_COMMAND)) {
+    const arg = entry.slice(ACT_PREFIX_ON_COMMAND.length);
+    return ACT_PREFIX_ON_COMMAND + longContributionId(arg, ctx);
+  }
+  if (entry.startsWith(ACT_PREFIX_ON_VIEW)) {
+    const arg = entry.slice(ACT_PREFIX_ON_VIEW.length);
+    return ACT_PREFIX_ON_VIEW + shortContributionId(arg, ctx);
+  }
+  return entry;
+}
+
+/** `helloWorld` -> `ext.pub.name.helloWorld`; already-long ids pass through. */
+function longContributionId(id: string, ctx: ContributionContext): string {
+  if (id.startsWith('ext.') || !ctx.extId) return id;
+  return `ext.${stripExtPrefix(ctx.extId)}.${id}`;
+}
+
+/** `ext.pub.name.panel` -> `panel`; already-short ids pass through. */
+function shortContributionId(id: string, ctx: ContributionContext): string {
+  if (!ctx.extId) return id;
+  const prefix = `${ctx.extId}.`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
 }
 
 // --- Runtime config -------------------------------------------------------
@@ -701,44 +764,14 @@ function validateContributes(
   if ('panelTypes' in value) {
     out.panelTypes = validatePanelTypes(v, value.panelTypes, ctx);
   }
-  if ('menus' in value) {
-    out.menus = validateMenus(v, value.menus);
-  }
   if ('configuration' in value) {
     out.configuration = validateConfiguration(v, value.configuration);
-  }
-  if ('providers' in value) {
-    out.providers = validateProviderRoles(v, value.providers);
-  }
-  if ('displayModes' in value) {
-    out.displayModes = validateDisplayModes(v, value.displayModes, ctx);
-  }
-  if ('themes' in value) {
-    out.themes = validateThemes(v, value.themes, ctx);
-  }
-  if ('fonts' in value) {
-    out.fonts = validateFonts(v, value.fonts, ctx);
-  }
-  if ('icons' in value) {
-    out.icons = validateIcons(v, value.icons, ctx);
-  }
-  if ('styles' in value) {
-    out.styles = validateStyles(v, value.styles);
-  }
-  if ('fileImporters' in value) {
-    out.fileImporters = validateFileImporters(v, value.fileImporters, ctx);
   }
   if ('apiExports' in value) {
     out.apiExports = validateApiExports(v, value.apiExports);
   }
-  if ('commentaryProviders' in value) {
-    out.commentaryProviders = validateCommentaryProviders(v, value.commentaryProviders, ctx);
-  }
-  if ('dictionaryProviders' in value) {
-    out.dictionaryProviders = validateDictionaryProviders(v, value.dictionaryProviders, ctx);
-  }
-  if ('bookProviders' in value) {
-    out.bookProviders = validateBookProviders(v, value.bookProviders, ctx);
+  if ('bibleProviders' in value) {
+    out.bibleProviders = validateBibleProviders(v, value.bibleProviders, ctx);
   }
 
   return out;
@@ -831,6 +864,18 @@ function validateContributedCommands(
       }
     }
     if ('hidden' in cmd && v.requireBool(`${path}/hidden`, cmd.hidden)) command.hidden = cmd.hidden;
+    // A `shortcut` rides the Tools-menu accelerator built from every
+    // *visible* extension command (`buildExtensionToolsSubmenu`,
+    // `buildMenuSpec.ts` - skips `hidden: true`), so a shortcut on a hidden
+    // command would be silently unreachable (task 0024 round 3, P1.5 - the
+    // `commands[].shortcut` decision, P2.13's deferred Q1).
+    if (command.shortcut !== undefined && command.hidden === true) {
+      v.add(
+        `${path}/shortcut`,
+        'shortcut.hidden',
+        'a `shortcut` on a `hidden` command is unreachable - hidden commands get no menu entry',
+      );
+    }
     out.push(command);
   });
   return out;
@@ -916,59 +961,6 @@ function validatePanelTypes(
   return out;
 }
 
-function validateMenus(
-  v: Validator,
-  value: unknown,
-): Record<string, ContributedMenuItem[]> | undefined {
-  if (!v.requireRecord('/contributes/menus', value)) return undefined;
-  const out: Record<string, ContributedMenuItem[]> = {};
-  for (const [target, items] of Object.entries(value)) {
-    const path = `/contributes/menus/${target}`;
-    if (!v.requireArray(path, items)) continue;
-    const list: ContributedMenuItem[] = [];
-    items.forEach((item, i) => {
-      const ip = `${path}/${i}`;
-      if (!v.requireRecord(ip, item)) return;
-      v.noAdditionalProperties(
-        ip,
-        item,
-        new Set(['id', 'label', 'icon', 'command', 'args', 'when', 'order', 'separatorBefore', 'separatorAfter']),
-      );
-      if (!('command' in item) || typeof item.command !== 'string') {
-        v.add(`${ip}/command`, 'required', '`command` is required and must be a string');
-        return;
-      }
-      if (!('label' in item)) {
-        v.add(`${ip}/label`, 'required', '`label` is required');
-        return;
-      }
-      const label = validateLocalizedString(v, `${ip}/label`, item.label);
-      if (!label) return;
-      const menuItem: ContributedMenuItem = { command: item.command, label };
-      if ('id' in item && v.requireString(`${ip}/id`, item.id)) menuItem.id = item.id;
-      if ('icon' in item && v.requireString(`${ip}/icon`, item.icon)) menuItem.icon = item.icon;
-      if ('args' in item) menuItem.args = item.args;
-      if ('when' in item && v.requireString(`${ip}/when`, item.when)) menuItem.when = item.when;
-      if ('order' in item) {
-        if (typeof item.order !== 'number' || !Number.isInteger(item.order)) {
-          v.add(`${ip}/order`, 'type', 'order must be an integer');
-        } else {
-          menuItem.order = item.order;
-        }
-      }
-      if ('separatorBefore' in item && v.requireBool(`${ip}/separatorBefore`, item.separatorBefore)) {
-        menuItem.separatorBefore = item.separatorBefore;
-      }
-      if ('separatorAfter' in item && v.requireBool(`${ip}/separatorAfter`, item.separatorAfter)) {
-        menuItem.separatorAfter = item.separatorAfter;
-      }
-      list.push(menuItem);
-    });
-    out[target] = list;
-  }
-  return out;
-}
-
 function validateConfiguration(
   v: Validator,
   value: unknown,
@@ -990,239 +982,6 @@ function validateConfiguration(
     return { $ref: value.$ref };
   }
   return value;
-}
-
-function validateProviderRoles(
-  v: Validator,
-  value: unknown,
-): Record<string, string> | undefined {
-  if (!v.requireRecord('/contributes/providers', value)) return undefined;
-  const out: Record<string, string> = {};
-  for (const [role, key] of Object.entries(value)) {
-    if (typeof key !== 'string') {
-      v.add(`/contributes/providers/${role}`, 'type', 'provider key must be a string');
-      continue;
-    }
-    out[role] = key;
-  }
-  return out;
-}
-
-function validateDisplayModes(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): DisplayModeDescriptor[] | undefined {
-  if (!v.requireArray('/contributes/displayModes', value)) return undefined;
-  const out: DisplayModeDescriptor[] = [];
-  value.forEach((mode, i) => {
-    const path = `/contributes/displayModes/${i}`;
-    if (!v.requireRecord(path, mode)) return;
-    v.noAdditionalProperties(
-      path,
-      mode,
-      new Set(['id', 'label', 'kind', 'renderEndpoint', 'applicableLanguages']),
-    );
-    if (!('id' in mode)) {
-      v.add(`${path}/id`, 'required', '`id` is required');
-      return;
-    }
-    const id = normalizeId(v, `${path}/id`, mode.id, ctx);
-    if (!id) return;
-    if (!('label' in mode)) {
-      v.add(`${path}/label`, 'required', '`label` is required');
-      return;
-    }
-    const label = validateLocalizedString(v, `${path}/label`, mode.label);
-    if (!label) return;
-    if (!('kind' in mode) || !v.enum(`${path}/kind`, mode.kind, ALLOWED_DISPLAY_MODE_KINDS, 'enum')) return;
-    if (!('renderEndpoint' in mode) || !v.requireString(`${path}/renderEndpoint`, mode.renderEndpoint)) {
-      v.add(`${path}/renderEndpoint`, 'required', '`renderEndpoint` is required');
-      return;
-    }
-    const desc: DisplayModeDescriptor = {
-      id,
-      label,
-      kind: mode.kind,
-      renderEndpoint: mode.renderEndpoint,
-    };
-    if ('applicableLanguages' in mode) {
-      validateStringArray(v, `${path}/applicableLanguages`, mode.applicableLanguages);
-      if (Array.isArray(mode.applicableLanguages)) {
-        desc.applicableLanguages = mode.applicableLanguages.filter(
-          (l): l is string => typeof l === 'string',
-        );
-      }
-    }
-    out.push(desc);
-  });
-  return out;
-}
-
-function validateThemes(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): ContributedTheme[] | undefined {
-  if (!v.requireArray('/contributes/themes', value)) return undefined;
-  const out: ContributedTheme[] = [];
-  value.forEach((theme, i) => {
-    const path = `/contributes/themes/${i}`;
-    if (!v.requireRecord(path, theme)) return;
-    v.noAdditionalProperties(path, theme, new Set(['id', 'label', 'path']));
-    if (!('id' in theme)) {
-      v.add(`${path}/id`, 'required', '`id` is required');
-      return;
-    }
-    const id = normalizeId(v, `${path}/id`, theme.id, ctx);
-    if (!id) return;
-    if (!('label' in theme)) {
-      v.add(`${path}/label`, 'required', '`label` is required');
-      return;
-    }
-    const label = validateLocalizedString(v, `${path}/label`, theme.label);
-    if (!label) return;
-    if (!('path' in theme) || !v.requireString(`${path}/path`, theme.path)) return;
-    if (!validatePackagePath(v, `${path}/path`, theme.path)) return;
-    out.push({ id, label, path: theme.path });
-  });
-  return out;
-}
-
-function validateFonts(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): ContributedFont[] | undefined {
-  if (!v.requireArray('/contributes/fonts', value)) return undefined;
-  const out: ContributedFont[] = [];
-  value.forEach((font, i) => {
-    const path = `/contributes/fonts/${i}`;
-    if (!v.requireRecord(path, font)) return;
-    v.noAdditionalProperties(path, font, new Set(['id', 'family', 'files', 'fallback']));
-    if (!('id' in font)) {
-      v.add(`${path}/id`, 'required', '`id` is required');
-      return;
-    }
-    const id = normalizeId(v, `${path}/id`, font.id, ctx);
-    if (!id) return;
-    if (!('family' in font) || !v.requireString(`${path}/family`, font.family)) return;
-    if (!('files' in font) || !v.requireArray(`${path}/files`, font.files)) return;
-    if (font.files.length === 0) {
-      v.add(`${path}/files`, 'minItems', '`files` must contain at least one entry');
-      return;
-    }
-    let allOk = true;
-    font.files.forEach((f, j) => {
-      const fp = `${path}/files/${j}`;
-      if (!v.requireString(fp, f)) {
-        allOk = false;
-        return;
-      }
-      if (!validatePackagePath(v, fp, f)) allOk = false;
-    });
-    if (!allOk) return;
-    const fontDef: ContributedFont = { id, family: font.family, files: font.files as string[] };
-    if ('fallback' in font && v.requireString(`${path}/fallback`, font.fallback)) {
-      fontDef.fallback = font.fallback;
-    }
-    out.push(fontDef);
-  });
-  return out;
-}
-
-function validateIcons(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): ContributedIcon[] | undefined {
-  if (!v.requireArray('/contributes/icons', value)) return undefined;
-  const out: ContributedIcon[] = [];
-  value.forEach((icon, i) => {
-    const path = `/contributes/icons/${i}`;
-    if (!v.requireRecord(path, icon)) return;
-    v.noAdditionalProperties(path, icon, new Set(['id', 'path']));
-    if (!('id' in icon)) {
-      v.add(`${path}/id`, 'required', '`id` is required');
-      return;
-    }
-    const id = normalizeId(v, `${path}/id`, icon.id, ctx);
-    if (!id) return;
-    if (!('path' in icon) || !v.requireString(`${path}/path`, icon.path)) return;
-    if (!validatePackagePath(v, `${path}/path`, icon.path)) return;
-    out.push({ id, path: icon.path });
-  });
-  return out;
-}
-
-function validateStyles(v: Validator, value: unknown): ContributedStyle[] | undefined {
-  if (!v.requireArray('/contributes/styles', value)) return undefined;
-  const out: ContributedStyle[] = [];
-  value.forEach((style, i) => {
-    const path = `/contributes/styles/${i}`;
-    if (!v.requireRecord(path, style)) return;
-    v.noAdditionalProperties(path, style, new Set(['path', 'scope']));
-    if (!('path' in style) || !v.requireString(`${path}/path`, style.path)) return;
-    if (!validatePackagePath(v, `${path}/path`, style.path)) return;
-    if (!('scope' in style) || !v.enum(`${path}/scope`, style.scope, ALLOWED_STYLE_SCOPES, 'enum')) return;
-    out.push({ path: style.path, scope: style.scope });
-  });
-  return out;
-}
-
-function validateFileImporters(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): ContributedFileImporter[] | undefined {
-  if (!v.requireArray('/contributes/fileImporters', value)) return undefined;
-  const out: ContributedFileImporter[] = [];
-  value.forEach((imp, i) => {
-    const path = `/contributes/fileImporters/${i}`;
-    if (!v.requireRecord(path, imp)) return;
-    v.noAdditionalProperties(
-      path,
-      imp,
-      new Set(['id', 'label', 'extensions', 'handlerEndpoint']),
-    );
-    if (!('id' in imp)) {
-      v.add(`${path}/id`, 'required', '`id` is required');
-      return;
-    }
-    const id = normalizeId(v, `${path}/id`, imp.id, ctx);
-    if (!id) return;
-    if (!('label' in imp)) {
-      v.add(`${path}/label`, 'required', '`label` is required');
-      return;
-    }
-    const label = validateLocalizedString(v, `${path}/label`, imp.label);
-    if (!label) return;
-    if (!('extensions' in imp) || !v.requireArray(`${path}/extensions`, imp.extensions)) return;
-    if (imp.extensions.length === 0) {
-      v.add(`${path}/extensions`, 'minItems', '`extensions` must be non-empty');
-      return;
-    }
-    let allOk = true;
-    imp.extensions.forEach((ext, j) => {
-      const ep = `${path}/extensions/${j}`;
-      if (typeof ext !== 'string' || !ext.startsWith('.')) {
-        v.add(ep, 'pattern', 'extension must be a string starting with `.`');
-        allOk = false;
-      }
-    });
-    if (!allOk) return;
-    if (!('handlerEndpoint' in imp) || !v.requireString(`${path}/handlerEndpoint`, imp.handlerEndpoint)) {
-      v.add(`${path}/handlerEndpoint`, 'required', '`handlerEndpoint` is required');
-      return;
-    }
-    out.push({
-      id,
-      label,
-      extensions: imp.extensions as string[],
-      handlerEndpoint: imp.handlerEndpoint,
-    });
-  });
-  return out;
 }
 
 function validateApiExports(
@@ -1335,48 +1094,37 @@ function validateProviderDescriptors<T>(
   return out;
 }
 
-function validateCommentaryProviders(
+/**
+ * Validates `contributes.bibleProviders`. Copied from the pre-round-3
+ * `validateCommentaryProviders` template (the closest sibling, correct in
+ * all three places): same id-namespacing, same endpoint-presence checks,
+ * plus the `rangeEndpoint`/`iterateEndpoint` optional fields the bible
+ * descriptor carries instead of commentary's `similarityEndpoint`.
+ *
+ * NOTE: this fixes the `bibleProviders` schema/validator mismatch (the
+ * field was declared in the JSON Schema but rejected here as an
+ * `additionalProperty`) - see task 0024 round 3, P2.13. After this fix the
+ * field **validates** but still does nothing at runtime: no host code
+ * merges declared entries into the live bible-provider registry at
+ * activation. The only working path remains the imperative
+ * `api.bible.registerProvider(descriptor)`. Declarative registration is
+ * deferred to P1.5's lazy-activation work, which reads `contributes` arrays
+ * at load time for the same reason (building it twice would be wasted
+ * effort). `ExtensionManifestLoader` logs a one-line notice to this effect
+ * when the field is present.
+ */
+function validateBibleProviders(
   v: Validator,
   value: unknown,
   ctx: ContributionContext,
-): CommentaryProviderDescriptor[] | undefined {
-  return validateProviderDescriptors<CommentaryProviderDescriptor>(
+): BibleProviderDescriptor[] | undefined {
+  return validateProviderDescriptors<BibleProviderDescriptor>(
     v,
-    '/contributes/commentaryProviders',
+    '/contributes/bibleProviders',
     value,
     ctx,
-    ALLOWED_COMMENTARY_CAPABILITIES,
-    new Set(['fetchEndpoint', 'rangeEndpoint', 'iterateEndpoint', 'similarityEndpoint']),
-  );
-}
-
-function validateDictionaryProviders(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): DictionaryProviderDescriptor[] | undefined {
-  return validateProviderDescriptors<DictionaryProviderDescriptor>(
-    v,
-    '/contributes/dictionaryProviders',
-    value,
-    ctx,
-    ALLOWED_DICTIONARY_CAPABILITIES,
-    new Set(['fetchEndpoint', 'searchEndpoint', 'iterateEndpoint', 'morphologyEndpoint']),
-  );
-}
-
-function validateBookProviders(
-  v: Validator,
-  value: unknown,
-  ctx: ContributionContext,
-): BookProviderDescriptor[] | undefined {
-  return validateProviderDescriptors<BookProviderDescriptor>(
-    v,
-    '/contributes/bookProviders',
-    value,
-    ctx,
-    ALLOWED_BOOK_CAPABILITIES,
-    new Set(['fetchEndpoint', 'listEndpoint', 'iterateEndpoint']),
+    ALLOWED_BIBLE_CAPABILITIES,
+    new Set(['fetchEndpoint', 'rangeEndpoint', 'iterateEndpoint']),
   );
 }
 
@@ -1425,7 +1173,7 @@ export function validateManifest(json: unknown): ManifestValidationResult {
 
   let activationEvents: string[] | undefined;
   if ('activationEvents' in json) {
-    activationEvents = validateActivationEvents(v, json.activationEvents);
+    activationEvents = validateActivationEvents(v, json.activationEvents, { extId: id });
   }
 
   let main: string | undefined;

@@ -25,7 +25,6 @@ const ALL_KINDS: HookKind[] = [
   'statusBar',
   'hover',
   'decorator',
-  'displayMode',
   'bibleProvider',
   'commentaryProvider',
   'dictionaryProvider',

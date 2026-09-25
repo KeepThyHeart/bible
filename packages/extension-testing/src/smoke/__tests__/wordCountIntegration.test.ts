@@ -21,7 +21,7 @@ describe('smoke pipeline — word-count reference extension', () => {
     expect(result.totals.invocations).toBeGreaterThan(0);
 
     const eventHook = result.perHook.find(
-      (h) => h.hookId === 'event:bible.onDidChangeActiveVerse',
+      (h) => h.hookId === 'event:verse.activeChanged',
     );
     expect(eventHook).toBeDefined();
     expect(eventHook?.passed).toBeGreaterThan(0);

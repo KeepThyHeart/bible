@@ -30,10 +30,17 @@ function manifestTemplate(id: string, name: string): string {
       version: '0.1.0',
       publisher: 'your-name',
       description: `A Bible app extension: ${name}`,
-      engines: { bibleApp: '>=1.0.0' },
+      engines: { bibleApp: '>=0.1.0' },
       main: 'dist/main.js',
       permissions: ['bible:read'],
-      activationEvents: ['onStartup'],
+      // Lazy activation: the host reads `contributes` below at load time and
+      // pre-registers your command and panel before this extension has ever
+      // run, so both are already reachable (palette, Tools menu, new-tab
+      // page). Your worker only starts the first time one is actually used -
+      // whichever of these two fires first. `onStartupFinished` (activate at
+      // boot, unconditionally) exists too, but most extensions do not need
+      // it; see the README's "activationEvents" section.
+      activationEvents: [`onCommand:ext.your-name.${id}.helloWorld`, 'onView:panel'],
       contributes: {
         commands: [
           {
@@ -44,10 +51,13 @@ function manifestTemplate(id: string, name: string): string {
         ],
         panelTypes: [
           {
-            // Short id. The validator qualifies it to
-            // `ext.your-name.<ext>.panel` for you, and it is the same id
-            // src/main.ts passes to api.ui.registerPanelType — where a
-            // pre-qualified id would be prefixed a second time.
+            // Short id ('panel'), even though the manifest's `commands[].id`
+            // above is long-form (`ext.your-name.<ext>.helloWorld`). The
+            // validator qualifies both internally, but panel content types
+            // are addressed by the short id (`ext:<extensionId>.panel`) while
+            // commands are addressed by the long one - see
+            // `activationEvents` above, which uses each contribution's own
+            // native spelling (`onCommand:` long, `onView:` short).
             id: 'panel',
             title: `${name}`,
             uiEntry: 'ui/index.html',
@@ -87,28 +97,24 @@ export async function activate(api: BibleExtensionAPI): Promise<void> {
   // you can read from the app's extension details view.
   console.log('${name} extension activated');
 
-  // Declaring a panel in extension.json is NOT enough to make it appear.
-  // Despite what the manifest's own doc comments suggest, nothing in the host
-  // currently reads \`contributes.panelTypes\` — the only parts of
-  // \`contributes\` anything reads are \`apiExports\` and \`configuration\`.
-  // Panels and commands reach the registry through these imperative calls and
-  // no other way, so the manifest entry is documentation until that changes.
+  // Your panel is ALREADY registered — the host read \`contributes.panelTypes\`
+  // from extension.json and pre-registered it before this function ever ran
+  // (that declaration is what made \`onView:panel\` a legal activation event
+  // above). Calling \`api.ui.registerPanelType\` again here would just be a
+  // second, redundant write to the same row, so there is nothing to do for
+  // it in \`activate()\` at all — the panel appears in the new-tab page and
+  // opens on click regardless of whether this extension has ever run.
   //
-  // Note the id is the SHORT one ('panel'), not the fully-qualified id in
-  // extension.json: the host composes the content type as
-  // \`ext:<extensionId>.<this id>\` and would otherwise repeat your prefix.
-  await api.ui.registerPanelType({
-    id: 'panel',
-    title: '${name}',
-    uiEntry: 'ui/index.html',
-  });
+  // The one thing a declarative panel type cannot do on its own is talk back
+  // to the worker: that channel only exists once the extension is active,
+  // which is why \`api.panels.onMessage\` below still lives here.
 
   // THIS is the line that makes the command in extension.json actually do
   // something. A \`handlerEndpoint\` in the manifest is a *name*, not a
   // function — a function cannot survive the RPC hop to the host. The host
-  // calls back with that name when the user runs the command, and until
-  // something binds it here, the command appears in the palette and the Tools
-  // menu and silently does nothing when clicked.
+  // calls back with that name when the user runs the command (activating
+  // this extension first, if it was not already running), and until
+  // something binds it here, invoking the command fails.
   await api.runtime.expose('helloWorld', async () => {
     if (lastVerseId === null) {
       console.log('Hello from ${name}! No verse is active yet.');
@@ -135,7 +141,7 @@ export async function activate(api: BibleExtensionAPI): Promise<void> {
 
   // Example: listen for verse changes. \`event\` needs no annotation — its
   // shape comes from the typed \`api\` above, and so does the autocomplete.
-  await api.bible.onDidChangeActiveVerse.subscribe((event) => {
+  await api.events.subscribe('verse.activeChanged', (event) => {
     lastVerseId = event ? event.verseId : null;
     // Push it at the panel too, so an open panel updates without polling.
     // Fire-and-forget: a panel that is not open simply is not there.
@@ -182,6 +188,17 @@ function uiHtmlTemplate(name: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${name}</title>
+  <!--
+    The host serves its own design tokens (colors, spacing) as CSS custom
+    properties at this reserved URL - link it before your own stylesheet so
+    your panel matches the app's current theme (including a live theme
+    switch) instead of guessing colors. ext-ui://host/controls.css is also
+    available, with ready-made classes (.control-toolbar,
+    .control-toolbar-button, .control-nav-button) for panels that want the
+    host's own toolbar/button chrome. Both are documented in
+    apps/desktop/docs/features/extensions.md under "Panel styling".
+  -->
+  <link rel="stylesheet" href="ext-ui://host/theme.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -257,7 +274,16 @@ console.log('${name} panel ready');
 }
 
 function uiStylesTemplate(): string {
-  return `/* Extension panel styles */
+  return `/*
+ * Extension panel styles.
+ *
+ * index.html links ext-ui://host/theme.css before this file, which defines
+ * the app's design tokens as CSS custom properties (--theme-text-primary,
+ * --theme-bg-primary, --theme-accent, ...) for the user's *current* theme -
+ * see apps/desktop/docs/features/extensions.md's "Panel styling" section for
+ * the full list. Using them (rather than hard-coded colors) means your panel
+ * follows the app's theme automatically, including a live theme switch.
+ */
 
 * {
   box-sizing: border-box;
@@ -269,7 +295,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #333;
+  color: var(--theme-text-primary, #333);
+  background: var(--theme-bg-primary, #fff);
   padding: 16px;
 }
 
@@ -281,10 +308,11 @@ h1 {
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 8px;
+  color: var(--theme-text-heading, #000);
 }
 
 p {
-  color: #666;
+  color: var(--theme-text-secondary, #666);
 }
 `;
 }
@@ -332,14 +360,12 @@ describe('${id} extension', () => {
   it('should subscribe to verse change events', async () => {
     const subscribeSpy = vi.fn().mockResolvedValue({ dispose: vi.fn() });
     const api = createMockApi({
-      bible: {
-        onDidChangeActiveVerse: { subscribe: subscribeSpy },
-      },
+      events: { subscribe: subscribeSpy },
     });
 
     await activate(api);
 
-    expect(subscribeSpy).toHaveBeenCalled();
+    expect(subscribeSpy).toHaveBeenCalledWith('verse.activeChanged', expect.any(Function));
   });
 
   it('can use test fixtures', () => {
@@ -768,8 +794,13 @@ Key fields:
 - **engines.bibleApp**: Semver range of compatible API versions
 - **main**: Path to the compiled entry point
 - **permissions**: Array of permissions your extension needs
-- **activationEvents**: When the extension should be activated
-- **contributes**: Static declarations (commands, panels, menus, etc.)
+- **activationEvents**: When the extension should be activated. Prefer
+  \`onCommand:<id>\` / \`onView:<id>\` (this template uses both) so the extension
+  starts lazily, on first real use, instead of at every app launch;
+  \`onStartupFinished\` activates unconditionally, after the window is shown,
+  for the rare extension that genuinely needs to run before any interaction.
+  \`*\` is reserved for built-ins and is always rejected.
+- **contributes**: Static declarations (commands, panels, settings schema, api exports, bible providers)
 
 ## API Usage
 

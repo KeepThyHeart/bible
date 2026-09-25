@@ -861,6 +861,38 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
   }
 
   /**
+   * Get interlinear words for every verse in an inclusive verse-id range
+   * (batch query - task 0036 P0.1b / design doc §4.4). `startVerseId`/
+   * `endVerseId` need not fall in one chapter, unlike
+   * `getInterlinearWordsForChapter` - callers that only ever need a whole
+   * chapter can keep using that method; this one backs
+   * `bible.getTokensForRange`, whose request shape is an arbitrary verse-id
+   * range. Uses the same `(verse_id, word_position_start)` ordering as the
+   * chapter query, so it hits the same index.
+   */
+  getInterlinearWordsForRange(startVerseId: VerseId, endVerseId: VerseId): Map<VerseId, InterlinearWord[]> {
+    const rows = this.sql.queryAll<InterlinearWordRow>(
+      `SELECT * FROM interlinear_word
+       WHERE verse_id BETWEEN ? AND ?
+       ORDER BY verse_id, word_position_start`,
+      [startVerseId, endVerseId]
+    );
+
+    const result = new Map<VerseId, InterlinearWord[]>();
+    for (const row of rows) {
+      const word = this.mapRowToInterlinearWord(row);
+      const verseId = row.verse_id as VerseId;
+      if (!result.has(verseId)) {
+        result.set(verseId, []);
+      }
+      const words = result.get(verseId);
+      if (words) words.push(word);
+    }
+
+    return result;
+  }
+
+  /**
    * Check if this module has interlinear data
    * Checks if the interlinear_word table exists and has data
    * Uses EXISTS for fast O(1) check instead of COUNT(*) which scans all rows

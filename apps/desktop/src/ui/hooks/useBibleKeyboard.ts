@@ -357,7 +357,14 @@ export function useBibleFind(
     const searchQuery = isCaseSensitive ? findQuery : findQuery.toLowerCase();
 
     for (const verse of currentVerses) {
-      const verseText = verse.text || '';
+      // Task 0036 (P0.1a, amendment A1): match against the SAME source the
+      // renderer tokenizes (`text_html || text`), not plain `text`. Matching
+      // plaintext while the renderer walks HTML meant a markup-adjacent word
+      // could land at a different index than the one `renderVerseWords`
+      // paints - harmless before, but decorations arriving now re-render a
+      // verse and rebuild its find classes from this same index, so the two
+      // tokenizations must agree.
+      const verseText = verse.text_html || verse.text || '';
       const wordsInfo = extractWordsWithFormatting(verseText);
 
       wordsInfo.forEach((wordInfo, wordIndex) => {
@@ -373,29 +380,20 @@ export function useBibleFind(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [findQuery, currentVerses, isFindVisible, isCaseSensitive]);
 
-  // Apply find highlights to DOM and scroll to current match
+  // Scroll to the current match. The `find-match`/`find-match-current`
+  // classes themselves are no longer applied imperatively here (task 0036,
+  // P0.1a, amendment A1) - `renderVerseWords`/`wordRenderAttrs` now render
+  // them directly from `useFindStore`, the same as any other word paint.
+  // That is what makes them survive a verse re-render: an imperative
+  // classList add here was wiped out every time a decoration arrived (or a
+  // highlight was edited) and the verse's HTML was regenerated: this needed
+  // fixing regardless of decorations, since highlight edits already caused
+  // it. Only the one side effect that can't be expressed as render output -
+  // scrolling - stays imperative.
   useEffect(() => {
     if (!bibleTextRef.current) return;
-
-    const allWords = bibleTextRef.current.querySelectorAll('.word');
-    allWords.forEach(word => {
-      word.classList.remove('find-match', 'find-match-current');
-    });
-
     if (!isFindVisible || findMatches.length === 0) return;
-
-    findMatches.forEach((match, index) => {
-      const verseContainer = bibleTextRef.current?.querySelector(`[data-verse-id="${match.verseId}"]`);
-      if (!verseContainer) return;
-
-      const wordElement = verseContainer.querySelector(`[data-word-index="${match.wordIndex}"]`);
-      if (wordElement) {
-        wordElement.classList.add('find-match');
-        if (index === currentMatchIndex) {
-          wordElement.classList.add('find-match-current');
-          wordElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
-    });
+    const current = bibleTextRef.current.querySelector('.find-match-current');
+    current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [findMatches, currentMatchIndex, isFindVisible, bibleTextRef]);
 }

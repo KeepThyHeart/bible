@@ -8,7 +8,6 @@
  *   - registerVerseHover
  *   - registerContextMenu
  *   - registerStatusBarItem
- *   - registerDisplayMode (RESERVED - asserted to reject, not to register)
  *   - pickFile / saveFile
  */
 
@@ -314,56 +313,107 @@ describe('ui.registerStatusBarItem', () => {
     ]);
     expect(res.error?.code).toBe('RpcProtocolError');
   });
+
+  it('re-registering the same id replaces the entry instead of stacking a duplicate', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '2 indexed' },
+    ]);
+    // One live entry, carrying the latest data - not two.
+    expect(bridge.statusBarItems).toHaveLength(1);
+    expect(bridge.statusBarItems[0].item.text).toBe('2 indexed');
+  });
+
+  it('a disposalId from a superseded registration becomes a no-op, not a delete of the current one', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    const first = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const firstDisposalId = (first.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '2 indexed' },
+    ]);
+
+    // The bridge's own disposer for `firstDisposalId` would, if invoked,
+    // delete whatever currently occupies the `indexCount` key (see
+    // InMemoryUiBridge.registerStatusBarItem) - i.e. the *second*
+    // registration. UiApiImpl must not let that happen.
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [firstDisposalId]);
+    expect(bridge.statusBarItems).toHaveLength(1);
+    expect(bridge.statusBarItems[0].item.text).toBe('2 indexed');
+  });
 });
 
-// --- registerDisplayMode -------------------------------------------------
+// --- updateStatusBarItem ---------------------------------------------------
 
-// RESERVED - these assert that the method REJECTS. Custom verse display modes
-// are declared in `IUiApi` but were never implemented; nothing in the renderer
-// consumes a registered mode. Before this, a call resolved with a valid
-// `DisposableHandle` and then silently did nothing, which is indistinguishable
-// from a bug in the extension. The contract is now one answer for every call,
-// whatever the grant or the descriptor shape: `MethodNotImplementedYet`.
-describe('ui.registerDisplayMode (reserved, not implemented)', () => {
-  it('rejects a well-formed call from a fully permitted extension', async () => {
-    const { pair, bridge } = makeUi(['display-mode:provide']);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'interlinear', label: 'Interlinear', kind: 'overlay', renderEndpoint: 'onRender' },
+describe('ui.updateStatusBarItem', () => {
+  it('patches only the given fields, keeping the rest', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed', tooltip: 'Index status', alignment: 'left', priority: 5 },
     ]);
-    expect(res.error?.code).toBe('MethodNotImplementedYet');
-    expect(res.result).toBeUndefined();
-    // The reserved status is in the message as well as the code: the code is
-    // what extensions branch on, the message is what a developer reads first.
-    expect(res.error?.message).toMatch(/reserved/i);
-    // Nothing was registered, so there is nothing to leak and nothing to dispose.
-    expect(bridge.displayModes).toHaveLength(0);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.statusBarItems).toHaveLength(1);
+    const updated = bridge.statusBarItems[0].item;
+    expect(updated.text).toBe('2 indexed');
+    expect(updated.tooltip).toBe('Index status');
+    expect(updated.alignment).toBe('left');
+    expect(updated.priority).toBe(5);
   });
 
-  it('rejects with the same code when the extension lacks display-mode:provide', async () => {
-    // Deliberately NOT PermissionDeniedError. The permission is irrelevant when
-    // the feature does not exist, and naming it would send the author off
-    // granting something that changes nothing.
+  it('does not mint a new disposer per update', async () => {
+    const { pair, bridge } = makeUi(['ui:status-bar']);
+    const first = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const firstDisposalId = (first.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    // The pre-update handle is superseded, exactly like re-registration -
+    // disposing it must not remove the item that the update produced.
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [firstDisposalId]);
+    expect(bridge.statusBarItems).toHaveLength(1);
+  });
+
+  it('rejects updating an id this extension never registered', async () => {
+    const { pair } = makeUi(['ui:status-bar']);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'neverRegistered',
+      { text: 'x' },
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('rejects updating an id that was already disposed', async () => {
+    const { pair } = makeUi(['ui:status-bar']);
+    const reg = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
+      { id: 'indexCount', text: '1 indexed' },
+    ]);
+    const disposalId = (reg.result as { disposalId: string }).disposalId;
+    await workerCall(pair.workerSide, pair.hostSent, 'ui.dispose', [disposalId]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'indexCount',
+      { text: '2 indexed' },
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('rejects without ui:status-bar', async () => {
     const { pair } = makeUi([]);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'x', label: 'X', kind: 'overlay', renderEndpoint: 'ep' },
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.updateStatusBarItem', [
+      'x',
+      { text: 'y' },
     ]);
-    expect(res.error?.code).toBe('MethodNotImplementedYet');
-  });
-
-  it('rejects with the same code for a malformed descriptor', async () => {
-    // Deliberately NOT RpcProtocolError, for the same reason: fixing the
-    // descriptor would not make the call work.
-    const { pair } = makeUi(['display-mode:provide']);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', [
-      { id: 'x', label: 'X', kind: 'invalid' },
-    ]);
-    expect(res.error?.code).toBe('MethodNotImplementedYet');
-  });
-
-  it('rejects with the same code when called with no arguments at all', async () => {
-    const { pair } = makeUi(['display-mode:provide']);
-    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.registerDisplayMode', []);
-    expect(res.error?.code).toBe('MethodNotImplementedYet');
+    expect(res.error?.code).toBe('PermissionDeniedError');
   });
 });
 
@@ -426,6 +476,34 @@ describe('ui.saveFile', () => {
   });
 });
 
+// --- openSettings (task 0024 round 3, P1.7) -------------------------------
+
+describe('ui.openSettings', () => {
+  it('forwards to the bridge with no section, ungated (no permission required)', async () => {
+    const { pair, bridge } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', []);
+    expect(res.error).toBeUndefined();
+    expect(bridge.openSettingsRequests).toEqual([{ extensionId: 'ext.test.ui' }]);
+  });
+
+  it('forwards the section argument through', async () => {
+    const { pair, bridge } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', [
+      'advanced.endpoint',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.openSettingsRequests).toEqual([
+      { extensionId: 'ext.test.ui', section: 'advanced.endpoint' },
+    ]);
+  });
+
+  it('rejects a non-string section', async () => {
+    const { pair } = makeUi([]);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.openSettings', [42]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+});
+
 // --- dispose cleanup -----------------------------------------------------
 
 describe('UiApiImpl.dispose() cleanup', () => {
@@ -450,8 +528,6 @@ describe('UiApiImpl.dispose() cleanup', () => {
     await workerCall(pair.workerSide, pair.hostSent, 'ui.registerStatusBarItem', [
       { id: 's1', text: 'T' },
     ]);
-    // registerDisplayMode is absent here on purpose: it is reserved and always
-    // rejects, so it can never contribute a disposer for dispose() to clean up.
 
     expect(bridge.decorators).toHaveLength(1);
     expect(bridge.hoverProviders).toHaveLength(1);

@@ -285,7 +285,7 @@ describe('StorageApiImpl — settings tier', () => {
     expect(res.result).toBeUndefined();
   });
 
-  it('emits storage.onDidChangeSettings only after a worker subscribes', async () => {
+  it('emits settings.changed only after a worker subscribes', async () => {
     // Fire before subscribe -> no event delivered.
     api.notifySettingsChanged(['theme']);
     expect(
@@ -294,14 +294,14 @@ describe('StorageApiImpl — settings tier', () => {
           typeof e === 'object' &&
           e !== null &&
           (e as RpcEvent).kind === 'event' &&
-          (e as RpcEvent).channel === 'storage.onDidChangeSettings',
+          (e as RpcEvent).channel === 'settings.changed',
       ),
     ).toHaveLength(0);
 
     const sub: RpcSubscribe = {
       kind: 'subscribe',
       id: 'sub-settings',
-      channel: 'storage.onDidChangeSettings',
+      channel: 'settings.changed',
     };
     pair.workerSide.send(sub);
     await new Promise((r) => setImmediate(r));
@@ -311,10 +311,152 @@ describe('StorageApiImpl — settings tier', () => {
         typeof e === 'object' &&
         e !== null &&
         (e as RpcEvent).kind === 'event' &&
-        (e as RpcEvent).channel === 'storage.onDidChangeSettings',
+        (e as RpcEvent).channel === 'settings.changed',
     );
     expect(events).toHaveLength(1);
     expect((events[0] as RpcEvent).payload).toEqual({ keys: ['theme', 'apiKey'] });
+  });
+});
+
+// --- Settings tier: extension-initiated writes (storage.setSetting) -------
+
+/**
+ * `storage.setSetting` (task 0024 round 3, P1.7) - the write half of the
+ * settings tier. Unlike the user-driven `ExtensionHostPermissions.setSettings`
+ * (which replaces the whole `__settings.*` row set), this is a single-key
+ * upsert validated against the extension's own `contributes.configuration`
+ * schema, so an extension can never invent an undeclared key or write a
+ * wrong-typed value - the same rule `ExtensionSettingsRenderer.tsx`'s form
+ * inputs enforce structurally.
+ */
+describe('StorageApiImpl — setSetting (extension-initiated write)', () => {
+  let pair: ReturnType<typeof pairedTransports>;
+  let router: ExtensionRpcRouter;
+  let db: FakeSql;
+
+  const schema = {
+    type: 'object',
+    properties: {
+      apiKey: { type: 'string' },
+      pageSize: { type: 'integer', minimum: 1, maximum: 100 },
+      theme: { type: 'string', enum: ['light', 'dark'] },
+      advanced: {
+        type: 'object',
+        'x-bibleAppGroup': true,
+        properties: {
+          endpoint: { type: 'string', format: 'uri' },
+        },
+      },
+    },
+  };
+
+  function attach(configurationSchema?: unknown): void {
+    pair = pairedTransports();
+    router = new ExtensionRpcRouter(pair.hostSide);
+    db = new FakeSql();
+    new StorageApiImpl({
+      extensionId: 'ext.test.setsetting',
+      router,
+      db,
+      grant: buildGrant('ext.test.setsetting', []),
+      ...(configurationSchema !== undefined ? { configurationSchema } : {}),
+    }).attach();
+  }
+
+  it('writes a declared key, persists it, and fires settings.changed', async () => {
+    attach(schema);
+    const sub: RpcSubscribe = { kind: 'subscribe', id: 'sub-1', channel: 'settings.changed' };
+    pair.workerSide.send(sub);
+    await new Promise((r) => setImmediate(r));
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'apiKey',
+      'sk-123',
+    ]);
+    expect(res.error).toBeUndefined();
+
+    const read = await workerCall(pair.workerSide, pair.hostSent, 'storage.getSetting', ['apiKey']);
+    expect(read.result).toBe('sk-123');
+
+    const events = pair.hostSent.filter(
+      (e) =>
+        typeof e === 'object' &&
+        e !== null &&
+        (e as RpcEvent).kind === 'event' &&
+        (e as RpcEvent).channel === 'settings.changed',
+    );
+    expect(events).toHaveLength(1);
+    expect((events[0] as RpcEvent).payload).toEqual({ keys: ['apiKey'] });
+  });
+
+  it('writes a nested (grouped) key by its dot-path', async () => {
+    attach(schema);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'advanced.endpoint',
+      'https://example.com',
+    ]);
+    expect(res.error).toBeUndefined();
+    const read = await workerCall(pair.workerSide, pair.hostSent, 'storage.getSetting', [
+      'advanced.endpoint',
+    ]);
+    expect(read.result).toBe('https://example.com');
+  });
+
+  it('rejects a key not declared in contributes.configuration', async () => {
+    attach(schema);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'notDeclared',
+      'anything',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+    expect(res.error?.message).toMatch(/not declared/);
+  });
+
+  it('rejects when the extension declared no configuration at all', async () => {
+    attach(undefined);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'apiKey',
+      'sk-123',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('rejects a type-mismatched value (string schema, number value)', async () => {
+    attach(schema);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'apiKey',
+      42,
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+    expect(res.error?.message).toMatch(/must be a string/);
+  });
+
+  it('rejects a value outside the declared enum', async () => {
+    attach(schema);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'theme',
+      'solarized',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+    expect(res.error?.message).toMatch(/must be one of/);
+  });
+
+  it('rejects a number outside the declared min/max', async () => {
+    attach(schema);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', [
+      'pageSize',
+      1000,
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+    expect(res.error?.message).toMatch(/must be <=/);
+  });
+
+  it('does not disturb other settings when writing one key', async () => {
+    attach(schema);
+    await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', ['apiKey', 'sk-a']);
+    await workerCall(pair.workerSide, pair.hostSent, 'storage.setSetting', ['theme', 'dark']);
+    const readKey = await workerCall(pair.workerSide, pair.hostSent, 'storage.getSetting', ['apiKey']);
+    expect(readKey.result).toBe('sk-a');
   });
 });
 

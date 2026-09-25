@@ -62,11 +62,20 @@ import {
   fireActivationEvent as lifecycleFireActivationEvent,
   dispatchExtensionPoint as lifecycleDispatchExtensionPoint,
 } from './ExtensionHostLifecycle';
+import { wireExtensionPoints } from './ExtensionPointWiring';
 
 // Re-exports so existing callers (`main.ts`, `RendererConsentPrompter.ts`,
 // tests) continue to import these names from `./ExtensionHost`.
 export { MethodNotImplementedYet } from './ExtensionHostTypes';
 export type { ConsentPrompter, ExtensionHostOptions } from './ExtensionHostTypes';
+
+/**
+ * Mirrors `commandsApiImpl.ts`'s own constant of the same name/value - both
+ * bound a reverse-RPC round trip into a worker's exposed handler, just from
+ * two different call sites (the imperative `commands.register` path there,
+ * `callWorkerEndpoint` here for a declared command with a `handlerEndpoint`).
+ */
+const COMMAND_HANDLER_TIMEOUT_MS = 10_000;
 
 export class ExtensionHost implements IExtensionHost {
   /**
@@ -143,6 +152,7 @@ export class ExtensionHost implements IExtensionHost {
       activate: (id) => this.activate(id),
       deactivate: (id) => this.deactivate(id),
       isActive: (id) => this.isActive(id),
+      activating: new Map(),
     };
 
     initializeExtensionSchema(this.ctx.db);
@@ -194,11 +204,44 @@ export class ExtensionHost implements IExtensionHost {
         );
       }
     }
+
+    // Subscribe every bridge-sourced extension point once, for the lifetime
+    // of this host - see `ExtensionPointWiring.ts`. `ExtensionHost` has no
+    // explicit shutdown path today (it lives for the app's whole process
+    // lifetime), so the returned disposer has nothing to be called from; it
+    // exists for symmetry with `installReplayHooks` and for a future
+    // `dispose()` to pick up.
+    wireExtensionPoints(this.ctx);
   }
 
   /** Wire the consent prompter after construction (e.g. once the window exists). */
   setConsentPrompter(prompter: ConsentPrompter): void {
     this.ctx.consentPrompter = prompter;
+  }
+
+  /**
+   * Wire the declared-contributions resync hook after construction (task
+   * 0024 round 3, P1.5) - `DeclaredContributions` is built in `main.ts` after
+   * this host, mirroring `setConsentPrompter` above.
+   */
+  setDeclaredResync(fn: (extensionId: string) => void): void {
+    this.ctx.onDeclaredResync = fn;
+  }
+
+  /**
+   * Synchronous, cheap listing of every registered extension's id and entry
+   * (manifest, enabled flag, status) - the same shape `fireActivationEvent`
+   * uses internally. What `DeclaredContributions` (P1.5) needs to decide
+   * which declared commands/panel types to (re)place; deliberately not the
+   * async, DTO-marshaling `listExtensions()` the Extensions UI calls.
+   */
+  listEntries(): ReturnType<ExtensionHostContext['registry']['listEntries']> {
+    return this.ctx.registry.listEntries();
+  }
+
+  /** Append one line to `extensionId`'s own lifecycle log. */
+  appendLog(extensionId: string, entry: Extensions.ExtensionLogEntry): void {
+    this.ctx.logger.appendLog(extensionId, entry);
   }
 
   /** Public accessor for the contribution registry. */
@@ -397,6 +440,28 @@ export class ExtensionHost implements IExtensionHost {
     return active.panelsApi.deliver(message, sender);
   }
 
+  /**
+   * Call a reverse-RPC endpoint an active worker exposed via
+   * `api.runtime.expose` (task 0024 round 3, P1.5). Mirrors
+   * `commandsApiImpl.ts`'s own `handlerEndpoint` dispatch for the imperative
+   * `commands.register` path - this is the same mechanism, used by
+   * `RendererCommandBridge.invokeDeclared` for a declared command whose
+   * manifest names a `handlerEndpoint` but which the worker never registered
+   * imperatively (`IRuntimeApi.expose`'s own doc comment: "the host may call
+   * before any imperative registration has run").
+   */
+  async callWorkerEndpoint(
+    extensionId: string,
+    endpoint: string,
+    args: unknown[],
+  ): Promise<unknown> {
+    const active = this.ctx.activeWorkers.get(extensionId);
+    if (!active) {
+      throw new Error(`Extension is not active: ${extensionId}`);
+    }
+    return active.router.request(endpoint, args, { timeoutMs: COMMAND_HANDLER_TIMEOUT_MS });
+  }
+
   isActive(extensionId: string): boolean {
     return this.ctx.activeWorkers.has(extensionId);
   }
@@ -430,10 +495,10 @@ export class ExtensionHost implements IExtensionHost {
 
   // --- Extension point dispatch ------------------------------------------
 
-  dispatchExtensionPoint<TPayload, TReturn>(
-    pointId: ExtensionPointId,
-    payload: TPayload,
-  ): Promise<TReturn> {
-    return lifecycleDispatchExtensionPoint<TPayload, TReturn>(this.ctx, pointId, payload);
+  dispatchExtensionPoint<K extends ExtensionPointId>(
+    pointId: K,
+    payload: Extensions.ExtensionPointPayloadMap[K],
+  ): Promise<Extensions.ExtensionPointReturnMap[K]> {
+    return lifecycleDispatchExtensionPoint(this.ctx, pointId, payload);
   }
 }

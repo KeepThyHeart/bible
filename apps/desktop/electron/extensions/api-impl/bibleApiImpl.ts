@@ -2,11 +2,15 @@
  * Host-side implementation of `IBibleApi` for one extension worker.
  *
  * Read methods: `getVerse`, `getRange`, `listModules`, `listBooks`,
- * `parseReference`, `onDidChangeActiveVerse`.
+ * `parseReference`.
  *
  * Iteration and token methods: `iterateVerses` (cursor-based),
- * `getVerseTokens` (interlinear token data), `onDidSelectVerseWord` (word
- * selection event).
+ * `getVerseTokens` (interlinear token data).
+ *
+ * The active-verse and word-selection forward events live on
+ * `api.events.subscribe('verse.activeChanged' | 'verse.wordSelected', ...)`
+ * now, wired host-wide in `ExtensionPointWiring.ts` rather than per-worker
+ * here - see `attach()`'s comment.
  *
  * Permission gate: every method requires `bible:read`. The permission is
  * default-granted (see `DEFAULT_GRANTED_PERMISSIONS`) so any installed
@@ -27,9 +31,6 @@ import { RegistrationDisposers } from './registrationDisposers';
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 
 type BibleProviderDescriptor = Extensions.BibleProviderDescriptor;
-
-const ACTIVE_VERSE_CHANNEL = 'bible.onDidChangeActiveVerse';
-const WORD_SELECTION_CHANNEL = 'bible.onDidSelectVerseWord';
 
 /** Maximum verses returned by a single `getRange` call. */
 const MAX_RANGE_SIZE = 500;
@@ -54,9 +55,6 @@ export class BibleApiImpl {
   private readonly grant: ExtensionPermissionGrant;
   private readonly contributionRegistry: ContributionRegistry | undefined;
   private readonly registrations = new RegistrationDisposers('provider');
-  private unsubscribeActiveVerse: (() => void) | undefined;
-  private unsubscribeActiveVerseReplay: (() => void) | undefined;
-  private unsubscribeWordSelection: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: BibleApiImplOptions) {
@@ -77,58 +75,24 @@ export class BibleApiImpl {
       parseReference: (args) => this.handleParseReference(args),
       iterateVerses: (args) => this.handleIterateVerses(args),
       getVerseTokens: (args) => this.handleGetVerseTokens(args),
+      getTokensForRange: (args) => this.handleGetTokensForRange(args),
       navigateToVerse: (args) => this.handleNavigateToVerse(args),
       registerProvider: (args) => this.handleRegisterProvider(args),
       dispose: (args) => this.registrations.handleDispose(args),
     });
-
-    // Wire the active-verse forward channel. The bridge calls our handler
-    // every time the user navigates anywhere in the app; we forward the
-    // payload to the worker via the router. The router only emits if the
-    // worker has actually subscribed, so this is cheap when no one cares.
-    this.unsubscribeActiveVerse = this.bridge.subscribeActiveVerse((payload) => {
-      if (this.disposed) return;
-      this.router.emitEvent(ACTIVE_VERSE_CHANNEL, payload);
-    });
-
-    // The active verse is state, not just a stream of changes: an extension
-    // that subscribes after the reader chose a verse must still learn which
-    // one. Replay the current value to each new subscriber.
-    this.unsubscribeActiveVerseReplay = this.router.onSubscribe?.(ACTIVE_VERSE_CHANNEL, () => {
-      if (this.disposed) return;
-      const current = this.bridge.getActiveVerse?.();
-      if (current) this.router.emitEvent(ACTIVE_VERSE_CHANNEL, current);
-    });
-
-    // Wire the word-selection forward channel.
-    this.unsubscribeWordSelection = this.bridge.subscribeWordSelection((payload) => {
-      if (this.disposed) return;
-      this.router.emitEvent(WORD_SELECTION_CHANNEL, payload);
-    });
+    // The active-verse / word-selection forward channels (`verse.activeChanged`,
+    // `verse.wordSelected`) used to be wired here, one bridge subscription
+    // per active worker. Task 0024 round 3 (P0.3) moved that subscription to
+    // `ExtensionPointWiring.ts`, which subscribes to the bridge once and fans
+    // out to every active worker via `dispatchExtensionPoint` - including the
+    // replay-on-subscribe behaviour, now installed per-worker by
+    // `installReplayHooks` in `ExtensionHostLifecycle.activate`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.registrations.disposeAll();
-    this.unsubscribeActiveVerseReplay?.();
-    this.unsubscribeActiveVerseReplay = undefined;
-    if (this.unsubscribeActiveVerse) {
-      try {
-        this.unsubscribeActiveVerse();
-      } catch {
-        /* best-effort */
-      }
-      this.unsubscribeActiveVerse = undefined;
-    }
-    if (this.unsubscribeWordSelection) {
-      try {
-        this.unsubscribeWordSelection();
-      } catch {
-        /* best-effort */
-      }
-      this.unsubscribeWordSelection = undefined;
-    }
   }
 
   // --- RPC handlers ------------------------------------------------------
@@ -250,6 +214,31 @@ export class BibleApiImpl {
     }
     const moduleId = readOptionalModule(args[1], 'bible.getVerseTokens');
     return this.bridge.getVerseTokens(verseId, moduleId);
+  }
+
+  private async handleGetTokensForRange(args: unknown[]): Promise<unknown> {
+    this.assertActive();
+    requirePermission(this.grant, 'bible:read');
+    const start = args[0];
+    const end = args[1];
+    if (
+      typeof start !== 'number' ||
+      typeof end !== 'number' ||
+      !Number.isFinite(start) ||
+      !Number.isFinite(end)
+    ) {
+      throw new RpcProtocolError('bible.getTokensForRange: startVerseId and endVerseId must be finite numbers');
+    }
+    if (end < start) {
+      throw new RpcProtocolError('bible.getTokensForRange: endVerseId must be >= startVerseId');
+    }
+    if (end - start + 1 > MAX_RANGE_SIZE) {
+      throw new RpcProtocolError(
+        `bible.getTokensForRange: range size exceeds the ${MAX_RANGE_SIZE}-verse maximum`,
+      );
+    }
+    const moduleId = readOptionalModule(args[2], 'bible.getTokensForRange');
+    return this.bridge.getTokensForRange(start, end, moduleId);
   }
 
   private async handleNavigateToVerse(args: unknown[]): Promise<unknown> {

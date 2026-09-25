@@ -243,6 +243,101 @@ function walkFields(fields: SettingsField[], visit: (f: SettingsField) => void):
   }
 }
 
+/**
+ * Find the flattened leaf field for `key` (a dot-separated path, exactly as
+ * `extractFields` produces it), or `null` if no field declares it.
+ *
+ * Used by `storage.setSetting` (host-side, `storageApiImpl.ts`) to check an
+ * extension-initiated write against the extension's own declared schema -
+ * the same flattening this file already does for the form, so the API and
+ * the form can never disagree about which keys exist.
+ */
+export function findField(fields: SettingsField[], key: string): SettingsField | null {
+  for (const field of fields) {
+    if (field.kind === 'group') {
+      const found = findField(field.children ?? [], key);
+      if (found) return found;
+      continue;
+    }
+    if (field.key === key) return field;
+  }
+  return null;
+}
+
+/**
+ * Type-check `value` against `field`'s declared JSON Schema kind (and, for
+ * numbers, its declared min/max). Used by `storage.setSetting` so an
+ * extension-initiated write is held to the same rule the settings form's
+ * inputs already enforce structurally (a `<select>` can't submit a value
+ * outside `enumValues`, a checkbox can't submit a string, etc.) - this is
+ * that same rule, applied to a value that arrived over RPC instead of a DOM
+ * event.
+ */
+export function validateSettingValue(
+  field: SettingsField,
+  value: unknown,
+): { ok: true } | { ok: false; error: string } {
+  switch (field.kind) {
+    case 'string':
+    case 'password':
+    case 'secret':
+    case 'uri':
+    case 'email':
+    case 'textarea':
+      if (typeof value !== 'string') {
+        return { ok: false, error: `'${field.key}' must be a string` };
+      }
+      return { ok: true };
+    case 'enum':
+      if (typeof value !== 'string' || !(field.enumValues ?? []).includes(value)) {
+        return {
+          ok: false,
+          error: `'${field.key}' must be one of: ${(field.enumValues ?? []).join(', ')}`,
+        };
+      }
+      return { ok: true };
+    case 'number':
+      if (typeof value !== 'number' || Number.isNaN(value)) {
+        return { ok: false, error: `'${field.key}' must be a number` };
+      }
+      return checkNumberRange(field, value);
+    case 'integer':
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        return { ok: false, error: `'${field.key}' must be an integer` };
+      }
+      return checkNumberRange(field, value);
+    case 'boolean':
+      if (typeof value !== 'boolean') {
+        return { ok: false, error: `'${field.key}' must be a boolean` };
+      }
+      return { ok: true };
+    case 'string-array':
+      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+        return { ok: false, error: `'${field.key}' must be an array of strings` };
+      }
+      return { ok: true };
+    case 'group':
+      return { ok: false, error: `'${field.key}' is a settings group, not a leaf value` };
+    default:
+      return { ok: false, error: `'${field.key}' has an unsupported settings type` };
+  }
+}
+
+function checkNumberRange(
+  field: SettingsField,
+  value: number,
+): { ok: true } | { ok: false; error: string } {
+  const c = field.numberConstraints;
+  if (!c) return { ok: true };
+  if (c.minimum !== undefined && value < c.minimum) {
+    return { ok: false, error: `'${field.key}' must be >= ${c.minimum}` };
+  }
+  if (c.maximum !== undefined && value > c.maximum) {
+    return { ok: false, error: `'${field.key}' must be <= ${c.maximum}` };
+  }
+  return { ok: true };
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

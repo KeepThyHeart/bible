@@ -8,6 +8,9 @@
  *   - `applyDefaults` fills in `default` values for empty leaves
  *   - `getMissingRequired` flags `x-bibleAppRequired` fields with no value
  *   - `isFieldVisible` hides fields whose `x-bibleAppDependsOn` doesn't match
+ *   - `findField` / `validateSettingValue` back `storage.setSetting`
+ *     (task 0024 round 3, P1.7) - the host-side write validates against this
+ *     same flattening rather than a second, independently-maintained rule
  *
  * The renderer's React mounting + IPC round-trip is intentionally not unit
  * tested here - that is covered by the e2e extension fixtures.
@@ -17,8 +20,10 @@ import { describe, it, expect } from 'vitest';
 import {
   applyDefaults,
   extractFields,
+  findField,
   getMissingRequired,
   isFieldVisible,
+  validateSettingValue,
 } from './extensionSettingsSchema';
 
 describe('extractFields', () => {
@@ -159,5 +164,90 @@ describe('isFieldVisible', () => {
     expect(xOnly).toBeTruthy();
     expect(isFieldVisible(xOnly!, { 'adv.mode': 'x' })).toBe(true);
     expect(isFieldVisible(xOnly!, { 'adv.mode': 'y' })).toBe(false);
+  });
+});
+
+describe('findField', () => {
+  const fields = extractFields({
+    type: 'object',
+    properties: {
+      apiKey: { type: 'string' },
+      advanced: {
+        type: 'object',
+        properties: {
+          endpoint: { type: 'string', format: 'uri' },
+        },
+      },
+    },
+  });
+
+  it('finds a top-level leaf by key', () => {
+    expect(findField(fields, 'apiKey')?.kind).toBe('string');
+  });
+
+  it('finds a nested leaf by its dot-path', () => {
+    expect(findField(fields, 'advanced.endpoint')?.kind).toBe('uri');
+  });
+
+  it('returns null for an undeclared key', () => {
+    expect(findField(fields, 'nope')).toBeNull();
+  });
+
+  it('returns null for a group key (not a leaf)', () => {
+    expect(findField(fields, 'advanced')).toBeNull();
+  });
+});
+
+describe('validateSettingValue', () => {
+  const fields = extractFields({
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      count: { type: 'integer', minimum: 1, maximum: 10 },
+      ratio: { type: 'number', minimum: 0, maximum: 1 },
+      enabled: { type: 'boolean' },
+      mode: { type: 'string', enum: ['a', 'b'] },
+      tags: { type: 'array', items: { type: 'string' } },
+    },
+  });
+  const field = (key: string) => findField(fields, key)!;
+
+  it('accepts a matching string', () => {
+    expect(validateSettingValue(field('name'), 'hello')).toEqual({ ok: true });
+  });
+
+  it('rejects a non-string for a string field', () => {
+    const res = validateSettingValue(field('name'), 42);
+    expect(res.ok).toBe(false);
+  });
+
+  it('accepts an integer within range and rejects one outside it', () => {
+    expect(validateSettingValue(field('count'), 5)).toEqual({ ok: true });
+    expect(validateSettingValue(field('count'), 0).ok).toBe(false);
+    expect(validateSettingValue(field('count'), 11).ok).toBe(false);
+  });
+
+  it('rejects a non-integer number for an integer field', () => {
+    expect(validateSettingValue(field('count'), 5.5).ok).toBe(false);
+  });
+
+  it('accepts a fractional number for a number field', () => {
+    expect(validateSettingValue(field('ratio'), 0.5)).toEqual({ ok: true });
+  });
+
+  it('accepts/rejects booleans correctly', () => {
+    expect(validateSettingValue(field('enabled'), true)).toEqual({ ok: true });
+    expect(validateSettingValue(field('enabled'), 'true').ok).toBe(false);
+  });
+
+  it('accepts a declared enum value and rejects an undeclared one', () => {
+    expect(validateSettingValue(field('mode'), 'a')).toEqual({ ok: true });
+    expect(validateSettingValue(field('mode'), 'c').ok).toBe(false);
+  });
+
+  it('accepts a string array and rejects a mixed array', () => {
+    expect(validateSettingValue(field('tags'), ['x', 'y'])).toEqual({ ok: true });
+    expect(validateSettingValue(field('tags'), ['x', 1]).ok).toBe(false);
+    expect(validateSettingValue(field('tags'), 'x').ok).toBe(false);
   });
 });

@@ -42,7 +42,6 @@ import type {
   DictionaryIterationResult,
   DictionaryModuleInfoDto,
   DictionaryProviderDescriptor,
-  DisplayModeDescriptor,
   DisposableHandle,
   ExtensionCommandRegistration,
   ExtensionPanelTypeDef,
@@ -51,7 +50,6 @@ import type {
   FolderGrantHandle,
   FolderUsageInfo,
   HighlightStyleDescriptor,
-  IEventApi,
   IExtensionDatabase,
   InputBoxOpts,
   IterateBookOpts,
@@ -90,22 +88,46 @@ import type {
   VerseHoverProviderDescriptor,
   VerseIterationResult,
   VerseTokenDto,
-  VerseWordSelection,
   WhenContextValue,
 } from './ExtensionApiDtos';
+import type {
+  ExtensionPointPayloadMap,
+  ExtensionPointReturnMap,
+} from './ExtensionPointTypes';
 
 /**
  * The current extension API version. Used by the host and worker to negotiate
- * compatibility (see `engines.bibleApp` in the manifest). Bumped according to
- * strict semver:
+ * compatibility (see `engines.bibleApp` in the manifest).
  *
- * - **Patch**: bug fixes only. No surface change.
- * - **Minor**: additive only - new methods, optional fields, permissions,
- *   contribution points, extension points, provider roles.
- * - **Major**: breaking change. Ships side-by-side with the previous major
- *   for at least 12 months.
+ * **Retrograded to `0.1.0` (task 0024, round 3).** Earlier work on this task
+ * bumped this through `1.1.0` and `1.2.0` under a strict-semver policy
+ * (patch/minor/major, with a 12-month major dual-support window). The human
+ * reviewing round 3 pointed out that policy assumes a stable, publicly
+ * distributed API - which does not exist yet: no beta has shipped, and the
+ * only extension written against this API (`bible-memory`) is written by the
+ * same person approving this task. Resetting to a pre-1.0, unstable-by-
+ * definition `0.1.0` says plainly that nothing here is a compatibility
+ * promise yet, and removes the temptation to read a `1.x`/`2.x` number as
+ * one. (The human suggested the bare string "0.1" - this file uses `0.1.0`
+ * instead because `semverRange.ts`'s `parseVersion` requires a strict
+ * three-segment `\d+.\d+.\d+`, and `engines.bibleApp` range matching against
+ * `EXTENSION_API_VERSION` would otherwise silently fail to parse and refuse
+ * every extension. `0.1.0` is the three-segment form of the same version.)
+ *
+ * The strict-semver / 12-month-dual-support policy above is retired along
+ * with the number; it can be reinstated verbatim once a real beta or public
+ * release makes versioning promises meaningful. Until then, treat every
+ * change - additive or breaking - as pre-release churn: bump the middle
+ * segment (`0.2.0`, `0.3.0`, ...) for any surface change worth noting in an
+ * extension's `engines.bibleApp` range, and do not read more into the number
+ * than that.
+ *
+ * This round's breaking changes (the `onDid*` -> `api.events.subscribe`
+ * unification below) ship under this same `0.1.0` - there is no
+ * dual-support window to honor, and `bible-memory` is updated in lockstep in
+ * its own task.
  */
-export const EXTENSION_API_VERSION = '1.1.0' as const;
+export const EXTENSION_API_VERSION = '0.1.0' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker
@@ -212,9 +234,27 @@ export interface IBibleApi {
   ): Promise<VerseTokenDto[] | null>;
 
   /**
+   * Batch form of {@link getVerseTokens} over an inclusive verse-id range
+   * (task 0036, P0.1b; design doc §4.4). Without this, a decorator that
+   * colours every verse of a chapter by Strong's number or morphology would
+   * need one `getVerseTokens` round-trip per verse - up to 176 for Psalm 119 -
+   * inside `decorateEndpoint`'s single 3-second budget, which cannot work.
+   *
+   * Keyed by verse id; a verse with no token data (or no verses at all in
+   * range) is simply absent from the result, never a `null` entry. Same
+   * permission as `getVerseTokens` (`bible:read`, default-granted).
+   */
+  getTokensForRange(
+    startVerseId: number,
+    endVerseId: number,
+    opts?: { module?: string },
+  ): Promise<Record<number, VerseTokenDto[]>>;
+
+  /**
    * Programmatically navigate the primary Bible pane to a specific verse.
    * The host resolves after the renderer has processed the navigation
-   * request and fires `onDidChangeActiveVerse` once the verse is visible.
+   * request and dispatches `verse.activeChanged` (`api.events.subscribe`)
+   * once the verse is visible.
    *
    * Requires `bible:read` permission (navigation is a read-adjacent action).
    */
@@ -227,12 +267,6 @@ export interface IBibleApi {
   registerProvider(
     provider: BibleProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  /** Stable event: the user navigated to a new active verse anywhere in the app. */
-  onDidChangeActiveVerse: IEventApi<{ verseId: number; module: string } | null>;
-
-  /** A token / word inside a verse was selected (click, double-click, or selection). */
-  onDidSelectVerseWord: IEventApi<VerseWordSelection>;
 }
 
 // --- ICommentaryApi *(T1 reads; provider/iterate are T2)* ------------------
@@ -258,8 +292,6 @@ export interface ICommentaryApi {
   registerProvider(
     provider: CommentaryProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  onDidChangeActiveCommentary: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- IDictionaryApi *(T1 reads; provider/iterate are T2)* ------------------
@@ -287,8 +319,6 @@ export interface IDictionaryApi {
   registerProvider(
     provider: DictionaryProviderDescriptor,
   ): Promise<DisposableHandle>;
-
-  onDidChangeActiveDictionary: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- IBookApi *(T1 reads; provider/iterate are T2)* ------------------------
@@ -309,8 +339,6 @@ export interface IBookApi {
   iterateSections(opts: IterateBookOpts): Promise<BookIterationResult>;
 
   registerProvider(provider: BookProviderDescriptor): Promise<DisposableHandle>;
-
-  onDidChangeActiveBook: IEventApi<{ moduleId: string } | null>;
 }
 
 // --- INotesApi / IHighlightsApi / IBookmarksApi *(T1 CRUD; styles are T2)* -
@@ -321,7 +349,6 @@ export interface INotesApi {
   create(note: NewNoteDto): Promise<UserNoteDto>;
   update(id: string, patch: Partial<UserNoteDto>): Promise<UserNoteDto>;
   delete(id: string): Promise<void>;
-  onDidChange: IEventApi<{ id: string; type: 'created' | 'updated' | 'deleted' }>;
 }
 
 export interface IHighlightsApi {
@@ -339,8 +366,6 @@ export interface IHighlightsApi {
 
   /** List all registered highlight styles (built-in + extension-contributed). */
   listStyles(): Promise<HighlightStyleDescriptor[]>;
-
-  onDidChange: IEventApi<{ verseId: number }>;
 }
 
 export interface IBookmarksApi {
@@ -492,49 +517,53 @@ export interface IUiApi {
   /** Contribute a new panel/content type. */
   registerPanelType(def: ExtensionPanelTypeDef): Promise<DisposableHandle>;
 
-  /** Contribute a verse decorator. */
+  /**
+   * Contribute a verse decorator. `d.decorateEndpoint` is called with a
+   * `DecorationRequestDto` (a passage, not a verse-id array) and must
+   * resolve with `DecorationDto[]`. See task 0036's design doc for the full
+   * data model, caching and layering rules.
+   */
   registerVerseDecorator(d: VerseDecoratorDescriptor): Promise<DisposableHandle>;
 
   /**
-   * Update an existing decoration group (matched by `groupId`). Use this when
-   * data behind a decoration changes - e.g. a stemming overlay rebuilds.
+   * Replace a decoration group (matched by `groupId`) atomically. Use this to
+   * push decorations the host did not ask for - e.g. a set too large to
+   * recompute on every chapter turn. A pushed group is independent of any
+   * decorator layer and survives navigation to a chapter that is not
+   * currently loaded (it paints on arrival). Pass an empty array to clear
+   * the group.
    */
   updateVerseDecorations(
     groupId: string,
     decorations: DecorationDto[],
   ): Promise<void>;
 
+  /**
+   * Drop the host's cached pull results for this extension's decorators, so
+   * the next time a chapter needs them the host asks again. This is what
+   * `invalidateOn: ['manual']` means.
+   */
+  invalidateVerseDecorations(opts?: {
+    /** Limit to one decorator. Omitted: all of this extension's decorators. */
+    decoratorId?: string;
+    /** Limit to a passage. Omitted: everything cached. */
+    startVerseId?: number;
+    endVerseId?: number;
+  }): Promise<void>;
+
   /** Contribute hover content for verses. */
   registerVerseHover(
     h: VerseHoverProviderDescriptor,
   ): Promise<DisposableHandle>;
+
+  /** The full theme-colour allowlist decorations may reference (`THEME_COLOR_KEYS`). No permission beyond `ui:verse-decorator`/`ui:verse-hover`. */
+  listThemeColorKeys(): Promise<string[]>;
 
   /** Add an item to a built-in context menu. */
   registerContextMenu(
     target: ContextMenuTarget,
     item: ContextMenuItemDescriptor,
   ): Promise<DisposableHandle>;
-
-  /**
-   * RESERVED - NOT IMPLEMENTED. Always rejects.
-   *
-   * Custom verse display modes were never built: nothing in the host renders a
-   * registered mode, and the Bible pane's Display Mode picker is a fixed
-   * Simple/Standard/Study set. This declaration shipped ahead of the decision,
-   * and until it was made to reject, a call returned a valid `DisposableHandle`
-   * and then did nothing at all - no error, no warning, no rendering.
-   *
-   * It now rejects with an `ExtensionApiError` whose `code` is
-   * `'MethodNotImplementedYet'`. Do not call it. The signature is kept so that
-   * implementing display modes later is not a breaking change.
-   *
-   * The intended behaviour, when it exists: the mode appears in the Bible pane's
-   * Display Mode picker alongside Simple/Standard/Study; the host calls
-   * `renderEndpoint` for each visible verse; the extension returns either
-   * decorations to overlay on the standard rendering, or an iframe URL to fully
-   * replace the verse's rendering.
-   */
-  registerDisplayMode(def: DisplayModeDescriptor): Promise<DisposableHandle>;
 
   /**
    * Contribute a status bar item. Useful for "X items indexed", "Connected
@@ -544,8 +573,34 @@ export interface IUiApi {
     item: StatusBarItemDescriptor,
   ): Promise<DisposableHandle>;
 
-  /** Show a non-modal toast. */
-  showNotification(msg: LocalizedString, opts?: NotificationOpts): Promise<void>;
+  /**
+   * Patch an already-registered status bar item in place. Only the fields
+   * present in `patch` change; everything else - including fields the
+   * original `registerStatusBarItem` call left unset - is kept. Use this
+   * instead of disposing and re-registering when only the data changes
+   * (e.g. a counter ticking up): re-registering the same `id` repeatedly is
+   * wasteful (a full descriptor round-trip, permission check and
+   * validation for one changed field) and, before this method existed, was
+   * also the only way an author could avoid stacking up disposal handles.
+   *
+   * Rejects if `itemId` was never registered by this extension, or was
+   * already disposed.
+   */
+  updateStatusBarItem(
+    itemId: string,
+    patch: Partial<Omit<StatusBarItemDescriptor, 'id'>>,
+  ): Promise<void>;
+
+  /**
+   * Show a non-modal toast. Resolves with the `id` of the action the user
+   * clicked, if `opts.actions` was given and they clicked one; otherwise
+   * resolves `undefined` - the user dismissed it, another notification
+   * replaced it, or it auto-dismissed after `opts.durationMs`.
+   *
+   * Awaiting the result is optional - a toast with no actions and nothing
+   * awaiting it behaves exactly as it always did.
+   */
+  showNotification(msg: LocalizedString, opts?: NotificationOpts): Promise<string | undefined>;
 
   /**
    * Show a quick-pick prompt. The promise resolves with the user's selection
@@ -574,6 +629,19 @@ export interface IUiApi {
     content: string | ArrayBuffer | Uint8Array,
     opts?: SaveFileOpts,
   ): Promise<boolean>;
+
+  /**
+   * Open the host's Extensions preferences page, expanded to this
+   * extension's own settings form. `section` optionally names one of this
+   * extension's own `contributes.configuration` property keys (dot-path,
+   * as declared - e.g. `'advanced.endpoint'`) to scroll into view; omitted,
+   * the page just opens expanded to the top of the extension's settings.
+   *
+   * This is the "let me finish setting this extension up" call - the
+   * counterpart to `storage.setSetting`, which lets the *code* change a
+   * setting; this lets the code ask the *user* to.
+   */
+  openSettings(section?: string): Promise<void>;
 }
 
 // --- IWorkspaceApi *(T1)* --------------------------------------------------
@@ -584,9 +652,37 @@ export interface IWorkspaceApi {
   /** Returns the panelId. */
   openPanel(contentType: string, opts?: OpenPanelOpts): Promise<string>;
   closePanel(panelId: string): Promise<void>;
-  onDidChangeActivePanel: IEventApi<PanelInfoDto | null>;
-  onDidOpenPanel: IEventApi<PanelInfoDto>;
-  onDidClosePanel: IEventApi<{ panelId: string; contentType: string }>;
+
+  /**
+   * Change an already-open panel's tab title. Restricted to the extension's
+   * own panels - `panelId` must name a panel whose `contentType` is one of
+   * this extension's own (`ext:<this extension's id>.*`). Renaming a
+   * built-in tab or another extension's tab would be a spoofing vector, not
+   * a legitimate UI adjustment, so this rejects with `PermissionDeniedError`
+   * for anything else, or a plain error if `panelId` is not currently open.
+   */
+  setPanelTitle(panelId: string, title: LocalizedString): Promise<void>;
+
+  /**
+   * Set, or clear (pass `undefined`), a small badge on an already-open
+   * panel's tab - e.g. a due/unread count. Same ownership rule as
+   * `setPanelTitle`.
+   */
+  setPanelBadge(panelId: string, badge: string | number | undefined): Promise<void>;
+
+  /**
+   * Bring an already-open panel's tab to the front, without changing its
+   * content. This is the "stop working around it" call for an extension
+   * that owns a tab and wants a "Show in <panel>" action to land the user on
+   * it, rather than only on the status bar. Unlike `setPanelTitle` /
+   * `setPanelBadge` this needs no ownership check - focusing a tab is
+   * exactly as visible and reversible as `openPanel` / `closePanel`, which
+   * are also unrestricted.
+   *
+   * Resolves `true` if `panelId` was open and got focused, `false` if it was
+   * not found (already closed, or never existed).
+   */
+  revealPanel(panelId: string): Promise<boolean>;
 }
 
 // --- IContextApi *(T1)* ----------------------------------------------------
@@ -600,8 +696,6 @@ export interface IContextApi {
    * built-in keys (only `ext.<id>.*` keys are writable from extensions).
    */
   set(key: string, value: WhenContextValue): Promise<void>;
-
-  onDidChange: IEventApi<{ keys: string[] }>;
 }
 
 // --- IStorageApi *(T1 KV/secrets/settings; T2 openDatabase)* ---------------
@@ -639,7 +733,21 @@ export interface IStorageApi {
    * `get('__settings.<key>')` but type-safe against the schema.
    */
   getSetting<T = unknown>(key: string): Promise<T | undefined>;
-  onDidChangeSettings: IEventApi<{ keys: string[] }>;
+
+  /**
+   * Write one setting declared in this extension's own
+   * `contributes.configuration` schema. Rejects (`RpcProtocolError`) if
+   * `key` is not a property declared there, or if `value` does not match
+   * the declared type (or, for `enum`, is not one of the declared values) -
+   * the host validates against the same schema the settings form renders
+   * from, so this call and the form can never disagree about what a valid
+   * value is. On success, fires `settings.changed` to this extension's own
+   * worker, exactly as a user-driven edit through the form does.
+   *
+   * An extension cannot invent new settings this way - only keys it already
+   * declared in its manifest are writable.
+   */
+  setSetting(key: string, value: unknown): Promise<void>;
 
   // ---- Per-extension SQLite database ----
   /**
@@ -744,24 +852,113 @@ export interface IL10nApi {
   // describes. `ApiSurfaceContract.test.ts` now rejects bare data properties.
   /** The host's current UI locale, e.g. `'en'` or `'pt-BR'`. */
   currentLocale(): Promise<string>;
-  onDidChangeLocale: IEventApi<string>;
 }
 
 // --- IEventsApi *(T1)* -----------------------------------------------------
 
 /**
- * Wraps the cross-cutting subscription model so extensions can subscribe to
- * host-emitted hook events (the ~30 hooks listed in `ExtensionPointTypes.ts`).
+ * Options for `IEventsApi.subscribe`.
+ */
+export interface SubscribeOptions {
+  /**
+   * Ordering hint for `filter` and `provider` channels. Lower runs first.
+   * Clamped to `ORDER_PLUGIN_MIN..ORDER_PLUGIN_MAX` (100..1000); defaults to
+   * `ORDER_DEFAULT` (500) when omitted. Ignored for `event` channels - see
+   * `EXTENSION_POINT_KINDS` in `ExtensionPointTypes.ts`.
+   */
+  order?: number;
+}
+
+/**
+ * A channel an extension may `publish` on: its own namespace, `ext.<its
+ * own id>.<anything>`. Distinct from `ExtensionPointId`, the closed set of
+ * host-emitted channels - this is the open set of extension-to-extension
+ * broadcast channels (P1.8). The host enforces the namespace prefix at
+ * `publish` time; nothing about the *type* prevents naming another
+ * extension's namespace, because the id segment is only known at runtime.
+ */
+export type ExtensionScopedChannel = `ext.${string}.${string}`;
+
+/**
+ * Every channel `api.events.subscribe` accepts: the closed, host-emitted
+ * `ExtensionPointId` vocabulary, plus the open `ext.<id>.*` namespace an
+ * extension may `publish` on.
+ */
+export type ExtensionChannel = ExtensionPointId | ExtensionScopedChannel;
+
+/**
+ * One subscription surface for every host-emitted hook channel (see the
+ * 14-member `ExtensionPointId` union and its kind/payload/return maps in
+ * `ExtensionPointTypes.ts`) and for extension-to-extension broadcast
+ * channels (`ext.<id>.*`, P1.8's `publish`).
  *
- * The host wraps every emit with a try/catch and a 2-second timeout per
- * subscriber; a slow or throwing subscriber gets its handle disposed with a
- * logged warning, but never blocks the host or other subscribers.
+ * Replaces the earlier `onDid*` properties scattered across eleven
+ * namespaces (the active-verse and word-selection events on `api.bible`, the
+ * change event on `api.notes`, and so on) and the speculative
+ * `ExtensionPointId` vocabulary that had zero call sites -
+ * two systems collapsed into one channel string, one table
+ * (`EXTENSION_POINT_KINDS`), and one drift test
+ * (`ApiSurfaceContract.test.ts`). There is **no per-namespace subscribe
+ * sugar** - `api.events.subscribe('verse.activeChanged', cb)` is the only
+ * way in, deliberately: per-namespace properties are exactly what required
+ * a second, hand-maintained table (the old `EVENT_PROPERTIES`) to keep in
+ * sync with the first, and that drift is what this design removes.
+ *
+ * Dispatch semantics by kind (`EXTENSION_POINT_KINDS[channel]`):
+ *
+ * - **event** - fire-and-forget, parallel, the host does not await
+ *   subscribers. A throw is logged and skipped.
+ * - **filter** - the host calls subscribers sequentially; each may replace
+ *   the payload for the next (or return `'continue'`/`'cancel'` for a
+ *   cancelable filter - see `EXTENSION_POINT_CANCELABLE`). A subscriber that
+ *   throws or times out is skipped, never treated as `'cancel'` - hooks fail
+ *   open.
+ * - **provider** - the host calls every subscriber in parallel and
+ *   concatenates each one's array result, ordered by `opts.order` then by
+ *   extension id.
+ *
+ * A channel in `EXTENSION_POINT_REPLAY` (currently only
+ * `'verse.activeChanged'`) replays its current value to a subscriber
+ * immediately, rather than waiting for the next change - the active verse is
+ * state, not a stream, and a handler registered during `activate()` would
+ * otherwise see nothing until the user next navigated.
  */
 export interface IEventsApi {
-  subscribe<T>(
-    channel: ExtensionPointId,
-    handler: (payload: T) => void | Promise<void>,
+  subscribe<K extends ExtensionPointId>(
+    channel: K,
+    handler: (
+      payload: ExtensionPointPayloadMap[K],
+    ) =>
+      | ExtensionPointReturnMap[K]
+      | void
+      | Promise<ExtensionPointReturnMap[K] | void>,
+    opts?: SubscribeOptions,
   ): Promise<DisposableHandle>;
+  /**
+   * Subscribe to another extension's broadcast channel (`ext.<its id>.*`,
+   * published via that extension's own `api.events.publish`). Always
+   * `event`-kind semantics: fire-and-forget, no cancel, no collect, no
+   * replay. The payload type is whatever the publisher chose to send -
+   * there is no host-declared shape for an extension-owned channel.
+   */
+  subscribe(
+    channel: ExtensionScopedChannel,
+    handler: (payload: unknown) => void | Promise<void>,
+    opts?: SubscribeOptions,
+  ): Promise<DisposableHandle>;
+
+  /**
+   * Broadcast `payload` to every other active extension subscribed to
+   * `channel` (P1.8). `channel` must start with `ext.<this extension's
+   * id>.` - the same structural rule `commands.register` already enforces
+   * for command ids - so one extension can never speak on another's
+   * namespace, and there is no free-form pub/sub bus (see
+   * `Extensions/README.md`'s explicit prohibition on one). The publisher
+   * never receives its own message. Resolves once every subscribed worker
+   * has been sent the event; delivery itself is fire-and-forget, like any
+   * other `event`-kind channel.
+   */
+  publish(channel: ExtensionScopedChannel, payload: unknown): Promise<void>;
 }
 
 // --- IRuntimeApi *(T1 - reverse-RPC endpoint binding)* ---------------------
@@ -885,53 +1082,53 @@ export interface IPanelsApi {
 /**
  * String literal union of every host-emitted extension point. Payload and
  * return types live in `ExtensionPointTypes.ts`.
+ *
+ * **Pruned from 40 to 14 members (task 0024, round 3, P0.3).** The union was
+ * written speculatively, well ahead of any call site - `dispatchExtensionPoint`
+ * had zero callers repo-wide before this round. The 26 members deleted below
+ * had no host chokepoint that would ever fire them; keeping a channel nothing
+ * emits is a permanent lie in the public type, indistinguishable from inside
+ * an extension from an event that simply has not fired yet (the same failure
+ * mode the old `onDid*` surface had). Re-adding a channel later is additive;
+ * leaving dead ones in was not. Deleted:
+ * `verse.beforeRender`, `verse.afterRender`, `verse.hover`,
+ * `verse.contextMenu`, `verse.word.contextMenu`, `verse.decorate`,
+ * `verse.beforeFormat`, `commentary.providerRegistered`,
+ * `commentary.beforeShow`, `commentary.similarRequested`,
+ * `dictionary.lookupRequested`, `dictionary.beforeShow`, `book.beforeShow`,
+ * `notes.beforeSave`, `notes.afterSave` (replaced by `notes.changed`, which
+ * matches the unified create/update/delete notification the bridge actually
+ * emits), `bookmarks.afterAdd`, `search.afterResults`,
+ * `search.suggestionsRequested`, `layout.presetApplied`,
+ * `bible.referenceParsed`, `command.beforeExecute` (would need a
+ * renderer-side dispatch proxy over `RendererCommandBridge` - `CommandRegistry.execute`
+ * lives in the renderer, not the main process where `dispatchExtensionPoint`
+ * runs - its own task), `app.ready` (redundant with `activationEvents`),
+ * `session.restored`, `theme.changed` (no theme bridge exists yet - re-add
+ * with the bridge, not before), `permissions.changed`, `module.installed`,
+ * `module.updated`, `module.removed` (the module manager may grow these
+ * later, but "likely" is exactly the standard that produced 40 channels and
+ * 0 call sites).
  */
 export type ExtensionPointId =
-  // Verse rendering and interaction
-  | 'verse.beforeRender'
-  | 'verse.afterRender'
-  | 'verse.hover'
-  | 'verse.contextMenu'
-  | 'verse.word.contextMenu'
-  | 'verse.decorate'
+  // Verse
   | 'verse.activeChanged'
   | 'verse.wordSelected'
-  | 'verse.beforeFormat'
-  // Content modules
-  | 'commentary.providerRegistered'
-  | 'commentary.beforeShow'
-  | 'commentary.similarRequested'
-  | 'dictionary.lookupRequested'
-  | 'dictionary.beforeShow'
-  | 'book.beforeShow'
-  | 'crossReferences.requested'
-  // Notes / highlights / bookmarks
-  | 'notes.beforeSave'
-  | 'notes.afterSave'
+  // Notes / highlights
+  | 'notes.changed'
   | 'notes.beforeDelete'
   | 'highlights.afterChange'
-  | 'bookmarks.afterAdd'
   // Search
   | 'search.beforeQuery'
-  | 'search.afterResults'
-  | 'search.suggestionsRequested'
-  // Workspace and lifecycle
+  // Cross references
+  | 'crossReferences.requested'
+  // Workspace
   | 'panel.opened'
   | 'panel.closed'
   | 'panel.focused'
-  | 'layout.presetApplied'
-  | 'bible.referenceParsed'
-  | 'command.beforeExecute'
-  | 'app.ready'
-  | 'session.restored'
-  | 'theme.changed'
-  | 'locale.changed'
+  // Host lifecycle
   | 'settings.changed'
-  | 'permissions.changed'
-  // Modules and extensions
-  | 'module.installed'
-  | 'module.updated'
-  | 'module.removed'
+  | 'locale.changed'
   | 'extension.activated'
   | 'extension.deactivated';
 
@@ -1009,9 +1206,11 @@ export interface ITasksApi {
 // --- IExtensionsApi *(T2)* -------------------------------------------------
 
 /**
- * The narrow surface (no events, no streaming) is intentional. If two
- * extensions need a tighter coupling, they can both depend on a third
- * extension that owns the shared state.
+ * The narrow surface (no streaming) is intentional. If two extensions need a
+ * tighter coupling, they can both depend on a third extension that owns the
+ * shared state. `extension.activated`/`extension.deactivated`
+ * (`api.events.subscribe`) cover the one pair of events this namespace used
+ * to carry as direct properties before task 0024 round 3's event unification.
  */
 export interface IExtensionsApi {
   /**
@@ -1035,9 +1234,6 @@ export interface IExtensionsApi {
 
   /** List extensions that export at least one API method. */
   listProviders(): Promise<ExtensionProviderInfo[]>;
-
-  onDidActivate: IEventApi<{ extensionId: string }>;
-  onDidDeactivate: IEventApi<{ extensionId: string }>;
 }
 
 // --- IAiApi (RESERVED) *(T1 stub - full surface is T3)* --------------------

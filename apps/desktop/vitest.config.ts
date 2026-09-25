@@ -29,17 +29,20 @@ export default defineConfig({
 
     // Vitest replaces CSS modules with empty stubs by default, which is right
     // for the hundreds of component tests that import a stylesheet only so the
-    // component can render. It is wrong for exactly one file: `themes.css` is
+    // component can render. It is wrong for two files: `themes.css` is
     // imported as TEXT (`?raw`) by `electron/extensions/hostThemeCss.ts`, which
     // parses it to build the design-token sheet served to extension panels over
     // `ext-ui://host/theme.css`. Stubbed, that import yields an empty string,
     // the parser finds no rules, and every token assertion fails against an
     // empty `:root {}` block - a failure that looks like a parser bug and is
-    // not one.
+    // not one. `controls.css` is imported the same way by
+    // `electron/extensions/hostControlsCss.ts`, served at
+    // `ext-ui://host/controls.css`; stubbed, any test asserting on its content
+    // would see an empty string instead of the shared toolbar/back-button rules.
     //
     // Scoped by regex rather than turned on globally so nothing else starts
     // paying for PostCSS/Tailwind processing in unit tests.
-    css: { include: [/themes\.css/] },
+    css: { include: [/themes\.css/, /controls\.css/] },
 
     // Test file patterns
     include: [
