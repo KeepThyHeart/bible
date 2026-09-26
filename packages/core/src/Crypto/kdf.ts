@@ -84,7 +84,7 @@ export async function argon2id(password: string, p: KdfParams, outLen = 32): Pro
   validateKdfParams(p);
   const { argon2id: hash } = await import('hash-wasm');
   return hash({
-    password: password.normalize('NFKC'),
+    password: password.normalize('NFC'),
     salt: p.salt,
     parallelism: p.p,
     iterations: p.t,

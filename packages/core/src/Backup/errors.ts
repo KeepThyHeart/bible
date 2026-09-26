@@ -1,0 +1,21 @@
+/** Errors raised by the backup container and payload readers. Each has a distinct meaning for the UI. */
+
+export class BackupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = new.target.name;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/** The bytes are not a backup file at all (wrong magic, too short). */
+export class NotABackupError extends BackupError {}
+
+/** The file was made by a newer version (higher major, unknown cipher, KDF, payload or slot type). */
+export class NewerFormatError extends BackupError {}
+
+/** No key slot could be opened with the password: wrong password (or a slot type this reader does not have a key for). */
+export class WrongPasswordError extends BackupError {}
+
+/** The file is damaged, truncated, reordered or tampered with (an authentication tag failed or the structure is malformed). */
+export class DamagedError extends BackupError {}

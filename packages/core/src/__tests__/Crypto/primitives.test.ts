@@ -106,7 +106,7 @@ describe('Argon2id', () => {
     const p: KdfParams = { id: 'argon2id', v: 19, m: 19456, t: 2, p: 1, salt };
     expect(hexEncode(await argon2id('correct horse battery staple', p))).toBe('818259b6310026a8e0dbac5d2e6927abcfdb07b32258fac4f61b18b80f929085');
   });
-  it('NFKC-normalises the password so composed and decomposed forms agree', async () => {
+  it('NFC-normalises the password so composed and decomposed forms agree', async () => {
     const p: KdfParams = { id: 'argon2id', v: 19, m: 19456, t: 2, p: 1, salt };
     expect(await argon2id('café au lait', p)).toEqual(await argon2id('café au lait', p));
   });

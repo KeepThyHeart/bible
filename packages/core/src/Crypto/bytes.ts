@@ -76,7 +76,7 @@ export function utf8Encode(text: string): Uint8Array {
 }
 
 export function utf8Decode(bytes: Uint8Array): string {
-  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
 }
 
 export function hexEncode(bytes: Uint8Array): string {
