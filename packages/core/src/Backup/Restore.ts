@@ -532,7 +532,7 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
         } else {
           r.nulled += sql.execute(`UPDATE ${q(op.table)} SET ${q(op.column)} = NULL WHERE ${q(op.column)} IS NOT NULL${typed}`, params).changes;
         }
-        report.warnings.push({ code: 'dependentRows', params: { table: op.table, action: op.kind } });
+        report.warnings.push({ code: op.kind === 'deleteWhere' ? 'dependentRemoved' : 'dependentDetached', params: { table: op.table } });
       }
     }
     // Extension key-value data is replaced per extension, so other extensions are untouched.

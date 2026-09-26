@@ -58,6 +58,9 @@ function walk(root: string, dir: string, out: Array<{ path: string; size: number
 
 /** Resolve a relative POSIX path inside `root`, refusing anything that would escape it. */
 function safeJoin(root: string, rel: string): string {
+  if (process.platform === 'win32' && /[<>:"|?*]|(^|\/)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|\/|$)|[. ](\/|$)/i.test(rel)) {
+    throw new Error(`Name not allowed on Windows: ${rel}`);
+  }
   const base = resolve(root);
   const abs = resolve(base, rel);
   if (abs !== base && !abs.startsWith(base + sep)) throw new Error(`Path escapes the notes directory: ${rel}`);
@@ -180,8 +183,14 @@ export class DesktopExtensionData implements Backup.ExtensionDataSource, Backup.
     const path = this.dbPath(id, name);
     this.port.closeDatabases(id);
     await mkdir(dirname(path), { recursive: true });
-    for (const side of ['-wal', '-shm', '-journal']) rmSync(path + side, { force: true });
-    await writeFile(path, data);
+    // Keep what is being replaced (with its write-ahead files) next to it, and write the new file
+    // under a temporary name first, so a crash never leaves half a database under the real one.
+    for (const side of ['', '-wal', '-shm', '-journal']) {
+      if (existsSync(path + side)) renameSync(path + side, `${path}.before-restore${side}`);
+    }
+    const tmp = `${path}.restoring`;
+    await writeFile(tmp, data);
+    renameSync(tmp, path);
   }
 }
 
@@ -206,8 +215,10 @@ export function createPreRestoreSnapshot(o: SnapshotOptions): string {
   mkdirSync(dir, { recursive: true });
   if (existsSync(o.userDbPath)) copyFileSync(o.userDbPath, join(dir, 'user_default.db'));
   if (o.notesDir && existsSync(o.notesDir)) cpSync(o.notesDir, join(dir, 'notes'), { recursive: true });
-  const all = readdirSync(o.root, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  for (const old of all.slice(0, Math.max(0, all.length - (o.keep ?? 3)))) rmSync(join(o.root, old), { recursive: true, force: true });
+  // Prune the oldest, but never the snapshot just written (a clock set backwards must not delete it).
+  const all = readdirSync(o.root, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== stamp).map((e) => e.name).sort();
+  const keepOthers = Math.max(0, (o.keep ?? 3) - 1);
+  for (const old of all.slice(0, Math.max(0, all.length - keepOthers))) rmSync(join(o.root, old), { recursive: true, force: true });
   return dir;
 }
 

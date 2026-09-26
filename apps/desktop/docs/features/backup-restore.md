@@ -59,6 +59,10 @@ An extension's `extension.json` may declare `userData` (see [Backup format](../.
 
 - **Add new user tables to the registry** (`packages/core/src/Backup/Registry.ts`), or to its excluded list. The drift tests fail otherwise, which is the point: a table missing from a backup is silent data loss.
 - **The verified backup lives in memory** between `backup:inspect` and `backup:apply`. It is dropped after an apply, when the dialog closes, or after 30 minutes.
+- **`backup:inspect` only opens a file chosen with Browse** (`backup:selectFile` remembers the last few paths), so the renderer cannot make the main process read an arbitrary path.
+- **Key derivation never falls back to the main thread for an expensive request**: if the worker cannot run, only the default cost (64 MiB) is derived in-thread; anything larger is refused.
+- **Replacing an extension database keeps the old file** beside it as `<name>.db.before-restore` (with its write-ahead files), and the new one is written under a temporary name and renamed.
+- **One restore at a time**: a second `backup:apply` for the same open backup is refused while the first runs; after a failed restore the backup stays open for another try.
 - **Encryption is not optional for `.bbk`**: `backup:create` rejects a password shorter than 10 characters before the save dialog opens.
 - **Highlights, pins and display options refer to Bible modules by their local number.** The plan warns about this; restoring onto a machine whose modules were installed in a different order can attach them to the wrong module.
 - **The safety snapshot is a manual undo**: to go back, copy the snapshot's database file over `user_default.db` with the app closed. There is no "restore snapshot" button.

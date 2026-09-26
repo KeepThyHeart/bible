@@ -283,7 +283,12 @@ function BackupTab() {
           </button>
           {store.exportResult && (
             'summary' in store.exportResult ? (
-              <Notice tone="success" role="status">{t('backupRestoreDialog.exportCreated', { path: store.exportResult.summary.path })}</Notice>
+              <Notice tone="success" role="status">
+                {t('backupRestoreDialog.exportCreated', { path: store.exportResult.summary.path })}
+                {store.exportResult.summary.warnings.length > 0 && (
+                  <span className="block mt-1">{t('backupRestoreDialog.backupSkipped', { count: store.exportResult.summary.warnings.length })}</span>
+                )}
+              </Notice>
             ) : (
               <Notice tone="danger" role="alert">{t('backupRestoreDialog.errorPrefix', { message: failureText(t, store.exportResult.failure) })}</Notice>
             )

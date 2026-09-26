@@ -73,7 +73,6 @@ import { CollectionRepository, CollectionService, Extensions } from '@bible/core
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
-import { SqliteProvider } from './providers/SqliteProvider';
 import type { ExtensionPort } from './services/backup/nodeAdapters';
 import { openHardenedExtensionDatabase } from './extensions/ExtensionSqlGuard';
 import {
@@ -211,7 +210,7 @@ function getBackupExtensionPort(): ExtensionPort | undefined {
   return {
     listEntries: () => host.listEntries().map(({ id, entry }) => ({ id, manifest: entry.manifest })),
     dbRoot: join(getUserDataPath(), 'extensions'),
-    openReadonly: (filePath) => new SqliteProvider(filePath, { readonly: true }),
+    openReadonly: (filePath) => openHardenedExtensionDatabase(filePath, { readonly: true }) as ReturnType<ExtensionPort['openReadonly']>,
     closeDatabases: (id) => registry.closeAll(id),
   };
 }

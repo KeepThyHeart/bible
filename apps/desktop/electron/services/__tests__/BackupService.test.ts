@@ -281,6 +281,90 @@ describe('notes folder adapter', () => {
   });
 });
 
+describe('hardening', () => {
+  it('a second apply with the same token while the first is running is refused', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const out = join(dir, 'c.zip');
+    await createPlainExport(ctxFor(a.sql, 'a'), { destinationPath: out, includeHistory: false });
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b');
+    const ins = await inspectBackupFile(ctxB, { backupPath: out });
+    const opts = { token: ins.token, mode: 'replace' as const, sections: ins.defaults.replace };
+    const [first, second] = await Promise.allSettled([applyInspection(ctxB, opts), applyInspection(ctxB, opts)]);
+    expect(first.status).toBe('fulfilled');
+    expect(second.status).toBe('rejected');
+    expect((second as PromiseRejectedResult).reason).toBeInstanceOf(NoActiveInspectionError);
+    expect(tableRows(b.db, 'user_note')).toHaveLength(2);
+  });
+
+  it('a failed restore leaves the backup open so the person can try again', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const out = join(dir, 'r.zip');
+    await createPlainExport(ctxFor(a.sql, 'a'), { destinationPath: out, includeHistory: false });
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b', { snapshot: { root: join(dir, 'b', 'snaps'), userDbPath: join(dir, 'b', 'user.db') } });
+    const ins = await inspectBackupFile(ctxB, { backupPath: out });
+    const original = b.sql.execute.bind(b.sql);
+    let failNext = true;
+    (b.sql as { execute: unknown }).execute = (sql: string, p?: never[]) => {
+      if (failNext && sql.startsWith('INSERT INTO "user_note"')) { failNext = false; throw new Error('disk full'); }
+      return original(sql, p);
+    };
+    await expect(applyInspection(ctxB, { token: ins.token, mode: 'replace', sections: ins.defaults.replace })).rejects.toBeInstanceOf(Backup.RestoreError);
+    const again = await applyInspection(ctxB, { token: ins.token, mode: 'replace', sections: ins.defaults.replace });
+    expect(again.report.ok).toBe(true);
+  });
+
+  it('replacing an extension database keeps the old file beside it and never leaves a partial one', async () => {
+    const root = join(dir, 'extroot');
+    mkdirSync(join(root, 'ext.a', 'db'), { recursive: true });
+    writeFileSync(join(root, 'ext.a', 'db', 'p.db'), 'OLD');
+    writeFileSync(join(root, 'ext.a', 'db', 'p.db-wal'), 'OLD-WAL');
+    const { DesktopExtensionData } = await import('../backup/nodeAdapters');
+    const closed: string[] = [];
+    const data = new DesktopExtensionData({ listEntries: () => [], dbRoot: root, openReadonly: () => { throw new Error('unused'); }, closeDatabases: (id) => closed.push(id) });
+    await data.writeDb('ext.a', 'p', new TextEncoder().encode('NEW'));
+    expect(readFileSync(join(root, 'ext.a', 'db', 'p.db'), 'utf8')).toBe('NEW');
+    expect(readFileSync(join(root, 'ext.a', 'db', 'p.db.before-restore'), 'utf8')).toBe('OLD');
+    expect(readFileSync(join(root, 'ext.a', 'db', 'p.db.before-restore-wal'), 'utf8')).toBe('OLD-WAL');
+    expect(existsSync(join(root, 'ext.a', 'db', 'p.db-wal'))).toBe(false);
+    expect(existsSync(join(root, 'ext.a', 'db', 'p.db.restoring'))).toBe(false);
+    expect(closed).toEqual(['ext.a']);
+    await expect(data.writeDb('../evil', 'p', new Uint8Array())).rejects.toThrow(/Unsafe/);
+  });
+
+  it('a declared database that does not exist yet is skipped with a warning, not a failed backup', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const port: ExtensionPort = {
+      listEntries: () => [{ id: 'ext.pub.memory', manifest: { userData: { databases: { notyet: { backup: true } } } } }],
+      dbRoot: join(dir, 'extroot'),
+      openReadonly: (p) => { const d = new Database(p, { readonly: true, fileMustExist: true }); const s = makeSql(d) as ISql & { close(): void }; s.close = () => d.close(); return s; },
+      closeDatabases: () => undefined,
+    };
+    const summary = await createEncryptedBackup(ctxFor(a.sql, 'a', { extensions: port }), { destinationPath: join(dir, 'w.bbk'), includeHistory: false, password: PASSWORD });
+    expect(summary.warnings).toEqual([{ code: 'extensionSkipped', params: { id: 'ext.pub.memory', db: 'notyet' } }]);
+  });
+
+  it('never prunes the snapshot it just wrote, even if the clock went backwards', () => {
+    for (let i = 5; i >= 1; i--) createPreRestoreSnapshot({ userDbPath: join(dir, 'none'), root: join(dir, 'snaps'), keep: 3, now: () => new Date(Date.UTC(2026, i, 1)) });
+    expect(readdirSync(join(dir, 'snaps'))).toContain('2026-02-01T00-00-00-000Z');
+    expect(readdirSync(join(dir, 'snaps'))).toHaveLength(3);
+  });
+});
+
+describe('Argon2 worker policy', () => {
+  it('refuses to derive an expensive key in the main thread when the worker is missing, but does the default one', async () => {
+    const kdf = createWorkerKdf(join(dir, 'no-worker'));
+    const salt = new Uint8Array(16).fill(1);
+    await expect(kdf('pw', { id: 'argon2id', v: 19, m: 131072, t: 2, p: 1, salt })).rejects.toThrow(/worker/);
+    await expect(kdf('pw', { id: 'argon2id', v: 19, m: 19456, t: 2, p: 1, salt })).resolves.toHaveLength(32);
+    await expect(kdf('pw', { id: 'argon2id', v: 19, m: 1024, t: 2, p: 1, salt })).rejects.toBeDefined();
+  });
+});
+
 describe('IPC error mapping', () => {
   it('maps each typed error to its own code', async () => {
     const { mapBackupError } = await import('../../ipc/backupHandlers');

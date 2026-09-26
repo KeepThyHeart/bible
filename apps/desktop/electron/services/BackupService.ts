@@ -131,7 +131,7 @@ export interface ApplyResult {
 }
 
 const INSPECTION_TTL_MS = 30 * 60 * 1000;
-let active: { token: string; plan: Backup.RestorePlan; expires: number } | null = null;
+let active: { token: string; plan: Backup.RestorePlan; expires: number; busy: boolean } | null = null;
 
 export class NoActiveInspectionError extends Error {
   constructor() {
@@ -151,6 +151,7 @@ function targetOf(ctx: BackupContext): Backup.RestoreTarget {
  * every byte of it, and describe what restoring it would do. Writes nothing.
  */
 export async function inspectBackupFile(ctx: BackupContext, opts: { backupPath: string; password?: string }): Promise<InspectionDto> {
+  if (!statSync(opts.backupPath).isFile()) throw new Backup.NotABackupError('Not a backup file');
   const archive = await Backup.readBackupFile(
     readFileStream(opts.backupPath),
     opts.password ? { password: opts.password } : undefined,
@@ -158,7 +159,7 @@ export async function inspectBackupFile(ctx: BackupContext, opts: { backupPath: 
   );
   const plan = Backup.inspectBackup(archive, targetOf(ctx));
   const token = randomUUID();
-  active = { token, plan, expires: Date.now() + INSPECTION_TTL_MS };
+  active = { token, plan, expires: Date.now() + INSPECTION_TTL_MS, busy: false };
   return {
     token,
     fileName: basename(opts.backupPath),
@@ -184,30 +185,37 @@ export function discardInspection(token?: string): void {
  * and the notes folder) is taken first; if that fails, nothing is restored.
  */
 export async function applyInspection(ctx: BackupContext, opts: ApplyOptions): Promise<ApplyResult> {
-  if (!active || active.token !== opts.token || active.expires < Date.now()) {
-    active = null;
+  if (!active || active.token !== opts.token || active.expires < Date.now() || active.busy) {
+    if (active && active.expires < Date.now()) active = null;
     throw new NoActiveInspectionError();
   }
-  const { plan } = active;
+  // One restore at a time: a second call with the same token must not start while the first is running.
+  const entry = active;
+  entry.busy = true;
+  const { plan } = entry;
 
-  let snapshotDir: string | undefined;
-  if (ctx.snapshot) {
-    snapshotDir = createPreRestoreSnapshot({
-      userDbPath: ctx.snapshot.userDbPath,
-      notesDir: ctx.notesDir,
-      root: ctx.snapshot.root,
-      now: ctx.now,
-    });
-    log.info(`[BackupService] Safety snapshot written to ${snapshotDir}`);
-  }
-
-  log.info(`[BackupService] Restoring (mode: ${opts.mode}, ${opts.sections.length} section(s))`);
-  const report = await Backup.applyRestore(plan, targetOf(ctx), { mode: opts.mode, sections: opts.sections });
   try {
-    repairUserSchema(ctx.sql);
-  } catch (err) {
-    log.warn('[BackupService] repairUserSchema after restore failed:', err);
+    let snapshotDir: string | undefined;
+    if (ctx.snapshot) {
+      snapshotDir = createPreRestoreSnapshot({
+        userDbPath: ctx.snapshot.userDbPath,
+        notesDir: ctx.notesDir,
+        root: ctx.snapshot.root,
+        now: ctx.now,
+      });
+      log.info(`[BackupService] Safety snapshot written to ${snapshotDir}`);
+    }
+
+    log.info(`[BackupService] Restoring (mode: ${opts.mode}, ${opts.sections.length} section(s))`);
+    const report = await Backup.applyRestore(plan, targetOf(ctx), { mode: opts.mode, sections: opts.sections });
+    try {
+      repairUserSchema(ctx.sql);
+    } catch (err) {
+      log.warn('[BackupService] repairUserSchema after restore failed:', err);
+    }
+    active = null;
+    return { report, snapshotDir };
+  } finally {
+    entry.busy = false;
   }
-  active = null;
-  return { report, snapshotDir };
 }

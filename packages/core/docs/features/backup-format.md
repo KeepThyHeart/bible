@@ -50,6 +50,7 @@ segments   ...        AES-256-GCM: up to `segmentSize` plaintext bytes each, fol
   "segmentSize": 65536,
   "streamSalt": "<32 bytes, base64url>",
   "noncePrefix": "<7 bytes, base64url>",
+  "keyCheck": "<32 bytes, base64url>",
   "slots": [
     {
       "type": "password",
@@ -63,8 +64,8 @@ segments   ...        AES-256-GCM: up to `segmentSize` plaintext bytes each, fol
 
 - All binary values are **base64url without padding**, and the decoder is strict: only the URL-safe alphabet, no padding, no whitespace, and unused trailing bits must be zero, so each value has exactly one encoding. Every length is checked exactly.
 - The header is parsed with a strict JSON parser (no duplicate keys at any depth, no byte order mark, nothing after the value). The stored bytes are what is authenticated, so writers use a fixed key order and no whitespace, and readers never re-serialise.
-- `segmentSize` is between 4 096 and 4 194 304 bytes (the default is 65 536). `slots` holds 1 to 16 entries.
-- Unknown top-level keys are ignored (they are still covered by the header hash). A slot whose `type` is unknown, or whose `kdf.id` is not `argon2id`, is skipped, not an error.
+- `segmentSize` is between 4 096 and 4 194 304 bytes (the default is 65 536). `slots` holds 1 to 16 entries; a reader tries at most the first 4 password slots, so one file cannot demand unbounded key derivations.
+- Unknown top-level keys are ignored (they are still covered by the header hash). A slot whose `type` is unknown, or whose `kdf.id` is not `argon2id` or `kdf.v` is not 19, is skipped, not an error.
 - A reader checks, in this order, before doing any expensive work: the magic and version, the header length, the JSON, every field's type and size, the algorithm identifiers, and the KDF parameter bounds. Only then does it derive a key.
 
 The header carries only what is needed to derive the key. No date, count or name is visible without the password.
@@ -79,8 +80,11 @@ The header carries only what is needed to derive the key. No date, count or name
 | File key | 32 random bytes, generated per file. |
 | Wrapped key | `AES-256-GCM(key = KEK, nonce = slot.nonce, plaintext = file key, aad = "kth-backup-slot-v1" ‖ SHA-256(preamble))`; 32 bytes of ciphertext plus the 16-byte tag = 48 bytes. |
 | Stream key | `HKDF-SHA-256(ikm = file key, salt = streamSalt, info = "kth-backup-stream-v1", 32)` |
+| Key check | `HKDF-SHA-256(ikm = file key, salt = streamSalt, info = "kth-backup-commit-v1", 32)`, stored as `keyCheck` |
 
 **Parameter bounds.** A reader rejects `m` below 19 456 KiB (19 MiB) or above 1 048 576 KiB (1 GiB), `t` below 2 or above 10, `p` outside 1 to 4, and a salt shorter than 16 or longer than 64 bytes. The floor is the current minimum recommendation for Argon2id; the ceiling stops a crafted file from making the app allocate unbounded memory.
+
+`keyCheck` commits the file to one key: AES-GCM does not, so without it a crafted file with several slots could hold slots that unwrap *different* keys and show different plaintexts to different passwords. A reader compares it (in constant time) with the key each slot unwraps and treats a mismatch as a failed slot.
 
 A random file key wrapped in key slots is what lets other ways of unlocking a file be added later (another key, a recovery code) without changing the format: a new slot type wraps the same file key.
 
@@ -100,10 +104,10 @@ What it guarantees, each covered by a test: truncation at a segment boundary, dr
 
 | Error | Meaning |
 |---|---|
-| `NotABackupError` | The magic does not match. |
-| `NewerFormatError` | Higher major, unknown cipher or payload identifier, no usable slot, a newer manifest or schema version, or a required section it does not know. |
+| `NotABackupError` | The magic does not match (or the major version is 0). |
+| `NewerFormatError` | Higher major, unknown cipher or payload identifier, no usable password slot, a newer manifest or schema version, or a required section it does not know. |
 | `WrongPasswordError` | Every password slot failed to unwrap the file key. (A tampered slot looks the same; it cannot be told apart without the password.) |
-| `DamagedError` | Anything else: malformed header, invalid KDF parameters, a failed segment tag after a good unlock, a truncated file, a bad checksum. |
+| `DamagedError` | Anything else: malformed header, KDF parameters outside the bounds, a failed segment tag after a good unlock, a truncated file, a bad checksum, a section without its key column. |
 | `PasswordRequiredError` | The file is encrypted and no password was supplied. |
 
 ### Sniffing
@@ -148,14 +152,15 @@ modules.json                        installed module ids and versions (informati
 - `entries` lists **every** other entry with its size and SHA-256 (lower-case hex). A reader checks all of them, and refuses an entry that is missing, changed or not listed.
 - A **section** is a unit the user can choose to restore. `kind` is `table`, `files`, `extKv`, `extDb`, `prefs` or `info`. `class` is `content`, `extension`, `workspace`, `history` or `excluded` (see below). `paths` names the entries it owns.
 - The manifest is parsed with the strict JSON parser. Unknown keys are ignored.
+- What a section says about itself is checked, and its `class` is taken from this version, never from the file: `table` sections must name a registry table other than `extension_storage` and be called `user.<table>` (once), `files` sections are `notes` and `notes.history`, `extKv` and `extDb` sections carry valid extension ids and database names, and each section's `count` must match its entry. A section of another shape is unknown (skipped, or a refusal when `required`).
 
 ### Rows
 
-`user/<table>.ndjson` has one JSON object per line, keys are column names, and the file ends with a newline (an empty table is an empty file). Values are numbers, strings and `null`; a BLOB is `{"$b64": "<base64url>"}`. Nested objects and arrays are not valid column values: JSON columns are stored as text, as in the database.
+`user/<table>.ndjson` has one JSON object per line, keys are column names, and the file ends with a newline (an empty table is an empty file). Values are numbers, strings and `null` (a boolean is refused); a key named `__proto__` is refused; a BLOB is `{"$b64": "<base64url>"}`. Nested objects and arrays are not valid column values: JSON columns are stored as text, as in the database.
 
 ### ZIP rules
 
-The writer produces stored or deflate entries, sizes and CRCs in the local headers, and a fixed timestamp, so equal input gives equal bytes. The reader refuses: names that are absolute, empty, contain `.` or `..` segments, a backslash, a control character or a drive letter; duplicate names (compared case-insensitively); compression methods other than stored and deflate; entries whose sizes are not declared, exceed their declared size or fall short of it; entries over 1 MiB compressing more than 100:1; and archives over 2 GiB per entry, 8 GiB in total or 200 000 entries.
+The writer produces stored or deflate entries, sizes and CRCs in the local headers, and a fixed timestamp, so equal input gives equal bytes. The reader refuses: names that are absolute, empty, longer than 512 characters, contain `.` or `..` segments, a backslash, a control character or a drive letter; duplicate names (compared case-insensitively); compression methods other than stored and deflate; entries whose sizes are not declared, exceed their declared size or fall short of it; entries over 1 MiB compressing more than 100:1, and an archive whose overall ratio exceeds 100:1; and more than 512 MiB in an entry, 2 GiB in total, 8 MiB of `manifest.json` or 200 000 entries. Directory entries are ignored. A file whose name Windows cannot store (`:`, reserved device names, trailing dots) is refused when it is written to the notes folder on Windows.
 
 ## What a backup holds
 
@@ -199,17 +204,17 @@ An extension declares what part of its data is the user's in its manifest (`exte
 
 Restore is two steps. `inspectBackup(archive, target)` maps a verified backup onto a database and returns a plan with per-section counts, dropped columns, warnings and a dry-run preview of both modes (run inside a transaction that is rolled back). `applyRestore(plan, target, { mode, sections })` then applies the chosen sections. All database work is one transaction: any row that cannot be restored rolls everything back and reports the table and row. Files (notes, extension databases) are written after the transaction commits, and a failure there is reported without undoing it.
 
-**Replace** empties the selected tables and inserts the backup's rows with their original ids. Any table that points into an emptied table is emptied too, even when the backup has nothing for it, so no row is left pointing at data that is gone. Before notes are replaced, the existing notes folder is moved aside, not deleted.
+**Replace** empties the selected tables and inserts the backup's rows with their original ids. Nothing is left pointing at data that is gone, and the database's own rule is mirrored: a table whose rows belong to an emptied one loses them (links and pins of the old notes; the whole table when every row belongs to it), and a table that merely refers to it has the reference cleared (a highlight stays, without its note). Rows the backup holds for such a table are restored only when that section is selected too, and only those whose parents are part of the restore - a backup row is never attached to a local row that happens to share its id. Rows this machine owns (its `system` settings) stay. Before notes are replaced, the existing notes folder is moved aside, not deleted.
 
 **Merge** adds a backup to a database in use.
 
 - Rows get new local ids, and foreign keys are remapped through the registry; parents are processed before children, and a self-referencing table (notes with a parent note, nested collections) is processed parents-first.
-- A row already present is recognised by its table's identity rule and reused, so **merging the same backup twice changes nothing**. Most tables compare all non-key columns after foreign keys are remapped, counting duplicates (a source that held two identical rows keeps two). Tables with a natural key compare that key: reading plans, user data items, extension key-value data (the **newer** `updated_at` wins), keybindings (local wins), command history (larger counters win).
+- A row already present is recognised by its table's identity rule and reused, so **merging the same backup twice changes nothing**. Most tables compare all non-key columns after foreign keys are remapped, counting duplicates (a source that held two identical rows keeps two). Tables with a natural key compare that key: reading plans and their days and progress, user data items (the **newer** `modified_date` wins), extension key-value data (the **newer** `updated_at` wins), settings, display options and keybindings (local wins), command history (larger counters win). If a section lacks a column its key needs, that section is skipped and reported, never merged blindly.
 - A merge never adds a second default notebook or session, and skips a rolling autosave, stock layout presets, internal settings and the local profile.
-- A note file that exists and differs is kept as `<name> (restored YYYY-MM-DD).bn`; a copy with identical content from an earlier merge is reused.
+- A note file that exists and differs is kept as `<name> (restored YYYY-MM-DD).bn`; a copy with identical content from an earlier merge is reused. Names are compared without regard to case or Unicode form, so on Windows and macOS `Foo.bn` and `foo.bn` are one file and never overwrite each other.
 - A child whose parent is not part of the restore is dropped or has the reference cleared, as its table specifies, and the report says how many.
 
-**Schema versions.** A backup with a higher `userSchemaVersion` is refused ("update the app"). An older one passes its rows through the registered upgraders, one per version step. Columns the target does not have are dropped and counted; columns the backup lacks take their defaults. Table names come only from the registry, never from the file.
+**Schema versions.** A backup with a higher `userSchemaVersion` is refused ("update the app"). An older one passes its rows through the registered upgraders, one per version step. Upgraders run first, so they may rename or add columns; then columns the target does not have are dropped and counted, and columns the backup lacks entirely take their defaults. A section for a table whose key column is missing or repeated is refused as damaged. Table names come only from the registry, never from the file.
 
 ## Forward compatibility
 
@@ -230,6 +235,7 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 - **Known answers** (`src/__tests__/Crypto/`): HKDF-SHA-256 (RFC 5869 A.1 to A.3), AES-256-GCM (the GCM specification's test case 14 and independently generated vectors), Argon2id (the reference implementation's vector for 64 MiB / 2 / 1, and vectors at the default and the floor parameters generated with OpenSSL's Argon2id). They are committed and never regenerated.
 - **Golden files** (`src/__tests__/Backup/fixtures/*.bbk`): encrypted files produced with a fixed random source and a fixed password for an empty payload, one byte, one segment minus one, exactly one segment, one segment plus one, three segments, and the default parameters. Every future version must open them, and sealing with the same random source must reproduce them byte for byte. A deliberate change to the writer adds new files; it never overwrites these. The random source used for them (`deterministicRandom`) exists for tests only.
 - **Independent builder** (`src/__tests__/Backup/envelopeSpec.ts`): assembles a `.bbk` from this specification using only `node:crypto`, so a mistake that is symmetric (wrong on both the write and the read side) is caught.
+- **Fuzzing and review regressions** (`fuzz.test.ts`, `hardening.test.ts`): mutated files must fail with a typed error or open to the original content; hostile manifests, missing keys, deep parent chains, resource limits.
 - **Negative tests**: a flipped bit in every region, truncation at and inside segments, appended data, reordered and spliced segments, hostile headers (duplicate keys, wrong sizes, parameters outside the bounds, oversize lengths) that must fail before any key derivation, and hostile ZIP entries.
 - **Property tests** (`fast-check`): round trips for lengths clustered on segment boundaries with random chunking; restore and merge over random data graphs (replace reproduces every table; merge into an empty database equals replace apart from ids; merging twice equals merging once; merging never changes an existing row; no reference is left dangling).
 

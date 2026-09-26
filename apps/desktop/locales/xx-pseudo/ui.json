@@ -2113,8 +2113,7 @@
   "backupRestoreDialog.warning.columnsDropped": "⟦Šøɱé ðéţåîļš îñ {section} åŕé ñøţ šüþþøŕţéð ƀý ţĥîš ṽéŕšîøñ åñð ŵîļļ ƀé ļéƒţ øüţ: {columns}. ······················⟧",
   "backupRestoreDialog.warning.moduleIds": "⟦Ĥîĝĥļîĝĥţš, þîñš åñð ðîšþļåý øþţîøñš ŕéƒéŕ ţø Ɓîƀļé ɱøðüļéš ƀý ñüɱƀéŕ. Îƒ ýøü îñšţåļļ ɱøðüļéš îñ å ðîƒƒéŕéñţ øŕðéŕ øñ ţĥîš çøɱþüţéŕ, šøɱé ɱåý åţţåçĥ ţø ţĥé ŵŕøñĝ ɱøðüļé. ··················································⟧",
   "backupRestoreDialog.warning.olderSchema": "⟦Ţĥîš ƀåçķüþ ŵåš ɱåðé ƀý åñ øļðéŕ ṽéŕšîøñ åñð ŵîļļ ƀé üþĝŕåðéð åš îţ îš ŕéšţøŕéð. ························⟧",
-  "backupRestoreDialog.warning.dependentPulledIn": "⟦{table} îš ŕéšţøŕéð ţøĝéţĥéŕ ŵîţĥ ţĥé ðåţå îţ ƀéļøñĝš ţø. ···············⟧",
-  "backupRestoreDialog.warning.dependentEmptied": "⟦{table} ŵîļļ ƀé éɱþţîéð ƀéçåüšé îţ þøîñţš îñţø ðåţå ţĥåţ îš ƀéîñĝ ŕéþļåçéð. ····················⟧",
+  "backupRestoreDialog.warning.dependentEmptied": "⟦{table} ŵîļļ ƀé éɱþţîéð ƀéçåüšé éṽéŕýţĥîñĝ îñ îţ ƀéļøñĝš ţø ðåţå ţĥåţ îš ƀéîñĝ ŕéþļåçéð. ························⟧",
   "backupRestoreDialog.warning.previewFailed": "⟦Ţĥé þŕéṽîéŵ çøüļð ñøţ ƀé çåļçüļåţéð: {message} ···········⟧",
   "backupRestoreDialog.unknownSections": "⟦{count} šéçţîøñ(š) ƒŕøɱ å ñéŵéŕ ṽéŕšîøñ ŵéŕé šķîþþéð. ·············⟧",
   "backupRestoreDialog.restoreButton": "⟦Ŕéšţøŕé Ɓåçķüþ ····⟧",
@@ -2124,5 +2123,7 @@
   "backupRestoreDialog.restoreMovedAside": "⟦Ýøüŕ þŕéṽîøüš ñøţéš ƒøļðéŕ ŵåš ķéþţ åţ {path}. ············⟧",
   "backupRestoreDialog.restoreSnapshot": "⟦Å šåƒéţý çøþý øƒ ýøüŕ ðåţå ƀéƒøŕé ţĥé ŕéšţøŕé îš îñ {path}. ···············⟧",
   "backupRestoreDialog.restartToSee": "⟦Ŕéšţåŕţ ţĥé åþþ ţø šéé ţĥé ŕéšţøŕéð ðåţå. ············⟧",
-  "backupRestoreDialog.restoreFileErrors": "⟦{count} ƒîļé(š) çøüļð ñøţ ƀé ŵŕîţţéñ. Ýøüŕ ðåţå îš üñçĥåñĝéð îñ ţĥé ðåţåƀåšé; çĥéçķ ţĥé šåƒéţý çøþý. ···························⟧"
+  "backupRestoreDialog.restoreFileErrors": "⟦{count} ƒîļé(š) çøüļð ñøţ ƀé ŵŕîţţéñ. Ýøüŕ ðåţå îš üñçĥåñĝéð îñ ţĥé ðåţåƀåšé; çĥéçķ ţĥé šåƒéţý çøþý. ···························⟧",
+  "backupRestoreDialog.warning.dependentRemoved": "⟦Îţéɱš îñ {table} ţĥåţ ƀéļøñĝ ţø ţĥé ŕéþļåçéð ðåţå ŵîļļ ƀé ŕéɱøṽéð. ·················⟧",
+  "backupRestoreDialog.warning.dependentDetached": "⟦Îţéɱš îñ {table} ţĥåţ ŕéƒéŕ ţø ţĥé ŕéþļåçéð ðåţå ŵîļļ ƀé ķéþţ ƀüţ ñø ļøñĝéŕ ļîñķéð ţø îţ. ························⟧"
 }

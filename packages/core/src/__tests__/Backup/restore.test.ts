@@ -52,7 +52,7 @@ describe('replace', () => {
     // highlights survive; only their link to a note is cleared
     expect(s.user_text_markup).toHaveLength(2);
     expect(s.user_text_markup.every((m) => m.note_id === null)).toBe(true);
-    expect(report.warnings.some((w) => w.code === 'dependentRows')).toBe(true);
+    expect(report.warnings.some((w) => w.code === 'dependentRemoved')).toBe(true);
     expect(checkRegistryIntegrity(b)).toEqual([]);
   });
 

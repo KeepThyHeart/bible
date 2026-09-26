@@ -2113,8 +2113,7 @@
   "backupRestoreDialog.warning.columnsDropped": "Some details in {section} are not supported by this version and will be left out: {columns}.",
   "backupRestoreDialog.warning.moduleIds": "Highlights, pins and display options refer to Bible modules by number. If you install modules in a different order on this computer, some may attach to the wrong module.",
   "backupRestoreDialog.warning.olderSchema": "This backup was made by an older version and will be upgraded as it is restored.",
-  "backupRestoreDialog.warning.dependentPulledIn": "{table} is restored together with the data it belongs to.",
-  "backupRestoreDialog.warning.dependentEmptied": "{table} will be emptied because it points into data that is being replaced.",
+  "backupRestoreDialog.warning.dependentEmptied": "{table} will be emptied because everything in it belongs to data that is being replaced.",
   "backupRestoreDialog.warning.previewFailed": "The preview could not be calculated: {message}",
   "backupRestoreDialog.unknownSections": "{count} section(s) from a newer version were skipped.",
   "backupRestoreDialog.restoreButton": "Restore Backup",
@@ -2124,5 +2123,7 @@
   "backupRestoreDialog.restoreMovedAside": "Your previous notes folder was kept at {path}.",
   "backupRestoreDialog.restoreSnapshot": "A safety copy of your data before the restore is in {path}.",
   "backupRestoreDialog.restartToSee": "Restart the app to see the restored data.",
-  "backupRestoreDialog.restoreFileErrors": "{count} file(s) could not be written. Your data is unchanged in the database; check the safety copy."
+  "backupRestoreDialog.restoreFileErrors": "{count} file(s) could not be written. Your data is unchanged in the database; check the safety copy.",
+  "backupRestoreDialog.warning.dependentRemoved": "Items in {table} that belong to the replaced data will be removed.",
+  "backupRestoreDialog.warning.dependentDetached": "Items in {table} that refer to the replaced data will be kept but no longer linked to it."
 }

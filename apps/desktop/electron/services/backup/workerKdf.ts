@@ -13,7 +13,13 @@ export const KDF_WORKER_FILE = 'backup-kdf-worker.js';
 export function createWorkerKdf(workerDir: string = __dirname): Backup.KdfFunction {
   const workerPath = join(workerDir, KDF_WORKER_FILE);
   return async (password, params) => {
-    if (!existsSync(workerPath)) return Crypto.argon2id(password, params, 32);
+    // Deriving in this thread blocks the app and holds the memory here; that is acceptable for the
+    // default cost (about half a second, 64 MiB) but not for whatever a hostile file asks for.
+    const inThreadOk = params.m <= Crypto.DEFAULT_KDF.m;
+    if (!existsSync(workerPath)) {
+      if (!inThreadOk) throw new Error('Key derivation needs the worker thread, which is not available');
+      return Crypto.argon2id(password, params, 32);
+    }
     // Validate here too, so hostile parameters are refused before a thread is started.
     Crypto.validateKdfParams(params);
     return new Promise<Uint8Array>((resolve, reject) => {
@@ -31,7 +37,8 @@ export function createWorkerKdf(workerDir: string = __dirname): Backup.KdfFuncti
       // A worker that cannot start or dies (an unusual packaging, an out-of-memory
       // kill) must not make backups impossible: derive in this thread instead.
       const fallback = (): void => {
-        Crypto.argon2id(password, params, 32).then(resolve, reject);
+        if (!inThreadOk) reject(new Error('The key-derivation worker stopped (it may have run out of memory)'));
+        else Crypto.argon2id(password, params, 32).then(resolve, reject);
       };
       worker.once('error', () => done(fallback));
       worker.once('exit', (code) => {

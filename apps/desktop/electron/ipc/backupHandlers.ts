@@ -76,6 +76,13 @@ async function guarded<T>(fn: () => Promise<T>): Promise<T> {
 
 const kdf = createWorkerKdf();
 
+/**
+ * Files the person chose in the open dialog. `backup:inspect` only opens one of these, so a
+ * compromised renderer cannot ask the main process to read an arbitrary path.
+ */
+const pickedPaths = new Set<string>();
+const MAX_PICKED = 20;
+
 async function buildContext(deps: BackupHandlerDeps): Promise<BackupContext> {
   const sql: ISql = await getSharedUserDb();
   const notesDir = getFileNotesService()?.getNotesDir();
@@ -155,13 +162,19 @@ export function registerBackupHandlers(deps: BackupHandlerDeps): void {
       properties: ['openFile'],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
-    return { path: result.filePaths[0] };
+    const picked = result.filePaths[0];
+    if (pickedPaths.size >= MAX_PICKED) pickedPaths.delete(pickedPaths.values().next().value as string);
+    pickedPaths.add(picked);
+    return { path: picked };
   });
 
   ipcHandler<[{ backupPath: string; password?: string }], BackupInspection>('backup:inspect', async (options) => {
     log.info('[IPC] backup:inspect');
-    if (typeof options?.backupPath !== 'string' || options.backupPath.length === 0) {
-      throw new IpcKnownError('invalid_input', 'backupPath is required');
+    if (typeof options?.backupPath !== 'string' || !pickedPaths.has(options.backupPath)) {
+      throw new IpcKnownError('invalid_input', 'Choose the backup file with the Browse button first');
+    }
+    if (options.password !== undefined && typeof options.password !== 'string') {
+      throw new IpcKnownError('invalid_input', 'password must be a string');
     }
     const ctx = await buildContext(deps);
     return guarded(() => inspectBackupFile(ctx, { backupPath: options.backupPath, password: options.password }));
