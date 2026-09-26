@@ -234,6 +234,46 @@ describe('SiteConfig', () => {
       expect(new SiteConfig(tempDir).getClientConfig()).not.toHaveProperty('docsUrl');
     });
 
+    describe('audio', () => {
+      const voice = { id: 'v1', label: 'V', language: 'en', files: ['a.onnx'] };
+
+      it('is off by default: no client block, no CSP origins', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({}));
+        const config = new SiteConfig(tempDir);
+        expect(config.features.audio).toBe(false);
+        expect(config.getClientConfig()).not.toHaveProperty('audio');
+        expect(config.audio.externalOrigins).toEqual([]);
+      });
+
+      it('sends the normalized block when switched on, with same-origin defaults', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features: { audio: true } }));
+        const config = new SiteConfig(tempDir);
+        expect(config.getClientConfig().audio).toEqual({ base: '/audio', recorded: true, engines: [] });
+        expect(config.audio.dir).toBe(join(tempDir, 'audio'));
+        expect(config.audio.externalOrigins).toEqual([]);
+      });
+
+      it('drops unusable engine entries and does not leak server-only keys', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({
+          features: { audio: true },
+          audio: { dir: 'media/audio', tts: { engines: [{ id: 'piper', voices: [voice, { id: 'bad' }] }] } },
+        }));
+        const config = new SiteConfig(tempDir);
+        const client = config.getClientConfig().audio as { engines: { voices: unknown[] }[] };
+        expect(client.engines[0].voices).toHaveLength(1);
+        expect(client).not.toHaveProperty('dir');
+        expect(config.audio.dir).toBe(join(tempDir, 'media/audio'));
+      });
+
+      it('reports remote origins for the CSP only when audio is on', () => {
+        const raw = { audio: { base: 'https://audio.example.com/x' } };
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify(raw));
+        expect(new SiteConfig(tempDir).audio.externalOrigins).toEqual([]);
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ ...raw, features: { audio: true } }));
+        expect(new SiteConfig(tempDir).audio.externalOrigins).toEqual(['https://audio.example.com']);
+      });
+    });
+
     it('includes commentary popularity when configured', () => {
       writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({
         commentaryPopularity: { MHC: 0 },

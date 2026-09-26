@@ -150,3 +150,8 @@ export { parseUSFM, UsfmParseError } from './Export/parseUSFM';
 // Namespaced (like `Extensions`/`Usfm` above): two DTO names collide with
 // pre-existing root exports - see `browser.ts`'s copy of this comment.
 export * as Providers from './Providers';
+
+// Audio Bible contracts, manifest validators and site-config parser (task 0059).
+// Namespaced because `VerseRef` collides with the root export of
+// `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
+export * as AudioBible from './audio';

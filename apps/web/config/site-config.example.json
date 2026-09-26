@@ -9,7 +9,14 @@
     "semanticSearch": false,
     "pwa": true,
     "offlineDownloads": false,
-    "offlineAutoDownload": true
+    "offlineAutoDownload": true,
+    "audio": false
+  },
+  "audio": {
+    "dir": "audio",
+    "base": "/audio",
+    "recorded": true,
+    "tts": { "engines": [] }
   },
   "modules": {
     "about": "A modern, open-source Bible study application.",

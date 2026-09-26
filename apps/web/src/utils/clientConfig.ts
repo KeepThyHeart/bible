@@ -22,6 +22,8 @@ export interface ClientConfig {
   offlineDownloads?: boolean;
   offlineAutoDownload?: boolean;
   search?: { semantic?: 'server' | 'browser' | 'off' };
+  /** Audio Bible settings; absent unless the operator turned the feature on. */
+  audio?: unknown;
   repoUrl?: string;
   docsUrl?: string;
   [key: string]: unknown;

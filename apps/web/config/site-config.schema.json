@@ -56,9 +56,116 @@
           "type": "boolean",
           "description": "Automatically cache a lite copy of a translation in the browser the first time it is read. Turn off to keep every visitor from pulling several MB per translation.",
           "default": true
+        },
+        "audio": {
+          "type": "boolean",
+          "description": "Show the Audio Bible controls (Listen button, player, Audio settings). Needs recordings under <data dir>/audio/v1 and/or a hosted TTS engine; see the audio block.",
+          "default": false
         }
       },
       "additionalProperties": false
+    },
+    "audio": {
+      "type": "object",
+      "description": "Audio Bible settings (used when features.audio is true).",
+      "additionalProperties": false,
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Directory served at /audio, relative to the data directory. Recordings go under v1/, TTS engine files under tts/<engine>/.",
+          "default": "audio"
+        },
+        "base": {
+          "type": "string",
+          "description": "Base URL of recordings as the browser sees it: a path on this site, or an https origin (which is then added to the Content-Security-Policy).",
+          "default": "/audio"
+        },
+        "recorded": {
+          "type": "boolean",
+          "description": "Use pre-generated recordings where a translation has them.",
+          "default": true
+        },
+        "tts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "engines": {
+              "type": "array",
+              "description": "On-device text-to-speech engines, in order of preference.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Engine id, e.g. piper."
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "assetBase": {
+                    "type": "string",
+                    "description": "Where the engine's runtime and voice files are served from. Default: <base>/tts/<id>."
+                  },
+                  "voices": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "language",
+                        "files"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string",
+                          "description": "BCP-47, e.g. en-US."
+                        },
+                        "quality": {
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ]
+                        },
+                        "downloadBytes": {
+                          "type": "number"
+                        },
+                        "license": {
+                          "type": "string"
+                        },
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Paths relative to assetBase."
+                        }
+                      }
+                    }
+                  },
+                  "defaultVoices": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Language subtag to voice id."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "modules": {
       "type": "object",
@@ -68,9 +175,15 @@
           "type": "string",
           "description": "Custom 'About' text displayed in the app settings panel."
         },
-        "bibles": { "$ref": "#/$defs/moduleTypeConfig" },
-        "commentaries": { "$ref": "#/$defs/moduleTypeConfig" },
-        "dictionaries": { "$ref": "#/$defs/moduleTypeConfig" }
+        "bibles": {
+          "$ref": "#/$defs/moduleTypeConfig"
+        },
+        "commentaries": {
+          "$ref": "#/$defs/moduleTypeConfig"
+        },
+        "dictionaries": {
+          "$ref": "#/$defs/moduleTypeConfig"
+        }
       },
       "additionalProperties": false
     },
@@ -101,7 +214,11 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["server", "browser", "off"],
+          "enum": [
+            "server",
+            "browser",
+            "off"
+          ],
           "description": "Where semantic (Ideas) search runs. 'server': the server builds the embedding pipeline (high RAM). 'browser': clients search locally via a Web Worker and self-hosted model/index, keeping the server lean. 'off': semantic search disabled. The server only builds the in-process pipeline when set to 'server'.",
           "default": "browser"
         },
@@ -136,12 +253,16 @@
         },
         "visibleThemes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Restrict available themes to this list of theme IDs. If omitted, all themes are available."
         },
         "visibleFonts": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Restrict available font schemes to this list of font scheme IDs. If omitted, all fonts are available."
         },
         "defaultModule": {
@@ -150,13 +271,19 @@
         },
         "defaultDisplayMode": {
           "type": "string",
-          "enum": ["standard", "reading", "study"],
+          "enum": [
+            "standard",
+            "reading",
+            "study"
+          ],
           "description": "Default display mode for the Bible pane.",
           "default": "standard"
         },
         "disabledPanes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Panes to disable in the UI (e.g., [\"dictionary\", \"interlinear\"])."
         }
       },
@@ -168,7 +295,10 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["strict", "relaxed"],
+          "enum": [
+            "strict",
+            "relaxed"
+          ],
           "description": "Privacy posture. 'strict' (default): session-only auth cookies, in-memory rate limiting, logger scrubs IPs and refuses client-identifying data. 'relaxed': persistent cookies and optional request-level logging.",
           "default": "strict"
         }
@@ -213,7 +343,9 @@
           "description": "Explicit sort order for this module (lower = first)."
         }
       },
-      "required": ["active"],
+      "required": [
+        "active"
+      ],
       "additionalProperties": false
     },
     "section": {
@@ -230,11 +362,16 @@
         },
         "modules": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Ordered list of module abbreviations in this section."
         }
       },
-      "required": ["title", "modules"],
+      "required": [
+        "title",
+        "modules"
+      ],
       "additionalProperties": false
     },
     "moduleTypeConfig": {
@@ -243,16 +380,23 @@
       "properties": {
         "modules": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/moduleEntry" },
+          "additionalProperties": {
+            "$ref": "#/$defs/moduleEntry"
+          },
           "description": "Map of module abbreviation to its configuration."
         },
         "sections": {
           "type": "array",
-          "items": { "$ref": "#/$defs/section" },
+          "items": {
+            "$ref": "#/$defs/section"
+          },
           "description": "Ordered sections for grouping modules in the UI."
         }
       },
-      "required": ["modules", "sections"],
+      "required": [
+        "modules",
+        "sections"
+      ],
       "additionalProperties": false
     }
   }
