@@ -21,7 +21,10 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-
 import { RangeRequestsPlugin } from 'workbox-range-requests';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
+import { AUDIO_CACHE_NAMES } from './audio/cacheNames';
 import {
+  AUDIO_FILE_CACHE_PATTERN,
+  AUDIO_MANIFEST_CACHE_PATTERN,
   COMMENTARY_CACHE_PATTERN,
   INTERLINEAR_CACHE_PATTERN,
   STUDY_OVERVIEW_CACHE_PATTERN,
@@ -163,6 +166,33 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 }),
       new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  }),
+  'GET',
+);
+
+// Audio Bible. The page also caches these through the Cache API (so recordings
+// work offline with the PWA off); the worker names the SAME caches, so what the
+// page stored answers the worker's requests, Range requests included. No
+// ExpirationPlugin: the page trims least-recently-played chapters itself.
+// Manifests and audio are immutable (the revision is in the URL); the mutable
+// per-translation index.json is not matched and always goes to the network.
+registerRoute(
+  AUDIO_MANIFEST_CACHE_PATTERN,
+  new CacheFirst({
+    cacheName: AUDIO_CACHE_NAMES.manifests,
+    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+  }),
+  'GET',
+);
+
+registerRoute(
+  AUDIO_FILE_CACHE_PATTERN,
+  new CacheFirst({
+    cacheName: AUDIO_CACHE_NAMES.chapters,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new RangeRequestsPlugin(),
     ],
   }),
   'GET',

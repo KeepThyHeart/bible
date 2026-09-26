@@ -137,8 +137,11 @@ export interface IChapterAudio {
 }
 
 export interface OpenChapterOptions {
+  /** A narrator id (recorded) or a voice id (TTS). Undefined: the provider's default. */
   voiceId?: string;
   rate: number;
+  /** Speak "Book, chapter N" first when starting at the chapter's first verse. Default true. */
+  readIntro?: boolean;
   onProgress?(p: LoadProgress): void;
 }
 
@@ -247,6 +250,10 @@ export interface IAssetCache {
   delete(prefix: string): Promise<number>;
   /** Bytes held under `prefix`, for the settings screen. */
   usage(prefix: string): Promise<number>;
+  /** Keys under `prefix`, least recently stored or touched first. */
+  keys(prefix: string): Promise<string[]>;
+  /** Mark `key` as just used, so a size-limited cleanup evicts it last. */
+  touch(key: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
