@@ -4,6 +4,8 @@ import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { followStore } from '../../stores/followStore';
+import { presentStore } from '../../stores/presentStore';
+import { PresentHighlightBar, useHighlightDraftLifecycle } from '../Present/PresentHighlightBar';
 import { useStore } from '../../hooks/useStore';
 import { VerseRenderer } from './VerseRenderer';
 import { InterlinearLayoutToggle } from './InterlinearLayoutToggle';
@@ -12,6 +14,7 @@ import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { draftIsOnWall } from '../../present/wordHighlight';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData } from '../../providers/interfaces';
 
@@ -168,6 +171,13 @@ export function BibleContent({
   const followBookChapterMatches = Boolean(
     followLive && tab?.book === followLive.book && tab.chapter === followLive.chapter,
   );
+  // Present mode: what the wall is showing (for the sent-verse colour and each
+  // verse's send button) and the presenter's word-highlight draft. All null /
+  // false outside a session, when none of this renders.
+  const presenting = useStore(presentStore, () => presentStore.session !== null);
+  const wall = useStore(presentStore, () => presentStore.wall);
+  const highlightDraft = useStore(presentStore, () => presentStore.highlightDraft);
+  useHighlightDraftLifecycle();
   const [refValue, setRefValue] = useState('');
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -236,6 +246,33 @@ export function BibleContent({
         start: Math.min(tab.studyVerse, tab.selectionEndVerse),
         end: Math.max(tab.studyVerse, tab.selectionEndVerse),
       }
+    : null;
+
+  // Present mode. A verse is "sent" when it is the very verse the wall shows,
+  // of this passage in this translation; the send button on every other verse
+  // sends it (and moves the study focus there, so the next arrow key continues
+  // from what was just sent).
+  const live = presenting ? wall?.live : null;
+  const wallVerse = live?.kind === 'passage'
+    && live.module === tab.moduleAbbr && live.book === tab.book && live.chapter === tab.chapter
+    ? wall!.position.index
+    : null;
+  const sendVerse = (verseNumber: number) => {
+    if (!tab.book || !tab.chapter) return;
+    bibleStore.focusVerseNumber(verseNumber);
+    void presentStore.show(
+      { kind: 'passage', module: tab.moduleAbbr, book: tab.book, chapter: tab.chapter },
+      verseNumber,
+    );
+  };
+  const draftOnWall = draftIsOnWall(highlightDraft, wall?.position.highlight ?? null);
+  const wordHighlight = presenting
+    ? {
+      draft: highlightDraft,
+      sent: draftOnWall,
+      onHold: (verseId: number, index: number) => presentStore.beginHighlight(verseId, index),
+      onTap: (verseId: number, index: number) => presentStore.tapHighlightWord(verseId, index),
+    }
     : null;
 
   // Chapter navigation helpers
@@ -399,12 +436,26 @@ export function BibleContent({
                 followHighlight={
                   followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlight : null
                 }
+                sendRail={presenting ? {
+                  sent: wallVerse === verse.verse,
+                  onSend: () => sendVerse(verse.verse),
+                  label: wallVerse === verse.verse
+                    ? t('present.verseOnScreen', { verse: verse.verse })
+                    : t('present.sendVerse', { verse: verse.verse }),
+                } : undefined}
+                wordHighlight={wordHighlight ? {
+                  draft: wordHighlight.draft,
+                  sent: wordHighlight.sent,
+                  onHold: index => wordHighlight.onHold(verse.verse_id, index),
+                  onTap: index => wordHighlight.onTap(verse.verse_id, index),
+                } : undefined}
               />
             ))}
             </>
           )}
         </>
       )}
+      <PresentHighlightBar />
       {/* Mobile-only action bar — currently disabled; use context menu instead */}
       <BookChapterPicker
         isOpen={showBookPicker}

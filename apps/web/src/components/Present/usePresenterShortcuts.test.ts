@@ -61,7 +61,15 @@ describe('resolveShortcutAction', () => {
   });
 
   describe('with a clicker accepted', () => {
-    const clicker = { hasStaged: true, acceptClickerKeys: true };
+    const clicker = { hasStaged: true, acceptClickerKeys: true, hasLive: true };
+
+    it('moves the study verse instead of the wall on bare up/down when nothing is on the wall', () => {
+      const empty = { ...clicker, hasLive: false };
+      expect(resolveShortcutAction(key({ key: 'ArrowDown' }), empty)).toEqual({ type: 'stepStudy', direction: 'next' });
+      expect(resolveShortcutAction(key({ key: 'ArrowUp' }), empty)).toEqual({ type: 'stepStudy', direction: 'previous' });
+      // The rest of the clicker keys are unaffected.
+      expect(resolveShortcutAction(key({ key: 'PageDown' }), empty)).toEqual({ type: 'next' });
+    });
 
     it('advances on plain Page Down and the right/down arrows', () => {
       for (const k of ['PageDown', 'ArrowRight', 'ArrowDown']) {

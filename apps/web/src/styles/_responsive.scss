@@ -117,6 +117,13 @@
       text-align: left;
     }
 
+    // Present mode's send button floats with the number so wrapped lines
+    // still do not indent.
+    .verse__send {
+      float: left;
+      margin: 0 6px 0 2px;
+    }
+
     .verse__body {
       display: block;
     }

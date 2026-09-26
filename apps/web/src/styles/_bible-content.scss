@@ -558,3 +558,91 @@
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Present mode: the sent verse, the left-rail send button, and the word
+// highlight on the active verse. `--present-sent` (defined in `_present.scss`)
+// is the presenter's one colour: green always means "this is on the screen".
+// ---------------------------------------------------------------------------
+
+// The verse the wall is showing. Green wins over the study (selected) tint --
+// these rules come after `.verse--study` and `.verse--block.verse--study` with
+// the same specificity, so a verse that is both reads as sent.
+.verse.verse--sent,
+.verse--block.verse--sent,
+.verse--block.verse--sent.verse--study,
+.verse--block.verse--sent.verse--in-range {
+  background: color-mix(in srgb, var(--present-sent) 18%, var(--bg-primary));
+}
+
+@media (hover: hover) {
+  .verse--block.verse--sent:hover {
+    background: color-mix(in srgb, var(--present-sent) 24%, var(--bg-primary));
+  }
+}
+
+// Outline monitor to send; filled green check once it is the one on screen.
+.verse__send {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin: 1px 8px 0 4px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    border-color: var(--present-sent);
+    color: var(--present-sent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--present-sent);
+    outline-offset: 2px;
+  }
+
+  &--sent {
+    background: var(--present-sent);
+    border-color: var(--present-sent);
+    color: #ffffff;
+    cursor: default;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+}
+
+// The active verse's words while presenting (`PresenterWords`). Selection is
+// off on them because a press-and-hold is the highlight gesture: left on, a
+// hold would also start a native text selection (and, on a phone, the
+// selection handles and callout).
+.verse__pwords {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.verse__pword {
+  border-radius: 3px;
+  cursor: pointer;
+
+  // A draft: not yet on the screen.
+  &--draft {
+    background: color-mix(in srgb, #cbaa5c 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, #a3813e 60%, transparent);
+  }
+
+  // The highlight the screen is showing.
+  &--sent {
+    background: color-mix(in srgb, var(--present-sent) 32%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--present-sent) 70%, transparent);
+  }
+}

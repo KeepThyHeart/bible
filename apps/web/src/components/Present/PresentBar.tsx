@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
-import { usePresenterShortcuts } from './usePresenterShortcuts';
+import { stepWall, usePresenterShortcuts } from './usePresenterShortcuts';
 import { PresentPanel } from './PresentPanel';
 
 /**
@@ -90,7 +90,7 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
           <button
             type="button"
             class="present-bar__btn"
-            onClick={() => void presentStore.step('previous')}
+            onClick={() => stepWall('previous')}
             disabled={!wall?.live}
             title={t('present.previous')}
             aria-label={t('present.previous')}
@@ -100,7 +100,7 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
           <button
             type="button"
             class="present-bar__btn"
-            onClick={() => void presentStore.step('next')}
+            onClick={() => stepWall('next')}
             disabled={!wall?.live}
             title={t('present.next')}
             aria-label={t('present.next')}

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
+import { stepWall } from './usePresenterShortcuts';
 import { PresentPanelBody } from './PresentPanelBody';
 import { PresentPreview } from './PresentPreview';
 
@@ -76,7 +77,7 @@ export function PresentTab(props: { compact?: boolean }) {
           <button
             type="button"
             class="present-bar__btn"
-            onClick={() => void presentStore.step('previous')}
+            onClick={() => stepWall('previous')}
             disabled={!wall?.live}
             title={t('present.previous')}
             aria-label={t('present.previous')}
@@ -86,7 +87,7 @@ export function PresentTab(props: { compact?: boolean }) {
           <button
             type="button"
             class="present-bar__btn"
-            onClick={() => void presentStore.step('next')}
+            onClick={() => stepWall('next')}
             disabled={!wall?.live}
             title={t('present.next')}
             aria-label={t('present.next')}

@@ -10,6 +10,7 @@ import type {
   StoredPresentState,
 } from '../present/protocol';
 import { applyIntent, type IntentContext } from '../present/reducer';
+import { beginDraft, draftIsOnWall, draftToRange, tapDraft, type HighlightDraft } from '../present/wordHighlight';
 import { openLocalChannel, type LocalChannel } from '../present/transport/localChannel';
 
 /** The cache key `warmContext` and `hasWarmContext` share for a hymn's slide count. */
@@ -64,25 +65,25 @@ export type PresentConnectionStatus = 'offline' | 'connecting' | 'live' | 'recon
 const SESSION_KEY = 'present-controller-session';
 
 /**
- * Whether the controller's own keyboard should also answer to a presentation
+ * Whether the controller's own keyboard also answers to a presentation
  * remote/clicker: plain Page Up/Down and arrow keys for next/previous, and
  * `b` for blank -- the keys the old, single-machine program read directly
  * from a projector pointer.
  *
- * Off by default and opt-in, on purpose: those are exactly the bare keys a
- * reader normally uses to navigate the app underneath (see `isTyping` and the
- * "a bare arrow key belongs to the reader" rule this store's shortcuts
- * otherwise follow), so turning this on trades that away in exchange for
- * clicker support. A presenter without a clicker plugged in never has to make
- * that trade.
+ * On by default: a bare Up/Down (or a clicker's key) means the same thing
+ * everywhere -- advance the slide of a hymn or quote, advance the verse of a
+ * passage -- so there is no collision to opt in to. It stays a preference
+ * rather than a constant for the presenter who wants those bare keys back for
+ * the reader underneath; only an explicit opt-out (stored as `'0'`) turns it
+ * off.
  */
 const CLICKER_KEY = 'present-accept-clicker-keys';
 
 function readStoredClickerPreference(): boolean {
   try {
-    return localStorage.getItem(CLICKER_KEY) === '1';
+    return localStorage.getItem(CLICKER_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -132,6 +133,13 @@ class PresentStore extends Store {
 
   /** See `CLICKER_KEY`. Read once at construction; this browser's own choice. */
   acceptClickerKeys = readStoredClickerPreference();
+
+  /**
+   * The phrase the presenter is lighting up in the active verse, or null.
+   * Controller-local until sent -- see `sendHighlight` -- and only ever one at
+   * a time.
+   */
+  highlightDraft: HighlightDraft | null = null;
 
   /** An intent is in flight. Used to keep the strip from looking dead. */
   busy = false;
@@ -259,6 +267,7 @@ class PresentStore extends Store {
     this.wall = null;
     this.plan = [];
     this.panelOpen = false;
+    this.highlightDraft = null;
     this.connection = 'offline';
     try {
       localStorage.removeItem(SESSION_KEY);
@@ -642,6 +651,11 @@ class PresentStore extends Store {
     return this.send({ type: direction });
   }
 
+  /** Jump to an absolute position within what is live (a verse number, or a slide index). */
+  goTo(index: number): Promise<boolean> {
+    return this.send({ type: 'goTo', index });
+  }
+
   /** Fade the wall to black, or bring it back. Never destroys what is on it. */
   toggleBlank(): Promise<boolean> {
     return this.send({ type: this.wall?.display.blanked ? 'unblank' : 'blank' });
@@ -783,12 +797,79 @@ class PresentStore extends Store {
   setAcceptClickerKeys(accept: boolean): void {
     this.acceptClickerKeys = accept;
     try {
-      if (accept) localStorage.setItem(CLICKER_KEY, '1');
-      else localStorage.removeItem(CLICKER_KEY);
+      if (accept) localStorage.removeItem(CLICKER_KEY);
+      else localStorage.setItem(CLICKER_KEY, '0');
     } catch {
       // Private browsing: the choice lasts for this tab only.
     }
     this.notify();
+  }
+
+  // -------------------------------------------------------------------------
+  // Word highlight
+  // -------------------------------------------------------------------------
+
+  /** A press-and-hold on a word of the active verse: start a fresh one-word draft. */
+  beginHighlight(verseId: number, index: number): void {
+    this.highlightDraft = beginDraft(verseId, index);
+    this.notify();
+  }
+
+  /** A plain tap on a word of the active verse while a draft exists. */
+  tapHighlightWord(verseId: number, index: number): void {
+    const next = tapDraft(this.highlightDraft, verseId, index);
+    if (next === this.highlightDraft) return;
+    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlight ?? null);
+    this.highlightDraft = next;
+    // Tapping the highlight to clear it clears it on the screen too, but
+    // stretching or trimming a phrase that is already up must not: the screen
+    // keeps showing what was confirmed until the new range is confirmed.
+    if (next === null && wasOnWall) void this.send({ type: 'clearHighlight' });
+    this.notify();
+  }
+
+  /**
+   * Drop the draft (Esc, the Clear button, tapping the highlight). If the
+   * screen is showing it, the screen's highlight goes too -- clearing a
+   * highlight the room can still see would leave the presenter unable to tell
+   * what the wall is showing.
+   */
+  clearHighlight(): void {
+    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlight ?? null);
+    if (!this.highlightDraft) return;
+    this.highlightDraft = null;
+    if (wasOnWall) void this.send({ type: 'clearHighlight' });
+    this.notify();
+  }
+
+  /**
+   * Forget the draft without touching the screen. For when the draft became
+   * meaningless on its own (the active verse moved on; the wall's own
+   * highlight was cleared elsewhere).
+   */
+  discardHighlightDraft(): void {
+    if (!this.highlightDraft) return;
+    this.highlightDraft = null;
+    this.notify();
+  }
+
+  /**
+   * Confirm: put the draft on the screen. If the wall is not already showing
+   * this verse of this passage, the verse is sent first -- a highlight
+   * against a verse nobody can see would do nothing.
+   */
+  async sendHighlight(item: PresentItem, verseNumber: number): Promise<boolean> {
+    const draft = this.highlightDraft;
+    if (!draft) return false;
+    const live = this.wall?.live;
+    const onWall = live?.kind === 'passage' && item.kind === 'passage'
+      && live.module === item.module && live.book === item.book && live.chapter === item.chapter
+      && this.wall?.position.index === verseNumber;
+    if (!onWall && !(await this.show(item, verseNumber))) return false;
+    // `show` clears any highlight; `this.highlightDraft` may have been dropped
+    // while it was in flight, in which case there is nothing left to send.
+    if (this.highlightDraft !== draft) return false;
+    return this.send({ type: 'setHighlight', highlight: draftToRange(draft) });
   }
 
   clearError(): void {

@@ -9,6 +9,13 @@
 // panel, not text. It must not resize when the reader changes their reading
 // font, because the presenter has learned where the blank button is.
 
+:root {
+  // The presenter's own colour: green means "this is on the screen". Dark
+  // enough for white text on every theme, and deliberately not any theme's
+  // accent so it cannot be mistaken for selection.
+  --present-sent: #1a7f4b;
+}
+
 .present-bar {
   display: flex;
   align-items: center;
@@ -887,5 +894,76 @@
     color: var(--text-muted);
     font-size: 12px;
     text-decoration: underline;
+  }
+}
+
+// The word-highlight draft's bar, docked to the bottom of the Bible pane
+// (`PresentHighlightBar`) so it never covers the verse being highlighted.
+.present-highlight-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px -8px -8px;
+  padding: 10px 12px;
+  border-top: 2px solid #a3813e;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  &--sent {
+    border-top-color: var(--present-sent);
+  }
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__state {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &--sent &__state {
+    color: var(--present-sent);
+  }
+
+  &__phrase {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__btn {
+    flex: none;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    &--send {
+      border-color: var(--present-sent);
+      background: var(--present-sent);
+      color: #ffffff;
+    }
   }
 }

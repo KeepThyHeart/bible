@@ -304,6 +304,26 @@ describe('applyIntent', () => {
     expect(next?.position.highlight).toBeNull();
   });
 
+  it('drops the highlight when the position moves to another verse', () => {
+    // A highlight is a run of words in one verse; it must neither follow the
+    // presenter onto the next verse nor light up again on a later return.
+    const lit = seeded({
+      live: JOHN_3,
+      position: { index: 16, highlight: { verseIdStart: 43003016, textStart: 1, textEnd: 3 } },
+    });
+    expect(applyIntent(lit, { type: 'next' }, ctx)?.position).toEqual({ index: 17, highlight: null });
+    expect(applyIntent(lit, { type: 'previous' }, ctx)?.position).toEqual({ index: 15, highlight: null });
+    expect(applyIntent(lit, { type: 'goTo', index: 30 }, ctx)?.position).toEqual({ index: 30, highlight: null });
+  });
+
+  it('keeps the highlight when a move changes nothing', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: { index: 36, highlight: { verseIdStart: 43003036, textStart: 0 } },
+    });
+    expect(applyIntent(lit, { type: 'next' }, ctx)).toBeNull();
+  });
+
   it('advances and retreats within the chapter', () => {
     expect(applyIntent(showing(16), { type: 'next' }, ctx)?.position.index).toBe(17);
     expect(applyIntent(showing(16), { type: 'previous' }, ctx)?.position.index).toBe(15);

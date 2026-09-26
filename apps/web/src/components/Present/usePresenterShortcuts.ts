@@ -1,4 +1,5 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
+import { sectionTarget } from '../../present/sections';
 import { useStore } from '../../hooks/useStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { presentStore } from '../../stores/presentStore';
@@ -16,21 +17,20 @@ import { usePresenter } from './usePresenter';
  *    reader underneath, so every one of these carries a modifier without
  *    exception -- the moment a session starts must not quietly repurpose a
  *    key the reader was already using.
- *  - **Bare up/down, off a clicker.** Plain ArrowUp/ArrowDown move the study
- *    verse shown in the Bible pane -- what stepping through a passage to
- *    decide what to send next already looks like without a session running --
- *    never the wall itself. This is safe to leave on by default (unlike the
- *    clicker layer below) because nothing the room sees moves until Send is
- *    pressed.
- *  - **Opt-in: a presentation remote/clicker.** Off-the-shelf clickers send
- *    plain Page Up/Down, plain arrow keys, and often `b` for a black screen
- *    (the PowerPoint convention, and what the old single-machine program read
- *    directly). Once accepted, those same bare arrow keys drive the wall
- *    directly instead of the study verse -- exactly one meaning for a bare
- *    arrow is active at a time -- which is why this layer is gated behind
- *    `presentStore.acceptClickerKeys` rather than always on: turning it on is
- *    a presenter saying "I have a clicker plugged in, and I accept that a
- *    stray press now moves what the room sees, not just what I'm staging."
+ *  - **Bare keys, on by default: the clicker layer.** Off-the-shelf clickers
+ *    send plain Page Up/Down, plain arrow keys, and often `b` for a black
+ *    screen (the PowerPoint convention, and what the old single-machine
+ *    program read directly). A bare Up/Down or Right/Left -- from a clicker or
+ *    a keyboard, no difference -- means the same thing everywhere: on a hymn
+ *    or a quote it advances the slide, on a passage it advances the verse. A
+ *    **long press** on a passage advances by section instead (see
+ *    `present/sections.ts`), which is the only gesture that tells the two
+ *    apart. The Bible pane follows the wall's verse, so what the presenter
+ *    reads and what the room sees stay in step. With nothing on the wall yet
+ *    there is nothing to advance, so bare Up/Down move the study verse
+ *    instead -- looking ahead to decide what to send first. A presenter can
+ *    opt out (`presentStore.acceptClickerKeys`), which leaves bare Up/Down
+ *    as study-verse-only, as they were before.
  *
  * Typing anywhere (a search box, a note, a paste-references textarea) is
  * exempt from every layer.
@@ -61,7 +61,7 @@ export type ShortcutAction =
  */
 export function resolveShortcutAction(
   event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey' | 'repeat'>,
-  context: { hasStaged: boolean; acceptClickerKeys: boolean },
+  context: { hasStaged: boolean; acceptClickerKeys: boolean; hasLive?: boolean },
 ): ShortcutAction | null {
   if (event.repeat) return null;
 
@@ -76,10 +76,12 @@ export function resolveShortcutAction(
     return null;
   }
 
-  // A bare up/down arrow, with no clicker accepted, moves the study verse
-  // instead -- see the module doc's "bare up/down" layer. Checked before the
-  // clicker layer below so the two can never both claim the same key.
-  if (!context.acceptClickerKeys && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+  // A bare up/down arrow moves the study verse instead of the wall when the
+  // wall has nothing to move (`hasLive` false) or the clicker layer is opted
+  // out of -- see the module doc. Checked before the clicker layer below so
+  // the two can never both claim the same key.
+  if (!event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
+    && (!context.acceptClickerKeys || context.hasLive === false)) {
     if (event.key === 'ArrowUp') return { type: 'stepStudy', direction: 'previous' };
     if (event.key === 'ArrowDown') return { type: 'stepStudy', direction: 'next' };
   }
@@ -107,10 +109,77 @@ export function resolveShortcutAction(
   }
 }
 
+/** How long a bare key is held before it counts as a long press, in ms. */
+export const LONG_PRESS_MS = 500;
+
+/**
+ * After the wall moved within a passage, bring the Bible pane along: the
+ * verse the presenter reads is the verse the room sees. Only when the pane is
+ * on that same chapter -- a presenter who wandered off to look at something
+ * else is not yanked back by a clicker press.
+ */
+export function followWallInPane(): void {
+  const wall = presentStore.wall;
+  const live = wall?.live;
+  const tab = bibleStore.getActiveTab();
+  if (!wall || !tab || live?.kind !== 'passage') return;
+  if (tab.book !== live.book || tab.chapter !== live.chapter) return;
+  bibleStore.focusVerseNumber(wall.position.index);
+}
+
+/** Step the wall one place, and take the Bible pane with it. */
+export function stepWall(direction: 'next' | 'previous'): void {
+  // `step` predicts synchronously before its first await, so the pane can
+  // move at once; it moves again on the authoritative answer in case they
+  // differed.
+  const done = presentStore.step(direction);
+  followWallInPane();
+  void done.then(followWallInPane);
+}
+
+/**
+ * A long press: on a passage, jump to the next/previous section rather than
+ * the next verse. Falls back to a single verse step when the Bible pane is
+ * not on the passage on the wall, because sections are read from the pane's
+ * loaded chapter and there is nothing to read them from otherwise.
+ */
+export function stepWallBySection(direction: 'next' | 'previous'): void {
+  const wall = presentStore.wall;
+  const live = wall?.live;
+  if (!wall || live?.kind !== 'passage') return;
+  const tab = bibleStore.getActiveTab();
+  if (!tab || tab.book !== live.book || tab.chapter !== live.chapter || tab.verses.length === 0) {
+    stepWall(direction);
+    return;
+  }
+  const target = sectionTarget(tab.verses, wall.position.index, direction);
+  const done = presentStore.goTo(target);
+  followWallInPane();
+  void done.then(followWallInPane);
+}
+
 export function usePresenterShortcuts(): void {
   const view = usePresenter();
   const acceptClickerKeys = useStore(presentStore, () => presentStore.acceptClickerKeys);
   const { staged } = view;
+
+  // A bare next/previous key held on a passage: undecided until it is
+  // released (a plain press: one verse) or held long enough (a long press:
+  // one section, once, however long it is then held). A ref rather than a
+  // local of the effect below, because that effect re-subscribes whenever the
+  // staged verse changes -- which a long press itself causes, by moving the
+  // pane -- and must not forget a key that is still down.
+  const pendingRef = useRef<{
+    key: string; direction: 'next' | 'previous'; timer: ReturnType<typeof setTimeout>; fired: boolean;
+  } | null>(null);
+  const cancelPending = (): void => {
+    if (pendingRef.current) clearTimeout(pendingRef.current.timer);
+    pendingRef.current = null;
+  };
+  useEffect(() => {
+    if (!view.presenting) cancelPending();
+  }, [view.presenting]);
+  useEffect(() => cancelPending, []);
 
   useEffect(() => {
     if (!view.presenting) return;
@@ -124,19 +193,48 @@ export function usePresenterShortcuts(): void {
       // also acting on the same press (moving the study verse while someone
       // is arrowing through, say, the translation picker).
       if (event.defaultPrevented) return;
-      const action = resolveShortcutAction(event, { hasStaged: staged !== null, acceptClickerKeys });
+      // Auto-repeat of a key that is mid long-press: neither scroll the page
+      // with it nor start over.
+      if (event.repeat && pendingRef.current?.key === event.key) {
+        event.preventDefault();
+        return;
+      }
+      const wall = presentStore.wall;
+      const action = resolveShortcutAction(event, {
+        hasStaged: staged !== null,
+        acceptClickerKeys,
+        hasLive: Boolean(wall?.live),
+      });
       if (!action) return;
 
       event.preventDefault();
+
+      const bare = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
+      if (bare && (action.type === 'next' || action.type === 'previous') && wall?.live?.kind === 'passage') {
+        cancelPending();
+        const direction = action.type;
+        const press = {
+          key: event.key,
+          direction,
+          fired: false,
+          timer: setTimeout(() => {
+            press.fired = true;
+            stepWallBySection(direction);
+          }, LONG_PRESS_MS),
+        };
+        pendingRef.current = press;
+        return;
+      }
+
       switch (action.type) {
         case 'send':
           if (staged) void presentStore.show(staged.item, staged.index);
           break;
         case 'next':
-          void presentStore.step('next');
+          stepWall('next');
           break;
         case 'previous':
-          void presentStore.step('previous');
+          stepWall('previous');
           break;
         case 'toggleBlank':
           void presentStore.toggleBlank();
@@ -147,7 +245,22 @@ export function usePresenterShortcuts(): void {
       }
     };
 
+    const onKeyUp = (event: KeyboardEvent): void => {
+      const pending = pendingRef.current;
+      if (!pending || pending.key !== event.key) return;
+      const { fired, direction } = pending;
+      cancelPending();
+      if (!fired) stepWall(direction);
+    };
+
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    // Focus lost mid-press means the release will never arrive here.
+    window.addEventListener('blur', cancelPending);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', cancelPending);
+    };
   }, [view.presenting, acceptClickerKeys, staged?.item.book, staged?.item.chapter, staged?.index]);
 }

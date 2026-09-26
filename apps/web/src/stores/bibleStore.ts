@@ -589,6 +589,25 @@ class BibleStore extends Store {
   }
 
   /**
+   * Make verse number `verse` of the loaded chapter the study verse, without
+   * the deselect-on-second-click toggle `setStudyVerse` has -- for something
+   * that *follows* another position (the presenter's wall) rather than for a
+   * click. A verse the chapter does not have leaves everything as it was.
+   */
+  focusVerseNumber(verse: number): void {
+    const tab = this.getActiveTab();
+    if (!tab) return;
+    const target = tab.verses.find(v => v.verse === verse);
+    if (!target || target.verse_id === tab.studyVerse) return;
+    tab.previewVerse = null;
+    tab.previewVerseEnd = null;
+    tab.selectionEndVerse = null;
+    tab.studyVerse = target.verse_id;
+    this.rememberVerseInCurrentEntry(tab);
+    this.notify();
+  }
+
+  /**
    * Extend the selection from the study verse out to `verseId` (shift-click).
    *
    * With no anchor yet there is nothing to extend from, so this behaves as a

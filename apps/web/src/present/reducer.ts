@@ -423,7 +423,10 @@ export function applyIntent(
     case 'goTo': {
       const index = clampIndex(state.live, intent.index, ctx);
       if (index === state.position.index) return null;
-      return { ...state, position: { ...state.position, index } };
+      // A highlight is a run of words in one verse: it does not follow the
+      // position to a different one, and would light up again unexpectedly if
+      // the presenter came back to that verse later.
+      return { ...state, position: { index, highlight: null } };
     }
 
     case 'next':
@@ -432,7 +435,7 @@ export function applyIntent(
       const delta = intent.type === 'next' ? 1 : -1;
       const index = clampIndex(state.live, state.position.index + delta, ctx);
       if (index === state.position.index) return null;
-      return { ...state, position: { ...state.position, index } };
+      return { ...state, position: { index, highlight: null } };
     }
 
     case 'setHighlight':

@@ -750,7 +750,16 @@
     "showQuote": "Show now",
     "addQuoteToPlan": "Add to running order",
     "acceptClickerKeys": "Accept remote/clicker keys",
-    "acceptClickerKeysHint": "Page Up/Down and the arrow keys move next/previous on screen, and B blanks it -- the keys a presentation remote sends. Off by default: plain up/down instead just move the study verse, so a stray press cannot move what the room sees.",
+    "acceptClickerKeysHint": "Up/Down, Left/Right and Page Up/Down advance what's on screen, and B blanks it -- the keys a presentation remote sends. On a hymn or quote they move to the next slide; on a passage, to the next verse (hold the key for the next section). Turn off to keep plain Up/Down for moving the study verse only.",
+    "sendVerse": "Send verse {{verse}} to the screen",
+    "verseOnScreen": "Verse {{verse}} is on screen",
+    "highlight": {
+      "label": "Highlight",
+      "draft": "Highlight in verse {{verse}} (not on screen yet)",
+      "onScreen": "Highlight on screen",
+      "clear": "Clear",
+      "send": "Send highlight"
+    },
     "previewDesktopOnly": "The screen preview is available on a larger display.",
     "previewLabel": "Preview: what screens show",
     "textSize": "Text size",

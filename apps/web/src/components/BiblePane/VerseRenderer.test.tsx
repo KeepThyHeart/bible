@@ -10,7 +10,7 @@
  * the wordsOfChristInRed flag without needing a live store. useStore is mocked to
  * call the selector immediately (no subscription overhead).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { VerseData, InterlinearWordData } from '../../types';
 
@@ -53,7 +53,7 @@ vi.mock('../../stores/commentaryStore', () => ({
   },
 }));
 
-import { VerseRenderer } from './VerseRenderer';
+import { VerseRenderer, HIGHLIGHT_HOLD_MS } from './VerseRenderer';
 import { resetInterlinearWarnings } from '../../utils/interlinearRows';
 
 // ---- helpers -------------------------------------------------------------
@@ -554,6 +554,119 @@ describe('VerseRenderer', () => {
         />,
       );
       expect(container.querySelector('.verse__follow-word--christ')).toBeTruthy();
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Present mode: the send rail and the word highlight
+  // ------------------------------------------------------------------
+  describe('presenting', () => {
+    it('draws no send button outside a session', () => {
+      const { container } = render(<VerseRenderer verse={makeVerse()} {...defaultProps} />);
+      expect(container.querySelector('.verse__send')).toBeNull();
+    });
+
+    it('sends the verse from the left-rail button without selecting it', () => {
+      const onSend = vi.fn();
+      const { container } = render(
+        <VerseRenderer verse={makeVerse()} {...defaultProps}
+          sendRail={{ sent: false, onSend, label: 'Send verse 16' }} />,
+      );
+      fireEvent.click(container.querySelector('.verse__send')!);
+      expect(onSend).toHaveBeenCalledTimes(1);
+      expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+    });
+
+    it('marks the sent verse, and its button no longer sends', () => {
+      const onSend = vi.fn();
+      const { container } = render(
+        <VerseRenderer verse={makeVerse()} {...defaultProps} isHighlighted
+          sendRail={{ sent: true, onSend, label: 'Verse 16 is on screen' }} />,
+      );
+      // Sent and selected at once: both classes present, and the stylesheet
+      // makes the sent one win.
+      const row = container.querySelector('.verse')!;
+      expect(row.className).toContain('verse--sent');
+      expect(row.className).toContain('verse--study');
+      const button = container.querySelector('.verse__send--sent') as HTMLElement;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      fireEvent.click(button);
+      expect(onSend).not.toHaveBeenCalled();
+    });
+
+    describe('word highlight', () => {
+      beforeEach(() => { vi.useFakeTimers(); });
+      afterEach(() => { vi.useRealTimers(); });
+
+      const words = (container: Element) => container.querySelectorAll<HTMLElement>('[data-w]');
+
+      function setup(draft: { verseId: number; start: number; end: number } | null, isHighlighted = true) {
+        const onHold = vi.fn();
+        const onTap = vi.fn();
+        const utils = render(
+          <VerseRenderer verse={makeVerse()} {...defaultProps} isHighlighted={isHighlighted}
+            wordHighlight={{ draft, sent: false, onHold, onTap }} />,
+        );
+        return { ...utils, onHold, onTap };
+      }
+
+      it('makes words addressable only in the active verse', () => {
+        expect(words(setup(null, true).container).length).toBe(6);
+      });
+
+      it('leaves other verses exactly as they were', () => {
+        const { container } = setup(null, false);
+        expect(words(container).length).toBe(0);
+        expect(container.innerHTML).toContain('For God so loved the world');
+      });
+
+      it('starts a highlight on a press-and-hold, not on a plain tap', () => {
+        const { container, onHold } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        fireEvent.pointerUp(word);
+        vi.advanceTimersByTime(1000);
+        expect(onHold).not.toHaveBeenCalled();
+
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        vi.advanceTimersByTime(HIGHLIGHT_HOLD_MS + 10);
+        expect(onHold).toHaveBeenCalledWith(2);
+      });
+
+      it('does not start a highlight when the pointer drifts (a scroll)', () => {
+        const { container, onHold } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        fireEvent.pointerMove(word, { clientX: 5, clientY: 60 });
+        vi.advanceTimersByTime(1000);
+        expect(onHold).not.toHaveBeenCalled();
+      });
+
+      it('swallows the click that ends a hold so the verse is not deselected', () => {
+        const { container } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        vi.advanceTimersByTime(HIGHLIGHT_HOLD_MS + 10);
+        fireEvent.pointerUp(word);
+        fireEvent.click(word);
+        expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+      });
+
+      it('lets an ordinary tap select the verse as usual while no highlight exists', () => {
+        const { container, onTap } = setup(null);
+        fireEvent.click(words(container)[2]);
+        expect(defaultProps.onVerseClick).toHaveBeenCalledTimes(1);
+        expect(onTap).not.toHaveBeenCalled();
+      });
+
+      it('routes a tap to the highlight once one exists, and shows the lit words', () => {
+        const { container, onTap } = setup({ verseId: 43003016, start: 1, end: 2 });
+        const lit = container.querySelectorAll('.verse__pword--draft');
+        expect(lit.length).toBe(2);
+        fireEvent.click(words(container)[4]);
+        expect(onTap).toHaveBeenCalledWith(4);
+        expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+      });
     });
   });
 });

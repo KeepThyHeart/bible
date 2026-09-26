@@ -9,19 +9,22 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
  * running order, handoff) that would otherwise crowd a dialog about reading
  * and searching Scripture.
  *
- * Word/phrase highlighting has no tab here yet: the sending-to-screen
- * interaction for it is still a design choice pending the human's answer (see
- * the task thread), and documenting a gesture that does not exist yet would
- * only confuse. Add a tab for it once a direction is implemented.
+ * The Highlights tab documents the press-and-hold / tap-the-ends gesture of
+ * `PresentHighlightBar` and `VerseRenderer`'s `PresenterWords`.
  *
  * Reuses `.help-dialog` and `.settings-panel-overlay` from the app's own help
  * dialog rather than a bespoke box, so this reads as the same kind of thing
  * to a presenter who has already opened the other one.
  */
 
-type HelpTab = 'sending' | 'hymnsQuotes' | 'joining';
+type HelpTab = 'sending' | 'hymnsQuotes' | 'highlights' | 'joining';
 
-const TABS: HelpTab[] = ['sending', 'hymnsQuotes', 'joining'];
+const TABS: Array<{ id: HelpTab; labelKey: string }> = [
+  { id: 'sending', labelKey: 'present.tabSending' },
+  { id: 'hymnsQuotes', labelKey: 'present.tabHymnsQuotes' },
+  { id: 'highlights', labelKey: 'present.tabHighlights' },
+  { id: 'joining', labelKey: 'present.tabJoining' },
+];
 
 export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
   const { t } = useTranslation('help');
@@ -44,14 +47,14 @@ export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
         </div>
 
         <div class="help-dialog__tabs">
-          {TABS.map(id => (
+          {TABS.map(({ id, labelKey }) => (
             <button
               key={id}
               type="button"
               class={`help-dialog__tab ${tab === id ? 'help-dialog__tab--active' : ''}`}
               onClick={() => setTab(id)}
             >
-              {t(`present.tab${id === 'sending' ? 'Sending' : id === 'hymnsQuotes' ? 'HymnsQuotes' : 'Joining'}`)}
+              {t(labelKey)}
             </button>
           ))}
         </div>
@@ -75,6 +78,17 @@ export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
                 <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.search') }} />
                 <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.quote') }} />
                 <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.plan') }} />
+              </ul>
+            </section>
+          )}
+          {tab === 'highlights' && (
+            <section class="help-dialog__section">
+              <h4>{t('present.highlights.title')}</h4>
+              <ul>
+                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.start') }} />
+                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.extend') }} />
+                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.send') }} />
+                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.clear') }} />
               </ul>
             </section>
           )}

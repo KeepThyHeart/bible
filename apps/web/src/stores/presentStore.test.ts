@@ -458,3 +458,96 @@ describe('a controller whose stream is refused', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Clicker keys
+// ---------------------------------------------------------------------------
+
+describe('clicker keys', () => {
+  it('are accepted unless the presenter has opted out', () => {
+    presentStore.setAcceptClickerKeys(true);
+    expect(localStorage.getItem('present-accept-clicker-keys')).toBeNull();
+    presentStore.setAcceptClickerKeys(false);
+    expect(localStorage.getItem('present-accept-clicker-keys')).toBe('0');
+    expect(presentStore.acceptClickerKeys).toBe(false);
+    presentStore.setAcceptClickerKeys(true);
+    expect(presentStore.acceptClickerKeys).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The word highlight
+// ---------------------------------------------------------------------------
+
+describe('the word highlight', () => {
+  const JOHN = { kind: 'passage' as const, module: 'KJV', book: 43, chapter: 3 };
+  const V = 43003016;
+
+  function bodies(): Array<{ type: string; index?: number; highlight?: unknown }> {
+    return fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).intent);
+  }
+
+  beforeEach(() => {
+    localStorage.setItem('present-controller-session', JSON.stringify(SESSION));
+    fetchMock.mockResolvedValue(respond(200, { plan: [] }));
+    presentStore.restore(null);
+    FakeEventSource.instances[0].emit('state', stateAt(2));
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(() => Promise.resolve(respond(200, { state: stateAt(9) })));
+  });
+
+  it('holds one draft at a time, and a new hold replaces it', () => {
+    presentStore.beginHighlight(V, 2);
+    presentStore.tapHighlightWord(V, 5);
+    expect(presentStore.highlightDraft).toEqual({ verseId: V, start: 2, end: 5 });
+    presentStore.beginHighlight(V, 8);
+    expect(presentStore.highlightDraft).toEqual({ verseId: V, start: 8, end: 8 });
+  });
+
+  it('sends just the highlight when the wall is already on that verse', async () => {
+    presentStore.beginHighlight(V, 1);
+    presentStore.tapHighlightWord(V, 3);
+    await presentStore.sendHighlight(JOHN, 16);
+    expect(bodies()).toEqual([
+      { type: 'setHighlight', highlight: { verseIdStart: V, textStart: 1, textEnd: 3 } },
+    ]);
+  });
+
+  it('shows the verse first when the wall is on another', async () => {
+    presentStore.beginHighlight(43003017, 0);
+    await presentStore.sendHighlight(JOHN, 17);
+    expect(bodies().map(b => b.type)).toEqual(['show', 'setHighlight']);
+    expect(bodies()[0].index).toBe(17);
+  });
+
+  it('sends nothing without a draft', async () => {
+    expect(await presentStore.sendHighlight(JOHN, 16)).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clears the screen too when the draft that is up is cleared', async () => {
+    presentStore.beginHighlight(V, 1);
+    await presentStore.sendHighlight(JOHN, 16);
+    FakeEventSource.instances[0].emit('state', {
+      ...stateAt(10),
+      position: { index: 16, highlight: { verseIdStart: V, textStart: 1, textEnd: 1 } },
+    });
+    fetchMock.mockClear();
+    presentStore.clearHighlight();
+    expect(presentStore.highlightDraft).toBeNull();
+    expect(bodies()).toEqual([{ type: 'clearHighlight' }]);
+  });
+
+  it('clears only locally when the draft never reached the screen', () => {
+    presentStore.beginHighlight(V, 1);
+    presentStore.clearHighlight();
+    expect(presentStore.highlightDraft).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('is dropped when the session is left', () => {
+    presentStore.beginHighlight(V, 1);
+    presentStore.leave();
+    expect(presentStore.highlightDraft).toBeNull();
+  });
+});
