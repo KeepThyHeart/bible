@@ -123,3 +123,25 @@ describe('BibleExtUI.getLocale', () => {
     await expect(pending).resolves.toEqual({ locale: 'ar', direction: 'rtl' });
   });
 });
+
+describe('BibleExtUI.useHostStyles / loadKit', () => {
+  it('useHostStyles re-links the theme sheet when the host sends theme.changed', () => {
+    document.head.innerHTML = '';
+    const bible = BibleExtUI.init();
+    const h = bible.useHostStyles({ kthCss: false });
+    simulateEvent('theme.changed', { mode: 'midnight' });
+    const hrefs = Array.from(document.querySelectorAll('link')).map((l) => l.getAttribute('href'));
+    expect(hrefs).toEqual(['ext-ui://host/theme.css', 'ext-ui://host/theme.css?theme=midnight']);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('midnight');
+    h.dispose();
+    document.head.innerHTML = '';
+  });
+
+  it('loadKit adds the host kit script', () => {
+    const bible = BibleExtUI.init();
+    const handle = bible.loadKit();
+    expect(document.querySelector('script[src="ext-ui://host/kit/1/kth-kit.js"]')).not.toBeNull();
+    handle.dispose();
+    document.head.innerHTML = '';
+  });
+});

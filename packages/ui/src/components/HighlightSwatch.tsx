@@ -63,7 +63,14 @@ export function HighlightSwatch({
 
   // Selection follows `value`, and also moves on its own when the parent does not feed the change back.
   const [selected, setSelected] = useState<HighlightColor | undefined>(() => markupColorName(value));
-  useEffect(() => setSelected(markupColorName(value)), [value]);
+  // Re-sync only when `value` itself changes: an unguarded effect also runs after mount and
+  // would overwrite a click made before it ran (preact defers effects until after paint).
+  const lastValue = useRef(value);
+  useEffect(() => {
+    if (lastValue.current === value) return;
+    lastValue.current = value;
+    setSelected(markupColorName(value));
+  }, [value]);
 
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const checkedIndex = selected === undefined ? -1 : colors.indexOf(selected);

@@ -227,12 +227,15 @@ the desktop side is in [Backup & Restore](backup-restore.md).
 
 ## Panel styling
 
-A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin, which shares nothing with the app's renderer by default - no stylesheet, no `<html data-theme>` attribute, no CSS custom properties. Two read-only stylesheets are served at the reserved `ext-ui://host` origin (already permitted by the panel CSP's `style-src`) so a panel author does not have to reinvent the app's visual language from guesswork:
+A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin, which shares nothing with the app's renderer by default - no stylesheet, no `<html data-theme>` attribute, no CSS custom properties. Read-only stylesheets are served at the reserved `ext-ui://host` origin (already permitted by the panel CSP's `style-src`) so a panel author does not have to reinvent the app's visual language from guesswork:
 
-- **`ext-ui://host/theme.css`** (`electron/extensions/hostThemeCss.ts`) - the app's ~143 `--theme-*` design tokens (`src/ui/styles/themes.css`), flattened to a single `:root` block for whichever theme the user currently has active. Link it before your own stylesheet and use the custom properties (`--theme-text-primary`, `--theme-bg-primary`, `--theme-accent`, `--theme-border-*`, ...) instead of hard-coded colors, and your panel follows the app's theme automatically, including a live theme switch. `create-bible-extension`'s scaffold links this and uses the tokens by default - see the generated `ui/index.html` / `ui/styles.css`.
-- **`ext-ui://host/controls.css`** (`electron/extensions/hostControlsCss.ts`) - ready-made classes for the host's own toolbar/button chrome (`.control-toolbar`, `.control-toolbar-button`, `.control-nav-button`), built from the same tokens, for a panel that wants a toolbar matching the app's own `PaneToolbar.tsx` look rather than styling one from scratch.
+- **`ext-ui://host/theme.css`** (`electron/extensions/hostThemeCss.ts`) - the app's ~143 `--theme-*` design tokens (`src/ui/styles/themes.css`), flattened to a single `:root` block for whichever theme the user has active *when the sheet is fetched*. Link it before your own stylesheet and use the custom properties instead of hard-coded colors. `theme.css?theme=<id>` serves a specific theme (see below).
+- **`ext-ui://host/kit/1/kth.css`** - the stable `--kth-*` tokens, a small base reset and the `.kth-*` classes, built on `theme.css`. Link it after `theme.css`.
+- **`ext-ui://host/controls.css`** (`electron/extensions/hostControlsCss.ts`) - ready-made classes for the host's own toolbar/button chrome (`.control-toolbar`, `.control-toolbar-button`, `.control-nav-button`).
 
-Both are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named control classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
+**Following theme changes.** A linked stylesheet is fetched once, so linking alone does **not** follow a theme switch made while the panel is open. Call `bible.useHostStyles()` (`@bible/extension-ui`, `packages/extension-ui/src/hostStyles.ts`) once at startup. It adopts (or adds) the `theme.css` and `kth.css` links, sets `<html data-theme>`, and on the host's `theme.changed` event inserts a new `<link href="ext-ui://host/theme.css?theme=<id>">` after the old one and removes the old one only when the new one has loaded (or errored, or 3 s have passed), so there is no unstyled flash. The id is validated (`/^[a-z0-9-]{1,40}$/`) before it goes into a URL, and rapid switches supersede each other. `useHostStyles({ kthCss: false })` skips `kth.css`. `create-bible-extension`'s scaffold links both sheets statically (no first-paint flash) and calls `useHostStyles()`.
+
+These are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
 
 ### UI kit manifest field (`uiKit`)
 
@@ -247,7 +250,36 @@ The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picke
 
 Both carry the panel CSP, `nosniff` and `no-store`, like the other host resources. The `kit/1/` segment is the kit major; within a major, attributes and events are additive only, and a breaking change is `kit/2/` with `1` kept for at least one host minor. `theme.css` also accepts `?theme=<id>` for any id in `HOST_THEME_IDS` (else the active theme), so a panel that heard `theme.changed` can re-link to the new palette without racing the main process's own theme state (`getHostThemeCssFor` in `hostThemeCss.ts`; it never changes the active theme).
 
-**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `npm run dev`, `npm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `npm run build:kit -w @bible/ui` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script/link tags for authors (`@bible/extension-ui`) is a separate step.
+**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `npm run dev`, `npm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `npm run build:kit -w @bible/ui` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script tag for authors is `loadKit` in `@bible/extension-ui` (next section).
+
+**Loading the kit from a panel (`loadKit`).** `bible.loadKit({ components })` (`@bible/extension-ui`, `packages/extension-ui/src/kit.ts`) adds a classic `<script src="ext-ui://host/kit/1/kth-kit.js">` (unless one is already in the page), waits for the `KthKit` global, checks its major version, and calls `KthKit.init({ rpc, components })`, which defines the listed elements and reads `ui.getLocale` once. It returns `{ version, ready, dispose() }`: `ready` resolves with `KthKit`, and rejects on a load error, a 10 s timeout (`timeoutMs`), an incompatible major, or an `init` failure. The kit is host-served only; `@bible/extension-ui` never bundles it. Copy-paste example (declare the kit and the permission it needs, then use an element):
+
+```json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+```
+
+```html
+<link rel="stylesheet" href="ext-ui://host/theme.css">
+<link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+<script src="panel.js"></script>
+```
+
+```typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+```
+
+The component list passed to `loadKit` should match `uiKit.components`. The scaffold (`create-bible-extension`) does not declare `uiKit` (it would add an extra permission consent line); its README shows this opt-in. Render `kth-*` elements childless. For tests, `@bible/extension-testing` provides `createMockPanelHost()` and `loadUiKit()`.
 
 **Security review checklist for changes to the kit or its serving** (adapted to what is implemented):
 

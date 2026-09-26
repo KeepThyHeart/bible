@@ -24,7 +24,7 @@ import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { build } from 'esbuild';
 
-import type { Extensions } from '@bible/core';
+import { Extensions } from '@bible/core';
 import { QuickJSRealm } from '../host/QuickJSRealm';
 import { buildGuestBundle } from './guestBundle';
 
@@ -227,6 +227,38 @@ describe('create-bible-extension output loads in the realm', () => {
       expect(d.runtimeErrors()).toEqual([]);
     } finally {
       d.dispose();
+    }
+  });
+
+  it('emits a manifest the host validator accepts', () => {
+    const manifest = JSON.parse(readFileSync(join(projectDir, 'extension.json'), 'utf8')) as Record<string, unknown>;
+    const result = Extensions.validateManifest(manifest);
+    expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);
+    // `uiKit` needs `ui:contribute-pane` (not default-granted), so the template
+    // keeps it out and documents the opt-in in its README. If a future template
+    // declares it, it must also request that permission.
+    if ('uiKit' in manifest) {
+      expect(manifest.permissions).toContain('ui:contribute-pane');
+    }
+  });
+
+  it('styles the panel from the host and follows live theme changes', () => {
+    const html = readFileSync(join(projectDir, 'ui/index.html'), 'utf8');
+    const panel = readFileSync(join(projectDir, 'src/panel.ts'), 'utf8');
+    expect(html).toContain('href="ext-ui://host/theme.css"');
+    expect(html).toContain('href="ext-ui://host/kit/1/kth.css"');
+    expect(panel).toContain('bible.useHostStyles()');
+  });
+
+  it('keeps panel scripts external and every URL relative or on the host origin', () => {
+    const html = readFileSync(join(projectDir, 'ui/index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+      expect(m[1].trim(), 'inline <script> body').toBe('');
+    }
+    const urls = [...html.matchAll(/\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      expect(url.startsWith('ext-ui://host/') || !/^[a-z][a-z0-9+.-]*:/i.test(url), url).toBe(true);
     }
   });
 

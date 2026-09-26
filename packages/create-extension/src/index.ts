@@ -191,21 +191,27 @@ function uiHtmlTemplate(name: string): string {
   <!--
     The host serves its own design tokens (colors, spacing) as CSS custom
     properties at this reserved URL - link it before your own stylesheet so
-    your panel matches the app's current theme (including a live theme
-    switch) instead of guessing colors. ext-ui://host/controls.css is also
-    available, with ready-made classes (.control-toolbar,
-    .control-toolbar-button, .control-nav-button) for panels that want the
-    host's own toolbar/button chrome. Both are documented in
-    apps/desktop/docs/features/extensions.md under "Panel styling".
+    your panel matches the app's current theme instead of guessing colors.
+    kit/1/kth.css builds on it: the stable --kth-* tokens, a small base reset
+    and the .kth-* classes (.kth-btn, .kth-input, ...). Link both statically
+    (no flash of unstyled content on first paint); src/panel.ts calls
+    bible.useHostStyles(), which adopts these links and re-links theme.css
+    when the user switches theme while the panel is open.
+    ext-ui://host/controls.css is also available, with ready-made classes
+    (.control-toolbar, .control-toolbar-button, .control-nav-button) for
+    panels that want the host's own toolbar/button chrome. All of these are
+    documented in apps/desktop/docs/features/extensions.md under "Panel
+    styling".
   -->
   <link rel="stylesheet" href="ext-ui://host/theme.css">
+  <link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <h1>Hello from ${name}!</h1>
     <p id="output">Loading…</p>
-    <button id="refresh" type="button">Refresh</button>
+    <button id="refresh" type="button" class="kth-btn kth-btn--primary">Refresh</button>
   </div>
 
   <!--
@@ -237,6 +243,12 @@ function panelTemplate(name: string): string {
 // sandboxed origin, and giving it a slice of the API would put permission
 // decisions in the renderer, which is the least appropriate place for them.
 const bible = BibleExtUI.init();
+
+// Keep the panel in step with the host theme: links the host stylesheets
+// (index.html already does, and this adopts those links), sets
+// <html data-theme>, and swaps theme.css when the user changes theme while the
+// panel is open. Call it once, early.
+bible.useHostStyles();
 
 const output = document.getElementById('output');
 
@@ -277,27 +289,26 @@ function uiStylesTemplate(): string {
   return `/*
  * Extension panel styles.
  *
- * index.html links ext-ui://host/theme.css before this file, which defines
- * the app's design tokens as CSS custom properties (--theme-text-primary,
- * --theme-bg-primary, --theme-accent, ...) for the user's *current* theme -
- * see apps/desktop/docs/features/extensions.md's "Panel styling" section for
- * the full list. Using them (rather than hard-coded colors) means your panel
- * follows the app's theme automatically, including a live theme switch.
+ * index.html links ext-ui://host/theme.css and ext-ui://host/kit/1/kth.css
+ * before this file. kth.css already resets the box model and styles the body,
+ * headings, links and buttons, so this file only adds your own layout.
+ *
+ * Use the stable --kth-* tokens rather than hard-coded colors and your panel
+ * follows the app's theme, including a live theme switch:
+ *
+ *   colors   --kth-bg --kth-surface --kth-text --kth-text-heading
+ *            --kth-text-muted --kth-border --kth-accent --kth-danger ...
+ *   spacing  --kth-space-1 .. --kth-space-4
+ *   shape    --kth-radius --kth-shadow
+ *   type     --kth-font-ui --kth-font-size-ui
+ *
+ * Prefer logical properties (margin-inline-start, padding-block) so the panel
+ * also works in right-to-left locales. The full list is in
+ * apps/desktop/docs/features/extensions.md under "Panel styling".
  */
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--theme-text-primary, #333);
-  background: var(--theme-bg-primary, #fff);
-  padding: 16px;
+  padding: var(--kth-space-4);
 }
 
 #app {
@@ -307,12 +318,10 @@ body {
 h1 {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--theme-text-heading, #000);
 }
 
-p {
-  color: var(--theme-text-secondary, #666);
+#output {
+  color: var(--kth-text-muted);
 }
 `;
 }
@@ -828,6 +837,51 @@ Your \`activate(api)\` function receives a \`BibleExtensionAPI\` object with
 | tasks       | Background tasks with progress       |
 | extensions  | Inter-extension calls                |
 | ai          | AI provider (reserved, v1 stub)      |
+
+## Panel UI and the UI kit
+
+\`ui/index.html\` links the host's theme (\`ext-ui://host/theme.css\`) and the
+KTH stylesheet (\`ext-ui://host/kit/1/kth.css\`: \`--kth-*\` tokens, a small
+reset and \`.kth-*\` classes such as \`.kth-btn\`). \`src/panel.ts\` calls
+\`bible.useHostStyles()\`, so the panel also follows a theme switch made while
+it is open.
+
+The host also serves a small kit of ready-made custom elements
+(\`<kth-reference-picker>\`, \`<kth-book-chapter-picker>\`,
+\`<kth-highlight-swatch>\`). It is opt-in and this template does not use it.
+To use it, declare it in \`extension.json\` (the kit needs the
+\`ui:contribute-pane\` permission, which is not granted by default, so users
+will see an extra permission line):
+
+\`\`\`json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+\`\`\`
+
+Then add the element to \`ui/index.html\` and load the kit from \`src/panel.ts\`
+(use the same component list as the manifest):
+
+\`\`\`html
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+\`\`\`
+
+\`\`\`typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+\`\`\`
+
+Render \`kth-*\` elements childless: the kit owns their contents. There is no
+kit \`<script>\` tag to add; \`loadKit()\` adds it.
 
 ## Testing
 

@@ -42,6 +42,11 @@ bible.navigateToVerse(43003016);       // John 3:16
 
 - `getLocale()` -- resolves to `{ locale, direction }` for the host's current UI locale (`direction` is `'ltr'` or `'rtl'`); read-only, no permission needed
 
+**Styling and the UI kit**
+
+- `useHostStyles(opts?)` -- links the host's `theme.css` and `kit/1/kth.css` (`{ kthCss: false }` skips the second), sets `<html data-theme>`, and follows live theme switches: on `theme.changed` it re-links `theme.css?theme=<id>` and keeps the old sheet until the new one loads, so there is no flash. A static `<link>` to the host stylesheets in your HTML is adopted rather than duplicated. Returns `{ dispose() }`.
+- `loadKit({ components?, timeoutMs? })` -- loads the host-served `kth-*` custom elements (see below) and initialises them with the host locale. Returns `{ version, ready, dispose() }`; `ready` resolves once the elements are defined and rejects if the script fails to load, times out, or is an incompatible version.
+
 **Linkifying**
 
 - `linkVerses(root, opts?)` -- scans a DOM subtree for verse references and makes them navigable, so an extension does not have to write its own reference matcher
@@ -55,6 +60,38 @@ bible.navigateToVerse(43003016);       // John 3:16
 - `parseReference(ref)`, `scanText(text)`, `calculateVerseId(book, chapter, verse)`, `getBookNumber(name)`, `getBookName(number)`
 
 `RpcClient` is exported too, for extensions that want to talk to the host directly rather than through `BibleExtUI`.
+
+## UI kit
+
+The host serves ready-made custom elements, so a panel does not have to build a reference picker. The kit is **not bundled into this package**: `loadKit` only adds `<script src="ext-ui://host/kit/1/kth-kit.js">` at runtime. Declare the kit in `extension.json` (it requires the `ui:contribute-pane` permission) and list the components you use:
+
+```json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+```
+
+```html
+<link rel="stylesheet" href="ext-ui://host/theme.css">
+<link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+```
+
+```typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+```
+
+Components: `kth-reference-picker` (`kth-change`, detail `KthReferenceChangeDetail`), `kth-book-chapter-picker` (`kth-pick`, `KthPickDetail`), `kth-highlight-swatch` (`kth-change`, `KthSwatchChangeDetail`). Events bubble. Render `kth-*` elements childless (the kit owns their contents), and set object properties such as `labels` from script. For panel tests, `@bible/extension-testing` has `createMockPanelHost()` and `loadUiKit()`.
 
 ## Verse ids
 
