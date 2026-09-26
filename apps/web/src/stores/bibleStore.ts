@@ -67,6 +67,14 @@ export interface BibleTab {
    */
   versesModule?: string;
   /**
+   * True when the tab's book/chapter was last changed by the audio follow-along
+   * turning the page (`navigateTo({ follow: true })`), not by the reader. The
+   * Study-sync effect in `useAppShared` reads it so that a page turn never emits
+   * `bible:verse-selected` (which would move the Study pane and add a Study
+   * history entry): those follow the reader's selection only.
+   */
+  followNav?: boolean;
+  /**
    * Monotonic counter identifying the newest load started for this tab.
    *
    * Every chapter fetch takes a copy before awaiting and re-checks it after,
@@ -392,6 +400,7 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = book;
     tab.chapter = chapter;
+    tab.followNav = follow;
     const seq = this.beginLoad(tab);
     const cancelLoadingFn = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
@@ -556,6 +565,7 @@ class BibleStore extends Store {
     tab.loadError = undefined;
     tab.book = book;
     tab.chapter = chapter;
+    tab.followNav = false;
     tab.previewVerse = verseId;
     tab.previewVerseEnd = endVerseId ?? null;
     const seq = this.beginLoad(tab);
@@ -1048,6 +1058,7 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = entry.book;
     tab.chapter = entry.chapter;
+    tab.followNav = false;
     const seq = this.beginLoad(tab);
     const cancelLoading = this.deferLoading(tab, seq);
     this.notify();

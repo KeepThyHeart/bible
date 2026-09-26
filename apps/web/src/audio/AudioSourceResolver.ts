@@ -75,6 +75,8 @@ export class AudioSourceResolver implements IAudioSourceResolver {
       const entry = this.usableCache.get(this.key(p, moduleAbbr, language));
       if (!entry || !entry.settled) { unknown = true; continue; }
       if (entry.result === true) return true;
+      // An expired "no" is no longer an answer: the caller should ask again.
+      if (this.now() - entry.at >= NEGATIVE_TTL_MS) unknown = true;
     }
     return unknown ? undefined : false;
   }

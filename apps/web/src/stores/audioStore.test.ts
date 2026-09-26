@@ -420,6 +420,7 @@ describe('errors and alternatives', () => {
     await flush();
     expect(audioStore.notice).toMatchObject({ key: 'audio.error.network', tone: 'error' });
     expect(audioStore.notice?.actions).toContain('retry');
+    expect(audioStore.notice?.actions).toContain('useOnDevice'); // an on-device provider exists for this language
     audioStore.retry();
     await flush();
     expect(audioStore.status).toBe('playing');
@@ -508,5 +509,68 @@ describe('notifications', () => {
     expect(position).toHaveBeenCalled();
     rig.out.tick(12);
     expect(follow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('review fixes', () => {
+  beforeEach(async () => {
+    await openTab(43, 1);
+    rig = build({ recordings: true });
+    rig.tts.needsDownload = false;
+    await flush();
+    await playNow();
+  });
+
+  it('a translation change while paused waits for Resume, then plays the new translation', async () => {
+    audioStore.pause();
+    const opens = rig.recorded.openCalls.length;
+    await bibleStore.setTabTranslation(bibleStore.getActiveTab()!.id, 'WEB');
+    await flush();
+    expect(audioStore.status).toBe('paused');
+    expect(rig.recorded.openCalls.length).toBe(opens);
+    audioStore.resume();
+    await flush(); await flush();
+    expect(audioStore.status).toBe('playing');
+    expect(rig.recorded.openCalls.at(-1)!.ref).toMatchObject({ moduleAbbr: 'WEB' });
+  });
+
+  it('a translation change starts one restart, and a Stop right after is not overridden', async () => {
+    const opens = rig.recorded.openCalls.length;
+    const change = bibleStore.setTabTranslation(bibleStore.getActiveTab()!.id, 'WEB');
+    audioStore.stop();
+    await change;
+    await flush(); await flush();
+    expect(audioStore.status).toBe('idle');
+    expect(rig.recorded.openCalls.length).toBe(opens);
+  });
+
+  it('the old playback is paused while a new source waits behind a gate', async () => {
+    rig.tts.needsDownload = true;
+    rig.tts.ready = false;
+    audioStore.setPrefs({ source: 'tts:fake' });
+    await flush(); await flush();
+    expect(audioStore.pendingGate?.kind).toBe('download');
+    expect(rig.out.pauseCalls).toBeGreaterThan(0);
+    audioStore.cancelGate();
+  });
+
+  it('a check that failed is asked again later instead of leaving Play unknown for the session', async () => {
+    audioStore.reset();
+    rig = build({ engine: false });
+    let calls = 0;
+    vi.spyOn(rig.recorded, 'supports').mockImplementation(async () => { calls++; if (calls === 1) throw new Error('offline'); return true; });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      expect(audioStore.availability('KJV')).toBe('unknown');
+      await flush();
+      expect(audioStore.availability('KJV')).toBe('unknown'); // failed; throttled
+      expect(calls).toBe(1);
+      vi.setSystemTime(Date.now() + 31_000);
+      audioStore.availability('KJV');
+      await flush();
+      expect(audioStore.availability('KJV')).toBe('ok');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

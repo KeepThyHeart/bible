@@ -33,24 +33,36 @@ const NAV_KEYS = new Set(['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'Arrow
 export function useFollowScroll({ getScrollElement, getContainer, activeTabId, now = Date.now }: FollowScrollOptions): void {
   const lastUserScrollAt = useRef(-Infinity);
 
-  // The reader's own scrolling.
+  // The reader's own scrolling. Listened for on the document, and checked when
+  // the event happens: the pane's scroll element does not exist while the Home
+  // screen shows and is replaced when it comes back, and keyboard scrolling
+  // reaches the document (focus is usually on the body), not the scroller.
   useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    const mark = () => { lastUserScrollAt.current = now(); };
-    const onPointerDown = (e: Event) => { if (e.target === el) mark(); }; // a scrollbar drag lands on the scroller itself
-    const onKey = (e: KeyboardEvent) => { if (NAV_KEYS.has(e.key)) mark(); };
-    el.addEventListener('wheel', mark, { passive: true });
-    el.addEventListener('touchmove', mark, { passive: true });
-    el.addEventListener('pointerdown', onPointerDown);
-    el.addEventListener('keydown', onKey as EventListener);
-    return () => {
-      el.removeEventListener('wheel', mark);
-      el.removeEventListener('touchmove', mark);
-      el.removeEventListener('pointerdown', onPointerDown);
-      el.removeEventListener('keydown', onKey as EventListener);
+    const inScroller = (target: EventTarget | null): boolean => {
+      const el = getScrollElement();
+      return !!el && target instanceof Node && (target === el || el.contains(target));
     };
-  }, [activeTabId]);
+    const mark = () => { lastUserScrollAt.current = now(); };
+    const onPointer = (e: Event) => { if (e.target === getScrollElement()) mark(); }; // a scrollbar drag lands on the scroller itself
+    const onPointerLike = (e: Event) => { if (inScroller(e.target)) mark(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (!NAV_KEYS.has(e.key)) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; // typing, not scrolling
+      mark();
+    };
+    const opts = { capture: true, passive: true } as AddEventListenerOptions;
+    document.addEventListener('wheel', onPointerLike, opts);
+    document.addEventListener('touchmove', onPointerLike, opts);
+    document.addEventListener('pointerdown', onPointer, opts);
+    document.addEventListener('keydown', onKey as EventListener, opts);
+    return () => {
+      document.removeEventListener('wheel', onPointerLike, opts);
+      document.removeEventListener('touchmove', onPointerLike, opts);
+      document.removeEventListener('pointerdown', onPointer, opts);
+      document.removeEventListener('keydown', onKey as EventListener, opts);
+    };
+  }, []);
 
   // Follow the verse being read.
   useEffect(() => {

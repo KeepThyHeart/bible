@@ -103,6 +103,9 @@ export class FollowStore extends Store {
 
 interface FollowTarget { tabId: string; module: string; book: number; chapter: number }
 
+/** A check that failed, or a "no" that has expired, is asked again no sooner than this. */
+const AVAILABILITY_RETRY_MS = 30_000;
+
 const verseIdOf = (book: number, chapter: number, verse: number): number => book * 1_000_000 + chapter * 1_000 + verse;
 
 class AudioStore extends Store {
@@ -134,7 +137,8 @@ class AudioStore extends Store {
   private preparing = false;
   private staleSource = false;
   private readonly sessionOverride = new Map<string, AudioSourceChoice>();
-  private availabilityRequested = new Set<string>();
+  /** When each translation's availability was last asked, to throttle re-asks after a failure or an expired "no". */
+  private availabilityAskedAt = new Map<string, number>();
   private offBible: (() => void) | null = null;
   private offPlayer: Array<() => void> = [];
   private offModules: (() => void) | null = null;
@@ -161,7 +165,7 @@ class AudioStore extends Store {
     this.offBible = bibleStore.subscribe(() => this.onBibleChanged());
     this.offModules = moduleStore.subscribe(() => {
       // The module list arriving (or changing) may change what can play.
-      this.availabilityRequested.clear();
+      this.availabilityAskedAt.clear();
       this.notify();
     });
     this.notify();
@@ -178,7 +182,7 @@ class AudioStore extends Store {
     this.system = null;
     this.resetPlayback();
     this.enabled = false;
-    this.availabilityRequested.clear();
+    this.availabilityAskedAt.clear();
     this.sessionOverride.clear();
   }
 
@@ -208,8 +212,9 @@ class AudioStore extends Store {
     const cached = system.resolver.cachedAvailability(moduleAbbr, language);
     if (cached === true) return 'ok';
     const key = `${moduleAbbr}|${language}`;
-    if (cached === undefined && !this.availabilityRequested.has(key)) {
-      this.availabilityRequested.add(key);
+    const askedAt = this.availabilityAskedAt.get(key);
+    if (cached === undefined && (askedAt === undefined || Date.now() - askedAt >= AVAILABILITY_RETRY_MS)) {
+      this.availabilityAskedAt.set(key, Date.now());
       void system.resolver.resolve(moduleAbbr, language, this.prefs, this.sessionOverride.get(moduleAbbr))
         .catch(() => null)
         .then(() => this.notify());
@@ -262,6 +267,10 @@ class AudioStore extends Store {
     this.cancelGate(false);
     this.staleSource = false;
     this.preparing = true;
+    // The old playback must not go on sounding (or moving on to a next chapter the
+    // page will not follow) while this one resolves or waits behind a gate. Callers
+    // have already captured where to resume from.
+    if (system.player.state.status !== 'idle') system.player.pause();
     this.playingTabId = tab.id;
     this.playingModule = from.moduleAbbr;
     this.followTarget = { tabId: tab.id, module: from.moduleAbbr, book: from.book, chapter: from.chapter };
@@ -291,7 +300,14 @@ class AudioStore extends Store {
     this.voiceId = resolution.voiceId ?? null;
     if (resolution.notice) this.notice = { key: resolution.notice, tone: 'info', actions: [] };
 
-    const caps = resolution.provider.capabilities(from.moduleAbbr);
+    let caps: AudioCapabilities;
+    try {
+      caps = resolution.provider.capabilities(from.moduleAbbr);
+    } catch {
+      this.abandon(seq);
+      return;
+    }
+    void this.onDeviceOptionExists(from.moduleAbbr).then(v => { if (seq === this.playSeq) this.onDeviceAvailable = v; });
     const voice = await this.voiceInfo(resolution, from.moduleAbbr, language);
     if (seq !== this.playSeq) return;
 
@@ -391,7 +407,8 @@ class AudioStore extends Store {
     if (this.staleSource && this.playingTabId) {
       const tab = bibleStore.tabs.find(t => t.id === this.playingTabId);
       const current = this.system?.player.state.current;
-      if (tab && current) { void this.startPlayback(tab, current); return; }
+      // `current` may still name the translation played before a change made while paused.
+      if (tab && current) { void this.startPlayback(tab, { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr }); return; }
     }
     this.system?.player.resume();
   }
@@ -427,7 +444,9 @@ class AudioStore extends Store {
     const tab = this.playingTabId ? bibleStore.tabs.find(t => t.id === this.playingTabId) : undefined;
     const current = system?.player.state.current ?? null;
     if (!system || !tab || !current) return;
+    const seq = this.playSeq;
     const options = await system.resolver.options(current.moduleAbbr, this.languageOf(current.moduleAbbr));
+    if (seq !== this.playSeq) return; // stopped or replaced while we looked
     const onDevice = options.find(o => o.provider.capabilities(current.moduleAbbr).onDevice);
     if (!onDevice) return;
     this.sessionOverride.set(current.moduleAbbr, onDevice.provider.id as AudioSourceChoice);
@@ -472,7 +491,7 @@ class AudioStore extends Store {
     system.resolver.invalidate(module);
     const res = await system.resolver.resolve(module, this.languageOf(module), this.prefs, this.sessionOverride.get(module)).catch(() => null);
     if (seq !== this.playSeq || !res) return;
-    if (res.provider.id === this.providerId && (res.voiceId ?? null) === this.voiceId) return;
+    if (res.provider.id === this.providerId && (res.voiceId ?? null) === this.voiceId) { this.staleSource = false; return; }
     if (this.status === 'paused') { this.staleSource = true; return; }
     await this.startPlayback(tab, current);
   }
@@ -536,7 +555,8 @@ class AudioStore extends Store {
   /** Runs synchronously inside the player's chapterEnd emission (see AudioPlayer). */
   private onChapterEnd(next: ChapterRef | null): void {
     const t = this.followTarget;
-    if (!this.system || !t || !next) return;
+    // Not while a new playback is still resolving: the page would not follow it.
+    if (this.preparing || !this.system || !t || !next) return;
     // "Continue to the next chapter (stops at the end of the book)".
     if (this.prefs.continueAfterChapter === 'next-chapter' && next.book === t.book) {
       void this.system.player.seekChapter(1);
@@ -559,25 +579,29 @@ class AudioStore extends Store {
       return;
     }
     if (tab.moduleAbbr !== this.playingModule) {
-      void this.restartInModule(tab);
+      this.restartInModule(tab);
     }
   }
 
-  /** The translation of the playing tab changed: play on from the same verse in the new one. */
-  private async restartInModule(tab: BibleTab): Promise<void> {
-    const system = this.system;
-    const current = system?.player.state.current;
-    if (!system || !current) return;
-    const language = this.languageOf(tab.moduleAbbr);
-    const res = await system.resolver.resolve(tab.moduleAbbr, language, this.prefs, this.sessionOverride.get(tab.moduleAbbr)).catch(() => null);
-    if (!this.system || this.playingTabId !== tab.id || tab.moduleAbbr === this.playingModule && !res) return;
-    if (!res) {
-      this.stop();
-      this.notice = { key: 'audio.notice.noAudio', tone: 'info', actions: [] };
-      this.notify();
+  /**
+   * The translation of the playing tab changed: play on from the same verse in
+   * the new one. Started synchronously (no resolve first): `startPlayback` bumps
+   * the play sequence and records the new module before it awaits anything, so a
+   * second notification for the same change, a Stop, or a newer play can never be
+   * overridden by a stale continuation, and it posts the "no audio" notice itself
+   * when the new translation cannot be played. While paused nothing is started:
+   * the change waits for Resume, like a source change does.
+   */
+  private restartInModule(tab: BibleTab): void {
+    const current = this.system?.player.state.current;
+    if (!this.system || !current) return;
+    if (this.status === 'paused') {
+      this.playingModule = tab.moduleAbbr;
+      if (this.followTarget) this.followTarget = { ...this.followTarget, module: tab.moduleAbbr };
+      this.staleSource = true;
       return;
     }
-    await this.startPlayback(tab, { ...current, moduleAbbr: tab.moduleAbbr });
+    void this.startPlayback(tab, { ...current, moduleAbbr: tab.moduleAbbr });
   }
 
   // ---------------------------------------------------------------- misc
@@ -603,6 +627,7 @@ class AudioStore extends Store {
     this.error = null;
     this.resolution = null;
     this.followTarget = null;
+    this.onDeviceAvailable = false;
     this.staleSource = false;
     this.pendingGate = null;
     this.gateResolve = null;

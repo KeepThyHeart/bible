@@ -164,4 +164,38 @@ describe('useFollowScroll', () => {
     await frames();
     expect(scrollTo).not.toHaveBeenCalled();
   });
+
+  it('notices the reader scrolling even when the scroll element did not exist at mount (Home screen first), and keyboard scrolling with focus on the body', async () => {
+    const original = scroller;
+    let attached: HTMLElement | null = null; // the Home screen shows: no scroller yet
+    function LateHarness() {
+      useFollowScroll({ getScrollElement: () => attached, getContainer: () => container, activeTabId: 't1', now: () => clock });
+      return <div />;
+    }
+    render(<LateHarness />);
+    attached = original; // Home dismissed
+    verseGeometry = { top: 900, bottom: 940 };
+    original.dispatchEvent(new Event('wheel'));
+    audioStore.follow.set('t1', 43003016);
+    await frames();
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    clock += USER_SCROLL_PAUSE_MS + 1;
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    audioStore.follow.set('t1', 43003016);
+    audioStore.follow.set('t1', 43003017);
+    await frames();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('typing in a field does not count as scrolling', async () => {
+    render(<Harness tabId="t1" />);
+    verseGeometry = { top: 900, bottom: 940 };
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    audioStore.follow.set('t1', 43003016);
+    await frames();
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+  });
 });
