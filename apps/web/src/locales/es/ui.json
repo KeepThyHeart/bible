@@ -188,6 +188,7 @@
       "theme": "Tema",
       "modules": "Módulos",
       "gestures": "Gestos",
+      "audio": "Audio",
       "offline": "Sin conexión",
       "about": "Acerca de"
     },
@@ -701,5 +702,127 @@
     "submit": "Entrar",
     "incorrectPassword": "Contraseña incorrecta.",
     "tooManyAttempts": "Demasiados intentos. Inténtelo de nuevo más tarde."
+  },
+  "audio": {
+    "listen": "Escuchar",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "listenTooltip": "Leer este capítulo en voz alta",
+    "playingTab": "Reproduciendo audio",
+    "action": {
+      "retry": "Reintentar",
+      "resume": "Reanudar",
+      "useOnDevice": "Usar voz del dispositivo",
+      "dismiss": "Descartar",
+      "cancel": "Cancelar"
+    },
+    "transport": {
+      "label": "Reproductor de audio",
+      "controls": "Controles de reproducción",
+      "prevChapter": "Capítulo anterior",
+      "prevVerse": "Versículo anterior",
+      "nextVerse": "Versículo siguiente",
+      "nextChapter": "Capítulo siguiente",
+      "progress": "Posición en el capítulo",
+      "verseOf": "versículo {verse} de {count}",
+      "speed": "Velocidad de reproducción",
+      "source": "Fuente de audio, voz y velocidad",
+      "settings": "Ajustes de audio",
+      "close": "Detener y cerrar el reproductor"
+    },
+    "player": {
+      "label": "Reproductor de audio",
+      "close": "Cerrar el reproductor (el audio sigue sonando)",
+      "open": "Abrir el reproductor de audio",
+      "narrator": "Narrador"
+    },
+    "status": {
+      "gettingReady": "Preparando…",
+      "loadingChapter": "Cargando {ref}…",
+      "loadingChapterOf": "Cargando {ref}… {loaded} de {total}",
+      "downloadingVoice": "Descargando la voz, solo una vez…",
+      "downloadingVoiceOf": "Descargando la voz, solo una vez · se guarda para la próxima · {loaded} de {total}",
+      "preparing": "Preparando {ref}…",
+      "buffering": "Almacenando en búfer…"
+    },
+    "chip": {
+      "recorded": "Grabado · {module}",
+      "onDevice": "{engine} · en este dispositivo",
+      "onDeviceVoice": "{engine} · {voice} · en este dispositivo"
+    },
+    "notice": {
+      "noAudio": "Aún no hay grabación ni voz sintética disponible para esta traducción.",
+      "preferredUnavailable": "La fuente de audio que prefieres no está disponible para esta traducción, así que se usa otra.",
+      "voiceUnavailable": "La voz que elegiste ya no está disponible, así que se usa otra."
+    },
+    "error": {
+      "network": "No se pudo descargar {ref}. Comprueba tu conexión y reintenta.",
+      "not-found": "No hay grabación de {ref}.",
+      "decode": "Este navegador no pudo reproducir el audio de {ref}.",
+      "unsupported": "Este navegador no puede reproducir este audio.",
+      "engine": "La voz del dispositivo dejó de funcionar. Puedes reintentar.",
+      "autoplay": "Tu navegador bloqueó la reproducción. Pulsa Reanudar para empezar.",
+      "unknown": "No se pudo reproducir el audio."
+    },
+    "source": {
+      "auto": "Automática",
+      "recorded": "Grabada",
+      "useDefault": "Usar la predeterminada",
+      "for": "Fuente para {module}",
+      "noRecording": "No hay grabación de {module}.",
+      "browserUnsupported": "{engine} no puede ejecutarse en este navegador.",
+      "noVoice": "{engine} no tiene voz para {language}."
+    },
+    "voice": {
+      "label": "Voz"
+    },
+    "speed": {
+      "label": "Velocidad"
+    },
+    "gate": {
+      "batteryTitle": "¿Leer en voz alta en este teléfono?",
+      "batteryBody": "Aún no hay grabación de {module}, así que tu teléfono convertirá el texto en voz por sí mismo. Esto gasta más batería que reproducir una grabación.",
+      "downloadTitle": "¿Descargar la voz?",
+      "voiceSize": "Voz de {engine} “{voice}” · {size}, una sola vez",
+      "downloadHint": "Se descarga ahora y se conserva para la próxima vez. Usa Wi-Fi si puedes.",
+      "download": "Descargar y reproducir",
+      "downloadAndPlay": "Descargar y reproducir"
+    },
+    "announce": {
+      "playing": "Reproduciendo {ref}",
+      "resumed": "Reanudado en {ref}",
+      "paused": "En pausa",
+      "stopped": "Audio detenido",
+      "chapter": "{ref}"
+    },
+    "settings": {
+      "title": "Audio",
+      "more": "Más en los ajustes de audio",
+      "source": "Fuente de audio",
+      "sourceHint": "Automática reproduce una grabación si existe; si no, una voz en este dispositivo.",
+      "thisTranslation": "Esta traducción ({module})",
+      "voices": "Voces sintéticas ({language})",
+      "voicesHint": "Las voces vienen de la configuración de audio de este sitio. Una voz se descarga una vez y se conserva en este dispositivo.",
+      "quality": {
+        "low": "baja",
+        "medium": "media",
+        "high": "alta"
+      },
+      "downloaded": "descargada",
+      "download": "Descargar",
+      "downloadFailed": "La descarga no terminó. Comprueba tu conexión e inténtalo de nuevo.",
+      "useVoice": "Usar",
+      "remove": "Quitar",
+      "clear": "Borrar",
+      "speedHint": "El intervalo depende de la fuente: las grabaciones y la voz sintética pueden diferir.",
+      "whilePlaying": "Durante la reproducción",
+      "followAlong": "Resaltar el versículo que se lee",
+      "autoScroll": "Desplazarse al versículo que se lee",
+      "continue": "Continuar con el capítulo siguiente (se detiene al final del libro)",
+      "intro": "Anunciar «Libro, capítulo N» al comenzar",
+      "storage": "Almacenamiento",
+      "storageVoices": "Voces sintéticas y motor · {size}",
+      "storageChapters": "Capítulos reproducidos recientemente · {size} · {count, plural, one {# capítulo} other {# capítulos}}"
+    }
   }
 }

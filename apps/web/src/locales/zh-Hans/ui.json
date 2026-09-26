@@ -188,6 +188,7 @@
       "theme": "主题",
       "modules": "模块",
       "gestures": "手势",
+      "audio": "音频",
       "offline": "离线",
       "about": "关于"
     },
@@ -701,5 +702,127 @@
     "submit": "进入",
     "incorrectPassword": "密码错误。",
     "tooManyAttempts": "尝试次数过多，请稍后再试。"
+  },
+  "audio": {
+    "listen": "收听",
+    "play": "播放",
+    "pause": "暂停",
+    "listenTooltip": "朗读本章",
+    "playingTab": "正在播放音频",
+    "action": {
+      "retry": "重试",
+      "resume": "继续",
+      "useOnDevice": "使用设备语音",
+      "dismiss": "忽略",
+      "cancel": "取消"
+    },
+    "transport": {
+      "label": "音频播放器",
+      "controls": "播放控制",
+      "prevChapter": "上一章",
+      "prevVerse": "上一节",
+      "nextVerse": "下一节",
+      "nextChapter": "下一章",
+      "progress": "本章中的位置",
+      "verseOf": "第 {verse} 节，共 {count} 节",
+      "speed": "播放速度",
+      "source": "音频来源、声音和速度",
+      "settings": "音频设置",
+      "close": "停止并关闭播放器"
+    },
+    "player": {
+      "label": "音频播放器",
+      "close": "关闭播放器（音频继续播放）",
+      "open": "打开音频播放器",
+      "narrator": "朗读者"
+    },
+    "status": {
+      "gettingReady": "正在准备…",
+      "loadingChapter": "正在加载 {ref}…",
+      "loadingChapterOf": "正在加载 {ref}… {loaded} / {total}",
+      "downloadingVoice": "正在下载语音（仅此一次）…",
+      "downloadingVoiceOf": "正在下载语音（仅此一次）· 已保存供下次使用 · {loaded} / {total}",
+      "preparing": "正在准备 {ref}…",
+      "buffering": "正在缓冲…"
+    },
+    "chip": {
+      "recorded": "录音 · {module}",
+      "onDevice": "{engine} · 本设备",
+      "onDeviceVoice": "{engine} · {voice} · 本设备"
+    },
+    "notice": {
+      "noAudio": "此译本暂无录音或合成语音。",
+      "preferredUnavailable": "您偏好的音频来源不适用于此译本，已改用其他来源。",
+      "voiceUnavailable": "您选择的声音已不可用，已改用其他声音。"
+    },
+    "error": {
+      "network": "无法下载 {ref}。请检查网络连接后重试。",
+      "not-found": "没有 {ref} 的录音。",
+      "decode": "此浏览器无法播放 {ref} 的音频。",
+      "unsupported": "此浏览器无法播放该音频。",
+      "engine": "设备语音已停止工作，可以重试。",
+      "autoplay": "浏览器阻止了播放。请点击“继续”开始。",
+      "unknown": "无法播放音频。"
+    },
+    "source": {
+      "auto": "自动",
+      "recorded": "录音",
+      "useDefault": "使用默认",
+      "for": "{module} 的来源",
+      "noRecording": "{module} 没有录音。",
+      "browserUnsupported": "{engine} 无法在此浏览器中运行。",
+      "noVoice": "{engine} 没有适用于 {language} 的声音。"
+    },
+    "voice": {
+      "label": "声音"
+    },
+    "speed": {
+      "label": "速度"
+    },
+    "gate": {
+      "batteryTitle": "在这部手机上朗读？",
+      "batteryBody": "{module} 暂无录音，手机将自行把文字转为语音，这比播放录音更耗电。",
+      "downloadTitle": "下载语音？",
+      "voiceSize": "{engine} 语音“{voice}”· {size}，仅一次",
+      "downloadHint": "现在下载并保留供下次使用。如可以，请使用 Wi-Fi。",
+      "download": "下载并播放",
+      "downloadAndPlay": "下载并播放"
+    },
+    "announce": {
+      "playing": "正在播放 {ref}",
+      "resumed": "从 {ref} 继续",
+      "paused": "已暂停",
+      "stopped": "音频已停止",
+      "chapter": "{ref}"
+    },
+    "settings": {
+      "title": "音频",
+      "more": "更多音频设置",
+      "source": "音频来源",
+      "sourceHint": "“自动”在有录音时播放录音，否则使用本设备上的语音。",
+      "thisTranslation": "此译本（{module}）",
+      "voices": "合成语音（{language}）",
+      "voicesHint": "语音来自本站的音频配置。语音只需下载一次，并保存在本设备上。",
+      "quality": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "downloaded": "已下载",
+      "download": "下载",
+      "downloadFailed": "下载未完成。请检查网络连接后重试。",
+      "useVoice": "使用",
+      "remove": "移除",
+      "clear": "清除",
+      "speedHint": "范围取决于来源：录音与合成语音可能不同。",
+      "whilePlaying": "播放时",
+      "followAlong": "高亮正在朗读的经节",
+      "autoScroll": "滚动到正在朗读的经节",
+      "continue": "继续播放下一章（到书卷末尾停止）",
+      "intro": "开始时朗读“书卷名，第 N 章”",
+      "storage": "存储",
+      "storageVoices": "合成语音和引擎 · {size}",
+      "storageChapters": "最近播放的章节 · {size} · {count, plural, other {# 章}}"
+    }
   }
 }

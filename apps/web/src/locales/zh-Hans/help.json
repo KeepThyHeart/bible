@@ -53,7 +53,10 @@
     "focusSearch": "聚焦搜索栏",
     "focusSearchAlt": "聚焦搜索栏（未在输入时）",
     "copyDialog": "打开复制对话框（未选中文本时）",
-    "closeDialog": "关闭任意打开的对话框或弹出窗口"
+    "closeDialog": "关闭任意打开的对话框或弹出窗口",
+    "audioToggle": "播放或暂停有声圣经",
+    "audioVerse": "收听时上一节 / 下一节",
+    "audioChapter": "收听时上一章 / 下一章"
   },
   "settings": {
     "title": "设置",

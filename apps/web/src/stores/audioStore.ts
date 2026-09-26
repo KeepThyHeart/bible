@@ -35,7 +35,7 @@ import { moduleStore } from './moduleStore';
 import {
   defaultAudioPrefs, effectiveRate, loadAudioPrefs, saveAudioPrefs, sanitizeAudioPrefs,
 } from '../audio/audioPrefs';
-import type { AudioSourceResolver } from '../audio/AudioSourceResolver';
+import type { AudioSourceResolver, SourceStatus } from '../audio/AudioSourceResolver';
 import type {
   AudioCapabilities,
   AudioError,
@@ -65,6 +65,7 @@ export interface AudioNotice {
 }
 
 export type PendingGate =
+  /** `bytes` is set only when the voice still has to be downloaded; confirming then also confirms the download. */
   | { kind: 'battery'; engineId: string; engineLabel: string; voiceLabel?: string; bytes?: number }
   | { kind: 'download'; engineLabel: string; voiceLabel?: string; bytes?: number };
 
@@ -130,6 +131,10 @@ class AudioStore extends Store {
   layout: 'desktop' | 'phone' = 'desktop';
   /** Whether the feature is available at all (features.audio on and initialised). */
   enabled = false;
+  /** Phone only: the full-screen player is showing (playback continues when it is closed). */
+  playerOpen = false;
+  /** Bumped when what can play changes, so source lists re-ask. */
+  sourcesVersion = 0;
 
   private system: AudioSystem | null = null;
   private resolution: SourceResolution | null = null;
@@ -189,6 +194,18 @@ class AudioStore extends Store {
     this.sessionOverride.clear();
   }
 
+  openPlayer(): void {
+    if (this.playerOpen) return;
+    this.playerOpen = true;
+    this.notify();
+  }
+
+  closePlayer(): void {
+    if (!this.playerOpen) return;
+    this.playerOpen = false;
+    this.notify();
+  }
+
   setLayout(layout: 'desktop' | 'phone'): void {
     if (this.layout === layout) return;
     this.layout = layout;
@@ -196,6 +213,11 @@ class AudioStore extends Store {
   }
 
   // ---------------------------------------------------------------- availability
+
+  /** BCP-47 language of a translation, for the UI ('' until the module list has loaded). */
+  languageFor(moduleAbbr: string): string {
+    return this.languageOf(moduleAbbr);
+  }
 
   private languageOf(moduleAbbr: string): string {
     if (this.system?.languageOf) return this.system.languageOf(moduleAbbr);
@@ -316,18 +338,23 @@ class AudioStore extends Store {
 
     // Gates, only before the first sound of this play.
     const engineId = resolution.provider.id.replace(/^tts:/, '');
+    let ready = true;
+    try { ready = !caps.needsDownload || await resolution.provider.isReady(resolution.voiceId); } catch { ready = false; }
+    if (seq !== this.playSeq) return;
+    let downloadConfirmed = false;
     if (caps.onDevice && this.layout === 'phone' && !this.prefs.phoneBatteryNoticeSeen[engineId]) {
+      // One notice covers both: what speech costs in battery and, when the voice is not on
+      // the phone yet, the download ("Download and play").
       const ok = await this.openGate({
-        kind: 'battery', engineId, engineLabel: resolution.provider.label, voiceLabel: voice?.label, bytes: voice?.downloadBytes,
+        kind: 'battery', engineId, engineLabel: resolution.provider.label, voiceLabel: voice?.label,
+        bytes: ready ? undefined : voice?.downloadBytes,
       });
       if (seq !== this.playSeq) return;
       if (!ok) { this.abandon(seq); return; }
       this.setPrefs({ phoneBatteryNoticeSeen: { ...this.prefs.phoneBatteryNoticeSeen, [engineId]: true } });
+      downloadConfirmed = !ready;
     }
-    let ready = true;
-    try { ready = !caps.needsDownload || await resolution.provider.isReady(resolution.voiceId); } catch { ready = false; }
-    if (seq !== this.playSeq) return;
-    if (!ready) {
+    if (!ready && !downloadConfirmed) {
       const ok = await this.openGate({
         kind: 'download', engineLabel: resolution.provider.label, voiceLabel: voice?.label, bytes: voice?.downloadBytes,
       });
@@ -462,6 +489,59 @@ class AudioStore extends Store {
     if (!system) return false;
     const options = await system.resolver.options(moduleAbbr, this.languageOf(moduleAbbr));
     return options.some(o => o.provider.capabilities(moduleAbbr).onDevice && o.provider.id !== this.providerId);
+  }
+
+  /** From the verse the reader clicked in the progress bar: restart there, in the current source. */
+  jumpToVerse(verse: number): void {
+    const tab = this.playingTabId ? bibleStore.tabs.find(t => t.id === this.playingTabId) : undefined;
+    const current = this.system?.player.state.current;
+    if (!tab || !current || verse === current.verse) return;
+    void this.startPlayback(tab, { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr, verse });
+  }
+
+  // ---------------------------------------------------------------- sources and voices
+
+  /** Every registered source for a translation, usable or not, for the source control. */
+  async sources(moduleAbbr: string): Promise<SourceStatus[]> {
+    const system = this.system;
+    if (!system) return [];
+    return system.resolver.sourceStatus(moduleAbbr, this.languageOf(moduleAbbr));
+  }
+
+  /** The enabled on-device engines by id (empty when audio is off). */
+  get engines(): ReadonlyMap<string, ITtsEngine> {
+    return this.system?.engines ?? new Map();
+  }
+
+  /** A download or removal changed what can play: forget cached answers and let the UI re-ask. */
+  invalidateSources(moduleAbbr?: string): void {
+    this.system?.resolver.invalidate(moduleAbbr);
+    this.availabilityAskedAt.clear();
+    this.sourcesVersion++;
+    this.notify();
+  }
+
+  /** Source for one translation; `undefined` goes back to the global choice. */
+  setTranslationSource(moduleAbbr: string, source: AudioSourceChoice | undefined): void {
+    const per = { ...this.prefs.perTranslation };
+    const entry = { ...per[moduleAbbr], source };
+    if (source === undefined) delete entry.source;
+    if (Object.keys(entry).length === 0) delete per[moduleAbbr]; else per[moduleAbbr] = entry;
+    this.setPrefs({ perTranslation: per });
+  }
+
+  /** Voice for one translation; `undefined` goes back to the language's voice. */
+  setTranslationVoice(moduleAbbr: string, voiceId: string | undefined): void {
+    const per = { ...this.prefs.perTranslation };
+    const entry = { ...per[moduleAbbr], voiceId };
+    if (voiceId === undefined) delete entry.voiceId;
+    if (Object.keys(entry).length === 0) delete per[moduleAbbr]; else per[moduleAbbr] = entry;
+    this.setPrefs({ perTranslation: per });
+  }
+
+  /** The voice an engine uses for a language (`piper`, `en`). */
+  setEngineVoice(engineId: string, language: string, voiceId: string): void {
+    this.setPrefs({ voiceByEngineLang: { ...this.prefs.voiceByEngineLang, [`${engineId}:${language.toLowerCase().split(/[-_]/)[0]}`]: voiceId } });
   }
 
   // ---------------------------------------------------------------- prefs
@@ -619,6 +699,7 @@ class AudioStore extends Store {
   }
 
   private resetPlayback(): void {
+    this.playerOpen = false;
     this.preparing = false;
     this.status = 'idle';
     this.playingTabId = null;

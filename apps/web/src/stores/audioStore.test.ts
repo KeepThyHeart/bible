@@ -258,14 +258,35 @@ describe('gates', () => {
     expect(audioStore.status).toBe('playing');
   });
 
-  it('battery comes before download, and stop() during a gate cancels the play', async () => {
+  it('phone: one notice covers battery and download (with the size); an already downloaded voice drops the size', async () => {
     rig.tts.ready = false;
     audioStore.setLayout('phone');
     await flush();
     const p = audioStore.play();
     await flush();
-    expect(audioStore.pendingGate?.kind).toBe('battery');
+    expect(audioStore.pendingGate).toMatchObject({ kind: 'battery', voiceLabel: 'Amy', bytes: 63_000_000 });
     audioStore.confirmGate();
+    await p;
+    await flush();
+    // No second question: confirming "Download and play" downloaded and played.
+    expect(rig.tts.prepareCalls).toBe(1);
+    expect(audioStore.status).toBe('playing');
+
+    // A voice that is already on the phone: the notice has no size.
+    audioStore.stop();
+    audioStore.setPrefs({ phoneBatteryNoticeSeen: {} });
+    rig.tts.ready = true;
+    const q = audioStore.play();
+    await flush();
+    expect(audioStore.pendingGate).toMatchObject({ kind: 'battery', bytes: undefined });
+    audioStore.stop();
+    await q;
+  });
+
+  it('stop() during a gate cancels the play', async () => {
+    rig.tts.ready = false;
+    await flush();
+    const p = audioStore.play();
     await flush();
     expect(audioStore.pendingGate?.kind).toBe('download');
     audioStore.stop();
@@ -572,5 +593,56 @@ describe('review fixes', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('sources, voices and the phone player', () => {
+  beforeEach(() => { rig = build({ recordings: true }); rig.tts.needsDownload = false; });
+
+  it('sources() lists every provider with whether it can play; invalidateSources bumps the version', async () => {
+    const list = await audioStore.sources('KJV');
+    expect(list.map(s => [s.provider.id, s.usable])).toEqual([['recorded', true], ['tts:fake', true]]);
+    const v = audioStore.sourcesVersion;
+    audioStore.invalidateSources('KJV');
+    expect(audioStore.sourcesVersion).toBe(v + 1);
+  });
+
+  it('per-translation source and voice are stored, and clearing them removes the entry', () => {
+    audioStore.setTranslationSource('KJV', 'tts:fake');
+    audioStore.setTranslationVoice('KJV', 'v1');
+    expect(audioStore.prefs.perTranslation.KJV).toEqual({ source: 'tts:fake', voiceId: 'v1' });
+    audioStore.setTranslationSource('KJV', undefined);
+    expect(audioStore.prefs.perTranslation.KJV).toEqual({ voiceId: 'v1' });
+    audioStore.setTranslationVoice('KJV', undefined);
+    expect(audioStore.prefs.perTranslation.KJV).toBeUndefined();
+    expect(JSON.parse(rig.storage.get(AUDIO_PREFS_KEY)!).perTranslation).toEqual({});
+  });
+
+  it('the engine voice is keyed by engine and language subtag', () => {
+    audioStore.setEngineVoice('piper', 'en-US', 'amy');
+    expect(audioStore.prefs.voiceByEngineLang).toEqual({ 'piper:en': 'amy' });
+  });
+
+  it('jumpToVerse restarts at that verse in the same source', async () => {
+    await flush();
+    await playNow();
+    audioStore.jumpToVerse(4);
+    await flush();
+    expect(rig.recorded.openCalls.at(-1)!.ref).toMatchObject({ chapter: 3 });
+    expect(audioStore.follow.verseId).toBe(43003004);
+    expect(audioStore.providerId).toBe('recorded');
+  });
+
+  it('the phone player opens and closes, and a stopped playback closes it', async () => {
+    audioStore.setLayout('phone');
+    audioStore.openPlayer();
+    expect(audioStore.playerOpen).toBe(true);
+    audioStore.closePlayer();
+    expect(audioStore.playerOpen).toBe(false);
+    await flush();
+    await playNow();
+    audioStore.openPlayer();
+    audioStore.stop();
+    expect(audioStore.playerOpen).toBe(false);
   });
 });

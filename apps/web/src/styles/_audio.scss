@@ -1,0 +1,612 @@
+// ============================================================
+// Audio Bible
+//   - Listen button (in the Bible toolbar; see _bible-toolbar.scss for its label rule)
+//   - desktop transport bar and source popover
+//   - phone full-screen player, mini-player and gate dialog
+//   - settings tab pieces
+// Colours use the app's theme tokens only, so every theme (and dark mode) follows.
+// ============================================================
+
+.audio-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// ---- Toolbar button -------------------------------------------------------
+
+.bible-toolbar__listen {
+  gap: 6px;
+
+  &:disabled {
+    color: color-mix(in srgb, var(--text-primary) 30%, transparent);
+    cursor: not-allowed;
+  }
+
+  &[aria-pressed='true'] {
+    color: var(--accent-color);
+  }
+}
+
+// The label goes when the Bible pane is narrow (a mid-width window with the side panes open).
+// Not a container query: `container-type` on the toolbar would make it the containing block of
+// the translation dialog it hosts.
+@media (min-width: 601px) and (max-width: 1100px) {
+  .bible-toolbar__btn-label {
+    // Kept for assistive technology; the button also has an aria-label.
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+.bible-tab-bar__audio {
+  margin-inline-end: 4px;
+  font-size: 0.8em;
+  color: var(--accent-color);
+}
+
+// ---- Buttons and chips shared by the bar, the player and the mini-player ---
+
+.audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 30px;
+  block-size: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: calc(14px * var(--ui-font-scale, 1));
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--accent-color);
+    color: var(--bg-primary);
+    border-radius: 50%;
+    min-inline-size: 34px;
+    block-size: 34px;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+  }
+
+  &--large {
+    min-inline-size: 48px;
+    block-size: 48px;
+    font-size: calc(20px * var(--ui-font-scale, 1));
+
+    &.audio-btn--primary {
+      min-inline-size: 64px;
+      block-size: 64px;
+      font-size: calc(24px * var(--ui-font-scale, 1));
+    }
+  }
+}
+
+.audio-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+  }
+
+  &--source {
+    color: var(--text-secondary);
+    max-inline-size: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// ---- Progress ---------------------------------------------------------------
+
+.audio-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-inline-size: 80px;
+
+  &__track {
+    position: relative;
+    flex: 1;
+    block-size: 18px;
+    display: flex;
+    align-items: center;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      block-size: 4px;
+      border-radius: 2px;
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__fill {
+    position: absolute;
+    inset-inline-start: 0;
+    block-size: 4px;
+    border-radius: 2px;
+    background: var(--accent-color);
+    pointer-events: none;
+  }
+
+  &__tick {
+    position: absolute;
+    inline-size: 2px;
+    block-size: 8px;
+    background: color-mix(in srgb, var(--text-primary) 35%, transparent);
+    transform: translateX(-1px);
+    pointer-events: none;
+  }
+
+  // A native range input laid over the track: keyboard, touch and screen reader support for free.
+  &__slider {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    margin: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+
+    &::-webkit-slider-runnable-track { background: transparent; }
+    &::-moz-range-track { background: transparent; }
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      inline-size: 14px;
+      block-size: 14px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      border: 2px solid var(--bg-primary);
+    }
+
+    &::-moz-range-thumb {
+      inline-size: 10px;
+      block-size: 10px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      border: 2px solid var(--bg-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+  }
+
+  &__label {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// ---- Status line ----------------------------------------------------------
+
+.audio-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 12px 6px;
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+
+  &__text { flex: 1; min-inline-size: 0; }
+
+  &__actions { display: inline-flex; gap: 6px; }
+
+  &__btn {
+    padding: 2px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: inherit;
+
+    &:hover { background: var(--bg-tertiary); }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+  }
+
+  // An error is marked by an icon-like rule as well as by colour.
+  &--error {
+    color: var(--text-primary);
+    box-shadow: inset 3px 0 0 #ef4444;
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+  }
+
+  &--notice {
+    box-shadow: inset 3px 0 0 var(--accent-color);
+  }
+}
+
+// ---- Desktop transport bar --------------------------------------------------
+
+.audio-transport {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px;
+  }
+
+  &__buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  &__now {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &--notice {
+    padding: 2px 0;
+  }
+}
+
+.audio-popover {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 100%;
+  z-index: 60;
+  inline-size: 340px;
+  max-inline-size: calc(100vw - 16px);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px var(--dropdown-shadow);
+  padding: 12px;
+}
+
+// ---- Source panel (popover, phone player, and settings share these) ----------
+
+.audio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+
+  &__row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__label {
+    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+
+  &__more {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    font-size: inherit;
+  }
+}
+
+.audio-note {
+  margin: 0;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.audio-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  align-self: flex-start;
+
+  &__btn {
+    padding: 5px 12px;
+    border: none;
+    border-inline-end: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: inherit;
+
+    &:last-child { border-inline-end: none; }
+    &:hover:not(:disabled) { background: var(--bg-tertiary); }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+    &:disabled { color: var(--text-muted); cursor: not-allowed; text-decoration: line-through; }
+
+    // Selected by fill and weight, not colour alone.
+    &--active {
+      background: var(--accent-color);
+      color: var(--bg-primary);
+      font-weight: 700;
+
+      &:hover:not(:disabled) { background: var(--accent-hover); }
+    }
+  }
+}
+
+.audio-select {
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: inherit;
+  max-inline-size: 100%;
+}
+
+.audio-rate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  &__slider { flex: 1; accent-color: var(--accent-color); }
+  &__value { min-inline-size: 3.2em; text-align: end; font-variant-numeric: tabular-nums; }
+}
+
+// ---- Phone: full-screen player -------------------------------------------------
+
+.audio-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-y: auto;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__source {
+    font-size: calc(12px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__ref {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__ref-main { font-size: calc(22px * var(--ui-font-scale, 1)); font-weight: 700; }
+  &__ref-sub { font-size: calc(13px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
+
+  &__text {
+    flex: 1;
+    min-block-size: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 0;
+    line-height: 1.5;
+  }
+
+  &__verse {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: calc(16px * var(--ui-font-scale, 1));
+
+    sup { font-size: 0.7em; margin-inline-end: 2px; }
+
+    &--current {
+      color: var(--text-primary);
+      font-size: calc(19px * var(--ui-font-scale, 1));
+      font-weight: 600;
+      padding-inline-start: 10px;
+      box-shadow: inset 3px 0 0 var(--accent-color);
+    }
+  }
+
+  &__chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .audio-transport__buttons { justify-content: center; gap: 6px; }
+  .audio-status { padding-inline: 0; }
+}
+
+// ---- Phone: mini-player --------------------------------------------------------
+
+.audio-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+
+  &__text {
+    flex: 1;
+    min-inline-size: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 2px 6px;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  &__ref { font-weight: 600; font-size: calc(14px * var(--ui-font-scale, 1)); }
+  &__chip {
+    font-size: calc(11.5px * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-inline-size: 100%;
+  }
+}
+
+// ---- Gate dialog -----------------------------------------------------------------
+
+.audio-gate-overlay { z-index: 300; }
+
+.audio-gate {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  inline-size: 420px;
+  max-inline-size: 92vw;
+  padding: 18px 20px;
+
+  &__title { margin: 0 0 10px; font-size: calc(17px * var(--ui-font-scale, 1)); }
+  &__body { font-size: calc(14px * var(--ui-font-scale, 1)); line-height: 1.5; p { margin: 0 0 8px; } }
+  &__size { font-weight: 600; }
+  &__hint { color: var(--text-secondary); font-size: calc(12.5px * var(--ui-font-scale, 1)); }
+
+  &__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+  &__btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: inherit;
+
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+    &--primary { background: var(--accent-color); color: var(--bg-primary); border-color: var(--accent-color); font-weight: 600; }
+  }
+}
+
+@media (max-width: 600px) {
+  // On a phone the gate is a sheet from the bottom edge.
+  .audio-gate-overlay { align-items: flex-end; }
+  .audio-gate { inline-size: 100%; max-inline-size: 100%; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+}
+
+// ---- Settings tab ----------------------------------------------------------------
+
+.audio-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &__group { display: flex; flex-direction: column; gap: 8px; }
+  &__heading { margin: 0; font-size: calc(12px * var(--ui-font-scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  &__hint { margin: 0; font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-secondary); line-height: 1.4; }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: calc(13.5px * var(--ui-font-scale, 1));
+    cursor: pointer;
+
+    input { accent-color: var(--accent-color); inline-size: 16px; block-size: 16px; }
+  }
+
+  &__voice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+
+    &--selected { border-color: var(--accent-color); box-shadow: inset 3px 0 0 var(--accent-color); }
+  }
+
+  &__voice-main { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
+  &__voice-name { font-weight: 600; font-size: calc(13.5px * var(--ui-font-scale, 1)); }
+  &__voice-meta { font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
+
+  &__storage { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: calc(13px * var(--ui-font-scale, 1)); }
+  &__btn {
+    padding: 4px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: inherit;
+
+    &:hover:not(:disabled) { background: var(--bg-tertiary); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+  }
+
+  &__progress { inline-size: 100%; block-size: 6px; accent-color: var(--accent-color); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-btn, .audio-chip, .audio-screen, .audio-gate { transition: none; animation: none; }
+  .audio-status__spinner, .audio-btn .fa-spin { animation: none; }
+}

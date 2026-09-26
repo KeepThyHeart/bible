@@ -27,6 +27,17 @@ import { RECORDED_PROVIDER_ID } from './RecordedAudioProvider';
 
 export const NEGATIVE_TTL_MS = 5 * 60_000;
 
+/** Why a registered provider cannot play a translation (for the source control to say). */
+export type UnusableReason = 'no-recording' | 'browser' | 'no-voice';
+
+export interface SourceStatus {
+  provider: IAudioProvider;
+  usable: boolean;
+  /** Set when `usable` is false. */
+  reason?: UnusableReason;
+  voices: AudioVoice[];
+}
+
 export interface ResolverDeps {
   providers: IRegistry<IAudioProvider>;
   /** Enabled TTS engine ids, in the operator's order of preference. */
@@ -122,6 +133,27 @@ export class AudioSourceResolver implements IAudioSourceResolver {
       if (await this.usable(p, moduleAbbr, language)) {
         out.push({ provider: p, voices: await this.voicesOf(p, moduleAbbr, language) });
       }
+    }
+    return out;
+  }
+
+  /**
+   * Every registered provider, in preference order, with whether it can play this
+   * translation and, when it cannot, why. `options` is the usable subset; this is
+   * for the source control, which lists the others greyed out.
+   */
+  async sourceStatus(moduleAbbr: string, language: string): Promise<SourceStatus[]> {
+    const out: SourceStatus[] = [];
+    for (const p of this.orderedProviders()) {
+      if (await this.usable(p, moduleAbbr, language)) {
+        out.push({ provider: p, usable: true, voices: await this.voicesOf(p, moduleAbbr, language) });
+        continue;
+      }
+      let reason: UnusableReason = 'no-recording';
+      if (p.kind === 'tts') {
+        reason = !(await this.engineOk(engineIdOf(p.id))) ? 'browser' : 'no-voice';
+      }
+      out.push({ provider: p, usable: false, reason, voices: [] });
     }
     return out;
   }

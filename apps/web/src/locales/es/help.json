@@ -53,7 +53,10 @@
     "focusSearch": "Enfocar la barra de búsqueda",
     "focusSearchAlt": "Enfocar la barra de búsqueda (cuando no se está escribiendo)",
     "copyDialog": "Abrir el cuadro de diálogo de copiar (cuando no hay texto seleccionado)",
-    "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta"
+    "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta",
+    "audioToggle": "Reproducir o pausar la Biblia en audio",
+    "audioVerse": "Versículo anterior / siguiente al escuchar",
+    "audioChapter": "Capítulo anterior / siguiente al escuchar"
   },
   "settings": {
     "title": "Configuración",

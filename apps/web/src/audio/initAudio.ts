@@ -11,7 +11,9 @@ import type { IBibleDataProvider } from '../providers/interfaces';
 import { bibleStore } from '../stores/bibleStore';
 import { moduleStore } from '../stores/moduleStore';
 import { audioStore } from '../stores/audioStore';
+import { keybindingRegistry } from '../plugins/registries/KeybindingRegistry';
 import { createAudioSystem } from './bootstrap';
+import { registerAudioShortcuts } from './audioShortcuts';
 
 export function initAudio(config: AudioSiteConfig, bible: IBibleDataProvider): void {
   const languageOf = (moduleAbbr: string): string =>
@@ -30,4 +32,5 @@ export function initAudio(config: AudioSiteConfig, bible: IBibleDataProvider): v
     chapterCount: book => moduleStore.getBookByNumber(book)?.chapter_count ?? 0,
   });
   audioStore.init(system);
+  registerAudioShortcuts(keybindingRegistry, audioStore);
 }

@@ -9,7 +9,7 @@ import { PIPER_LANGUAGES, PIPER_RUNTIME_BYTES } from './piperConfig';
 
 export const piperFactory: TtsEngineFactory = {
   id: 'piper',
-  label: 'On this device (Piper)',
+  label: 'Piper',
   capabilities: {
     // length_scale is divided by the rate, so speed changes without pitch artefacts.
     rate: { min: 0.5, max: 2, step: 0.1 },

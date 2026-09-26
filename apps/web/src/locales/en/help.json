@@ -53,7 +53,10 @@
     "focusSearch": "Focus search bar",
     "focusSearchAlt": "Focus search bar (when not typing)",
     "copyDialog": "Open copy dialog (when no text selected)",
-    "closeDialog": "Close any open dialog or popup"
+    "closeDialog": "Close any open dialog or popup",
+    "audioToggle": "Play or pause the Audio Bible",
+    "audioVerse": "Previous / next verse while listening",
+    "audioChapter": "Previous / next chapter while listening"
   },
   "settings": {
     "title": "Settings",

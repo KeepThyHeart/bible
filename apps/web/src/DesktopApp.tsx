@@ -17,6 +17,7 @@ import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { audioStore } from './stores/audioStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -33,6 +34,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
+  // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
+  useEffect(() => { audioStore.setLayout('desktop'); }, []);
 
   // Auto-switch to search mode when a search is performed, and force the pane
   // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs

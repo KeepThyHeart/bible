@@ -188,6 +188,7 @@
       "theme": "Theme",
       "modules": "Modules",
       "gestures": "Gestures",
+      "audio": "Audio",
       "offline": "Offline",
       "about": "About"
     },
@@ -701,5 +702,127 @@
     "submit": "Enter",
     "incorrectPassword": "Incorrect password.",
     "tooManyAttempts": "Too many attempts. Please try again later."
+  },
+  "audio": {
+    "listen": "Listen",
+    "play": "Play",
+    "pause": "Pause",
+    "listenTooltip": "Read this chapter aloud",
+    "playingTab": "Playing audio",
+    "action": {
+      "retry": "Retry",
+      "resume": "Resume",
+      "useOnDevice": "Use on-device speech",
+      "dismiss": "Dismiss",
+      "cancel": "Cancel"
+    },
+    "transport": {
+      "label": "Audio player",
+      "controls": "Playback controls",
+      "prevChapter": "Previous chapter",
+      "prevVerse": "Previous verse",
+      "nextVerse": "Next verse",
+      "nextChapter": "Next chapter",
+      "progress": "Position in the chapter",
+      "verseOf": "verse {verse} of {count}",
+      "speed": "Playback speed",
+      "source": "Audio source, voice and speed",
+      "settings": "Audio settings",
+      "close": "Stop and close the player"
+    },
+    "player": {
+      "label": "Audio player",
+      "close": "Close the player (audio keeps playing)",
+      "open": "Open the audio player",
+      "narrator": "Narrator"
+    },
+    "status": {
+      "gettingReady": "Getting ready…",
+      "loadingChapter": "Loading {ref}…",
+      "loadingChapterOf": "Loading {ref}… {loaded} of {total}",
+      "downloadingVoice": "Downloading the voice, one time only…",
+      "downloadingVoiceOf": "Downloading the voice, one time only · saved for next time · {loaded} of {total}",
+      "preparing": "Preparing {ref}…",
+      "buffering": "Buffering…"
+    },
+    "chip": {
+      "recorded": "Recorded · {module}",
+      "onDevice": "{engine} · on this device",
+      "onDeviceVoice": "{engine} · {voice} · on this device"
+    },
+    "notice": {
+      "noAudio": "No recording or speech voice is available for this translation yet.",
+      "preferredUnavailable": "Your preferred audio source is not available for this translation, so another source is playing instead.",
+      "voiceUnavailable": "Your chosen voice is no longer available, so another voice is being used."
+    },
+    "error": {
+      "network": "{ref} could not be downloaded. Check your connection, then retry.",
+      "not-found": "There is no recording of {ref}.",
+      "decode": "This browser could not play the audio for {ref}.",
+      "unsupported": "This browser cannot play this audio.",
+      "engine": "On-device speech stopped working. You can retry.",
+      "autoplay": "Your browser blocked playback. Press Resume to start.",
+      "unknown": "Audio could not be played."
+    },
+    "source": {
+      "auto": "Automatic",
+      "recorded": "Recorded",
+      "useDefault": "Use default",
+      "for": "Source for {module}",
+      "noRecording": "No recording for {module}.",
+      "browserUnsupported": "{engine} cannot run in this browser.",
+      "noVoice": "{engine} has no voice for {language}."
+    },
+    "voice": {
+      "label": "Voice"
+    },
+    "speed": {
+      "label": "Speed"
+    },
+    "gate": {
+      "batteryTitle": "Read aloud on this phone?",
+      "batteryBody": "There is no recording of {module} yet, so your phone will turn the text into speech itself. This uses more battery than playing a recording.",
+      "downloadTitle": "Download the voice?",
+      "voiceSize": "{engine} voice “{voice}” · {size}, once",
+      "downloadHint": "Downloaded now and kept for next time. Use Wi-Fi if you can.",
+      "download": "Download and play",
+      "downloadAndPlay": "Download and play"
+    },
+    "announce": {
+      "playing": "Playing {ref}",
+      "resumed": "Resumed at {ref}",
+      "paused": "Paused",
+      "stopped": "Audio stopped",
+      "chapter": "{ref}"
+    },
+    "settings": {
+      "title": "Audio",
+      "more": "More in Audio settings",
+      "source": "Audio source",
+      "sourceHint": "Automatic plays a recording when one exists, otherwise speech on this device.",
+      "thisTranslation": "This translation ({module})",
+      "voices": "Speech voices ({language})",
+      "voicesHint": "Voices come from this site’s audio configuration. A voice is downloaded once and kept on this device.",
+      "quality": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "downloaded": "downloaded",
+      "download": "Download",
+      "downloadFailed": "The download did not finish. Check your connection and try again.",
+      "useVoice": "Use",
+      "remove": "Remove",
+      "clear": "Clear",
+      "speedHint": "The range depends on the source: recordings and speech can differ.",
+      "whilePlaying": "While playing",
+      "followAlong": "Highlight the verse being read",
+      "autoScroll": "Scroll to the verse being read",
+      "continue": "Continue to the next chapter (stops at the end of the book)",
+      "intro": "Announce “Book, chapter N” at the start",
+      "storage": "Storage",
+      "storageVoices": "Speech voices and engine · {size}",
+      "storageChapters": "Recently played chapters · {size} · {count, plural, one {# chapter} other {# chapters}}"
+    }
   }
 }

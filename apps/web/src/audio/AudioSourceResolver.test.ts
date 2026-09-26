@@ -204,3 +204,24 @@ describe('caching', () => {
   });
 });
 
+
+describe('sourceStatus', () => {
+  it('lists every provider, with the reason the unusable ones cannot play', async () => {
+    const none = await r.resolver.sourceStatus('KJV', 'en');
+    expect(none.map(s => [s.provider.id, s.usable, s.reason])).toEqual([['recorded', false, 'no-recording'], ['tts:piper', true, undefined]]);
+    expect(none[1].voices.map(v => v.id)).toEqual(['amy', 'ben']);
+
+    const french = await r.resolver.sourceStatus('RV', 'fr');
+    expect(french[1]).toMatchObject({ usable: false, reason: 'no-voice' });
+
+    r = { ...r, resolver: new AudioSourceResolver({ providers: r.providers, engineOrder: ['piper'], engineSupported: async () => false, defaultVoice: () => undefined }) };
+    expect((await r.resolver.sourceStatus('KJV', 'en'))[1]).toMatchObject({ usable: false, reason: 'browser' });
+  });
+
+  it('a recording makes the recorded entry usable', async () => {
+    r = rig({ recordings: true });
+    const first = (await r.resolver.sourceStatus('KJV', 'en'))[0];
+    expect(first.usable).toBe(true);
+    expect(first.reason).toBeUndefined();
+  });
+});

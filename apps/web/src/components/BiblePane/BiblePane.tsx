@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { BibleTabBar } from './BibleTabBar';
 import { BibleToolbar } from './BibleToolbar';
+import { AudioTransportBar } from './AudioTransportBar';
 import { BackBar } from './BackBar';
 import { BibleContent } from './BibleContent';
 import { ChapterNav } from './ChapterNav';
@@ -463,6 +464,7 @@ export function BiblePane({
         <>
           {!hideBars && <BackBar />}
           {!hideBars && <BibleToolbar onOpenSettings={onOpenSettings} />}
+          {!hideBars && <AudioTransportBar onOpenSettings={onOpenSettings} />}
           <div class="bible-pane__scroll-container" ref={scrollContainerRef}>
             <div style={swipeStyle}>
               <BibleContent
