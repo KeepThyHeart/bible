@@ -336,6 +336,22 @@
     text-decoration-thickness: 2px;
   }
 
+  // The verse being read aloud (Audio Bible follow-along). Marked by a rule on
+  // the inline-start edge and a heavier weight as well as a tint, so it does not
+  // depend on colour alone, and it is a different mark from the selection
+  // (`--study`): the two can be on different verses at once, and the selection is
+  // what the Study and Commentary panes follow.
+  &--playing {
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+
+    &.verse--study {
+      // Both at once: keep the selection's fill, the rule still says "reading".
+      background: var(--highlight-bg);
+    }
+  }
+
   // Block mode (standard / study)
   &--block {
     display: flex;

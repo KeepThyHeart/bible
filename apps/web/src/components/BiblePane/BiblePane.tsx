@@ -10,6 +10,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
+import { useFollowScroll } from '../../hooks/useFollowScroll';
 import type { IInterlinearDataProvider, IStrongsProvider } from '../../providers/interfaces';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 
@@ -121,6 +122,14 @@ export function BiblePane({
     }
     return el;
   };
+
+  // Audio follow-along: keep the verse being read in view, without fighting the
+  // reader's own scrolling. Moves the viewport only; never the selection.
+  useFollowScroll({
+    getScrollElement: () => getScrollElement() as HTMLElement | null,
+    getContainer: () => scrollContainerRef.current,
+    activeTabId,
+  });
 
   // Save scroll position when switching tabs
   useEffect(() => {

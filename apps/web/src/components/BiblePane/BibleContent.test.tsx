@@ -6,9 +6,10 @@
  * displayed. VerseRenderer and BookChapterPicker are mocked to prevent complex
  * dependency chains. useStore calls the selector immediately (no subscription).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { BibleTab } from '../../stores/bibleStore';
+import { audioStore } from '../../stores/audioStore';
 import type { VerseData } from '../../types';
 
 // ---- i18n ----------------------------------------------------------------
@@ -27,15 +28,17 @@ vi.mock('react-i18next', () => ({
 vi.mock('./VerseRenderer', () => ({
   // Surfaces `isInRange` and the click callback so the selection wiring can be
   // asserted without rendering the real verse markup.
-  VerseRenderer: ({ verse, isInRange, onVerseClick }: {
+  VerseRenderer: ({ verse, isInRange, isPlaying, onVerseClick }: {
     verse: VerseData;
     isInRange?: boolean;
+    isPlaying?: boolean;
     onVerseClick: (verseId: number, extend: boolean) => void;
   }) => (
     <div
       data-testid="verse-renderer"
       data-verse-id={verse.verse_id}
       data-in-range={isInRange ? 'true' : 'false'}
+      data-playing={isPlaying ? 'true' : 'false'}
       onClick={(e) => onVerseClick(verse.verse_id, (e as unknown as MouseEvent).shiftKey)}
     >{verse.text}</div>
   ),
@@ -440,6 +443,32 @@ describe('BibleContent', () => {
       mockActiveTab = makeTab({ studyVerse: 43003016, selectionEndVerse: 43003017, verses: threeVerses });
       const { container } = render(<BibleContent />);
       expect(rangeFlags(container)).toEqual(['true', 'true', 'false']);
+    });
+  });
+
+  describe('audio follow-along highlight', () => {
+    const threeVerses = [16, 17, 18].map(v => makeVerse({ verse_id: 43003000 + v, verse: v }));
+    const playingFlags = (container: Element) =>
+      Array.from(container.querySelectorAll('[data-testid="verse-renderer"]')).map(el => el.getAttribute('data-playing'));
+
+    beforeEach(() => { audioStore.follow.set(null, null); audioStore.prefs = { ...audioStore.prefs, followAlong: true }; });
+    afterEach(() => { audioStore.follow.set(null, null); });
+
+    it('marks exactly the verse being read, on the playing tab, and leaves the selection alone', () => {
+      mockActiveTab = makeTab({ id: 'tab-1', studyVerse: 43003016, verses: threeVerses });
+      audioStore.follow.set('tab-1', 43003017);
+      const { container } = render(<BibleContent />);
+      expect(playingFlags(container)).toEqual(['false', 'true', 'false']);
+      expect(mockActiveTab.studyVerse).toBe(43003016);
+    });
+
+    it('marks nothing on another tab, or when follow-along is off', () => {
+      mockActiveTab = makeTab({ id: 'tab-1', verses: threeVerses });
+      audioStore.follow.set('tab-2', 43003017);
+      expect(playingFlags(render(<BibleContent />).container)).toEqual(['false', 'false', 'false']);
+      audioStore.follow.set('tab-1', 43003017);
+      audioStore.prefs = { ...audioStore.prefs, followAlong: false };
+      expect(playingFlags(render(<BibleContent />).container)).toEqual(['false', 'false', 'false']);
     });
   });
 });

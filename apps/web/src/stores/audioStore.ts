@@ -217,10 +217,13 @@ class AudioStore extends Store {
     return cached === undefined ? 'unknown' : 'none';
   }
 
+  private tabReady(tab: BibleTab | undefined): tab is BibleTab {
+    return this.enabled && !!tab && !tab.loading && tab.verses.length > 0 && !!tab.book && !!tab.chapter;
+  }
+
   /** Whether Play should be enabled for a tab right now. */
   canPlay(tab: BibleTab | undefined): boolean {
-    if (!this.enabled || !tab || tab.loading || tab.verses.length === 0 || !tab.book || !tab.chapter) return false;
-    return this.availability(tab.moduleAbbr) === 'ok';
+    return this.tabReady(tab) && this.availability(tab.moduleAbbr) === 'ok';
   }
 
   /** Is this tab the one being read to (in any active state)? */
@@ -245,7 +248,9 @@ class AudioStore extends Store {
   /** Play the active tab's chapter from the selected verse. */
   async play(): Promise<void> {
     const tab = bibleStore.getActiveTab();
-    if (!this.system || !tab || !this.canPlay(tab)) return;
+    // An unknown answer is not a "no": pressing Play before the check has settled
+    // just runs the check as part of starting (`startPlayback` resolves the source).
+    if (!this.system || !this.tabReady(tab) || this.availability(tab.moduleAbbr) === 'none') return;
     if (this.status === 'resolving' && this.playingTabId === tab.id) return; // a double click
     await this.startPlayback(tab, this.startVerse(tab));
   }
