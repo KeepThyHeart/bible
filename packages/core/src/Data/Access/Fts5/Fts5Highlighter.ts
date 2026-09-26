@@ -121,6 +121,26 @@ export class Fts5Highlighter implements IHighlighter {
     const compiled = compileKeywordQuery(q);
     if (compiled === '') return [];
 
+    const highlighted = this.highlightMatch(text, compiled, MARK_START, MARK_END);
+    return highlighted === null ? [] : parseMarkedText(highlighted);
+  }
+
+  /**
+   * `text` with every match of an already-compiled FTS5 MATCH expression
+   * wrapped in `open`/`close` - exactly what `highlight()` on a
+   * content-bearing FTS5 table returns - or `null` when `text` does not match.
+   *
+   * For a caller that holds a raw MATCH string rather than a `KeywordQuery`:
+   * `BibleRepository.searchVersesWithHighlighting()` takes FTS5 syntax, and
+   * over a contentless sidecar index its own `highlight()` call has no text to
+   * mark up. Running the same MATCH over the verse here gives the markup the
+   * in-module table used to, with the same tokenizer.
+   *
+   * A MATCH syntax error propagates, as it would have from the index itself.
+   */
+  highlightMatch(text: string, match: string, open: string, close: string): string | null {
+    if (text.length === 0 || match === '') return null;
+
     this.ensureTable();
 
     try {
@@ -128,16 +148,15 @@ export class Fts5Highlighter implements IHighlighter {
 
       const row = this.sql.queryOne<{ highlighted: string | null }>(
         'SELECT highlight(hl, 0, ?, ?) AS highlighted FROM temp.hl WHERE hl MATCH ?',
-        [MARK_START, MARK_END, compiled]
+        [open, close, match]
       );
 
-      // No row back means `text` did not match `q` under this tokenizer -
-      // an ordinary "nothing to highlight" outcome, not an error.
+      // No row back means `text` did not match under this tokenizer - an
+      // ordinary "nothing to highlight" outcome, not an error.
       if (!row || row.highlighted === null || row.highlighted === undefined) {
-        return [];
+        return null;
       }
-
-      return parseMarkedText(row.highlighted);
+      return row.highlighted;
     } finally {
       // Unconditional, so a thrown MATCH/highlight() error still leaves the
       // table empty for the next call - see the class doc comment on table

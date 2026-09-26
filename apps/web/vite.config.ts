@@ -468,5 +468,8 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts'],
     globals: true,
+    // v0.2 modules ship no FTS5 table: build the test data's sidecar keyword
+    // indexes once before the server route tests search them.
+    globalSetup: ['server/__tests__/keywordIndexGlobalSetup.ts'],
   },
 });

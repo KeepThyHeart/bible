@@ -301,10 +301,13 @@ export class CommentaryRepository extends BaseModuleRepository<CommentaryModuleI
       }
     }
 
+    const fts = this.keywordIndexTable('commentary_entry_fts', 'commentary');
+    if (!fts) return [];
+
     const rows = this.sql.queryAll<CommentaryEntryRow>(
       `SELECT e.* FROM commentary_entry e
-       JOIN commentary_entry_fts fts ON e.entry_id = fts.rowid
-       WHERE commentary_entry_fts MATCH ?
+       JOIN ${fts.table} fts ON e.entry_id = fts.rowid
+       WHERE fts.${fts.column} MATCH ?
        ORDER BY e.verse_id_start
        LIMIT ?`,
       [ftsQuery, limit]

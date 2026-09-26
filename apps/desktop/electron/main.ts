@@ -15,7 +15,8 @@ import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
-import { registerModuleHandlers, closeModuleManager } from './ipc/moduleHandlers';
+import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
+import { configureDesktopKeywordSearch } from './services/KeywordIndexService';
 import { registerFeaturePackHandlers, closeFeaturePackHandlers } from './ipc/featurePackHandlers';
 import { registerI18nHandlers } from './ipc/i18nHandlers';
 import { loadMainCatalogs, t } from './services/MainI18n';
@@ -1090,6 +1091,11 @@ app.whenReady().then(async () => {
   mainDbInit.close(); // Close init connection; handlers open their own
   log.info('Main database schema initialized at:', mainDbPath);
 
+  // Keyword search over v0.2 modules reads the sidecar indexes
+  // KeywordIndexService builds; point every repository at them before
+  // anything can search. Touches no module file.
+  configureDesktopKeywordSearch();
+
   // Register the menu:rebuild IPC handler. The renderer pushes a fresh
   // MenuSpec at boot and on locale/keybinding changes; the handler hands it
   // off to whichever MenuBuilder is currently active.
@@ -1118,6 +1124,11 @@ app.whenReady().then(async () => {
     } catch (error) {
       log.error('Failed to detect modules:', error);
     }
+
+    // After detection, so newly registered modules are included. One module
+    // at a time, yielding between them; search degrades to "no results" for a
+    // module until its index exists.
+    buildMissingKeywordIndexesInBackground();
 
     // Warm the study-overview cache in the background. Started only after
     // module detection, since the cache is keyed by the installed module set;

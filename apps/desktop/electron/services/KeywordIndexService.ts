@@ -19,6 +19,9 @@ import {
   SqliteModuleRepositoryFactory,
   nodeCodecRegistry,
   wrapSqlConnection,
+  configureModuleKeywordIndex,
+  hasModuleTable,
+  inModuleKeywordIndexTable,
 } from '@bible/core';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { getKeywordIndexRoot, resolveModulePath } from '../utils/appPaths';
@@ -76,6 +79,16 @@ export interface KeywordIndexStatusDto {
  */
 const openSidecarDatabase: SidecarDatabaseOpener = (filePath, options) =>
   new SqliteProvider(filePath, { readonly: options.readonly, fileMustExist: !options.create });
+
+/**
+ * Make the indexes this service builds the ones every module repository and
+ * `BibleSearchService` in this process search (`configureModuleKeywordIndex`).
+ * Module schema v0.2 ships no FTS5 table, so without this a v0.2 module's
+ * keyword search finds nothing. Call once at startup, before any search.
+ */
+export function configureDesktopKeywordSearch(indexDir: string = getKeywordIndexRoot()): void {
+  configureModuleKeywordIndex(new SidecarFts5Provider({ indexDir, openDatabase: openSidecarDatabase }));
+}
 
 /**
  * The `ModuleType`s a keyword index can ever be built for - the single source
@@ -242,6 +255,58 @@ export class KeywordIndexService {
     void this.runBuild(module, signal).catch((error) => {
       log.error('[KeywordIndexService] Unexpected error building keyword index after install:', error);
     });
+  }
+
+  /**
+   * Build the index of every installed module that should have one and does
+   * not - one at a time, in the background, at startup.
+   *
+   * Post-install builds ({@link triggerBuildAfterInstall}) cover modules
+   * installed through the app. This covers the rest: modules installed before
+   * builds happened after install, modules placed on disk directly (a
+   * development `init:modules`, a restored backup), and an index lost since.
+   * Skipped: modules with nothing to index, v0.1 modules that ship their own
+   * FTS5 table, indexes that are already current or stale-but-searchable, and
+   * modules whose last build for this same revision failed - the Rebuild
+   * action retries those on request instead of every launch.
+   *
+   * Yields to the event loop between modules, so IPC is served between builds.
+   */
+  async buildMissingIndexes(): Promise<number> {
+    let built = 0;
+    for (const module of this.moduleMetadataRepo.getAll()) {
+      if (!module.moduleUuid || !moduleTypeSupportsKeywordIndex(module.moduleType)) continue;
+      const absoluteDatabasePath = resolveModulePath(module.databasePath);
+      if (!this.needsIndex(module.moduleType, absoluteDatabasePath)) continue;
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await this.runBuild({ moduleType: module.moduleType, absoluteDatabasePath });
+      built += 1;
+    }
+    return built;
+  }
+
+  /** See {@link buildMissingIndexes} for what counts as needing one. */
+  private needsIndex(moduleType: ModuleType, absoluteDatabasePath: string): boolean {
+    let db: SqliteProvider | null = null;
+    try {
+      db = new SqliteProvider(absoluteDatabasePath, { readonly: true, fileMustExist: true });
+      const legacyTable = inModuleKeywordIndexTable(moduleType);
+      if (legacyTable && hasModuleTable(db, legacyTable)) return false;
+
+      const repo = repositoryForIndexing(moduleType, db);
+      if (!repo) return false;
+      const target = repo.getIndexSource().target;
+      if (this.provider.readyIndexPath(target) !== null) return false;
+
+      const record = this.keywordIndexRepo.get(target.moduleUuid, SIDECAR_FTS5_PROVIDER_ID);
+      return !(record?.state === 'failed' && record.contentSha256 === target.contentSha256);
+    } catch (error) {
+      log.warn(`[KeywordIndexService] Cannot check the keyword index of ${absoluteDatabasePath}:`, error);
+      return false;
+    } finally {
+      db?.close();
+    }
   }
 
   /**

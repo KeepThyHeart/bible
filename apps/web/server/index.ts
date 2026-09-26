@@ -526,6 +526,21 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
 // Loopback only by default: Apache proxies to 127.0.0.1, and nothing else
 // should reach the app directly. Set LISTEN_HOST (e.g. 0.0.0.0) to widen it.
 const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
+
+// Keyword search over v0.2 modules reads a sidecar index per module. Build any
+// that are missing before taking requests, so a search never quietly answers
+// "no results" for a module whose index simply was not there yet.
+{
+  const keywordIndexes = await db.prepareKeywordIndexes((message) => logger.info(message));
+  logger.info(
+    `Keyword indexes: ${keywordIndexes.current.length} current, ${keywordIndexes.built.length} built` +
+      (keywordIndexes.failed.length ? `, ${keywordIndexes.failed.length} failed` : '')
+  );
+  for (const failure of keywordIndexes.failed) {
+    logger.warn(`No keyword index for ${failure.path}: ${failure.reason}`);
+  }
+}
+
 const server = app.listen(PORT, LISTEN_HOST, () => {
   logger.info(`Bible web app running on http://${LISTEN_HOST}:${PORT}`);
 });

@@ -896,8 +896,9 @@ describe.skipIf(!DATA_AVAILABLE)('SidecarFts5Provider', () => {
     });
 
     // Running as root defeats the permission bits entirely, so this one is
-    // only meaningful as an ordinary user.
-    it.skipIf(process.getuid?.() === 0)(
+    // only meaningful as an ordinary user - and Windows ignores a directory's
+    // mode bits for writes, so chmod cannot make one read-only there at all.
+    it.skipIf(process.getuid?.() === 0 || process.platform === 'win32')(
       'throws and reports failed when the index directory is not writable',
       async () => {
         const readOnlyDir = path.join(indexDir, 'read-only');
