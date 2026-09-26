@@ -37,7 +37,7 @@
  * screen.
  */
 
-import type { WordInfo } from '../../utils/wordIndexing';
+import type { WordInfo } from './WordIndexing';
 
 /**
  * One row of a module's `interlinear_word` table, as delivered by
@@ -218,4 +218,14 @@ export function cellsPartitionWordSpace(cells: InterlinearCell[], total: number)
     expected = cell.wordEnd + 1;
   }
   return expected === total;
+}
+
+/** Every Strong's number attached to a cell: its own row first, then extras. */
+export function cellStrongsNumbers(cell: InterlinearCell): string[] {
+  const numbers: string[] = [];
+  if (cell.source?.strongsNumber) numbers.push(cell.source.strongsNumber);
+  for (const extra of cell.extraSources) {
+    if (extra.strongsNumber) numbers.push(extra.strongsNumber);
+  }
+  return numbers;
 }

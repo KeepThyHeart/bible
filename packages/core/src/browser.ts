@@ -106,6 +106,59 @@ export {
 } from './Services/DictionaryDefinitionFormatter';
 export type { NewlineHandling } from './Services/DictionaryDefinitionFormatter';
 
+// --- Verse text formatting --------------------------------------------------
+// The pure half of `VerseFormatter`: raw module text + word-range metadata in,
+// display HTML out (Words of Christ, divine-name small caps, OSIS strip). The
+// web client's offline read path calls this so it renders exactly what the
+// server does; `formatVerseText(BibleVerse)` (the model adapter) stays out.
+export {
+  formatVerseFields,
+  stripOsisTags,
+  highlightSearchTerms,
+  hasWordsOfChrist,
+  getFootnotes,
+} from './Services/VerseTextFormatter';
+export type { FormattedVerse, VerseFormattingData, VerseWordRange } from './Services/VerseTextFormatter';
+
+// --- Word indexing and interlinear cells ------------------------------------
+// The English-word index space (`extractWordsWithFormatting`) that interlinear
+// rows, highlights and formatting spans all address, and the cell builder that
+// partitions it for the interlinear view. DOM-free, so the desktop renderer,
+// the web client and Node scripts tokenise a verse identically.
+export {
+  extractWordsWithFormatting,
+  extractWords,
+  countWordsInRange,
+} from './Services/WordIndexing';
+export type { WordInfo } from './Services/WordIndexing';
+export {
+  buildInterlinearCells,
+  cellsPartitionWordSpace,
+  cellStrongsNumbers,
+} from './Services/InterlinearCells';
+export type { InterlinearWord, InterlinearCell } from './Services/InterlinearCells';
+
+// --- Content text direction ---------------------------------------------------
+// Direction of a *module's* text (by its language), independent of UI locale.
+export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
+
+// --- Module catalog metadata ----------------------------------------------------
+// Language-free module facts: which module is the AI digest, recommended
+// translations, commentary sort order, machine-authorship detection. The prose
+// and notice wording stay in each app's own localization.
+export {
+  DIGEST_MODULE_ABBR,
+  isDigestModule,
+  isAiGeneratedMetadata,
+  getModuleProvenanceKind,
+  isAiGeneratedModule,
+  RECOMMENDED_BIBLES,
+  DEFAULT_COMMENTARY_PRIORITY,
+  COMMENTARY_PRIORITY,
+  getCommentaryPriority,
+} from './Services/ModuleDescriptions';
+export type { ModuleProvenanceKind, ModuleProvenanceMetadata } from './Services/ModuleDescriptions';
+
 // --- Text truncation --------------------------------------------------------
 export { truncateAtWordBoundary, TRUNCATION_ELLIPSIS } from './Services/TextTruncation';
 export type { TruncatedText } from './Services/TextTruncation';

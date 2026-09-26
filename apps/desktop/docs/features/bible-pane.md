@@ -182,7 +182,7 @@ The preface/heading logic (`isPrefaceVerse`, `getSectionHeading`, the shared `PR
 | `src/ui/utils/verseFormatting.ts` | Verse formatting helpers; book names come from `@bible/core`, the abbreviation table is local |
 | `src/ui/utils/verseParser.ts` | Parses verse reference strings (strict: rejects chapter/verse 0 and reversed ranges) |
 | `src/ui/utils/verseReference.ts` | Verse reference utilities; owns the module-language book-name cache |
-| `src/ui/utils/wordIndexing.ts` | Word-level indexing for interlinear alignment |
+| `packages/core/src/Services/WordIndexing.ts` | Word-level indexing for interlinear alignment (`extractWordsWithFormatting`), DOM-free and shared with the web app via `@bible/core/browser` |
 | `src/ui/utils/selectionUtils.ts` | Text selection utilities for verse copying - a pure operation on the current selection, with no timers of its own |
 | `src/ui/services/verseReferenceParser.ts` | Parses user-entered verse references |
 | `src/ui/services/verseRangeService.ts` | Handles verse range resolution |

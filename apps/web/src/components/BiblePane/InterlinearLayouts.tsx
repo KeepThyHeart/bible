@@ -14,7 +14,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import {
   cellStrongsNumbers,
   type InterlinearCell,
-} from '../../utils/interlinearCells';
+} from '@bible/core/browser';
 import type { StrongsEntryData } from '../../types';
 
 export interface StrongsHandlers {

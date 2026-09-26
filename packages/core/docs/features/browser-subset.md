@@ -28,7 +28,7 @@ belongs in the barrel instead, imported once.
 
 ## What is re-exported
 
-Ten groups, all of it from `src/browser.ts`:
+The groups below, all of it from `src/browser.ts`:
 
 | Group | Exports | From |
 |---|---|---|
@@ -38,6 +38,10 @@ Ten groups, all of it from `src/browser.ts`:
 | Bible structure | `BIBLE_SECTIONS`, `getBibleSection`; types `BibleSectionKey`, `BibleSectionInfo` | `src/Services/BibleSections.ts` |
 | Copy templates | `renderTemplate`, `BUILTIN_TEMPLATES`, `exportTemplates`, `importTemplates`; type `SavedTemplate` | `src/Services/CopyService.ts` |
 | Passage formatting | The whole format engine - `getPassageFormatCatalog` and the rest of the numbered catalog, `renderPassageMarkup` + `passageMarkupToHtml`/`...ToText`/`...ToSourceText`/`...ToMarkdown`, `renderPassageCopy`, `renderCopyTemplate`, the verse-text extraction (`getVerseTextForFormat`, `buildPassageReference`) and the option defaults and normalizers | `src/Services/PassageFormat/` |
+| Verse text formatting | `formatVerseFields`, `stripOsisTags`, `highlightSearchTerms`, `hasWordsOfChrist`, `getFootnotes`; types `FormattedVerse`, `VerseFormattingData`, `VerseWordRange` - the pure half of `VerseFormatter` (raw text + word-range payload in, display HTML out); the `BibleVerse` adapter `formatVerseText` stays out | `src/Services/VerseTextFormatter.ts` |
+| Word indexing and interlinear cells | `extractWordsWithFormatting`, `extractWords`, `countWordsInRange`; type `WordInfo` - the DOM-free verse tokenizer that defines the word index space - and `buildInterlinearCells`, `cellsPartitionWordSpace`, `cellStrongsNumbers`; types `InterlinearWord`, `InterlinearCell` (the barrel's `InterlinearWord` is the cell builder's input row, not the `Data` model class of the same name exported by the root entry) | `src/Services/WordIndexing.ts`, `src/Services/InterlinearCells.ts` |
+| Content text direction | `directionForLanguage`, `isRtlLanguage` - direction of a module's language, independent of the UI locale | `src/Data/Locales/TextDirection.ts` |
+| Module catalog metadata | `DIGEST_MODULE_ABBR`, `isDigestModule`, `isAiGeneratedMetadata`, `getModuleProvenanceKind`, `isAiGeneratedModule`, `RECOMMENDED_BIBLES`, `DEFAULT_COMMENTARY_PRIORITY`, `COMMENTARY_PRIORITY`, `getCommentaryPriority`; types `ModuleProvenanceKind`, `ModuleProvenanceMetadata` - language-free facts only; each app keeps its own notice wording and descriptions | `src/Services/ModuleDescriptions.ts` |
 | Dictionary rendering | `dictionaryDefinitionToHtml`, `definitionHasHtmlMarkup`, `newlinesToLineBreaks`, `readNewlineHandling`, `resolveNewlineHandling`, `NEWLINE_HANDLING_KEY`; type `NewlineHandling` | `src/Services/DictionaryDefinitionFormatter.ts` |
 | Strong's numbers | `StrongsNumberHelper`; types `StrongsLanguage`, `ParsedStrongsNumber` | `src/Data/Core/StrongsNumberHelper.ts` |
 | Plugin hooks | `HookRegistry`; types `FilterHandler`, `ActionHandler` | `src/Plugin/HookRegistry.ts` |
@@ -46,8 +50,9 @@ Ten groups, all of it from `src/browser.ts`:
 Two groups reach outside the repository on purpose: `hash-wasm` (Argon2id, loaded lazily) and `fflate` (the ZIP codec) are the only bare specifiers the barrel may reach, allow-listed in `browserBarrel.test.ts`, and the file-count bound there was raised again (to 90) for them.
 
 Note what is **not** here: no repositories, no `ISql`, no `SqliteProvider`, no
-`VerseFormatter` (which the web offline path duplicates by hand instead - see
-[Text rendering](text-rendering.md)), no controllers.
+`formatVerseText(BibleVerse)` adapter (the web offline path calls the pure
+`formatVerseFields` beneath it instead - see [Text rendering](text-rendering.md)),
+no controllers.
 
 The passage-format group is the largest thing in the barrel and the reason its
 file-count bound was raised from 25 to 40. It came out of the desktop renderer,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { directionForLanguage, isRtlLanguage } from './textDirection';
+import { directionForLanguage, isRtlLanguage } from './TextDirection';
 
 describe('directionForLanguage', () => {
   it('reports the RTL scripture languages as rtl', () => {

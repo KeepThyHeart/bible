@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import type { WordInfo } from '../utils/wordIndexing';
+import type { WordInfo } from '@bible/core/browser';
 import { useVerseDecorationStore } from './verseDecorationStore';
 import {
   resolveVerseDecorations,

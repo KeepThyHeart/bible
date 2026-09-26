@@ -10,7 +10,7 @@ import { isTextSelectionActive } from '../utils/selectionUtils';
 import { HighlightSelector } from './highlights/HighlightSelector';
 import { HighlightedVerse } from './highlights/HighlightRenderer';
 import BibleHeader from './BibleHeader';
-import { directionForLanguage } from '../utils/textDirection';
+import { directionForLanguage } from '@bible/core/browser';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
 import PaneEmptyState from './onboarding/PaneEmptyState';

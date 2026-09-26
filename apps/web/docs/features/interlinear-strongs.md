@@ -25,8 +25,8 @@ This feature is a child of [Bible Pane](bible-pane.md) and only active in Study 
 
 | File | Description |
 |---|---|
-| `src/utils/wordIndexing.ts` | `extractWordsWithFormatting(verse.text_html)` — splits a verse into whitespace-separated tokens, carrying each word's `isChristWords` / `isDivineName` / trailing-space flags. This token sequence is the index space the interlinear rows address. Ported from the desktop app's `apps/desktop/src/ui/utils/wordIndexing.ts` (extraction half only); the two copies are hand-synced rather than shared via `@bible/core` |
-| `src/utils/interlinearCells.ts` | `buildInterlinearCells()`, `cellsPartitionWordSpace()`, `cellStrongsNumbers()` — pairs English token runs with the interlinear rows that claim them. Ported from the desktop app's `apps/desktop/src/ui/components/study/interlinearCells.ts`; hand-synced rather than shared via `@bible/core` (which would mean touching that package's barrel exports) |
+| `packages/core/src/Services/WordIndexing.ts` | `extractWordsWithFormatting(verse.text_html)` — splits a verse into whitespace-separated tokens, carrying each word's `isChristWords` / `isDivineName` / trailing-space flags. This token sequence is the index space the interlinear rows address. Shared with the desktop app through `@bible/core/browser` (DOM-free, so it also runs in Node) |
+| `packages/core/src/Services/InterlinearCells.ts` | `buildInterlinearCells()`, `cellsPartitionWordSpace()`, `cellStrongsNumbers()` — pairs English token runs with the interlinear rows that claim them. Shared with the desktop app through `@bible/core/browser` |
 | `src/utils/interlinearRows.ts` | The whole API-row → cell decision, shared by both renderers: `toCellRow()`, `normalizeStrongsNumber()`, `rowsHaveEndPositions()` (the stale-response shape check), `warnInterlinearFallback()` (once per verse + reason) and `buildVerseInterlinearCells()`, which returns `null` to mean "render the plain verse instead" |
 
 ### Data Flow
@@ -100,7 +100,7 @@ in the console (naming the verse id and the row/word counts, matching desktop's
 `InterlinearDisplay`) — a fallback nobody can see is a module quietly changing
 what the page says. Tokenisation happens *before* footnote markers are appended
 so those markers cannot be mistaken for verse words. Covered by
-`src/utils/interlinearCells.test.ts` and `src/utils/interlinearRows.test.ts`.
+`packages/core/src/Services/InterlinearCells.test.ts` and `src/utils/interlinearRows.test.ts`.
 
 `verify-interlinear-alignment.js` (**not in this repo**; it lived in a
 repo-root `scripts/` directory that has not been imported) checks the assumption

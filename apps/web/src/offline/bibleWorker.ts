@@ -5,9 +5,10 @@
  * and runs chapter/verse queries locally. This eliminates server round-trips
  * for downloaded translations.
  *
- * NOTE: Verse formatting lives in `./verseFormatting.ts` — a duplicate of
- * @bible/core VerseFormatter, kept because the core package is CJS and Vite's
- * worker build (Rollup) cannot resolve named CJS re-exports in ES workers.
+ * NOTE: Verse formatting is `formatVerseFields` from `@bible/core/browser` —
+ * the very code the server renders with, so a verse looks the same online and
+ * offline. (Only the browser-safe barrel is importable here; the root
+ * `@bible/core` entry is CJS and reaches better-sqlite3.)
  *
  * Message protocol:
  *   -> { type: 'openDb', module }
@@ -23,11 +24,11 @@ import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite-async.mjs';
 import { OriginPrivateFileSystemVFS } from 'wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js';
 import * as SQLite from 'wa-sqlite';
 import {
-  formatVerseText,
+  formatVerseFields,
   hasWordsOfChrist,
   getFootnotes,
-  type FormattingData,
-} from './verseFormatting';
+  type VerseFormattingData,
+} from '@bible/core/browser';
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -156,8 +157,8 @@ async function querySingleVerse(db: number, verseId: number): Promise<RawVerseRo
 }
 
 function formatRow(row: RawVerseRow) {
-  const fd: FormattingData | undefined = row.formatting ? JSON.parse(row.formatting) : undefined;
-  const { textHtml, isParagraphStart, sectionHeading } = formatVerseText(row.text, fd);
+  const fd: VerseFormattingData | undefined = row.formatting ? JSON.parse(row.formatting) : undefined;
+  const { textHtml, isParagraphStart, sectionHeading } = formatVerseFields(row.text, fd);
   const footnotes = getFootnotes(fd);
 
   const bookNumber = Math.floor(row.verse_id / 1000000);

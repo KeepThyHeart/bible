@@ -10,7 +10,7 @@ import DOMPurify from 'dompurify';
  * the whole point of the format, and it also means a module is an HTML
  * injection vector: whatever the module says goes straight into the page.
  * Desktop has sanitized these sinks since it grew them (see
- * the desktop app's `src/ui/utils/sanitize.ts`, which this mirrors); web renders
+ * the desktop app's `src/ui/utils/sanitize.ts`, which uses the same profile); web renders
  * the same content and did not, so a module that was harmless in the desktop
  * app could run script in the browser one.
  *

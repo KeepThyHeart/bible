@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import InterlinearDisplay, { toDisplayHtml } from './InterlinearDisplay';
-import type { InterlinearWord } from './interlinearCells';
+import type { InterlinearWord } from '@bible/core/browser';
 import { ContextProvider, type AppServices } from '../../contexts/ContextProvider';
 import { dictionaryAPI } from '../../services/electronAPI';
 import { useHighlightStore } from '../../stores/useHighlightStore';

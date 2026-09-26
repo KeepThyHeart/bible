@@ -6,16 +6,17 @@ import { usePopupPosition } from '../../hooks/usePopupPosition';
 import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
-import { extractWordsWithFormatting, type WordInfo } from '../../utils/wordIndexing';
 import { wordRenderAttrs, HighlightedVerse } from '../highlights/HighlightRenderer';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
 import type { ResolvedVerse, ResolvedHover } from '../../extensions/decorationResolver';
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
+  extractWordsWithFormatting,
   type InterlinearCell,
   type InterlinearWord,
-} from './interlinearCells';
+  type WordInfo,
+} from '@bible/core/browser';
 
 export type { InterlinearWord };
 
@@ -394,7 +395,7 @@ function cleanInterlinearWord(word: InterlinearWord): InterlinearWord {
   // Use gloss if available, otherwise use cleaned original as gloss if it looks like English.
   //
   // The gloss is no longer *rendered*: the English tokens shown come from the
-  // verse text itself (see interlinearCells.ts), which is what makes them
+  // verse text itself (see InterlinearCells.ts (@bible/core)), which is what makes them
   // addressable by word index. The gloss is only used to decide which English
   // indices a row claims, so any residual OSIS markup in it is harmless here -
   // it never reaches the DOM.
@@ -421,7 +422,7 @@ function cleanInterlinearWord(word: InterlinearWord): InterlinearWord {
  *
  * Every English word is emitted as its own
  * `<span class="word" data-word-index=N>`, in the same 0-based index space
- * highlights, underlines and find-in-page use - see `interlinearCells.ts` for
+ * highlights, underlines and find-in-page use - see `InterlinearCells.ts (@bible/core)` for
  * why that is sound. Original-language, transliteration and Strong's lines
  * deliberately carry no `data-word-index`, so dragging across Greek text can
  * never be mapped onto English indices.

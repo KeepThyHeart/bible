@@ -74,7 +74,7 @@ export function createInterlinearRoutes(db: DatabaseManager): Router {
             verseId,
             position: w.wordPositionStart,
             // Inclusive end index. The client cannot align rows against the
-            // English text without it (see utils/interlinearCells.ts).
+            // English text without it (see `Services/InterlinearCells.ts` in @bible/core).
             positionEnd: w.wordPositionEnd,
             originalWord: stripOsisTags(w.originalWord || ''),
             transliteration: w.transliteration || '',

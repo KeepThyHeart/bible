@@ -21,8 +21,10 @@ produces `text_html`, strips markup, or renders a definition or commentary entry
 
 | File | Purpose |
 |---|---|
-| `src/Services/VerseFormatter.ts` | `formatVerseText(verse)` -> `{ textHtml, isParagraphStart, sectionHeading }`. Also `stripOsisTags` and `highlightSearchTerms`. This is where OSIS/SWORD markup is removed and where words-of-Christ and divine-name spans become `<span>`s. |
-| `src/Services/VerseFormatter.test.ts` | Tests. |
+| `src/Services/VerseTextFormatter.ts` | The pure engine: `formatVerseFields(text, formattingData, heading?)` -> `{ textHtml, isParagraphStart, sectionHeading }`, plus `stripOsisTags`, `highlightSearchTerms`, `hasWordsOfChrist`, `getFootnotes`. This is where OSIS/SWORD markup is removed and where words-of-Christ and divine-name spans become `<span>`s. Free of the `BibleVerse` model, so it is in the browser barrel. |
+| `src/Services/VerseTextFormatter.test.ts` | Tests for the engine on raw text and either key spelling (what the web offline worker feeds it). |
+| `src/Services/VerseFormatter.ts` | `formatVerseText(verse)`: the `BibleVerse` adapter over `formatVerseFields` (reads the verse's structured heading first), and re-exports of the engine. |
+| `src/Services/VerseFormatter.test.ts` | Tests for the adapter and the engine through it. |
 | `src/Services/BibleViewService.ts` | Assembles a whole chapter of `ChapterVerse` rows for IPC/HTTP; topic dedup; verse of the day. |
 | `src/Services/DictionaryDefinitionFormatter.ts` | Renders a stored dictionary definition: escaping, and newline->`<br />` under a module-level `newline_handling` declaration. |
 | `src/Services/DictionaryDefinitionFormatter.test.ts` | Tests. |
@@ -82,7 +84,7 @@ Reader path, chapter render:
 BibleRepository.getChapter()
   -> BibleVerse (formatting + formattingData both filled)
   -> BibleViewService.getFormattedChapter()
-      -> formatVerseText(verse)  [VerseFormatter]
+      -> formatVerseText(verse)  [VerseFormatter -> VerseTextFormatter]
       -> { verse_id, text, text_html, is_paragraph_start, words_of_christ,
           footnotes, section_heading }
   -> desktop IPC / web route -> renderer
@@ -240,11 +242,13 @@ Nesting composes into `> > x`.
   which made `stripOsisTags` a no-op on interlinear fields and rendered raw markup
   as literal text. Nothing downstream re-parses `<w>`; Strong's data reaches the UI
   through `interlinear_word` columns.
-- **Do not let a client hand-copy `VerseFormatter.ts`.** A browser client that
-  cannot import the root barrel should reach it through `@bible/core/browser`,
-  which exports it - see [Browser subset](browser-subset.md). A copy drifts: the
-  `w` alternative in `OSIS_TAG_PATTERN` is exactly the kind of addition that
-  lands in core and not in the duplicate.
+- **Do not let a client hand-copy the formatter.** A browser client that
+  cannot import the root barrel reaches it through `@bible/core/browser`, which
+  exports `formatVerseFields` - see [Browser subset](browser-subset.md). The web
+  offline worker does exactly that. A copy drifts: the `w` alternative in
+  `OSIS_TAG_PATTERN` and the trailing-punctuation collapse are the kind of
+  addition that lands in core and not in the duplicate (the web copy had missed
+  both).
 - **`formattingData` key spellings are inconsistent** -
   `paragraph_start`, `added_words`, `words_of_christ` are snake_case while
   `sectionHeading` is camelCase. Every read accepts both spellings; keep doing
@@ -275,5 +279,5 @@ Nesting composes into `> > x`.
 - [USFM export](usfm-export.md) - the same span model written back out as USFM.
 - [Module format](module-format.md) - the normative `formatting` column spec.
 - [Browser subset](browser-subset.md) - `CopyService` and
-  `DictionaryDefinitionFormatter` are re-exported for the web client;
-  `VerseFormatter` is not.
+  `DictionaryDefinitionFormatter` are re-exported for the web client, and so is
+  `formatVerseFields` (the pure half of `VerseFormatter`).

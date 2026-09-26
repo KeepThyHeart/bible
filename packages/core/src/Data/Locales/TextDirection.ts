@@ -4,24 +4,19 @@
  * The two are independent and must not be conflated: a user reading with an
  * Arabic interface may well have the KJV open, and an English interface is a
  * perfectly normal way to read the Van Dyck Arabic Bible. UI direction comes
- * from the active i18next locale (`syncDocumentLang()` in `i18n.ts`); content
- * direction comes from the *module's* language, which is what this file
- * resolves.
+ * from the active UI locale; content direction comes from the *module's*
+ * language, which is what this file resolves.
  *
  * Consumers set `dir`/`lang` on the element wrapping the module's text. Once a
  * subtree carries its own `dir`, the bidi algorithm lays it out correctly no
  * matter what the surrounding UI direction is.
  *
- * This is a deliberate copy of desktop's `apps/desktop/src/ui/utils/textDirection.ts`
- * rather than a shared import: it is pure, dependency-free logic, and the two
- * apps' UI-locale `LocaleDirection` types come from different places (desktop's
- * `II18nService`, web's `@bible/core/browser`). Keep the RTL tables in step by
- * hand if either changes - they cover Bible/commentary/lexicon module
- * languages, not the 14-locale UI plan, so they are broader than
- * `@bible/core`'s `LOCALE_REGISTRY` and cannot simply delegate to it.
+ * The RTL tables cover Bible/commentary/lexicon module languages, not the
+ * 14-locale UI plan, so they are broader than `LOCALE_REGISTRY` and cannot
+ * simply delegate to it.
  */
 
-import type { LocaleDirection } from '@bible/core/browser';
+import type { LocaleDirection } from './LocaleRegistry';
 
 /**
  * Right-to-left ISO-639 language codes, restricted to those a Bible/commentary/

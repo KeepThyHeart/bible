@@ -59,7 +59,6 @@ ui/
 +-- stores/
 |   +-- useHighlightStore.ts              # Zustand state management
 +-- utils/
-|   +-- wordIndexing.ts                   # Word extraction and DOM navigation
 |   +-- highlightHelpers.ts               # Helper utilities
 +-- styles/
     +-- highlights.css                    # Styling for highlights and underlines
@@ -440,10 +439,10 @@ export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple' | 'o
 
 ### Unit Tests
 
-Test word indexing:
+Word indexing is tested in core (`packages/core/src/Services/WordIndexing.test.ts`); for example:
 
 ```typescript
-import { extractWords } from './utils/wordIndexing';
+import { extractWords } from '@bible/core/browser';
 
 test('extractWords strips HTML', () => {
   const html = '<sup>16</sup> For God so <em>loved</em> the world';

@@ -17,7 +17,7 @@
  */
 
 import type { Extensions } from '@bible/core';
-import type { WordInfo } from '../utils/wordIndexing';
+import type { WordInfo } from '@bible/core/browser';
 
 type DecorationDto = Extensions.DecorationDto;
 type DecorationTarget = Extensions.DecorationTarget;

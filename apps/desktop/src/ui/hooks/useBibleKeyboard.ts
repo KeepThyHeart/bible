@@ -5,7 +5,7 @@ import { MarkupType, UserTextMarkup } from '@bible/core';
 import { WordSelection, BibleTabInfo, CopyOptionsDialogState } from '../components/BiblePaneContext';
 import { IPCHighlightRepository } from '../services/highlightsAPI';
 import { useHighlightStore } from '../stores/useHighlightStore';
-import { extractWordsWithFormatting } from '../utils/wordIndexing';
+import { extractWordsWithFormatting } from '@bible/core/browser';
 import { useFindStore, FindMatch } from '../stores/useFindStore';
 import { computeSelectedRange } from '../stores/bible/internals/verseRange';
 import { useLayoutStore } from '../stores/useLayoutStore';

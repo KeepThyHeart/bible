@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest';
 import { UserTextMarkup } from '@bible/core';
 import { wordRenderAttrs, renderVerseWords, type VerseFindState } from './HighlightRenderer';
-import { extractWordsWithFormatting } from '../../utils/wordIndexing';
+import { extractWordsWithFormatting } from '@bible/core/browser';
 import type { WordPaint } from '../../extensions/decorationResolver';
 
 const VERSE_ID = 43003016;

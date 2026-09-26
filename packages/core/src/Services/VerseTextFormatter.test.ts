@@ -1,17 +1,17 @@
 /**
- * Tests for the offline read path's verse formatting.
- *
- * These call the real `formatVerseText`. The section-heading cases below used
- * to live in `src/__tests__/utils.test.ts` against a locally re-declared
- * `stripSwordXml` copy — so they passed no matter what the app did. The
- * function had to be lifted out of `bibleWorker.ts` (which imports wa-sqlite at
- * load) before it could be imported here at all.
+ * Tests for the pure verse-formatting engine, `formatVerseFields`, in its
+ * raw-text + snake_case-payload form: the shape the web client's offline
+ * (OPFS/wa-sqlite) read path feeds it. Moved here from
+ * `apps/web/src/offline/verseFormatting.test.ts` when that hand-copy of core's
+ * formatter was deleted; `VerseFormatter.test.ts` covers the `BibleVerse`
+ * adapter. Both copies of the formatter pinned the same behaviour, so a
+ * regression on either read path fails here.
  */
 import { describe, it, expect } from 'vitest';
-import { formatVerseText, hasWordsOfChrist, getFootnotes } from './verseFormatting';
+import { formatVerseFields, hasWordsOfChrist, getFootnotes } from './VerseTextFormatter';
 
-describe('formatVerseText — section headings', () => {
-  const heading = (raw: string) => formatVerseText('body text', { sectionHeading: raw }).sectionHeading;
+describe('formatVerseFields — section headings', () => {
+  const heading = (raw: string) => formatVerseFields('body text', { sectionHeading: raw }).sectionHeading;
 
   it('strips SWORD word tags, keeping the words and their spacing', () => {
     expect(
@@ -43,39 +43,39 @@ describe('formatVerseText — section headings', () => {
     // the verse, so both collapse to undefined.
     expect(heading('')).toBeUndefined();
     expect(heading('<w lemma="strong:H1"></w>')).toBeUndefined();
-    expect(formatVerseText('body text', undefined).sectionHeading).toBeUndefined();
+    expect(formatVerseFields('body text', undefined).sectionHeading).toBeUndefined();
   });
 
   it('accepts the snake_case spelling the module DBs actually store', () => {
-    expect(formatVerseText('body', { section_heading: 'A Psalm' }).sectionHeading).toBe('A Psalm');
+    expect(formatVerseFields('body', { section_heading: 'A Psalm' }).sectionHeading).toBe('A Psalm');
   });
 });
 
-describe('formatVerseText — paragraph starts', () => {
+describe('formatVerseFields — paragraph starts', () => {
   it('treats a pilcrow as a paragraph start and removes it from the text', () => {
-    const { textHtml, isParagraphStart } = formatVerseText('¶ In the beginning', undefined);
+    const { textHtml, isParagraphStart } = formatVerseFields('¶ In the beginning', undefined);
     expect(isParagraphStart).toBe(true);
     expect(textHtml).not.toContain('¶');
   });
 
   it('reads the flag from formatting data in either spelling', () => {
-    expect(formatVerseText('text', { paragraphStart: true }).isParagraphStart).toBe(true);
-    expect(formatVerseText('text', { paragraph_start: true }).isParagraphStart).toBe(true);
+    expect(formatVerseFields('text', { paragraphStart: true }).isParagraphStart).toBe(true);
+    expect(formatVerseFields('text', { paragraph_start: true }).isParagraphStart).toBe(true);
   });
 
   it('is not a paragraph start by default', () => {
-    expect(formatVerseText('text', undefined).isParagraphStart).toBe(false);
+    expect(formatVerseFields('text', undefined).isParagraphStart).toBe(false);
   });
 });
 
-describe('formatVerseText — OSIS markup', () => {
+describe('formatVerseFields — OSIS markup', () => {
   it('strips OSIS tags that have no HTML equivalent', () => {
-    const { textHtml } = formatVerseText('the <transChange type="added">word</transChange> of God', undefined);
+    const { textHtml } = formatVerseFields('the <transChange type="added">word</transChange> of God', undefined);
     expect(textHtml).toBe('the word of God');
   });
 
   it('strips legacy <font> wrappers left by older module conversions', () => {
-    const { textHtml } = formatVerseText('<font color="red">Jesus wept</font>', undefined);
+    const { textHtml } = formatVerseFields('<font color="red">Jesus wept</font>', undefined);
     expect(textHtml).toBe('Jesus wept');
   });
 
@@ -85,7 +85,7 @@ describe('formatVerseText — OSIS markup', () => {
   // readers saw raw markup on ordinary verses while online readers did not —
   // the precise "looks different offline" failure this file exists to prevent.
   it('strips SWORD word tags from the verse body, not just from headings', () => {
-    const { textHtml } = formatVerseText(
+    const { textHtml } = formatVerseFields(
       '<w lemma="strong:G2424">Jesus</w> <w lemma="strong:G1145">wept</w>.',
       undefined,
     );
@@ -93,57 +93,72 @@ describe('formatVerseText — OSIS markup', () => {
   });
 });
 
-describe('formatVerseText — words of Christ', () => {
+describe('formatVerseFields — words of Christ', () => {
   it('wraps the indexed word range and nothing else', () => {
-    const { textHtml } = formatVerseText('He said I am the way', {
+    const { textHtml } = formatVerseFields('He said I am the way', {
       wordsOfChrist: [{ start: 2, end: 5 }],
     });
     expect(textHtml).toBe('He said <span class="christ-words">I am the way</span>');
   });
 
   it('accepts the snake_case spelling', () => {
-    const { textHtml } = formatVerseText('He said peace', { words_of_christ: [{ start: 2, end: 2 }] });
+    const { textHtml } = formatVerseFields('He said peace', { words_of_christ: [{ start: 2, end: 2 }] });
     expect(textHtml).toContain('<span class="christ-words">peace</span>');
   });
 
   it('ignores ranges that run past the end of the verse', () => {
     // Word indices come from the module DB and can outlive a text correction.
-    const { textHtml } = formatVerseText('two words', { wordsOfChrist: [{ start: 0, end: 99 }] });
+    const { textHtml } = formatVerseFields('two words', { wordsOfChrist: [{ start: 0, end: 99 }] });
     expect(textHtml).toBe('<span class="christ-words">two words</span>');
   });
 
   it('leaves the text untouched when the range list is empty', () => {
-    expect(formatVerseText('plain text', { wordsOfChrist: [] }).textHtml).toBe('plain text');
+    expect(formatVerseFields('plain text', { wordsOfChrist: [] }).textHtml).toBe('plain text');
   });
 });
 
-describe('formatVerseText — divine name', () => {
+describe('formatVerseFields — divine name', () => {
   it('renders a v2 divine_name span in initial-capital form', () => {
     // Module format v2 carries the Tetragrammaton as a word-index span, not a
     // <divineName> tag — this is the path that actually runs for current
     // modules. Capitalization is baked in because the small-caps CSS cannot do
     // it (see toDivineNameCase).
-    const { textHtml } = formatVerseText('the LORD is my shepherd', {
+    const { textHtml } = formatVerseFields('the LORD is my shepherd', {
       divineName: [{ start: 1, end: 1 }],
     });
     expect(textHtml).toBe('the <span class="divine-name">Lord</span> is my shepherd');
   });
 
   it('still handles the legacy <divineName> tag', () => {
-    const { textHtml } = formatVerseText('the <divineName>LORD</divineName> is good', undefined);
+    const { textHtml } = formatVerseFields('the <divineName>LORD</divineName> is good', undefined);
     expect(textHtml).toBe('the <span class="divine-name">Lord</span> is good');
   });
 
   it('nests inside words of Christ rather than producing crossed tags', () => {
     // Both span types index the same word sequence, so an overlap has to nest
     // legally or the browser silently repairs it into something else.
-    const { textHtml } = formatVerseText('I am the LORD your God', {
+    const { textHtml } = formatVerseFields('I am the LORD your God', {
       wordsOfChrist: [{ start: 0, end: 5 }],
       divineName: [{ start: 3, end: 3 }],
     });
     expect(textHtml).toBe(
       '<span class="christ-words">I am the <span class="divine-name">Lord</span> your God</span>',
     );
+  });
+});
+
+describe('formatVerseFields - punctuation and heading override', () => {
+  // Core's formatter collapsed the gap a stripped tag leaves before trailing
+  // punctuation; the web copy never had this. Adopting core's version fixes the
+  // offline path: `them .` no longer lets the period wrap onto its own line.
+  it('collapses the space left before trailing punctuation after a span rebuild', () => {
+    const { textHtml } = formatVerseFields('Bless them<i></i>.', { wordsOfChrist: [{ start: 0, end: 5 }] });
+    expect(textHtml).toBe('<span class="christ-words">Bless them.</span>');
+  });
+
+  it('lets an explicit heading override the payload heading', () => {
+    expect(formatVerseFields('text', { sectionHeading: 'old' }, 'new').sectionHeading).toBe('new');
+    expect(formatVerseFields('text', { sectionHeading: 'kept' }, undefined).sectionHeading).toBe('kept');
   });
 });
 

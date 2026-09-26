@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { UserTextMarkup, markupColorName } from '@bible/core';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useFindStore } from '../../stores/useFindStore';
-import { extractWordsWithFormatting, WordInfo } from '../../utils/wordIndexing';
+import { extractWordsWithFormatting, type WordInfo } from '@bible/core/browser';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { buildWordPaintStyle, type WordPaint, type ResolvedHover } from '../../extensions/decorationResolver';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';

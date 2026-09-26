@@ -40,7 +40,7 @@ import { resolve } from 'path';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { BibleRepository, VerseIdHelper, formatVerseText, type BibleVerse } from '@bible/core';
 import { SqliteProvider } from '../../providers/SqliteProvider';
-import { extractWordsWithFormatting } from '../../../src/ui/utils/wordIndexing';
+import { extractWordsWithFormatting } from '@bible/core/browser';
 
 const DATA_DIR = process.env.BIBLE_DATA_DIR
   ? resolve(process.env.BIBLE_DATA_DIR)

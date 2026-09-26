@@ -10,10 +10,10 @@
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
+  extractWordsWithFormatting,
   type InterlinearCell,
   type InterlinearWord,
-} from './interlinearCells';
-import { extractWordsWithFormatting } from './wordIndexing';
+} from '@bible/core/browser';
 import type { InterlinearWordData } from '../types';
 
 /** Strong's numbers occasionally arrive as `strong:G2316`; the UI wants `G2316`. */
