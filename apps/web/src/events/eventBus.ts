@@ -1,8 +1,7 @@
 /**
  * Typed event bus for decoupling components and stores.
  *
- * Events are strongly typed via the EventMap interface. Plugins and core
- * code share the same bus — plugins subscribe via ClientPluginContext.eventBus.
+ * Events are strongly typed via the EventMap interface.
  */
 
 import type { VerseFootnote } from '../types';

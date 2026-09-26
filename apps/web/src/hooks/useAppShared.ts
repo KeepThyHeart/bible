@@ -4,7 +4,6 @@ import { commentaryStore } from '../stores/commentaryStore';
 import { searchStore } from '../stores/searchStore';
 import { settingsStore } from '../stores/settingsStore';
 import { eventBus } from '../events/eventBus';
-import { keybindingRegistry } from '../plugins/registries/KeybindingRegistry';
 import { useStore } from './useStore';
 import { parseVerseId } from '../utils/verseId';
 import { focusSearchField } from '../utils/focusSearchField';
@@ -138,10 +137,6 @@ export function useAppShared(providers: IDataProviders) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         focusSearchField();
-      }
-      // Delegate to plugin keybinding registry
-      if (keybindingRegistry.hasBindings()) {
-        keybindingRegistry.handleKeyEvent(e);
       }
     };
     window.addEventListener('keydown', handler);

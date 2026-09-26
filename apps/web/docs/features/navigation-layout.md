@@ -23,7 +23,6 @@ Header, URL hash routing, history navigation, resizable panes, and keyboard shor
 | `src/components/ErrorBoundary.tsx` | Preact error boundary wrapping the app tree — see [PWA & Offline](pwa-offline.md) |
 | `src/components/ConnectionBanner.tsx` | Dismissible banner for transient connection errors (`connectionStore`) |
 | `src/components/PullToRefresh.tsx` | Mobile pull-to-refresh wrapper used by `MobileApp` |
-| `src/panes/paneRegistry.ts` | Self-registration for right-side panes: the `paneRegistry` singleton takes `PaneRegistration` records (id, label, icon, order, component). Core panes and plugin panes both go through it, so the shell renders whatever is registered |
 | `src/utils/apiUrl.ts` | `API_BASE` — origin + Vite's `BASE_URL`, so a sub-path deployment resolves API calls correctly |
 
 ### Shared Hooks
@@ -95,7 +94,7 @@ finished app, not a shell that fills in pane by pane.
 4. After `render()`, two nested `requestAnimationFrame`s call the
    `hideAppLoading()` global defined in `index.html`, which removes the splash
    once the browser has actually painted that frame.
-5. Background work — restored background tabs, plugin activation, cleanup —
+5. Background work — restored background tabs, cleanup —
    stays after the splash comes down.
 
 The boot-loop detector and `showAppError()` fallback in `index.html` are
@@ -128,7 +127,7 @@ all (exported `RESTORABLE_PANE_MODES`, which deliberately excludes `'search'`).
 
 Why: `'search'` was persisted, but search results are not, so the Search tab
 does not exist on a cold start. The pane came back with no active tab and no
-content. `pane:show` also lets a plugin put an arbitrary id in
+content. `pane:show` also lets any emitter put an arbitrary id in
 `rightPaneMode`, which had the same effect.
 
 ## URL Hash Navigation
@@ -282,3 +281,12 @@ carries a `title` and `aria-keyshortcuts="/ Control+K"`.
   silently stayed gone, and the only way back was the collapsed pane's own
   narrow toggle.
 - Collapsed commentary shows as a narrow bar
+
+## Extensions on web (future)
+
+The old in-process client plugin system (`src/plugins`, `src/panes/paneRegistry.ts`)
+was removed: no plugins used it and it ran server-supplied scripts in the app's
+own origin. Web extensions will use the same sandboxed-iframe model as the
+desktop app, through the shared `IframeRpcBridge` in `@bible/core/browser`
+(`packages/core/src/Extensions/IframeRpcBridge.ts`). Hosting them on web (a worker
+runtime, per-extension panel origins, install and consent UI) is future work.

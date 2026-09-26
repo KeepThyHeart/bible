@@ -19,7 +19,6 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
-import { clientPluginManager } from './plugins/pluginManager';
 import i18n, { ensureLocaleLoaded } from './i18n';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -210,11 +209,6 @@ async function init() {
   // The first commentary tab waits for the manifest: which module it opens
   // depends on what this server actually offers.
   commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
-
-  // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
-  clientPluginManager.discover()
-    .then(() => clientPluginManager.activate())
-    .catch(err => console.warn('[Plugins] Client plugin initialization failed:', err));
 
   // Resolve the active tab BEFORE the first paint. This used to run after
   // render(), so a returning user saw the home screen (showHome defaults to
