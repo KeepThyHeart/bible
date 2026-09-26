@@ -26,7 +26,7 @@ describe('manifest userData', () => {
     const r = validateManifest(manifest({
       backup: false,
       sync: false,
-      databases: { progress: { backup: true }, 'embeddings-v2': { backup: false, sync: false } },
+      databases: { progress: { backup: true }, 'embeddings-2': { backup: false, sync: false } },
     }));
     expect(r.ok).toBe(true);
     if (r.ok) {

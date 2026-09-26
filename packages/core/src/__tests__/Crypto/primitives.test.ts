@@ -126,7 +126,7 @@ describe('validateKdfParams', () => {
     ['parallelism 0', { p: 0 }],
     ['parallelism above ceiling', { p: 5 }],
     ['non-integer', { m: 65536.5 }],
-    ['unknown id', { id: 'scrypt' as never }],
+    ['unknown id', { id: 'other-kdf' as never }],
     ['unknown version', { v: 16 as never }],
     ['short salt', { salt: seq(8) }],
     ['huge salt', { salt: seq(65) }],
