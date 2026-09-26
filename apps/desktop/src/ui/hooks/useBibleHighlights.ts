@@ -6,7 +6,7 @@ import { WordSelection, HighlightMenuState, FloatingToolbarState, BibleTabInfo }
 import {
   selectedWordElements,
   wordSelectionFromElements,
-} from '../components/highlights/capturedSelection';
+} from '@bible/core/browser';
 
 /**
  * Manages highlight state, the highlight color menu, and the floating annotation toolbar.
@@ -95,7 +95,7 @@ export function useBibleHighlights(
     const root = bibleTextRef.current;
     if (!root) return null;
 
-    const selectedWords = selectedWordElements(range, root);
+    const selectedWords = selectedWordElements<HTMLElement>(range, root);
     const wordSelection = wordSelectionFromElements(selectedWords);
     if (!wordSelection) return null;
 

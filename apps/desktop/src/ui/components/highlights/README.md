@@ -48,12 +48,11 @@ Data/
 ```
 ui/
 +-- components/highlights/
-|   +-- HighlightRenderer.tsx             # Applies markup to verse HTML
+|   +-- HighlightRenderer.tsx             # HighlightedVerse component (pure logic: @bible/core/browser Annotations)
 |   +-- HighlightSelector.tsx             # Drag-to-highlight interaction
 |   +-- HighlightMenu.tsx                 # Color/style picker
 |   +-- FloatingAnnotationToolbar.tsx     # Toolbar shown over a live selection
 |   +-- UnderlineSwatch.tsx               # One swatch of the underline-colour picker
-|   +-- capturedSelection.ts              # DOM selection -> verse/word indices
 |   +-- IntegrationExample.tsx            # Full example
 |   +-- index.ts                          # Component exports
 +-- stores/

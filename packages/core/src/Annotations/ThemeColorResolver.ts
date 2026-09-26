@@ -18,9 +18,7 @@
  * drops a decoration when dropping the slot would leave it invisible.
  */
 
-import { Extensions } from '@bible/core';
-
-const { THEME_COLOR_CSS_VAR, DEFAULT_THEME_COLOR_KEY, isThemeColorKey } = Extensions;
+import { THEME_COLOR_CSS_VAR, DEFAULT_THEME_COLOR_KEY, isThemeColorKey } from '../Extensions/themeColorKeys';
 
 export function resolveThemeColor(colorKey: string, alpha = 1): string {
   const key = isThemeColorKey(colorKey) ? colorKey : DEFAULT_THEME_COLOR_KEY;

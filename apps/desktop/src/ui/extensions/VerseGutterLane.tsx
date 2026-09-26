@@ -15,7 +15,7 @@
 
 import React from 'react';
 import { useVerseGutterMarks, useHasEnabledDecoratorLayers } from './useResolvedVerseDecorations';
-import type { GutterMark } from './decorationResolver';
+import type { GutterMark } from '@bible/core/browser';
 
 const ICON_GLYPH: Record<string, string> = {
   dot: '●',

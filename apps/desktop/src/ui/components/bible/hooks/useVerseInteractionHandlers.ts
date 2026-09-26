@@ -6,7 +6,7 @@ import { useDictionaryStore } from '../../../stores/useDictionaryStore';
 import { ContextMenuState } from '../../BiblePaneContext';
 import { revealNotesPanel } from '../revealNotesPanel';
 import { openStrongsInDictionary } from '../openStrongsInDictionary';
-import { captureWordSelection } from '../../highlights/capturedSelection';
+import { captureWordSelection } from '@bible/core/browser';
 import { computeSelectedRange } from '../../../stores/bible/internals/verseRange';
 
 /**

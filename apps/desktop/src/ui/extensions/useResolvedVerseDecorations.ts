@@ -10,16 +10,17 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import type { WordInfo } from '@bible/core/browser';
-import { useVerseDecorationStore } from './verseDecorationStore';
 import {
   resolveVerseDecorations,
   countWordTextMatches,
+  resolveThemeColor,
+  registerVerseWords,
+  sumCachedMatches,
   type LayerDecorations,
   type ResolvedVerse,
-} from './decorationResolver';
-import { resolveThemeColor } from './themeColorResolver';
-import { registerVerseWords, sumCachedMatches } from './verseWordTextCache';
+  type WordInfo,
+} from '@bible/core/browser';
+import { useVerseDecorationStore } from './verseDecorationStore';
 
 const EMPTY_LAYERS: LayerDecorations[] = [];
 
@@ -34,7 +35,7 @@ export function useResolvedVerseDecorations(
   );
 
   // Registers this verse's rendered words for any sibling verse's cumulative
-  // `occurrence` count (P0.1b - see `verseWordTextCache.ts`). Cheap and
+  // `occurrence` count (P0.1b - see `VerseWordTextCache.ts` (core)). Cheap and
   // idempotent; runs even when `surface` is undefined so a Parallel-view
   // verse (which renders no decorations of its own) still contributes its
   // words to a passage scope another surface might be resolving.
@@ -60,7 +61,7 @@ export function useResolvedVerseDecorations(
 /**
  * For every `occurrence`-bearing, passage-scoped `'word'` target among
  * `layers`' decorations: how many matches of its text already occurred in
- * earlier verses of its scope, summed from `verseWordTextCache` (P0.1b, see
+ * earlier verses of its scope, summed from `VerseWordTextCache` (core) (P0.1b, see
  * that module's ordering note). Verses the cache has no entry for yet
  * (scope extends outside the loaded chapter, or simply hasn't rendered)
  * contribute 0 - the same "paints the part that is on screen" tolerance the

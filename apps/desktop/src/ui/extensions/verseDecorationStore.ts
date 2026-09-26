@@ -11,14 +11,14 @@
  * Surface-agnostic - nothing here knows what a Bible pane is. The contract
  * for any surface: call `ensureRange` for whatever passage it displays, then
  * `getDecorationsForVerse` per verse, and feed the result plus its own
- * rendered word sequence to `resolveVerseDecorations` (`decorationResolver.ts`).
+ * rendered word sequence to `resolveVerseDecorations` (`DecorationResolver.ts` (core Annotations)).
  */
 
 import { create } from 'zustand';
 import type { Extensions } from '@bible/core';
 import { VerseIdHelper } from '@bible/core';
 import { invokeUiBridge } from './extensionRendererBridge';
-import type { LayerDecorations } from './decorationResolver';
+import type { LayerDecorations } from '@bible/core/browser';
 
 type DecorationDto = Extensions.DecorationDto;
 type DecorationFetchStatus = Extensions.DecorationFetchStatus;

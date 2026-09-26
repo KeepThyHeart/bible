@@ -35,7 +35,10 @@ export {
   ENGLISH_DISPLAY_NAMES,
   ENGLISH_SINGLE_CHAPTER_BOOKS,
   LONG_NAMES,
+  MAX_CHAPTERS,
   MEDIUM_NAMES,
+  NT_BOOKS,
+  OT_BOOKS,
   SHORT_NAMES,
   getBookName,
   getBookNumber,
@@ -137,6 +140,21 @@ export {
   cellStrongsNumbers,
 } from './Services/InterlinearCells';
 export type { InterlinearWord, InterlinearCell } from './Services/InterlinearCells';
+
+// --- Annotations (highlights, decorations, find marks, selection capture) ----
+// The React-free half of verse annotation painting: per-word classes/styles
+// (`wordRenderAttrs`), the verse-to-HTML producer (`renderVerseWords`), the
+// extension-decoration resolver, theme colour keys and the DOM selection
+// mapping. Apps keep only their framework glue (store hooks, components).
+// Flat exports: no name collides with the rest of this barrel.
+export * from './Annotations';
+
+// --- Readable stores (framework-neutral state seam) ---------------------------
+// `subscribe` + `getSnapshot`: the shape `useSyncExternalStore` (React, and
+// Preact via compat) consumes. `fromZustand` adapts a desktop store,
+// `fromSelector` derives a stable slice, `createStore` is a tiny value store.
+export { fromZustand, fromSelector, createStore } from './Ui/ReadableStore';
+export type { ReadableStore, WritableStore, ZustandLike } from './Ui/ReadableStore';
 
 // --- Content text direction ---------------------------------------------------
 // Direction of a *module's* text (by its language), independent of UI locale.

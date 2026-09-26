@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 import { useVerseHoverPopupStore } from './verseHoverPopupStore';
-import type { ResolvedHover } from './decorationResolver';
+import type { ResolvedHover } from '@bible/core/browser';
 
 type Surface = 'standard' | 'study' | 'reading';
 type Modifier = 'ctrl' | 'alt' | 'shift' | 'meta';

@@ -6,7 +6,43 @@
  * branch in BiblePaneOverlays, and buildSelectionFromDOM in useBibleHighlights
  * would disagree about what "the selection" is. There is one selection per
  * document, so there is one implementation of reading it here.
+ *
+ * Core is compiled without the DOM lib, so this file describes the handful of
+ * DOM members it touches as small structural interfaces (`WordElementLike`,
+ * `RangeLike`, `ParentNodeLike`) instead of importing `Range`/`HTMLElement`.
+ * Real DOM objects satisfy them, so callers pass a `Range` / `HTMLElement` /
+ * `Document` exactly as before.
  */
+
+/** The attribute reads this module needs from a DOM element. Structural: satisfied by `HTMLElement`. */
+export interface ElementLike {
+  getAttribute(name: string): string | null;
+}
+
+/** A `.word` element: attributes plus the `closest('[data-verse-id]')` lookup. Satisfied by `HTMLElement`. */
+export interface WordElementLike extends ElementLike {
+  closest(selector: string): ElementLike | null;
+}
+
+/** The slice of `Range` used here. Satisfied by `Range`. */
+export interface RangeLike {
+  // The parameter is deliberately loose: a real `Range` wants a `Node`, and a
+  // `WordElementLike` is one at runtime but not in this file's DOM-free types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  intersectsNode(node: any): boolean;
+}
+
+/** The slice of `ParentNode` used here. Satisfied by `Document`/`HTMLElement`. */
+export interface ParentNodeLike {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  querySelectorAll(selector: string): { forEach(callback: (element: any) => void): void };
+}
+
+interface SelectionLike {
+  isCollapsed: boolean;
+  rangeCount: number;
+  getRangeAt(index: number): RangeLike;
+}
 
 export interface WordSelectionRange {
   startVerseId: number;
@@ -22,10 +58,13 @@ export interface WordSelectionRange {
  * `root` matters: querying `document` picks up words from *every* Bible pane on
  * screen, so a two-pane layout would build a selection spanning both.
  */
-export function selectedWordElements(range: Range, root: ParentNode): HTMLElement[] {
-  const words: HTMLElement[] = [];
+export function selectedWordElements<E extends WordElementLike = WordElementLike>(
+  range: RangeLike,
+  root: ParentNodeLike,
+): E[] {
+  const words: E[] = [];
   root.querySelectorAll('.word').forEach((word) => {
-    const element = word as HTMLElement;
+    const element = word as E;
     if (range.intersectsNode(element)) {
       words.push(element);
     }
@@ -44,7 +83,7 @@ export function selectedWordElements(range: Range, root: ParentNode): HTMLElemen
  * - otherwise the selection would silently truncate to that element's first
  * word.
  */
-export function wordSelectionFromElements(words: HTMLElement[]): WordSelectionRange | null {
+export function wordSelectionFromElements(words: readonly WordElementLike[]): WordSelectionRange | null {
   if (words.length === 0) return null;
 
   const firstWord = words[0];
@@ -72,8 +111,9 @@ export function wordSelectionFromElements(words: HTMLElement[]): WordSelectionRa
 }
 
 /** Read the live DOM selection as a word range, or null if there isn't one. */
-export function readWordSelection(root: ParentNode): WordSelectionRange | null {
-  const selection = window.getSelection();
+export function readWordSelection(root: ParentNodeLike): WordSelectionRange | null {
+  const host = globalThis as { getSelection?: () => SelectionLike | null };
+  const selection = host.getSelection?.();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
   return wordSelectionFromElements(selectedWordElements(selection.getRangeAt(0), root));
 }
@@ -95,7 +135,7 @@ let captured: WordSelectionRange | null = null;
  * Always overwrites - including with null - so a menu opened with nothing
  * selected can never act on a previous menu's leftovers.
  */
-export function captureWordSelection(root: ParentNode): WordSelectionRange | null {
+export function captureWordSelection(root: ParentNodeLike): WordSelectionRange | null {
   captured = readWordSelection(root);
   return captured;
 }

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * The one implementation of "map a DOM selection to verse/word indices".
  *
@@ -8,7 +9,7 @@
  * `e2e/tests/highlight-diagnosis.spec.ts` with real mouse events.
  */
 import { describe, it, expect } from 'vitest';
-import { wordSelectionFromElements } from './capturedSelection';
+import { wordSelectionFromElements } from './CapturedSelection';
 
 function build(html: string): HTMLElement {
   const root = document.createElement('div');

@@ -19,7 +19,7 @@
  *   mouseout ──▶ [ HOVER_CLOSE_GRACE_MS 120ms ] ──▶ close (cancelled by entering the popup)
  *
  * Static content (`DecorationDto.hoverContent`, already resolved - see
- * `decorationResolver.ts`'s `verseHovers`/`WordPaint.hovers`) bypasses all of
+ * `DecorationResolver.ts` (core Annotations)'s `verseHovers`/`WordPaint.hovers`) bypasses all of
  * it except the dwell: it is already in hand when the dwell fires, so it
  * renders immediately with no loading state ever, exactly as design doc
  * §11.3 specifies. The callback path (`VerseHoverProviderDescriptor.
@@ -31,7 +31,7 @@ import type { Extensions } from '@bible/core';
 import { useAmbientPopupStore } from '../stores/useAmbientPopupStore';
 import { invokeUiBridge } from './extensionRendererBridge';
 import { useExtensionUiStore } from './extensionUiStore';
-import type { ResolvedHover } from './decorationResolver';
+import type { ResolvedHover } from '@bible/core/browser';
 
 type LocalizedString = Extensions.LocalizedString;
 type HoverContentDto = Extensions.HoverContentDto;
@@ -75,7 +75,7 @@ export interface HoverTarget {
   word?: { renderedIndex: number; text: string };
   modifiers: Modifier[];
   position: { x: number; y: number };
-  /** Already-resolved static hover content for this exact target (verse-level or word-level - see `decorationResolver.ts`). */
+  /** Already-resolved static hover content for this exact target (verse-level or word-level - see `DecorationResolver.ts` (core Annotations)). */
   staticHovers: ResolvedHover[];
 }
 

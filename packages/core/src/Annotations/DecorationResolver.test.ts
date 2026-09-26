@@ -4,8 +4,8 @@
  * the bulk of the value.
  */
 import { describe, it, expect } from 'vitest';
-import type { Extensions } from '@bible/core';
-import { resolveVerseDecorations, buildWordPaintStyle, type LayerDecorations, type WordPaint } from './decorationResolver';
+import type * as Extensions from '../Extensions/ExtensionApiDtos';
+import { resolveVerseDecorations, buildWordPaintStyle, type LayerDecorations, type WordPaint } from './DecorationResolver';
 
 type DecorationDto = Extensions.DecorationDto;
 type WordTarget = Extract<Extensions.DecorationTarget, { kind: 'word' }>;

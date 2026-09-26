@@ -19,8 +19,7 @@ import { findVerseElement, restartArrivalFlash } from '../../hooks/verseScrollTa
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../../extensions/useVerseHoverTrigger';
 import { useVerseDecorationStore } from '../../extensions/verseDecorationStore';
-import { resolveVerseDecorations } from '../../extensions/decorationResolver';
-import { resolveThemeColor } from '../../extensions/themeColorResolver';
+import { resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 
 interface BibleVerse {
   verse_id: number;

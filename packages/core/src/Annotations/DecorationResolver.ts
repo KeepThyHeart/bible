@@ -16,13 +16,16 @@
  * matching, below.
  */
 
-import type { Extensions } from '@bible/core';
-import type { WordInfo } from '@bible/core/browser';
+import type {
+  DecorationAppearance,
+  DecorationDto,
+  DecorationTarget,
+  HoverContentDto,
+  LocalizedString,
+} from '../Extensions/ExtensionApiDtos';
+import type { WordInfo } from '../Services/WordIndexing';
 
-type DecorationDto = Extensions.DecorationDto;
-type DecorationTarget = Extensions.DecorationTarget;
 type WordDecorationTarget = Extract<DecorationTarget, { kind: 'word' }>;
-type LocalizedString = Extensions.LocalizedString;
 type Surface = 'standard' | 'study' | 'reading';
 
 // Design doc §9 - per-word/per-verse caps.
@@ -52,7 +55,7 @@ export interface LayerDecorations {
 export interface ResolvedHover {
   layerKey: string;
   extensionId: string;
-  content: Extensions.HoverContentDto;
+  content: HoverContentDto;
   order: number;
 }
 
@@ -110,8 +113,8 @@ interface Candidate {
   decorationIndex: number;
   sourceKey: string;
   extensionId: string;
-  appearance: Extensions.DecorationAppearance;
-  hoverContent: Extensions.HoverContentDto | undefined;
+  appearance: DecorationAppearance;
+  hoverContent: HoverContentDto | undefined;
 }
 
 function toResolvedHover(c: Candidate): ResolvedHover {
@@ -225,7 +228,7 @@ export function resolveVerseDecorations(input: ResolveVerseDecorationsInput): Re
 
   // --- Collect (design doc §10.3 step 1) ----------------------------------
   const perWord: Candidate[][] = Array.from({ length: wordCount }, () => []);
-  const gutterCandidates: { layerSeq: number; layerKey: string; appearance: Extract<Extensions.DecorationAppearance, { kind: 'gutter' }> }[] = [];
+  const gutterCandidates: { layerSeq: number; layerKey: string; appearance: Extract<DecorationAppearance, { kind: 'gutter' }> }[] = [];
   // Static hover content (P0.1c, design doc §11.1) - collected separately
   // from `perWord` because a verse/passage-target's hover belongs to the
   // WHOLE verse once, not duplicated onto every one of its words the way

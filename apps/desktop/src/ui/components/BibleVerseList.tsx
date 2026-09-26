@@ -10,7 +10,7 @@ import { isTextSelectionActive } from '../utils/selectionUtils';
 import { HighlightSelector } from './highlights/HighlightSelector';
 import { HighlightedVerse } from './highlights/HighlightRenderer';
 import BibleHeader from './BibleHeader';
-import { directionForLanguage } from '@bible/core/browser';
+import { directionForLanguage, resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
 import PaneEmptyState from './onboarding/PaneEmptyState';
@@ -23,8 +23,6 @@ import { VerseIdHelper } from '@bible/core';
 import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
-import { resolveVerseDecorations } from '../extensions/decorationResolver';
-import { resolveThemeColor } from '../extensions/themeColorResolver';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study

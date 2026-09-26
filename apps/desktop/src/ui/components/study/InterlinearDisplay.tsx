@@ -6,13 +6,15 @@ import { usePopupPosition } from '../../hooks/usePopupPosition';
 import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
-import { wordRenderAttrs, HighlightedVerse } from '../highlights/HighlightRenderer';
+import { HighlightedVerse } from '../highlights/HighlightRenderer';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
-import type { ResolvedVerse, ResolvedHover } from '../../extensions/decorationResolver';
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
   extractWordsWithFormatting,
+  wordRenderAttrs,
+  type ResolvedVerse,
+  type ResolvedHover,
   type InterlinearCell,
   type InterlinearWord,
   type WordInfo,

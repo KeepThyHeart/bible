@@ -1,6 +1,6 @@
 /**
  * `THEME_COLOR_KEYS` (packages/core) and `THEME_COLOR_CSS_VAR`
- * (`themeColorResolver.ts`) must map to `-rgb` variables that ACTUALLY exist,
+ * (`ThemeColorResolver.ts` in core Annotations) must map to `-rgb` variables that ACTUALLY exist,
  * in every theme block, in `themes.css` (task 0036, P0.1a; design doc §16:
  * "a test that parses the stylesheet and fails when a theme is added without
  * a token"). This is the exact class of bug the allowlist-resolver design
@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Extensions } from '@bible/core';
-import { resolveThemeColor } from './themeColorResolver';
+import { resolveThemeColor } from '@bible/core/browser';
 
 const { THEME_COLOR_KEYS, THEME_COLOR_CSS_VAR } = Extensions;
 

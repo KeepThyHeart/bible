@@ -9,7 +9,7 @@ import { useLocalizer } from '../../hooks/useLocalizer';
 import { SearchResultItem } from '../Search/SearchResultItem';
 import { TranslationDialog } from './TranslationDialog';
 import { parseVerseId } from '../../utils/verseId';
-import { getBibleSection } from '@bible/core/browser';
+import { getBibleSection, OT_BOOKS, NT_BOOKS } from '@bible/core/browser';
 import type { BookTopic, SearchResultData } from '../../types';
 
 interface BookChapterPickerProps {
@@ -26,9 +26,6 @@ interface BookChapterPickerProps {
   moduleAbbr?: string;
   onChangeTranslation?: (abbreviation: string) => void;
 }
-
-const OT_BOOKS = Array.from({ length: 39 }, (_, i) => i + 1);
-const NT_BOOKS = Array.from({ length: 27 }, (_, i) => i + 40);
 
 // Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
 const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude

@@ -11,7 +11,7 @@ import {
   takeCapturedWordSelection,
   clearCapturedWordSelection,
   readWordSelection,
-} from './highlights/capturedSelection';
+} from '@bible/core/browser';
 import NotePreviewTooltip from './NotePreviewTooltip';
 import { BibleVerse as BibleVerseCopy } from '../services/verseCopyService';
 import { HighlightColor, MarkupType, UnderlineStyle } from '@bible/core';
