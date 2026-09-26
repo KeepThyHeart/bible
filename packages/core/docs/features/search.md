@@ -21,6 +21,9 @@ Two independent search stacks live in `@bible/core`: a complete, self-contained 
 | `src/__tests__/BibleSearchRepository.test.ts` | Repository-level tests against a full `main.db` schema. |
 | `src/__tests__/BibleSearchHighlightColumns.test.ts` | Guards `searchVersesWithHighlighting` against modules whose `bible_verse` and `bible_verse_fts` column shapes disagree (silent empty-text results). |
 | `src/Controllers/SearchController.ts` | Stateful wrapper for UI: in-flight guard, saved searches, index build progress. See [Controllers](controllers.md). |
+| `src/Data/Access/Fts5/ModuleKeywordIndex.ts` | `configureModuleKeywordIndex` / `moduleKeywordIndex`: the one sidecar provider every repository searches through; `hasModuleTable` tells a v0.1 module (own `*_fts`) from a v0.2 one. |
+| `src/Data/Repositories/ModuleKeywordIndexes.ts` | `ensureModuleKeywordIndexes`: build the missing/stale sidecar indexes for a set of module files. |
+| `src/Data/Repositories/ModuleKeywordSearch.test.ts` | Which index a repository search uses (own table, sidecar, none), on small on-disk fixtures, including compressed content. |
 
 ### Semantic search
 
@@ -71,6 +74,15 @@ Modules are held in a `Map<abbreviation, IBibleRepository>` passed to the constr
 - `searchVersesWithHighlighting(fts5Query, {limit})` - verse-level FTS5 with `highlight()`, returning `<strong><u>...</u></strong>` markup. `extractMatchesFromHighlightedText` walks that markup to recover match offsets in plain text, which is how stemmed matches ("walk" -> "walked") get highlighted correctly.
 - Proximity uses a **book-level** index inside the module DB: `ensureSearchTablesExist()`, `isBookIndexed(book)`, `buildBookIndex(book)`, then `searchBookFTS5(book, "NEAR(a b, 10)")`. When FTS5 returns no `offsets()` for the NEAR query, the service falls back to `searchProximityInBook(book, terms, distance)`; otherwise it maps character offsets back to verses via `getVerseIdAtPosition` / `getVersePosition`.
 - Strong's search goes to `searchByStrongsNumber(variants, range)` on the interlinear table, with the range pushed into SQL. `WordFamilyService` (injected via `setWordFamilyService`) supplies related numbers when `options.includeRelatedWords` is set; relatives score 0.8 against the primary's 1.0.
+
+### Where the keyword index lives
+
+Module schema v0.2 ships **no** FTS5 table (see [Module format](module-format.md)). A v0.2 module is searched through a sidecar `.kwi` - one per module revision, keyed by `module_uuid` + `content_sha256` - that `SidecarFts5Provider` builds from the repository's `getIndexSource()` (compressed cells decoded, markup stripped). A v0.1 module that still ships its own `*_fts` table keeps using it.
+
+- **Composition roots configure it once:** `configureModuleKeywordIndex(provider)` - the web server's `DatabaseManager` (`<data-dir>/keyword-index`), the desktop's `configureDesktopKeywordSearch()` (`<userData>/index/keyword`), and the core test setup. Every repository and `BibleSearchService` created afterwards reads it.
+- **Repositories** (`searchVerses`, `searchVersesWithHighlighting`, `searchEntries`, `searchSections`, `searchTopics`, filtered topic paging/counts) call `BaseModuleRepository.keywordIndexTable()`, which returns the module's own `*_fts` table or ATTACHes the sidecar as `kwi` and returns `kwi.kw`. Queries join on rowid exactly as before; `rank` works, but the sidecar is contentless, so `searchVersesWithHighlighting` marks verses up through `Fts5Highlighter.highlightMatch()` instead of `highlight()`. No index at all means no results for that module (logged once), never an exception.
+- **`BibleSearchService`** registers `InModuleFts5Provider` only for Bibles that ship `bible_verse_fts`, and the configured sidecar provider after it for the rest. It asks the registry once per module, because `maxResults` is a per-module limit and the registry treats `limit` as a total across provider groups.
+- **Building:** `ensureModuleKeywordIndexes()` builds whatever a set of module files is missing (current indexes cost one small read). `init:modules` runs it for the web target; the web server runs it before `listen`; the desktop builds after install and catches up at startup (`KeywordIndexService.buildMissingIndexes`).
 
 ### Semantic paths
 
