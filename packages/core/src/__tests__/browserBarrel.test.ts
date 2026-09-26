@@ -111,9 +111,10 @@ describe('@bible/core/browser barrel', () => {
     // exported something that drags the Data layer in behind it. Raised from 25
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
-    // rubber stamp.
+    // rubber stamp. Raised from 40 for the audio contracts (six small,
+    // dependency-free files under `audio/`).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(40);
+    expect(files.size).toBeLessThan(50);
   });
 });
