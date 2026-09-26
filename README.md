@@ -143,6 +143,7 @@ Repository Layout
 | `apps/desktop/` | Electron desktop app (React, Zustand, Tailwind) |
 | `apps/web/` | Web app: Preact client and Express API server |
 | `packages/core/` | `@bible/core`: data access, services and models shared by both apps |
+| `packages/ui/` | `@bible/ui`: shared UI components written against the React 18 API (desktop runs React, web runs Preact via `preact/compat`), the KTH CSS framework, and the extension UI kit |
 | `packages/extension-ui/`, `packages/extension-testing/`, `packages/create-extension/`, `packages/word-count-example/` | Extension SDK, test harness, scaffolder and an example extension |
 | `scripts/` | Repository tooling: `init/` (module registry and catalog), plus the docs, branding and translation checks |
 | `admin/` | Branding (`admin/brand/branding.json`), coding standards, third-party notices, and `admin/scripts/`: the per-platform verify scripts and the installer test |

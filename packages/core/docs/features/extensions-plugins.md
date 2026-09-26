@@ -85,9 +85,11 @@ Tests: `src/__tests__/HookRegistry.test.ts`,
 `src/__tests__/PluginLoader.test.ts`.
 
 `HookRegistry` is also exported from the browser barrel `src/browser.ts` (along
-with the `FilterHandler` / `ActionHandler` types), because client-side plugins run
-in the renderer and need it there. `PluginLoader` is **not** in the browser barrel
-- it reaches the filesystem, so a client needs its own loader.
+with the `FilterHandler` / `ActionHandler` types), for renderer-side use.
+`PluginLoader` is **not** in the browser barrel - it reaches the filesystem. The web
+app's old in-process client plugin system (which needed its own loader) was removed;
+web extensions will use the sandboxed-iframe model and the shared `IframeRpcBridge`
+instead (see the `uiKit` section below).
 
 ## How it works
 

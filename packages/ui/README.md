@@ -3,6 +3,14 @@
 Shared UI for the desktop and web apps and (later) extension panels: a small component set and the KTH CSS
 framework. Private, GPL-3.0-or-later for now (the licence of the kit sources and `css/` is still to be decided).
 
+## What lives where (core, ui, apps)
+
+- **`@bible/core/browser`**: all logic and data that needs no framework: verse formatting, word indexing, annotations (selection capture, decoration resolution, word rendering), the `ReadableStore` contract, book lists, the extension contract and the `IframeRpcBridge`. Both apps and extensions use it.
+- **`@bible/ui`** (this package): leaf components that behave the same in both apps, the KTH CSS, and the extension UI kit. No stores, no i18n library, no Tailwind.
+- **Web only**: shell and mobile layout, offline workers, server routes, its own `Store` classes (adapt with `fromSelector`).
+- **Desktop only**: the dockview workspace, TipTap editor, detached windows, IPC, the extension host process, zustand stores (adapt with `fromZustand`).
+- The two frameworks are not being unified: web stays on Preact, desktop on React. If the apps ever converge, web moves to React, never desktop to Preact.
+
 ## Package rules
 
 - **React 18 API subset only.** Components run on real React (desktop) and on `preact/compat` (web, which aliases
