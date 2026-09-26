@@ -14,6 +14,7 @@
 export { BibleExtUI } from './BibleExtUI';
 export type {
   ThemeInfo,
+  LocaleInfo,
   LinkVersesOptions,
   BibleExtUIOptions,
   UiFetchInit,

@@ -19,6 +19,7 @@ import type {
   KeybindingDescriptor,
   LocalizedString,
 } from './ExtensionApiDtos';
+import type { UiKitDeclaration } from './UiKit';
 
 // --- Identity & marketplace metadata ---------------------------------------
 
@@ -342,4 +343,10 @@ export interface ExtensionManifest
   l10n?: string;
   /** What part of the extension's data belongs in a backup. See {@link ExtensionUserDataConfig}. */
   userData?: ExtensionUserDataConfig;
+  /**
+   * Opt-in to the host-served UI kit (`kth-*` custom elements) for this
+   * extension's panels. Requires the `ui:contribute-pane` permission. See
+   * `UiKit.ts`.
+   */
+  uiKit?: UiKitDeclaration;
 }

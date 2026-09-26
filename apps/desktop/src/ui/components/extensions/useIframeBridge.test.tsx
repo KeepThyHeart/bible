@@ -32,7 +32,12 @@ const panelInvoke = vi.fn().mockResolvedValue({ ok: true });
  * frame on the page from impersonating the panel, so the test has to honour
  * it rather than work around it.
  */
-function mountBridge(opts: { panelId?: string; panelTypeId?: string }) {
+function mountBridge(opts: {
+  panelId?: string;
+  panelTypeId?: string;
+  getLocale?: () => string;
+  getAccess?: () => { manifest: { uiKit?: { version: string; components: string[] } } | null; grants: readonly never[] };
+}) {
   const posted: unknown[] = [];
   const contentWindow = {
     postMessage: (envelope: unknown) => {
@@ -288,5 +293,55 @@ describe('ui.showVersePopup / ui.hideVersePopup (P1.11)', () => {
     await flush();
 
     expect(useExtensionUiStore.getState().versePopup).toBeNull();
+  });
+});
+
+describe('ui.getLocale', () => {
+  it('returns the current UI locale and its direction', async () => {
+    let locale = 'en';
+    const { send, posted } = mountBridge({ getLocale: () => locale });
+
+    send('ui.getLocale', [], 'l1');
+    locale = 'ar';
+    send('ui.getLocale', [], 'l2');
+    await flush();
+
+    const byId = (id: string) => posted.find((p) => (p as { id?: string }).id === id) as { result?: unknown };
+    expect(byId('l1').result).toEqual({ locale: 'en', direction: 'ltr' });
+    expect(byId('l2').result).toEqual({ locale: 'ar', direction: 'rtl' });
+  });
+
+  it('falls back to en/ltr when the host supplied no locale source', async () => {
+    const { send, posted } = mountBridge({});
+    send('ui.getLocale', []);
+    await flush();
+    expect(posted.find((p) => (p as { id?: string }).id === 'req-1')).toMatchObject({
+      result: { locale: 'en', direction: 'ltr' },
+    });
+  });
+});
+
+describe('uikit.* deny by default', () => {
+  it('refuses any uikit.* method with PermissionDeniedError when no access was supplied', async () => {
+    const { send, posted } = mountBridge({ panelId: 'p', panelTypeId: 't' });
+    send('uikit.anything', []);
+    await flush();
+    const reply = posted.find((p) => (p as { id?: string }).id === 'req-1') as {
+      error?: { code: string; message: string };
+    };
+    expect(reply.error?.code).toBe('PermissionDeniedError');
+    expect(reply.error?.message).toMatch(/uikit\.anything/);
+  });
+
+  it('still refuses when the manifest declares a kit but no component lists the method', async () => {
+    const { send, posted } = mountBridge({
+      panelId: 'p',
+      panelTypeId: 't',
+      getAccess: () => ({ manifest: { uiKit: { version: '1', components: ['kth-reference-picker'] } }, grants: [] }),
+    });
+    send('uikit.anything', []);
+    await flush();
+    const reply = posted.find((p) => (p as { id?: string }).id === 'req-1') as { error?: { code: string } };
+    expect(reply.error?.code).toBe('PermissionDeniedError');
   });
 });

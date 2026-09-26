@@ -43,6 +43,11 @@ import type {
   PricingTier,
 } from './ExtensionManifest';
 import type { ExtensionPermission } from './Permissions';
+import {
+  UI_KIT_REQUIRED_PERMISSION,
+  validateUiKitDeclaration,
+  type UiKitDeclaration,
+} from './UiKit';
 import type {
   BibleProviderDescriptor,
   ExtensionPanelTypeDef,
@@ -175,6 +180,7 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
   'runtime',
   'l10n',
   'userData',
+  'uiKit',
 ]);
 
 /** Exported for the same reason as `ALLOWED_PERMISSIONS` above. */
@@ -744,6 +750,14 @@ function validateRuntime(
   return out;
 }
 
+function validateUiKit(v: Validator, value: unknown): UiKitDeclaration | undefined {
+  const issues = validateUiKitDeclaration(value);
+  for (const issue of issues) v.add(`/uiKit${issue.path}`, issue.code, `\`uiKit\`: ${issue.message}`);
+  if (issues.length > 0) return undefined;
+  const decl = value as UiKitDeclaration;
+  return { version: decl.version, components: [...decl.components] };
+}
+
 /** Database names are the `openDatabase()` argument; keep them simple so they map to file names. */
 const USER_DATA_DB_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
@@ -1230,6 +1244,11 @@ export function validateManifest(json: unknown): ManifestValidationResult {
     userData = validateUserData(v, json.userData);
   }
 
+  let uiKit: UiKitDeclaration | undefined;
+  if ('uiKit' in json) {
+    uiKit = validateUiKit(v, json.uiKit);
+  }
+
   let l10n: string | undefined;
   if ('l10n' in json) {
     if (v.requireString('/l10n', json.l10n)) {
@@ -1260,6 +1279,14 @@ export function validateManifest(json: unknown): ManifestValidationResult {
         'permission `network:oauth` requires the `network` block to be present',
       );
     }
+  }
+
+  if (uiKit && !(permissions ?? []).includes(UI_KIT_REQUIRED_PERMISSION)) {
+    v.add(
+      '/uiKit',
+      'permissions.uikit-requires-pane',
+      `\`uiKit\` requires permission \`${UI_KIT_REQUIRED_PERMISSION}\``,
+    );
   }
 
   if (v.errors.length > 0) {
@@ -1309,6 +1336,7 @@ export function validateManifest(json: unknown): ManifestValidationResult {
   if (runtime !== undefined) manifest.runtime = runtime;
   if (l10n !== undefined) manifest.l10n = l10n;
   if (userData !== undefined) manifest.userData = userData;
+  if (uiKit !== undefined) manifest.uiKit = uiKit;
 
   return { ok: true, manifest };
 }

@@ -26,6 +26,13 @@ export interface ThemeInfo {
   colors?: Record<string, string>;
 }
 
+export interface LocaleInfo {
+  /** BCP 47 tag of the host's current UI locale, e.g. `en`, `es`, `zh-Hans`. */
+  locale: string;
+  /** Text direction of that locale. */
+  direction: 'ltr' | 'rtl';
+}
+
 export interface LinkVersesOptions {
   /**
    * CSS class added to generated verse links. Default: `'bible-verse-link'`.
@@ -174,6 +181,16 @@ export class BibleExtUI {
    */
   getTheme(): Promise<ThemeInfo> {
     return this.rpc.request<ThemeInfo>('ui.getTheme', []);
+  }
+
+  // ── Locale ───────────────────────────────────────────────────────────
+
+  /**
+   * Get the host's current UI locale and its text direction. Read-only and
+   * always available (no permission needed).
+   */
+  getLocale(): Promise<LocaleInfo> {
+    return this.rpc.request<LocaleInfo>('ui.getLocale', []);
   }
 
   // ── Verse linking ────────────────────────────────────────────────────

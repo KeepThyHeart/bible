@@ -198,6 +198,22 @@
           }
         }
       }
+    },
+
+    "uiKit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "components"],
+      "description": "Opt-in to the host-served UI kit (kth-* custom elements) for panels. Requires the `ui:contribute-pane` permission. Unknown versions or component tags are rejected at install.",
+      "properties": {
+        "version": { "type": "string", "enum": ["1"], "description": "UI kit major version." },
+        "components": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["kth-book-chapter-picker", "kth-reference-picker", "kth-highlight-swatch"] },
+          "description": "Component tags the panel intends to use."
+        }
+      }
     }
   },
 

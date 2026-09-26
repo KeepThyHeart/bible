@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useIframeBridge } from './useIframeBridge';
+import { useIframeBridge, type PanelAccess } from './useIframeBridge';
 import { useI18n } from '../../contexts/useI18n';
 
 /**
@@ -52,14 +52,21 @@ interface PanelTypeMeta {
   title?: string;
   /** True when the extension has the `ui:media` permission granted. */
   allowAutoplay?: boolean;
+  /** The manifest's UI-kit declaration; feeds the bridge's `uikit.*` allowlist. */
+  uiKit?: { version: string; components: string[] };
+  /** Permissions the user granted the extension; feeds the bridge's `uikit.*` check. */
+  grantedPermissions?: string[];
 }
+
+/** Until the IPC lookup answers, nothing is known: `uikit.*` stays denied. */
+const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
 
 const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   extensionId,
   panelTypeId,
   panelId,
 }) => {
-  const { t } = useI18n();
+  const { t, i18n } = useI18n();
   const [meta, setMeta] = React.useState<PanelTypeMeta | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -69,10 +76,16 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   // @bible/extension-ui SDK running inside the iframe.
   // `panelId` and `panelTypeId` give the iframe an identity its worker can
   // trust: they come from these props, never from anything the iframe says.
-  useIframeBridge({ extensionId, iframeRef, panelId, panelTypeId });
+  // `accessRef` holds the manifest/grants main reported for this extension
+  // (see `extensions:getPanelTypeUiEntry`); the bridge reads it per request.
+  const accessRef = useRef<PanelAccess>(NO_ACCESS);
+  const getAccess = React.useCallback(() => accessRef.current, []);
+  const getLocale = React.useCallback(() => i18n.currentLocale, [i18n]);
+  useIframeBridge({ extensionId, iframeRef, panelId, panelTypeId, getAccess, getLocale });
 
   React.useEffect(() => {
     let cancelled = false;
+    accessRef.current = NO_ACCESS; // a new lookup starts from "nothing known"
     const w = window as unknown as {
       electron?: {
         extensions?: {
@@ -96,6 +109,10 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
         if (!m) {
           setError(`Extension panel type not found: ${extensionId}.${panelTypeId}`);
         } else {
+          accessRef.current = {
+            manifest: m.uiKit ? { uiKit: m.uiKit } : null,
+            grants: (m.grantedPermissions ?? []) as PanelAccess['grants'],
+          };
           setMeta(m);
         }
       })

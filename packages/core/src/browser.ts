@@ -149,6 +149,42 @@ export type { InterlinearWord, InterlinearCell } from './Services/InterlinearCel
 // Flat exports: no name collides with the rest of this barrel.
 export * from './Annotations';
 
+// --- Extension panel iframe RPC (task 0062, S6/K6) -----------------------------
+// Host side of the extension-iframe postMessage channel, plus the manifest UI-kit
+// registry it authorizes against. Structural window types only (no DOM lib), so it
+// serves the desktop renderer now and the web app later.
+export { IframeRpcBridge, authorizeBridgeMethod } from './Extensions/IframeRpcBridge';
+export type {
+  AuthorizeResult,
+  BridgeContext,
+  BridgeEventSource,
+  BridgeHandler,
+  BridgeHandlers,
+  BridgeMessageEvent,
+  BridgePostTarget,
+  IframeRpcBridgeOptions,
+} from './Extensions/IframeRpcBridge';
+export { isRpcEnvelope } from './Extensions/RpcEnvelope';
+export type {
+  RpcEnvelope,
+  RpcErrorPayload,
+  RpcEvent,
+  RpcRequest,
+  RpcRequestId,
+  RpcResponse,
+} from './Extensions/RpcEnvelope';
+export { ExtensionApiError, PermissionDeniedError } from './Extensions/ExtensionApiErrors';
+export {
+  UI_KIT_COMPONENTS,
+  UI_KIT_VERSIONS,
+  isUiKitVersion,
+  isUiKitMethodAllowed,
+  validateUiKitDeclaration,
+} from './Extensions/UiKit';
+export type { UiKitComponentSpec, UiKitDeclaration, UiKitVersion } from './Extensions/UiKit';
+export type { ExtensionPermission } from './Extensions/Permissions';
+export type { ExtensionManifest } from './Extensions/ExtensionManifest';
+
 // --- Readable stores (framework-neutral state seam) ---------------------------
 // `subscribe` + `getSnapshot`: the shape `useSyncExternalStore` (React, and
 // Preact via compat) consumes. `fromZustand` adapts a desktop store,

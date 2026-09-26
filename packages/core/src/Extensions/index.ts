@@ -31,3 +31,5 @@ export * from './ExtensionCatalog';
 export * from './ExtensionManifestValidator';
 export * from './IExtensionHost';
 export * from './IExtensionRuntime';
+export * from './UiKit';
+export * from './IframeRpcBridge';

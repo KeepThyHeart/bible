@@ -8,6 +8,7 @@
  * half is covered by `floatingAnnotationFlow.test.tsx` and by
  * `e2e/tests/highlight-diagnosis.spec.ts` with real mouse events.
  */
+/// <reference lib="dom" />
 import { describe, it, expect } from 'vitest';
 import { wordSelectionFromElements } from './CapturedSelection';
 

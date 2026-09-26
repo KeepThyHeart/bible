@@ -104,3 +104,22 @@ describe('BibleExtUI verse popups', () => {
     expect(sent.args).toEqual([]);
   });
 });
+
+describe('BibleExtUI.getLocale', () => {
+  it('sends a ui.getLocale request with no args and resolves with the host reply', async () => {
+    const bible = BibleExtUI.init();
+    const pending = bible.getLocale();
+
+    expect(capturedMessages).toHaveLength(1);
+    const sent = capturedMessages[0]!.data as { id: string; method: string; args: unknown[] };
+    expect(sent.method).toBe('ui.getLocale');
+    expect(sent.args).toEqual([]);
+
+    messageHandler?.(
+      new MessageEvent('message', {
+        data: { kind: 'response', id: sent.id, result: { locale: 'ar', direction: 'rtl' } },
+      }),
+    );
+    await expect(pending).resolves.toEqual({ locale: 'ar', direction: 'rtl' });
+  });
+});

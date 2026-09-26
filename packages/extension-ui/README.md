@@ -38,6 +38,10 @@ bible.navigateToVerse(43003016);       // John 3:16
 
 - `getTheme()` -- resolves to the host's current `ThemeInfo`, so a panel can match the app rather than guess
 
+**Locale**
+
+- `getLocale()` -- resolves to `{ locale, direction }` for the host's current UI locale (`direction` is `'ltr'` or `'rtl'`); read-only, no permission needed
+
 **Linkifying**
 
 - `linkVerses(root, opts?)` -- scans a DOM subtree for verse references and makes them navigable, so an extension does not have to write its own reference matcher

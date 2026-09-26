@@ -599,7 +599,7 @@ export interface ElectronAPI {
     resetCrashState: (extensionId: string) => Promise<void>;
     getLog: (extensionId: string, limit?: number) => Promise<any[]>;
     getCrashLog: (extensionId: string, limit?: number) => Promise<any[]>;
-    getPanelTypeUiEntry: (extensionId: string, panelTypeId: string) => Promise<{ uiEntry: string; title?: string; allowAutoplay?: boolean } | null>;
+    getPanelTypeUiEntry: (extensionId: string, panelTypeId: string) => Promise<{ uiEntry: string; title?: string; allowAutoplay?: boolean; uiKit?: { version: string; components: string[] }; grantedPermissions?: string[] } | null>;
     openInstallFolder: (extensionId: string) => Promise<boolean>;
     /** Panel-iframe egress, routed through the extension's own gateway. */
     uiFetch: (extensionId: string, url: string, init?: unknown) => Promise<unknown>;

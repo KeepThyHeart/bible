@@ -234,6 +234,10 @@ A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin
 
 Both are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named control classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
 
+### UI kit manifest field (`uiKit`)
+
+`extension.json` may declare `"uiKit": { "version": "1", "components": ["kth-book-chapter-picker", ...] }` (requires `ui:contribute-pane`; unknown version or tag, or a duplicate, fails validation at install). It adds no permission. The only host surface it can reach is `uikit.*` bridge methods, and `IframeRpcBridge` (`@bible/core/browser`) answers one only when the panel's manifest lists a component whose `hostMethods` includes it and the extension holds that component's `requiresPermissions`; otherwise `PermissionDeniedError`, before any handler runs (v1 has no `uikit.*` handlers). `useIframeBridge.ts` supplies the desktop handlers and the context; the manifest's `uiKit` and the extension's granted permissions come from main via `extensions:getPanelTypeUiEntry` (`uiKit?`, `grantedPermissions`), held in a ref by `ExtensionPanelHost.tsx` (unknown until it answers, so `uikit.*` is denied). Also new: `ui.getLocale` -> `{ locale, direction }` (read-only, ungated; SDK `BibleExtUI.getLocale()`).
+
 ## Popping an extension panel out
 
 Extension panels detach into their own window like any other pane. Two things stopped that working before:
