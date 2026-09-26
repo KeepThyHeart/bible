@@ -293,6 +293,25 @@ export function getActiveHostThemeCss(): string {
 }
 
 /**
+ * The token stylesheet for the theme a request names (`theme.css?theme=<id>`), else for the active theme.
+ *
+ * A panel that just heard `theme.changed` re-links `theme.css`, and it does so with the new id in the URL. The
+ * event reaches the iframe through the renderer while main learns the theme through the separate
+ * `menu:update-theme` IPC, and the order of those two is not guaranteed: without the id in the URL a re-link could
+ * fetch the OLD palette. The id is honoured only when it is one of `HOST_THEME_IDS` (an unknown value, an empty
+ * string or a missing parameter fall back to the active theme), it never changes the active theme, and it selects
+ * among the memoized sheets, so it adds no unbounded state. Theme tokens are not secret.
+ */
+export function getHostThemeCssFor(requested: string | null): string {
+  if (requested === null || !HOST_THEME_IDS.includes(requested)) return getActiveHostThemeCss();
+  const cached = renderedByTheme.get(requested);
+  if (cached !== undefined) return cached;
+  const css = buildHostThemeCss(requested);
+  renderedByTheme.set(requested, css);
+  return css;
+}
+
+/**
  * Test seam. Resets the module back to its load-time state so one test's theme
  * switch cannot leak into the next.
  */

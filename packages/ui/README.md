@@ -137,3 +137,68 @@ host -> panel pushes (through `onBridge`, then `bridge.emit`).
 Classes: `kth-panel-host__frame`, `kth-panel-host__status`. Desktop's `ExtensionPanelHost.tsx` is a thin wrapper (IPC lookup,
 `computeSandboxAttr`, loading/error copy) over it, with `useDesktopBridgeParts` (in `useIframeBridge.ts`) supplying
 `context`, `handlers` and `onBridge`.
+
+## Extension UI kit (`src/kit/`)
+
+`src/kit/` wraps selected components as framework-neutral **custom elements** for extension panels. It is built as one
+classic-script IIFE on `preact/compat` (`kit/1/kth-kit.js`) plus one flat stylesheet (`kit/1/kth.css` = generated desktop token
+map + `kth-base.css` + `kth.css`); the host serves both from `ext-ui://host/kit/1/` (see
+`apps/desktop/docs/features/extensions.md`, "UI kit"). The apps never bundle `src/kit/` and it is not exported from `src/index.ts`.
+
+| File | Role |
+|---|---|
+| `defineKthElement.ts` | Helper: attributes to props (typed coercion), callbacks to bubbling composed `CustomEvent`s, light DOM, unmount on a microtask with an `isConnected` check (moves keep state), idempotent `define`. |
+| `elements.ts` | `KIT_ELEMENTS`: tag to component + attribute/event contract. Must match core's `UI_KIT_COMPONENTS['1']` (`elements.test.tsx` fails otherwise). |
+| `kitLocale.ts` | The locale and direction the host reported (`ui.getLocale`); connected elements re-render when it changes. |
+| `index.ts` | Entry: assigns the frozen global `KthKit`. Loading the script defines no elements. |
+| `kit.css` | CSS entry (imports the map, base and `kth.css`; esbuild inlines them). |
+
+### Contract (kit major 1: attributes, events and `hostMethods` are additive only)
+
+| Tag | Attributes | Property only | Events (all bubble, composed) |
+|---|---|---|---|
+| `kth-reference-picker` | `value`, `placeholder`, `label`, `locale`, `dir`, `disabled`, `show-label`, `no-ranges`, `no-whole-chapter`, `max-suggestions` | `labels` | `kth-change`, detail `{ verseId, endVerseId?, ref, wholeChapter? }` (on Enter or choosing the reference option) |
+| `kth-book-chapter-picker` | `book`, `chapter` (the current passage), `locale`, `dir`, `no-autofocus` | `labels` (strings and the two label functions) | `kth-pick`, detail `{ book, chapter, verseId, endVerseId? }`; `kth-close` (Escape at the book list, close button) |
+| `kth-highlight-swatch` | `value`, `colors` (space-separated palette names), `group-label`, `size` (`sm`/`md`), `dir`, `disabled` | `labels` (`{ group?, colors? }`) | `kth-change`, detail `{ color, hex }` |
+
+- Booleans are HTML-style (presence is true; `"false"` is tolerated). A bad number or enum falls back to the component default.
+- Every attribute also has a same-named camelCase property (`el.maxSuggestions = 5`), except `dir`, which stays the native reflecting
+  property. Properties do not reflect to attributes. Last writer wins. A property set before the kit loads is honoured.
+- A single-string label attribute (`label`, `placeholder`, `group-label`) beats the same key in the `labels` property.
+- Render the elements **childless**: children are discarded on connect. Author frameworks that manage an element's children will fight the kit.
+- Inner native events (`input`, `change`, `keydown`) bubble out of the light DOM too; only the `kth-*` events are the contract.
+- React 18 sets attributes only on custom elements and cannot bind `onKth*`: use a ref with `addEventListener`, and set `labels` through the ref.
+- **Locale.** `KthKit.init({ rpc })` reads `rpc.getLocale()` once and sets the kit locale; it picks book names, aliases and collation, and
+  the default direction. UI strings are not translated by the kit: labels are attributes with English defaults, localized by the author.
+  An element's own `locale`/`dir` attribute wins. There is no locale-changed event in v1.
+- **Global.** `KthKit` = `{ version: '1', tags, init({ rpc?, components?, locale?, direction? }) -> Promise<void>, define(tags?), setLocale(locale, direction?) }`.
+  `init` defines the listed tags (default all; an unknown tag is skipped with a console warning) and never rejects because of the RPC.
+  `BibleExtUI` from `@bible/extension-ui` satisfies `rpc` structurally.
+- `kth-book-chapter-picker` sets `referenceSyntax: 'extended'`, fills book names and aliases from the locale (English aliases always accepted).
+
+### Building
+
+```
+npm run build:kit -w @bible/ui     # writes packages/ui/dist-kit/{kth-kit.js,kth.css} (gitignored), prints sizes
+```
+
+`scripts/build-kit.mjs` exports `buildKit({ outdir?, write?, minify? })`, the single set of esbuild options (IIFE, `es2020` + `chrome130`,
+`react`/`react-dom` aliased to `preact/compat`, `NODE_ENV` the only `define`). Three callers use it: the `build:kit` script, the desktop
+Vite plugin (`apps/desktop/scripts/kthKitPlugin.mjs`, `write: false`, so no prebuild step exists for the desktop app), and
+`src/kit/kitBundle.test.ts` (which builds in memory; no pre-step). It does not run as part of the root `build`.
+
+One esbuild plugin in the script marks core sources side-effect free, except `registerBuiltinLocalizers.ts`, because `@bible/core/browser` is a
+barrel over modules (backup, zip, crypto with `hash-wasm`/`fflate`, copy formatting) that core's `package.json` does not mark
+side-effect free, and esbuild would otherwise keep them. Scoped to the kit build on purpose: editing core's `sideEffects` would change the
+web and desktop bundles. Size is about 63 KB raw and 24 KB gzip for the script, 14 KB raw and 3 KB gzip for the CSS (budgets: 60 KB and 20 KB gzip).
+
+### Tests
+
+Element tests run under both runtimes (`defineKthElement.test.tsx`, `elements.test.tsx`; React 18's `createRoot().render` is async, so they
+`await waitFor`). `kitBundle.test.ts` runs in the preact project only, in the `node` environment: shape (classic script, flat CSS), size
+budget, an input allowlist (only `packages/ui`, `packages/core/src` and `preact` reach the bundle), a content denylist (no `eval`,
+`new Function`, `process.env`, `__BIBLE_`, `window.electron`, `ipcRenderer`, `parent.document`, `localStorage`, `sessionStorage`, `fetch(`,
+`document.write`), an `innerHTML` check (none in kit or core sources; the count of `.innerHTML =` in the bundle equals preact's own, because
+preact assigns it for `dangerouslySetInnerHTML`, which no kit prop can reach), and a smoke test that evaluates the bundle in a real jsdom window.
+
+The ESLint guard applies to `src/kit/` unchanged (no override was needed): the innerHTML, `eval`, `fetch` and storage bans stay in force there.

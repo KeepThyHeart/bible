@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
 
 export default defineConfig({
+  // Builds the extension UI kit in memory when a test imports `electron/extensions/hostKit.ts` (about 0.3 s);
+  // no prebuilt file is needed. See scripts/kthKitPlugin.mjs.
+  plugins: [kthKitPlugin(path.resolve(__dirname, '../../packages/ui/scripts/build-kit.mjs'))],
   resolve: {
     // Force ONE copy of React. This app pins react/react-dom 18.3.1, but its
     // React libraries (zustand, @dnd-kit, @tiptap/react, dockview-react,

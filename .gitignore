@@ -3,6 +3,9 @@ node_modules/
 dist/
 out/
 
+# Extension UI kit, written by `npm run build:kit -w @bible/ui` (the desktop app builds it in memory instead).
+packages/ui/dist-kit/
+
 # Packed SDK tarballs produced by `npm run pack:sdk`, for scaffolding an
 # extension project outside this repository. Build output, not source.
 /build/sdk/

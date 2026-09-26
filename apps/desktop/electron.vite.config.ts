@@ -4,6 +4,7 @@ import type { Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
+import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
 
 // Capture the current git commit SHA at build time so the About dialog and
 // the diagnostics uploader can name the exact source revision a binary came
@@ -220,7 +221,9 @@ export default defineConfig({
     // `keytar` is in `optionalDependencies`, which `externalizeDeps` does not
     // read, so it is named here: it is native, and must stay a runtime `require`
     // that encryptionKeyManager can catch when the module is absent.
-    plugins: [quickjsGuestBundlePlugin()],
+    // `kthKitPlugin` exposes `virtual:kth-kit` (the extension UI kit bundle served at `ext-ui://host/kit/1/`);
+    // main only: the renderer and preload never see it. See hostKit.ts.
+    plugins: [quickjsGuestBundlePlugin(), kthKitPlugin(resolve(__dirname, '../../packages/ui/scripts/build-kit.mjs'))],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
