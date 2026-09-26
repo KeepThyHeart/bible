@@ -45,6 +45,9 @@ Theme selection, font customization, display options, and offline management, al
 To change a theme colour, edit the palette and run `npm run generate:theme-vars` (never edit `_vars.scss` by hand — it is overwritten). `npm run check:theme-vars` fails if they are stale, and `themePalette.test.ts` in the desktop package fails if the desktop stylesheet drifts from the palette. To add a theme, add it to the palette and create the matching `theme.json`.
 - **UI Font Size**: 12-20px slider
 
+### Audio (only when `features.audio` is on)
+An **Audio** tab (`AudioSettingsTab.tsx`, opened with `openSettings('audio')`), built from what the registered providers and engines report: the audio source (Automatic, or a specific provider; unavailable ones are disabled with the reason), a per-translation override, the speech voice list for the active translation's language (download with progress and cancel, use, remove; only for engines that have voices), one speed slider covering the range the sources offer, the "while playing" toggles (highlight the verse being read, scroll to it, continue to the next chapter, announce "Book, chapter N"), and storage (voices and engine, recently played chapters) with Remove and Clear. Preferences are stored under `bible-audio-prefs`, apart from the settings store. See [Audio Bible](audio.md).
+
 ### Text Size
 - **General +/- control**: Adjusts Bible, Study, and UI font sizes in tandem (±2px per click)
 - **Reset Text Sizes**: `settingsStore.resetTextSettings()` — restores just `fontSize`, `studyFontSize`, `uiFontSize`, `lineHeight`, `studyLineHeight`. Distinct from "Reset All" on the Theme tab, which also throws away the theme and font scheme

@@ -31,6 +31,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Mobile Study Pane](features/navigation-layout.md#mobile-study-pane) | All-in-one mobile study hub with icon grid, breadcrumb navigation, verse history |
 | [State Management](features/state-management.md) | Store architecture, data providers, hooks |
 | [Study Pane](features/topics.md#ui-components) | Desktop Study pane host components (cross-refs, topics, synthesis, interlinear sections) are mapped in the Topics doc |
+| [Audio Bible](features/audio.md) | Listening to a chapter: recorded chapters and on-device speech (Piper) behind one player; off by default (`features.audio`) |
 | [PWA & Offline](features/pwa-offline.md) | Service worker (**off by default** — opt in with `ENABLE_PWA=1`), installability, HTTP cache headers, offline module storage via OPFS |
 
 ## Testing

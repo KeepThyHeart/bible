@@ -21,6 +21,7 @@ All stores extend a `Store` base class with subscriber notification on state cha
 | `src/stores/settingsStore.ts` | Theme, font settings, line height, interlinear layout, gesture thresholds, localStorage persistence |
 | `src/stores/studyStore.ts` | Study pane: cross-references, topics, tag-graph entities and verse text for the study verse. Loads **on demand** — see below |
 | `src/stores/offlineStore.ts` | Offline mode flag, downloaded modules, download progress, online/offline detection — see [PWA & Offline](pwa-offline.md) |
+| `src/stores/audioStore.ts` | Audio Bible: preferences, resolved source, gates, player state; position and the verse being read live in two side stores (`audioStore.position`, `audioStore.follow`). Only initialised when `features.audio` is on — see [Audio Bible](audio.md) |
 | `src/stores/connectionStore.ts` | Transient connection-error message behind `src/components/ConnectionBanner.tsx`; auto-dismisses after 15s |
 | `src/events/eventBus.ts` | Small pub/sub used for cross-store signalling that would otherwise need a store-to-store import (tested by `src/__tests__/eventBus.test.ts`) |
 

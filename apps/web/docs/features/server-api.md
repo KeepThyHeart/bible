@@ -37,6 +37,7 @@ is the `path` the file passes to `registerRoute`.
 | `server/routes/strongsRoutes.ts` (`/api/strongs`) | `/:number` |
 | `server/routes/crossRefRoutes.ts` (`/api/xref`) | `/:module/:verseId/groups`, `/:module/:verseId/count` |
 | `server/routes/topicalRoutes.ts` (`/api/topical`) | `/modules`, `/verse/:verseId`, `/:module/topic/:topicId`, `/:module/topic/:topicId/children`, `/:module/topic/:topicId/verses`, `/search` — see [Topics](topics.md) |
+| `server/routes/audioRoutes.ts` (`/audio`) | Only mounted when `features.audio` is on. `GET/HEAD` files under `v1/` (recordings: per-translation index, chapter manifests, chapter audio with Range) and `tts/` (an on-device engine's runtime and voices) of the audio directory (`<data dir>/audio`, or `audio.dir`); anything else, dotfiles and `..` are 404; a miss is a real 404, never the SPA shell. Manifests and audio are immutable (`max-age` one year), `index.json` is cached five minutes. See [Audio Bible](audio.md) |
 | `server/routes/tagGraphRoutes.ts` (`/api/taggraph`) | `/verse/:verseId`, `/entity/:category/:entityId`, plus `/associations`, `/verses`, `/facets`, `/topic-links` under that entity path; `/search`, `/topic-link/:sourceModule/:topicId`. Gated by the `showTagGraph` feature flag — see [Topics](topics.md) |
 | `server/routes/moduleRoutes.ts` (`/api`, **not** `/api/modules`) | `/modules`, `/books`, `/module-sections` (client UI grouping from `site-config.json`), `/modules/:name/download` (full module `.db` for offline; `:name` may be `semantic-index`), `/modules/:name/download-lite` (trimmed copy, cached under `<dataDir>/lite-cache`), `/modules/:name/info` |
 | `server/routes/studyOverviewRoutes.ts` (`/api/study/overview`) | `/:book/:chapter` — bundled pre-generated study data (commentary overview, topics, cross-refs, entities) served from static cache |
@@ -89,6 +90,8 @@ compile **any** WebAssembly module — "Refused to compile or instantiate
 WebAssembly module" — which breaks the `wa-sqlite` worker behind offline module
 storage and the in-browser search index. It is the narrow directive for wasm
 only and does **not** re-enable `eval()` for JavaScript, unlike `'unsafe-eval'`.
+
+When `features.audio` is on, `server/cspDirectives.ts` adds `media-src 'self' blob:` (synthesized speech and cached recordings play from blob URLs created by our own page script) and the origins named in the `audio` block (`base`, an engine's `assetBase`) to `media-src` and `connect-src`. With the feature off the policy is unchanged. Worker and script sources stay `'self'`: an on-device engine's files are served from `/audio/tts`, not a CDN.
 
 ## Rate limiting
 
