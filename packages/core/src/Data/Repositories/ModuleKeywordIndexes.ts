@@ -36,6 +36,15 @@ const INDEXABLE: Partial<Record<ModuleType, { legacyTable: string; source: (sql:
   topical_index: { legacyTable: 'topic_fts', source: (sql) => new TopicalIndexRepository(sql).getIndexSource() },
 };
 
+/**
+ * The FTS5 table a v0.1 module of `moduleType` shipped - present means the
+ * module is searched through it and needs no sidecar. `undefined` for a type
+ * with nothing to index.
+ */
+export function inModuleKeywordIndexTable(moduleType: ModuleType): string | undefined {
+  return INDEXABLE[normalizeModuleType(moduleType) as ModuleType]?.legacyTable;
+}
+
 export interface EnsureModuleKeywordIndexesOptions {
   provider: SidecarFts5Provider;
   /** Module database files to cover. */
