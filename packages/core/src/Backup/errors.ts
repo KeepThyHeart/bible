@@ -19,3 +19,6 @@ export class WrongPasswordError extends BackupError {}
 
 /** The file is damaged, truncated, reordered or tampered with (an authentication tag failed or the structure is malformed). */
 export class DamagedError extends BackupError {}
+
+/** The file is encrypted and no password was given. */
+export class PasswordRequiredError extends BackupError {}

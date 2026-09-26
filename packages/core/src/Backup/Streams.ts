@@ -63,3 +63,44 @@ export async function collect(source: ByteSource, maxBytes = Number.POSITIVE_INF
   }
   return out;
 }
+
+/**
+ * Read the first `n` bytes (or fewer, if the source is shorter) without losing
+ * them: returns them plus a source that yields everything, head included.
+ */
+export async function peek(source: ByteSource, n: number): Promise<{ head: Uint8Array; all: AsyncGenerator<Uint8Array> }> {
+  const it: AsyncIterator<Uint8Array> | Iterator<Uint8Array> =
+    (source as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]?.() ?? (source as Iterable<Uint8Array>)[Symbol.iterator]();
+  const parts: Uint8Array[] = [];
+  let have = 0;
+  let ended = false;
+  while (have < n) {
+    const r = await it.next();
+    if (r.done) {
+      ended = true;
+      break;
+    }
+    parts.push(r.value);
+    have += r.value.length;
+  }
+  const buffered = new Uint8Array(have);
+  let o = 0;
+  for (const p of parts) {
+    buffered.set(p, o);
+    o += p.length;
+  }
+  async function* all(): AsyncGenerator<Uint8Array> {
+    try {
+      if (buffered.length > 0) yield buffered;
+      if (ended) return;
+      for (;;) {
+        const r = await it.next();
+        if (r.done) return;
+        yield r.value;
+      }
+    } finally {
+      await it.return?.();
+    }
+  }
+  return { head: buffered.subarray(0, Math.min(n, buffered.length)), all: all() };
+}

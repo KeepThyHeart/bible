@@ -5,3 +5,6 @@ export * from './StrictJson';
 export * from './Zip';
 export * from './Envelope';
 export * from './Registry';
+export * from './ExtensionData';
+export * from './Payload';
+export * from './BackupFile';
