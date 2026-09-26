@@ -75,6 +75,8 @@ export interface TableSpec {
   skipInMerge?: (row: Row) => boolean;
   /** When merging, never touch this table (a singleton the local install owns). */
   mergeKeepsLocal?: boolean;
+  /** In replace, rows matching `sql` (and `test`, the same rule for a backup row) are this machine's own and stay. */
+  keepInReplace?: { sql: string; test: (row: Row) => boolean };
   /** A 0/1 "is the default" column: merge never lets a restored row become a second default. */
   defaultFlag?: string;
   /** External-content FTS table to rebuild after rows change. */
@@ -220,6 +222,7 @@ export const USER_TABLES: readonly TableSpec[] = [
     columns: ['setting_id', 'category', 'key', 'value', 'value_type', 'description', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['category', 'key'], conflict: 'keepLocal' },
     skipInMerge: (row) => row.category === 'system',
+    keepInReplace: { sql: "category = 'system'", test: (row) => row.category === 'system' },
   },
   {
     name: 'layout_preset', pk: ['layout_id'], autoId: true, cls: 'workspace', origin: 'core',

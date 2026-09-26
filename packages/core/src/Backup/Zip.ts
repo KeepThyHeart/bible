@@ -29,14 +29,17 @@ export interface ZipLimits {
   /** Uncompressed:compressed ratio above which an entry is refused (only entries over `ratioMinBytes`). */
   maxRatio: number;
   ratioMinBytes: number;
+  /** Largest `manifest.json`. */
+  maxManifestBytes: number;
   /** Longest entry name. */
   maxNameLength: number;
 }
 
 export const DEFAULT_ZIP_LIMITS: ZipLimits = {
   maxEntries: 200_000,
-  maxEntryBytes: 2 * 1024 ** 3,
-  maxTotalBytes: 8 * 1024 ** 3,
+  maxEntryBytes: 512 * 1024 ** 2,
+  maxTotalBytes: 2 * 1024 ** 3,
+  maxManifestBytes: 8 * 1024 ** 2,
   maxRatio: 100,
   ratioMinBytes: 1024 * 1024,
   maxNameLength: 512,
@@ -101,6 +104,7 @@ export async function readZip(
   const entries: ZipEntry[] = [];
   const seen = new Set<string>();
   let total = 0;
+  let totalCompressed = 0;
   let sawAny = false;
   let failure: Error | null = null;
   let pending = 0;
@@ -125,9 +129,15 @@ export async function readZip(
     const declared = file.originalSize as number;
     const compressed = file.size as number;
     if (declared > lim.maxEntryBytes) fail(`entry is too large: ${JSON.stringify(name)}`);
+    if (name === 'manifest.json' && declared > lim.maxManifestBytes) fail('manifest.json is too large');
     if (total + declared > lim.maxTotalBytes) fail('archive is too large');
     if (declared > lim.ratioMinBytes && declared > compressed * lim.maxRatio) {
       fail(`entry has a suspicious compression ratio: ${JSON.stringify(name)}`);
+    }
+    // Many entries each just under the per-entry ratio limit must not add up to an amplification bomb.
+    totalCompressed += compressed;
+    if (total + declared > 4 * lim.ratioMinBytes && total + declared > totalCompressed * lim.maxRatio) {
+      fail('archive has a suspicious overall compression ratio');
     }
     onEntryStart?.(name, entries.length);
 

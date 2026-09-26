@@ -48,6 +48,10 @@ export const PAYLOAD_ZIP = 'zip';
 const LABEL_KEK = 'kth-backup-kek-v1';
 const LABEL_SLOT = 'kth-backup-slot-v1';
 const LABEL_STREAM = 'kth-backup-stream-v1';
+const LABEL_COMMIT = 'kth-backup-commit-v1';
+
+/** At most this many password slots are tried when opening, so one file cannot demand unbounded key derivations. */
+export const MAX_SLOT_ATTEMPTS = 4;
 
 export interface PasswordSlotHeader {
   type: 'password';
@@ -66,6 +70,8 @@ export interface EnvelopeHeader {
   segmentSize: number;
   streamSalt: string;
   noncePrefix: string;
+  /** Key commitment: HKDF(fileKey, streamSalt, "kth-backup-commit-v1"). Binds every slot to one file key. */
+  keyCheck: string;
   slots: Array<PasswordSlotHeader | UnknownSlotHeader>;
   [k: string]: unknown;
 }
@@ -240,12 +246,14 @@ export async function* sealStream(
   // wrapped keys need the preamble hash, and the preamble carries the header length. The wrapped
   // value has a fixed length (48 bytes = 64 base64url chars), so the length is known up front.
   for (const p of pending) p.header.wrapped = 'A'.repeat(64);
+  const keyCheck = await hkdfSha256(fileKey, streamSalt, LABEL_COMMIT, 32);
   const headerBase: EnvelopeHeader = {
     payload: PAYLOAD_ZIP,
     aead: AEAD_ID,
     segmentSize,
     streamSalt: b64urlEncode(streamSalt),
     noncePrefix: b64urlEncode(noncePrefix),
+    keyCheck: b64urlEncode(keyCheck),
     slots: slotHeaders,
   };
   const headerLen = utf8Encode(JSON.stringify(headerBase)).length;
@@ -321,6 +329,7 @@ export function parseHeader(bytes: Uint8Array): EnvelopeHeader {
   }
   fixedB64(json.streamSalt, 32, 'streamSalt');
   fixedB64(json.noncePrefix, 7, 'noncePrefix');
+  fixedB64(json.keyCheck, 32, 'keyCheck');
   if (!Array.isArray(json.slots) || json.slots.length < 1 || json.slots.length > MAX_SLOTS) {
     throw new DamagedError('Malformed header: slots');
   }
@@ -341,7 +350,7 @@ export interface OpenedEnvelope {
 /**
  * Read the preamble and header, unlock a key slot with the password, and return
  * a lazy plaintext stream. Errors: `NotABackupError`, `NewerFormatError`,
- * `WrongPasswordError`, `DamagedError` (also while iterating `plain`), `KdfParamsError`.
+ * `WrongPasswordError`, `DamagedError` (also while iterating `plain`; invalid KDF parameters are reported as damage).
  * No KDF work is done before the header has been fully validated, including the KDF bounds.
  */
 export async function openStream(
@@ -393,6 +402,7 @@ export async function openStream(
         if (e instanceof KdfParamsError) throw new DamagedError(`Invalid key-derivation parameters: ${e.message}`);
         throw e;
       }
+      if (candidates.length >= MAX_SLOT_ATTEMPTS) break;
       candidates.push({
         kdfParams,
         nonce: fixedB64(s.nonce, 12, 'slot nonce'),
@@ -403,12 +413,18 @@ export async function openStream(
       throw new NewerFormatError('This backup cannot be opened with a password by this version of the app.');
     }
 
+    const streamSaltBytes = fixedB64(header.streamSalt, 32, 'streamSalt');
+    const keyCheck = fixedB64(header.keyCheck, 32, 'keyCheck');
     let fileKey: Uint8Array | null = null;
     for (const c of candidates) {
       const kek = await kekFromSecret(await kdf(unlock.password, c.kdfParams));
       try {
-        fileKey = await aesGcmOpenKey(await importAesKey(kek), c.nonce, c.wrapped, slotAad(preambleHash));
-        break;
+        const candidate = await aesGcmOpenKey(await importAesKey(kek), c.nonce, c.wrapped, slotAad(preambleHash));
+        // A slot must unwrap the very key the header commits to; another key would let one file hold two different plaintexts.
+        if (bytesEqual(await hkdfSha256(candidate, streamSaltBytes, LABEL_COMMIT, 32), keyCheck)) {
+          fileKey = candidate;
+          break;
+        }
       } catch (e) {
         if (!(e instanceof AuthError)) throw e;
       }
@@ -417,7 +433,7 @@ export async function openStream(
 
     const aad = await sha256(concatBytes(preamble, headerBytes));
     const streamKey = await importAesKey(
-      await hkdfSha256(fileKey, fixedB64(header.streamSalt, 32, 'streamSalt'), LABEL_STREAM, 32)
+      await hkdfSha256(fileKey, streamSaltBytes, LABEL_STREAM, 32)
     );
     const noncePrefix = fixedB64(header.noncePrefix, 7, 'noncePrefix');
     const segLen = header.segmentSize + AES_TAG_LEN;

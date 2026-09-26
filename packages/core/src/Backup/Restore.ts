@@ -28,7 +28,7 @@ import { DamagedError, NewerFormatError } from './errors';
 import { sectionRows } from './Payload';
 import type { BackupArchive, ManifestSection } from './Payload';
 import { EXTENSION_DB_NAME_PATTERN, EXTENSION_ID_PATTERN } from './ExtensionData';
-import { USER_SCHEMA_VERSION, orderedTables, parentTables, tableSpec, upgradeRow } from './Registry';
+import { USER_SCHEMA_VERSION, orderedTables, tableSpec, upgradeRow } from './Registry';
 import type { FkSpec, Row, TableSpec } from './Registry';
 import { checkEntryName } from './Zip';
 
@@ -313,13 +313,30 @@ export async function applyRestore(plan: RestorePlan, target: RestoreTarget, opt
   return report;
 }
 
+/** What replacing a table does to a table that points into it, without emptying it. */
+interface CascadeOp {
+  table: string;
+  kind: 'deleteWhere' | 'nullify';
+  column: string;
+  typeColumn?: string;
+  types?: string[];
+}
+
 interface Selected {
   tables: Map<string, ManifestSection>;
   kv: ManifestSection[];
   clear: Set<string>;
+  cascade: CascadeOp[];
 }
 
-/** Turn selected section ids into the tables to fill and the tables to empty. */
+/**
+ * Turn selected section ids into the tables to fill, the tables to empty, and what
+ * else must change so nothing is left pointing at data that is gone. The last part
+ * mirrors what the database's own foreign keys would do: a table whose rows belong to
+ * the replaced one (`onMissing: 'drop'`) loses them, a table that merely refers to it
+ * (`onMissing: 'null'`) has the reference cleared. Rows the backup holds for such a
+ * table are restored only when that section is selected too.
+ */
 function selection(plan: RestorePlan, target: RestoreTarget, opts: RestoreOptions, report: RestoreReport): Selected {
   const chosen = new Set(opts.sections);
   const tables = new Map<string, ManifestSection>();
@@ -337,56 +354,62 @@ function selection(plan: RestorePlan, target: RestoreTarget, opts: RestoreOption
   }
 
   const clear = new Set<string>();
+  const cascade: CascadeOp[] = [];
   if (opts.mode === 'replace') {
     for (const name of tables.keys()) clear.add(name);
-    // Anything that points into a cleared table must be emptied too, or it would dangle.
+    // A table whose every row belongs to an emptied table is emptied with it.
     let grew = true;
     while (grew) {
       grew = false;
       for (const spec of orderedTables()) {
         if (clear.has(spec.name) || !tableExists(target.sql, spec.name)) continue;
-        if (parentTables(spec).some((p) => clear.has(p))) {
+        const owned = spec.fks.some((fk) => 'table' in fk && fk.table !== spec.name && clear.has(fk.table) && fk.onMissing === 'drop');
+        if (owned) {
           clear.add(spec.name);
           grew = true;
-          if (!tables.has(spec.name)) {
-            const inBackup = plan.archive.sections.find((s) => s.kind === 'table' && s.table === spec.name);
-            report.warnings.push({ code: inBackup ? 'dependentPulledIn' : 'dependentEmptied', params: { table: spec.name } });
-            if (inBackup) tables.set(spec.name, inBackup);
-          }
+          report.warnings.push({ code: 'dependentEmptied', params: { table: spec.name } });
+        }
+      }
+    }
+    // The rest: rows that point into an emptied table lose the reference or, if they belong to it, go.
+    for (const spec of orderedTables()) {
+      if (clear.has(spec.name) || !tableExists(target.sql, spec.name)) continue;
+      for (const fk of spec.fks) {
+        if ('table' in fk) {
+          if (fk.table !== spec.name && clear.has(fk.table)) cascade.push({ table: spec.name, kind: fk.onMissing === 'drop' ? 'deleteWhere' : 'nullify', column: fk.column });
+        } else {
+          const types = Object.entries(fk.targets).filter(([, t]) => clear.has(t)).map(([type]) => type);
+          if (types.length > 0) cascade.push({ table: spec.name, kind: fk.onMissing === 'drop' ? 'deleteWhere' : 'nullify', column: fk.column, typeColumn: fk.typeColumn, types });
         }
       }
     }
   }
-  return { tables, kv, clear };
+  return { tables, kv, clear, cascade };
 }
 
 interface Ctx {
   sql: ISql;
   archive: BackupArchive;
   mode: RestoreMode;
+  report: RestoreReport;
   /** replace: ids present after the insert, per table. merge: backup id -> local id. */
   ids: Map<string, Map<unknown, unknown>>;
-  /** replace: ids in tables that are not being cleared (checked lazily). */
-  existing: Map<string, Set<unknown>>;
+  /** Tables emptied by a replace. */
   cleared: Set<string>;
 }
 
+/**
+ * Where a backup row's reference points now. A parent that is part of this restore
+ * (filled, or emptied and refilled) is found through its id map. A parent that is not
+ * has no relation to the backup's ids - local rows may share them by coincidence - so
+ * it counts as missing and the child's `onMissing` rule applies.
+ */
 function lookupParent(ctx: Ctx, table: string, value: unknown): { found: boolean; mapped?: unknown } {
   if (ctx.ids.has(table) || ctx.cleared.has(table)) {
     const m = ctx.ids.get(table)?.get(value);
     return m === undefined ? { found: false } : { found: true, mapped: m };
   }
-  if (ctx.mode === 'merge') return { found: false }; // parent not part of this restore: backup ids mean nothing here
-  let set = ctx.existing.get(table);
-  if (!set) {
-    const spec = tableSpec(table);
-    set = new Set();
-    if (spec && tableExists(ctx.sql, table)) {
-      for (const r of ctx.sql.queryAll<Row>(`SELECT ${q(spec.pk[0])} AS id FROM ${q(table)}`)) set.add(r.id);
-    }
-    ctx.existing.set(table, set);
-  }
-  return set.has(value) ? { found: true, mapped: value } : { found: false };
+  return { found: false };
 }
 
 type RowVerdict = { row: Row; nulled: number } | { drop: 'danglingFk' | 'otherType' };
@@ -421,29 +444,36 @@ function parentsFirst(spec: TableSpec, rows: Row[], report: TableReport): Row[] 
   const self = spec.fks.find((f): f is Extract<FkSpec, { table: string }> => 'table' in f && f.table === spec.name);
   if (!self) return rows;
   const pk = spec.pk[0];
+  const col = self.column;
   const byId = new Map<unknown, Row>(rows.map((r) => [r[pk], r]));
-  const state = new Map<unknown, 1 | 2>();
+  const done = new Set<unknown>();
   const out: Row[] = [];
-  const visit = (r: Row): void => {
-    const id = r[pk];
-    if (state.get(id) === 2) return;
-    if (state.get(id) === 1) return;
-    state.set(id, 1);
-    const parentId = r[self.column];
-    if (parentId !== null && parentId !== undefined) {
-      const parent = byId.get(parentId);
-      if (parent) {
-        if (state.get(parentId) === 1) {
-          r = { ...r, [self.column]: null };
-          byId.set(id, r);
-          report.dropped.cycle = (report.dropped.cycle ?? 0) + 1;
-        } else visit(parent);
+  for (const start of rows) {
+    if (done.has(start[pk])) continue;
+    // Walk up to the first ancestor already placed (or missing), then emit the chain top-down.
+    const chain: Row[] = [];
+    const inChain = new Set<unknown>();
+    let cur = byId.get(start[pk]) as Row;
+    for (;;) {
+      chain.push(cur);
+      inChain.add(cur[pk]);
+      const pid = cur[col];
+      if (pid === null || pid === undefined) break;
+      const parent = byId.get(pid);
+      if (!parent || done.has(pid)) break;
+      if (inChain.has(pid)) {
+        chain[chain.length - 1] = { ...cur, [col]: null };
+        byId.set(cur[pk], chain[chain.length - 1]);
+        report.dropped.cycle = (report.dropped.cycle ?? 0) + 1;
+        break;
       }
+      cur = parent;
     }
-    state.set(id, 2);
-    out.push(r);
-  };
-  for (const r of rows) visit(byId.get(r[pk]) as Row);
+    for (let i = chain.length - 1; i >= 0; i--) {
+      done.add(chain[i][pk]);
+      out.push(chain[i]);
+    }
+  }
   return out;
 }
 
@@ -468,7 +498,7 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
   if (sel.tables.size === 0 && sel.kv.length === 0) return report;
   if (mode === 'replace') sql.execute('PRAGMA defer_foreign_keys = ON');
 
-  const ctx: Ctx = { sql, archive: plan.archive, mode, ids: new Map(), existing: new Map(), cleared: sel.clear };
+  const ctx: Ctx = { sql, archive: plan.archive, mode, report, ids: new Map(), cleared: sel.clear };
   const reports = new Map<string, TableReport>();
   const reportFor = (table: string): TableReport => {
     let r = reports.get(table);
@@ -483,10 +513,27 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
   // 1. replace: empty everything that is being replaced, children first.
   if (mode === 'replace') {
     for (const spec of [...orderedTables()].reverse()) {
-      if (!sel.clear.has(spec.name)) continue;
-      const r = reportFor(spec.name);
-      r.cleared = sql.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${q(spec.name)}`)?.n ?? 0;
-      sql.execute(`DELETE FROM ${q(spec.name)}`);
+      if (sel.clear.has(spec.name)) {
+        const r = reportFor(spec.name);
+        if (spec.keepInReplace) {
+          r.cleared = sql.execute(`DELETE FROM ${q(spec.name)} WHERE NOT (${spec.keepInReplace.sql})`).changes;
+        } else {
+          r.cleared = sql.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${q(spec.name)}`)?.n ?? 0;
+          sql.execute(`DELETE FROM ${q(spec.name)}`);
+        }
+        continue;
+      }
+      for (const op of sel.cascade.filter((c) => c.table === spec.name)) {
+        const r = reportFor(spec.name);
+        const typed = op.typeColumn ? ` AND ${q(op.typeColumn)} IN (${(op.types ?? []).map(() => '?').join(', ')})` : '';
+        const params = (op.types ?? []) as SqlParameter[];
+        if (op.kind === 'deleteWhere') {
+          r.cleared += sql.execute(`DELETE FROM ${q(op.table)} WHERE ${q(op.column)} IS NOT NULL${typed}`, params).changes;
+        } else {
+          r.nulled += sql.execute(`UPDATE ${q(op.table)} SET ${q(op.column)} = NULL WHERE ${q(op.column)} IS NOT NULL${typed}`, params).changes;
+        }
+        report.warnings.push({ code: 'dependentRows', params: { table: op.table, action: op.kind } });
+      }
     }
     // Extension key-value data is replaced per extension, so other extensions are untouched.
     for (const s of sel.kv) {
@@ -530,19 +577,36 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
   const rowsRaw = sectionRows(ctx.archive, section);
   const live = liveColumns(sql, spec.name);
   const known = new Set(spec.columns);
-  const backupCols = section.columns ?? [];
-  const insertCols = spec.columns.filter((c) => backupCols.includes(c) && live.includes(c) && known.has(c));
-  for (const c of backupCols) {
-    if (!insertCols.includes(c)) {
-      const d = report.droppedColumns.find((x) => x.table === spec.name && x.column === c);
-      if (d) d.rows += rowsRaw.length;
-      else report.droppedColumns.push({ table: spec.name, column: c, rows: rowsRaw.length });
+
+  // Upgrade first, then decide which columns are written: an upgrader may rename or add columns.
+  const upgraded = rowsRaw.map((raw) => upgradeRow(spec, raw, fromVersion));
+  const present = new Set<string>();
+  for (const r of upgraded) for (const k of Object.keys(r)) present.add(k);
+  const insertCols = spec.columns.filter((c) => present.has(c) && live.includes(c) && known.has(c));
+  for (const c of [...present, ...(section.columns ?? [])]) {
+    if (!insertCols.includes(c) && !report.droppedColumns.some((x) => x.table === spec.name && x.column === c)) {
+      report.droppedColumns.push({ table: spec.name, column: c, rows: rowsRaw.length });
     }
   }
 
-  // Upgrade, then project to the columns that will be written.
-  let rows: Row[] = rowsRaw.map((raw) => {
-    const up = upgradeRow(spec, raw, fromVersion);
+  if (spec.autoId && upgraded.length > 0) {
+    // Children are matched to their parents by this key; without it the section cannot be restored correctly.
+    const key = spec.pk[0];
+    if (!insertCols.includes(key)) throw new DamagedError(`Section ${section.id} has no ${key} column`);
+    const seen = new Set<unknown>();
+    for (const r of upgraded) {
+      const id = r[key];
+      if (id === null || id === undefined || seen.has(id)) throw new DamagedError(`Section ${section.id} has a missing or repeated ${key}`);
+      seen.add(id);
+    }
+  }
+  if (spec.identity.kind === 'unique' && !spec.identity.columns.every((c) => insertCols.includes(c)) && ctx.mode === 'merge' && upgraded.length > 0) {
+    // Without every identity column no row can be recognised, and merging blind would drop or duplicate rows.
+    report.skippedSections.push({ id: section.id, reason: 'missingKeyColumn' });
+    return;
+  }
+
+  let rows: Row[] = upgraded.map((up) => {
     const r: Row = {};
     for (const c of insertCols) r[c] = up[c] === undefined ? null : up[c];
     return r;
@@ -563,6 +627,10 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
 
   if (ctx.mode === 'replace') {
     rows.forEach((row, i) => {
+      if (spec.keepInReplace?.test(row)) {
+        tr.dropped.keptLocal = (tr.dropped.keptLocal ?? 0) + 1;
+        return;
+      }
       const verdict = remapRow(spec, row, ctx);
       if ('drop' in verdict) {
         tr.dropped[verdict.drop] = (tr.dropped[verdict.drop] ?? 0) + 1;
@@ -744,10 +812,12 @@ async function applyFiles(plan: RestorePlan, target: RestoreTarget, opts: Restor
     const suffix = section.id === 'notes' ? '.bn' : '.bak';
     const sink = target.notes;
     try {
-      let existing = new Set(await sink.list());
+      // Names are compared case-insensitively and after Unicode normalisation: on Windows and macOS
+      // "Foo.bn" and "foo.bn" (or a precomposed and a decomposed name) are the same file.
+      const existing = new NameSet(await sink.list());
       if (opts.mode === 'replace' && section.id === 'notes' && existing.size > 0) {
         report.notes.movedAsideTo = await sink.moveAside(dateLabel(now));
-        existing = new Set();
+        existing.clear();
       }
       for (const path of section.paths) {
         const rel = path.slice(prefix.length);
@@ -757,8 +827,9 @@ async function applyFiles(plan: RestorePlan, target: RestoreTarget, opts: Restor
         }
         const data = archive.entries.get(path) as Uint8Array;
         try {
+          const there = existing.find(rel);
           if (section.id === 'notes.history') {
-            if (opts.mode === 'merge' && existing.has(rel)) report.notes.skippedExisting++;
+            if (opts.mode === 'merge' && there !== undefined) report.notes.skippedExisting++;
             else {
               await sink.write(rel, data);
               existing.add(rel);
@@ -766,20 +837,20 @@ async function applyFiles(plan: RestorePlan, target: RestoreTarget, opts: Restor
             }
             continue;
           }
-          if (!existing.has(rel)) {
+          if (there === undefined) {
             await sink.write(rel, data);
             existing.add(rel);
             report.notes.written++;
             continue;
           }
-          const current = await sink.read(rel);
+          const current = await sink.read(there);
           if (current && sameBytes(current, data)) {
             report.notes.identical++;
             continue;
           }
           // In replace the old files were moved aside, so this is merge: keep both.
           const copy = await conflictCopy(sink, rel, data, existing, now);
-          report.notes.conflictCopies.push({ original: rel, copy });
+          report.notes.conflictCopies.push({ original: there, copy });
         } catch (e) {
           report.fileErrors.push({ path: rel, message: e instanceof Error ? e.message : String(e) });
         }
@@ -822,20 +893,47 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
  * copy with the same content is already there from an earlier merge, reuse it, so
  * merging the same backup twice adds nothing.
  */
-async function conflictCopy(sink: FileSink, rel: string, data: Uint8Array, existing: Set<string>, now: Date): Promise<string> {
+async function conflictCopy(sink: FileSink, rel: string, data: Uint8Array, existing: NameSet, now: Date): Promise<string> {
   const dot = rel.lastIndexOf('.');
   const stem = rel.slice(0, dot);
   const ext = rel.slice(dot);
-  const pattern = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(restored \\d{4}-\\d{2}-\\d{2}( \\d+)?\\)${ext.replace('.', '\\.')}$`);
-  for (const other of existing) {
+  const pattern = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(restored \\d{4}-\\d{2}-\\d{2}( \\d+)?\\)${ext.replace('.', '\\.')}$`, 'i');
+  for (const other of existing.all()) {
     if (!pattern.test(other)) continue;
     const bytes = await sink.read(other);
     if (bytes && sameBytes(bytes, data)) return other;
   }
   const base = `${stem} (restored ${dateLabel(now)})`;
   let candidate = `${base}${ext}`;
-  for (let n = 2; existing.has(candidate); n++) candidate = `${base} ${n}${ext}`;
+  for (let n = 2; existing.find(candidate) !== undefined; n++) candidate = `${base} ${n}${ext}`;
   await sink.write(candidate, data);
   existing.add(candidate);
   return candidate;
+}
+
+/** A set of file names compared without regard to case or Unicode normalisation form. */
+class NameSet {
+  private readonly names = new Map<string, string>();
+  constructor(paths: string[] = []) {
+    for (const p of paths) this.add(p);
+  }
+  private static key(p: string): string {
+    return p.normalize('NFC').toLowerCase();
+  }
+  add(p: string): void {
+    this.names.set(NameSet.key(p), p);
+  }
+  /** The name as it is stored, if this name (in any spelling) is present. */
+  find(p: string): string | undefined {
+    return this.names.get(NameSet.key(p));
+  }
+  get size(): number {
+    return this.names.size;
+  }
+  clear(): void {
+    this.names.clear();
+  }
+  all(): string[] {
+    return [...this.names.values()];
+  }
 }

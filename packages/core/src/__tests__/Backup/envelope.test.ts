@@ -110,6 +110,26 @@ describe('spec conformance (files assembled independently with node:crypto)', ()
   });
 });
 
+describe('key commitment and slot limits', () => {
+  it('a slot that unwraps a different key than the header commits to is not accepted', async () => {
+    const file = build({ plaintext: pattern(20), header: (h) => { h.keyCheck = b64u(Buffer.alloc(32, 1)); } });
+    await expect(open(new Uint8Array(file))).rejects.toBeInstanceOf(WrongPasswordError);
+  });
+  it('tries at most four password slots', async () => {
+    const calls: number[] = [];
+    const spy = async (_pw: string, p: KdfParams) => { calls.push(p.m); return new Uint8Array(32); };
+    const file = build({
+      plaintext: pattern(3),
+      header: (h) => {
+        const extra = (i: number) => ({ ...h.slots[0], kdf: { ...h.slots[0].kdf, salt: b64u(Buffer.alloc(16, i)) } });
+        for (let i = 0; i < 9; i++) h.slots.push(extra(i));
+      },
+    });
+    await expect(openStream(once(new Uint8Array(file)), { password: 'x' }, { kdf: spy })).rejects.toBeInstanceOf(WrongPasswordError);
+    expect(calls).toHaveLength(4);
+  });
+});
+
 describe('round trips', () => {
   it('empty payload is exactly one 16-byte segment', async () => {
     const f = await seal(new Uint8Array(0));
@@ -201,7 +221,7 @@ describe('hostile headers fail before any KDF work', () => {
   const enc = (s: string) => Buffer.from(s);
   const good = (extra: Record<string, unknown> = {}) => ({
     payload: 'zip', aead: 'aes-256-gcm-stream', segmentSize: 4096,
-    streamSalt: b64u(Buffer.alloc(32)), noncePrefix: b64u(Buffer.alloc(7)),
+    streamSalt: b64u(Buffer.alloc(32)), noncePrefix: b64u(Buffer.alloc(7)), keyCheck: b64u(Buffer.alloc(32)),
     slots: [{ type: 'password', kdf: { id: 'argon2id', v: 19, m: 19456, t: 2, p: 1, salt: b64u(Buffer.alloc(16)) }, nonce: b64u(Buffer.alloc(12)), wrapped: b64u(Buffer.alloc(48)) }],
     ...extra,
   });
@@ -233,6 +253,8 @@ describe('hostile headers fail before any KDF work', () => {
       (h) => { h.streamSalt = b64u(Buffer.alloc(31)); },
       (h) => { h.streamSalt = b64u(Buffer.alloc(32)) + '='; },
       (h) => { h.noncePrefix = b64u(Buffer.alloc(8)); },
+      (h) => { delete h.keyCheck; },
+      (h) => { h.keyCheck = b64u(Buffer.alloc(31)); },
       (h) => { h.slots = []; },
       (h) => { h.slots = 'x'; },
       (h) => { h.slots = Array.from({ length: 17 }, () => h.slots[0]); },

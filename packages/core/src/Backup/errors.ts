@@ -11,10 +11,10 @@ export class BackupError extends Error {
 /** The bytes are not a backup file at all (wrong magic, too short). */
 export class NotABackupError extends BackupError {}
 
-/** The file was made by a newer version (higher major, unknown cipher, KDF, payload or slot type). */
+/** The file was made by a newer version (higher major, unknown cipher or payload type, no usable slot, newer manifest or schema, an unknown required section). */
 export class NewerFormatError extends BackupError {}
 
-/** No key slot could be opened with the password: wrong password (or a slot type this reader does not have a key for). */
+/** No key slot could be opened with the password: wrong password (or a tampered slot, which looks the same). */
 export class WrongPasswordError extends BackupError {}
 
 /** The file is damaged, truncated, reordered or tampered with (an authentication tag failed or the structure is malformed). */

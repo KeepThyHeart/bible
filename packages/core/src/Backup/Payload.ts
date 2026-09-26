@@ -91,6 +91,7 @@ export function encodeValue(v: unknown): unknown {
 }
 
 export function decodeValue(v: unknown): unknown {
+  if (typeof v === 'boolean') throw new DamagedError('Unexpected boolean value in a backup row');
   if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
     const keys = Object.keys(v);
     if (keys.length === 1 && keys[0] === '$b64' && typeof (v as { $b64: unknown }).$b64 === 'string') {
@@ -119,7 +120,12 @@ export function encodeNdjson(rows: Row[], columns: string[]): Uint8Array {
 
 /** Parse an NDJSON entry into rows. `columns` fixes which keys are read; extra keys are counted by the caller from the manifest. */
 export function decodeNdjson(bytes: Uint8Array): Row[] {
-  const text = utf8Decode(bytes);
+  let text: string;
+  try {
+    text = utf8Decode(bytes);
+  } catch {
+    throw new DamagedError('A backup section is not valid UTF-8');
+  }
   if (text === '') return [];
   if (!text.endsWith('\n')) throw new DamagedError('A backup section is truncated');
   const rows: Row[] = [];
@@ -133,7 +139,10 @@ export function decodeNdjson(bytes: Uint8Array): Row[] {
     }
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new DamagedError(`Malformed row ${i + 1} in a backup section`);
     const row: Row = {};
-    for (const [k, v] of Object.entries(obj)) row[k] = decodeValue(v);
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === '__proto__') throw new DamagedError(`Malformed row ${i + 1} in a backup section`);
+      row[k] = decodeValue(v);
+    }
     rows.push(row);
   }
   return rows;
@@ -316,7 +325,14 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
           warnings.push({ code: 'extensionSkipped', params: { id: d.id } });
           continue;
         }
-        const data = await src.extensions.dbSnapshot(d.id, name);
+        let data: Uint8Array;
+        try {
+          data = await src.extensions.dbSnapshot(d.id, name);
+        } catch {
+          // A declared database the extension has not created yet must not make the whole backup fail.
+          warnings.push({ code: 'extensionSkipped', params: { id: d.id, db: name } });
+          continue;
+        }
         const path = `extensions/${d.id}/db/${name}.sqlite`;
         await addFile(path, data, false);
         sections.push({ id: `ext.${d.id}.db.${name}`, kind: 'extDb', class: 'extension', required: false, count: 1, ext: d.id, db: name, paths: [path] });
@@ -378,7 +394,6 @@ export interface ReadOptions {
   zipLimits?: Partial<ZipLimits>;
 }
 
-const KNOWN_KINDS = new Set<string>(['table', 'files', 'extKv', 'extDb', 'prefs', 'info']);
 const HEX64 = /^[0-9a-f]{64}$/;
 const VERSION = /^(\d{1,4})\.(\d{1,4})$/;
 
@@ -447,6 +462,45 @@ export function parseManifest(bytes: Uint8Array, maxSchemaVersion = USER_SCHEMA_
 }
 
 /**
+ * Decide whether this reader understands a section, and fix its class to the one
+ * this version assigns (a file's own `class` claim is not trusted: it decides what is
+ * selected by default). Returns false for a section it does not know.
+ */
+function classify(s: ManifestSection): boolean {
+  switch (s.kind) {
+    case 'table': {
+      const spec = typeof s.table === 'string' ? USER_TABLES.find((t) => t.name === s.table) : undefined;
+      // extension_storage travels in per-extension sections, never as a whole table.
+      if (!spec || spec.cls === 'excluded' || spec.name === 'extension_storage') return false;
+      s.class = spec.cls;
+      return true;
+    }
+    case 'files':
+      if (s.id !== 'notes' && s.id !== 'notes.history') return false;
+      s.class = s.id === 'notes' ? 'content' : 'history';
+      return true;
+    case 'extKv':
+      if (typeof s.ext !== 'string' || !EXTENSION_ID_PATTERN.test(s.ext)) return false;
+      s.class = 'extension';
+      return true;
+    case 'extDb':
+      if (typeof s.ext !== 'string' || !EXTENSION_ID_PATTERN.test(s.ext) || typeof s.db !== 'string' || !EXTENSION_DB_NAME_PATTERN.test(s.db)) return false;
+      s.class = 'extension';
+      return true;
+    case 'prefs':
+      if (s.id !== 'prefs') return false;
+      s.class = 'workspace';
+      return true;
+    case 'info':
+      if (s.id !== 'modules') return false;
+      s.class = 'excluded';
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
  * Read a plain payload ZIP: check the manifest comes first, verify every entry's
  * size and SHA-256 against it, and sort sections into understood and unknown.
  * Nothing is applied here; this only proves the bytes are what the manifest says.
@@ -478,14 +532,36 @@ export async function readBackupPayload(plain: ByteSource, o: ReadOptions = {}):
 
   const sections: ManifestSection[] = [];
   const unknownSections: ManifestSection[] = [];
-  for (const s of manifest.sections) {
-    const known = KNOWN_KINDS.has(s.kind)
-      && (s.kind !== 'table' || (typeof s.table === 'string' && USER_TABLES.some((t) => t.name === s.table && t.cls !== 'excluded')))
-      && (s.kind !== 'extKv' || (typeof s.ext === 'string' && EXTENSION_ID_PATTERN.test(s.ext)))
-      && (s.kind !== 'extDb' || (typeof s.ext === 'string' && EXTENSION_ID_PATTERN.test(s.ext) && typeof s.db === 'string' && EXTENSION_DB_NAME_PATTERN.test(s.db)));
-    if (known) sections.push(s);
-    else if (s.required) throw new NewerFormatError('This backup needs a newer version of Keep Thy Heart. Update the app to restore it.');
-    else unknownSections.push(s);
+  const seenTables = new Set<string>();
+  const count = (path: string): number => {
+    const data = byName.get(path);
+    if (!data) return 0;
+    let n = 0;
+    for (const b of data) if (b === 0x0a) n++;
+    return n;
+  };
+  for (const raw of manifest.sections) {
+    const s: ManifestSection = { ...raw };
+    const known = classify(s);
+    if (!known) {
+      if (s.required) throw new NewerFormatError('This backup needs a newer version of Keep Thy Heart. Update the app to restore it.');
+      unknownSections.push(s);
+      continue;
+    }
+    // What the file says about itself is checked, and the class is taken from the registry, never from the file.
+    if (s.kind === 'table') {
+      if (seenTables.has(s.table as string)) fail('duplicate table section');
+      seenTables.add(s.table as string);
+      if (s.id !== `user.${s.table}` || s.paths.length !== 1 || s.count !== count(s.paths[0])) fail(`section ${s.id}`);
+    } else if (s.kind === 'extKv') {
+      if (s.id !== `ext.${s.ext}.kv` || s.paths.length !== 1 || s.count !== count(s.paths[0])) fail(`section ${s.id}`);
+    } else if (s.kind === 'extDb') {
+      if (s.id !== `ext.${s.ext}.db.${s.db}` || s.paths.length !== 1 || s.count !== 1) fail(`section ${s.id}`);
+    } else if (s.kind === 'files' || s.kind === 'prefs' || s.kind === 'info') {
+      if (s.count !== (s.kind === 'files' ? s.paths.length : s.count)) fail(`section ${s.id}`);
+      if (s.kind !== 'files' && s.paths.length !== 1) fail(`section ${s.id}`);
+    }
+    sections.push(s);
   }
   return { manifest, entries: byName, sections, unknownSections };
 }

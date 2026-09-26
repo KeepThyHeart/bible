@@ -27,25 +27,60 @@ describe('replace', () => {
     expect(report.ok).toBe(true);
     const sa = snapshot(a);
     const sb = snapshot(b);
-    for (const table of Object.keys(sa)) expect(sb[table], table).toEqual(sa[table]);
+    // This machine's own internal settings are kept, not replaced.
+    const nonSystem = (rows: Array<Record<string, unknown>>) => rows.filter((r) => r.category !== 'system');
+    for (const table of Object.keys(sa)) {
+      if (table === 'setting') expect(nonSystem(sb[table]), table).toEqual(nonSystem(sa[table]));
+      else expect(sb[table], table).toEqual(sa[table]);
+    }
+    expect(sb.setting.filter((r) => r.category === 'system')).toEqual(snapshot(newUserDb()).setting.filter((r) => r.category === 'system'));
     expect(checkRegistryIntegrity(b)).toEqual([]);
     expect(b.queryAll('PRAGMA foreign_key_check')).toEqual([]);
   });
 
-  it('replaces what is there, including rows that point into it although the backup has none', async () => {
+  it('replacing notes also removes what belongs to them, and clears references to them, without touching unrelated rows', async () => {
     const a = newUserDb();
     a.execute("INSERT INTO user_note (title, content) VALUES ('from backup', 'x')");
     const b = newUserDb();
     seedRich(b);
-    // b has verse_links, markup and pinned notes pointing at its notes; the backup has none of those.
     const { report } = await restore(a, b, 'replace', ['user.user_note']);
-    expect(snapshot(b).user_note.map((r) => r.title)).toEqual(['from backup']);
-    expect(snapshot(b).verse_link).toEqual([]);
-    expect(snapshot(b).content_verse_link).toBeUndefined();
-    expect(snapshot(b).user_text_markup.every((m) => m.note_id === null)).toBe(true);
-    expect(snapshot(b).pinned_item).toEqual([]);
-    expect(report.warnings.some((w) => w.code === 'dependentEmptied' || w.code === 'dependentPulledIn')).toBe(true);
+    const s = snapshot(b);
+    expect(s.user_note.map((r) => r.title)).toEqual(['from backup']);
+    // links and pins that belong to the old notes are gone; those of journal entries and prayers stay
+    expect(s.verse_link.map((l) => l.source_type).sort()).toEqual(['journal', 'prayer']);
+    expect(s.pinned_item.map((p) => p.item_type)).toEqual(['verse']);
+    // highlights survive; only their link to a note is cleared
+    expect(s.user_text_markup).toHaveLength(2);
+    expect(s.user_text_markup.every((m) => m.note_id === null)).toBe(true);
+    expect(report.warnings.some((w) => w.code === 'dependentRows')).toBe(true);
     expect(checkRegistryIntegrity(b)).toEqual([]);
+  });
+
+  it('a child restored without its parents never attaches to unrelated local rows that share ids', async () => {
+    const a = newUserDb();
+    seedRich(a, ' backup');
+    const b = newUserDb();
+    for (const t of ['LOCAL-A', 'LOCAL-B', 'LOCAL-C', 'LOCAL-D']) b.execute("INSERT INTO user_note (title, content) VALUES (?, 'x')", [t]);
+    b.execute("INSERT INTO prayer_item (title) VALUES ('local prayer')");
+    // Replace only prayers and links: the backup's note links point at note ids that mean something else here.
+    const { report } = await restore(a, b, 'replace', ['user.prayer_item', 'user.verse_link']);
+    const s = snapshot(b);
+    expect(s.user_note.map((n) => n.title)).toEqual(['LOCAL-A', 'LOCAL-B', 'LOCAL-C', 'LOCAL-D']);
+    expect(s.verse_link.filter((l) => ['note', 'document'].includes(String(l.source_type)))).toEqual([]);
+    expect(report.perTable.find((t) => t.table === 'verse_link')!.dropped.danglingFk).toBeGreaterThan(0);
+    expect(checkRegistryIntegrity(b)).toEqual([]);
+  });
+
+  it('keeps this machine\'s internal settings and replaces the rest', async () => {
+    const a = newUserDb();
+    a.execute("INSERT INTO setting (category, key, value) VALUES ('ui', 'zoom', '150'), ('system', 'schema', 'FROM-BACKUP')");
+    const b = newUserDb();
+    b.execute("INSERT INTO setting (category, key, value) VALUES ('ui', 'old', '1'), ('system', 'schema', 'LOCAL')");
+    await restore(a, b, 'replace', ['user.setting']);
+    const rows = Object.fromEntries(snapshot(b).setting.map((r) => [`${r.category}/${r.key}`, r.value]));
+    expect(rows['ui/zoom']).toBe('150');
+    expect(rows['ui/old']).toBeUndefined();
+    expect(rows['system/schema']).toBe('LOCAL');
   });
 
   it('only touches the selected sections', async () => {

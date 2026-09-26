@@ -74,7 +74,7 @@ export function build(o: BuildOptions): Buffer {
   const mk = (slot0: any) => {
     const h: any = {
       payload: 'zip', aead: 'aes-256-gcm-stream', segmentSize: S,
-      streamSalt: b64u(streamSalt), noncePrefix: b64u(noncePrefix),
+      streamSalt: b64u(streamSalt), noncePrefix: b64u(noncePrefix), keyCheck: b64u(hkdf(fileKey, streamSalt, 'kth-backup-commit-v1')),
       slots: [slot0],
     };
     o.header?.(h);
