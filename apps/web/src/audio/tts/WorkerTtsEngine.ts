@@ -116,8 +116,15 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
 
   async synthesize(req: SynthesisRequest, signal: AbortSignal): Promise<SynthesisResult> {
     if (signal.aborted) throw abortedError();
-    // A worker recreated after a crash has forgotten its voice.
-    if (!this.readyVoices.has(req.voiceId)) await this.prepare(req.voiceId, () => {}, signal);
+    // A worker recreated after a crash has forgotten its voice. Loading a voice that
+    // is already stored is quick and silent; downloading one is not something a
+    // background synthesis may start, so a voice that is not stored is an error.
+    if (!this.readyVoices.has(req.voiceId)) {
+      if (!(await this.isVoiceCached(req.voiceId))) {
+        throw { code: 'unsupported', message: 'The voice is not downloaded.', retryable: false } satisfies AudioError;
+      }
+      await this.prepare(req.voiceId, () => {}, signal);
+    }
     const value = await this.call({ op: 'synthesize', req }, signal, { timeoutMs: this.synthesizeTimeoutMs }) as SynthesizeValue;
     return { pcm: value.pcm, sampleRate: value.sampleRate, sentences: value.sentences };
   }
@@ -148,11 +155,21 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
       worker.onmessageerror = () => this.crash(worker, 'The speech engine sent an unreadable message.');
       this.worker = worker;
       this.readyVoices.clear();
-      this.ready = this.rawCall(worker, { op: 'init', payload: this.initPayload() }, {}).then(() => undefined);
+      // The one call timed from the moment it is posted (there is nothing ahead of
+      // it to wait behind): a worker whose script never comes up must not hang the
+      // caller for ever. A worker that does start reports progress, which restarts
+      // the window (see `onReply`).
+      this.ready = this.rawCall(worker, { op: 'init', payload: this.initPayload() }, {
+        idleTimeoutMs: this.prepareIdleTimeoutMs, timeFromPost: true,
+      }).then(() => undefined);
       this.ready.catch(() => { if (this.worker === worker) this.killWorker(engineError('The speech engine failed to start.')); });
     }
+    const worker = this.worker;
     await this.ready;
-    return this.worker!;
+    // A crash while we waited leaves no worker (or a new one still starting):
+    // report it rather than hand back something else.
+    if (!worker || worker !== this.worker) throw engineError('The speech engine restarted.');
+    return worker;
   }
 
   private async call(
@@ -169,7 +186,7 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
   private rawCall(
     worker: WorkerLike,
     body: TtsWorkerRequestBody,
-    opts: { onProgress?: (p: LoadProgress) => void; timeoutMs?: number; idleTimeoutMs?: number; signal?: AbortSignal },
+    opts: { onProgress?: (p: LoadProgress) => void; timeoutMs?: number; idleTimeoutMs?: number; signal?: AbortSignal; timeFromPost?: boolean },
   ): Promise<unknown> {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
@@ -177,7 +194,12 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
       const window = opts.idleTimeoutMs ?? opts.timeoutMs;
       if (window) {
         entry.timeoutMs = window;
-        entry.timer = setTimeout(() => this.crash(worker, 'The speech engine stopped responding.'), window);
+        // The worker runs one request at a time, so a request may legitimately sit
+        // in its queue behind a long one. Time it from when the worker says it has
+        // started it (a first `progress` reply), not from when it was posted.
+        if (opts.timeFromPost) {
+          entry.timer = setTimeout(() => this.crash(worker, 'The speech engine stopped responding.'), window);
+        }
       }
       const finish = () => { if (entry.timer) clearTimeout(entry.timer); opts.signal?.removeEventListener('abort', onAbort); };
       const settle = entry;
@@ -209,9 +231,10 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
     if (!entry) return; // a late reply for an aborted or timed-out call
     if (msg.kind === 'progress') {
       entry.onProgress?.(msg.p);
-      // Progress proves the worker is alive: restart the idle window.
-      if (entry.timer && entry.timeoutMs) {
-        clearTimeout(entry.timer);
+      // Progress (including the "started" ping the worker sends when it begins a
+      // request) proves the worker is alive: start, or restart, the window.
+      if (entry.timeoutMs) {
+        if (entry.timer) clearTimeout(entry.timer);
         entry.timer = setTimeout(() => this.crash(worker, 'The speech engine stopped responding.'), entry.timeoutMs);
       }
       return;

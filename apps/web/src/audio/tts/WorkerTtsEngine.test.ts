@@ -21,18 +21,6 @@ class FakeWorker implements WorkerLike {
   reply(data: TtsWorkerReply) { this.onmessage?.({ data }); }
   ops(): string[] { return this.sent.map(m => m.op); }
   last(op: string): TtsWorkerRequest { return [...this.sent].reverse().find(m => m.op === op)!; }
-  /** Answer every request of `op` that has not been answered yet. */
-  autoAnswer(value: (m: TtsWorkerRequest) => unknown = () => undefined) {
-    const answered = new Set<number>();
-    const timer = setInterval(() => {
-      for (const m of this.sent) {
-        if (answered.has(m.id) || m.op === 'cancel' || m.op === 'dispose') continue;
-        answered.add(m.id);
-        this.reply({ id: m.id, kind: 'ok', value: value(m) });
-      }
-    }, 1);
-    return () => clearInterval(timer);
-  }
 }
 
 const caps: TtsEngineCapabilities = { rate: { min: 0.5, max: 2, step: 0.1 }, nativeRate: true, languages: ['en'], backends: ['wasm'], approxRuntimeBytes: 1 };
@@ -101,9 +89,10 @@ describe('WorkerTtsEngine', () => {
     expect(progress).toEqual([{ phase: 'voice', loaded: 5, total: 10 }]);
     expect(await engine.isVoiceReady('v1')).toBe(true);
 
-    const stop = engine.w.autoAnswer(() => pcm());
-    const result = await engine.synthesize(req, signal());
-    stop();
+    const sp = engine.synthesize(req, signal());
+    await tick();
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'ok', value: pcm() });
+    const result = await sp;
     expect(result.sampleRate).toBe(8000);
     expect(engine.w.ops().filter(o => o === 'init').length).toBe(1);
   });
@@ -114,11 +103,20 @@ describe('WorkerTtsEngine', () => {
     expect(await engine.isVoiceReady('v1')).toBe(true);
   });
 
-  it('prepares an unloaded voice on the way to a synthesize', async () => {
-    const stop = (() => { const t = setInterval(() => engine.workers.forEach(w => w.autoAnswer(() => pcm())), 1); return () => clearInterval(t); })();
-    await engine.synthesize(req, signal());
-    stop();
-    expect(engine.w.ops().slice(0, 3)).toEqual(['init', 'prepare', 'synthesize']);
+  it('loads a stored voice on the way to a synthesize, but never downloads one', async () => {
+    await expect(engine.synthesize(req, signal())).rejects.toMatchObject({ code: 'unsupported', retryable: false });
+    expect(engine.workers.length).toBe(0); // it did not even start the worker
+
+    engine.cached.add('v1');
+    const p = engine.synthesize(req, signal());
+    await tick();
+    engine.w.reply({ id: engine.w.last('init').id, kind: 'ok' });
+    await tick();
+    engine.w.reply({ id: engine.w.last('prepare').id, kind: 'ok' });
+    await tick();
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'ok', value: pcm() });
+    await p;
+    expect(engine.w.ops()).toEqual(['init', 'prepare', 'synthesize']);
   });
 
   async function preparedEngine() {
@@ -159,6 +157,7 @@ describe('WorkerTtsEngine', () => {
 
   it('a worker error rejects every pending call (engine, retryable) and terminates; the next call starts a new worker, inits again and re-prepares the voice', async () => {
     await preparedEngine();
+    engine.cached.add('v1'); // stored on disk, so the new worker may load it
     const a = engine.synthesize(req, signal());
     const b = engine.synthesize({ ...req, text: 'two' }, signal());
     await tick();
@@ -198,10 +197,48 @@ describe('WorkerTtsEngine', () => {
     await preparedEngine();
     vi.useFakeTimers();
     const p = engine.synthesize(req, signal());
+    await vi.advanceTimersByTimeAsync(0);
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'progress', p: { phase: 'synthesis', loaded: 0 } }); // "started"
     const assertion = expect(p).rejects.toMatchObject({ code: 'engine', retryable: true });
     await vi.advanceTimersByTimeAsync(1500);
     await assertion;
     expect(engine.w.terminated).toBe(true);
+  });
+
+  it('a request waiting in the worker queue is not timed until the worker starts it', async () => {
+    await preparedEngine();
+    vi.useFakeTimers();
+    const p = engine.synthesize(req, signal());
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(10_000); // queued behind a long job: no "started" ping yet
+    expect(engine.w.terminated).toBe(false);
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'progress', p: { phase: 'synthesis', loaded: 0 } });
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'ok', value: pcm() });
+    await expect(p).resolves.toBeDefined();
+    expect(engine.w.terminated).toBe(false);
+  });
+
+  it('a worker whose init never answers is timed out, and an abort never crashes the worker later', async () => {
+    vi.useFakeTimers();
+    const p = engine.prepare('v1', () => {}, signal());
+    const assertion = expect(p).rejects.toMatchObject({ code: 'engine', retryable: true });
+    await vi.advanceTimersByTimeAsync(1500);
+    await assertion;
+    expect(engine.workers[0].terminated).toBe(true);
+
+    // An aborted synthesize must clear its timer: nothing may kill the worker afterwards.
+    vi.useRealTimers();
+    engine.cached.add('v1');
+    await preparedEngine();
+    vi.useFakeTimers();
+    const ctrl = new AbortController();
+    const s = engine.synthesize(req, ctrl.signal);
+    await vi.advanceTimersByTimeAsync(0);
+    engine.w.reply({ id: engine.w.last('synthesize').id, kind: 'progress', p: { phase: 'synthesis', loaded: 0 } });
+    ctrl.abort();
+    await expect(s).rejects.toMatchObject({ code: 'aborted' });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(engine.w.terminated).toBe(false);
   });
 
   it('a slow download that keeps reporting progress is not timed out; silence is', async () => {
@@ -211,6 +248,7 @@ describe('WorkerTtsEngine', () => {
     engine.w.reply({ id: engine.w.last('init').id, kind: 'ok' });
     await vi.advanceTimersByTimeAsync(0);
     const id = engine.w.last('prepare').id;
+    engine.w.reply({ id, kind: 'progress', p: { phase: 'voice', loaded: 0, total: 10 } }); // "started"
     for (let i = 0; i < 5; i++) {
       await vi.advanceTimersByTimeAsync(800);
       engine.w.reply({ id, kind: 'progress', p: { phase: 'voice', loaded: i, total: 10 } });
@@ -304,7 +342,7 @@ describe('serveTtsWorker', () => {
     expect(order).toEqual(['init', 'synth:slow', 'synth:fast']);
     const oks = posted.filter(p => p.msg.kind === 'ok').map(p => p.msg.id);
     expect(oks).toEqual([1, 2, 3]);
-    expect(posted.find(p => p.msg.id === 2)!.transfer).toHaveLength(1);
+    expect(posted.find(p => p.msg.id === 2 && p.msg.kind === 'ok')!.transfer).toHaveLength(1);
   });
 
   it('skips a queued request that was cancelled, and aborts a running one', async () => {
@@ -327,7 +365,7 @@ describe('serveTtsWorker', () => {
     release();
     await tick(); await tick();
     expect(ran).toEqual([1]); // the synthesize never started
-    expect(posted.map(p => p.msg.id)).toEqual([1]);
+    expect(posted.filter(p => p.msg.kind !== 'progress').map(p => p.msg.id)).toEqual([1]);
   });
 
   it('turns thrown values into error replies with a code, and keeps serving', async () => {
@@ -356,6 +394,6 @@ describe('serveTtsWorker', () => {
     });
     send({ id: 1, op: 'prepare', voiceId: 'v' });
     await tick();
-    expect(posted.map(p => p.msg.kind)).toEqual(['progress', 'ok']);
+    expect(posted.map(p => p.msg.kind)).toEqual(['progress', 'progress', 'ok']); // the "started" ping, the handler's progress, done
   });
 });

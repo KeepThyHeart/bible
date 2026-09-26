@@ -33,7 +33,11 @@ export function serveTtsWorker(scope: WorkerScopeLike, handlers: TtsWorkerHandle
     controllers.set(msg.id, ctrl);
     try {
       // Cancelled while it waited in the queue: never start it.
-      if (cancelled.has(msg.id)) { cancelled.delete(msg.id); return; }
+      if (cancelled.has(msg.id)) return;
+      // Tell the page this request has started, so that a request which had to
+      // wait in the queue is timed from now, not from when it was sent.
+      if (msg.op === 'synthesize') reply({ id: msg.id, kind: 'progress', p: { phase: 'synthesis', loaded: 0 } });
+      if (msg.op === 'prepare') reply({ id: msg.id, kind: 'progress', p: { phase: 'voice', loaded: 0 } });
       switch (msg.op) {
         case 'init':
           await handlers.init(msg.payload);
@@ -44,6 +48,8 @@ export function serveTtsWorker(scope: WorkerScopeLike, handlers: TtsWorkerHandle
           reply({ id: msg.id, kind: 'ok' });
           break;
         case 'synthesize': {
+          // Handlers must return PCM they own: the buffer is transferred, so a
+          // view onto WASM memory or a SharedArrayBuffer would fail here.
           const value: SynthesizeValue = await handlers.synthesize(msg.req, ctrl.signal);
           reply({ id: msg.id, kind: 'ok', value }, [value.pcm.buffer as ArrayBuffer]);
           break;
@@ -62,6 +68,7 @@ export function serveTtsWorker(scope: WorkerScopeLike, handlers: TtsWorkerHandle
       reply({ id: msg.id, kind: 'error', error: toTtsError(e) });
     } finally {
       controllers.delete(msg.id);
+      cancelled.delete(msg.id);
     }
   }
 
@@ -74,6 +81,8 @@ export function serveTtsWorker(scope: WorkerScopeLike, handlers: TtsWorkerHandle
       else cancelled.add(msg.target);
       return;
     }
-    chain = chain.then(() => handle(msg));
+    // `handle` reports its own errors; the catch keeps one throwing `postMessage`
+    // from breaking the chain and silently dropping every later request.
+    chain = chain.then(() => handle(msg)).catch(() => {});
   });
 }

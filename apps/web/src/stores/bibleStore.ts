@@ -353,17 +353,31 @@ class BibleStore extends Store {
    * history pick, the book/chapter picker) leaves a new breadcrumb. It is an
    * explicit flag rather than an adjacency test on purpose: "John 4 after
    * John 3" is a page for the chapter buttons and a jump when it was typed.
+   *
+   * `follow` is for the audio player turning the page as the reading moves into
+   * the next chapter. It changes what the reader is *shown* and nothing they
+   * chose: the selected verse (`studyVerse`) is left alone, the commentary is
+   * not told to reload, the Home screen and the URL hash of an inactive tab are
+   * left as they are, and the move always replaces the current history entry.
+   * `tabId` names the tab to move (the playing tab need not be the active one);
+   * without it the active tab moves, as always.
    */
-  async navigateTo(book: number, chapter: number, verse?: number, options?: { fromLink?: boolean; endVerse?: number; replace?: boolean }): Promise<void> {
-    const tab = this.getActiveTab();
+  async navigateTo(
+    book: number,
+    chapter: number,
+    verse?: number,
+    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; follow?: boolean; tabId?: string },
+  ): Promise<void> {
+    const follow = options?.follow === true;
+    const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
     if (!tab || !this.bible) return;
 
     // Track whether we need to dismiss home screen after data loads
-    const wasShowingHome = this.showHome;
+    const wasShowingHome = follow ? false : this.showHome;
 
     // Before navigating away, update the current history entry with the
     // highlighted verse and scroll position so goBack() can restore them.
-    if (options?.fromLink && tab.historyIndex >= 0 && tab.historyIndex < tab.history.length) {
+    if (!follow && options?.fromLink && tab.historyIndex >= 0 && tab.historyIndex < tab.history.length) {
       const current = tab.history[tab.historyIndex];
       if (tab.studyVerse) {
         const v = tab.studyVerse % 1000;
@@ -398,43 +412,50 @@ class BibleStore extends Store {
       tab.coveredBooks = data.coveredBooks;
       tab.previewVerse = null;
       tab.previewVerseEnd = null;
-      // A passage selection is anchored to verses in the chapter being left.
-      tab.selectionEndVerse = null;
-      if (verse) {
-        // Calculate full verseId — select the specific verse
-        const verseId = (book * 1000000) + (chapter * 1000) + verse;
-        tab.studyVerse = verseId;
-        tab.pendingScrollVerse = verseId;
-        // A typed range ("John 3:16-18") lands as the same anchor + far-end
-        // pair a click-then-shift-click produces, so the range highlight and
-        // the copy dialog pick it up with no further wiring.
-        if (options?.endVerse && options.endVerse > verse) {
-          tab.selectionEndVerse = (book * 1000000) + (chapter * 1000) + options.endVerse;
-        }
+      if (follow) {
+        // The reader's selection stays exactly where it was (see the doc above);
+        // the audio follow-along scrolls to the verse being read itself.
+        tab.pendingScrollVerse = null;
       } else {
-        // No specific verse asked for: select the chapter's first verse so the
-        // study and commentary panes have something to bind to immediately.
-        //
-        // Not left null for an effect in CommentaryContent to back-fill by
-        // measuring the DOM for the first visible verse: that effect runs
-        // before the Bible pane has mounted its verses on a fresh chapter load
-        // or a cold start, finds nothing, and its deps do not change again —
-        // leaving the pane stuck on "select a verse" until the user clicks one.
-        // The verse data is right here, so there is no reason to go to the DOM.
-        tab.studyVerse = tab.verses[0]?.verse_id ?? null;
-        // Chapter navigation with no named verse still selects one (the first),
-        // and the reader should land on it. Leaving this null meant a prev/next
-        // chapter step kept the previous chapter's scroll offset, so the
-        // selected verse was scrolled to only when the caller happened to name
-        // one — the inconsistency this fixes.
-        tab.pendingScrollVerse = tab.studyVerse;
+        // A passage selection is anchored to verses in the chapter being left.
+        tab.selectionEndVerse = null;
+        if (verse) {
+          // Calculate full verseId — select the specific verse
+          const verseId = (book * 1000000) + (chapter * 1000) + verse;
+          tab.studyVerse = verseId;
+          tab.pendingScrollVerse = verseId;
+          // A typed range ("John 3:16-18") lands as the same anchor + far-end
+          // pair a click-then-shift-click produces, so the range highlight and
+          // the copy dialog pick it up with no further wiring.
+          if (options?.endVerse && options.endVerse > verse) {
+            tab.selectionEndVerse = (book * 1000000) + (chapter * 1000) + options.endVerse;
+          }
+        } else {
+          // No specific verse asked for: select the chapter's first verse so the
+          // study and commentary panes have something to bind to immediately.
+          //
+          // Not left null for an effect in CommentaryContent to back-fill by
+          // measuring the DOM for the first visible verse: that effect runs
+          // before the Bible pane has mounted its verses on a fresh chapter load
+          // or a cold start, finds nothing, and its deps do not change again —
+          // leaving the pane stuck on "select a verse" until the user clicks one.
+          // The verse data is right here, so there is no reason to go to the DOM.
+          tab.studyVerse = tab.verses[0]?.verse_id ?? null;
+          // Chapter navigation with no named verse still selects one (the first),
+          // and the reader should land on it. Leaving this null meant a prev/next
+          // chapter step kept the previous chapter's scroll offset, so the
+          // selected verse was scrolled to only when the caller happened to name
+          // one — the inconsistency this fixes.
+          tab.pendingScrollVerse = tab.studyVerse;
+        }
       }
       tab.loading = false;
       tab.scrollPosition = 0;
-      tab.showBackBar = !!(options?.fromLink && this.canGoBack());
+      tab.showBackBar = !follow && !!(options?.fromLink && this.canGoBack());
 
-      // Sync commentary to this chapter (explicit, not auto-synced)
-      eventBus.emit('commentary:load-chapter', { book, chapter });
+      // Sync commentary to this chapter (explicit, not auto-synced). Not while
+      // following audio: the panes update only when the reader selects a verse.
+      if (!follow) eventBus.emit('commentary:load-chapter', { book, chapter });
 
       // Dismiss home screen now that verse data is ready (no blank flash)
       if (wasShowingHome) {
@@ -442,8 +463,8 @@ class BibleStore extends Store {
       }
 
       // Push to history
-      this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace });
-      this.updateHash();
+      this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
+      if (tab.id === this.activeTabId) this.updateHash();
       this.saveSession();
       this.notify();
 
@@ -926,8 +947,8 @@ class BibleStore extends Store {
   }
 
   // History (per-tab)
-  private pushHistory(entry: HistoryEntry, options?: { replace?: boolean }): void {
-    const tab = this.getActiveTab();
+  private pushHistory(entry: HistoryEntry, options?: { replace?: boolean; tab?: BibleTab }): void {
+    const tab = options?.tab ?? this.getActiveTab();
     if (!tab) return;
 
     const current = tab.historyIndex >= 0 && tab.historyIndex < tab.history.length

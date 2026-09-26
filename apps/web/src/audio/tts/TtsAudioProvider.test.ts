@@ -117,13 +117,18 @@ describe('provider basics', () => {
   it('isReady/prepare delegate to the engine; prepare refuses an unsupported browser', async () => {
     const { provider, engine } = rig({ defaultVoices: { en: 'v-en-2' } });
     engine.prepared.delete('v-en-2');
-    expect(await provider.isReady()).toBe(false);
+    expect(await provider.isReady('v-en-2')).toBe(false);
     const progress = vi.fn();
-    await provider.prepare(undefined, progress, signal());
-    expect(await provider.isReady()).toBe(true);
+    await provider.prepare('v-en-2', progress, signal());
+    expect(await provider.isReady('v-en-2')).toBe(true);
     expect(progress).toHaveBeenCalled();
+    // With no voice named there is no language to pick one for: nothing to download yet.
+    engine.prepared.delete('v-en-2');
+    expect(await provider.isReady()).toBe(true);
+    await provider.prepare(undefined, progress, signal());
+    expect(engine.prepared.has('v-en-2')).toBe(false);
     engine.supported = false;
-    await expect(provider.prepare(undefined, progress, signal())).rejects.toMatchObject({ code: 'unsupported' });
+    await expect(provider.prepare('v-en-2', progress, signal())).rejects.toMatchObject({ code: 'unsupported' });
   });
 
   it('openChapter with no voice for the language is unsupported', async () => {
@@ -396,17 +401,19 @@ describe('look-ahead queue', () => {
   });
 
   it('a synthesis failure rejects the waiter (engine, retryable) and only a new ask retries it', async () => {
-    const r = rig({ text: verses(3, 10) });
+    const text = Array.from({ length: 4 }, (_v, i) => ({ verse: i + 1, text: `verse number ${i + 1}` }));
+    const r = rig({ text });
     r.engine.failNextWith = new Error('phonemizer crashed');
     const chapter = await r.provider.openChapter(ref, { rate: 1, readIntro: false }, signal());
     await expect(chapter.segmentFor(1, signal())).rejects.toMatchObject({ code: 'engine', retryable: true });
-    await tick(); await tick();
-    const afterFailure = r.engine.requests.filter(q => q.text === 'x'.repeat(10)).length;
-    // Look-ahead carried on with the other verses but did not retry verse 1 by itself.
-    expect(r.engine.requests.length).toBeGreaterThan(1);
+    for (let i = 0; i < 4; i++) await tick();
+    const count = (t: string) => r.engine.requests.filter(q => q.text === t).length;
+    // Look-ahead went on with the other verses but did not retry verse 1 by itself.
+    expect(count('verse number 1')).toBe(1);
+    expect(count('verse number 2')).toBe(1);
     const seg = await chapter.segmentFor(1, signal());
     expect(seg.verses[0].verse).toBe(1);
-    expect(r.engine.requests.filter(q => q.text === 'x'.repeat(10)).length).toBeGreaterThan(afterFailure - 1);
+    expect(count('verse number 1')).toBe(2); // only the new ask retried it
     chapter.dispose();
   });
 });
@@ -493,6 +500,86 @@ describe('errors while opening', () => {
       throw { code: 'network', message: 'offline', retryable: true };
     };
     await expect(r.provider.openChapter(ref, { rate: 1 }, signal())).rejects.toMatchObject({ code: 'network' });
+  });
+});
+
+describe('review fixes', () => {
+  const distinct = (n: number) => Array.from({ length: n }, (_v, i) => ({ verse: i + 1, text: `verse number ${i + 1}`.padEnd(800, '.') }));
+
+  it('several abandoned demands do not go ahead of the verse actually wanted', async () => {
+    const r = rig({ text: distinct(10) });
+    r.engine.holdRequests = true;
+    const chapter = await r.provider.openChapter(ref, { rate: 1, readIntro: false }, signal());
+    const first = chapter.segmentFor(1, signal());
+    await tick();
+    r.engine.releaseRequest();
+    const s1 = await first;
+    await tick();
+    // The listener skips ahead quickly: verses 2, 3, 4, 5 are asked for and abandoned, 6 is wanted.
+    const ctrls = [2, 3, 4, 5].map(() => new AbortController());
+    const dropped = [2, 3, 4, 5].map((v, i) => chapter.segmentFor(v, ctrls[i].signal).catch(() => 'aborted'));
+    ctrls.forEach(c => c.abort());
+    const wanted = chapter.segmentFor(6, signal());
+    await tick();
+    r.engine.releaseRequest(); // whatever was already running finishes
+    await tick();
+    expect(r.engine.requests.at(-1)!.text.startsWith('verse number 6')).toBe(true);
+    r.engine.releaseRequest();
+    expect((await wanted).verses[0].verse).toBe(6);
+    await Promise.all(dropped);
+    expect(s1.verses[0].verse).toBe(1);
+    chapter.dispose();
+  });
+
+  it('the look-ahead window counts only the unbroken run of finished verses after the playhead', async () => {
+    const r = rig({ text: distinct(12) });
+    r.vis.hidden = false;
+    const chapter = await r.provider.openChapter(ref, { rate: 1, readIntro: false }, signal());
+    // Play verse 8, so 9-11 get made ahead of it (long verses: 3 are enough).
+    await chapter.segmentFor(8, signal());
+    for (let i = 0; i < 6; i++) await tick();
+    const madeAhead = r.engine.requests.map(q => Number(/verse number (\d+)/.exec(q.text)![1]));
+    expect(madeAhead).toEqual([8, 9, 10, 11]);
+    // Going back: verses 9-11 are done but do not cover the gap in front of them.
+    r.engine.requests.length = 0;
+    await chapter.segmentFor(2, signal());
+    for (let i = 0; i < 6; i++) await tick();
+    const after = r.engine.requests.map(q => Number(/verse number (\d+)/.exec(q.text)![1]));
+    expect(after.slice(0, 4)).toEqual([2, 3, 4, 5]);
+  });
+
+  it('a source that repeats a verse number does not loop the chapter', async () => {
+    const r = rig({ text: [{ verse: 1, text: 'a' }, { verse: 1, text: 'b' }, { verse: 2, text: 'c' }] });
+    const chapter = await r.provider.openChapter(ref, { rate: 1, readIntro: false }, signal());
+    expect(chapter.verses).toEqual([1, 2]);
+    let seg: AudioSegment | null = await chapter.segmentFor(1, signal());
+    const seen: number[] = [];
+    while (seg && seen.length < 5) { seen.push(seg.verses[0].verse); seg = await chapter.segmentAfter(seg, signal()); }
+    expect(seen).toEqual([1, 2]);
+    chapter.dispose();
+  });
+
+  it('a warm chapter for another voice or speed is disposed when a different chapter is opened', async () => {
+    const r = rig({ text: verses(3, 10) });
+    await r.provider.prefetch({ ...ref, chapter: 4 }, { rate: 1 }, signal());
+    await tick();
+    const before = r.engine.requests.length;
+    expect(before).toBeGreaterThan(0);
+    const chapter = await r.provider.openChapter({ ...ref, chapter: 4 }, { rate: 1.5 }, signal());
+    for (let i = 0; i < 4; i++) await tick();
+    // The old warm chapter no longer makes anything; only the live one does.
+    expect(r.engine.requests.slice(before).every(q => q.rate === 1.5)).toBe(true);
+    chapter.dispose();
+  });
+
+  it('a warm-up that failed is rebuilt when an explicit play adopts it', async () => {
+    const r = rig({ text: verses(3, 10) });
+    r.engine.prepared.clear(); // prefetch refuses to download: its build fails "not downloaded"
+    await r.provider.prefetch({ ...ref, chapter: 4 }, { rate: 1 }, signal());
+    r.engine.prepared.add('v-en-1'); // ... and the voice is there by the time a play asks
+    const chapter = await r.provider.openChapter({ ...ref, chapter: 4 }, { rate: 1 }, signal());
+    expect(chapter.verses.length).toBe(3);
+    chapter.dispose();
   });
 });
 

@@ -131,13 +131,21 @@ export class TtsAudioProvider implements IAudioProvider {
     return (await this.engine.listVoices()).filter(v => primary(v.language) === lang);
   }
 
+  /**
+   * With a voice named, whether it is downloaded. Without one there is no
+   * language to choose a voice for (these calls carry no translation), so there
+   * is nothing to say yet: `openChapter` picks the voice for the chapter's own
+   * language and downloads it then, reporting progress.
+   */
   async isReady(voiceId?: string): Promise<boolean> {
+    if (!voiceId) return true;
     const voice = await this.voiceFor(this.opts.defaultLanguage ?? 'en', voiceId);
     return this.engine.isVoiceReady(voice.id);
   }
 
   async prepare(voiceId: string | undefined, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void> {
     if (!(await this.engine.isSupported())) throw unsupported('This browser cannot run on-device speech.');
+    if (!voiceId) return; // see isReady()
     const voice = await this.voiceFor(this.opts.defaultLanguage ?? 'en', voiceId);
     await this.engine.prepare(voice.id, onProgress, signal);
   }
@@ -145,18 +153,24 @@ export class TtsAudioProvider implements IAudioProvider {
   async openChapter(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<IChapterAudio> {
     const key = this.chapterKey(ref, opts);
     const warm = this.warm;
-    if (warm && warm.key === key && !warm.adopted) {
-      warm.adopted = true;
+    if (warm) {
       this.warm = null;
-      try {
-        const chapter = await warm.chapter;
-        if (signal.aborted) { chapter.dispose(); throw abortedError(); }
-        return chapter;
-      } catch (e) {
-        if ((e as { code?: string })?.code === 'aborted' && !signal.aborted) {
-          // The warm-up was cancelled under us; just build it again.
-        } else {
-          throw toTtsError(e);
+      if (warm.key !== key) {
+        // Warmed for something else (another voice or speed): stop it competing
+        // with the chapter about to play for the engine.
+        void warm.chapter.then(c => c.dispose(), () => {});
+      } else {
+        warm.adopted = true;
+        try {
+          const chapter = await warm.chapter;
+          if (signal.aborted) { chapter.dispose(); throw abortedError(); }
+          return chapter;
+        } catch (e) {
+          // Our own abort ends the open. Any failure of the warm-up itself (it was
+          // cancelled, the voice was not ready then, the text source hiccuped) only
+          // means it has to be built afresh, now that an explicit play is asking.
+          if (signal.aborted) throw abortedError();
+          void e;
         }
       }
     }
@@ -166,7 +180,7 @@ export class TtsAudioProvider implements IAudioProvider {
   /** Warm the next chapter: fetch its text and start its first verse. Best effort. */
   async prefetch(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<void> {
     if (this.warm) {
-      void this.warm.chapter.then(c => { if (!this.warm?.adopted) c.dispose(); }, () => {});
+      void this.warm.chapter.then(c => c.dispose(), () => {});
       this.warm = null;
     }
     const key = this.chapterKey(ref, opts);

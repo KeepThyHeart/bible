@@ -404,6 +404,8 @@ export interface AudioSiteConfig {
 export interface TtsEngineFactory {
   id: string;
   label: string;
+  /** Known without loading the engine, so settings and the speed control can render first. */
+  capabilities: TtsEngineCapabilities;
   /** Lazy: the engine code loads on first use. */
   load(config: TtsEngineConfig): Promise<ITtsEngine>;
 }

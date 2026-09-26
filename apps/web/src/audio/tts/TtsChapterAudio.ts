@@ -121,6 +121,7 @@ export class TtsChapterAudio implements IChapterAudio {
     this.ref = opts.ref;
     const order: number[] = [];
     for (const raw of opts.verses) {
+      if (this.texts.has(raw.verse)) continue; // a source repeating a verse number must not loop the chapter
       const spoken = opts.text.verse(raw, opts.language).trim();
       if (spoken) { this.texts.set(raw.verse, spoken); order.push(raw.verse); }
     }
@@ -219,6 +220,11 @@ export class TtsChapterAudio implements IChapterAudio {
     const i = this.verses.indexOf(verse);
     if (i < 0) return;
     this.playhead = i;
+    // Demands for verses now behind the listener were abandoned by a seek: they
+    // must not keep their place in front of the verse actually wanted.
+    for (let k = this.demandQueue.length - 1; k >= 0; k--) {
+      if (this.verses.indexOf(this.demandQueue[k]) < i) this.demandQueue.splice(k, 1);
+    }
     // Drop finished audio well behind the listener (one verse is kept for "previous verse").
     for (const [v, entry] of this.entries) {
       if (entry.state === 'done' && this.verses.indexOf(v) < i - 1) this.entries.delete(v);
@@ -255,9 +261,11 @@ export class TtsChapterAudio implements IChapterAudio {
   }
 
   private nextVerse(): number | undefined {
-    // A verse somebody is waiting on comes first.
+    // A verse somebody is waiting on comes first, the newest ask first: a
+    // listener who skipped ahead wants the verse they landed on, not the ones
+    // they passed on the way.
     while (this.demandQueue.length > 0) {
-      const v = this.demandQueue.shift()!;
+      const v = this.demandQueue.pop()!;
       const e = this.entries.get(v);
       if (e && e.state === 'queued') return v;
     }
@@ -266,9 +274,13 @@ export class TtsChapterAudio implements IChapterAudio {
     if (!hidden) {
       let count = 0;
       let seconds = 0;
+      // Only the unbroken run of finished verses right after the playhead counts:
+      // audio for verses further on does not cover a gap in front of them.
       for (let i = this.playhead + 1; i < this.verses.length; i++) {
         const e = this.entries.get(this.verses[i]);
         if (e?.state === 'done') { count++; seconds += e.done!.duration; }
+        else if (e?.state === 'failed') continue; // skipped by look-ahead; do not stall the window on it
+        else break;
       }
       if (count >= this.o.lookAhead.verses && seconds >= this.o.lookAhead.seconds) return undefined;
     }
