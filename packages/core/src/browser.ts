@@ -128,3 +128,9 @@ export type { FilterHandler, ActionHandler } from './Plugin/HookRegistry';
 // exports (`Data/Models/Main/SavedSearch.ts`, `Services/Search/TopicExpansion.ts`) -
 // a flat `export *` would be ambiguous for both.
 export * as Providers from './Providers';
+
+// --- Audio Bible (task 0059) -----------------------------------------------
+// The contracts (provider, TTS engine, player, manifest source, locator,
+// cache, ...), the recorded-chapter manifest and index validators plus their
+// JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
+export * from './audio';
