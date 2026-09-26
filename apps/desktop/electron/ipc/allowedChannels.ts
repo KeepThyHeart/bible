@@ -100,9 +100,11 @@ export const ALLOWED_IPC_CHANNELS = [
   'search:semanticSearch',
   // Backup/Restore channels
   'backup:create',
+  'backup:exportPlain',
   'backup:selectFile',
-  'backup:validate',
-  'backup:restore',
+  'backup:inspect',
+  'backup:apply',
+  'backup:discard',
   // File-based notes channels
   'file-notes:get-notes-dir',
   'file-notes:is-initialized',

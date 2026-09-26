@@ -73,6 +73,8 @@ import { CollectionRepository, CollectionService, Extensions } from '@bible/core
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
+import { SqliteProvider } from './providers/SqliteProvider';
+import type { ExtensionPort } from './services/backup/nodeAdapters';
 import { openHardenedExtensionDatabase } from './extensions/ExtensionSqlGuard';
 import {
   ElectronNetworkGateway,
@@ -194,6 +196,25 @@ let menuBuilder: MenuBuilder | null = null;
 let windowStateService: WindowStateService | null = null;
 let extensionHost: ExtensionHost | null = null;
 let extensionBibleBridge: BibleBridge | null = null;
+let extensionDatabaseRegistryRef: ExtensionDatabaseRegistry | null = null;
+
+/**
+ * What a backup needs from the extension host: each installed extension's
+ * `userData` declaration, and its database files. Undefined until the host has
+ * booted (it starts in the background after the handlers register), in which
+ * case a backup simply carries no extension databases.
+ */
+function getBackupExtensionPort(): ExtensionPort | undefined {
+  const host = extensionHost;
+  const registry = extensionDatabaseRegistryRef;
+  if (!host || !registry) return undefined;
+  return {
+    listEntries: () => host.listEntries().map(({ id, entry }) => ({ id, manifest: entry.manifest })),
+    dbRoot: join(getUserDataPath(), 'extensions'),
+    openReadonly: (filePath) => new SqliteProvider(filePath, { readonly: true }),
+    closeDatabases: (id) => registry.closeAll(id),
+  };
+}
 
 /**
  * Register window management IPC handlers
@@ -519,7 +540,7 @@ async function createWindow(): Promise<void> {
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   registerTagGraphHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
-  registerBackupHandlers();
+  registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
   registerFileNotesHandlers();
   // Initialize the single network egress gateway + master offline switch
@@ -959,6 +980,7 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     const blocklist = new ExtensionBlocklistService({ db: userDb });
     const catalogService = new ExtensionCatalogService({ db: userDb });
 
+    extensionDatabaseRegistryRef = extensionDatabaseRegistry;
     extensionHost = new ExtensionHost({
       blocklist,
       db: userDb,

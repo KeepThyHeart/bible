@@ -1,178 +1,184 @@
 /**
  * Backup/Restore IPC Handlers
  *
- * Registers IPC channels for backup creation, validation, and restoration.
+ * Channels:
+ *   backup:create       encrypted backup (.bbk); asks where to save
+ *   backup:exportPlain  unencrypted portable export (.zip); asks where to save
+ *   backup:selectFile   asks which file to restore from
+ *   backup:inspect      opens and fully verifies a file, returns what restoring it would do (writes nothing)
+ *   backup:apply        applies the chosen sections of the inspected file
+ *   backup:discard      forgets the inspected file
  *
- * Uses the `Result<T>` envelope convention. The
- * renderer side lives in `src/ui/stores/useBackupStore.ts` which uses
- * `unwrap` from `src/ui/services/ipcResult.ts`. Cancellation (user dismissed
- * a save/open dialog) resolves with `null` - that is success, not an error.
+ * Uses the `Result<T>` envelope convention. The renderer side lives in
+ * `src/ui/stores/useBackupStore.ts`, using `unwrap` from `src/ui/services/ipcResult.ts`.
+ * Cancelling a save/open dialog resolves with `null`: that is success, not an error.
+ * The expected ways a backup can fail to open have their own error codes so the
+ * dialog can say something specific; see `mapBackupError`.
  */
 
 import { dialog, app } from 'electron';
 import log from 'electron-log/main';
 import path from 'path';
-import fs from 'fs';
-import { getSharedUserDb } from '../services/sharedUserDb';
+import { Backup } from '@bible/core';
+import type { ISql } from '@bible/core';
+import { getSharedUserDb, getUserDbPath } from '../services/sharedUserDb';
+import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
 import {
-  createBackup,
-  validateBackup,
-  restoreBackup,
+  createEncryptedBackup, createPlainExport, inspectBackupFile, applyInspection, discardInspection, NoActiveInspectionError,
 } from '../services/BackupService';
+import type { BackupContext } from '../services/BackupService';
+import type { ExtensionPort } from '../services/backup/nodeAdapters';
+import { createWorkerKdf } from '../services/backup/workerKdf';
 import { getFileNotesService } from './fileNotesHandlers';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { t } from '../services/MainI18n';
+import { APP_CONFIG } from '../config/appConfig';
+import type { BackupApplyResult, BackupInspection, BackupSummary } from './backupTypes';
 
-/** Minimum password length for backup encryption. */
-const MIN_PASSWORD_LENGTH = 8;
+/** Minimum password length for backup encryption. A copied backup can be guessed at offline forever. */
+export const MIN_PASSWORD_LENGTH = 10;
 
-export interface BackupCreateResult {
-  path: string;
-  metadata?: any;
-}
-
-export interface BackupSelectResult {
-  path: string;
-}
-
-export interface BackupValidateResult {
-  valid: boolean;
-  metadata?: any;
-  error?: string;
-}
-
-export interface BackupRestoreResult {
-  success: boolean;
-  tablesRestored?: string[];
-  rowCounts?: Record<string, number>;
-  noteFilesRestored?: number;
-  error?: string;
+export interface BackupHandlerDeps {
+  /** Extension data access, once the extension host is up (it boots after the handlers register). */
+  getExtensionPort: () => ExtensionPort | undefined;
 }
 
 /**
- * Validate that a backup password meets minimum entropy requirements.
- * Returns an error string if the password is too weak, or null if acceptable.
+ * Validate that a backup password meets the minimum requirement.
+ * Returns an error string if it is too weak, or null if acceptable.
  */
-function validateBackupPassword(password: string): string | null {
+export function validateBackupPassword(password: string): string | null {
   if (!password || password.length < MIN_PASSWORD_LENGTH) {
     return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`;
   }
   return null;
 }
 
+/** Turn the backup code's typed errors into classified IPC errors. */
+export function mapBackupError(err: unknown): unknown {
+  if (err instanceof Backup.PasswordRequiredError) return new IpcKnownError('backup_password_required', err.message);
+  if (err instanceof Backup.WrongPasswordError) return new IpcKnownError('backup_wrong_password', err.message);
+  if (err instanceof Backup.NewerFormatError) return new IpcKnownError('backup_newer_format', err.message);
+  if (err instanceof Backup.NotABackupError) return new IpcKnownError('backup_not_a_backup', err.message);
+  if (err instanceof Backup.DamagedError) return new IpcKnownError('backup_damaged', err.message);
+  if (err instanceof Backup.RestoreError) return new IpcKnownError('backup_restore_failed', err.message);
+  if (err instanceof NoActiveInspectionError) return new IpcKnownError('backup_inspection_expired', err.message);
+  return err;
+}
+
+async function guarded<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    throw mapBackupError(err);
+  }
+}
+
+const kdf = createWorkerKdf();
+
+async function buildContext(deps: BackupHandlerDeps): Promise<BackupContext> {
+  const sql: ISql = await getSharedUserDb();
+  const notesDir = getFileNotesService()?.getNotesDir();
+  const userDbPath = getUserDbPath();
+  return {
+    sql,
+    appInfo: { name: APP_CONFIG.productName, version: APP_CONFIG.appVersion, platform: `desktop-${process.platform}` },
+    notesDir,
+    extensions: deps.getExtensionPort(),
+    modules: async () => {
+      try {
+        return getSharedModuleMetadataRepo().getAll().map((m) => ({
+          id: m.moduleUuid, type: m.moduleType, abbreviation: m.abbreviation, version: m.version, name: m.moduleName,
+        }));
+      } catch (err) {
+        log.warn('[BackupHandlers] Could not list modules for the backup:', err);
+        return [];
+      }
+    },
+    kdf,
+    snapshot: { root: path.join(path.dirname(userDbPath), 'pre-restore'), userDbPath },
+  };
+}
+
+const stamp = (): string => new Date().toISOString().slice(0, 10);
+
 /**
  * Register all backup/restore IPC handlers
  */
-export function registerBackupHandlers(): void {
+export function registerBackupHandlers(deps: BackupHandlerDeps): void {
   log.info('[BackupHandlers] Registering backup handlers');
 
-  // -------------------------------------------------------------------------
-  // Create backup - resolves with `null` if the user cancels the save dialog.
-  // -------------------------------------------------------------------------
-  ipcHandler<
-    [{ password: string; includeHistory?: boolean }],
-    BackupCreateResult | null
-  >('backup:create', async (options) => {
-    log.info('[IPC] backup:create - Starting backup creation');
-
+  ipcHandler<[{ password: string; includeHistory: boolean }], BackupSummary | null>('backup:create', async (options) => {
     const passwordError = validateBackupPassword(options.password);
     if (passwordError) {
       log.warn('[IPC] backup:create - Weak password rejected');
       throw new IpcKnownError('invalid_input', passwordError);
     }
-
     const result = await dialog.showSaveDialog({
       title: t('main.dialog.saveBackup'),
-      defaultPath: path.join(
-        app.getPath('documents'),
-        `bible-backup-${new Date().toISOString().slice(0, 10)}.bbk`
-      ),
+      defaultPath: path.join(app.getPath('documents'), `bible-backup-${stamp()}.bbk`),
       filters: [
         { name: t('main.filter.bibleBackup'), extensions: ['bbk'] },
         { name: t('main.filter.allFiles'), extensions: ['*'] },
       ],
     });
-
-    if (result.canceled || !result.filePath) {
-      return null;
-    }
-
-    const destinationDir = path.dirname(result.filePath);
-    const userDb = await getSharedUserDb();
-    const notesDir = getFileNotesService()?.getNotesDir();
-
-    const backupResult = await createBackup(userDb, {
+    if (result.canceled || !result.filePath) return null;
+    const ctx = await buildContext(deps);
+    return guarded(() => createEncryptedBackup(ctx, {
       password: options.password,
-      destinationPath: destinationDir,
-      includeHistory: options.includeHistory,
-      username: 'default',
-      notesDir,
-    });
-
-    if (!backupResult.success || !backupResult.path) {
-      throw new Error(backupResult.error || 'Backup failed');
-    }
-
-    if (backupResult.path !== result.filePath) {
-      fs.renameSync(backupResult.path, result.filePath);
-      backupResult.path = result.filePath;
-    }
-
-    return { path: backupResult.path, metadata: backupResult.metadata };
+      destinationPath: result.filePath,
+      includeHistory: options.includeHistory === true,
+    }));
   });
 
-  // -------------------------------------------------------------------------
-  // Select backup file (for restore). Returns `null` on cancel.
-  // -------------------------------------------------------------------------
-  ipcHandler<[], BackupSelectResult | null>('backup:selectFile', async () => {
+  ipcHandler<[{ includeHistory: boolean }], BackupSummary | null>('backup:exportPlain', async (options) => {
+    const result = await dialog.showSaveDialog({
+      title: t('main.dialog.saveExport'),
+      defaultPath: path.join(app.getPath('documents'), `keep-thy-heart-export-${stamp()}.zip`),
+      filters: [
+        { name: t('main.filter.exportZip'), extensions: ['zip'] },
+        { name: t('main.filter.allFiles'), extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || !result.filePath) return null;
+    const ctx = await buildContext(deps);
+    return guarded(() => createPlainExport(ctx, { destinationPath: result.filePath, includeHistory: options.includeHistory === true }));
+  });
+
+  ipcHandler<[], { path: string } | null>('backup:selectFile', async () => {
     const result = await dialog.showOpenDialog({
       title: t('main.dialog.selectBackup'),
       filters: [
-        { name: t('main.filter.bibleBackup'), extensions: ['bbk'] },
+        { name: t('main.filter.bibleBackup'), extensions: ['bbk', 'zip'] },
         { name: t('main.filter.allFiles'), extensions: ['*'] },
       ],
       properties: ['openFile'],
     });
-
-    if (result.canceled || result.filePaths.length === 0) {
-      return null;
-    }
-
+    if (result.canceled || result.filePaths.length === 0) return null;
     return { path: result.filePaths[0] };
   });
 
-  // -------------------------------------------------------------------------
-  // Validate backup and get metadata. Returns the raw validation result -
-  // invalid backups are not an error, they are a `valid: false` response so
-  // the UI can show a specific message.
-  // -------------------------------------------------------------------------
-  ipcHandler<[string, string], BackupValidateResult>(
-    'backup:validate',
-    async (backupPath, password) => {
-      log.info('[IPC] backup:validate');
-      return validateBackup(backupPath, password);
+  ipcHandler<[{ backupPath: string; password?: string }], BackupInspection>('backup:inspect', async (options) => {
+    log.info('[IPC] backup:inspect');
+    if (typeof options?.backupPath !== 'string' || options.backupPath.length === 0) {
+      throw new IpcKnownError('invalid_input', 'backupPath is required');
     }
-  );
+    const ctx = await buildContext(deps);
+    return guarded(() => inspectBackupFile(ctx, { backupPath: options.backupPath, password: options.password }));
+  });
 
-  // -------------------------------------------------------------------------
-  // Restore backup. Returns the raw restore result including `success` so
-  // the UI can distinguish soft failures (wrong password, bad data) from
-  // hard failures (thrown exceptions -> `internal`).
-  // -------------------------------------------------------------------------
-  ipcHandler<
-    [{ backupPath: string; password: string; mode: 'merge' | 'replace' }],
-    BackupRestoreResult
-  >('backup:restore', async (options) => {
-    log.info(`[IPC] backup:restore - mode: ${options.mode}`);
-    const userDb = await getSharedUserDb();
-    const notesDir = getFileNotesService()?.getNotesDir();
+  ipcHandler<[{ token: string; mode: 'merge' | 'replace'; sections: string[] }], BackupApplyResult>('backup:apply', async (options) => {
+    log.info(`[IPC] backup:apply - mode: ${options?.mode}`);
+    if (!options || (options.mode !== 'merge' && options.mode !== 'replace') || !Array.isArray(options.sections)) {
+      throw new IpcKnownError('invalid_input', 'mode and sections are required');
+    }
+    const ctx = await buildContext(deps);
+    return guarded(() => applyInspection(ctx, { token: options.token, mode: options.mode, sections: options.sections.map(String) }));
+  });
 
-    return restoreBackup(userDb, {
-      password: options.password,
-      backupPath: options.backupPath,
-      mode: options.mode,
-      notesDir,
-    });
+  ipcHandler<[string], null>('backup:discard', (token) => {
+    discardInspection(typeof token === 'string' ? token : undefined);
+    return null;
   });
 
   log.info('[BackupHandlers] Backup handlers registered');

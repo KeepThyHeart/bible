@@ -173,6 +173,17 @@ at runtime:
 `applyFilters`/`runActions` check `Map.has()` first, so an unhooked call site
 costs nothing.
 
+## Extension data and backups
+
+A manifest's optional `userData` block says which of the extension's data is the
+user's and belongs in a backup: `backup` (its key-value store; default `true`),
+and `databases`, a map from an `openDatabase()` name to `{ "backup": true }`
+(default: not included). `sync` is accepted at both levels and reserved. The type is
+`ExtensionUserDataConfig` in `ExtensionManifest.ts`, validated in
+`ExtensionManifestValidator.ts` and described in `ExtensionManifestSchema.json`
+(change all three together); `Backup.resolveExtensionBackup` applies the defaults.
+See [Backup format](backup-format.md#extension-data).
+
 ## Gotchas
 
 - **`src/Extensions/` contains no runtime.** Every file there is types,

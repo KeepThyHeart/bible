@@ -28,7 +28,7 @@ belongs in the barrel instead, imported once.
 
 ## What is re-exported
 
-Nine groups, all of it from `src/browser.ts`:
+Ten groups, all of it from `src/browser.ts`:
 
 | Group | Exports | From |
 |---|---|---|
@@ -41,6 +41,9 @@ Nine groups, all of it from `src/browser.ts`:
 | Dictionary rendering | `dictionaryDefinitionToHtml`, `definitionHasHtmlMarkup`, `newlinesToLineBreaks`, `readNewlineHandling`, `resolveNewlineHandling`, `NEWLINE_HANDLING_KEY`; type `NewlineHandling` | `src/Services/DictionaryDefinitionFormatter.ts` |
 | Strong's numbers | `StrongsNumberHelper`; types `StrongsLanguage`, `ParsedStrongsNumber` | `src/Data/Core/StrongsNumberHelper.ts` |
 | Plugin hooks | `HookRegistry`; types `FilterHandler`, `ActionHandler` | `src/Plugin/HookRegistry.ts` |
+| Crypto and backups | The namespaces `Crypto` (Argon2id, HKDF-SHA-256, AES-256-GCM, base64url, KDF-parameter validation) and `Backup` (the encrypted container, payload, table registry, restore) - see [Backup format](backup-format.md) | `src/Crypto/`, `src/Backup/` |
+
+Two groups reach outside the repository on purpose: `hash-wasm` (Argon2id, loaded lazily) and `fflate` (the ZIP codec) are the only bare specifiers the barrel may reach, allow-listed in `browserBarrel.test.ts`, and the file-count bound there was raised again (to 90) for them.
 
 Note what is **not** here: no repositories, no `ISql`, no `SqliteProvider`, no
 `VerseFormatter` (which the web offline path duplicates by hand instead - see

@@ -1,8 +1,8 @@
 # Backup & Restore
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-09-26
 
-Backup and restore user data (notes, verse links, markup, collections, sessions) as a single password-encrypted `.bbk` file.
+Back up your data (notes, highlights, links, collections, study data, note files and extension data) to a single password-encrypted `.bbk` file, export an unencrypted copy, and restore either into this or another installation. The format itself - the encrypted container, the payload, the table registry, and the replace and merge rules - is specified in core: [Backup format](../../../../packages/core/docs/features/backup-format.md). This page covers what the desktop app adds.
 
 ## Files
 
@@ -10,50 +10,60 @@ Backup and restore user data (notes, verse links, markup, collections, sessions)
 
 | File | Description |
 |---|---|
-| `src/ui/components/BackupRestoreDialog.tsx` | Dialog for creating/restoring backups, with a Backup tab and a Restore tab; mounted unconditionally in `src/ui/App.tsx` and opened via `useBackupStore.getState().openDialog()` (which takes the tab to open on, defaulting to `'backup'`) |
-| `src/ui/components/BackupRestoreDialog.test.tsx` | Component tests for the dialog |
+| `src/ui/components/BackupRestoreDialog.tsx` | Dialog with a Create Backup tab (password with a strength hint, history checkbox, and an unencrypted export behind a warning) and a Restore Backup tab (choose a file, unlock if encrypted, choose Merge or Replace, choose which groups to restore, see a preview and warnings, restore, read the outcome). Mounted unconditionally in `src/ui/App.tsx` and opened via `useBackupStore.getState().openDialog()`. Exports `passwordStrength` and `groupSections` for tests |
+| `src/ui/components/BackupRestoreDialog.test.tsx` | Component tests for both tabs |
 
 ### State
 
 | File | Description |
 |---|---|
-| `src/ui/stores/useBackupStore.ts` | Zustand store for dialog visibility, the active tab, the `includeHistory` option, and backup/restore state and progress |
+| `src/ui/stores/useBackupStore.ts` | Zustand store for the dialog: passwords and options, the open backup (`inspection`), the selected sections and mode, and every result and failure. Local validation (empty, mismatched or short password) happens here; main-process failures arrive as `backup_*` error codes the dialog turns into specific messages. Closing the dialog tells the main process to forget the open backup |
+| `src/ui/stores/useBackupStore.test.ts` | Store tests with a mocked `window.electron.backup` |
 
 ### IPC Handlers (Main Process)
 
 | File | Description |
 |---|---|
-| `electron/ipc/backupHandlers.ts` | Registers `backup:create`, `backup:selectFile`, `backup:validate`, `backup:restore`; owns the native save/open dialogs and the password-strength gate (`validateBackupPassword`, minimum 8 characters). Replies use the `Result<T>` envelope; a cancelled save/open dialog resolves with `null`, which is success rather than an error |
-| `electron/ipc/allowedChannels.ts` | Allow-lists the four `backup:*` channels |
-| `electron/preload.ts` | Exposes them to the renderer as `window.electron.backup.{create,selectFile,validate,restore}` |
+| `electron/ipc/backupHandlers.ts` | Registers `backup:create` (encrypted), `backup:exportPlain` (unencrypted ZIP), `backup:selectFile`, `backup:inspect`, `backup:apply`, `backup:discard`. Owns the native save/open dialogs, the password rule (`MIN_PASSWORD_LENGTH`, 10 characters) and `mapBackupError`, which turns the format code's typed errors into classified IPC errors (`backup_password_required`, `backup_wrong_password`, `backup_newer_format`, `backup_damaged`, `backup_not_a_backup`, `backup_restore_failed`, `backup_inspection_expired`). Replies use the `Result<T>` envelope; a cancelled dialog resolves with `null`, which is success |
+| `electron/ipc/backupTypes.ts` | Type-only reply types shared by the handlers, the preload and the renderer |
+| `electron/ipc/allowedChannels.ts` | Allow-lists the six `backup:*` channels |
+| `electron/preload.ts` | Exposes them as `window.electron.backup.{create,exportPlain,selectFile,inspect,apply,discard}` |
 
 ### Services (Main Process)
 
 | File | Description |
 |---|---|
-| `electron/services/BackupService.ts` | `createBackup` / `validateBackup` / `restoreBackup` / `restoreNoteFiles`; serializes user-database tables plus the file-notes directory to one JSON payload and seals it |
-| `electron/services/__tests__/BackupService.test.ts` | Unit tests for the envelope, table selection, and note-file restore path |
+| `electron/services/BackupService.ts` | A thin caller of `@bible/core`'s `Backup` code: `createEncryptedBackup`, `createPlainExport`, `inspectBackupFile`, `applyInspection`, `discardInspection`. Holds the one verified backup between inspect and apply (in memory only, expires after 30 minutes) |
+| `electron/services/backup/nodeAdapters.ts` | The desktop's sides of core's interfaces: file streams (a backup is written to `<name>.partial` and renamed, so a failure never leaves a half-written file), the notes folder (`NotesDirStore`, refusing paths that escape it), extension data (`DesktopExtensionData`: manifests' `userData`, `VACUUM INTO` snapshots, writing databases back), and the pre-restore snapshot |
+| `electron/services/backup/kdfWorker.ts`, `workerKdf.ts` | Argon2id in a `worker_threads` worker so the key derivation does not block the main process; `workerKdf.ts` falls back to deriving in-thread when the worker cannot start. `kdfWorker.ts` is its own entry in `electron.vite.config.ts` (`out/main/backup-kdf-worker.js`) |
+| `electron/schema/userSchema.ts` | Stamps `PRAGMA user_version` with `Backup.USER_SCHEMA_VERSION` after creating the schema |
+| `electron/services/__tests__/BackupService.test.ts` | Round trips against a real SQLite database with the app's own DDL and real files |
+| `electron/services/__tests__/BackupRegistry.test.ts` | Drift test: the core table registry against the DDL this app creates |
 
-## What is in a backup
+## How it works
 
-A `.bbk` file is **not** a copy of the SQLite databases and not a zip archive. It is a UTF-8 JSON envelope (`magic: "bible-app-backup"`, `version: 1`) whose `ciphertext` is the AES-256-GCM-encrypted payload `{ metadata, tables: { <name>: Row[] }, files: { <relpath>: contents } }`. The key is derived from the user's password with scrypt (`N: 16384, r: 8, p: 1, keyLen: 32`); salt, IV, auth tag and KDF parameters travel in the clear part of the envelope.
+**Create.** The handler asks where to save, then `createEncryptedBackup` reads the selected tables, the notes folder and the extension data, builds the payload, and seals it with Argon2id (64 MiB, 3 passes) and AES-256-GCM. `backup:exportPlain` writes the payload ZIP itself; the dialog puts it behind a warning because anyone with that file can read it.
 
-**Encryption is not optional** - `backup:create` rejects a weak or missing password before the save dialog opens.
+**Restore.** Two steps, so nothing changes before the person has seen what would happen:
 
-Table selection lives in `BackupService.ts`:
+1. `backup:inspect` opens the file (asking for the password only if it is encrypted), reads and verifies the whole of it, and returns a plan: sections with counts, warnings, columns this version does not have, and a dry-run preview of both modes.
+2. `backup:apply` takes a **safety snapshot**, then restores the chosen sections. The snapshot is a copy of the (still encrypted) user database file and the notes folder in `<user data>/data/users/pre-restore/<timestamp>/`; the newest three are kept. If the snapshot cannot be written, nothing is restored. All database changes are one transaction; note files and extension databases are written after it commits, and a replace moves the existing notes folder aside (`<notes folder>.before-restore-<date>`) instead of deleting it.
 
-| Group | Tables | When |
-|---|---|---|
-| `CRITICAL_TABLES` | `user_note`, `verse_link`, `note_verse_link`, `content_verse_link`, `journal_verse_link`, `user_text_markup`, `user_commentary`, `collection`, `pinned_item` | Always |
-| `IMPORTANT_TABLES` | `session` | Always |
-| `HISTORY_TABLES` | `user_search_history`, `navigation_history` | Only when `includeHistory` is set |
+Merge is the default: it adds the backup to the data already here, keeps everything you have, and does not duplicate what is already present. Replace is for a new computer or a reset. Saved sessions, layouts and keyboard shortcuts are restored by default only in Replace; search and navigation history is restored only when chosen. After a restore the app asks the person to restart it.
 
-`verse_link` is the unified verse-link table that every user link to scripture lands in. The three per-type link tables beside it are also listed, so a database that has not migrated still round-trips. Omitting any of them is a silent data-loss path, so add new user tables here when you add them.
+## Extension data
 
-File notes (the `.bn` files under the notes directory, resolved by `getFileNotesService()?.getNotesDir()` in `electron/ipc/fileNotesHandlers.ts`) are collected into `payload.files`, keyed by notes-dir-relative POSIX path. `.bak` note history is included only when `includeHistory` is set, and `metadata.noteFiles` records how many files were bundled. `restoreNoteFiles` writes them back, rejecting any path that would escape the notes directory. `files` is optional, so an archive taken before file-notes support still validates.
+An extension's `extension.json` may declare `userData` (see [Backup format](../../../../packages/core/docs/features/backup-format.md#extension-data)): its key-value store is backed up unless it opts out, and each of its databases only when declared. The main process reads the declarations from the running extension host, so a backup taken before the host has finished starting carries no extension databases.
 
-Restore takes a `mode` of `'merge'` or `'replace'`. In `'merge'` mode a note file that already exists on disk is left alone rather than overwritten.
+## Gotchas
+
+- **Add new user tables to the registry** (`packages/core/src/Backup/Registry.ts`), or to its excluded list. The drift tests fail otherwise, which is the point: a table missing from a backup is silent data loss.
+- **The verified backup lives in memory** between `backup:inspect` and `backup:apply`. It is dropped after an apply, when the dialog closes, or after 30 minutes.
+- **Encryption is not optional for `.bbk`**: `backup:create` rejects a password shorter than 10 characters before the save dialog opens.
+- **Highlights, pins and display options refer to Bible modules by their local number.** The plan warns about this; restoring onto a machine whose modules were installed in a different order can attach them to the wrong module.
+- **The safety snapshot is a manual undo**: to go back, copy the snapshot's database file over `user_default.db` with the app closed. There is no "restore snapshot" button.
+- **The extension-database restore closes the extension's open handles first**, then replaces the file; the extension sees the restored data the next time it opens the database.
 
 ## Not related to backups
 
-`electron/providers/EncryptedSqliteProvider.ts` and `electron/utils/encryptionKeyManager.ts` encrypt the **live user database** (`electron/services/sharedUserDb.ts` opens it with a key from the OS keychain). They are not part of the backup path - `BackupService` does its own scrypt/AES-GCM.
+`electron/providers/EncryptedSqliteProvider.ts` and `electron/utils/encryptionKeyManager.ts` encrypt the **live user database** (`electron/services/sharedUserDb.ts` opens it with a key from the OS keychain). They are not part of the backup path: a backup is encrypted with its own password-derived key and does not depend on the keychain, so it can be restored on another computer.

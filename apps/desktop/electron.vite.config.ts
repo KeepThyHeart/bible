@@ -244,7 +244,11 @@ export default defineConfig({
           // Bundled extension worker entry. Lives next to
           // `out/main/index.js` so it ships in the same Vite build pass and
           // ExtensionHost can resolve it via `__dirname/extension-runtime/index.js`.
-          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts')
+          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts'),
+          // Worker thread that runs Argon2id for backups, so the ~0.5 s key
+          // derivation does not block the main process. Emitted next to
+          // `out/main/index.js`, where `workerKdf.ts` looks for it.
+          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }

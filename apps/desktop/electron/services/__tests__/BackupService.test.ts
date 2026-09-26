@@ -1,482 +1,305 @@
+// @vitest-environment node
 /**
- * Tests for backup and restore.
- *
- * This is a user-data path - the one place where a bug does not merely display
- * something wrong but loses notes, highlights and collections outright - and it
- * had no tests. `BibleNotesFileService` got two after the `.bn` incident;
- * `BackupService`, which is what a reader falls back on when that goes wrong,
- * got none.
- *
- * What the tests below pin, in rough order of how expensive the failure is:
- *   - a full round trip preserves rows and `.bn` note files;
- *   - `merge` never overwrites a note the reader still has locally;
- *   - a tampered archive cannot write outside the notes directory;
- *   - the wrong password fails cleanly rather than restoring garbage;
- *   - `verse_link` is in the backup set (its comment in the source calls its
- *     omission "a data-loss path, not a gap" - that is exactly the kind of list
- *     entry a refactor drops).
- *
- * The SQL layer is a small in-memory fake rather than a real SQLite handle:
- * the service only uses four methods, and `better-sqlite3` in a vitest process
- * would need the Electron ABI rebuild.
+ * The desktop side of backups against a real SQLite database created with the
+ * app's own DDL (`initializeUserSchema`, `initializeExtensionSchema`,
+ * `ensureContentVerseLinkTable`), real files in a temp directory, and the core
+ * format code. The format itself is tested in `packages/core`; this pins what the
+ * desktop adds: the notes folder, extension data, files, snapshots and error mapping.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs';
+import Database from 'better-sqlite3';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { createBackup, validateBackup, restoreBackup, restoreNoteFiles } from '../BackupService';
+import { Backup } from '@bible/core';
+import type { ISql } from '@bible/core';
+import { initializeUserSchema } from '../../schema/userSchema';
+import { initializeExtensionSchema } from '../../extensions/extensionSchema';
+import { ensureContentVerseLinkTable } from '../../utils/verseIndexing';
+import { makeSql } from './helpers/testSql';
+import {
+  createEncryptedBackup, createPlainExport, inspectBackupFile, applyInspection, discardInspection, NoActiveInspectionError,
+} from '../BackupService';
+import type { BackupContext } from '../BackupService';
+import { NotesDirStore, createPreRestoreSnapshot, notesSink } from '../backup/nodeAdapters';
+import type { ExtensionPort } from '../backup/nodeAdapters';
+import { createWorkerKdf } from '../backup/workerKdf';
+import { IpcKnownError } from '../../ipc/result';
 
-vi.mock('electron-log', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
+vi.mock('electron-log', () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock('electron', () => ({ app: { getPath: () => tmpdir() }, dialog: {} }));
+vi.mock('electron-log/main', () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 const PASSWORD = 'correct horse battery staple';
+// A fast stand-in for Argon2id; the real one is exercised once below.
+const fastKdf: Backup.KdfFunction = async (pw) => new Uint8Array(32).fill(pw.length);
+const APP = { name: 'Keep Thy Heart', version: '0.1.0', platform: 'test' };
 
-/** Minimal in-memory stand-in for the `ISql` surface BackupService uses. */
-class FakeDb {
-  tables: Record<string, Record<string, unknown>[]>;
-  /** SQL statements that were executed, for asserting on clears and rebuilds. */
-  executed: string[] = [];
+let dir: string;
+const dbs: Database.Database[] = [];
 
-  constructor(tables: Record<string, Record<string, unknown>[]>) {
-    this.tables = tables;
-  }
+function newDb(): { db: Database.Database; sql: ISql } {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  dbs.push(db);
+  const sql = makeSql(db);
+  initializeUserSchema(sql);
+  initializeExtensionSchema(sql);
+  ensureContentVerseLinkTable(sql);
+  return { db, sql };
+}
 
-  queryOne(sql: string, params?: unknown[]): unknown {
-    if (sql.includes('sqlite_master')) {
-      const name = String(params?.[0]);
-      return name in this.tables ? { name } : undefined;
-    }
-    return undefined;
-  }
+function ctxFor(sql: ISql, name: string, extra: Partial<BackupContext> = {}): BackupContext {
+  const notesDir = join(dir, name, 'notes');
+  mkdirSync(notesDir, { recursive: true });
+  return { sql, appInfo: APP, notesDir, kdf: fastKdf, snapshot: { root: join(dir, name, 'pre-restore'), userDbPath: join(dir, name, 'user.db') }, ...extra };
+}
 
-  queryAll(sql: string): unknown[] {
-    const match = sql.match(/SELECT \* FROM (\w+)/);
-    return match ? (this.tables[match[1]] ?? []) : [];
-  }
+function seed(sql: ISql): void {
+  sql.execute("INSERT INTO user_commentary (name, is_default) VALUES ('Default', 1)");
+  sql.execute("INSERT INTO user_note (user_commentary_id, title, content, note_type) VALUES (1, 'Romans', '<p>grace</p>', 'document')");
+  sql.execute("INSERT INTO user_note (title, content, parent_note_id) VALUES ('Child', 'x', 1)");
+  sql.execute("INSERT INTO note_verse_link (note_id, verse_id_start, verse_id_end) VALUES (1, 45001001, 45001001)");
+  sql.execute("INSERT INTO content_verse_link (content_type, content_id, verse_id_start, verse_id_end) VALUES ('note', 2, 43003016, 43003016)");
+  sql.execute("INSERT INTO user_text_markup (module_id, verse_id_start, verse_id_end, color, note_id) VALUES (1, 43003016, 43003016, '#FFF3A3', 1)");
+  sql.execute("INSERT INTO collection (name) VALUES ('Favourites')");
+  sql.execute("INSERT INTO pinned_item (collection_id, item_type, reference_id) VALUES (1, 'note', 1)");
+  sql.execute("INSERT INTO session (name, session_data) VALUES ('Saved', '{\"prefs\":{}}')");
+  sql.execute("INSERT INTO user_keybindings VALUES ('cmd.a', 'ctrl+k', NULL, NULL)");
+  sql.execute("INSERT INTO extension_storage VALUES ('ext.pub.memory', 'progress', '{\"n\":3}', 100), ('ext.pub.off', 'secret', '1', 50)");
+  sql.execute("INSERT INTO extensions (id, version, install_path, granted_permissions, installed_at, updated_at) VALUES ('ext.pub.memory', '1', '/x', '[]', 1, 1)");
+}
 
-  execute(sql: string, params?: unknown[]): void {
-    this.executed.push(sql);
-
-    const del = sql.match(/^DELETE FROM (\w+)/);
-    if (del) { this.tables[del[1]] = []; return; }
-
-    const insert = sql.match(/INTO (\w+) \(([^)]+)\)/);
-    if (insert && params) {
-      const [, table, columnList] = insert;
-      const columns = columnList.split(', ');
-      const row: Record<string, unknown> = {};
-      columns.forEach((col, i) => { row[col] = params[i]; });
-      (this.tables[table] ??= []).push(row);
-    }
-  }
-
-  transaction<T>(fn: () => T): T {
-    return fn();
+function writeNotes(name: string, files: Record<string, string>): void {
+  for (const [rel, text] of Object.entries(files)) {
+    const abs = join(dir, name, 'notes', rel);
+    mkdirSync(join(abs, '..'), { recursive: true });
+    writeFileSync(abs, text);
   }
 }
 
-let workDir: string;
-const dest = () => join(workDir, 'backups');
-const notes = () => join(workDir, 'notes');
+const tableRows = (db: Database.Database, t: string) => db.prepare(`SELECT * FROM ${t} ORDER BY 1`).all();
 
-/** A database with a couple of rows in the tables that matter most. */
-function seededDb(): FakeDb {
-  return new FakeDb({
-    user_note: [
-      { note_id: 1, title: 'On John 3', content: 'For God so loved…' },
-      { note_id: 2, title: 'On Psalm 23', content: 'The Lord is my shepherd' },
-    ],
-    verse_link: [{ link_id: 1, note_id: 1, verse_id: 43003016 }],
-    user_text_markup: [{ markup_id: 1, verse_id: 43003016, color: 'yellow' }],
-    session: [{ session_id: 1, layout: '{}' }],
-    user_search_history: [{ id: 1, query: 'grace' }],
-    user_note_fts: [],
-  });
-}
-
-/** An empty database with the same tables, as a restore target. */
-function emptyDb(): FakeDb {
-  const db = seededDb();
-  for (const key of Object.keys(db.tables)) db.tables[key] = [];
-  return db;
-}
-
-async function backup(db: FakeDb, options: Partial<Parameters<typeof createBackup>[1]> = {}) {
-  const result = await createBackup(db as never, {
-    password: PASSWORD,
-    destinationPath: dest(),
-    username: 'tester',
-    ...options,
-  } as Parameters<typeof createBackup>[1]);
-  expect(result.success).toBe(true);
-  return result;
-}
-
-beforeEach(() => {
-  workDir = mkdtempSync(join(tmpdir(), 'backup-service-'));
-  mkdirSync(dest(), { recursive: true });
-  mkdirSync(notes(), { recursive: true });
-});
-
+beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'kth-backup-test-')); });
 afterEach(() => {
-  rmSync(workDir, { recursive: true, force: true });
+  for (const d of dbs.splice(0)) d.close();
+  rmSync(dir, { recursive: true, force: true });
 });
 
-describe('createBackup', () => {
-  it('writes an encrypted .bbk whose contents are not readable as plain text', async () => {
-    const result = await backup(seededDb());
+describe('encrypted backup round trip', () => {
+  it('writes a .bbk, and inspecting + replacing restores tables, notes and extension data on a fresh install', async () => {
+    const a = newDb();
+    seed(a.sql);
+    writeNotes('a', { 'Verse Notes/John/3/16.bn': '{"bn":1}', 'Docs/sermon.bn': 'sermon' });
+    const ctxA = ctxFor(a.sql, 'a');
+    const out = join(dir, 'my.bbk');
+    const summary = await createEncryptedBackup(ctxA, { destinationPath: out, includeHistory: false, password: PASSWORD });
+    expect(summary.path).toBe(out);
+    expect(existsSync(`${out}.partial`)).toBe(false);
+    const head = readFileSync(out).subarray(0, 8);
+    expect(Backup.sniff(head)).toBe('bbk');
 
-    expect(result.path!.endsWith('.bbk')).toBe(true);
-    const onDisk = readFileSync(result.path!, 'utf-8');
-    expect(onDisk).not.toContain('For God so loved');
-    expect(JSON.parse(onDisk).magic).toBe('bible-app-backup');
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b');
+    const inspection = await inspectBackupFile(ctxB, { backupPath: out, password: PASSWORD });
+    expect(inspection.encrypted).toBe(true);
+    expect(inspection.noteFiles).toBe(2);
+    expect(inspection.sections.find((s) => s.id === 'user.user_note')!.count).toBe(2);
+    const result = await applyInspection(ctxB, { token: inspection.token, mode: 'replace', sections: inspection.defaults.replace });
+    expect(result.report.ok).toBe(true);
+    for (const t of ['user_commentary', 'user_note', 'note_verse_link', 'content_verse_link', 'user_text_markup', 'collection', 'pinned_item', 'session', 'user_keybindings', 'extension_storage']) {
+      expect(tableRows(b.db, t), t).toEqual(tableRows(a.db, t));
+    }
+    // install state is deliberately not part of a backup
+    expect(tableRows(b.db, 'extensions')).toEqual([]);
+    expect(readFileSync(join(dir, 'b', 'notes', 'Docs/sermon.bn'), 'utf8')).toBe('sermon');
+    expect(b.db.prepare("SELECT rowid FROM user_note_fts WHERE user_note_fts MATCH 'grace'").all()).toHaveLength(1);
+    expect(Backup.readUserSchemaVersion(b.sql)).toBe(1);
   });
 
-  it('records a row count for every table it exported', async () => {
-    const result = await backup(seededDb());
+  it('honours an extension that opts out of key-value backup, and includes its opted-in database', async () => {
+    const a = newDb();
+    seed(a.sql);
+    // a real extension database with data
+    const extRoot = join(dir, 'extroot');
+    mkdirSync(join(extRoot, 'ext.pub.memory', 'db'), { recursive: true });
+    const extDb = new Database(join(extRoot, 'ext.pub.memory', 'db', 'progress.db'));
+    extDb.exec("CREATE TABLE t (a TEXT); INSERT INTO t VALUES ('kept'); PRAGMA journal_mode = WAL;");
+    extDb.exec("INSERT INTO t VALUES ('wal-row')");
+    const closed: string[] = [];
+    const port: ExtensionPort = {
+      listEntries: () => [
+        { id: 'ext.pub.memory', manifest: { userData: { databases: { progress: { backup: true }, cache: { backup: false } } } } },
+        { id: 'ext.pub.off', manifest: { userData: { backup: false } } },
+      ],
+      dbRoot: extRoot,
+      openReadonly: (p) => { const d = new Database(p, { readonly: true }); const s = makeSql(d) as ISql & { close(): void }; s.close = () => d.close(); return s; },
+      closeDatabases: (id) => { closed.push(id); },
+    };
+    const out = join(dir, 'ext.bbk');
+    await createEncryptedBackup(ctxFor(a.sql, 'a', { extensions: port }), { destinationPath: out, includeHistory: false, password: PASSWORD });
+    extDb.close();
 
-    expect(result.metadata!.tables.user_note).toBe(2);
-    expect(result.metadata!.tables.verse_link).toBe(1);
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b', { extensions: { ...port, dbRoot: join(dir, 'extroot-b') } });
+    const ins = await inspectBackupFile(ctxB, { backupPath: out, password: PASSWORD });
+    expect(ins.extensions).toEqual([{ id: 'ext.pub.memory', kvRows: 1, databases: ['progress'] }]);
+    await applyInspection(ctxB, { token: ins.token, mode: 'replace', sections: ins.defaults.replace });
+    expect(b.db.prepare('SELECT extension_id FROM extension_storage').all()).toEqual([{ extension_id: 'ext.pub.memory' }]);
+    const restored = new Database(join(dir, 'extroot-b', 'ext.pub.memory', 'db', 'progress.db'), { readonly: true });
+    expect(restored.prepare('SELECT a FROM t ORDER BY rowid').all()).toEqual([{ a: 'kept' }, { a: 'wal-row' }]);
+    restored.close();
+    expect(closed).toEqual(['ext.pub.memory']);
   });
 
-  it('includes verse_link, whose omission would silently drop every user link', async () => {
-    // The source comment calls this out as a data-loss path rather than a gap.
-    const result = await backup(seededDb());
-
-    expect(Object.keys(result.metadata!.tables)).toContain('verse_link');
-  });
-
-  it('leaves history out unless it was asked for', async () => {
-    const without = await backup(seededDb());
-    expect(without.metadata!.tables.user_search_history).toBeUndefined();
-
-    const with_ = await backup(seededDb(), { includeHistory: true });
-    expect(with_.metadata!.tables.user_search_history).toBe(1);
-  });
-
-  it('skips tables the database does not have rather than failing', async () => {
-    // Older user databases predate some of these tables; a backup must still
-    // be takeable.
-    const sparse = new FakeDb({ user_note: [{ note_id: 1 }] });
-
-    const result = await backup(sparse);
-
-    expect(Object.keys(result.metadata!.tables)).toEqual(['user_note']);
-  });
-
-  it('bundles the .bn note files, which live outside the database', async () => {
-    writeFileSync(join(notes(), 'sermon.bn'), 'sermon text');
-    mkdirSync(join(notes(), 'sub'), { recursive: true });
-    writeFileSync(join(notes(), 'sub', 'nested.bn'), 'nested text');
-
-    const result = await backup(seededDb(), { notesDir: notes() });
-
-    expect(result.metadata!.noteFiles).toBe(2);
-  });
-
-  it('bundles .bak history only when history was asked for', async () => {
-    writeFileSync(join(notes(), 'sermon.bn'), 'sermon');
-    writeFileSync(join(notes(), 'sermon.bn.bak'), 'older sermon');
-
-    expect((await backup(seededDb(), { notesDir: notes() })).metadata!.noteFiles).toBe(1);
-    expect(
-      (await backup(seededDb(), { notesDir: notes(), includeHistory: true })).metadata!.noteFiles,
-    ).toBe(2);
-  });
-
-  it('reports failure rather than throwing when the destination is unwritable', async () => {
-    const result = await createBackup(seededDb() as never, {
-      password: PASSWORD,
-      destinationPath: join(workDir, 'does', 'not', 'exist'),
-      username: 'tester',
-    } as Parameters<typeof createBackup>[1]);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
+  it('works with the real Argon2id key derivation (in-thread fallback when no worker file exists)', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const kdf = createWorkerKdf(join(dir, 'no-worker-here'));
+    const ctx = ctxFor(a.sql, 'a', { kdf });
+    const out = join(dir, 'real.bbk');
+    await createEncryptedBackup(ctx, { destinationPath: out, includeHistory: false, password: PASSWORD });
+    const ins = await inspectBackupFile(ctx, { backupPath: out, password: PASSWORD });
+    expect(ins.sections.length).toBeGreaterThan(0);
+    discardInspection(ins.token);
+    const header = JSON.parse(readFileSync(out).subarray(16, 16 + new DataView(readFileSync(out).buffer).getUint32(12, false)).toString());
+    expect(header.slots[0].kdf).toMatchObject({ id: 'argon2id', m: 65536, t: 3, p: 1 });
+  }, 30000);
 });
 
-describe('validateBackup', () => {
-  it('accepts the archive it just wrote', async () => {
-    const created = await backup(seededDb());
-
-    const result = await validateBackup(created.path!, PASSWORD);
-
-    expect(result.valid).toBe(true);
-    expect(result.metadata!.username).toBe('tester');
-  });
-
-  it('rejects the wrong password without leaking anything', async () => {
-    const created = await backup(seededDb());
-
-    const result = await validateBackup(created.path!, 'wrong password');
-
-    expect(result.valid).toBe(false);
-    expect(result.metadata).toBeUndefined();
-  });
-
-  it('reports a missing file rather than throwing', async () => {
-    const result = await validateBackup(join(workDir, 'nope.bbk'), PASSWORD);
-
-    expect(result.valid).toBe(false);
-    expect(result.error).toContain('not found');
-  });
-
-  it('rejects a file that is not an archive', async () => {
-    const path = join(workDir, 'junk.bbk');
-    writeFileSync(path, 'this is not JSON');
-
-    expect((await validateBackup(path, PASSWORD)).valid).toBe(false);
-  });
-
-  it('rejects an archive whose ciphertext has been tampered with', async () => {
-    // AES-GCM authenticates; a flipped byte must fail rather than decrypt to
-    // rubbish that then gets written into the user's database.
-    const created = await backup(seededDb());
-    const envelope = JSON.parse(readFileSync(created.path!, 'utf-8'));
-    const bytes = Buffer.from(envelope.ciphertext, 'base64');
-    bytes[0] ^= 0xff;
-    envelope.ciphertext = bytes.toString('base64');
-    writeFileSync(created.path!, JSON.stringify(envelope));
-
-    expect((await validateBackup(created.path!, PASSWORD)).valid).toBe(false);
+describe('plain export', () => {
+  it('is a ZIP that opens without a password and restores', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const out = join(dir, 'export.zip');
+    await createPlainExport(ctxFor(a.sql, 'a'), { destinationPath: out, includeHistory: false });
+    expect(Backup.sniff(readFileSync(out).subarray(0, 4))).toBe('zip');
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b');
+    const ins = await inspectBackupFile(ctxB, { backupPath: out });
+    expect(ins.encrypted).toBe(false);
+    await applyInspection(ctxB, { token: ins.token, mode: 'merge', sections: ins.defaults.merge });
+    expect(tableRows(b.db, 'user_note')).toHaveLength(2);
   });
 });
 
-describe('restoreBackup', () => {
-  it('round-trips the rows back into an empty database', async () => {
-    const created = await backup(seededDb());
-    const target = emptyDb();
-
-    const result = await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(result.success).toBe(true);
-    expect(target.tables.user_note).toHaveLength(2);
-    expect(target.tables.user_note[0]).toMatchObject({ title: 'On John 3' });
-    expect(target.tables.verse_link).toHaveLength(1);
+describe('errors reach the caller as typed errors', () => {
+  it('password required, wrong password, not a backup, damaged, newer format', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const ctx = ctxFor(a.sql, 'a');
+    const out = join(dir, 'e.bbk');
+    await createEncryptedBackup(ctx, { destinationPath: out, includeHistory: false, password: PASSWORD });
+    await expect(inspectBackupFile(ctx, { backupPath: out })).rejects.toBeInstanceOf(Backup.PasswordRequiredError);
+    await expect(inspectBackupFile({ ...ctx, kdf: async () => new Uint8Array(32) }, { backupPath: out, password: 'wrong wrong wrong' })).rejects.toBeInstanceOf(Backup.WrongPasswordError);
+    const junk = join(dir, 'junk.bbk');
+    writeFileSync(junk, '{"magic":"not ours"}');
+    await expect(inspectBackupFile(ctx, { backupPath: junk })).rejects.toBeInstanceOf(Backup.NotABackupError);
+    const bytes = readFileSync(out);
+    bytes[bytes.length - 5] ^= 1;
+    const damaged = join(dir, 'damaged.bbk');
+    writeFileSync(damaged, bytes);
+    await expect(inspectBackupFile(ctx, { backupPath: damaged, password: PASSWORD })).rejects.toBeInstanceOf(Backup.DamagedError);
+    const newer = readFileSync(out);
+    newer[9] = 2; // major version 2
+    const newerPath = join(dir, 'newer.bbk');
+    writeFileSync(newerPath, newer);
+    await expect(inspectBackupFile(ctx, { backupPath: newerPath, password: PASSWORD })).rejects.toBeInstanceOf(Backup.NewerFormatError);
   });
 
-  it('clears the target tables in replace mode', async () => {
-    const created = await backup(seededDb());
-    const target = new FakeDb({ ...emptyDb().tables, user_note: [{ note_id: 9, title: 'stale' }] });
-
-    await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(target.tables.user_note.map(r => r.title)).toEqual(['On John 3', 'On Psalm 23']);
+  it('applying without a current inspection fails cleanly', async () => {
+    const a = newDb();
+    await expect(applyInspection(ctxFor(a.sql, 'a'), { token: 'nope', mode: 'merge', sections: [] })).rejects.toBeInstanceOf(NoActiveInspectionError);
   });
 
-  it('does not clear the FTS shadow table, which cannot be deleted from', async () => {
-    const created = await backup(seededDb());
-    const target = emptyDb();
-
-    await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(target.executed.some(sql => sql.startsWith('DELETE FROM user_note_fts'))).toBe(false);
-  });
-
-  it('rebuilds the note search index after restoring notes', async () => {
-    // Without this the reader's notes are back but unsearchable.
-    const created = await backup(seededDb());
-    const target = emptyDb();
-
-    await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(target.executed.some(sql => sql.includes("user_note_fts) VALUES('rebuild')"))).toBe(true);
-  });
-
-  it('keeps existing rows in merge mode', async () => {
-    const created = await backup(seededDb());
-    const target = new FakeDb({ ...emptyDb().tables, user_note: [{ note_id: 9, title: 'local only' }] });
-
-    await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'merge',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(target.tables.user_note.map(r => r.title)).toContain('local only');
-    expect(target.tables.user_note.map(r => r.title)).toContain('On John 3');
-  });
-
-  it('skips tables the target database does not have', async () => {
-    const created = await backup(seededDb());
-    const target = new FakeDb({ user_note: [] });
-
-    const result = await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(result.success).toBe(true);
-    expect(result.tablesRestored).toEqual(['user_note']);
-  });
-
-  it('refuses the wrong password and changes nothing', async () => {
-    const created = await backup(seededDb());
-    const target = emptyDb();
-
-    const result = await restoreBackup(target as never, {
-      backupPath: created.path!,
-      password: 'wrong password',
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(result.success).toBe(false);
-    expect(target.tables.user_note).toHaveLength(0);
-  });
-
-  it('reports a missing archive rather than throwing', async () => {
-    const result = await restoreBackup(emptyDb() as never, {
-      backupPath: join(workDir, 'nope.bbk'),
-      password: PASSWORD,
-      mode: 'replace',
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not found');
+  it('a failed restore changes nothing and reports the failing row', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const out = join(dir, 'x.zip');
+    await createPlainExport(ctxFor(a.sql, 'a'), { destinationPath: out, includeHistory: false });
+    const b = newDb();
+    b.sql.execute("INSERT INTO user_note (title, content) VALUES ('mine', 'local')");
+    // A target whose user_note has a CHECK the backup rows violate: note_type must be one of the allowed values.
+    const ctxB = ctxFor(b.sql, 'b');
+    const ins = await inspectBackupFile(ctxB, { backupPath: out });
+    b.db.exec('DROP TABLE user_text_markup; CREATE TABLE user_text_markup (markup_id INTEGER PRIMARY KEY, module_id INTEGER NOT NULL, verse_id_start INTEGER NOT NULL, verse_id_end INTEGER NOT NULL, text_start INTEGER, text_end INTEGER, color TEXT NOT NULL CHECK (color = \'nope\'), note_id INTEGER, created_date TEXT, metadata TEXT)');
+    const before = tableRows(b.db, 'user_note');
+    await expect(applyInspection(ctxB, { token: ins.token, mode: 'replace', sections: ins.defaults.replace })).rejects.toBeInstanceOf(Backup.RestoreError);
+    expect(tableRows(b.db, 'user_note')).toEqual(before);
   });
 });
 
-describe('restoring note files', () => {
-  async function roundTrip(mode: 'merge' | 'replace', restoreDir: string) {
-    writeFileSync(join(notes(), 'sermon.bn'), 'original sermon');
-    const created = await backup(seededDb(), { notesDir: notes() });
-
-    return restoreBackup(emptyDb() as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode,
-      notesDir: restoreDir,
-    } as Parameters<typeof restoreBackup>[1]);
-  }
-
-  it('writes the bundled notes back out', async () => {
-    const target = join(workDir, 'restored');
-    mkdirSync(target, { recursive: true });
-
-    const result = await roundTrip('replace', target);
-
-    expect(result.noteFilesRestored).toBe(1);
-    expect(readFileSync(join(target, 'sermon.bn'), 'utf-8')).toBe('original sermon');
+describe('safety snapshot', () => {
+  it('copies the database file and notes folder before restoring, and keeps the newest three', async () => {
+    const a = newDb();
+    seed(a.sql);
+    const out = join(dir, 's.zip');
+    await createPlainExport(ctxFor(a.sql, 'a'), { destinationPath: out, includeHistory: false });
+    const b = newDb();
+    const ctxB = ctxFor(b.sql, 'b');
+    writeFileSync(ctxB.snapshot!.userDbPath, 'ENCRYPTED-DB-BYTES');
+    writeNotes('b', { 'old.bn': 'local note' });
+    const dirs: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const ins = await inspectBackupFile({ ...ctxB, now: () => new Date(Date.UTC(2026, 0, 1 + i)) }, { backupPath: out });
+      const r = await applyInspection({ ...ctxB, now: () => new Date(Date.UTC(2026, 0, 1 + i)) }, { token: ins.token, mode: 'merge', sections: ins.defaults.merge });
+      dirs.push(r.snapshotDir!);
+    }
+    expect(readFileSync(join(dirs[4], 'user_default.db'), 'utf8')).toBe('ENCRYPTED-DB-BYTES');
+    expect(readFileSync(join(dirs[4], 'notes', 'old.bn'), 'utf8')).toBe('local note');
+    expect(readdirSync(join(dir, 'b', 'pre-restore'))).toHaveLength(3);
+    expect(existsSync(dirs[0])).toBe(false);
   });
 
-  it('recreates nested directories', async () => {
-    mkdirSync(join(notes(), 'sermons'), { recursive: true });
-    writeFileSync(join(notes(), 'sermons', 'advent.bn'), 'advent');
-    const created = await backup(seededDb(), { notesDir: notes() });
-    const target = join(workDir, 'restored');
-
-    await restoreBackup(emptyDb() as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-      notesDir: target,
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(readFileSync(join(target, 'sermons', 'advent.bn'), 'utf-8')).toBe('advent');
-  });
-
-  it('overwrites an existing note in replace mode', async () => {
-    const target = join(workDir, 'restored');
-    mkdirSync(target, { recursive: true });
-    writeFileSync(join(target, 'sermon.bn'), 'local edit');
-
-    await roundTrip('replace', target);
-
-    expect(readFileSync(join(target, 'sermon.bn'), 'utf-8')).toBe('original sermon');
-  });
-
-  it('preserves a locally-newer note in merge mode', async () => {
-    // Merge fills in what is missing. Clobbering here would destroy work the
-    // reader did after the backup was taken - the worst outcome this service
-    // can produce.
-    const target = join(workDir, 'restored');
-    mkdirSync(target, { recursive: true });
-    writeFileSync(join(target, 'sermon.bn'), 'local edit');
-
-    const result = await roundTrip('merge', target);
-
-    expect(readFileSync(join(target, 'sermon.bn'), 'utf-8')).toBe('local edit');
-    expect(result.noteFilesRestored).toBe(0);
-  });
-
-  it('restores no files when the archive has none', async () => {
-    const created = await backup(seededDb());
-
-    const result = await restoreBackup(emptyDb() as never, {
-      backupPath: created.path!,
-      password: PASSWORD,
-      mode: 'replace',
-      notesDir: join(workDir, 'restored'),
-    } as Parameters<typeof restoreBackup>[1]);
-
-    expect(result.noteFilesRestored).toBe(0);
+  it('keeps everything when asked to keep more', () => {
+    for (let i = 0; i < 4; i++) createPreRestoreSnapshot({ userDbPath: join(dir, 'none'), root: join(dir, 'snaps'), keep: 10, now: () => new Date(Date.UTC(2026, 0, 1 + i)) });
+    expect(readdirSync(join(dir, 'snaps'))).toHaveLength(4);
   });
 });
 
-describe('restoreNoteFiles path guard', () => {
-  /**
-   * Tested directly rather than through `restoreBackup`: an archive carrying a
-   * `../` path cannot be produced by `createBackup` (it derives every key with
-   * `relative(notesDir, abs)`), so reaching this guard through the public API
-   * would mean hand-encrypting a payload.
-   */
-  it('writes ordinary paths, including nested ones', () => {
-    const target = join(workDir, 'guard');
-
-    const written = restoreNoteFiles(target, { 'a.bn': 'a', 'sub/b.bn': 'b' }, 'replace');
-
-    expect(written).toBe(2);
-    expect(readFileSync(join(target, 'sub', 'b.bn'), 'utf-8')).toBe('b');
+describe('notes folder adapter', () => {
+  it('lists, reads and writes inside the folder and refuses paths that escape it', async () => {
+    const store = new NotesDirStore(join(dir, 'n'));
+    await store.write('a/b.bn', new TextEncoder().encode('x'));
+    expect(await store.listPaths()).toEqual(['a/b.bn']);
+    expect(new TextDecoder().decode(await store.read('a/b.bn'))).toBe('x');
+    await expect(store.write('../evil.bn', new Uint8Array())).rejects.toThrow(/escapes/);
+    await expect(store.read('../../etc/passwd')).rejects.toThrow(/escapes/);
+    expect(await store.readIfPresent('missing.bn')).toBeUndefined();
   });
-
-  it('refuses a path that escapes the notes directory', () => {
-    // A tampered archive must not be able to write anywhere on disk it likes.
-    const target = join(workDir, 'guard');
-    mkdirSync(target, { recursive: true });
-
-    const written = restoreNoteFiles(target, { '../escaped.bn': 'pwned' }, 'replace');
-
-    expect(written).toBe(0);
-    expect(existsSync(join(workDir, 'escaped.bn'))).toBe(false);
+  it('moves the folder aside without deleting it, with numbered names when needed', async () => {
+    const store = new NotesDirStore(join(dir, 'n'));
+    await store.write('keep.bn', new TextEncoder().encode('mine'));
+    const first = await store.moveAside('2026-01-01');
+    expect(readFileSync(join(first!, 'keep.bn'), 'utf8')).toBe('mine');
+    expect(await store.listPaths()).toEqual([]);
+    await store.write('again.bn', new TextEncoder().encode('2'));
+    const second = await store.moveAside('2026-01-01');
+    expect(second).not.toBe(first);
+    expect(existsSync(join(second!, 'again.bn'))).toBe(true);
+    expect(await notesSink(store).list()).toEqual([]);
   });
+});
 
-  it('refuses an absolute path', () => {
-    const target = join(workDir, 'guard');
-    mkdirSync(target, { recursive: true });
-    const outside = join(workDir, 'absolute.bn');
-
-    const written = restoreNoteFiles(target, { [outside]: 'pwned' }, 'replace');
-
-    expect(written).toBe(0);
-    expect(existsSync(outside)).toBe(false);
+describe('IPC error mapping', () => {
+  it('maps each typed error to its own code', async () => {
+    const { mapBackupError } = await import('../../ipc/backupHandlers');
+    const code = (e: unknown) => (mapBackupError(e) as IpcKnownError).code;
+    expect(code(new Backup.PasswordRequiredError('x'))).toBe('backup_password_required');
+    expect(code(new Backup.WrongPasswordError('x'))).toBe('backup_wrong_password');
+    expect(code(new Backup.NewerFormatError('x'))).toBe('backup_newer_format');
+    expect(code(new Backup.NotABackupError('x'))).toBe('backup_not_a_backup');
+    expect(code(new Backup.DamagedError('x'))).toBe('backup_damaged');
+    expect(code(new Backup.RestoreError('x'))).toBe('backup_restore_failed');
+    expect(code(new NoActiveInspectionError())).toBe('backup_inspection_expired');
+    const other = new Error('boom');
+    expect(mapBackupError(other)).toBe(other);
   });
-
-  it('refuses a deep traversal even when it starts inside', () => {
-    const target = join(workDir, 'guard');
-    mkdirSync(target, { recursive: true });
-
-    const written = restoreNoteFiles(target, { 'sub/../../escaped.bn': 'pwned' }, 'replace');
-
-    expect(written).toBe(0);
-    expect(existsSync(join(workDir, 'escaped.bn'))).toBe(false);
+  it('enforces the minimum password length', async () => {
+    const { validateBackupPassword, MIN_PASSWORD_LENGTH } = await import('../../ipc/backupHandlers');
+    expect(MIN_PASSWORD_LENGTH).toBe(10);
+    expect(validateBackupPassword('short')).not.toBeNull();
+    expect(validateBackupPassword('')).not.toBeNull();
+    expect(validateBackupPassword('0123456789')).toBeNull();
   });
 });

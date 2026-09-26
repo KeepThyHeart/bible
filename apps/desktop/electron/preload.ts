@@ -40,6 +40,7 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
 import type {
   UnsupportedReason,
@@ -360,22 +361,15 @@ export interface ElectronAPI {
   // Backup/Restore methods. Replies use the `Result<T>` envelope;
   // callers should unwrap via `src/ui/services/ipcResult.ts#unwrap`.
   backup: {
-    create: (options: { password: string; includeHistory?: boolean }) => Promise<Result<{
-      path: string;
-      metadata?: any;
-    } | null>>;
+    /** Encrypted backup (`.bbk`). Resolves with `null` if the save dialog is cancelled. */
+    create: (options: { password: string; includeHistory: boolean }) => Promise<Result<BackupSummary | null>>;
+    /** Unencrypted portable export (`.zip`). Resolves with `null` if the save dialog is cancelled. */
+    exportPlain: (options: { includeHistory: boolean }) => Promise<Result<BackupSummary | null>>;
     selectFile: () => Promise<Result<{ path: string } | null>>;
-    validate: (backupPath: string, password: string) => Promise<Result<{
-      valid: boolean;
-      metadata?: any;
-      error?: string;
-    }>>;
-    restore: (options: { backupPath: string; password: string; mode: 'merge' | 'replace' }) => Promise<Result<{
-      success: boolean;
-      tablesRestored?: string[];
-      rowCounts?: Record<string, number>;
-      error?: string;
-    }>>;
+    /** Open and fully verify a backup file; nothing is written. `password` is needed only for encrypted files. */
+    inspect: (options: { backupPath: string; password?: string }) => Promise<Result<BackupInspection>>;
+    apply: (options: { token: string; mode: 'merge' | 'replace'; sections: string[] }) => Promise<Result<BackupApplyResult>>;
+    discard: (token: string) => Promise<Result<null>>;
   };
 
   // Module Manager methods. Replies use the `Result<T>` envelope (cleanup item
@@ -1018,13 +1012,16 @@ const electronAPI: ElectronAPI = {
   },
 
   backup: {
-    create: (options: { password: string; includeHistory?: boolean }) =>
+    create: (options: { password: string; includeHistory: boolean }) =>
       ipcRenderer.invoke('backup:create', options),
+    exportPlain: (options: { includeHistory: boolean }) =>
+      ipcRenderer.invoke('backup:exportPlain', options),
     selectFile: () => ipcRenderer.invoke('backup:selectFile'),
-    validate: (backupPath: string, password: string) =>
-      ipcRenderer.invoke('backup:validate', backupPath, password),
-    restore: (options: { backupPath: string; password: string; mode: 'merge' | 'replace' }) =>
-      ipcRenderer.invoke('backup:restore', options),
+    inspect: (options: { backupPath: string; password?: string }) =>
+      ipcRenderer.invoke('backup:inspect', options),
+    apply: (options: { token: string; mode: 'merge' | 'replace'; sections: string[] }) =>
+      ipcRenderer.invoke('backup:apply', options),
+    discard: (token: string) => ipcRenderer.invoke('backup:discard', token),
   },
 
   moduleManager: {

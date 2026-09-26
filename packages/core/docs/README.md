@@ -23,6 +23,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Module format](features/module-format.md) | The module `.db` format, its schemas, discovery, registration, catalogs |
 | [Migrations](features/migrations.md) | The `NNN_name.sql` sequence, `MigrationRunner`, the `schema_migration` ledger, user-schema repair |
 | [User data](features/user-data.md) | Notes, markup, collections, sessions, the unified `verse_link` table |
+| [Backup format](features/backup-format.md) | The encrypted `.bbk` container, the ZIP payload and unencrypted export, the user-table registry, restore and merge, the crypto primitives |
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |

@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { unwrap, IpcResultError } from '../services/ipcResult';
+import type { BackupApplyResult, BackupInspection, BackupSummary } from '../../../electron/ipc/backupTypes';
 
-interface BackupMetadata {
-  version: string;
-  appVersion: string;
-  createdAt: string;
-  username: string;
-  tables: Record<string, number>;
-  includeHistory: boolean;
-  /** Number of `.bn` note files bundled in the archive (undefined on old backups). */
-  noteFiles?: number;
+/** Must match `MIN_PASSWORD_LENGTH` in `electron/ipc/backupHandlers.ts`. */
+export const MIN_BACKUP_PASSWORD_LENGTH = 10;
+
+/** A failure the dialog can show with a specific message: `code` is a `backup_*` IPC code or a local one. */
+export interface BackupFailure {
+  code: string;
+  message: string;
 }
+
+export type RestoreMode = 'merge' | 'replace';
 
 interface BackupStore {
   // Dialog state
@@ -22,37 +23,41 @@ interface BackupStore {
   backupConfirmPassword: string;
   includeHistory: boolean;
   isBackingUp: boolean;
-  backupResult: { success: boolean; path?: string; error?: string } | null;
+  backupResult: { summary: BackupSummary } | { failure: BackupFailure } | null;
+  isExporting: boolean;
+  exportResult: { summary: BackupSummary } | { failure: BackupFailure } | null;
 
   // Restore state
   restoreFilePath: string;
   restorePassword: string;
-  restoreMode: 'merge' | 'replace';
-  isValidating: boolean;
+  /** The chosen file is encrypted and no (correct) password has been given yet. */
+  needsPassword: boolean;
+  isInspecting: boolean;
+  inspection: BackupInspection | null;
+  inspectFailure: BackupFailure | null;
+  restoreMode: RestoreMode;
+  selectedSections: string[];
   isRestoring: boolean;
-  backupMetadata: BackupMetadata | null;
-  validationError: string | null;
-  restoreResult: { success: boolean; tablesRestored?: string[]; rowCounts?: Record<string, number>; noteFilesRestored?: number; error?: string } | null;
+  restoreResult: { result: BackupApplyResult } | { failure: BackupFailure } | null;
 
   // Actions
   openDialog: (tab?: 'backup' | 'restore') => void;
   closeDialog: () => void;
   setActiveTab: (tab: 'backup' | 'restore') => void;
 
-  // Backup actions
   setBackupPassword: (password: string) => void;
   setBackupConfirmPassword: (password: string) => void;
   setIncludeHistory: (include: boolean) => void;
   startBackup: () => Promise<void>;
+  startExport: () => Promise<void>;
 
-  // Restore actions
   selectRestoreFile: () => Promise<void>;
   setRestorePassword: (password: string) => void;
-  setRestoreMode: (mode: 'merge' | 'replace') => void;
-  validateBackup: () => Promise<void>;
+  unlockBackup: () => Promise<void>;
+  setRestoreMode: (mode: RestoreMode) => void;
+  setSectionSelected: (ids: string[], selected: boolean) => void;
   startRestore: () => Promise<void>;
 
-  // Reset
   resetState: () => void;
 }
 
@@ -64,151 +69,153 @@ const initialState = {
   includeHistory: false,
   isBackingUp: false,
   backupResult: null,
+  isExporting: false,
+  exportResult: null,
   restoreFilePath: '',
   restorePassword: '',
-  restoreMode: 'merge' as const,
-  isValidating: false,
+  needsPassword: false,
+  isInspecting: false,
+  inspection: null,
+  inspectFailure: null,
+  restoreMode: 'merge' as RestoreMode,
+  selectedSections: [] as string[],
   isRestoring: false,
-  backupMetadata: null,
-  validationError: null,
   restoreResult: null,
 };
+
+function failureOf(error: unknown): BackupFailure {
+  if (error instanceof IpcResultError) return { code: error.code, message: error.message };
+  return { code: 'internal', message: error instanceof Error ? error.message : String(error) };
+}
+
+/** Best effort: tell the main process to drop the verified backup it is holding in memory. */
+function discard(token: string | undefined): void {
+  if (!token) return;
+  void Promise.resolve(window.electron.backup.discard(token)).catch(() => undefined);
+}
 
 export const useBackupStore = create<BackupStore>((set, get) => ({
   ...initialState,
 
   openDialog: (tab = 'backup') => set({ isDialogOpen: true, activeTab: tab }),
-  closeDialog: () => set({ ...initialState }),
+  closeDialog: () => {
+    discard(get().inspection?.token);
+    set({ ...initialState });
+  },
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  // Backup
+  // --- Backup -----------------------------------------------------------------
   setBackupPassword: (password) => set({ backupPassword: password }),
   setBackupConfirmPassword: (password) => set({ backupConfirmPassword: password }),
   setIncludeHistory: (include) => set({ includeHistory: include }),
 
   startBackup: async () => {
     const { backupPassword, backupConfirmPassword, includeHistory } = get();
-
     if (!backupPassword) {
-      set({ backupResult: { success: false, error: 'Password is required' } });
+      set({ backupResult: { failure: { code: 'passwordRequired', message: 'Password is required' } } });
       return;
     }
     if (backupPassword !== backupConfirmPassword) {
-      set({ backupResult: { success: false, error: 'Passwords do not match' } });
+      set({ backupResult: { failure: { code: 'passwordMismatch', message: 'Passwords do not match' } } });
       return;
     }
-    if (backupPassword.length < 4) {
-      set({ backupResult: { success: false, error: 'Password must be at least 4 characters' } });
+    if (backupPassword.length < MIN_BACKUP_PASSWORD_LENGTH) {
+      set({ backupResult: { failure: { code: 'passwordTooShort', message: `Password must be at least ${MIN_BACKUP_PASSWORD_LENGTH} characters` } } });
       return;
     }
 
     set({ isBackingUp: true, backupResult: null });
-
     try {
-      const result = await unwrap(
-        window.electron.backup.create({
-          password: backupPassword,
-          includeHistory,
-        })
-      );
-      // `null` means the user cancelled the native save dialog - keep the
-      // dialog open and clear the "in progress" flag without a result.
-      if (result === null) {
-        set({ isBackingUp: false });
-      } else {
-        set({
-          backupResult: { success: true, path: result.path },
-          isBackingUp: false,
-        });
-      }
+      const summary = await unwrap(window.electron.backup.create({ password: backupPassword, includeHistory }));
+      // `null` means the user cancelled the native save dialog.
+      set(summary === null
+        ? { isBackingUp: false }
+        : { backupResult: { summary }, isBackingUp: false, backupPassword: '', backupConfirmPassword: '' });
     } catch (error) {
-      const message = error instanceof IpcResultError || error instanceof Error
-        ? error.message
-        : String(error);
-      set({
-        backupResult: { success: false, error: message },
-        isBackingUp: false,
-      });
+      set({ backupResult: { failure: failureOf(error) }, isBackingUp: false });
     }
   },
 
-  // Restore
+  startExport: async () => {
+    set({ isExporting: true, exportResult: null });
+    try {
+      const summary = await unwrap(window.electron.backup.exportPlain({ includeHistory: get().includeHistory }));
+      set(summary === null ? { isExporting: false } : { exportResult: { summary }, isExporting: false });
+    } catch (error) {
+      set({ exportResult: { failure: failureOf(error) }, isExporting: false });
+    }
+  },
+
+  // --- Restore ----------------------------------------------------------------
   selectRestoreFile: async () => {
     try {
-      const result = await unwrap(window.electron.backup.selectFile());
-      if (result && result.path) {
-        set({
-          restoreFilePath: result.path,
-          backupMetadata: null,
-          validationError: null,
-          restoreResult: null,
-        });
-      }
+      const picked = await unwrap(window.electron.backup.selectFile());
+      if (!picked?.path) return;
+      discard(get().inspection?.token);
+      set({
+        restoreFilePath: picked.path, restorePassword: '', needsPassword: false, inspection: null, inspectFailure: null,
+        restoreResult: null, selectedSections: [],
+      });
+      await inspect(set, get, undefined);
     } catch (error) {
-      console.error('Failed to select file:', error);
+      set({ inspectFailure: failureOf(error) });
     }
   },
 
-  setRestorePassword: (password) => set({
-    restorePassword: password,
-    backupMetadata: null,
-    validationError: null,
-  }),
-  setRestoreMode: (mode) => set({ restoreMode: mode }),
+  setRestorePassword: (password) => set({ restorePassword: password, inspectFailure: null }),
 
-  validateBackup: async () => {
-    const { restoreFilePath, restorePassword } = get();
+  unlockBackup: async () => {
+    const { restorePassword } = get();
+    if (!restorePassword) return;
+    await inspect(set, get, restorePassword);
+  },
 
-    if (!restoreFilePath || !restorePassword) {
-      set({ validationError: 'Please select a file and enter the password' });
-      return;
+  setRestoreMode: (mode) => {
+    const inspection = get().inspection;
+    set({ restoreMode: mode, selectedSections: inspection ? [...inspection.defaults[mode]] : [] });
+  },
+
+  setSectionSelected: (ids, selected) => {
+    const current = new Set(get().selectedSections);
+    for (const id of ids) {
+      if (selected) current.add(id);
+      else current.delete(id);
     }
-
-    set({ isValidating: true, validationError: null, backupMetadata: null });
-
-    try {
-      const result = await unwrap(
-        window.electron.backup.validate(restoreFilePath, restorePassword)
-      );
-      if (result.valid && result.metadata) {
-        set({ backupMetadata: result.metadata, isValidating: false });
-      } else {
-        set({ validationError: result.error || 'Invalid backup', isValidating: false });
-      }
-    } catch (error) {
-      set({
-        validationError: (error as Error).message,
-        isValidating: false,
-      });
-    }
+    set({ selectedSections: [...current] });
   },
 
   startRestore: async () => {
-    const { restoreFilePath, restorePassword, restoreMode } = get();
-
-    if (!restoreFilePath || !restorePassword) {
-      set({ restoreResult: { success: false, error: 'File and password are required' } });
-      return;
-    }
-
+    const { inspection, restoreMode, selectedSections } = get();
+    if (!inspection || selectedSections.length === 0) return;
     set({ isRestoring: true, restoreResult: null });
-
     try {
-      const result = await unwrap(
-        window.electron.backup.restore({
-          backupPath: restoreFilePath,
-          password: restorePassword,
-          mode: restoreMode,
-        })
-      );
-      set({ restoreResult: result, isRestoring: false });
+      const result = await unwrap(window.electron.backup.apply({ token: inspection.token, mode: restoreMode, sections: selectedSections }));
+      // The verified backup is gone from the main process after an apply.
+      set({ restoreResult: { result }, isRestoring: false, inspection: null, needsPassword: false });
     } catch (error) {
-      set({
-        restoreResult: { success: false, error: (error as Error).message },
-        isRestoring: false,
-      });
+      set({ restoreResult: { failure: failureOf(error) }, isRestoring: false });
     }
   },
 
   resetState: () => set(initialState),
 }));
+
+type SetFn = (partial: Partial<BackupStore>) => void;
+
+/** Open and verify the chosen file. Encrypted files ask for a password. */
+async function inspect(set: SetFn, get: () => BackupStore, password: string | undefined): Promise<void> {
+  const { restoreFilePath, restoreMode } = get();
+  set({ isInspecting: true, inspectFailure: null });
+  try {
+    const inspection = await unwrap(window.electron.backup.inspect({ backupPath: restoreFilePath, password }));
+    set({
+      inspection, isInspecting: false, needsPassword: false, restorePassword: '',
+      selectedSections: [...inspection.defaults[restoreMode]],
+    });
+  } catch (error) {
+    const failure = failureOf(error);
+    if (failure.code === 'backup_password_required') set({ isInspecting: false, needsPassword: true });
+    else if (failure.code === 'backup_wrong_password') set({ isInspecting: false, needsPassword: true, inspectFailure: failure });
+    else set({ isInspecting: false, needsPassword: false, inspectFailure: failure });
+  }
+}
