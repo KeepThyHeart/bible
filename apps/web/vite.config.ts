@@ -462,6 +462,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
       },
+      // Audio Bible recordings and TTS engine files (server route, when enabled).
+      [`${basePath.replace(/\/$/, '')}/audio`]: {
+        target: 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
+      },
     },
   },
   test: {
