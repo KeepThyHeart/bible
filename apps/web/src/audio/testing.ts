@@ -170,8 +170,17 @@ export class FakeTtsEngine implements ITtsEngine {
   requests: SynthesisRequest[] = [];
   prepared = new Set<string>();
   supported = true;
-  /** Optional gate a test can hold to keep `synthesize` pending. */
+  /** Optional gate a test can hold to keep every `synthesize` pending. */
   gate: Promise<void> | null = null;
+  /** When true, each `synthesize` waits for `releaseRequest()`, one at a time. */
+  holdRequests = false;
+  heldRequests: Array<{ req: SynthesisRequest; d: ReturnType<typeof deferred<void>> }> = [];
+  /** Requests that are in flight right now (started, not yet returned). */
+  inFlight = 0;
+  maxInFlight = 0;
+  /** Seconds of "speech" per character at rate 1. */
+  secondsPerChar = 0.05;
+  sampleRate = 8000;
   failNextWith: Error | null = null;
   disposed = false;
   private readonly voices: AudioVoice[];
@@ -196,12 +205,29 @@ export class FakeTtsEngine implements ITtsEngine {
 
   async synthesize(req: SynthesisRequest, signal: AbortSignal): Promise<SynthesisResult> {
     this.requests.push(req);
-    if (this.gate) await this.gate;
-    if (signal.aborted) throw abortError();
-    if (this.failNextWith) { const e = this.failNextWith; this.failNextWith = null; throw e; }
-    const sampleRate = 8000;
-    const seconds = (req.text.length * 0.05) / req.rate;
-    return { pcm: new Float32Array(Math.max(1, Math.round(seconds * sampleRate))), sampleRate };
+    this.inFlight++;
+    this.maxInFlight = Math.max(this.maxInFlight, this.inFlight);
+    try {
+      if (this.gate) await this.gate;
+      if (this.holdRequests) {
+        const d = deferred<void>();
+        this.heldRequests.push({ req, d });
+        await d.promise;
+      }
+      if (signal.aborted) throw abortError();
+      if (this.failNextWith) { const e = this.failNextWith; this.failNextWith = null; throw e; }
+      const seconds = (req.text.length * this.secondsPerChar) / req.rate;
+      return { pcm: new Float32Array(Math.max(1, Math.round(seconds * this.sampleRate))), sampleRate: this.sampleRate };
+    } finally {
+      this.inFlight--;
+    }
+  }
+
+  /** Let the oldest held `synthesize` continue. */
+  releaseRequest(index = 0): SynthesisRequest {
+    const [entry] = this.heldRequests.splice(index, 1);
+    entry.d.resolve();
+    return entry.req;
   }
 
   async evictVoice(voiceId: string): Promise<void> { this.prepared.delete(voiceId); }
