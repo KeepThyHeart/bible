@@ -14,9 +14,9 @@ test.describe('Session Persistence', () => {
 
     // Add a second tab on Genesis 1
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn').first().click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book').first().click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
     // Verify 2 tabs before reload
@@ -105,9 +105,9 @@ test.describe('Session Persistence', () => {
 
     // Add tab 2 and set it to Study mode
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn').first().click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book').first().click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
     await page.locator('.bible-toolbar__mode-select').selectOption('study');

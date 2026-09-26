@@ -673,7 +673,9 @@
     "topics": "主题",
     "goToPassage": "跳转到经文",
     "noResults": "没有结果。",
-    "searchFor": "搜索“{query}”"
+    "searchFor": "搜索“{query}”",
+    "back": "返回",
+    "chapterOption": "{book}第{chapter}章"
   },
   "helpDialog": {
     "esc": "Esc"

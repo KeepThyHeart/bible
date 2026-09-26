@@ -193,19 +193,107 @@
 }
 .kth-menu__item:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
 
-/* --- Picker (book/chapter grids) -------------------------------------------- */
+/* --- Picker (BookChapterPicker: header, reference form, book/chapter grids) -------------------------------- */
 .kth-picker {
   display: flex;
   flex-direction: column;
-  gap: var(--kth-space-3);
+  flex: 1 1 auto;          /* fills the app's dialog frame (a flex column) */
+  min-block-size: 0;
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-picker__header {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  flex-shrink: 0;
+  padding-block: var(--kth-space-3);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-picker__title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
   color: var(--kth-text);
 }
+.kth-picker__form {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  flex-shrink: 0;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-picker__input { flex: 1; min-inline-size: 0; }
+.kth-picker__offer {
+  flex-shrink: 0;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+  color: var(--kth-text-muted);
+  font-size: 0.9em;
+}
+.kth-picker__offer-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--kth-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.kth-picker__offer-link:where(:hover) { color: var(--kth-accent-hover); }
+.kth-picker__offer-link:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+
+/* Scrolling region under the form: the book list, the chapter grid or the app's search results. */
+.kth-picker__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding-block: var(--kth-space-3) var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+}
+.kth-picker__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-1);
+}
+.kth-picker__section-label {
+  margin-block: var(--kth-space-4) var(--kth-space-2);
+  padding-block-end: var(--kth-space-1);
+  border-block-end: 2px solid var(--kth-accent);
+  color: var(--kth-text);
+  font-size: 0.9em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.kth-picker__section-label:where(:first-child) { margin-block-start: 0; }
+.kth-picker__label {
+  margin-block-end: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: 0.9em;
+  font-weight: 700;
+}
+.kth-picker__status {
+  padding-block: var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+  color: var(--kth-text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
 .kth-picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));     /* chapters: web used 48px */
   gap: var(--kth-space-1);
 }
 .kth-picker__grid--books { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); } /* web used 120px */
+.kth-picker__grid--compact { grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr)); } /* short names, phones */
 .kth-picker__cell {
   display: flex;
   align-items: center;
@@ -227,15 +315,43 @@
 .kth-picker__cell:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); border-color: var(--kth-border-strong); }
 .kth-picker__cell:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
 .kth-picker__cell:where(:disabled) { opacity: 0.4; cursor: not-allowed; }
+.kth-picker__cell--book {
+  display: block;
+  padding-block: var(--kth-space-3);
+  padding-inline: var(--kth-space-3);
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kth-picker__cell--chapter { aspect-ratio: 1; }
+.kth-picker__cell--compact {
+  min-block-size: 2.25rem;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-1);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
 .kth-picker__cell--active {
   border-color: var(--kth-accent);
   background: var(--kth-accent);
   color: var(--kth-accent-text);
+  font-weight: 600;
 }
 .kth-picker__cell--active:where(:hover:not(:disabled)) {
   border-color: var(--kth-accent-hover);
   background: var(--kth-accent-hover);
 }
+/* The current book in the soft appearance (desktop): accent tint instead of a filled cell. */
+.kth-picker__cell--current {
+  border-color: transparent;
+  background: var(--kth-accent-soft);
+  color: var(--kth-accent);
+  font-weight: 600;
+}
+.kth-picker__cell--current:where(:hover:not(:disabled)) { background: var(--kth-accent-soft); border-color: var(--kth-accent); }
 
 /* --- Swatch (colour set inline by the component: style={{ backgroundColor }}) --- */
 .kth-swatch {

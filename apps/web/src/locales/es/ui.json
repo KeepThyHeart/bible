@@ -673,7 +673,9 @@
     "topics": "Temas",
     "goToPassage": "Ir al pasaje",
     "noResults": "Sin resultados.",
-    "searchFor": "Buscar \"{query}\""
+    "searchFor": "Buscar \"{query}\"",
+    "back": "Atrás",
+    "chapterOption": "{book}, capítulo {chapter}"
   },
   "helpDialog": {
     "esc": "Esc"

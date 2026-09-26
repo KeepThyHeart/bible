@@ -250,3 +250,35 @@ describe('.kth-toolbar* parity with desktop controls.css (.control-toolbar*)', (
     expect(strong.every((r) => Object.values(r.decls).every((v) => v === '2px'))).toBe(true);
   });
 });
+
+describe('component class coverage', () => {
+  // Every kth-* class a shared component renders must have a rule, or the component silently loses its styling.
+  // Structural hooks: rendered for app CSS and e2e selectors, deliberately without rules of their own.
+  const HOOKS = ['kth-picker__books', 'kth-picker__chapters'];
+  const defined = new Set<string>(HOOKS);
+  for (const { selector } of parseRules(read(join(CSS_DIR, 'kth-classes.css')))) {
+    for (const m of selector.matchAll(/\.(kth-[\w-]+)/g)) defined.add(m[1]);
+  }
+  const componentsDir = join(CSS_DIR, '..', 'src', 'components');
+  const sources = readdirSync(componentsDir).filter((f) => /\.tsx$/.test(f) && !/\.test\./.test(f));
+
+  it('finds the shared component sources', () => {
+    expect(sources).toContain('BookChapterPicker.tsx');
+  });
+
+  for (const file of sources) {
+    it(`${file} only uses kth- classes that kth-classes.css defines`, () => {
+      const used = new Set<string>();
+      for (const m of read(join(componentsDir, file)).matchAll(/['"`]([^'"`\n]*\bkth-[\w-]+[^'"`\n]*)['"`]/g)) {
+        for (const cls of m[1].split(/\s+/)) if (cls.startsWith('kth-')) used.add(cls);
+      }
+      expect([...used].filter((c) => !defined.has(c))).toEqual([]);
+    });
+  }
+
+  it('the picker cell modifiers used by the component are all present', () => {
+    for (const cls of ['kth-picker__cell--book', 'kth-picker__cell--chapter', 'kth-picker__cell--compact', 'kth-picker__cell--active', 'kth-picker__cell--current', 'kth-picker__grid--compact']) {
+      expect(defined.has(cls), cls).toBe(true);
+    }
+  });
+});

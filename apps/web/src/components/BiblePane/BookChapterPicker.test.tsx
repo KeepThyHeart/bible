@@ -167,20 +167,20 @@ describe('BookChapterPicker', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
     // We mock 4 books: 2 OT + 2 NT, but filterBooks may return all 66 book slots
     // At minimum verify we have book buttons rendered
-    const btns = container.querySelectorAll('.book-chapter-picker__book-btn');
+    const btns = container.querySelectorAll('.kth-picker__cell--book');
     expect(btns.length).toBeGreaterThan(0);
   });
 
   it('applies current-book class to the currently active book', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} currentBook={43} />);
-    const currentBtn = container.querySelector('.book-chapter-picker__book-btn--current');
+    const currentBtn = container.querySelector('.kth-picker__cell--active');
     expect(currentBtn).toBeTruthy();
   });
 
   it('calls onClose when the close button is clicked', () => {
     const onClose = vi.fn();
     const { container } = render(<BookChapterPicker {...defaultProps} onClose={onClose} />);
-    fireEvent.click(container.querySelector('.book-chapter-picker__close-btn')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -203,13 +203,13 @@ describe('BookChapterPicker', () => {
   // ------------------------------------------------------------------
   it('renders the reference input', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    expect(container.querySelector('.book-chapter-picker__ref-input')).toBeTruthy();
+    expect(container.querySelector('.kth-picker__input')).toBeTruthy();
   });
 
   it('calls onSelect with parsed reference on valid submission', () => {
     const onSelect = vi.fn();
     const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'John 3:16' } });
     const form = container.querySelector('form')!;
     fireEvent.submit(form);
@@ -218,30 +218,30 @@ describe('BookChapterPicker', () => {
 
   it('shows search offer link when typing text without numbers', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'grace' } });
-    expect(container.querySelector('.book-chapter-picker__search-offer')).toBeTruthy();
+    expect(container.querySelector('.kth-picker__offer')).toBeTruthy();
   });
 
   it('does not show search offer link when typing a reference with numbers', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'John 3' } });
-    expect(container.querySelector('.book-chapter-picker__search-offer')).toBeNull();
+    expect(container.querySelector('.kth-picker__offer')).toBeNull();
   });
 
   it('runs search when search offer link is clicked', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'grace' } });
-    const offerBtn = container.querySelector<HTMLButtonElement>('.book-chapter-picker__search-offer-link')!;
+    const offerBtn = container.querySelector<HTMLButtonElement>('.kth-picker__offer-link')!;
     fireEvent.click(offerBtn);
     expect(mockPerformSearch).toHaveBeenCalledWith('grace');
   });
 
   it('runs search on submit when input is unrecognized text', () => {
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'faith and grace' } });
     const form = container.querySelector('form')!;
     fireEvent.submit(form);
@@ -254,24 +254,24 @@ describe('BookChapterPicker', () => {
   it('shows chapter grid after selecting a multi-chapter book', async () => {
     const { container } = render(<BookChapterPicker {...defaultProps} currentBook={43} />);
     // Find and click John button
-    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.book-chapter-picker__book-btn'))
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book'))
       .find(b => b.title === 'John');
     expect(johnBtn).toBeTruthy();
     await act(async () => {
       fireEvent.click(johnBtn!);
     });
-    expect(container.querySelector('.book-chapter-picker__chapter-grid')).toBeTruthy();
+    expect(container.querySelector('.kth-picker__chapters')).toBeTruthy();
   });
 
   it('calls onSelect with book and chapter when chapter button is clicked', async () => {
     const onSelect = vi.fn();
     const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} currentBook={43} />);
-    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.book-chapter-picker__book-btn'))
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book'))
       .find(b => b.title === 'John');
     await act(async () => {
       fireEvent.click(johnBtn!);
     });
-    const chapterBtns = container.querySelectorAll<HTMLElement>('.book-chapter-picker__chapter-btn');
+    const chapterBtns = container.querySelectorAll<HTMLElement>('.kth-picker__cell--chapter');
     expect(chapterBtns.length).toBeGreaterThan(0);
     await act(async () => {
       fireEvent.click(chapterBtns[2]); // chapter 3
@@ -281,24 +281,24 @@ describe('BookChapterPicker', () => {
 
   it('shows back button when chapter grid is visible', async () => {
     const { container } = render(<BookChapterPicker {...defaultProps} currentBook={43} />);
-    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.book-chapter-picker__book-btn'))
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book'))
       .find(b => b.title === 'John');
     await act(async () => {
       fireEvent.click(johnBtn!);
     });
-    expect(container.querySelector('.book-chapter-picker__back-btn')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
   });
 
   it('navigates back to book list when back button is clicked', async () => {
     const { container } = render(<BookChapterPicker {...defaultProps} currentBook={43} />);
-    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.book-chapter-picker__book-btn'))
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book'))
       .find(b => b.title === 'John');
     await act(async () => {
       fireEvent.click(johnBtn!);
     });
-    expect(container.querySelector('.book-chapter-picker__chapter-grid')).toBeTruthy();
-    fireEvent.click(container.querySelector('.book-chapter-picker__back-btn')!);
-    expect(container.querySelector('.book-chapter-picker__chapter-grid')).toBeNull();
+    expect(container.querySelector('.kth-picker__chapters')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(container.querySelector('.kth-picker__chapters')).toBeNull();
     expect(screen.getByText('Go to Passage')).toBeTruthy();
   });
 
@@ -309,7 +309,7 @@ describe('BookChapterPicker', () => {
     mockSearchLoading = true;
     mockSearchQuery = 'grace';
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'grace' } });
     // Trigger search mode
     const form = container.querySelector('form')!;
@@ -329,7 +329,7 @@ describe('BookChapterPicker', () => {
     mockSearchLoading = false;
     mockSearchQuery = 'love';
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'love' } });
     const form = container.querySelector('form')!;
     await act(async () => {
@@ -351,7 +351,7 @@ describe('BookChapterPicker', () => {
     mockSearchLoading = false;
     mockSearchQuery = 'love';
     const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'love' } });
     await act(async () => {
       fireEvent.submit(container.querySelector('form')!);
@@ -366,11 +366,68 @@ describe('BookChapterPicker', () => {
     mockSearchLoading = false;
     mockSearchQuery = 'xyznotfound';
     const { container } = render(<BookChapterPicker {...defaultProps} />);
-    const input = container.querySelector<HTMLInputElement>('.book-chapter-picker__ref-input')!;
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
     fireEvent.input(input, { target: { value: 'xyznotfound' } });
     await act(async () => {
       fireEvent.submit(container.querySelector('form')!);
     });
     expect(container.querySelector('.book-chapter-picker__search-empty')).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------------
+  // Web-specific behaviour layered on the shared picker (@bible/ui)
+  // ------------------------------------------------------------------
+  it('accepts verse ranges (extended reference syntax; the single-chapter rules are tested in @bible/ui)', () => {
+    const onSelect = vi.fn();
+    const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} />);
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
+    fireEvent.input(input, { target: { value: 'John 3:16-18' } });
+    fireEvent.submit(container.querySelector('form')!);
+    expect(onSelect).toHaveBeenLastCalledWith(43, 3, 16, 18);
+  });
+
+  it('lists the topics of the chosen book under its chapters and opens the topic verse', async () => {
+    mockGetBookTopics.mockResolvedValue({
+      topics: [{ title: 'The Word became flesh', chapter: 1, verse: 1, endChapter: 1, endVerse: 18 }],
+    });
+    const onSelect = vi.fn();
+    const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} />);
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book')).find(b => b.title === 'John')!;
+    await act(async () => { fireEvent.click(johnBtn); });
+    expect(mockGetBookTopics).toHaveBeenCalledWith(43);
+    const topic = await screen.findByText('The Word became flesh');
+    expect(screen.getByText('1:1–18')).toBeTruthy();
+    fireEvent.click(topic.closest('button')!);
+    expect(onSelect).toHaveBeenCalledWith(43, 1, 1);
+  });
+
+  it('shows the translation the passage will open in, and a change link only with onChangeTranslation', () => {
+    const { container, rerender } = render(<BookChapterPicker {...defaultProps} moduleAbbr="KJV" />);
+    expect(container.querySelector('.book-chapter-picker__translation-abbr')?.textContent).toBe('KJV');
+    expect(container.querySelector('.book-chapter-picker__translation-link')).toBeNull();
+    rerender(<BookChapterPicker {...defaultProps} moduleAbbr="KJV" onChangeTranslation={vi.fn()} />);
+    expect(container.querySelector('.book-chapter-picker__translation-link')).toBeTruthy();
+  });
+
+  it('Escape steps back from the chapter grid to the book list, then closes', async () => {
+    const onClose = vi.fn();
+    const { container } = render(<BookChapterPicker {...defaultProps} onClose={onClose} />);
+    const johnBtn = Array.from(container.querySelectorAll<HTMLElement>('.kth-picker__cell--book')).find(b => b.title === 'John')!;
+    await act(async () => { fireEvent.click(johnBtn); });
+    expect(container.querySelector('.kth-picker__chapters')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(container.querySelector('.kth-picker__chapters')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts on the book list with an empty box every time it is reopened', () => {
+    const { container, rerender } = render(<BookChapterPicker {...defaultProps} />);
+    const input = container.querySelector<HTMLInputElement>('.kth-picker__input')!;
+    fireEvent.input(input, { target: { value: 'gen' } });
+    rerender(<BookChapterPicker {...defaultProps} isOpen={false} />);
+    rerender(<BookChapterPicker {...defaultProps} />);
+    expect(container.querySelector<HTMLInputElement>('.kth-picker__input')!.value).toBe('');
   });
 });

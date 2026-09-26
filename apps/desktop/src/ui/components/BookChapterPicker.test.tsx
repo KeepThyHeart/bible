@@ -151,6 +151,67 @@ describe('BookChapterPicker', () => {
   });
 });
 
+describe('BookChapterPicker: dialog frame and shared picker wiring', () => {
+  const onClose = vi.fn();
+  const onSelect = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('is a modal dialog labelled by its title', () => {
+    renderWithProviders(<BookChapterPicker isOpen={true} onClose={onClose} onSelect={onSelect} />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName(enString('bookChapterPicker.goToPassage'));
+  });
+
+  it('marks the current book softly (accent tint, not a filled cell) and exposes aria-current', () => {
+    renderWithProviders(
+      <BookChapterPicker isOpen={true} onClose={onClose} onSelect={onSelect} currentBook={43} currentChapter={3} />,
+    );
+    const john = screen.getByRole('button', { name: 'John' });
+    expect(john).toHaveAttribute('aria-current', 'true');
+    expect(john).toHaveClass('kth-picker__cell--current');
+    expect(john).not.toHaveClass('kth-picker__cell--active');
+  });
+
+  it('names each chapter cell after its book and marks the current chapter', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <BookChapterPicker isOpen={true} onClose={onClose} onSelect={onSelect} currentBook={1} currentChapter={3} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Genesis' }));
+    expect(screen.getByRole('button', { name: 'Genesis chapter 3' })).toHaveAttribute('aria-current', 'true');
+    await user.click(screen.getByRole('button', { name: 'Genesis chapter 2' }));
+    expect(onSelect).toHaveBeenCalledWith(1, 2);
+  });
+
+  it('keeps the basic reference syntax: "Jude 5" is chapter 5 and a verse range is not a passage', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BookChapterPicker isOpen={true} onClose={onClose} onSelect={onSelect} />);
+    const input = screen.getByPlaceholderText(enString('bookChapterPicker.referencePlaceholder'));
+    await user.type(input, 'Jude 5{Enter}');
+    expect(onSelect).toHaveBeenLastCalledWith(65, 5);
+    expect(mockPerformSearch).not.toHaveBeenCalled();
+    await user.clear(input);
+    await user.type(input, 'John 3:16-18{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(mockPerformSearch).toHaveBeenCalledWith('John 3:16-18');
+  });
+
+  it('closes from the close button and steps back from chapters on Escape before closing', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BookChapterPicker isOpen={true} onClose={onClose} onSelect={onSelect} />);
+    await user.click(screen.getByRole('button', { name: 'Genesis' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Genesis' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: enString('bookChapterPicker.close') }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('BookChapterPicker: section color coding', () => {
   const onClose = vi.fn();
   const onSelect = vi.fn();

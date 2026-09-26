@@ -81,7 +81,7 @@ const PreviewBackBar: React.FC<PreviewBackBarProps> = ({ verseId, onBack, onDism
         type="button"
         data-testid="preview-back-bar-dismiss"
         onClick={onDismiss}
-        className="ms-auto text-text-muted hover:text-text-primary px-1"
+        className="kth-btn kth-btn--ghost kth-btn--sm ms-auto text-text-muted hover:text-text-primary"
         title={t('ui.suggestionBanner.dismiss')}
         aria-label={t('ui.suggestionBanner.dismiss')}
       >

@@ -29,6 +29,11 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import '@fortawesome/fontawesome-free/css/regular.min.css';
 import './styles/main.scss';
+// KTH CSS: `--kth-*` tokens aliased to this app's theme vars, then the opt-in `.kth-*` classes. Never kth-base.css
+// (the app keeps _base.scss). Both come after main.scss so the map sees the theme vars; the classes are
+// single-class and opt-in, so importing them restyles nothing by itself.
+import '@bible/ui/css/generated/map-web.css';
+import '@bible/ui/css/kth.css';
 
 /**
  * Cap how long the boot splash can wait on one request. The chapter fetch is

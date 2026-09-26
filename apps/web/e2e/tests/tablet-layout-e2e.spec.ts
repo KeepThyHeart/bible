@@ -60,7 +60,7 @@ test.describe('Tablet Layout (1024px)', () => {
 
     // 3. Tab management works
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.keyboard.press('Escape');
 
     // 4. Settings panel works
@@ -97,15 +97,15 @@ test.describe('Tablet Layout (1024px)', () => {
     await waitForVerses(page);
 
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn').first().click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book').first().click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn', { hasText: /^Psalms$/ }).click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book', { hasText: /^Psalms$/ }).click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
     // All 3 tabs should be present and the tab bar should not overflow the viewport

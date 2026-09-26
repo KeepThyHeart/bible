@@ -35,3 +35,44 @@ when the generated files are stale; `css/kth-css.test.ts` checks the contract, t
 
 `--kth-*` resolve on `<html>` and descendants inherit the computed value, so a subtree that re-declares `--theme-*`
 or `--bg-*` locally (for example a theme preview card) does not re-resolve them.
+
+## Wiring the KTH CSS into the apps
+
+- **Desktop:** `apps/desktop/src/ui/styles/globals.css` imports `@bible/ui/css/generated/map-desktop.css` and `@bible/ui/css/kth.css`
+  right after `themes.css` (both are resolved by the `@bible/ui/css` Vite alias).
+- **Web:** `apps/web/src/main.tsx` imports `@bible/ui/css/generated/map-web.css` and `@bible/ui/css/kth.css` after `main.scss`.
+- Neither app imports `kth-base.css` (or `kth-scheme.css` on its own: `kth.css` already includes it).
+- The classes are opt-in and single-class specificity. When an app component adopts one (`kth-btn`, `kth-input`, ...), remove
+  the app rules for the same properties, or raise the app selector (`.block .block__el`): `kth.css` is imported after the app
+  styles, so at equal specificity it wins. Examples: web `BackBar` dismiss and desktop `PreviewBackBar` dismiss are
+  `kth-btn kth-btn--ghost kth-btn--sm`.
+
+## Components
+
+Exported from `src/index.ts` (both runtimes tested by `src/components/*.test.tsx`).
+
+### `BookChapterPicker`
+
+The body of the "go to passage" dialog: header (title, back, close), reference box, book grid by testament with type-ahead
+filtering, chapter grid, typed references (`John 3:16`, `Jude 5`, `i cor 13`), search offer, Escape (chapters, then close),
+focus and ARIA. Mount it only while open (a fresh mount is a fresh state). The app wrapper owns the dialog frame
+(overlay/size/position; put `role="dialog"` and `aria-labelledby={titleId}` there) and everything app-specific.
+
+| Prop | Purpose |
+|---|---|
+| `current`, `onPick(book, chapter, verse?, endVerse?)`, `onClose` | State in, result out. Grids call `onPick` with two arguments; typed references with four. No `onClose` means no close button. |
+| `bookName(book)`, `bookAliases` | Localized names and alternate spellings (apps supply them from their locale). |
+| `labels` | Every string (`BookChapterPickerLabels`; English defaults in `DEFAULT_BOOK_CHAPTER_PICKER_LABELS`). |
+| `search` | `{ onSearch(query), results(submittedQuery) }`: without it there is no search offer. `results` returns an element (a component that reads the app's search state). |
+| `afterReference`, `chapterExtras(book)` | Slots (web: translation selector, topics). |
+| `icons`, `dir`, `titleId`, `autoFocusInput`, `escapeSuspended` | Chrome and behaviour hooks. |
+| `cellStyle(book)`, `compact` + `shortBookName` | Per-app decoration (desktop: inline section tint; web: `data-section` CSS and a short-name grid on phones). |
+| `referenceSyntax` `'extended'` (default) or `'basic'` | Product difference kept as an option: web takes verse ranges and reads `Jude 5` as Jude 1:5; desktop keeps `Book chapter[:verse]` only. |
+| `currentBookAppearance` `'solid'` (default) or `'soft'` | Product difference kept as an option: filled accent cell (web) or accent tint (desktop) for the current book. |
+
+Classes: `kth-picker`, `__header`, `__title`, `__form`, `__input`, `__offer`, `__offer-link`, `__body`, `__books`, `__chapters`,
+`__results`, `__section-label`, `__label`, `__status`, `__grid` (`--books`, `--compact`), `__cell` (`--book`, `--chapter`,
+`--compact`, `--active`, `--current`). Book cells also carry `data-section="<BibleSectionKey>"` for app-side colour coding.
+`css/kth-css.test.ts` fails if a component renders a `kth-` class that has no rule (`__books` and `__chapters` are declared hooks).
+
+The pure matcher (`parseReference`, `filterBooks`, `getBookFilterText`) lives in `src/components/bookReference.ts` and is exported.

@@ -1,3 +1,10 @@
 // Barrel: export components and hooks only (never tests).
-// Empty until the first components land (0062 phase 2b onwards).
-export {};
+export { BookChapterPicker, DEFAULT_BOOK_CHAPTER_PICKER_LABELS } from './components/BookChapterPicker';
+export type {
+  BookChapterPickerLabels,
+  BookChapterPickerProps,
+  BookChapterPickerSearch,
+  ReferenceSyntax,
+} from './components/BookChapterPicker';
+export { parseReference, filterBooks, getBookFilterText } from './components/bookReference';
+export type { ParsedReference, ReferenceLookup } from './components/bookReference';

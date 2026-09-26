@@ -141,7 +141,7 @@ content. `pane:show` also lets a plugin put an arbitrary id in
 
 Three places parse a typed reference, each with its own `parseReference()`:
 `src/components/Header.tsx` (with fuzzy book-name matching),
-`src/components/BiblePane/BookChapterPicker.tsx` (with partial book names) and
+`packages/ui/src/components/bookReference.ts` (the matcher inside the shared `BookChapterPicker`, with partial book names; web selects its `'extended'` syntax) and
 `src/components/BiblePane/BibleContent.tsx` (the inline reference box).
 
 All three accept a **verse range**: `"John 3:16-18"`, en/em dashes
