@@ -1,0 +1,5 @@
+/* KTH CSS entry. Apps: import generated/map-<app>.css, then this file. Iframes additionally load kth-base.css.
+   Nothing here targets an element or an unprefixed class, so importing it changes no existing pixel. */
+@import './kth-contract.css';
+@import './generated/kth-scheme.css';
+@import './kth-classes.css';

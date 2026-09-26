@@ -291,7 +291,11 @@ export default defineConfig({
         '@services': resolve(__dirname, 'src/Services'),
         '@controllers': resolve(__dirname, 'src/Controllers'),
         // Alias to source files to avoid better-sqlite3 dependency
-        '@bible/core': resolve(__dirname, '../../packages/core/src')
+        '@bible/core': resolve(__dirname, '../../packages/core/src'),
+        // Shared UI kit (packages/ui), consumed as source. The css entry must
+        // come first: the first matching string alias wins.
+        '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
+        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts')
       }
     },
     optimizeDeps: {

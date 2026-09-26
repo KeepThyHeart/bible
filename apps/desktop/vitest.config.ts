@@ -15,6 +15,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src/ui'),
       '@bible/core': path.resolve(__dirname, '../../packages/core/src'),
       '@bible/extension-testing': path.resolve(__dirname, '../../packages/extension-testing/src'),
+      // Shared UI kit (packages/ui), consumed as source; css entry first (first match wins).
+      '@bible/ui/css': path.resolve(__dirname, '../../packages/ui/css'),
+      '@bible/ui': path.resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
   test: {

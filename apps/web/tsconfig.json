@@ -21,6 +21,9 @@
       // reaches better-sqlite3 and Node builtins. Mirrored by the Vite alias in
       // vite.config.ts so the type-checker and the bundler agree.
       "@bible/core/browser": ["../../packages/core/src/browser"],
+      // Shared UI kit, consumed as source (never a built dist). Its CSS is
+      // reached through side-effect imports, which need no path entry.
+      "@bible/ui": ["../../packages/ui/src"],
       // This is a Preact app, but several of its libraries (@dnd-kit above
       // all) are typed against @types/react. Without this mapping their
       // `children: ReactNode` meets a Preact `VNode` and the check fails with

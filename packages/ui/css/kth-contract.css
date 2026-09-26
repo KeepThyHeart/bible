@@ -1,0 +1,55 @@
+/*
+ * KTH token contract. Every --kth-* token that KTH CSS and @bible/ui components may use is declared here, and
+ * only here. Colour values are FALLBACKS (desktop light theme); each app overrides them via
+ * generated/map-<app>.css (:root beats :where, so import order does not matter), and generated/kth-scheme.css
+ * supplies dark variants for tokens an app does not map. Adding a token: declare it here, add it to KTH_MAP in
+ * scripts/generate-kth-css.js (or CONTRACT_CONSTANTS), run npm run generate:kth-css.
+ */
+:where(:root) {
+  /* Surfaces and text */
+  --kth-bg: #ffffff;
+  --kth-bg-subtle: #f8f7f4;
+  --kth-bg-hover: #f0f0f0;
+  --kth-bg-active: #e5e7eb;
+  --kth-surface: #ffffff;
+  --kth-surface-raised: #ffffff;
+  --kth-text: #2c2c2c;
+  --kth-text-muted: #666666;
+  --kth-text-heading: #000000;
+  --kth-border: #e0e0e0;
+  --kth-border-strong: #d1d5db;
+
+  /* Accent and focus */
+  --kth-accent: #3d78bc;
+  --kth-accent-hover: #34669f;
+  --kth-accent-text: #ffffff;
+  --kth-accent-soft: rgb(61 120 188 / 0.22);
+  --kth-focus: #3d78bc;
+
+  /* Inputs */
+  --kth-input-bg: #ffffff;
+  --kth-input-border: #d1d5db;
+
+  /* Status (web uses these; dark variants in generated/kth-scheme.css) */
+  --kth-danger: #dc2626;
+  --kth-danger-soft: #fef2f2;
+  --kth-success: #16a34a;
+  --kth-warning: #d97706;
+  --kth-info: #2563eb;
+
+  /* Elevation */
+  --kth-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  --kth-overlay: rgb(0 0 0 / 0.5);
+
+  /* Constants (not mapped per app) */
+  --kth-color-scheme: light;
+  --kth-radius: 6px;
+  --kth-space-1: 4px;
+  --kth-space-2: 8px;
+  --kth-space-3: 12px;
+  --kth-space-4: 16px;
+
+  /* Typography (mapped per app to the live UI font setting) */
+  --kth-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --kth-font-size-ui: 14px;
+}

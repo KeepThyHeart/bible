@@ -1,0 +1,286 @@
+/* KTH classes. Opt-in, kth- prefixed, single-class specificity, --kth-* tokens only, logical properties only. */
+
+/* --- Button ---------------------------------------------------------------- */
+.kth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kth-space-1);
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-3);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.kth-btn:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+.kth-btn:where(:active:not(:disabled)) { background: var(--kth-bg-active); }
+.kth-btn:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-btn:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
+
+.kth-btn--primary {
+  border-color: var(--kth-accent);
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+}
+.kth-btn--primary:where(:hover:not(:disabled)) {
+  border-color: var(--kth-accent-hover);
+  background: var(--kth-accent-hover);
+}
+
+.kth-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+.kth-btn--ghost:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+
+.kth-btn--danger {
+  border-color: var(--kth-danger);
+  background: var(--kth-danger);
+  color: var(--kth-accent-text);
+}
+.kth-btn--danger:where(:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--kth-danger) 85%, var(--kth-text));
+}
+
+.kth-btn--sm {
+  min-block-size: 1.5rem;
+  padding-block: calc(var(--kth-space-1) / 2);
+  padding-inline: var(--kth-space-2);
+  border-radius: calc(var(--kth-radius) - 2px);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+
+/* --- Input / select ---------------------------------------------------------- */
+.kth-input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-input-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-input-bg);
+  color: var(--kth-text);
+  color-scheme: var(--kth-color-scheme);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+}
+.kth-input::placeholder { color: var(--kth-text-muted); opacity: 1; }
+.kth-input:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; border-color: var(--kth-focus); }
+.kth-input:where([aria-invalid="true"]) { border-color: var(--kth-danger); }
+.kth-input:where(:disabled) { opacity: 0.6; cursor: not-allowed; }
+
+.kth-select {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-input-border);
+  border-radius: var(--kth-radius);
+  background-color: var(--kth-input-bg);
+  color: var(--kth-text);
+  color-scheme: var(--kth-color-scheme);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+  cursor: pointer;
+}
+.kth-select:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; border-color: var(--kth-focus); }
+.kth-select:where(:disabled) { opacity: 0.6; cursor: not-allowed; }
+
+/* --- Card -------------------------------------------------------------------- */
+.kth-card {
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+}
+
+/* --- Toolbar (the .control-toolbar* rules from desktop controls.css, token-for-token) ---------------------- */
+.kth-toolbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding: 0;
+  border-block-end: 1px solid var(--kth-border);   /* was var(--theme-border-primary) */
+  background: var(--kth-bg-subtle);                 /* was var(--theme-bg-secondary) */
+}
+.kth-toolbar__group {
+  display: flex;
+  align-items: stretch;
+  min-inline-size: 0;
+  overflow: hidden;
+  flex-shrink: 1;
+}
+.kth-toolbar__group--trailing { flex-shrink: 0; }
+
+.kth-toolbar__button {
+  display: flex;
+  align-items: center;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.kth-toolbar__button:where(:hover:not(:disabled)) { background: var(--kth-bg-active); }  /* was --theme-bg-active */
+.kth-toolbar__button:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-toolbar__button:where(:disabled) { opacity: 0.3; cursor: not-allowed; }
+.kth-toolbar__button--divider-end { border-inline-end: var(--_kth-divider-width, 1px) solid var(--kth-border); }
+.kth-toolbar__button--divider-start { border-inline-start: var(--_kth-divider-width, 1px) solid var(--kth-border); }
+/* Replaces the two-class `.--divider-strong.--divider-end` compound: a private knob keeps single-class specificity. */
+.kth-toolbar__button--divider-strong { --_kth-divider-width: 2px; }
+.kth-toolbar__icon { inline-size: 1rem; block-size: 1rem; }
+
+/* --- Menu -------------------------------------------------------------------- */
+.kth-menu {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 10rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: 0;
+  list-style: none;
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  box-shadow: var(--kth-shadow);
+}
+.kth-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  inline-size: 100%;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kth-menu__item:where(:hover, :focus-visible) { background: var(--kth-bg-hover); outline: none; }
+.kth-menu__item:where(:focus-visible) { box-shadow: inset 2px 0 0 var(--kth-focus); }
+.kth-menu__item:where([aria-checked="true"], [aria-current="true"], [aria-selected="true"]) {
+  background: var(--kth-accent-soft);
+}
+.kth-menu__item:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Picker (book/chapter grids) -------------------------------------------- */
+.kth-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-3);
+  color: var(--kth-text);
+}
+.kth-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));     /* chapters: web used 48px */
+  gap: var(--kth-space-1);
+}
+.kth-picker__grid--books { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); } /* web used 120px */
+.kth-picker__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;                                          /* 44px touch target, as web */
+  margin: 0;
+  padding: var(--kth-space-2);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.kth-picker__cell:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); border-color: var(--kth-border-strong); }
+.kth-picker__cell:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
+.kth-picker__cell:where(:disabled) { opacity: 0.4; cursor: not-allowed; }
+.kth-picker__cell--active {
+  border-color: var(--kth-accent);
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+}
+.kth-picker__cell--active:where(:hover:not(:disabled)) {
+  border-color: var(--kth-accent-hover);
+  background: var(--kth-accent-hover);
+}
+
+/* --- Swatch (colour set inline by the component: style={{ backgroundColor }}) --- */
+.kth-swatch {
+  display: inline-block;
+  flex-shrink: 0;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--kth-border-strong);
+  border-radius: 50%;
+  background-color: transparent;
+  cursor: pointer;
+}
+.kth-swatch:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-swatch:where([aria-pressed="true"], [aria-checked="true"]) {
+  box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
+}
+
+/* --- Badge ------------------------------------------------------------------- */
+.kth-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.25rem;
+  padding-inline: var(--kth-space-1);
+  border-radius: 999px;
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Visually hidden (screen-reader only) ------------------------------------ */
+.kth-visually-hidden {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
