@@ -5,7 +5,8 @@
  * is specific to zstd: that the frames are STANDARD ones (the design
  * explicitly rejected a magicless variant), that a dictionary-bound frame
  * cannot be mistaken for an unbound one, and that a truncated frame is
- * detected - which `zlib.zstdDecompressSync` on its own does NOT do.
+ * detected - which `zlib.zstdDecompressSync` on its own does NOT do before
+ * Node 24.21.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -75,17 +76,28 @@ describe('ZstdCodec', () => {
 
   describe('truncation', () => {
     /**
-     * Node's own zstd does NOT report a truncated frame: it returns what it
-     * managed to decode, which for a frame cut in half is zero bytes. Pinned
-     * here as a fact about the platform, because the codec's guard exists
-     * solely to compensate for it and would look like dead code otherwise.
+     * Node's own zstd has reported a truncated frame both ways: up to at least
+     * 24.20 (Electron 44's Node) it returns what it managed to decode, which
+     * for a frame cut in half is zero bytes; 24.21 throws Z_BUF_ERROR. Pinned
+     * here as a fact about the platform, because the codec's guard exists to
+     * compensate for the silent form and would look like dead code otherwise.
      */
-    it('is silently empty through node:zlib alone - the reason the guard exists', () => {
+    it('is silently empty or Z_BUF_ERROR through node:zlib alone - the reason the guard exists', () => {
       const frame = Buffer.from(new ZstdCodec().encode(TEXT));
       const half = frame.subarray(0, Math.floor(frame.length / 2));
 
-      const naive = nodeZstd.zstdDecompressSync(half);
-      expect(naive.length).toBe(0); // no throw, no content, no warning
+      let naive: Buffer | null = null;
+      let error: unknown = null;
+      try {
+        naive = nodeZstd.zstdDecompressSync(half);
+      } catch (err) {
+        error = err;
+      }
+      if (error) {
+        expect((error as { code?: string }).code).toBe('Z_BUF_ERROR');
+      } else {
+        expect(naive!.length).toBe(0); // no throw, no content, no warning
+      }
     });
 
     it('throws through the codec instead of decoding to an empty string', () => {
