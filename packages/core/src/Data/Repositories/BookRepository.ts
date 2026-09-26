@@ -192,11 +192,13 @@ export class BookRepository extends BaseModuleRepository<BookModuleInfo> impleme
    */
   searchSections(query: string, options?: { limit?: number }): BookSection[] {
     const limit = options?.limit ?? 100;
+    const fts = this.keywordIndexTable('book_section_fts', 'book');
+    if (!fts) return [];
 
     const rows = this.sql.queryAll<BookSectionRow>(
       `SELECT bs.* FROM book_section bs
-       JOIN book_section_fts fts ON bs.section_id = fts.rowid
-       WHERE book_section_fts MATCH ?
+       JOIN ${fts.table} fts ON bs.section_id = fts.rowid
+       WHERE fts.${fts.column} MATCH ?
        ORDER BY bs.section_number
        LIMIT ?`,
       [query, limit]

@@ -21,6 +21,26 @@ import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
 import { WordFamilyService, WordFamilyMember } from './WordFamilyService';
 import { ENGLISH_STOP_WORDS } from './Search/StopWords';
+import { hasModuleTable, moduleKeywordIndex } from '../Data/Access/Fts5/ModuleKeywordIndex';
+
+/**
+ * Whether a Bible module is searched by `InModuleFts5Provider` - i.e. is NOT a
+ * v0.2 module, whose verses are in `bible_verse` with no `bible_verse_fts`
+ * beside them, and whose index is therefore the sidecar.
+ *
+ * Anything else stays in-module: a v0.1 file with its own table, and a
+ * repository whose connection says nothing either way (a test double that
+ * answers `searchVersesWithHighlighting()` itself) - which is what every
+ * repository was before v0.2.
+ */
+function shipsInModuleIndex(repository: IBibleRepository): boolean {
+  try {
+    const sql = repository.getSql();
+    return !(hasModuleTable(sql, 'bible_verse') && !hasModuleTable(sql, 'bible_verse_fts'));
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Bible Search Service
@@ -98,15 +118,27 @@ export class BibleSearchService implements ISearchService {
     // stop. This value is therefore a valid-but-unused placeholder until a
     // later subtask (M11) threads a real environment down from wherever the
     // app composes its data-access layer.
+    //
+    // A v0.2 module ships no `bible_verse_fts` at all; its index is the
+    // sidecar the composition root configured (`configureModuleKeywordIndex`).
+    // Registration order is the routing: the registry asks providers in
+    // order, the in-module provider only ever accepts modules registered with
+    // it (see `registerModuleWithProvider()`, which registers only those that
+    // carry their own table), and everything else falls through to the
+    // sidecar. `indexDir` is what `SidecarFts5Provider.supports()` checks.
+    const sidecar = moduleKeywordIndex();
     const env: RuntimeEnvironment = {
       runtime: 'node-server',
       sqlite: { fts5: true, writableModules: false },
       codecs: new Set(),
-      indexDir: null,
+      indexDir: sidecar?.indexDirectory ?? null,
     };
     this.keywordIndexRegistry = new KeywordIndexRegistry(env);
     this.fts5Provider = new InModuleFts5Provider();
     this.keywordIndexRegistry.register(this.fts5Provider);
+    if (sidecar) {
+      this.keywordIndexRegistry.register(sidecar);
+    }
 
     // Modules passed in through the constructor need registering with the
     // provider exactly like a module added later through addBibleModule()
@@ -191,7 +223,9 @@ export class BibleSearchService implements ISearchService {
    */
   private registerModuleWithProvider(abbreviation: string, repository: IBibleRepository): void {
     const target = this.indexTargetFor(abbreviation, repository);
-    this.fts5Provider.register(target, repository);
+    if (shipsInModuleIndex(repository)) {
+      this.fts5Provider.register(target, repository);
+    }
     this.targetKeyToAbbr.set(indexTargetKey(target), abbreviation);
   }
 
@@ -264,6 +298,32 @@ export class BibleSearchService implements ISearchService {
    * table is contentless) is therefore no longer read here - see
    * `verseToSearchResultWithHighlight`'s doc comment for the full reasoning.
    */
+  /**
+   * One registry search per module, merged.
+   *
+   * `limit` here means "up to this many hits from EACH module" - every
+   * provider applies it per target. The registry treats `limit` as a total
+   * instead, and stops asking later provider groups once it is reached. With
+   * one provider that never mattered; with the in-module provider for v0.1
+   * Bibles and the sidecar for v0.2 ones, a common query would fill the limit
+   * from the first group and drop every module in the second. Asking per
+   * module keeps each module's own limit, whichever provider serves it.
+   */
+  private async searchEachModule(
+    query: KeywordQuery,
+    targets: IndexTarget[],
+    limit: number
+  ): Promise<KeywordSearchResponse> {
+    const merged: KeywordSearchResponse = { hits: [], skipped: [], truncated: false };
+    for (const target of targets) {
+      const response = await this.keywordIndexRegistry.search(query, { targets: [target], limit });
+      merged.hits.push(...response.hits);
+      merged.skipped.push(...response.skipped);
+      merged.truncated = merged.truncated || response.truncated;
+    }
+    return merged;
+  }
+
   private async searchViaKeywordIndex(
     query: KeywordQuery,
     modules: Map<string, IBibleRepository>,
@@ -271,10 +331,7 @@ export class BibleSearchService implements ISearchService {
     highlightTerms: string[]
   ): Promise<SearchResult[]> {
     const targets = this.targetsForModules(modules);
-    const response = await this.keywordIndexRegistry.search(query, {
-      targets,
-      limit: options.maxResults || 200,
-    });
+    const response = await this.searchEachModule(query, targets, options.maxResults || 200);
 
     this.reportSkippedTargets(response.skipped);
 
@@ -616,10 +673,7 @@ export class BibleSearchService implements ISearchService {
     }
 
     for (let i = 0; i < terms.length; i++) {
-      const response = await this.keywordIndexRegistry.search(termQueries[i], {
-        targets,
-        limit: 10000,
-      });
+      const response = await this.searchEachModule(termQueries[i], targets, 10000);
       this.reportSkippedTargets(response.skipped);
 
       for (const hit of response.hits) {
