@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { useIframeBridge, type PanelAccess } from './useIframeBridge';
+import { ExtensionPanelHost as SharedExtensionPanelHost } from '@bible/ui';
+import { useDesktopBridgeParts, type PanelAccess } from './useIframeBridge';
 import { useI18n } from '../../contexts/useI18n';
 
 /**
@@ -20,6 +21,11 @@ import { useI18n } from '../../contexts/useI18n';
  *     the host) via `BibleExtensionAPI` over `postMessage`. That bridge is
  *     wired separately; the panel host itself just renders the iframe and
  *     lets the extension's UI code load.
+ *
+ * The iframe and its `IframeRpcBridge` lifecycle are owned by the shared
+ * `ExtensionPanelHost` in `@bible/ui`; this wrapper supplies what is
+ * desktop-specific: the IPC lookup, the sandbox attribute, the handler map and
+ * context (`useDesktopBridgeParts`) and the loading/error copy.
  *
  * The actual `uiEntry` path is fetched at render time via the IPC handler
  * `extensions:getPanelTypeUiEntry` (registered alongside the rest of the
@@ -81,7 +87,14 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   const accessRef = useRef<PanelAccess>(NO_ACCESS);
   const getAccess = React.useCallback(() => accessRef.current, []);
   const getLocale = React.useCallback(() => i18n.currentLocale, [i18n]);
-  useIframeBridge({ extensionId, iframeRef, panelId, panelTypeId, getAccess, getLocale });
+  const { context, handlers, onBridge } = useDesktopBridgeParts({
+    extensionId,
+    iframeRef,
+    panelId,
+    panelTypeId,
+    getAccess,
+    getLocale,
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -125,56 +138,29 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
     };
   }, [extensionId, panelTypeId]);
 
-  if (error) {
-    return (
-      <div
-        className="flex items-center justify-center h-full p-4 text-center"
-        style={{ color: 'var(--theme-text-secondary)' }}
-        data-panel-id={panelId}
-      >
-        <span>{error}</span>
-      </div>
-    );
-  }
-
-  if (!meta) {
-    return (
-      <div
-        className="flex items-center justify-center h-full"
-        style={{ color: 'var(--theme-text-secondary)' }}
-        data-panel-id={panelId}
-      >
-        <span>{t('extensionPanelHost.loading')}</span>
-      </div>
-    );
-  }
-
   // Strip leading slashes from the uiEntry so paths like '/index.html' and
   // 'index.html' both work. The custom protocol handler in main.ts joins
   // the segment to the extension's install path.
-  const cleanedEntry = meta.uiEntry.replace(/^\/+/, '');
-  const src = `ext-ui://${extensionId}/${cleanedEntry}`;
-
-  // Extensions with `ui:media` permission get `allow-autoplay` so their
-  // panel iframe can play audio/video without user gesture (e.g. Audio Bible).
-  const sandbox = computeSandboxAttr(meta.allowAutoplay === true);
+  const src = meta ? `ext-ui://${extensionId}/${meta.uiEntry.replace(/^\/+/, '')}` : null;
 
   return (
-    <iframe
-      ref={iframeRef}
-      title={meta.title ?? `${extensionId}.${panelTypeId}`}
+    <SharedExtensionPanelHost
       src={src}
-      sandbox={sandbox}
-      referrerPolicy="no-referrer"
-      style={{
-        width: '100%',
-        height: '100%',
-        border: 'none',
-        backgroundColor: 'var(--theme-bg-primary)',
+      title={meta?.title ?? `${extensionId}.${panelTypeId}`}
+      // Extensions with `ui:media` permission get `allow-autoplay` so their
+      // panel iframe can play audio/video without user gesture (e.g. Audio Bible).
+      sandbox={computeSandboxAttr(meta?.allowAutoplay === true)}
+      context={context}
+      handlers={handlers}
+      onBridge={onBridge}
+      iframeRef={iframeRef}
+      error={error}
+      loading={<span>{t('extensionPanelHost.loading')}</span>}
+      dataAttributes={{
+        'data-panel-id': panelId,
+        'data-extension-id': extensionId,
+        'data-panel-type-id': panelTypeId,
       }}
-      data-panel-id={panelId}
-      data-extension-id={extensionId}
-      data-panel-type-id={panelTypeId}
     />
   );
 };

@@ -91,9 +91,9 @@ There is deliberately no `blocklist:refresh` channel and no timer: block rules a
 | `src/ui/components/extensions/ExtensionCatalogSources.tsx` | Catalogs tab - add/confirm/refresh/remove sources, plus the read-only block-rule list |
 | `src/ui/components/extensions/marketplaceTypes.ts` | Renderer mirrors of the wire shapes (the preload types these channels as `any`) |
 | `src/ui/components/extensions/ExtensionConsentDialog.tsx` | The permission prompt, shown for sideloads and catalog installs alike |
-| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe |
+| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe. `ExtensionPanelHost.tsx` is a thin wrapper (IPC lookup, `computeSandboxAttr`, loading/error copy) over the shared `ExtensionPanelHost` in `@bible/ui`, which owns the iframe and the one `IframeRpcBridge` per panel |
 | `src/ui/components/extensions/ExtensionSettingsRenderer.tsx`, `extensionSettingsSchema.ts` | Renders `contributes.configuration` |
-| `src/ui/components/extensions/useIframeBridge.ts` | The postMessage channel between the panel iframe and the renderer host. Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
+| `src/ui/components/extensions/useIframeBridge.ts` | The desktop half of the postMessage channel between the panel iframe and the renderer host: `useDesktopBridgeParts` supplies the handler map, the context and the `onBridge` pushes to the shared panel host (`useIframeBridge` is the same with the bridge created in the hook). Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
 | `src/ui/components/StatusBar.tsx` | The app status bar, filled entirely by `ui.registerStatusBarItem` contributions. Renders `null` when there are none - see [Status Bar](status-bar.md) |
 | `src/ui/components/VerseContextMenu.tsx` | Renders `ui.registerContextMenu('verse', ...)` contributions beneath the built-in items, behind a separator |
 | `src/ui/menu/buildMenuSpec.ts` | `buildExtensionToolsSubmenu` - the Tools menu, built from commands carrying an `ownerExtensionId`. Omitted entirely when empty, so a fresh install has no Tools menu |

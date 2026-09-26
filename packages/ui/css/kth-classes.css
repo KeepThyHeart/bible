@@ -193,6 +193,30 @@
 }
 .kth-menu__item:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
 
+/* --- Combobox (ReferencePicker: input with an absolutely positioned suggestion list) ----------------------- */
+.kth-combobox {
+  position: relative;
+  display: block;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+}
+.kth-combobox__label {
+  display: block;
+  margin-block-end: var(--kth-space-1);
+  color: var(--kth-text-muted);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-combobox__list {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  z-index: 10;
+  max-block-size: 16rem;
+  margin-block-start: 2px;
+  overflow-y: auto;
+}
+.kth-combobox__list:where([hidden]) { display: none; }
+
 /* --- Picker (BookChapterPicker: header, reference form, book/chapter grids) -------------------------------- */
 .kth-picker {
   display: flex;
@@ -369,6 +393,36 @@
 .kth-swatch:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
 .kth-swatch:where([aria-pressed="true"], [aria-checked="true"]) {
   box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
+}
+.kth-swatch:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+.kth-swatch--sm { inline-size: 1rem; block-size: 1rem; }
+.kth-swatch-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-1);
+  align-items: center;
+  padding: var(--kth-space-1); /* room for the 4px selection ring */
+}
+
+/* --- Panel host (ExtensionPanelHost: the sandboxed iframe and its loading/error box) ------------------------ */
+.kth-panel-host__frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  background-color: var(--kth-bg);
+}
+.kth-panel-host__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 100%;
+  padding: var(--kth-space-4);
+  box-sizing: border-box;
+  text-align: center;
+  color: var(--kth-text-muted);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
 }
 
 /* --- Badge ------------------------------------------------------------------- */

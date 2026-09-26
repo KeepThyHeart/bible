@@ -5,8 +5,9 @@
  * The iframe runs `@bible/extension-ui` which sends `RpcRequest` envelopes
  * via `window.parent.postMessage`. The transport, source check, envelope
  * validation, deny-by-default `uikit.*` allowlist and error mapping live in
- * `IframeRpcBridge` (`@bible/core/browser`), shared with the web app. This
- * hook supplies what is desktop-specific:
+ * `IframeRpcBridge` (`@bible/core/browser`), shared with the web app, and the
+ * iframe plus the bridge lifecycle live in `ExtensionPanelHost` (`@bible/ui`).
+ * `useDesktopBridgeParts` supplies what is desktop-specific:
  *
  *   1. the handler map (IPC, Zustand stores, iframe geometry);
  *   2. the host-assembled context (identity from mount props, manifest/grants
@@ -18,7 +19,7 @@
  * not through the iframe bridge.
  */
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   IframeRpcBridge,
   directionForTag,
@@ -30,7 +31,7 @@ import { usePreferencesStore } from '../../stores/usePreferencesStore';
 import { subscribeToPanelMessages, useExtensionUiStore } from '../../extensions/extensionUiStore';
 import { subscribeActiveVerseBroadcast } from '../../extensions/activeVerseBroadcast';
 
-// -- Hook -----------------------------------------------------------------
+// -- Hooks ----------------------------------------------------------------
 
 /** What the host knows about the extension that owns the panel (from main, not the iframe). */
 export interface PanelAccess {
@@ -60,33 +61,54 @@ interface UseIframeBridgeOpts {
 
 const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
 
-export function useIframeBridge({
+/**
+ * The desktop-specific pieces of a panel bridge, for a host that owns the
+ * iframe and the `IframeRpcBridge` itself (the shared `ExtensionPanelHost` in
+ * `@bible/ui`): pass `context`, `handlers` and `onBridge` straight through.
+ * All three are referentially stable across renders.
+ *
+ * `onBridge(bridge)` starts the host -> panel pushes (worker messages, theme,
+ * active verse) and `onBridge(null)` stops them; the pushes use the identity
+ * from the latest props.
+ */
+export interface DesktopBridgeParts {
+  context: () => BridgeContext;
+  handlers: BridgeHandlers;
+  onBridge: (bridge: IframeRpcBridge | null) => void;
+}
+
+export function useDesktopBridgeParts({
   extensionId,
   iframeRef,
   panelId,
   panelTypeId,
   getAccess,
   getLocale,
-}: UseIframeBridgeOpts): void {
-  // Latest-callback refs: the bridge is created once per identity, not per render.
+}: UseIframeBridgeOpts): DesktopBridgeParts {
+  // Latest-callback refs: the parts are created once, not per render.
+  const identityRef = useRef({ extensionId, panelId, panelTypeId });
+  identityRef.current = { extensionId, panelId, panelTypeId };
   const getAccessRef = useRef(getAccess);
   getAccessRef.current = getAccess;
   const getLocaleRef = useRef(getLocale);
   getLocaleRef.current = getLocale;
+  const teardownRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    const bridge = new IframeRpcBridge({
-      context: () => {
-        const access = getAccessRef.current?.() ?? NO_ACCESS;
-        return { extensionId, panelId, panelTypeId, manifest: access.manifest, grants: access.grants };
-      },
-      handlers: createHandlers(iframeRef, () => getLocaleRef.current?.() ?? 'en'),
-      hostWindow: window,
-      // Read lazily: the iframe mounts after this effect runs (the panel host
-      // first renders a loading state), and may be remounted.
-      getTarget: () => iframeRef.current?.contentWindow,
-    });
-    bridge.attach();
+  const context = useCallback((): BridgeContext => {
+    const access = getAccessRef.current?.() ?? NO_ACCESS;
+    const { extensionId: id, panelId: pId, panelTypeId: ptId } = identityRef.current;
+    return { extensionId: id, panelId: pId, panelTypeId: ptId, manifest: access.manifest, grants: access.grants };
+  }, []);
+
+  const handlers = useMemo(
+    () => createHandlers(iframeRef, () => getLocaleRef.current?.() ?? 'en'),
+    [iframeRef],
+  );
+
+  const onBridge = useCallback((bridge: IframeRpcBridge | null) => {
+    teardownRef.current?.();
+    teardownRef.current = null;
+    if (!bridge) return;
 
     // -- Worker -> panel pushes -----------------------------------------
 
@@ -94,8 +116,9 @@ export function useIframeBridge({
     // notification. Deliver it only to iframes this extension owns, and only to
     // the addressed panel when the worker named one.
     const unsubPanelMessages = subscribeToPanelMessages((msg) => {
-      if (msg.extensionId !== extensionId) return;
-      if (msg.panelId !== undefined && msg.panelId !== panelId) return;
+      const { extensionId: id, panelId: pId } = identityRef.current;
+      if (msg.extensionId !== id) return;
+      if (msg.panelId !== undefined && msg.panelId !== pId) return;
       bridge.emit('panel.message', msg.message);
     });
 
@@ -123,13 +146,52 @@ export function useIframeBridge({
       bridge.emit('verse.activeChanged', { verseId, source: 'host' });
     });
 
-    return () => {
-      bridge.dispose();
+    teardownRef.current = () => {
       unsubPanelMessages();
       unsubTheme();
       unsubActiveVerse();
     };
-  }, [iframeRef, extensionId, panelId, panelTypeId]);
+  }, []);
+
+  // A host unmounting without a final `onBridge(null)` must not leak subscriptions.
+  useEffect(
+    () => () => {
+      teardownRef.current?.();
+      teardownRef.current = null;
+    },
+    [],
+  );
+
+  return { context, handlers, onBridge };
+}
+
+/**
+ * Hook form for a caller that owns its own iframe ref and wants the bridge
+ * created here: builds the parts above and one `IframeRpcBridge` per
+ * identity. The panel host does not use it (the shared `ExtensionPanelHost`
+ * owns the bridge); it stays for callers and tests that drive a bare iframe
+ * ref.
+ */
+export function useIframeBridge(opts: UseIframeBridgeOpts): void {
+  const { iframeRef, extensionId, panelId, panelTypeId } = opts;
+  const { context, handlers, onBridge } = useDesktopBridgeParts(opts);
+
+  useEffect(() => {
+    const bridge = new IframeRpcBridge({
+      context,
+      handlers,
+      hostWindow: window,
+      // Read lazily: the iframe mounts after this effect runs (the panel host
+      // first renders a loading state), and may be remounted.
+      getTarget: () => iframeRef.current?.contentWindow,
+    });
+    bridge.attach();
+    onBridge(bridge);
+    return () => {
+      bridge.dispose();
+      onBridge(null);
+    };
+  }, [iframeRef, extensionId, panelId, panelTypeId, context, handlers, onBridge]);
 }
 
 // -- Request handlers -----------------------------------------------------

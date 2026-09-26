@@ -284,7 +284,7 @@ carries a `title` and `aria-keyshortcuts="/ Control+K"`.
 
 ## Extensions on web (future)
 
-The old in-process client plugin system (`src/plugins`, `src/panes/paneRegistry.ts`)
+The old in-process client plugin system (the `plugins` folder and the pane registry)
 was removed: no plugins used it and it ran server-supplied scripts in the app's
 own origin. Web extensions will use the same sandboxed-iframe model as the
 desktop app, through the shared `IframeRpcBridge` in `@bible/core/browser`

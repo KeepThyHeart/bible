@@ -28,6 +28,16 @@
 // --- Verse identity and book names -----------------------------------------
 export { VerseIdHelper, Book } from './Data/Core/Types';
 export type { VerseId, BookNumber } from './Data/Core/Types';
+export type { HighlightColor } from './Data/Core/Types';
+
+// --- Highlight palette and stored-colour helpers (Colors.ts imports only Types) ---------
+export {
+  HIGHLIGHT_COLOR_NAMES,
+  HIGHLIGHT_COLOR_HEX,
+  normalizeMarkupColor,
+  markupColorName,
+  isHexColor,
+} from './Data/Core/Colors';
 
 export {
   BOOK_COUNT,

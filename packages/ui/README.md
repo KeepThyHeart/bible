@@ -76,3 +76,64 @@ Classes: `kth-picker`, `__header`, `__title`, `__form`, `__input`, `__offer`, `_
 `css/kth-css.test.ts` fails if a component renders a `kth-` class that has no rule (`__books` and `__chapters` are declared hooks).
 
 The pure matcher (`parseReference`, `filterBooks`, `getBookFilterText`) lives in `src/components/bookReference.ts` and is exported.
+
+### `ReferencePicker`
+
+One text input that turns a typed reference (`John 3:16`, `Juan 3:16-18`, `John 3:16-4:2`, `约翰福音3:16`, `John ٣:١٦`) into a
+`ReferenceValue` `{ verseId, endVerseId?, ref, wholeChapter? }`, with book-name suggestions (APG editable combobox, list
+autocomplete). Unlike `BookChapterPicker` it is a single field, not a dialog body, and is what the extension kit's
+`kth-reference-picker` wraps.
+
+| Prop | Purpose |
+|---|---|
+| `id` | Prefix for inner ids (`<id>-input`, `<id>-listbox`, `<id>-opt-N`). Give each picker on a page its own. |
+| `value` / `defaultValue`, `onInputChange(text)` | Input text, controlled or not. |
+| `onChange(value)` | Fires only on commit: Enter, or choosing the reference option. Choosing a book suggestion only fills `"<Book> "`. |
+| `locale`, `dir` | BCP 47 tag drives book names, aliases and the `ref` format (English is always accepted as input); `dir` defaults to the locale's. |
+| `labels` | `label`, `placeholder`, `suggestions`, `invalid`, `count` (`{count}` replaced); English defaults in `DEFAULT_REFERENCE_PICKER_LABELS`. Rendered as text, never HTML. |
+| `showLabel`, `maxSuggestions` (8), `noRanges`, `noWholeChapter`, `disabled`, `autoFocus` | Behaviour options. |
+
+Keys: ArrowDown/ArrowUp move (wrap), Alt+ArrowDown opens, Enter commits the active option or the typed text (invalid sets
+`aria-invalid` and a live-region message), Escape closes then clears, Tab closes. A whole chapter has no verse bound in core, so
+`"John 3"` gives `verseId` chapter:1 with `wholeChapter: true`; chapter ranges (`John 3-5`) are rejected in v1; single-chapter books
+read `Jude 5` as verse 5. Classes: `kth-combobox`, `__label`, `__list` (the list also carries `kth-menu`/`kth-menu__item`).
+
+The pure logic is in `src/components/referenceInput.ts` and exported: `parseReferenceInput(text, locale, opts)` and
+`suggestBooks(text, locale, max)`. It does not call `ReferenceParser.parse()` (ASCII-only regex); it splits book text from numbers
+itself and uses the parsers only for book lookup (locale parser, then English, then fuzzy on the locale parser) and `format`.
+
+### `HighlightSwatch`
+
+The six-colour highlight palette as an APG radio group (selection follows focus, roving `tabindex`, Left/Right swapped in RTL,
+Home/End). Palette and helpers come from `@bible/core/browser` (`HIGHLIGHT_COLOR_NAMES`, `HIGHLIGHT_COLOR_HEX`, `markupColorName`, ...).
+
+| Prop | Purpose |
+|---|---|
+| `value` | A palette name or a stored hex (matched with `markupColorName`); a custom hex selects none. |
+| `onChange({ color, hex })` | Fired on click and on arrow/Home/End. |
+| `colors`, `colorValue(color)` | Which swatches, in order (default the six), and the CSS fill (default the palette hex). |
+| `labels` | `{ group?, colors? }`, English defaults in `DEFAULT_HIGHLIGHT_SWATCH_LABELS`. |
+| `size` `'sm'`/`'md'`, `dir`, `disabled`, `id` | Presentation. |
+
+Classes: `kth-swatch-group`, `kth-swatch` (`--sm`). Adopting it in desktop's `HighlightSelector`: replace the colour grid with
+``<HighlightSwatch value={...} onChange={({ color }) => ...} colorValue={(c) => `rgb(var(--theme-highlight-${c}-rgb))`} />``, which
+keeps the theme-tinted look; it is not wired yet (the selector's buttons carry app-specific behaviour and styling to port first).
+
+### `ExtensionPanelHost`
+
+Renders one sandboxed extension-panel iframe and owns its `IframeRpcBridge` (`@bible/core/browser`): one bridge per mounted host,
+attached to `window` and disposed on unmount. The bridge reads the iframe lazily, so it is attached while `src` is still `null`.
+Host-specific parts stay with the caller: the handler map, the identity/grants `context`, extra `authorize` policy, and the
+host -> panel pushes (through `onBridge`, then `bridge.emit`).
+
+| Prop | Purpose |
+|---|---|
+| `src` (`null` shows `loading`), `sandbox`, `title` | The iframe; `referrerPolicy="no-referrer"` is always set. The caller computes `sandbox` (never `allow-same-origin`). |
+| `context`, `handlers`, `authorize` | Passed to the bridge. `context` may be a getter (read per request) and, like `authorize`, is read through a ref. **`handlers` must be referentially stable** (`useMemo`): a new object recreates the bridge. |
+| `onBridge(bridge \| null)` | Called after attach and after dispose; wire `emit` pushes here. |
+| `error`, `loading` | An `error` string replaces the iframe (`role="alert"`); `loading` shows while `src` is `null`. |
+| `className`, `dataAttributes`, `iframeRef` | Extra class, `data-*` attributes (iframe and status box) and the iframe element. |
+
+Classes: `kth-panel-host__frame`, `kth-panel-host__status`. Desktop's `ExtensionPanelHost.tsx` is a thin wrapper (IPC lookup,
+`computeSandboxAttr`, loading/error copy) over it, with `useDesktopBridgeParts` (in `useIframeBridge.ts`) supplying
+`context`, `handlers` and `onBridge`.

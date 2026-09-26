@@ -120,4 +120,13 @@ describe('@bible/core/browser barrel', () => {
     expect(files.size).toBeGreaterThan(1);
     expect(files.size).toBeLessThan(90);
   });
+
+  it('exports the highlight palette helpers the shared UI needs', async () => {
+    const barrel = await import('../browser');
+    expect(barrel.HIGHLIGHT_COLOR_NAMES).toHaveLength(6);
+    expect(barrel.HIGHLIGHT_COLOR_HEX.yellow).toBe('#FFF3A3');
+    expect(barrel.markupColorName('#FFF3A3')).toBe('yellow');
+    expect(barrel.normalizeMarkupColor('green')).toBe('#B7E4C7');
+    expect(barrel.isHexColor('#B7E4C7')).toBe(true);
+  });
 });
