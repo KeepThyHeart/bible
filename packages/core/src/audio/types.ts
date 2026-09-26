@@ -301,8 +301,8 @@ export interface ITtsEngine {
 
 /** Verse markup to speakable text; per language. */
 export interface ITextPreparer {
-  /** "John, chapter 3." */
-  chapterIntro(ref: ChapterRef, bookName: string): string;
+  /** "John, chapter 3." `language` is the translation's BCP-47 tag; default English. */
+  chapterIntro(ref: ChapterRef, bookName: string, language?: string): string;
   /** Strips notes, Strong's numbers and tags. */
   verse(raw: VerseText, language: string): string;
 }
