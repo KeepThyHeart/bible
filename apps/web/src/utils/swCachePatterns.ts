@@ -44,3 +44,12 @@ export const AUDIO_MANIFEST_CACHE_PATTERN = /\/audio\/v1\/[^/?]+\/[^/?]+\/[^/?]+
 
 /** Recorded-audio chapter files, immutable for the same reason. */
 export const AUDIO_FILE_CACHE_PATTERN = /\/audio\/v1\/[^/?]+\/[^/?]+\/[^/?]+\/\d+\/\d+\.(ogg|opus|mp3|m4a)(\?|$)/;
+
+/**
+ * An on-device speech engine's runtime files: `/audio/tts/{engine}/runtime/...`
+ * (scripts and wasm). Versioned by whoever installed them, not by URL, but they
+ * change only when the operator reinstalls them, and the models cache is what
+ * lets a voice work offline. The voices themselves are stored by the engine's
+ * worker, under the same URLs, in the same cache.
+ */
+export const AUDIO_ENGINE_RUNTIME_CACHE_PATTERN = /\/audio\/tts\/[^/?]+\/runtime\/[^?]+\.(mjs|js|wasm|data)(\?|$)/;

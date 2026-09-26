@@ -19,6 +19,7 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
+import { getAudioConfig } from './audio/config';
 import { clientPluginManager } from './plugins/pluginManager';
 import i18n, { ensureLocaleLoaded } from './i18n';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
@@ -187,6 +188,14 @@ async function init() {
     searchStore.init(providers.search);
   }
   settingsStore.applyTheme();
+
+  // The Audio Bible. Its code is loaded only when the site turned it on
+  // (`features.audio`): a site that has not never downloads any of it.
+  const audioConfig = getAudioConfig();
+  if (audioConfig) {
+    void import('./audio/initAudio').then(m => m.initAudio(audioConfig, offlineBible))
+      .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
+  }
 
   // Load module manifest — in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.

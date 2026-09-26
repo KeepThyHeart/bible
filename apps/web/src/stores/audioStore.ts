@@ -45,6 +45,7 @@ import type {
   AudioVoice,
   ChapterRef,
   IAudioPlayer,
+  ITtsEngine,
   IAudioProvider,
   LoadProgress,
   PlayerState,
@@ -73,6 +74,8 @@ export interface AudioSystem {
   player: IAudioPlayer;
   resolver: AudioSourceResolver;
   config: AudioSiteConfig;
+  /** The on-device engines the site enabled, by engine id (for the settings screen: voices, download, remove). */
+  engines?: ReadonlyMap<string, ITtsEngine>;
   /** BCP-47 language of a translation; '' while the module list is not loaded. */
   languageOf?(moduleAbbr: string): string;
 }

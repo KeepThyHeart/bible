@@ -16,6 +16,7 @@
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
+    "fetch:piper": "node scripts/fetch-piper-assets.mjs",
     "generate:icons": "node scripts/generate-icons.mjs",
     "generate:locale-schemas": "node scripts/generate-locale-schemas.mjs",
     "check:locale-schemas": "node scripts/generate-locale-schemas.mjs --check",

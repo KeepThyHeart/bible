@@ -23,6 +23,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { AUDIO_CACHE_NAMES } from './audio/cacheNames';
 import {
+  AUDIO_ENGINE_RUNTIME_CACHE_PATTERN,
   AUDIO_FILE_CACHE_PATTERN,
   AUDIO_MANIFEST_CACHE_PATTERN,
   COMMENTARY_CACHE_PATTERN,
@@ -194,6 +195,18 @@ registerRoute(
       new CacheableResponsePlugin({ statuses: [200] }),
       new RangeRequestsPlugin(),
     ],
+  }),
+  'GET',
+);
+
+// A speech engine's runtime (ONNX Runtime, the phonemizer): the page stores the
+// binaries in this same cache when a voice is downloaded, and this route lets the
+// worker's script imports be answered from it offline too.
+registerRoute(
+  AUDIO_ENGINE_RUNTIME_CACHE_PATTERN,
+  new CacheFirst({
+    cacheName: AUDIO_CACHE_NAMES.models,
+    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
   }),
   'GET',
 );

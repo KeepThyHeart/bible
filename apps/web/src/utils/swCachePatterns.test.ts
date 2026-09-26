@@ -11,6 +11,7 @@ import {
   STUDY_OVERVIEW_CACHE_PATTERN,
   AUDIO_MANIFEST_CACHE_PATTERN,
   AUDIO_FILE_CACHE_PATTERN,
+  AUDIO_ENGINE_RUNTIME_CACHE_PATTERN,
 } from './swCachePatterns';
 
 const ORIGIN = 'https://bible.example.com';
@@ -109,6 +110,24 @@ describe('service worker cache patterns', () => {
       const manifest = `${ORIGIN}/audio/v1/KJV/n/1/43/003.json`;
       expect(AUDIO_MANIFEST_CACHE_PATTERN.test(file)).toBe(false);
       expect(AUDIO_FILE_CACHE_PATTERN.test(manifest)).toBe(false);
+    });
+  });
+
+  describe('on-device speech runtime', () => {
+    it.each([
+      `${ORIGIN}/audio/tts/piper/runtime/ort.wasm.min.mjs`,
+      `${ORIGIN}/audio/tts/piper/runtime/piper_phonemize.data`,
+      `${ORIGIN}/bible/audio/tts/piper/runtime/piper_phonemize.wasm`,
+    ])('caches %s', url => {
+      expect(AUDIO_ENGINE_RUNTIME_CACHE_PATTERN.test(url)).toBe(true);
+    });
+
+    it('leaves voices (stored by the worker) and recordings to their own handling', () => {
+      for (const url of [
+        `${ORIGIN}/audio/tts/piper/voices/en_US-amy-low.onnx`,
+        `${ORIGIN}/audio/v1/KJV/n/1/43/003.ogg`,
+        `${ORIGIN}/audio/tts/piper/runtime/`,
+      ]) expect(AUDIO_ENGINE_RUNTIME_CACHE_PATTERN.test(url), url).toBe(false);
     });
   });
 });
