@@ -21,6 +21,9 @@
  *   <data-dir>/main.db      the registry: schema, the canonical verse space,
  *                           and one `module_metadata` row per module found
  *   <data-dir>/site-config.json   (web target only, and only when absent)
+ *   <data-dir>/keyword-index/     (web target) one sidecar keyword index per
+ *                           module, which search reads -- v0.2 modules ship
+ *                           no FTS5 table.  Needs `npm run build:core` first.
  *   apps/desktop/data/modules -> data/modules   (desktop target; see --no-link)
  *
  * Everything is derived from files already in the repository -- the schema
@@ -193,11 +196,17 @@ const TARGETS = {
     dataDirs: [path.join(REPO_ROOT, 'data')],
     modulesDir: path.join(REPO_ROOT, 'data'),
     writesSiteConfig: true,
+    // `<data-dir>/keyword-index`: v0.2 modules ship no FTS5 table, and the web
+    // server and both test suites search the sidecar indexes built here.
+    buildsKeywordIndexes: true,
   },
   desktop: {
     dataDirs: [path.join(REPO_ROOT, 'apps/desktop/data')],
     modulesDir: path.join(REPO_ROOT, 'apps/desktop/data'),
     writesSiteConfig: false,
+    // The desktop keeps its indexes under its own user-data directory and
+    // builds them itself (KeywordIndexService), so init leaves them alone.
+    buildsKeywordIndexes: false,
   },
 };
 
@@ -988,12 +997,91 @@ async function main() {
     writeRegistry({ dataDir, modulesDir, scan, options, target, log });
   }
 
+  if (options.modules && target.buildsKeywordIndexes) {
+    for (const dataDir of dataDirs) {
+      await buildKeywordIndexes({ dataDir, scan, log });
+    }
+  }
+
   if (options.modules) {
     log.info('');
     reportCoverage(scan.found, log);
   }
   log.info('');
   log.info('Done.');
+}
+
+/**
+ * Build the sidecar keyword index of every registered module that lacks a
+ * current one, into `<data-dir>/keyword-index`.
+ *
+ * Module schema v0.2 ships no FTS5 table: keyword search over a module reads
+ * an index the app builds for that exact module revision. The web server
+ * builds any missing ones before it listens, so skipping this loses nothing
+ * but time -- but doing it here means the first start is not the one that
+ * pays, and the test suites (which share this directory) find them ready.
+ *
+ * Uses the built `@bible/core` (`npm run build:core`, which `npm run setup`
+ * and CI both run first). Without it this says so and carries on: the index
+ * builder is TypeScript in core, and duplicating it here would be a second
+ * copy of the tokenizer and document mapping to keep in step.
+ */
+async function buildKeywordIndexes({ dataDir, scan, log }) {
+  let core;
+  try {
+    core = require(require.resolve('@bible/core', { paths: [REPO_ROOT] }));
+  } catch {
+    log.warn('');
+    log.warn('Keyword indexes not built: @bible/core is not built yet (npm run build:core).');
+    log.warn('The web server builds them when it starts; so will the next init run.');
+    return;
+  }
+
+  const indexDir = path.join(dataDir, 'keyword-index');
+  fs.mkdirSync(indexDir, { recursive: true });
+  log.info('');
+  log.info(`--- ${indexDir}`);
+
+  const Database = sqlite();
+  const open = (filePath, options) => wrapSqliteForCore(new Database(filePath, options), filePath);
+  const provider = new core.SidecarFts5Provider({
+    indexDir,
+    openDatabase: (filePath, opts) => open(filePath, { readonly: opts.readonly, fileMustExist: !opts.create }),
+  });
+  const result = await core.ensureModuleKeywordIndexes({
+    provider,
+    modulePaths: scan.found.map((module) => module.path),
+    openModule: (filePath) => open(filePath, { readonly: true, fileMustExist: true }),
+    log: (message) => log.info(message),
+    pruneOthers: true,
+  });
+
+  log.info(`Keyword indexes: ${result.current.length} current, ${result.built.length} built.`);
+  for (const failure of result.failed) {
+    log.warn(`  No keyword index for ${path.basename(failure.path)}: ${failure.reason}`);
+  }
+}
+
+/**
+ * The `ISql` (plus `exec`) surface `@bible/core` reads databases through, over
+ * one open `better-sqlite3` connection. Core carries no SQLite driver of its
+ * own; each app hands it one of these, and this is init's.
+ */
+function wrapSqliteForCore(db, filePath) {
+  const bind = (params) => (params === undefined ? [] : Array.isArray(params) ? params : [params]);
+  return {
+    exec: (sql) => db.exec(sql),
+    queryOne: (sql, params) => db.prepare(sql).get(...bind(params)),
+    queryAll: (sql, params) => db.prepare(sql).all(...bind(params)),
+    execute: (sql, params) => {
+      const result = db.prepare(sql).run(...bind(params));
+      return { changes: result.changes, lastInsertRowId: Number(result.lastInsertRowid) };
+    },
+    transaction: (fn) => db.transaction(fn)(),
+    close: () => db.close(),
+    isOpen: () => db.open,
+    getDatabasePath: () => filePath,
+  };
 }
 
 /**
