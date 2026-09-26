@@ -39,6 +39,7 @@ import {
   type ExtensionPanelType,
 } from './extensionUiStore';
 import { useExtensionConsentStore } from './extensionConsentStore';
+import { useVerseDecorationStore } from './verseDecorationStore';
 
 interface ExtensionBridgeApi {
   /** Subscribe to a main -> renderer channel; returns a disposer. */
@@ -47,6 +48,23 @@ interface ExtensionBridgeApi {
   send(channel: string, payload: unknown): void;
   /** Renderer -> main request-response (matches main's `ipcMain.handle`). */
   invoke<T = unknown>(channel: string, payload: unknown): Promise<T>;
+}
+
+/**
+ * Set once `attachExtensionRendererBridge` runs, so code outside this file
+ * (`verseDecorationStore.ensureRange`, the "show verse decorations" toggle)
+ * can make renderer -> main `ext-bridge:ui:invoke` calls without needing a
+ * `services`/`bridge` object threaded through every caller. `null` before
+ * attach (or in a test harness that never attaches) - callers treat that as
+ * "no bridge, nothing to fetch", matching how every other bridge surface
+ * degrades when the preload is absent.
+ */
+let uiInvokeApi: ExtensionBridgeApi | null = null;
+
+/** Renderer -> main call on the `ext-bridge:ui:invoke` channel (task 0036, P0.1a). See `RendererUiBridge`'s `handleInbound`. */
+export function invokeUiBridge<T = unknown>(op: string, args: unknown[]): Promise<T> {
+  if (!uiInvokeApi) return Promise.reject(new Error('[extensionRendererBridge] no extension bridge attached'));
+  return uiInvokeApi.invoke<T>('ext-bridge:ui:invoke', { op, args });
 }
 
 interface ExtensionRendererServices {
@@ -75,6 +93,8 @@ export function attachExtensionRendererBridge(
     console.warn('[extensionRendererBridge] window.electron.extensionBridge not present');
     return () => undefined;
   }
+
+  uiInvokeApi = api;
 
   const disposers: (() => void)[] = [];
 
@@ -158,7 +178,7 @@ export function attachExtensionRendererBridge(
     api.on('ext-bridge:workspace', (raw) => {
       const payload = raw as { requestId: number; op: string; args: unknown[] };
       try {
-        const result = handleWorkspaceRequest(payload.op, payload.args);
+        const result = handleWorkspaceRequest(payload.op, payload.args, services);
         api.send('ext-bridge:workspace:response', {
           requestId: payload.requestId,
           ok: true,
@@ -330,6 +350,14 @@ export function attachExtensionRendererBridge(
     });
   }
 
+  // Tell main this bridge is attached and listening (task 0024 round 3,
+  // P1.5). `BridgeRpc` drops a send made before any renderer is listening and
+  // keeps no queue, so `DeclaredContributions.syncAll()` - run once at boot,
+  // before this bridge necessarily exists yet - can otherwise lose every
+  // placeholder registration silently. Sent last, once every listener above
+  // is actually wired, so nothing declared before "ready" is dropped either.
+  api.send('ext-bridge:command:ready', {});
+
   return () => {
     for (const d of disposers) {
       try { d(); } catch { /* swallow */ }
@@ -338,6 +366,7 @@ export function attachExtensionRendererBridge(
       try { d(); } catch { /* swallow */ }
     }
     registrationDisposers.clear();
+    if (uiInvokeApi === api) uiInvokeApi = null;
   };
 }
 
@@ -447,8 +476,7 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
   switch (op) {
     case 'showNotification': {
       const [extensionId, message, opts] = args as [string, LocalizedString, unknown];
-      store.pushNotification(extensionId, message, opts as never);
-      return undefined;
+      return await store.pushNotification(extensionId, message, opts as never);
     }
     case 'showQuickPick': {
       const [extensionId, items, opts] = args as [
@@ -526,6 +554,70 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
       store.removeStatusBarItem(payload.extensionId, payload.itemId);
       return undefined;
     }
+    // --- Verse decorators/hovers (task 0036, P0.1a) ---------------------
+    //
+    // `RendererUiBridge`'s `VerseDecorationService` fires these on register/
+    // unregister/push; `verseDecorationStore` (not `extensionUiStore`) holds
+    // the hot per-chapter data, but `extensionUiStore` still tracks the
+    // registered descriptors themselves - same split as context menu/status
+    // bar items above, for the same "what has been contributed" surfaces
+    // (the settings toggle, diagnostics).
+    case 'verseDecoratorRegistered': {
+      const [payload] = args as [
+        { extensionId: string; descriptor: Extensions.VerseDecoratorDescriptor },
+      ];
+      store.addVerseDecorator(payload.extensionId, payload.descriptor);
+      useVerseDecorationStore
+        .getState()
+        .registerLayer(payload.extensionId, payload.descriptor.id, payload.descriptor.surfaces);
+      return undefined;
+    }
+    case 'verseDecoratorUnregistered': {
+      const [payload] = args as [{ extensionId: string; decoratorId: string }];
+      store.removeVerseDecorator(payload.extensionId, payload.decoratorId);
+      useVerseDecorationStore.getState().unregisterLayer(payload.extensionId, payload.decoratorId);
+      return undefined;
+    }
+    case 'verseHoverRegistered': {
+      const [payload] = args as [
+        { extensionId: string; descriptor: Extensions.VerseHoverProviderDescriptor },
+      ];
+      store.addVerseHoverProvider(payload.extensionId, payload.descriptor);
+      return undefined;
+    }
+    case 'verseHoverUnregistered': {
+      const [payload] = args as [{ extensionId: string; hoverId: string }];
+      store.removeVerseHoverProvider(payload.extensionId, payload.hoverId);
+      return undefined;
+    }
+    case 'verseDecorationsUpdated': {
+      const [payload] = args as [
+        { extensionId: string; groupId: string; decorations: Extensions.DecorationDto[] },
+      ];
+      useVerseDecorationStore.getState().applyPush(payload.extensionId, payload.groupId, payload.decorations);
+      return undefined;
+    }
+    case 'verseDecorationsInvalidated': {
+      const [payload] = args as [
+        { extensionId: string; layerKeys: string[]; startVerseId?: number; endVerseId?: number },
+      ];
+      useVerseDecorationStore
+        .getState()
+        .invalidate(
+          payload.layerKeys,
+          payload.startVerseId !== undefined && payload.endVerseId !== undefined
+            ? { startVerseId: payload.startVerseId, endVerseId: payload.endVerseId }
+            : undefined,
+        );
+      return undefined;
+    }
+    case 'verseDecorationLayerDegraded':
+    case 'verseDecorationsPushCapExceeded':
+    case 'verseHoverLayerDegraded':
+      // Diagnostics-only notifications (extension detail panel). No store
+      // consumes them yet - acknowledged so they don't hit the `default:`
+      // "unknown op" throw below.
+      return undefined;
     case 'panelMessage': {
       // `api.panels.postMessage(...)` from a worker. Fan it out to the mounted
       // panel hosts, which each decide whether it is addressed to them.
@@ -560,6 +652,18 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
       store.removePanelType(payload.extensionId, payload.panelTypeId);
       return undefined;
     }
+    case 'openSettings': {
+      // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). No store
+      // of its own - App.tsx owns the Preferences dialog's open/closed state,
+      // the same shape as the pre-existing `open-preferences-fonts` event
+      // (see App.tsx), so this just asks the DOM to route the request there
+      // rather than reaching into a store the dialog doesn't use.
+      const [payload] = args as [{ extensionId: string; section?: string }];
+      window.dispatchEvent(
+        new CustomEvent('open-preferences-extension-settings', { detail: payload }),
+      );
+      return undefined;
+    }
     default:
       throw new Error(`Unknown ui op: ${op}`);
   }
@@ -567,7 +671,11 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
 
 // --- Workspace request handler --------------------------------------
 
-function handleWorkspaceRequest(op: string, args: unknown[]): unknown {
+function handleWorkspaceRequest(
+  op: string,
+  args: unknown[],
+  services: ExtensionRendererServices,
+): unknown {
   const layout = useLayoutStore.getState();
   switch (op) {
     case 'openPanel': {
@@ -580,6 +688,25 @@ function handleWorkspaceRequest(op: string, args: unknown[]): unknown {
     case 'closePanel': {
       const [panelId] = args as [string];
       layout.removePanel(panelId);
+      return undefined;
+    }
+    case 'setPanelTitle': {
+      const [panelId, title] = args as [string, LocalizedString];
+      // The api-impl already checked ownership (contentType prefix); this
+      // side just needs to find the live dockview panel and rename its tab.
+      // A missing panel (closed between the check and here) is a silent
+      // no-op, same as `closePanel` on an id that's already gone.
+      layout.dockviewApi?.getPanel(panelId)?.api.setTitle(services.i18n.resolve(title));
+      return undefined;
+    }
+    case 'setPanelBadge': {
+      const [panelId, badge] = args as [string, string | number | null];
+      useExtensionUiStore.getState().setPanelBadge(panelId, badge === null ? undefined : badge);
+      return undefined;
+    }
+    case 'revealPanel': {
+      const [panelId] = args as [string];
+      layout.dockviewApi?.getPanel(panelId)?.api.setActive();
       return undefined;
     }
     default:

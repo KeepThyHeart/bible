@@ -28,7 +28,6 @@ type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 
 // --- Contribution kinds ---------------------------------------------------
 
@@ -40,8 +39,7 @@ export type ContributionKind =
   | 'verseDecorator'
   | 'verseHover'
   | 'contextMenuItem'
-  | 'statusBarItem'
-  | 'displayMode';
+  | 'statusBarItem';
 
 export interface ContributionEntry<T = unknown> {
   extensionId: string;
@@ -177,8 +175,4 @@ export class ContributionRegistry {
     return this.listByKind<StatusBarItemDescriptor>('statusBarItem');
   }
 
-  /** All display modes across all extensions. */
-  listDisplayModes(): ContributionEntry<DisplayModeDescriptor>[] {
-    return this.listByKind<DisplayModeDescriptor>('displayMode');
-  }
 }

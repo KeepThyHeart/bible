@@ -138,10 +138,23 @@ export class BibleExtUI {
 
   /**
    * Subscribe to active-verse changes in the host Bible pane.
+   *
+   * The payload's `source` field is reserved for forward compatibility
+   * (distinguishing e.g. a user click from a search jump from another
+   * extension's `navigateToVerse`) - the host does not yet track that
+   * provenance, so it is always `'host'` today. Consumers should not branch
+   * on it yet.
    */
-  onActiveVerseChanged(callback: (verseId: number) => void): Disposable {
+  onActiveVerseChanged(callback: (payload: { verseId: number; source: string }) => void): Disposable {
     return this.rpc.on('verse.activeChanged', (payload) => {
-      if (typeof payload === 'number') callback(payload);
+      if (
+        typeof payload === 'object' &&
+        payload !== null &&
+        typeof (payload as { verseId?: unknown }).verseId === 'number'
+      ) {
+        const p = payload as { verseId: number; source?: unknown };
+        callback({ verseId: p.verseId, source: typeof p.source === 'string' ? p.source : 'host' });
+      }
     });
   }
 

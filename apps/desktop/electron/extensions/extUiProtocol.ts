@@ -13,8 +13,9 @@
  *   3. Refuses to serve any extension that is not registered with the host
  *      (so an iframe pointing at `ext-ui://made-up.id/...` is a dead end).
  *   4. Reserves ONE hostname, `host`, for the app itself: `ext-ui://host/`
- *      serves host-owned resources that every panel may read, currently just
- *      `theme.css`. See `EXT_UI_HOST_HOSTNAME` below.
+ *      serves host-owned resources that every panel may read: the design
+ *      token sheet (`theme.css`) and the shared control-chrome stylesheet
+ *      (`controls.css`). See `EXT_UI_HOST_HOSTNAME` below.
  *
  * The protocol must be registered as "privileged" via
  * `protocol.registerSchemesAsPrivileged` BEFORE `app.whenReady()` so that
@@ -36,6 +37,7 @@ import log from 'electron-log';
 
 import type { ExtensionHost } from './ExtensionHost';
 import { getActiveHostThemeCss } from './hostThemeCss';
+import { getHostControlsCss } from './hostControlsCss';
 
 export const EXT_UI_SCHEME = 'ext-ui';
 
@@ -71,7 +73,7 @@ export const EXT_UI_HOST_HOSTNAME = 'host';
  * it is a 404, so `ext-ui://host/../../etc/passwd`, `%2e%2e%2ftheme.css` and
  * `subdir/theme.css` all fall out the same way without any path arithmetic.
  */
-const HOST_RESOURCES = new Set<string>(['theme.css']);
+const HOST_RESOURCES = new Set<string>(['theme.css', 'controls.css']);
 
 /**
  * Call ONCE before `app.whenReady()`. Marks the scheme as standard +
@@ -188,17 +190,23 @@ function frameAncestorsDirective(): string {
  *   - `no-store`. This is the one place the two branches differ, and
  *     deliberately: an extension's files are immutable on disk for the life of
  *     an install and Electron's file responses carry their own validators,
- *     whereas THIS url's body changes under the user's feet every time they
- *     switch theme. A cached copy would pin an already-open panel to the old
+ *     whereas `theme.css`'s body changes under the user's feet every time they
+ *     switch theme - a cached copy would pin an already-open panel to the old
  *     palette until it was reloaded, which is precisely the staleness this
- *     workstream exists to remove.
+ *     workstream exists to remove. `controls.css` never changes at runtime,
+ *     but it gets the same header anyway: one rule for the whole reserved
+ *     origin is easier to reason about than a resource-by-resource cache
+ *     policy, and the cost of never caching a few hundred bytes of CSS is
+ *     nothing next to that.
  */
 function serveHostResource(relPath: string): Response {
   if (!HOST_RESOURCES.has(relPath)) {
     return new Response('Not found', { status: 404 });
   }
 
-  return new Response(getActiveHostThemeCss(), {
+  const body = relPath === 'controls.css' ? getHostControlsCss() : getActiveHostThemeCss();
+
+  return new Response(body, {
     status: 200,
     headers: {
       'Content-Type': 'text/css; charset=utf-8',

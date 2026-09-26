@@ -24,6 +24,7 @@ export * from './ActivationEvents';
 export * from './ExtensionApiDtos';
 export * from './ExtensionApiErrors';
 export * from './ExtensionApiTypes';
+export * from './themeColorKeys';
 export * from './ExtensionPointTypes';
 export * from './ExtensionManifest';
 export * from './ExtensionCatalog';

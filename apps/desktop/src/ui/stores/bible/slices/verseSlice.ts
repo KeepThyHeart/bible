@@ -4,6 +4,7 @@ import { bibleAPI } from '../../../services/electronAPI';
 import { updatePanelState } from '../../helpers/panelStateHelpers';
 import { BibleState, createDefaultPanelState } from '../types';
 import { computeSelectedRange, VerseRange } from '../internals/verseRange';
+import { publishActiveVerseBroadcast } from '../../../extensions/activeVerseBroadcast';
 
 export interface LoadChapterOptions {
   /**
@@ -49,6 +50,9 @@ function announceStartupVerse(verseId: number | null, moduleAbbr: string): void 
   if (startupVerseAnnounced || !verseId) return;
   if (!window.electron?.window?.broadcastVerseChange) return;
   startupVerseAnnounced = true;
+  // Renderer-local fan-out (panel iframes) alongside the IPC one (worker
+  // extensions) - see activeVerseBroadcast.ts for why both exist.
+  publishActiveVerseBroadcast({ verseId, module: moduleAbbr });
   window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {
     console.error('[useBibleStore] Error announcing startup verse:', err);
   });
@@ -356,6 +360,13 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
     // Broadcast verse change to detached windows for syncing. The module goes
     // with it so extensions learn which translation the reader is in, rather
     // than being told the app default.
+    if (verseId) {
+      const moduleAbbr = updatedTabs[ps.activeTabIndex]?.abbreviation;
+      // Renderer-local fan-out (panel iframes) - see activeVerseBroadcast.ts.
+      // Unconditional on `window.electron` (unlike the IPC call below): a
+      // panel iframe's host bridge only needs the in-renderer signal.
+      publishActiveVerseBroadcast({ verseId, module: moduleAbbr });
+    }
     if (verseId && window.electron?.window?.broadcastVerseChange) {
       const moduleAbbr = updatedTabs[ps.activeTabIndex]?.abbreviation;
       window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {

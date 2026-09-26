@@ -6,10 +6,20 @@
  *
  * Read methods (`getActivePanel`, `getOpenPanels`) and the panel-mutation
  * methods (`openPanel`, `closePanel`) are unrestricted - opening a panel is
- * a user-visible action that the user can always close. The three event
- * channels (`onDidChangeActivePanel`, `onDidOpenPanel`, `onDidClosePanel`)
- * are wired through the router's `emitEvent`, so the worker only sees them
- * when it has actually subscribed.
+ * a user-visible action that the user can always close. `revealPanel`
+ * (focus an already-open tab, change nothing about it) is unrestricted for
+ * the same reason. The three event channels (`panel.focused`, `panel.opened`,
+ * `panel.closed`, via `api.events.subscribe`) are wired host-wide in
+ * `ExtensionPointWiring.ts` now (task 0024 round 3, P0.3), not per-worker
+ * here - see `attach()`'s comment.
+ *
+ * `setPanelTitle` / `setPanelBadge` are the one place this namespace *does*
+ * gate: they change how another panel's tab presents itself, which -
+ * unlike opening, closing or focusing one - is not something the user could
+ * already do by clicking around. `assertOwnsPanel` restricts both to panels
+ * whose `contentType` is this extension's own (`ext:<extensionId>.*`), so
+ * an extension can dress up its own tab but never relabel a built-in one or
+ * another extension's.
  */
 
 import { Extensions } from '@bible/core';
@@ -17,11 +27,7 @@ import { Extensions } from '@bible/core';
 import type { ExtensionRpcRouter } from '../ExtensionRpcRouter';
 import type { IExtensionWorkspaceBridge } from './IExtensionDataBridges';
 
-const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
-
-const ACTIVE_PANEL_CHANNEL = 'workspace.onDidChangeActivePanel';
-const OPEN_PANEL_CHANNEL = 'workspace.onDidOpenPanel';
-const CLOSE_PANEL_CHANNEL = 'workspace.onDidClosePanel';
+const { ExtensionNotActiveError, PermissionDeniedError, RpcProtocolError } = Extensions;
 
 export interface WorkspaceApiImplOptions {
   extensionId: string;
@@ -33,9 +39,6 @@ export class WorkspaceApiImpl {
   private readonly extensionId: string;
   private readonly router: ExtensionRpcRouter;
   private readonly bridge: IExtensionWorkspaceBridge;
-  private unsubActive: (() => void) | undefined;
-  private unsubOpen: (() => void) | undefined;
-  private unsubClose: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: WorkspaceApiImplOptions) {
@@ -50,37 +53,18 @@ export class WorkspaceApiImpl {
       getOpenPanels: () => this.handleGetOpenPanels(),
       openPanel: (args) => this.handleOpenPanel(args),
       closePanel: (args) => this.handleClosePanel(args),
+      setPanelTitle: (args) => this.handleSetPanelTitle(args),
+      setPanelBadge: (args) => this.handleSetPanelBadge(args),
+      revealPanel: (args) => this.handleRevealPanel(args),
     });
-
-    this.unsubActive = this.bridge.subscribeActivePanel((panel) => {
-      if (this.disposed) return;
-      this.router.emitEvent(ACTIVE_PANEL_CHANNEL, panel);
-    });
-    this.unsubOpen = this.bridge.subscribeOpenPanel((panel) => {
-      if (this.disposed) return;
-      this.router.emitEvent(OPEN_PANEL_CHANNEL, panel);
-    });
-    this.unsubClose = this.bridge.subscribeClosePanel((info) => {
-      if (this.disposed) return;
-      this.router.emitEvent(CLOSE_PANEL_CHANNEL, info);
-    });
+    // `bridge.subscribeActivePanel/subscribeOpenPanel/subscribeClosePanel` ->
+    // `panel.focused`/`panel.opened`/`panel.closed` used to be wired here,
+    // one subscription per active worker. See `ExtensionPointWiring.ts`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const u of [this.unsubActive, this.unsubOpen, this.unsubClose]) {
-      if (u) {
-        try {
-          u();
-        } catch {
-          /* best-effort */
-        }
-      }
-    }
-    this.unsubActive = undefined;
-    this.unsubOpen = undefined;
-    this.unsubClose = undefined;
   }
 
   // --- RPC handlers ------------------------------------------------------
@@ -120,9 +104,73 @@ export class WorkspaceApiImpl {
     this.bridge.closePanel(panelId);
   }
 
+  private async handleSetPanelTitle(args: unknown[]): Promise<void> {
+    this.assertActive();
+    const panelId = args[0];
+    if (typeof panelId !== 'string' || panelId.length === 0) {
+      throw new RpcProtocolError('workspace.setPanelTitle: panelId must be a non-empty string');
+    }
+    const title = args[1];
+    if (!isLocalizedString(title)) {
+      throw new RpcProtocolError('workspace.setPanelTitle: title must be a LocalizedString');
+    }
+    this.assertOwnsPanel(panelId);
+    this.bridge.setPanelTitle(panelId, title);
+  }
+
+  private async handleSetPanelBadge(args: unknown[]): Promise<void> {
+    this.assertActive();
+    const panelId = args[0];
+    if (typeof panelId !== 'string' || panelId.length === 0) {
+      throw new RpcProtocolError('workspace.setPanelBadge: panelId must be a non-empty string');
+    }
+    const badge = args[1];
+    if (badge !== undefined && badge !== null && typeof badge !== 'string' && typeof badge !== 'number') {
+      throw new RpcProtocolError('workspace.setPanelBadge: badge must be a string, number, or undefined');
+    }
+    this.assertOwnsPanel(panelId);
+    this.bridge.setPanelBadge(panelId, badge === null ? undefined : badge);
+  }
+
+  private async handleRevealPanel(args: unknown[]): Promise<boolean> {
+    this.assertActive();
+    const panelId = args[0];
+    if (typeof panelId !== 'string' || panelId.length === 0) {
+      throw new RpcProtocolError('workspace.revealPanel: panelId must be a non-empty string');
+    }
+    return this.bridge.revealPanel(panelId);
+  }
+
   private assertActive(): void {
     if (this.disposed) {
       throw new ExtensionNotActiveError(`workspaceApiImpl for ${this.extensionId} is disposed`);
     }
   }
+
+  /**
+   * Throws unless `panelId` is currently open AND its `contentType` belongs
+   * to this extension (`ext:<extensionId>.*`). Reads through
+   * `bridge.getOpenPanels()` - the same synchronous, locally-cached read
+   * `getOpenPanels()`/`getActivePanel()` already use - rather than a new
+   * round trip.
+   */
+  private assertOwnsPanel(panelId: string): void {
+    const panel = this.bridge.getOpenPanels().find((p) => p.panelId === panelId);
+    if (!panel) {
+      throw new RpcProtocolError(`workspace: no open panel '${panelId}'`);
+    }
+    const ownPrefix = `ext:${this.extensionId}.`;
+    if (!panel.contentType.startsWith(ownPrefix)) {
+      throw new PermissionDeniedError(
+        `Extension '${this.extensionId}' does not own panel '${panelId}' (contentType '${panel.contentType}')`,
+        { extensionId: this.extensionId },
+      );
+    }
+  }
+}
+
+function isLocalizedString(value: unknown): value is Extensions.LocalizedString {
+  if (typeof value === 'string') return value.length > 0;
+  if (typeof value !== 'object' || value === null) return false;
+  return typeof (value as Record<string, unknown>).key === 'string';
 }

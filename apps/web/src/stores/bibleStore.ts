@@ -461,16 +461,57 @@ class BibleStore extends Store {
     }
   }
 
+  /**
+   * Make sure a Bible tab is the one on screen, and return it.
+   *
+   * The left pane can be showing something other than a Bible tab: the Home
+   * screen is a peer of the tabs in the tab bar, and it leaves `activeTabId`
+   * pointing at whichever Bible tab was last in use. A verse link clicked in
+   * the right pane (Topics, Commentary, Study, Search…) must land in a Bible
+   * tab, so:
+   *
+   *  - the most recently active Bible tab is the target — `activeTabId`,
+   *    which Home does not disturb — and it is brought forward by dismissing
+   *    Home;
+   *  - if that id no longer names a tab (a stale restore), the right-most tab
+   *    is used;
+   *  - with no Bible tab at all, one is opened.
+   *
+   * Dismissing Home is left to the caller (see `navigateToPreview`), which
+   * knows whether the chapter is already loaded.
+   */
+  ensureBibleTabFocused(): BibleTab | undefined {
+    let tab = this.getActiveTab();
+    if (!tab) {
+      tab = this.tabs[this.tabs.length - 1];
+      if (tab) {
+        this.activeTabId = tab.id;
+      } else {
+        this.addTab();
+        tab = this.getActiveTab();
+      }
+    }
+    return tab;
+  }
+
   /** Navigate to a verse as a preview (from study pane links, search results).
    *  Sets previewVerse instead of studyVerse — no panes auto-sync or pin. */
   async navigateToPreview(book: number, chapter: number, verse?: number, endVerseId?: number): Promise<void> {
-    const tab = this.getActiveTab();
-    if (!tab || !this.bible) return;
+    if (!this.bible) return;
+    // A verse link is a request to *read* the verse, so a Bible tab has to be
+    // the thing on screen — not the Home screen, and not no tab at all.
+    const tab = this.ensureBibleTabFocused();
+    if (!tab) return;
+    // Dismissal is held back for a different chapter until its text is in, the
+    // same way `navigateTo` does it, so the Home screen does not give way to a
+    // blank pane while the chapter loads.
+    const wasShowingHome = this.showHome;
 
     const verseId = verse ? (book * 1000000) + (chapter * 1000) + verse : null;
 
     // Same chapter — just set previewVerse and scroll
     if (tab.book === book && tab.chapter === chapter) {
+      this.showHome = false;
       tab.previewVerse = verseId;
       tab.previewVerseEnd = endVerseId ?? null;
       if (verseId) tab.pendingScrollVerse = verseId;
@@ -499,7 +540,7 @@ class BibleStore extends Store {
     const seq = this.beginLoad(tab);
     const cancelLoading = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
-    this.notify();
+    if (!wasShowingHome) this.notify();
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
@@ -520,6 +561,7 @@ class BibleStore extends Store {
       tab.loading = false;
       tab.scrollPosition = 0;
       tab.showBackBar = this.canGoBack();
+      this.showHome = false;
 
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse, fromPreview: true });
       this.updateHash();
@@ -530,6 +572,7 @@ class BibleStore extends Store {
       console.error('Preview navigation failed:', error);
       tab.loading = false;
       tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      this.showHome = false;
       this.notify();
     }
   }

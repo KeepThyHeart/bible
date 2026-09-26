@@ -219,6 +219,41 @@ Covered by `SearchDistributionChart.test.tsx`, `SearchResultItem.test.tsx`,
 `SearchResultsPanel.test.tsx`, `searchStore.truncation.test.ts` and
 `server/__tests__/searchRoutes.test.ts`.
 
+### What qualifies as an approximate match (`fuzzyGate: 'coverage'`)
+
+When a keyword query has fewer than 10 exact matches, `BibleSearchService`
+supplements it with approximate rows. The historical rule (`'any-term'`, still
+the core default because the desktop app shares the service) searched each term
+alone and kept anything any of them found, so "God so loved the world" listed
+every verse containing "God", the first 20 in Bible order (Genesis 1:1 first).
+It also never truly matched word *forms*: `escapeFts5Term` quotes any term
+containing `*`, turning the intended prefix into a plain word match.
+
+`GET /api/search/keyword` opts in to `fuzzyGate: 'coverage'`:
+
+- Stop words (`ENGLISH_STOP_WORDS` plus thou/thee/thy/thine/ye/unto/hath/doth/
+  shalt/wilt/art/o) do not count and are not required.
+- With N significant terms a verse must match at least `max(2, ceil(0.6 N))` of
+  them (2 of 2, 2 of 3, 3 of 4, 3 of 5, 4 of 6). A term matches any word that
+  starts with its stem (`loved` -> `lov*`: love, loveth, loving).
+- With fewer than two significant terms left ("God so"), every term must match.
+- Candidates come from ANDing term combinations, largest first (each query is
+  selective, unlike a lone "God"); rows are ranked by coverage, then by the
+  width of the smallest word window holding the matches, then Bible order.
+  At most 30 approximate rows are added.
+- Exact results, phrase searches and single-word queries are unchanged.
+
+Covered by `packages/core/src/Services/BibleSearchService.fuzzyGate.test.ts`
+(in-memory FTS stand-in, needs no module data) and
+`server/__tests__/searchRoutes.fuzzyGate.test.ts`.
+
+## Ideas mode does not search when selected
+
+`searchStore.setSearchType('semantic')` clears the previous mode's results (the
+panel stays open) and waits for the next explicit submit, so the term can be
+reworded first. Switching back to keyword still re-runs the query. Covered by
+`searchStore.ideasMode.test.ts`.
+
 ## Key Behaviors
 
 - Click result navigates to verse in current module

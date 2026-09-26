@@ -96,6 +96,18 @@ describe('compileKeywordQuery', () => {
     });
   });
 
+  describe('prefixes', () => {
+    it('ANDs a wildcard-suffixed stem per term when all is true', () => {
+      const q: KeywordQuery = { kind: 'prefixes', stems: ['lov', 'world'], all: true };
+      expect(compileKeywordQuery(q)).toBe('lov* AND world*');
+    });
+
+    it('ORs them when all is false, and quotes a reserved-word stem before the wildcard', () => {
+      const q: KeywordQuery = { kind: 'prefixes', stems: ['not', 'lov'], all: false };
+      expect(compileKeywordQuery(q)).toBe('"not"* OR lov*');
+    });
+  });
+
   describe('near', () => {
     it('builds a NEAR() expression with escaped terms', () => {
       const q: KeywordQuery = { kind: 'near', terms: ['ant', 'sluggard'], distance: 10 };

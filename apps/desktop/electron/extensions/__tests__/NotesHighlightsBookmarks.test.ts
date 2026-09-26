@@ -1,12 +1,17 @@
 /**
  * Notes / highlights / bookmarks api-impl unit tests.
  *
- * Tests permission gating, parameter validation, bridge delegation, change
- * events, and disposal for all three namespaces:
+ * Tests permission gating, parameter validation, bridge delegation, and
+ * disposal for all three namespaces:
  *
- *   - notes (list, get, create, update, delete, onDidChange)
- *   - highlights (list, create, update, delete, registerStyle, listStyles, onDidChange)
+ *   - notes (list, get, create, update, delete)
+ *   - highlights (list, create, update, delete, registerStyle, listStyles)
  *   - bookmarks (list, add, remove, listCollections, createCollection)
+ *
+ * The `notes.changed` / `highlights.afterChange` forward events used to be
+ * tested here too, but task 0024 round 3 (P0.3) moved that subscription out
+ * of the api-impls entirely and into `ExtensionPointWiring.ts` - see
+ * `ExtensionPointWiring.test.ts`.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -241,46 +246,10 @@ describe('notes', () => {
     });
   });
 
-  describe('notes.onDidChange', () => {
-    it('emits change events to subscribed workers', async () => {
-      const pair = pairedTransports();
-      const router = new ExtensionRpcRouter(pair.hostSide);
-      const bridge = new InMemoryNotesBridge();
-      const api = new NotesApiImpl({
-        extensionId: 'ext.test.notes',
-        router,
-        bridge,
-        grant: buildGrant('ext.test.notes', ['notes:read', 'notes:write']),
-      });
-      api.attach();
-
-      // The worker must subscribe to the channel before the router will emit.
-      pair.workerSide.send({
-        kind: 'subscribe',
-        id: 'sub-1',
-        channel: 'notes.onDidChange',
-      });
-      await new Promise((r) => setImmediate(r));
-
-      const startLen = pair.hostSent.length;
-
-      // Create a note via bridge directly - fires the change handler the
-      // api-impl subscribed to in attach().
-      bridge.create({ content: 'Event test' });
-      await new Promise((r) => setImmediate(r));
-
-      // Scan hostSent for event envelopes emitted after our create.
-      const newEvents = pair.hostSent.slice(startLen).filter(
-        (env) =>
-          env &&
-          typeof env === 'object' &&
-          (env as { kind: string }).kind === 'event' &&
-          (env as { channel: string }).channel === 'notes.onDidChange',
-      );
-      expect(newEvents.length).toBeGreaterThan(0);
-      expect((newEvents[0] as { payload: unknown }).payload).toHaveProperty('type', 'created');
-    });
-  });
+  // The `notes.changed` forward event used to be tested here, constructing a
+  // bare `NotesApiImpl` and firing the bridge directly. Task 0024 round 3
+  // (P0.3) moved that subscription out of `NotesApiImpl` entirely and into
+  // `ExtensionPointWiring.ts` - see `ExtensionPointWiring.test.ts`.
 
   describe('disposal', () => {
     it('rejects calls after dispose', async () => {

@@ -1,8 +1,10 @@
 /**
  * Host-side implementation of `INotesApi` for one extension worker.
  *
- * CRUD over the user-data notes tables, plus an `onDidChange` event channel.
- * Permission gates: `notes:read` for list/get, `notes:write` for
+ * CRUD over the user-data notes tables. The change notification lives on
+ * `api.events.subscribe('notes.changed', ...)` now, wired host-wide in
+ * `ExtensionPointWiring.ts` rather than per-worker here (task 0024 round 3,
+ * P0.3). Permission gates: `notes:read` for list/get, `notes:write` for
  * create/update/delete.
  *
  * The bridge wiring goes through `sharedUserDb` exactly the same way the
@@ -20,8 +22,6 @@ import type { IExtensionNotesBridge } from './IExtensionDataBridges';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 
-const CHANGE_CHANNEL = 'notes.onDidChange';
-
 export interface NotesApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
@@ -34,7 +34,6 @@ export class NotesApiImpl {
   private readonly router: ExtensionRpcRouter;
   private readonly bridge: IExtensionNotesBridge;
   private readonly grant: ExtensionPermissionGrant;
-  private unsubscribe: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: NotesApiImplOptions) {
@@ -52,24 +51,13 @@ export class NotesApiImpl {
       update: (args) => this.handleUpdate(args),
       delete: (args) => this.handleDelete(args),
     });
-
-    this.unsubscribe = this.bridge.subscribeChange((payload) => {
-      if (this.disposed) return;
-      this.router.emitEvent(CHANGE_CHANNEL, payload);
-    });
+    // `bridge.subscribeChange(...)` -> `notes.changed` used to be wired here,
+    // one subscription per active worker. See `ExtensionPointWiring.ts`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    if (this.unsubscribe) {
-      try {
-        this.unsubscribe();
-      } catch {
-        /* best-effort */
-      }
-      this.unsubscribe = undefined;
-    }
   }
 
   // --- RPC handlers ------------------------------------------------------

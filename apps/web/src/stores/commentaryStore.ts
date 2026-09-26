@@ -109,6 +109,22 @@ class CommentaryStore extends Store {
   activeTabId = '';
   entries: CommentaryEntryData[] = [];
   entriesByTab: Map<string, CommentaryEntryData[]> = new Map();
+  /**
+   * Which passage each `entriesByTab` value belongs to.
+   *
+   * `entriesByTab` is keyed by module alone, which is only safe for a module
+   * that has a tab: a tab's cache is dropped and refilled on every chapter
+   * change. A module *without* a tab — the Overview's accordion opens any
+   * installed commentary, Combined Summary first — is cached here too, and
+   * nothing ever told it the reader had moved on, so opening it at Genesis 3:15
+   * after John 3:16 handed back John's entries. This records what each cached
+   * value covers, so a read can tell "cached" from "cached for this passage".
+   *
+   * `verse` is set when the entry is only that one verse's seed (the per-verse
+   * fast path) rather than the whole chapter. Written by {@link _cacheEntries};
+   * a value with no scope (a test writing the map directly) is trusted as-is.
+   */
+  private entriesScope: Map<string, { book: number; chapter: number; verse: number | null }> = new Map();
   collapsed = false;
   syncedBook: number | null = null;
   syncedChapter: number | null = null;
@@ -306,6 +322,53 @@ class CommentaryStore extends Store {
     this.notify();
   }
 
+  /** Cache `entries` for a module, recording the passage they cover. */
+  private _cacheEntries(moduleAbbr: string, entries: CommentaryEntryData[], book: number, chapter: number, verse: number | null = null): void {
+    this.entriesByTab.set(moduleAbbr, entries);
+    this.entriesScope.set(moduleAbbr, { book, chapter, verse });
+  }
+
+  private _dropEntries(moduleAbbr: string): void {
+    this.entriesByTab.delete(moduleAbbr);
+    this.entriesScope.delete(moduleAbbr);
+  }
+
+  /** Does the cached value for `moduleAbbr` cover the whole of this chapter? */
+  private _hasFullChapterCache(moduleAbbr: string, book: number, chapter: number): boolean {
+    if (!this.entriesByTab.has(moduleAbbr)) return false;
+    const scope = this.entriesScope.get(moduleAbbr);
+    return !scope || (scope.verse === null && scope.book === book && scope.chapter === chapter);
+  }
+
+  /**
+   * The cached entries for a module, but only if they answer this request.
+   *
+   * Returns undefined for a value cached for another chapter, or a one-verse
+   * seed when a different verse (or the whole chapter) is wanted.
+   */
+  private _cachedEntriesFor(moduleAbbr: string, book: number, chapter: number, verseId?: number): CommentaryEntryData[] | undefined {
+    const cached = this.entriesByTab.get(moduleAbbr);
+    if (!cached) return undefined;
+    const scope = this.entriesScope.get(moduleAbbr);
+    if (!scope) return cached;
+    if (scope.book !== book || scope.chapter !== chapter) return undefined;
+    if (scope.verse === null) return cached;
+    return verseId !== undefined && verseId === scope.verse ? cached : undefined;
+  }
+
+  /**
+   * May a fetch for (book, chapter) be stored in the shared cache?
+   *
+   * The cache holds the synced chapter, or a pinned tab's own chapter. A
+   * request for anywhere else — a pinned Overview standing on an earlier
+   * chapter — is answered but not stored, so it cannot displace a tab's data.
+   */
+  private _mayCache(moduleAbbr: string, book: number, chapter: number): boolean {
+    const pinnedTab = this.tabs.find(t => t.moduleAbbr === moduleAbbr && t.pinned);
+    if (pinnedTab) return pinnedTab.pinnedBook === book && pinnedTab.pinnedChapter === chapter;
+    return book === this.syncedBook && chapter === this.syncedChapter;
+  }
+
   /** Fetch commentary entries for a specific module (used for inline preview on home screen).
    *  If a verseId is provided and cache is cold, loads per-verse immediately for fast display
    *  and kicks off a background full-chapter load for smooth verse navigation.
@@ -313,22 +376,33 @@ class CommentaryStore extends Store {
   async fetchModuleEntries(moduleAbbr: string, book: number, chapter: number, verseId?: number): Promise<CommentaryEntryData[]> {
     if (!this.provider) return [];
 
-    // Return cached entries if available (could be per-verse seed or full chapter)
-    const cached = this.entriesByTab.get(moduleAbbr);
+    // Return cached entries if they are for THIS passage (could be a per-verse
+    // seed or the full chapter). The cache is keyed by module only, so a value
+    // left over from another chapter — or another verse's seed — must not be
+    // served: see `entriesScope`.
+    const cached = this._cachedEntriesFor(moduleAbbr, book, chapter, verseId);
     if (cached) return cached;
+
+    // Anywhere but the synced chapter (or a pinned tab's own) the answer is
+    // returned without touching the shared cache.
+    const cacheable = this._mayCache(moduleAbbr, book, chapter);
+    const generation = this._loadGeneration;
 
     // If we have a verse, use per-verse endpoint for immediate display
     if (verseId) {
-      const verseEntries = await this.fetchEntriesForVerse(moduleAbbr, verseId);
+      const verseEntries = await this.fetchEntriesForVerse(moduleAbbr, verseId, { cache: cacheable });
       // Then warm the rest of the chapter in the background so stepping to the
       // next verse is instant — but only when this module is small enough that
       // the speculative half of the work is worth it. For a module like Matthew
       // Henry this single line was pulling ~2 MB to save a request the reader
       // may never make; there, per-verse fetches on navigation are the better
       // trade. The reader still gets the verse they asked for either way.
-      if (this.isCheapEnoughToWarm(moduleAbbr, book, chapter)) {
+      if (cacheable && this.isCheapEnoughToWarm(moduleAbbr, book, chapter)) {
         void this.provider.getCommentary(moduleAbbr, book, chapter).then(data => {
-          this.entriesByTab.set(moduleAbbr, data.entries);
+          // The reader may have moved on while this was in flight; a response
+          // for the chapter they left must not be filed under the new one.
+          if (generation !== this._loadGeneration || !this._mayCache(moduleAbbr, book, chapter)) return;
+          this._cacheEntries(moduleAbbr, data.entries, book, chapter);
           if (data.content_format) this.contentFormatByModule.set(moduleAbbr, data.content_format);
           this.notify();
         }).catch(() => {});
@@ -339,7 +413,9 @@ class CommentaryStore extends Store {
     // No active verse — load full chapter
     try {
       const data = await this.provider.getCommentary(moduleAbbr, book, chapter);
-      this.entriesByTab.set(moduleAbbr, data.entries);
+      if (cacheable && generation === this._loadGeneration && this._mayCache(moduleAbbr, book, chapter)) {
+        this._cacheEntries(moduleAbbr, data.entries, book, chapter);
+      }
       if (data.content_format) this.contentFormatByModule.set(moduleAbbr, data.content_format);
       return data.entries;
     } catch {
@@ -350,16 +426,25 @@ class CommentaryStore extends Store {
   /** Per-verse fast path: fetch only the entries that match a single verse for a single module.
    *  Updates entriesByTab cache so the detail view can render immediately, then the full
    *  chapter prefetch can be kicked off in the background.
+   *
+   *  `cache: false` answers the request without storing the result (used for a
+   *  passage the shared cache does not hold; see `_mayCache`).
    */
-  async fetchEntriesForVerse(moduleAbbr: string, verseId: number): Promise<CommentaryEntryData[]> {
+  async fetchEntriesForVerse(moduleAbbr: string, verseId: number, options: { cache?: boolean } = {}): Promise<CommentaryEntryData[]> {
     try {
       const res = await fetch(`/api/commentary/${moduleAbbr}/verse/${verseId}`);
       if (!res.ok) return [];
       const data = await res.json();
       const entries: CommentaryEntryData[] = data.entries ?? [];
-      // Only seed cache if a fuller chapter-level fetch hasn't already populated it.
-      if (!this.entriesByTab.has(moduleAbbr)) {
-        this.entriesByTab.set(moduleAbbr, entries);
+      // Only seed cache if a fuller chapter-level fetch hasn't already populated
+      // it for this chapter. A value left over from another chapter does not
+      // count as populated: it is replaced.
+      if (options.cache !== false) {
+        const book = Math.floor(verseId / 1000000);
+        const chapter = Math.floor((verseId % 1000000) / 1000);
+        if (!this._hasFullChapterCache(moduleAbbr, book, chapter)) {
+          this._cacheEntries(moduleAbbr, entries, book, chapter, verseId);
+        }
       }
       if (data.content_format) {
         this.contentFormatByModule.set(moduleAbbr, data.content_format);
@@ -470,7 +555,7 @@ class CommentaryStore extends Store {
       // Only populate cache for modules not already cached (don't overwrite fresh data)
       for (const [moduleAbbr, moduleData] of Object.entries(data.modules)) {
         if (!this.entriesByTab.has(moduleAbbr)) {
-          this.entriesByTab.set(moduleAbbr, moduleData.entries);
+          this._cacheEntries(moduleAbbr, moduleData.entries, book, chapter);
           if (moduleData.content_format) {
             this.contentFormatByModule.set(moduleAbbr, moduleData.content_format);
           }
@@ -745,7 +830,7 @@ class CommentaryStore extends Store {
       }
       const idx = this.tabs.indexOf(tempTab);
       this.tabs.splice(idx, 1);
-      this.entriesByTab.delete(tempTab.moduleAbbr);
+      this._dropEntries(tempTab.moduleAbbr);
     }
 
     // Add new temporary tab
@@ -781,11 +866,13 @@ class CommentaryStore extends Store {
     this.syncedBook = book;
     this.syncedChapter = chapter;
     this.chapterVersesCache.clear();
-    // Clear cached entries only for UNPINNED tabs — pinned tabs keep their data
-    for (const tab of this.tabs) {
-      if (!tab.pinned) {
-        this.entriesByTab.delete(tab.moduleAbbr);
-      }
+    // Clear cached entries for everything except PINNED tabs — they keep their
+    // data. Not just for the modules that have a tab: the Overview caches
+    // modules that do not (its accordion opens any installed commentary), and a
+    // value left behind here was served as the next chapter's answer.
+    const pinnedModules = new Set(this.tabs.filter(t => t.pinned).map(t => t.moduleAbbr));
+    for (const abbr of [...this.entriesByTab.keys()]) {
+      if (!pinnedModules.has(abbr)) this._dropEntries(abbr);
     }
     // The active tab's `entries` still belong to the chapter we are leaving.
     // Left in place they get filtered against a verse id from the NEW chapter,
@@ -900,9 +987,25 @@ class CommentaryStore extends Store {
   private _ensureTabContent(tab: CommentaryTab, verseId?: number): void {
     if (tab.id === HOME_TAB_ID) return;
 
+    // Only a cache that covers this tab's passage counts. One left by the
+    // Overview for another chapter would paint that chapter's notes here, and
+    // one seeded for a single verse would go stale on the next verse — in both
+    // cases the module has to be loaded for real.
+    const book = tab.pinned ? (tab.pinnedBook ?? this.syncedBook) : this.syncedBook;
+    const chapter = tab.pinned ? (tab.pinnedChapter ?? this.syncedChapter) : this.syncedChapter;
     const cached = this.entriesByTab.get(tab.moduleAbbr);
-    if (cached) {
+    const scope = this.entriesScope.get(tab.moduleAbbr);
+    const usable = !!cached && (
+      !scope || !book || !chapter ||
+      (scope.book === book && scope.chapter === chapter &&
+        (scope.verse === null || verseId === undefined || verseId === scope.verse))
+    );
+    if (cached && usable) {
       this.entries = cached;
+      // A one-verse seed is good enough to paint, not to keep: fetch the rest.
+      if (scope && scope.verse !== null && book && chapter && !this.isModuleLoading(tab.moduleAbbr)) {
+        void this._backgroundLoadTab(tab.moduleAbbr, book, chapter, tab.pinned ? null : this._loadGeneration);
+      }
       return;
     }
 
@@ -974,7 +1077,7 @@ class CommentaryStore extends Store {
         // response. Caching the empty result is the point — it is what stops
         // the next verse click asking for it again.
         const moduleData = data.modules[moduleAbbr];
-        this.entriesByTab.set(moduleAbbr, moduleData?.entries ?? []);
+        this._cacheEntries(moduleAbbr, moduleData?.entries ?? [], book, chapter);
         if (moduleData?.content_format) this.contentFormatByModule.set(moduleAbbr, moduleData.content_format);
         if (activeTab?.moduleAbbr === moduleAbbr) this.entries = moduleData?.entries ?? [];
       }
@@ -1034,7 +1137,7 @@ class CommentaryStore extends Store {
       // A response from a chapter the reader has already left must not
       // overwrite the current one's entries.
       if (generation !== null && generation !== this._loadGeneration) return;
-      this.entriesByTab.set(moduleAbbr, data.entries);
+      this._cacheEntries(moduleAbbr, data.entries, book, chapter);
       if (data.content_format) this.contentFormatByModule.set(moduleAbbr, data.content_format);
       // Only the tab showing this module gets painted; the rest is cache.
       const activeTab = this.tabs.find(t => t.id === this.activeTabId);
@@ -1202,7 +1305,7 @@ class CommentaryStore extends Store {
 
     const removedTab = this.tabs[idx];
     this.tabs.splice(idx, 1);
-    this.entriesByTab.delete(removedTab.moduleAbbr);
+    this._dropEntries(removedTab.moduleAbbr);
 
     if (this.activeTabId === tabId) {
       // If closing a temporary tab, go back to Home

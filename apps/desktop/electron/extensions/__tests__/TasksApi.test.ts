@@ -305,6 +305,34 @@ describe('TasksApiImpl — happy path', () => {
     expect(h.notifier.calls[0]!.message).toBe('Baking');
   });
 
+  it('showInStatusBar: false keeps a task out of the status bridge fan-out but not out of list()', async () => {
+    const h = buildHarness();
+    h.registerWorkHandler('work.bake', async (handle) => {
+      await workerCall(h.pair.workerSide, h.pair.hostSent, 'tasks.reportProgress', [
+        handle,
+        { increment: 50 },
+      ]);
+      return 'ok';
+    });
+
+    const runPromise = workerCall(h.pair.workerSide, h.pair.hostSent, 'tasks.run', [
+      descriptor({ showInStatusBar: false }),
+    ]);
+    // `list()` still reports it - the flag is about the built-in status bar
+    // widget only, not visibility of the task itself.
+    const list = await workerCall(h.pair.workerSide, h.pair.hostSent, 'tasks.list', []);
+    expect((list.result as BackgroundTaskInfo[])[0]?.id).toBe('ext.test.tasks.bake');
+    await runPromise;
+
+    const snaps = h.bridge.snapshots.filter((s) => s.extensionId === 'test.tasks');
+    // Every fan-out snapshot - including the initial "started" one - omits
+    // the opted-out task entirely.
+    expect(snaps.length).toBeGreaterThan(0);
+    for (const s of snaps) {
+      expect(s.snapshot.find((t) => t.id === 'ext.test.tasks.bake')).toBeUndefined();
+    }
+  });
+
   it('list() returns the live snapshot mid-flight', async () => {
     const h = buildHarness();
     let listResult: BackgroundTaskInfo[] | undefined;

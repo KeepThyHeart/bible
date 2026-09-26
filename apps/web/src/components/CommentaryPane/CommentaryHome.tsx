@@ -211,10 +211,21 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     setLoadingModules(prev => new Set(prev).add(mod.moduleAbbr));
     const entries = await commentaryStore.fetchModuleEntries(mod.moduleAbbr, syncedBook!, syncedChapter!, highlightedVerse ?? undefined);
 
-    // Filter to highlighted verse if applicable, fall back to all entries
-    let filtered = entries;
+    // Whatever the store handed back, only this chapter's entries may be shown
+    // under this passage's heading. A commentary for John 3 must never appear
+    // under Genesis 3:15 — the store guards its cache, and this is the last
+    // line if it ever lets one through.
+    const chapterStart = syncedBook! * 1000000 + syncedChapter! * 1000;
+    // Overlap, not containment: a passage or chapter-level entry may begin in
+    // the previous chapter or run on into the next.
+    const inChapter = entries.filter(entry =>
+      entry.verse_id_start < chapterStart + 1000 &&
+      (entry.verse_id_end || entry.verse_id_start) >= chapterStart);
+
+    // Filter to highlighted verse if applicable, fall back to the chapter's entries
+    let filtered = inChapter;
     if (highlightedVerse) {
-      const verseMatch = entries.filter(entry =>
+      const verseMatch = inChapter.filter(entry =>
         entry.verse_id_start <= highlightedVerse &&
         (entry.verse_id_end ? entry.verse_id_end >= highlightedVerse : entry.verse_id_start === highlightedVerse)
       );
@@ -222,7 +233,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         filtered = verseMatch;
       }
     } else {
-      const chapterOnly = entries.filter(entry => entry.entry_level === 'chapter');
+      const chapterOnly = inChapter.filter(entry => entry.entry_level === 'chapter');
       if (chapterOnly.length > 0) filtered = chapterOnly;
     }
 

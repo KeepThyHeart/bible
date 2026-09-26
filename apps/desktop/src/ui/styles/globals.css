@@ -7,6 +7,10 @@
 /* Theme CSS variables (light, dark, sepia) - KAN-51 */
 @import './themes.css';
 
+/* Shared toolbar/back-button chrome - also served to extension panels at
+   ext-ui://host/controls.css (see hostControlsCss.ts). */
+@import './controls.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
