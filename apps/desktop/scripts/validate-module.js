@@ -10,14 +10,22 @@
  *     English (KJV) versification: every (book, chapter, verse) triple present in
  *     the module must exist in the canonical reference space, and per-book chapter
  *     counts must not EXCEED the canonical chapter count.
- *   - `module_info` declares the v2 identity block (uuid, format, versioning,
- *     canon, licensing) that a generic consumer reads without knowing the type.
- *   - FTS5 tables put the rowid key in column 0, because callers address the text
- *     column positionally (`highlight(fts, 1, ...)`).
- *   - The primary text column actually contains TEXT. A converter bug once
- *     produced modules where 99% of entries were a few bytes of binary noise and
- *     every structural check still passed - the shape was perfect and the content
- *     was gone.
+ *   - `module_info` declares the v2 identity block (uuid, exact format version,
+ *     versioning, licensing) that a generic consumer reads without knowing the
+ *     type.
+ *   - `compression` names a codec this build can actually decode, a
+ *     `compression_dictionary` row exists exactly when the module is
+ *     compressed, and `content_sha256` recomputes to the stored value.
+ *   - No `fts5` virtual table exists anywhere in the file. v0.2 ships no FTS5
+ *     tables at all - the app builds its own sidecar keyword index at install
+ *     time instead (task 0026/0027).
+ *   - The primary text column actually contains TEXT, compressed or not. A
+ *     converter bug once produced modules where 99% of entries were a few
+ *     bytes of binary noise and every structural check still passed - the
+ *     shape was perfect and the content was gone. For a compressed module
+ *     this means decoding a sample and scoring the DECODED text, not the raw
+ *     BLOB - scoring the BLOB directly produces exactly the same kind of
+ *     false "corrupt" verdict this check exists to avoid.
  *
  * A canonical *subset* passes (an OT-only Bible, a Pentateuch-only Bible). Only
  * *shifted* or *out-of-canon* numbering fails - that is what silently collides in
@@ -26,8 +34,9 @@
  * Canon source: `main.db` (`chapter_info` + `bible_book`) when it is populated,
  * otherwise the checked-in `scripts/data/kjv-versification.json`.
  *
- * Uses the async `sqlite3` driver (NOT better-sqlite3) so it runs under system
- * Node.js. All module databases are opened READ-ONLY - this script never writes.
+ * Uses the repo root's `better-sqlite3`, which is built for system Node.js (the
+ * desktop's own `better-sqlite3-multiple-ciphers` is built for Electron). All
+ * module databases are opened READ-ONLY - this script never writes.
  *
  * Usage:
  *   node scripts/validate-module.js <module> [options]
@@ -54,7 +63,19 @@
 
 const path = require('path');
 const fs = require('fs');
-const sqlite3 = require('sqlite3');
+const Database = require('better-sqlite3');
+// Same require('@bible/core') pattern build-feature-pack.js already uses from
+// this same scripts/ directory - established and safe here, unlike
+// scripts/init/catalog.js at the repo root, which avoids it for an unrelated
+// reason that does not apply to this file.
+const {
+  FORMAT_VERSION,
+  CONTENT_MAP,
+  normalizeModuleType,
+  createNodeCodecRegistry,
+  resolveModuleCodec,
+  computeContentSha256,
+} = require('@bible/core');
 
 // ============================================================================
 // Constants
@@ -116,30 +137,22 @@ const FORBIDDEN_RANGE_COLUMNS = ['start_verse_id', 'end_verse_id'];
  * `module_info` columns the v2 contract requires of every module type.
  * A consumer reads these without knowing the module type, so a module missing
  * one is unusable generically even if its own content is fine.
+ *
+ * `canon` is deliberately NOT in this list. The canon is always the 66-book
+ * Protestant canon and `packages/core/sql/schemas/shared/module_info.sql`
+ * carries no such column at all - only `versification` varies (see that
+ * file's own comment on the point). A `canon` requirement here would fail
+ * every module built from the current schema.
  */
 const REQUIRED_INFO_COLUMNS = [
   'module_uuid', 'abbreviation', 'full_name',
   'format', 'format_version', 'content_version', 'content_sha256',
-  'canon', 'versification',
+  'versification',
   'license_spdx', 'source_url',
 ];
 
-/**
- * FTS5 shape contract: for each content table, column 0 of its `_fts` table must
- * be the rowid key, declared UNINDEXED.
- *
- * This is load-bearing rather than cosmetic. Callers address FTS columns
- * positionally - `highlight(bible_verse_fts, 1, ...)` in
- * BibleRepository.searchVersesWithHighlighting means "the text column". Drop the
- * leading key column and index 1 silently points at the wrong column, or at none.
- */
-const FTS_SHAPE = {
-  bible_verse: { fts: 'bible_verse_fts', key: 'verse_id' },
-  commentary_entry: { fts: 'commentary_entry_fts', key: 'entry_id' },
-  dictionary_entry: { fts: 'dictionary_entry_fts', key: 'entry_id' },
-  devotional_entry: { fts: 'devotional_entry_fts', key: 'entry_id' },
-  book_section: { fts: 'book_section_fts', key: 'section_id' },
-};
+/** Up to how many rows of a compressed prose column {@link checkDecodeRoundTrip} samples. */
+const DECODE_SAMPLE_SIZE = 50;
 
 /**
  * Content sanity: the primary text column of each module type.
@@ -184,6 +197,10 @@ const CONTENT_COLUMNS = {
  */
 const CONTENT_NONTEXT_RATIO = 0.60;   // only overwhelming non-text fails on its own
 const CONTENT_SHORT_RATIO = 0.80;
+// Below the failure thresholds above but still worth a warning. Same
+// calibration data as CONTENT_NONTEXT_RATIO/CONTENT_SHORT_RATIO's comment.
+const CONTENT_NONTEXT_WARN_RATIO = 0.05;
+const CONTENT_SHORT_WARN_RATIO = 0.20;
 
 const colors = {
   reset: '\x1b[0m',
@@ -199,38 +216,87 @@ const colors = {
 // SQLite helpers (read-only)
 // ============================================================================
 
-function openReadOnly(dbPath) {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
-      if (err) reject(new Error(`Cannot open database: ${dbPath} (${err.message})`));
-      else resolve(db);
-    });
-  });
+// better-sqlite3 is synchronous; these stay async so a failure surfaces as a
+// rejection, the way every caller below already handles it.
+
+async function openReadOnly(dbPath) {
+  try {
+    return new Database(dbPath, { readonly: true, fileMustExist: true });
+  } catch (err) {
+    throw new Error(`Cannot open database: ${dbPath} (${err.message})`);
+  }
 }
 
-function dbAll(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+async function dbAll(db, sql, params = []) {
+  return db.prepare(sql).all(params);
 }
 
-function dbGet(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row || null);
-    });
-  });
+async function dbGet(db, sql, params = []) {
+  return db.prepare(sql).get(params) || null;
 }
 
-function dbClose(db) {
-  return new Promise((resolve) => {
-    if (!db) { resolve(); return; }
-    db.close(() => resolve());
-  });
+async function dbClose(db) {
+  if (db) db.close();
+}
+
+/**
+ * The Node/Electron codec set this build can decode with. Built once at
+ * module load: a `CodecRegistry` is immutable and holds no per-module state
+ * (see `NodeCodecs.ts`), so there is nothing to gain by re-constructing it
+ * for every module `--all` validates.
+ */
+const CODEC_REGISTRY = createNodeCodecRegistry();
+
+/**
+ * Minimal `ISql` adapter over this script's raw `better-sqlite3` connection,
+ * so `resolveModuleCodec()` and `computeContentSha256()` - the real,
+ * already-tested @bible/core implementations - run against it directly
+ * instead of a second, hand-rolled reimplementation of codec resolution or
+ * the content digest. Mirrors `ReadOnlyRawDbSql` in
+ * `apps/desktop/electron/services/InstallationService.ts`, which solves
+ * exactly the same problem for the install-time gate.
+ *
+ * Only `queryOne`/`queryAll` are ever actually called by either function, so
+ * the rest of `ISql`'s surface is present only to satisfy the shape (this is
+ * a plain JS script - nothing here enforces the TypeScript interface - and a
+ * caller that ever did reach `execute()` on a read-only validator would be a
+ * bug worth throwing on loudly, not swallowing).
+ */
+class ReadOnlyModuleSql {
+  constructor(db, dbPath) {
+    this.db = db;
+    this.dbPath = dbPath;
+  }
+
+  queryOne(sql, params) {
+    const stmt = this.db.prepare(sql);
+    return params !== undefined ? stmt.get(params) : stmt.get();
+  }
+
+  queryAll(sql, params) {
+    const stmt = this.db.prepare(sql);
+    return params !== undefined ? stmt.all(params) : stmt.all();
+  }
+
+  execute() {
+    throw new Error('ReadOnlyModuleSql is read-only: validate-module.js never writes.');
+  }
+
+  transaction(callback) {
+    return callback();
+  }
+
+  close() {
+    // Owned and closed by validateModule()'s own `finally`, not here.
+  }
+
+  isOpen() {
+    return true;
+  }
+
+  getDatabasePath() {
+    return this.dbPath;
+  }
 }
 
 // ============================================================================
@@ -363,6 +429,44 @@ function err(code, message, extra) {
   return Object.assign({ code, message }, extra || {});
 }
 
+/**
+ * `module_info` (or its alias)'s `info_id = 1` row, or `null` when the table
+ * or that row is absent. Shared by every check below that needs a column off
+ * the row: `checkModuleInfo` is the one place that ABSENCE is itself
+ * reported (`missing_module_info` / `missing_module_info_row`), so every
+ * other check treats `null` here as "not this check's business" rather than
+ * reporting the same absence a second time under a different code.
+ */
+async function getInfoRow(db, tableNames) {
+  const infoTable = INFO_TABLE_ALIASES.find(t => tableNames.has(t));
+  if (!infoTable) return null;
+  const row = await dbGet(db, `SELECT * FROM ${infoTable} WHERE info_id = 1`);
+  return row ? { infoTable, row } : null;
+}
+
+/**
+ * `module_info.compression`, defaulting to `'none'` when the info row or the
+ * `compression` column itself is absent - an old-schema database predating
+ * the column (F2). Mirrors `resolveModuleCodec.ts`'s own `readCompression()`
+ * so this script's notion of "what codec did this module choose" matches the
+ * one the rest of the app reads modules through.
+ */
+async function moduleCompression(db, tableNames) {
+  const info = await getInfoRow(db, tableNames);
+  if (!info) return 'none';
+  let declared;
+  try {
+    declared = new Set(
+      (await dbAll(db, `SELECT name FROM pragma_table_info('${info.infoTable}')`)).map(c => c.name)
+    );
+  } catch {
+    return 'none';
+  }
+  if (!declared.has('compression')) return 'none';
+  const raw = info.row.compression;
+  return raw ? String(raw) : 'none';
+}
+
 async function checkModuleInfo(db, tableNames, result) {
   const infoTable = INFO_TABLE_ALIASES.find(t => tableNames.has(t));
   if (!infoTable) {
@@ -447,33 +551,149 @@ async function checkModuleInfo(db, tableNames, result) {
 }
 
 /**
- * Verify the FTS5 tables have the declared column order.
+ * section 8.1 / section 12: `format_version` MUST be exactly `FORMAT_VERSION`
+ * ('0.2'), the one version this build's publisher ever writes.
  *
- * Only tables that actually exist are checked: a module legitimately ships FTS
- * only for the content it has. `content=`/`content_rowid=` options do not appear
- * in pragma_table_info, so the check is on the visible column list.
+ * This is deliberately stricter than a reader's `isReadableFormatVersion()`,
+ * which is an ALLOW-LIST of everything still readable - the current version,
+ * older still-readable 0.x minors, and the pre-0.x legacy string ('2.0'). A
+ * reader has to tolerate all of those because real files in the wild carry
+ * them. A publisher is not tolerating anything; it is the one WRITING new
+ * files, so stamping anything other than the exact current version - an old
+ * '0.1' as much as a made-up '0.3' - is always a publish-time defect: either
+ * the writer forgot to bump the column, or it is knowingly mislabelling
+ * stale content as fresh.
  */
-async function checkFtsShape(db, tableNames, result) {
-  for (const [contentTable, { fts, key }] of Object.entries(FTS_SHAPE)) {
-    if (!tableNames.has(contentTable) || !tableNames.has(fts)) continue;
+async function checkFormatVersion(db, tableNames, result) {
+  const info = await getInfoRow(db, tableNames);
+  if (!info) return; // absence already reported by checkModuleInfo
 
-    let cols;
-    try {
-      cols = await dbAll(db, `SELECT name FROM pragma_table_info('${fts}')`);
-    } catch {
-      continue; // unreadable virtual table: not this check's business
+  const raw = info.row.format_version;
+  if (raw === undefined || raw === null || raw === '') {
+    // Column missing entirely: REQUIRED_INFO_COLUMNS already reports that.
+    // Column present but NULL/empty: a data gap, not this check's business.
+    return;
+  }
+  if (String(raw) !== FORMAT_VERSION) {
+    result.errors.push(err('wrong_format_version',
+      `\`module_info.format_version\` = ${JSON.stringify(raw)}; a publisher MUST write exactly ` +
+      `'${FORMAT_VERSION}' (the current format this build writes), never an older or newer value.`));
+  }
+}
+
+/**
+ * section 4: `compression` MUST name a codec this build can actually decode
+ * (`createNodeCodecRegistry()`'s registry).
+ *
+ * Stricter than the install-time equivalent (`validateModuleFile.ts`'s
+ * `'missing-codec'`, a WARNING there): an install-time reader tolerates a
+ * codec gap because a FUTURE build (or one with the optional native zstd
+ * binding) might still read the file, so refusing the install would throw
+ * away a module that is fine for everything except its own prose. A
+ * publisher has no such excuse - it is choosing, right now, to ship a module
+ * its own build cannot decode, which is a real defect, not a
+ * forward-compatibility grey area.
+ */
+async function checkCompressionCodec(db, tableNames, registry, result) {
+  const compression = await moduleCompression(db, tableNames);
+  if (!registry.has(compression)) {
+    result.errors.push(err('missing_codec',
+      `\`module_info.compression\` = ${JSON.stringify(compression)} has no codec registered in ` +
+      `this build; a publisher MUST NOT ship a module its own build cannot decode.`));
+  }
+}
+
+/**
+ * A `compression_dictionary` row MUST exist for the module's `compression`
+ * codec if and only if `compression != 'none'` - an uncompressed module has
+ * nothing to bind a dictionary to (`compression = 'none'` means the table is
+ * empty by definition, per `compression_dictionary.sql`'s own comment), and
+ * this publisher never ships a compressed module without recording the
+ * dictionary it trained for it.
+ */
+async function checkCompressionDictionary(db, tableNames, result) {
+  const compression = await moduleCompression(db, tableNames);
+
+  if (!tableNames.has('compression_dictionary')) {
+    if (compression !== 'none') {
+      result.errors.push(err('missing_dictionary_row',
+        `\`module_info.compression\` = ${JSON.stringify(compression)} but this module carries no ` +
+        `\`compression_dictionary\` table at all; a publisher MUST record the dictionary a ` +
+        `compressed module was encoded with.`));
     }
-    if (!cols.length) continue;
+    return;
+  }
 
-    if (cols[0].name !== key) {
-      result.errors.push(err(
-        'fts_column_order',
-        `\`${fts}\` column 0 is \`${cols[0].name}\`, expected \`${key}\` (UNINDEXED). ` +
-        `Positional highlight()/snippet() calls address the text column by index and ` +
-        `will read the wrong column.`
-      ));
+  let matching;
+  try {
+    matching = await dbGet(db, 'SELECT codec FROM compression_dictionary WHERE codec = ?', [compression]);
+  } catch {
+    return; // unreadable table: not this check's business
+  }
+
+  if (compression !== 'none' && !matching) {
+    result.errors.push(err('missing_dictionary_row',
+      `\`module_info.compression\` = ${JSON.stringify(compression)} but \`compression_dictionary\` ` +
+      `has no row for it.`));
+  }
+
+  if (compression === 'none') {
+    let any;
+    try { any = await dbGet(db, 'SELECT COUNT(*) AS cnt FROM compression_dictionary'); }
+    catch { any = null; }
+    if (any && any.cnt > 0) {
+      result.errors.push(err('unexpected_dictionary_row',
+        `\`module_info.compression\` = 'none' but \`compression_dictionary\` has ${any.cnt} row(s); ` +
+        `an uncompressed module MUST NOT carry a dictionary nothing will ever bind.`));
     }
   }
+}
+
+/**
+ * No `fts5` virtual table may exist anywhere in the file.
+ *
+ * v0.2 reality, not the old v1 one: F2 removed every FTS5 table declaration
+ * from every schema in this repo (see `packages/core/sql/schemas/`), and the
+ * app now builds its own sidecar keyword index at install time instead (task
+ * 0026/0027's keyword-index design). There is therefore no longer a
+ * "correct FTS5 shape" for a module to carry - a shipped `fts5` table of ANY
+ * shape is a leftover from an old conversion pipeline, not a legitimate
+ * variant, so "must not exist" replaces the old column-order contract
+ * outright rather than refining it.
+ */
+async function checkNoFts5Tables(db, tableNames, result) {
+  let rows;
+  try {
+    rows = await dbAll(db, "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL");
+  } catch {
+    return; // unreadable sqlite_master: not this check's business
+  }
+
+  const fts5Tables = rows.filter(r => /using\s+fts5/i.test(r.sql || '')).map(r => r.name);
+  if (fts5Tables.length === 0) return;
+
+  result.errors.push(err('unexpected_fts5_table',
+    `Found FTS5 virtual table(s): ${fts5Tables.join(', ')}. The v0.2 format ships no FTS5 tables ` +
+    `at all - the app builds its own sidecar keyword index at install time instead. Remove them ` +
+    `before publishing.`));
+}
+
+/**
+ * Shared short/non-text corruption verdict, given aggregate counts over some
+ * sample of content. `checkContentSanity`'s SQL-aggregate path (compression
+ * = 'none') and `checkDecodeRoundTrip`'s decoded-sample path (compression !=
+ * 'none') both feed their counts through this one function, so the two
+ * checks can never quietly drift onto different thresholds for what "looks
+ * corrupt" means. See CONTENT_NONTEXT_RATIO/CONTENT_SHORT_RATIO's
+ * calibration comment for where the numbers themselves come from.
+ */
+function corruptionLevel(total, short, nontext) {
+  if (!total) return 'ok';
+  const shortRatio = short / total;
+  const nonTextRatio = nontext / total;
+  if (nonTextRatio >= CONTENT_NONTEXT_RATIO || shortRatio >= CONTENT_SHORT_RATIO) return 'error';
+  if (nonTextRatio >= CONTENT_NONTEXT_WARN_RATIO || shortRatio >= CONTENT_SHORT_WARN_RATIO) return 'warning';
+  return 'ok';
 }
 
 /**
@@ -485,10 +705,23 @@ async function checkFtsShape(db, tableNames, result) {
  *
  * Reported as an ERROR past the threshold and a WARNING below it, so a module
  * with a handful of genuinely terse entries is not failed outright.
+ *
+ * Only meaningful for `compression = 'none'`. `trim()`/`LIKE` below run
+ * directly against the column's raw bytes, which are plain TEXT only when
+ * the module is uncompressed; against a compressed BLOB column, SQLite's
+ * `trim()`/`LIKE` do not decode DEFLATE/zstd frames, so this SQL either
+ * errors out or silently mismatches in a way that makes every row look
+ * "short" or "non-text" - a compressed module's perfectly healthy content
+ * would be reported `content_corrupt` for no reason at all. A compressed
+ * module is `checkDecodeRoundTrip`'s job instead, which runs the same
+ * verdict over the DECODED text.
  */
 async function checkContentSanity(db, tableNames, moduleType, result) {
   const spec = CONTENT_COLUMNS[moduleType];
   if (!spec || !tableNames.has(spec.table)) return;
+
+  const compression = await moduleCompression(db, tableNames);
+  if (compression !== 'none') return; // checkDecodeRoundTrip's business instead
 
   const { table, column, minChars } = spec;
 
@@ -505,30 +738,190 @@ async function checkContentSanity(db, tableNames, moduleType, result) {
   }
   if (!stats || !stats.total) return;
 
-  const shortRatio = (stats.short || 0) / stats.total;
-  const nonTextRatio = (stats.nontext || 0) / stats.total;
+  const short = stats.short || 0;
+  const nontext = stats.nontext || 0;
+  const shortRatio = short / stats.total;
+  const nonTextRatio = nontext / stats.total;
   const pct = n => `${(n * 100).toFixed(1)}%`;
+  const level = corruptionLevel(stats.total, short, nontext);
 
-  if (nonTextRatio >= CONTENT_NONTEXT_RATIO || shortRatio >= CONTENT_SHORT_RATIO) {
+  if (level === 'error') {
     result.errors.push(err(
       'content_corrupt',
       `\`${table}.${column}\` does not look like text: ` +
-      `${stats.short}/${stats.total} rows (${pct(shortRatio)}) shorter than ${minChars} chars, ` +
-      `${stats.nontext}/${stats.total} (${pct(nonTextRatio)}) contain U+FFFD. ` +
+      `${short}/${stats.total} rows (${pct(shortRatio)}) shorter than ${minChars} chars, ` +
+      `${nontext}/${stats.total} (${pct(nonTextRatio)}) contain U+FFFD. ` +
       `This is the signature of a converter reading freed or mis-decoded memory.`
     ));
     return;
   }
 
-  if (nonTextRatio >= 0.05 || shortRatio >= 0.20) {
+  if (level === 'warning') {
     result.warnings.push(err(
       'content_thin',
-      `${stats.short} very short (${pct(shortRatio)}) and ${stats.nontext} non-UTF8 ` +
+      `${short} very short (${pct(shortRatio)}) and ${nontext} non-UTF8 ` +
       `(${pct(nonTextRatio)}) row(s) in \`${table}.${column}\`. Below the failure ` +
       `thresholds (${pct(CONTENT_SHORT_RATIO)} short / ${pct(CONTENT_NONTEXT_RATIO)} non-UTF8). ` +
       `Often inherited from the source module rather than introduced by conversion — ` +
       `compare against the previous version before treating it as a defect.`
     ));
+  }
+}
+
+/**
+ * Decode round-trip on a sample of rows, for a compressed module
+ * (`compression != 'none'`). The compressed replacement for
+ * `checkContentSanity`'s SQL-based scan (see that function's doc comment for
+ * why the SQL path is skipped for a compressed module in the first place):
+ * decode a real sample through the resolved codec and run the SAME
+ * short/non-text heuristic (`corruptionLevel`) over the DECODED text, so a
+ * genuinely healthy compressed module is not flagged `content_corrupt` just
+ * because SQLite cannot see through its BLOBs - the exact false positive
+ * this subtask exists to fix - while content that is genuinely corrupt, or a
+ * frame that fails to decode at all, still is.
+ *
+ * Samples up to `DECODE_SAMPLE_SIZE` rows per prose column, ordered by the
+ * shape's rowid ascending (a cheap, deterministic sample - no
+ * `ORDER BY RANDOM()` over a whole table). `CONTENT_MAP` (from `@bible/core`)
+ * gives the table/rowid/prose columns generically rather than this script
+ * hardcoding them a second time, the same generalization F14's `apps/web`
+ * work already applied to its own lite-copy builder.
+ *
+ * A no-op wherever there is nothing to check: no codec for this build
+ * (`checkCompressionCodec` already reported that), an unrecognised module
+ * type, or a module type with no `prose` columns at all (Bible: verse text
+ * is never compressed by this format, so this is correctly a no-op for
+ * every Bible module, compressed or not).
+ */
+async function checkDecodeRoundTrip(db, tableNames, moduleType, resolvedCodec, result) {
+  const compression = await moduleCompression(db, tableNames);
+  if (compression === 'none') return; // checkContentSanity's business instead
+  if (!resolvedCodec.codec) return; // no codec: checkCompressionCodec already reported it
+
+  const normalizedType = normalizeModuleType(moduleType);
+  const shapes = CONTENT_MAP[normalizedType];
+  if (!shapes) return; // unrecognised type: nothing to sample
+
+  const minChars = (CONTENT_COLUMNS[moduleType] && CONTENT_COLUMNS[moduleType].minChars) || 8;
+
+  for (const shape of shapes) {
+    if (!tableNames.has(shape.table) || shape.prose.length === 0) continue;
+
+    let tableColumns;
+    try {
+      tableColumns = new Set(
+        (await dbAll(db, `SELECT name FROM pragma_table_info('${shape.table}')`)).map(c => c.name)
+      );
+    } catch {
+      continue;
+    }
+
+    for (const column of shape.prose) {
+      if (!tableColumns.has(column)) continue; // schema drift: not this check's business
+
+      let rows;
+      try {
+        rows = await dbAll(db,
+          `SELECT ${shape.rowid} AS rowid_, ${column} AS cell FROM ${shape.table} ` +
+          `ORDER BY ${shape.rowid} LIMIT ?`,
+          [DECODE_SAMPLE_SIZE]
+        );
+      } catch {
+        continue;
+      }
+      if (rows.length === 0) continue;
+
+      let total = 0, short = 0, nontext = 0;
+      const failures = [];
+      for (const row of rows) {
+        if (row.cell === null || row.cell === undefined) continue;
+        total++;
+
+        let text;
+        try {
+          // A string cell is legitimate even in a compressed module - the
+          // publisher keeps the compressed frame only when it is actually
+          // smaller (see IContentCodec.ts's "Mixed cells" note) - so only a
+          // non-string cell is actually decoded.
+          text = typeof row.cell === 'string' ? row.cell : resolvedCodec.codec.decode(row.cell);
+        } catch (e) {
+          failures.push({ rowid: row.rowid_, message: e && e.message ? e.message : String(e) });
+          continue;
+        }
+
+        if (text.trim().length < minChars) short++;
+        if (text.includes('�')) nontext++;
+      }
+
+      if (failures.length > 0) {
+        const shown = failures.slice(0, 5)
+          .map(f => `#${f.rowid} (${f.message})`)
+          .join('; ');
+        const more = failures.length > 5 ? ` ... and ${failures.length - 5} more` : '';
+        result.errors.push(err('decode_failed',
+          `${failures.length}/${rows.length} sampled row(s) of \`${shape.table}.${column}\` failed ` +
+          `to decode under compression '${compression}': ${shown}${more}.`));
+      }
+
+      const level = corruptionLevel(total, short, nontext);
+      if (level === 'error') {
+        result.errors.push(err('content_corrupt',
+          `\`${shape.table}.${column}\` does not look like text after decoding ${total} sampled ` +
+          `row(s) (compression '${compression}'): ${short}/${total} shorter than ${minChars} chars, ` +
+          `${nontext}/${total} contain U+FFFD. This is the signature of a converter reading freed ` +
+          `or mis-decoded memory - or of decoding under the wrong codec/dictionary.`));
+      } else if (level === 'warning') {
+        result.warnings.push(err('content_thin',
+          `${short}/${total} sampled row(s) of \`${shape.table}.${column}\` are short and ` +
+          `${nontext}/${total} are non-UTF8 after decoding. Below the failure thresholds.`));
+      }
+    }
+  }
+}
+
+/**
+ * section 2.7 (F3): `content_sha256` MUST recompute to the same digest via
+ * `computeContentSha256` from @bible/core - the canonical, already-tested
+ * implementation this project defines the digest algorithm through (see that
+ * function's own doc comment for the exact byte layout). A publisher whose
+ * stored hash does not match its own content has either hashed the wrong
+ * bytes or shipped content that drifted after hashing; either way, every
+ * consumer's integrity check on this module will fail downstream, so this is
+ * caught here, at the source, first.
+ */
+async function checkContentSha256(db, tableNames, moduleType, sqlAdapter, resolvedCodec, result) {
+  const info = await getInfoRow(db, tableNames);
+  if (!info) return;
+
+  let declared;
+  try {
+    declared = new Set(
+      (await dbAll(db, `SELECT name FROM pragma_table_info('${info.infoTable}')`)).map(c => c.name)
+    );
+  } catch {
+    return;
+  }
+  if (!declared.has('content_sha256')) return; // pre-F3 schema: not this check's business
+
+  const stored = info.row.content_sha256;
+  if (stored === null || stored === undefined || stored === '') return; // data gap, not this check's business
+
+  const normalizedType = normalizeModuleType(moduleType);
+  if (!(normalizedType in CONTENT_MAP)) return; // unrecognised type: nothing to digest against
+
+  let computed;
+  try {
+    computed = computeContentSha256(sqlAdapter, normalizedType, resolvedCodec);
+  } catch (e) {
+    result.errors.push(err('content_sha256_error',
+      `Could not recompute \`content_sha256\`: ${e && e.message ? e.message : e}.`));
+    return;
+  }
+
+  if (computed !== String(stored)) {
+    result.errors.push(err('content_sha256_mismatch',
+      `\`module_info.content_sha256\` = ${JSON.stringify(stored)} but recomputing over the ` +
+      `module's decoded content gives ${JSON.stringify(computed)}.`));
   }
 }
 
@@ -678,16 +1071,22 @@ async function checkRequiredTables(db, tableNames, result) {
 }
 
 /**
- * section 8.2 / section 12: `verse_link` MUST carry all four indexes, and its
+ * section 8.2 / section 12: `verse_link` MUST carry all three indexes, and its
  * `verse_id_end` MUST be non-NULL on every row - a single verse is spelled
  * `verse_id_end = verse_id_start`, never NULL. This is what makes the
  * containment probe `verse_id_start <= :v AND verse_id_end >= :v` correct
  * without a `COALESCE`/`OR IS NULL` branch, and what makes
  * `idx_verse_link_covering` a valid covering index in the first place.
+ *
+ * `idx_verse_link_start (verse_id_start)` is deliberately NOT in this list.
+ * `packages/core/sql/schemas/shared/verse_link.sql` dropped it (its own
+ * comment explains why): it is a strict prefix of `idx_verse_link_range
+ * (verse_id_start, verse_id_end)`, which stays, so it added nothing SQLite
+ * could not already serve from that composite index. Requiring it here would
+ * fail every module built from the current schema.
  */
 const REQUIRED_VERSE_LINK_INDEXES = [
   'idx_verse_link_source',
-  'idx_verse_link_start',
   'idx_verse_link_range',
   'idx_verse_link_covering',
 ];
@@ -704,7 +1103,7 @@ async function checkVerseLinkShape(db, tableNames, result) {
   const missingIndexes = REQUIRED_VERSE_LINK_INDEXES.filter(i => !indexNames.has(i));
   if (missingIndexes.length) {
     result.errors.push(err('missing_verse_link_index',
-      `\`verse_link\` is missing required index(es): ${missingIndexes.join(', ')} (§8.2 — all four are part of the contract).`));
+      `\`verse_link\` is missing required index(es): ${missingIndexes.join(', ')} (§8.2 — all three are part of the contract).`));
   }
 
   let nullEnd;
@@ -911,13 +1310,24 @@ async function validateModule(dbPath, options = {}) {
     }
 
     await checkModuleInfo(db, tableNames, result);
+    await checkFormatVersion(db, tableNames, result);
     await checkRequiredTables(db, tableNames, result);
     await checkVerseLinkShape(db, tableNames, result);
-    await checkFtsShape(db, tableNames, result);
+    await checkNoFts5Tables(db, tableNames, result);
     await checkForbiddenSpellings(db, tableNames, result);
     await checkRangeSanity(db, tableNames, result);
     await checkContentSanity(db, tableNames, result.moduleType, result);
     await checkBibleText(db, tableNames, result);
+
+    // Codec / dictionary / digest checks all share one resolved codec, the
+    // same way BaseModuleRepository resolves it once per open connection
+    // rather than once per check.
+    await checkCompressionCodec(db, tableNames, CODEC_REGISTRY, result);
+    await checkCompressionDictionary(db, tableNames, result);
+    const sqlAdapter = new ReadOnlyModuleSql(db, dbPath);
+    const resolvedCodec = resolveModuleCodec(sqlAdapter, CODEC_REGISTRY);
+    await checkDecodeRoundTrip(db, tableNames, result.moduleType, resolvedCodec, result);
+    await checkContentSha256(db, tableNames, result.moduleType, sqlAdapter, resolvedCodec, result);
 
     if (result.moduleType === 'bible' && tableNames.has('bible_verse')) {
       const canon = options.canon || await loadCanon(options.mainDbPath);

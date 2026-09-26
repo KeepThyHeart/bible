@@ -13,7 +13,11 @@ import {
   EntityTopicLink,
   EntityFacet,
   EntityVerse,
+  SqliteModuleRepositoryFactory,
+  nodeCodecRegistry,
+  wrapSqlConnection,
 } from '@bible/core';
+import type { ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
 import { getDataPath } from '../utils/appPaths';
 import { join } from 'path';
 import { ipcHandler, IpcKnownError } from './handler-helper';
@@ -21,6 +25,10 @@ import { validateString, validatePositiveInt } from '../utils/validation';
 import { getModuleDatabaseRegistry } from '../services/ModuleDatabaseRegistry';
 
 let tagGraphRepo: TagGraphRepository | null = null;
+
+/** Task 0034 (finishing M11): the factory `tagGraphRepo` routes through below. */
+const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const codecs: ICodecRegistry = nodeCodecRegistry();
 
 function getTagGraphRepository(): TagGraphRepository | null {
   if (tagGraphRepo) return tagGraphRepo;
@@ -31,8 +39,11 @@ function getTagGraphRepository(): TagGraphRepository | null {
     // Tag graph not built yet - graceful degradation
     return null;
   }
-  tagGraphRepo = new TagGraphRepository(db);
-  log.info('Tag graph database loaded:', dbPath);
+  // Factory is typed to hand back `ITagGraphRepository`; the SQLite factory
+  // is known to build the concrete `TagGraphRepository` here - a truthful
+  // narrowing (matching `DatabaseManager.ts`'s own `asConcreteFactory`).
+  tagGraphRepo = repositoryFactory.create(wrapSqlConnection(db), 'tagGraph', codecs) as TagGraphRepository | null;
+  if (tagGraphRepo) log.info('Tag graph database loaded:', dbPath);
   return tagGraphRepo;
 }
 

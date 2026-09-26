@@ -2,6 +2,7 @@ import { CommentaryEntry, CommentaryEntryLevel } from '../Models/Commentary/Comm
 import { CommentaryModuleInfo } from '../Models/Commentary/CommentaryModuleInfo';
 import { VerseLinkRecord } from '../Models/Common/VerseLinkRecord';
 import { VerseId } from '../Core/Types';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Summary of a commentary entry for tree view/navigation
@@ -116,4 +117,13 @@ export interface ICommentaryRepository {
   createEntry(entry: CommentaryEntry): CommentaryEntry;
   updateEntry(entry: CommentaryEntry): CommentaryEntry;
   deleteEntry(entryId: number): boolean;
+
+  /**
+   * The keyword-index source for this module's content (M5, task 0026
+   * revision 2): every `commentary_entry` row, streamed as `IndexDocument`s.
+   *
+   * Purely additive - `searchEntries` above (no registry-backed provider
+   * exists yet for commentary content) is unrelated and unchanged.
+   */
+  getIndexSource(): IIndexSource;
 }

@@ -254,9 +254,17 @@ describe('VerseContextMenu', () => {
     );
 
     await user.click(screen.getByTestId('verse-bookmarks'));
+    // Opening moves focus into the flyout a frame later. A real Escape always
+    // comes after that, so wait for it rather than racing the frame.
+    await waitFor(() =>
+      expect(screen.getByTestId('verse-bookmarks-submenu')).toContainElement(
+        document.activeElement as HTMLElement,
+      ),
+    );
     await user.keyboard('{Escape}');
 
     expect(screen.queryByTestId('verse-bookmarks-submenu')).not.toBeInTheDocument();
+    expect(screen.getByTestId('verse-bookmarks')).toHaveFocus();
     expect(onClose).not.toHaveBeenCalled();
 
     await user.keyboard('{Escape}');

@@ -496,6 +496,31 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
         }
       : {};
 
+  const noneInstalled = availableCommentaries.length === 0;
+  const emptyState = (
+    <PaneEmptyState
+      icon="📝"
+      testId="commentary-empty-state"
+      title={noneInstalled ? t('onboarding.empty.commentary.noneTitle') : t('onboarding.empty.commentary.title')}
+      description={noneInstalled ? t('onboarding.empty.commentary.noneDescription') : t('onboarding.empty.commentary.description')}
+      actions={[
+        noneInstalled
+          ? {
+              label: t('onboarding.empty.commentary.install'),
+              onClick: () => openModuleManager('commentary'),
+              primary: true,
+              testId: 'commentary-empty-install',
+            }
+          : {
+              label: t('onboarding.empty.commentary.action'),
+              onClick: () => setShowSelector(true),
+              primary: true,
+              testId: 'commentary-empty-choose',
+            },
+      ]}
+    />
+  );
+
   return (
     <div className="h-full flex flex-col" data-testid="commentary-pane" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
       {/* Tab Bar: Overview tab (fixed, via prefixContent) + draggable commentary tabs */}
@@ -626,11 +651,18 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
         )}
 
         {overviewActive ? (
-          <CommentaryHome
-            panelId={panelId}
-            currentVerseId={currentVerseId}
-            onOpenTab={handleOpenFromOverview}
-          />
+          // Nothing installed: the overview would only ever say "no commentaries
+          // have content for this verse", which reads as if the verse were the
+          // problem. Say what is actually missing, and where to get it.
+          isSessionLoaded && !loadingCommentaries && availableCommentaries.length === 0 ? (
+            emptyState
+          ) : (
+            <CommentaryHome
+              panelId={panelId}
+              currentVerseId={currentVerseId}
+              onOpenTab={handleOpenFromOverview}
+            />
+          )
         ) : openTabs.length === 0 ? (
           !isSessionLoaded ? (
             // Session restore hasn't resolved yet: we don't yet know whether
@@ -643,27 +675,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
             // shared PaneEmptyState pattern. D2: with nothing installed the
             // selector would be empty, so route to the Module Manager (filtered
             // to commentaries) instead; offer the selector only once >=1 exists.
-            <PaneEmptyState
-              icon="📝"
-              testId="commentary-empty-state"
-              title={t('onboarding.empty.commentary.title')}
-              description={t('onboarding.empty.commentary.description')}
-              actions={[
-                availableCommentaries.length === 0
-                  ? {
-                      label: t('onboarding.empty.commentary.install'),
-                      onClick: () => openModuleManager('commentary'),
-                      primary: true,
-                      testId: 'commentary-empty-install',
-                    }
-                  : {
-                      label: t('onboarding.empty.commentary.action'),
-                      onClick: () => setShowSelector(true),
-                      primary: true,
-                      testId: 'commentary-empty-choose',
-                    },
-              ]}
-            />
+            emptyState
           )
         ) : (
           <CommentaryContentArea

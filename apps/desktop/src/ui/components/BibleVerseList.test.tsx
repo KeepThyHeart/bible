@@ -31,6 +31,22 @@ vi.mock('./BibleHeader', () => ({ default: () => <div data-testid="bible-header"
 vi.mock('./study/StudyModeView', () => ({ default: () => <div data-testid="study-mode-view" /> }));
 vi.mock('./ParallelBibleView', () => ({ default: () => <div data-testid="parallel-view" /> }));
 vi.mock('./SearchResultsPane', () => ({ default: () => <div data-testid="search-results" /> }));
+vi.mock('./onboarding/PaneEmptyState', () => ({
+  default: ({ testId, title, description, actions }: any) => (
+    <div data-testid={testId}>
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {actions?.map((action: any) => (
+        <button key={action.label} onClick={action.onClick} data-testid={action.testId}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+vi.mock('../utils/openModuleManager', () => ({
+  openModuleManager: vi.fn(),
+}));
 
 const handleVerseClick = vi.fn();
 const handleVerseContextMenu = vi.fn();
@@ -441,7 +457,7 @@ describe('BibleVerseList', () => {
       renderWithContext({ openTabs: [], activeTab: undefined });
 
       expect(screen.getByTestId('bible-loading-skeleton')).toBeInTheDocument();
-      expect(screen.queryByText('biblePane.noTranslationOpen')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('bible-empty-state')).not.toBeInTheDocument();
     });
 
     it('shows the real empty state once restore has resolved with genuinely zero tabs', () => {
@@ -449,7 +465,67 @@ describe('BibleVerseList', () => {
       renderWithContext({ openTabs: [], activeTab: undefined });
 
       expect(screen.queryByTestId('bible-loading-skeleton')).not.toBeInTheDocument();
-      expect(screen.getByText('biblePane.noTranslationOpen')).toBeInTheDocument();
+      expect(screen.getByTestId('bible-empty-state')).toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Bible empty state: when no tabs are open, show PaneEmptyState with
+  // different actions depending on whether Bibles are available.
+  // ---------------------------------------------------------------------
+  describe('Bible empty state (no open tabs)', () => {
+    beforeEach(() => {
+      useSessionStore.setState({ isSessionLoaded: true });
+      vi.clearAllMocks();
+    });
+
+    it('shows install button when no Bibles are available', () => {
+      renderWithContext({ openTabs: [], activeTab: undefined, availableBibles: [] });
+
+      expect(screen.getByTestId('bible-empty-state')).toBeInTheDocument();
+      const installButton = screen.getByTestId('bible-empty-install');
+      expect(installButton).toBeInTheDocument();
+      // Button text is the i18n key because t() is mocked to return the key
+      expect(installButton).toHaveTextContent('onboarding.empty.bible.install');
+    });
+
+    it('says that no Bible is installed, rather than inviting a choice that does not exist', () => {
+      renderWithContext({ openTabs: [], activeTab: undefined, availableBibles: [] });
+
+      const state = screen.getByTestId('bible-empty-state');
+      expect(state).toHaveTextContent('onboarding.empty.bible.noneTitle');
+      expect(state).toHaveTextContent('onboarding.empty.bible.noneDescription');
+    });
+
+    it('keeps the ordinary invitation once a Bible is installed', () => {
+      renderWithContext({
+        openTabs: [],
+        activeTab: undefined,
+        availableBibles: [{ abbreviation: 'KJV', name: 'King James Version' }],
+      });
+
+      const state = screen.getByTestId('bible-empty-state');
+      expect(state).toHaveTextContent('onboarding.empty.bible.title');
+      expect(state).not.toHaveTextContent('onboarding.empty.bible.noneTitle');
+    });
+
+    it('shows select translation button when Bibles are available', () => {
+      const setShowSelector = vi.fn();
+      renderWithContext({
+        openTabs: [],
+        activeTab: undefined,
+        availableBibles: [{ abbreviation: 'KJV', name: 'King James Version' }],
+        setShowSelector,
+      });
+
+      expect(screen.getByTestId('bible-empty-state')).toBeInTheDocument();
+      const selectButton = screen.getByTestId('bible-empty-choose');
+      expect(selectButton).toBeInTheDocument();
+      // Reuses existing key from biblePane
+      expect(selectButton).toHaveTextContent('biblePane.selectTranslation');
+
+      selectButton.click();
+      expect(setShowSelector).toHaveBeenCalledWith(true);
     });
   });
 

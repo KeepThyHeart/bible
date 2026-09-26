@@ -6,7 +6,7 @@ import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateVerseId, validateString } from '../utils/validation';
 
-const commentaryLoader = new ModuleLoader('commentary', (db) => new CommentaryRepository(db));
+const commentaryLoader = new ModuleLoader('commentary', 'commentary');
 
 export function getCommentaryRepository(abbreviation: string): CommentaryRepository | null {
   return commentaryLoader.get(abbreviation);
@@ -157,8 +157,12 @@ export function registerCommentaryHandlers(_ipcMain: IpcMain): void {
   // Handler: Get commentary module info
   ipcHandler<[string], CommentaryInfoDto>(
     'commentary:getCommentaryInfo',
-    (abbreviation) => {
+    async (abbreviation) => {
       validateAbbreviation(abbreviation);
+      // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b) -
+      // every other `requireCommentaryRepository`/`getCommentaryRepository`
+      // call in this file stays the plain synchronous `.get()` it always was.
+      await commentaryLoader.ensure(abbreviation);
       const repo = requireCommentaryRepository(abbreviation);
 
       const info = repo.getModuleInfo();

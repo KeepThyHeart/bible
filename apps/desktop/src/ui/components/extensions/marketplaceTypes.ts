@@ -12,6 +12,8 @@
  * enforces the match at compile time.
  */
 
+import { getLocalizer, type Localizer } from '@bible/core';
+
 /** A catalog the user has added, plus the app's own default. */
 export interface CatalogSource {
   url: string;
@@ -78,12 +80,17 @@ export function isMarketplaceError(value: unknown): value is MarketplaceError {
   );
 }
 
-/** Human-readable size for a listing, or an empty string when unknown. */
-export function formatSize(bytes: number | undefined): string {
+/**
+ * Human-readable size for a listing, or an empty string when unknown. Pass
+ * the active `Localizer` (from `useI18n()`) so the number itself follows the
+ * chosen UI locale; `localizer` defaults to `en` for callers (and tests) that
+ * do not have one handy.
+ */
+export function formatSize(bytes: number | undefined, localizer: Localizer = getLocalizer('en')): string {
   if (bytes === undefined || !Number.isFinite(bytes) || bytes <= 0) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) return `${localizer.formatNumber(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${localizer.formatNumber(Math.round(bytes / 1024))} KB`;
+  return `${localizer.formatNumber(bytes / (1024 * 1024), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 }
 
 /** Short host name for display, falling back to the raw string on a bad URL. */

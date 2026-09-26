@@ -63,8 +63,11 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
     dialogRef.current?.focus();
     return () => {
       setTimeout(() => {
-        if (previousFocusRef.current instanceof HTMLElement) {
-          previousFocusRef.current.focus();
+        // No `instanceof HTMLElement`: this can run after a test file's DOM
+        // globals are torn down, and a detached element has nothing to focus.
+        const previous = previousFocusRef.current as HTMLElement | null;
+        if (previous?.isConnected) {
+          previous.focus();
         }
       }, 50);
     };

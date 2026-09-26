@@ -2,6 +2,7 @@ import { Topic } from '../Models/TopicalIndex/Topic';
 import { TopicVerse } from '../Models/TopicalIndex/TopicVerse';
 import { TopicalIndexModuleInfo } from '../Models/TopicalIndex/TopicalIndexModuleInfo';
 import { VerseId } from '../Core/Types';
+import { IIndexSource } from '../Access/KeywordTypes';
 
 /**
  * Interface for Topical Index repository
@@ -63,6 +64,15 @@ export interface ITopicalIndexRepository {
   // `topic_verses` table are read through the same shape.
   getAllTopicSummaries(): TopicSummary[];
   getAllTopicVerseLinks(): TopicVerseLink[];
+
+  /**
+   * The keyword-index source for this module's content (M5, task 0026
+   * revision 2): every `topic` row, streamed as `IndexDocument`s.
+   *
+   * Purely additive - `searchTopics` above (no registry-backed provider
+   * exists yet for topical-index content) is unrelated and unchanged.
+   */
+  getIndexSource(): IIndexSource;
 }
 
 /** Flat shape used by bulk-read methods. */

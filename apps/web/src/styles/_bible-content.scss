@@ -95,7 +95,7 @@
     background: var(--bg-secondary);
     cursor: pointer;
     max-width: 420px;
-    text-align: left;
+    text-align: start;
     transition: border-color 0.15s, box-shadow 0.15s;
 
     &:hover {
@@ -125,7 +125,7 @@
     font-size: 0.85em;
     font-weight: 500;
     color: var(--text-secondary);
-    text-align: right;
+    text-align: end;
   }
 
   &__chapter-header {
@@ -282,6 +282,26 @@
 }
 
 // Chapter preludes (verse 0) — psalm superscriptions, etc.
+//
+// This file's verse/word-level rules (this one, `&__number-left`,
+// `&__number`, `&__strongs`, `&__footnote-letter`) stay physical rather than
+// converting to logical properties: they render a Bible module's own content,
+// which is now direction-isolated from UI chrome (`BibleContent.tsx` sets
+// `dir`/`lang`/`data-content-dir` on the verse-list wrapper from the active
+// module's `language_code` - see `utils/textDirection.ts`), but these
+// specific decoration rules (verse-number gutter, Strong's/footnote marker
+// spacing) were not also re-expressed as content-direction-aware. Left
+// physical, they lay out correctly for every LTR-language module regardless
+// of UI direction - which is every module this app ships today - but would
+// need the equivalent of desktop's per-content-direction Tailwind classes to
+// also mirror correctly for a right-to-left module (Arabic, Hebrew, Syriac
+// Scripture text). That is real remaining RTL work, not a `dir`/`lang`
+// omission - flagged here rather than half-converted, the same way desktop's
+// own audit flags its unmirrored dockview grid and un-set `data-content-dir`
+// on its commentary/dictionary panes as accepted gaps for this pass rather
+// than guessed at. `&__votd` / `&__votd-ref` above ARE converted - that's the
+// home-screen promo card's own layout, not the reading pane's content
+// rendering.
 .verse--preface {
   font-style: italic;
   font-size: 0.85em;

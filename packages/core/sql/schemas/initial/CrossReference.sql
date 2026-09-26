@@ -28,6 +28,7 @@ PRAGMA cache_size = -16000;  -- 16MB cache
 -- For this module type the writer sets module_type = 'cross_reference' and
 -- format = 'cross-reference-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- 1. Cross-Reference Groups
@@ -70,6 +71,8 @@ CREATE INDEX idx_xref_group_range ON cross_reference_group(verse_id_start, verse
 --       JOIN cross_reference_group g ON g.group_id = l.source_id
 --      WHERE l.source_type = 'cross_reference_group'
 --        AND l.verse_id_start <= V AND COALESCE(l.verse_id_end, l.verse_id_start) >= V;
+
+-- @include ../shared/module_feature.sql
 
 -- ============================================================================
 -- 2. Schema Version

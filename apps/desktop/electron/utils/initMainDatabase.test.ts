@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { SqliteProvider } from '../providers/SqliteProvider';
+import { APP_CONFIG } from '../config/appConfig';
 import { initializeMainDatabase } from './initMainDatabase';
 
 /**
@@ -25,6 +26,82 @@ const nativeSqliteAvailable = ((): boolean => {
     return false;
   }
 })();
+
+/**
+ * The official catalog source is seeded on whichever start first finds none -
+ * not only when this code creates the database, which `npm run init` and the
+ * installer's main.db template both do instead.
+ */
+describe.skipIf(!nativeSqliteAvailable)('initMainDatabase official repository seed', () => {
+  const OFFICIAL_URL = 'https://modules.example.org/';
+  const originalUrl = APP_CONFIG.moduleCatalogUrl;
+  let tmpDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'bible-mainDb-seed-'));
+    dbPath = join(tmpDir, 'main.db');
+  });
+
+  afterEach(() => {
+    (APP_CONFIG as { moduleCatalogUrl: string }).moduleCatalogUrl = originalUrl;
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function startWithCatalogUrl(url: string): void {
+    (APP_CONFIG as { moduleCatalogUrl: string }).moduleCatalogUrl = url;
+    initializeMainDatabase(dbPath).close();
+  }
+
+  function repositories(): Array<{ abbreviation: string; url: string; type: string; is_enabled: number }> {
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      return db.queryAll<{ abbreviation: string; url: string; type: string; is_enabled: number }>(
+        'SELECT abbreviation, url, type, is_enabled FROM module_repository ORDER BY repository_id',
+      );
+    } finally {
+      db.close();
+    }
+  }
+
+  it('adds the official source to a database that already existed without one', () => {
+    startWithCatalogUrl('');
+    expect(repositories()).toEqual([]);
+
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toEqual([{ abbreviation: 'OFFICIAL', url: OFFICIAL_URL, type: 'official', is_enabled: 1 }]);
+  });
+
+  it('adds it once, however many times the app starts', () => {
+    startWithCatalogUrl(OFFICIAL_URL);
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toHaveLength(1);
+  });
+
+  it('leaves an official source the user changed as it is', () => {
+    startWithCatalogUrl(OFFICIAL_URL);
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      db.execute(`UPDATE module_repository SET url = 'https://mirror.example.net/', is_enabled = 0 WHERE type = 'official'`);
+    } finally {
+      db.close();
+    }
+
+    startWithCatalogUrl(OFFICIAL_URL);
+
+    expect(repositories()).toEqual([
+      { abbreviation: 'OFFICIAL', url: 'https://mirror.example.net/', type: 'official', is_enabled: 0 },
+    ]);
+  });
+
+  it('adds nothing when the build has no catalog URL', () => {
+    startWithCatalogUrl('');
+
+    expect(repositories()).toEqual([]);
+  });
+});
 
 /**
  * Regression test for the module_type CHECK constraint bug: a main.db created
@@ -394,6 +471,139 @@ describe.skipIf(!nativeSqliteAvailable)('initMainDatabase reference seeding', ()
     const db = new SqliteProvider(dbPath, { readonly: false });
     try {
       expect(db.queryOne<{ count: number }>('SELECT COUNT(*) AS count FROM bible_book')?.count).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+/**
+ * Regression coverage for `keyword_index` (task 0027 revision 2, F8): the
+ * table `sql/schemas/initial/MainDatabase.sql` declares for a brand new
+ * database, added to this legacy upgrader (`ensureKeywordIndexTable`) so an
+ * EXISTING `main.db` - which never re-runs `createInitialSchema` - gets it
+ * too. Mirrors the same "canonical schema only builds a fresh database"
+ * pattern `ensureModuleUuidColumn` fixes for `module_metadata.module_uuid`.
+ */
+describe.skipIf(!nativeSqliteAvailable)('initMainDatabase keyword_index table', () => {
+  let tmpDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'bible-mainDb-keywordIndex-'));
+    dbPath = join(tmpDir, 'main.db');
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function tableColumns(db: SqliteProvider, table: string): Array<{ name: string; type: string; notnull: number; pk: number }> {
+    return db.queryAll<{ name: string; type: string; notnull: number; pk: number }>(
+      `SELECT name, type, "notnull", pk FROM pragma_table_info('${table}')`
+    );
+  }
+
+  it('a brand new database gets keyword_index', () => {
+    initializeMainDatabase(dbPath).close();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      const tableExists = db.queryOne(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'keyword_index'`
+      );
+      expect(tableExists).toBeDefined();
+
+      const indexExists = db.queryOne(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_keyword_index_state'`
+      );
+      expect(indexExists).toBeDefined();
+    } finally {
+      db.close();
+    }
+  });
+
+  it('an existing database created before keyword_index existed gets the table added, with existing rows in other tables untouched', () => {
+    // A pre-F8 database: everything initializeMainDatabase already builds,
+    // but with keyword_index dropped afterward to stand in for a main.db that
+    // predates this migration entirely.
+    initializeMainDatabase(dbPath).close();
+    const legacy = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      legacy.execute('DROP TABLE keyword_index');
+      legacy.execute(
+        `INSERT INTO module_metadata (module_uuid, module_type, module_name, abbreviation, database_path, language_code)
+         VALUES ('11111111-1111-1111-1111-111111111111', 'bible', 'King James Version', 'KJV', 'modules/bible_kjv.db', 'en')`
+      );
+    } finally {
+      legacy.close();
+    }
+
+    expect(() => initializeMainDatabase(dbPath).close()).not.toThrow();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      const tableExists = db.queryOne(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'keyword_index'`
+      );
+      expect(tableExists).toBeDefined();
+
+      // Unrelated, pre-existing user data survived the repair untouched.
+      const module = db.queryOne<{ module_name: string }>(
+        `SELECT module_name FROM module_metadata WHERE abbreviation = 'KJV'`
+      );
+      expect(module?.module_name).toBe('King James Version');
+
+      // The table is actually usable, not just present.
+      db.execute(
+        `INSERT INTO keyword_index (module_uuid, provider_id, content_sha256, state, tokenizer)
+         VALUES ('11111111-1111-1111-1111-111111111111', 'sidecar-fts5', ?, 'ready', 'porter unicode61')`,
+        ['a'.repeat(64)]
+      );
+      const row = db.queryOne<{ state: string }>(
+        `SELECT state FROM keyword_index WHERE module_uuid = '11111111-1111-1111-1111-111111111111'`
+      );
+      expect(row?.state).toBe('ready');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('is idempotent: running initializeMainDatabase again does not error or duplicate the index', () => {
+    initializeMainDatabase(dbPath).close();
+    expect(() => initializeMainDatabase(dbPath).close()).not.toThrow();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      const indexes = db.queryAll<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_keyword_index_state'`
+      );
+      expect(indexes).toHaveLength(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('matches sql/schemas/initial/MainDatabase.sql column-for-column, so the two cannot silently drift apart', () => {
+    initializeMainDatabase(dbPath).close();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      const columns = tableColumns(db, 'keyword_index');
+      const byName = new Map(columns.map((c) => [c.name, c]));
+
+      expect([...byName.keys()]).toEqual([
+        'module_uuid', 'provider_id', 'content_sha256', 'state', 'tokenizer',
+        'doc_count', 'size_bytes', 'built_at', 'error',
+      ]);
+
+      // Primary key columns, in the same order both files declare.
+      const pkColumns = columns.filter((c) => c.pk > 0).sort((a, b) => a.pk - b.pk).map((c) => c.name);
+      expect(pkColumns).toEqual(['module_uuid', 'provider_id']);
+
+      // NOT NULL columns match the canonical schema's own NOT NULL set.
+      const notNull = columns.filter((c) => c.notnull === 1).map((c) => c.name).sort();
+      expect(notNull).toEqual(['content_sha256', 'module_uuid', 'provider_id', 'state', 'tokenizer'].sort());
     } finally {
       db.close();
     }

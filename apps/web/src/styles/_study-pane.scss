@@ -303,7 +303,7 @@
     color: var(--text-secondary, #888);
     margin-bottom: 4px;
 
-    i { margin-right: 6px; }
+    i { margin-inline-end: 6px; }
   }
 
   &__lexicon-item {
@@ -346,7 +346,7 @@
     color: var(--text-secondary, #888);
     font-size: calc(13px * var(--study-font-scale, 1));
 
-    i { margin-right: 6px; }
+    i { margin-inline-end: 6px; }
   }
 }
 
@@ -358,7 +358,7 @@
   // ── Compact reference list (top) ──
   &__list {
     list-style: disc;
-    padding-left: 20px;
+    padding-inline-start: 20px;
     margin: 4px 0 8px;
 
     li {
@@ -434,10 +434,10 @@
   }
 
   &__vl-entry {
-    margin-left: 8px;
+    margin-inline-start: 8px;
     margin-bottom: 2px;
     line-height: 1.55;
-    padding-left: 0.6em;
+    padding-inline-start: 0.6em;
     text-indent: -0.6em;
   }
 
@@ -447,7 +447,7 @@
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
-    margin-right: 5px;
+    margin-inline-end: 5px;
 
     &:hover {
       text-decoration: underline;
@@ -494,7 +494,7 @@
 
   &__list {
     list-style: disc;
-    padding-left: 20px;
+    padding-inline-start: 20px;
     margin: 2px 0 0;
 
     li {
@@ -513,7 +513,7 @@
     font-size: calc(13px * var(--study-font-scale, 1));
     line-height: 1.5;
     display: block;
-    text-align: left;
+    text-align: start;
   }
 
   &__chain-sep {
@@ -692,7 +692,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-size: calc(13px * var(--study-font-scale, 1));
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
@@ -720,7 +720,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-left: auto;
+    margin-inline-start: auto;
     flex-shrink: 0;
   }
 
@@ -798,7 +798,7 @@
     gap: 4px;
     padding: 6px 10px;
     cursor: pointer;
-    border-right: 1px solid var(--border-color);
+    border-inline-end: 1px solid var(--border-color);
     font-size: calc(12px * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     transition: background 0.1s;
@@ -892,7 +892,7 @@
     font-size: calc(12px * var(--ui-font-scale, 1));
     padding: 3px 8px;
     border-radius: 4px;
-    margin-left: auto;
+    margin-inline-start: auto;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -939,7 +939,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-size: calc(13px * var(--study-font-scale, 1));
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
@@ -960,8 +960,8 @@
     font-size: calc(11px * var(--study-font-scale, 1));
     color: var(--text-secondary, #aaa);
     flex-shrink: 0;
-    margin-left: 12px;
-    text-align: right;
+    margin-inline-start: 12px;
+    text-align: end;
   }
 
   // Dictionary cards
@@ -999,7 +999,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     min-width: 0;
   }
 
@@ -1064,8 +1064,8 @@
   &__search-dropdown {
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
     background: var(--bg-primary, #fff);
     border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
@@ -1084,7 +1084,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-size: calc(13px * var(--ui-font-scale, 1));
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
@@ -1213,12 +1213,12 @@
     cursor: pointer;
     padding: 8px;
     border-radius: 6px;
-    text-align: left;
+    text-align: start;
     max-width: 45%;
 
     &:hover { background: var(--hover-bg, #f5f5f5); }
 
-    &--next { text-align: right; }
+    &--next { text-align: end; }
   }
 
   &__bottom-nav-arrow {
@@ -1281,7 +1281,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-size: calc(13px * var(--study-font-scale, 1));
     color: var(--text-primary, #333);
     border-bottom: 1px solid var(--border-color, #f0f0f0);
@@ -1442,7 +1442,7 @@
     text-align: center;
     color: var(--text-secondary, #888);
 
-    i { margin-right: 6px; }
+    i { margin-inline-end: 6px; }
   }
 }
 
@@ -1468,7 +1468,7 @@
     white-space: nowrap;
 
     &:hover { background: var(--hover-bg, #f5f5f5); }
-    i { margin-right: 4px; }
+    i { margin-inline-end: 4px; }
   }
 
   &__module {
@@ -1529,7 +1529,7 @@
     flex: 1;
     font-weight: 600;
     font-size: calc(14px * var(--ui-font-scale, 1));
-    margin-left: 8px;
+    margin-inline-start: 8px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1843,7 +1843,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     font-size: calc(13px * var(--study-font-scale, 1));
 
     &:hover { background: var(--hover-bg, #f5f5f5); border-radius: 4px; }
@@ -1907,7 +1907,7 @@
   border-radius: 6px;
   background: none;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   transition: background 0.15s, box-shadow 0.15s;
 
   &:hover {
@@ -1976,7 +1976,7 @@
     width: 100%;
     background: none;
     font: inherit;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
 
     &:hover {
@@ -2074,7 +2074,7 @@
     // so marking an entry cannot shift its text or move the entries under it.
     &--last-clicked {
       background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-      border-left-color: var(--accent-color);
+      border-inline-start-color: var(--accent-color);
     }
   }
 
@@ -2147,11 +2147,11 @@
     // the last-clicked one. Reserving the space here — rather than adding the
     // border when the mark appears — is what keeps a click from nudging the
     // whole list sideways.
-    border-left: 3px solid transparent;
+    border-inline-start: 3px solid transparent;
     border-radius: 0 3px 3px 0;
     // 0.6em is the hanging indent; the extra 6px is the gap between the bar
     // and the reference, which without it sat flush against the text.
-    padding-left: calc(0.6em + 6px);
+    padding-inline-start: calc(0.6em + 6px);
     text-indent: -0.6em;
   }
 
@@ -2161,7 +2161,7 @@
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
-    margin-right: 5px;
+    margin-inline-end: 5px;
 
     &:hover { text-decoration: underline; }
   }

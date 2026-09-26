@@ -13,12 +13,12 @@ Related docs: [`README.md`](README.md) (how to add a locale, ICU rules, tooling)
 | Locale | Language | Status | Reviewed by a native speaker? |
 |---|---|---|---|
 | `en` | English | source of truth | n/a |
-| `es` | Spanish | **draft (machine-drafted)** | No - review wanted |
+| `es` | Spanish | **beta (machine-drafted, complete)** | No - review wanted |
 | `ar` | Arabic | **draft (machine-drafted)** | No - review wanted |
 | `pt-BR` | Portuguese (Brazil) | **draft (machine-drafted)** | No - review wanted |
 | `ru` | Russian | **draft (machine-drafted)** | No - review wanted |
 | `hi` | Hindi | **draft (machine-drafted)** | No - review wanted |
-| `zh-Hans` | Chinese (Simplified) | **draft (machine-drafted)** | No - review wanted |
+| `zh-Hans` | Chinese (Simplified) | **beta (machine-drafted, complete)** | No - review wanted |
 
 Every locale also carries a `locale.notes` field in its `meta.json` recording the Scripture edition used for the font sample, the copyrighted editions that must not be substituted for it, and any terminology call a reviewer is likely to want to revisit. Read it before changing a locale.
 
@@ -219,6 +219,18 @@ The surrounding message for the Preferences font panels is **`preferencesDialog.
 | Light (theme) | Claro | Claro | Светлая | हल्का | 浅色 | فاتح | RU agrees with *тема* (f). HI uses the default (masculine) form - Hindi UIs do not inflect a bare theme-card label. |
 | Dark (theme) | Oscuro | Escuro | Тёмная | गहरा | 深色 | داكن | ZH: 深色, not 夜间/黑暗 - 浅色/深色 is the standard pair. |
 | Sepia (theme) | Sepia | Sépia | Сепия | सेपिया | 棕褐色 | سيبيا | Warning: Most languages borrow the word; **Chinese does not** - 棕褐色 is the established rendering and a transliteration would be meaningless. |
+| Forest (theme) | Bosque | - | - | - | 森林 | - | Added when `es`/`zh-Hans` were drafted; other columns not yet decided. |
+| Midnight (theme) | Medianoche | - | - | - | 午夜 | - | |
+| Lagoon (theme) | Laguna | - | - | - | 泻湖 | - | |
+| Ocean (theme) | Océano | - | - | - | 海洋 | - | |
+| Sunset (theme) | Atardecer | - | - | - | 日落 | - | |
+| Meadow (theme) | Pradera | - | - | - | 草甸 | - | |
+| Slate (theme) | Pizarra | - | - | - | 石板灰 | - | |
+| Rose (theme) | Rosa | - | - | - | 玫瑰 | - | |
+| Sunrise (theme) | Amanecer | - | - | - | 日出 | - | |
+| Arctic (theme) | Ártico | - | - | - | 北极 | - | |
+| Parchment (theme) | Pergamino | - | - | - | 羊皮纸 | - | |
+| Autumn (theme) | Otoño | - | - | - | 秋色 | - | Chosen as a theme/color name (like Forest, Ocean) rather than the literal season word, to match the pattern of the other entries. |
 
 ---
 

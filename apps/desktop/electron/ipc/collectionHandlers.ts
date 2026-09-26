@@ -25,6 +25,9 @@ export function initializeCollectionService(userDb: ISql) {
   // Create repository and service
   collectionRepo = new CollectionRepository(userDb);
 
+  // `BibleBookRepository` reads main.db, not a module file - it has no
+  // `IModuleRepositoryFactory` entry by design; see `ModuleRepositoryFactory.ts`'s
+  // doc comment (task 0034).
   const bibleBookRepo = new BibleBookRepository(mainDb);
   collectionService = new CollectionService(collectionRepo, bibleBookRepo);
 

@@ -19,6 +19,7 @@ PRAGMA cache_size = -32000;  -- 32MB cache
 -- For this module type the writer sets module_type = 'bible' and
 -- format = 'bible-module'.
 -- @include ../shared/module_info.sql
+-- @include ../shared/compression_dictionary.sql
 
 -- ============================================================================
 -- 1. Bible Verses
@@ -136,7 +137,7 @@ CREATE TABLE bible_verse (
 );
 
 -- No foreign key to main.db; verse_id values must match main.db bible_verse_ref
-CREATE INDEX idx_verse_id ON bible_verse(verse_id);
+-- (verse_id is an INTEGER PRIMARY KEY, i.e. the rowid; no secondary index needed)
 
 -- 1.2 Interlinear Data (Original Language Texts Only)
 --
@@ -206,7 +207,9 @@ CREATE TABLE interlinear_word (
     CHECK (word_position_end >= word_position_start)
 );
 
-CREATE INDEX idx_interlinear_verse ON interlinear_word(verse_id);
+-- idx_interlinear_verse (verse_id) was dropped: it is a strict prefix of
+-- idx_interlinear_position (verse_id, word_position_start) below and SQLite can
+-- serve a verse_id-only lookup from that composite index directly.
 CREATE INDEX idx_interlinear_strongs ON interlinear_word(strongs_number);
 CREATE INDEX idx_interlinear_morphology ON interlinear_word(morphology);
 CREATE INDEX idx_interlinear_position ON interlinear_word(verse_id, word_position_start);
@@ -222,60 +225,10 @@ CREATE INDEX idx_interlinear_position ON interlinear_word(verse_id, word_positio
 -- Usually empty -- a plain translation supplies no references.
 -- @include ../shared/verse_link.sql
 
--- ============================================================================
--- 2. Full-Text Search
--- ============================================================================
---
--- `bible_verse_fts` is an external content table (content='bible_verse'): the FTS
--- index stores only the inverted index, and the column values live in
--- `bible_verse`. For such tables a plain `UPDATE`/`DELETE` against the FTS table is
--- not supported and silently leaves stale terms in the index.  Rows must instead be
--- removed with the special 'delete' command, supplying the old column values so
--- FTS5 can locate and remove the corresponding index entries:
---
---   INSERT INTO x_fts(x_fts, rowid, <cols...>) VALUES('delete', old.id, <old vals...>);
---
--- Reference implementation: scripts/convert-topical-index.js.
---
--- Column ordering is load-bearing: column 0 = verse_id (UNINDEXED),
--- column 1 = text. `highlight()` / `snippet()` callers index by position.
-
--- 2.1 Bible Verses FTS (indexes the clean `text` directly)
--- FTS5 external-content table: it stores only the index, reading column values
--- back from the base table via `content=`/`content_rowid=`. The triggers below
--- keep the two in step.
-CREATE VIRTUAL TABLE bible_verse_fts USING fts5(
-    verse_id UNINDEXED,       -- Column 0. Carried for retrieval only, never matched
-                              -- against. Position is load-bearing -- see above.
-    text,                     -- Column 1. The clean verse text; the only indexed
-                              -- column, and what highlight()/snippet() operate on.
-    content='bible_verse',
-    content_rowid='verse_id',
-    tokenize='porter unicode61'
-);
-
--- Triggers to keep FTS in sync (external-content pattern)
-CREATE TRIGGER bible_verse_fts_insert AFTER INSERT ON bible_verse BEGIN
-    INSERT INTO bible_verse_fts(rowid, verse_id, text)
-    VALUES (new.verse_id, new.verse_id, new.text);
-END;
-
-CREATE TRIGGER bible_verse_fts_delete AFTER DELETE ON bible_verse BEGIN
-    INSERT INTO bible_verse_fts(bible_verse_fts, rowid, verse_id, text)
-    VALUES('delete', old.verse_id, old.verse_id, old.text);
-END;
-
-CREATE TRIGGER bible_verse_fts_update AFTER UPDATE ON bible_verse BEGIN
-    INSERT INTO bible_verse_fts(bible_verse_fts, rowid, verse_id, text)
-    VALUES('delete', old.verse_id, old.verse_id, old.text);
-    INSERT INTO bible_verse_fts(rowid, verse_id, text)
-    VALUES (new.verse_id, new.verse_id, new.text);
-END;
-
 -- @include ../shared/module_feature.sql
 
 -- ============================================================================
--- 3. Schema Version
+-- 2. Schema Version
 -- ============================================================================
 
 -- @include ../shared/schema_version.sql

@@ -460,4 +460,69 @@ describe.skipIf(!DB_EXISTS)('CommentaryRepository (Barnes)', () => {
       }
     });
   });
+
+  // ==========================================================================
+  // getIndexSource (M5, task 0026 revision 2)
+  // ==========================================================================
+
+  describe('getIndexSource', () => {
+    it('carries an IndexTarget with this module\'s uuid, type and contentSha256', () => {
+      const source = repo.getIndexSource();
+      const info = repo.getModuleInfo();
+
+      expect(source.target.moduleType).toBe('commentary');
+      expect(source.target.moduleUuid).toBe(info?.moduleUuid);
+      expect(source.target.contentSha256).toBe(info?.contentSha256 ?? '');
+    });
+
+    it('count() matches a raw COUNT(*) over commentary_entry', () => {
+      const raw = provider.queryOne<{ c: number }>('SELECT COUNT(*) as c FROM commentary_entry');
+
+      expect(repo.getIndexSource().count()).toBe(raw?.c ?? -1);
+      expect(repo.getIndexSource().count()).toBeGreaterThan(0);
+    });
+
+    it('documents() yields one document per commentary_entry row', () => {
+      const source = repo.getIndexSource();
+      const docs = Array.from(source.documents());
+
+      expect(docs).toHaveLength(source.count());
+      for (let i = 1; i < docs.length; i++) {
+        expect(docs[i].rowId).toBeGreaterThan(docs[i - 1].rowId);
+      }
+    });
+
+    it('strips HTML markup out of content that carries it in the real module', () => {
+      // entry_id 3 is confirmed (by direct inspection of commentary_barnes.db)
+      // to carry an <a href="..."> tag around plain prose - exactly the shape
+      // `CommentaryRepository.searchEntries`'s own doc comment says the
+      // SHIPPED `commentary_entry_fts` index leaves unstripped. `getIndexSource()`
+      // is documented to hand back markup-free text, which is a deliberate
+      // improvement over what ships today.
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 3);
+
+      expect(doc).toBeDefined();
+      expect(doc!.text).toContain('genealogy');
+      expect(doc!.text).not.toMatch(/<[a-zA-Z/][^>]*>/);
+    });
+
+    it('carries startVerseId/endVerseId from verse_id_start/verse_id_end', () => {
+      const source = repo.getIndexSource();
+      const doc = Array.from(source.documents()).find(d => d.rowId === 3);
+
+      expect(doc).toBeDefined();
+      expect(doc!.startVerseId).toBe(40001003);
+      // A NULL verse_id_end (no range beyond the single verse) resolves to
+      // the start, the same convention `resolveRangeEnd()` uses elsewhere.
+      expect(doc!.endVerseId).toBe(doc!.startVerseId);
+    });
+
+    it('documents() returns a generator (Iterable), not a materialised array', () => {
+      const iterable = repo.getIndexSource().documents();
+
+      expect(Array.isArray(iterable)).toBe(false);
+      expect(typeof (iterable as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    });
+  });
 });

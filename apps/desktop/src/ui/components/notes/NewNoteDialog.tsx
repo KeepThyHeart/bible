@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import type { Localizer } from '@bible/core';
 
 export interface NoteTemplate {
   id: string;
@@ -9,7 +10,7 @@ export interface NoteTemplate {
   content: string;
 }
 
-function buildTemplates(t: (key: string) => string): NoteTemplate[] {
+function buildTemplates(t: (key: string) => string, localizer: Localizer): NoteTemplate[] {
   const verseStudy =
     '<h2>' + t('newNoteDialog.tplVerseStudy.heading') + '</h2>' +
     '<p><strong>' + t('newNoteDialog.tplVerseStudy.passageLabel') + '</strong> </p>' +
@@ -35,7 +36,7 @@ function buildTemplates(t: (key: string) => string): NoteTemplate[] {
     '<h3>' + t('newNoteDialog.tplTopical.summary') + '</h3><p></p>' +
     '<h3>' + t('newNoteDialog.tplTopical.personalReflection') + '</h3><p></p>';
 
-  const dateStr = new Date().toLocaleDateString('en-US', {
+  const dateStr = localizer.formatDate(new Date(), {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -91,13 +92,13 @@ interface NewNoteDialogProps {
 }
 
 const NewNoteDialog: React.FC<NewNoteDialogProps> = ({ isOpen, onConfirm, onCancel }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   // Contains Tab within the dialog while it is open, and restores focus after.
   const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
   const [title, setTitle] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('blank');
 
-  const templates = useMemo(() => buildTemplates(t), [t]);
+  const templates = useMemo(() => buildTemplates(t, localizer), [t, localizer]);
 
   useEffect(() => {
     if (isOpen) {

@@ -123,7 +123,7 @@ export async function openExternalUrl(
     return {
       success: false,
       error:
-        'Web requests are turned off. Enable "Allow web requests" in Preferences to open links.',
+        'Web requests are turned off. Enable "Allow web requests" in Preferences → Privacy to open links.',
     };
   }
 

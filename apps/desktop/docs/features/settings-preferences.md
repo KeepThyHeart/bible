@@ -4,7 +4,7 @@
 
 User preferences for text display and themes, plus the read-only keyboard-shortcut and documentation dialogs that sit alongside them.
 
-The Preferences dialog exposes six sections: **General** (UI language, global font scale, UI control size, advanced pane manager), **Typography** (fine-grained Bible/Study/UI text-size + line-height sliders and font-family picker), **Fonts** (per-pane font family/size/line-height overrides), **Themes**, **Extensions**, **Diagnostics**.
+The Preferences dialog exposes seven sections: **General** (UI language, global font scale, UI control size, advanced pane manager), **Typography** (fine-grained Bible/Study/UI text-size + line-height sliders and font-family picker), **Fonts** (per-pane font family/size/line-height overrides), **Themes**, **Privacy** (the master "Allow web requests" switch - shared with the native Privacy menu item, first run's network step and the Module Manager's offline banner via `useNetworkStore`), **Extensions**, **Diagnostics**.
 
 ## Files
 
@@ -13,12 +13,13 @@ The Preferences dialog exposes six sections: **General** (UI language, global fo
 | File | Description |
 |---|---|
 | `src/ui/components/PreferencesDialog.tsx` | Main preferences dialog composition shell |
-| `src/ui/components/PreferencesDialog/sectionDefs.tsx` | Section list (`SECTIONS`) + icons + `SectionId` union (`general`, `typography`, `fonts`, `themes`, `extensions`, `diagnostics`). Each entry holds a `labelKey`, **not** a label - see [Localization](#localization) |
-| `src/ui/components/PreferencesDialog/GeneralSection.tsx` | UI language (collapsible, collapsed by default), global font scale (70-150%, 5% steps), UI control size (11-20px), and the Advanced Pane Manager opt-in checkbox (drag-and-drop pane rearranging; off by default - see [Advanced Pane Manager gate](sidebar-layout.md) in the layout doc). Also owns `SELECTABLE_BUILT_IN_LOCALES` / `selectableLocales()`, the single gate on which shipped locales either picker offers - see [Localization](localization.md#language-picker) |
+| `src/ui/components/PreferencesDialog/sectionDefs.tsx` | Section list (`SECTIONS`) + icons + `SectionId` union (`general`, `typography`, `fonts`, `themes`, `privacy`, `extensions`, `diagnostics`). Each entry holds a `labelKey`, **not** a label - see [Localization](#localization) |
+| `src/ui/components/PreferencesDialog/GeneralSection.tsx` | UI language (collapsible, collapsed by default), global font scale (70-150%, 5% steps), UI control size (11-20px), and the Advanced Pane Manager opt-in checkbox (drag-and-drop pane rearranging; off by default - see [Advanced Pane Manager gate](sidebar-layout.md) in the layout doc). Also owns `selectableLocales()`, the single gate on which shipped locales either picker offers, driven by each locale's own `beta`/`draft`/`complete` status - see [Localization](localization.md#language-picker) |
 | `src/ui/components/PreferencesDialog/TypographySection.tsx` | Fine-grained Bible/Study/UI text-size + line-height sliders (12-48 / 12-36 / 10-24 px; 1.2-2.5 line height) and font-family picker (System Default, Georgia, Times New Roman, Palatino, Garamond, Lora, Merriweather, EB Garamond) |
 | `src/ui/components/PreferencesDialog/FontsSection.tsx` | Per-pane font settings list. `PANE_CONFIGS` holds a pane type and a sample-text **key** per pane (`bible`, `commentary`, `book`, `dictionary`); the panel label is `preferencesDialog.paneFontLabel` with the pane's bare noun from `utils/paneNames.ts` |
 | `src/ui/components/PreferencesDialog/PaneFontSettings.tsx` | Collapsible per-pane font settings panel. Its typeface list is `useTextSettingsStore`'s `AVAILABLE_FONTS` (Georgia, Merriweather, Garamond, Times New Roman, Crimson Text, Libre Baskerville) - a different, bundled-font list from the Typography section's `AVAILABLE_FONT_FAMILIES` |
 | `src/ui/components/PreferencesDialog/ThemesSection.tsx` | Theme selector: one card per `AVAILABLE_THEMES` entry with a swatch built from its `preview` colors, plus a live preview block |
+| `src/ui/components/PreferencesDialog/PrivacySection.tsx` | The "Allow web requests" checkbox, bound to `useNetworkStore`. Turning it on round-trips through `requestAllow(true)` (main's native confirmation dialog); a cancelled dialog snaps the checkbox back to unchecked. Turning it off is immediate |
 | `src/ui/components/PreferencesDialog/useDialogShell.ts` | Dialog focus/escape shell hook |
 | `src/ui/utils/paneNames.ts` | `PANE_NAME_KEYS` - the catalog key for each pane's name, shared with the dockview tab strip; also `genericEnglishTitle()` and `localizePaneLabel()` |
 | `src/ui/components/ExtensionsSection.tsx` | The Extensions section of the dialog - see [Extensions](extensions.md) |
@@ -32,6 +33,7 @@ The Preferences dialog exposes six sections: **General** (UI language, global fo
 |---|---|
 | `src/ui/stores/usePreferencesStore.ts` | Zustand store for theme, global font scale, UI control size, fine-grained typography (`TypographyPrefs`: bibleFontSize, studyFontSize, uiFontSize, bibleLineHeight, studyLineHeight, uiLineHeight, bibleFontFamily, studyFontFamily, uiFontFamily), and `advancedPaneManagerEnabled` (drag-and-drop pane rearranging opt-in, default `false` - see `services/AdvancedPaneManagerGate.ts`). Exports `AVAILABLE_FONT_FAMILIES`, `DEFAULT_TYPOGRAPHY`, `getFontFamilyStack()`, `AVAILABLE_THEMES` (generated from `styles/themeTokens.ts`), `ThemeId`/`isValidThemeId` (re-exported from `styles/themeTokens.ts`). Applies values as CSS variables (`--bible-font-size`, `--bible-line-height`, `--bible-font-family`, `--study-*`, `--ui-*`, `--ui-font-scale`, `--global-font-scale`, `--ui-control-font-size`) on the document root, and pushes the Bible/Study values into `useTextSettingsStore` (see "Typography vs. per-pane Fonts precedence" below). |
 | `src/ui/stores/useTextSettingsStore.ts` | Zustand store for per-pane text settings (font family, size, line height per pane type). Tracks a `customized: Record<PaneType, boolean>` flag per pane; a non-customized pane's font settings are kept live in sync with the Typography section via `syncFromTypography()`, called from `usePreferencesStore.ts`. `getFontFamilyCSS()` resolves either a named `AVAILABLE_FONTS` option or an already-resolved CSS font stack (what a synced, non-customized pane carries). |
+| `src/ui/stores/useNetworkStore.ts` | Zustand store mirroring the master "Allow web requests" switch (`load()` / `requestAllow()`), shared by the Privacy section, the native menu, first run, and the Module Manager's offline banner - see `docs/features/onboarding.md` |
 
 ### Styles
 
@@ -58,7 +60,9 @@ The Preferences dialog exposes six sections: **General** (UI language, global fo
 | `src/ui/services/AppInitService.preferences.test.ts` | End-to-end `initializeApp()` test (every other store it touches mocked out) proving the actual startup path - not just the store methods in isolation - restores theme/typography/per-pane font settings, and that a session carrying no `customized` data leaves the Typography sliders live |
 | `src/ui/styles/themeTokens.test.ts` | Structural agreement between `themeTokens.ts` and `themes.css`: every theme has a `[data-theme]` block defining every required CSS variable (including the range-slider tokens) |
 | `src/ui/styles/themePalette.test.ts` | Holds `themes.css` to `admin/brand/theme-palettes.json`: for each of the 15 themes, the ten shared core colours (`bg-*`, `text-*`, `border-color`, `accent-color`, `accent-hover`, `christ-words`) must match the palette's desktop value. A failure means a shared colour moved on one side only |
-| `src/ui/components/PreferencesDialog/GeneralSection.test.tsx` | The language picker: `selectableLocales()`'s allowlist behaviour (shipped drafts hidden, user-supplied and active locales kept), the disclosure starting collapsed while still naming the active language, and the draft badge surviving for a user-supplied draft |
+| `src/ui/components/PreferencesDialog/GeneralSection.test.tsx` | The language picker: `selectableLocales()`'s status-driven behaviour (shipped `draft` locales hidden, a promoted `beta` one shown and badged, user-supplied and active locales kept), the disclosure starting collapsed while still naming the active language, and the draft badge surviving for a user-supplied draft |
+| `src/ui/components/PreferencesDialog/PrivacySection.test.tsx` | The "Allow web requests" checkbox: unchecked by default, checks once the native dialog is confirmed, snaps back to unchecked on cancel, and turns off with no confirmation |
+| `src/ui/stores/useNetworkStore.test.ts` | `load()`/`requestAllow()` against a mocked bridge: fail-closed with no bridge, never assumes the request took effect, and adopts a `network:changed` broadcast |
 | `src/ui/components/KeyboardShortcutsDialog.test.tsx` | Rendering, category headings, and close behaviour of the read-only shortcut list |
 | `src/ui/styles/fontScaleConsumption.test.ts` | Text-level check that `--global-font-scale` is multiplied via `calc()` into `body`, every `.pane-content-*` rule, and `--ui-control-font-size`; **and** that the declarations which *win* the cascade for pane-header/tab text read `--ui-control-font-size` rather than a Tailwind `text-*` utility (see [UI Control Font Size](#ui-control-font-size)) |
 
@@ -108,7 +112,7 @@ The General section's "UI Control Font Size" slider (11-20px, default 14) writes
 
 The Language block is a disclosure, **collapsed by default**, matching `PaneFontSettings.tsx` (the dialog's only other collapsible). It is the first control in the first tab, and a stray click on a row would otherwise switch the whole interface - potentially into a language the user cannot read well enough to switch back from. The collapsed header still shows the active language's endonym, so the disclosure hides the *choice*, never the state.
 
-Which languages are offered is decided by `SELECTABLE_BUILT_IN_LOCALES` in `GeneralSection.tsx` - see [Localization](localization.md#language-picker).
+Which languages are offered is decided by each locale's own `status` via `selectableLocales()` in `GeneralSection.tsx` - see [Localization](localization.md#language-picker).
 
 ## Range slider styling
 

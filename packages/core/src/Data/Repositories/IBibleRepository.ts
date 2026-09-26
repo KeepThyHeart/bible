@@ -1,6 +1,8 @@
 import { BibleVerse, InterlinearWord } from '../Models/Bible/BibleVerse';
 import { BibleModuleInfo } from '../Models/Bible/BibleModuleInfo';
 import { VerseId, BookNumber } from '../Core/Types';
+import { IIndexSource } from '../Access/KeywordTypes';
+import { ISql } from '../Core/ISql';
 
 
 /**
@@ -8,6 +10,15 @@ import { VerseId, BookNumber } from '../Core/Types';
  * Defines all operations for working with Bible translation databases
  */
 export interface IBibleRepository {
+  /**
+   * This repository's own open connection (F7, task 0027 revision 2). See
+   * `BaseModuleRepository.getSql()`'s doc comment for why this exists:
+   * `BibleSearchService` uses it to give its `Fts5Highlighter` a real,
+   * already-open, FTS5-capable connection per module, without opening a
+   * second one.
+   */
+  getSql(): ISql;
+
   // Module Info Operations
   getModuleInfo(): BibleModuleInfo | undefined;
   updateModuleInfo(info: BibleModuleInfo): void;
@@ -79,4 +90,19 @@ export interface IBibleRepository {
    * Useful for highlighting matched words in search results.
    */
   getGlossesForStrongs(strongsVariants: string[]): string[];
+
+  /**
+   * The keyword-index source for this module's content (M5, task 0026
+   * revision 2): every `bible_verse` row, streamed as `IndexDocument`s.
+   *
+   * Purely additive - nothing above is removed by this. In particular
+   * `searchVerses`/`searchVersesWithHighlighting` (queried directly by
+   * `InModuleFts5Provider`, and `searchVerses` also by a live desktop IPC
+   * call site) and the book-level `ensureSearchTablesExist`/`isBookIndexed`/
+   * `buildBookIndex`/`searchBookFTS5` family (the SEPARATE `book_search_index`
+   * cache `BibleSearchService.searchProximity` still queries directly) are
+   * unrelated existing paths, deliberately left as they are - see this
+   * package's task 0027 report for why.
+   */
+  getIndexSource(): IIndexSource;
 }

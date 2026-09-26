@@ -12,6 +12,7 @@ import {
   InstallationResult,
   UpdateCheckResult
 } from '../Data/Core/CatalogTypes';
+import { isReadableFormatVersion } from '../Data/Format/ModuleFormat';
 
 /**
  * Module Controller
@@ -61,12 +62,20 @@ export class ModuleController {
   }
 
   /**
-   * Install a module
+   * Install a module.
+   *
+   * @param catalogModuleId - The catalog module id to install.
+   * @param catalogId - When given, resolve `catalogModuleId` only against
+   *                    that catalog (see `IModuleCatalogService.getModuleInfo`)
+   *                    rather than across every enabled catalog. First-run
+   *                    starter-pack installs always pass this, so a
+   *                    third-party catalog can never satisfy an install the
+   *                    user believes is coming from the official one.
    */
-  async installModule(catalogModuleId: string): Promise<InstallationResult> {
+  async installModule(catalogModuleId: string, catalogId?: number): Promise<InstallationResult> {
     try {
       // Get module info from catalog
-      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId);
+      const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId, catalogId);
       if (!moduleInfo) {
         return {
           success: false,
@@ -83,6 +92,21 @@ export class ModuleController {
         };
       }
 
+      // Refuse a format_version this build cannot read before any network
+      // request for the module payload starts - the whole point of carrying
+      // format_version in the catalog is to make that refusal possible before
+      // the download, not after it. Allow-list lookup only, never a numeric
+      // comparison (see ModuleFormat.ts's doc comment on why a range would be
+      // wrong). Absence of the field is not a violation - an older catalog
+      // that predates it, or an entry this catalog schema has no opinion on,
+      // simply has nothing to check (mirrors validateModuleFile.ts's posture).
+      if (moduleInfo.format_version && !isReadableFormatVersion(moduleInfo.format_version)) {
+        return {
+          success: false,
+          error: `"${moduleInfo.name}" uses format_version ${moduleInfo.format_version}, which this version of the app cannot read. Update the app to install this module.`
+        };
+      }
+
       // Create download queue entry
       const downloadQueue = new DownloadQueue({
         moduleId: moduleInfo.module_id,
@@ -94,16 +118,30 @@ export class ModuleController {
 
       const queueEntry = this.downloadQueueRepo.create(downloadQueue);
 
-      // Determine temp file path
-      const fileName = `${moduleInfo.module_id}_v${moduleInfo.version}.db.gz`;
+      // Determine temp file path. The extension follows what download_url
+      // actually names, rather than assuming `.db.gz`: InstallationService's
+      // own installModule() downstream branches on `sourcePath.endsWith('.gz')`
+      // to decide whether to decompress, so this temp filename must agree with
+      // the real payload or that branch picks the wrong path (attempts to
+      // gunzip a non-gzip file, or skips decompressing one that needs it).
+      // `.gz` (transport compression) is stripped first so a `.db.gz` payload
+      // still contributes its real `.db` extension underneath, rather than
+      // collapsing to just `.gz`.
+      const downloadUrlPath = new URL(moduleInfo.download_url).pathname;
+      const isGzipped = downloadUrlPath.endsWith('.gz');
+      const withoutGz = isGzipped ? downloadUrlPath.slice(0, -'.gz'.length) : downloadUrlPath;
+      const lastDot = withoutGz.lastIndexOf('.');
+      const baseExtension = lastDot >= 0 ? withoutGz.slice(lastDot) : '.db';
+      const extension = isGzipped ? `${baseExtension}.gz` : baseExtension;
+      const fileName = `${moduleInfo.module_id}_v${moduleInfo.version}${extension}`;
       const tempFilePath = `${this.tempDownloadPath}/${fileName}`;
 
-      // Start download
+      // Start download. The catalog's checksum covers the unpacked module, so
+      // the installation service checks it after unpacking, not the download.
       const downloadedPath = await this.downloadService.startDownload(
         queueEntry.queueId!,
         moduleInfo.download_url,
-        tempFilePath,
-        moduleInfo.checksum.replace('sha256:', '')
+        tempFilePath
       );
 
       // Mark download as completed in queue
@@ -125,7 +163,12 @@ export class ModuleController {
           license: moduleInfo.license,
           license_url: moduleInfo.license_url,
         }
-      });
+      }, moduleInfo.checksum
+        ? {
+            sha256: moduleInfo.checksum.replace('sha256:', ''),
+            maxBytes: moduleInfo.installed_size_bytes || undefined,
+          }
+        : undefined);
 
       return installResult;
     } catch (error) {

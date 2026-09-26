@@ -1,4 +1,4 @@
-import { ReferenceParser } from '@bible/core';
+import { getLocalizedReferenceParser } from './localizedReferenceParser';
 
 /**
  * Determines whether user input looks like a Bible reference.
@@ -9,14 +9,8 @@ import { ReferenceParser } from '@bible/core';
  *  2. The existing `ReferenceParser.isReference()` must accept it.
  */
 export class ReferenceClassifier {
-  private parser: ReferenceParser;
-
-  constructor() {
-    this.parser = new ReferenceParser();
-  }
-
   looksLikeReference(input: string): boolean {
     if (!/\d/.test(input)) return false;
-    return this.parser.isReference(input);
+    return getLocalizedReferenceParser().isReference(input);
   }
 }

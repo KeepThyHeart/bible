@@ -17,10 +17,13 @@ import {
   CommentaryRepository,
   CrossReferenceRepository,
   BookRepository,
+  SqliteModuleRepositoryFactory,
+  nodeCodecRegistry,
+  wrapSqlConnection,
   stripOsisTags,
 } from '@bible/core';
-import type { ISql } from '@bible/core';
-import { getBibleRepository } from './bibleHandlers';
+import type { ISql, ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
+import { ensureBibleRepository } from './bibleHandlers';
 import { getDataPath } from '../utils/appPaths';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { getSharedMainDb } from '../services/sharedMainDb';
@@ -32,17 +35,36 @@ const DATA_DIR = getDataPath();
 const USERS_DIR = path.join(DATA_DIR, 'users');
 
 /**
+ * Task 0034 (finishing M11): the shared `IModuleRepositoryFactory` +
+ * codec registry every repository construction in this file routes through,
+ * instead of `new XRepository(db)` directly. `wrapSqlConnection()` (`@bible/core`)
+ * adapts the already-open `ISql` handles this file gets from
+ * `ModuleDatabaseRegistry` (keyed by module id or abbreviation, not by a
+ * `ModuleLocator`) into the minimal `IModuleConnection` the factory needs -
+ * `close` is left a no-op, since the registry (not this wrapper) owns the
+ * connection's lifecycle.
+ */
+const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
+const codecs: ICodecRegistry = nodeCodecRegistry();
+
+/**
  * Get or create a cached Bible repository for interlinear/study queries.
  *
  * Prefers the shared bibleHandlers loader so callers hit the same
  * BibleRepository instance as the main Bible pane. If the Bible module
  * hasn't been touched yet, falls back to opening via the ModuleDatabaseRegistry
  * (which also backs `ModuleLoader`), so both paths share one DB handle.
+ *
+ * Async (task 0034, 0029 design doc §04 S3b): the shared-loader path calls
+ * `ensureBibleRepository()` so a module not yet touched by the main Bible
+ * pane is opened here rather than silently falling through to the
+ * registry-backed second `BibleRepository` instance below - the two paths
+ * used to disagree on which instance a caller got depending on load order.
  */
-function getCachedBibleRepo(abbreviation: string): BibleRepository | null {
+async function getCachedBibleRepo(abbreviation: string): Promise<BibleRepository | null> {
   const t0 = Date.now();
 
-  const sharedRepo = getBibleRepository(abbreviation);
+  const sharedRepo = await ensureBibleRepository(abbreviation);
   if (sharedRepo) {
     const elapsed = Date.now() - t0;
     if (elapsed > 50) log.warn(`[studyHandlers] getCachedBibleRepo(${abbreviation}) via shared cache took ${elapsed}ms`);
@@ -55,7 +77,11 @@ function getCachedBibleRepo(abbreviation: string): BibleRepository | null {
     log.warn(`[studyHandlers] Bible database not found for abbreviation: ${abbreviation}`);
     return null;
   }
-  return new BibleRepository(provider);
+  // The factory is typed to hand back the per-type INTERFACE
+  // (`IBibleRepository`); `SqliteModuleRepositoryFactory` is KNOWN to build
+  // the concrete `BibleRepository` for `'bible'` - a truthful narrowing, not
+  // a widening one (matching `DatabaseManager.ts`'s own `asConcreteFactory`).
+  return repositoryFactory.create(wrapSqlConnection(provider), 'bible', codecs) as BibleRepository | null;
 }
 
 /**
@@ -91,7 +117,8 @@ function getCommentaryRepo(moduleId: number): CommentaryRepository | undefined {
   if (commentaryRepoCache.has(moduleId)) return commentaryRepoCache.get(moduleId)!;
   const db = getModuleDb(moduleId);
   if (!db) return undefined;
-  const repo = new CommentaryRepository(db);
+  const repo = repositoryFactory.create(wrapSqlConnection(db), 'commentary', codecs) as CommentaryRepository | null;
+  if (!repo) return undefined;
   commentaryRepoCache.set(moduleId, repo);
   return repo;
 }
@@ -100,7 +127,8 @@ function getCrossRefRepo(moduleId: number): CrossReferenceRepository | undefined
   if (crossRefRepoCache.has(moduleId)) return crossRefRepoCache.get(moduleId)!;
   const db = getModuleDb(moduleId);
   if (!db) return undefined;
-  const repo = new CrossReferenceRepository(db);
+  const repo = repositoryFactory.create(wrapSqlConnection(db), 'crossRef', codecs) as CrossReferenceRepository | null;
+  if (!repo) return undefined;
   crossRefRepoCache.set(moduleId, repo);
   return repo;
 }
@@ -109,7 +137,8 @@ function getBookRepo(moduleId: number): BookRepository | undefined {
   if (bookRepoCache.has(moduleId)) return bookRepoCache.get(moduleId)!;
   const db = getModuleDb(moduleId);
   if (!db) return undefined;
-  const repo = new BookRepository(db);
+  const repo = repositoryFactory.create(wrapSqlConnection(db), 'book', codecs) as BookRepository | null;
+  if (!repo) return undefined;
   bookRepoCache.set(moduleId, repo);
   return repo;
 }
@@ -273,9 +302,9 @@ ipcHandler<[number, number], unknown[]>(
 /**
  * Get interlinear words for a specific verse (returns fallback on error)
  */
-ipcHandler<[string, number], any[]>('bible:getInterlinearWords', (abbreviation, verseId) => {
+ipcHandler<[string, number], any[]>('bible:getInterlinearWords', async (abbreviation, verseId) => {
   try {
-    const repo = getCachedBibleRepo(abbreviation);
+    const repo = await getCachedBibleRepo(abbreviation);
     if (!repo) {
       log.warn(`[studyHandlers] No Bible repository available for ${abbreviation}`);
       return [];
@@ -306,10 +335,10 @@ ipcHandler<[string, number], any[]>('bible:getInterlinearWords', (abbreviation, 
  */
 ipcHandler<[string, number, number], Record<number, any[]>>(
   'bible:getInterlinearWordsForChapter',
-  (abbreviation, bookNumber, chapter) => {
+  async (abbreviation, bookNumber, chapter) => {
     const startTime = Date.now();
     try {
-      const repo = getCachedBibleRepo(abbreviation);
+      const repo = await getCachedBibleRepo(abbreviation);
       if (!repo) {
         log.warn(`[studyHandlers] No Bible repository available for ${abbreviation}`);
         return {};
@@ -350,12 +379,12 @@ ipcHandler<[string, number, number], Record<number, any[]>>(
 /**
  * Check if a Bible module has interlinear data (returns fallback on error)
  */
-ipcHandler<[string], boolean>('bible:hasInterlinearData', (abbreviation) => {
+ipcHandler<[string], boolean>('bible:hasInterlinearData', async (abbreviation) => {
   const handlerStart = Date.now();
   log.info(`[studyHandlers] hasInterlinearData(${abbreviation}): handler entered`);
   try {
     const repoStart = Date.now();
-    const repo = getCachedBibleRepo(abbreviation);
+    const repo = await getCachedBibleRepo(abbreviation);
     const repoTime = Date.now() - repoStart;
 
     if (!repo) {
@@ -461,9 +490,9 @@ ipcHandler<[string, number], { success: boolean }>(
  */
 ipcHandler<[string, number[]], { [key: number]: string }>(
   'bible:getVerseTexts',
-  (abbreviation, verseIds) => {
+  async (abbreviation, verseIds) => {
     try {
-      const repo = getCachedBibleRepo(abbreviation);
+      const repo = await getCachedBibleRepo(abbreviation);
       if (!repo) {
         log.warn(`[studyHandlers] No Bible repository available for ${abbreviation}`);
         return {};

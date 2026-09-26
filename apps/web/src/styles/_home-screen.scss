@@ -43,7 +43,7 @@
     cursor: pointer;
     max-width: 480px;
     width: 100%;
-    text-align: left;
+    text-align: start;
     transition: border-color 0.15s, box-shadow 0.15s;
     animation: home-votd-in 0.18s ease-out;
 
@@ -96,7 +96,7 @@
     font-size: 0.9em;
     font-weight: 500;
     color: var(--text-secondary);
-    text-align: right;
+    text-align: end;
   }
 
   &__loading {

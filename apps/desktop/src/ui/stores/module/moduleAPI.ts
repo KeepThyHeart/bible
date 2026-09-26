@@ -7,6 +7,10 @@
 // receive plain values and errors throw as `IpcResultError`.
 import { requireElectronAPI } from '../../services/electronAPI';
 import { unwrap } from '../../services/ipcResult';
+import { searchAPI } from '../../services/electronAPI';
+import type { KeywordIndexStatusDto } from '../../../../electron/services/KeywordIndexService';
+
+export type { KeywordIndexStatusDto };
 
 export const moduleAPI = {
   async init() {
@@ -21,8 +25,8 @@ export const moduleAPI = {
   async searchModules(filter: any) {
     return unwrap(requireElectronAPI().moduleManager.searchModules(filter));
   },
-  async installModule(moduleId: string) {
-    return unwrap(requireElectronAPI().moduleManager.installModule(moduleId));
+  async installModule(moduleId: string, catalogId?: number) {
+    return unwrap(requireElectronAPI().moduleManager.installModule(moduleId, catalogId));
   },
   async installFromFile() {
     return unwrap(requireElectronAPI().moduleManager.installFromFile());
@@ -30,8 +34,15 @@ export const moduleAPI = {
   async installFromPath(filePath: string, allowOverwrite?: boolean) {
     return unwrap(requireElectronAPI().moduleManager.installFromPath(filePath, allowOverwrite));
   },
-  async installPackFromPath(archivePath: string, allowOverwrite?: boolean) {
-    return unwrap(requireElectronAPI().moduleManager.installPackFromPath(archivePath, allowOverwrite));
+  async installPackFromPath(
+    archivePath: string,
+    allowOverwrite?: boolean,
+    options?: { acceptUnverified?: boolean }
+  ) {
+    return unwrap(requireElectronAPI().moduleManager.installPackFromPath(archivePath, allowOverwrite, options));
+  },
+  async inspectPack(archivePath: string) {
+    return unwrap(requireElectronAPI().moduleManager.inspectPack(archivePath));
   },
   async uninstallModule(moduleId: number, removeUserData?: boolean) {
     return unwrap(requireElectronAPI().moduleManager.uninstallModule(moduleId, removeUserData));
@@ -44,6 +55,15 @@ export const moduleAPI = {
   },
   async getModuleDetails(moduleId: number) {
     return unwrap(requireElectronAPI().moduleManager.getModuleDetails(moduleId));
+  },
+  async getKeywordIndexStatus(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.getKeywordIndexStatus(moduleId));
+  },
+  async rebuildKeywordIndex(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.rebuildKeywordIndex(moduleId));
+  },
+  async deleteKeywordIndex(moduleId: number): Promise<KeywordIndexStatusDto> {
+    return unwrap(requireElectronAPI().moduleManager.deleteKeywordIndex(moduleId));
   },
   async getDownloadProgress(queueId: number) {
     return unwrap(requireElectronAPI().moduleManager.getDownloadProgress(queueId));
@@ -83,5 +103,8 @@ export const moduleAPI = {
   },
   async setRepositoryEnabled(repositoryId: number, enabled: boolean) {
     return unwrap(requireElectronAPI().moduleManager.setRepositoryEnabled(repositoryId, enabled));
+  },
+  async reindexModule(abbrev: string, onProgress?: (progress: any) => void) {
+    return searchAPI.buildIndex([abbrev], onProgress);
   }
 };

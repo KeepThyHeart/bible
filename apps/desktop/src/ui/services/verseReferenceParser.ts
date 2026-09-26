@@ -10,7 +10,8 @@
  * - "John" or "Jn" - Entire book
  */
 
-import { ENGLISH_BOOK_NAMES, getBookName } from '@bible/core';
+import { ENGLISH_BOOK_NAMES, getBookName, getLocalizer } from '@bible/core';
+import { i18nService } from './I18nService';
 
 // Book name/abbreviation -> { number, name }, derived from core's canonical
 // alias table - a strict superset with identical mappings, so this file does
@@ -20,10 +21,23 @@ import { ENGLISH_BOOK_NAMES, getBookName } from '@bible/core';
 // whole-book references ("John", "Jude") that core's parse() rejects, and
 // core fuzzy-matches typos, which must not happen in the copy/export dialogs
 // that call this.
-const BOOK_MAPPINGS: Record<string, { number: number; name: string }> =
-  Object.fromEntries(
-    [...ENGLISH_BOOK_NAMES].map(([alias, number]) => [alias, { number, name: getBookName(number) }]),
+//
+// Rebuilt from the active UI locale on every call (parses happen on explicit
+// user actions like submitting the copy/export dialog, not on every
+// keystroke, so rebuilding the ~300-entry map each time is fine) so it
+// follows a locale change at runtime; falls back to the English tables until
+// a locale's book-name table is drafted (see `Localizer.ts`'s module doc).
+function bookMappings(): Record<string, { number: number; name: string }> {
+  const config = getLocalizer(i18nService.currentLocale).referenceParserConfig;
+  const names = config?.bookNames ?? ENGLISH_BOOK_NAMES;
+  const displayNames = config?.displayNames;
+  return Object.fromEntries(
+    [...names].map(([alias, number]) => [
+      alias,
+      { number, name: displayNames?.[number - 1] ?? getBookName(number) },
+    ]),
   );
+}
 
 // Books with only one chapter
 // For these books, "Jude 2" means "Jude 1:2", not "Jude chapter 2"
@@ -66,7 +80,7 @@ export function parseReference(reference: string): ParsedReference | null {
 
   // Extract book name/abbreviation
   const bookInput = match[1].toLowerCase().replace(/\s+/g, ' ').trim();
-  const bookInfo = BOOK_MAPPINGS[bookInput];
+  const bookInfo = bookMappings()[bookInput];
 
   if (!bookInfo) return null;
 

@@ -5,7 +5,7 @@ import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateAbbreviation, validateVerseId, validatePositiveInt, validateString } from '../utils/validation';
 
-const loader = new ModuleLoader('topical_index', (db) => new TopicalIndexRepository(db));
+const loader = new ModuleLoader('topical_index', 'topicalIndex');
 
 function getTopicalRepository(abbreviation: string): TopicalIndexRepository | null {
   return loader.get(abbreviation);
@@ -93,9 +93,13 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
   });
 
   // Get a single topic with children, parent chain, and verse count
-  ipcHandler<[string, number], unknown | null>('topical:getTopic', (abbreviation, topicId) => {
+  ipcHandler<[string, number], unknown | null>('topical:getTopic', async (abbreviation, topicId) => {
     validateAbbreviation(abbreviation);
     validatePositiveInt(topicId, 'topicId');
+    // One `ensure()` per handler (task 0034, 0029 design doc §04 S3b) -
+    // every other `getTopicalRepository`/`getAllTopicalRepos` call in this
+    // file stays the plain synchronous `.get()` it always was.
+    await loader.ensure(abbreviation);
     const repo = getTopicalRepository(abbreviation);
     if (!repo) {
       throw new IpcKnownError('not_found', `Topical index not found: ${abbreviation}`);

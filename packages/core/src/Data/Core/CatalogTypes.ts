@@ -1,4 +1,5 @@
 import { ModuleType } from './Types';
+import { CompressionCodec } from '../Format/ModuleFormat';
 
 /**
  * Repository catalog metadata
@@ -9,6 +10,13 @@ export interface RepositoryInfo {
   version: string;
   url: string;
   last_updated: string;
+  /**
+   * ISO-8601 UTC time the catalog was published, stamped by
+   * `scripts/yubikey-sign.py` when it signs. It sits inside the catalog, so the
+   * signature covers it. Recorded for a future freshness check - the app does
+   * not reject a catalog for its age today. Absent in older catalogs.
+   */
+  published?: string;
   description: string;
   language: string;
 }
@@ -40,6 +48,28 @@ export interface CatalogModule {
   requires_module?: string | null;
   created_date: string;
   updated_date: string;
+  /**
+   * Module Format v2's `module_info.format_version` (task 0027), copied
+   * verbatim into the catalog so a client can decline a download it cannot
+   * read before spending the bandwidth to fetch it - see ModuleFormat.ts's
+   * doc comment on why the allow-list is exact, not a range: an older client
+   * has no rule that lets it guess a newer 0.x is fine, so this field existing
+   * in the catalog (rather than only being discoverable after download) is
+   * what makes that refusal possible before the fact rather than after.
+   * Absent on a catalog entry published before this field existed, or for a
+   * module type this catalog schema doesn't model with a format version at
+   * all - absence is not a violation, there is simply nothing to check.
+   */
+  format_version?: string;
+  /**
+   * `module_info.compression` (task 0027) - which codec this module's content
+   * cells use, if any. Informational at the catalog level: a client without
+   * the codec still installs the module (it opens; only readContent degrades -
+   * see ICodecRegistry's own doc comment), so this is not itself a download
+   * gate the way `format_version` is. Absent on a catalog entry published
+   * before this field existed, or for an uncompressed module.
+   */
+  compression?: CompressionCodec;
 }
 
 /**
@@ -82,23 +112,36 @@ export interface RepositoryCatalog {
   starter_packs?: unknown[];
 }
 
+/** One Ed25519 signature over the SHA-256 digest of a catalog's exact bytes. */
+export interface CatalogSignatureEntry {
+  /** Hex-encoded 32-byte Ed25519 public key (64 hex chars). */
+  publicKey: string;
+  /** Hex-encoded 64-byte Ed25519 signature (128 hex chars). */
+  signature: string;
+  algorithm: 'ed25519-sha256';
+}
+
 /**
  * Detached Ed25519 signature over a catalog document.
  *
  * Served alongside the catalog as `<catalog>.sig` so that `catalog.json`
  * stays byte-identical to what was signed (no canonicalization needed).
  * Mirrors the extension signing format (`ExtensionSignature`).
+ *
+ * The top-level fields are the primary signature. `signatures` may add more
+ * over the same bytes by other keys, which is how a catalog is signed by an
+ * outgoing and an incoming key at once during a rotation. Apps that predate
+ * `signatures` read only the primary, so during a rotation it should be the
+ * key older installs trust. Every signature present must verify; one by a
+ * trusted key is enough.
  */
-export interface CatalogSignature {
-  /** Hex-encoded 32-byte Ed25519 public key (64 hex chars). */
-  publicKey: string;
-  /** Hex-encoded 64-byte Ed25519 signature (128 hex chars). */
-  signature: string;
-  algorithm: 'ed25519-sha256';
+export interface CatalogSignature extends CatalogSignatureEntry {
   /** ISO-8601 timestamp the signature was produced (informational). */
   signedAt?: string;
   /** Optional short label identifying the signing key. */
   keyId?: string;
+  /** Further signatures over the same catalog bytes. */
+  signatures?: CatalogSignatureEntry[];
 }
 
 /**
@@ -120,8 +163,13 @@ export type CatalogSignatureStatus =
 
 export interface CatalogVerificationResult {
   status: CatalogSignatureStatus;
-  /** Hex public key that produced the signature, when one was present. */
+  /**
+   * Hex public key that produced the signature, when one was present. With
+   * several signatures, the trusted one that verified the catalog.
+   */
   publicKey?: string;
+  /** Every key whose signature over the catalog verified. */
+  signers?: string[];
   /** Human-readable detail, suitable for surfacing in the UI. */
   message: string;
 }

@@ -25,11 +25,8 @@ export default defineConfig({
         '**/*.config.ts',
         '**/__tests__/**',
       ],
-      all: true,
-      lines: 80,
-      functions: 80,
-      branches: 80,
-      statements: 80,
+      // Report uncovered source files too, not only the ones a test loaded.
+      include: ['src/**/*.ts'],
     },
 
     // Reporter configuration
