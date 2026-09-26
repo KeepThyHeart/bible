@@ -54,6 +54,12 @@ open. Module databases are opened lazily and the first read faults tens of MB
 off disk; with every worker starting at once, that cost used to land inside the
 first tests and fail them on timeouts unrelated to what they tested.
 
+- **`audio/`** — written by `e2e/audioFixture.ts`: one recorded chapter (John 3,
+  KJV, a generated tone, half a second per verse) published the way a real build is.
+  The fixture config turns `features.audio` on, so `audio-e2e.spec.ts` can play it;
+  every other translation has no recording and no speech engine is configured, which
+  is the state the feature ships in.
+
 The fixture also turns off `features.offlineAutoDownload`. In normal use the app
 caches a lite copy of each translation in the browser, which in a test run means
 a multi-MB download and an OPFS import in every fresh context — enough

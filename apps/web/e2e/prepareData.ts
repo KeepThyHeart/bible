@@ -26,6 +26,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join, resolve } from 'path';
 import Database from 'better-sqlite3-web';
+import { writeAudioFixture } from './audioFixture';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const repoRoot = resolve(packageRoot, '../..');
@@ -155,6 +156,8 @@ export function prepareE2eData(): E2eDataPaths {
 
   const fixture = join(packageRoot, 'e2e', 'fixtures', 'site-config.json');
   writeFileSync(join(dataDir, 'site-config.json'), readFileSync(fixture, 'utf-8'));
+  // One recorded chapter (John 3, KJV) for the Audio Bible specs; the fixture config turns the feature on.
+  writeAudioFixture(dataDir);
 
   return { dataDir, modulesDir: source.modulesDir };
 }

@@ -4,7 +4,8 @@
     "enabled": false
   },
   "features": {
-    "offlineAutoDownload": false
+    "offlineAutoDownload": false,
+    "audio": true
   },
   "modules": {
     "about": "Keep Thy Heart — e2e test fixture.",
