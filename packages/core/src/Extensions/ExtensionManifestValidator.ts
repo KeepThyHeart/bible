@@ -37,6 +37,7 @@ import type {
   ExtensionPrivacyConfig,
   DataCollectionCategory,
   ExtensionRuntimeConfig,
+  ExtensionUserDataConfig,
   ExtensionWebviewCsp,
   ExtensionWebviewsConfig,
   PricingTier,
@@ -173,6 +174,7 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
   'contributes',
   'runtime',
   'l10n',
+  'userData',
 ]);
 
 /** Exported for the same reason as `ALLOWED_PERMISSIONS` above. */
@@ -742,6 +744,40 @@ function validateRuntime(
   return out;
 }
 
+/** Database names are the `openDatabase()` argument; keep them simple so they map to file names. */
+const USER_DATA_DB_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+function validateUserData(
+  v: Validator,
+  value: unknown,
+): ExtensionUserDataConfig | undefined {
+  if (!v.requireRecord('/userData', value)) return undefined;
+  v.noAdditionalProperties('/userData', value, new Set(['backup', 'sync', 'databases']));
+
+  const out: ExtensionUserDataConfig = {};
+  if ('backup' in value && v.requireBool('/userData/backup', value.backup)) out.backup = value.backup;
+  if ('sync' in value && v.requireBool('/userData/sync', value.sync)) out.sync = value.sync;
+
+  if ('databases' in value && v.requireRecord('/userData/databases', value.databases)) {
+    const dbs: NonNullable<ExtensionUserDataConfig['databases']> = {};
+    for (const [name, decl] of Object.entries(value.databases)) {
+      const path = `/userData/databases/${name}`;
+      if (!USER_DATA_DB_NAME.test(name)) {
+        v.add(path, 'pattern', 'database names must be 1-64 characters: letters, digits, "-" or "_"');
+        continue;
+      }
+      if (!v.requireRecord(path, decl)) continue;
+      v.noAdditionalProperties(path, decl, new Set(['backup', 'sync']));
+      const entry: { backup?: boolean; sync?: boolean } = {};
+      if ('backup' in decl && v.requireBool(`${path}/backup`, decl.backup)) entry.backup = decl.backup;
+      if ('sync' in decl && v.requireBool(`${path}/sync`, decl.sync)) entry.sync = decl.sync;
+      dbs[name] = entry;
+    }
+    out.databases = dbs;
+  }
+  return out;
+}
+
 // --- Contributions ---------------------------------------------------------
 
 interface ContributionContext {
@@ -1189,6 +1225,11 @@ export function validateManifest(json: unknown): ManifestValidationResult {
     runtime = validateRuntime(v, json.runtime);
   }
 
+  let userData: ExtensionUserDataConfig | undefined;
+  if ('userData' in json) {
+    userData = validateUserData(v, json.userData);
+  }
+
   let l10n: string | undefined;
   if ('l10n' in json) {
     if (v.requireString('/l10n', json.l10n)) {
@@ -1267,6 +1308,7 @@ export function validateManifest(json: unknown): ManifestValidationResult {
   if (contributes !== undefined) manifest.contributes = contributes;
   if (runtime !== undefined) manifest.runtime = runtime;
   if (l10n !== undefined) manifest.l10n = l10n;
+  if (userData !== undefined) manifest.userData = userData;
 
   return { ok: true, manifest };
 }

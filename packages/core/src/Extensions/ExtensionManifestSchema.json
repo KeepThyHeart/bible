@@ -176,7 +176,29 @@
       }
     },
 
-    "l10n": { "type": "string" }
+    "l10n": { "type": "string" },
+
+    "userData": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Which of the extension's data is the user's and belongs in a backup. The key-value store is included unless `backup` is false; a database is included only when declared with `backup: true`. Secrets are never included.",
+      "properties": {
+        "backup": { "type": "boolean", "description": "Include the key-value store in backups. Default true." },
+        "sync": { "type": "boolean", "description": "Reserved for a future version." },
+        "databases": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "backup": { "type": "boolean" },
+              "sync": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
   },
 
   "definitions": {

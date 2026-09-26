@@ -209,6 +209,34 @@ export interface ExtensionRuntimeConfig {
   maxMemoryMB?: number;
 }
 
+// --- User data declaration -------------------------------------------------
+
+/**
+ * Which of an extension's data is the user's, and so belongs in a backup.
+ *
+ * ```json
+ * "userData": {
+ *   "backup": true,
+ *   "databases": { "progress": { "backup": true }, "embeddings": { "backup": false } }
+ * }
+ * ```
+ *
+ * Defaults: the key-value store is included (it is small and it is the user's
+ * data); databases are excluded unless declared, because they are often
+ * indexes or caches. Secrets are never included.
+ */
+export interface ExtensionUserDataConfig {
+  /** Include the extension's key-value store in backups. Default `true`. */
+  backup?: boolean;
+  /** Reserved for a future version; validated and ignored today. */
+  sync?: boolean;
+  /**
+   * Per-database declarations, keyed by the name passed to `openDatabase()`.
+   * A database is backed up only when its entry says `"backup": true`.
+   */
+  databases?: Record<string, { backup?: boolean; sync?: boolean }>;
+}
+
 // --- Signature / verification ---------------------------------------------
 
 /**
@@ -312,4 +340,6 @@ export interface ExtensionManifest
   runtime?: ExtensionRuntimeConfig;
   /** Folder containing per-locale JSON files. Defaults to `./l10n`. */
   l10n?: string;
+  /** What part of the extension's data belongs in a backup. See {@link ExtensionUserDataConfig}. */
+  userData?: ExtensionUserDataConfig;
 }
