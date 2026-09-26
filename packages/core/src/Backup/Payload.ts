@@ -311,7 +311,7 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
   }
   if (src.extensions) {
     for (const d of [...decls].sort((a, b) => (a.id < b.id ? -1 : 1))) {
-      for (const name of d.databases) {
+      for (const name of [...d.databases].sort()) {
         if (!EXTENSION_ID_PATTERN.test(d.id) || !EXTENSION_DB_NAME_PATTERN.test(name)) {
           warnings.push({ code: 'extensionSkipped', params: { id: d.id } });
           continue;
