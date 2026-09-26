@@ -1,4 +1,5 @@
 import { AuthError } from './errors';
+import { asBufferSource as bs } from './webcrypto';
 
 /** Key material must be 32 bytes (AES-256); nonces 12 bytes; tags are 16 bytes appended to the ciphertext. */
 export const AES_KEY_LEN = 32;
@@ -17,15 +18,15 @@ export type AesKey = Awaited<ReturnType<typeof globalThis.crypto.subtle.importKe
 
 export async function importAesKey(key: Uint8Array): Promise<AesKey> {
   checkKey(key);
-  return globalThis.crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return globalThis.crypto.subtle.importKey('raw', bs(key), 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
 export async function aesGcmSealKey(key: AesKey, nonce: Uint8Array, pt: Uint8Array, aad?: Uint8Array): Promise<Uint8Array> {
   checkNonce(nonce);
   const ct = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce, additionalData: aad ?? new Uint8Array(0), tagLength: 128 },
+    { name: 'AES-GCM', iv: bs(nonce), additionalData: bs(aad ?? new Uint8Array(0)), tagLength: 128 },
     key,
-    pt
+    bs(pt)
   );
   return new Uint8Array(ct);
 }
@@ -35,9 +36,9 @@ export async function aesGcmOpenKey(key: AesKey, nonce: Uint8Array, ct: Uint8Arr
   if (ct.length < AES_TAG_LEN) throw new AuthError('Ciphertext shorter than the authentication tag');
   try {
     const pt = await globalThis.crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce, additionalData: aad ?? new Uint8Array(0), tagLength: 128 },
+      { name: 'AES-GCM', iv: bs(nonce), additionalData: bs(aad ?? new Uint8Array(0)), tagLength: 128 },
       key,
-      ct
+      bs(ct)
     );
     return new Uint8Array(pt);
   } catch {

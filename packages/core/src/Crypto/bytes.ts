@@ -101,5 +101,5 @@ export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 
 /** SHA-256 digest (WebCrypto). */
 export async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', data));
+  return new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', data as unknown as ArrayBuffer));
 }

@@ -7,7 +7,7 @@
  * instead.
  */
 import type { ISql } from '@bible/core';
-import { repairUserSchema } from '@bible/core';
+import { repairUserSchema, Backup } from '@bible/core';
 
 /**
  * Create all user database tables, indexes, triggers, and FTS tables.
@@ -257,4 +257,8 @@ export function initializeUserSchema(db: ISql): void {
   // highlighting and underlining were dead on every profile older than the
   // hex-colour change. Repair runs last, once the tables are known to exist.
   repairUserSchema(db);
+
+  // Record which version of the user-table shapes (`Backup.USER_TABLES`) this
+  // database follows, so a backup can tell whether its rows need upgrading.
+  Backup.stampUserSchemaVersion(db);
 }

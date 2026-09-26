@@ -4,3 +4,4 @@ export * from './Streams';
 export * from './StrictJson';
 export * from './Zip';
 export * from './Envelope';
+export * from './Registry';
