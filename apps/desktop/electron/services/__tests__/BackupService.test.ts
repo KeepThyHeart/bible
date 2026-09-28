@@ -162,7 +162,8 @@ describe('encrypted backup round trip', () => {
     const ins = await inspectBackupFile(ctx, { backupPath: out, password: PASSWORD });
     expect(ins.sections.length).toBeGreaterThan(0);
     discardInspection(ins.token);
-    const header = JSON.parse(readFileSync(out).subarray(16, 16 + new DataView(readFileSync(out).buffer).getUint32(12, false)).toString());
+    const file = readFileSync(out);
+    const header = JSON.parse(file.subarray(16, 16 + file.readUInt32BE(12)).toString());
     expect(header.slots[0].kdf).toMatchObject({ id: 'argon2id', m: 65536, t: 3, p: 1 });
   }, 30000);
 });

@@ -12,12 +12,13 @@
  * do not depend on module data being installed. The stand-in understands only
  * what the service sends: `a AND b` of bare/quoted words and `"stem"*` prefixes.
  */
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BibleSearchService } from './BibleSearchService';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
 import { VerseIdHelper } from '../Data/Core/Types';
 import type { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import type { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
+import { TestSqliteProvider } from '../__tests__/helpers/TestSqliteProvider';
 
 const id = (book: number, chapter: number, verse: number) => VerseIdHelper.calculate(book, chapter, verse);
 
@@ -39,20 +40,29 @@ const CORPUS: Array<[number, string]> = [
   [id(62, 4, 11), 'Beloved, if God so loved us, we ought also to love one another.'],
 ];
 
-const words = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+const words = (text: string): string[] => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
 /** Just enough of FTS5 for the queries BibleSearchService builds. */
 function matches(query: string, text: string): boolean {
   const tokens = words(text);
   return query.split(' AND ').every(part => {
-    const prefix = part.match(/^"([^"]+)"\*$/);
+    const prefix = part.match(/^"?([^"*]+)"?\*$/);
     if (prefix) return tokens.some(t => t.startsWith(prefix[1].toLowerCase()));
     return words(part).every(w => tokens.includes(w));
   });
 }
 
+const sql = new TestSqliteProvider(':memory:');
+afterAll(() => sql.close());
+
 function makeRepo(): IBibleRepository {
   return {
+    getSql: () => sql,
+    getModuleInfo: () => undefined,
+    getVerse: (verseId: number) => {
+      const found = CORPUS.find(([id]) => id === verseId);
+      return found ? new BibleVerse({ verseId: found[0], text: found[1], textPlain: found[1] }) : undefined;
+    },
     searchVersesWithHighlighting: (query: string, options?: { limit?: number }) =>
       CORPUS
         .filter(([, text]) => matches(query, text))

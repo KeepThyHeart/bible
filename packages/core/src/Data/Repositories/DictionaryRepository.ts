@@ -231,11 +231,12 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
       // Raw input cannot go into MATCH: an apostrophe, a hyphen or a bare
       // "not" is a syntax error, which the API surfaced as a 500.
       const ftsQuery = escapeFts5Query(query);
-      if (ftsQuery) {
+      const fts = ftsQuery ? this.keywordIndexTable('dictionary_entry_fts', 'dictionary') : null;
+      if (ftsQuery && fts) {
         const ftsRows = this.sql.queryAll<DictionaryEntryRow>(
           `SELECT e.* FROM dictionary_entry e
-           JOIN dictionary_entry_fts fts ON e.entry_id = fts.rowid
-           WHERE dictionary_entry_fts MATCH ?
+           JOIN ${fts.table} fts ON e.entry_id = fts.rowid
+           WHERE fts.${fts.column} MATCH ?
            ORDER BY fts.rank
            LIMIT ?`,
           [ftsQuery, limit]

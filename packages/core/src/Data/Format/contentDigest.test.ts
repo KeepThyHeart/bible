@@ -367,12 +367,12 @@ describe('computeContentSha256', () => {
       const sql = new TestSqliteProvider(moduleDb('bible_kjv.db'), { readonly: true });
       try {
         const codec = resolveModuleCodec(sql, registry);
-        // Real KJV predates F2's schema: no compression column at all.
+        // Published Bibles are uncompressed (and an older KJV has no
+        // compression column at all, which also reads as 'none').
         expect(codec.compression).toBe('none');
         // Bible's CONTENT_MAP shape has prose: [] - no decode is exercised
-        // here even though the module reads as compression='none'; see
-        // commentary_barnes.db below for a real (if still uncompressed)
-        // prose column of substantial size.
+        // here; see commentary_barnes.db below for a real, compressed prose
+        // column of substantial size.
         const first = computeContentSha256(sql, 'bible', codec);
         const second = computeContentSha256(sql, 'bible', codec);
 
@@ -385,15 +385,17 @@ describe('computeContentSha256', () => {
 
     it(
       'commentary_barnes.db digests deterministically ' +
-        "(real prose column, read as plain TEXT - this file's compression is also 'none')",
+        '(a real prose column - published deflate-compressed with a dictionary)',
       () => {
         const path = moduleDb('commentary_barnes.db');
         if (!existsSync(path)) return; // extra guard: not covered by KJVTestHelper.isAvailable()
 
         const sql = new TestSqliteProvider(path, { readonly: true });
         try {
+          // Whatever the file's codec is, this reader must have it: the digest
+          // is over decoded prose, so an unreadable codec would throw below.
           const codec = resolveModuleCodec(sql, registry);
-          expect(codec.compression).toBe('none');
+          expect(codec.supported).toBe(true);
 
           const first = computeContentSha256(sql, 'commentary', codec);
           const second = computeContentSha256(sql, 'commentary', codec);

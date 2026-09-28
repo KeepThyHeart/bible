@@ -193,6 +193,7 @@ export * from './Repositories/CommentaryRepository';
 export * from './Repositories/DictionaryRepository';
 export * from './Repositories/BookRepository';
 export * from './Repositories/TopicalIndexRepository';
+export * from './Repositories/ModuleKeywordIndexes';
 export * from './Repositories/CrossReferenceRepository';
 export * from './Repositories/TagGraphRepository';
 export * from './Repositories/EnrichmentRepository';
