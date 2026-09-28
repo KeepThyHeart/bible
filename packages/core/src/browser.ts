@@ -128,3 +128,15 @@ export type { FilterHandler, ActionHandler } from './Plugin/HookRegistry';
 // exports (`Data/Models/Main/SavedSearch.ts`, `Services/Search/TopicExpansion.ts`) -
 // a flat `export *` would be ambiguous for both.
 export * as Providers from './Providers';
+
+// --- Crypto primitives (task 0078) -------------------------------------------
+// Argon2id (hash-wasm, loaded lazily), HKDF-SHA-256 and AES-256-GCM over
+// WebCrypto, plus strict base64url and KDF-parameter validation. Shared by the
+// backup format and, later, by account sync so both use one implementation and
+// one set of test vectors. Namespaced: the names are generic.
+export * as Crypto from './Crypto';
+
+// --- Backup format v1 (task 0078) ---------------------------------------------
+// The encrypted container, ZIP payload, user-table registry and restore
+// planner. Namespaced because the names are generic.
+export * as Backup from './Backup';

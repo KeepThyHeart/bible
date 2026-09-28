@@ -207,6 +207,17 @@ The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`
 
 `api.tasks.run` has always documented "the host shows a progress entry in the status bar"; `electron/main.ts` never supplied `taskStatusBridge` to `ExtensionHost`, so nothing did. `RendererTaskStatusBridge.ts` closes that by piggy-backing on the same status bar surface described in [Status Bar](status-bar.md#background-tasks) rather than a second one. `taskNotifier` (for `notifyOnComplete`) is wired the same pass, as a one-line adapter onto `uiBridge.showNotification`.
 
+## Extension data in backups
+
+An extension says which of its data is the user's with an optional `userData` block in
+`extension.json`: `backup` (its key-value store; included unless `false`) and `databases`
+(a map from the name given to `openDatabase()` to `{ "backup": true }`; a database is
+included only when declared, because databases are often caches). Secrets are never
+included, and no extension code runs during a backup or restore. The declarations are
+read from the running host by `electron/services/backup/nodeAdapters.ts`; the file
+format and the restore rules are in `packages/core/docs/features/backup-format.md`, and
+the desktop side is in [Backup & Restore](backup-restore.md).
+
 ## Panel iframe SDK: verse events and popups
 
 `packages/extension-ui/src/BibleExtUI.ts` declared `onActiveVerseChanged` and `showVersePopup`/`hideVersePopup` from the start; none of the three worked.

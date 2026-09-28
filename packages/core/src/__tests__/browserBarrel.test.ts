@@ -102,7 +102,11 @@ describe('@bible/core/browser barrel', () => {
     // nothing external whatsoever, so a new dependency has to be considered
     // deliberately rather than slipping in.
     const { bare } = walk(BARREL);
-    const external = [...bare.keys()].filter(s => !s.startsWith('.'));
+    // The allow-list is the deliberate part: each entry is a browser-safe
+    // library that the Crypto and Backup modules need (Argon2id in WebAssembly;
+    // a pure-JS ZIP codec). Anything else fails.
+    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate'];
+    const external = [...bare.keys()].filter(s => !s.startsWith('.') && !ALLOWED_EXTERNAL.includes(s));
     expect(external, `Unexpected external imports: ${external.join(', ')}`).toEqual([]);
   });
 
@@ -111,9 +115,9 @@ describe('@bible/core/browser barrel', () => {
     // exported something that drags the Data layer in behind it. Raised from 25
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
-    // rubber stamp.
+    // rubber stamp. Raised again for the Crypto and Backup modules.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(40);
+    expect(files.size).toBeLessThan(90);
   });
 });
