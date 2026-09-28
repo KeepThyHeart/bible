@@ -194,13 +194,13 @@ class FollowStore extends Store {
    * `applyLive` (gated on `!paused`) that stops pulling the reader along, not
    * this getter.
    */
-  get liveVerse(): { book: number; chapter: number; verse: number; highlight: HighlightRange | null } | null {
+  get liveVerse(): { book: number; chapter: number; verse: number; highlights: HighlightRange[] } | null {
     if (!this.wall?.live || this.wall.live.kind !== 'passage') return null;
     return {
       book: this.wall.live.book,
       chapter: this.wall.live.chapter,
       verse: this.wall.position.index || 1,
-      highlight: this.wall.position.highlight,
+      highlights: this.wall.position.highlights,
     };
   }
 }

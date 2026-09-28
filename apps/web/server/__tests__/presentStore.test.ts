@@ -90,13 +90,13 @@ describe('committing state', () => {
     store.commitState(created.sessionId, {
       ...row.state,
       live: JOHN_3,
-      position: { index: 16, highlight: { verseIdStart: 43003016, textStart: 2, textEnd: 7 } },
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 2, textEnd: 7 }] },
     });
 
     const after = store.getBySessionId(created.sessionId)!;
     expect(after.state.live).toEqual(JOHN_3);
     expect(after.state.position.index).toBe(16);
-    expect(after.state.position.highlight).toEqual({ verseIdStart: 43003016, textStart: 2, textEnd: 7 });
+    expect(after.state.position.highlights).toEqual([{ verseIdStart: 43003016, textStart: 2, textEnd: 7 }]);
   });
 
   it('survives a restart with the wall intact', () => {
@@ -104,7 +104,9 @@ describe('committing state', () => {
     // not blank the screen.
     const created = store.createSession()!;
     const row = store.getBySessionId(created.sessionId)!;
-    store.commitState(created.sessionId, { ...row.state, live: JOHN_3, position: { index: 16, highlight: null } });
+    store.commitState(
+      created.sessionId, { ...row.state, live: JOHN_3, position: { index: 16, highlights: [] } },
+    );
     store.close();
 
     store = open();

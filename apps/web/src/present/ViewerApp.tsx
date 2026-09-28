@@ -21,7 +21,7 @@ import {
 } from './viewerChrome';
 import { ScreenMenu } from './ScreenMenu';
 import { tokenizeVerse } from './tokenize';
-import { highlightSpanForVerse, sweepStep } from './highlight';
+import { highlightSpansForVerse, spanContaining, sweepStep } from './highlight';
 import { typedWatchAddress } from './controlLink';
 import { API_BASE } from '../utils/apiUrl';
 
@@ -172,7 +172,7 @@ function renderBody(
         verses={selectedVerses(passage, state.live)}
         anchor={state.position.index}
         fontStep={fontStep}
-        highlight={state.position.highlight}
+        highlights={state.position.highlights}
         theme={theme}
       />
     );
@@ -191,7 +191,7 @@ function PassageView(props: {
   verses: ChapterVerse[];
   anchor: number;
   fontStep: number;
-  highlight: HighlightRange | null;
+  highlights: HighlightRange[];
   theme: PresentTheme;
 }): preact.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -269,7 +269,7 @@ function PassageView(props: {
             class={`pv-verse${verse.verse === props.anchor ? ' pv-verse--anchor' : ''}`}
           >
             <span class="pv-versenum">{verse.verse}</span>
-            <VerseText html={verse.text_html} verseId={verse.verse_id} highlight={props.highlight} />
+            <VerseText html={verse.text_html} verseId={verse.verse_id} highlights={props.highlights} />
           </p>
         ))}
         {/*
@@ -303,17 +303,20 @@ function PassageView(props: {
 function VerseText(props: {
   html: string;
   verseId: number;
-  highlight: HighlightRange | null;
+  highlights: HighlightRange[];
 }): preact.JSX.Element {
   // Tokenizing is pure and depends only on the text, so it survives every
   // highlight change and every scroll.
   const tokens = useMemo(() => tokenizeVerse(props.html), [props.html]);
-  const span = highlightSpanForVerse(props.verseId, tokens.length, props.highlight);
+  const spans = useMemo(
+    () => highlightSpansForVerse(props.verseId, tokens.length, props.highlights),
+    [props.verseId, tokens.length, props.highlights],
+  );
 
   return (
     <span class="pv-text">
       {tokens.map((token, index) => {
-        const step = sweepStep(index, span);
+        const step = sweepStep(index, spanContaining(index, spans));
         const classes = ['pv-w'];
         if (token.isChristWords) classes.push('pv-w--christ');
         if (token.isDivineName) classes.push('pv-w--divine');

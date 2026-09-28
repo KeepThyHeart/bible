@@ -6,7 +6,7 @@ function stateAt(version: number): PresentState {
   return {
     version,
     live: null,
-    position: { index: 0, highlight: null },
+    position: { index: 0, highlights: [] },
     display: { fontStep: 5, blanked: false, theme: 'dark' },
     session: { id: 'SESSION000000000', joinCode: 'ABCD2345', joinsLocked: false, viewerCount: 0 },
   };

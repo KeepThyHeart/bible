@@ -119,7 +119,7 @@ test.describe('Projection viewer', () => {
 
     // Words 2-5 of John 3:16 -- "so loved the world".
     await send(request, session, {
-      type: 'setHighlight',
+      type: 'addHighlight',
       highlight: { verseIdStart: JOHN_3_16, textStart: 2, textEnd: 5 },
     });
 
@@ -141,12 +141,12 @@ test.describe('Projection viewer', () => {
     await showJohn3(request, session, page);
 
     await send(request, session, {
-      type: 'setHighlight',
+      type: 'addHighlight',
       highlight: { verseIdStart: JOHN_3_16, textStart: 2, textEnd: 5 },
     });
     await expect(page.locator('.pv-w--hl')).toHaveCount(4);
 
-    await send(request, session, { type: 'clearHighlight' });
+    await send(request, session, { type: 'clearHighlights' });
     await expect(page.locator('.pv-w--hl')).toHaveCount(0);
     await expect(page.locator('.pv-verse--anchor')).toContainText('For God so loved');
   });
@@ -157,7 +157,7 @@ test.describe('Projection viewer', () => {
     await showJohn3(request, session, page);
 
     await send(request, session, {
-      type: 'setHighlight',
+      type: 'addHighlight',
       highlight: {
         verseIdStart: JOHN_3_16, textStart: 26,
         verseIdEnd: JOHN_3_17, textEnd: 3,

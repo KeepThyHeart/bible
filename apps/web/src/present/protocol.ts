@@ -107,6 +107,14 @@ export interface HighlightRange {
   style?: 'highlight' | 'underline';
 }
 
+/**
+ * How many highlights a wall may show at once. A generous cap for a
+ * preacher lighting up several cross-references, not an invitation to turn
+ * the screen into a data structure -- see `addHighlightToList` in
+ * `reducer.ts`, which drops the oldest once a new one would exceed it.
+ */
+export const MAX_HIGHLIGHTS = 8;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -129,7 +137,12 @@ export interface PresentPosition {
    * hymn or text item. Meaningless when `live` is null.
    */
   index: number;
-  highlight: HighlightRange | null;
+  /**
+   * Word ranges currently lit on the wall, oldest first. Capped at
+   * `MAX_HIGHLIGHTS`. A range that overlaps an existing one merges into it
+   * rather than sitting alongside it -- see `addHighlightToList`.
+   */
+  highlights: HighlightRange[];
 }
 
 export interface PresentDisplay {
@@ -209,8 +222,11 @@ export type PresentIntent =
   | { type: 'goTo'; index: number }
   | { type: 'next' }
   | { type: 'previous' }
-  | { type: 'setHighlight'; highlight: HighlightRange }
-  | { type: 'clearHighlight' }
+  /** Adds a highlight, merging it into any existing range it overlaps. */
+  | { type: 'addHighlight'; highlight: HighlightRange }
+  /** Removes any highlight that overlaps this range. */
+  | { type: 'removeHighlight'; highlight: HighlightRange }
+  | { type: 'clearHighlights' }
   | { type: 'setFontStep'; fontStep: number }
   | { type: 'setTheme'; theme: PresentTheme }
   | { type: 'blank' }

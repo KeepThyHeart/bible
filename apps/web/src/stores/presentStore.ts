@@ -819,12 +819,12 @@ class PresentStore extends Store {
   tapHighlightWord(verseId: number, index: number): void {
     const next = tapDraft(this.highlightDraft, verseId, index);
     if (next === this.highlightDraft) return;
-    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlight ?? null);
+    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlights ?? []);
     this.highlightDraft = next;
     // Tapping the highlight to clear it clears it on the screen too, but
     // stretching or trimming a phrase that is already up must not: the screen
     // keeps showing what was confirmed until the new range is confirmed.
-    if (next === null && wasOnWall) void this.send({ type: 'clearHighlight' });
+    if (next === null && wasOnWall) void this.send({ type: 'clearHighlights' });
     this.notify();
   }
 
@@ -835,10 +835,10 @@ class PresentStore extends Store {
    * what the wall is showing.
    */
   clearHighlight(): void {
-    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlight ?? null);
+    const wasOnWall = draftIsOnWall(this.highlightDraft, this.wall?.position.highlights ?? []);
     if (!this.highlightDraft) return;
     this.highlightDraft = null;
-    if (wasOnWall) void this.send({ type: 'clearHighlight' });
+    if (wasOnWall) void this.send({ type: 'clearHighlights' });
     this.notify();
   }
 
@@ -869,7 +869,7 @@ class PresentStore extends Store {
     // `show` clears any highlight; `this.highlightDraft` may have been dropped
     // while it was in flight, in which case there is nothing left to send.
     if (this.highlightDraft !== draft) return false;
-    return this.send({ type: 'setHighlight', highlight: draftToRange(draft) });
+    return this.send({ type: 'addHighlight', highlight: draftToRange(draft) });
   }
 
   clearError(): void {

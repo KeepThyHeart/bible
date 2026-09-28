@@ -279,7 +279,7 @@ export function BibleContent({
       verseNumber,
     );
   };
-  const draftOnWall = draftIsOnWall(highlightDraft, wall?.position.highlight ?? null);
+  const draftOnWall = draftIsOnWall(highlightDraft, wall?.position.highlights ?? []);
   const wordHighlight = presenting
     ? {
       draft: highlightDraft,
@@ -454,8 +454,8 @@ export function BibleContent({
                 onStrongsHover={onStrongsHover}
                 onStrongsLeave={onStrongsLeave}
                 isFollowLive={followBookChapterMatches && verse.verse === followLive!.verse}
-                followHighlight={
-                  followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlight : null
+                followHighlights={
+                  followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlights : undefined
                 }
                 sendRail={presenting ? {
                   sent: wallVerse === verse.verse,

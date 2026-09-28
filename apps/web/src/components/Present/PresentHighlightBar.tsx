@@ -27,7 +27,7 @@ export function useHighlightDraftLifecycle(): void {
   const draft = useStore(presentStore, () => presentStore.highlightDraft);
   const wall = useStore(presentStore, () => presentStore.wall);
   const studyVerse = useStore(bibleStore, () => bibleStore.getActiveTab()?.studyVerse ?? null);
-  const wallHighlight = wall?.position.highlight ?? null;
+  const wallHighlights = wall?.position.highlights ?? [];
   const wasSent = useRef(false);
 
   useEffect(() => {
@@ -35,12 +35,12 @@ export function useHighlightDraftLifecycle(): void {
       wasSent.current = false;
       return;
     }
-    const sent = draftIsOnWall(draft, wallHighlight);
+    const sent = draftIsOnWall(draft, wallHighlights);
     if (sent) {
       wasSent.current = true;
       return;
     }
-    if (wasSent.current && wallHighlight === null) {
+    if (wasSent.current && wallHighlights.length === 0) {
       // It was up, and now nothing is.
       wasSent.current = false;
       presentStore.discardHighlightDraft();
@@ -49,7 +49,7 @@ export function useHighlightDraftLifecycle(): void {
     if (!wasSent.current && studyVerse !== draft.verseId) {
       presentStore.discardHighlightDraft();
     }
-  }, [draft, wallHighlight, studyVerse]);
+  }, [draft, wallHighlights, studyVerse]);
 }
 
 /**
@@ -83,7 +83,7 @@ export function PresentHighlightBar() {
   const verse = tab.verses.find(v => v.verse_id === draft.verseId);
   const tokens = verse ? tokenizeVerse(verse.text_html) : [];
   const phrase = tokens.slice(draft.start, draft.end + 1).map(token => token.displayText).join(' ');
-  const sent = draftIsOnWall(draft, wall?.position.highlight ?? null);
+  const sent = draftIsOnWall(draft, wall?.position.highlights ?? []);
   const verseNumber = parseVerseId(draft.verseId).verse;
 
   const send = (): void => {

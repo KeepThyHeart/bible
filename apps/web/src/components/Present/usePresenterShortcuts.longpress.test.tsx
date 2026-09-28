@@ -22,7 +22,7 @@ function wallOn(live: PresentState['live'], index: number): PresentState {
   return {
     version: 3,
     live,
-    position: { index, highlight: null },
+    position: { index, highlights: [] },
     display: { fontStep: 5, blanked: false, theme: 'light' },
     session: { id: 's', joinCode: 'ABCD2345', joinsLocked: false, viewerCount: 1 },
   };

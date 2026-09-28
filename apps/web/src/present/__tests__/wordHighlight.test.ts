@@ -38,14 +38,23 @@ describe('draftToRange / draftIsOnWall', () => {
 
   it('recognises exactly its own range on the wall', () => {
     const draft = { verseId: V, start: 2, end: 5 };
-    expect(draftIsOnWall(draft, draftToRange(draft))).toBe(true);
-    expect(draftIsOnWall(draft, { verseIdStart: V, textStart: 2, textEnd: 6 })).toBe(false);
-    expect(draftIsOnWall(draft, { verseIdStart: V + 1, textStart: 2, textEnd: 5 })).toBe(false);
-    expect(draftIsOnWall(draft, null)).toBe(false);
-    expect(draftIsOnWall(null, draftToRange(draft))).toBe(false);
+    expect(draftIsOnWall(draft, [draftToRange(draft)])).toBe(true);
+    expect(draftIsOnWall(draft, [{ verseIdStart: V, textStart: 2, textEnd: 6 }])).toBe(false);
+    expect(draftIsOnWall(draft, [{ verseIdStart: V + 1, textStart: 2, textEnd: 5 }])).toBe(false);
+    expect(draftIsOnWall(draft, [])).toBe(false);
+    expect(draftIsOnWall(null, [draftToRange(draft)])).toBe(false);
+  });
+
+  it('finds its range anywhere in a list of several', () => {
+    const draft = { verseId: V, start: 2, end: 5 };
+    expect(draftIsOnWall(draft, [
+      { verseIdStart: V + 1, textStart: 0 },
+      draftToRange(draft),
+      { verseIdStart: V + 2, textStart: 1 },
+    ])).toBe(true);
   });
 
   it('reads a wall highlight with no textEnd as a single word', () => {
-    expect(draftIsOnWall(beginDraft(V, 3), { verseIdStart: V, textStart: 3 })).toBe(true);
+    expect(draftIsOnWall(beginDraft(V, 3), [{ verseIdStart: V, textStart: 3 }])).toBe(true);
   });
 });

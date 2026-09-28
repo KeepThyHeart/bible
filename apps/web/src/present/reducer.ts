@@ -22,6 +22,7 @@
 import {
   DEFAULT_FONT_STEP,
   MAX_FONT_STEP,
+  MAX_HIGHLIGHTS,
   MIN_FONT_STEP,
   type HighlightRange,
   type PresentIntent,
@@ -132,6 +133,94 @@ export function validateHighlight(value: unknown): HighlightRange | null {
   }
 
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Combining highlights
+// ---------------------------------------------------------------------------
+
+/**
+ * A highlight's start and end as a single lexicographically-ordered point:
+ * `[verseId, textIndex]`. Verse ids already order the way the text does (see
+ * `protocol.ts`'s `HighlightRange`), so comparing the pair puts every word of
+ * every verse on one line -- word 99 of verse 16 sorts before word 0 of verse
+ * 17 because the verse id differs, and only ties on verse id fall through to
+ * the word index. That is exactly the ordering "does range A overlap range B"
+ * needs, without ever measuring a verse's real length.
+ */
+function highlightStart(h: HighlightRange): readonly [number, number] {
+  return [h.verseIdStart, h.textStart];
+}
+
+function highlightEnd(h: HighlightRange): readonly [number, number] {
+  return [h.verseIdEnd ?? h.verseIdStart, h.textEnd ?? h.textStart];
+}
+
+function comparePoint(a: readonly [number, number], b: readonly [number, number]): number {
+  return a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1];
+}
+
+/**
+ * Whether two ranges share at least one word, treating each as the closed
+ * interval `[start, end]` on the ordering above.
+ */
+export function highlightsOverlap(a: HighlightRange, b: HighlightRange): boolean {
+  return comparePoint(highlightStart(a), highlightEnd(b)) <= 0
+    && comparePoint(highlightStart(b), highlightEnd(a)) <= 0;
+}
+
+/**
+ * The smallest single range covering both -- the new one's `style` wins,
+ * since it is the presenter's latest choice, and either end is written back
+ * out in the same minimal form `validateHighlight` accepts: `verseIdEnd`
+ * only when it differs from the start verse, `textEnd` only when it differs
+ * from `textStart`.
+ */
+export function mergeHighlightRanges(existing: HighlightRange, added: HighlightRange): HighlightRange {
+  const start = comparePoint(highlightStart(existing), highlightStart(added)) <= 0 ? existing : added;
+  const endOwner = comparePoint(highlightEnd(existing), highlightEnd(added)) >= 0 ? existing : added;
+  const [endVerse, endText] = highlightEnd(endOwner);
+
+  const out: HighlightRange = { verseIdStart: start.verseIdStart, textStart: start.textStart };
+  if (endVerse !== out.verseIdStart) {
+    out.verseIdEnd = endVerse;
+    out.textEnd = endText;
+  } else if (endText !== out.textStart) {
+    out.textEnd = endText;
+  }
+  const style = added.style ?? existing.style;
+  if (style) out.style = style;
+  return out;
+}
+
+/**
+ * Add a highlight to the list a wall is currently showing.
+ *
+ * Anything the new range overlaps is folded into it first -- a phrase
+ * highlighted a second time widens the same highlight rather than sitting
+ * next to it as a separate one -- and the result replaces every range it
+ * absorbed. `MAX_HIGHLIGHTS` is enforced last, by dropping from the front:
+ * the oldest, least-recently-touched highlight is the one that goes when a
+ * new one would not otherwise fit.
+ */
+export function addHighlightToList(list: HighlightRange[], added: HighlightRange): HighlightRange[] {
+  let merged = added;
+  const kept: HighlightRange[] = [];
+  for (const existing of list) {
+    if (highlightsOverlap(existing, merged)) {
+      merged = mergeHighlightRanges(existing, merged);
+    } else {
+      kept.push(existing);
+    }
+  }
+  kept.push(merged);
+  while (kept.length > MAX_HIGHLIGHTS) kept.shift();
+  return kept;
+}
+
+/** Remove every highlight overlapping `removed`, leaving the rest untouched. */
+export function removeHighlightFromList(list: HighlightRange[], removed: HighlightRange): HighlightRange[] {
+  return list.filter(existing => !highlightsOverlap(existing, removed));
 }
 
 /**
@@ -292,13 +381,18 @@ export function validateIntent(value: unknown): PresentIntent | null {
       return { type: 'next' };
     case 'previous':
       return { type: 'previous' };
-    case 'setHighlight': {
+    case 'addHighlight': {
       const highlight = validateHighlight(value.highlight);
       if (!highlight) return null;
-      return { type: 'setHighlight', highlight };
+      return { type: 'addHighlight', highlight };
     }
-    case 'clearHighlight':
-      return { type: 'clearHighlight' };
+    case 'removeHighlight': {
+      const highlight = validateHighlight(value.highlight);
+      if (!highlight) return null;
+      return { type: 'removeHighlight', highlight };
+    }
+    case 'clearHighlights':
+      return { type: 'clearHighlights' };
     case 'setFontStep':
       if (!isBoundedInt(value.fontStep, MIN_FONT_STEP, MAX_FONT_STEP)) return null;
       return { type: 'setFontStep', fontStep: value.fontStep };
@@ -352,7 +446,7 @@ export function initialState(sessionId: string, joinCode: string): StoredPresent
   return {
     version: 0,
     live: null,
-    position: { index: 0, highlight: null },
+    position: { index: 0, highlights: [] },
     display: { fontStep: DEFAULT_FONT_STEP, blanked: false, theme: 'light' },
     session: { id: sessionId, joinCode, joinsLocked: false },
   };
@@ -404,7 +498,7 @@ export function applyIntent(
 ): StoredPresentState | null {
   switch (intent.type) {
     case 'show': {
-      // A new item always clears the highlight: word indices are meaningless
+      // A new item always clears every highlight: word indices are meaningless
       // against a passage they were not computed for, and leaving one in place
       // would paint an arbitrary run of words on the next thing shown.
       // Where an item starts when the controller does not say: verse 1 for a
@@ -416,7 +510,7 @@ export function applyIntent(
       return {
         ...state,
         live: intent.item,
-        position: { index, highlight: null },
+        position: { index, highlights: [] },
       };
     }
 
@@ -426,7 +520,7 @@ export function applyIntent(
       // A highlight is a run of words in one verse: it does not follow the
       // position to a different one, and would light up again unexpectedly if
       // the presenter came back to that verse later.
-      return { ...state, position: { index, highlight: null } };
+      return { ...state, position: { index, highlights: [] } };
     }
 
     case 'next':
@@ -435,15 +529,23 @@ export function applyIntent(
       const delta = intent.type === 'next' ? 1 : -1;
       const index = clampIndex(state.live, state.position.index + delta, ctx);
       if (index === state.position.index) return null;
-      return { ...state, position: { index, highlight: null } };
+      return { ...state, position: { index, highlights: [] } };
     }
 
-    case 'setHighlight':
-      return { ...state, position: { ...state.position, highlight: intent.highlight } };
+    case 'addHighlight': {
+      const highlights = addHighlightToList(state.position.highlights, intent.highlight);
+      return { ...state, position: { ...state.position, highlights } };
+    }
 
-    case 'clearHighlight':
-      if (state.position.highlight === null) return null;
-      return { ...state, position: { ...state.position, highlight: null } };
+    case 'removeHighlight': {
+      const highlights = removeHighlightFromList(state.position.highlights, intent.highlight);
+      if (highlights.length === state.position.highlights.length) return null;
+      return { ...state, position: { ...state.position, highlights } };
+    }
+
+    case 'clearHighlights':
+      if (state.position.highlights.length === 0) return null;
+      return { ...state, position: { ...state.position, highlights: [] } };
 
     case 'setFontStep':
       if (state.display.fontStep === intent.fontStep) return null;

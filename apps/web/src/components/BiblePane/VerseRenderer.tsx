@@ -8,7 +8,7 @@ import { sanitizeHtml } from '../../utils/sanitize';
 import { buildVerseInterlinearCells } from '../../utils/interlinearRows';
 import { StackedInterlinear, InlineInterlinear } from './InterlinearLayouts';
 import { tokenizeVerse } from '../../present/tokenize';
-import { highlightSpanForVerse, sweepStep } from '../../present/highlight';
+import { highlightSpansForVerse, spanContaining, sweepStep } from '../../present/highlight';
 import type { HighlightRange } from '../../present/protocol';
 import type { HighlightDraft } from '../../present/wordHighlight';
 import type { VerseData, InterlinearWordData, StrongsEntryData, VerseFootnote } from '../../types';
@@ -35,13 +35,13 @@ interface VerseRendererProps {
    */
   isFollowLive?: boolean;
   /**
-   * The presenter's own word highlight, when `isFollowLive` and they have
-   * set one. Reuses the exact highlight data and word-indexing the screen
-   * renders (`tokenizeVerse`/`highlightSpanForVerse`/`sweepStep`, the same
+   * The presenter's own word highlights, when `isFollowLive` and they have
+   * set any. Reuses the exact highlight data and word-indexing the screen
+   * renders (`tokenizeVerse`/`highlightSpansForVerse`/`sweepStep`, the same
    * functions `ViewerApp.tsx`'s `VerseText` calls) rather than a second copy
    * of that logic -- see `followStore.liveVerse`.
    */
-  followHighlight?: HighlightRange | null;
+  followHighlights?: HighlightRange[];
   /**
    * Present mode's left-rail button: send this verse to the screen. Absent
    * outside a session. `sent` is "this verse is what the wall is showing" --
@@ -218,15 +218,15 @@ function SendRailButton(props: { rail: NonNullable<VerseRendererProps['sendRail'
  * subtly different token count or order -- the one thing that would light up
  * the wrong words.
  */
-function FollowHighlightedText(props: { html: string; verseId: number; highlight: HighlightRange | null }) {
+function FollowHighlightedText(props: { html: string; verseId: number; highlights: HighlightRange[] }) {
   const wordsOfChristInRed = useStore(settingsStore, () => settingsStore.wordsOfChristInRed);
   const tokens = tokenizeVerse(props.html);
-  const span = highlightSpanForVerse(props.verseId, tokens.length, props.highlight);
+  const spans = highlightSpansForVerse(props.verseId, tokens.length, props.highlights);
 
   return (
     <>
       {tokens.map((token, index) => {
-        const step = sweepStep(index, span);
+        const step = sweepStep(index, spanContaining(index, spans));
         const classes = ['verse__follow-word'];
         if (token.isChristWords && wordsOfChristInRed) classes.push('verse__follow-word--christ');
         if (token.isDivineName) classes.push('verse__follow-word--divine');
@@ -263,7 +263,7 @@ export function VerseRenderer({
   onStrongsHover,
   onStrongsLeave,
   isFollowLive,
-  followHighlight,
+  followHighlights,
   sendRail,
   wordHighlight,
 }: VerseRendererProps) {
@@ -347,8 +347,8 @@ export function VerseRenderer({
   // markup for everything else.
   const textBody = wordHighlight && isHighlighted
     ? <PresenterWords html={verse.text_html} verseId={verse.verse_id} wordHighlight={wordHighlight} />
-    : followHighlight
-      ? <FollowHighlightedText html={verse.text_html} verseId={verse.verse_id} highlight={followHighlight} />
+    : followHighlights && followHighlights.length > 0
+      ? <FollowHighlightedText html={verse.text_html} verseId={verse.verse_id} highlights={followHighlights} />
       : <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(textHtml) }} />;
 
   const railEl = sendRail ? <SendRailButton rail={sendRail} /> : null;

@@ -23,7 +23,7 @@ function stateAt(version: number): PresentState {
   return {
     version,
     live: { kind: 'passage', module: 'KJV', book: 43, chapter: 3 },
-    position: { index: 16, highlight: null },
+    position: { index: 16, highlights: [] },
     display: { fontStep: 5, blanked: false, theme: 'dark' },
     session: { id: SESSION.sessionId, joinCode: SESSION.joinCode, joinsLocked: false, viewerCount: 2 },
   };
@@ -509,14 +509,14 @@ describe('the word highlight', () => {
     presentStore.tapHighlightWord(V, 3);
     await presentStore.sendHighlight(JOHN, 16);
     expect(bodies()).toEqual([
-      { type: 'setHighlight', highlight: { verseIdStart: V, textStart: 1, textEnd: 3 } },
+      { type: 'addHighlight', highlight: { verseIdStart: V, textStart: 1, textEnd: 3 } },
     ]);
   });
 
   it('shows the verse first when the wall is on another', async () => {
     presentStore.beginHighlight(43003017, 0);
     await presentStore.sendHighlight(JOHN, 17);
-    expect(bodies().map(b => b.type)).toEqual(['show', 'setHighlight']);
+    expect(bodies().map(b => b.type)).toEqual(['show', 'addHighlight']);
     expect(bodies()[0].index).toBe(17);
   });
 
@@ -530,12 +530,12 @@ describe('the word highlight', () => {
     await presentStore.sendHighlight(JOHN, 16);
     FakeEventSource.instances[0].emit('state', {
       ...stateAt(10),
-      position: { index: 16, highlight: { verseIdStart: V, textStart: 1, textEnd: 1 } },
+      position: { index: 16, highlights: [{ verseIdStart: V, textStart: 1, textEnd: 1 }] },
     });
     fetchMock.mockClear();
     presentStore.clearHighlight();
     expect(presentStore.highlightDraft).toBeNull();
-    expect(bodies()).toEqual([{ type: 'clearHighlight' }]);
+    expect(bodies()).toEqual([{ type: 'clearHighlights' }]);
   });
 
   it('clears only locally when the draft never reached the screen', () => {

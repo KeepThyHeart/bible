@@ -519,7 +519,7 @@ describe('VerseRenderer', () => {
           verse={verse}
           {...defaultProps}
           isFollowLive
-          followHighlight={{ verseIdStart: 43003016, textStart: 1, textEnd: 2 }}
+          followHighlights={[{ verseIdStart: 43003016, textStart: 1, textEnd: 2 }]}
         />,
       );
       const words = container.querySelectorAll('.verse__follow-word');
@@ -530,10 +530,30 @@ describe('VerseRenderer', () => {
       expect(container.textContent).toContain('For God so loved the world');
     });
 
+    it('lights more than one highlighted phrase in the same verse', () => {
+      const verse = makeVerse({ verse_id: 43003016, text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlights={[
+            { verseIdStart: 43003016, textStart: 0, textEnd: 0 },
+            { verseIdStart: 43003016, textStart: 4, textEnd: 5 },
+          ]}
+        />,
+      );
+      const words = container.querySelectorAll('.verse__follow-word');
+      expect(words[0].className).toContain('verse__follow-word--hl');
+      expect(words[4].className).toContain('verse__follow-word--hl');
+      expect(words[5].className).toContain('verse__follow-word--hl');
+      expect(words[2].className).not.toContain('verse__follow-word--hl');
+    });
+
     it('falls back to the plain render when there is no highlight, even while followed', () => {
       const verse = makeVerse({ text_html: 'For God so loved the world' });
       const { container } = render(
-        <VerseRenderer verse={verse} {...defaultProps} isFollowLive followHighlight={null} />,
+        <VerseRenderer verse={verse} {...defaultProps} isFollowLive followHighlights={[]} />,
       );
       expect(container.querySelector('.verse__follow-word')).toBeNull();
       expect(container.innerHTML).toContain('For God so loved the world');
@@ -550,7 +570,7 @@ describe('VerseRenderer', () => {
           verse={verse}
           {...defaultProps}
           isFollowLive
-          followHighlight={{ verseIdStart: 43003016, textStart: 0, textEnd: 0 }}
+          followHighlights={[{ verseIdStart: 43003016, textStart: 0, textEnd: 0 }]}
         />,
       );
       expect(container.querySelector('.verse__follow-word--christ')).toBeTruthy();

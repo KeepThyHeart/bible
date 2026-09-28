@@ -1,15 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
   LIMITS,
+  addHighlightToList,
   applyIntent,
+  highlightsOverlap,
   initialState,
+  mergeHighlightRanges,
+  removeHighlightFromList,
   validateHighlight,
   validateIntent,
   validateItem,
   validatePlan,
   type IntentContext,
 } from '../present/reducer';
-import { MAX_FONT_STEP, MIN_FONT_STEP, type PresentPassageItem, type StoredPresentState } from '../../src/present/protocol';
+import {
+  MAX_FONT_STEP, MAX_HIGHLIGHTS, MIN_FONT_STEP,
+  type HighlightRange, type PresentPassageItem, type StoredPresentState,
+} from '../../src/present/protocol';
 
 /** John 3, so `next` has a real end to run into. */
 const ctx: IntentContext = { chapterLength: () => 36, slideCount: () => null };
@@ -23,7 +30,7 @@ function seeded(overrides: Partial<StoredPresentState> = {}): StoredPresentState
 }
 
 function showing(index: number, item = JOHN_3): StoredPresentState {
-  return seeded({ live: item, position: { index, highlight: null } });
+  return seeded({ live: item, position: { index, highlights: [] } });
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +173,87 @@ describe('validateHighlight', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Combining highlights
+// ---------------------------------------------------------------------------
+
+describe('highlightsOverlap', () => {
+  it('treats touching or crossing ranges in one verse as overlapping', () => {
+    const a: HighlightRange = { verseIdStart: 43003016, textStart: 0, textEnd: 3 };
+    expect(highlightsOverlap(a, { verseIdStart: 43003016, textStart: 3, textEnd: 5 })).toBe(true);
+    expect(highlightsOverlap(a, { verseIdStart: 43003016, textStart: 2 })).toBe(true);
+    expect(highlightsOverlap(a, { verseIdStart: 43003016, textStart: 4 })).toBe(false);
+  });
+
+  it('treats separate verses as never overlapping unless a range spans between them', () => {
+    const a: HighlightRange = { verseIdStart: 43003016, textStart: 0 };
+    const b: HighlightRange = { verseIdStart: 43003017, textStart: 0 };
+    expect(highlightsOverlap(a, b)).toBe(false);
+    // Spans from word 5 of verse 16 to word 0 of verse 17 -- touches the tail
+    // of 16 and the head of 17, but not `a`, which sits before word 5.
+    const spanning: HighlightRange = { verseIdStart: 43003016, textStart: 5, verseIdEnd: 43003017, textEnd: 0 };
+    expect(highlightsOverlap(spanning, a)).toBe(false);
+    expect(highlightsOverlap(spanning, { verseIdStart: 43003016, textStart: 5 })).toBe(true);
+    expect(highlightsOverlap(spanning, b)).toBe(true);
+  });
+});
+
+describe('mergeHighlightRanges', () => {
+  it('spans the two ranges and drops textEnd when the merge is one word', () => {
+    const a: HighlightRange = { verseIdStart: 43003016, textStart: 3 };
+    const b: HighlightRange = { verseIdStart: 43003016, textStart: 3 };
+    expect(mergeHighlightRanges(a, b)).toEqual({ verseIdStart: 43003016, textStart: 3 });
+  });
+
+  it('widens to the outer edges regardless of which range is "existing"', () => {
+    const a: HighlightRange = { verseIdStart: 43003016, textStart: 4, textEnd: 6 };
+    const b: HighlightRange = { verseIdStart: 43003016, textStart: 2, textEnd: 5 };
+    expect(mergeHighlightRanges(a, b)).toEqual({ verseIdStart: 43003016, textStart: 2, textEnd: 6 });
+  });
+
+  it('prefers the newly-added range\'s style', () => {
+    const a: HighlightRange = { verseIdStart: 43003016, textStart: 0, style: 'underline' };
+    const b: HighlightRange = { verseIdStart: 43003016, textStart: 1, style: 'highlight' };
+    expect(mergeHighlightRanges(a, b).style).toBe('highlight');
+  });
+});
+
+describe('addHighlightToList / removeHighlightFromList', () => {
+  it('adds to an empty list', () => {
+    const range: HighlightRange = { verseIdStart: 43003016, textStart: 0 };
+    expect(addHighlightToList([], range)).toEqual([range]);
+  });
+
+  it('merges into every overlapping entry, even non-adjacent ones', () => {
+    const list: HighlightRange[] = [
+      { verseIdStart: 43003016, textStart: 0, textEnd: 1 },
+      { verseIdStart: 43003016, textStart: 8, textEnd: 9 },
+    ];
+    // Overlaps neither directly, but spans across both once it is added.
+    const added: HighlightRange = { verseIdStart: 43003016, textStart: 1, textEnd: 8 };
+    expect(addHighlightToList(list, added)).toEqual([{ verseIdStart: 43003016, textStart: 0, textEnd: 9 }]);
+  });
+
+  it('drops the oldest entry once the cap would be exceeded', () => {
+    const list = Array.from({ length: MAX_HIGHLIGHTS }, (_, i) => (
+      { verseIdStart: 43003016, textStart: i * 2, textEnd: i * 2 } as HighlightRange
+    ));
+    const next = addHighlightToList(list, { verseIdStart: 43003017, textStart: 0 });
+    expect(next.length).toBe(MAX_HIGHLIGHTS);
+    expect(next[0]).toEqual(list[1]);
+  });
+
+  it('removes only the entries that overlap', () => {
+    const list: HighlightRange[] = [
+      { verseIdStart: 43003016, textStart: 0, textEnd: 1 },
+      { verseIdStart: 43003016, textStart: 5, textEnd: 6 },
+    ];
+    expect(removeHighlightFromList(list, { verseIdStart: 43003016, textStart: 5 }))
+      .toEqual([{ verseIdStart: 43003016, textStart: 0, textEnd: 1 }]);
+    expect(removeHighlightFromList(list, { verseIdStart: 43003016, textStart: 3 })).toEqual(list);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Intent validation
 // ---------------------------------------------------------------------------
 
@@ -175,7 +263,13 @@ describe('validateIntent', () => {
     expect(validateIntent({ type: 'previous' })).toEqual({ type: 'previous' });
     expect(validateIntent({ type: 'blank' })).toEqual({ type: 'blank' });
     expect(validateIntent({ type: 'unblank' })).toEqual({ type: 'unblank' });
-    expect(validateIntent({ type: 'clearHighlight' })).toEqual({ type: 'clearHighlight' });
+    expect(validateIntent({ type: 'clearHighlights' })).toEqual({ type: 'clearHighlights' });
+    expect(validateIntent({
+      type: 'addHighlight', highlight: { verseIdStart: 43003016, textStart: 0 },
+    })).toEqual({ type: 'addHighlight', highlight: { verseIdStart: 43003016, textStart: 0 } });
+    expect(validateIntent({
+      type: 'removeHighlight', highlight: { verseIdStart: 43003016, textStart: 0 },
+    })).toEqual({ type: 'removeHighlight', highlight: { verseIdStart: 43003016, textStart: 0 } });
     expect(validateIntent({ type: 'end' })).toEqual({ type: 'end' });
     expect(validateIntent({ type: 'goTo', index: 16 })).toEqual({ type: 'goTo', index: 16 });
     expect(validateIntent({ type: 'setTheme', theme: 'light' })).toEqual({ type: 'setTheme', theme: 'light' });
@@ -193,6 +287,12 @@ describe('validateIntent', () => {
 
   it('rejects a show whose item is invalid', () => {
     expect(validateIntent({ type: 'show', item: { kind: 'passage' } })).toBeNull();
+  });
+
+  it('rejects an addHighlight/removeHighlight whose range is invalid', () => {
+    expect(validateIntent({ type: 'addHighlight', highlight: { verseIdStart: 0, textStart: 0 } })).toBeNull();
+    expect(validateIntent({ type: 'addHighlight' })).toBeNull();
+    expect(validateIntent({ type: 'removeHighlight', highlight: { verseIdStart: 0, textStart: 0 } })).toBeNull();
   });
 
   it('rejects unknown and malformed intents', () => {
@@ -293,35 +393,115 @@ describe('applyIntent', () => {
     expect(next?.position.index).toBe(36);
   });
 
-  it('clears the highlight when a new item is shown', () => {
+  it('clears every highlight when a new item is shown', () => {
     // Word indices computed against one passage mean nothing against the next
     // one; carrying them over would paint an arbitrary run of words.
     const withHighlight = seeded({
       live: JOHN_3,
-      position: { index: 16, highlight: { verseIdStart: 43003016, textStart: 0 } },
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 0 }] },
     });
     const next = applyIntent(withHighlight, { type: 'show', item: JOHN_3 }, ctx);
-    expect(next?.position.highlight).toBeNull();
+    expect(next?.position.highlights).toEqual([]);
   });
 
-  it('drops the highlight when the position moves to another verse', () => {
+  it('drops every highlight when the position moves to another verse', () => {
     // A highlight is a run of words in one verse; it must neither follow the
     // presenter onto the next verse nor light up again on a later return.
     const lit = seeded({
       live: JOHN_3,
-      position: { index: 16, highlight: { verseIdStart: 43003016, textStart: 1, textEnd: 3 } },
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 1, textEnd: 3 }] },
     });
-    expect(applyIntent(lit, { type: 'next' }, ctx)?.position).toEqual({ index: 17, highlight: null });
-    expect(applyIntent(lit, { type: 'previous' }, ctx)?.position).toEqual({ index: 15, highlight: null });
-    expect(applyIntent(lit, { type: 'goTo', index: 30 }, ctx)?.position).toEqual({ index: 30, highlight: null });
+    expect(applyIntent(lit, { type: 'next' }, ctx)?.position).toEqual({ index: 17, highlights: [] });
+    expect(applyIntent(lit, { type: 'previous' }, ctx)?.position).toEqual({ index: 15, highlights: [] });
+    expect(applyIntent(lit, { type: 'goTo', index: 30 }, ctx)?.position).toEqual({ index: 30, highlights: [] });
   });
 
   it('keeps the highlight when a move changes nothing', () => {
     const lit = seeded({
       live: JOHN_3,
-      position: { index: 36, highlight: { verseIdStart: 43003036, textStart: 0 } },
+      position: { index: 36, highlights: [{ verseIdStart: 43003036, textStart: 0 }] },
     });
     expect(applyIntent(lit, { type: 'next' }, ctx)).toBeNull();
+  });
+
+  it('adds a highlight, merging it into an overlapping one already there', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 0, textEnd: 2 }] },
+    });
+    const next = applyIntent(
+      lit, { type: 'addHighlight', highlight: { verseIdStart: 43003016, textStart: 2, textEnd: 4 } }, ctx,
+    );
+    expect(next?.position.highlights).toEqual([{ verseIdStart: 43003016, textStart: 0, textEnd: 4 }]);
+  });
+
+  it('adds a non-overlapping highlight alongside the others', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 0, textEnd: 1 }] },
+    });
+    const next = applyIntent(
+      lit, { type: 'addHighlight', highlight: { verseIdStart: 43003016, textStart: 5, textEnd: 6 } }, ctx,
+    );
+    expect(next?.position.highlights).toEqual([
+      { verseIdStart: 43003016, textStart: 0, textEnd: 1 },
+      { verseIdStart: 43003016, textStart: 5, textEnd: 6 },
+    ]);
+  });
+
+  it('drops the oldest highlight once a new one would exceed the cap', () => {
+    const many = Array.from({ length: MAX_HIGHLIGHTS }, (_, i) => (
+      { verseIdStart: 43003016, textStart: i * 2, textEnd: i * 2 }
+    ));
+    const lit = seeded({ live: JOHN_3, position: { index: 16, highlights: many } });
+    const next = applyIntent(
+      lit, { type: 'addHighlight', highlight: { verseIdStart: 43003017, textStart: 0 } }, ctx,
+    );
+    expect(next?.position.highlights.length).toBe(MAX_HIGHLIGHTS);
+    expect(next?.position.highlights[0]).toEqual(many[1]);
+    expect(next?.position.highlights.at(-1)).toEqual({ verseIdStart: 43003017, textStart: 0 });
+  });
+
+  it('removes any highlight overlapping the given range', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: {
+        index: 16,
+        highlights: [
+          { verseIdStart: 43003016, textStart: 0, textEnd: 1 },
+          { verseIdStart: 43003016, textStart: 5, textEnd: 6 },
+        ],
+      },
+    });
+    const next = applyIntent(
+      lit, { type: 'removeHighlight', highlight: { verseIdStart: 43003016, textStart: 5 } }, ctx,
+    );
+    expect(next?.position.highlights).toEqual([{ verseIdStart: 43003016, textStart: 0, textEnd: 1 }]);
+  });
+
+  it('reports no change when removeHighlight touches nothing', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 0, textEnd: 1 }] },
+    });
+    const next = applyIntent(
+      lit, { type: 'removeHighlight', highlight: { verseIdStart: 43003016, textStart: 5 } }, ctx,
+    );
+    expect(next).toBeNull();
+  });
+
+  it('clears every highlight at once', () => {
+    const lit = seeded({
+      live: JOHN_3,
+      position: {
+        index: 16,
+        highlights: [
+          { verseIdStart: 43003016, textStart: 0 },
+          { verseIdStart: 43003016, textStart: 5 },
+        ],
+      },
+    });
+    expect(applyIntent(lit, { type: 'clearHighlights' }, ctx)?.position.highlights).toEqual([]);
   });
 
   it('advances and retreats within the chapter', () => {
@@ -364,7 +544,7 @@ describe('applyIntent', () => {
     const state = seeded();
     expect(applyIntent(state, { type: 'setFontStep', fontStep: state.display.fontStep }, ctx)).toBeNull();
     expect(applyIntent(state, { type: 'setTheme', theme: state.display.theme }, ctx)).toBeNull();
-    expect(applyIntent(state, { type: 'clearHighlight' }, ctx)).toBeNull();
+    expect(applyIntent(state, { type: 'clearHighlights' }, ctx)).toBeNull();
     expect(applyIntent(state, { type: 'lockJoins', locked: false }, ctx)).toBeNull();
   });
 

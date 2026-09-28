@@ -59,6 +59,36 @@ export function highlightSpanForVerse(
 }
 
 /**
+ * The lit spans within one verse, across every highlight the wall is
+ * currently showing.
+ *
+ * The reducer keeps the list free of overlaps within a single verse (see
+ * `addHighlightToList`), so the spans returned here never touch, but a long
+ * verse can still legitimately carry two separate highlighted phrases at
+ * once -- that's the whole point of a list instead of one slot.
+ */
+export function highlightSpansForVerse(
+  verseId: number,
+  wordCount: number,
+  highlights: HighlightRange[],
+): WordSpan[] {
+  const spans: WordSpan[] = [];
+  for (const highlight of highlights) {
+    const span = highlightSpanForVerse(verseId, wordCount, highlight);
+    if (span) spans.push(span);
+  }
+  return spans;
+}
+
+/** The first span (if any) that covers a given word index. */
+export function spanContaining(index: number, spans: WordSpan[]): WordSpan | null {
+  for (const span of spans) {
+    if (index >= span.from && index <= span.to) return span;
+  }
+  return null;
+}
+
+/**
  * Position of a word within the highlight, for staggering the sweep animation.
  *
  * Returns -1 for words outside the span. The cap keeps a highlight of a whole

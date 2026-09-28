@@ -56,7 +56,7 @@ function stubProvider() {
 function stateWith(over: Partial<PresentState> & { version: number }): PresentState {
   return {
     live: null,
-    position: { index: 0, highlight: null },
+    position: { index: 0, highlights: [] },
     display: { fontStep: 5, blanked: false, theme: 'dark' },
     session: { id: 'SESSION000000000', joinCode: 'ABCD2345', joinsLocked: false, viewerCount: 1 },
     ...over,
@@ -66,7 +66,7 @@ function stateWith(over: Partial<PresentState> & { version: number }): PresentSt
 const passageAt = (book: number, chapter: number, verse: number, version: number): PresentState => stateWith({
   version,
   live: { kind: 'passage', module: 'KJV', book, chapter },
-  position: { index: verse, highlight: null },
+  position: { index: verse, highlights: [] },
 });
 
 async function flush(): Promise<void> {
@@ -186,27 +186,27 @@ describe('followStore', () => {
     expect(bibleStore.getActiveTab()?.chapter).toBe(3);
   });
 
-  it('reports the presenter\'s current reference and highlight together', async () => {
+  it('reports the presenter\'s current reference and highlights together', async () => {
     followStore.start('ABCD2345');
     const source = FakeEventSource.instances[0];
     const withHighlight: PresentState = {
       ...passageAt(43, 3, 16, 1),
-      position: { index: 16, highlight: { verseIdStart: 43003016, textStart: 0, textEnd: 3 } },
+      position: { index: 16, highlights: [{ verseIdStart: 43003016, textStart: 0, textEnd: 3 }] },
     };
     source.emit('state', withHighlight);
     await flush();
 
     expect(followStore.liveVerse).toEqual({
       book: 43, chapter: 3, verse: 16,
-      highlight: { verseIdStart: 43003016, textStart: 0, textEnd: 3 },
+      highlights: [{ verseIdStart: 43003016, textStart: 0, textEnd: 3 }],
     });
   });
 
-  it('reports the reference with a null highlight when the presenter has none set', async () => {
+  it('reports the reference with no highlights when the presenter has none set', async () => {
     followStore.start('ABCD2345');
     FakeEventSource.instances[0].emit('state', passageAt(43, 3, 16, 1));
     await flush();
-    expect(followStore.liveVerse).toEqual({ book: 43, chapter: 3, verse: 16, highlight: null });
+    expect(followStore.liveVerse).toEqual({ book: 43, chapter: 3, verse: 16, highlights: [] });
   });
 
   it('is null when nothing is on the wall', () => {

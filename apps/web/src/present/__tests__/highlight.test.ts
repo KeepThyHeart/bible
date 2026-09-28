@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { MAX_SWEEP_STEPS, highlightSpanForVerse, sweepStep } from '../highlight';
+import {
+  MAX_SWEEP_STEPS, highlightSpanForVerse, highlightSpansForVerse, spanContaining, sweepStep,
+} from '../highlight';
 import type { HighlightRange } from '../protocol';
 
 const V16 = 43003016;
@@ -89,5 +91,29 @@ describe('the sweep', () => {
 
   it('caps the delay so a long highlight still finishes promptly', () => {
     expect(sweepStep(20, span)).toBe(MAX_SWEEP_STEPS);
+  });
+});
+
+describe('several highlights on one verse', () => {
+  it('returns a span per highlight that touches the verse', () => {
+    const highlights: HighlightRange[] = [
+      { verseIdStart: V16, textStart: 0, textEnd: 1 },
+      { verseIdStart: V16, textStart: 5, textEnd: 6 },
+      { verseIdStart: V17, textStart: 0 },
+    ];
+    expect(highlightSpansForVerse(V16, 10, highlights)).toEqual([
+      { from: 0, to: 1 },
+      { from: 5, to: 6 },
+    ]);
+    expect(highlightSpansForVerse(V17, 10, highlights)).toEqual([{ from: 0, to: 0 }]);
+    expect(highlightSpansForVerse(V18, 10, highlights)).toEqual([]);
+  });
+
+  it('finds the span a word index falls in', () => {
+    const spans = [{ from: 0, to: 1 }, { from: 5, to: 6 }];
+    expect(spanContaining(0, spans)).toEqual({ from: 0, to: 1 });
+    expect(spanContaining(6, spans)).toEqual({ from: 5, to: 6 });
+    expect(spanContaining(3, spans)).toBeNull();
+    expect(spanContaining(0, [])).toBeNull();
   });
 });

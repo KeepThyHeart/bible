@@ -62,12 +62,14 @@ export function draftToRange(draft: HighlightDraft): HighlightRange {
   return { verseIdStart: draft.verseId, textStart: draft.start, textEnd: draft.end };
 }
 
-/** Whether the wall's current highlight is exactly this draft. */
-export function draftIsOnWall(draft: HighlightDraft | null, wall: HighlightRange | null): boolean {
-  if (!draft || !wall) return false;
-  const wallVerseEnd = wall.verseIdEnd ?? wall.verseIdStart;
-  return wall.verseIdStart === draft.verseId
-    && wallVerseEnd === draft.verseId
-    && wall.textStart === draft.start
-    && (wall.textEnd ?? wall.textStart) === draft.end;
+/** Whether one of the wall's current highlights is exactly this draft. */
+export function draftIsOnWall(draft: HighlightDraft | null, wall: HighlightRange[]): boolean {
+  if (!draft) return false;
+  return wall.some(range => {
+    const wallVerseEnd = range.verseIdEnd ?? range.verseIdStart;
+    return range.verseIdStart === draft.verseId
+      && wallVerseEnd === draft.verseId
+      && range.textStart === draft.start
+      && (range.textEnd ?? range.textStart) === draft.end;
+  });
 }
