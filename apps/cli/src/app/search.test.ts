@@ -201,7 +201,7 @@ describe('distributionGraph', () => {
   test('a book with no matches is not the same glyph as a book with one', () => {
     const row = bars([hit(DANIEL)]);
     expect(row[DANIEL - 1]).toBe('█'); // the only book, so also the busiest
-    expect(row[0]).toBe('·'); // Genesis
+    expect(row[0]).toBe('_'); // Genesis
   });
 
   test('the busiest book always reaches the top of the scale', () => {

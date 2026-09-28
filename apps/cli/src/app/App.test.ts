@@ -671,6 +671,7 @@ describe('display settings are a table, not a code path per setting', () => {
       verseNumbers: 'inline',
       breakOnVerse: true,
       scroll: 'stepped',
+      scrollContext: '20%',
       colour: 'ansi16',
     };
 

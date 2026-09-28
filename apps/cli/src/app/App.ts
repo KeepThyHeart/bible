@@ -81,7 +81,12 @@ import { Screen as Renderer } from '../term/screen';
 import { createTheme, type ColorDepth, type StyledLine, type Theme } from '../term/style';
 import { modulesShortcut } from '../screens/Modules';
 import type { Screen, ScreenAction, ScreenContext, ScreenResult } from '../screens/types';
-import { DEFAULT_DISPLAY, type DisplaySettings, type VerseNumberStyle } from '../screens/types';
+import {
+  DEFAULT_DISPLAY,
+  SCROLL_CONTEXTS,
+  type DisplaySettings,
+  type VerseNumberStyle,
+} from '../screens/types';
 
 /** How long to wait before writing session changes back to `state.db`. */
 const SAVE_DEBOUNCE_MS = 400;
@@ -101,6 +106,12 @@ const SCROLL_BUDGET_MS = 110;
  * and a timer on something the eye cannot follow anyway.
  */
 const MIN_ANIMATED_ROWS = 2;
+
+/**
+ * Time between frames of a screen's own animation. About one display refresh:
+ * quick, but each row still visibly passes rather than the page jumping.
+ */
+const SCREEN_FRAME_MS = 16;
 
 /** Where `m`'s last-opened commentary is remembered. */
 const LAST_COMMENTARY_KEY = 'lastCommentary';
@@ -164,6 +175,7 @@ const DISPLAY_SETTINGS: readonly DisplaySetting[] = [
   flag('display.breakOnVerse', 'breakOnVerse'),
   choice('display.verseNumbers', 'verseNumbers', VERSE_NUMBER_STYLES),
   choice('display.scroll', 'scroll', ['stepped', 'instant']),
+  choice('display.scrollContext', 'scrollContext', SCROLL_CONTEXTS),
   choice('display.colour', 'colour', COLOUR_CHOICES),
 ];
 
@@ -238,6 +250,8 @@ export class App {
    * behind them.
    */
   private scrollAnimation: ScrollAnimation | undefined;
+  /** The next frame of the top screen's own animation — {@link scheduleScreenFrame}. */
+  private screenFrameTimer: ReturnType<typeof setTimeout> | undefined;
   private running = false;
   private resolveExit: (() => void) | undefined;
   private pending: Promise<void> = Promise.resolve();
@@ -564,6 +578,30 @@ export class App {
         break;
     }
     this.render();
+    this.scheduleScreenFrame();
+  }
+
+  /**
+   * Draw a screen's own animation ({@link Screen.animating}) a frame at a time.
+   *
+   * One timer at most: a key that arrives mid-animation just retargets the
+   * screen, and the frames already scheduled carry on towards the new goal.
+   */
+  private scheduleScreenFrame(): void {
+    if (this.screenFrameTimer !== undefined) return;
+    if (this.top().animating?.() !== true) return;
+
+    const timer = setTimeout(() => {
+      this.screenFrameTimer = undefined;
+      const screen = this.top();
+      if (screen.animating?.() !== true) return;
+      screen.tick?.();
+      this.render();
+      this.scheduleScreenFrame();
+    }, SCREEN_FRAME_MS);
+    // An animation must never be the reason the process stays alive.
+    timer.unref?.();
+    this.screenFrameTimer = timer;
   }
 
   private replaceTab(tab: TabState): void {
@@ -678,6 +716,8 @@ export class App {
     // Before the save, so the destination of a half-drawn scroll is what gets
     // written rather than whichever frame it had reached.
     this.finishScroll();
+    if (this.screenFrameTimer !== undefined) clearTimeout(this.screenFrameTimer);
+    this.screenFrameTimer = undefined;
     this.flushSave();
     this.input.stop();
     this.renderer.stop();

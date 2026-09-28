@@ -126,6 +126,20 @@ describe('root resolution', () => {
     expect(moduleRoots(env)).toEqual([]);
   });
 
+  test('a scoped package folder is probed one level deeper', () => {
+    // With no productName, Electron names userData after the package:
+    // `@bible/desktop`.
+    const env = fakeEnv({
+      '/home/u/.config': ['@bible'],
+      '/home/u/.config/@bible': ['desktop'],
+      '/home/u/.config/@bible/desktop/data/modules': ['bible_kjv.db'],
+    });
+
+    const roots = moduleRoots(env);
+    expect(kinds(roots)).toEqual(['desktop-user']);
+    expect(roots[0]?.path).toContain(join('@bible', 'desktop'));
+  });
+
   test('a folder without data/modules is not mistaken for the desktop', () => {
     const env = fakeEnv({
       '/home/u/.config': ['SomeOtherApp'],

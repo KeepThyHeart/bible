@@ -179,6 +179,11 @@ export function appDataRoot(env: DiscoveryEnv): string | undefined {
  * The branded name is tried first so the common case costs one `stat`, but it
  * is only a hint: the scan is what actually finds the install, and it keeps
  * working after a rename.
+ *
+ * A build without a `productName` gets its `userData` folder named after the
+ * package instead, and the desktop's package is scoped: `@bible/desktop`. So
+ * the children of an `@scope` folder are probed too — one extra level, and
+ * only there.
  */
 function desktopUserRoots(env: DiscoveryEnv): string[] {
   const root = appDataRoot(env);
@@ -193,6 +198,9 @@ function desktopUserRoots(env: DiscoveryEnv): string[] {
   consider(BRANDED_PRODUCT_NAME);
   for (const name of env.listDir(root)) {
     consider(name);
+    if (name.startsWith('@') && env.isDirectory(join(root, name))) {
+      for (const child of env.listDir(join(root, name))) consider(name, child);
+    }
   }
 
   return found;

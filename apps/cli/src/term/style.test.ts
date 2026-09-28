@@ -52,6 +52,11 @@ describe('detectColorDepth', () => {
   test('COLORTERM=truecolor is enough on its own', () => {
     expect(detectColorDepth({ COLORTERM: 'truecolor' }, true)).toBe('ansi256');
   });
+
+  test('no TERM is a plain Windows console, which has colour — elsewhere it is unknown', () => {
+    expect(detectColorDepth({}, true, 'win32')).toBe('ansi256');
+    expect(detectColorDepth({}, true, 'linux')).toBe('none');
+  });
 });
 
 describe('sgr', () => {

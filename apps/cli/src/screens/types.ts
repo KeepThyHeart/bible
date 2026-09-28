@@ -65,6 +65,12 @@ export interface DisplaySettings {
    */
   readonly scroll: 'stepped' | 'instant';
   /**
+   * How much of the window is kept as context above and below the cursor verse
+   * while reading, so it never sits on the very first or last row. `50%` keeps
+   * the cursor centred.
+   */
+  readonly scrollContext: ScrollContext;
+  /**
    * How much colour to use, or `auto` for whatever the terminal reports.
    *
    * There is one palette per depth (`createTheme`) and no light variant, so depth
@@ -79,8 +85,27 @@ export const DEFAULT_DISPLAY: DisplaySettings = {
   verseNumbers: 'superscript',
   breakOnVerse: false,
   scroll: 'instant',
+  scrollContext: '33%',
   colour: 'auto',
 };
+
+export type ScrollContext = 'off' | '20%' | '33%' | '50%';
+
+export const SCROLL_CONTEXTS: readonly ScrollContext[] = ['off', '20%', '33%', '50%'];
+
+/** {@link DisplaySettings.scrollContext} as rows, for a window this tall. */
+export function scrollContextRows(context: ScrollContext, window: number): number {
+  switch (context) {
+    case 'off':
+      return 0;
+    case '20%':
+      return Math.floor(window / 5);
+    case '33%':
+      return Math.floor(window / 3);
+    case '50%':
+      return Math.floor(window / 2);
+  }
+}
 
 export interface ScreenContext {
   readonly size: TerminalSize;
@@ -220,6 +245,15 @@ export interface Screen {
   key(key: Key, ctx: ScreenContext): ScreenResult;
   /** The input line was submitted and classified. */
   submit(intent: Intent, ctx: ScreenContext): ScreenResult;
+  /**
+   * Whether the screen has motion of its own still to draw — a study pane
+   * easing towards where a scroll asked it to go. The shell owns the clock: it
+   * calls {@link tick} on a timer and redraws after each frame, so no screen
+   * holds a timer of its own.
+   */
+  animating?(): boolean;
+  /** Advance that motion by one frame. */
+  tick?(): void;
 }
 
 /**

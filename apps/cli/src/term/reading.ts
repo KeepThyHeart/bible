@@ -333,14 +333,52 @@ function headingLines(heading: string, options: ReadingOptions): ReadingLine[] {
  * The rule is "move only if you must": an offset already showing the verse is
  * returned unchanged, so scrolling with `alt+↑↓` and then moving the cursor does
  * not snap the page back to where it was.
+ *
+ * `margin` is rows of context kept visible above and below the verse, so the
+ * cursor never rides the very edge of the window. It shrinks for a verse too
+ * tall to fit with its full margin on both sides — the verse itself always wins.
  */
 export function clampScroll(
   lines: readonly ReadingLine[],
   verse: number,
   offset: number,
   window: number,
+  margin = 0,
 ): number {
   const maxOffset = Math.max(0, lines.length - window);
+  const rows = verseRows(lines, verse);
+  if (rows === undefined) return Math.min(Math.max(0, offset), maxOffset);
+
+  const { start, end } = rows;
+  const context = contextRows(start, end, window, margin);
+  let next = Math.min(Math.max(0, offset), maxOffset);
+  if (end + context >= next + window) next = Math.min(end + context - window + 1, maxOffset);
+  if (start - context < next) next = start - context;
+  return Math.min(Math.max(0, next), maxOffset);
+}
+
+/**
+ * The scroll offset for *arriving* at a verse — a link, a search hit, a typed
+ * reference — rather than stepping onto it.
+ *
+ * {@link clampScroll}'s "move as little as possible" is right for a step and
+ * wrong for a jump: from offset 0 it leaves the destination on the bottom row.
+ * A jump puts the verse `margin` rows below the top instead, so what leads into
+ * it is on screen and most of the window is what follows.
+ */
+export function jumpScroll(
+  lines: readonly ReadingLine[],
+  verse: number,
+  window: number,
+  margin = 0,
+): number {
+  const rows = verseRows(lines, verse);
+  if (rows === undefined) return clampScroll(lines, verse, 0, window, margin);
+  const context = contextRows(rows.start, rows.end, window, margin);
+  return clampScroll(lines, verse, rows.start - context, window, margin);
+}
+
+function verseRows(lines: readonly ReadingLine[], verse: number): { start: number; end: number } | undefined {
   let start = -1;
   let end = -1;
   for (let i = 0; i < lines.length; i += 1) {
@@ -348,10 +386,11 @@ export function clampScroll(
     if (start === -1) start = i;
     end = i;
   }
-  if (start === -1) return Math.min(Math.max(0, offset), maxOffset);
+  return start === -1 ? undefined : { start, end };
+}
 
-  let next = Math.min(Math.max(0, offset), maxOffset);
-  if (end >= next + window) next = Math.min(end - window + 1, maxOffset);
-  if (start < next) next = start;
-  return Math.min(Math.max(0, next), maxOffset);
+/** `margin`, cut down to what a verse of this height leaves room for on each side. */
+function contextRows(start: number, end: number, window: number, margin: number): number {
+  const room = Math.max(0, Math.floor((window - (end - start + 1)) / 2));
+  return Math.min(Math.max(0, margin), room);
 }

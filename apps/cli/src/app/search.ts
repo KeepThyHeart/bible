@@ -262,9 +262,11 @@ const LEVELS = '▁▂▃▄▅▆▇█';
  *
  * Not `▁`, which would make a book with one match and a book with none the
  * same glyph. Telling those apart is the entire job of the graph, so `▁` is
- * reserved for the lowest *non-zero* level.
+ * reserved for the lowest *non-zero* level. `_` reads as an empty baseline
+ * under the bars (a centred `·` floated mid-row), and stays distinct from `▁`
+ * without colour.
  */
-const NO_MATCHES = '·';
+const NO_MATCHES = '_';
 
 /**
  * A per-book histogram of where the matches fell, in block characters.

@@ -73,7 +73,11 @@ export interface ColorEnvironment {
  * its value. `isTty` is separate from the environment because a piped or
  * redirected run should not emit escapes even on a colour-capable terminal.
  */
-export function detectColorDepth(env: ColorEnvironment, isTty: boolean): ColorDepth {
+export function detectColorDepth(
+  env: ColorEnvironment,
+  isTty: boolean,
+  platform: string = process.platform,
+): ColorDepth {
   const force = env.FORCE_COLOR;
   if (force !== undefined && force !== '') {
     if (force === '0' || force === 'false') return 'none';
@@ -96,7 +100,11 @@ export function detectColorDepth(env: ColorEnvironment, isTty: boolean): ColorDe
   if (env.WT_SESSION !== undefined && env.WT_SESSION !== '') return 'ansi256';
   if (env.TERM_PROGRAM === 'Apple_Terminal' || env.TERM_PROGRAM === 'iTerm.app') return 'ansi256';
 
-  if (term === '') return 'none';
+  // No `TERM` at all is the normal state of every Windows console — PowerShell
+  // or cmd in conhost, outside Windows Terminal — and those draw 256 colours
+  // (see above). Reading it as "no colour" there turned off red letter,
+  // italics' companions and every other colour role for most Windows users.
+  if (term === '') return platform === 'win32' ? 'ansi256' : 'none';
   return 'ansi16';
 }
 
@@ -215,6 +223,8 @@ export interface Theme {
   readonly supplied: Style;
   /** Psalm titles and section headings. */
   readonly heading: Style;
+  /** A verse reference in a list — a search hit, a cross reference, a bookmark. */
+  readonly reference: Style;
   readonly error: Style;
   /** The `>` prompt on the input line. */
   readonly prompt: Style;
@@ -238,6 +248,7 @@ export function createTheme(depth: ColorDepth): Theme {
       wordsOfChrist: {},
       supplied: { italic: true },
       heading: { italic: true },
+      reference: { bold: true },
       error: { bold: true },
       prompt: { bold: true },
     };
@@ -260,6 +271,7 @@ export function createTheme(depth: ColorDepth): Theme {
     // win the merge and quietly turn a red-letter word grey.
     supplied: { italic: true },
     heading: { italic: true, fg: 108 },
+    reference: { fg: 180 },
     error: { fg: 203, bold: true },
     prompt: { fg: 81, bold: true },
   };

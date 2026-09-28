@@ -136,22 +136,25 @@ import {
   makeToken,
   padLineTo,
   padTo,
+  stringWidth,
   tokenizeText,
   truncateLineToWidth,
   wrapTokens,
 } from '../term/layout';
-import { clampScroll, layoutReading, type ReadingLine } from '../term/reading';
-import type { ColorDepth, StyledLine } from '../term/style';
+import { clampScroll, jumpScroll, layoutReading, type ReadingLine } from '../term/reading';
+import { mergeStyle, type ColorDepth, type Style, type StyledLine } from '../term/style';
 import { layoutCommentary } from '../app/commentaryMarkup';
-import type {
-  DisplaySettings,
-  Overlay,
-  Screen,
-  ScreenAction,
-  ScreenContext,
-  ScreenResult,
-  ScreenView,
-  VerseNumberStyle,
+import {
+  SCROLL_CONTEXTS,
+  scrollContextRows,
+  type DisplaySettings,
+  type Overlay,
+  type Screen,
+  type ScreenAction,
+  type ScreenContext,
+  type ScreenResult,
+  type ScreenView,
+  type VerseNumberStyle,
 } from './types';
 
 /** Title + blank line above the chapter text. */
@@ -237,16 +240,61 @@ const VERSE_STEP_VIEWS: ReadonlySet<StudyView> = new Set([
  * digits rather than widened to match: a Bible search is for finding a verse
  * you half-remember, not for reading every occurrence of "the".
  */
-const MAX_SEARCH_RESULTS = 99;
+const MAX_SEARCH_RESULTS = 999;
 
 /**
  * How many digits `pickerBuffer` accepts before Enter is needed. Two for
  * every list, except a dictionary's entry list, whose "G"/"H" buckets run into the
  * thousands on a Strong's module, where a two-digit cap would leave almost
- * everything unreachable.
+ * everything unreachable, and a list longer than 99 rows (`count`), which takes
+ * as many digits as its last row number has.
  */
-function pickerDigits(view: StudyView): number {
-  return view === 'dictionaryEntries' ? 4 : 2;
+function pickerDigits(view: StudyView, count = 0): number {
+  return Math.max(view === 'dictionaryEntries' ? 4 : 2, String(count).length);
+}
+
+/**
+ * Rows `↑`/`↓` scroll a study view by. One row per press made a long
+ * commentary a chore; a sixth of the window moves visibly while the eye can
+ * still follow a line as it travels (the scroll is eased — see `tick`).
+ */
+function studyArrowRows(bodyHeight: number): number {
+  return Math.max(3, Math.floor(bodyHeight / 6));
+}
+
+/**
+ * Frames a study scroll eases over: each frame covers this fraction of what is
+ * left, and at least a row. A held key therefore speeds the scroll up rather
+ * than queuing it behind itself.
+ */
+const STUDY_EASE_DIVISOR = 5;
+
+const ITALIC: Style = { italic: true };
+
+/** Narrower than this, a verse list's text wraps under the reference rather than beside it. */
+const MIN_TEXT_COLUMN = 24;
+
+/** A study view's rows, plus whatever it pins at the top above them. */
+interface StudyPage {
+  readonly rows: StyledLine[];
+  /** How to pick a row — pinned under the title so a long list never hides it. */
+  readonly prompt?: readonly StyledLine[];
+}
+
+/** A verse list's column widths, shared by every row so the columns line up. */
+interface NumberedColumns {
+  readonly number: number;
+  readonly label: number;
+}
+
+function numberedColumns(rows: readonly { readonly number: number; readonly label: string }[]): NumberedColumns {
+  let number = 1;
+  let label = 0;
+  for (const row of rows) {
+    number = Math.max(number, String(row.number).length);
+    label = Math.max(label, stringWidth(row.label));
+  }
+  return { number, label };
 }
 
 /**
@@ -383,6 +431,12 @@ const OPTION_ROWS: readonly OptionRow[] = [
     ],
   },
   {
+    label: 'Scroll context',
+    current: (ctx) => ctx.display.scrollContext,
+    choices: () =>
+      SCROLL_CONTEXTS.map((context) => displayOption(context, (d) => ({ ...d, scrollContext: context }))),
+  },
+  {
     label: 'Colour',
     current: (ctx) => COLOUR_CHOICES.find((c) => c.depth === ctx.display.colour)?.label ?? 'auto',
     choices: () => COLOUR_CHOICES.map((c) => displayOption(c.label, (d) => ({ ...d, colour: c.depth }))),
@@ -488,6 +542,10 @@ export class MainScreen implements Screen {
   private pickerBuffer = '';
   /** How far the Study pane is scrolled past the top of its current view's content. */
   private studyScroll = 0;
+  /** Where `studyScroll` is easing towards, a frame per `tick`; equal to it when at rest. */
+  private studyScrollTarget = 0;
+  /** `searchResultsRows`' wrapped hits — up to `MAX_SEARCH_RESULTS` of them, too many to re-wrap per keystroke. */
+  private searchRowsCache: { key: unknown[]; rows: StyledLine[] } | undefined;
   /** What `studyScroll` was last computed against; changing this resets it to 0. */
   private studyAnchor = '';
   /** The selected row in the options menu (`↑`/`↓`) — replaces the old numbered picker. */
@@ -558,7 +616,7 @@ export class MainScreen implements Screen {
     const mainRows = showBible
       ? this.bibleRows(ctx, laid, bodyHeight)
       : dims.showRightPane
-        ? this.studyRows(ctx, dims.mainWidth, bodyHeight)
+        ? this.studyRows(ctx, laid, dims.mainWidth, bodyHeight)
         : this.narrowStudyRows(ctx, laid, dims.mainWidth, bodyHeight);
 
     const range = selectedRange(ctx.tab);
@@ -596,7 +654,13 @@ export class MainScreen implements Screen {
     const range = selectedRange(ctx.tab);
     const lit = highlightSelection(laid.lines, range, ctx.theme);
     const window = Math.max(1, bodyHeight - TITLE_ROWS);
-    const offset = clampScroll(lit, cursorVerseNumber(ctx.tab), ctx.tab.scrollOffset, window);
+    const offset = clampScroll(
+      lit,
+      cursorVerseNumber(ctx.tab),
+      ctx.tab.scrollOffset,
+      window,
+      scrollContextRows(ctx.display.scrollContext, window),
+    );
     return padRows(
       [
         [{ text: `${laid.chapter.bookName} ${laid.chapter.chapter}`, style: ctx.theme.title }],
@@ -614,13 +678,16 @@ export class MainScreen implements Screen {
    * "current verse" fact is not lost, only its dedicated column.
    */
   private narrowStudyRows(ctx: ScreenContext, laid: Laid, width: number, height: number): StyledLine[] {
+    // These views pin the verse themselves (`verseHeader`); a second copy
+    // above it would only spend rows.
+    if (VERSE_STEP_VIEWS.has(this.studyView)) return this.studyRows(ctx, laid, width, height);
     const cursorNum = cursorVerseNumber(ctx.tab);
     const header: StyledLine = [
       { text: `${laid.chapter.bookName} ${laid.chapter.chapter}:${cursorNum}`, style: ctx.theme.title },
     ];
     const preview = laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments);
     const top = [header, ...preview, []];
-    return padRows([...top, ...this.studyRows(ctx, width, Math.max(0, height - top.length))], height);
+    return padRows([...top, ...this.studyRows(ctx, laid, width, Math.max(0, height - top.length))], height);
   }
 
   key(key: Key, ctx: ScreenContext): ScreenResult {
@@ -638,8 +705,8 @@ export class MainScreen implements Screen {
     // there is no selection to extend outside reading mode.
     if (key.name === 'up' || key.name === 'down') {
       if (studying) {
-        const step = key.shift ? Math.max(1, ctx.bodyHeight - 2) : 1;
-        return this.scrollStudy(key.name === 'up' ? -step : step);
+        const step = key.shift ? Math.max(1, ctx.bodyHeight - 2) : studyArrowRows(ctx.bodyHeight);
+        return this.scrollStudy(ctx, key.name === 'up' ? -step : step);
       }
       if (key.shift) return this.extend(ctx, laid, key.name === 'up' ? -1 : 1, window);
       const active = isSelectionArmed(ctx.tab) ? ctx : { ...ctx, tab: clearSelection(ctx.tab) };
@@ -652,7 +719,7 @@ export class MainScreen implements Screen {
       case 'pageup':
       case 'pagedown':
         return studying
-          ? this.scrollStudy(key.name === 'pagedown' ? Math.max(1, ctx.bodyHeight - 2) : -Math.max(1, ctx.bodyHeight - 2))
+          ? this.scrollStudy(ctx, key.name === 'pagedown' ? Math.max(1, ctx.bodyHeight - 2) : -Math.max(1, ctx.bodyHeight - 2))
           : { kind: 'none' };
       case 'char':
       case 'space':
@@ -663,7 +730,7 @@ export class MainScreen implements Screen {
         // some other way (`subViewKey` already ran); otherwise it falls
         // through as an ordinary character.
         if (key.name === 'space' && studying) {
-          return this.scrollStudy(Math.max(1, ctx.bodyHeight - 2));
+          return this.scrollStudy(ctx, Math.max(1, ctx.bodyHeight - 2));
         }
         return this.character(key.char ?? '', ctx, laid, window);
       default:
@@ -809,12 +876,29 @@ export class MainScreen implements Screen {
   }
 
   /** `pgup`/`pgdn`/`space`/`↑↓` in study mode — the pane scrolls on its own keys. */
-  private scrollStudy(delta: number): ScreenAction {
+  private scrollStudy(ctx: ScreenContext, delta: number): ScreenAction {
     // Clamped against the real content length in `studyRows`, which is the
     // only place that number is known; a deliberate overshoot here is how
     // `end`-style requests would work too, though nothing sends one yet.
-    this.studyScroll += delta;
+    //
+    // Measured from the target, not from where the eased scroll has reached,
+    // so presses made mid-animation add up rather than being partly lost.
+    this.studyScrollTarget += delta;
+    if (ctx.display.scroll === 'instant') this.studyScroll = this.studyScrollTarget;
     return { kind: 'redraw' };
+  }
+
+  /** See {@link Screen.animating}: a study scroll still easing to its target. */
+  animating(): boolean {
+    return this.studyScroll !== this.studyScrollTarget;
+  }
+
+  /** One frame of the study scroll: a share of the remaining distance, and at least a row. */
+  tick(): void {
+    const remaining = this.studyScrollTarget - this.studyScroll;
+    if (remaining === 0) return;
+    const step = Math.max(1, Math.ceil(Math.abs(remaining) / STUDY_EASE_DIVISOR));
+    this.studyScroll += Math.sign(remaining) * step;
   }
 
   /**
@@ -1144,7 +1228,8 @@ export class MainScreen implements Screen {
       return { kind: 'redraw' };
     }
     if (key.name === 'char' && key.char !== undefined && /^[0-9]$/.test(key.char)) {
-      this.pickerBuffer = (this.pickerBuffer + key.char).slice(0, pickerDigits(this.studyView));
+      const count = this.studyView === 'searchResults' ? (this.searchOutcome?.hits.length ?? 0) : 0;
+      this.pickerBuffer = (this.pickerBuffer + key.char).slice(0, pickerDigits(this.studyView, count));
       return { kind: 'redraw' };
     }
     if (key.name === 'enter') {
@@ -1332,7 +1417,7 @@ export class MainScreen implements Screen {
     const next: TabState =
       relaid === undefined
         ? tab
-        : { ...tab, scrollOffset: clampScroll(relaid.lines, VerseIdHelper.parse(verseId).verse, 0, window) };
+        : { ...tab, scrollOffset: this.arrivalScroll(ctx, relaid, VerseIdHelper.parse(verseId).verse, window) };
 
     this.recordHistory(ctx, next);
     this.studyView = 'hints';
@@ -1367,7 +1452,7 @@ export class MainScreen implements Screen {
       kind: 'tab',
       tab: {
         ...tab,
-        scrollOffset: clampScroll(relaid.lines, VerseIdHelper.parse(entry.verseId).verse, 0, window),
+        scrollOffset: this.arrivalScroll(ctx, relaid, VerseIdHelper.parse(entry.verseId).verse, window),
       },
     };
   }
@@ -1432,7 +1517,7 @@ export class MainScreen implements Screen {
     const next: TabState = {
       ...tab,
       cursorVerse: VerseIdHelper.calculate(bookNumber, chapter, verse),
-      scrollOffset: clampScroll(relaid.lines, verse, 0, window),
+      scrollOffset: this.stepScroll(ctx, relaid, verse, 0, window),
     };
     // Crossing a chapter boundary by reading on is a page, not a jump.
     this.recordHistory(ctx, next, { replace: true });
@@ -1487,7 +1572,7 @@ export class MainScreen implements Screen {
     const next: TabState = {
       ...ctx.tab,
       cursorVerse: verseId,
-      scrollOffset: clampScroll(laid.lines, clamped, ctx.tab.scrollOffset, window),
+      scrollOffset: this.stepScroll(ctx, laid, clamped, ctx.tab.scrollOffset, window),
     };
     // Same chapter as whatever is already the newest entry: this dedupes and
     // updates that entry's remembered verse in place (app/history.ts).
@@ -1518,7 +1603,7 @@ export class MainScreen implements Screen {
 
     const next: TabState = {
       ...tab,
-      scrollOffset: clampScroll(relaid.lines, VerseIdHelper.parse(selected.cursorVerse).verse, 0, window),
+      scrollOffset: this.arrivalScroll(ctx, relaid, VerseIdHelper.parse(selected.cursorVerse).verse, window),
     };
     // A typed reference is a deliberate jump, not a page — it appends.
     this.recordHistory(ctx, next);
@@ -1538,9 +1623,19 @@ export class MainScreen implements Screen {
       kind: 'tab',
       tab: {
         ...tab,
-        scrollOffset: clampScroll(laid.lines, VerseIdHelper.parse(tab.cursorVerse).verse, ctx.tab.scrollOffset, window),
+        scrollOffset: this.stepScroll(ctx, laid, VerseIdHelper.parse(tab.cursorVerse).verse, ctx.tab.scrollOffset, window),
       },
     };
+  }
+
+  /** `clampScroll` with the reader's scroll context — for stepping onto a verse. */
+  private stepScroll(ctx: ScreenContext, laid: Laid, verse: number, offset: number, window: number): number {
+    return clampScroll(laid.lines, verse, offset, window, scrollContextRows(ctx.display.scrollContext, window));
+  }
+
+  /** `jumpScroll` with the reader's scroll context — for arriving at a verse from elsewhere. */
+  private arrivalScroll(ctx: ScreenContext, laid: Laid, verse: number, window: number): number {
+    return jumpScroll(laid.lines, verse, window, scrollContextRows(ctx.display.scrollContext, window));
   }
 
   private copy(ctx: ScreenContext, laid: Laid): ScreenAction {
@@ -1642,19 +1737,63 @@ export class MainScreen implements Screen {
    * against the real row count, rather than in the key handler that changes
    * it: that is the only place both numbers are known at once.
    */
-  private studyRows(ctx: ScreenContext, width: number, height: number): StyledLine[] {
+  private studyRows(ctx: ScreenContext, laid: Laid, width: number, height: number): StyledLine[] {
     this.ensureStudyAnchor(ctx, width);
-    const rows = this.studyContent(ctx, width);
+    const page = this.studyContent(ctx, width);
 
-    const max = Math.max(0, rows.length - height);
+    // The title, the verse a verse-scoped view is showing and how to pick a
+    // row stay put; only what is under them scrolls. A long list or a long
+    // commentary would otherwise scroll away the very lines saying what it is
+    // and what to type.
+    const [title, ...rest] = page.rows;
+    const body = rest[0]?.length === 0 ? rest.slice(1) : rest;
+    const verse = VERSE_STEP_VIEWS.has(this.studyView) ? this.verseHeader(ctx, laid, width) : [];
+    const pinned: StyledLine[] = [...(title === undefined ? [] : [title]), ...verse, ...(page.prompt ?? []), []];
+
+    const window = Math.max(1, height - pinned.length);
+    const max = Math.max(0, body.length - window);
     this.studyScroll = Math.min(Math.max(0, this.studyScroll), max);
+    this.studyScrollTarget = Math.min(Math.max(0, this.studyScrollTarget), max);
 
-    const windowed = rows.slice(this.studyScroll, this.studyScroll + height);
-    const fitted = windowed.map((r) => padLineTo(truncateLineToWidth(r, width), width));
+    const windowed = body.slice(this.studyScroll, this.studyScroll + window);
+    const fitted = [...pinned, ...windowed]
+      .slice(0, height)
+      .map((r) => padLineTo(truncateLineToWidth(r, width), width));
     return padRows(fitted, height);
   }
 
-  private studyContent(ctx: ScreenContext, width: number): StyledLine[] {
+  /**
+   * `< John 3:16 >` and the verse itself, in italics — which verse a
+   * verse-scoped view is about, and that `<`/`>` step it.
+   */
+  private verseHeader(ctx: ScreenContext, laid: Laid, width: number): StyledLine[] {
+    const cursorNum = cursorVerseNumber(ctx.tab);
+    const reference = `${laid.chapter.bookName} ${laid.chapter.chapter}:${cursorNum}`;
+    const nav: StyledLine = [
+      { text: '<  ', style: ctx.theme.prompt },
+      { text: reference, style: ctx.theme.title },
+      { text: '  >', style: ctx.theme.prompt },
+    ];
+    const verse = laid.verses.find((v) => v.verse === cursorNum);
+    if (verse === undefined) return [nav];
+
+    // Italic laid *over* each run's own style, so red letter and supplied
+    // words survive. Memoised per base style: `wrapTokens` coalesces by style
+    // identity, and a fresh object per word would split every run.
+    const italic = new Map<Style | undefined, Style>();
+    const over = (base: Style | undefined): Style => {
+      let style = italic.get(base);
+      if (style === undefined) {
+        style = mergeStyle(base, ITALIC);
+        italic.set(base, style);
+      }
+      return style;
+    };
+    const tokens = verse.runs.flatMap((run) => tokenizeText(run.text, { style: over(run.style) }));
+    return [nav, ...wrapTokens(tokens, { width }).map((line) => line.segments)];
+  }
+
+  private studyContent(ctx: ScreenContext, width: number): StudyPage {
     switch (this.studyView) {
       case 'history':
         return this.historyRows(ctx);
@@ -1663,7 +1802,7 @@ export class MainScreen implements Screen {
       case 'commentaryList':
         return this.commentaryListPane(ctx);
       case 'commentaryEntry':
-        return this.commentaryEntryRows(ctx, width);
+        return { rows: this.commentaryEntryRows(ctx, width) };
       case 'topicsList':
         return this.topicsListPane(ctx);
       case 'topicVerses':
@@ -1675,21 +1814,21 @@ export class MainScreen implements Screen {
       case 'dictionaryEntries':
         return this.dictionaryEntriesPane(ctx);
       case 'dictionaryEntry':
-        return this.dictionaryEntryPane(ctx, width);
+        return { rows: this.dictionaryEntryPane(ctx, width) };
       case 'bookList':
         return this.bookListPane(ctx);
       case 'bookSections':
         return this.bookSectionsPane(ctx);
       case 'bookEntry':
-        return this.bookEntryPane(ctx, width);
+        return { rows: this.bookEntryPane(ctx, width) };
       case 'options':
-        return this.optionsRows(ctx);
+        return { rows: this.optionsRows(ctx) };
       case 'bookmarksList':
         return this.bookmarksRows(ctx);
       case 'searchResults':
         return this.searchResultsRows(ctx, width);
       case 'hints':
-        return this.hintsRows(ctx);
+        return { rows: this.hintsRows(ctx) };
     }
   }
 
@@ -1711,6 +1850,7 @@ export class MainScreen implements Screen {
     if (anchor === this.studyAnchor) return;
     this.studyAnchor = anchor;
     this.studyScroll = 0;
+    this.studyScrollTarget = 0;
   }
 
   /** Reading mode's shortcut legend — the right pane's bottom half, and the whole of `studyContent` for `'hints'`. */
@@ -1753,7 +1893,7 @@ export class MainScreen implements Screen {
   }
 
   /** `x` — every cross reference on the cursor verse, grouped by phrase, numbered straight through. */
-  private crossReferencesRows(ctx: ScreenContext, width: number): StyledLine[] {
+  private crossReferencesRows(ctx: ScreenContext, width: number): StudyPage {
     const groups = crossReferenceGroups(
       ctx.library,
       ctx.tab.translation,
@@ -1769,30 +1909,30 @@ export class MainScreen implements Screen {
         installed === 0
           ? 'No cross-reference module is installed.'
           : 'No cross references for this verse.';
-      return [title, [], [{ text: message, style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: message, style: ctx.theme.muted }]] };
     }
 
+    const columns = numberedColumns(groups.flatMap((g) => g.rows));
     const rows: StyledLine[] = [title, []];
     for (const group of groups) {
       if (group.phrase !== undefined) {
         rows.push([{ text: `“${group.phrase}”`, style: ctx.theme.heading }]);
       }
       for (const row of group.rows) {
-        rows.push(...this.numberedTextRow(row.number, row.label, row.text, width, ctx));
+        rows.push(...this.numberedTextRow(row.number, row.label, row.text, width, columns, ctx));
       }
       rows.push([]);
     }
-    rows.push(this.pickerFooter(ctx, 'Type a number, Enter to go there'));
-    return rows;
+    return { rows, prompt: [this.pickerFooter(ctx, 'Type a number, Enter to go there')] };
   }
 
   /** `c` — every installed commentary, alphabetical, with word counts and a fixed number. */
-  private commentaryListPane(ctx: ScreenContext): StyledLine[] {
+  private commentaryListPane(ctx: ScreenContext): StudyPage {
     const rows = commentaryListRows(ctx.library, ctx.tab.cursorVerse);
     const title: StyledLine = [{ text: 'Commentaries', style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'No commentary is installed.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'No commentary is installed.', style: ctx.theme.muted }]] };
     }
 
     const out: StyledLine[] = [title, []];
@@ -1804,9 +1944,7 @@ export class MainScreen implements Screen {
       const wordCount = padTo(ellipsize(words, 10), 10);
       out.push([{ text: `${number}  ${abbreviation} ${wordCount} ${row.moduleName}`, style }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a commentary number, Enter to read it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a commentary number, Enter to read it')] };
   }
 
   /** The reading pane for `c` (a chosen number) or `m` (the last one opened). */
@@ -1848,7 +1986,7 @@ export class MainScreen implements Screen {
   }
 
   /** `t` — every topic on the cursor verse, alphabetical, numbered straight through. */
-  private topicsListPane(ctx: ScreenContext): StyledLine[] {
+  private topicsListPane(ctx: ScreenContext): StudyPage {
     const rows = topicListRows(ctx.library, ctx.tab.cursorVerse);
     const title: StyledLine = [{ text: 'Topics', style: ctx.theme.title }];
 
@@ -1856,7 +1994,7 @@ export class MainScreen implements Screen {
       const installed = ctx.library.study('topical_index').length;
       const message =
         installed === 0 ? 'No topical index is installed.' : 'No topics on this verse.';
-      return [title, [], [{ text: message, style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: message, style: ctx.theme.muted }]] };
     }
 
     const out: StyledLine[] = [title, []];
@@ -1865,15 +2003,13 @@ export class MainScreen implements Screen {
       const verses = `${row.verseCount} ${row.verseCount === 1 ? 'verse' : 'verses'}`;
       out.push([{ text: `${number}  ${padTo(ellipsize(row.name, 28), 28)} ${verses}` }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a topic number, Enter to open it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a topic number, Enter to open it')] };
   }
 
   /** The verses under one topic, opened from `topicsListPane`. */
-  private topicVersesPane(ctx: ScreenContext, width: number): StyledLine[] {
+  private topicVersesPane(ctx: ScreenContext, width: number): StudyPage {
     if (this.topicModuleAbbreviation === undefined || this.topicId === undefined) {
-      return [[{ text: 'No topic is open.', style: ctx.theme.muted }]];
+      return { rows: [[{ text: 'No topic is open.', style: ctx.theme.muted }]] };
     }
 
     const rows = topicVerseRows(
@@ -1890,25 +2026,24 @@ export class MainScreen implements Screen {
     const title: StyledLine = [{ text: name ?? 'Topic', style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'No verses under this topic.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'No verses under this topic.', style: ctx.theme.muted }]] };
     }
 
+    const columns = numberedColumns(rows);
     const out: StyledLine[] = [title, []];
-    for (const row of rows) out.push(...this.numberedTextRow(row.number, row.label, row.text, width, ctx));
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a number, Enter to go there'));
-    return out;
+    for (const row of rows) out.push(...this.numberedTextRow(row.number, row.label, row.text, width, columns, ctx));
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a number, Enter to go there')] };
   }
 
   // --- dictionaries (`d`) -------------------------------------------------
 
   /** `d` — every installed dictionary, alphabetical (not verse-scoped). */
-  private dictionaryListPane(ctx: ScreenContext): StyledLine[] {
+  private dictionaryListPane(ctx: ScreenContext): StudyPage {
     const rows = dictionaryListRows(ctx.library);
     const title: StyledLine = [{ text: 'Dictionaries', style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'No dictionary is installed.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'No dictionary is installed.', style: ctx.theme.muted }]] };
     }
 
     const digits = pickerDigits(this.studyView);
@@ -1920,22 +2055,20 @@ export class MainScreen implements Screen {
         { text: `  (${row.entryCount} entries)`, style: ctx.theme.muted },
       ]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a dictionary number, Enter to browse it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a dictionary number, Enter to browse it')] };
   }
 
   /** The letter index (`IDictionaryRepository.getLetterIndex`) of the dictionary chosen from the list above. */
-  private dictionaryLettersPane(ctx: ScreenContext): StyledLine[] {
+  private dictionaryLettersPane(ctx: ScreenContext): StudyPage {
     if (this.dictionaryAbbreviation === undefined) {
-      return [[{ text: 'No dictionary is open.', style: ctx.theme.muted }]];
+      return { rows: [[{ text: 'No dictionary is open.', style: ctx.theme.muted }]] };
     }
 
     const rows = dictionaryLetterRows(ctx.library, this.dictionaryAbbreviation);
     const title: StyledLine = [{ text: this.dictionaryModuleName(ctx) ?? 'Dictionary', style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'This dictionary has no entries.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'This dictionary has no entries.', style: ctx.theme.muted }]] };
     }
 
     const digits = pickerDigits(this.studyView);
@@ -1944,15 +2077,13 @@ export class MainScreen implements Screen {
       const number = String(row.number).padStart(digits, '0');
       out.push([{ text: `${number}  ${row.letter}` }, { text: `  (${row.count})`, style: ctx.theme.muted }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a letter number, Enter to browse it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a letter number, Enter to browse it')] };
   }
 
   /** One letter's entries — the view whose picker buffer takes four digits, not two (see the class docblock). */
-  private dictionaryEntriesPane(ctx: ScreenContext): StyledLine[] {
+  private dictionaryEntriesPane(ctx: ScreenContext): StudyPage {
     if (this.dictionaryAbbreviation === undefined || this.dictionaryLetter === undefined) {
-      return [[{ text: 'No letter is open.', style: ctx.theme.muted }]];
+      return { rows: [[{ text: 'No letter is open.', style: ctx.theme.muted }]] };
     }
 
     const { rows, total } = dictionaryEntryRows(ctx.library, this.dictionaryAbbreviation, this.dictionaryLetter);
@@ -1960,7 +2091,7 @@ export class MainScreen implements Screen {
     const title: StyledLine = [{ text: `${name} — ${this.dictionaryLetter}`, style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'No entries under this letter.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'No entries under this letter.', style: ctx.theme.muted }]] };
     }
 
     const digits = pickerDigits(this.studyView);
@@ -1973,9 +2104,7 @@ export class MainScreen implements Screen {
       out.push([]);
       out.push([{ text: `Showing the first ${rows.length} of ${total}.`, style: ctx.theme.muted }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type an entry number, Enter to read it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type an entry number, Enter to read it')] };
   }
 
   /** The reading view for a chosen dictionary entry — each field reuses `layoutCommentary`, same as a commentary entry. */
@@ -2028,12 +2157,12 @@ export class MainScreen implements Screen {
   // --- books (`k`) ---------------------------------------------------------
 
   /** `k` — every installed book module, alphabetical (not verse-scoped). */
-  private bookListPane(ctx: ScreenContext): StyledLine[] {
+  private bookListPane(ctx: ScreenContext): StudyPage {
     const rows = bookListRows(ctx.library);
     const title: StyledLine = [{ text: 'Books', style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'No book is installed.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'No book is installed.', style: ctx.theme.muted }]] };
     }
 
     const digits = pickerDigits(this.studyView);
@@ -2042,9 +2171,7 @@ export class MainScreen implements Screen {
       const number = String(row.number).padStart(digits, '0');
       out.push([{ text: `${number}  ${row.moduleName}` }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a book number, Enter to open it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a book number, Enter to open it')] };
   }
 
   /**
@@ -2052,9 +2179,9 @@ export class MainScreen implements Screen {
    * section's children, per `bookSectionStack`'s last id. `▸` marks a row
    * that opens another list rather than the section itself.
    */
-  private bookSectionsPane(ctx: ScreenContext): StyledLine[] {
+  private bookSectionsPane(ctx: ScreenContext): StudyPage {
     if (this.bookAbbreviation === undefined) {
-      return [[{ text: 'No book is open.', style: ctx.theme.muted }]];
+      return { rows: [[{ text: 'No book is open.', style: ctx.theme.muted }]] };
     }
 
     const parentId = this.bookSectionStack[this.bookSectionStack.length - 1];
@@ -2063,7 +2190,7 @@ export class MainScreen implements Screen {
     const title: StyledLine = [{ text: name, style: ctx.theme.title }];
 
     if (rows.length === 0) {
-      return [title, [], [{ text: 'This book has no sections.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'This book has no sections.', style: ctx.theme.muted }]] };
     }
 
     const digits = pickerDigits(this.studyView);
@@ -2073,9 +2200,7 @@ export class MainScreen implements Screen {
       const marker = row.hasChildren ? '▸' : ' ';
       out.push([{ text: `${number} ${marker} ${row.title}` }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a section number, Enter to open it'));
-    return out;
+    return { rows: out, prompt: [this.pickerFooter(ctx, 'Type a section number, Enter to open it')] };
   }
 
   /** The reading view for a leaf section — `layoutCommentary` again, same as a commentary or dictionary entry. */
@@ -2093,17 +2218,36 @@ export class MainScreen implements Screen {
     return [header, [], ...layoutCommentary(section.content, { width, theme: ctx.theme })];
   }
 
-  /** One wrapped `NN label "text"` row, shared by the cross-reference and topic-verse lists. */
+  /**
+   * One row of a verse list — number, reference and text as three aligned
+   * columns, shared by the cross-reference, topic-verse and search lists.
+   *
+   * Columns rather than `1 John 3:16 …` run together, which cannot be read
+   * unambiguously: is that 1 John, or row 1 at John? The text hangs under its
+   * own column, or under the reference when the pane is too narrow for that.
+   */
   private numberedTextRow(
     number: number,
     label: string,
     text: string,
     width: number,
+    columns: NumberedColumns,
     ctx: ScreenContext,
   ): StyledLine[] {
-    const prefix = `${String(number).padStart(2, ' ')} ${label} `;
-    const tokens = [makeToken([{ text: prefix, style: ctx.theme.muted }]), ...tokenizeText(text)];
-    const wrapped = wrapTokens(tokens, { width, firstIndent: 0, hangingIndent: 4 });
+    const numberCell = `${String(number).padStart(columns.number)}  `;
+    // One trailing space short of the gap: `wrapTokens` puts a space between
+    // this prefix token and the first word, and the text column counts it.
+    const labelCell = `${padTo(label, columns.label)} `;
+    const textColumn = stringWidth(numberCell) + stringWidth(labelCell) + 1;
+    const hangingIndent = width - textColumn >= MIN_TEXT_COLUMN ? textColumn : stringWidth(numberCell);
+    const tokens = [
+      makeToken([
+        { text: numberCell, style: ctx.theme.prompt },
+        { text: labelCell, style: ctx.theme.reference },
+      ]),
+      ...tokenizeText(text),
+    ];
+    const wrapped = wrapTokens(tokens, { width, firstIndent: 0, hangingIndent });
     return wrapped.map((line) => line.segments);
   }
 
@@ -2115,11 +2259,11 @@ export class MainScreen implements Screen {
     ];
   }
 
-  private historyRows(ctx: ScreenContext): StyledLine[] {
+  private historyRows(ctx: ScreenContext): StudyPage {
     const title: StyledLine = [{ text: 'History', style: ctx.theme.title }];
     const ordered = displayOrder(this.history);
     if (ordered.length === 0) {
-      return [title, [], [{ text: 'Nothing visited yet this session.', style: ctx.theme.muted }]];
+      return { rows: [title, [], [{ text: 'Nothing visited yet this session.', style: ctx.theme.muted }]] };
     }
 
     const rows: StyledLine[] = [title, []];
@@ -2131,12 +2275,11 @@ export class MainScreen implements Screen {
       rows.push([{ text: label, style: current ? ctx.theme.tabActive : ctx.theme.text }]);
     });
 
-    rows.push([]);
-    rows.push([
+    const prompt: StyledLine = [
       { text: 'Type a number, Enter to go: ', style: ctx.theme.muted },
       { text: this.historyBuffer.length > 0 ? this.historyBuffer : '_' },
-    ]);
-    return rows;
+    ];
+    return { rows, prompt: [prompt] };
   }
 
   /** `o` — one row per setting; the selected one is marked, `←`/`→` change its value. */
@@ -2157,7 +2300,7 @@ export class MainScreen implements Screen {
   }
 
   /** `b` — every bookmark, in the user's own order, and what each key here does. */
-  private bookmarksRows(ctx: ScreenContext): StyledLine[] {
+  private bookmarksRows(ctx: ScreenContext): StudyPage {
     const title: StyledLine = [{ text: 'Bookmarks', style: ctx.theme.title }];
     const out: StyledLine[] = [title, []];
 
@@ -2168,17 +2311,18 @@ export class MainScreen implements Screen {
         const number = String(i + 1).padStart(2, '0');
         out.push([
           { text: `${number}  ${padTo(ellipsize(bookmark.name, 24), 24)} ` },
-          { text: this.formatReference(ctx, bookmark.verseId), style: ctx.theme.muted },
+          { text: this.formatReference(ctx, bookmark.verseId), style: ctx.theme.reference },
         ]);
       });
     }
 
-    out.push([]);
-    out.push([
-      { text: 'a add   r rename   p re-point   d delete   [ ] reorder', style: ctx.theme.muted },
-    ]);
-    out.push(this.pickerFooter(ctx, 'Type a number, Enter to go there'));
-    return out;
+    return {
+      rows: out,
+      prompt: [
+        [{ text: 'a add   r rename   p re-point   d delete   [ ] reorder', style: ctx.theme.muted }],
+        this.pickerFooter(ctx, 'Type a number, Enter to go there'),
+      ],
+    };
   }
 
   /**
@@ -2188,32 +2332,47 @@ export class MainScreen implements Screen {
    * three different answers (`app/search.ts`'s own note on why), not one
    * "no results" message.
    */
-  private searchResultsRows(ctx: ScreenContext, width: number): StyledLine[] {
+  private searchResultsRows(ctx: ScreenContext, width: number): StudyPage {
     const outcome = this.searchOutcome;
-    if (outcome === undefined) return [[{ text: 'No search has been run yet.', style: ctx.theme.muted }]];
+    if (outcome === undefined) return { rows: [[{ text: 'No search has been run yet.', style: ctx.theme.muted }]] };
 
     const title: StyledLine = [{ text: `Search: ${outcome.query}`, style: ctx.theme.title }];
 
     if (outcome.error !== undefined) {
-      return [
-        title,
-        [],
-        [{ text: 'That search could not be run.', style: ctx.theme.error }],
-        [],
-        [{ text: outcome.error, style: ctx.theme.text }],
-      ];
+      return {
+        rows: [
+          title,
+          [],
+          [{ text: 'That search could not be run.', style: ctx.theme.error }],
+          [],
+          [{ text: outcome.error, style: ctx.theme.text }],
+        ],
+      };
     }
     if (outcome.unanswerable !== undefined) {
-      return [
-        title,
-        [],
-        [{ text: `${outcome.module} cannot answer that search.`, style: ctx.theme.error }],
-        [],
-        [{ text: outcome.unanswerable, style: ctx.theme.text }],
-      ];
+      return {
+        rows: [
+          title,
+          [],
+          [{ text: `${outcome.module} cannot answer that search.`, style: ctx.theme.error }],
+          [],
+          [{ text: outcome.unanswerable, style: ctx.theme.text }],
+        ],
+      };
     }
     if (outcome.hits.length === 0) {
-      return [title, [], [{ text: `No verse in ${outcome.module} matches "${outcome.query}".`, style: ctx.theme.muted }]];
+      return {
+        rows: [title, [], [{ text: `No verse in ${outcome.module} matches "${outcome.query}".`, style: ctx.theme.muted }]],
+      };
+    }
+
+    const prompt = [this.pickerFooter(ctx, 'Type a number, Enter to go there')];
+    // Nothing below depends on the picker buffer, so typing a row number
+    // redraws from here rather than re-wrapping every hit.
+    const key = [outcome, width, ctx.theme];
+    const cached = this.searchRowsCache;
+    if (cached !== undefined && cached.key.every((part, i) => part === key[i])) {
+      return { rows: cached.rows, prompt };
     }
 
     const graph = distributionGraph(outcome.hits, ctx.theme, width);
@@ -2224,16 +2383,17 @@ export class MainScreen implements Screen {
       [],
       ...graph,
     ];
-    outcome.hits.forEach((hit, i) => {
-      out.push(...this.numberedTextRow(i + 1, hit.reference, hit.text, width, ctx));
-    });
+    const hits = outcome.hits.map((hit, i) => ({ number: i + 1, label: hit.reference, text: hit.text }));
+    const columns = numberedColumns(hits);
+    for (const hit of hits) {
+      out.push(...this.numberedTextRow(hit.number, hit.label, hit.text, width, columns, ctx));
+    }
     if (outcome.hits.length >= MAX_SEARCH_RESULTS) {
       out.push([]);
       out.push([{ text: `Showing the first ${MAX_SEARCH_RESULTS} matches.`, style: ctx.theme.muted }]);
     }
-    out.push([]);
-    out.push(this.pickerFooter(ctx, 'Type a number, Enter to go there'));
-    return out;
+    this.searchRowsCache = { key, rows: out };
+    return { rows: out, prompt };
   }
 
   // --- the right pane: current verse, then the shortcut legend ------------

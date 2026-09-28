@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { DisplayVerse } from '../app/verseText';
-import { layoutReading, superscript } from './reading';
+import { clampScroll, jumpScroll, layoutReading, superscript, type ReadingLine } from './reading';
 import { lineWidth } from './layout';
 import { createTheme, type StyledLine } from './style';
 
@@ -281,5 +281,35 @@ describe('a break between verses', () => {
       breakOnVerse: true,
     });
     expect(lines.filter((line) => textOf(line) === '')).toHaveLength(2);
+  });
+});
+
+describe('scroll context', () => {
+  // One row per verse, verses 1..40, so a row index is its verse minus one.
+  const rows: ReadingLine[] = Array.from({ length: 40 }, (_, i) => ({ segments: [], verse: i + 1 }));
+
+  test('stepping down keeps `margin` rows of what follows on screen', () => {
+    // Verse 15 is row 14; a 20-row window with 6 rows of context ends at row 20.
+    expect(clampScroll(rows, 15, 0, 20, 6)).toBe(1);
+    expect(clampScroll(rows, 15, 0, 20)).toBe(0);
+  });
+
+  test('stepping up keeps `margin` rows of what precedes on screen', () => {
+    expect(clampScroll(rows, 10, 10, 20, 6)).toBe(3);
+  });
+
+  test('a verse already inside the margins does not move the page', () => {
+    expect(clampScroll(rows, 12, 3, 20, 6)).toBe(3);
+  });
+
+  test('the margins give way at either end of the chapter', () => {
+    expect(clampScroll(rows, 1, 5, 20, 6)).toBe(0);
+    expect(clampScroll(rows, 40, 0, 20, 6)).toBe(20);
+  });
+
+  test('a jump lands the verse `margin` rows below the top', () => {
+    expect(jumpScroll(rows, 25, 20, 6)).toBe(18);
+    // Without a margin the verse goes to the top, clamped to the last full page.
+    expect(jumpScroll(rows, 25, 20)).toBe(20);
   });
 });
