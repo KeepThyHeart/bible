@@ -85,9 +85,11 @@ Tests: `src/__tests__/HookRegistry.test.ts`,
 `src/__tests__/PluginLoader.test.ts`.
 
 `HookRegistry` is also exported from the browser barrel `src/browser.ts` (along
-with the `FilterHandler` / `ActionHandler` types), because client-side plugins run
-in the renderer and need it there. `PluginLoader` is **not** in the browser barrel
-- it reaches the filesystem, so a client needs its own loader.
+with the `FilterHandler` / `ActionHandler` types), for renderer-side use.
+`PluginLoader` is **not** in the browser barrel - it reaches the filesystem. The web
+app's old in-process client plugin system (which needed its own loader) was removed;
+web extensions will use the sandboxed-iframe model and the shared `IframeRpcBridge`
+instead (see the `uiKit` section below).
 
 ## How it works
 
@@ -173,10 +175,42 @@ at runtime:
 `applyFilters`/`runActions` check `Map.has()` first, so an unhooked call site
 costs nothing.
 
+## Extension data and backups
+
+A manifest's optional `userData` block says which of the extension's data is the
+user's and belongs in a backup: `backup` (its key-value store; default `true`),
+and `databases`, a map from an `openDatabase()` name to `{ "backup": true }`
+(default: not included). `sync` is accepted at both levels and reserved. The type is
+`ExtensionUserDataConfig` in `ExtensionManifest.ts`, validated in
+`ExtensionManifestValidator.ts` and described in `ExtensionManifestSchema.json`
+(change all three together); `Backup.resolveExtensionBackup` applies the defaults.
+See [Backup format](backup-format.md#extension-data).
+
+## UI kit (`uiKit`) and the iframe bridge
+
+A manifest's optional `uiKit` field opts a panel into the host-served, framework-neutral
+`kth-*` custom elements: `"uiKit": { "version": "1", "components": ["kth-book-chapter-picker"] }`.
+`version` is the kit major (`UI_KIT_VERSIONS`, currently `['1']`); each tag must exist in
+`UI_KIT_COMPONENTS[version]` and appear once; the manifest must also hold
+`ui:contribute-pane`. The validator rejects an unknown major or tag at install. There is
+**no new permission**: a component adds no capability the panel lacks. Each
+`UiKitComponentSpec` lists `hostMethods` (`uikit.*` bridge methods it may call) and
+`requiresPermissions` (existing permissions). `ui.getLocale` is a plain `ui.*` method and is
+never a kit host method.
+
+Enforcement is in `IframeRpcBridge` (host side of the panel iframe's `postMessage` RPC,
+in `@bible/core/browser`, shared by the desktop renderer and, later, the web app): any
+`uikit.*` request is answered only if the host-assembled `BridgeContext.manifest.uiKit`
+declares a component whose `hostMethods` lists it and `BridgeContext.grants` cover its
+`requiresPermissions`; otherwise `PermissionDeniedError`, before any handler runs. Identity,
+manifest and grants come from the host's mount props, never from the request. Change
+`ExtensionManifest.ts`, `UiKit.ts`, the validator and the schema together
+(`UiKit.test.ts` pins the schema enums to the registry).
+
 ## Gotchas
 
 - **`src/Extensions/` contains no runtime.** Every file there is types,
-  constants, or a pure validator. The host process, the permission guard, the RPC
+  constants, a pure validator, or the platform-free `IframeRpcBridge` (structural window types, no DOM). The host process, the permission guard, the RPC
   router and the worker runtime all belong to the consuming app; core only says
   what shape they must take (`IExtensionHost`, `IExtensionRuntime`).
 

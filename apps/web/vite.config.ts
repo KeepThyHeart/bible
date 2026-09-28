@@ -346,6 +346,11 @@ export default defineConfig({
       // the client to keep its own copies of these modules. Mirrors the
       // "@bible/core/browser" path mapping in tsconfig.json.
       '@bible/core/browser': resolve(__dirname, '../../packages/core/src/browser.ts'),
+      // Shared UI kit, consumed as source. Order matters: Vite string aliases
+      // match `id === key || id.startsWith(key + '/')` and the first entry wins,
+      // so the more specific css entry must precede the bare package entry.
+      '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
+      '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
       // With the plugin out of the graph, `virtual:pwa-register` has no provider.
       // A stub keeps src/utils/appUpdate.ts compiling unchanged, so re-enabling the
       // PWA is a build-flag flip and nothing more.

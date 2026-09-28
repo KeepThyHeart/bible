@@ -102,7 +102,11 @@ describe('@bible/core/browser barrel', () => {
     // nothing external whatsoever, so a new dependency has to be considered
     // deliberately rather than slipping in.
     const { bare } = walk(BARREL);
-    const external = [...bare.keys()].filter(s => !s.startsWith('.'));
+    // The allow-list is the deliberate part: each entry is a browser-safe
+    // library that the Crypto and Backup modules need (Argon2id in WebAssembly;
+    // a pure-JS ZIP codec). Anything else fails.
+    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate'];
+    const external = [...bare.keys()].filter(s => !s.startsWith('.') && !ALLOWED_EXTERNAL.includes(s));
     expect(external, `Unexpected external imports: ${external.join(', ')}`).toEqual([]);
   });
 
@@ -111,9 +115,18 @@ describe('@bible/core/browser barrel', () => {
     // exported something that drags the Data layer in behind it. Raised from 25
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
-    // rubber stamp.
+    // rubber stamp. Raised again for the Crypto and Backup modules.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(40);
+    expect(files.size).toBeLessThan(90);
+  });
+
+  it('exports the highlight palette helpers the shared UI needs', async () => {
+    const barrel = await import('../browser');
+    expect(barrel.HIGHLIGHT_COLOR_NAMES).toHaveLength(6);
+    expect(barrel.HIGHLIGHT_COLOR_HEX.yellow).toBe('#FFF3A3');
+    expect(barrel.markupColorName('#FFF3A3')).toBe('yellow');
+    expect(barrel.normalizeMarkupColor('green')).toBe('#B7E4C7');
+    expect(barrel.isHexColor('#B7E4C7')).toBe(true);
   });
 });

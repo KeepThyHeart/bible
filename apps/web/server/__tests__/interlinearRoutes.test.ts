@@ -5,7 +5,7 @@
  *
  * The interlinear payload is the one place where a silent off-by-one is
  * expensive: `position` / `positionEnd` are indices into the same English word
- * sequence `utils/wordIndexing.ts` produces, and the client aligns original-
+ * sequence `Services/WordIndexing.ts` in @bible/core produces, and the client aligns original-
  * language rows against the English text with them. A missing `positionEnd`,
  * or an exclusive one where the client expects inclusive, shifts every row.
  */

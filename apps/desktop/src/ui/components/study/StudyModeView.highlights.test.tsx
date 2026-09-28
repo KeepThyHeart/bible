@@ -16,7 +16,7 @@
  * no `.word` spans either. Since `showInterlinear` defaults to true for a tab
  * created in Study mode, that was the *default* Study experience. Both paths
  * now render every English word as an addressable span over the same 0-based
- * index space (see `interlinearCells.ts`).
+ * index space (see `InterlinearCells.ts (@bible/core)`).
  *
  * These tests assert on the DOM contract the highlight machinery actually
  * depends on, rather than on StudyModeView's internals.

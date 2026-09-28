@@ -12,7 +12,7 @@ All stores extend a `Store` base class with subscriber notification on state cha
 
 | File | Description |
 |---|---|
-| `src/stores/Store.ts` | Base store class with observer pattern (subscribe/notify) |
+| `src/stores/Store.ts` | Base store class with observer pattern (subscribe/notify). `getSnapshot()` returns the store itself, so every store satisfies core's `ReadableStore` (`@bible/core/browser`); state is mutated in place, so read a field through `fromSelector(store, s => s.field)` rather than handing the raw store to `useSyncExternalStore` |
 | `src/stores/bibleStore.ts` | Tabs, display mode, history, navigation, tab reordering, session persistence |
 | `src/stores/commentaryStore.ts` | Active commentary tabs, entries, pin state, sync state, tab reordering, right-pane mode. Also owns the **speculative-prefetch budget** (`affordablePrefetchModules`, `isCheapEnoughToWarm`, `PREFETCH_WORD_BUDGET`) that keeps a chapter navigation from pulling megabytes of unopened commentary — see [Server & API → Commentary payload budget](server-api.md) |
 | `src/stores/searchStore.ts` | Query, results, search type, loading, visibility, Strong's mode and its paging (`loadMoreStrongs`, `loadAllStrongs`) |

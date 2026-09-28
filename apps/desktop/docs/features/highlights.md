@@ -10,14 +10,14 @@ Verse highlighting with color selection, floating annotation toolbar, and highli
 
 | File | Description |
 |---|---|
-| `src/ui/components/highlights/HighlightSelector.tsx` | Passthrough wrapper around the verse list. It does no context-menu handling of its own: each verse row calls `stopPropagation()` on its own `onContextMenu`, so an ancestor handler could never fire, and a second copy of the selection -> word-index mapping would only diverge from `capturedSelection.ts` |
-| `src/ui/components/highlights/capturedSelection.ts` | The one implementation of "map a DOM Selection to verse/word indices", plus the snapshot taken when a verse context menu opens. Reading `window.getSelection()` *after* a menu click can find it collapsed, which would silently degrade "highlight these 3 words" into "highlight the whole verse" |
+| `src/ui/components/highlights/HighlightSelector.tsx` | Passthrough wrapper around the verse list. It does no context-menu handling of its own: each verse row calls `stopPropagation()` on its own `onContextMenu`, so an ancestor handler could never fire, and a second copy of the selection -> word-index mapping would only diverge from core's `packages/core/src/Annotations/CapturedSelection.ts` |
+| `packages/core/src/Annotations/CapturedSelection.ts` (in `@bible/core/browser`) | The one implementation of "map a DOM Selection to verse/word indices", plus the snapshot taken when a verse context menu opens. Reading `window.getSelection()` *after* a menu click can find it collapsed, which would silently degrade "highlight these 3 words" into "highlight the whole verse" |
 | `src/ui/components/highlights/FloatingAnnotationToolbar.tsx` | Toolbar that appears on text selection with highlight/note/copy actions. Portalled to `<body>` and placed *below* the selection, left-aligned to it - see [Bible Pane -> overlays must portal](bible-pane.md). Also holds the "More" escalation and the "Recent" row (below) |
 | `src/ui/components/highlights/HighlightMenu.tsx` | Menu for managing existing highlights (change color, remove). Portalled to `<body>` for the same containing-block reason as the toolbar |
-| `src/ui/components/highlights/HighlightRenderer.tsx` | `highlightAttrsForWord()` - the single resolver for a word span's classes, inline styles and markup ids - plus the things built on it: `applyHighlightsToVerse()` (HTML string, used by Standard/Reading and Study's plain text), `getVerseHighlightInfo()` and the `HighlightedVerse` component. The JSX renderer in `study/InterlinearDisplay.tsx` calls the same resolver, so the two paths cannot diverge. Stored colours are canonical hex, but `highlights.css` is keyed by the six palette *names*, so classes come from `UserTextMarkup.getColorName()` / `markupColorName()` (`@bible/core`) and a non-palette colour is painted inline |
+| `src/ui/components/highlights/HighlightRenderer.tsx` | The React half only: the `HighlightedVerse` component and the `useFindStore`-reading hook that feeds it. Everything pure (`wordRenderAttrs()` - the single resolver for a word span's classes, inline styles and markup ids - plus `renderVerseWords()` (HTML string, used by Standard/Reading and Study's plain text) and `getVerseHighlightInfo()`) lives in `packages/core/src/Annotations/WordRendering.ts` and is imported from `@bible/core/browser`. The JSX renderer in `study/InterlinearDisplay.tsx` calls the same resolver, so the two paths cannot diverge. Stored colours are canonical hex, but `highlights.css` is keyed by the six palette *names*, so classes come from `UserTextMarkup.getColorName()` / `markupColorName()` (`@bible/core`) and a non-palette colour is painted inline |
 | `src/ui/components/highlights/UnderlineSwatch.tsx` | One swatch of the underline-colour grid: a bold line in that colour, in the style selected above. SVG rather than `text-decoration` on invisible text, because `wavy` has no CSS border equivalent and a decoration needs a text run to paint over. Strokes `var(--underline-color-<name>)`, the same token `.word.underline-color-<name>` uses (see below) |
 | `src/ui/components/highlights/IntegrationExample.tsx` | Example/reference for highlight integration |
-| `src/ui/components/highlights/index.ts` | Barrel exports (`HighlightedVerse`, `applyHighlightsToVerse`, `getVerseHighlightInfo`, `HighlightSelector`, `HighlightMenu`, `UnderlineSwatch`, `FloatingAnnotationToolbar`) |
+| `src/ui/components/highlights/index.ts` | Barrel exports (`HighlightedVerse`, `renderVerseWords`, `wordRenderAttrs`, `getVerseHighlightInfo` (the last three re-exported from `@bible/core/browser`), `HighlightSelector`, `HighlightMenu`, `UnderlineSwatch`, `FloatingAnnotationToolbar`) |
 | `src/ui/components/highlights/highlightFlowHarness.tsx` | Shared test harness that mounts the real verse list + hooks in jsdom, used by the flow tests below |
 | `src/ui/components/highlights/README.md` | Component-level notes for this folder |
 
@@ -69,8 +69,8 @@ Verse highlighting with color selection, floating annotation toolbar, and highli
 | `src/ui/components/highlights/recentStylesFlow.test.tsx` | "More" escalating to the full menu with the selection intact (including after the selection collapses), and the Recent row: ordering, dedup, the three-item cap, one-click re-apply, clearing, and surviving a restart |
 | `src/ui/services/recentMarkupStyles.test.ts` | The persistence layer on its own: identity of a style, ordering, and every way a hand-edited or corrupt store can come back |
 | `src/ui/components/highlights/contextMenuHighlightFlow.test.tsx` | The other way in: right-click -> "Highlight/Underline" -> colour swatch. Asserts a partial selection stays partial even when the selection collapses before the menu item is clicked |
-| `src/ui/components/highlights/HighlightRenderer.test.tsx` | `highlightAttrsForWord` class/style/markup-id derivation, and that `applyHighlightsToVerse` emits exactly what the resolver returns - the guard against the two renderers drifting apart |
-| `src/ui/components/highlights/capturedSelection.test.ts` | Element run -> verse/word range mapping, including the `data-word-index-end` preference on the last element |
+| `src/ui/components/highlights/HighlightRenderer.test.tsx` | `wordRenderAttrs` class/style/markup-id derivation, and that `renderVerseWords` emits exactly what the resolver returns - the guard against the two renderers drifting apart |
+| `packages/core/src/Annotations/CapturedSelection.test.ts` | Element run -> verse/word range mapping, including the `data-word-index-end` preference on the last element |
 | `src/ui/components/highlights/HighlightSelector.test.tsx` | The passthrough wrapper's contract (no ancestor context-menu handling) |
 | `src/ui/components/highlights/removeFormattingFlow.test.tsx` | Removing an existing mark through the menu |
 | `src/ui/utils/highlightHelpers.test.ts` | Colour-name/hex helpers |
@@ -98,9 +98,9 @@ Practical consequences:
 
 ### Word render attributes
 
-Both renderers resolve a word's appearance through `highlightAttrsForWord(verseId, wordIndex, highlights, context)` in `HighlightRenderer.tsx`. It returns the class list, an optional `React.CSSProperties` for colours the stylesheet cannot express, the comma-joined markup ids, and whether the trailing space belongs inside the span. `applyHighlightsToVerse` serialises that style object back to CSS text; the interlinear JSX path spreads it directly.
+Both renderers resolve a word's appearance through `wordRenderAttrs(verseId, wordIndex, highlights, context, paint?)` in `packages/core/src/Annotations/WordRendering.ts`. It returns the class list, an optional plain `CssProperties` bag (`Record<string, string | number>`, structurally a subset of `React.CSSProperties`) for colours the stylesheet cannot express, the comma-joined markup ids, and whether the trailing space belongs inside the span. `renderVerseWords` serialises that style object back to CSS text (`styleToCssText`); the interlinear JSX path spreads it directly.
 
-Keeping one resolver is deliberate: a renderer with its own rendering path drifts out of step with the rest, and `capturedSelection.ts` exists for the same reason on the selection side.
+Keeping one resolver is deliberate: a renderer with its own rendering path drifts out of step with the rest, and `CapturedSelection.ts` (core) exists for the same reason on the selection side.
 
 ## Choosing a style: three surfaces, one apply path
 
@@ -118,7 +118,7 @@ There are three ways to put a mark on selected text, and they differ only in how
 
 The toolbar and the menu are siblings under `BiblePaneOverlays`, so the escalation is arranged there: the toolbar reports its own viewport position, overlays dismisses it and opens `HighlightMenu` at that position **with the toolbar's selection passed through as data**.
 
-Passing the range rather than re-reading `window.getSelection()` is the whole trick. The click that opens the menu collapses the browser selection, and a collapsed selection reads as "nothing selected", which would degrade into "highlight the entire verse". Same root cause as `capturedSelection.ts`; pinned by the collapse case in `recentStylesFlow.test.tsx`.
+Passing the range rather than re-reading `window.getSelection()` is the whole trick. The click that opens the menu collapses the browser selection, and a collapsed selection reads as "nothing selected", which would degrade into "highlight the entire verse". Same root cause as `CapturedSelection.ts`; pinned by the collapse case in `recentStylesFlow.test.tsx`.
 
 ### What "recent" remembers
 

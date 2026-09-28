@@ -12,7 +12,7 @@ import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
-import { directionForLanguage } from '../../utils/textDirection';
+import { directionForLanguage } from '@bible/core/browser';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData } from '../../providers/interfaces';
 

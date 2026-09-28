@@ -40,7 +40,7 @@ Every non-`en` folder except `xx-pseudo` is machine-drafted and carries a `local
 | `src/ui/contexts/useI18n.ts` | React hook returning `{ i18n, locale, t }`; re-renders on locale change. |
 | `src/ui/contexts/useDirection.ts` | `useDirection()` / `useIsRtl()` - reactive writing direction of the active locale. |
 | `src/ui/utils/documentDirection.ts` | Binds `<html dir>`/`<html lang>`; persists and restores the chosen locale. |
-| `src/ui/utils/textDirection.ts` | Content (module-language) direction, independent of the UI locale. |
+| `packages/core/src/Data/Locales/TextDirection.ts` | Content (module-language) direction, independent of the UI locale; shared with the web app via `@bible/core/browser`. |
 | `src/ui/testing/enCatalog.ts` | Test-only. Loads the real `en/` catalogs so a component test can assert the wording a user reads rather than a key. |
 | `src/ui/utils/paneNames.ts` | `PANE_NAME_KEYS` + `localizePaneLabel()` - the catalog key for each pane's name, and the rule that turns a dockview panel's *persisted* English title into a localized one at render time. |
 | `src/ui/components/PreferencesDialog/GeneralSection.tsx` | The Preferences language picker. Also owns `BUILT_IN_LOCALES` and `selectableLocales()` - the single gate on which shipped locales either picker offers, driven by each locale's own `status`. |
@@ -57,7 +57,7 @@ Every non-`en` folder except `xx-pseudo` is machine-drafted and carries a `local
 | `scripts/i18n-extract.js` | Heuristic linter over `src/ui/` and `electron/`, exiting non-zero on likely user-facing English: JSX text nodes, a whitelist of JSX attributes (`title`, `placeholder`, `aria-label`, `alt`, `label`, `tooltip`), and `alert` / `confirm` / `toast` / `dialog.showMessageBox` arguments. |
 | `../../../../scripts/check-translations.js` | Repo-level coverage report across the desktop and web catalog roots; prints each locale's draft status. |
 
-Test coverage beyond `I18nService.test.ts`: `src/ui/services/localeCatalogsReady.test.ts`, `src/ui/utils/documentDirection.test.ts`, `src/ui/utils/textDirection.test.ts`, `src/ui/utils/paneNames.test.ts`, `electron/services/MainI18n.test.ts`.
+Test coverage beyond `I18nService.test.ts`: `src/ui/services/localeCatalogsReady.test.ts`, `src/ui/utils/documentDirection.test.ts`, `src/ui/utils/paneNames.test.ts`, `electron/services/MainI18n.test.ts`.
 
 ## Locale metadata and draft status
 
@@ -146,7 +146,7 @@ The chosen locale is persisted to `localStorage` under `bible.ui.locale` (`LOCAL
 | File | Role |
 |---|---|
 | `src/ui/utils/documentDirection.ts` | Binds `<html dir>`/`<html lang>` to the active locale; owns locale persistence. Called from **both** `main.tsx` and `detached.tsx` - a detached pane is its own renderer context and would otherwise stay English/LTR. |
-| `src/ui/utils/textDirection.ts` | `directionForLanguage()` / `isRtlLanguage()` - direction of a **module's** content language, which is independent of the UI locale. |
+| `packages/core/src/Data/Locales/TextDirection.ts` | `directionForLanguage()` / `isRtlLanguage()` - direction of a **module's** content language, which is independent of the UI locale (shared with the web app via `@bible/core/browser`). |
 | `src/ui/utils/overlayPosition.ts` | `anchorAtPointerX()` / `isDocumentRtl()` - flips context menus anchored to a raw `clientX` so they open away from the pointer in the reading direction. |
 | `src/ui/contexts/useDirection.ts` | `useDirection()` / `useIsRtl()` for the rare component that must branch in JS. |
 | `src/ui/styles/globals.css` (RTL section) | `.rtl-mirror`, `.bidi-isolate`, `[data-content-dir]`. |

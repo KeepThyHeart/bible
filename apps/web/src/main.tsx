@@ -19,7 +19,6 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
-import { clientPluginManager } from './plugins/pluginManager';
 import i18n, { ensureLocaleLoaded } from './i18n';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -29,6 +28,11 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import '@fortawesome/fontawesome-free/css/regular.min.css';
 import './styles/main.scss';
+// KTH CSS: `--kth-*` tokens aliased to this app's theme vars, then the opt-in `.kth-*` classes. Never kth-base.css
+// (the app keeps _base.scss). Both come after main.scss so the map sees the theme vars; the classes are
+// single-class and opt-in, so importing them restyles nothing by itself.
+import '@bible/ui/css/generated/map-web.css';
+import '@bible/ui/css/kth.css';
 
 /**
  * Cap how long the boot splash can wait on one request. The chapter fetch is
@@ -205,11 +209,6 @@ async function init() {
   // The first commentary tab waits for the manifest: which module it opens
   // depends on what this server actually offers.
   commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
-
-  // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
-  clientPluginManager.discover()
-    .then(() => clientPluginManager.activate())
-    .catch(err => console.warn('[Plugins] Client plugin initialization failed:', err));
 
   // Resolve the active tab BEFORE the first paint. This used to run after
   // render(), so a returning user saw the home screen (showHome defaults to

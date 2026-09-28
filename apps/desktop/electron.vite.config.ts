@@ -4,6 +4,7 @@ import type { Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
+import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
 
 // Capture the current git commit SHA at build time so the About dialog and
 // the diagnostics uploader can name the exact source revision a binary came
@@ -220,7 +221,9 @@ export default defineConfig({
     // `keytar` is in `optionalDependencies`, which `externalizeDeps` does not
     // read, so it is named here: it is native, and must stay a runtime `require`
     // that encryptionKeyManager can catch when the module is absent.
-    plugins: [quickjsGuestBundlePlugin()],
+    // `kthKitPlugin` exposes `virtual:kth-kit` (the extension UI kit bundle served at `ext-ui://host/kit/1/`);
+    // main only: the renderer and preload never see it. See hostKit.ts.
+    plugins: [quickjsGuestBundlePlugin(), kthKitPlugin(resolve(__dirname, '../../packages/ui/scripts/build-kit.mjs'))],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
@@ -244,7 +247,11 @@ export default defineConfig({
           // Bundled extension worker entry. Lives next to
           // `out/main/index.js` so it ships in the same Vite build pass and
           // ExtensionHost can resolve it via `__dirname/extension-runtime/index.js`.
-          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts')
+          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts'),
+          // Worker thread that runs Argon2id for backups, so the ~0.5 s key
+          // derivation does not block the main process. Emitted next to
+          // `out/main/index.js`, where `workerKdf.ts` looks for it.
+          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }
@@ -287,7 +294,11 @@ export default defineConfig({
         '@services': resolve(__dirname, 'src/Services'),
         '@controllers': resolve(__dirname, 'src/Controllers'),
         // Alias to source files to avoid better-sqlite3 dependency
-        '@bible/core': resolve(__dirname, '../../packages/core/src')
+        '@bible/core': resolve(__dirname, '../../packages/core/src'),
+        // Shared UI kit (packages/ui), consumed as source. The css entry must
+        // come first: the first matching string alias wins.
+        '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
+        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts')
       }
     },
     optimizeDeps: {
