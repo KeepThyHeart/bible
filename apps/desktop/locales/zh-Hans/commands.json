@@ -62,5 +62,9 @@
   "bookmarks.manage": "管理书签",
   "bookmarks.manage.category": "书签",
   "bookmarks.manage.alias.0": "书签",
-  "bookmarks.manage.alias.1": "已保存经文"
+  "bookmarks.manage.alias.1": "已保存经文",
+  "bible.toggleKeywordMarks": "开关关键词标记",
+  "bible.toggleKeywordMarks.category": "圣经",
+  "bible.toggleKeywordMarks.alias.0": "关键词",
+  "bible.toggleKeywordMarks.alias.1": "标记词语"
 }

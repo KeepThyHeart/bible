@@ -3,11 +3,17 @@ import { useViewportPosition } from './useViewportPosition';
 import { bibleStore } from '../stores/bibleStore';
 import { eventBus } from '../events/eventBus';
 import { parseVerseId } from '../utils/verseId';
+import { keywordMarkStore } from '../stores/keywordMarkStore';
+import { KEYWORD_PANE_ID } from '../keywordMarks/paneId';
+import { wordAtPoint } from '../keywordMarks/wordAtPoint';
+import type { WordPick } from '../keywordMarks/chapterMarks';
 
 interface ContextMenuState {
   x: number;
   y: number;
   verseId: number;
+  /** The word under the pointer, offered to the keyword-mark actions. */
+  word?: WordPick;
 }
 
 type MobileView = 'home' | 'bible' | 'search' | 'study' | 'commentary';
@@ -55,7 +61,8 @@ export function useContextMenu(
       const result = findVerseAtPoint(e.target as HTMLElement, e.clientX, e.clientY);
       if (!result) return;
       e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, verseId: result.verseId });
+      const word = wordAtPoint(e.target as HTMLElement, e.clientX, e.clientY, result.verseId);
+      setContextMenu({ x: e.clientX, y: e.clientY, verseId: result.verseId, ...(word ? { word } : {}) });
     };
 
     const handleClickAway = () => setContextMenu(null);
@@ -77,6 +84,13 @@ export function useContextMenu(
     if (!contextMenu) return;
     const verseId = contextMenu.verseId;
     setContextMenu(null);
+
+    if (action === 'mark-word' || action === 'mark-strongs') {
+      if (contextMenu.word) {
+        void keywordMarkStore.addMarkFromWord(KEYWORD_PANE_ID, contextMenu.word, action === 'mark-word' ? 'word' : 'strongs');
+      }
+      return;
+    }
 
     if (action === 'copy') {
       bibleStore.adoptPreviewAsStudy(verseId);

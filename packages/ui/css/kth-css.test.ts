@@ -73,6 +73,15 @@ describe('KTH CSS tokens', () => {
     expect(undeclared).toEqual([]);
   });
 
+  it('declares --kth-mark-1..8-rgb as RGB triplets, each with a dark default, mapped from --theme-mark-N-rgb on desktop', () => {
+    for (let n = 1; n <= 8; n++) {
+      const token = `--kth-mark-${n}-rgb`;
+      expect(contractCss.match(new RegExp(`${token}:\\s*(\\d+ \\d+ \\d+);`)), `${token} triplet`).not.toBeNull();
+      expect(gen.DARK_DEFAULTS[token], `${token} dark`).toMatch(/^\d+ \d+ \d+$/);
+      expect(gen.KTH_MAP[token]).toEqual({ web: null, desktop: `var(--theme-mark-${n}-rgb)` });
+    }
+  });
+
   it('KTH_MAP keys plus CONTRACT_CONSTANTS equal the contract set', () => {
     expect([...Object.keys(gen.KTH_MAP), ...gen.CONTRACT_CONSTANTS].sort()).toEqual([...declared].sort());
   });

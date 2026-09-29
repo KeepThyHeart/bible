@@ -338,4 +338,37 @@ describe('VerseContextMenu', () => {
     expect(onRemoveHighlight).toHaveBeenCalledWith(42);
     expect(onClose).toHaveBeenCalled();
   });
+
+  describe('keyword marks (task 0065)', () => {
+    it('offers "Mark all" for a right-clicked word and runs it', async () => {
+      const user = userEvent.setup();
+      const onMarkWord = vi.fn();
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
+          wordText="faith" onMarkWord={onMarkWord} />,
+      );
+      await user.click(screen.getByTestId('menu-mark-word'));
+      expect(onMarkWord).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+      expect(screen.queryByTestId('menu-mark-lemma')).toBeNull();
+    });
+
+    it('offers "Mark lemma" only when the word has a Strong\'s number', async () => {
+      const user = userEvent.setup();
+      const onMarkLemma = vi.fn();
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
+          wordText="faith" onMarkWord={vi.fn()} wordStrongs="G4102" onMarkLemma={onMarkLemma} />,
+      );
+      await user.click(screen.getByTestId('menu-mark-lemma'));
+      expect(onMarkLemma).toHaveBeenCalled();
+    });
+
+    it('shows neither item when no word was clicked', () => {
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
+      );
+      expect(screen.queryByTestId('menu-mark-word')).toBeNull();
+    });
+  });
 });

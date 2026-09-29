@@ -1,0 +1,101 @@
+// Word paint for keyword marks (task 0065) and any other resolved verse
+// decoration. Ported from the desktop's extensionDecorations.css: the shared
+// core word painter (`wordRenderAttrs` / `buildWordPaintStyle`) puts the
+// `ext-deco` / `ext-bold` / `ext-badge` classes and the `--ext-*` custom
+// properties on a `<span class="word">`, and these rules turn them into paint.
+//
+// Colours arrive as `rgb(var(--theme-mark-N-rgb))`. Those variables come from
+// the generated theme `_vars.scss` files (scripts/generate-theme-vars.js).
+// Class names here must never contain `highlight-` or `underline-`.
+
+.word.ext-deco {
+  background-image: var(--ext-bg-image);
+  background-position: var(--ext-bg-position);
+  background-size: var(--ext-bg-size);
+  background-repeat: no-repeat;
+}
+
+.word.ext-deco.find-match,
+.word.ext-deco.find-match-current {
+  background-image: none;
+}
+
+.word.ext-bold {
+  font-weight: 700;
+}
+
+.word.ext-badge::after {
+  content: var(--ext-badge);
+  color: var(--ext-badge-color);
+  font-size: 0.7em;
+  padding: 0 0.35em;
+  margin-inline-start: 0.25em;
+  border: 1px solid currentColor;
+  border-radius: 0.6em;
+  vertical-align: 0.1em;
+  // Generated content: never selected or copied with the verse text.
+  user-select: none;
+}
+
+// Flash on the word a legend step lands on.
+.keyword-flash {
+  animation: keyword-flash 1.4s ease-out;
+}
+
+@keyframes keyword-flash {
+  0%, 30% { outline: 2px solid var(--accent-color); outline-offset: 2px; background-color: var(--bg-tertiary); }
+  100% { outline: 2px solid transparent; outline-offset: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyword-flash { animation-duration: 0.01s; outline: 2px solid var(--accent-color); }
+}
+
+// Add/edit and manage-sets dialogs.
+.keyword-dialog {
+  height: auto;
+  width: 480px;
+
+  &__body {
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+
+  &__footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  &__error {
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+}
+
+.keyword-sets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__name {
+    flex: 1 1 100%;
+    font-weight: 600;
+  }
+
+  &__tag,
+  &__meta {
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-inline-end: auto;
+  }
+}

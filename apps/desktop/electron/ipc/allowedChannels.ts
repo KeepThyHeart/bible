@@ -29,6 +29,10 @@ export const ALLOWED_IPC_CHANNELS = [
   'highlights:get-by-note',
   'highlights:delete-for-verse-range',
   'highlights:find-overlapping',
+  // Keyword marks (task 0065)
+  'keywords:list',
+  'keywords:put',
+  'keywords:remove',
   // Notes
   'notes:get-by-id',
   'notes:get-all',

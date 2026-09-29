@@ -13,8 +13,13 @@ import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { directionForLanguage } from '@bible/core/browser';
+import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
-import type { VotdData } from '../../providers/interfaces';
+import type { VotdData, IInterlinearDataProvider } from '../../providers/interfaces';
+
+import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
+
+export { KEYWORD_PANE_ID };
 
 function VerseOfTheDay() {
   const { t } = useTranslation();
@@ -43,6 +48,8 @@ function VerseOfTheDay() {
     </div>
   );
 }
+
+const NO_VERSES: never[] = [];
 
 // Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
 const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude
@@ -147,6 +154,8 @@ interface BibleContentProps {
   strongsEntries?: Record<string, StrongsEntryData>;
   interlinearLoading?: boolean;
   interlinearUnavailable?: boolean;
+  /** Server interlinear source, used to fetch rows for Strong's keyword rules outside Study. */
+  interlinearProvider?: IInterlinearDataProvider;
   onStrongsClick?: (strongsNumber: string) => void;
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
   onStrongsLeave?: () => void;
@@ -159,6 +168,7 @@ export function BibleContent({
   strongsEntries,
   interlinearLoading,
   interlinearUnavailable,
+  interlinearProvider,
   onStrongsClick,
   onStrongsHover,
   onStrongsLeave,
@@ -179,6 +189,19 @@ export function BibleContent({
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
   const showBookPicker = useStore(bibleStore, () => bibleStore.showBookPicker);
+
+  const bibleModule = moduleStore.getBibleModules().find(m => m.abbreviation === tab?.moduleAbbr);
+  const keywordDecorations = useKeywordDecorations(KEYWORD_PANE_ID, {
+    moduleAbbr: tab?.moduleAbbr ?? '',
+    moduleId: bibleModule?.module_id,
+    language: bibleModule?.language_code,
+    book: tab?.book ?? null,
+    chapter: tab?.chapter ?? null,
+    verses: tab?.verses ?? NO_VERSES,
+    surface: displayMode,
+    studyRows: displayMode === 'study' ? interlinearWords : undefined,
+    interlinearProvider,
+  });
 
   if (!tab) return <div class="bible-content bible-content--empty">{t('bibleContent.noTabSelected')}</div>;
 
@@ -405,6 +428,7 @@ export function BibleContent({
                 interlinearWords={studyShowInterlinear ? wordsByVerse.get(verse.verse_id) : undefined}
                 strongsEntries={strongsEntries}
                 showNotes={studyShowNotes}
+                resolved={keywordDecorations.resolved?.get(verse.verse_id)}
                 onVerseClick={handleVerseClick}
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}

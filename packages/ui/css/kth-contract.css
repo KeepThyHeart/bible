@@ -37,6 +37,16 @@
   --kth-warning: #d97706;
   --kth-info: #2563eb;
 
+  /* Keyword marks (0065): RGB triplets, use as rgb(var(--kth-mark-N-rgb)); Okabe-Ito based, colour-blind safe */
+  --kth-mark-1-rgb: 0 114 178;
+  --kth-mark-2-rgb: 213 94 0;
+  --kth-mark-3-rgb: 0 158 115;
+  --kth-mark-4-rgb: 204 121 167;
+  --kth-mark-5-rgb: 184 134 11;
+  --kth-mark-6-rgb: 58 155 213;
+  --kth-mark-7-rgb: 123 78 163;
+  --kth-mark-8-rgb: 102 102 102;
+
   /* Elevation */
   --kth-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
   --kth-overlay: rgb(0 0 0 / 0.5);

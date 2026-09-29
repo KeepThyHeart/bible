@@ -87,6 +87,7 @@ titleKey: 'ui.keyboardShortcuts.category.editing',
       { descriptionKey: 'ui.keyboardShortcuts.editing.highlight', keys: 'Mod+Shift+H' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.addNote', keys: 'Mod+Shift+N' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.bookmark', keys: 'Mod+D' },
+      { descriptionKey: 'ui.keyboardShortcuts.editing.keywordMarks', keys: 'Mod+Shift+K' },
     ],
   },
   {

@@ -62,5 +62,9 @@
   "bookmarks.manage": "⟦Ṁåñåĝé Ɓøøķɱåŕķš ····⟧",
   "bookmarks.manage.category": "⟦Ɓøøķɱåŕķš ··⟧",
   "bookmarks.manage.alias.0": "⟦ƀøøķɱåŕķš ··⟧",
-  "bookmarks.manage.alias.1": "⟦šåṽéð ṽéŕšéš ···⟧"
+  "bookmarks.manage.alias.1": "⟦šåṽéð ṽéŕšéš ···⟧",
+  "bible.toggleKeywordMarks": "⟦Ţøĝĝļé Ķéýŵøŕð Ṁåŕķš ······⟧",
+  "bible.toggleKeywordMarks.category": "⟦Ɓîƀļé ··⟧",
+  "bible.toggleKeywordMarks.alias.0": "⟦ķéýŵøŕðš ··⟧",
+  "bible.toggleKeywordMarks.alias.1": "⟦ɱåŕķ ŵøŕðš ···⟧"
 }

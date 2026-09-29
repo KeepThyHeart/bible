@@ -13,8 +13,11 @@ import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import {
   cellStrongsNumbers,
+  wordRenderAttrs,
   type InterlinearCell,
+  type ResolvedVerse,
 } from '@bible/core/browser';
+import type { JSX } from 'preact';
 import type { StrongsEntryData } from '../../types';
 
 export interface StrongsHandlers {
@@ -29,10 +32,30 @@ export interface StrongsHandlers {
  * than the interlinear rows' glosses — is what keeps every English word on
  * screen and in reading order.
  */
-function CellEnglish({ cell }: { cell: InterlinearCell }) {
+function CellEnglish({ cell, resolved }: { cell: InterlinearCell; resolved?: ResolvedVerse | null }) {
   return (
     <>
       {cell.englishWords.map((word, offset) => {
+        const paint = resolved?.words.get(cell.wordStart + offset);
+        if (paint) {
+          // Painted word: the shared word painter decides class and style, as
+          // it does for the plain verse (a wash cannot bridge stacked cells,
+          // so no next word is passed).
+          const attrs = wordRenderAttrs(0, cell.wordStart + offset, [], {
+            isChristWords: word.isChristWords, isDivineName: word.isDivineName,
+            hasTrailingSpace: false, nextWordIndex: null,
+          }, paint);
+          const isLastPainted = offset === cell.englishWords.length - 1;
+          return (
+            <span key={cell.wordStart + offset}>
+              <span
+                class={attrs.className}
+                data-word-index={cell.wordStart + offset}
+                style={attrs.style as JSX.CSSProperties | undefined}
+              >{word.displayText}</span>{isLastPainted ? '' : ' '}
+            </span>
+          );
+        }
         const classes = [
           word.isChristWords ? 'christ-words' : '',
           word.isDivineName ? 'divine-name' : '',
@@ -120,6 +143,8 @@ function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStro
 
 export interface LayoutProps extends StrongsHandlers {
   cells: InterlinearCell[];
+  /** Resolved keyword-mark paint for the verse, when it has any. */
+  resolved?: ResolvedVerse | null;
   strongsEntries?: Record<string, StrongsEntryData>;
 }
 
@@ -129,7 +154,7 @@ function strongsTitle(strongsNumber: string, entries: Record<string, StrongsEntr
 }
 
 /** One column per cell: English on top, then original language and Strong's. */
-export function StackedInterlinear({ cells, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
+export function StackedInterlinear({ cells, resolved, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
   return (
     <div class="verse__body verse__body--interlinear">
       {cells.map(cell => {
@@ -145,7 +170,7 @@ export function StackedInterlinear({ cells, strongsEntries, onStrongsClick, onSt
                 commentaryStore.setRightPaneMode('search');
               } : undefined}
               title={primary ? `Search ${primary}` : undefined}
-            ><CellEnglish cell={cell} /></span>
+            ><CellEnglish cell={cell} resolved={resolved} /></span>
             <CellOriginal
               cell={cell}
               strongsNumber={primary}
@@ -175,7 +200,7 @@ export function StackedInterlinear({ cells, strongsEntries, onStrongsClick, onSt
  * Prose, with each word's original-language form in a small parenthetical.
  * The default: it keeps the passage readable while the study data is on.
  */
-export function InlineInterlinear({ cells, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
+export function InlineInterlinear({ cells, resolved, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
   return (
     <div class="verse__body verse__body--interlinear-inline">
       {cells.map((cell, index) => {
@@ -184,7 +209,7 @@ export function InlineInterlinear({ cells, strongsEntries, onStrongsClick, onStr
         return (
           <span key={cell.wordStart} class="verse__interlinear-inline-word">
             {index > 0 ? ' ' : ''}
-            <CellEnglish cell={cell} />
+            <CellEnglish cell={cell} resolved={resolved} />
             {hasAnnotation && (
               <span class="verse__interlinear-annotation">
                 {'('}

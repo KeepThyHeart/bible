@@ -33,6 +33,29 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const PALETTE = path.join(ROOT, 'admin', 'brand', 'theme-palettes.json');
 const THEME_DIR = path.join(ROOT, 'apps', 'web', 'src', 'themes');
+const DESKTOP_THEMES = path.join(ROOT, 'apps', 'desktop', 'src', 'ui', 'styles', 'themes.css');
+
+/**
+ * Keyword-mark colours (`--theme-mark-N-rgb`, task 0065) are contrast-checked per
+ * theme on the desktop, so the web copies them from the desktop stylesheet
+ * instead of keeping a second palette. Returns { themeId: [ 'R G B' x8 ] }.
+ */
+function readDesktopMarkColors() {
+  const css = fs.readFileSync(DESKTOP_THEMES, 'utf8');
+  const out = {};
+  const blockRe = /(?::root,\s*)?\[data-theme="([a-z0-9-]+)"\]\s*\{([\s\S]*?)\n\}/g;
+  let m;
+  while ((m = blockRe.exec(css)) !== null) {
+    const vals = [];
+    for (let i = 1; i <= 8; i++) {
+      const v = new RegExp(`--theme-mark-${i}-rgb:\\s*([0-9 ]+);`).exec(m[2]);
+      if (v) vals.push(v[1].trim());
+    }
+    if (vals.length === 8) out[m[1]] = vals;
+  }
+  return out;
+}
+const MARK_COLORS = readDesktopMarkColors();
 
 /** Token order in the generated file — matches the hand-written originals. */
 const TOKEN_ORDER = [
@@ -60,6 +83,8 @@ function renderVars(themeId, theme) {
     if (value === undefined) continue;
     lines.push(`  --${token}: ${value};`);
   }
+  const marks = MARK_COLORS[themeId];
+  if (marks) marks.forEach((v, i) => lines.push(`  --theme-mark-${i + 1}-rgb: ${v};`));
   lines.push('}');
   return lines.join('\n') + '\n';
 }

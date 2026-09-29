@@ -210,3 +210,13 @@ describe('BibleToolbar — Interlinear / Notes toggles', () => {
     }
   });
 });
+
+describe('BibleToolbar - keyword marks (task 0065)', () => {
+  it('shows a Keywords toggle for the active tab, off by default', () => {
+    render(<BibleToolbar />);
+    const toggle = screen.getByTestId('keywords-toggle');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('toolbar').contains(toggle)).toBe(true);
+  });
+});
+

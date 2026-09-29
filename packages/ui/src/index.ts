@@ -16,3 +16,10 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+export { MarkStylePicker, DEFAULT_MARK_STYLE_PICKER_LABELS } from './components/MarkStylePicker';
+export type { MarkStylePickerLabels, MarkStylePickerProps } from './components/MarkStylePicker';
+export { KeywordLegend, DEFAULT_KEYWORD_LEGEND_LABELS } from './components/KeywordLegend';
+export type { KeywordLegendLabels, KeywordLegendProps, LegendRow, LegendSuggestion } from './components/KeywordLegend';
+export { KeywordMarkEditor, DEFAULT_KEYWORD_MARK_EDITOR_LABELS } from './components/KeywordMarkEditor';
+export type { KeywordMarkEditorLabels, KeywordMarkEditorProps, KeywordMarkEditorField } from './components/KeywordMarkEditor';
+export { markCssColor } from './components/markStyle';

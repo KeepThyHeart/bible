@@ -29,6 +29,11 @@ vi.mock('../stores/bibleStore', () => ({
   },
 }));
 
+const addMarkFromWord = vi.fn(() => Promise.resolve('m1'));
+vi.mock('../stores/keywordMarkStore', () => ({
+  keywordMarkStore: { get addMarkFromWord() { return addMarkFromWord; }, getInterlinear: () => undefined },
+}));
+
 import { useContextMenu } from './useContextMenu';
 import { eventBus } from '../events/eventBus';
 
@@ -265,5 +270,42 @@ describe('useContextMenu — mobile view switching', () => {
   it('is optional — desktop passes no setter and must not throw', () => {
     const { action: fire } = harness({ mobile: false });
     expect(() => fire('study')).not.toThrow();
+  });
+});
+
+describe('useContextMenu — keyword mark actions', () => {
+  function openOnWord() {
+    const findVerseAtPoint = vi.fn(() => ({ el: document.body, verseId: VERSE_ID }));
+    const { result } = renderHook(() => useContextMenu(findVerseAtPoint, vi.fn()));
+    const word = document.createElement('span');
+    word.className = 'word';
+    word.dataset.wordIndex = '4';
+    word.textContent = 'faith';
+    document.body.appendChild(word);
+    act(() => {
+      word.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 6 }));
+    });
+    word.remove();
+    return result;
+  }
+
+  it('captures the word under the pointer', () => {
+    const result = openOnWord();
+    expect(result.current.contextMenu?.word).toEqual({ text: 'faith' });
+  });
+
+  it('mark-word marks every occurrence of the word by surface form', () => {
+    const result = openOnWord();
+    addMarkFromWord.mockClear();
+    act(() => result.current.handleContextMenuAction('mark-word'));
+    expect(addMarkFromWord).toHaveBeenCalledWith('bible', { text: 'faith' }, 'word');
+    expect(result.current.contextMenu).toBeNull();
+  });
+
+  it('mark-strongs marks by Strong\'s number', () => {
+    const result = openOnWord();
+    addMarkFromWord.mockClear();
+    act(() => result.current.handleContextMenuAction('mark-strongs'));
+    expect(addMarkFromWord).toHaveBeenCalledWith('bible', { text: 'faith' }, 'strongs');
   });
 });

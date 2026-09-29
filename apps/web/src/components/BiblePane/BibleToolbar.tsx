@@ -4,6 +4,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { TranslationDialog } from './TranslationDialog';
+import { KeywordMarksButton } from './KeywordMarksButton';
 
 interface BibleToolbarProps {
   onOpenSettings?: (section?: string) => void;
@@ -168,6 +169,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
       </div>
 
       <div class="bible-toolbar__right">
+        <KeywordMarksButton />
+
         <button
           class="bible-toolbar__btn"
           onClick={() => onOpenSettings?.('bible-font')}

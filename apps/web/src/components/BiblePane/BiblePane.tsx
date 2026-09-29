@@ -460,6 +460,7 @@ export function BiblePane({
                 interlinearWords={interlinearWords}
                 strongsEntries={strongsEntries}
                 interlinearLoading={interlinearLoading}
+                interlinearProvider={interlinearProvider}
                 interlinearUnavailable={displayMode === 'study' && interlinearResolved && !interlinearLoading && interlinearWords.length === 0}
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}

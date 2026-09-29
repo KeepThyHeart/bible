@@ -703,5 +703,124 @@
     "submit": "进入",
     "incorrectPassword": "密码错误。",
     "tooManyAttempts": "尝试次数过多，请稍后再试。"
+  },
+  "keywordMarks": {
+    "button": "关键词",
+    "buttonTitle": "关键词标记",
+    "title": "关键词标记",
+    "toggle": "关键词标记",
+    "empty": "本章没有匹配的关键词。",
+    "count": "{count, plural, other {# 处}}",
+    "show": "显示{label}",
+    "hide": "隐藏{label}",
+    "next": "下一处{label}",
+    "prev": "上一处{label}",
+    "edit": "编辑{label}",
+    "approximate": "近似",
+    "approximateHint": "近似：按词形匹配，而非按原文词匹配",
+    "add": "添加关键词",
+    "manageSets": "管理词集",
+    "suggestions": "建议的关键词",
+    "addSuggestion": "添加{label}",
+    "interlinearNote": "Strong 编号标记需要逐字对照译本。",
+    "announce": "{label}，第 {verse} 节，第 {index} 处，共 {total} 处",
+    "builtInReadOnly": "内置标记为只读。请在“管理词集”中复制词集后再修改。",
+    "close": "关闭",
+    "newTitle": "添加关键词",
+    "editTitle": "编辑关键词",
+    "editor": {
+      "label": "名称",
+      "labelHint": "标记在图例中显示的名称。",
+      "ruleKind": "匹配方式",
+      "kinds": {
+        "word": "词形",
+        "phrase": "短语",
+        "strongs": "Strong 编号",
+        "connective": "连接词"
+      },
+      "forms": "词形",
+      "formsHint": "用逗号分隔，例如 love, loved, loveth。",
+      "phrase": "短语",
+      "strongs": "Strong 编号",
+      "strongsHint": "用逗号分隔，例如 G4102, G4100。需要逐字对照译本。",
+      "category": "类别",
+      "categories": {
+        "inference": "推论（因此）",
+        "reason": "原因（因为）",
+        "contrast": "转折（但是）",
+        "purpose": "目的（为要）",
+        "condition": "条件（如果）",
+        "comparison": "比较（如同）",
+        "time": "时间（当时、然后）"
+      },
+      "matchCase": "区分大小写",
+      "style": "样式",
+      "enabled": "启用",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "errorLabel": "请输入名称。",
+      "ruleErrors": {
+        "word": "请至少输入一个词形。",
+        "phrase": "请输入短语。",
+        "strongs": "请输入 Strong 编号，如 G4102 或 H430。",
+        "connective": "请选择类别。"
+      }
+    },
+    "style": {
+      "colorGroup": "颜色",
+      "lineGroup": "下划线",
+      "symbolGroup": "符号",
+      "noSymbol": "无符号",
+      "bold": "粗体",
+      "fill": "背景底色",
+      "colors": {
+        "color1": "蓝色",
+        "color2": "朱红",
+        "color3": "绿色",
+        "color4": "粉色",
+        "color5": "金色",
+        "color6": "天蓝",
+        "color7": "紫色",
+        "color8": "灰色"
+      },
+      "lines": {
+        "solid": "实线下划线",
+        "dashed": "虚线下划线",
+        "dotted": "点线下划线",
+        "thick": "粗下划线",
+        "none": "无下划线"
+      },
+      "symbols": {
+        "therefore": "因此",
+        "because": "因为",
+        "contrast": "转折",
+        "arrow": "箭头",
+        "cross": "十字",
+        "diamond": "菱形",
+        "circle": "圆形",
+        "triangle": "三角形",
+        "square": "方形",
+        "star": "星形",
+        "dagger": "剑号",
+        "question": "问号"
+      }
+    },
+    "sets": {
+      "title": "关键词词集",
+      "builtIn": "内置",
+      "marks": "{count, plural, other {# 个标记}}",
+      "duplicate": "复制",
+      "delete": "删除",
+      "export": "导出",
+      "import": "导入词集",
+      "importError": "该文件不是有效的关键词词集。",
+      "empty": "没有关键词词集。"
+    },
+    "wordMenu": {
+      "markWord": "标记所有“{word}”",
+      "markStrongs": "标记词元 {number}"
+    },
+    "markInChapter": "在本章中标记"
   }
 }

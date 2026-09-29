@@ -3,6 +3,8 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { StrongsEntryData } from '../../types';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
+import { keywordMarkStore } from '../../stores/keywordMarkStore';
+import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
 
 interface StrongsPopupProps {
   entry: StrongsEntryData | null;
@@ -104,6 +106,18 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         >
           <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
           {t('strongsPopup.searchOccurrences')}
+        </button>
+        <button
+          type="button"
+          class="strongs-popup__search-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            void keywordMarkStore.addMarkFromWord(KEYWORD_PANE_ID, { text: entry.word, strongs: entry.strongsNumber }, 'strongs');
+            onClose();
+          }}
+        >
+          <i class="fa-solid fa-highlighter" style={{ marginInlineEnd: '4px' }} />
+          {t('keywordMarks.markInChapter')}
         </button>
       </div>
     </div>
