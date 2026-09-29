@@ -16,3 +16,5 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
+export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
