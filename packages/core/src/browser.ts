@@ -257,3 +257,9 @@ export * as Crypto from './Crypto';
 // The encrypted container, ZIP payload, user-table registry and restore
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
+
+// --- Web user-data store (task 0084) ------------------------------------------
+// In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
+// import for them, and the localStorage migration helper. Namespaced: it re-exports
+// a few model names that also exist on the main barrel.
+export * as UserData from './UserData';
