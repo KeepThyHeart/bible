@@ -454,3 +454,216 @@
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+/* --- Genealogy explorer (task 0067) ------------------------------------------- */
+/* Colour keys: a node's colorKey adds kth-genealogy-color-<key>; unknown keys fall back to muted text. */
+.kth-genealogy-color-leah { --_kth-gen-fill: var(--_kth-gen-leah); }
+.kth-genealogy-color-rachel { --_kth-gen-fill: var(--_kth-gen-rachel); }
+.kth-genealogy-color-bilhah { --_kth-gen-fill: var(--_kth-gen-bilhah); }
+.kth-genealogy-color-zilpah { --_kth-gen-fill: var(--_kth-gen-zilpah); }
+
+.kth-genealogy-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 16rem;
+  overflow: hidden;
+  background: var(--kth-bg-subtle);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+}
+.kth-genealogy-view__svg {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.kth-genealogy-view__svg:where(:active) { cursor: grabbing; }
+.kth-genealogy-view__svg:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-genealogy-view__toolbar {
+  position: absolute;
+  inset-block-start: var(--kth-space-2);
+  inset-inline-end: var(--kth-space-2);
+  z-index: 1;
+  display: flex;
+  gap: var(--kth-space-1);
+}
+.kth-genealogy-view__empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  color: var(--kth-text-muted);
+}
+
+.kth-genealogy-node { cursor: pointer; outline: none; }
+/* State modifiers set private custom properties on the node group; the shape reads them (later rules win). */
+.kth-genealogy-node__shape {
+  fill: color-mix(in srgb, var(--_kth-gen-fill, var(--kth-text-muted)) 18%, var(--kth-surface));
+  stroke: var(--_kth-gen-stroke, var(--_kth-gen-fill, var(--kth-border-strong)));
+  stroke-width: var(--_kth-gen-sw, 1.5);
+  stroke-dasharray: var(--_kth-gen-dash, none);
+  stroke-linecap: round;
+}
+.kth-genealogy-node__dot {
+  fill: var(--_kth-gen-fill, var(--kth-text-muted));
+  stroke: var(--_kth-gen-stroke, none);
+  stroke-width: var(--_kth-gen-sw, 1.5);
+}
+.kth-genealogy-node__label {
+  fill: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: 12px;
+  pointer-events: none;
+}
+.kth-genealogy-node:where(:hover) { --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--one-text { --_kth-gen-dash: 5 3; }
+.kth-genealogy-node--disputed { --_kth-gen-dash: 1.5 3; }
+.kth-genealogy-node--christ { --_kth-gen-stroke: var(--_kth-gen-gold); --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--selected { --_kth-gen-stroke: var(--kth-accent); --_kth-gen-sw: 3; }
+.kth-genealogy-node--focus { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3; --_kth-gen-dash: none; }
+.kth-genealogy-node:where(:focus-visible) { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3.5; }
+.kth-genealogy-node--dim { opacity: 0.35; }
+.kth-genealogy-node__christ-mark { fill: var(--_kth-gen-gold); stroke: var(--kth-surface); stroke-width: 1; }
+.kth-genealogy-node__badge rect { fill: var(--kth-accent); }
+.kth-genealogy-node__badge text { fill: var(--kth-accent-text); font-size: 10px; font-family: var(--kth-font-ui); }
+.kth-genealogy-node__gap line { stroke: var(--kth-warning); stroke-width: 2; }
+.kth-genealogy-node__gap text { fill: var(--kth-text-muted); font-size: 9px; font-family: var(--kth-font-ui); }
+
+/* Edge modifiers set private custom properties; the group and its (double-edge) child paths both read them. */
+.kth-genealogy-edge, .kth-genealogy-edge path {
+  fill: none;
+  stroke: var(--_kth-gen-edge, var(--kth-border-strong));
+  stroke-width: var(--_kth-gen-ew, 1.5);
+  stroke-dasharray: var(--_kth-gen-edash, none);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.kth-genealogy-edge--dashed { --_kth-gen-edash: 6 4; }
+.kth-genealogy-edge--dotted { --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--spouse { --_kth-gen-edge: var(--kth-text-muted); }
+.kth-genealogy-edge--cross { --_kth-gen-edge: var(--kth-info); }
+.kth-genealogy-edge--gap { --_kth-gen-edge: var(--kth-warning); --_kth-gen-edash: 2 3; }
+.kth-genealogy-edge--same_as { --_kth-gen-edge: var(--kth-info); --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--christ { --_kth-gen-edge: var(--_kth-gen-gold); --_kth-gen-ew: 3; }
+.kth-genealogy-edge--dim { opacity: 0.4; }
+
+.kth-genealogy-swatch {
+  display: inline-block;
+  inline-size: 0.9em;
+  block-size: 0.9em;
+  margin-inline-end: var(--kth-space-1);
+  border-radius: 2px;
+  border: 1px solid var(--_kth-gen-fill, var(--kth-border-strong));
+  background: var(--_kth-gen-fill, var(--kth-text-muted));
+  vertical-align: middle;
+}
+.kth-genealogy-swatch--christ { --_kth-gen-fill: var(--_kth-gen-gold); }
+.kth-genealogy-legend { margin-block-start: var(--kth-space-2); font-size: 0.9em; }
+.kth-genealogy-legend__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-2) var(--kth-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-genealogy-legend__item { display: inline-flex; align-items: center; }
+
+.kth-genealogy-search { position: relative; min-inline-size: 12rem; }
+.kth-genealogy-search__input { inline-size: 100%; }
+.kth-genealogy-search__list {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  max-block-size: 14rem;
+  overflow: auto;
+  list-style: none;
+  background: var(--kth-surface-raised);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-search__option { padding: var(--kth-space-1) var(--kth-space-2); cursor: pointer; }
+.kth-genealogy-search__option:where([aria-selected="true"], :hover) { background: var(--kth-accent-soft); }
+.kth-genealogy-search__hint, .kth-genealogy-search__none { color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-genealogy-search__none { padding: var(--kth-space-1) var(--kth-space-2); }
+
+.kth-genealogy-card {
+  box-sizing: border-box;
+  inline-size: 22rem;
+  max-inline-size: 100%;
+  overflow: auto;
+  padding: var(--kth-space-3);
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-card--sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  inline-size: auto;
+  max-block-size: 60%;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-2); }
+.kth-genealogy-card__title { margin: 0; font-size: 1.25em; }
+.kth-genealogy-card__heading { margin-block: var(--kth-space-3) var(--kth-space-1); font-size: 1em; }
+.kth-genealogy-card__facts, .kth-genealogy-card__empty, .kth-genealogy-card__ref { color: var(--kth-text-muted); }
+.kth-genealogy-card__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); margin-block: var(--kth-space-2); }
+.kth-genealogy-card__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-card__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-card__relation { color: var(--kth-text-muted); }
+.kth-genealogy-card__qualifier { color: var(--kth-text-muted); font-style: italic; }
+.kth-genealogy-card__confidence--disputed { background: var(--kth-danger); }
+.kth-genealogy-card__confidence--probable, .kth-genealogy-card__confidence--possible { background: var(--kth-warning); }
+.kth-genealogy-card__confidence--certain { background: var(--kth-success); }
+.kth-genealogy-card__readings { margin-block: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius); }
+.kth-genealogy-card__reading { display: block; padding-block: var(--kth-space-1); }
+.kth-genealogy-card__case { margin-block-end: var(--kth-space-3); }
+.kth-genealogy-card__case-title { margin-block: var(--kth-space-2) var(--kth-space-1); }
+.kth-genealogy-card__kjv {
+  margin-inline: 0;
+  padding-inline-start: var(--kth-space-3);
+  border-inline-start: 3px solid var(--kth-border-strong);
+  font-style: italic;
+}
+.kth-genealogy-card__verse { color: var(--kth-accent); }
+
+.kth-genealogy-compare { display: flex; flex-wrap: wrap; gap: var(--kth-space-4); }
+.kth-genealogy-compare__column { flex: 1 1 14rem; min-inline-size: 0; }
+.kth-genealogy-compare__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-compare__step { padding-block: 2px; }
+.kth-genealogy-compare__gap { margin: 0; color: var(--kth-warning); font-size: 0.85em; }
+.kth-genealogy-compare__marker { background: var(--kth-info); }
+
+.kth-genealogy-explorer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 24rem;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-explorer__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
+.kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }
+.kth-genealogy-explorer__main { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; }
+.kth-genealogy-explorer__body--compact { flex-direction: column; }

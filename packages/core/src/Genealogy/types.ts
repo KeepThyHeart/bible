@@ -134,6 +134,7 @@ export interface LayoutNodeFlags {
   gapNote?: string;
 }
 
+/** A positioned node. (x, y) is the node CENTRE; (w, h) is its size. */
 export interface LayoutNode {
   id: string;
   personId: string;

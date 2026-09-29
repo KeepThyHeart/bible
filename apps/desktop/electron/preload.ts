@@ -196,6 +196,7 @@ export interface ElectronAPI {
     getEntityByName: (name: string) => Promise<Result<any | null>>;
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
+    getGenealogyDataset: () => Promise<Result<any | null>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -790,6 +791,8 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getVersesForEntity', entityId, category),
     getFacetsForEntity: (entityId: string, category: string) =>
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
+    getGenealogyDataset: () =>
+      ipcRenderer.invoke('tagGraph:getGenealogyDataset'),
   },
 
   crossReference: {

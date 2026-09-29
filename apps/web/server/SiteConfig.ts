@@ -22,6 +22,8 @@ interface AuthConfig {
 
 interface FeaturesConfig {
   tagGraph?: boolean;
+  /** Enable the genealogy explorer. Default false; requires `tagGraph` to be true. */
+  genealogy?: boolean;
   semanticSearch?: boolean;
   /** Enable PWA (manifest + service worker). Default true. */
   pwa?: boolean;
@@ -154,9 +156,11 @@ export class SiteConfig {
     };
   }
 
-  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
+  get features(): { tagGraph: boolean; genealogy: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
     return {
       tagGraph: this.raw.features?.tagGraph === true,
+      // Needs the tag graph database, so it is only on when tagGraph is too.
+      genealogy: this.raw.features?.tagGraph === true && this.raw.features?.genealogy === true,
       semanticSearch: this.raw.features?.semanticSearch === true,
       pwa: this.raw.features?.pwa !== false, // default true
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
@@ -231,6 +235,7 @@ export class SiteConfig {
   getClientConfig(): Record<string, unknown> {
     const cfg: Record<string, unknown> = {
       showTagGraph: this.features.tagGraph,
+      showGenealogy: this.features.genealogy,
     };
 
     if (this.repoUrl) cfg.repoUrl = this.repoUrl;

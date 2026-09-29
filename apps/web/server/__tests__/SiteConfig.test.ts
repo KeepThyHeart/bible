@@ -156,6 +156,7 @@ describe('SiteConfig', () => {
       expect(config.auth.passwordHash).toBeUndefined();
       expect(config.features.tagGraph).toBe(false);
       expect(config.features.semanticSearch).toBe(false);
+      expect(config.features.genealogy).toBe(false);
       expect(config.modules).toBeNull();
       expect(config.commentaryPopularity).toBeUndefined();
       expect(config.offline.staleDays).toBe(15);
@@ -163,6 +164,31 @@ describe('SiteConfig', () => {
       expect(config.search.minScore).toBe(0.15);
       expect(config.search.pipelineConfigPath).toBe('search-pipeline.json');
       expect(config.repoUrl).toBe('');
+    });
+  });
+
+  // ── Genealogy flag ──────────────────────────────────────────────
+
+  describe('features.genealogy', () => {
+    const load = (features: Record<string, boolean>) => {
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+      return new SiteConfig(tempDir);
+    };
+
+    it('is on when genealogy and tagGraph are both true', () => {
+      const config = load({ tagGraph: true, genealogy: true });
+      expect(config.features.genealogy).toBe(true);
+      expect(config.getClientConfig().showGenealogy).toBe(true);
+    });
+
+    it('is off when tagGraph is false, even if genealogy is true', () => {
+      const config = load({ tagGraph: false, genealogy: true });
+      expect(config.features.genealogy).toBe(false);
+      expect(config.getClientConfig().showGenealogy).toBe(false);
+    });
+
+    it('is off by default when tagGraph is true', () => {
+      expect(load({ tagGraph: true }).features.genealogy).toBe(false);
     });
   });
 

@@ -47,6 +47,10 @@ export function getClientConfig(): ClientConfig {
  * `/api/taggraph/verse/:id` for every verse selection is a round trip whose
  * answer is thrown away.
  */
+export function isGenealogyEnabled(): boolean {
+  return config.showGenealogy === true && config.showTagGraph === true;
+}
+
 export function isTagGraphEnabled(): boolean {
   return config.showTagGraph === true;
 }
