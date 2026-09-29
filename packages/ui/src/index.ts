@@ -24,3 +24,5 @@ export { BottomSheet, DEFAULT_BOTTOM_SHEET_LABELS } from './components/BottomShe
 export type { BottomSheetProps, BottomSheetLabels } from './components/BottomSheet';
 export { useHoverIntent } from './components/useHoverIntent';
 export type { UseHoverIntentOptions } from './components/useHoverIntent';
+export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
+export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';

@@ -103,6 +103,27 @@
 .kth-select:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; border-color: var(--kth-focus); }
 .kth-select:where(:disabled) { opacity: 0.6; cursor: not-allowed; }
 
+/* --- Settings form field (SettingsForm) --------------------------------------- */
+.kth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-1);
+  margin-block-end: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-field__hint {
+  margin: 0;
+  color: var(--kth-text-muted);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+.kth-fieldset {
+  margin: 0 0 var(--kth-space-3);
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+}
+
 /* --- Card -------------------------------------------------------------------- */
 .kth-card {
   padding: var(--kth-space-3);

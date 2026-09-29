@@ -30,6 +30,7 @@ import { TypographySection } from './PreferencesDialog/TypographySection';
 import { FontsSection } from './PreferencesDialog/FontsSection';
 import { ThemesSection } from './PreferencesDialog/ThemesSection';
 import { PrivacySection } from './PreferencesDialog/PrivacySection';
+import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
 
 interface PreferencesDialogProps {
@@ -178,6 +179,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'extensions' && (
               <ExtensionsSection initialExpand={initialExtensionTarget} />
             )}
+            {activeSection === 'advanced' && <AdvancedSection />}
             {activeSection === 'diagnostics' && <DiagnosticsSettings />}
           </div>
 
