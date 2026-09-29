@@ -96,6 +96,7 @@ module.exports = [
       '**/*.config.ts',
       '**/*.config.mjs',
       '**/*.config.cjs',
+      'electron-builder.*.cjs',
     ],
   },
   {
