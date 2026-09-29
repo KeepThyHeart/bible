@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
+import type { TimelineDataset } from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -196,6 +197,11 @@ export interface ElectronAPI {
     getEntityByName: (name: string) => Promise<Result<any | null>>;
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
+  };
+
+  // Timeline module. `null` when no timeline module is installed.
+  timeline: {
+    getDataset: () => Promise<Result<TimelineDataset | null>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -790,6 +796,10 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getVersesForEntity', entityId, category),
     getFacetsForEntity: (entityId: string, category: string) =>
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
+  },
+
+  timeline: {
+    getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
   },
 
   crossReference: {

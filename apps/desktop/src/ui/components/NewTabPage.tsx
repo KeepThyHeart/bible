@@ -52,6 +52,7 @@ const KEYWORD_MAP: Record<string, PanelContentType> = {
   study: 'study',
   topics: 'topics',
   topic: 'topics',
+  timeline: 'timeline',
 };
 
 /**
@@ -255,6 +256,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
             ['commentary', t('newTabPage.type.commentary')],
             ['dictionary', t('newTabPage.type.dictionary')],
             ['topics', t('newTabPage.type.topics')],
+            ['timeline', t('newTabPage.type.timeline')],
           ] as [PanelContentType, string][]).map(([type, label]) => {
             // Every tile carries a glyph. The tab strip's iconless rule is
             // about a crowded horizontal strip, not about a grid of tiles the
