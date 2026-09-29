@@ -16,6 +16,7 @@ A table defined in more than one schema has exactly one definition, here. The sc
 | `schema_migration.sql` | `MainDatabase`, `UserDatabase` |
 | `setting.sql` | `MainDatabase`, `UserDatabase` |
 | `module_feature.sql` | The eight module schemas |
+| `data_source.sql` | `TagGraph` (and the timeline module, when it lands): licence and attribution per source dataset |
 
 `module_feature` is here despite originally having one consumer: nothing about a capability flag is specific to a bible, and every module type now includes it with the same one-line include rather than a second definition.
 
