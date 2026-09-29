@@ -39,9 +39,15 @@ import type {
   clampSearchQuery as clampSearchQueryType,
   readNewlineHandling as readNewlineHandlingType,
 } from '@bible/core';
+import type {
+  XrefGraphService as XrefGraphServiceType,
+  XrefGraphIndexBuilder as XrefGraphIndexBuilderType,
+} from '@bible/core';
+import type { encodeChapterArcs as encodeChapterArcsType } from '@bible/core/browser';
 
 const require = createRequire(import.meta.url);
 const core = require('@bible/core');
+const coreBrowser = require('@bible/core/browser');
 
 export const BibleBookRepository: typeof BibleBookRepositoryType = core.BibleBookRepository;
 export const ModuleMetadataRepository: typeof ModuleMetadataRepositoryType = core.ModuleMetadataRepository;
@@ -78,3 +84,8 @@ export const SearchOrchestrationService: typeof SearchOrchestrationServiceType =
 export const clampSearchQuery: typeof clampSearchQueryType = core.clampSearchQuery;
 export const MAX_SEARCH_QUERY_CHARS: number = core.MAX_SEARCH_QUERY_CHARS;
 export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewlineHandling;
+
+// Cross-reference graph (task 0068). The service and index builder are Node-side; the byte encoder is in the pure browser barrel.
+export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
+export const XrefGraphIndexBuilder: typeof XrefGraphIndexBuilderType = core.XrefGraphIndexBuilder;
+export const encodeChapterArcs: typeof encodeChapterArcsType = coreBrowser.encodeChapterArcs;

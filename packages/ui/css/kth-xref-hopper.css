@@ -1,1 +1,110 @@
 /* Cross-reference graph: hopper view (task 0068). kth-xref-* classes over --kth-* tokens only. */
+.kth-xref-hopper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+
+.kth-xref-hopper-current,
+.kth-xref-hopper-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--kth-space-2) var(--kth-space-3);
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  position: relative;
+  overflow: hidden;
+}
+.kth-xref-hopper-current { background: var(--kth-surface-raised); border-color: var(--kth-border-strong); }
+.kth-xref-hopper-card:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-xref-hopper-card:hover { background: var(--kth-bg-hover); }
+
+.kth-xref-hopper-bar {
+  align-self: stretch;
+  flex: none;
+  inline-size: 4px;
+  margin-block: calc(var(--kth-space-3) * -1);
+  margin-inline-start: calc(var(--kth-space-3) * -1);
+  background: var(--kth-xref-color, var(--kth-accent));
+}
+
+.kth-xref-hopper-card-main { flex: 1 1 12rem; min-inline-size: 0; }
+.kth-xref-hopper-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-xref-hopper-title { margin: 0; font-size: 1.15em; color: var(--kth-text-heading); }
+.kth-xref-hopper-ref { font-weight: 600; color: var(--kth-text-heading); }
+.kth-xref-hopper-meta { color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-xref-hopper-direction { color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-xref-hopper-phrase { margin: var(--kth-space-1) 0 0; font-style: italic; color: var(--kth-text-muted); }
+.kth-xref-hopper-text { margin: var(--kth-space-1) 0 0; }
+.kth-xref-hopper-sources { margin: var(--kth-space-1) 0 0; font-size: 0.85em; color: var(--kth-text-muted); }
+
+.kth-xref-hopper-weight { display: inline-flex; gap: 2px; }
+.kth-xref-hopper-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border: 1px solid var(--kth-border-strong);
+  border-radius: 50%;
+  background: transparent;
+}
+.kth-xref-hopper-dot--on { background: var(--kth-xref-color, var(--kth-accent)); border-color: var(--kth-xref-color, var(--kth-accent)); }
+
+.kth-xref-hopper-actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); margin-inline-start: auto; }
+
+.kth-xref-hopper-nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-xref-hopper-trail {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kth-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-xref-hopper-crumb { display: inline-flex; align-items: center; }
+.kth-xref-hopper-crumb + .kth-xref-hopper-crumb::before { content: "\203A"; margin-inline-end: var(--kth-space-1); color: var(--kth-text-muted); }
+.kth-xref-hopper-crumb--current { font-weight: 600; color: var(--kth-text-heading); }
+.kth-xref-hopper-crumb-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kth-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.kth-xref-hopper-crumb-btn:hover { color: var(--kth-accent-hover); }
+.kth-xref-hopper-crumb-btn:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+
+.kth-xref-hopper-strip { inline-size: 100%; block-size: 0.75rem; }
+.kth-xref-hopper-strip-bg { fill: var(--kth-border); }
+.kth-xref-hopper-tick { stroke: var(--kth-xref-color, var(--kth-text-muted)); stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.6; }
+.kth-xref-hopper-tick--trail { opacity: 0.9; }
+.kth-xref-hopper-tick--current { stroke-width: 3; opacity: 1; }
+
+.kth-xref-hopper-body { min-inline-size: 0; }
+.kth-xref-hopper-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-xref-hopper-list--enter { animation: kth-xref-hopper-enter 200ms ease-out; }
+@keyframes kth-xref-hopper-enter {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: none; }
+}
+.kth-xref-hopper--still .kth-xref-hopper-list { animation: none; }
+.kth-xref-hopper-state { margin: 0; padding: var(--kth-space-3); color: var(--kth-text-muted); }
+.kth-xref-hopper-more { align-self: center; margin-block-start: var(--kth-space-2); }
