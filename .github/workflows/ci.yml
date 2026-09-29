@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -42,7 +42,7 @@ jobs:
       - run: npm ci
 
       - name: Restore modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/modules
           key: modules-tests-${{ hashFiles('scripts/init/index.js') }}

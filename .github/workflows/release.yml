@@ -41,7 +41,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # electron-builder publishes to `v<package.json version>`, not to the
       # pushed tag. If the two differ the uploads land on a different release
@@ -125,9 +125,9 @@ jobs:
       # way as the mac ones above.
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -169,13 +169,13 @@ jobs:
       # Verifiable with: gh attestation verify <file> -R <owner>/<repo>
       - name: Attest build provenance
         if: github.event_name == 'push'
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ matrix.artifacts }}
 
       - name: Keep dry-run installers
         if: github.event_name != 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.target }}
           path: ${{ matrix.artifacts }}
