@@ -12,6 +12,8 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
+import { resetAppCache } from '../../utils/appUpdate';
+import { pwaFlag } from '../../utils/clientConfig';
 import type { Localizer } from '@bible/core/browser';
 
 type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'offline' | 'about';
@@ -152,6 +154,10 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [resettingCache, setResettingCache] = useState(false);
+  // Offered whenever the PWA might be in play: on, or unknown (offline boot).
+  // Only a server that answered "off" hides it; there is no worker to reset then.
+  const showResetCache = pwaFlag() !== false && typeof navigator !== 'undefined' && 'serviceWorker' in navigator;
 
   // The panel's own chrome is pinned to whatever `--ui-font-scale` was in force
   // when it opened. Every rule in the panel multiplies by that variable, so
@@ -698,6 +704,23 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     {t('settings.about.refreshApp')}
                   </button>
                 </div>
+                {showResetCache && (
+                  <div class="settings-panel__field">
+                    <button
+                      class="settings-panel__refresh-btn"
+                      data-testid="reset-app-cache"
+                      disabled={resettingCache}
+                      onClick={() => {
+                        setResettingCache(true);
+                        void resetAppCache();
+                      }}
+                    >
+                      <i class="fa-solid fa-broom" style={{ marginInlineEnd: '8px' }} />
+                      {t('settings.about.resetCache')}
+                    </button>
+                    <p class="settings-panel__hint">{t('settings.about.resetCacheHint')}</p>
+                  </div>
+                )}
                 <div class="settings-panel__about">
                   <p class="settings-panel__about-name">{t('settings.about.appName')}</p>
                   <p class="settings-panel__about-desc">

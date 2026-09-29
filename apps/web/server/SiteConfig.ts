@@ -23,8 +23,17 @@ interface AuthConfig {
 interface FeaturesConfig {
   tagGraph?: boolean;
   semanticSearch?: boolean;
-  /** Enable PWA (manifest + service worker). Default true. */
+  /**
+   * Enable the PWA (manifest, install, service worker). Default false.
+   * Off serves the kill-switch worker at /sw.js and hides the manifest.
+   * The `FEATURE_PWA` environment variable (1/0) overrides this.
+   */
   pwa?: boolean;
+  /**
+   * How a newer build reaches a page that stays open: `silent` reloads by
+   * itself (default), `prompt` shows a banner and lets the user choose.
+   */
+  pwaUpdate?: 'silent' | 'prompt';
   /** Allow users to manually mark modules for offline use. Default false. */
   offlineDownloads?: boolean;
   /**
@@ -114,6 +123,14 @@ const DEFAULT_MIN_SCORE = 0.15;
 
 // ─── SiteConfig ─────────────────────────────────────────────────────────
 
+/** `1`/`true` or `0`/`false` from the environment; undefined when unset or unrecognised. */
+function envFlag(name: string): boolean | undefined {
+  const v = process.env[name]?.toLowerCase();
+  if (v === '1' || v === 'true') return true;
+  if (v === '0' || v === 'false') return false;
+  return undefined;
+}
+
 export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
@@ -154,11 +171,13 @@ export class SiteConfig {
     };
   }
 
-  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
+  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; pwaUpdate: 'silent' | 'prompt'; offlineDownloads: boolean; offlineAutoDownload: boolean } {
     return {
       tagGraph: this.raw.features?.tagGraph === true,
       semanticSearch: this.raw.features?.semanticSearch === true,
-      pwa: this.raw.features?.pwa !== false, // default true
+      // Default false: a service worker is opt-in per deployment.
+      pwa: envFlag('FEATURE_PWA') ?? this.raw.features?.pwa === true,
+      pwaUpdate: this.raw.features?.pwaUpdate === 'prompt' ? 'prompt' : 'silent',
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
       offlineAutoDownload: this.raw.features?.offlineAutoDownload !== false, // default true
     };
@@ -240,8 +259,10 @@ export class SiteConfig {
     // (browser Web Worker) or hit the server pipeline.
     cfg.search = { semantic: this.search.mode };
 
-    // PWA feature flag
-    if (!this.features.pwa) cfg.pwaEnabled = false;
+    // PWA feature flag. Always sent (true or false): the client must tell "off"
+    // from "unknown" (an offline boot never receives this object at all).
+    cfg.pwaEnabled = this.features.pwa;
+    if (this.features.pwa && this.features.pwaUpdate === 'prompt') cfg.pwaUpdate = 'prompt';
 
     // Offline downloads feature flag
     if (this.features.offlineDownloads) cfg.offlineDownloads = true;
