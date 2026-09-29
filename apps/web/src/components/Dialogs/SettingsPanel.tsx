@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
+import { SettingsForm } from '@bible/ui';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { changeLocale, selectableLocaleInfos } from '../../i18n';
 import { settingsStore, FONT_SCHEMES, type InterlinearLayout } from '../../stores/settingsStore';
+import { webSettings, WEB_SETTINGS } from '../../stores/settingsRegistry';
+import { isEnabled } from '../../utils/featureFlags';
 import { THEME_LIST } from '../../themes/themeRegistry';
 import { offlineStore } from '../../stores/offlineStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -146,9 +150,12 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   const interlinearLayout = useStore(settingsStore, () => settingsStore.interlinearLayout);
   const excludedTopicalModules = useStore(settingsStore, () => settingsStore.excludedTopicalModules);
   const showCommentaryOverview = useStore(settingsStore, () => settingsStore.showCommentaryOverview);
-  const swipeChaptersEnabled = useStore(settingsStore, () => settingsStore.swipeChaptersEnabled);
-  const swipeChapterThresholdPx = useStore(settingsStore, () => settingsStore.swipeChapterThresholdPx);
-  const swipeCommentaryVerseThresholdPx = useStore(settingsStore, () => settingsStore.swipeCommentaryVerseThresholdPx);
+  const registryValues = useSyncExternalStore(webSettings.subscribe, webSettings.getSnapshot);
+  const gestureFields = WEB_SETTINGS.toFields('gestures', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -590,51 +597,16 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
               <div class="settings-panel__section" data-section="gestures">
                 <h4 class="settings-panel__section-title">{t('settings.gestures.title', 'Gestures')}</h4>
 
-                <label class="settings-panel__field settings-panel__field--checkbox">
-                  <input
-                    type="checkbox"
-                    checked={swipeChaptersEnabled}
-                    onChange={(e) => settingsStore.setSwipeChaptersEnabled((e.target as HTMLInputElement).checked)}
-                  />
-                  <span>{t('settings.gestures.swipeChaptersEnabled', 'Swipe to change chapters')}</span>
-                </label>
-                <div class="settings-panel__field-hint">
-                  {t('settings.gestures.swipeChaptersHint', 'When enabled, horizontal swipes on the Bible pane navigate to the previous or next chapter.')}
-                </div>
-
-                <label class="settings-panel__field">
-                  <span>
-                    {t('settings.gestures.swipeChapterThreshold', 'Chapter swipe threshold')} ({swipeChapterThresholdPx}px)
-                  </span>
-                  <input
-                    type="range"
-                    min="20"
-                    max="400"
-                    step="10"
-                    value={swipeChapterThresholdPx}
-                    onInput={(e) => settingsStore.setSwipeChapterThresholdPx(Number((e.target as HTMLInputElement).value))}
-                  />
-                </label>
-                <div class="settings-panel__field-hint">
-                  {t('settings.gestures.swipeChapterThresholdHint', 'How far you must swipe across the Bible pane before a chapter change is committed.')}
-                </div>
-
-                <label class="settings-panel__field">
-                  <span>
-                    {t('settings.gestures.swipeCommentaryVerseThreshold', 'Commentary verse swipe threshold')} ({swipeCommentaryVerseThresholdPx}px)
-                  </span>
-                  <input
-                    type="range"
-                    min="20"
-                    max="400"
-                    step="10"
-                    value={swipeCommentaryVerseThresholdPx}
-                    onInput={(e) => settingsStore.setSwipeCommentaryVerseThresholdPx(Number((e.target as HTMLInputElement).value))}
-                  />
-                </label>
-                <div class="settings-panel__field-hint">
-                  {t('settings.gestures.swipeCommentaryVerseThresholdHint', 'How far you must swipe across the Commentary pane before navigating to the previous or next verse.')}
-                </div>
+                {/*
+                  Rendered from the settings registry (`stores/settingsRegistry.ts`) by the
+                  shared SettingsForm: a new gestures setting is one registry entry.
+                */}
+                <SettingsForm
+                  fields={gestureFields}
+                  values={registryValues}
+                  idPrefix="settings-gestures"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
               </div>
             )}
 

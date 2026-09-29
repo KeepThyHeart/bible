@@ -257,3 +257,9 @@ export * as Crypto from './Crypto';
 // The encrypted container, ZIP payload, user-table registry and restore
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
+
+// --- Settings registry and feature flags (task 0087) ----------------------------
+// Declarative settings (schema, defaults, scope, validation), a typed store over a
+// storage port, the flat field model shared with extension settings, and the
+// feature-flag resolver. Pure TypeScript.
+export * from './Settings';

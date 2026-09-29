@@ -127,6 +127,15 @@ Classes: `kth-swatch-group`, `kth-swatch` (`--sm`). Adopting it in desktop's `Hi
 ``<HighlightSwatch value={...} onChange={({ color }) => ...} colorValue={(c) => `rgb(var(--theme-highlight-${c}-rgb))`} />``, which
 keeps the theme-tinted look; it is not wired yet (the selector's buttons carry app-specific behaviour and styling to port first).
 
+### `SettingsForm`
+
+The one settings renderer: draws the flat `SettingsField[]` model from `@bible/core/browser` as form rows (text/url/email/password,
+textarea, enum select, number or slider, checkbox, string list, nested groups, `dependsOn` visibility). It is fed by the settings
+registry (`registry.toFields(group)`) and by extension JSON Schema (`extractFields`), so both apps' settings dialogs and the desktop
+extension settings share it. Controlled and store-free: `fields`, `values`, `onChange(key, value)`. Labels arrive resolved in the
+fields; `labels` covers the two fixed strings (`select`, `learnMore`). `idPrefix` sets control ids (`ext-setting` for extensions).
+Classes: `kth-field`, `kth-field__hint`, `kth-fieldset`, plus `kth-input`/`kth-select`. Design and API: `packages/core/docs/features/settings-registry.md`.
+
 ### `ExtensionPanelHost`
 
 Renders one sandboxed extension-panel iframe and owns its `IframeRpcBridge` (`@bible/core/browser`): one bridge per mounted host,
