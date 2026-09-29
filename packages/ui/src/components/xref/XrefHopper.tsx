@@ -145,7 +145,7 @@ function NeighbourCard({ edge, labels, formatRef, getVerseText, cache, onHop, on
   return (
     <li
       className="kth-xref-hopper-card"
-      style={{ '--kth-xref-color': sectionVar(bookOf(target)) } as React.CSSProperties}
+      style={{ '--_kth-xref-color': sectionVar(bookOf(target)) } as React.CSSProperties}
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
@@ -281,7 +281,7 @@ export function XrefHopper({
     <section className={rootClass} dir={dir} aria-label={labels.region}>
       <header
         className="kth-xref-hopper-current"
-        style={{ '--kth-xref-color': sectionVar(bookOf(st.current)) } as React.CSSProperties}
+        style={{ '--_kth-xref-color': sectionVar(bookOf(st.current)) } as React.CSSProperties}
       >
         <span className="kth-xref-hopper-bar" aria-hidden="true" />
         <div className="kth-xref-hopper-card-main">
@@ -330,7 +330,7 @@ export function XrefHopper({
             <line
               key={`${i}-${s.id}-${s.kind}`}
               className={cls}
-              style={{ '--kth-xref-color': sectionVar(bookOf(s.id)) } as React.CSSProperties}
+              style={{ '--_kth-xref-color': sectionVar(bookOf(s.id)) } as React.CSSProperties}
               x1={x}
               x2={x}
               y1={s.kind === 'current' ? 0 : 1.5}

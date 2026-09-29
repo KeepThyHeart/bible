@@ -211,6 +211,15 @@ export interface ElectronAPI {
     getEntryCount: (abbreviation: string, verseId: number) => Promise<Result<number>>;
   };
 
+  // Cross-reference graph (task 0068). Replies use the `Result<T>` envelope; the payload types are
+  // `XrefGraph`, `XrefEdge[]`, `BookMatrix` and `ChapterArcs` from `@bible/core/browser`.
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) => Promise<Result<any>>;
+    getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
+    getBookMatrix: () => Promise<Result<number[][]>>;
+    getChapterArcs: () => Promise<Result<any>>;
+  };
+
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
   // Apr-14 cleanup); callers should unwrap via `services/ipcResult.ts#unwrap`.
   // The `searchAPI` convenience wrapper in `services/electronAPI.ts` already
@@ -804,6 +813,14 @@ const electronAPI: ElectronAPI = {
       typedInvoke('xref:getReverseReferencesForRange', abbreviation, startVerseId, endVerseId),
     getEntryCount: (abbreviation: string, verseId: number) =>
       ipcRenderer.invoke('xref:getEntryCount', abbreviation, verseId)
+  },
+
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) =>
+      typedInvoke('xrefGraph:getEgoGraph', anchor, opts),
+    getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
+    getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
+    getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
   },
 
   search: {

@@ -33,7 +33,7 @@
   inline-size: 4px;
   margin-block: calc(var(--kth-space-3) * -1);
   margin-inline-start: calc(var(--kth-space-3) * -1);
-  background: var(--kth-xref-color, var(--kth-accent));
+  background: var(--_kth-xref-color, var(--kth-accent));
 }
 
 .kth-xref-hopper-card-main { flex: 1 1 12rem; min-inline-size: 0; }
@@ -54,7 +54,7 @@
   border-radius: 50%;
   background: transparent;
 }
-.kth-xref-hopper-dot--on { background: var(--kth-xref-color, var(--kth-accent)); border-color: var(--kth-xref-color, var(--kth-accent)); }
+.kth-xref-hopper-dot--on { background: var(--_kth-xref-color, var(--kth-accent)); border-color: var(--_kth-xref-color, var(--kth-accent)); }
 
 .kth-xref-hopper-actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); margin-inline-start: auto; }
 
@@ -87,7 +87,7 @@
 
 .kth-xref-hopper-strip { inline-size: 100%; block-size: 0.75rem; }
 .kth-xref-hopper-strip-bg { fill: var(--kth-border); }
-.kth-xref-hopper-tick { stroke: var(--kth-xref-color, var(--kth-text-muted)); stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.6; }
+.kth-xref-hopper-tick { stroke: var(--_kth-xref-color, var(--kth-text-muted)); stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.6; }
 .kth-xref-hopper-tick--trail { opacity: 0.9; }
 .kth-xref-hopper-tick--current { stroke-width: 3; opacity: 1; }
 
@@ -105,6 +105,5 @@
   from { opacity: 0; transform: translateY(0.5rem); }
   to { opacity: 1; transform: none; }
 }
-.kth-xref-hopper--still .kth-xref-hopper-list { animation: none; }
 .kth-xref-hopper-state { margin: 0; padding: var(--kth-space-3); color: var(--kth-text-muted); }
 .kth-xref-hopper-more { align-self: center; margin-block-start: var(--kth-space-2); }

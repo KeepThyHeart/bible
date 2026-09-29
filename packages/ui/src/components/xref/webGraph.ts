@@ -99,8 +99,9 @@ export function mergeGraph(prev: readonly SimNode[], graph: XrefGraph): { nodes:
       const near = (neighboursOf.get(gn.verseId) ?? []).map((id) => placed.get(id)).filter((n): n is SimNode => !!n)
         .sort((a, b) => a.hop - b.hop)[0]
         ?? placed.get(graph.anchor);
+      const bare = !near && gn.hop === 0; // the very first anchor sits at the origin
       const angle = spawn * GOLDEN;
-      const r = 18 + (spawn % 5) * 3;
+      const r = bare ? 0 : 18 + (spawn % 5) * 3;
       spawn += 1;
       node = {
         id: gn.verseId,
