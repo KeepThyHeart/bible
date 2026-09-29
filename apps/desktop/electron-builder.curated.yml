@@ -97,13 +97,13 @@ files:
   # in electron.vite.config.ts). Shipping it embeds a second, complete ~268 MB
   # Electron distribution inside the app.
   - '!node_modules/electron/**'
-  # Vestigial direct deps -- nothing in packages/ or scripts/ imports these
-  # (searchHandlers.ts reaches ORT only through `@huggingface/transformers`).
-  # transformers resolves its own pinned onnxruntime-node 1.21.0 from its
-  # NESTED node_modules, so the top-level 1.24.2 copy is dead weight (~210 MB).
-  # Anchored at `node_modules/` so the nested copy is untouched.
-  - '!node_modules/onnxruntime-node/**'
-  - '!node_modules/onnxruntime-common/**'
+  # onnxruntime-node / onnxruntime-common are NOT direct dependencies of this
+  # package (nothing here imports them); they arrive only through
+  # `@huggingface/transformers`, which pins onnxruntime-node 1.21.0 exactly. They
+  # must ship: they are the native runtime behind semantic search. (A direct
+  # top-level copy used to be excluded here, with the pinned one nested under
+  # transformers and kept. pnpm/electron-builder lay the single pinned copy out
+  # flat, so excluding `node_modules/onnxruntime-*` would drop the runtime.)
   # Browser/WASM ORT build -- unused while the native node backend is active.
   # This comes back if/when embedding moves to the WASM backend.
   - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'

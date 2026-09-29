@@ -30,8 +30,6 @@ files:
   # See electron-builder.curated.yml for the full rationale on each of these.
   - '!node_modules/@bible/**'
   - '!node_modules/electron/**'
-  - '!node_modules/onnxruntime-node/**'
-  - '!node_modules/onnxruntime-common/**'
   - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'
   # pnpm installs onnxruntime-web (a dependency of transformers) once, flat, under
   # node_modules/, where npm nested it inside transformers and the pattern above
