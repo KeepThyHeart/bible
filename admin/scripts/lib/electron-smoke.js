@@ -18,7 +18,7 @@
  * It saves a screenshot and the app's own output next to its log.
  *
  * Playwright drives it, resolved from the repository given by --repo (it is a
- * devDependency of apps/desktop), so that checkout must have had `npm ci`.
+ * devDependency of apps/desktop), so that checkout must have had `pnpm install --frozen-lockfile`.
  *
  * ## Usage
  *
@@ -58,7 +58,7 @@ function loadPlaywright(repoRoot) {
     const mod = require(resolved);
     if (mod._electron) return mod;
   }
-  throw new Error(`Playwright is not installed in ${repoRoot}; run \`npm ci\` (or \`npm install\`) there first.`);
+  throw new Error(`Playwright is not installed in ${repoRoot}; run \`pnpm install --frozen-lockfile\` (or \`pnpm install\`) there first.`);
 }
 
 /**
@@ -134,7 +134,7 @@ async function runSmoke(options) {
     const args = [];
     if (options.dev) {
       const mainJs = path.join(repoRoot, 'apps', 'desktop', 'out', 'main', 'index.js');
-      if (!fs.existsSync(mainJs)) throw new Error(`No development build at ${mainJs}; run \`npm run build:desktop\`.`);
+      if (!fs.existsSync(mainJs)) throw new Error(`No development build at ${mainJs}; run \`pnpm run build:desktop\`.`);
       executablePath = devElectronPath(repoRoot);
       args.push(mainJs);
     } else {
@@ -146,7 +146,7 @@ async function runSmoke(options) {
     // extracted or unpacked Linux app's chrome-sandbox is not setuid root;
     // basic password store so no keyring prompt can stall a headless run.
     // The macOS counterpart is the mock keychain: an installed app and
-    // `npm run dev` share one app name, so the installed build asks to use the
+    // `pnpm run dev` share one app name, so the installed build asks to use the
     // "Safe Storage" item development created, and the prompt waits forever.
     const switches = [];
     if (process.platform === 'linux') switches.push('--no-sandbox', '--disable-dev-shm-usage', '--password-store=basic');

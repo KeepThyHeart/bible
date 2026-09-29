@@ -5,7 +5,7 @@
  * (task 0027, "Module Format v2", revision 2, subtask F3): print the
  * canonical content digest for one module `.db` file.
  *
- * Requires the package to be built first (`npm run build` in `packages/core`)
+ * Requires the package to be built first (`pnpm run build` in `packages/core`)
  * - it runs against the compiled `dist/`, the same way any other consumer of
  * `@bible/core` does. There is no TS-execution step wired into this package's
  * `scripts/` (see `copy-assets.js`, the only other script here before this

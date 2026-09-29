@@ -2,7 +2,7 @@
 // module `virtual:kth-kit` (string exports KIT_JS and KIT_CSS). Used by electron.vite.config.ts (main build) and
 // vitest.config.ts.
 //
-// Why a build-time pass rather than `?raw` of a prebuilt file: `npm run dev`, desktop vitest and the release
+// Why a build-time pass rather than `?raw` of a prebuilt file: `pnpm run dev`, desktop vitest and the release
 // workflow's `package:*` scripts never build other workspaces, so any "build the kit first" ordering breaks
 // one of them. This runs on every path, needs no checked-in blob, and an esbuild error fails the build loudly.
 // The precedent is quickjsGuestBundlePlugin in electron.vite.config.ts, which also runs esbuild inside the build.

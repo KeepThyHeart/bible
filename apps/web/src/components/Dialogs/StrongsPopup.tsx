@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { Popover } from '@bible/ui';
 import type { StrongsEntryData } from '../../types';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -53,8 +53,6 @@ function parseDefinition(raw: string): { glosses: string; description: string; t
 export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
   const { t } = useTranslation();
 
-  useEscapeKey(entry !== null, onClose);
-
   if (!entry || !position) return null;
 
   const parsed = parseDefinition(entry.definition);
@@ -62,49 +60,29 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
   const pos = entry.partOfSpeech || '';
 
   return (
-    <div class="strongs-popup-overlay" onClick={onClose}>
-      <div class="strongs-popup" style={{ top: `${position.top}px`, left: `${position.left}px` }} onClick={(e) => e.stopPropagation()}>
-        <div class="strongs-popup__header">
-          <div>
-            <span class="strongs-popup__number">{entry.strongsNumber}</span>
-            <span class="strongs-popup__word">{entry.word}</span>
-          </div>
-          <button class="strongs-popup__close" onClick={onClose}>
-            <i class="fa-solid fa-xmark" />
-          </button>
+    <Popover
+      open
+      anchor={{ x: position.left, y: position.top }}
+      onClose={onClose}
+      portal={false}
+      backdrop
+      backdropClassName="strongs-popup-overlay"
+      className="strongs-popup"
+      label={entry.word}
+      width={450}
+      estimatedHeight={300}
+      maxHeight={400}
+      offset={0}
+      padding={8}
+      style={{ width: 'auto', overflowY: 'visible' }}
+    >
+      <div class="strongs-popup__header">
+        <div>
+          <span class="strongs-popup__number">{entry.strongsNumber}</span>
+          <span class="strongs-popup__word">{entry.word}</span>
         </div>
-        <div class="strongs-popup__body">
-          {translit && (
-            <div class="strongs-popup__translit">
-              {translit}
-              {parsed.pronunciation && parsed.pronunciation !== translit && (
-                <span class="strongs-popup__pron"> [{parsed.pronunciation}]</span>
-              )}
-            </div>
-          )}
-          {pos && <div class="strongs-popup__pos">{pos}</div>}
-          {parsed.glosses && (
-            <div class="strongs-popup__glosses">{parsed.glosses}</div>
-          )}
-          {parsed.description && (
-            <div class="strongs-popup__def">{parsed.description}</div>
-          )}
-          {entry.etymology && (
-            <div class="strongs-popup__etym">{t('strongsPopup.etymology')} {entry.etymology}</div>
-          )}
-        </div>
-        <button
-          type="button"
-          class="strongs-popup__search-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            searchStore.performSearch(entry.strongsNumber);
-            commentaryStore.setRightPaneMode('search');
-            onClose();
-          }}
-        >
-          <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
-          {t('strongsPopup.searchOccurrences')}
+        <button class="strongs-popup__close" onClick={onClose}>
+          <i class="fa-solid fa-xmark" />
         </button>
         <button
           type="button"
@@ -120,6 +98,39 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
           {t('wordStudy.open')}
         </button>
       </div>
-    </div>
+      <div class="strongs-popup__body">
+        {translit && (
+          <div class="strongs-popup__translit">
+            {translit}
+            {parsed.pronunciation && parsed.pronunciation !== translit && (
+              <span class="strongs-popup__pron"> [{parsed.pronunciation}]</span>
+            )}
+          </div>
+        )}
+        {pos && <div class="strongs-popup__pos">{pos}</div>}
+        {parsed.glosses && (
+          <div class="strongs-popup__glosses">{parsed.glosses}</div>
+        )}
+        {parsed.description && (
+          <div class="strongs-popup__def">{parsed.description}</div>
+        )}
+        {entry.etymology && (
+          <div class="strongs-popup__etym">{t('strongsPopup.etymology')} {entry.etymology}</div>
+        )}
+      </div>
+      <button
+        type="button"
+        class="strongs-popup__search-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          searchStore.performSearch(entry.strongsNumber);
+          commentaryStore.setRightPaneMode('search');
+          onClose();
+        }}
+      >
+        <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
+        {t('strongsPopup.searchOccurrences')}
+      </button>
+    </Popover>
   );
 }

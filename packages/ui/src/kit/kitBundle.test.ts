@@ -61,7 +61,7 @@ describe.skipIf(process.env.KTH_UI_RUNTIME !== 'preact')('kit bundle', () => {
   });
 
   it('bundles only packages/ui, core and preact', () => {
-    const allowed = /^(src\/|css\/|\.\.\/core\/src\/|(\.\.\/)+node_modules\/preact\/)/;
+    const allowed = /^(src\/|css\/|\.\.\/core\/src\/|(\.\.\/)+node_modules\/(\.pnpm\/[^/]+\/node_modules\/)?preact\/)/;
     const inputs = bundledInputs(built);
     expect(inputs.filter((p) => !allowed.test(p))).toEqual([]);
     expect(inputs.some((p) => /electron|apps\/|hash-wasm|fflate/.test(p))).toBe(false);
@@ -93,7 +93,7 @@ describe.skipIf(process.env.KTH_UI_RUNTIME !== 'preact')('kit bundle', () => {
     // preact itself assigns innerHTML for dangerouslySetInnerHTML and SVG; it is never reachable from kit props.
     // The count must equal preact's own, so no third-party or kit write can hide behind it.
     const count = (s: string) => (s.match(/\.innerHTML\s*=/g) ?? []).length;
-    const preactSrc = readFileSync(resolve(UI_ROOT, '../../node_modules/preact/dist/preact.module.js'), 'utf8');
+    const preactSrc = readFileSync(resolve(UI_ROOT, 'node_modules/preact/dist/preact.module.js'), 'utf8');
     expect(count(built.js)).toBe(count(preactSrc));
   });
 

@@ -6,7 +6,7 @@
  * and where each one is duplicated outside `admin/brand/branding.json`. Run it before
  * cutting a release:
  *
- *   npm run branding:check
+ *   pnpm run branding:check
  *
  * Exits non-zero when anything is still undecided, so it can gate a release
  * pipeline later. It is informational, not a test — nothing else depends on it.

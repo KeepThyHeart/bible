@@ -2,7 +2,7 @@
 // Builds the extension UI kit: kit/1/kth-kit.js (classic-script IIFE on preact/compat) and kit/1/kth.css.
 //
 // One set of esbuild options, three consumers:
-//   - `npm run build:kit -w @bible/ui` writes dist-kit/ (gitignored) for inspection and extension testing;
+//   - `pnpm --filter @bible/ui run build:kit` writes dist-kit/ (gitignored) for inspection and extension testing;
 //   - the desktop Vite plugin (apps/desktop/scripts/kthKitPlugin.mjs) calls buildKit({ write: false }) so the
 //     bundle is inlined into the main process, with no prebuild step;
 //   - packages/ui kitBundle.test.ts checks size, contents and inputs.

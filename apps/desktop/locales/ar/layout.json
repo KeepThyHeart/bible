@@ -5,10 +5,21 @@
   "layout.readingMode.description": "الكتاب المقدس وحده، مع هوامش مريحة للقراءة",
   "layout.studyModeQuad.name": "وضع الدراسة (رباعي)",
   "layout.studyModeQuad.description": "تخطيط 2×2: التفسير أعلى اليسار، والكتاب المقدس أعلى اليمين، والقواميس أسفل اليسار، والملاحظات أسفل اليمين",
+  "layout.writerMode.name": "وضع الكتابة",
+  "layout.writerMode.description": "الكتاب المقدس على اليسار ومكان للكتابة على اليمين",
   "layout.applyPreset.title": "تطبيق {presetName}",
   "layout.dropdown.label": "التخطيط",
   "layout.dropdown.tooltip": "إعادة التعيين إلى تخطيط مضمَّن",
+  "layout.reset.label": "إعادة التخطيط الافتراضي",
+  "layout.newTab.createFailed": "تعذّر فتح هذا الجزء. حاول مرة أخرى.",
+  "layout.collapsePane.tooltip": "طيّ هذا الجزء بعيدًا",
+  "layout.expandCollapsed.label": "إظهار الأجزاء المخفية",
+  "layout.expandCollapsed.tooltip": "إعادة أجزاء الدراسة المطويّة إلى العرض",
+  "layout.expandCollapsed.tooltipNamed": "إعادة: {titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "{count, plural, zero {لم يُعَد ترتيب أي علامة تبويب.} one {أُعيد ترتيب علامة تبويب واحدة.} two {أُعيد ترتيب علامتَي تبويب.} few {أُعيد ترتيب # علامات تبويب.} many {أُعيد ترتيب # علامة تبويب.} other {أُعيد ترتيب # علامة تبويب.}}",
   "layout.undo.button": "تراجع",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "وضع التخطيط المتقدم",
+  "layout.advancedMode.helpTooltip": "يتيح لك سحب الأجزاء لإعادة ترتيبها أو تقسيمها أو إعادة إرساءها يدويًا. افتح الإعداد الكامل.",
+  "layout.advancedMode.helpAria": "حول وضع التخطيط المتقدم"
 }

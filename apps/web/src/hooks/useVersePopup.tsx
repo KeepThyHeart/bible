@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
+import { useState, useRef, useCallback } from 'preact/hooks';
 import type { VNode } from 'preact';
-import { useViewportPosition } from './useViewportPosition';
+import { Popover } from '@bible/ui';
+import type { PopupRect } from '@bible/core/browser';
 import { useStore } from './useStore';
 import { bibleStore } from '../stores/bibleStore';
 import { settingsStore } from '../stores/settingsStore';
@@ -11,10 +12,12 @@ import type { IBibleDataProvider } from '../providers/interfaces';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-interface PopupPosition {
-  top: number;
-  left: number;
-  anchorTop?: number;
+/** The trigger link's viewport rectangle; the shared Popover places itself below it, or above when there is no room. */
+type PopupPosition = PopupRect;
+
+function anchorOf(el: HTMLElement): PopupPosition {
+  const r = el.getBoundingClientRect();
+  return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
 }
 
 /**
@@ -67,39 +70,6 @@ function parseVerseHref(href: string): { startVerseId: number; endVerseId?: numb
   };
 }
 
-function getPopupStyle(position: PopupPosition): Record<string, string> {
-  const style: Record<string, string> = {};
-  const pad = 8;
-  const gap = 4;
-  const estimatedHeight = 120; // conservative estimate for popup height
-  // Use visualViewport when available so mobile browser chrome (URL bar, etc.)
-  // is properly excluded — falls back to innerHeight on older browsers.
-  const vv = window.visualViewport;
-  const viewportHeight = vv ? vv.height : window.innerHeight;
-  const viewportWidth = vv ? vv.width : window.innerWidth;
-  const popupMaxWidth = Math.min(400, viewportWidth - 16);
-  const left = Math.max(pad, Math.min(position.left, viewportWidth - popupMaxWidth - pad));
-  style.left = `${left}px`;
-  const spaceBelow = viewportHeight - position.top - pad;
-  if (spaceBelow < estimatedHeight && position.anchorTop != null) {
-    // Position above the anchor element
-    const bottomPos = viewportHeight - position.anchorTop + gap;
-    // Ensure it doesn't go off the top of the screen
-    style.bottom = `${Math.min(bottomPos, viewportHeight - pad - estimatedHeight)}px`;
-    // Constrain to space available above the anchor
-    style.maxHeight = `${Math.max(estimatedHeight, position.anchorTop - gap - pad)}px`;
-  } else if (spaceBelow < estimatedHeight) {
-    // No anchor top available — position from bottom with enough room
-    style.bottom = `${pad}px`;
-    style.maxHeight = `${viewportHeight - pad * 2}px`;
-  } else {
-    style.top = `${position.top}px`;
-    // Constrain max-height to available space below
-    style.maxHeight = `${spaceBelow}px`;
-  }
-  return style;
-}
-
 function formatRef(verseId: number, endVerseId?: number): string {
   const { bookNumber, chapter, verse } = parseVerseId(verseId);
   const base = formatPassageRef(bookNumber, chapter, verse);
@@ -122,7 +92,6 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
   // serving the old translation's text in every hover preview afterwards.
   const tooltipCacheRef = useRef<Map<string, { html: string; reference: string }>>(new Map());
   const wordsOfChristInRed = useStore(settingsStore, () => settingsStore.wordsOfChristInRed);
-  const tooltipRef = useViewportPosition<HTMLDivElement>(tooltip?.position ?? null, [tooltip?.reference]);
 
   // Mobile click-to-preview popup state
   const [popup, setPopup] = useState<VerseLinkPopupState | null>(null);
@@ -141,8 +110,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
       const cacheKey = `${moduleAbbr}:${verseId}`;
       const cached = tooltipCacheRef.current.get(cacheKey);
       if (cached) {
-        const rect = anchorEl.getBoundingClientRect();
-        setTooltip({ ...cached, position: { top: rect.bottom + 4, left: rect.left, anchorTop: rect.top } });
+        setTooltip({ ...cached, position: anchorOf(anchorEl) });
         return;
       }
 
@@ -151,8 +119,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
         const reference = formatRef(verseId);
         const html = verseData.text_html || verseData.text || '';
         tooltipCacheRef.current.set(cacheKey, { html, reference });
-        const rect = anchorEl.getBoundingClientRect();
-        setTooltip({ html, reference, position: { top: rect.bottom + 4, left: rect.left, anchorTop: rect.top } });
+        setTooltip({ html, reference, position: anchorOf(anchorEl) });
       } catch { /* verse not found */ }
     }, 300);
   }, [bibleProvider]);
@@ -175,8 +142,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
       // Mobile: show verse preview popup
       const moduleAbbr = bibleStore.getActiveModule();
       const reference = formatRef(verseId, endVerseId);
-      const rect = anchorEl.getBoundingClientRect();
-      const position: PopupPosition = { top: rect.bottom + 4, left: rect.left, anchorTop: rect.top };
+      const position: PopupPosition = anchorOf(anchorEl);
 
       // For ranges, fetch multiple verses
       if (endVerseId && endVerseId !== verseId) {
@@ -230,28 +196,9 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
     }
   }, [bibleProvider]);
 
-  // ── Dismiss effects ────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!tooltip) return;
-    const dismiss = () => setTooltip(null);
-    document.addEventListener('touchstart', dismiss, { passive: true });
-    return () => document.removeEventListener('touchstart', dismiss);
-  }, [tooltip]);
-
-  useEffect(() => {
-    if (!popup) return;
-    const dismiss = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.verse-link-popup')) setPopup(null);
-    };
-    document.addEventListener('touchstart', dismiss, { passive: true });
-    document.addEventListener('mousedown', dismiss);
-    return () => {
-      document.removeEventListener('touchstart', dismiss);
-      document.removeEventListener('mousedown', dismiss);
-    };
-  }, [popup]);
+  // ── Dismissal ──────────────────────────────────────────────────
+  // Escape, and a mouse or touch press outside, are handled by the shared Popover (`onClose` below).
+  // The hover tooltip additionally hides as soon as the pointer leaves the link (containerProps.onMouseOut).
 
   // ── Delegated container handlers (for .scripture-link in HTML) ─
 
@@ -302,20 +249,38 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
   const popupJsx = (
     <>
       {tooltip && (
-        <div
-          ref={tooltipRef}
-          class="verse-ref-tooltip"
-          style={{ top: `${tooltip.position.top}px`, left: `${tooltip.position.left}px` }}
+        <Popover
+          open
+          anchor={tooltip.position}
+          onClose={hideTooltip}
+          portal={false}
+          role="tooltip"
+          width={400}
+          estimatedHeight={120}
+          padding={8}
+          className="verse-ref-tooltip"
+          style={{ width: 'auto' }}
         >
           <div class="verse-ref-tooltip__ref">{tooltip.reference}</div>
           <div
             class="verse-ref-tooltip__text"
             dangerouslySetInnerHTML={{ __html: toPreviewHtml(tooltip.html, wordsOfChristInRed) }}
           />
-        </div>
+        </Popover>
       )}
       {popup && (
-        <div class="verse-link-popup" style={getPopupStyle(popup.position)}>
+        <Popover
+          open
+          anchor={popup.position}
+          onClose={() => setPopup(null)}
+          portal={false}
+          width={400}
+          estimatedHeight={120}
+          padding={8}
+          label={popup.reference}
+          className="verse-link-popup"
+          style={{ width: 'auto', overflowY: 'hidden' }}
+        >
           <div class="verse-link-popup__header">
             <span class="verse-link-popup__ref">{popup.reference}</span>
             <button
@@ -341,7 +306,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
                 dangerouslySetInnerHTML={{ __html: toPreviewHtml(popup.html, wordsOfChristInRed) }}
               />
             )}
-        </div>
+        </Popover>
       )}
     </>
   );

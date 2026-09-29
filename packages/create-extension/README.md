@@ -36,7 +36,7 @@ Until they are published, pack them and point the scaffold at the tarballs:
 
 ```bash
 # in the Bible repository
-npm run pack:sdk            # builds and packs into build/sdk/
+pnpm run pack:sdk            # builds and packs into build/sdk/
 
 # anywhere else
 npx @bible/create-extension my-extension --local-sdk=../bible/build/sdk

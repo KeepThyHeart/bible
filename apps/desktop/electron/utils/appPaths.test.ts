@@ -164,7 +164,7 @@ describe('getDataPath / getUserDataPath', () => {
   });
 
   it('resolves to the identical directory when NODE_ENV is development', () => {
-    // e2e runs unpackaged; `npm run dev` also sets NODE_ENV. Either branch
+    // e2e runs unpackaged; `pnpm run dev` also sets NODE_ENV. Either branch
     // alone is enough, and both must agree.
     state.isPackaged = true;
     process.env.NODE_ENV = 'development';

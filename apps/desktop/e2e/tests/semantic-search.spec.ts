@@ -3,7 +3,7 @@
  *
  * Tests for semantic (meaning-based) search functionality.
  * Requires:
- *   1. Core package built: npm run build:core
+ *   1. Core package built: pnpm run build:core
  *   2. A semantic index present in the app's data directory (the tests skip
  *      themselves when it is absent - see `hasSemanticIndex` below).
  */

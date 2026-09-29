@@ -3,10 +3,10 @@ node_modules/
 dist/
 out/
 
-# Extension UI kit, written by `npm run build:kit -w @bible/ui` (the desktop app builds it in memory instead).
+# Extension UI kit, written by `pnpm --filter @bible/ui run build:kit` (the desktop app builds it in memory instead).
 packages/ui/dist-kit/
 
-# Packed SDK tarballs produced by `npm run pack:sdk`, for scaffolding an
+# Packed SDK tarballs produced by `pnpm run pack:sdk`, for scaffolding an
 # extension project outside this repository. Build output, not source.
 /build/sdk/
 
@@ -28,7 +28,7 @@ apps/web/public/icons/
 
 # Locale JSON Schemas, generated from src/locales/en/ by
 # apps/web/scripts/generate-locale-schemas.mjs on the same hooks. Editor
-# validation only; `npm run check:locale-schemas` verifies they are current.
+# validation only; `pnpm run check:locale-schemas` verifies they are current.
 apps/web/src/locales/schemas/
 
 # Test artifacts

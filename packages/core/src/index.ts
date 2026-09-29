@@ -159,3 +159,6 @@ export * as Crypto from './Crypto';
 
 // Backup format v1 (task 0078): also re-exported from `./browser`.
 export * as Backup from './Backup';
+
+// Web user-data store (task 0084): also re-exported from `./browser`.
+export * as UserData from './UserData';

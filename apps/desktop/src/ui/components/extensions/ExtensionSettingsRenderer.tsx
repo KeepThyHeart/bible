@@ -6,7 +6,8 @@
  * and renders one row per field. Save/load round-trip through the existing
  * `extensions:getSettings` / `extensions:setSettings` IPC pair.
  *
- * The renderer is intentionally minimal markup-wise; polish comes alongside
+ * The field rows are drawn by the shared `SettingsForm` in `@bible/ui`, the same
+ * component the settings registry uses. The renderer is intentionally minimal markup-wise; polish comes alongside
  * the rest of the Extensions panel UI. What matters here is a working,
  * accessible form so an extension that ships a
  * configuration schema becomes user-configurable. The pure form-walking
@@ -15,13 +16,12 @@
 
 import React from 'react';
 
+import { SettingsForm } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import {
   applyDefaults,
   extractFields,
   getMissingRequired,
-  isFieldVisible,
-  type SettingsField,
 } from './extensionSettingsSchema';
 
 /**
@@ -145,15 +145,17 @@ const ExtensionSettingsRenderer: React.FC<ExtensionSettingsRendererProps> = ({
           void handleSave();
         }}
       >
-        {fields.map((field) => (
-          <FieldRow
-            key={field.key}
-            field={field}
-            values={values}
-            onChange={setFieldValue}
-            t={t}
-          />
-        ))}
+        {/* The shared renderer (`@bible/ui`), also used for registry-driven settings. */}
+        <SettingsForm
+          fields={fields}
+          values={values}
+          onChange={setFieldValue}
+          idPrefix="ext-setting"
+          labels={{
+            select: t('extensionSettingsRenderer.select'),
+            learnMore: (field) => t('extensionSettings.learnMoreLabel', { field }),
+          }}
+        />
         <div className="extension-settings-actions">
           <button type="submit" disabled={saving}>
             {saving
@@ -169,178 +171,6 @@ const ExtensionSettingsRenderer: React.FC<ExtensionSettingsRendererProps> = ({
       </form>
     </div>
   );
-};
-
-type Translate = (key: string, params?: Record<string, unknown>) => string;
-
-interface FieldRowProps {
-  field: SettingsField;
-  values: Record<string, unknown>;
-  onChange: (key: string, value: unknown) => void;
-  t: Translate;
-}
-
-const FieldRow: React.FC<FieldRowProps> = ({ field, values, onChange, t }) => {
-  if (!isFieldVisible(field, values)) return null;
-  if (field.kind === 'group') {
-    return (
-      <fieldset className="extension-settings-group">
-        {field.title && <legend>{field.title}</legend>}
-        {field.description && <p>{field.description}</p>}
-        {field.children?.map((child) => (
-          <FieldRow key={child.key} field={child} values={values} onChange={onChange} t={t} />
-        ))}
-      </fieldset>
-    );
-  }
-
-  const value = values[field.key];
-  const label = field.title ?? field.propertyName;
-  const id = `ext-setting-${field.key.replace(/\./g, '-')}`;
-  const describedBy = field.description ? `${id}-description` : undefined;
-
-  return (
-    <div className="extension-settings-row">
-      <label htmlFor={id}>
-        {label}
-        {/* The asterisk is decoration; `aria-required` carries the meaning. */}
-        {field.required && <span aria-hidden="true"> *</span>}
-      </label>
-      {field.description && <p id={describedBy}>{field.description}</p>}
-      <FieldInput
-        field={field}
-        id={id}
-        value={value}
-        onChange={onChange}
-        describedBy={describedBy}
-      />
-      {field.helpUrl && (
-        <a href={field.helpUrl} target="_blank" rel="noreferrer">
-          {t('extensionSettings.learnMoreLabel', { field: label })}
-        </a>
-      )}
-    </div>
-  );
-};
-
-interface FieldInputProps {
-  id: string;
-  field: SettingsField;
-  value: unknown;
-  onChange: (key: string, value: unknown) => void;
-  describedBy?: string | undefined;
-}
-
-const FieldInput: React.FC<FieldInputProps> = ({ id, field, value, onChange, describedBy }) => {
-  const { t } = useI18n();
-  const set = (v: unknown): void => onChange(field.key, v);
-  // Shared on every branch so description text and requiredness reach AT
-  // regardless of which control type the schema asks for.
-  const common = {
-    id,
-    'aria-describedby': describedBy,
-    'aria-required': field.required ? (true as const) : undefined,
-  };
-
-  switch (field.kind) {
-    case 'string':
-    case 'uri':
-    case 'email':
-      return (
-        <input
-          {...common}
-          type={field.kind === 'email' ? 'email' : field.kind === 'uri' ? 'url' : 'text'}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(e) => set(e.target.value)}
-        />
-      );
-    case 'password':
-    case 'secret':
-      return (
-        <input
-          {...common}
-          type="password"
-          value={typeof value === 'string' ? value : ''}
-          onChange={(e) => set(e.target.value)}
-        />
-      );
-    case 'textarea':
-      return (
-        <textarea
-          {...common}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(e) => set(e.target.value)}
-        />
-      );
-    case 'enum':
-      return (
-        <select
-          {...common}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(e) => set(e.target.value)}
-        >
-          <option value="">{t('extensionSettingsRenderer.select')}</option>
-          {field.enumValues?.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      );
-    case 'number':
-    case 'integer':
-      return (
-        <input
-          {...common}
-          type="number"
-          value={typeof value === 'number' ? value : ''}
-          min={field.numberConstraints?.minimum}
-          max={field.numberConstraints?.maximum}
-          step={
-            field.numberConstraints?.multipleOf ??
-            (field.kind === 'integer' ? 1 : undefined)
-          }
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === '') {
-              set(undefined);
-              return;
-            }
-            const parsed = field.kind === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
-            if (!Number.isNaN(parsed)) set(parsed);
-          }}
-        />
-      );
-    case 'boolean':
-      return (
-        <input
-          {...common}
-          type="checkbox"
-          checked={value === true}
-          onChange={(e) => set(e.target.checked)}
-        />
-      );
-    case 'string-array': {
-      const arr = Array.isArray(value) ? (value as unknown[]).filter((v) => typeof v === 'string') : [];
-      return (
-        <input
-          {...common}
-          type="text"
-          value={(arr as string[]).join(', ')}
-          onChange={(e) =>
-            set(
-              e.target.value
-                .split(',')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0),
-            )
-          }
-        />
-      );
-    }
-    default:
-      return null;
-  }
 };
 
 export default ExtensionSettingsRenderer;

@@ -19,7 +19,7 @@
  * Before anything is written the pack is held to the same rules the installer
  * enforces - `parseLocalFeaturePack` from @bible/core, and the data-only
  * extension allowlist `FEATURE_PACK_ALLOWED_EXTENSIONS` - so this script cannot
- * produce a pack the app would refuse. Run `npm run build:core` first.
+ * produce a pack the app would refuse. Run `pnpm run build:core` first.
  *
  * Usage:
  *   node scripts/build-feature-pack.js --index=<semantic_index.db> --models=<models root>

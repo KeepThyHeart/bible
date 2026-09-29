@@ -20,12 +20,12 @@
  * `join(getDataPath(), 'extensions')`, and `ExtensionHostDiscovery.loadAll()`
  * scans that directory, so a staged package is picked up as a sideloaded
  * extension and auto-registered with the default permission grant. Staging
- * therefore also makes the extension present in `npm run dev`, which is the
+ * therefore also makes the extension present in `pnpm run dev`, which is the
  * cheapest way to notice that a bundled extension has stopped working.
  *
  * `--out=<dir>` retargets it. The curated offline config
  * (electron-builder.curated.yml) ships `build-data/` rather than `data/`, so
- * `npm run package:{win,mac,linux}` stages a second copy into
+ * `pnpm run package:{win,mac,linux}` stages a second copy into
  * `build-data/extensions/` AFTER `stage-build-data.js` has run - that script
  * deletes and recreates `build-data/` wholesale, so the order matters.
  *

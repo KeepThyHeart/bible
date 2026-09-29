@@ -5,10 +5,21 @@
   "layout.readingMode.description": "केवल बाइबल, पढ़ने के लिए हाशिये के साथ",
   "layout.studyModeQuad.name": "अध्ययन मोड (चार फलक)",
   "layout.studyModeQuad.description": "2×2 लेआउट: ऊपर बाईं ओर टीका, ऊपर दाईं ओर बाइबल, नीचे बाईं ओर शब्दकोश, नीचे दाईं ओर टिप्पणियाँ",
+  "layout.writerMode.name": "लेखन मोड",
+  "layout.writerMode.description": "बाईं ओर पवित्रशास्त्र, दाईं ओर लिखने की जगह",
   "layout.applyPreset.title": "{presetName} लागू करें",
   "layout.dropdown.label": "लेआउट",
   "layout.dropdown.tooltip": "किसी अंतर्निहित लेआउट पर लौटें",
+  "layout.reset.label": "डिफ़ॉल्ट लेआउट पर वापस जाएँ",
+  "layout.newTab.createFailed": "वह फलक नहीं खोला जा सका। कृपया फिर से प्रयास करें।",
+  "layout.collapsePane.tooltip": "इस फलक को किनारे समेट दें",
+  "layout.expandCollapsed.label": "छिपे हुए फलक दिखाएँ",
+  "layout.expandCollapsed.tooltip": "समेटे गए अध्ययन फलकों को फिर से दिखाएँ",
+  "layout.expandCollapsed.tooltipNamed": "वापस लाएँ: {titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "{count, plural, one {# टैब पुनर्व्यवस्थित किया गया।} other {# टैब पुनर्व्यवस्थित किए गए।}}",
   "layout.undo.button": "पूर्ववत करें",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "उन्नत लेआउट मोड",
+  "layout.advancedMode.helpTooltip": "फलकों को खींचकर हाथ से पुनर्व्यवस्थित, विभाजित या दोबारा डॉक करने देता है। पूरी सेटिंग खोलें।",
+  "layout.advancedMode.helpAria": "उन्नत लेआउट मोड के बारे में"
 }

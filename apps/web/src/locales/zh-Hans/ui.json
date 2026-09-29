@@ -105,6 +105,11 @@
   "connectionBanner": {
     "dismiss": "关闭"
   },
+  "updateBanner": {
+    "message": "新版本已就绪。",
+    "reload": "重新加载",
+    "later": "稍后"
+  },
   "search": {
     "placeholder": "搜索圣经…",
     "keyword": "关键词",
@@ -257,6 +262,8 @@
     "about": {
       "title": "关于",
       "refreshApp": "刷新应用",
+      "resetCache": "重置应用缓存",
+      "resetCacheHint": "清除此设备上应用保存的文件和后台 service worker，然后重新加载。如果应用显示过时或出现异常，请使用此功能。您的设置、已下载的模块和笔记会保留。",
       "appName": "圣经研读应用",
       "description": "一款现代化的开源圣经研读应用，专为深入阅读与研究圣经而设计。",
       "license": "采用 <strong>GNU 通用公共许可证 v3.0</strong>（GPL-3.0）授权。",

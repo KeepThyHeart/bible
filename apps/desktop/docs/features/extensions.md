@@ -250,7 +250,7 @@ The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picke
 
 Both carry the panel CSP, `nosniff` and `no-store`, like the other host resources. The `kit/1/` segment is the kit major; within a major, attributes and events are additive only, and a breaking change is `kit/2/` with `1` kept for at least one host minor. `theme.css` also accepts `?theme=<id>` for any id in `HOST_THEME_IDS` (else the active theme), so a panel that heard `theme.changed` can re-link to the new palette without racing the main process's own theme state (`getHostThemeCssFor` in `hostThemeCss.ts`; it never changes the active theme).
 
-**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `npm run dev`, `npm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `npm run build:kit -w @bible/ui` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script tag for authors is `loadKit` in `@bible/extension-ui` (next section).
+**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `pnpm run dev`, `pnpm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `pnpm --filter @bible/ui run build:kit` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script tag for authors is `loadKit` in `@bible/extension-ui` (next section).
 
 **Loading the kit from a panel (`loadKit`).** `bible.loadKit({ components })` (`@bible/extension-ui`, `packages/extension-ui/src/kit.ts`) adds a classic `<script src="ext-ui://host/kit/1/kth-kit.js">` (unless one is already in the page), waits for the `KthKit` global, checks its major version, and calls `KthKit.init({ rpc, components })`, which defines the listed elements and reads `ui.getLocale` once. It returns `{ version, ready, dispose() }`: `ready` resolves with `KthKit`, and rejects on a load error, a 10 s timeout (`timeoutMs`), an incompatible major, or an `init` failure. The kit is host-served only; `@bible/extension-ui` never bundles it. Copy-paste example (declare the kit and the permission it needs, then use an element):
 
@@ -304,11 +304,11 @@ The load-bearing detail is in the main process: `registerExtUiProtocol` is calle
 
 ## Developing an extension outside this repository
 
-Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `npm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
+Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `pnpm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
 
 | Piece | Where |
 |---|---|
-| `scripts/pack-sdk.js` | `npm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
+| `scripts/pack-sdk.js` | `pnpm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
 | `packages/create-extension/src/index.ts` | The scaffolder. `--local-sdk=<dir>` writes `file:` specifiers for the packed tarballs instead of version ranges |
 | `packages/core/scripts/copy-assets.js` | Copies `ExtensionManifestSchema.json` into `dist/` after `tsc`. Nothing imports it, so `tsc` never emitted it, so it reached nobody outside this repo — which is its only audience |
 | `packages/extension-testing/src/cli/validateCommand.ts` | `bible-ext validate` — manifest schema, then the files the manifest points at |
@@ -319,7 +319,7 @@ Everything above describes extensions as the host sees them. This section is the
 
 Three decisions worth not re-litigating:
 
-- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `npm install`s an extension, so a peer range there was a claim with no consumer to honour it.
+- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `pnpm install`s an extension, so a peer range there was a claim with no consumer to honour it.
 - **`createZip` takes no dependency.** `archiver` and `jszip` are both in this tree, but only transitively via electron-builder; depending on either would push a real dependency tree onto every extension author. The format needed is one method and three record types.
 - **Archives are reproducible** — fixed entry timestamps, not mtimes — because `installFromCatalog` verifies a published SHA-256 before unpacking, and an author cannot publish a digest they cannot reproduce.
 
@@ -327,11 +327,11 @@ Three decisions worth not re-litigating:
 
 ## Bundling a first-party extension
 
-`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `npm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
+`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `pnpm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
 
 | File | Role |
 |---|---|
-| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `npm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
+| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `pnpm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
 | `electron-builder.yml` | One `extensions/<id>/**` line per bundled extension inside the `data` allowlist. Named per extension, **not** `extensions/**`: in a dev tree that directory also holds whatever the developer sideloaded or installed from a catalog, plus arbitrary per-extension user data |
 
 The bundled list is deliberate and explicit rather than a glob over `packages/`, which also holds `@bible/core`, `@bible/extension-ui`, `@bible/extension-testing` and a scaffolder - none of them extensions. Whether a given extension ships in v1 is a product decision; the mechanism is one line in each of those two files.
