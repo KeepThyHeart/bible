@@ -15,7 +15,15 @@
  * future cleanup that doesn't belong in this chunk.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// SecretsKeychain imports `electron` at module load. The real package resolves
+// the Electron binary (and downloads it on first use when absent), which made
+// this suite depend on the network. These tests only use the in-memory keychain.
+vi.mock('electron', () => ({
+  app: { isPackaged: false, getPath: () => '', getAppPath: () => '' },
+  safeStorage: { isEncryptionAvailable: () => false },
+}));
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
