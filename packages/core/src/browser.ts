@@ -202,6 +202,21 @@ export type { ExtensionManifest } from './Extensions/ExtensionManifest';
 export { fromZustand, fromSelector, createStore } from './Ui/ReadableStore';
 export type { ReadableStore, WritableStore, ZustandLike } from './Ui/ReadableStore';
 
+// --- Popup positioning and hover intent (used by @bible/ui Popover / HoverCard / BottomSheet) ---
+export { computePopupPosition, isPopupRect } from './Ui/popupPosition';
+export type {
+  PopupAnchor,
+  PopupAlign,
+  PopupDir,
+  PopupPlacement,
+  PopupPoint,
+  PopupPositionInput,
+  PopupPositionResult,
+  PopupRect,
+} from './Ui/popupPosition';
+export { createHoverIntent, DEFAULT_SHOW_DELAY, DEFAULT_HIDE_DELAY } from './Ui/hoverIntent';
+export type { HoverIntent, HoverIntentOptions } from './Ui/hoverIntent';
+
 // --- Content text direction ---------------------------------------------------
 // Direction of a *module's* text (by its language), independent of UI locale.
 export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
