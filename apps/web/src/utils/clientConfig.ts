@@ -15,6 +15,8 @@
 export interface ClientConfig {
   /** Whether the tag-graph (entities) feature is turned on for this deployment. */
   showTagGraph?: boolean;
+  /** Whether the Timeline explorer tab is on. Absent means on. */
+  showTimeline?: boolean;
   staleDays?: number;
   commentaryPopularity?: Record<string, number>;
   ui?: Record<string, unknown>;
@@ -49,4 +51,14 @@ export function getClientConfig(): ClientConfig {
  */
 export function isTagGraphEnabled(): boolean {
   return config.showTagGraph === true;
+}
+
+/**
+ * Whether the Timeline explorer tab is enabled for this deployment.
+ *
+ * On unless the server says otherwise — matching `SiteConfig.features.timeline`.
+ * The tab additionally hides itself when no timeline module is installed.
+ */
+export function isTimelineEnabled(): boolean {
+  return config.showTimeline !== false;
 }

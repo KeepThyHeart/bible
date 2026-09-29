@@ -37,6 +37,11 @@
           "description": "Enable the tag graph visualization feature.",
           "default": false
         },
+        "timeline": {
+          "type": "boolean",
+          "description": "Show the Timeline explorer tab. The tab also hides itself when no timeline module is installed.",
+          "default": true
+        },
         "semanticSearch": {
           "type": "boolean",
           "description": "Enable semantic (Ideas) search. Requires a search pipeline config.",

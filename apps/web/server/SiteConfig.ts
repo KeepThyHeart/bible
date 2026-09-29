@@ -22,6 +22,8 @@ interface AuthConfig {
 
 interface FeaturesConfig {
   tagGraph?: boolean;
+  /** Show the Timeline explorer tab (it hides itself when no timeline module is installed). Default true. */
+  timeline?: boolean;
   semanticSearch?: boolean;
   /** Enable PWA (manifest + service worker). Default true. */
   pwa?: boolean;
@@ -154,9 +156,10 @@ export class SiteConfig {
     };
   }
 
-  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
+  get features(): { tagGraph: boolean; timeline: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
     return {
       tagGraph: this.raw.features?.tagGraph === true,
+      timeline: this.raw.features?.timeline !== false, // default true
       semanticSearch: this.raw.features?.semanticSearch === true,
       pwa: this.raw.features?.pwa !== false, // default true
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
@@ -231,6 +234,7 @@ export class SiteConfig {
   getClientConfig(): Record<string, unknown> {
     const cfg: Record<string, unknown> = {
       showTagGraph: this.features.tagGraph,
+      showTimeline: this.features.timeline,
     };
 
     if (this.repoUrl) cfg.repoUrl = this.repoUrl;

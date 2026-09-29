@@ -18,6 +18,7 @@ import './routes/strongsRoutes.js';
 import './routes/crossRefRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
+import './routes/timelineRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
@@ -377,6 +378,7 @@ const routeDeps = {
     hybridDefault: searchHybridDefault,
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
+    showTimeline: siteConfig.features.timeline,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { StudyVerseHeader } from './StudyVerseHeader';
 import { StudyCrossRefs } from '../StudyPane/StudyCrossRefs';
@@ -12,7 +12,8 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isTagGraphEnabled } from '../../utils/clientConfig';
+import { isTagGraphEnabled, isTimelineEnabled } from '../../utils/clientConfig';
+import { TimelinePane } from '../TimelinePane/TimelinePane';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 
@@ -42,6 +43,9 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
   const verseTopics = useStore(studyStore, () => studyStore.verseTopics);
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const topicsLoading = useStore(studyStore, () => studyStore.topicsLoading);
+
+  const showTimeline = isTimelineEnabled();
+  const [timelineOpen, setTimelineOpen] = useState(false);
 
   // Build verse label
   let verseLabel = '';
@@ -158,6 +162,23 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
 
+        {/* Timeline Section: opens a full-screen sheet, loaded on first open */}
+        {showTimeline && (
+          <div class="mobile-study-section">
+            <div class="mobile-study-section__header">
+              <i class="fa-solid fa-timeline" /> {t('timeline.title')}
+            </div>
+            <div class="mobile-study-section__content">
+              <button
+                class="mobile-study-section__browse-link"
+                onClick={() => setTimelineOpen(true)}
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square" /> {t('timeline.open')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Interlinear Section */}
         <div class="mobile-study-section">
           <div class="mobile-study-section__header">
@@ -168,6 +189,23 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
       </div>
+
+      {/* Timeline full-screen sheet (mounted only while open, so the dataset loads on first open) */}
+      {showTimeline && timelineOpen && (
+        <div class="mobile-topics-overlay">
+          <div class="mobile-topics-overlay__header">
+            <button class="mobile-topics-overlay__close" onClick={() => setTimelineOpen(false)} aria-label={t('timeline.close')}>
+              <i class="fa-solid fa-xmark" />
+            </button>
+            <span class="mobile-topics-overlay__title">
+              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('timeline.title')}
+            </span>
+          </div>
+          <div class="mobile-topics-overlay__body">
+            <TimelinePane />
+          </div>
+        </div>
+      )}
 
       {/* Topics Browser full-screen overlay */}
       {topicsBrowserOpen && (
