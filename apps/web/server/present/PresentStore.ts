@@ -86,6 +86,7 @@ interface RawSessionRow {
   version: number;
   state_json: string;
   plan_json: string;
+  notes_json: string;
 }
 
 export interface PresentSessionRow {
@@ -100,6 +101,8 @@ export interface PresentSessionRow {
   version: number;
   state: StoredPresentState;
   plan: PresentPlanEntry[];
+  /** The presenter's private notes document (opaque JSON), or null if none was sent. */
+  notes: Record<string, unknown> | null;
 }
 
 export interface CreatedSession {
@@ -125,6 +128,12 @@ export class PresentStore {
     mkdirSync(dirname(databasePath), { recursive: true });
     this.sql = new SqliteProvider(databasePath);
     this.sql.exec(SCHEMA_SQL);
+    // The notes column arrived after the first release; sessions are
+    // disposable but a live database must not fail to open over it.
+    const columns = this.sql.queryAll<{ name: string }>('PRAGMA table_info(present_session)');
+    if (!columns.some(c => c.name === 'notes_json')) {
+      this.sql.exec(`ALTER TABLE present_session ADD COLUMN notes_json TEXT NOT NULL DEFAULT 'null'`);
+    }
     this.sql.execute(
       'INSERT OR REPLACE INTO present_meta (key, value) VALUES (?, ?)',
       ['schema_version', String(SCHEMA_VERSION)],
@@ -161,6 +170,16 @@ export class PresentStore {
       plan = [];
     }
 
+    let notes: Record<string, unknown> | null = null;
+    try {
+      const parsed = JSON.parse(raw.notes_json ?? 'null') as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        notes = parsed as Record<string, unknown>;
+      }
+    } catch {
+      notes = null;
+    }
+
     return {
       sessionId: raw.session_id,
       joinCode: raw.join_code,
@@ -173,6 +192,7 @@ export class PresentStore {
       version: raw.version,
       state,
       plan,
+      notes,
     };
   }
 
@@ -284,6 +304,22 @@ export class PresentStore {
       );
       return committed;
     });
+  }
+
+  /** Replace the notes document wholesale. */
+  setNotes(sessionId: string, doc: Record<string, unknown>, now: Date = new Date()): boolean {
+    const result = this.sql.execute(
+      `UPDATE present_session
+          SET notes_json = ?, last_active_at = ?, expires_at = ?
+        WHERE session_id = ?`,
+      [
+        JSON.stringify(doc),
+        now.toISOString(),
+        new Date(now.getTime() + this.ttlMs).toISOString(),
+        sessionId,
+      ],
+    );
+    return result.changes > 0;
   }
 
   /** Replace the running order wholesale. */

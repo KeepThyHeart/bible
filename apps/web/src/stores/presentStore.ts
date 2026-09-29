@@ -128,9 +128,6 @@ class PresentStore extends Store {
    */
   error: string | null = null;
 
-  /** Whether the running order / preview panel is open. */
-  panelOpen = false;
-
   /** See `CLICKER_KEY`. Read once at construction; this browser's own choice. */
   acceptClickerKeys = readStoredClickerPreference();
 
@@ -266,7 +263,6 @@ class PresentStore extends Store {
     this.session = null;
     this.wall = null;
     this.plan = [];
-    this.panelOpen = false;
     this.highlightDraft = null;
     this.connection = 'offline';
     try {
@@ -721,10 +717,21 @@ class PresentStore extends Store {
     }
   }
 
-  addToPlan(item: PresentItem, note?: string): Promise<boolean> {
-    // No id: the server mints one, which keeps id generation in a single place.
-    const entry = { id: '', item, ...(note ? { note } : {}) } as PresentPlanEntry;
-    return this.savePlan([...this.plan, entry]);
+  /**
+   * Add an item to the running order. The plan is now derived from the
+   * presenter's notes, so this appends a pinned line to the notes and the
+   * plan follows (synced by notesStore). `note` is dropped: notes are the
+   * place for the presenter's own text. Loaded lazily: notesStore imports
+   * this store.
+   */
+  async addToPlan(item: PresentItem, _note?: string): Promise<boolean> {
+    try {
+      const { notesStore } = await import('../apps/present/notes/notesStore');
+      notesStore.addItem(item, notesStore.labelFor(item));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   removeFromPlan(id: string): Promise<boolean> {
@@ -787,11 +794,6 @@ class PresentStore extends Store {
         })
         .catch(() => { /* The id stays as the label, and no slide count is learned. */ });
     }
-  }
-
-  setPanelOpen(open: boolean): void {
-    this.panelOpen = open;
-    this.notify();
   }
 
   setAcceptClickerKeys(accept: boolean): void {

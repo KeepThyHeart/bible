@@ -15,6 +15,26 @@ function key(overrides: Partial<{
   };
 }
 
+describe('resolveShortcutAction with the Presenter open', () => {
+  const open = { hasStaged: true, acceptClickerKeys: true, hasLive: true, presenterOpen: true };
+
+  it('does not send Study\'s staged verse with Alt+Enter', () => {
+    expect(resolveShortcutAction(key({ altKey: true, key: 'Enter' }), open)).toBeNull();
+  });
+
+  it('never steps the hidden Study verse', () => {
+    expect(resolveShortcutAction(key({ key: 'ArrowDown' }), { ...open, acceptClickerKeys: false })).toBeNull();
+    expect(resolveShortcutAction(key({ key: 'ArrowUp' }), { ...open, hasLive: false })).toBeNull();
+  });
+
+  it('keeps the clicker and transport keys', () => {
+    expect(resolveShortcutAction(key({ key: 'ArrowDown' }), open)).toEqual({ type: 'next' });
+    expect(resolveShortcutAction(key({ key: 'b' }), open)).toEqual({ type: 'toggleBlank' });
+    expect(resolveShortcutAction(key({ altKey: true, key: 'ArrowRight' }), open)).toEqual({ type: 'next' });
+    expect(resolveShortcutAction(key({ ctrlKey: true, key: 'Enter' }), open)).toEqual({ type: 'toggleBlank' });
+  });
+});
+
 describe('resolveShortcutAction', () => {
   const noClicker = { hasStaged: true, acceptClickerKeys: false };
 

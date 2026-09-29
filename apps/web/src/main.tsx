@@ -22,6 +22,8 @@ import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregiste
 import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
 import { followStore } from './stores/followStore';
+import { isPresenterHash, PRESENTER_HASH, rememberReaderHash } from './apps/present/route';
+import { setVerseSearchProvider } from './present/command';
 import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from './present/controlLink';
 import i18n, { ensureLocaleLoaded } from './i18n';
 
@@ -203,8 +205,10 @@ async function init() {
       `${baseUrl}/ort/`,        // self-hosted ONNX Runtime wasm (CSP blocks the jsDelivr default)
     );
     searchStore.init(browserSearch);
+    setVerseSearchProvider(browserSearch);
   } else {
     searchStore.init(providers.search);
+    setVerseSearchProvider(providers.search);
   }
   settingsStore.applyTheme();
 
@@ -240,6 +244,11 @@ async function init() {
   // If the active tab already has cached verses from the session, render them
   // immediately without re-fetching — this makes repeat visits near-instant.
   const restoredTab = bibleStore.getActiveTab();
+  // A cold load at `#/@present` boots the reader as if there were no hash, so
+  // Back lands on the last position rather than Home; the presenter hash is put
+  // back just before the first render.
+  const coldPresenter = isPresenterHash();
+  if (coldPresenter) history.replaceState(null, '', window.location.pathname + window.location.search);
   if (window.location.hash) {
     await withBootTimeout(bibleStore.navigateFromHash(window.location.hash));
   } else if (restoredTab && restoredTab.verses.length > 0) {
@@ -258,6 +267,11 @@ async function init() {
   } else if (restoredTab && restoredTab.book && restoredTab.chapter) {
     // Has book/chapter but no cached verses — fetch them
     await withBootTimeout(bibleStore.navigateTo(restoredTab.book, restoredTab.chapter));
+  }
+
+  if (coldPresenter) {
+    rememberReaderHash(window.location.hash);
+    history.replaceState(null, '', PRESENTER_HASH);
   }
 
   // Render the app (ErrorBoundary catches component crashes)

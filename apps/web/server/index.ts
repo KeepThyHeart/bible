@@ -238,6 +238,9 @@ app.use(helmet({
 }));
 
 // Body size limits (item #5)
+// The presenter notes route carries a document up to 256 KB (the route enforces
+// the cap itself), so it gets its own parser ahead of the general 100 KB one.
+app.use('/api/present/s/:sessionId/notes', express.json({ limit: '300kb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
@@ -543,6 +546,20 @@ if (existsSync(clientDir)) {
     // copy pins this screen to a stale build.
     res.set('Cache-Control', 'no-store');
     res.sendFile(presentViewerHtml);
+  });
+
+  /**
+   * `/present/solo`: the solo viewer (`present/solo.html`), a projection page
+   * driven by a local session with no join code. Same placement reasons as above.
+   */
+  const presentSoloHtml = join(clientDir, 'present', 'solo.html');
+  app.get('/present/solo', (_req, res) => {
+    if (!existsSync(presentSoloHtml)) {
+      res.status(404).json({ error: 'The solo viewer is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentSoloHtml);
   });
 
   /**

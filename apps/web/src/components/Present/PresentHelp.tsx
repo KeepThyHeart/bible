@@ -3,32 +3,34 @@ import { useTranslation } from 'react-i18next';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 /**
- * A concise, multi-tab help overlay for presenting, opened from the hamburger
- * menu (`PresentPanelBody.tsx`) rather than folded into the app's own
- * `HelpDialog`: presenting has its own vocabulary (staged vs. sent, the
- * running order, handoff) that would otherwise crowd a dialog about reading
+ * A concise, multi-tab help overlay for the Presenter, opened from the `?` key,
+ * the app bar or the Control menu rather than folded into the app's own
+ * `HelpDialog`: presenting has its own vocabulary (notes, the plan, going
+ * live, the simple viewer) that would otherwise crowd a dialog about reading
  * and searching Scripture.
  *
- * The Highlights tab documents the press-and-hold / tap-the-ends gesture of
- * `PresentHighlightBar` and `VerseRenderer`'s `PresenterWords`.
+ * Each tab is a short list of points; the strings live in `help.json` under
+ * `present.<tab>.<point>` and may carry <strong>/<kbd> markup.
  *
  * Reuses `.help-dialog` and `.settings-panel-overlay` from the app's own help
- * dialog rather than a bespoke box, so this reads as the same kind of thing
- * to a presenter who has already opened the other one.
+ * dialog rather than a bespoke box.
  */
 
-type HelpTab = 'sending' | 'hymnsQuotes' | 'highlights' | 'joining';
+type HelpTab = 'notes' | 'control' | 'preview' | 'command' | 'simple' | 'study' | 'joining';
 
-const TABS: Array<{ id: HelpTab; labelKey: string }> = [
-  { id: 'sending', labelKey: 'present.tabSending' },
-  { id: 'hymnsQuotes', labelKey: 'present.tabHymnsQuotes' },
-  { id: 'highlights', labelKey: 'present.tabHighlights' },
-  { id: 'joining', labelKey: 'present.tabJoining' },
+const TABS: Array<{ id: HelpTab; points: string[] }> = [
+  { id: 'notes', points: ['references', 'hymns', 'quotes', 'highlight', 'play', 'ctrlEnter', 'amber'] },
+  { id: 'control', points: ['transport', 'pickers', 'chips', 'keys', 'prepare'] },
+  { id: 'preview', points: ['what', 'dblclick', 'clickVerse', 'presenterOnly'] },
+  { id: 'command', points: ['verse', 'passage', 'hymn', 'blank', 'search', 'open'] },
+  { id: 'simple', points: ['what', 'open', 'prompt', 'noSearch'] },
+  { id: 'study', points: ['send', 'highlight', 'companion'] },
+  { id: 'joining', points: ['share', 'handoff', 'lock'] },
 ];
 
 export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
   const { t } = useTranslation('help');
-  const [tab, setTab] = useState<HelpTab>('sending');
+  const [tab, setTab] = useState<HelpTab>('notes');
   useEscapeKey(props.isOpen, props.onClose);
 
   if (!props.isOpen) return null;
@@ -47,61 +49,27 @@ export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
         </div>
 
         <div class="help-dialog__tabs">
-          {TABS.map(({ id, labelKey }) => (
+          {TABS.map(({ id }) => (
             <button
               key={id}
               type="button"
               class={`help-dialog__tab ${tab === id ? 'help-dialog__tab--active' : ''}`}
               onClick={() => setTab(id)}
             >
-              {t(labelKey)}
+              {t(`present.tab.${id}`)}
             </button>
           ))}
         </div>
 
         <div class="help-dialog__body">
-          {tab === 'sending' && (
-            <section class="help-dialog__section">
-              <h4>{t('present.sending.title')}</h4>
-              <ul>
-                <li dangerouslySetInnerHTML={{ __html: t('present.sending.stage') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.sending.sendShortcut') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.sending.studyArrows') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.sending.blank') }} />
-              </ul>
-            </section>
-          )}
-          {tab === 'hymnsQuotes' && (
-            <section class="help-dialog__section">
-              <h4>{t('present.hymnsQuotes.title')}</h4>
-              <ul>
-                <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.search') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.quote') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.hymnsQuotes.plan') }} />
-              </ul>
-            </section>
-          )}
-          {tab === 'highlights' && (
-            <section class="help-dialog__section">
-              <h4>{t('present.highlights.title')}</h4>
-              <ul>
-                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.start') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.extend') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.send') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.highlights.clear') }} />
-              </ul>
-            </section>
-          )}
-          {tab === 'joining' && (
-            <section class="help-dialog__section">
-              <h4>{t('present.joining.title')}</h4>
-              <ul>
-                <li dangerouslySetInnerHTML={{ __html: t('present.joining.share') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.joining.handoff') }} />
-                <li dangerouslySetInnerHTML={{ __html: t('present.joining.lock') }} />
-              </ul>
-            </section>
-          )}
+          <section class="help-dialog__section">
+            <h4>{t(`present.${tab}.title`)}</h4>
+            <ul>
+              {TABS.find(x => x.id === tab)!.points.map(point => (
+                <li key={point} dangerouslySetInnerHTML={{ __html: t(`present.${tab}.${point}`) }} />
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
     </div>

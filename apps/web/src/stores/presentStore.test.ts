@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { presentStore, type ControllerSession } from './presentStore';
 import type { PresentPlanEntry, PresentState } from '../present/protocol';
 
+// addToPlan lazily imports notesStore, which would otherwise subscribe to this
+// store for the whole file and fetch notes whenever a session appears.
+const addItem = vi.fn();
+vi.mock('../apps/present/notes/notesStore', () => ({
+  notesStore: { addItem: (...a: unknown[]) => addItem(...a), labelFor: () => 'John 3' },
+}));
+
 /**
  * The controller's half of a session.
  *
@@ -266,10 +273,18 @@ describe('the running order', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('adds an item to the presenter notes, not straight to the plan', async () => {
+    // The plan is derived from the notes; notesStore syncs it afterwards.
+    const item = { kind: 'passage', module: 'KJV', book: 43, chapter: 3 } as const;
+    expect(await presentStore.addToPlan(item)).toBe(true);
+    expect(addItem).toHaveBeenCalledWith(item, 'John 3');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('sends a new entry unnamed, for the server to name', async () => {
     // Ids come from the server so it can guarantee they do not collide.
     fetchMock.mockResolvedValue(respond(200, { plan: [entry('server-made')] }));
-    await presentStore.addToPlan({ kind: 'passage', module: 'KJV', book: 43, chapter: 3 });
+    await presentStore.savePlan([{ id: '', item: { kind: 'passage', module: 'KJV', book: 43, chapter: 3 } }]);
 
     const sent = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(sent.plan[0].id).toBe('');

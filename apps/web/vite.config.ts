@@ -339,6 +339,9 @@ function presentViewerDevPlugin(): Plugin {
       server.middlewares.use((req, _res, next) => {
         if (req.url && /^\/present\/v\/[^/?#]+/.test(req.url)) {
           req.url = '/present/viewer.html';
+        } else if (req.url && /^\/present\/solo(?:[/?#]|$)/.test(req.url)) {
+          // The solo viewer (`present/solo.html`): a local session, no join code.
+          req.url = '/present/solo.html';
         }
         next();
       });
@@ -514,6 +517,7 @@ export default defineConfig({
         index: resolve(__dirname, 'index.html'),
         presentViewer: resolve(__dirname, 'present/viewer.html'),
         presentWatch: resolve(__dirname, 'present/watch.html'),
+        presentSolo: resolve(__dirname, 'present/solo.html'),
       },
     },
   },

@@ -211,6 +211,8 @@ export interface PresentPlanEntry {
   item: PresentItem;
   /** The presenter's own note. Shown on the controller only, never on the wall. */
   note?: string;
+  /** Id of the NotesItem in the notes document this entry was derived from. */
+  notesItemId?: string;
 }
 
 // ---------------------------------------------------------------------------

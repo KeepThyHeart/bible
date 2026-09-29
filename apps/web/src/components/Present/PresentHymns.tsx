@@ -2,7 +2,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { API_BASE } from '../../utils/apiUrl';
 import { presentStore } from '../../stores/presentStore';
+import { presenterShow } from '../../apps/present/presenterSink';
 import type { HymnSearchResponse, HymnSummary } from '../../present/hymns';
+import type { PresentItem } from '../../present/protocol';
 
 /**
  * Choosing a hymn.
@@ -18,7 +20,7 @@ import type { HymnSearchResponse, HymnSummary } from '../../present/hymns';
 
 const DEBOUNCE_MS = 180;
 
-export function PresentHymns() {
+export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<HymnSummary[]>([]);
@@ -72,7 +74,7 @@ export function PresentHymns() {
             <button
               type="button"
               class="present-hymns__pick"
-              onClick={() => void presentStore.show({ kind: 'hymn', hymnId: hymn.id })}
+              onClick={() => presenterShow({ kind: 'hymn', hymnId: hymn.id })}
               title={t('present.hymnSend')}
             >
               <span class="present-hymns__title">{hymn.title}</span>
@@ -86,9 +88,13 @@ export function PresentHymns() {
             <button
               type="button"
               class="present-plan__icon"
-              onClick={() => void presentStore.addToPlan({ kind: 'hymn', hymnId: hymn.id })}
-              title={t('present.hymnAddToPlan')}
-              aria-label={t('present.hymnAddToPlan')}
+              onClick={() => {
+                const item: PresentItem = { kind: 'hymn', hymnId: hymn.id };
+                if (props.onAddToNotes) props.onAddToNotes(item);
+                else void presentStore.addToPlan(item);
+              }}
+              title={props.onAddToNotes ? t('present.control.addToNotes') : t('present.hymnAddToPlan')}
+              aria-label={props.onAddToNotes ? t('present.control.addToNotes') : t('present.hymnAddToPlan')}
             >
               <i class="fa-solid fa-plus" aria-hidden="true" />
             </button>

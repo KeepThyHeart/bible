@@ -19,6 +19,7 @@
  */
 
 import type { ControllerSession } from '../stores/presentStore';
+import { PRESENTER_HASH } from '../apps/present/route';
 
 /** `/present/c/<sessionId>`, with the session id as the first capture. */
 const CONTROL_PATH = /^\/present\/c\/([0-9A-HJKMNP-TV-Z]{16})\/?$/;
@@ -89,9 +90,9 @@ export function takeControlLinkFromUrl(): AdoptedSession | null {
   if (!adopted) return null;
 
   try {
-    // Back to the app's own root, with no token in the bar and no history entry
+    // Off to the Presenter, with no token in the bar and no history entry
     // holding one either.
-    window.history.replaceState(null, '', '/');
+    window.history.replaceState(null, '', `/${PRESENTER_HASH}`);
   } catch {
     // A browser that refuses this leaves the token visible; the session still
     // works, which is the part the presenter is depending on.

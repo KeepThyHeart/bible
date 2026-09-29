@@ -1,248 +1,204 @@
-import { test, expect, type Page } from '@playwright/test';
-import { desktopOnly, navigateTo, waitForVerses } from '../helpers';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import { desktopOnly, waitForVerses } from '../helpers';
 
 /**
- * Session mode: the reading app driving a screen.
+ * The Presenter workspace (`#/@present`): the reading app driving a screen.
  *
- * What has to be proved here is exactly the seam between the two -- that a
- * session started from the reading app's own chrome reaches a viewer opened
- * somewhere else, and that "what I am reading" and "what the room can see"
- * stay apart until the presenter joins them. Both halves run in real browser
- * pages, because the whole point is that they are two devices.
+ * What has to be proved is the seam between the two halves -- that a session
+ * started from the Presenter's own Control pane reaches a viewer opened
+ * somewhere else, whichever way the item was sent (command box, transport,
+ * notes ▶). Both halves run in real browser pages, because the whole point is
+ * that they are two devices.
  *
- * On desktop the controls live in the Study pane's Present tab (`PresentTab`,
- * embedding `PresentPanelBody`) rather than the bottom strip mobile keeps;
- * the header's TV button reveals it directly. Most of the selectors below --
- * `.present-bar__*`, `.present-panel__*` -- are unchanged from the strip:
- * they are BEM class names, not descendant selectors, so `PresentTab` reuses
- * them and renders identically wherever it sits in the DOM.
+ * The Presenter is a full page (Notes / Control / Preview) reached by the
+ * header's TV button; going live is the Control pane's own button. Below 760px
+ * it becomes a different layout (frozen controls, Verse/Hymn/Quote row, a plan
+ * list, a pinned command bar), covered by the phone smoke test.
  */
 
-/** Start a session from the header and wait for the Present tab to appear. */
-async function startPresenting(page: Page): Promise<string> {
+/** Open the Presenter from the header's TV button. */
+async function openPresenter(page: Page): Promise<void> {
   await page.locator('.header__action-btn .fa-tv').click();
-  await expect(page.locator('.present-tab')).toBeVisible({ timeout: 10000 });
+  await expect(page).toHaveURL(/#\/@present$/);
+  await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
+}
 
-  // The tab opens on the join code, which is the first thing a presenter needs.
-  const code = page.locator('.present-panel__code');
+/** Press Go live and return the join code (read from the settings menu). */
+async function goLive(page: Page): Promise<string> {
+  await page.locator('.pz-status .pz-btn--primary').click();
+  await expect(page.locator('.pz-status__state--live')).toBeVisible({ timeout: 10000 });
+  await page.locator('.pz-status [data-control-menu-toggle]').click();
+  const code = page.locator('.pz-menu .present-panel__code');
   await expect(code).toBeVisible();
-  return (await code.textContent())!.trim();
+  const text = (await code.textContent())!.trim();
+  await page.keyboard.press('Escape');
+  return text;
 }
 
-/** Reveal the Present tab again (e.g. after a reload put the pane back on Study). */
-async function openPresentTab(page: Page): Promise<void> {
-  await page.locator('.header__action-btn .fa-tv').click();
-  await expect(page.locator('.present-tab')).toBeVisible({ timeout: 10000 });
+async function openWall(context: BrowserContext, joinCode: string): Promise<Page> {
+  const wall = await context.newPage();
+  await wall.goto(`/present/v/${joinCode}`);
+  return wall;
 }
 
-test.describe('Presenting from the reading app', () => {
+/** Type into the Control pane's command box and press Enter. */
+async function command(page: Page, text: string): Promise<void> {
+  const input = page.locator('.pz-control .present-cmd__input');
+  await input.fill(text);
+  await input.press('Enter');
+}
+
+test.describe('The Presenter workspace', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    // The tab exists on both layouts, but the preview and the running order
-    // are laid out for a desktop; running the whole flow on every phone
-    // profile tests the profiles.
+    // Desktop layout; the phone layout has its own test below.
     desktopOnly(testInfo);
     await page.goto('/');
     await waitForVerses(page);
   });
 
-  test('starting a session shows a join code and a control strip', async ({ page }) => {
-    const joinCode = await startPresenting(page);
+  test('the header TV button opens the full-page Presenter with three panes', async ({ page }) => {
+    await openPresenter(page);
+    await expect(page.locator('.pz-notes')).toBeVisible();
+    await expect(page.locator('.pz-control')).toBeVisible();
+    await expect(page.locator('.pz-preview')).toBeVisible();
+    // Nothing is broadcast until "Go live".
+    await expect(page.locator('.pz-status__state--live')).toHaveCount(0);
+  });
+
+  test('Go live yields a join code, and a joined viewer is counted', async ({ page, context }) => {
+    await openPresenter(page);
+    const joinCode = await goLive(page);
     expect(joinCode).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
 
-    // Nothing has been sent, and the strip says so rather than implying the
-    // screen is already showing what the presenter is reading.
-    await expect(page.locator('.present-bar__live-empty')).toBeVisible();
+    const wall = await openWall(context, joinCode);
+    await expect(wall.locator('.pv-lobby-code')).toBeVisible();
+    await expect(page.locator('.pz-status__viewers')).toContainText('1', { timeout: 10000 });
+    await wall.close();
   });
 
-  test('the Present tab carries a live dot visible from another tab', async ({ page }) => {
-    await startPresenting(page);
-    await page.locator('.right-pane-tabs__tab', { hasText: 'Study' }).click();
-    await expect(page.locator('.right-pane-tabs__live-dot')).toBeVisible();
-  });
+  test('the command box shows a reference on the wall, and "." blanks it', async ({ page, context }) => {
+    await openPresenter(page);
+    const wall = await openWall(context, await goLive(page));
 
-  test('what the presenter reads does not reach the wall until they send it', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
-    await expect(wall.locator('.pv-lobby-code')).toBeVisible();
-
-    // Navigate the reader. This is the preview -- and it must stay private.
-    await navigateTo(page, 'John 3');
-    await expect(page.locator('.present-bar__send')).toBeEnabled();
-    // Still the lobby: a preacher looking ahead has not broadcast anything.
-    await expect(wall.locator('.pv-lobby-code')).toBeVisible();
-
-    await page.locator('.present-bar__send').click();
+    await command(page, 'John 3:16');
     await expect(wall.locator('.pv-heading')).toHaveText('John 3', { timeout: 10000 });
-    // And the strip now agrees the two are the same.
-    await expect(page.locator('.present-bar__send--live')).toBeVisible();
+    await expect(wall.locator('.pv-verse--anchor')).toBeVisible();
 
-    await wall.close();
-  });
-
-  test('the viewer count is how a presenter knows the screen is connected', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    await expect(page.locator('.present-bar__viewers')).toHaveText('0');
-
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
-    await expect(page.locator('.present-bar__viewers')).toHaveText('1', { timeout: 10000 });
-
-    await wall.close();
-    await expect(page.locator('.present-bar__viewers')).toHaveText('0', { timeout: 10000 });
-  });
-
-  test('blanking takes the wall and gives it back unchanged', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
-
-    await navigateTo(page, 'John 3');
-    await page.locator('.present-bar__send').click();
-    await expect(wall.locator('.pv-verse--anchor')).toBeVisible({ timeout: 10000 });
-
-    await page.locator('.present-bar__btn--blank').click();
-    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '1');
-    // Underneath, untouched: unblanking has to restore the screen exactly.
+    await command(page, '.');
+    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '1', { timeout: 10000 });
+    // Underneath, untouched: unblanking must restore the screen exactly.
     await expect(wall.locator('.pv-verse--anchor')).toHaveCount(1);
 
-    await page.locator('.present-bar__btn--blank').click();
-    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '0');
-
+    await command(page, '.');
+    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '0', { timeout: 10000 });
     await wall.close();
   });
 
-  test('the running order survives the controller being reloaded', async ({ page }) => {
-    // The plan lives on the session, not in this browser, which is what lets a
-    // service be prepared on a desktop and driven from a phone.
-    await startPresenting(page);
-    await navigateTo(page, 'John 3');
+  test('the transport icons blank, unblank and advance', async ({ page, context }) => {
+    await openPresenter(page);
+    const wall = await openWall(context, await goLive(page));
+    await command(page, 'John 3:16');
+    await expect(wall.locator('.pv-verse--anchor')).toBeVisible({ timeout: 10000 });
 
-    await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
-    await page.locator('.present-plan__add').click();
-    await expect(page.locator('.present-plan__ref')).toHaveText('John 3');
+    await page.locator('.pz-transport__btn--blank').click();
+    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '1', { timeout: 10000 });
+    await page.locator('.pz-transport__btn--blank').click();
+    await expect(wall.locator('.pv-curtain')).toHaveCSS('opacity', '0', { timeout: 10000 });
 
-    await page.reload();
-    await waitForVerses(page);
-
-    // A reload always lands back on Study -- the Present tab only exists
-    // while a session is live, and (like Search) does not try to survive a
-    // reload as the *active* tab. The session itself does survive: this is
-    // still the same presenter, and the join code before still works.
-    await openPresentTab(page);
-    await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
-    await expect(page.locator('.present-plan__ref')).toHaveText('John 3');
+    const anchor = () => wall.locator('.pv-verse--anchor').textContent();
+    const before = await anchor();
+    await page.locator('.pz-transport__btn .fa-chevron-right').click();
+    await expect.poll(anchor, { timeout: 10000 }).not.toBe(before);
+    await wall.close();
   });
 
-  test('an entry in the running order sends to the wall', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
+  test('a ▶ beside a reference in the notes sends it to the wall', async ({ page, context }) => {
+    await openPresenter(page);
+    const wall = await openWall(context, await goLive(page));
 
-    await navigateTo(page, 'Romans 8');
-    await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
-    await page.locator('.present-plan__add').click();
+    const editor = page.locator('.pz-notes .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.type('Romans 8:1');
 
-    // Wander off the plan, the way a presenter does.
-    await navigateTo(page, 'John 3');
-    await page.locator('.present-plan__label').click();
+    // Detection runs after a short pause; the ▶ appears once a reference is recognised.
+    const play = page.locator('.pz-notes .pn-play').first();
+    await expect(play).toBeVisible({ timeout: 10000 });
+    await play.click();
 
     await expect(wall.locator('.pv-heading')).toHaveText('Romans 8', { timeout: 10000 });
     await wall.close();
   });
 
-  test('a hymn goes on the wall with its credit line', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
+  test('a hymn from the Hymn picker goes on the wall with its credit line', async ({ page, context }) => {
+    await openPresenter(page);
+    const wall = await openWall(context, await goLive(page));
 
-    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
-    // By hymnal number, which is how a hymn actually gets called for.
+    await page.locator('.pz-addrow__btn', { hasText: 'Hymn' }).click();
     await page.locator('.present-hymns__search').fill('460');
     await expect(page.locator('.present-hymns__title').first()).toHaveText('Amazing Grace');
     await page.locator('.present-hymns__pick').first().click();
 
     await expect(wall.locator('.pv-hymn-line').first())
       .toHaveText('Amazing grace! how sweet the sound', { timeout: 10000 });
-    // Attribution is rendered from the library's own metadata rather than typed
-    // by whoever prepared the service -- which is what keeps the credit right.
     await expect(wall.locator('.pv-hymn-credit')).toContainText('John Newton');
-    // Nothing that belongs to a Bible passage leaks onto a hymn slide.
     await expect(wall.locator('.pv-verse')).toHaveCount(0);
-
     await wall.close();
   });
 
-  test('next advances a hymn by slide and stops at the end', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
+  test('ending the session tells the wall and returns the Control pane to not-live', async ({ page, context }) => {
+    await openPresenter(page);
+    const wall = await openWall(context, await goLive(page));
 
-    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
-    await page.locator('.present-hymns__search').fill('amazing grace');
-    await page.locator('.present-hymns__pick').first().click();
-    await expect(wall.locator('.pv-hymn-line').first()).toBeVisible({ timeout: 10000 });
-
-    const firstLine = () => wall.locator('.pv-hymn-line').first().textContent();
-    expect(await firstLine()).toContain('Amazing grace!');
-
-    await page.locator('.present-bar__btn .fa-chevron-right').click();
-    await expect.poll(firstLine).toContain("'Twas grace");
-
-    // Off the end of the last slide, the wall must simply stay where it is
-    // rather than emptying.
-    for (let i = 0; i < 8; i++) await page.locator('.present-bar__btn .fa-chevron-right').click();
-    await expect(wall.locator('.pv-hymn-line').first()).toBeVisible();
-
-    await wall.close();
-  });
-
-  test('a hymn in the running order is named, not numbered', async ({ page }) => {
-    // The session carries a hymn id; the strip has to show a title.
-    await startPresenting(page);
-    await page.locator('.present-panel__tab', { hasText: 'Hymns' }).click();
-    await page.locator('.present-hymns__search').fill('my jesus');
-    await page.locator('.present-hymns__row').first().locator('.present-plan__icon').click();
-
-    await page.locator('.present-panel__tab', { hasText: 'Running order' }).click();
-    await expect(page.locator('.present-plan__ref')).toHaveText('My Jesus, I Love Thee');
-  });
-
-  test('ending the session clears the wall and the strip', async ({ page, context }) => {
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
-    await navigateTo(page, 'John 3');
-    await page.locator('.present-bar__send').click();
-    await expect(wall.locator('.pv-verse--anchor')).toBeVisible({ timeout: 10000 });
-
-    await page.locator('.present-panel__tab', { hasText: 'Joining' }).click();
-    await page.locator('.present-panel__button--danger').click();
-    await page.locator('.present-panel__button--danger', { hasText: 'End it' }).click();
+    await page.locator('.pz-status .pz-btn', { hasText: /end/i }).first().click();
+    await page.locator('.pz-status__confirm .pz-btn--danger').click();
 
     await expect(wall.locator('.pv-lobby-hint')).toContainText(/ended/i, { timeout: 10000 });
-    await expect(page.locator('.present-tab')).toHaveCount(0);
-    // And the reader underneath is exactly as it was.
-    await expect(page.locator('.verse').first()).toBeVisible();
-
+    await expect(page.locator('.pz-status__state--live')).toHaveCount(0);
     await wall.close();
   });
 
-  test('stopping control leaves the screen alone', async ({ page, context }) => {
-    // Closing a laptop lid must not blank a wall mid-service.
-    const joinCode = await startPresenting(page);
-    const wall = await context.newPage();
-    await wall.goto(`/present/v/${joinCode}`);
-    await navigateTo(page, 'John 3');
-    await page.locator('.present-bar__send').click();
-    await expect(wall.locator('.pv-verse--anchor')).toBeVisible({ timeout: 10000 });
+  test('the back button returns to the reader', async ({ page }) => {
+    await openPresenter(page);
+    await page.locator('.pz-appbar__back').click();
+    await expect(page.locator('.presenter-app')).toHaveCount(0);
+    await waitForVerses(page);
+  });
+});
 
-    await page.locator('.present-panel__tab', { hasText: 'Joining' }).click();
-    await page.locator('.present-panel__button', { hasText: 'Stop controlling' }).click();
+test.describe('The Presenter on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
 
-    await expect(page.locator('.present-tab')).toHaveCount(0);
-    await expect(wall.locator('.pv-verse--anchor')).toBeVisible();
+  test('shows the controls, Verse/Hymn/Quote row, plan list and command bar', async ({ page }) => {
+    await page.goto('/#/@present');
+    await expect(page.locator('.pz-phone')).toBeVisible({ timeout: 10000 });
 
-    await wall.close();
+    // Not the desktop panes, and no rich-text editor at all.
+    await expect(page.locator('.pz-notes')).toHaveCount(0);
+    await expect(page.locator('.ProseMirror')).toHaveCount(0);
+
+    await expect(page.locator('.pzp-controls .pz-transport')).toBeVisible();
+    await expect(page.locator('.pzp-add')).toHaveCount(3);
+    await expect(page.locator('.pzp-list')).toBeVisible();
+    await expect(page.locator('.pzp-bottom .present-cmd--bar .present-cmd__input')).toBeVisible();
+  });
+});
+
+test.describe('The simple viewer (/present/solo)', () => {
+  test('"/" opens the command prompt and a reference shows on the screen', async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    await page.goto('/present/solo');
+
+    // The always-visible launcher is there before anything is asked of it.
+    await expect(page.locator('.pv-solo-launch')).toBeVisible({ timeout: 10000 });
+
+    await page.keyboard.press('/');
+    const input = page.locator('.pv-solo-cmd .present-cmd__input');
+    await expect(input).toBeVisible();
+    await input.fill('John 3:16');
+    await input.press('Enter');
+
+    await expect(page.locator('.pv-heading')).toHaveText('John 3', { timeout: 10000 });
+    await expect(page.locator('.pv-verse--anchor')).toBeVisible();
   });
 });

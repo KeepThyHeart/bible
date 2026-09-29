@@ -9,6 +9,7 @@ import { useLocalizer } from '../hooks/useLocalizer';
 import { getAllBookNames, getLocalizedBookName } from '../utils/bookNames';
 import { focusSearchField } from '../utils/focusSearchField';
 import { presentStore } from '../stores/presentStore';
+import { openPresenter } from '../apps/present/route';
 import { localizedBookAliases } from '../constants';
 import type { Localizer } from '@bible/core/browser';
 
@@ -285,17 +286,9 @@ interface HeaderProps {
    */
   onFeedbackClick?: () => void;
   onLogoClick?: () => void;
-  /**
-   * Reveals the Present tab (desktop's Study pane, or mobile's root nav)
-   * instead of the floating panel. Passed only by a shell that has such a
-   * tab to reveal; when it is absent, the TV button falls back to opening
-   * `PresentPanel` as a popup, which is the whole of session mode's UI on a
-   * layout with nowhere else to put it.
-   */
-  onPresentClick?: () => void;
 }
 
-export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick, onPresentClick }: HeaderProps) {
+export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick }: HeaderProps) {
   const { t } = useTranslation();
   const theme = useStore(settingsStore, () => settingsStore.getResolvedTheme());
   const [value, setValue] = useState('');
@@ -547,25 +540,14 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
       </button>
       <div class="header__actions">
         {/*
-          Session mode's one entry point. A single press creates a session and
-          opens the panel on the join code, because the first thing a presenter
-          needs is the code on the television -- and the second is to confirm it
-          connected. Once presenting, this becomes the way back to that panel.
+          Session mode's one entry point: the Presenter workspace. Starting a
+          session is "Go live" in its Control pane, so this only navigates.
         */}
         <button
           class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
-          onClick={() => {
-            if (onPresentClick) {
-              if (presenting) onPresentClick();
-              else void presentStore.start().then(ok => ok && onPresentClick());
-            } else if (presenting) {
-              presentStore.setPanelOpen(!presentStore.panelOpen);
-            } else {
-              void presentStore.start().then(ok => ok && presentStore.setPanelOpen(true));
-            }
-          }}
-          title={presenting ? t('present.openPanel') : t('present.startTooltip')}
-          aria-label={presenting ? t('present.openPanel') : t('present.start')}
+          onClick={openPresenter}
+          title={t('present.openPresenter')}
+          aria-label={t('present.openPresenter')}
         >
           <i class="fa-solid fa-tv" />
         </button>

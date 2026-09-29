@@ -41,6 +41,9 @@ const JOIN_ATTEMPT_WINDOW_MS = 15 * 60_000;
 /** How often expired sessions are swept. Cheap enough to run on a small box. */
 const SWEEP_INTERVAL_MS = 10 * 60_000;
 
+/** Cap on the notes document, measured as its JSON byte length. */
+export const NOTES_MAX_BYTES = 256 * 1024;
+
 interface Attempts {
   count: number;
   first: number;
@@ -436,6 +439,41 @@ export function createPresentRoutes(options: PresentRouteOptions): Router {
       return;
     }
     res.json({ plan });
+  });
+
+  /**
+   * The presenter's private notes document.
+   *
+   * Controller-only, like the plan: it is reachable only with the control
+   * token, and nothing on the join-code routes or the SSE stream ever carries
+   * it, so viewers cannot see it. Stored as an opaque object; the client owns
+   * its shape. Sent alongside the plan so a handoff to another device gets it.
+   */
+  router.get('/s/:sessionId/notes', (req, res): void => {
+    const row = resolveControl(req, res);
+    if (!row) return;
+    res.json({ doc: row.notes });
+  });
+
+  router.put('/s/:sessionId/notes', (req, res): void => {
+    const row = resolveControl(req, res);
+    if (!row) return;
+
+    const doc: unknown = req.body?.doc;
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+      sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid notes document');
+      return;
+    }
+    if (Buffer.byteLength(JSON.stringify(doc), 'utf8') > NOTES_MAX_BYTES) {
+      sendError(res, 413, ErrorCodes.INVALID_PARAM, 'Notes document too large');
+      return;
+    }
+
+    if (!store.setNotes(row.sessionId, doc as Record<string, unknown>)) {
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Session not found');
+      return;
+    }
+    res.json({ ok: true });
   });
 
   // ---------------------------------------------------------------------------

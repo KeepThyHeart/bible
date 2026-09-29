@@ -23,6 +23,9 @@ import { ScreenMenu } from './ScreenMenu';
 import { tokenizeVerse } from './tokenize';
 import { highlightSpansForVerse, spanContaining, sweepStep } from './highlight';
 import { typedWatchAddress } from './controlLink';
+import { createPostMessageSink, forwardUnhandledKeys, type IntentSink } from './intentSink';
+import { usePointerIntents } from './interaction/usePointerIntents';
+import type { WordAddress } from './interaction/words';
 import { API_BASE } from '../utils/apiUrl';
 
 /** The join code is the last path segment of `/present/v/<code>`. */
@@ -31,8 +34,31 @@ export function joinCodeFromLocation(pathname: string): string {
   return match ? decodeURIComponent(match[1]) : '';
 }
 
-export function ViewerApp(): preact.JSX.Element {
-  const joinCode = useMemo(() => joinCodeFromLocation(window.location.pathname), []);
+export interface ViewerAppProps {
+  /**
+   * Where pointer intents go. Supplying one turns the interactive layer on
+   * (double-click to highlight, click to remove, click a neighbouring verse to
+   * move there); the solo viewer passes its local reducer here. Without one,
+   * `?interactive=1` turns it on with a sink that posts to the embedding page
+   * -- the presenter's preview. Neither: a plain wall, exactly as before.
+   */
+  intentSink?: IntentSink;
+  /**
+   * State supplied directly instead of from a session stream -- the solo
+   * viewer's local reducer. When this prop is present (even as null) no
+   * stream is opened; null shows the lobby.
+   */
+  localState?: PresentState | null;
+}
+
+/** Whether this page was asked for the interactive layer (`?interactive=1`). */
+export function isInteractiveSearch(search: string): boolean {
+  return new URLSearchParams(search).get('interactive') === '1';
+}
+
+export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
+  const isLocal = props.localState !== undefined;
+  const joinCode = useMemo(() => (isLocal ? '' : joinCodeFromLocation(window.location.pathname)), [isLocal]);
   /**
    * The same page, rendered small inside the controller as a preview.
    *
@@ -48,8 +74,25 @@ export function ViewerApp(): preact.JSX.Element {
   const isPreview = useMemo(
     () => new URLSearchParams(window.location.search).get('preview') === '1', [],
   );
-  const connection = usePresentStream(joinCode, isPreview);
+  const streamed = usePresentStream(joinCode, isPreview);
+  const connection: PresentConnection = isLocal
+    ? (props.localState ? { status: 'live', state: props.localState } : { status: 'connecting' })
+    : streamed;
   const state = displayedState(connection);
+
+  // Decided once: a sink that changed identity on every render would
+  // re-register the pointer layer's key handler each time.
+  const frameSink = useMemo(
+    () => (isInteractiveSearch(window.location.search) ? createPostMessageSink() ?? undefined : undefined), [],
+  );
+  const sink = props.intentSink ?? frameSink;
+
+  // In the presenter's preview, a click gives this frame the keyboard; hand
+  // back every key the pointer layer does not use, so the presenter's own
+  // shortcuts (clicker, arrows, `.`) keep working. See `ViewerKeyMessage`.
+  const forwardKeys = !props.intentSink && frameSink !== undefined;
+  useEffect(() => (forwardKeys ? forwardUnhandledKeys(window.parent) : undefined), [forwardKeys]);
+
   const passage = usePassage(state?.live ?? null);
   const hymn = useHymn(state?.live ?? null);
 
@@ -89,10 +132,10 @@ export function ViewerApp(): preact.JSX.Element {
   const flashSeq = useItemTransitionFlash(itemTransitionKey(state?.live ?? null));
 
   return (
-    <div class="pv-root" style={style}>
+    <div class={`pv-root${sink ? ' pv-root--interactive' : ''}`} style={style}>
       <div class="pv-safe">
         {renderBody(connection, state, passage, hymn, joinCode,
-          isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep)}
+          isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep, sink)}
       </div>
       {/*
         The blanking curtain is a sibling of the content, not a swap for it.
@@ -134,6 +177,7 @@ function renderBody(
   isPreview: boolean,
   theme: PresentTheme,
   fontStep: number,
+  sink: IntentSink | undefined,
 ): preact.JSX.Element {
   // A closed session takes the wall, even if something was on it. `closed` is
   // only ever sent because a presenter chose to end the session, or because
@@ -174,6 +218,7 @@ function renderBody(
         fontStep={fontStep}
         highlights={state.position.highlights}
         theme={theme}
+        sink={sink}
       />
     );
   }
@@ -193,8 +238,11 @@ function PassageView(props: {
   fontStep: number;
   highlights: HighlightRange[];
   theme: PresentTheme;
+  /** Set only when interactive; see `usePointerIntents`. */
+  sink?: IntentSink;
 }): preact.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { handlers, draft } = usePointerIntents(scrollRef, props.sink, props.highlights, props.anchor);
   const anchorRef = useRef<HTMLParagraphElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const previousKey = useRef<string | null>(null);
@@ -261,15 +309,25 @@ function PassageView(props: {
         numbers in the text.
       */}
       <h1 class="pv-heading" ref={headingRef}>{props.passage.bookName} {props.passage.chapter}</h1>
-      <div class="pv-scroll" ref={scrollRef}>
+      <div class="pv-scroll" ref={scrollRef} {...(handlers ?? {})}>
         {props.verses.map(verse => (
           <p
             key={verse.verse_id}
             ref={verse.verse === props.anchor ? anchorRef : undefined}
             class={`pv-verse${verse.verse === props.anchor ? ' pv-verse--anchor' : ''}`}
+            // What the pointer layer reads a click back into: which verse (by
+            // id, for highlight ranges) and its number (for `goTo`). Inert
+            // attributes, so a plain wall renders exactly as before.
+            data-verse-id={verse.verse_id}
+            data-verse={verse.verse}
           >
             <span class="pv-versenum">{verse.verse}</span>
-            <VerseText html={verse.text_html} verseId={verse.verse_id} highlights={props.highlights} />
+            <VerseText
+              html={verse.text_html}
+              verseId={verse.verse_id}
+              highlights={props.highlights}
+              draftIndex={draftIndexIn(draft, verse.verse_id)}
+            />
           </p>
         ))}
         {/*
@@ -300,10 +358,16 @@ function PassageView(props: {
  * The cost is real but small: a long chapter is a few thousand inline spans,
  * built once when the passage changes rather than on every advance.
  */
+function draftIndexIn(draft: WordAddress | null, verseId: number): number | undefined {
+  return draft && draft.verseId === verseId ? draft.index : undefined;
+}
+
 function VerseText(props: {
   html: string;
   verseId: number;
   highlights: HighlightRange[];
+  /** The touch phrase's first word, when it is in this verse (interactive only). */
+  draftIndex?: number;
 }): preact.JSX.Element {
   // Tokenizing is pure and depends only on the text, so it survives every
   // highlight change and every scroll.
@@ -322,6 +386,7 @@ function VerseText(props: {
         if (token.isDivineName) classes.push('pv-w--divine');
         if (token.isItalic) classes.push('pv-w--supplied');
         if (step >= 0) classes.push('pv-w--hl');
+        if (index === props.draftIndex) classes.push('pv-w--draft');
 
         return (
           <span

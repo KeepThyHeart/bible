@@ -10,7 +10,11 @@
 
 import { render } from 'preact';
 import { ViewerApp } from './ViewerApp';
+// The Presenter's pre-live preview: renders a local state posted by the parent page.
+// Both modules import only ViewerApp and types, so the bundle stays light.
+import { LocalPreviewHost } from '../apps/present/control/LocalPreviewHost';
+import { isLocalPreviewSearch } from '../apps/present/control/localPreviewProtocol';
 import './viewer.css';
 
 const root = document.getElementById('present-viewer');
-if (root) render(<ViewerApp />, root);
+if (root) render(isLocalPreviewSearch(window.location.search) ? <LocalPreviewHost /> : <ViewerApp />, root);

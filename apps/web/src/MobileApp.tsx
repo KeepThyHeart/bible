@@ -13,10 +13,8 @@ import { ConnectionBanner } from './components/ConnectionBanner';
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
 import { PresentBar } from './components/Present/PresentBar';
-import { PresentTab } from './components/Present/PresentTab';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
-import { presentStore } from './stores/presentStore';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -24,6 +22,7 @@ import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
 import { settingsStore } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
+import { consumePresenterPop } from './apps/present/route';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -36,8 +35,7 @@ export function MobileApp({ providers }: MobileAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
-  const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary' | 'present'>('home');
-  const presenting = useStore(presentStore, () => presentStore.session !== null);
+  const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary'>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
   const searchIsOpen = useStore(searchStore, () => searchStore.isOpen);
   const searchSeq = useStore(searchStore, () => searchStore.searchSeq);
@@ -105,16 +103,6 @@ export function MobileApp({ providers }: MobileAppProps) {
     }
   }, [showHome]);
 
-  // The root nav's Home button becomes Present while a session is live (see
-  // the nav array below). Starting a session from Home follows it there, the
-  // way starting a search follows the reader to the Search tab; ending one
-  // while looking at it returns to Home rather than a button that no longer
-  // exists.
-  useEffect(() => {
-    if (presenting && mobileView === 'home') setMobileView('present');
-    else if (!presenting && mobileView === 'present') setMobileView('home');
-  }, [presenting]);
-
   // Auto-dismiss nav tooltip
   useEffect(() => {
     if (!navTooltip) return;
@@ -170,6 +158,10 @@ export function MobileApp({ providers }: MobileAppProps) {
     window.history.pushState({ mobileBack: true }, '');
 
     const handlePopState = (_e: PopStateEvent) => {
+      // Back out of the Presenter: it is the Presenter's own step, and the
+      // hidden Study must not also take one. (Its dummy entry is still in place.)
+      if (consumePresenterPop()) return;
+
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
 
@@ -186,7 +178,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       }
 
       // Priority 3: Non-bible view → back to bible
-      if (mobileView === 'search' || mobileView === 'study' || mobileView === 'commentary' || mobileView === 'present') {
+      if (mobileView === 'search' || mobileView === 'study' || mobileView === 'commentary') {
         switchMobileView('bible');
         return;
       }
@@ -410,11 +402,6 @@ export function MobileApp({ providers }: MobileAppProps) {
                 <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
               </div>
             )}
-            {mobileView === 'present' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <PresentTab compact />
-              </div>
-            )}
           </div>
         </>
       ) : (
@@ -422,8 +409,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           <Header
             onSettingsClick={(section) => shared.openSettings(section)}
             onHelpClick={() => shared.setHelpOpen(true)}
-            onLogoClick={() => switchMobileView(presenting ? 'present' : 'home')}
-            onPresentClick={() => switchMobileView('present')}
+            onLogoClick={() => switchMobileView('home')}
           />
           <ConnectionBanner />
           {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
@@ -448,11 +434,6 @@ export function MobileApp({ providers }: MobileAppProps) {
               <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
             </div>
           )}
-          {mobileView === 'present' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <PresentTab compact />
-            </div>
-          )}
         </div>
       )}
       {navTooltip && (
@@ -460,24 +441,11 @@ export function MobileApp({ providers }: MobileAppProps) {
           {navTooltip}
         </div>
       )}
-      {/*
-        Above the nav, so the thumb targets a presenter needs are the closest
-        thing to their thumb -- everywhere except the Present tab itself,
-        which already opens with these same controls at its own top row.
-      */}
-      {mobileView !== 'present' && (
-        <PresentBar compact onOpenPanel={() => switchMobileView('present')} />
-      )}
+      {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
+      <PresentBar compact />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
         {[
-          // Home becomes Present while a session is live: a presenter reaches
-          // the full controls (running order, hymns, screen, join) from the
-          // root nav, the same way the reader reaches Study or Search. The
-          // compact strip above the nav (`PresentBar`) stays available on
-          // every other tab for the controls needed mid-sentence.
-          presenting
-            ? { view: 'present' as const, icon: 'fa-solid fa-tv', label: 'mobileNav.present' }
-            : { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
+          { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
           { view: 'study' as const, icon: 'fa-solid fa-bookmark', label: 'mobileNav.study' },
           { view: 'bible' as const, icon: 'fa-solid fa-book-bible', label: 'mobileNav.read' },
           { view: 'commentary' as const, icon: 'fa-solid fa-comment-dots', label: 'mobileNav.commentary' },

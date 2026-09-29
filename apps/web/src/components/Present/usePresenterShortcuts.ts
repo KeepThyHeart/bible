@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
+import { presenterOpen } from '../../apps/present/route';
 import { sectionTarget } from '../../present/sections';
 import { useStore } from '../../hooks/useStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -61,7 +62,7 @@ export type ShortcutAction =
  */
 export function resolveShortcutAction(
   event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey' | 'repeat'>,
-  context: { hasStaged: boolean; acceptClickerKeys: boolean; hasLive?: boolean },
+  context: { hasStaged: boolean; acceptClickerKeys: boolean; hasLive?: boolean; presenterOpen?: boolean },
 ): ShortcutAction | null {
   if (event.repeat) return null;
 
@@ -70,7 +71,8 @@ export function resolveShortcutAction(
   }
 
   if (event.altKey && !event.ctrlKey && !event.metaKey) {
-    if (event.key === 'Enter') return context.hasStaged ? { type: 'send' } : null;
+    // Study's staged verse is invisible while the Presenter covers it.
+    if (event.key === 'Enter') return context.hasStaged && !context.presenterOpen ? { type: 'send' } : null;
     if (event.key === 'ArrowRight') return { type: 'next' };
     if (event.key === 'ArrowLeft') return { type: 'previous' };
     return null;
@@ -80,11 +82,19 @@ export function resolveShortcutAction(
   // wall has nothing to move (`hasLive` false) or the clicker layer is opted
   // out of -- see the module doc. Checked before the clicker layer below so
   // the two can never both claim the same key.
-  if (!event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
+  // Not while the Presenter is open: Study is hidden behind it, so there is no
+  // study verse to move, and the arrows must keep scrolling Plan and Control.
+  if (!context.presenterOpen && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
     && (!context.acceptClickerKeys || context.hasLive === false)) {
     if (event.key === 'ArrowUp') return { type: 'stepStudy', direction: 'previous' };
     if (event.key === 'ArrowDown') return { type: 'stepStudy', direction: 'next' };
   }
+
+  // Presenter open with an empty wall: nothing to advance, and the Presenter's
+  // own key handler covers the pre-wall clicker keys; leave arrows to scroll.
+  if (context.presenterOpen && context.hasLive === false
+    && (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+    && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) return null;
 
   // Everything past here is a bare key, so it only ever fires once a
   // presenter has explicitly said a clicker is in play.
@@ -204,6 +214,7 @@ export function usePresenterShortcuts(): void {
         hasStaged: staged !== null,
         acceptClickerKeys,
         hasLive: Boolean(wall?.live),
+        presenterOpen: presenterOpen(),
       });
       if (!action) return;
 

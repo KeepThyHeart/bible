@@ -1,0 +1,28 @@
+/*
+ * Solo viewer chrome: the always-visible "/" launcher and the fading wrapper
+ * around the command box (whose own look is `command/command.css`).
+ * Colours come from the viewer's theme tokens, so it follows light/dark/max.
+ */
+
+.pv-solo-launch {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 40;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--pv-muted);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pv-muted);
+  font: 600 15px/1 ui-monospace, Menlo, Consolas, monospace;
+  opacity: 0.35;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.pv-solo-launch:hover,
+.pv-solo-launch:focus-visible { opacity: 0.9; }
+
+.pv-solo-cmd { opacity: 1; transition: opacity 0.3s ease; }
+.pv-solo-cmd--fading { opacity: 0; }

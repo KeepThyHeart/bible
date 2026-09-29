@@ -207,87 +207,8 @@
   color: var(--text-primary);
   font-size: 14px;
 
-  &__tabs {
-    display: flex;
-    align-items: stretch;
-    gap: 2px;
-    padding: 0 8px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  &__tab {
-    padding: 10px 14px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: none;
-    color: var(--text-muted);
-    font-size: 14px;
-    cursor: pointer;
-
-    &--active {
-      color: var(--text-primary);
-      border-bottom-color: var(--accent-color);
-      font-weight: 700;
-    }
-  }
-
-  // The hamburger toggle for the settings drawer (screen theme/size, joining,
-  // handoff) -- deliberately styled apart from the plain tabs either side of
-  // it, since it opens a different kind of thing (a drawer, not a section
-  // swap) and is reached for far less often than they are.
-  &__menu-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    background: none;
-    color: var(--text-muted);
-    font-size: 13px;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--bg-tertiary);
-    }
-
-    &--active {
-      color: var(--text-primary);
-      background: var(--bg-tertiary);
-      font-weight: 700;
-    }
-  }
-
-  &__help-toggle {
-    padding: 8px 10px;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font-size: 15px;
-    cursor: pointer;
-
-    &:hover {
-      color: var(--text-primary);
-    }
-  }
-
-  &__close {
-    padding: 0 12px;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-
-  &__body {
-    overflow-y: auto;
-    padding: 12px;
-  }
-
-  // The settings drawer opened by the hamburger toggle above: screen and
-  // joining, stacked as their own labelled sections rather than as tabs
-  // equally weighted against the running order and hymns.
+  // The settings menu opened from the Presenter's status row: screen and
+  // joining, stacked as their own labelled sections.
   &__menu {
     display: flex;
     flex-direction: column;
@@ -459,12 +380,6 @@
     cursor: pointer;
   }
 
-  &__danger {
-    flex-basis: 100%;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-color);
-  }
-
   &__handoff {
     display: flex;
     flex-direction: column;
@@ -479,13 +394,6 @@
     gap: 8px;
     font-weight: 700;
     color: #b3261e;
-  }
-
-  &__confirm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
   }
 }
 
@@ -533,79 +441,6 @@
     }
   }
 
-  &__empty {
-    margin: 0;
-    color: var(--text-muted);
-  }
-
-  &__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  &__row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 0;
-    border-bottom: 1px solid var(--border-color);
-
-    &--live {
-      background: var(--highlight-bg);
-    }
-  }
-
-  &__grip {
-    min-width: 32px;
-    min-height: 36px;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    cursor: grab;
-    // dnd-kit needs the browser to stop claiming the gesture for scrolling.
-    touch-action: none;
-  }
-
-  &__label {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    min-width: 0;
-    padding: 8px;
-    border: none;
-    background: none;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--bg-tertiary);
-    }
-  }
-
-  &__ref {
-    font-weight: 700;
-  }
-
-  &__note-text {
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  &__note-input {
-    flex: 1;
-    min-width: 0;
-    padding: 6px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 13px;
-  }
-
   &__icon {
     min-width: 34px;
     min-height: 34px;
@@ -618,10 +453,6 @@
     &:hover {
       background: var(--bg-tertiary);
       color: var(--text-primary);
-    }
-
-    &--remove:hover {
-      color: #b3261e;
     }
   }
 
@@ -664,40 +495,6 @@
     font: inherit;
     font-size: 13px;
     resize: vertical;
-  }
-
-  &__list {
-    list-style: none;
-    margin: 0 0 8px;
-    padding: 0;
-  }
-
-  &__row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 4px 0;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  &__ref {
-    font-weight: 700;
-  }
-
-  &__add {
-    padding: 4px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 13px;
-    cursor: pointer;
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
   }
 }
 
@@ -759,77 +556,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// The Present tab: session mode embedded in the desktop Study pane, instead
-// of the strip-plus-popup used everywhere there is no room for a permanent
-// tab (a phone, or the mobile Study sheet). It reuses `.present-bar__*` and
-// `.present-panel__*` (see `PresentTab.tsx` for why that is safe) and adds
-// only its own layout: a full-height flex column filling the right pane,
-// rather than a fixed strip and a capped-height popup docked under the app.
-// ---------------------------------------------------------------------------
-
-.present-tab {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  flex: 1;
-
-  &__row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    flex-shrink: 0;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 14px;
-  }
-
-  // Mobile's root Present tab: the status line and the send button each want
-  // a whole row of their own on a phone before the prev/next/blank controls
-  // get one, rather than the three competing for one line the way they do
-  // (successfully) in the wider desktop Study pane.
-  &--compact &__row {
-    .present-bar__status,
-    .present-bar__send {
-      flex-basis: 100%;
-    }
-  }
-
-  // The panel body fills whatever height is left, rather than the 45vh cap
-  // that suits a popup competing with the reader for the same screen.
-  .present-panel {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-    border-top: none;
-  }
-
-  &__preview {
-    flex-shrink: 0;
-    padding: 10px 12px 12px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-
-  &__preview-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 8px;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    cursor: pointer;
   }
 }
 

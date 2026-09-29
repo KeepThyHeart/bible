@@ -11,10 +11,8 @@ import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { PresentTab } from './components/Present/PresentTab';
-import { usePresenterShortcuts } from './components/Present/usePresenterShortcuts';
+import { PresentBar } from './components/Present/PresentBar';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
-import { presentStore } from './stores/presentStore';
 import { parseVerseId } from './utils/verseId';
 import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
@@ -22,7 +20,6 @@ import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
-import { useStore } from './hooks/useStore';
 import type { IDataProviders } from './providers/interfaces';
 
 interface DesktopAppProps {
@@ -37,12 +34,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
-  const presenting = useStore(presentStore, () => presentStore.session !== null);
-
-  // The global presenter shortcuts (Alt+Enter/Left/Right, Ctrl+Enter, and —
-  // opted into — a clicker) work no matter which tab is selected, since the
-  // Present tab is no longer the only place session mode's controls live.
-  usePresenterShortcuts();
 
   // Auto-switch to search mode when a search is performed, and force the pane
   // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs
@@ -78,16 +69,13 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     shared.setCopyOpen,
   );
 
-  // The Search tab exists only while a search is open, and the Present tab
-  // only while a session is live; `pane:show` lets a plugin put any id in
-  // rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
+  // The Search tab exists only while a search is open; `pane:show` lets a
+  // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
   // than rendering a right pane with nothing highlighted and no content —
   // which is what made a remembered Search pane look broken.
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
-    : shared.rightPaneMode === 'present'
-      ? (presenting ? 'present' : 'study')
-      : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
+    : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
 
   // Self-heal the persisted value so a bad id does not survive another reload.
   useEffect(() => {
@@ -120,10 +108,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         onSettingsClick={(section) => shared.openSettings(section)}
         onHelpClick={() => shared.setHelpOpen(true)}
         onFeedbackClick={() => shared.setFeedbackOpen(true)}
-        onPresentClick={() => {
-          commentaryStore.setRightPaneMode('present');
-          commentaryStore.expand();
-        }}
       />
       <ConnectionBanner />
       <div class="main-layout">
@@ -185,20 +169,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                     {t('rightPane.search')}
                   </button>
                 )}
-                {presenting && (
-                  <button
-                    class={`right-pane-tabs__tab ${paneMode === 'present' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('present')}
-                  >
-                    {t('rightPane.present')}
-                    {/*
-                      A presenter reading on another tab still needs to see,
-                      at a glance, that a session is live -- the wireframe's
-                      "live dot".
-                    */}
-                    <span class="right-pane-tabs__live-dot" aria-hidden="true" />
-                  </button>
-                )}
                 <button
                   class="right-pane-tabs__collapse"
                   onClick={() => commentaryStore.toggleCollapsed()}
@@ -219,7 +189,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
-              {paneMode === 'present' && <PresentTab />}
             </div>
           </>
         )}
@@ -229,6 +198,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           </div>
         )}
       </div>
+      {/* Study's companion strip while a session is live; also owns the presenter shortcuts. */}
+      <PresentBar />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}

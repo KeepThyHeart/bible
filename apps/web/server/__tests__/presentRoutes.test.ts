@@ -297,6 +297,74 @@ describe('the plan', () => {
   });
 });
 
+describe('the notes document', () => {
+  const doc = { type: 'doc', content: [{ type: 'paragraph', text: 'private sermon note' }] };
+  const put = (s: CreateSessionResponse, body: unknown, token = s.controlToken) => request(app)
+    .put(`/api/present/s/${s.sessionId}/notes`)
+    .set('X-Present-Token', token)
+    .send(body as object);
+
+  it('round-trips through the controller, so a handoff device receives it', async () => {
+    const session = await newSession();
+    expect((await put(session, { doc })).status).toBe(200);
+
+    const get = await request(app)
+      .get(`/api/present/s/${session.sessionId}/notes`)
+      .set('X-Present-Token', session.controlToken);
+    expect(get.status).toBe(200);
+    expect(get.body.doc).toEqual(doc);
+  });
+
+  it('is null before any notes are sent', async () => {
+    const session = await newSession();
+    const get = await request(app)
+      .get(`/api/present/s/${session.sessionId}/notes`)
+      .set('X-Present-Token', session.controlToken);
+    expect(get.body.doc).toBeNull();
+  });
+
+  it('requires the control token', async () => {
+    const session = await newSession();
+    expect((await put(session, { doc }, 'wrong')).status).toBe(404);
+    const get = await request(app).get(`/api/present/s/${session.sessionId}/notes`);
+    expect(get.status).toBe(404);
+  });
+
+  it('rejects a doc that is not an object', async () => {
+    const session = await newSession();
+    expect((await put(session, { doc: 'text' })).status).toBe(400);
+    expect((await put(session, { doc: [1] })).status).toBe(400);
+    expect((await put(session, {})).status).toBe(400);
+  });
+
+  it('rejects a doc over 256 KB', async () => {
+    const session = await newSession();
+    const big = { text: 'x'.repeat(256 * 1024 + 10) }; // the test app's parser is 100 KB, so this may 413 there instead
+    expect((await put(session, { doc: big })).status).toBe(413);
+    const ok = { text: 'x'.repeat(90 * 1024) };
+    expect((await put(session, { doc: ok })).status).toBe(200);
+  });
+
+  it('never reaches viewers', async () => {
+    const session = await newSession();
+    await put(session, { doc });
+    const state = await request(app).get(`/api/present/j/${session.joinCode}/state`);
+    expect(JSON.stringify(state.body)).not.toContain('private sermon note');
+    const viaJoin = await request(app).get(`/api/present/j/${session.joinCode}/notes`);
+    expect(viaJoin.status).toBe(404);
+  });
+
+  it('lets a plan entry carry notesItemId', async () => {
+    const session = await newSession();
+    const res = await request(app)
+      .put(`/api/present/s/${session.sessionId}/plan`)
+      .set('X-Present-Token', session.controlToken)
+      .send({ plan: [{ item: JOHN_3, notesItemId: 'n-1' }] });
+    expect(res.status).toBe(200);
+    expect(res.body.plan[0].notesItemId).toBe('n-1');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The stream
 // ---------------------------------------------------------------------------

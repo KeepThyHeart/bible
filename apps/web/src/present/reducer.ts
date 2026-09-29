@@ -51,6 +51,7 @@ export const LIMITS = {
   /** A running order, not a database. */
   planEntries: 200,
   planNote: 500,
+  notesItemId: 100,
   /** Longest verse in the KJV is 90 words; this leaves generous headroom. */
   verseWords: 500,
   moduleName: 100,
@@ -322,6 +323,10 @@ function validatePlanEntry(value: unknown, id: string): PresentPlanEntry | null 
   if (value.note !== undefined) {
     if (!isBoundedString(value.note, LIMITS.planNote)) return null;
     entry.note = value.note;
+  }
+  if (value.notesItemId !== undefined) {
+    if (!isBoundedString(value.notesItemId, LIMITS.notesItemId)) return null;
+    entry.notesItemId = value.notesItemId;
   }
   return entry;
 }

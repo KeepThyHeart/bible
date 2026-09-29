@@ -281,6 +281,56 @@ body {
 .pv-tail { height: 82%; }
 
 /* ------------------------------------------------------------------------- */
+/* Interactive layer (presenter preview, solo viewer)                         */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Only ever under `.pv-root--interactive`, so a wall renders exactly as it
+ * did. None of these rules change layout: cursors, a selection colour and an
+ * outline, nothing that moves a word.
+ */
+.pv-root--interactive .pv-scroll {
+  cursor: text;
+  /* No double-tap zoom, so a double-tap reaches the page as two taps. */
+  touch-action: manipulation;
+}
+
+/* A neighbouring verse is a link to itself (single click moves there). */
+.pv-root--interactive .pv-verse:not(.pv-verse--anchor),
+.pv-root--interactive .pv-w--hl {
+  cursor: pointer;
+}
+
+/* The drag selection, in highlight colours so it previews what it will become. */
+.pv-root--interactive .pv-scroll ::selection {
+  background: var(--pv-highlight);
+  color: inherit;
+}
+
+/*
+ * The first word of a touch phrase, waiting for the tap on its last word.
+ * An outline rather than a fill: it is not on the wall yet.
+ */
+.pv-w--draft {
+  outline: 0.08em dashed var(--pv-accent);
+  outline-offset: 0.06em;
+  border-radius: 0.1em;
+}
+
+/*
+ * Touch screens: the long-press is ours (it starts a phrase), so no native
+ * text selection or callout menu may open over it. A mouse keeps selection,
+ * because dragging across words is how a mouse picks a phrase.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .pv-root--interactive .pv-scroll {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
 /* Lobby and endings                                                          */
 /* ------------------------------------------------------------------------- */
 

@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
-import type { PresentQuoteItem } from '../../present/protocol';
+import { presenterShow } from '../../apps/present/presenterSink';
+import type { PresentItem, PresentQuoteItem } from '../../present/protocol';
 
 /**
  * Put someone else's words on the wall, set apart from a presenter's own
@@ -12,9 +13,9 @@ import type { PresentQuoteItem } from '../../present/protocol';
  * plan offers. There is nowhere this text is stored except the plan entry the
  * presenter chooses to keep.
  */
-export function PresentQuote() {
+export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void; startOpen?: boolean; onDone?: () => void }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(props.startOpen ?? false);
   const [text, setText] = useState('');
   const [attribution, setAttribution] = useState('');
 
@@ -39,6 +40,7 @@ export function PresentQuote() {
     setOpen(false);
     setText('');
     setAttribution('');
+    props.onDone?.();
   };
 
   const item = buildItem();
@@ -66,7 +68,7 @@ export function PresentQuote() {
           type="button"
           class="present-plan__add"
           disabled={!item}
-          onClick={() => { if (item) { void presentStore.show(item); close(); } }}
+          onClick={() => { if (item) { presenterShow(item); close(); } }}
         >
           {t('present.showQuote')}
         </button>
@@ -74,9 +76,14 @@ export function PresentQuote() {
           type="button"
           class="present-plan__add"
           disabled={!item}
-          onClick={() => { if (item) { void presentStore.addToPlan(item); close(); } }}
+          onClick={() => {
+            if (!item) return;
+            if (props.onAddToNotes) props.onAddToNotes(item);
+            else void presentStore.addToPlan(item);
+            close();
+          }}
         >
-          {t('present.addQuoteToPlan')}
+          {props.onAddToNotes ? t('present.control.addToNotes') : t('present.addQuoteToPlan')}
         </button>
       </div>
 

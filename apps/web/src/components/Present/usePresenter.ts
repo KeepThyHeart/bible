@@ -33,7 +33,6 @@ export interface PresenterView {
   connection: PresentConnectionStatus;
   busy: boolean;
   error: string | null;
-  panelOpen: boolean;
   /** What the presenter is reading, or null on the home screen. */
   staged: StagedPassage | null;
   /** Reference of what is on the wall, or null when the wall is empty. */
@@ -63,7 +62,6 @@ export function usePresenter(): PresenterView {
   const connection = useStore(presentStore, () => presentStore.connection);
   const busy = useStore(presentStore, () => presentStore.busy);
   const error = useStore(presentStore, () => presentStore.error);
-  const panelOpen = useStore(presentStore, () => presentStore.panelOpen);
   const tab = useStore(bibleStore, () => bibleStore.getActiveTab());
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
 
@@ -95,7 +93,6 @@ export function usePresenter(): PresenterView {
     connection,
     busy,
     error,
-    panelOpen,
     staged,
     liveLabel: describeItem(live, wall?.position.index ?? 0),
     stagedIsLive,

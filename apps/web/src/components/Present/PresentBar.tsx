@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
 import { stepWall, usePresenterShortcuts } from './usePresenterShortcuts';
-import { PresentPanel } from './PresentPanel';
+import { openPresenter } from '../../apps/present/route';
 
 /**
  * The control strip: what a presenter touches while presenting.
@@ -10,7 +10,7 @@ import { PresentPanel } from './PresentPanel';
  * It is docked to the bottom of the reading app and it is deliberately short.
  * Everything on it is something that might be needed *mid-sentence*, in a room,
  * without looking down. Anything that can wait -- the running order, the join
- * code, display settings -- lives in the panel behind the last button.
+ * code, display settings -- lives in the Presenter, behind the last button.
  *
  * Three things earn their place by being needed urgently:
  *
@@ -28,7 +28,7 @@ import { PresentPanel } from './PresentPanel';
  * before it would be embarrassing to find out otherwise.
  */
 
-export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void }) {
+export function PresentBar(props: { compact?: boolean }) {
   const { t } = useTranslation();
   const view = usePresenter();
   const { staged, wall } = view;
@@ -43,18 +43,8 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
   const blanked = wall?.display.blanked ?? false;
   const connected = view.connection === 'live';
 
-  // Where there is a root-level Present tab to send someone to (mobile),
-  // this button goes there instead of opening the floating popup: one place
-  // to reach the running order, not two competing ones.
-  const openFull = (): void => {
-    if (props.onOpenPanel) props.onOpenPanel();
-    else presentStore.setPanelOpen(!view.panelOpen);
-  };
-  const showFloatingPanel = !props.onOpenPanel && view.panelOpen;
-
   return (
     <>
-      {showFloatingPanel && <PresentPanel compact={props.compact} />}
       <div class={`present-bar${props.compact ? ' present-bar--compact' : ''}`} role="region" aria-label={t('present.barLabel')}>
         <div class="present-bar__status">
           <span
@@ -121,12 +111,12 @@ export function PresentBar(props: { compact?: boolean; onOpenPanel?: () => void 
           </button>
           <button
             type="button"
-            class={`present-bar__btn ${showFloatingPanel ? 'present-bar__btn--on' : ''}`}
-            onClick={openFull}
-            title={t('present.panel')}
-            aria-expanded={showFloatingPanel}
+            class="present-bar__btn"
+            onClick={openPresenter}
+            title={t('present.openPresenter')}
           >
-            <i class="fa-solid fa-list-ol" aria-hidden="true" />
+            <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />
+            <span class="present-bar__btn-text">{t('present.openPresenterShort')}</span>
           </button>
         </div>
       </div>
