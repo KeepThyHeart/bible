@@ -20,6 +20,7 @@ import type {
   TagGraphRepository as TagGraphRepositoryType,
   EnrichmentRepository as EnrichmentRepositoryType,
   WordFamilyService as WordFamilyServiceType,
+  WordStudyService as WordStudyServiceType,
   StrongsNumberHelper as StrongsNumberHelperType,
   applyMainFacetPreference as applyMainFacetPreferenceType,
   resolveScoringConfig as resolveScoringConfigType,
@@ -59,6 +60,7 @@ export const TopicalIndexRepository: typeof TopicalIndexRepositoryType = core.To
 export const TagGraphRepository: typeof TagGraphRepositoryType = core.TagGraphRepository;
 export const EnrichmentRepository: typeof EnrichmentRepositoryType = core.EnrichmentRepository;
 export const WordFamilyService: typeof WordFamilyServiceType = core.WordFamilyService;
+export const WordStudyService: typeof WordStudyServiceType = core.WordStudyService;
 export const StrongsNumberHelper: typeof StrongsNumberHelperType = core.StrongsNumberHelper;
 export const applyMainFacetPreference: typeof applyMainFacetPreferenceType = core.applyMainFacetPreference;
 export const resolveScoringConfig: typeof resolveScoringConfigType = core.resolveScoringConfig;

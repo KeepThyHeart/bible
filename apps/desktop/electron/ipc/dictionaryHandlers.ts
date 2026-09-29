@@ -11,6 +11,11 @@ export function getDictionaryRepository(abbreviation: string): DictionaryReposit
   return loader.get(abbreviation);
 }
 
+/** Open (if needed) and return a dictionary repo; null when it cannot be opened. */
+export function ensureDictionaryRepository(abbreviation: string): Promise<DictionaryRepository | null> {
+  return loader.ensure(abbreviation);
+}
+
 /**
  * Resolve a dictionary repo by abbreviation or raise a classified
  * `not_found` error so the renderer can branch cleanly.

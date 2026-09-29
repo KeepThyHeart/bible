@@ -40,6 +40,10 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+import type {
+  WordKeyCandidate, WordStudySubject, WordStudyOptions, WordStudyOverview,
+  WordOccurrenceQuery, WordOccurrencePage, WordGroup,
+} from '@bible/core';
 import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
 import type {
@@ -258,6 +262,16 @@ export interface ElectronAPI {
      */
     getOverview: (book: number, chapter: number) => Promise<Result<StudyOverviewPayload>>;
     getCommentaryMentions: (moduleId: number, verseId: number) => Promise<Result<any[]>>;
+  };
+
+  // Word study (Strong's numbers and user word groups). `Result<T>` envelope.
+  wordStudy: {
+    resolve: (query: string) => Promise<Result<WordKeyCandidate[]>>;
+    getOverview: (subject: WordStudySubject, options?: WordStudyOptions) => Promise<Result<WordStudyOverview>>;
+    getOccurrences: (subject: WordStudySubject, query: WordOccurrenceQuery) => Promise<Result<WordOccurrencePage>>;
+    listGroups: () => Promise<Result<WordGroup[]>>;
+    saveGroup: (group: Partial<WordGroup> & { terms: string[] }) => Promise<Result<WordGroup>>;
+    deleteGroup: (id: string) => Promise<Result<boolean>>;
   };
 
   // Expose ipcRenderer for notes API. Channel is narrowed to AllowedIpcChannel
@@ -862,6 +876,17 @@ const electronAPI: ElectronAPI = {
       typedInvoke('study:getOverview', book, chapter),
     getCommentaryMentions: (moduleId: number, verseId: number) =>
       typedInvoke('study:getCommentaryMentions', moduleId, verseId)
+  },
+
+  wordStudy: {
+    resolve: (query: string) => typedInvoke('wordStudy:resolve', query),
+    getOverview: (subject: WordStudySubject, options?: WordStudyOptions) =>
+      typedInvoke('wordStudy:getOverview', subject, options),
+    getOccurrences: (subject: WordStudySubject, query: WordOccurrenceQuery) =>
+      typedInvoke('wordStudy:getOccurrences', subject, query),
+    listGroups: () => typedInvoke('wordStudy:listGroups'),
+    saveGroup: (group: Partial<WordGroup> & { terms: string[] }) => typedInvoke('wordStudy:saveGroup', group),
+    deleteGroup: (id: string) => typedInvoke('wordStudy:deleteGroup', id)
   },
 
   // Expose ipcRenderer.invoke for notes API. The `channel` param is typed as

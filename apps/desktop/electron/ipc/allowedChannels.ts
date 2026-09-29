@@ -296,6 +296,13 @@ export const TYPED_IPC_CHANNELS = [
   'study:getBatchVerseLinks',
   'study:getOverview',
   'study:getCommentaryMentions',
+  // Word study
+  'wordStudy:resolve',
+  'wordStudy:getOverview',
+  'wordStudy:getOccurrences',
+  'wordStudy:listGroups',
+  'wordStudy:saveGroup',
+  'wordStudy:deleteGroup',
   // i18n
   'i18n:listBuiltinCatalogs',
   'i18n:readBuiltinCatalog',

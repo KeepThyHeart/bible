@@ -72,6 +72,7 @@ export const DEFAULT_RATE_LIMITS = {
  */
 const TIER_BY_PREFIX: Record<string, RateLimitTier> = {
   search: 'search',
+  'word-study': 'search',
   bible: 'content',
   commentary: 'content',
   dictionary: 'content',

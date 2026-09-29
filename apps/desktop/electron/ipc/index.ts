@@ -19,3 +19,5 @@ export {
   initializeFileNotesService,
   getFileNotesService
 } from './fileNotesHandlers';
+
+export { registerWordStudyHandlers } from './wordStudyHandlers';

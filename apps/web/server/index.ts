@@ -15,6 +15,7 @@ import './routes/commentaryRoutes.js';
 import './routes/interlinearRoutes.js';
 import './routes/searchRoutes.js';
 import './routes/strongsRoutes.js';
+import './routes/wordStudyRoutes.js';
 import './routes/crossRefRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';

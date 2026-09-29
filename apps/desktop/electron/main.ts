@@ -31,6 +31,7 @@ import {
   getDiagnosticsUploader,
 } from './ipc/diagnosticsHandlers';
 import { registerStudyHandlers } from './ipc/studyHandlers';
+import { registerWordStudyHandlers } from './ipc/wordStudyHandlers';
 import { registerNetworkHandlers, initializeNetworkService } from './ipc/networkHandlers';
 import { registerUpdateHandlers, setBlocklistRefresher } from './ipc/updateHandlers';
 import { MenuBuilder, registerMenuRebuildHandler } from './menu/menuBuilder';
@@ -540,6 +541,7 @@ async function createWindow(): Promise<void> {
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   registerTagGraphHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
+  registerWordStudyHandlers(ipcMain);
   registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
   registerFileNotesHandlers();
