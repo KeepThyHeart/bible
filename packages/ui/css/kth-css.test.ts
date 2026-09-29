@@ -112,7 +112,8 @@ describe('KTH CSS tokens', () => {
 
   it('generated files match the generator output', () => {
     for (const [file, content] of Object.entries(gen.render(palette))) {
-      expect(read(file), file).toBe(content);
+      // Ignore line endings: a Windows checkout (core.autocrlf) has CRLF.
+      expect(read(file).replace(/\r\n/g, '\n'), file).toBe(content);
     }
   });
 

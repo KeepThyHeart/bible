@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import timeout from 'connect-timeout';
 import { DatabaseManager } from './DatabaseManager.js';
 import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
+import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 // Side-effect imports: each route file self-registers with the route registry
@@ -473,6 +474,9 @@ app.use('/data', (
 // Serve static client files in production
 const clientDir = resolve(packageRoot, 'dist/client');
 if (existsSync(clientDir)) {
+  // Before static: `/sw.js` is the real worker or the kill switch depending on
+  // `features.pwa`, and the manifest is withheld when it is off.
+  app.use(createServiceWorkerRoutes({ clientDir, isPwaEnabled: () => siteConfig.features.pwa }));
   app.use(express.static(clientDir, {
     // Let the catch-all below own the SPA shell so it can set no-store on it.
     // With the default (`index: 'index.html'`) a request for `/` is answered
@@ -484,7 +488,7 @@ if (existsSync(clientDir)) {
       // the self-destroying worker whose whole job is to reach browsers that
       // still have an old one installed.
       if (filePath.endsWith('index.html') || filePath.endsWith('build-id.json')
-          || filePath.endsWith('sw.js')) {
+          || filePath.endsWith('sw.js') || filePath.endsWith('sw-kill.js')) {
         res.set('Cache-Control', 'no-store');
         return;
       }
@@ -512,7 +516,8 @@ if (existsSync(clientDir)) {
     // pins the browser to a stale build. The assets it points at are immutable
     // and stay cacheable.
     res.set('Cache-Control', 'no-store');
-    res.sendFile(join(clientDir, 'index.html'));
+    // Without the PWA the manifest link is stripped, so browsers offer no install.
+    res.type('html').send(pwaShell(readShell(join(clientDir, 'index.html')), siteConfig.features.pwa));
   });
 }
 

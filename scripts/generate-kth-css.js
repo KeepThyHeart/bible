@@ -227,7 +227,8 @@ function main() {
   const stale = [];
   let written = 0;
   for (const [file, next] of Object.entries(files)) {
-    const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    // Ignore line endings: a Windows checkout (core.autocrlf) has CRLF.
+    const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : null;
     if (current === next) continue;
     if (check) stale.push(path.relative(ROOT, file));
     else {

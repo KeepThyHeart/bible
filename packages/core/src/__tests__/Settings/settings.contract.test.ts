@@ -188,17 +188,17 @@ describe('SettingsStore', () => {
 
 describe('feature flags', () => {
   it('resolves override, then site, then default', () => {
-    const flags = createFeatureFlags({ site: { audio: true, pwa: false }, overrides: { audio: false } });
+    const flags = createFeatureFlags({ site: { audio: true, pwa: true }, overrides: { audio: false } });
     expect(flags.isEnabled('audio')).toBe(false); // override wins
-    expect(flags.isEnabled('pwa')).toBe(false); // site over default true
+    expect(flags.isEnabled('pwa')).toBe(true); // site over default false
     expect(flags.isEnabled('offlineAutoDownload')).toBe(true); // default
     expect(flags.isEnabled('timeline')).toBe(false); // default
   });
 
   it('ignores non-boolean values', () => {
-    const flags = createFeatureFlags({ site: { audio: 'yes', pwa: 0 } });
+    const flags = createFeatureFlags({ site: { audio: 'yes', offlineAutoDownload: 0 } });
     expect(flags.isEnabled('audio')).toBe(false);
-    expect(flags.isEnabled('pwa')).toBe(true);
+    expect(flags.isEnabled('offlineAutoDownload')).toBe(true);
   });
 
   it('applies requires (genealogy needs tagGraph)', () => {

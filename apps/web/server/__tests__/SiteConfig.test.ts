@@ -31,6 +31,44 @@ describe('SiteConfig', () => {
       expect(config.auth.passwordHash).toBe('abc:def');
     });
 
+    describe('features.pwa', () => {
+      const write = (features: object) =>
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+      afterEach(() => { delete process.env.FEATURE_PWA; });
+
+      it('is off by default and is always reported to the client', () => {
+        write({});
+        const config = new SiteConfig(tempDir);
+        expect(config.features.pwa).toBe(false);
+        expect(config.getClientConfig().pwaEnabled).toBe(false);
+      });
+
+      it('turns on only when set to true', () => {
+        write({ pwa: true });
+        const config = new SiteConfig(tempDir);
+        expect(config.features.pwa).toBe(true);
+        expect(config.getClientConfig().pwaEnabled).toBe(true);
+      });
+
+      it('is overridden by FEATURE_PWA', () => {
+        write({ pwa: true });
+        process.env.FEATURE_PWA = '0';
+        expect(new SiteConfig(tempDir).features.pwa).toBe(false);
+        write({});
+        process.env.FEATURE_PWA = '1';
+        expect(new SiteConfig(tempDir).features.pwa).toBe(true);
+      });
+
+      it('reports the update mode only when it is prompt and the PWA is on', () => {
+        write({ pwa: true, pwaUpdate: 'prompt' });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBe('prompt');
+        write({ pwa: true });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBeUndefined();
+        write({ pwaUpdate: 'prompt' });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBeUndefined();
+      });
+    });
+
     it('loads features', () => {
       writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({
         features: { tagGraph: true, semanticSearch: true },
@@ -235,7 +273,7 @@ describe('SiteConfig', () => {
       write({ audio: true });
       const client = new SiteConfig(tempDir).getClientConfig() as { features: Record<string, boolean> };
       expect(client.features.audio).toBe(true);
-      expect(client.features.pwa).toBe(true);
+      expect(client.features.offlineAutoDownload).toBe(true);
       expect(client.features.timeline).toBe(false);
     });
 
@@ -250,11 +288,11 @@ describe('SiteConfig', () => {
 
     it('ignores BIBLE_FEATURE_FLAGS in production', () => {
       write({});
-      process.env.BIBLE_FEATURE_FLAGS = 'audio,-pwa';
+      process.env.BIBLE_FEATURE_FLAGS = 'audio,-offlineAutoDownload';
       vi.stubEnv('NODE_ENV', 'production');
       const config = new SiteConfig(tempDir);
       expect(config.isEnabled('audio')).toBe(false);
-      expect(config.isEnabled('pwa')).toBe(true);
+      expect(config.isEnabled('offlineAutoDownload')).toBe(true);
     });
   });
 

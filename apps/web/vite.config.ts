@@ -121,77 +121,16 @@ function brandingPlugin(): Plugin {
 }
 
 
-/**
- * PWA (service worker + web app manifest) is **opt-in**, built only when
- * `ENABLE_PWA=1`.
- *
- * A service worker is the only thing in this stack that can answer a *navigation*
- * from cache, and a stale app shell answering navigations is the root of every
- * boot loop this app has had. Without one, the site behaves like an ordinary
- * website: `index.html` is `no-store`, the hashed assets it names are immutable,
- * and a reload always lands on the build the server is actually serving.
- *
- * Nothing is deleted to turn it off — `src/sw.ts` and the whole offline stack are
- * intact. Set `ENABLE_PWA=1` on the build to bring them back.
- *
- * What still works with it off:
- *  - Offline Bible reading (OPFS module downloads + sql.js) — never used the worker.
- *  - Browser semantic search — @huggingface/transformers keeps its own Cache Storage
- *    entry, independent of any service worker.
- *  - Commentary / study-overview caching — moved to plain HTTP cache headers,
- *    see the `/api` cache middleware in server/index.ts.
- *
- * What is lost: installability, standalone display, and loading the app shell with
- * no network at all.
+/*
+ * The client build ALWAYS contains both workers: the real `sw.js` (built from
+ * src/sw.ts) and the kill switch `sw-kill.js` (public/sw-kill.js, copied
+ * verbatim). Which one a browser is handed at `/sw.js`, and whether the
+ * manifest is advertised, is decided at run time by the server from the
+ * `features.pwa` site flag (server/middleware/serviceWorker.ts). One build can
+ * therefore be flipped between PWA and plain website with a config change and a
+ * restart, and a flipped-off site still reaches browsers that installed a worker.
+ * See docs/features/pwa-offline.md.
  */
-const pwaEnabled = process.env.ENABLE_PWA === '1' || process.env.ENABLE_PWA === 'true';
-
-/**
- * Emit a self-destroying `sw.js` when the PWA is off.
- *
- * Disabling registration only stops *new* clients. Every browser that already
- * installed a worker keeps running it forever and never reaches the app code that
- * would tear it down — that is precisely the wedged client we need to reach. But
- * browsers re-fetch the worker script itself on every navigation (bypassing the
- * HTTP cache), so shipping a replacement at the same URL is the one channel that
- * still gets through to a looping client.
- *
- * The two large content caches are kept: they are plain content, and re-downloading
- * them to switch off a feature flag would be its own problem.
- */
-function killServiceWorkerPlugin(): Plugin {
-  const source = `/*
- * Keep Thy Heart service-worker kill switch.
- *
- * The PWA is disabled in this build (see ENABLE_PWA in vite.config.ts). This
- * file exists only to replace an older, still-installed worker and remove it.
- * It registers no fetch handler, so while it is alive every request goes
- * straight to the network.
- */
-self.addEventListener('install', function () {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', function (event) {
-  event.waitUntil((async function () {
-    var PRESERVE = ['embedding-model', 'semantic-index', 'transformers-cache'];
-    try {
-      var names = await caches.keys();
-      await Promise.all(names.map(function (n) {
-        return PRESERVE.indexOf(n) === -1 ? caches.delete(n) : Promise.resolve(false);
-      }));
-    } catch (e) { /* best effort — unregistering matters more */ }
-    await self.registration.unregister();
-  })());
-});
-`;
-  return {
-    name: 'bible-kill-service-worker',
-    generateBundle() {
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source });
-    },
-  };
-}
 
 /** Emit the build ID alongside the client bundle so the server can serve it. */
 function buildIdPlugin(): Plugin {
@@ -336,7 +275,6 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
-    __PWA_ENABLED__: JSON.stringify(pwaEnabled),
   },
   resolve: {
     alias: {
@@ -351,12 +289,6 @@ export default defineConfig({
       // so the more specific css entry must precede the bare package entry.
       '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
       '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
-      // With the plugin out of the graph, `virtual:pwa-register` has no provider.
-      // A stub keeps src/utils/appUpdate.ts compiling unchanged, so re-enabling the
-      // PWA is a build-flag flip and nothing more.
-      ...(pwaEnabled ? {} : {
-        'virtual:pwa-register': resolve(__dirname, 'src/utils/pwaRegisterStub.ts'),
-      }),
     },
   },
   plugins: [
@@ -366,13 +298,11 @@ export default defineConfig({
     ortWasmPlugin(),
     buildIdPlugin(),
     preact(),
-    ...(pwaEnabled ? [] : [killServiceWorkerPlugin()]),
-    ...(!pwaEnabled ? [] : [VitePWA({
-      // 'prompt' here means "the plugin never reloads the page on its own" — the
-      // update is applied silently by src/utils/appUpdate.ts, which reloads under
-      // a sessionStorage loop guard. 'autoUpdate' would reload on its own with no
-      // such guard, and an unguarded automatic reload is the whole bug class this
-      // change exists to close. The user-facing confirm() dialog is gone either way.
+    VitePWA({
+      // Registration is hand-rolled in src/utils/appUpdate.ts (it depends on the
+      // server's `features.pwa` flag, which the plugin's static register script
+      // cannot see), so the plugin must not inject its own.
+      injectRegister: false,
       registerType: 'prompt',
       // Hand-written worker (src/sw.ts). The generated worker can only route on
       // URL patterns, and correct auth behaviour requires matching navigation
@@ -394,7 +324,9 @@ export default defineConfig({
         theme_color: branding.themeColor,
         background_color: branding.backgroundColor,
         display: 'standalone',
+        id: './',
         start_url: './',
+        scope: './',
         categories: ['education', 'books'],
         icons: [
           {
@@ -445,10 +377,12 @@ export default defineConfig({
         // 2 MiB default; silently dropping them from the precache would leave
         // the offline shell unable to boot.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // The kill switch is fetched by URL when needed; precaching it would
+        // just spend the user's bandwidth on a worker they never run.
+        globIgnores: ['sw-kill.js'],
       },
-      // Runtime caching now lives in src/sw.ts — see that file for the
-      // navigation strategy and the four content caches.
-    })]),
+      // Runtime caching lives in src/sw/rules/, applied by src/sw.ts.
+    }),
   ],
   root: '.',
   publicDir: 'public',

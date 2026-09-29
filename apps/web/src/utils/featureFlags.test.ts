@@ -8,7 +8,7 @@ beforeEach(() => {
 
 describe('web feature flags', () => {
   it('falls back to declared defaults with no config', () => {
-    expect(isEnabled('pwa')).toBe(true);
+    expect(isEnabled('offlineAutoDownload')).toBe(true);
     expect(isEnabled('audio')).toBe(false);
   });
 

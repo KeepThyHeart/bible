@@ -111,7 +111,7 @@ See `config/site-config.schema.json` for the full schema. Deployments that preda
 | `pnpm run build` | Build both server and client for production |
 | `pnpm run build:server` | Compile server TypeScript to `dist/server/` |
 | `pnpm run build:client` | Bundle client with Vite to `dist/client/` |
-| `ENABLE_PWA=1 pnpm run build` | Same, but also builds the service worker and web app manifest. The PWA is **off by default** — see [PWA & Offline](docs/features/pwa-offline.md) |
+| `FEATURE_PWA=1 pnpm run start` | Serve with the PWA on (also `features.pwa` in `site-config.json`). Every build contains the service worker; the server decides whether to serve it. **Off by default** — see [PWA & Offline](docs/features/pwa-offline.md) |
 | `pnpm run start` | Run the production server (serve built client + API) |
 | `pnpm test` | Run Vitest unit tests |
 | `pnpm run test:watch` | Run Vitest in watch mode |

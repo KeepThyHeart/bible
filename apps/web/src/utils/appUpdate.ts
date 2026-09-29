@@ -8,81 +8,127 @@
  * stale client talk to a newer server.
  */
 
-import { registerSW } from 'virtual:pwa-register';
 import { reloadForUpdateOnce } from './bootGuard';
+import { CACHE_RULES } from '../sw/rules';
+import { preservedOnReset } from '../sw/cacheRules';
+import { updateStore } from '../stores/updateStore';
 
 /** Build identifier compiled in by vite.config.ts. */
 declare const __BUILD_ID__: string;
 
-/** Whether this build shipped a service worker at all — see vite.config.ts. */
-declare const __PWA_ENABLED__: boolean;
-
 export const CLIENT_BUILD_ID: string = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev';
 
 /**
- * False unless the build opted in with `ENABLE_PWA=1`. When false there is no
- * `sw.js` to register — `dist/client/sw.js` is instead a self-destroying worker
- * that removes any leftover registration from an earlier PWA build.
- *
- * The build ID handshake below still runs: it is cheap, it is the only thing that
- * catches a tab left open across a deploy, and it no longer has a cached shell
- * working against it.
+ * How a newer build reaches a running page:
+ *  - `silent` (default): reload once, automatically, under the loop guard.
+ *  - `prompt`: show the update banner and let the user choose when to reload.
+ * A new *launch* always picks the update up silently before rendering
+ * (`applyUpdateIfStale`); this only concerns a page that stays open.
  */
-export const PWA_BUILD_ENABLED: boolean = typeof __PWA_ENABLED__ === 'boolean' ? __PWA_ENABLED__ : false;
+export type UpdateMode = 'silent' | 'prompt';
 
 /** How long to wait for a new worker to take control before reloading anyway. */
 const ACTIVATION_TIMEOUT_MS = 4000;
 
-let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
+/** How often a long-lived page re-checks for a new worker while visible. */
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-/**
- * Register the service worker.
- *
- * `onNeedRefresh` applies the update silently rather than asking. The old
- * confirm() prompt had a failure mode of its own: dismiss it once and the browser
- * stayed on the old build indefinitely, which is how clients drifted far enough
- * from the server to break in the first place.
- */
-export function registerServiceWorker(): void {
-  if (!PWA_BUILD_ENABLED) return;
-  updateSW = registerSW({
-    onNeedRefresh() {
-      void applyUpdate();
-    },
-    onOfflineReady() {
-      console.log('[PWA] App ready for offline use');
-    },
-  });
+let updateMode: UpdateMode = 'silent';
+
+/** Base URL the worker is served under (`/` unless the app is mounted below it). */
+function workerUrl(): string {
+  const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+  return `${base}sw.js`;
 }
 
 /**
- * Remote kill switch: tear down any installed worker and its caches.
+ * Register the service worker (a no-op where service workers do not exist).
  *
- * Without this, disabling the PWA server-side only stops *new* registrations —
- * every browser that already has a worker keeps running it forever, with no way
- * to reach them. The large content caches are kept; they are plain content
- * and re-downloading ~130 MB to disable a feature flag would be its own problem.
- *
- * This is the in-app half of the teardown and only reaches browsers that get far
- * enough to run it. The other half is `dist/client/sw.js`, which in a non-PWA
- * build is a self-destroying worker — that one reaches clients too wedged to boot.
+ * The caller decides *whether* to call this from `features.pwa`; the server
+ * decides which script `/sw.js` actually is, so a flag flipped off after the
+ * registration was made turns the next update check into the kill switch.
  */
-export async function unregisterServiceWorkers(): Promise<void> {
+export function registerServiceWorker(options: { updateMode?: UpdateMode } = {}): void {
+  if (!('serviceWorker' in navigator)) return;
+  updateMode = options.updateMode === 'prompt' ? 'prompt' : 'silent';
+
+  // Set only when a worker already controlled this page: on the very first
+  // install `controllerchange` also fires, and that is not an update.
+  let hadController = navigator.serviceWorker.controller !== null;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) {
+      hadController = true;
+      return;
+    }
+    onNewVersionActive();
+  });
+
+  navigator.serviceWorker.register(workerUrl(), { scope: workerUrl().replace(/sw\.js$/, '') })
+    .then(registration => {
+      // A tab can stay open for days; ask the server for a newer worker whenever
+      // it comes back to the foreground, and at most hourly.
+      let lastCheck = Date.now();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (Date.now() - lastCheck < UPDATE_CHECK_INTERVAL_MS) return;
+        lastCheck = Date.now();
+        registration.update().catch(() => {});
+      });
+    })
+    .catch(err => console.warn('[PWA] Service worker registration failed:', err));
+}
+
+/** A newer worker has taken control of this page. */
+function onNewVersionActive(): void {
+  if (updateMode === 'prompt') updateStore.setAvailable(true);
+  else reloadForUpdateOnce();
+}
+
+/**
+ * Caches a full reset must leave alone: `transformers-cache` (not ours) and
+ * the rule caches flagged `keepOnReset` (the ~130 MB search model and index).
+ */
+export function cachesPreservedOnReset(): string[] {
+  return preservedOnReset(CACHE_RULES);
+}
+
+/**
+ * Tear down every installed worker and delete Cache Storage entries.
+ *
+ * Without this, disabling the PWA server-side only stops *new* registrations:
+ * every browser that already has a worker keeps running it. This is the in-app
+ * half of the teardown (it reaches browsers that boot); the other half is the
+ * kill worker the server hands out at `/sw.js`, which reaches browsers too
+ * wedged to boot. Large content caches are kept unless `includeLarge` is set.
+ */
+export async function unregisterServiceWorkers(options: { includeLarge?: boolean } = {}): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(registrations.map(r => r.unregister()));
     if ('caches' in window) {
-      // 'transformers-cache' is written by @huggingface/transformers from the search
-      // worker, not by any service worker. It holds the ~130 MB embedding model and
-      // survives on its own — dropping it here would cost a full re-download.
-      const preserve = new Set(['embedding-model', 'semantic-index', 'transformers-cache']);
+      const preserve = new Set(options.includeLarge ? [] : cachesPreservedOnReset());
+      // transformers-cache is never ours to delete, even on a full reset.
+      preserve.add('transformers-cache');
       const names = await caches.keys();
       await Promise.all(names.filter(n => !preserve.has(n)).map(n => caches.delete(n)));
     }
   } catch (err) {
     console.warn('[PWA] Failed to unregister service worker:', err);
   }
+}
+
+/**
+ * "Reset app cache": unregister the worker, clear the app's caches, reload.
+ *
+ * The way out of any stale-cache state. It touches Cache Storage and worker
+ * registrations only: OPFS module downloads, settings, and user data are left
+ * alone. The reload is user-initiated, so it bypasses the boot-loop guard, and
+ * the next boot re-registers a fresh worker if the site still has the PWA on.
+ */
+export async function resetAppCache(options: { includeLarge?: boolean } = {}): Promise<void> {
+  await unregisterServiceWorkers(options);
+  window.location.reload();
 }
 
 /**
@@ -104,10 +150,6 @@ async function applyUpdate(): Promise<void> {
     } catch (err) {
       console.warn('[PWA] Update failed, reloading anyway:', err);
     }
-  }
-  if (updateSW) {
-    // Let workbox tear down its own state; ignore failures, the reload follows.
-    await updateSW(false).catch(() => {});
   }
   reloadForUpdateOnce();
 }

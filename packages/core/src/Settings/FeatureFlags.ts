@@ -34,7 +34,7 @@ export interface FeatureFlagDef {
 export const FEATURE_FLAGS = {
   tagGraph: { default: false, description: 'Tag graph (entities) visualization.' },
   semanticSearch: { default: false, description: 'Semantic (Ideas) search. Needs a search pipeline config.' },
-  pwa: { default: true, description: 'PWA: manifest and service worker.' },
+  pwa: { default: false, description: 'PWA: manifest and service worker.' },
   offlineDownloads: { default: false, description: 'Let users mark modules for offline use.' },
   offlineAutoDownload: { default: true, description: 'Cache a lite copy of a translation on first read.' },
   audio: { default: false, description: 'Audio Bible playback and Settings > Audio.' },
