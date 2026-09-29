@@ -11,6 +11,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { loadSiteSettings, type SiteSettings } from './siteSettings.js';
 import { logger } from './utils/logger.js';
 import type { SearchPipelineConfig, ScoringConfig } from '@bible/core';
+import { createFeatureFlags, parseFlagOverrides, type FeatureFlagName, type FeatureFlags } from './core.js';
 
 // ─── Raw config shape (matches site-config.schema.json) ────────────────
 
@@ -117,6 +118,7 @@ const DEFAULT_MIN_SCORE = 0.15;
 export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
+  private _flags: FeatureFlags | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
 
@@ -162,6 +164,30 @@ export class SiteConfig {
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
       offlineAutoDownload: this.raw.features?.offlineAutoDownload !== false, // default true
     };
+  }
+
+  /**
+   * Typed feature flags: site config `features` over each flag's declared default (see
+   * `FEATURE_FLAGS` in `@bible/core/browser`). `BIBLE_FEATURE_FLAGS` ("audio,-pwa" or a
+   * JSON object) overrides them for local development; it is ignored when
+   * `NODE_ENV=production`.
+   */
+  get flags(): FeatureFlags {
+    if (!this._flags) {
+      this._flags = createFeatureFlags({
+        site: () => this.raw.features as Record<string, unknown> | undefined,
+        overrides: () =>
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : parseFlagOverrides(process.env.BIBLE_FEATURE_FLAGS),
+      });
+    }
+    return this._flags;
+  }
+
+  /** `isEnabled('audio')`: the one way server code asks about a feature. */
+  isEnabled(name: FeatureFlagName): boolean {
+    return this.flags.isEnabled(name);
   }
 
   get modules(): SiteSettings | null {
@@ -239,6 +265,11 @@ export class SiteConfig {
     // Semantic search mode — tells the client whether to run Ideas Search locally
     // (browser Web Worker) or hit the server pipeline.
     cfg.search = { semantic: this.search.mode };
+
+    // Every feature flag, resolved (site config over defaults). The dev override
+    // (`BIBLE_FEATURE_FLAGS`) is included so a developer's flags reach their browser.
+    // The keys above (showTagGraph, pwaEnabled, ...) stay for older clients.
+    cfg.features = this.flags.all();
 
     // PWA feature flag
     if (!this.features.pwa) cfg.pwaEnabled = false;

@@ -18,6 +18,8 @@ export interface ClientConfig {
   staleDays?: number;
   commentaryPopularity?: Record<string, number>;
   ui?: Record<string, unknown>;
+  /** Every feature flag, resolved by the server (see `utils/featureFlags.ts`). */
+  features?: Record<string, boolean>;
   pwaEnabled?: boolean;
   offlineDownloads?: boolean;
   offlineAutoDownload?: boolean;
