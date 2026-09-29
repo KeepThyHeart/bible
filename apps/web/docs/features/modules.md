@@ -58,7 +58,7 @@ reference works in the right-pane Dictionary tab.
 | `server/routes/dictionaryRoutes.ts` | `/api/dictionary/available`, `/search` (all dictionaries), `/:module/search`, `/:module/letters`, `/:module/browse`, `/:module/adjacent/:key`, `/:module/count`, `/:module/entry/:key` |
 | `server/DatabaseManager.ts` | `getDictionaryRepo()` — resolves `dictionary_<name>.db` |
 | `packages/core/src/Data/Repositories/DictionaryRepository.ts` | `searchEntries()` (title-first, then full text), entry lookup, browse |
-| `packages/core/src/Services/FtsQuery.ts` | `escapeFts5Term()` / `escapeFts5Query()` — shared FTS5 escaping (also used by `BibleSearchService`) |
+| `packages/core/src/Data/Access/Fts5/Fts5QueryCompiler.ts` | `escapeFts5Term()` / `escapeFts5Query()` — shared FTS5 escaping (also used by `BibleSearchService`) |
 
 ### Search behavior
 
