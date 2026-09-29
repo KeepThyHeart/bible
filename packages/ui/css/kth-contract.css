@@ -49,6 +49,18 @@
   --kth-space-3: 12px;
   --kth-space-4: 16px;
 
+  /* Bible section palette (pentateuch .. revelation, index = BIBLE_SECTIONS order); dark variants in generated/kth-scheme.css */
+  --kth-section-0: #b45309;
+  --kth-section-1: #15803d;
+  --kth-section-2: #0e7490;
+  --kth-section-3: #7e22ce;
+  --kth-section-4: #be185d;
+  --kth-section-5: #dc2626;
+  --kth-section-6: #ea580c;
+  --kth-section-7: #2563eb;
+  --kth-section-8: #65a30d;
+  --kth-section-9: #475569;
+
   /* Typography (mapped per app to the live UI font setting) */
   --kth-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --kth-font-size-ui: 14px;

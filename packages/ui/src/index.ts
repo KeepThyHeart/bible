@@ -16,3 +16,5 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+export { defaultFormatRef, sectionVar, sectionVarOfVerse } from './components/xref/common';
+export type { FormatRef } from './components/xref/common';
