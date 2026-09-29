@@ -62,5 +62,10 @@
   "bookmarks.manage": "管理书签",
   "bookmarks.manage.category": "书签",
   "bookmarks.manage.alias.0": "书签",
-  "bookmarks.manage.alias.1": "已保存经文"
+  "bookmarks.manage.alias.1": "已保存经文",
+  "wordStudy.open": "打开词语研究",
+  "wordStudy.open.category": "研究",
+  "wordStudy.open.alias.0": "词语研究",
+  "wordStudy.open.alias.1": "斯特朗研究",
+  "wordStudy.open.alias.2": "串珠"
 }

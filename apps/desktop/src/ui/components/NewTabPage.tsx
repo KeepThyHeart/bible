@@ -52,6 +52,8 @@ const KEYWORD_MAP: Record<string, PanelContentType> = {
   study: 'study',
   topics: 'topics',
   topic: 'topics',
+  'word study': 'wordStudy',
+  wordstudy: 'wordStudy',
 };
 
 /**

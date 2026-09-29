@@ -62,5 +62,10 @@
   "bookmarks.manage": "Gestionar marcadores",
   "bookmarks.manage.category": "Marcadores",
   "bookmarks.manage.alias.0": "marcadores",
-  "bookmarks.manage.alias.1": "versículos guardados"
+  "bookmarks.manage.alias.1": "versículos guardados",
+  "wordStudy.open": "Abrir Estudio de palabras",
+  "wordStudy.open.category": "Estudio",
+  "wordStudy.open.alias.0": "estudio de palabras",
+  "wordStudy.open.alias.1": "estudio strong",
+  "wordStudy.open.alias.2": "concordancia"
 }

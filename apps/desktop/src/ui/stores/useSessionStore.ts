@@ -177,7 +177,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         textSettings: get_('textSettings'),
         textSettingsCustomized: get_('textSettingsCustomized'),
         preferences: get_('preferences'),
-        ...get_('fileNotes')
+        ...get_('fileNotes'),
+        // `wordStudyPanels`: per-pane subject/options/filters (see useWordStudyStore).
+        ...get_('wordStudy')
       }
     };
   },

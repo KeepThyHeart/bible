@@ -9,6 +9,15 @@ import { useAppServices } from '../contexts/ContextProvider';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
+import { groupFromQuery } from '@bible/core/browser';
+import { revealWordStudyPanel } from './wordStudy/revealWordStudyPanel';
+
+/** A selection that is exactly one word (letters, marks, inner apostrophes/hyphens), else null. */
+export function singleSelectedWord(text: string | undefined | null): string | null {
+  const word = (text ?? '').trim();
+  if (!word || word.length > 40) return null;
+  return /^[\p{L}\p{M}]+(?:['\u2019-][\p{L}\p{M}]+)*$/u.test(word) ? word : null;
+}
 
 /**
  * How long the bookmarks flyout survives the pointer leaving its item, so the
@@ -108,6 +117,10 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
 }) => {
   const { t, i18n } = useI18n();
   const { registry } = useAppServices();
+  // The word the reader had selected when the menu opened, if it was exactly one.
+  const [selectedWord] = useState(() => singleSelectedWord(
+    typeof window !== 'undefined' ? window.getSelection?.()?.toString() : null,
+  ));
   // Note: _isMultipleVerses is kept in the interface for API compatibility but
   // is not used since we now have a single "Copy Passage" option that opens
   // the dialog. `context` supplies the translation for extension menu items.
@@ -408,6 +421,20 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             </svg>
           </span>
           <span>{t('ui.verseContextMenu.copyPassage')}</span>
+        </button>
+      )}
+
+      {selectedWord && (
+        <button
+          onClick={() => {
+            onClose();
+            revealWordStudyPanel({ kind: 'group', group: groupFromQuery(selectedWord) });
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+          data-testid="verse-menu-study-word"
+        >
+          <span>{t('wordStudy.contextMenuStudyWord', { word: selectedWord })}</span>
         </button>
       )}
 

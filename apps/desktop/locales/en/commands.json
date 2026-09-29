@@ -62,5 +62,10 @@
   "bookmarks.manage": "Manage Bookmarks",
   "bookmarks.manage.category": "Bookmarks",
   "bookmarks.manage.alias.0": "bookmarks",
-  "bookmarks.manage.alias.1": "saved verses"
+  "bookmarks.manage.alias.1": "saved verses",
+  "wordStudy.open": "Open Word Study",
+  "wordStudy.open.category": "Study",
+  "wordStudy.open.alias.0": "word study",
+  "wordStudy.open.alias.1": "strongs study",
+  "wordStudy.open.alias.2": "concordance"
 }

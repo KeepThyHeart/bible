@@ -18,6 +18,7 @@ import { useBibleStore } from '../stores/useBibleStore';
 import { biblePanelIdsFromLayout } from '../stores/bible/sessionMigration';
 import { useCommentaryStore, type CommentaryModule } from '../stores/useCommentaryStore';
 import { useDictionaryStore } from '../stores/useDictionaryStore';
+import { useWordStudyStore } from '../stores/useWordStudyStore';
 import { useNotesStore } from '../stores/useNotesStore';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { useBookStore } from '../stores/useBookStore';
@@ -262,6 +263,16 @@ export async function initializeApp(
       // Restore file notes settings (notes directory, recent files) and the
       // per-panel notes navigation state.
       restoreFileNotesFromSession(sessionData.ui, sessionData.dockviewState);
+
+      // Word Study panes: the subject each one was on. The data is fetched
+      // again when the pane mounts.
+      const wordStudyPanelIds = panelIdsFromLayout(sessionData.dockviewState, ['wordStudy']);
+      if (wordStudyPanelIds.length > 0) {
+        useWordStudyStore.getState().restoreFromSession(
+          (sessionData.ui as { wordStudyPanels?: unknown } | undefined)?.wordStudyPanels,
+          wordStudyPanelIds
+        );
+      }
 
       // Restore dockview layout if saved.
       if (sessionData.dockviewState) {

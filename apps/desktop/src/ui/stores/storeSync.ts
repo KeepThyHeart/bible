@@ -37,6 +37,7 @@ import {
   setResolveOpenModuleAbbreviations,
   setResolveInstalledModuleId,
   setShowSearchResultsPanel,
+  setResolveActiveBibleModule,
 } from './crossStoreBridge';
 
 let wired = false;
@@ -176,6 +177,15 @@ export function wireStoreSync(): void {
 
   // Search store uses this to gather the full set of open module
   // abbreviations (Bible + Commentary) for the `allOpenModules` scope.
+  // The translation of the Bible pane the reader last used: a word study's
+  // default module.
+  setResolveActiveBibleModule(() => {
+    const panels = useBibleStore.getState().panels;
+    const lastId = useLayoutStore.getState().lastActiveBiblePanelId;
+    const ps = (lastId && panels.get(lastId)) || panels.values().next().value;
+    return ps?.openTabs?.[ps.activeTabIndex]?.abbreviation;
+  });
+
   setResolveOpenModuleAbbreviations(() => {
     const bibleStore = useBibleStore.getState();
     const commentaryStore = useCommentaryStore.getState();

@@ -8,6 +8,7 @@ import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
 import { getAllBookNames, getLocalizedBookName } from '../utils/bookNames';
 import { focusSearchField } from '../utils/focusSearchField';
+import { openWordStudy } from '../utils/openWordStudy';
 import { localizedBookAliases } from '../constants';
 import type { Localizer } from '@bible/core/browser';
 
@@ -577,6 +578,14 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             </div>
           )}
         </div>
+        <button
+          class="header__action-btn"
+          onClick={() => openWordStudy()}
+          title={t('wordStudy.open')}
+          data-testid="header-word-study-btn"
+        >
+          <i class="fa-solid fa-language" />
+        </button>
         {onFeedbackClick && (
           <button
             class="header__action-btn"
