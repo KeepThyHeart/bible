@@ -40,6 +40,7 @@ import { BookRepository } from '../Repositories/BookRepository';
 import { TopicalIndexRepository } from '../Repositories/TopicalIndexRepository';
 import { CrossReferenceRepository } from '../Repositories/CrossReferenceRepository';
 import { TagGraphRepository } from '../Repositories/TagGraphRepository';
+import { TimelineRepository } from '../Repositories/TimelineRepository';
 
 type RepoBuilder<K extends keyof ModuleRepositoryByType> = (
   sql: ISql,
@@ -54,6 +55,7 @@ const BUILDERS: { [K in keyof ModuleRepositoryByType]: RepoBuilder<K> } = {
   topicalIndex: (sql) => new TopicalIndexRepository(sql),
   crossRef: (sql) => new CrossReferenceRepository(sql),
   tagGraph: (sql) => new TagGraphRepository(sql),
+  timeline: (sql) => new TimelineRepository(sql),
 };
 
 export class SqliteModuleRepositoryFactory implements IModuleRepositoryFactory {

@@ -257,3 +257,6 @@ export * as Crypto from './Crypto';
 // The encrypted container, ZIP payload, user-table registry and restore
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
+
+// --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
+export * from './Timeline';
