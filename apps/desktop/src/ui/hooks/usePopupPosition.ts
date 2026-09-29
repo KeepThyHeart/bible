@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { computePopupPosition } from '@bible/core/browser';
 
 /**
  * The one shared positioning hook for desktop's hover popups (verse-reference
@@ -89,35 +90,22 @@ function computeStyle(
   padding: number,
 ): CSSProperties {
   const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
-  const viewportWidth = vv ? vv.width : window.innerWidth;
-  const viewportHeight = vv ? vv.height : window.innerHeight;
-
-  const clampedWidth = Math.min(width, Math.max(0, viewportWidth - padding * 2));
-  const left = Math.max(padding, Math.min(position.x, viewportWidth - clampedWidth - padding));
-
-  const desiredTop = position.y + offsetY;
-  const spaceBelow = viewportHeight - desiredTop - padding;
-
-  const style: CSSProperties = {
+  const result = computePopupPosition({
+    anchor: position,
+    width,
+    height,
+    viewport: { width: vv ? vv.width : window.innerWidth, height: vv ? vv.height : window.innerHeight },
+    offset: offsetY,
+    padding,
+  });
+  return {
     position: 'fixed',
-    left,
-    width: clampedWidth,
+    left: result.left,
+    top: result.top,
+    width: result.width,
+    maxHeight: result.maxHeight,
     overflowY: 'auto',
   };
-
-  if (spaceBelow < height) {
-    // Not enough room below - flip to sit above the trigger point, and
-    // constrain height to whatever space is actually available above it
-    // rather than letting the popup run off the top of the screen.
-    const spaceAbove = Math.max(0, position.y - padding - 10);
-    style.top = Math.max(padding, position.y - height - 10);
-    style.maxHeight = Math.max(80, Math.min(height, spaceAbove));
-  } else {
-    style.top = Math.max(padding, desiredTop);
-    style.maxHeight = spaceBelow;
-  }
-
-  return style;
 }
 
 export function usePopupPosition(

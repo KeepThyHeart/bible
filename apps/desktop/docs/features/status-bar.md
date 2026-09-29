@@ -33,7 +33,7 @@ Nothing in the app's own UI writes to it directly - the strip is 100% extension-
 | File | Description |
 |---|---|
 | `packages/word-count-example/src/main.js` | Registers a status bar item, then updates it as the active verse changes. The item is the visible half of the example; the rest of it is there to have something to display |
-| `apps/desktop/scripts/stage-extensions.js` | Stages that package into `data/extensions/` so it is present in `npm run dev` and can be bundled into an installer - see [Extensions](extensions.md) |
+| `apps/desktop/scripts/stage-extensions.js` | Stages that package into `data/extensions/` so it is present in `pnpm run dev` and can be bundled into an installer - see [Extensions](extensions.md) |
 
 ### Tests
 

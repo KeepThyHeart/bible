@@ -11,6 +11,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { loadSiteSettings, type SiteSettings } from './siteSettings.js';
 import { logger } from './utils/logger.js';
 import type { SearchPipelineConfig, ScoringConfig } from '@bible/core';
+import { createFeatureFlags, parseFlagOverrides, type FeatureFlagName, type FeatureFlags } from './core.js';
 
 // ─── Raw config shape (matches site-config.schema.json) ────────────────
 
@@ -25,8 +26,17 @@ interface FeaturesConfig {
   /** Enable the genealogy explorer. Default false; requires `tagGraph` to be true. */
   genealogy?: boolean;
   semanticSearch?: boolean;
-  /** Enable PWA (manifest + service worker). Default true. */
+  /**
+   * Enable the PWA (manifest, install, service worker). Default false.
+   * Off serves the kill-switch worker at /sw.js and hides the manifest.
+   * The `FEATURE_PWA` environment variable (1/0) overrides this.
+   */
   pwa?: boolean;
+  /**
+   * How a newer build reaches a page that stays open: `silent` reloads by
+   * itself (default), `prompt` shows a banner and lets the user choose.
+   */
+  pwaUpdate?: 'silent' | 'prompt';
   /** Allow users to manually mark modules for offline use. Default false. */
   offlineDownloads?: boolean;
   /**
@@ -116,9 +126,18 @@ const DEFAULT_MIN_SCORE = 0.15;
 
 // ─── SiteConfig ─────────────────────────────────────────────────────────
 
+/** `1`/`true` or `0`/`false` from the environment; undefined when unset or unrecognised. */
+function envFlag(name: string): boolean | undefined {
+  const v = process.env[name]?.toLowerCase();
+  if (v === '1' || v === 'true') return true;
+  if (v === '0' || v === 'false') return false;
+  return undefined;
+}
+
 export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
+  private _flags: FeatureFlags | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
 
@@ -156,16 +175,40 @@ export class SiteConfig {
     };
   }
 
-  get features(): { tagGraph: boolean; genealogy: boolean; semanticSearch: boolean; pwa: boolean; offlineDownloads: boolean; offlineAutoDownload: boolean } {
+  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; pwaUpdate: 'silent' | 'prompt'; offlineDownloads: boolean; offlineAutoDownload: boolean } {
     return {
       tagGraph: this.raw.features?.tagGraph === true,
-      // Needs the tag graph database, so it is only on when tagGraph is too.
-      genealogy: this.raw.features?.tagGraph === true && this.raw.features?.genealogy === true,
       semanticSearch: this.raw.features?.semanticSearch === true,
-      pwa: this.raw.features?.pwa !== false, // default true
+      // Default false: a service worker is opt-in per deployment.
+      pwa: envFlag('FEATURE_PWA') ?? this.raw.features?.pwa === true,
+      pwaUpdate: this.raw.features?.pwaUpdate === 'prompt' ? 'prompt' : 'silent',
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
       offlineAutoDownload: this.raw.features?.offlineAutoDownload !== false, // default true
     };
+  }
+
+  /**
+   * Typed feature flags: site config `features` over each flag's declared default (see
+   * `FEATURE_FLAGS` in `@bible/core/browser`). `BIBLE_FEATURE_FLAGS` ("audio,-pwa" or a
+   * JSON object) overrides them for local development; it is ignored when
+   * `NODE_ENV=production`.
+   */
+  get flags(): FeatureFlags {
+    if (!this._flags) {
+      this._flags = createFeatureFlags({
+        site: () => this.raw.features as Record<string, unknown> | undefined,
+        overrides: () =>
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : parseFlagOverrides(process.env.BIBLE_FEATURE_FLAGS),
+      });
+    }
+    return this._flags;
+  }
+
+  /** `isEnabled('audio')`: the one way server code asks about a feature. */
+  isEnabled(name: FeatureFlagName): boolean {
+    return this.flags.isEnabled(name);
   }
 
   get modules(): SiteSettings | null {
@@ -235,7 +278,6 @@ export class SiteConfig {
   getClientConfig(): Record<string, unknown> {
     const cfg: Record<string, unknown> = {
       showTagGraph: this.features.tagGraph,
-      showGenealogy: this.features.genealogy,
     };
 
     if (this.repoUrl) cfg.repoUrl = this.repoUrl;
@@ -245,8 +287,15 @@ export class SiteConfig {
     // (browser Web Worker) or hit the server pipeline.
     cfg.search = { semantic: this.search.mode };
 
-    // PWA feature flag
-    if (!this.features.pwa) cfg.pwaEnabled = false;
+    // Every feature flag, resolved (site config over defaults). The dev override
+    // (`BIBLE_FEATURE_FLAGS`) is included so a developer's flags reach their browser.
+    // The keys above (showTagGraph, pwaEnabled, ...) stay for older clients.
+    cfg.features = this.flags.all();
+
+    // PWA feature flag. Always sent (true or false): the client must tell "off"
+    // from "unknown" (an offline boot never receives this object at all).
+    cfg.pwaEnabled = this.features.pwa;
+    if (this.features.pwa && this.features.pwaUpdate === 'prompt') cfg.pwaUpdate = 'prompt';
 
     // Offline downloads feature flag
     if (this.features.offlineDownloads) cfg.offlineDownloads = true;

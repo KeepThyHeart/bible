@@ -202,7 +202,9 @@ export function ReferencePicker({
         aria-activedescendant={activeIndex >= 0 ? optionId(activeIndex) : undefined}
         aria-invalid={invalid || undefined}
         autoComplete="off"
-        spellCheck={false}
+        // React types the attribute `spellCheck`, Preact's `spellcheck`; the DOM
+        // accepts either, so it is spread untyped to satisfy both.
+        {...({ spellCheck: false } as Record<string, unknown>)}
         placeholder={labels.placeholder}
         value={text}
         disabled={disabled}
@@ -211,7 +213,7 @@ export function ReferencePicker({
           setInvalid(false);
           setOpen(true);
           setActive(-1);
-          setText(e.target.value);
+          setText(e.currentTarget.value);
         }}
         onKeyDown={onKeyDown}
         onBlur={() => {

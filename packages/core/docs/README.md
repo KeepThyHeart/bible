@@ -24,6 +24,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Genealogy explorer](features/genealogy.md) | Family trees from the tag graph: schema, DTOs, graph queries, layouts, data provenance |
 | [Migrations](features/migrations.md) | The `NNN_name.sql` sequence, `MigrationRunner`, the `schema_migration` ledger, user-schema repair |
 | [User data](features/user-data.md) | Notes, markup, collections, sessions, the unified `verse_link` table |
+| [User-data store](features/user-data-store.md) | The generic `user_data_item` / `verse_link` store on desktop and web, the contract suite, registering collections, backup classification checklist |
 | [Backup format](features/backup-format.md) | The encrypted `.bbk` container, the ZIP payload and unencrypted export, the user-table registry, restore and merge, the crypto primitives |
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
@@ -38,12 +39,12 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 ## Build and test
 
 ```bash
-npm run build:core        # tsc + copy SQL assets (from the repo root)
-npm run typecheck         # all packages, tests included
-npm run test -w @bible/core
+pnpm run build:core        # tsc + copy SQL assets (from the repo root)
+pnpm run typecheck         # all packages, tests included
+pnpm --filter @bible/core run test
 ```
 
-**A consuming app's build does not necessarily rebuild core.** After changing anything in `packages/core/src/`, run `npm run build:core` (or `npm run build`) before running an app against it, or you will hit runtime errors like `"X is not a constructor"` from a stale `dist/`.
+**A consuming app's build does not necessarily rebuild core.** After changing anything in `packages/core/src/`, run `pnpm run build:core` (or `pnpm run build`) before running an app against it, or you will hit runtime errors like `"X is not a constructor"` from a stale `dist/`.
 
 Type-checking uses `packages/core/tsconfig.typecheck.json`, which adds the tests that the emit-only `tsconfig.json` deliberately excludes. Keep `tsconfig.json` emit-only - adding tests to it ships them in `dist/`.
 

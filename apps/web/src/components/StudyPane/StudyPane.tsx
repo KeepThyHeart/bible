@@ -11,7 +11,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isGenealogyEnabled } from '../../utils/clientConfig';
+import { isGenealogyEnabled } from '../../utils/featureFlags';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import type { IGenealogyDataProvider } from '@bible/core/browser';
 

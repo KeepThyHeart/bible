@@ -29,7 +29,7 @@ vi.mock('./TopicsBrowser', () => ({
 }));
 
 let mockGenealogyEnabled = false;
-vi.mock('../../utils/clientConfig', () => ({
+vi.mock('../../utils/featureFlags', () => ({
   isGenealogyEnabled: () => mockGenealogyEnabled,
 }));
 

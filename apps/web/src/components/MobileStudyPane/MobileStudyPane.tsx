@@ -13,7 +13,8 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isTagGraphEnabled, isGenealogyEnabled } from '../../utils/clientConfig';
+import { isTagGraphEnabled } from '../../utils/clientConfig';
+import { isGenealogyEnabled } from '../../utils/featureFlags';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 

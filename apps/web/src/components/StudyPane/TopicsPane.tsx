@@ -5,7 +5,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { studyStore } from '../../stores/studyStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
-import { isGenealogyEnabled } from '../../utils/clientConfig';
+import { isGenealogyEnabled } from '../../utils/featureFlags';
 import type { ITopicalDataProvider, ITagGraphDataProvider, IBibleDataProvider } from '../../providers/interfaces';
 
 interface TopicsPaneProps {

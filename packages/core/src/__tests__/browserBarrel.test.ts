@@ -115,10 +115,11 @@ describe('@bible/core/browser barrel', () => {
     // exported something that drags the Data layer in behind it. Raised from 25
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
-    // rubber stamp. Raised again for the Crypto and Backup modules.
+    // rubber stamp. Raised again for the Crypto and Backup modules, then for the
+    // Settings registry and the web UserData store.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(90);
+    expect(files.size).toBeLessThan(100);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

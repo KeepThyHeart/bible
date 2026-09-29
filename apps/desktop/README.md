@@ -5,71 +5,71 @@ Electron desktop application for Bible study, built with React, Zustand, and Tai
 ## Prerequisites
 
 - **Node.js** 20.19 or newer (24 recommended; `.nvmrc` at the repo root pins it)
-- **npm** (the version bundled with Node)
-- Module database files in `apps/desktop/data/modules/` (e.g., `bible_kjv.db`); `npm run setup` links that directory to the shared repo-root `data/modules/` and downloads a starter set into it
+- **pnpm** (run `corepack enable`; the version is pinned in the root `package.json`)
+- Module database files in `apps/desktop/data/modules/` (e.g., `bible_kjv.db`); `pnpm run setup` links that directory to the shared repo-root `data/modules/` and downloads a starter set into it
 
 ## Setup
 
 From the monorepo root:
 
 ```bash
-npm install
-npm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron download and rebuild
-npm run dev
+pnpm install
+pnpm run setup              # Build @bible/core, download the starter modules, init:desktop, Electron download and rebuild
+pnpm run dev
 ```
 
-The [repository README](../../README.md) covers prerequisites, the module presets, setup's options and troubleshooting. The desktop-specific steps of `npm run setup` are:
+The [repository README](../../README.md) covers prerequisites, the module presets, setup's options and troubleshooting. The desktop-specific steps of `pnpm run setup` are:
 
-- **`npm run init:electron`** downloads the Electron binary for this platform from GitHub and checks it against the checksums the `electron` package ships. Since Electron 44 `npm install` no longer does this; without it the first `npm run dev` would. It does nothing when the binary is already there.
-- **`npm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `npm run init -- --target=desktop --no-link` keeps a separate copy instead.
-- **`npm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
+- **`pnpm run init:electron`** downloads the Electron binary for this platform from GitHub and checks it against the checksums the `electron` package ships. Since Electron 44 `pnpm install` no longer does this; without it the first `pnpm run dev` would. It does nothing when the binary is already there.
+- **`pnpm run init:desktop`** builds `apps/desktop/data/main.db` and links `apps/desktop/data/modules` to the repo-root `data/modules` (a directory junction on Windows, a relative symlink elsewhere), so the desktop, the web app and the test suites share one set of module files. `pnpm run init --target=desktop --no-link` keeps a separate copy instead.
+- **`pnpm run rebuild-sqlite`** runs this package's `rebuild-native` script (`@electron/rebuild --only better-sqlite3-multiple-ciphers`), which installs the Electron build of the SQLite driver for Electron's Node ABI. That package publishes prebuilt Electron binaries, so this is normally a download; it compiles only when none matches. It skips the driver when it already looks built. It is the only module rebuilt: `keytar` (optional, used only to migrate an encryption key from older installs) and `onnxruntime-node` are Node-API modules, which load in Electron as installed.
 
 The app also creates and migrates `apps/desktop/data/main.db` itself on first run (`electron/utils/initMainDatabase.ts`), and any module `.db` files found in `apps/desktop/data/modules/` are registered at startup (`electron/utils/moduleDetector.ts`). Adding a module is therefore a matter of dropping the file into the shared `data/modules/` and restarting.
 
-If the app fails with a `NODE_MODULE_VERSION` error, a native module is built for system Node rather than Electron (for example after `npm rebuild better-sqlite3-multiple-ciphers` for the unit tests). Force the Electron rebuild:
+If the app fails with a `NODE_MODULE_VERSION` error, a native module is built for system Node rather than Electron (for example after `pnpm rebuild better-sqlite3-multiple-ciphers` for the unit tests). Force the Electron rebuild:
 
 ```bash
-npm run rebuild-native:force -w @bible/desktop
+pnpm --filter @bible/desktop run rebuild-native:force
 ```
 
 ## Development
 
 ```bash
 # From monorepo root
-npm run dev                # Start Electron app in dev mode (electron-vite)
+pnpm run dev                # Start Electron app in dev mode (electron-vite)
 ```
 
-`predev` first fetches the self-hosted fonts (`scripts/fetch-fonts.mjs`) and generates the app icons. The fonts are not committed, so the first run needs network access. The Google Fonts families are required, and the script stops with instructions if they cannot be downloaded; Ezra SIL (Hebrew) is optional, and when its host is unreachable the script only warns and retries after 24 hours (`npm run fonts -w @bible/desktop -- --force` retries now).
+`predev` first fetches the self-hosted fonts (`scripts/fetch-fonts.mjs`) and generates the app icons. The fonts are not committed, so the first run needs network access. The Google Fonts families are required, and the script stops with instructions if they cannot be downloaded; Ezra SIL (Hebrew) is optional, and when its host is unreachable the script only warns and retries after 24 hours (`pnpm --filter @bible/desktop run fonts -- --force` retries now).
 
 In dev mode, logs go to the terminal where you launched the command. The renderer supports hot module replacement via Vite.
 
 **Important:** If you change files in `packages/core/src/`, you must rebuild core before restarting:
 
 ```bash
-npm run build:core && npm run dev
+pnpm run build:core && pnpm run dev
 ```
 
 ## Building and Packaging
 
 ```bash
-npm run build:desktop      # Build for production (electron-vite build)
+pnpm run build:desktop      # Build for production (electron-vite build)
 
 # Package for distribution
 cd apps/desktop
-npm run package:win        # Windows
-npm run package:mac        # macOS
-npm run package:linux      # Linux
+pnpm run package:win        # Windows
+pnpm run package:mac        # macOS
+pnpm run package:linux      # Linux
 ```
 
-**On macOS**, run the `:mac` scripts on a Mac. `package:code-only:mac` (what the release workflow builds) produces a `.dmg` and a `.zip` for both Apple Silicon and Intel, whichever the Mac is; the other two configs build only the Mac's own arch. Without a certificate in the environment every build is signed ad hoc, so it opens on the Mac that built it; a copy downloaded from elsewhere is not notarized, and Gatekeeper blocks it until it is allowed under System Settings > Privacy & Security. To sign with a certificate from your keychain, set `CSC_NAME` to its name; `CSC_LINK` plus the `APPLE_*` variables sign and notarize (see `electron-builder.branding.cjs`). electron-builder rebuilds the SQLite driver in the shared `node_modules` for each arch it packages, and the build then puts the Mac's own build back so that `npm run dev` keeps working; if a packaging run fails part-way, run `npm run rebuild-native:force -w @bible/desktop`. An installed build runs under the same app name as `npm run dev` (`@bible/desktop`), so on a Mac where you have run the app in development, a local build asks for access to the "@bible/desktop Safe Storage" keychain item when it opens its encrypted user database, and asks again after every rebuild, since each ad-hoc signature is new; choose Allow. The installer test sidesteps this with Chromium's mock keychain. Check an installer with `npm run test:installer -- "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.dmg"` from the repository root, using the `-arm64` file on Apple Silicon.
+**On macOS**, run the `:mac` scripts on a Mac. `package:code-only:mac` (what the release workflow builds) produces a `.dmg` and a `.zip` for both Apple Silicon and Intel, whichever the Mac is; the other two configs build only the Mac's own arch. Without a certificate in the environment every build is signed ad hoc, so it opens on the Mac that built it; a copy downloaded from elsewhere is not notarized, and Gatekeeper blocks it until it is allowed under System Settings > Privacy & Security. To sign with a certificate from your keychain, set `CSC_NAME` to its name; `CSC_LINK` plus the `APPLE_*` variables sign and notarize (see `electron-builder.branding.cjs`). electron-builder rebuilds the SQLite driver in the shared `node_modules` for each arch it packages, and the build then puts the Mac's own build back so that `pnpm run dev` keeps working; if a packaging run fails part-way, run `pnpm --filter @bible/desktop run rebuild-native:force`. An installed build runs under the same app name as `pnpm run dev` (`@bible/desktop`), so on a Mac where you have run the app in development, a local build asks for access to the "@bible/desktop Safe Storage" keychain item when it opens its encrypted user database, and asks again after every rebuild, since each ad-hoc signature is new; choose Allow. The installer test sidesteps this with Chromium's mock keychain. Check an installer with `pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.dmg"` from the repository root, using the `-arm64` file on Apple Silicon.
 
 There are three electron-builder configs:
 
 | Config | Used by | Ships |
 | --- | --- | --- |
-| `electron-builder.curated.yml` | `npm run package:{win,mac,linux}` | The default offline module set staged into `build-data/` (KJV, Commentary Synthesis, Matthew Henry, Strong's Greek + Hebrew, ISBE). |
-| `electron-builder.yml` | `npm run package:lean:{win,mac,linux}` | A lean KJV-only build straight out of `data/`. |
-| `electron-builder.code-only.yml` | `npm run package:code-only:{win,mac,linux}` | The application plus `main.db` and no content modules, so it builds from a bare checkout with no external assets. |
+| `electron-builder.curated.yml` | `pnpm run package:{win,mac,linux}` | The default offline module set staged into `build-data/` (KJV, Commentary Synthesis, Matthew Henry, Strong's Greek + Hebrew, ISBE). |
+| `electron-builder.yml` | `pnpm run package:lean:{win,mac,linux}` | A lean KJV-only build straight out of `data/`. |
+| `electron-builder.code-only.yml` | `pnpm run package:code-only:{win,mac,linux}` | The application plus `main.db` and no content modules, so it builds from a bare checkout with no external assets. |
 
 All three `extends: file:electron-builder.branding.cjs` for the product name.
 
@@ -89,7 +89,7 @@ All three `extends: file:electron-builder.branding.cjs` for the product name.
 
 ## Build Configuration
 
-A few user-visible values are not finalised yet, so they are supplied by environment variables at build time and baked into the bundles. All of them have safe fallbacks, so `npm run build` works with none of them set.
+A few user-visible values are not finalised yet, so they are supplied by environment variables at build time and baked into the bundles. All of them have safe fallbacks, so `pnpm run build` works with none of them set.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ BIBLE_ISSUE_REPORT_URL="mailto:support@example.org" \
 BIBLE_MODULE_CATALOG_URL="https://modules.example.org/" \
 BIBLE_DOCS_URL="https://docs.example.org/" \
 BIBLE_ABOUT_TEXT="A modern, open-source Bible study app." \
-npm run build -w @bible/desktop
+pnpm --filter @bible/desktop run build
 ```
 
 The values are read once in `electron.vite.config.ts` and injected as build-time defines; `electron/config/appConfig.ts` is the single source of truth that resolves them (define -> `process.env` -> fallback) for the main process, and the preload bridge hands the resolved object to the renderer as `window.electron.appConfig` (see `src/ui/config/appConfig.ts`).
@@ -120,16 +120,16 @@ The installer's `productName` / NSIS shortcut name are read from the same `BIBLE
 
 ```bash
 # Unit tests (vitest)
-npm run test -w @bible/desktop
-npm run test:watch -w @bible/desktop
-npm run test:coverage -w @bible/desktop
+pnpm --filter @bible/desktop run test
+pnpm --filter @bible/desktop run test:watch
+pnpm --filter @bible/desktop run test:coverage
 
 # E2E tests (Playwright + Electron), from the repo root
-npm run build:desktop                      # Builds core and desktop; postbuild runs @electron/rebuild
-npm run test:e2e -w @bible/desktop
+pnpm run build:desktop                      # Builds core and desktop; postbuild runs @electron/rebuild
+pnpm --filter @bible/desktop run test:e2e
 ```
 
-Some unit suites drive real SQLite and skip themselves unless `better-sqlite3-multiple-ciphers` is built for system Node (`npm rebuild better-sqlite3-multiple-ciphers`). Run `npm run rebuild-native:force -w @bible/desktop` afterwards to restore the Electron build before `npm run dev`.
+Some unit suites drive real SQLite and skip themselves unless `better-sqlite3-multiple-ciphers` is built for system Node (`pnpm rebuild better-sqlite3-multiple-ciphers`). Run `pnpm --filter @bible/desktop run rebuild-native:force` afterwards to restore the Electron build before `pnpm run dev`.
 
 See [`e2e/README.md`](e2e/README.md) for E2E test details, conventions, and troubleshooting.
 
@@ -249,7 +249,7 @@ The app uses `electron-log` for automatic log file management:
 | macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
 | Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
 
-In dev mode (`npm run dev`), logs go to the terminal stdout instead of log files.
+In dev mode (`pnpm run dev`), logs go to the terminal stdout instead of log files.
 
 ## Further Documentation
 

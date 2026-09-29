@@ -13,8 +13,8 @@ Two independent search stacks live in `@bible/core`: a complete, self-contained 
 | `src/Services/BibleSearchService.test.ts` | Runs against a real KJV fixture via `KJVTestHelper`; covers each search type, highlighting, dedup, ranking, auto-fuzzy, character variants. |
 | `src/Services/SearchQueryParser.ts` | Pure syntax classifier: Strong's, regex, `~Nv`, `~N`/`~Nw`, `~fuzzy`, boolean, phrase, multi-word. Also `validate`, `isReference`, `extractPhrases`, KJV spelling suggestions. |
 | `src/Services/SearchQueryParser.test.ts` | Query-type detection, term extraction, proximity/boolean parsing, validation, reference detection. |
-| `src/Services/FtsQuery.ts` | `escapeFts5Term` / `escapeFts5Query` - quote the terms FTS5 would otherwise read as syntax. |
-| `src/Services/FtsQuery.test.ts` | Escaping rules, including reserved words and embedded quotes. |
+| `src/Data/Access/Fts5/Fts5QueryCompiler.ts` | `escapeFts5Term` / `escapeFts5Query` - quote the terms FTS5 would otherwise read as syntax. |
+| `src/Data/Access/Fts5/Fts5QueryCompiler.test.ts` | Escaping rules, including reserved words and embedded quotes. |
 | `src/types/search.ts` | `SearchResult`, `Match`, `MatchType`, `ParsedQuery`, `BooleanExpression`, plus re-exports of `SearchOptions`/`SearchScope`/`BibleRange`/`SavedSearch` from the `SavedSearch` model. |
 | `src/Data/Repositories/IBibleSearchRepository.ts` | Interface for the search tables: index metadata, verse positions, saved searches. |
 | `src/Data/Repositories/BibleSearchRepository.ts` | Implementation over `bible_search_index`, `bible_search_index_metadata`, `bible_search_verse_positions`, `saved_search`. |

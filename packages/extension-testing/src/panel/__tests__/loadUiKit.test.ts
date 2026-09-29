@@ -21,7 +21,7 @@ describe('loadUiKit', () => {
     await expect(loadUiKit({ code: 'void 0;' })).rejects.toThrow(/did not define globalThis\.KthKit/);
   });
 
-  // Only meaningful after `npm run build` (dist/kit is gitignored build output).
+  // Only meaningful after `pnpm run build` (dist/kit is gitignored build output).
   it.skipIf(!bundled)('loads the bundled kit and renders a real element', async () => {
     const kit = (await loadUiKit()) as { version: string; init(o: object): Promise<void> };
     expect(kit.version).toBe('1');

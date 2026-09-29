@@ -5,10 +5,21 @@
   "layout.readingMode.description": "Только Библия, с полями для чтения",
   "layout.studyModeQuad.name": "Режим изучения (четыре панели)",
   "layout.studyModeQuad.description": "Макет 2×2: комментарий сверху слева, Библия сверху справа, словари снизу слева, заметки снизу справа",
+  "layout.writerMode.name": "Режим письма",
+  "layout.writerMode.description": "Писание слева, место для записей справа",
   "layout.applyPreset.title": "Применить: {presetName}",
   "layout.dropdown.label": "Макет",
   "layout.dropdown.tooltip": "Вернуться к встроенному макету",
+  "layout.reset.label": "Сбросить макет по умолчанию",
+  "layout.newTab.createFailed": "Не удалось открыть эту панель. Попробуйте ещё раз.",
+  "layout.collapsePane.tooltip": "Свернуть эту панель, чтобы не мешала",
+  "layout.expandCollapsed.label": "Показать скрытые панели",
+  "layout.expandCollapsed.tooltip": "Вернуть свёрнутые панели изучения",
+  "layout.expandCollapsed.tooltipNamed": "Вернуть: {titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "{count, plural, one {Переставлена # вкладка.} few {Переставлено # вкладки.} many {Переставлено # вкладок.} other {Переставлено # вкладки.}}",
   "layout.undo.button": "Отменить",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "Расширенный режим макета",
+  "layout.advancedMode.helpTooltip": "Позволяет перетаскивать панели, чтобы переставлять, разделять или закреплять их вручную. Открыть полную настройку.",
+  "layout.advancedMode.helpAria": "О расширенном режиме макета"
 }

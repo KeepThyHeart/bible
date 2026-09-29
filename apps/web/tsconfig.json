@@ -31,8 +31,8 @@
       // that puts elements inside a DndContext. @preact/preset-vite already
       // performs the same aliasing at build time, so this only tells the
       // type-checker what the bundler has been doing all along.
-      "react": ["../../node_modules/preact/compat/"],
-      "react-dom": ["../../node_modules/preact/compat/"]
+      "react": ["./node_modules/preact/compat/"],
+      "react-dom": ["./node_modules/preact/compat/"]
     }
   },
   "include": ["src/**/*", "server/**/*"],

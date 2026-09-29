@@ -49,8 +49,14 @@
         },
         "pwa": {
           "type": "boolean",
-          "description": "Enable PWA (manifest + service worker). When false, the app behaves as a regular website with no offline support or install prompt.",
-          "default": true
+          "description": "Enable the PWA (manifest, install prompt, service worker, offline app shell). When false (the default) the server hands out a kill-switch worker at /sw.js that removes any worker a browser installed earlier, and the app behaves as a regular website. The FEATURE_PWA environment variable (1/0) overrides this.",
+          "default": false
+        },
+        "pwaUpdate": {
+          "type": "string",
+          "enum": ["silent", "prompt"],
+          "description": "How a newer build reaches a page that stays open. 'silent' reloads by itself; 'prompt' shows a banner and lets the user choose when to reload. A fresh launch always updates silently.",
+          "default": "silent"
         },
         "offlineDownloads": {
           "type": "boolean",

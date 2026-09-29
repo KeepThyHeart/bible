@@ -116,7 +116,7 @@ function main() {
   }
 
   if (checkMode && !allMatch) {
-    console.error('[locale-schemas] Regenerate with: npm run generate:locale-schemas');
+    console.error('[locale-schemas] Regenerate with: pnpm run generate:locale-schemas');
     process.exit(1);
   }
 }

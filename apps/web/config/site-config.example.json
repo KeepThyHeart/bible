@@ -8,7 +8,7 @@
     "tagGraph": false,
     "genealogy": false,
     "semanticSearch": false,
-    "pwa": true,
+    "pwa": false,
     "offlineDownloads": false,
     "offlineAutoDownload": true
   },
