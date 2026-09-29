@@ -39,8 +39,8 @@ This package is used as a workspace dependency within the monorepo:
 
 ```bash
 # From the monorepo root
-npm install
-npm run build:core
+pnpm install
+pnpm run build:core
 ```
 
 Other packages reference it via the workspace protocol:
@@ -169,17 +169,17 @@ function loadVerse(repo: IBibleRepository, verseId: number) {
 ## Building
 
 ```bash
-npm run build          # Compile TypeScript to dist/
-npm run watch          # Watch mode
-npm run clean          # Remove dist/
+pnpm run build          # Compile TypeScript to dist/
+pnpm run watch          # Watch mode
+pnpm run clean          # Remove dist/
 ```
 
 ## Testing
 
 ```bash
-npm run test           # Run tests (vitest)
-npm run test:watch     # Watch mode
-npm run test:coverage  # With coverage
+pnpm run test           # Run tests (vitest)
+pnpm run test:watch     # Watch mode
+pnpm run test:coverage  # With coverage
 ```
 
 ## Further Documentation

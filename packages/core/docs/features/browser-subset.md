@@ -130,7 +130,7 @@ must agree.
   should map only the `/browser` subpath, so that the plain specifier fails to
   resolve rather than failing at bundle time - that guard is worth setting up
   deliberately.
-- **Building core does not run the guard; the test suite does.** `npm run test -w @bible/core`
+- **Building core does not run the guard; the test suite does.** `pnpm --filter @bible/core run test`
   is where a violation surfaces. A `tsc` build of core will happily compile a
   `browser.ts` that re-exports something impure.
 - **The barrel is TypeScript source to the web build and `dist/browser.js` to

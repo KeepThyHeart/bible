@@ -1207,8 +1207,8 @@ async function runCatalogInstall({ source, modulesDir, select, presets = {}, ass
   if (!url) {
     log.error('No catalog URL: none was given, BIBLE_MODULE_CATALOG_URL is not set, and');
     log.error('branding.json has no settled moduleRepositoryUrl.');
-    log.error('For the development catalog:  npm run init:modules:dev');
-    log.error('Or pass one explicitly:       npm run init -- --catalog=https://example.org/catalog.json');
+    log.error('For the development catalog:  pnpm run init:modules:dev');
+    log.error('Or pass one explicitly:       pnpm run init --catalog=https://example.org/catalog.json');
     return 'aborted';
   }
 

@@ -45,11 +45,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // `npm run` rather than a path into node_modules/.bin: the bare `tsx` there
+    // `pnpm run` rather than a path into node_modules/.bin: the bare `tsx` there
     // is a shell script with no Windows counterpart, and cmd.exe cannot run it.
     // The environment goes in `env` for the same reason — `FOO=1 cmd` is POSIX
     // shell syntax that cmd.exe reads as a command name.
-    command: 'npm run e2e:server',
+    command: 'pnpm run e2e:server',
     cwd: packageRoot,
     env: {
       PORT: '3100',

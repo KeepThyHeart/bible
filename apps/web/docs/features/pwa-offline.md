@@ -13,7 +13,7 @@ Why: a service worker is the only thing in this stack that can answer a *navigat
 `src/sw.ts`, the update handshake, and the whole offline stack are intact and re-enable with the flag:
 
 ```bash
-ENABLE_PWA=1 npm run build:client     # or: ENABLE_PWA=1 npm run build
+ENABLE_PWA=1 pnpm run build:client     # or: ENABLE_PWA=1 pnpm run build
 ```
 
 **Still works with the PWA off:**
@@ -244,21 +244,21 @@ User navigates to chapter
 
 ## Testing PWA
 
-**PWA features (service worker, install prompt) only work on production builds built with `ENABLE_PWA=1`**, never on `npm run dev`.
+**PWA features (service worker, install prompt) only work on production builds built with `ENABLE_PWA=1`**, never on `pnpm run dev`.
 
 ### Quick test steps
 
 ```bash
 cd apps/web
-ENABLE_PWA=1 npm run build   # Build client + server WITH the service worker
-npm run start                # Serve production build on http://localhost:3100
+ENABLE_PWA=1 pnpm run build   # Build client + server WITH the service worker
+pnpm run start                # Serve production build on http://localhost:3100
 ```
 
 ### Verifying the PWA is off (default build)
 
 ```bash
 cd apps/web
-npm run build && npm run start
+pnpm run build && pnpm run start
 ```
 
 1. DevTools > Application > Service Workers — **no** registration.

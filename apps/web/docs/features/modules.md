@@ -37,7 +37,7 @@ Loading and managing Bible, Commentary, and Dictionary modules.
 | `config/settings.sample.json` | Sample legacy settings file; copy to `data/settings.json` (repo root) and customize |
 | `config/settings.schema.json` | JSON Schema for the above; editor validation only, never read at runtime |
 | `data/settings.json` | Legacy module whitelist (gitignored) — module visibility and section grouping. Superseded by the `modules` section of `site-config.json` |
-| `npm run init` (root `package.json` script) | Auto-discovers modules and writes the `modules` section of `site-config.json` (only if the file doesn't already exist) as part of registering modules — see [Quick Start](../../README.md#quick-start) |
+| `pnpm run init` (root `package.json` script) | Auto-discovers modules and writes the `modules` section of `site-config.json` (only if the file doesn't already exist) as part of registering modules — see [Quick Start](../../README.md#quick-start) |
 
 ## Dictionary Modules
 
@@ -58,7 +58,7 @@ reference works in the right-pane Dictionary tab.
 | `server/routes/dictionaryRoutes.ts` | `/api/dictionary/available`, `/search` (all dictionaries), `/:module/search`, `/:module/letters`, `/:module/browse`, `/:module/adjacent/:key`, `/:module/count`, `/:module/entry/:key` |
 | `server/DatabaseManager.ts` | `getDictionaryRepo()` — resolves `dictionary_<name>.db` |
 | `packages/core/src/Data/Repositories/DictionaryRepository.ts` | `searchEntries()` (title-first, then full text), entry lookup, browse |
-| `packages/core/src/Services/FtsQuery.ts` | `escapeFts5Term()` / `escapeFts5Query()` — shared FTS5 escaping (also used by `BibleSearchService`) |
+| `packages/core/src/Data/Access/Fts5/Fts5QueryCompiler.ts` | `escapeFts5Term()` / `escapeFts5Query()` — shared FTS5 escaping (also used by `BibleSearchService`) |
 
 ### Search behavior
 

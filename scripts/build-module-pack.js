@@ -30,7 +30,7 @@
  * port of `packages/extension-testing`'s internal `createZip` (the same
  * algorithm `bible-ext package` uses) - not an import of it. That package
  * has no `prepare`/`postinstall` step, so its `dist/` does not exist right
- * after a fresh `npm install`; a build tool under `scripts/` has to work
+ * after a fresh `pnpm install`; a build tool under `scripts/` has to work
  * without depending on another package having been built first. See
  * `scripts/lib/createZip.js`'s own doc comment for the details.
  */
