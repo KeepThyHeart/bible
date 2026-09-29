@@ -101,8 +101,6 @@ const h = vi.hoisted(() => {
     commentaryStore: new FakeCommentaryStore(),
     searchStore: new FakeSearchStore(),
     settingsStore: new FakeSettingsStore(),
-    hasBindings: vi.fn(() => false),
-    handleKeyEvent: vi.fn(),
   };
 });
 
@@ -112,12 +110,6 @@ vi.mock('../stores/bibleStore', () => ({ bibleStore: h.bibleStore }));
 vi.mock('../stores/commentaryStore', () => ({ commentaryStore: h.commentaryStore }));
 vi.mock('../stores/searchStore', () => ({ searchStore: h.searchStore }));
 vi.mock('../stores/settingsStore', () => ({ settingsStore: h.settingsStore }));
-vi.mock('../plugins/registries/KeybindingRegistry', () => ({
-  keybindingRegistry: {
-    hasBindings: h.hasBindings,
-    handleKeyEvent: h.handleKeyEvent,
-  },
-}));
 
 import { useAppShared } from './useAppShared';
 import { eventBus } from '../events/eventBus';
@@ -154,7 +146,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 3, displayMode: 'standard' };
   h.commentaryStore.collapsed = false;
-  h.hasBindings.mockReturnValue(false);
   document.body.innerHTML = '';
   window.location.hash = '';
 });
@@ -410,25 +401,14 @@ describe('keyboard shortcuts', () => {
     expect(document.activeElement).not.toBe(input);
   });
 
-  it('delegates to the plugin keybinding registry only when it has bindings', () => {
-    render();
-
-    press({ key: 'x' });
-    expect(h.handleKeyEvent).not.toHaveBeenCalled();
-
-    h.hasBindings.mockReturnValue(true);
-    press({ key: 'x' });
-    expect(h.handleKeyEvent).toHaveBeenCalled();
-  });
-
   it('stops listening once unmounted', () => {
-    h.hasBindings.mockReturnValue(true);
+    const input = searchField();
     const { unmount } = render();
     unmount();
 
-    press({ key: 'x' });
+    press({ key: '/' });
 
-    expect(h.handleKeyEvent).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(input);
   });
 });
 

@@ -6,24 +6,41 @@
  * validation on the host side.
  *
  * ```html
- * <script src="ext-ui://sdk/bible-ext-ui.js"></script>
- * <script>
- *   const bible = BibleExtUI.init();
- *   bible.linkVerses(document.body);
- *   bible.navigateToVerse(43003016); // John 3:16
- * </script>
+ * <script src="panel.js"></script>   // your bundle, which contains this SDK
+ * ```
+ * ```typescript
+ * // panel.ts
+ * const bible = BibleExtUI.init();
+ * bible.useHostStyles();
+ * bible.linkVerses(document.body);
+ * bible.navigateToVerse(43003016); // John 3:16
  * ```
  */
 
 import { RpcClient, type Disposable } from './RpcClient';
 import { scanText, parseReference, calculateVerseId, type ScannedRef } from './verseParser';
+import { useHostStyles, type HostStylesOptions } from './hostStyles';
+import { loadKit, type KitHandle, type LoadKitOptions } from './kit';
 
 // ── Public types ─────────────────────────────────────────────────────────
 
 export interface ThemeInfo {
-  mode: 'light' | 'dark' | 'sepia';
+  /**
+   * Id of the host theme. `'light'`, `'dark'` and `'sepia'` are always present,
+   * but the host has more themes and may send any of their ids, so do not
+   * assume one of the three. Prefer the host stylesheet (`useHostStyles`) over
+   * branching on this.
+   */
+  mode: 'light' | 'dark' | 'sepia' | (string & {});
   /** CSS custom property values the extension can use for consistent styling. */
   colors?: Record<string, string>;
+}
+
+export interface LocaleInfo {
+  /** BCP 47 tag of the host's current UI locale, e.g. `en`, `es`, `zh-Hans`. */
+  locale: string;
+  /** Text direction of that locale. */
+  direction: 'ltr' | 'rtl';
 }
 
 export interface LinkVersesOptions {
@@ -174,6 +191,37 @@ export class BibleExtUI {
    */
   getTheme(): Promise<ThemeInfo> {
     return this.rpc.request<ThemeInfo>('ui.getTheme', []);
+  }
+
+  // ── Locale ───────────────────────────────────────────────────────────
+
+  /**
+   * Get the host's current UI locale and its text direction. Read-only and
+   * always available (no permission needed).
+   */
+  getLocale(): Promise<LocaleInfo> {
+    return this.rpc.request<LocaleInfo>('ui.getLocale', []);
+  }
+
+  // ── Host styles and UI kit ───────────────────────────────────────────
+
+  /**
+   * Link the host's theme and KTH stylesheets, set `data-theme` on `<html>`,
+   * and follow live theme switches (the theme sheet is re-linked and the old
+   * one kept until the new one loads). Call once, early. Returns a handle whose
+   * `dispose()` stops following theme changes.
+   */
+  useHostStyles(opts?: HostStylesOptions): { dispose(): void } {
+    return useHostStyles(this, opts);
+  }
+
+  /**
+   * Load the host-served `kth-*` custom elements (`<kth-reference-picker>`
+   * ...) and initialise them with this bridge's locale. Requires `uiKit` in
+   * the manifest. `kit.ready` resolves once the elements are defined.
+   */
+  loadKit(opts?: LoadKitOptions): KitHandle {
+    return loadKit(this, opts);
   }
 
   // ── Verse linking ────────────────────────────────────────────────────

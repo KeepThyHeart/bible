@@ -19,6 +19,9 @@
       // that `@bible/extension-testing` deliberately does not import, so the
       // dependency runs desktop → extension-testing and never the reverse.
       "@bible/extension-testing/*": ["../../packages/extension-testing/src/*"],
+      // Shared UI kit, consumed as source (packages/ui). CSS is imported for
+      // side effects through the bundler alias and needs no path entry.
+      "@bible/ui": ["../../packages/ui/src"],
       "@/*": ["src/ui/*"]
     }
   },

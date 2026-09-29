@@ -91,9 +91,9 @@ There is deliberately no `blocklist:refresh` channel and no timer: block rules a
 | `src/ui/components/extensions/ExtensionCatalogSources.tsx` | Catalogs tab - add/confirm/refresh/remove sources, plus the read-only block-rule list |
 | `src/ui/components/extensions/marketplaceTypes.ts` | Renderer mirrors of the wire shapes (the preload types these channels as `any`) |
 | `src/ui/components/extensions/ExtensionConsentDialog.tsx` | The permission prompt, shown for sideloads and catalog installs alike |
-| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe |
+| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe. `ExtensionPanelHost.tsx` is a thin wrapper (IPC lookup, `computeSandboxAttr`, loading/error copy) over the shared `ExtensionPanelHost` in `@bible/ui`, which owns the iframe and the one `IframeRpcBridge` per panel |
 | `src/ui/components/extensions/ExtensionSettingsRenderer.tsx`, `extensionSettingsSchema.ts` | Renders `contributes.configuration` |
-| `src/ui/components/extensions/useIframeBridge.ts` | The postMessage channel between the panel iframe and the renderer host. Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
+| `src/ui/components/extensions/useIframeBridge.ts` | The desktop half of the postMessage channel between the panel iframe and the renderer host: `useDesktopBridgeParts` supplies the handler map, the context and the `onBridge` pushes to the shared panel host (`useIframeBridge` is the same with the bridge created in the hook). Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
 | `src/ui/components/StatusBar.tsx` | The app status bar, filled entirely by `ui.registerStatusBarItem` contributions. Renders `null` when there are none - see [Status Bar](status-bar.md) |
 | `src/ui/components/VerseContextMenu.tsx` | Renders `ui.registerContextMenu('verse', ...)` contributions beneath the built-in items, behind a separator |
 | `src/ui/menu/buildMenuSpec.ts` | `buildExtensionToolsSubmenu` - the Tools menu, built from commands carrying an `ownerExtensionId`. Omitted entirely when empty, so a fresh install has no Tools menu |
@@ -207,6 +207,17 @@ The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`
 
 `api.tasks.run` has always documented "the host shows a progress entry in the status bar"; `electron/main.ts` never supplied `taskStatusBridge` to `ExtensionHost`, so nothing did. `RendererTaskStatusBridge.ts` closes that by piggy-backing on the same status bar surface described in [Status Bar](status-bar.md#background-tasks) rather than a second one. `taskNotifier` (for `notifyOnComplete`) is wired the same pass, as a one-line adapter onto `uiBridge.showNotification`.
 
+## Extension data in backups
+
+An extension says which of its data is the user's with an optional `userData` block in
+`extension.json`: `backup` (its key-value store; included unless `false`) and `databases`
+(a map from the name given to `openDatabase()` to `{ "backup": true }`; a database is
+included only when declared, because databases are often caches). Secrets are never
+included, and no extension code runs during a backup or restore. The declarations are
+read from the running host by `electron/services/backup/nodeAdapters.ts`; the file
+format and the restore rules are in `packages/core/docs/features/backup-format.md`, and
+the desktop side is in [Backup & Restore](backup-restore.md).
+
 ## Panel iframe SDK: verse events and popups
 
 `packages/extension-ui/src/BibleExtUI.ts` declared `onActiveVerseChanged` and `showVersePopup`/`hideVersePopup` from the start; none of the three worked.
@@ -216,12 +227,69 @@ The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`
 
 ## Panel styling
 
-A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin, which shares nothing with the app's renderer by default - no stylesheet, no `<html data-theme>` attribute, no CSS custom properties. Two read-only stylesheets are served at the reserved `ext-ui://host` origin (already permitted by the panel CSP's `style-src`) so a panel author does not have to reinvent the app's visual language from guesswork:
+A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin, which shares nothing with the app's renderer by default - no stylesheet, no `<html data-theme>` attribute, no CSS custom properties. Read-only stylesheets are served at the reserved `ext-ui://host` origin (already permitted by the panel CSP's `style-src`) so a panel author does not have to reinvent the app's visual language from guesswork:
 
-- **`ext-ui://host/theme.css`** (`electron/extensions/hostThemeCss.ts`) - the app's ~143 `--theme-*` design tokens (`src/ui/styles/themes.css`), flattened to a single `:root` block for whichever theme the user currently has active. Link it before your own stylesheet and use the custom properties (`--theme-text-primary`, `--theme-bg-primary`, `--theme-accent`, `--theme-border-*`, ...) instead of hard-coded colors, and your panel follows the app's theme automatically, including a live theme switch. `create-bible-extension`'s scaffold links this and uses the tokens by default - see the generated `ui/index.html` / `ui/styles.css`.
-- **`ext-ui://host/controls.css`** (`electron/extensions/hostControlsCss.ts`) - ready-made classes for the host's own toolbar/button chrome (`.control-toolbar`, `.control-toolbar-button`, `.control-nav-button`), built from the same tokens, for a panel that wants a toolbar matching the app's own `PaneToolbar.tsx` look rather than styling one from scratch.
+- **`ext-ui://host/theme.css`** (`electron/extensions/hostThemeCss.ts`) - the app's ~143 `--theme-*` design tokens (`src/ui/styles/themes.css`), flattened to a single `:root` block for whichever theme the user has active *when the sheet is fetched*. Link it before your own stylesheet and use the custom properties instead of hard-coded colors. `theme.css?theme=<id>` serves a specific theme (see below).
+- **`ext-ui://host/kit/1/kth.css`** - the stable `--kth-*` tokens, a small base reset and the `.kth-*` classes, built on `theme.css`. Link it after `theme.css`.
+- **`ext-ui://host/controls.css`** (`electron/extensions/hostControlsCss.ts`) - ready-made classes for the host's own toolbar/button chrome (`.control-toolbar`, `.control-toolbar-button`, `.control-nav-button`).
 
-Both are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named control classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
+**Following theme changes.** A linked stylesheet is fetched once, so linking alone does **not** follow a theme switch made while the panel is open. Call `bible.useHostStyles()` (`@bible/extension-ui`, `packages/extension-ui/src/hostStyles.ts`) once at startup. It adopts (or adds) the `theme.css` and `kth.css` links, sets `<html data-theme>`, and on the host's `theme.changed` event inserts a new `<link href="ext-ui://host/theme.css?theme=<id>">` after the old one and removes the old one only when the new one has loaded (or errored, or 3 s have passed), so there is no unstyled flash. The id is validated (`/^[a-z0-9-]{1,40}$/`) before it goes into a URL, and rapid switches supersede each other. `useHostStyles({ kthCss: false })` skips `kth.css`. `create-bible-extension`'s scaffold links both sheets statically (no first-paint flash) and calls `useHostStyles()`.
+
+These are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
+
+### UI kit manifest field (`uiKit`)
+
+`extension.json` may declare `"uiKit": { "version": "1", "components": ["kth-book-chapter-picker", ...] }` (requires `ui:contribute-pane`; unknown version or tag, or a duplicate, fails validation at install). It adds no permission. The only host surface it can reach is `uikit.*` bridge methods, and `IframeRpcBridge` (`@bible/core/browser`) answers one only when the panel's manifest lists a component whose `hostMethods` includes it and the extension holds that component's `requiresPermissions`; otherwise `PermissionDeniedError`, before any handler runs (v1 has no `uikit.*` handlers). `useIframeBridge.ts` supplies the desktop handlers and the context; the manifest's `uiKit` and the extension's granted permissions come from main via `extensions:getPanelTypeUiEntry` (`uiKit?`, `grantedPermissions`), held in a ref by `ExtensionPanelHost.tsx` (unknown until it answers, so `uikit.*` is denied). Also new: `ui.getLocale` -> `{ locale, direction }` (read-only, ungated; SDK `BibleExtUI.getLocale()`).
+
+### Serving the UI kit (`ext-ui://host/kit/1/`)
+
+The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picker`, `kth-book-chapter-picker`, `kth-highlight-swatch`; contract in `packages/ui/README.md`, "Extension UI kit"), bundled as a classic-script IIFE on preact/compat with a stylesheet. The reserved `host` origin serves two more exact paths:
+
+- **`ext-ui://host/kit/1/kth-kit.js`** - `text/javascript; charset=utf-8`. Loading it only assigns `globalThis.KthKit`; `KthKit.init({ rpc, components })` defines the listed elements and reads `ui.getLocale`. Use a classic `<script src>` (not `type="module"`: a module script from an opaque origin needs CORS).
+- **`ext-ui://host/kit/1/kth.css`** - `text/css; charset=utf-8`. The KTH tokens mapped from `theme.css`, base rules, and the `.kth-*` classes. Link it after `theme.css`.
+
+Both carry the panel CSP, `nosniff` and `no-store`, like the other host resources. The `kit/1/` segment is the kit major; within a major, attributes and events are additive only, and a breaking change is `kit/2/` with `1` kept for at least one host minor. `theme.css` also accepts `?theme=<id>` for any id in `HOST_THEME_IDS` (else the active theme), so a panel that heard `theme.changed` can re-link to the new palette without racing the main process's own theme state (`getHostThemeCssFor` in `hostThemeCss.ts`; it never changes the active theme).
+
+**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `pnpm run dev`, `pnpm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `pnpm --filter @bible/ui run build:kit` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script tag for authors is `loadKit` in `@bible/extension-ui` (next section).
+
+**Loading the kit from a panel (`loadKit`).** `bible.loadKit({ components })` (`@bible/extension-ui`, `packages/extension-ui/src/kit.ts`) adds a classic `<script src="ext-ui://host/kit/1/kth-kit.js">` (unless one is already in the page), waits for the `KthKit` global, checks its major version, and calls `KthKit.init({ rpc, components })`, which defines the listed elements and reads `ui.getLocale` once. It returns `{ version, ready, dispose() }`: `ready` resolves with `KthKit`, and rejects on a load error, a 10 s timeout (`timeoutMs`), an incompatible major, or an `init` failure. The kit is host-served only; `@bible/extension-ui` never bundles it. Copy-paste example (declare the kit and the permission it needs, then use an element):
+
+```json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+```
+
+```html
+<link rel="stylesheet" href="ext-ui://host/theme.css">
+<link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+<script src="panel.js"></script>
+```
+
+```typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+```
+
+The component list passed to `loadKit` should match `uiKit.components`. The scaffold (`create-bible-extension`) does not declare `uiKit` (it would add an extra permission consent line); its README shows this opt-in. Render `kth-*` elements childless. For tests, `@bible/extension-testing` provides `createMockPanelHost()` and `loadUiKit()`.
+
+**Security review checklist for changes to the kit or its serving** (adapted to what is implemented):
+
+1. `HOST_RESOURCES` in `extUiProtocol.ts` is an exact-path `Map`; a new kit path is added there with 404 tests for its near-misses (`ExtUiProtocolKit.test.ts`: version, case, trailing slash, `.map`, `%2f`, `%00`). A malformed percent escape answers 400.
+2. `ExtUiCsp.test.ts` is unchanged: no new origin, no `unsafe-eval`, `connect-src` not widened. The kit is loaded by `<script src>` and never calls `fetch`.
+3. The sandbox string (`computeSandboxAttr` test) is unchanged: the kit runs inside the panel's own sandbox with the panel's own privileges.
+4. The bundle test (`packages/ui/src/kit/kitBundle.test.ts`) passes: input allowlist (only `packages/ui`, `packages/core/src`, `preact`); no `eval(`, `new Function`, `process.env`, `__BIBLE_`, `window.electron`, `ipcRenderer`, `parent.document`, `localStorage`, `sessionStorage`, `fetch(`, `document.write`; no `innerHTML`/`outerHTML`/`dangerouslySetInnerHTML` in any kit or core source that reaches the bundle. **preact exception:** preact's own source assigns `innerHTML` (twice, for `dangerouslySetInnerHTML` and SVG), so the bundle-level rule is "the count of `.innerHTML =` equals preact's own", not zero; no kit prop reaches those paths, and the ESLint guard bans `dangerouslySetInnerHTML` in `packages/ui`. `KIT_JS` must contain no host build ids or config: the only esbuild `define` is `NODE_ENV`.
+5. Every `uikit.*` or new `ui.*` bridge method gets argument validation, an allowlist plus permission check in `IframeRpcBridge`, and a denial test. v1 has none: the kit's only host call is the read-only `ui.getLocale`, made by `KthKit.init`.
+6. The manifest validator rejects an unknown kit major or tag; the schema parity test passes. `UI_KIT_COMPONENTS` (core) and `KIT_ELEMENTS` (`packages/ui/src/kit/elements.ts`) list the same tags; `elements.test.tsx` enforces it.
+7. The kit reads no user data in v1. Any future `hostMethods` that touches user data must list the matching `*:read` permission in `requiresPermissions`.
 
 ## Popping an extension panel out
 
@@ -236,11 +304,11 @@ The load-bearing detail is in the main process: `registerExtUiProtocol` is calle
 
 ## Developing an extension outside this repository
 
-Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `npm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
+Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `pnpm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
 
 | Piece | Where |
 |---|---|
-| `scripts/pack-sdk.js` | `npm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
+| `scripts/pack-sdk.js` | `pnpm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
 | `packages/create-extension/src/index.ts` | The scaffolder. `--local-sdk=<dir>` writes `file:` specifiers for the packed tarballs instead of version ranges |
 | `packages/core/scripts/copy-assets.js` | Copies `ExtensionManifestSchema.json` into `dist/` after `tsc`. Nothing imports it, so `tsc` never emitted it, so it reached nobody outside this repo — which is its only audience |
 | `packages/extension-testing/src/cli/validateCommand.ts` | `bible-ext validate` — manifest schema, then the files the manifest points at |
@@ -251,7 +319,7 @@ Everything above describes extensions as the host sees them. This section is the
 
 Three decisions worth not re-litigating:
 
-- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `npm install`s an extension, so a peer range there was a claim with no consumer to honour it.
+- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `pnpm install`s an extension, so a peer range there was a claim with no consumer to honour it.
 - **`createZip` takes no dependency.** `archiver` and `jszip` are both in this tree, but only transitively via electron-builder; depending on either would push a real dependency tree onto every extension author. The format needed is one method and three record types.
 - **Archives are reproducible** — fixed entry timestamps, not mtimes — because `installFromCatalog` verifies a published SHA-256 before unpacking, and an author cannot publish a digest they cannot reproduce.
 
@@ -259,11 +327,11 @@ Three decisions worth not re-litigating:
 
 ## Bundling a first-party extension
 
-`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `npm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
+`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `pnpm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
 
 | File | Role |
 |---|---|
-| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `npm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
+| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `pnpm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
 | `electron-builder.yml` | One `extensions/<id>/**` line per bundled extension inside the `data` allowlist. Named per extension, **not** `extensions/**`: in a dev tree that directory also holds whatever the developer sideloaded or installed from a catalog, plus arbitrary per-extension user data |
 
 The bundled list is deliberate and explicit rather than a glob over `packages/`, which also holds `@bible/core`, `@bible/extension-ui`, `@bible/extension-testing` and a scaffolder - none of them extensions. Whether a given extension ships in v1 is a product decision; the mechanism is one line in each of those two files.

@@ -47,7 +47,7 @@ Schema: `sql/schemas/initial/UserDatabase.sql`. Models: `src/Data/Models/User/`.
 | `src/Data/Repositories/DictionaryRepository.ts` | `IDictionaryRepository.ts` | `dictionary_*.db` | `dictionary_entry`, `word_occurrence` |
 | `src/Data/Repositories/BookRepository.ts` | `IBookRepository.ts` | `book_*.db` | `book_section`, `scripture_reference`, `verse_link` |
 | `src/Data/Repositories/CrossReferenceRepository.ts` | `ICrossReferenceRepository.ts` | `xref_*.db` | `cross_reference_group`, `cross_reference_entry`, `verse_link` |
-| `src/Data/Repositories/TopicalIndexRepository.ts` | `ITopicalIndexRepository.ts` | `topical_*.db` | `topic`, `topic_fts`, `verse_link` |
+| `src/Data/Repositories/TopicalIndexRepository.ts` | `ITopicalIndexRepository.ts` | `topical_*.db` | `topic`, `verse_link` (+ `topic_fts` in a v0.1 module; see [Search](search.md#where-the-keyword-index-lives)) |
 | `src/Data/Repositories/TagGraphRepository.ts` | `ITagGraphRepository.ts` | `tag_graph.db` | `people`, `places`, `objects`, `themes`, `entity_verses`, `entity_facets`, `entity_facet_members`, `entity_topic_links`, `tag_associations`, `association_verses`, the three `*_attribute_map` tables, `people_roles`, `people_relationships` |
 | `src/Data/Repositories/EnrichmentRepository.ts` | `IEnrichmentRepository.ts` | `enrichments_*.db` | `enrichment_units`, `enrichment_tags` |
 

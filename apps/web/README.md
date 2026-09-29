@@ -5,18 +5,18 @@ A Bible study web application built with Preact and Express.  It provides a brow
 ## Prerequisites
 
   - Node.js 20.19 or newer (24 recommended; `.nvmrc` at the repo root pins it)
-  - npm (the version bundled with Node)
-  - Module `.db` files (Bible translations, commentaries, dictionaries); `npm run setup:web` downloads a starter set
+  - pnpm (run `corepack enable`; the version is pinned in the root `package.json`)
+  - Module `.db` files (Bible translations, commentaries, dictionaries); `pnpm run setup:web` downloads a starter set
 
 ## Quick Start
 
 From the repo root:
 
 ```bash
-npm install
-npm run setup:web    # build @bible/core, download the starter modules into data/modules,
+pnpm install
+pnpm run setup:web    # build @bible/core, download the starter modules into data/modules,
                      # build data/main.db, and write data/site-config.json if it is missing
-npm run dev:web      # the same as `npm run dev -w @bible/web`
+pnpm run dev:web      # the same as `pnpm --filter @bible/web run dev`
 ```
 
 Open **http://localhost:5173/** in your browser (Vite dev server proxies API to Express on port 3100). The [repository README](../../README.md) covers prerequisites, the module presets and troubleshooting.
@@ -30,23 +30,23 @@ The web package uses `better-sqlite3` via an npm alias (`better-sqlite3-web`) to
   - **Web server**: uses `better-sqlite3-web` in `apps/web/node_modules/` (compiled for system Node.js)
   - **Desktop app**: uses `better-sqlite3-multiple-ciphers` (compiled for Electron via `@electron/rebuild`)
 
-After `npm install`, the `postinstall` script automatically rebuilds the web copy for your system Node.js. Rebuild it again after switching Node versions, when the init script or the server reports a binding built for a different Node.js:
+After `pnpm install`, the `postinstall` script automatically rebuilds the web copy for your system Node.js. Rebuild it again after switching Node versions, when the init script or the server reports a binding built for a different Node.js:
 
 ```bash
 # Rebuild just the web copy (system Node.js)
-npm run rebuild-sqlite -w @bible/web
+pnpm --filter @bible/web run rebuild-sqlite
 
 # Rebuild the desktop's native modules (Electron); use rebuild-native:force after a NODE_MODULE_VERSION error
-npm run rebuild-native -w @bible/desktop
+pnpm --filter @bible/desktop run rebuild-native
 ```
 
 ## Data Directory Layout
 
 ```
 data/                              # Repo root, gitignored: the data directory ($BIBLE_DATA_DIR)
-  main.db                          # Module registry and Bible book data (built by `npm run init`)
+  main.db                          # Module registry and Bible book data (built by `pnpm run init`)
   modules/                         # Module .db files, shared with the desktop app and the test suites
-  site-config.json                 # Unified config: modules, auth, features, search, UI (written by `npm run init` if missing)
+  site-config.json                 # Unified config: modules, auth, features, search, UI (written by `pnpm run init` if missing)
   settings.json                    # Legacy module whitelist -- read only if site-config.json has no "modules" section
   server-config.json               # Legacy server auth and feature flags -- read only if site-config.json doesn't exist
   search-pipeline.json             # Semantic search config (optional)
@@ -66,21 +66,21 @@ Module `.db` files are named with a type prefix: `bible_kjv.db`, `commentary_bar
 After placing module files in `data/modules/`, run the init script to register them (all from the repo root):
 
 ```bash
-npm run init                                # Register the .db files in data/modules
-npm run init -- --force                     # Recreate main.db from scratch
-npm run init -- --prune                     # Remove registry rows whose file is gone
-npm run init:modules                        # Download the starter set from the official catalog, then register
-npm run init:modules -- --select=KJV,ASV    # Download these modules (or a preset: starter, tests) instead
-npm run init -- --catalog=URL               # Choose from a catalog's list interactively (add --yes for CI)
+pnpm run init                                # Register the .db files in data/modules
+pnpm run init --force                     # Recreate main.db from scratch
+pnpm run init --prune                     # Remove registry rows whose file is gone
+pnpm run init:modules                        # Download the starter set from the official catalog, then register
+pnpm run init:modules --select=KJV,ASV    # Download these modules (or a preset: starter, tests) instead
+pnpm run init --catalog=URL               # Choose from a catalog's list interactively (add --yes for CI)
 ```
 
-`--modules-dir=PATH` and `--data-dir=PATH` point the script at a modules directory or data directory other than the default, which for both is the repo-root `data/`. `npm run init -- --help` lists every option.
+`--modules-dir=PATH` and `--data-dir=PATH` point the script at a modules directory or data directory other than the default, which for both is the repo-root `data/`. `pnpm run init --help` lists every option.
 
 ### Configuring Visibility (site-config.json)
 
 The `modules` section of `site-config.json` controls which modules are visible and how they are grouped in the UI. If `site-config.json` has no `modules` section (or the file doesn't exist), the server falls back to a legacy standalone `settings.json` in the same data directory; if neither defines any modules, none are visible (fail-safe for copyright protection).
 
-**Option A** — Let `npm run init` write it for you: first-time setup (see [Registering Modules](#registering-modules) above) creates `data/site-config.json`, with a `modules` section built from whatever it found registered, if the file doesn't already exist. The generated file turns the password gate off when no password is set (a password in the example, or `SITE_PASSWORD`, keeps it on), and sets `ui.defaultModule` to KJV when it is installed, otherwise to the first installed Bible. Because it is only written when absent, modules added later must be added to its `modules` section by hand (or delete the file and re-run `npm run init`).
+**Option A** — Let `pnpm run init` write it for you: first-time setup (see [Registering Modules](#registering-modules) above) creates `data/site-config.json`, with a `modules` section built from whatever it found registered, if the file doesn't already exist. The generated file turns the password gate off when no password is set (a password in the example, or `SITE_PASSWORD`, keeps it on), and sets `ui.defaultModule` to KJV when it is installed, otherwise to the first installed Bible. Because it is only written when absent, modules added later must be added to its `modules` section by hand (or delete the file and re-run `pnpm run init`).
 
 **Option B** — Copy the example and customize (from the repo root):
 ```bash
@@ -105,25 +105,25 @@ See `config/site-config.schema.json` for the full schema. Deployments that preda
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start both Express API server and Vite dev server (with HMR) |
-| `npm run dev:server` | Start only the Express API server (port 3100) |
-| `npm run dev:client` | Start only the Vite dev server (port 5173) |
-| `npm run build` | Build both server and client for production |
-| `npm run build:server` | Compile server TypeScript to `dist/server/` |
-| `npm run build:client` | Bundle client with Vite to `dist/client/` |
-| `ENABLE_PWA=1 npm run build` | Same, but also builds the service worker and web app manifest. The PWA is **off by default** — see [PWA & Offline](docs/features/pwa-offline.md) |
-| `npm run start` | Run the production server (serve built client + API) |
-| `npm test` | Run Vitest unit tests |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run test:e2e` | Run Playwright E2E tests against the API |
-| `npm run clean` | Remove `dist/` and Vite cache |
-| `npm run rebuild-sqlite` | Rebuild `better-sqlite3-web` for system Node.js |
+| `pnpm run dev` | Start both Express API server and Vite dev server (with HMR) |
+| `pnpm run dev:server` | Start only the Express API server (port 3100) |
+| `pnpm run dev:client` | Start only the Vite dev server (port 5173) |
+| `pnpm run build` | Build both server and client for production |
+| `pnpm run build:server` | Compile server TypeScript to `dist/server/` |
+| `pnpm run build:client` | Bundle client with Vite to `dist/client/` |
+| `FEATURE_PWA=1 pnpm run start` | Serve with the PWA on (also `features.pwa` in `site-config.json`). Every build contains the service worker; the server decides whether to serve it. **Off by default** — see [PWA & Offline](docs/features/pwa-offline.md) |
+| `pnpm run start` | Run the production server (serve built client + API) |
+| `pnpm test` | Run Vitest unit tests |
+| `pnpm run test:watch` | Run Vitest in watch mode |
+| `pnpm run test:e2e` | Run Playwright E2E tests against the API |
+| `pnpm run clean` | Remove `dist/` and Vite cache |
+| `pnpm run rebuild-sqlite` | Rebuild `better-sqlite3-web` for system Node.js |
 
 ## Configuration
 
 ### Site Config (optional)
 
-`site-config.json` lives in the data directory (`$BIBLE_DATA_DIR`, by default the repo-root `data/`, which is gitignored in its entirety). `npm run init` writes one when there is none; to start from the example instead, copy it there from the repo root:
+`site-config.json` lives in the data directory (`$BIBLE_DATA_DIR`, by default the repo-root `data/`, which is gitignored in its entirety). `pnpm run init` writes one when there is none; to start from the example instead, copy it there from the repo root:
 
 ```bash
 cp apps/web/config/site-config.example.json data/site-config.json
@@ -275,28 +275,28 @@ These values are locale-invariant. Translatable copy belongs in `src/locales/<ln
 
 ### Prerequisites
 
-**API/integration tests** require actual module databases to run against. With neither `BIBLE_DATA_DIR` nor `BIBLE_MODULES_DIR` set, the suites use the repo-root `data/` -- the same directory the server reads -- so `npm run setup:web` covers most of them, and `npm run init:modules -- --select=tests` (from the repo root) installs every module a suite names. Point `BIBLE_DATA_DIR` at another data directory (and `BIBLE_MODULES_DIR` too, if `modules/` lives elsewhere) to use that instead. Either way that directory must contain:
+**API/integration tests** require actual module databases to run against. With neither `BIBLE_DATA_DIR` nor `BIBLE_MODULES_DIR` set, the suites use the repo-root `data/` -- the same directory the server reads -- so `pnpm run setup:web` covers most of them, and `pnpm run init:modules --select=tests` (from the repo root) installs every module a suite names. Point `BIBLE_DATA_DIR` at another data directory (and `BIBLE_MODULES_DIR` too, if `modules/` lives elsewhere) to use that instead. Either way that directory must contain:
 
-- `main.db` — Module registry and Bible book data (built by `npm run init`)
+- `main.db` — Module registry and Bible book data (built by `pnpm run init`)
 - `modules/bible_kjv.db` — KJV Bible module (required for Bible, search, interlinear tests)
 - `modules/commentary_barnes.db` — Barnes commentary (required for commentary tests)
 - `modules/commentary_clarke.db` — Clarke commentary (`api.test.ts` pins Clarke entries by name)
 - `modules/dictionary_strongsgreek.db` — Strong's Greek dictionary (required for Strong's tests)
 - `modules/dictionary_strongshebrew.db` — Strong's Hebrew dictionary
 
-If these files are missing, the corresponding API tests will fail or skip themselves; `npm run init` lists what is missing and what that costs. Client-side unit tests (stores, utils, providers) use mocks and do not require database files.
+If these files are missing, the corresponding API tests will fail or skip themselves; `pnpm run init` lists what is missing and what that costs. Client-side unit tests (stores, utils, providers) use mocks and do not require database files.
 
 ### Running Tests
 
 ```bash
 # Unit tests (stores, providers, API routes via supertest)
-npm test
+pnpm test
 
 # E2E tests (starts server automatically via Playwright)
-npm run test:e2e
+pnpm run test:e2e
 
 # Both
-npm test && npm run test:e2e
+pnpm test && pnpm run test:e2e
 ```
 
 ### Test Structure

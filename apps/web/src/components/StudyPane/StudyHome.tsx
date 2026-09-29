@@ -22,7 +22,7 @@ interface StudyHomeProps {
  * **The English always comes from the selected translation.** The interlinear
  * *adds* a line under the translation's own words; it never restates them. So
  * this renders the verse's `text_html`, split into cells, exactly as the Bible
- * pane does — see `utils/interlinearCells.ts`.
+ * pane does — see `InterlinearCells.ts` in `@bible/core`.
  *
  * Printing the interlinear rows' glosses instead — which is what this did when
  * it had no verse text — is the reported bug: the module's wording in the

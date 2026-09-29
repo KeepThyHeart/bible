@@ -310,15 +310,15 @@ describe('settings tab', () => {
   it('binds the toggles to the preferences', async () => {
     await start();
     render(<AudioSettingsTab />);
-    const follow = await screen.findByTestId('audio-pref-follow') as HTMLInputElement;
+    const follow = await waitFor(() => { if (!document.getElementById('audio-pref-followAlong')) throw new Error('no toggle'); }).then(() => document.getElementById('audio-pref-followAlong') as HTMLInputElement);
     expect(follow.checked).toBe(true);
     fireEvent.click(follow);
     expect(audioStore.prefs.followAlong).toBe(false);
-    fireEvent.click(screen.getByTestId('audio-pref-scroll'));
+    fireEvent.click(document.getElementById('audio-pref-autoScroll')!);
     expect(audioStore.prefs.autoScroll).toBe(false);
-    fireEvent.click(screen.getByTestId('audio-pref-continue'));
+    fireEvent.click(document.getElementById('audio-pref-continueToNextChapter')!);
     expect(audioStore.prefs.continueAfterChapter).toBe('stop');
-    fireEvent.click(screen.getByTestId('audio-pref-intro'));
+    fireEvent.click(document.getElementById('audio-pref-readChapterIntro')!);
     expect(audioStore.prefs.readChapterIntro).toBe(false);
     expect(JSON.parse(rig.storage.get('bible-audio-prefs')!).followAlong).toBe(false);
   });
@@ -326,7 +326,7 @@ describe('settings tab', () => {
   it('reduces to the toggles when no engine and no recording exist', async () => {
     await start({ engine: false });
     render(<AudioSettingsTab />);
-    await screen.findByTestId('audio-pref-follow');
+    await waitFor(() => expect(document.getElementById('audio-pref-followAlong')).not.toBeNull());
     expect(screen.queryByTestId('audio-voices')).toBeNull();
     expect(screen.queryByTestId('audio-rate')).toBeNull();
   });

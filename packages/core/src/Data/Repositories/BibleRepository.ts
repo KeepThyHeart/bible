@@ -10,6 +10,7 @@ import { IIndexSource } from '../Access/KeywordTypes';
 import { parseJsonField, stringifyJsonField, parseBoolField } from '../Core/JsonHelpers';
 import { isReadOnlyDatabaseError } from '../Core/Errors';
 import { parseVerseFormatting, stringifyVerseFormatting } from '../Text';
+import { Fts5Highlighter } from '../Access/Fts5/Fts5Highlighter';
 
 /**
  * Repository for Bible translation module databases (bible_*.db)
@@ -35,6 +36,9 @@ import { parseVerseFormatting, stringifyVerseFormatting } from '../Text';
  */
 export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> implements IBibleRepository {
   constructor(sql: ISql) { super(sql); }
+
+  /** Marks up sidecar search hits; see `searchVersesWithHighlighting`. Created on first use. */
+  private matchHighlighter?: Fts5Highlighter;
 
   // ========================================================================
   // Module Info Operations
@@ -199,11 +203,13 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
    */
   searchVerses(query: string, options?: { limit?: number }): BibleVerse[] {
     const limit = options?.limit ?? 100;
+    const fts = this.keywordIndexTable('bible_verse_fts', 'bible');
+    if (!fts) return [];
 
     const rows = this.sql.queryAll<BibleVerseRow>(
       `SELECT v.* FROM bible_verse v
-       JOIN bible_verse_fts fts ON v.verse_id = fts.rowid
-       WHERE bible_verse_fts MATCH ?
+       JOIN ${fts.table} fts ON v.verse_id = fts.rowid
+       WHERE fts.${fts.column} MATCH ?
        ORDER BY v.verse_id
        LIMIT ?`,
       [query, limit]
@@ -230,6 +236,31 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     highlightedPlainText: string;
   }> {
     const limit = options?.limit ?? 100;
+    const fts = this.keywordIndexTable('bible_verse_fts', 'bible');
+    if (!fts) return [];
+
+    if (fts.sidecar) {
+      // A sidecar `kw` is contentless, so its highlight() is NULL. Mark up
+      // each verse by running the same MATCH over its text in a transient
+      // content-bearing table with the same tokenizer - what the in-module
+      // external-content table's highlight() produced from the same text.
+      const rows = this.sql.queryAll<BibleVerseRow>(
+        `SELECT v.* FROM bible_verse v
+         JOIN ${fts.table} fts ON v.verse_id = fts.rowid
+         WHERE fts.${fts.column} MATCH ?
+         ORDER BY v.verse_id
+         LIMIT ?`,
+        [query, limit]
+      );
+      const highlighter = this.matchHighlighter ??= new Fts5Highlighter(this.sql);
+      return rows.map(row => {
+        const verse = this.mapRowToVerse(row);
+        const text = verse.text || '';
+        const highlighted =
+          highlighter.highlightMatch(text, query, '<strong><u>', '</u></strong>') ?? text;
+        return { verse, highlightedText: highlighted, highlightedPlainText: highlighted };
+      });
+    }
 
     // `bible_verse_fts` is (verse_id UNINDEXED, text), so `text` is column 1.
     // Column ordering is load-bearing for highlight(), which returns '' rather

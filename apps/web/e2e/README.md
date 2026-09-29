@@ -7,26 +7,26 @@ projects: `desktop-chrome`, `tablet-chrome`, `mobile-chrome`, `mobile-safari`,
 ## Running
 
 ```bash
-npm run test:e2e -w @bible/web            # builds the client, then runs every project
+pnpm --filter @bible/web run test:e2e            # builds the client, then runs every project
 ```
 
 For a faster inner loop, skip the rebuild and drive Playwright directly:
 
 ```bash
 cd apps/web
-npx playwright test --config=e2e/playwright.config.ts --project=desktop-chrome
-npx playwright test --config=e2e/playwright.config.ts e2e/tests/ui-e2e.spec.ts
-npx playwright test --config=e2e/playwright.config.ts --grep "verse range"
+pnpm exec playwright test --config=e2e/playwright.config.ts --project=desktop-chrome
+pnpm exec playwright test --config=e2e/playwright.config.ts e2e/tests/ui-e2e.spec.ts
+pnpm exec playwright test --config=e2e/playwright.config.ts --grep "verse range"
 ```
 
-`npm run test:e2e` rebuilds the client because the server serves
+`pnpm run test:e2e` rebuilds the client because the server serves
 `dist/client`, not the Vite dev server. If you change anything under `src/`
 without rebuilding, the suite runs against the previous bundle.
 
 First run on a machine also needs the browsers:
 
 ```bash
-npx playwright install
+pnpm exec playwright install
 ```
 
 ## What the suite runs against
@@ -36,7 +36,7 @@ starts, and the config hands it to the server as `BIBLE_DATA_DIR`:
 
 - **`main.db`** — a `VACUUM INTO` snapshot of the first module registry it finds,
   looking in `apps/web/data` (a registry left by an older checkout), then the
-  repo-root `data/` that `npm run setup` fills, then the desktop app's `data`.
+  repo-root `data/` that `pnpm run setup` fills, then the desktop app's `data`.
   Module `.db` files are read in place from wherever that registry's modules
   live; nothing is copied.
 - **`site-config.json`** — a copy of `e2e/fixtures/site-config.json`, which pins
@@ -47,7 +47,7 @@ Nothing in `apps/web/data` or the desktop app's `data` is written to.
 
 If no registry has installed modules, or the ones the specs name (KJV, ASV,
 Barnes, AmTract) are missing, the run stops before the first test with a message
-saying what to install and to run `npm run init`.
+saying what to install and to run `pnpm run init`.
 
 `e2e/globalSetup.ts` then warms the server by reading the chapters the specs
 open. Module databases are opened lazily and the first read faults tens of MB
@@ -68,7 +68,7 @@ background work to push assertions past their timeouts.
 ## Type-checking the specs
 
 ```bash
-npm run typecheck:e2e -w @bible/web     # or `npm run typecheck:e2e` from the repo root for both packages
+pnpm --filter @bible/web run typecheck:e2e     # or `pnpm run typecheck:e2e` from the repo root for both packages
 ```
 
 `tsconfig.json` excludes `e2e/**/*`, so nothing type-checked these specs: a

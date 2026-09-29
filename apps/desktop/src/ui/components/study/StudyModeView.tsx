@@ -19,8 +19,7 @@ import { findVerseElement, restartArrivalFlash } from '../../hooks/verseScrollTa
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../../extensions/useVerseHoverTrigger';
 import { useVerseDecorationStore } from '../../extensions/verseDecorationStore';
-import { resolveVerseDecorations } from '../../extensions/decorationResolver';
-import { resolveThemeColor } from '../../extensions/themeColorResolver';
+import { resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 
 interface BibleVerse {
   verse_id: number;
@@ -445,7 +444,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                       // identically with interlinear on or off. `text_html` (not
                       // `text`) is passed so the token sequence is byte-for-byte
                       // the one Standard/Reading index highlights against; see
-                      // interlinearCells.ts for why interlinear positions live in
+                      // InterlinearCells.ts (@bible/core) for why interlinear positions live in
                       // that same index space.
                       <InterlinearDisplay
                         interlinearWords={interlinearWords}

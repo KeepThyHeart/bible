@@ -36,7 +36,7 @@ Until they are published, pack them and point the scaffold at the tarballs:
 
 ```bash
 # in the Bible repository
-npm run pack:sdk            # builds and packs into build/sdk/
+pnpm run pack:sdk            # builds and packs into build/sdk/
 
 # anywhere else
 npx @bible/create-extension my-extension --local-sdk=../bible/build/sdk
@@ -67,6 +67,16 @@ my-extension/
 ```
 
 `extension.json` carries a `$schema` pointing into `node_modules/@bible/core`, so an editor validates the manifest as you type it and completes `permissions`, `activationEvents` and every contribution point. The schema ships with the package; there is no network fetch and nothing to configure.
+
+### Getting your data into backups
+
+Add a `userData` block to `extension.json` to say which of your data is the user's. The key-value store (`storage.get` and `storage.set`) is included in backups unless you set `"backup": false`. A database from `storage.openDatabase(name)` is included only when you declare it:
+
+```json
+"userData": { "databases": { "progress": { "backup": true } } }
+```
+
+Leave caches and indexes out: they can be rebuilt, and a backup should hold only what the user would miss. Secrets are never included.
 
 The generated `main.ts` demonstrates the lifecycle the host actually calls: it activates, binds its command handler with `api.runtime.expose`, subscribes to `'verse.activeChanged'` via `api.events.subscribe`, and deactivates cleanly. `api` is typed as `Extensions.BibleExtensionAPI` via `import type`, which is erased at build time -- so the bundle carries no dependency on `@bible/core` and an MIT extension takes on none of its licence.
 

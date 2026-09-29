@@ -36,6 +36,14 @@ export const TEST_MODULES_DIR = process.env.BIBLE_MODULES_DIR
 /** The module registry. */
 export const MAIN_DB = resolve(TEST_DATA_DIR, 'main.db');
 
+/**
+ * Sidecar keyword indexes for the modules under {@link TEST_MODULES_DIR} -
+ * the same `<data>/keyword-index` directory `init:modules` builds and the web
+ * server searches, so one build serves all three. v0.2 modules ship no FTS5
+ * table of their own; see `setup/keywordIndexGlobalSetup.ts`.
+ */
+export const TEST_KEYWORD_INDEX_DIR = resolve(TEST_DATA_DIR, 'keyword-index');
+
 /** Absolute path to a module database by file name. */
 export function moduleDb(fileName: string): string {
   return resolve(TEST_MODULES_DIR, 'modules', fileName);

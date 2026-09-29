@@ -21,7 +21,8 @@ let userDb: EncryptedSqliteProvider | null = null;
  */
 let userDbOpening: Promise<EncryptedSqliteProvider> | null = null;
 
-function getUserDbPath(username: string = 'default'): string {
+/** Absolute path of the encrypted user database file (creating its folder). */
+export function getUserDbPath(username: string = 'default'): string {
   const userDataPath = app.getPath('userData');
   const dbDir = join(userDataPath, 'data', 'users');
 

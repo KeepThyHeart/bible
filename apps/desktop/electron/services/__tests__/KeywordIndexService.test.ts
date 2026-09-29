@@ -321,6 +321,35 @@ describe.skipIf(!nativeSqliteAvailable)('KeywordIndexService', () => {
       expect(() => rmSync(indexDir, { recursive: true, force: true })).not.toThrow();
     });
   });
+
+  describe('buildMissingIndexes (startup catch-up)', () => {
+    it('builds an installed module that has no index yet, then leaves it alone', async () => {
+      expect(await service.buildMissingIndexes()).toBe(1);
+      expect(keywordIndexRow()?.state).toBe('ready');
+
+      expect(await service.buildMissingIndexes()).toBe(0);
+    });
+
+    it('skips a v0.1 module that ships its own FTS5 table', async () => {
+      const db = new SqliteProvider(modulePath, { readonly: false });
+      db.exec('CREATE VIRTUAL TABLE book_section_fts USING fts5(section_id UNINDEXED, title, content)');
+      db.close();
+
+      expect(await service.buildMissingIndexes()).toBe(0);
+      expect(keywordIndexRow()).toBeUndefined();
+    });
+
+    it('does not retry, every launch, a build that already failed for this revision', async () => {
+      const brokenIndexDir = join(tmpRoot, 'not-a-directory');
+      writeFileSync(brokenIndexDir, 'x');
+      const broken = new KeywordIndexService(mainDb, brokenIndexDir);
+
+      expect(await broken.buildMissingIndexes()).toBe(1);
+      expect(keywordIndexRow()?.state).toBe('failed');
+
+      expect(await broken.buildMissingIndexes()).toBe(0);
+    });
+  });
 });
 
 describe('moduleTypeSupportsKeywordIndex', () => {

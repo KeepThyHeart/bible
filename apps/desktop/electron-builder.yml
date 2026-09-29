@@ -30,9 +30,11 @@ files:
   # See electron-builder.curated.yml for the full rationale on each of these.
   - '!node_modules/@bible/**'
   - '!node_modules/electron/**'
-  - '!node_modules/onnxruntime-node/**'
-  - '!node_modules/onnxruntime-common/**'
   - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'
+  # pnpm installs onnxruntime-web (a dependency of transformers) once, flat, under
+  # node_modules/, where npm nested it inside transformers and the pattern above
+  # excluded it. Without this it adds ~70 MB of wasm the Node runtime never loads.
+  - '!node_modules/onnxruntime-web/**'
   - '!node_modules/.bin/**'
   - '!node_modules/.vite/**'
   # The transformers model download cache is ~1.9 GB of models we never ship.

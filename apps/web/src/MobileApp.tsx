@@ -9,6 +9,7 @@ import { MobileStudyPane } from './components/MobileStudyPane/MobileStudyPane';
 import { MobileCommentaryView } from './components/MobileStudyPane/MobileCommentaryView';
 import { Header } from './components/Header';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
@@ -390,6 +391,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           {/* Center: scrollable content (no tab bars, those are in sidebar) */}
           <div class="mobile-scroll-wrapper">
             <ConnectionBanner />
+            <UpdateBanner />
             {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
             {mobileView === 'bible' && bibleContent}
             {mobileView === 'search' && (
@@ -413,6 +415,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         <div class="mobile-scroll-wrapper">
           <Header onSettingsClick={(section) => shared.openSettings(section)} onHelpClick={() => shared.setHelpOpen(true)} onLogoClick={() => switchMobileView('home')} />
           <ConnectionBanner />
+          <UpdateBanner />
           {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
           {mobileView === 'bible' && (
             <>

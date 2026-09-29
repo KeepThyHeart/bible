@@ -109,7 +109,7 @@ test.describe('Audio Bible: desktop', () => {
     await page.locator('.header__action-btn[title="Settings"]').click();
     await page.locator('.settings-panel__tab', { hasText: 'Audio' }).click();
     await expect(page.locator('[data-section="audio"]')).toBeVisible();
-    const follow = page.getByTestId('audio-pref-follow');
+    const follow = page.locator('#audio-pref-followAlong');
     await expect(follow).toBeChecked();
     await follow.uncheck();
     await expect(follow).not.toBeChecked();
@@ -119,7 +119,7 @@ test.describe('Audio Bible: desktop', () => {
     await waitForVerses(page);
     await page.locator('.header__action-btn[title="Settings"]').click();
     await page.locator('.settings-panel__tab', { hasText: 'Audio' }).click();
-    await expect(page.getByTestId('audio-pref-follow')).not.toBeChecked();
+    await expect(page.locator('#audio-pref-followAlong')).not.toBeChecked();
   });
 });
 

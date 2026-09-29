@@ -12,6 +12,7 @@ import {
   resolveModuleCodec,
 } from '../Access/Codec';
 import { stripHtml } from '../../Services/PassageFormat/formatHelpers';
+import { hasModuleTable, moduleKeywordIndex } from '../Access/Fts5/ModuleKeywordIndex';
 
 /**
  * The identity + provenance fields of {@link BaseModuleInfoData}.
@@ -374,6 +375,7 @@ export abstract class BaseModuleRepository<TModuleInfo extends BaseModuleInfo> {
       ...(rangeColumns ? [rangeColumns.start, rangeColumns.end] : []),
     ]));
     const selectList = selectColumns.join(', ');
+    const decode = (raw: string | Uint8Array | null): string => this.text(raw);
 
     return {
       target,
@@ -382,10 +384,97 @@ export abstract class BaseModuleRepository<TModuleInfo extends BaseModuleInfo> {
         return row?.c ?? 0;
       },
       documents(): Iterable<IndexDocument> {
-        return streamContentDocuments(sql, table, rowidColumn, selectList, indexedColumns, rangeColumns);
+        return streamContentDocuments(sql, table, rowidColumn, selectList, indexedColumns, rangeColumns, decode);
       },
     };
   }
+
+  // ==========================================================================
+  // Keyword search: which FTS5 table answers a MATCH for this module
+  // ==========================================================================
+
+  /** In-module `*_fts` table presence, probed once per repository. */
+  private readonly legacyFtsTables = new Map<string, boolean>();
+
+  /** The `.kwi` currently attached to this connection as `kwi`, if any. */
+  private attachedKeywordIndex: string | null = null;
+
+  /** Warn once per repository, not once per keystroke of a live search. */
+  private warnedNoKeywordIndex = false;
+
+  /**
+   * The FTS5 table a search on this module should MATCH against, or `null`
+   * when there is none.
+   *
+   * - A v0.1 module that ships `legacyTable` (e.g. `commentary_entry_fts`)
+   *   keeps using it, unchanged.
+   * - Otherwise - every v0.2 module - the sidecar `.kwi` built for this exact
+   *   module revision by the configured {@link SidecarFts5Provider} (see
+   *   `configureModuleKeywordIndex`) is attached to this connection as schema
+   *   `kwi`, and its single-column `kw` table answers instead. Its rowid is
+   *   the source row's own rowid, so the join a search already does against
+   *   its content table is unchanged. `kw` is contentless: `rank`/`bm25()`
+   *   work, `highlight()`/`snippet()` return NULL.
+   * - `null` means neither exists (no provider configured, or this revision's
+   *   index is not built yet). Callers return no results; this logs once so
+   *   the gap is visible rather than looking like "nothing matched".
+   *
+   * Use as `JOIN ${t.table} fts ON <rowid> = fts.rowid WHERE fts.${t.column}
+   * MATCH ?` - the MATCH operand is the table's hidden same-named column,
+   * qualified by the alias so it works for an attached table too.
+   *
+   * ATTACH is legal on a read-only connection (the attached file opens
+   * read-only too) and must not run inside a transaction; search methods are
+   * never called inside one.
+   */
+  protected keywordIndexTable(legacyTable: string, moduleType: ModuleType): KeywordIndexTable | null {
+    let legacy = this.legacyFtsTables.get(legacyTable);
+    if (legacy === undefined) {
+      legacy = hasModuleTable(this.sql, legacyTable);
+      this.legacyFtsTables.set(legacyTable, legacy);
+    }
+    if (legacy) {
+      return { table: legacyTable, column: legacyTable, sidecar: false };
+    }
+
+    const provider = moduleKeywordIndex();
+    const indexPath = provider?.readyIndexPath(this.buildIndexTarget(moduleType)) ?? null;
+    if (indexPath === null) {
+      if (!this.warnedNoKeywordIndex) {
+        this.warnedNoKeywordIndex = true;
+        console.warn(
+          `[keyword search] ${this.sql.getDatabasePath()}: no keyword index - the module has no ` +
+            `${legacyTable} table and ${provider ? 'its sidecar index is not built yet' : 'no sidecar index is configured'}; ` +
+            `search returns no results for it.`
+        );
+      }
+      return null;
+    }
+
+    if (this.attachedKeywordIndex !== indexPath) {
+      if (this.attachedKeywordIndex !== null) {
+        this.sql.execute(`DETACH DATABASE ${KEYWORD_INDEX_SCHEMA}`);
+        this.attachedKeywordIndex = null;
+      }
+      this.sql.execute(`ATTACH DATABASE ? AS ${KEYWORD_INDEX_SCHEMA}`, [indexPath]);
+      this.attachedKeywordIndex = indexPath;
+    }
+    this.warnedNoKeywordIndex = false;
+    return { table: `${KEYWORD_INDEX_SCHEMA}.kw`, column: 'kw', sidecar: true };
+  }
+}
+
+/** The schema name a sidecar `.kwi` is attached under. */
+const KEYWORD_INDEX_SCHEMA = 'kwi';
+
+/** See {@link BaseModuleRepository.keywordIndexTable}. */
+export interface KeywordIndexTable {
+  /** What to JOIN: a main-schema `*_fts` table, or `kwi.kw`. */
+  table: string;
+  /** The hidden MATCH column - the table's unqualified name. */
+  column: string;
+  /** True for a contentless sidecar: `highlight()`/`snippet()` return NULL. */
+  sidecar: boolean;
 }
 
 /**
@@ -417,7 +506,8 @@ function* streamContentDocuments(
   rowidColumn: string,
   selectList: string,
   indexedColumns: readonly string[],
-  rangeColumns: { start: string; end: string } | undefined
+  rangeColumns: { start: string; end: string } | undefined,
+  decode: (raw: string | Uint8Array | null) => string
 ): IterableIterator<IndexDocument> {
   const BATCH_SIZE = 500;
   let cursor = 0;
@@ -430,7 +520,7 @@ function* streamContentDocuments(
     if (rows.length === 0) return;
 
     for (const row of rows) {
-      yield rowToIndexDocument(row, rowidColumn, indexedColumns, rangeColumns);
+      yield rowToIndexDocument(row, rowidColumn, indexedColumns, rangeColumns, decode);
     }
 
     cursor = Number(rows[rows.length - 1][rowidColumn]);
@@ -459,22 +549,13 @@ function* streamContentDocuments(
  * space keeps the joined text readable in test failures without meaning
  * anything different to the tokenizer than a newline would.
  *
- * Compression: F4 has now landed - `BaseModuleRepository.text()` above is the
- * decode accessor, and `moduleCodec()` the resolved codec - but this indexing
- * path is deliberately NOT yet wired to it, and is a named follow-up rather
- * than an oversight. Two reasons. It is a free function reached through a
- * generator, so the codec has to be threaded down through
- * `streamContentDocuments` rather than read off `this`, which is a different
- * (if small) change from swapping one column read in a mapper. And decoding
- * here needs a policy for a module whose codec is MISSING that a mapper does
- * not: `text()` throws, which is right for one cell a caller asked for, and
- * wrong for a whole-module index build that should skip the module and report
- * it, not abort. Both belong with the follow-up that wires the remaining
- * repositories' mappers. Until then this stays correct for every module that
- * exists: every real module file today carries `module_info.compression =
- * 'none'` (or lacks the column entirely - it predates F2's schema), so every
- * column read here is already plain TEXT, and a non-string value is filtered
- * out below rather than indexed as garbage.
+ * Compression: every cell goes through `decode` - the owning repository's
+ * `BaseModuleRepository.text()` - before anything else, so a compressed
+ * module (published commentaries are `deflate` with a dictionary) is indexed
+ * by its prose, not skipped as binary. A module whose codec this reader lacks
+ * makes `text()` throw `ContentCodecUnavailableError`; that surfaces from
+ * `documents()` and fails the build for that one module, which
+ * `SidecarFts5Provider.build()` records as `failed` with the codec named.
  *
  * `startVerseId`/`endVerseId`: populated only when `rangeColumns` is set
  * (today, only `commentary`'s `verse_id_start`/`verse_id_end`), and only when
@@ -497,11 +578,13 @@ function rowToIndexDocument(
   row: SqlRow,
   rowidColumn: string,
   indexedColumns: readonly string[],
-  rangeColumns: { start: string; end: string } | undefined
+  rangeColumns: { start: string; end: string } | undefined,
+  decode: (raw: string | Uint8Array | null) => string
 ): IndexDocument {
   const text = indexedColumns
     .map(column => row[column])
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .map(value => (typeof value === 'string' || value instanceof Uint8Array ? decode(value) : ''))
+    .filter(value => value.length > 0)
     .map(value => stripHtml(value))
     .join(' ');
 

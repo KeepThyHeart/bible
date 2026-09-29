@@ -9,7 +9,7 @@
     "bible-ext-smoke": "./dist/binSmoke.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('dist/bin.js', 0o755); require('fs').chmodSync('dist/binSmoke.js', 0o755)\"",
+    "build": "tsc && node scripts/copy-kit.mjs && node -e \"require('fs').chmodSync('dist/bin.js', 0o755); require('fs').chmodSync('dist/binSmoke.js', 0o755)\"",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
@@ -30,10 +30,11 @@
   "author": "Peter Rankin <psrankin@outlook.com>",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "@bible/core": "^0.1.0"
+    "@bible/core": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.5.0",
     "unzipper": "^0.12.3",
     "vitest": "^4.1.11"

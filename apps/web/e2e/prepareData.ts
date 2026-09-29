@@ -4,7 +4,7 @@
  * The suite used to point `BIBLE_MODULES_DIR` at the desktop app's `data` and
  * leave `BIBLE_DATA_DIR` alone, which meant the server read its module registry
  * from `apps/web/data/main.db`. On a machine where the modules live under
- * the desktop package — the arrangement `npm run init` produces when the shared
+ * the desktop package — the arrangement `pnpm run init` produces when the shared
  * `data/modules/` directory is empty — that registry has no rows, so the server
  * came up with no Bibles and every test that waits for a verse timed out. The
  * only clue was one line on the server's stdout, which Playwright swallows.
@@ -120,7 +120,7 @@ export function prepareE2eData(): E2eDataPaths {
     throw new Error(
       `E2E: no built client at ${clientIndex}.\n` +
       'The e2e server serves the production bundle, not the Vite dev server.\n' +
-      'Run: npm run build:client -w @bible/web',
+      'Run: pnpm --filter @bible/web run build:client',
     );
   }
 
@@ -137,7 +137,7 @@ export function prepareE2eData(): E2eDataPaths {
     throw new Error(
       'E2E: no module registry with installed modules was found. Looked in:\n' +
       `${describeCandidates()}\n` +
-      'Put the module .db files in one of those modules/ directories, then run: npm run init',
+      'Put the module .db files in one of those modules/ directories, then run: pnpm run init',
     );
   }
 
@@ -146,7 +146,7 @@ export function prepareE2eData(): E2eDataPaths {
   if (missing.length > 0) {
     throw new Error(
       `E2E: ${source.mainDb} is missing modules the specs depend on: ${missing.join(', ')}.\n` +
-      `Install them under ${join(source.modulesDir, 'modules')} and run: npm run init`,
+      `Install them under ${join(source.modulesDir, 'modules')} and run: pnpm run init`,
     );
   }
 

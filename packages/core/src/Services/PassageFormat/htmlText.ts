@@ -1,7 +1,7 @@
 /**
  * Tag stripping and entity handling for verse text, without a DOM.
  *
- * The DOM way - `document.createElement('div'); div.innerHTML = html;` then a
+ * The DOM way - a `document.createElement('div')` with the HTML assigned to its `innerHTML`, then a
  * read of `textContent` (plain text) or of `innerHTML` (markup back, normalised
  * by the parser) - works in a renderer and nowhere else. Core is imported by
  * Node scripts and its tests run under `node`, so the format engine cannot

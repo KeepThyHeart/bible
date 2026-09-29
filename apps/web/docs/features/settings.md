@@ -19,7 +19,7 @@ Theme selection, font customization, display options, and offline management, al
 | `src/themes/*/theme.json` | Per-theme metadata: id, name, group, order, isDark, swatch colors, CSS variable values |
 | `src/themes/*/_vars.scss` | Per-theme CSS custom property blocks (`[data-theme="<id>"] { ... }`). **Generated** — see below |
 | `admin/brand/theme-palettes.json` | Canonical palette for all 15 themes, shared with the desktop app -- which is why it sits with the brand assets rather than under `apps/web/` |
-| `scripts/generate-theme-vars.js` (repo root) | Regenerates `_vars.scss` from the palette; run via `npm run generate:theme-vars`. `npm run check:theme-vars` (`--check`) verifies they are current |
+| `scripts/generate-theme-vars.js` (repo root) | Regenerates `_vars.scss` from the palette; run via `pnpm run generate:theme-vars`. `pnpm run check:theme-vars` (`--check`) verifies they are current |
 | `src/themes/themeRegistry.ts` | Build-time theme discovery via Vite glob import; exports `THEME_LIST`, `THEME_IDS`, `isValidTheme()`, `getThemeById()` |
 
 ### State
@@ -42,7 +42,7 @@ Theme selection, font customization, display options, and offline management, al
 
 **Theme colours are shared with the desktop app.** The same fifteen themes are also defined in the desktop app's `apps/desktop/src/ui/styles/themes.css`. Twelve are identical in both; light, dark and sepia had drifted into genuinely different colours. `admin/brand/theme-palettes.json` is the one place those colours are written down: a plain string is shared by both apps, while `{ "web": ..., "desktop": ... }` records a colour the two intentionally render differently.
 
-To change a theme colour, edit the palette and run `npm run generate:theme-vars` (never edit `_vars.scss` by hand — it is overwritten). `npm run check:theme-vars` fails if they are stale, and `themePalette.test.ts` in the desktop package fails if the desktop stylesheet drifts from the palette. To add a theme, add it to the palette and create the matching `theme.json`.
+To change a theme colour, edit the palette and run `pnpm run generate:theme-vars` (never edit `_vars.scss` by hand — it is overwritten). `pnpm run check:theme-vars` fails if they are stale, and `themePalette.test.ts` in the desktop package fails if the desktop stylesheet drifts from the palette. To add a theme, add it to the palette and create the matching `theme.json`.
 - **UI Font Size**: 12-20px slider
 
 ### Audio (only when `features.audio` is on)

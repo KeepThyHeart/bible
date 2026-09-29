@@ -12,8 +12,13 @@ describe('getAudioConfig', () => {
     expect(isAudioEnabled()).toBe(false);
   });
 
+  it('is null while the audio flag is off, even with a block', () => {
+    setClientConfig({ features: { audio: false }, audio: { base: '/audio' } });
+    expect(getAudioConfig()).toBeNull();
+  });
+
   it('normalizes what the server sent', () => {
-    setClientConfig({ audio: { base: '/audio/', tts: { engines: [{ id: 'piper', voices: [] }] } } });
+    setClientConfig({ features: { audio: true }, audio: { base: '/audio/', tts: { engines: [{ id: 'piper', voices: [] }] } } });
     const cfg = getAudioConfig();
     expect(cfg?.base).toBe('/audio');
     expect(cfg?.engines[0].id).toBe('piper');
@@ -21,7 +26,7 @@ describe('getAudioConfig', () => {
   });
 
   it('treats a garbage block as defaults rather than throwing', () => {
-    setClientConfig({ audio: 'yes' });
+    setClientConfig({ features: { audio: true }, audio: 'yes' });
     expect(getAudioConfig()).toEqual({ base: '/audio', recorded: true, engines: [] });
   });
 });

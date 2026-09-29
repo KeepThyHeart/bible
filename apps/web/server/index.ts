@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import timeout from 'connect-timeout';
 import { DatabaseManager } from './DatabaseManager.js';
 import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
+import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
@@ -468,6 +469,9 @@ app.use('/data', (
 // Serve static client files in production
 const clientDir = resolve(packageRoot, 'dist/client');
 if (existsSync(clientDir)) {
+  // Before static: `/sw.js` is the real worker or the kill switch depending on
+  // `features.pwa`, and the manifest is withheld when it is off.
+  app.use(createServiceWorkerRoutes({ clientDir, isPwaEnabled: () => siteConfig.features.pwa }));
   app.use(express.static(clientDir, {
     // Let the catch-all below own the SPA shell so it can set no-store on it.
     // With the default (`index: 'index.html'`) a request for `/` is answered
@@ -479,7 +483,7 @@ if (existsSync(clientDir)) {
       // the self-destroying worker whose whole job is to reach browsers that
       // still have an old one installed.
       if (filePath.endsWith('index.html') || filePath.endsWith('build-id.json')
-          || filePath.endsWith('sw.js')) {
+          || filePath.endsWith('sw.js') || filePath.endsWith('sw-kill.js')) {
         res.set('Cache-Control', 'no-store');
         return;
       }
@@ -507,7 +511,8 @@ if (existsSync(clientDir)) {
     // pins the browser to a stale build. The assets it points at are immutable
     // and stay cacheable.
     res.set('Cache-Control', 'no-store');
-    res.sendFile(join(clientDir, 'index.html'));
+    // Without the PWA the manifest link is stripped, so browsers offer no install.
+    res.type('html').send(pwaShell(readShell(join(clientDir, 'index.html')), siteConfig.features.pwa));
   });
 }
 
@@ -521,6 +526,21 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
 // Loopback only by default: Apache proxies to 127.0.0.1, and nothing else
 // should reach the app directly. Set LISTEN_HOST (e.g. 0.0.0.0) to widen it.
 const LISTEN_HOST = process.env.LISTEN_HOST || '127.0.0.1';
+
+// Keyword search over v0.2 modules reads a sidecar index per module. Build any
+// that are missing before taking requests, so a search never quietly answers
+// "no results" for a module whose index simply was not there yet.
+{
+  const keywordIndexes = await db.prepareKeywordIndexes((message) => logger.info(message));
+  logger.info(
+    `Keyword indexes: ${keywordIndexes.current.length} current, ${keywordIndexes.built.length} built` +
+      (keywordIndexes.failed.length ? `, ${keywordIndexes.failed.length} failed` : '')
+  );
+  for (const failure of keywordIndexes.failed) {
+    logger.warn(`No keyword index for ${failure.path}: ${failure.reason}`);
+  }
+}
+
 const server = app.listen(PORT, LISTEN_HOST, () => {
   logger.info(`Bible web app running on http://${LISTEN_HOST}:${PORT}`);
 });

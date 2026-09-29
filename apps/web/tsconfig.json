@@ -21,6 +21,9 @@
       // reaches better-sqlite3 and Node builtins. Mirrored by the Vite alias in
       // vite.config.ts so the type-checker and the bundler agree.
       "@bible/core/browser": ["../../packages/core/src/browser"],
+      // Shared UI kit, consumed as source (never a built dist). Its CSS is
+      // reached through side-effect imports, which need no path entry.
+      "@bible/ui": ["../../packages/ui/src"],
       // This is a Preact app, but several of its libraries (@dnd-kit above
       // all) are typed against @types/react. Without this mapping their
       // `children: ReactNode` meets a Preact `VNode` and the check fails with
@@ -28,8 +31,8 @@
       // that puts elements inside a DndContext. @preact/preset-vite already
       // performs the same aliasing at build time, so this only tells the
       // type-checker what the bundler has been doing all along.
-      "react": ["../../node_modules/preact/compat/"],
-      "react-dom": ["../../node_modules/preact/compat/"]
+      "react": ["./node_modules/preact/compat/"],
+      "react-dom": ["./node_modules/preact/compat/"]
     }
   },
   "include": ["src/**/*", "server/**/*"],

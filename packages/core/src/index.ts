@@ -151,6 +151,15 @@ export { parseUSFM, UsfmParseError } from './Export/parseUSFM';
 // pre-existing root exports - see `browser.ts`'s copy of this comment.
 export * as Providers from './Providers';
 
+// Crypto primitives (task 0078): also re-exported from `./browser`.
+export * as Crypto from './Crypto';
+
+// Backup format v1 (task 0078): also re-exported from `./browser`.
+export * as Backup from './Backup';
+
+// Web user-data store (task 0084): also re-exported from `./browser`.
+export * as UserData from './UserData';
+
 // Audio Bible contracts, manifest validators and site-config parser (task 0059).
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.

@@ -98,7 +98,7 @@ The shelf **opens by default on a pane with nothing in it**, and stays out of th
 
 **A book's Home page:** A book with no section showing is on its Home page - `BookHome`, which is a search box over the book's full text plus its table of contents as an expandable tree (root level only to start; a large reference work has thousands of sections). A book is the one study module you cannot navigate by reference, so the way in is its structure and its text: `openBook` loads only the section summaries and leaves the reading position null, and `navigateToHome` is how the breadcrumb Home returns there.
 
-Search runs against `book_section_fts` (`packages/core/src/Data/Repositories/BookRepository.ts#searchSections`) through the `book:searchSections` channel. Hits are listed with their section titles, and the contents tree below opens the path down to each one, so "which chapter mentions this" is one query rather than a manual walk. Responses are sequenced against the query that asked for them, so a slow search for `gr` cannot land after a fast one for `grace`.
+Search runs against the module's keyword index - its own `book_section_fts` for a v0.1 module, otherwise the sidecar index built for it (see the core [Search](../../../../packages/core/docs/features/search.md) doc) - via `packages/core/src/Data/Repositories/BookRepository.ts#searchSections`, through the `book:searchSections` channel. Hits are listed with their section titles, and the contents tree below opens the path down to each one, so "which chapter mentions this" is one query rather than a manual walk. Responses are sequenced against the query that asked for them, so a slow search for `gr` cannot land after a fast one for `grace`.
 
 **Toolbars:** `BookNavigationToolbar` and the Dictionary toolbar are both built from `shared/PaneToolbar.tsx`, the same band of flush icon cells the Bible pane uses. `bible/PassageSettingsMenu` takes a `paneKey` and is the single text-settings ("Aa") button across every pane.
 
@@ -116,7 +116,7 @@ Search runs against `book_section_fts` (`packages/core/src/Data/Repositories/Boo
 
 | File | Description |
 |---|---|
-| `electron/ipc/bookHandlers.ts` | IPC handlers for fetching book content, including `book:searchSections`, the full-text search over `book_section_fts` that backs the Home page's search box |
+| `electron/ipc/bookHandlers.ts` | IPC handlers for fetching book content, including `book:searchSections`, the full-text search over the module's keyword index that backs the Home page's search box |
 | `electron/services/installedModules.ts` | Filters `module_metadata` down to modules whose `.db` file is on disk, so the Library shelf and the module selector never offer a book or dictionary that cannot be opened. See [dictionary.md](dictionary.md) |
 
 ### Unit tests

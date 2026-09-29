@@ -12,6 +12,27 @@
  * constant is captured at import time and cannot follow a language change.
  */
 import i18n from './i18n';
+import {
+  DIGEST_MODULE_ABBR,
+  isDigestModule,
+  RECOMMENDED_BIBLES,
+  DEFAULT_COMMENTARY_PRIORITY,
+  COMMENTARY_PRIORITY,
+  getCommentaryPriority,
+} from '@bible/core/browser';
+
+// The language-free half (which module is the digest, which translations are
+// recommended, how commentaries sort) lives in `@bible/core` so the desktop
+// app shares it; it is re-exported here so existing importers, and the tests
+// that mock this module by path, keep one import site.
+export {
+  DIGEST_MODULE_ABBR,
+  isDigestModule,
+  RECOMMENDED_BIBLES,
+  DEFAULT_COMMENTARY_PRIORITY,
+  COMMENTARY_PRIORITY,
+  getCommentaryPriority,
+};
 
 /**
  * Resolve a catalog key, treating "no such key" as absent rather than as text.
@@ -29,14 +50,6 @@ function optional(key: string): string | undefined {
 }
 
 // ─── Special Module: Commentary Digest (AI Synthesis) ────────────────
-
-/** Module abbreviation for the AI-synthesized commentary digest */
-export const DIGEST_MODULE_ABBR = 'SYNTHESIS';
-
-/** Check whether a module abbreviation is the Digest/Synthesis module */
-export function isDigestModule(moduleAbbr: string): boolean {
-  return moduleAbbr.toUpperCase() === DIGEST_MODULE_ABBR;
-}
 
 /** Display name shown in tabs and dialogs */
 export function getDigestDisplayName(): string {
@@ -63,11 +76,6 @@ export interface BibleDescription {
   disclaimer?: string;
 }
 
-/** Recommended Bible translations shown at the top of the selector */
-export const RECOMMENDED_BIBLES: string[] = [
-  'KJV', 'BSB', 'ASV', 'YLT',
-];
-
 /**
  * Description, tagline and disclaimer for a translation, or `undefined` when
  * the catalog has no entry for it — a module the app has never heard of is
@@ -91,65 +99,6 @@ export interface CommentaryDescription {
   priority?: number;
   /** Optional disclaimer/copyright notice shown when viewing this module */
   disclaimer?: string;
-}
-
-/** Default priority for commentaries not in the map */
-export const DEFAULT_COMMENTARY_PRIORITY = 100;
-
-/**
- * Sort order for the commentary tab bar: lower is shown first.
- *
- * Ordering is editorial, not linguistic — the digest leads, then the
- * comprehensive full-Bible works, then the widely used ones, then the focused
- * and specialised titles — so it stays in source alongside the code that sorts
- * by it, and is identical in every language.
- */
-export const COMMENTARY_PRIORITY: Record<string, number> = {
-  // Special: AI-synthesized digest (shown first when present)
-  SYNTHESIS: 0,
-
-  // Top-tier: comprehensive, full-Bible or nearly so
-  Barnes: 1,
-  gill: 2,
-  Clarke: 3,
-  pulpit: 4,
-  kd: 5,
-  CalvinCommentaries: 6,
-  poole: 7,
-
-  // Excellent, widely used
-  cambridge: 10,
-  lange: 11,
-  expositors: 12,
-  TSK: 13,
-  Wesley: 14,
-  Scofield: 15,
-  Geneva: 16,
-
-  // Solid, focused works
-  RWP: 20,
-  PNT: 21,
-  Abbott: 22,
-  Burkitt: 23,
-  Lightfoot: 24,
-  Luther: 25,
-  tod: 26,
-
-  // Specialized / Niche
-  Catena: 30,
-  DTN: 31,
-  Family: 32,
-  NETnotesfree: 33,
-  Personal: 34,
-  TFG: 35,
-  Kingcomments: 36,
-  QuotingPassages: 37,
-  Spurious: 38,
-};
-
-/** Sort priority for a commentary; unlisted modules sort last together. */
-export function getCommentaryPriority(moduleAbbr: string): number {
-  return COMMENTARY_PRIORITY[moduleAbbr] ?? DEFAULT_COMMENTARY_PRIORITY;
 }
 
 /**

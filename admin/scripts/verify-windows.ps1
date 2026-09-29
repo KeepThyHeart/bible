@@ -8,7 +8,7 @@
   with the details of anything that failed. Logs and a summary.txt to attach
   to a sign-off are written to a directory it names.
 
-  This script checks what Node cannot check for itself (that Node, npm and git
+  This script checks what Node cannot check for itself (that Node, pnpm and git
   are there at all) and then runs admin\scripts\verify.js, which does the work.
   Needs: git, Node.js 20.19 or newer (24 recommended; nvm-windows: nvm install 24).
 
@@ -50,8 +50,8 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Fail 'Node.js is not installed. Install Node 24 (nvm-windows: nvm install 24, then nvm use 24; or winget install OpenJS.NodeJS.LTS), then open a new terminal.'
 }
-if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-  Fail 'npm is not on PATH. It comes with Node.js; reinstall Node 24.'
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+  Fail 'pnpm is not on PATH. Run corepack enable (Corepack comes with Node.js), or see https://pnpm.io/installation.'
 }
 
 & node -e 'const [a,b]=process.versions.node.split(\".\").map(Number);process.exit(a>20||(a===20&&b>=19)?0:1)'
@@ -60,7 +60,7 @@ if ($LASTEXITCODE -ne 0) {
   Fail "Node.js $version is too old: 20.19 or newer is needed (24 is recommended; nvm-windows: nvm install 24)."
 }
 
-# Long paths: npm's node_modules nests deeply, and some tools fail past 260
+# Long paths: node_modules can nest deeply, and some tools fail past 260
 # characters when long-path support is off. A note, not a stop.
 try {
   $longPaths = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -ErrorAction Stop).LongPathsEnabled

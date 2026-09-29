@@ -81,12 +81,12 @@ voices/<voice>.onnx and <voice>.onnx.json                                       
 Install them with the script, then paste the config block it prints:
 
 ```bash
-npm run fetch:piper -w @bible/web -- --voice=en_US-amy-low --voice=es_ES-davefx-medium
-npm run fetch:piper -w @bible/web -- --runtime-only
+pnpm --filter @bible/web run fetch:piper --voice=en_US-amy-low --voice=es_ES-davefx-medium
+pnpm --filter @bible/web run fetch:piper --runtime-only
 node apps/web/scripts/fetch-piper-assets.mjs --dest=/srv/bible/data/audio --voice=en_US-hfc_female-medium
 ```
 
-`BIBLE_DATA_DIR` is honoured as by the server; `PIPER_VOICES_BASE` points at another voices mirror; `FORCE_PIPER_FETCH=1` re-downloads. The runtime is about 29 MB and a medium voice about 60 MB; the client downloads them once, on the first play (after the reader confirms), into the `kth-tts-models` cache.
+`BIBLE_DATA_DIR` is honoured as by the server; `PIPER_VOICES_BASE` points at another voices mirror; `FORCE_PIPER_FETCH=1` re-downloads. The runtime is about 29 MB and a medium voice about 60 MB; the client downloads them once, on the first play (after the reader confirms), into the `tts-models-v1` cache.
 
 How it works, and the gotchas that were paid for:
 
@@ -102,8 +102,8 @@ A second engine (Kokoro, phase 2) would add a `TtsEngineFactory` to the registry
 
 | Where | What |
 |---|---|
-| Cache API `kth-audio-manifests`, `kth-audio-chapters` | manifests and recorded chapter files (recently played chapters, size-limited LRU) |
-| Cache API `kth-tts-models` | engine runtimes and voices, never expired automatically |
+| Cache API `audio-manifests-v1`, `audio-chapters-v1` | manifests and recorded chapter files (recently played chapters, size-limited LRU) |
+| Cache API `tts-models-v1` | engine runtimes and voices, never expired automatically |
 | `localStorage` `bible-audio-prefs` | source (global and per translation), voice per engine and language, speed, follow-along, auto-scroll, continue, chapter intro, battery notice seen. Validated on load; independent of the settings store |
 
 The Cache API is used directly from the page (not through the service worker) so recordings and voices are cached whether or not the PWA is enabled; the PWA build adds routes for the same caches so seeking in a cached chapter works offline.
@@ -167,7 +167,7 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 
 ## Testing
 
-Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. `src/audio/localeKeys.test.ts` checks that every locale key the code uses exists in English and that es and zh-Hans have the same keys and parameters. E2E: `npx playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
+Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. `src/audio/localeKeys.test.ts` checks that every locale key the code uses exists in English and that es and zh-Hans have the same keys and parameters. E2E: `pnpm exec playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
 
 ## Not verified here
 

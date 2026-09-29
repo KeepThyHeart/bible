@@ -37,11 +37,17 @@ import type {
   ExtensionPrivacyConfig,
   DataCollectionCategory,
   ExtensionRuntimeConfig,
+  ExtensionUserDataConfig,
   ExtensionWebviewCsp,
   ExtensionWebviewsConfig,
   PricingTier,
 } from './ExtensionManifest';
 import type { ExtensionPermission } from './Permissions';
+import {
+  UI_KIT_REQUIRED_PERMISSION,
+  validateUiKitDeclaration,
+  type UiKitDeclaration,
+} from './UiKit';
 import type {
   BibleProviderDescriptor,
   ExtensionPanelTypeDef,
@@ -173,6 +179,8 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
   'contributes',
   'runtime',
   'l10n',
+  'userData',
+  'uiKit',
 ]);
 
 /** Exported for the same reason as `ALLOWED_PERMISSIONS` above. */
@@ -742,6 +750,48 @@ function validateRuntime(
   return out;
 }
 
+function validateUiKit(v: Validator, value: unknown): UiKitDeclaration | undefined {
+  const issues = validateUiKitDeclaration(value);
+  for (const issue of issues) v.add(`/uiKit${issue.path}`, issue.code, `\`uiKit\`: ${issue.message}`);
+  if (issues.length > 0) return undefined;
+  const decl = value as UiKitDeclaration;
+  return { version: decl.version, components: [...decl.components] };
+}
+
+/** Database names are the `openDatabase()` argument; keep them simple so they map to file names. */
+const USER_DATA_DB_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+function validateUserData(
+  v: Validator,
+  value: unknown,
+): ExtensionUserDataConfig | undefined {
+  if (!v.requireRecord('/userData', value)) return undefined;
+  v.noAdditionalProperties('/userData', value, new Set(['backup', 'sync', 'databases']));
+
+  const out: ExtensionUserDataConfig = {};
+  if ('backup' in value && v.requireBool('/userData/backup', value.backup)) out.backup = value.backup;
+  if ('sync' in value && v.requireBool('/userData/sync', value.sync)) out.sync = value.sync;
+
+  if ('databases' in value && v.requireRecord('/userData/databases', value.databases)) {
+    const dbs: NonNullable<ExtensionUserDataConfig['databases']> = {};
+    for (const [name, decl] of Object.entries(value.databases)) {
+      const path = `/userData/databases/${name}`;
+      if (!USER_DATA_DB_NAME.test(name)) {
+        v.add(path, 'pattern', 'database names must be 1-64 characters: letters, digits, "-" or "_"');
+        continue;
+      }
+      if (!v.requireRecord(path, decl)) continue;
+      v.noAdditionalProperties(path, decl, new Set(['backup', 'sync']));
+      const entry: { backup?: boolean; sync?: boolean } = {};
+      if ('backup' in decl && v.requireBool(`${path}/backup`, decl.backup)) entry.backup = decl.backup;
+      if ('sync' in decl && v.requireBool(`${path}/sync`, decl.sync)) entry.sync = decl.sync;
+      dbs[name] = entry;
+    }
+    out.databases = dbs;
+  }
+  return out;
+}
+
 // --- Contributions ---------------------------------------------------------
 
 interface ContributionContext {
@@ -1189,6 +1239,16 @@ export function validateManifest(json: unknown): ManifestValidationResult {
     runtime = validateRuntime(v, json.runtime);
   }
 
+  let userData: ExtensionUserDataConfig | undefined;
+  if ('userData' in json) {
+    userData = validateUserData(v, json.userData);
+  }
+
+  let uiKit: UiKitDeclaration | undefined;
+  if ('uiKit' in json) {
+    uiKit = validateUiKit(v, json.uiKit);
+  }
+
   let l10n: string | undefined;
   if ('l10n' in json) {
     if (v.requireString('/l10n', json.l10n)) {
@@ -1219,6 +1279,14 @@ export function validateManifest(json: unknown): ManifestValidationResult {
         'permission `network:oauth` requires the `network` block to be present',
       );
     }
+  }
+
+  if (uiKit && !(permissions ?? []).includes(UI_KIT_REQUIRED_PERMISSION)) {
+    v.add(
+      '/uiKit',
+      'permissions.uikit-requires-pane',
+      `\`uiKit\` requires permission \`${UI_KIT_REQUIRED_PERMISSION}\``,
+    );
   }
 
   if (v.errors.length > 0) {
@@ -1267,6 +1335,8 @@ export function validateManifest(json: unknown): ManifestValidationResult {
   if (contributes !== undefined) manifest.contributes = contributes;
   if (runtime !== undefined) manifest.runtime = runtime;
   if (l10n !== undefined) manifest.l10n = l10n;
+  if (userData !== undefined) manifest.userData = userData;
+  if (uiKit !== undefined) manifest.uiKit = uiKit;
 
   return { ok: true, manifest };
 }

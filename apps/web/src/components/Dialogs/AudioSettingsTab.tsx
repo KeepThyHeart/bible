@@ -5,8 +5,10 @@
  * no change here. With no engines and no recordings the tab reduces to the toggles.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { SettingsForm } from '@bible/ui';
 import type { AudioSourceChoice, AudioVoice, ITtsEngine, LoadProgress } from '@bible/core/browser';
 import { audioStore } from '../../stores/audioStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -16,6 +18,8 @@ import type { AudioStorageUsage } from '../../audio/audioStorage';
 import { effectiveRate } from '../../audio/audioPrefs';
 import { RateSlider, SourceSegmented, UnusableNotes } from '../audio/AudioControls';
 import { useSources } from '../audio/useSources';
+import { AUDIO_SETTINGS, createAudioSettingsStore } from '../../audio/audioSettings';
+import { isEnabled } from '../../utils/featureFlags';
 
 interface VoiceRow { engineId: string; engine: ITtsEngine; engineLabel: string; voice: AudioVoice }
 const keyOf = (engineId: string, voiceId: string) => `${engineId}:${voiceId}`;
@@ -28,6 +32,12 @@ export function AudioSettingsTab() {
   const sources = useSources(moduleAbbr);
   const language = audioStore.languageFor(moduleAbbr);
   const lang = language.toLowerCase().split(/[-_]/)[0];
+
+  // The "While playing" toggles come from the shared settings registry.
+  const audioSettings = useMemo(createAudioSettingsStore, []);
+  const toggleValues = useSyncExternalStore(audioSettings.subscribe, audioSettings.getSnapshot);
+  useEffect(() => audioStore.subscribe(() => { void audioSettings.reload(); }), [audioSettings]);
+  const toggleFields = AUDIO_SETTINGS.toFields('audio', { translate: (key, fallback) => t(key, fallback), isEnabled, values: toggleValues });
 
   const [usage, setUsage] = useState<AudioStorageUsage | null>(null);
   const [ready, setReady] = useState<Record<string, boolean>>({});
@@ -92,13 +102,6 @@ export function AudioSettingsTab() {
   const rate = ranges.length > 0
     ? { min: Math.min(...ranges.map(r => r.min)), max: Math.max(...ranges.map(r => r.max)), step: Math.min(...ranges.map(r => r.step)) }
     : null;
-
-  const toggle = (label: string, checked: boolean, onChange: (v: boolean) => void, testId: string) => (
-    <label class="audio-settings__toggle">
-      <input type="checkbox" checked={checked} data-testid={testId} onChange={e => onChange((e.target as HTMLInputElement).checked)} />
-      <span>{label}</span>
-    </label>
-  );
 
   return (
     <div class="settings-panel__section audio-settings" data-section="audio">
@@ -184,10 +187,12 @@ export function AudioSettingsTab() {
 
       <div class="audio-settings__group">
         <h5 class="audio-settings__heading">{t('audio.settings.whilePlaying')}</h5>
-        {toggle(t('audio.settings.followAlong'), prefs.followAlong, v => audioStore.setPrefs({ followAlong: v }), 'audio-pref-follow')}
-        {toggle(t('audio.settings.autoScroll'), prefs.autoScroll, v => audioStore.setPrefs({ autoScroll: v }), 'audio-pref-scroll')}
-        {toggle(t('audio.settings.continue'), prefs.continueAfterChapter === 'next-chapter', v => audioStore.setPrefs({ continueAfterChapter: v ? 'next-chapter' : 'stop' }), 'audio-pref-continue')}
-        {toggle(t('audio.settings.intro'), prefs.readChapterIntro, v => audioStore.setPrefs({ readChapterIntro: v }), 'audio-pref-intro')}
+        <SettingsForm
+          fields={toggleFields}
+          values={toggleValues}
+          idPrefix="audio-pref"
+          onChange={(key, value) => { audioSettings.set(key, value); }}
+        />
       </div>
 
       <div class="audio-settings__group" data-testid="audio-storage">
