@@ -44,6 +44,15 @@ import type {
   XrefGraphIndexBuilder as XrefGraphIndexBuilderType,
 } from '@bible/core';
 import type { encodeChapterArcs as encodeChapterArcsType } from '@bible/core/browser';
+import type {
+  createFeatureFlags as createFeatureFlagsType,
+  parseFlagOverrides as parseFlagOverridesType,
+  FeatureFlagName as FeatureFlagNameType,
+  FeatureFlags as FeatureFlagsType,
+} from '@bible/core/browser';
+
+export type FeatureFlagName = FeatureFlagNameType;
+export type FeatureFlags = FeatureFlagsType;
 
 const require = createRequire(import.meta.url);
 const core = require('@bible/core');
@@ -89,3 +98,9 @@ export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewl
 export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
 export const XrefGraphIndexBuilder: typeof XrefGraphIndexBuilderType = core.XrefGraphIndexBuilder;
 export const encodeChapterArcs: typeof encodeChapterArcsType = coreBrowser.encodeChapterArcs;
+
+// Feature flags (task 0087) come from the platform-free browser barrel: it is pure logic
+// shared with both apps, and requiring it avoids loading the Data layer for config code.
+export const createFeatureFlags: typeof createFeatureFlagsType = coreBrowser.createFeatureFlags;
+export const parseFlagOverrides: typeof parseFlagOverridesType = coreBrowser.parseFlagOverrides;
+export const FEATURE_FLAG_NAMES: readonly FeatureFlagNameType[] = coreBrowser.FEATURE_FLAG_NAMES;

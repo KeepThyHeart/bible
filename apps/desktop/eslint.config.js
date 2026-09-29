@@ -6,7 +6,7 @@
  *
  * Core ESLint rules only (no @typescript-eslint rules). The TypeScript parser
  * is used when installed so `.ts` files parse; otherwise ESLint falls back to
- * its default parser. CI runs `npm run lint` in the desktop package.
+ * its default parser. CI runs `pnpm run lint` in the desktop package.
  *
  * Bans in `electron/**` (except the gateway):
  *   - importing `http` / `https` / `node:http` / `node:https`
@@ -96,6 +96,7 @@ module.exports = [
       '**/*.config.ts',
       '**/*.config.mjs',
       '**/*.config.cjs',
+      'electron-builder.*.cjs',
     ],
   },
   {

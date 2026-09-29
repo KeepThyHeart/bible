@@ -36,7 +36,7 @@ The application uses a **multi-database architecture**:
 ### Installation
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Providing an ISql Implementation
@@ -353,7 +353,7 @@ esvDb.close();
 ## Building
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 Outputs to `dist/` directory with TypeScript declarations.

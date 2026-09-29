@@ -39,11 +39,14 @@ const IMPL_DIR = join(__dirname, '../api-impl');
 const RUNTIME_DIR = join(__dirname, '../../../extension-runtime');
 const IPC_DIR = join(__dirname, '../../ipc');
 
-const apiTypesSrc = readFileSync(API_TYPES_PATH, 'utf8');
-const pointTypesSrc = readFileSync(POINT_TYPES_PATH, 'utf8');
-const wiringSrc = readFileSync(WIRING_PATH, 'utf8');
-const lifecycleSrc = readFileSync(LIFECYCLE_PATH, 'utf8');
-const storageApiImplSrc = readFileSync(STORAGE_API_IMPL_PATH, 'utf8');
+// LF only: the parsing below splits on '\n' and anchors on '$'; a Windows checkout (core.autocrlf) has CRLF.
+const readSource = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
+
+const apiTypesSrc = readSource(API_TYPES_PATH);
+const pointTypesSrc = readSource(POINT_TYPES_PATH);
+const wiringSrc = readSource(WIRING_PATH);
+const lifecycleSrc = readSource(LIFECYCLE_PATH);
+const storageApiImplSrc = readSource(STORAGE_API_IMPL_PATH);
 
 /** Strip comments so a doc-block example can't be mistaken for a member. */
 function decomment(src: string): string {
@@ -81,7 +84,7 @@ function registeredMethods(): Map<string, Set<string>> {
     out.get(ns)!.add(name);
   };
   for (const file of readdirSync(IMPL_DIR).filter((f) => f.endsWith('.ts'))) {
-    const src = readFileSync(join(IMPL_DIR, file), 'utf8');
+    const src = readSource(join(IMPL_DIR, file));
     for (const m of src.matchAll(/registerNamespace\(\s*'(\w+)'\s*,\s*\{/g)) {
       // Walk to the matching brace so nested object literals in a handler
       // body cannot leak keys into the list.
@@ -312,7 +315,7 @@ describe('API surface contract', () => {
       };
       collectDispatch(wiringSrc);
       for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))) {
-        collectDispatch(readFileSync(join(IPC_DIR, file), 'utf8'));
+        collectDispatch(readSource(join(IPC_DIR, file)));
       }
       // The two channels fired directly by name (not through the generic
       // dispatcher) because they need self-exclusion semantics the generic
@@ -336,7 +339,7 @@ describe('API surface contract', () => {
   describe('no onDid* survives', () => {
     it('ExtensionApiTypes.ts and ExtensionApiDtos.ts declare no onDid* member and no IEventApi reference', () => {
       for (const file of ['ExtensionApiTypes.ts', 'ExtensionApiDtos.ts', 'ExtensionPointTypes.ts']) {
-        const src = readFileSync(join(CORE_EXTENSIONS_DIR, file), 'utf8');
+        const src = readSource(join(CORE_EXTENSIONS_DIR, file));
         expect(src, file).not.toMatch(/\bonDid\w+/);
         expect(src, file).not.toMatch(/\bIEventApi\b/);
       }
@@ -344,7 +347,7 @@ describe('API surface contract', () => {
 
     it('the extension-runtime package references no onDid* member and no IEventApi', () => {
       for (const file of ['apiProxy.ts', 'eventEmitter.ts', 'runtime.ts']) {
-        const src = readFileSync(join(RUNTIME_DIR, file), 'utf8');
+        const src = readSource(join(RUNTIME_DIR, file));
         expect(src, file).not.toMatch(/\bonDid\w+/);
         expect(src, file).not.toMatch(/\bIEventApi\b/);
       }

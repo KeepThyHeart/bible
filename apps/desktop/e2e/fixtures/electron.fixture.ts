@@ -27,7 +27,7 @@ export const test = base.extend<ElectronFixtures>({
     // Ensure the app is built
     if (!fs.existsSync(MAIN_JS_PATH)) {
       throw new Error(
-        `Electron app not built. Run 'npm run build' first.\n` +
+        `Electron app not built. Run 'pnpm run build' first.\n` +
         `Expected path: ${MAIN_JS_PATH}`
       );
     }

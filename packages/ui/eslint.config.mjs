@@ -1,6 +1,6 @@
 // S8 guard for packages/ui (0062). Keeps the package portable across React 18 and
 // preact/compat, free of app coupling, and safe to run inside sandboxed panel iframes.
-// Runs via the `pretest` hook, so `npm test` (and CI) enforces it.
+// Runs via the `pretest` hook, so `pnpm test` (and CI) enforces it.
 import tseslint from 'typescript-eslint';
 
 const REACT_BANNED = [

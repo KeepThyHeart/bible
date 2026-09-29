@@ -1,9 +1,9 @@
 import { Store } from './Store';
+import { webSettings, WEB_SETTINGS, STORAGE_KEY } from './settingsRegistry';
 import { moduleStore } from './moduleStore';
 import { isValidTheme, getThemeById } from '../themes/themeRegistry';
 import type { ModuleInfo } from '../types';
 
-const STORAGE_KEY = 'bible-reader-settings';
 
 /** Used only when there is no configured default and no installed Bible to name. */
 const LAST_RESORT_BIBLE = 'KJV';
@@ -74,9 +74,10 @@ export const DEFAULT_SETTINGS = {
   showCommentaryOverview: true,
   leftHandedMode: false,
   dismissedDisclaimerModules: [] as string[],
-  swipeChaptersEnabled: true,
-  swipeChapterThresholdPx: 100,
-  swipeCommentaryVerseThresholdPx: 100,
+  // Owned by the settings registry (`settingsRegistry.ts`); read from there so there is one default.
+  swipeChaptersEnabled: WEB_SETTINGS.defaultFor('swipeChaptersEnabled') as boolean,
+  swipeChapterThresholdPx: WEB_SETTINGS.defaultFor('swipeChapterThresholdPx') as number,
+  swipeCommentaryVerseThresholdPx: WEB_SETTINGS.defaultFor('swipeCommentaryVerseThresholdPx') as number,
   interlinearLayout: 'stacked' as InterlinearLayout,
 };
 
@@ -116,12 +117,23 @@ class SettingsStore extends Store {
   leftHandedMode = DEFAULT_SETTINGS.leftHandedMode;
   /** Module abbreviations whose disclaimer banners the user has dismissed */
   dismissedDisclaimerModules: string[] = [...DEFAULT_SETTINGS.dismissedDisclaimerModules];
+  /*
+   * The three swipe settings live in the settings registry (`settingsRegistry.ts`), which
+   * owns their defaults, clamping and persistence. These getters keep the existing
+   * `settingsStore.swipe*` reads working; the setters below delegate to the registry.
+   */
   /** When true, horizontal swipes on the Bible pane navigate chapters */
-  swipeChaptersEnabled = DEFAULT_SETTINGS.swipeChaptersEnabled;
+  get swipeChaptersEnabled(): boolean {
+    return webSettings.get<boolean>('swipeChaptersEnabled');
+  }
   /** Pixel threshold for committing a chapter swipe in the Bible pane */
-  swipeChapterThresholdPx = DEFAULT_SETTINGS.swipeChapterThresholdPx;
+  get swipeChapterThresholdPx(): number {
+    return webSettings.get<number>('swipeChapterThresholdPx');
+  }
   /** Pixel threshold for committing a verse swipe in the Commentary pane */
-  swipeCommentaryVerseThresholdPx = DEFAULT_SETTINGS.swipeCommentaryVerseThresholdPx;
+  get swipeCommentaryVerseThresholdPx(): number {
+    return webSettings.get<number>('swipeCommentaryVerseThresholdPx');
+  }
   /**
    * Interlinear layout used in study mode.
    *
@@ -135,6 +147,9 @@ class SettingsStore extends Store {
   constructor() {
     super();
     this.load();
+    // Registry-owned settings change through their own store; wake this store's
+    // subscribers so anything reading the getters above re-renders.
+    webSettings.subscribe(() => this.notify());
   }
 
   resetToDefaults(): void {
@@ -145,9 +160,7 @@ class SettingsStore extends Store {
     this.showCommentaryOverview = DEFAULT_SETTINGS.showCommentaryOverview;
     this.leftHandedMode = DEFAULT_SETTINGS.leftHandedMode;
     this.dismissedDisclaimerModules = [...DEFAULT_SETTINGS.dismissedDisclaimerModules];
-    this.swipeChaptersEnabled = DEFAULT_SETTINGS.swipeChaptersEnabled;
-    this.swipeChapterThresholdPx = DEFAULT_SETTINGS.swipeChapterThresholdPx;
-    this.swipeCommentaryVerseThresholdPx = DEFAULT_SETTINGS.swipeCommentaryVerseThresholdPx;
+    webSettings.reset(['swipeChaptersEnabled', 'swipeChapterThresholdPx', 'swipeCommentaryVerseThresholdPx']);
     this.interlinearLayout = DEFAULT_SETTINGS.interlinearLayout;
     this.fontSchemeId = DEFAULT_SETTINGS.fontSchemeId;
     this.fontFamily = DEFAULT_SETTINGS.fontFamily;
@@ -314,15 +327,11 @@ class SettingsStore extends Store {
   }
 
   setSwipeChaptersEnabled(enabled: boolean): void {
-    this.swipeChaptersEnabled = enabled;
-    this.save();
-    this.notify();
+    webSettings.set('swipeChaptersEnabled', enabled);
   }
 
   setSwipeChapterThresholdPx(px: number): void {
-    this.swipeChapterThresholdPx = Math.max(20, Math.min(400, Math.round(px)));
-    this.save();
-    this.notify();
+    webSettings.set('swipeChapterThresholdPx', px);
   }
 
   setInterlinearLayout(layout: InterlinearLayout): void {
@@ -332,9 +341,7 @@ class SettingsStore extends Store {
   }
 
   setSwipeCommentaryVerseThresholdPx(px: number): void {
-    this.swipeCommentaryVerseThresholdPx = Math.max(20, Math.min(400, Math.round(px)));
-    this.save();
-    this.notify();
+    webSettings.set('swipeCommentaryVerseThresholdPx', px);
   }
 
   /** Server-provided UI config restrictions */
@@ -473,6 +480,8 @@ class SettingsStore extends Store {
         showCommentaryOverview: this.showCommentaryOverview,
         leftHandedMode: this.leftHandedMode,
         dismissedDisclaimerModules: this.dismissedDisclaimerModules,
+        // The swipe settings are written by the registry store, which merges into this blob.
+        // Carry them over here so a save() that rewrites the blob does not drop them.
         swipeChaptersEnabled: this.swipeChaptersEnabled,
         swipeChapterThresholdPx: this.swipeChapterThresholdPx,
         swipeCommentaryVerseThresholdPx: this.swipeCommentaryVerseThresholdPx,
@@ -504,14 +513,13 @@ class SettingsStore extends Store {
         this.dismissedDisclaimerModules = Array.isArray(parsed.dismissedDisclaimerModules)
           ? parsed.dismissedDisclaimerModules
           : this.dismissedDisclaimerModules;
-        this.swipeChaptersEnabled = parsed.swipeChaptersEnabled ?? this.swipeChaptersEnabled;
-        this.swipeChapterThresholdPx = parsed.swipeChapterThresholdPx ?? this.swipeChapterThresholdPx;
-        this.swipeCommentaryVerseThresholdPx = parsed.swipeCommentaryVerseThresholdPx ?? this.swipeCommentaryVerseThresholdPx;
         this.interlinearLayout = parsed.interlinearLayout === 'stacked' || parsed.interlinearLayout === 'inline'
           ? parsed.interlinearLayout
           : this.interlinearLayout;
       }
     } catch { /* ignore */ }
+    // The swipe settings belong to the registry store; re-read the blob it shares.
+    void webSettings.reload();
     this.applyTheme();
     this.applyFontSizes();
   }

@@ -3,7 +3,7 @@
  * only here. Colour values are FALLBACKS (desktop light theme); each app overrides them via
  * generated/map-<app>.css (:root beats :where, so import order does not matter), and generated/kth-scheme.css
  * supplies dark variants for tokens an app does not map. Adding a token: declare it here, add it to KTH_MAP in
- * scripts/generate-kth-css.js (or CONTRACT_CONSTANTS), run npm run generate:kth-css.
+ * scripts/generate-kth-css.js (or CONTRACT_CONSTANTS), run pnpm run generate:kth-css.
  */
 :where(:root) {
   /* Surfaces and text */

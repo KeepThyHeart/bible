@@ -10,7 +10,7 @@ Each namespace has a JSON Schema in `locales/schemas/` (e.g., `ui.schema.json`).
 
 **Regenerating schemas:** After adding or changing keys in the English files, regenerate the schemas:
 ```bash
-npm run generate:locale-schemas
+pnpm run generate:locale-schemas
 ```
 
 **CI verification:** To check that schemas are up to date (without overwriting):
@@ -174,7 +174,7 @@ Preserve the HTML tags and translate only the text content.
 
 1. **Run the app locally:**
    ```bash
-   npm run dev -w @bible/web
+   pnpm --filter @bible/web run dev
    ```
    Switch to your language in the browser (or set `localStorage.setItem('i18nextLng', '<locale>')` in the console) and verify strings display correctly.
 

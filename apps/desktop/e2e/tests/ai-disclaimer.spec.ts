@@ -2,7 +2,7 @@
  * AI-content disclosure E2E tests.
  *
  * The AI-synthesized SYNTHESIS commentary is optional content - never the
- * default, and not installed by `npm run init` or the module catalog. Where it
+ * default, and not installed by `pnpm run init` or the module catalog. Where it
  * is installed, these tests assert that every surface which shows its text says
  * where it came from, and that an ordinary human-authored commentary gets no
  * such notice. The tests that need the digest skip themselves without it.
