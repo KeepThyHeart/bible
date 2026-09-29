@@ -3,7 +3,7 @@
   // helper that no longer exists — or called one with the wrong arity — only
   // failed at run time, inside a 4-worker Electron run, as an opaque timeout.
   // `pnpm run typecheck:e2e` catches that in a second.
-  "extends": "../../../tsconfig.json",
+  "extends": "../../../packages/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
