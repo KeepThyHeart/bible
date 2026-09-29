@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -237,6 +237,62 @@ describe('SiteConfig', () => {
       const config = new SiteConfig(tempDir);
       expect(config.modules).toBeNull();
       expect(config.auth.enabled).toBe(true);
+    });
+  });
+
+  // ── Feature flags (task 0087) ───────────────────────────────────
+
+  describe('feature flags', () => {
+    const write = (features: unknown) =>
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+
+    afterEach(() => {
+      delete process.env.BIBLE_FEATURE_FLAGS;
+      vi.unstubAllEnvs();
+    });
+
+    it('answers isEnabled from site config over the declared defaults', () => {
+      write({ audio: true, pwa: false, tagGraph: true, genealogy: true });
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(true);
+      expect(config.isEnabled('pwa')).toBe(false);
+      expect(config.isEnabled('timeline')).toBe(false);
+      expect(config.isEnabled('genealogy')).toBe(true); // tagGraph is on
+      expect(config.isEnabled('offlineAutoDownload')).toBe(true);
+    });
+
+    it('agrees with the legacy typed accessors', () => {
+      write({ tagGraph: true, offlineDownloads: true });
+      const config = new SiteConfig(tempDir);
+      for (const key of ['tagGraph', 'semanticSearch', 'pwa', 'offlineDownloads', 'offlineAutoDownload'] as const) {
+        expect(config.isEnabled(key)).toBe(config.features[key]);
+      }
+    });
+
+    it('sends every resolved flag to the client', () => {
+      write({ audio: true });
+      const client = new SiteConfig(tempDir).getClientConfig() as { features: Record<string, boolean> };
+      expect(client.features.audio).toBe(true);
+      expect(client.features.offlineAutoDownload).toBe(true);
+      expect(client.features.timeline).toBe(false);
+    });
+
+    it('takes a dev override from BIBLE_FEATURE_FLAGS outside production', () => {
+      write({});
+      process.env.BIBLE_FEATURE_FLAGS = 'audio,-pwa';
+      vi.stubEnv('NODE_ENV', 'development');
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(true);
+      expect(config.isEnabled('pwa')).toBe(false);
+    });
+
+    it('ignores BIBLE_FEATURE_FLAGS in production', () => {
+      write({});
+      process.env.BIBLE_FEATURE_FLAGS = 'audio,-offlineAutoDownload';
+      vi.stubEnv('NODE_ENV', 'production');
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(false);
+      expect(config.isEnabled('offlineAutoDownload')).toBe(true);
     });
   });
 

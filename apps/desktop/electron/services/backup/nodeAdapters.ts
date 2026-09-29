@@ -58,12 +58,13 @@ function walk(root: string, dir: string, out: Array<{ path: string; size: number
 
 /** Resolve a relative POSIX path inside `root`, refusing anything that would escape it. */
 function safeJoin(root: string, rel: string): string {
+  const base = resolve(root);
+  const abs = resolve(base, rel);
+  // Escape check first: the Windows rule below also rejects a `..` segment (trailing dot).
+  if (abs !== base && !abs.startsWith(base + sep)) throw new Error(`Path escapes the notes directory: ${rel}`);
   if (process.platform === 'win32' && /[<>:"|?*]|(^|\/)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|\/|$)|[. ](\/|$)/i.test(rel)) {
     throw new Error(`Name not allowed on Windows: ${rel}`);
   }
-  const base = resolve(root);
-  const abs = resolve(base, rel);
-  if (abs !== base && !abs.startsWith(base + sep)) throw new Error(`Path escapes the notes directory: ${rel}`);
   return abs;
 }
 

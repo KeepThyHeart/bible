@@ -18,6 +18,8 @@ export interface ClientConfig {
   staleDays?: number;
   commentaryPopularity?: Record<string, number>;
   ui?: Record<string, unknown>;
+  /** Every feature flag, resolved by the server (see `utils/featureFlags.ts`). */
+  features?: Record<string, boolean>;
   /** `features.pwa`: true only when the server has the PWA on. Absent (offline) means unknown. */
   pwaEnabled?: boolean;
   /** `features.pwaUpdate`: how a newer build reaches an open page. Default `silent`. */

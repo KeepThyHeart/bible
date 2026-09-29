@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
+import { webSettings } from '../../stores/settingsRegistry';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -223,6 +224,22 @@ describe('SettingsPanel', () => {
     const gesturesTab = container.querySelector<HTMLElement>('[data-tab="gestures"]')!;
     fireEvent.click(gesturesTab);
     expect(container.querySelector('[data-section="gestures"]')).toBeTruthy();
+  });
+
+  it('renders gestures from the settings registry and writes changes back to it', () => {
+    webSettings.reset();
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="gestures"]')!);
+    const swipe = screen.getByLabelText('settings.gestures.swipeChaptersEnabled') as HTMLInputElement;
+    expect(swipe.checked).toBe(true);
+    fireEvent.click(swipe);
+    expect(webSettings.get('swipeChaptersEnabled')).toBe(false);
+    expect((screen.getByLabelText('settings.gestures.swipeChaptersEnabled') as HTMLInputElement).checked).toBe(false);
+    const threshold = screen.getByLabelText(/settings.gestures.swipeChapterThreshold/) as HTMLInputElement;
+    expect(threshold.type).toBe('range');
+    fireEvent.input(threshold, { target: { value: '250' } });
+    expect(webSettings.get('swipeChapterThresholdPx')).toBe(250);
+    webSettings.reset();
   });
 
   it('switches to about tab when clicked', () => {

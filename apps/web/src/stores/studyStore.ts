@@ -1,6 +1,9 @@
 import { Store } from './Store';
 import { eventBus } from '../events/eventBus';
 import { bibleStore } from './bibleStore';
+import { getUserData } from '../userdata/userData';
+import { loadVerseHistory, saveVerseHistory } from './studyHistoryStorage';
+import type { VerseHistoryEntry } from './studyHistoryStorage';
 import type { PendingTopicNav } from './commentaryStore';
 import type {
   ICrossRefDataProvider,
@@ -516,17 +519,26 @@ class StudyStore extends Store {
     this.saveHistory();
   }
 
+  /** Verse history lives in the user-data store (`app:study`), not in localStorage. */
   private saveHistory(): void {
-    try {
-      localStorage.setItem('bible-reader-study-history', JSON.stringify(this.verseHistory));
-    } catch { /* ignore */ }
+    void saveVerseHistory(this.verseHistory);
   }
 
   private restoreHistory(): void {
-    try {
-      const data = localStorage.getItem('bible-reader-study-history');
-      if (data) this.verseHistory = JSON.parse(data);
-    } catch { /* ignore */ }
+    const apply = (loaded: VerseHistoryEntry[], keepLocal: boolean): void => {
+      // On the first load, a jump made before it finished is newer than anything stored: keep it in front.
+      // After that the store is the truth (another tab may have removed entries).
+      const fresh = keepLocal ? this.verseHistory.filter(h => !loaded.some(l => l.verseId === h.verseId)) : [];
+      const merged = [...fresh, ...loaded].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+      if (JSON.stringify(merged) === JSON.stringify(this.verseHistory)) return;
+      this.verseHistory = merged;
+      this.notify();
+    };
+    void loadVerseHistory().then(l => apply(l, true));
+    // Another tab's jumps show up here too.
+    void getUserData().then(store => store.onRemoteChange(changes => {
+      if (changes.some(c => c.type === 'item:put' || c.type === 'item:delete')) void loadVerseHistory().then(l => apply(l, false));
+    }));
   }
 
   // ========== Session persistence ==========

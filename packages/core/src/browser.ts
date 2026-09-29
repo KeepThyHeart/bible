@@ -202,6 +202,21 @@ export type { ExtensionManifest } from './Extensions/ExtensionManifest';
 export { fromZustand, fromSelector, createStore } from './Ui/ReadableStore';
 export type { ReadableStore, WritableStore, ZustandLike } from './Ui/ReadableStore';
 
+// --- Popup positioning and hover intent (used by @bible/ui Popover / HoverCard / BottomSheet) ---
+export { computePopupPosition, isPopupRect } from './Ui/popupPosition';
+export type {
+  PopupAnchor,
+  PopupAlign,
+  PopupDir,
+  PopupPlacement,
+  PopupPoint,
+  PopupPositionInput,
+  PopupPositionResult,
+  PopupRect,
+} from './Ui/popupPosition';
+export { createHoverIntent, DEFAULT_SHOW_DELAY, DEFAULT_HIDE_DELAY } from './Ui/hoverIntent';
+export type { HoverIntent, HoverIntentOptions } from './Ui/hoverIntent';
+
 // --- Content text direction ---------------------------------------------------
 // Direction of a *module's* text (by its language), independent of UI locale.
 export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
@@ -257,3 +272,15 @@ export * as Crypto from './Crypto';
 // The encrypted container, ZIP payload, user-table registry and restore
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
+
+// --- Web user-data store (task 0084) ------------------------------------------
+// In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
+// import for them, and the localStorage migration helper. Namespaced: it re-exports
+// a few model names that also exist on the main barrel.
+export * as UserData from './UserData';
+
+// --- Settings registry and feature flags (task 0087) ----------------------------
+// Declarative settings (schema, defaults, scope, validation), a typed store over a
+// storage port, the flat field model shared with extension settings, and the
+// feature-flag resolver. Pure TypeScript.
+export * from './Settings';
