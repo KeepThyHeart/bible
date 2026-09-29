@@ -6,7 +6,7 @@
  * `installExtension` copies a package into `data/extensions/<id>/` and the host
  * owns that copy from then on. That is the right behaviour for something a
  * user chose to keep, and it is exactly wrong for something being actively
- * developed: `npm run build` writes to the developer's `dist/`, which the
+ * developed: `pnpm run build` writes to the developer's `dist/`, which the
  * copy knows nothing about, so every iteration means re-installing.
  *
  * A dev load registers the developer's own directory as the install path. No

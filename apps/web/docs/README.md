@@ -37,7 +37,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 
 - **Unit tests:** Vitest (`src/__tests__/`, `server/__tests__/`)
 - **Component tests:** Vitest + `@testing-library/preact` (next to each component, e.g. `Header.test.tsx`)
-- **E2E tests:** Playwright (`e2e/tests/`) — `npm run test:e2e -w @bible/web`. See [`e2e/README.md`](../e2e/README.md) for how the suite builds its own data directory and why it never reuses a server you started yourself.
+- **E2E tests:** Playwright (`e2e/tests/`) — `pnpm --filter @bible/web run test:e2e`. See [`e2e/README.md`](../e2e/README.md) for how the suite builds its own data directory and why it never reuses a server you started yourself.
 - **Exploratory UI testing:** `exploratory-ui-testing.md` — **not yet imported into this repo**; upstream it is a flow-by-flow plan for driving the app in a real browser (by hand or via Claude for Chrome), covering the judgment calls Playwright cannot make.
 
 Component tests follow the store-mocking pattern established in `src/components/ConnectionBanner.test.tsx` and `src/components/BiblePane/BibleToolbar.test.tsx`. All stores use a mutable container object for state so that `vi.mock` hoisting doesn't cause temporal dead zone issues.

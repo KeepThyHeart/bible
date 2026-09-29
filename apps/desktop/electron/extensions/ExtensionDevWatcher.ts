@@ -3,7 +3,7 @@
  *
  * The whole point of Developer Mode is the edit -> build -> see-it loop. Without
  * a watcher a developer still has to find the extension in the UI and click
- * Reload after every `npm run build`, which is most of the friction that
+ * Reload after every `pnpm run build`, which is most of the friction that
  * Developer Mode exists to remove.
  *
  * -- What is watched, and why not everything ---------------------------------

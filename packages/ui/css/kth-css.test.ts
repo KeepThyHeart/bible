@@ -1,5 +1,5 @@
 // K3: structural tests for the KTH CSS framework (0062). Staleness of the generated files is also
-// enforced by `npm run check:kth-css` (in test:scripts); the checks here explain *why* something is wrong.
+// enforced by `pnpm run check:kth-css` (in test:scripts); the checks here explain *why* something is wrong.
 import { createRequire } from 'module';
 import { readdirSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';

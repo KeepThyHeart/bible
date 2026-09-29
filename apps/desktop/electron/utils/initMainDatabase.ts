@@ -270,7 +270,7 @@ function ensureKeywordIndexTable(db: SqliteProvider): void {
  * Add this build's official catalog source when the database has none.
  *
  * Runs on every start rather than inside a migration, because most databases
- * never run the migration that used to seed it: `npm run init` and the main.db
+ * never run the migration that used to seed it: `pnpm run init` and the main.db
  * template the installer ships (`init --no-modules`) both build the schema
  * directly, so a fresh install's first launch already finds an existing
  * database. Only when this build has a catalog URL (BIBLE_MODULE_CATALOG_URL,

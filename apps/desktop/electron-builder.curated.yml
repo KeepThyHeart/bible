@@ -107,6 +107,10 @@ files:
   # Browser/WASM ORT build -- unused while the native node backend is active.
   # This comes back if/when embedding moves to the WASM backend.
   - '!node_modules/@huggingface/transformers/node_modules/onnxruntime-web/**'
+  # pnpm installs onnxruntime-web (a dependency of transformers) once, flat, under
+  # node_modules/, where npm nested it inside transformers and the pattern above
+  # excluded it. Without this it adds ~70 MB of wasm the Node runtime never loads.
+  - '!node_modules/onnxruntime-web/**'
   # npm binstubs and the Vite dep cache are build-time artefacts.
   - '!node_modules/.bin/**'
   - '!node_modules/.vite/**'

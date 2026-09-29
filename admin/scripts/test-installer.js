@@ -27,13 +27,13 @@
  * Every step logs to a file of its own; the console shows one line per step and
  * the end of the log of any step that failed.
  *
- * It uses Playwright from this checkout, so run `npm install` here first.  The
+ * It uses Playwright from this checkout, so run `pnpm install` here first.  The
  * installer does not have to come from this checkout.
  *
  * ## Usage
  *
  *   node admin/scripts/test-installer.js <installer> [options]
- *   npm run test:installer -- <installer> [options]
+ *   pnpm run test:installer <installer> [options]
  *
  *   --expect-verses       Fail unless a Bible chapter appears (the default when
  *                         the installer bundles modules).

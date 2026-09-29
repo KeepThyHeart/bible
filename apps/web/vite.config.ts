@@ -297,7 +297,7 @@ function wasmPlugin(): Plugin {
       const wasmPath = resolveDependencyPath('wa-sqlite/dist/wa-sqlite-async.wasm');
       if (!wasmPath) {
         // Fail with the cause rather than a bare ENOENT from readFileSync.
-        this.error('wa-sqlite/dist/wa-sqlite-async.wasm not found in this package or the workspace root. Run npm install at the repo root.');
+        this.error('wa-sqlite/dist/wa-sqlite-async.wasm not found in this package or the workspace root. Run pnpm install at the repo root.');
         return;
       }
       this.emitFile({

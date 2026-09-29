@@ -9,7 +9,7 @@ export const DEFAULT_VERSE_ID = 43003016;
  * whole Bible at a seventh of Matthew Henry's installed size (90 MB against
  * 632 MB); MHC follows because the default installer bundles it; Wesley is
  * last because it is the whole-Bible commentary in the development `starter`
- * set (`npm run init:modules`). Every one covers both Testaments: the fallback
+ * set (`pnpm run init:modules`). Every one covers both Testaments: the fallback
  * below takes whatever is listed first, and in a starter install that was the
  * New-Testament-only Barnes, so Genesis opened on "No commentary for this
  * verse". With none installed, `pickDefaultCommentary` in

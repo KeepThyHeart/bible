@@ -231,7 +231,7 @@ export default defineConfig({
         // calls; rollup cannot statically determine named exports through those,
         // so bundling dist fails with `"X" is not exported by ../core/dist/index.js`.
         // The renderer config below already aliases to source for the same reason.
-        // `npm run build:core` is still required - the desktop's typecheck and
+        // `pnpm run build:core` is still required - the desktop's typecheck and
         // the web package consume `packages/core/dist`.
         '@bible/core': resolve(__dirname, '../../packages/core/src')
       }

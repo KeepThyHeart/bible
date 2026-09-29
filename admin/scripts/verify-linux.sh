@@ -11,7 +11,7 @@
 #   admin/scripts/verify-linux.sh --fresh=https://github.com/KeepThyHeart/bible.git --ref=main_installation
 #   admin/scripts/verify-linux.sh --help          every option
 #
-# This script checks what Node cannot check for itself (that Node, npm and git
+# This script checks what Node cannot check for itself (that Node, pnpm and git
 # are there at all) and then runs admin/scripts/verify.js, which does the work.
 # Needs: git, Node.js 20.19 or newer (24 recommended), and, for the desktop
 # checks without a desktop session, xvfb-run.
@@ -40,7 +40,7 @@ if ! command -v node >/dev/null 2>&1; then
   fi
 fi
 command -v node >/dev/null 2>&1 || fail "Node.js is not installed. Install Node 24: with nvm, 'nvm install 24'; or see https://nodejs.org/."
-command -v npm >/dev/null 2>&1 || fail "npm is not on PATH. It comes with Node.js; reinstall Node 24."
+command -v pnpm >/dev/null 2>&1 || fail "pnpm is not on PATH. Run 'corepack enable' (Corepack comes with Node.js), or see https://pnpm.io/installation."
 
 node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>20||(a===20&&b>=19)?0:1)' \
   || fail "Node.js $(node --version) is too old: 20.19 or newer is needed (24 is recommended; 'nvm install 24')."

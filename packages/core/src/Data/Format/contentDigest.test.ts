@@ -412,7 +412,7 @@ describe('computeContentSha256', () => {
   // ==========================================================================
   // CLI script - `scripts/module-digest.js` must print exactly what this
   // function computes directly, for the same real file. Requires the package
-  // to be built (`npm run build`), which is not part of a fresh checkout (see
+  // to be built (`pnpm run build`), which is not part of a fresh checkout (see
   // `dist/` in `.gitignore`) - this suite builds nothing itself, so it skips
   // (rather than failing) when `dist/index.js` is not already present. See
   // this task's final report for a manual verification run.
