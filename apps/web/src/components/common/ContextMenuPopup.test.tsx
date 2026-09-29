@@ -78,4 +78,10 @@ describe('ContextMenuPopup', () => {
     const dividers = container.querySelectorAll('.verse-context-menu__divider');
     expect(dividers.length).toBe(1);
   });
+
+  it('calls onAction with "connections" when Show connections is clicked', () => {
+    const { onAction } = renderMenu();
+    fireEvent.click(screen.getByText('xrefGraph.showConnections'));
+    expect(onAction).toHaveBeenCalledWith('connections');
+  });
 });

@@ -465,7 +465,7 @@ export function XrefWebView({
             viewBox={`${-half.w} ${-half.h} ${width} ${height}`}
             role="group"
             aria-label={L.graph}
-            onDoubleClick={releasePins}
+            {...({ onDoubleClick: releasePins } as object)}
           >
             <rect
               className="kth-xref-web__bg"
@@ -536,7 +536,7 @@ export function XrefWebView({
                       setSelected(n.id);
                       setFocusId(n.id);
                     }}
-                    onDoubleClick={(e) => { e.stopPropagation(); recentre(n.id); }}
+                    {...({ onDoubleClick: (e: { stopPropagation(): void }) => { e.stopPropagation(); recentre(n.id); } } as object)}
                     onKeyDown={(e) => onNodeKeyDown(e, n.id)}
                     onFocus={() => { setFocusId(n.id); setFocused(true); }}
                     onBlur={() => setFocused(false)}

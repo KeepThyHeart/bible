@@ -19,6 +19,7 @@ import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { resetModuleProvenanceCache } from './commentary/useModuleProvenance';
 import { enString, enT } from '../testing/enCatalog';
 import { useStudyStore } from '../stores/useStudyStore';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 
 // Mock useStudyPanel
 const mockUseStudyPanel = vi.fn();
@@ -484,6 +485,21 @@ describe('StudyPane', () => {
       const row = phrase.parentElement!;
       expect(row.textContent).toBe('"Verily" — Mt 5:18; Jn 1:51; 2Co 1:19-20; Re 3:14');
       expect(container.textContent).not.toContain('2 Corinthians');
+    });
+
+    it('opens the cross-reference graph for the pane verse from "Show connections"', async () => {
+      useXrefGraphStore.setState({ isOpen: false, anchor: null });
+      stubElectron({
+        xrefModules: [{ abbreviation: 'TSK', name: 'Treasury of Scripture Knowledge' }],
+        xrefGroups: [{
+          group: { group_id: 1, verse_id: JOHN_3_16, phrase: 'Verily.', sort_order: 0 },
+          entries: [{ entry_id: 1, target_verse_id: 43001051, target_verse_end_id: null }],
+        }],
+      });
+      renderWithProviders(<StudyPane panelId="study_default" />);
+      await screen.findByText('"Verily"');
+      await userEvent.click(screen.getByRole('button', { name: 'Show connections' }));
+      expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: JOHN_3_16 });
     });
 
     it('shows every reference, with no "+N more" toggle', async () => {

@@ -463,6 +463,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
+        bibleProvider={providers.bible}
       />
       {contextMenu && (
         <ContextMenuPopup

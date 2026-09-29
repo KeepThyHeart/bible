@@ -449,7 +449,7 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
               <select
                 className="kth-select"
                 value={book ?? 0}
-                onChange={(e) => { const v = Number(e.target.value); setBook(v > 0 ? v : null); }}
+                onChange={(e) => { const v = Number(e.currentTarget.value); setBook(v > 0 ? v : null); }}
               >
                 <option value={0}>{L.allBooks}</option>
                 {Array.from({ length: BOOK_COUNT }, (_, i) => i + 1).map((b) => (
@@ -467,7 +467,7 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
                 step={10}
                 value={sliderValue}
                 aria-valuetext={fmt(L.arcsShown, { count: base.pairs.length / 4 })}
-                onChange={(e) => setSlider(Number(e.target.value))}
+                onChange={(e) => setSlider(Number(e.currentTarget.value))}
               />
             </label>
             <span className="kth-xref-arcs__count">{fmt(L.arcsShown, { count: base.pairs.length / 4 })}</span>
