@@ -73,6 +73,7 @@
     "eslint": "^10.1.0",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
     "jsdom": "^29.1.1",
     "sass": "^1.80.0",
