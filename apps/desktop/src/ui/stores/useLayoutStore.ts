@@ -24,6 +24,7 @@ export type PanelContentType =
   | 'prayer'
   | 'study'
   | 'topics'
+  | 'genealogy'
   | 'search'
   | 'newtab'
   | `ext:${string}`;

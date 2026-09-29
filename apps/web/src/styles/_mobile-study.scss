@@ -1253,3 +1253,11 @@
     border-color: var(--accent-color);
   }
 }
+
+// Family tree sheet: the explorer scrolls/pans itself, so the body must not.
+.mobile-family-tree-overlay .mobile-topics-overlay__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}

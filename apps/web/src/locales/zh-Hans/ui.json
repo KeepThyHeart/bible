@@ -529,6 +529,23 @@
     "offlineNotice": "您已离线，此功能在离线状态下不可用。",
     "entities": "实体"
   },
+  "genealogyPane": {
+    "title": "家谱",
+    "study": "研经",
+    "modes": "研经面板模式",
+    "loading": "正在加载家谱...",
+    "empty": "没有可用的家谱数据。",
+    "error": "无法加载家谱。",
+    "retry": "重试",
+    "close": "关闭家谱",
+    "showFamilyTree": "显示家谱",
+    "tabs": "家谱视图",
+    "line": "基督的世系",
+    "family": "家庭",
+    "tribes": "支派",
+    "highlight": "突出显示基督的世系",
+    "showDisputed": "显示有争议的关系"
+  },
   "topicsBrowser": {
     "searchAll": "搜索所有主题",
     "searchPlaceholder": "搜索主题…",

@@ -182,6 +182,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   onStrongsHover={shared.handleStrongsHover}
                   onStrongsLeave={shared.handleStrongsLeave}
                   bibleProvider={providers.bible}
+                  genealogyProvider={providers.genealogy}
                 />
               )}
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}

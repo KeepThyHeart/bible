@@ -12,3 +12,4 @@ export { layoutFamily } from './layoutFamily';
 export type { FamilyLayoutOptions } from './layoutFamily';
 export { layoutTribes } from './layoutTribes';
 export type { TribesLayoutOptions } from './layoutTribes';
+export { computeGenealogyLayout } from './computeLayout';

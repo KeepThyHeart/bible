@@ -529,6 +529,23 @@
     "offlineNotice": "You're offline. This isn't available offline.",
     "entities": "Entities"
   },
+  "genealogyPane": {
+    "title": "Family tree",
+    "study": "Study",
+    "modes": "Study pane mode",
+    "loading": "Loading family tree...",
+    "empty": "No genealogy data is available.",
+    "error": "The family tree could not be loaded.",
+    "retry": "Retry",
+    "close": "Close family tree",
+    "showFamilyTree": "Show family tree",
+    "tabs": "Genealogy views",
+    "line": "Line to Christ",
+    "family": "Family",
+    "tribes": "Tribes",
+    "highlight": "Highlight the line to Christ",
+    "showDisputed": "Show disputed links"
+  },
   "topicsBrowser": {
     "searchAll": "Search All Topics",
     "searchPlaceholder": "Search topics...",
