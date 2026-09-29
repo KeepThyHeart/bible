@@ -16,3 +16,18 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+export { TimelineView } from './components/Timeline/TimelineView';
+export type { TimelineViewProps } from './components/Timeline/TimelineView';
+export { TimelineItemCard } from './components/Timeline/TimelineItemCard';
+export type { TimelineItemCardProps } from './components/Timeline/TimelineItemCard';
+export { TimelinePanel } from './components/Timeline/TimelinePanel';
+export type { TimelinePanelProps } from './components/Timeline/TimelinePanel';
+export { useTimelineStore } from './components/Timeline/useTimelineStore';
+export {
+  DEFAULT_TIMELINE_VIEW_LABELS,
+  DEFAULT_TIMELINE_ITEM_CARD_LABELS,
+  DEFAULT_TIMELINE_PANEL_LABELS,
+  DEFAULT_TIMELINE_KIND_LABELS,
+  defaultFormatReference,
+} from './components/Timeline/labels';
+export type { TimelineViewLabels, TimelineItemCardLabels, TimelinePanelLabels } from './components/Timeline/labels';
