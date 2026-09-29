@@ -475,3 +475,95 @@
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+/* --- Popover / hover card / bottom sheet ---------------------------------------
+   Placement (position, inset, width, max-height) is set inline by the component (viewport-relative numbers,
+   RTL-aware). Visual defaults are zero-specificity (:where) so an app class on the same element can adjust them.
+   The popover sets no colour or font: it inherits them from where it is portalled (the app's body). */
+:where(.kth-popover) {
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface-raised);
+  box-shadow: var(--kth-shadow);
+}
+:where(.kth-popover):where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+
+:where(.kth-popover-backdrop) {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.kth-hovercard-trigger { display: inline; }
+
+.kth-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.kth-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--kth-overlay);
+}
+.kth-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-block-size: 50dvh;
+  border-start-start-radius: calc(var(--kth-radius) * 2);
+  border-start-end-radius: calc(var(--kth-radius) * 2);
+  border: 1px solid var(--kth-border);
+  border-block-end: 0;
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  box-shadow: var(--kth-shadow);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.5;
+  padding-block-end: env(safe-area-inset-bottom, 0);
+}
+.kth-sheet:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-sheet__header {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kth-space-2);
+  padding-block: var(--kth-space-3) var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+}
+.kth-sheet__grip {
+  position: absolute;
+  inset-block-start: var(--kth-space-1);
+  inset-inline-start: 50%;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  margin-inline-start: -1.25rem;
+  border-radius: 999px;
+  background: var(--kth-border-strong);
+}
+.kth-sheet__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-weight: 600;
+  color: var(--kth-text-heading);
+}
+.kth-sheet__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0 var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+}

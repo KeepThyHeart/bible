@@ -127,6 +127,24 @@ Classes: `kth-swatch-group`, `kth-swatch` (`--sm`). Adopting it in desktop's `Hi
 ``<HighlightSwatch value={...} onChange={({ color }) => ...} colorValue={(c) => `rgb(var(--theme-highlight-${c}-rgb))`} />``, which
 keeps the theme-tinted look; it is not wired yet (the selector's buttons carry app-specific behaviour and styling to port first).
 
+### `Popover`, `HoverCard`, `BottomSheet` (popups)
+
+One popup set for verse previews, Strong's, measures, similar passages and extension hovers. Positioning and hover
+intent are pure logic in `@bible/core/browser` (`computePopupPosition`, `createHoverIntent`); the components only wire
+them to the DOM. Visual defaults are `kth-popover` / `kth-sheet` classes (the popover's are zero-specificity `:where()`,
+so an app class on the same element can adjust them; it sets no colour or font and inherits them from the portal target).
+
+| Component | Use |
+|---|---|
+| `Popover` | An anchored popup. `anchor` is a point (`{x, y}`, a hover position; 20px below by default) or a rectangle (`getBoundingClientRect()`; 4px gap). Below the anchor, flipping above when it does not fit, clamped to the viewport, height capped to the room. RTL-aware (`dir`, default the document's): `align: 'start'` (default) lines the inline-start edges up, so it mirrors. Escape and an outside mouse/touch press call `onClose`; `backdrop` adds a click-catcher; `autoFocus` moves focus in and restores it. Portals to `document.body` (needed under dockview's `contain: layout`); `portal={false}` keeps it in place. |
+| `HoverCard` | Trigger + card. Opens on hover (300ms) or focus, closes 200ms after the pointer leaves both, so it is dismissible (Escape, outside press), hoverable and persistent (WCAG 1.4.13). Click or Enter pins it open. Touch: the first tap opens it and suppresses the trigger's click (a link inside does not navigate); the second tap goes through. A tap on a viewport under `sheetBreakpoint` (480) opens a `BottomSheet` instead. `content` renders only while open, so it can load on demand. |
+| `BottomSheet` | A modal sheet on the bottom edge (max `50dvh`): `role="dialog"` `aria-modal`, focus moved in and restored, Tab kept inside, Escape and backdrop press close it. Label via `labels.close`. |
+| `useHoverIntent` | React binding for `createHoverIntent`, for apps that own their trigger (delegated `.scripture-link` handlers, stores). |
+
+Not included on purpose: the browser Popover API / top layer (the portal plus a z-index token is enough, and jsdom cannot
+test it), swipe-to-dismiss on the sheet, and arrow chrome (`data-placement` and `--kth-popover-arrow-offset` are set so a
+consumer can add one).
+
 ### `SettingsForm`
 
 The one settings renderer: draws the flat `SettingsField[]` model from `@bible/core/browser` as form rows (text/url/email/password,
