@@ -257,3 +257,9 @@ export * as Crypto from './Crypto';
 // The encrypted container, ZIP payload, user-table registry and restore
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
+
+// --- Cross-reference graph (task 0068) -----------------------------------------
+// Types, the edge-weight formula, canon geometry, chapter-pair packing and the
+// budgeted ego-graph walk. Pure; the repository-backed service and index builder
+// live in the Node entry point.
+export * from './Services/XrefGraph';
