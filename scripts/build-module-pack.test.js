@@ -32,8 +32,8 @@ const SCRIPT = path.join(REPO_ROOT, 'scripts', 'build-module-pack.js');
 // at install time) - reused here to inspect the archive this script builds,
 // rather than adding a second zip-reading dependency just for this test.
 // Resolved via `require.resolve` from apps/desktop's own package.json rather
-// than a hard-coded node_modules path, since npm workspaces may hoist it
-// anywhere up the tree.
+// than a hard-coded node_modules path, since a package manager may hoist it
+// anywhere up the tree (pnpm puts it in apps/desktop/node_modules).
 const UNZIPPER_PATH = require.resolve('unzipper', { paths: [path.join(REPO_ROOT, 'apps', 'desktop')] });
 
 function run(args) {

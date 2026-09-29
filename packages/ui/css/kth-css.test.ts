@@ -1,5 +1,5 @@
 // K3: structural tests for the KTH CSS framework (0062). Staleness of the generated files is also
-// enforced by `npm run check:kth-css` (in test:scripts); the checks here explain *why* something is wrong.
+// enforced by `pnpm run check:kth-css` (in test:scripts); the checks here explain *why* something is wrong.
 import { createRequire } from 'module';
 import { readdirSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
@@ -121,7 +121,8 @@ describe('KTH CSS tokens', () => {
 
   it('generated files match the generator output', () => {
     for (const [file, content] of Object.entries(gen.render(palette))) {
-      expect(read(file), file).toBe(content);
+      // Ignore line endings: a Windows checkout (core.autocrlf) has CRLF.
+      expect(read(file).replace(/\r\n/g, '\n'), file).toBe(content);
     }
   });
 

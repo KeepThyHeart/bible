@@ -4,34 +4,43 @@
 
 Progressive Web App support with service worker caching, installability, and offline Bible reading via OPFS module downloads.
 
-## ⚠️ The PWA is OFF by default
+## The PWA is switched by the server (`features.pwa`)
 
-The service worker and web app manifest are built **only when `ENABLE_PWA=1`** is set on the client build. Everything below describes the opt-in build; a default build is an ordinary mobile-friendly website.
+The client build **always** contains two workers, the real `sw.js` (built from `src/sw.ts`) and the kill switch `sw-kill.js` (`public/sw-kill.js`, copied verbatim). Which one a browser gets at `/sw.js`, and whether the manifest is advertised, is decided **at run time** by `server/middleware/serviceWorker.ts` from `features.pwa` in `site-config.json`. One build can be flipped between "installable app with offline shell" and "ordinary website" by editing the config and restarting; there is no build flag (`ENABLE_PWA` is gone).
 
-Why: a service worker is the only thing in this stack that can answer a *navigation* from cache, and a stale app shell answering navigations is what wedges a client into a boot loop. Guards (network-first navigation, the build-ID handshake, the boot-loop detector) each narrow that failure but none close it, because an already-wedged client is the one client that cannot run the code meant to rescue it. Turning the worker off removes the mechanism instead of guarding it.
+| Site config | Effect |
+|---|---|
+| `features.pwa: true` | `/sw.js` is the real worker; manifest served and linked; the page registers the worker and shows the install prompt in supporting browsers |
+| `features.pwa: false` (**default**) | `/sw.js` is the kill worker; `/manifest.webmanifest` is 404 and the `<link rel="manifest">` is stripped from the shell; the page unregisters any worker an earlier visit installed and deletes the app's caches |
+| `features.pwaUpdate: "silent"` (default) or `"prompt"` | How a newer build reaches a page that stays open, see [Update flow](#update-flow) |
+| `FEATURE_PWA=1` / `0` in the server environment | Overrides `features.pwa` (used by the e2e servers) |
 
-`src/sw.ts`, the update handshake, and the whole offline stack are intact and re-enable with the flag:
+The default is off because a service worker is the only thing in this stack that can answer a *navigation* from cache, and a stale app shell answering navigations is what wedges a client into a boot loop. Off removes the mechanism instead of guarding it. The guards (network-first navigation, the build-ID handshake, the boot-loop detector, the kill switch, "Reset app cache") make turning it on safe to try, and reversible from the server.
 
-```bash
-ENABLE_PWA=1 npm run build:client     # or: ENABLE_PWA=1 npm run build
-```
+The client reads the flag through `pwaFlag()` in `src/utils/clientConfig.ts`, which is deliberately tri-state: `undefined` when the server did not answer (an offline boot). Unknown is **not** treated as off; unregistering the worker because the network is down would delete the very worker that let the page boot offline. (A later settings/feature-flag registry can replace that one accessor.)
 
-**Still works with the PWA off:**
-
-- **Offline Bible reading** — OPFS module downloads + wa-sqlite never went through the service worker.
-- **Browser semantic search** — `@huggingface/transformers` writes the ~130 MB model to its own `transformers-cache` Cache Storage entry from the search worker, independent of any service worker.
-- **Commentary / study-overview caching** — moved to plain HTTP cache headers (see [Cache headers without a service worker](#cache-headers-without-a-service-worker)).
-- **Hashed asset caching** — `dist/client/assets/*` is served `immutable` for a year, which is what the precache was buying.
+**Still works with the PWA off:** offline Bible reading (OPFS module downloads + wa-sqlite never went through the worker), browser semantic search (`transformers-cache`), the HTTP cache headers below, and hashed-asset caching.
 
 **Lost with the PWA off:** installability, standalone display, and loading the app shell with no network at all.
 
 ### Reaching browsers that already installed a worker
 
-Disabling registration only stops *new* clients. A build with the PWA off therefore emits a **self-destroying `sw.js`** (`killServiceWorkerPlugin()` in `vite.config.ts`) at the same URL the old worker occupied. Browsers re-fetch the worker script on every navigation, bypassing the HTTP cache, so this is the one channel that still reaches a client too wedged to boot. It registers no `fetch` handler, clears the shell caches, and calls `registration.unregister()`. `embedding-model`, `semantic-index`, and `transformers-cache` are preserved — re-downloading them to switch off a feature flag would be its own problem.
+Browsers re-fetch the worker script on every navigation, bypassing the HTTP cache. So turning the flag off makes `/sw.js` answer with `sw-kill.js`: no `fetch` handler, deletes every cache except the large content ones (`transformers-cache` and the `keepOnReset` rule caches), then `registration.unregister()`. That is the one channel that reaches a client too wedged to run any app code. The server sends `Cache-Control: no-store` on `sw.js` and `sw-kill.js`. `unregisterServiceWorkers()` in `src/utils/appUpdate.ts` is the in-app half, for clients that boot normally. `/sw-kill.js` is always the kill worker, whatever the flag says.
 
-The server sends `Cache-Control: no-store` on `sw.js` as a second guarantee that the replacement is never served stale.
+### Reset app cache
 
-`src/utils/appUpdate.ts` does the same teardown from inside the app (`unregisterServiceWorkers()`), which covers clients that boot normally.
+Settings > About > **Reset app cache** (`resetAppCache()`): unregisters every worker, deletes Cache Storage entries (except `transformers-cache` and `keepOnReset` caches) and reloads. Shown unless the server answered `features.pwa: false`. It never touches OPFS downloads, settings or user data. If the PWA is still on, the reload boots a fresh worker. The older "Clear Cache & Reload" buttons on the boot-error screen and the error boundary remain as the last resort when the app does not render at all.
+
+### Cache rules
+
+Runtime caching is declared in `src/sw/rules/`, not in `sw.ts`. See [service-worker-cache-rules.md](service-worker-cache-rules.md) for adding a rule. API routes are never cached unless a rule opts in with `allowApi`, and `/api/sync` is never cached.
+
+### Update flow
+
+1. **New launch (always silent).** Before rendering, the client compares its build ID with `/api/version`; a mismatch pulls the new worker in and reloads once under a loop guard (see the handshake below).
+2. **Page left open.** The browser re-checks `sw.js` on each navigation, and the page asks again whenever it returns to the foreground (at most hourly). The new worker `skipWaiting`s and claims the page (`controllerchange`):
+   - `pwaUpdate: "silent"` (default): the page reloads itself once, guarded by `reloadForUpdateOnce()`.
+   - `pwaUpdate: "prompt"`: `UpdateBanner` shows "A new version is ready" with **Reload** / dismiss. The running page keeps its old bundle until the user reloads, so lazy-loaded chunks of the old build can 404 in the meantime; that is why silent is the default.
 
 ## Files
 
@@ -39,8 +48,10 @@ The server sends `Cache-Control: no-store` on `sw.js` as a second guarantee that
 
 | File | Description |
 |---|---|
-| `vite.config.ts` | `ENABLE_PWA` flag → `__PWA_ENABLED__` define; `vite-plugin-pwa` config in **`injectManifest`** mode (opt-in only); `killServiceWorkerPlugin()` emitting the self-destroying `sw.js` when off; `__BUILD_ID__` define and the plugin emitting `build-id.json` |
-| `src/utils/pwaRegisterStub.ts` | No-op stand-in for `virtual:pwa-register`, aliased in when the plugin is out of the graph so `appUpdate.ts` keeps its static import |
+| `vite.config.ts` | `vite-plugin-pwa` config in **`injectManifest`** mode (always on, `injectRegister: false`); `__BUILD_ID__` define and the plugin emitting `build-id.json` |
+| `public/sw-kill.js` | The kill-switch worker, copied verbatim into `dist/client/` and excluded from the precache |
+| `server/middleware/serviceWorker.ts` | Picks the worker served at `/sw.js` from `features.pwa`; withholds the manifest and strips its `<link>` when off |
+| `src/sw/` | The cache-rule registry, see [service-worker-cache-rules.md](service-worker-cache-rules.md) |
 | `index.html` | PWA meta tags: theme-color, apple-touch-icon, viewport |
 | `src/main.tsx` | Imports self-hosted Font Awesome CSS (core + solid + regular) so icons work offline and avoid third-party CDN/tracking-prevention issues |
 | `public/icons/icon-192.svg` | App icon 192x192 (blue background, white serif "B") |
@@ -51,14 +62,14 @@ The server sends `Cache-Control: no-store` on `sw.js` as a second guarantee that
 
 | File | Description |
 |---|---|
-| `src/sw.ts` | **Hand-written service worker.** Network-first navigation (3s timeout → precached shell), `skipWaiting` + `clientsClaim`, and the four runtime content caches |
-| `src/utils/appUpdate.ts` | SW registration (no-op unless `PWA_BUILD_ENABLED`), silent update application, the build-ID staleness check, and the `unregisterServiceWorkers()` kill switch |
+| `src/sw.ts` | **Hand-written service worker.** Network-first navigation (3s timeout → precached shell), `skipWaiting` + `clientsClaim`, and the runtime caches declared in `src/sw/rules/` |
+| `src/utils/appUpdate.ts` | SW registration (plain `navigator.serviceWorker.register`), the update flow (silent or prompt), the build-ID staleness check, `unregisterServiceWorkers()` and `resetAppCache()` |
 | `src/utils/bootGuard.ts` | sessionStorage-backed one-shot guards for every automatic navigation (login redirect, update reload) |
 | `src/main.tsx` | Boot sequence: health + config + version in parallel → auth handling → SW registration → update check → render. Wires `OfflineBibleProvider`, auto-download, auto-cleanup |
-| `src/vite-env.d.ts` | Type declarations for `virtual:pwa-register`, `__BUILD_ID__`, `__PWA_ENABLED__`, and the two untyped `wa-sqlite` entry points |
-| `dist/client/sw.js` | (Generated) With `ENABLE_PWA=1`, compiled from `src/sw.ts` with the precache manifest injected. Otherwise the self-destroying kill worker. |
+| `src/vite-env.d.ts` | Type declarations for `__BUILD_ID__` and the two untyped `wa-sqlite` entry points |
+| `dist/client/sw.js` | (Generated) Compiled from `src/sw.ts` with the precache manifest injected. Served only when `features.pwa` is on. |
 | `dist/client/build-id.json` | (Generated) Build stamp; read by the server at startup and served from `/api/version` |
-| `dist/client/manifest.webmanifest` | (Generated, `ENABLE_PWA=1` only) Web app manifest |
+| `dist/client/manifest.webmanifest` | (Generated) Web app manifest; served only when `features.pwa` is on |
 
 ### Offline Storage
 
@@ -126,17 +137,17 @@ This is what a **default (PWA off)** build relies on. All of it lives in `server
 
 The cacheable API header is applied at **write time**, not request time, so only a 2xx gets it. A missing module answers 404 on a valid-looking path, and pinning that for an hour would outlive the fix for whatever produced it. `private` keeps these out of shared proxies — the response still travelled through the password gate even though its body is not user-specific.
 
-## Caching Strategies (`ENABLE_PWA=1` builds only)
+## Caching strategies (`features.pwa` on)
 
 | Cache | URL Pattern | Strategy | TTL |
 |---|---|---|---|
 | Navigation | `request.mode === 'navigate'` | NetworkFirst, 3s timeout → precached `index.html` | n/a |
 | Precache | `**/*.{js,css,html,svg,png,woff2}` | Precache (built-in) | Until new SW |
-| `embedding-model` | `/data/models/*` | CacheFirst | 1 year, 20 entries | Self-hosted ONNX model for browser search; downloaded once, then offline |
-| `semantic-index` | `/data/semantic_*` | CacheFirst | 1 year, 10 entries | Int8 vectors + metadata for browser search |
-| `commentary-text` | `/api/commentary/:mod-or-pseudo/:book/:chapter` | CacheFirst | 7 days, 200 entries |
-| `chapter-metadata` | `/api/interlinear/:book/:chapter` | CacheFirst | 7 days, 200 entries |
-| `study-overview` | `/api/study/overview/:book/:chapter` | CacheFirst | 7 days, 100 entries |
+| `embedding-model-v1` | `/data/models/*` | CacheFirst | 1 year, 20 entries | Self-hosted ONNX model for browser search; downloaded once, then offline |
+| `semantic-index-v1` | `/data/semantic_*` | CacheFirst | 1 year, 10 entries | Int8 vectors + metadata for browser search |
+| `commentary-text-v1` | `/api/commentary/:mod-or-pseudo/:book/:chapter` | CacheFirst | 7 days, 200 entries |
+| `chapter-metadata-v1` | `/api/interlinear/:book/:chapter` | CacheFirst | 7 days, 200 entries |
+| `study-overview-v1` | `/api/study/overview/:book/:chapter` | CacheFirst | 7 days, 100 entries |
 
 **The patterns live in `src/utils/swCachePatterns.ts`, not inline in `sw.ts`, so they can be tested.** Workbox matches a `RegExp` route against the whole URL (`url.href`), not against the path — so the trailing `$` these used to end with silently excluded every request carrying a query string, and the route simply never fired. That is every request that matters here: `/api/commentary/all/43/3?modules=…` (what a chapter change now makes), `/api/commentary/home/43/3?verse=16`, and `/api/interlinear/43/3?module=KJV`. Hence `(\?|$)`. The commentary pattern's `[^/?]+` segment deliberately covers the `all`, `chapter-overview` and `home` pseudo-modules as well as a real module abbreviation.
 
@@ -176,14 +187,10 @@ Supporting pieces:
   navigation, and a looping client generates plenty of those.
 - The server sends `Cache-Control: no-store` on `index.html` and `/api/version`, so the HTTP
   cache cannot become a second stale layer. Hashed assets stay cacheable.
-- `pwaEnabled: false` in server config (`features.pwa`) also **unregisters** existing workers
-  (`unregisterServiceWorkers()`), preserving the `embedding-model`, `semantic-index`, and
-  `transformers-cache` caches. Previously it only skipped new registrations, leaving
-  already-installed workers unreachable. Note this is the *runtime* switch and can only turn
-  a `ENABLE_PWA=1` build off — it can never turn a default build on, because such a build
-  ships no worker to register.
+- `features.pwa: false` also **unregisters** existing workers (`unregisterServiceWorkers()`)
+  and makes `/sw.js` the kill worker, preserving the large content caches (see above).
 
-The handshake still runs in a default build. It costs one `no-store` fetch, it is the only
+The handshake still runs with the PWA off. It costs one `no-store` fetch, it is the only
 thing that catches a tab left open across a deploy, and with no cached shell working against
 it a reload always converges.
 
@@ -244,25 +251,27 @@ User navigates to chapter
 
 ## Testing PWA
 
-**PWA features (service worker, install prompt) only work on production builds built with `ENABLE_PWA=1`**, never on `npm run dev`.
+**PWA features (service worker, install prompt) only work on a production build served with `features.pwa` on** (site config, or `FEATURE_PWA=1` in the environment), never on `pnpm run dev`.
+
+Automated coverage: `e2e/tests/pwa-e2e.spec.ts` (install, offline boot, cache rules, update, Reset app cache, kill switch; Chromium only; the e2e config starts a second server on port 3101 with the PWA on) plus unit tests in `src/sw/cacheRules.test.ts`, `src/utils/appUpdate.test.ts` and `server/__tests__/serviceWorker.test.ts`.
 
 ### Quick test steps
 
 ```bash
 cd apps/web
-ENABLE_PWA=1 npm run build   # Build client + server WITH the service worker
-npm run start                # Serve production build on http://localhost:3100
+pnpm run build                # one build serves both modes
+FEATURE_PWA=1 pnpm run start  # Serve production build on http://localhost:3100 with the PWA on
 ```
 
-### Verifying the PWA is off (default build)
+### Verifying the PWA is off (the default)
 
 ```bash
 cd apps/web
-npm run build && npm run start
+pnpm run build && pnpm run start   # features.pwa unset
 ```
 
 1. DevTools > Application > Service Workers — **no** registration.
-2. DevTools > Application > Manifest — no manifest (`dist/client/manifest.webmanifest` is not emitted, and `index.html` carries no `<link rel="manifest">`).
+2. DevTools > Application > Manifest — no manifest (`/manifest.webmanifest` answers 404, and the served `index.html` carries no `<link rel="manifest">`).
 3. `curl -I http://localhost:3100/sw.js` — 200 with `Cache-Control: no-store`, body is the kill worker.
 4. Offline tab reading still works after visiting a chapter (OPFS auto-download).
 
@@ -273,7 +282,7 @@ Upgrade path from a PWA build: load the site once with a worker installed, reloa
 3. **Service worker**: DevTools > Application > Service Workers — should show registered and activated
 4. **Manifest**: DevTools > Application > Manifest — verify name, icons, display mode
 5. **Offline test**: DevTools > Network > check "Offline" — app shell should still load from cache
-6. **Cache inspection**: DevTools > Application > Cache Storage — check `commentary-text` and `study-overview`
+6. **Cache inspection**: DevTools > Application > Cache Storage — check `commentary-text-v1` and `study-overview-v1`
 7. **Offline modules**: Settings > Offline tab > download a Bible module > go offline > verify reading still works
 
 ### Testing offline Bible reads

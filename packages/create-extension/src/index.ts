@@ -588,7 +588,7 @@ export default defineConfig({
  * project created outside this repository cannot resolve them by version:
  * `npm install` fails on the very first command the README tells an author to
  * run. `--local-sdk=<dir>` points the scaffold at packed tarballs instead
- * (`npm run pack:sdk` in the monorepo produces them), so out-of-tree
+ * (`pnpm run pack:sdk` in the monorepo produces them), so out-of-tree
  * development works today and the same scaffold keeps working unchanged once
  * the packages are published.
  */
@@ -621,7 +621,7 @@ function resolveLocalSdk(sdkDir: string, targetDir: string): SdkSpecs {
     if (!chosen) {
       console.error(
         `Error: no ${packageName} tarball (${prefix}*.tgz) in ${resolved}\n` +
-          `       Run "npm run pack:sdk" in the Bible repository first.`,
+          `       Run "pnpm run pack:sdk" in the Bible repository first.`,
       );
       process.exit(1);
     }
@@ -968,7 +968,7 @@ Arguments:
 Options:
   --local-sdk=<dir>  Resolve @bible/core and @bible/extension-testing from
                      packed tarballs in <dir> instead of a registry. Run
-                     "npm run pack:sdk" in the Bible repository to produce
+                     "pnpm run pack:sdk" in the Bible repository to produce
                      them. Needed until those packages are published.
   --help             Show this help message
 

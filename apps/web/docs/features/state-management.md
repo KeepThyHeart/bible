@@ -18,6 +18,7 @@ All stores extend a `Store` base class with subscriber notification on state cha
 | `src/stores/searchStore.ts` | Query, results, search type, loading, visibility, Strong's mode and its paging (`loadMoreStrongs`, `loadAllStrongs`) |
 | `src/stores/dictionaryStore.ts` | Dictionary tabs (permanent + temporary), per-tab search/browse/entry state, `openStrongs()` |
 | `src/stores/moduleStore.ts` | Available modules, books, lookups |
+| `src/userdata/` | The local user-data store (`WebUserData`, IndexedDB write-through, multi-tab sync, backup export/import files) |
 | `src/stores/settingsStore.ts` | Theme, font settings, line height, interlinear layout, gesture thresholds, localStorage persistence |
 | `src/stores/studyStore.ts` | Study pane: cross-references, topics, tag-graph entities and verse text for the study verse. Loads **on demand** — see below |
 | `src/stores/offlineStore.ts` | Offline mode flag, downloaded modules, download progress, online/offline detection — see [PWA & Offline](pwa-offline.md) |
@@ -105,4 +106,4 @@ Abstraction layer between UI and server API. All providers use fetch-based HTTP 
 - Stores are singletons imported directly (not context-based)
 - Components subscribe via `useStore(store, selector)` hook
 - Data providers injected as props from `App` component
-- localStorage used for session and settings persistence
+- localStorage used for session and settings persistence. New user-owned data goes in the user-data store instead (`src/userdata/`, `getUserData()`); the Study verse history (`stores/studyHistoryStorage.ts`) is the first store on it. See `packages/core/docs/features/user-data-store.md`.

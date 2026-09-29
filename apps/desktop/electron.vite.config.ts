@@ -231,7 +231,7 @@ export default defineConfig({
         // calls; rollup cannot statically determine named exports through those,
         // so bundling dist fails with `"X" is not exported by ../core/dist/index.js`.
         // The renderer config below already aliases to source for the same reason.
-        // `npm run build:core` is still required - the desktop's typecheck and
+        // `pnpm run build:core` is still required - the desktop's typecheck and
         // the web package consume `packages/core/dist`.
         '@bible/core': resolve(__dirname, '../../packages/core/src')
       }
@@ -313,6 +313,15 @@ export default defineConfig({
     plugins: [brandingHtmlPlugin(), react()],
     build: {
       rollupOptions: {
+        // Renderer code imports the `@bible/core` barrel, which also re-exports
+        // Node-only modules (contentDigest -> node:crypto, the codecs ->
+        // node:zlib, ...). Vite stubs those builtins for the browser as empty
+        // modules, so rollup would fail on their named imports ("createHash is
+        // not exported by __vite-browser-external"). Nothing in the renderer
+        // calls that code; it is tree-shaken, and if it were ever reached it
+        // would hit `undefined` at the call site. Shim the missing exports
+        // rather than splitting the barrel.
+        shimMissingExports: true,
         input: {
           index: resolve(__dirname, 'index.html'),
           detached: resolve(__dirname, 'detached.html')

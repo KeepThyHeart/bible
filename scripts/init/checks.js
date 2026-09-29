@@ -3,7 +3,7 @@
  * Self-checks for the pure functions in `catalog.js` and `index.js`.
  *
  * These live here rather than as a Vitest suite because `scripts/` is not an
- * npm workspace, so `npm test` (which runs `--workspaces`) would never reach
+ * npm workspace, so `pnpm test` (which runs `--workspaces`) would never reach
  * them.  Run directly:  node scripts/init/checks.js
  *
  * The signature cases matter most: this file's verification has to agree with

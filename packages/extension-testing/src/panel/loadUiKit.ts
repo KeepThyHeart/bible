@@ -11,7 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** The kit bundle shipped in this package (`dist/kit/kth-kit.js`, built by `npm run build`). */
+/** The kit bundle shipped in this package (`dist/kit/kth-kit.js`, built by `pnpm run build`). */
 export function readBundledUiKit(): string {
   // dist/panel/loadUiKit.js -> dist/kit; src/panel/loadUiKit.ts (this repo's own tests) -> dist/kit.
   const candidates = [
@@ -22,7 +22,7 @@ export function readBundledUiKit(): string {
   if (!file) {
     throw new Error(
       `UI kit bundle not found (looked in ${candidates.join(', ')}). ` +
-        'Run `npm run build -w @bible/extension-testing` (or pass your own bundle with loadUiKit({ code })).',
+        'Run `pnpm --filter @bible/extension-testing run build` (or pass your own bundle with loadUiKit({ code })).',
     );
   }
   return fs.readFileSync(file, 'utf8');

@@ -46,7 +46,7 @@ beforeAll(async () => {
   // The CLI ships compiled. Build it if this checkout has not been built yet,
   // so the test is self-sufficient rather than silently order-dependent.
   if (!existsSync(SCAFFOLDER_CLI)) {
-    execFileSync('npx', ['tsc'], { cwd: SCAFFOLDER_ROOT, shell: true, stdio: 'pipe' });
+    execFileSync('pnpm', ['exec', 'tsc'], { cwd: SCAFFOLDER_ROOT, shell: true, stdio: 'pipe' });
   }
 
   workDir = mkdtempSync(join(tmpdir(), 'bible-scaffold-'));
@@ -59,9 +59,9 @@ afterAll(() => {
 });
 
 /**
- * Build the scaffolded project the way `npm run build` would, but by reading
+ * Build the scaffolded project the way `pnpm run build` would, but by reading
  * the options out of the emitted `esbuild.config.mjs` rather than restating
- * them. Running the file itself would need a real `npm install` in the temp
+ * them. Running the file itself would need a real `pnpm install` in the temp
  * directory; parsing the options keeps the test honest about *which* options
  * are under test without paying for one.
  */

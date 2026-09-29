@@ -37,10 +37,10 @@ apps/desktop/data/
 E2E tests run against the **built** app in `out/`, not dev mode.
 
 ```bash
-npm run build          # from repo root - builds core + desktop + web
+pnpm run build          # from repo root - builds core + desktop + web
 ```
 
-**Important:** If you changed files in `packages/core/src/`, you must run `npm run build:core` (or `npm run build`) before `npm run build:desktop`. Stale `dist/` output causes runtime errors like `"X is not a constructor"`.
+**Important:** If you changed files in `packages/core/src/`, you must run `pnpm run build:core` (or `pnpm run build`) before `pnpm run build:desktop`. Stale `dist/` output causes runtime errors like `"X is not a constructor"`.
 
 ### 3. Rebuild native modules for Electron
 
@@ -51,29 +51,29 @@ The module was compiled against a different Node.js version using NODE_MODULE_VE
 This version of Node.js requires NODE_MODULE_VERSION 130.
 ```
 
-**Automatic:** `npm run build:desktop` (and `npm run build`) runs `electron-rebuild` via a `postbuild` npm lifecycle hook in `apps/desktop/package.json`. So a normal build should leave native modules in the correct state.
+**Automatic:** `pnpm run build:desktop` (and `pnpm run build`) runs `electron-rebuild` via a `postbuild` npm lifecycle hook in `apps/desktop/package.json`. So a normal build should leave native modules in the correct state.
 
 **Manual (if needed):**
 
 ```bash
-cd apps/desktop && npx electron-rebuild
+cd apps/desktop && pnpm exec electron-rebuild
 ```
 
-Run this manually if you installed new packages (`npm install`) or changed the Node.js version without running a full build.
+Run this manually if you installed new packages (`pnpm install`) or changed the Node.js version without running a full build.
 
 ### 4. Display server (Linux)
 
 Electron requires a display server. On Linux desktops this is already available. For headless CI, use `xvfb-run`:
 
 ```bash
-xvfb-run npx playwright test ...
+xvfb-run pnpm exec playwright test ...
 ```
 
 ## Quick Start (from scratch)
 
 ```bash
 # 1. Install dependencies
-npm install
+pnpm install
 
 # 2. Place module .db files in apps/desktop/data/modules/
 #    At minimum: bible_kjv.db (or any bible_*.db)
@@ -81,13 +81,13 @@ npm install
 #    Place tag_graph.db in apps/desktop/data/
 
 # 3. Build everything (electron-rebuild runs automatically as postbuild)
-npm run build
+pnpm run build
 
 # 4. Start the app once so main.db is created and the modules are registered
-npm run dev
+pnpm run dev
 
 # 5. Run tests
-npx playwright test --config=e2e/playwright.config.ts --reporter=list
+pnpm exec playwright test --config=e2e/playwright.config.ts --reporter=list
 ```
 
 ## Running Tests
@@ -96,19 +96,19 @@ npx playwright test --config=e2e/playwright.config.ts --reporter=list
 cd apps/desktop
 
 # Run all E2E tests
-npx playwright test --config=e2e/playwright.config.ts --reporter=list
+pnpm exec playwright test --config=e2e/playwright.config.ts --reporter=list
 
 # Run a specific test file
-npx playwright test --config=e2e/playwright.config.ts e2e/tests/study-pane.spec.ts --reporter=list
+pnpm exec playwright test --config=e2e/playwright.config.ts e2e/tests/study-pane.spec.ts --reporter=list
 
 # Run a single test by name
-npx playwright test --config=e2e/playwright.config.ts e2e/tests/pop-out.spec.ts --grep "Commentary:" --reporter=list
+pnpm exec playwright test --config=e2e/playwright.config.ts e2e/tests/pop-out.spec.ts --grep "Commentary:" --reporter=list
 ```
 
 ## Type-checking the specs
 
 ```bash
-npm run typecheck:e2e -w @bible/desktop     # or `npm run typecheck:e2e` from the repo root for both packages
+pnpm --filter @bible/desktop run typecheck:e2e     # or `pnpm run typecheck:e2e` from the repo root for both packages
 ```
 
 The e2e directory sits outside `tsconfig.json`, which covers `src/` and `electron/` only, so `e2e/tsconfig.json` covers it instead and the script above runs in about a second. Without it a spec that calls a helper that does not exist, or passes it the wrong arity, surfaces only as an opaque Playwright timeout inside a four-worker Electron run.
@@ -148,10 +148,10 @@ The same shape hides behind `test.skip` on a zero count: skipping when the toggl
 It skips itself, loudly, when no packaged build is present. To run it:
 
 ```bash
-npm run build                       # repo root - core + desktop
+pnpm run build                       # repo root - core + desktop
 cd apps/desktop
-npx electron-builder --win --dir    # or --linux --dir / --mac --dir
-npx playwright test --config=e2e/playwright.config.ts e2e/tests/extension-host-asar.spec.ts --reporter=list
+pnpm exec electron-builder --win --dir    # or --linux --dir / --mac --dir
+pnpm exec playwright test --config=e2e/playwright.config.ts e2e/tests/extension-host-asar.spec.ts --reporter=list
 ```
 
 `--dir` skips the installer and just produces `dist/win-unpacked/`, which is all the test needs. Extensions are sideloaded into `<packaged resources>/data/extensions/` (`ExtensionHost` auto-registers any valid directory found there with the default-granted permissions, so no consent dialog appears) and the test cleans them up afterwards.
@@ -185,7 +185,7 @@ The spec's third test is annotated `test.fail()` - it documents a known extensio
 
 **Cause:** Native module ABI mismatch. The `better-sqlite3-multiple-ciphers` native module is built for system Node.js, not Electron's Node.js.
 
-**Fix:** Run `npm run rebuild-native:force -w @bible/desktop`. The same rebuild runs as a `postbuild` hook, so a fresh `npm run build` fixes it too.
+**Fix:** Run `pnpm --filter @bible/desktop run rebuild-native:force`. The same rebuild runs as a `postbuild` hook, so a fresh `pnpm run build` fixes it too.
 
 **Root cause detail:** The encryption key is kept with Electron's `safeStorage`; `keytar` is only loaded, lazily and outside test mode, to migrate a key from an older install, so a broken `keytar` binding cannot block test startup.
 

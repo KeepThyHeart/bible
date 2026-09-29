@@ -11,6 +11,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// SecretsKeychain imports `electron` at module load. The real package resolves
+// the Electron binary (and downloads it on first use when absent), which made
+// this suite depend on the network. These tests only use the in-memory keychain.
+vi.mock('electron', () => ({
+  app: { isPackaged: false, getPath: () => '', getAppPath: () => '' },
+  safeStorage: { isEncryptionAvailable: () => false },
+}));
+
 import { Extensions } from '@bible/core';
 
 import { ExtensionRpcRouter, type IRpcTransport } from '../ExtensionRpcRouter';
