@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
+import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { VerseRenderer } from './VerseRenderer';
@@ -179,6 +180,11 @@ export function BibleContent({
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
   const showBookPicker = useStore(bibleStore, () => bibleStore.showBookPicker);
+  // The verse being read aloud: a highlight only, drawn on this tab's verses.
+  // Its own store, so a verse change re-renders this once and a position tick not at all.
+  const followVerseId = useStore(audioStore.follow, () => audioStore.follow.verseId);
+  const followTabId = useStore(audioStore.follow, () => audioStore.follow.tabId);
+  const followAlong = useStore(audioStore, () => audioStore.prefs.followAlong);
 
   if (!tab) return <div class="bible-content bible-content--empty">{t('bibleContent.noTabSelected')}</div>;
 
@@ -392,6 +398,7 @@ export function BibleContent({
                 key={verse.verse_id}
                 verse={verse}
                 isHighlighted={tab.studyVerse === verse.verse_id}
+                isPlaying={followAlong && followTabId === tab.id && followVerseId === verse.verse_id}
                 isSelected={tab.previewVerse != null && (
                   tab.previewVerseEnd
                     ? verse.verse_id >= tab.previewVerse && verse.verse_id <= tab.previewVerseEnd

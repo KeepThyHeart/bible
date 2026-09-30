@@ -11,6 +11,8 @@ import type { VerseData, InterlinearWordData, StrongsEntryData, VerseFootnote } 
 interface VerseRendererProps {
   verse: VerseData;
   isHighlighted: boolean;
+  /** The verse being read aloud right now (audio follow-along). A highlight only: it is not the selection. */
+  isPlaying?: boolean;
   isSelected?: boolean;
   /** Inside a shift-click passage selection, but not the anchor verse. */
   isInRange?: boolean;
@@ -28,6 +30,7 @@ interface VerseRendererProps {
 export function VerseRenderer({
   verse,
   isHighlighted,
+  isPlaying,
   isSelected,
   isInRange,
   showVerseNumbers,
@@ -49,6 +52,7 @@ export function VerseRenderer({
   const classList = [
     'verse',
     isHighlighted ? 'verse--study' : '',
+    isPlaying ? 'verse--playing' : '',
     isSelected && !isHighlighted ? 'verse--preview' : '',
     isInRange && !isHighlighted ? 'verse--in-range' : '',
     isBlock ? 'verse--block' : '',

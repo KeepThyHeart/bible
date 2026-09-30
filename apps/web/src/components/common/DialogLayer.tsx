@@ -7,6 +7,8 @@ import { StrongsTooltip } from '../Dialogs/StrongsTooltip';
 import { XrefGraphDialog } from '../Dialogs/XrefGraphDialog';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import { SemanticSearchLoadingOverlay } from './SemanticSearchLoadingOverlay';
+import { AudioGateDialog } from '../audio/AudioGateDialog';
+import { AudioLiveRegion } from '../audio/AudioLiveRegion';
 import type { StrongsEntryData } from '../../types';
 
 interface DialogLayerProps {
@@ -67,6 +69,8 @@ export function DialogLayer({
       />
       <XrefGraphDialog bibleProvider={bibleProvider} />
       <SemanticSearchLoadingOverlay />
+      <AudioGateDialog />
+      <AudioLiveRegion />
     </>
   );
 }

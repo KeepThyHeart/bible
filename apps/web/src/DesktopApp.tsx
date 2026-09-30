@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
@@ -20,6 +21,7 @@ import { TimelinePane } from './components/TimelinePane/TimelinePane';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { audioStore } from './stores/audioStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -37,6 +39,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const showTagGraph = isTagGraphEnabled();
   const showTimeline = isEnabled('timeline');
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
+  // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
+  useEffect(() => { audioStore.setLayout('desktop'); }, []);
 
   // Auto-switch to search mode when a search is performed, and force the pane
   // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs
@@ -229,6 +233,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         strongsTooltip={shared.strongsTooltip}
         bibleProvider={providers.bible}
       />
+      <AudioPlayerPopup onOpenSettings={shared.openSettings} />
       {contextMenu && (
         <ContextMenuPopup
           x={contextMenu.x}

@@ -36,6 +36,12 @@
 @use 'chapter-nav';
 @use 'book-chapter-picker';
 @use 'bible-pane';
+@use 'audio';
+@use 'audio-bar';
+@use 'audio-phone';
+@use 'audio-verses';
+@use 'audio-popup';
+@use 'audio-quick';
 
 // Commentary
 @use 'commentary';

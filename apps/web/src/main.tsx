@@ -19,6 +19,9 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, pwaFlag, pwaUpdateMode, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
+import { lazyFeature } from '@bible/core/browser';
+import { featureFlags } from './utils/featureFlags';
+import { getAudioConfig } from './audio/config';
 import i18n, { ensureLocaleLoaded } from './i18n';
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -43,6 +46,9 @@ import '@bible/ui/css/kth.css';
 function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
   return Promise.race([p, new Promise<void>(resolve => setTimeout(resolve, ms))]);
 }
+
+// The Audio Bible's code loads once, and only while the `audio` flag is on.
+const loadAudio = lazyFeature(featureFlags, 'audio', () => import('./audio/initAudio'));
 
 async function init() {
   const baseUrl = API_BASE;
@@ -191,6 +197,15 @@ async function init() {
     searchStore.init(providers.search);
   }
   settingsStore.applyTheme();
+
+  // The Audio Bible. Its code is loaded only when the site turned it on
+  // (the shared `audio` flag): a site that has not never downloads any of it.
+  const audioConfig = getAudioConfig();
+  if (audioConfig) {
+    void loadAudio()
+      .then(m => m?.initAudio(audioConfig, offlineBible))
+      .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
+  }
 
   // Load module manifest — in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.

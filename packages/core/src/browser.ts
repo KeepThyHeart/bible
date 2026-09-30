@@ -296,3 +296,9 @@ export * as UserData from './UserData';
 // storage port, the flat field model shared with extension settings, and the
 // feature-flag resolver. Pure TypeScript.
 export * from './Settings';
+
+// --- Audio Bible (task 0059) -----------------------------------------------
+// The contracts (provider, TTS engine, player, manifest source, locator,
+// cache, ...), the recorded-chapter manifest and index validators plus their
+// JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
+export * from './audio';
