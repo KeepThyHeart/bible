@@ -114,6 +114,14 @@ describe('WordStudyView', () => {
     expect(p.onEditGroup).toHaveBeenLastCalledWith(null);
   });
 
+  it('hides the saved-groups UI when the host gives no group handlers (read-only web)', () => {
+    const p = props({});
+    const { onEditGroup: _e, onOpenGroup: _o, onSaveGroup: _s, onDeleteGroup: _d, groups: _g, ...rest } = p;
+    render(<WordStudyView {...rest} />);
+    expect(screen.queryByRole('button', { name: 'New group' })).toBeNull();
+    expect(screen.getByRole('textbox')).toBeTruthy();
+  });
+
   it('shows loading and error, with no overview', () => {
     render(<WordStudyView {...props({ overview: null, occurrences: null, loading: true, error: 'boom' })} />);
     expect(screen.getByRole('alert')).toHaveTextContent('boom');

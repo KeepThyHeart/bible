@@ -1,5 +1,3 @@
-import { IDBFactory } from 'fake-indexeddb';
-import { resetUserDataForTests } from '../../userdata/userData';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
@@ -29,9 +27,7 @@ const overview: WordStudyOverview = {
 
 let provider: { resolve: ReturnType<typeof vi.fn>; getOverview: ReturnType<typeof vi.fn>; getOccurrences: ReturnType<typeof vi.fn> };
 
-beforeEach(async () => {
-  localStorage.clear();
-  await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
+beforeEach(() => {
   navigateToPreview.mockClear(); performSearch.mockClear();
   provider = {
     resolve: vi.fn(async () => []),
@@ -43,6 +39,13 @@ beforeEach(async () => {
 });
 
 describe('WordStudyPane', () => {
+  it('offers no saving: no saved-groups list, New group or Save', () => {
+    render(<WordStudyPane />);
+    expect(screen.queryByText('wordStudy.newGroup')).toBeNull();
+    expect(screen.queryByText('wordStudy.groupsTitle')).toBeNull();
+    expect(screen.queryByText('wordStudy.save')).toBeNull();
+  });
+
   it('shows the lookup prompt before anything is studied', () => {
     render(<WordStudyPane />);
     expect(screen.getByText('wordStudy.prompt')).toBeTruthy();

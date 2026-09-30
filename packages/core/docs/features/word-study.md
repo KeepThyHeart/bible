@@ -24,7 +24,7 @@ Word studies are **not limited to Greek/Hebrew**. A `WordGroup` is a user-define
 | `WordStudy/renderings.ts` | `normalizeRendering`, `groupRenderings` (head or phrase mode; head folds inflections through the stemmer), `glossMatchesRendering` |
 | `WordStudy/types.ts` | DTOs (`WordStudyOverview`, `WordOccurrencePage`, ...), `IWordStudyProvider`, `ISemanticRangeSource` |
 | `Services/WordStudyService.ts` | `resolve`, `getOverview`, `getOccurrences`; `StrongsSenseSource` |
-| `Services/WordGroupStore.ts` | Saved groups in the core user-data store (owner `app:word-study`, collection `groups`) so they back up and sync like other user data. Web: `apps/web/src/stores/wordGroupStorage.ts` uses it over `getUserData()` and copies the old `bible.wordGroups.v1` localStorage key in once |
+| `Services/WordGroupStore.ts` | Saved groups in the core user-data store (owner `app:word-study`, collection `groups`) so they back up and sync like other user data. Desktop only. The web app is read-only for groups (policy 2026-09-29, until web accounts, task 0063): ad-hoc groups typed in the lookup box are studied but nothing is saved, and there is no notes field. The model stays in core so web saving can return once accounts exist |
 | `Data/Repositories/BibleRepository.ts` | `countStrongs`, `countStrongsByBook`, `getStrongsGlossCounts`, `getStrongsMorphCounts`, `getStrongsHits` |
 
 ## Word group syntax

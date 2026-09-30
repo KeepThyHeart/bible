@@ -47,13 +47,18 @@ export interface WordStudyViewProps {
   onSubmitQuery: (query: string) => void;
   candidates?: WordKeyCandidate[];
   onPickCandidate?: (strongs: string) => void;
-  groups: WordGroup[];
-  onOpenGroup: (group: WordGroup) => void;
-  onSaveGroup: (group: WordGroup) => void;
-  onDeleteGroup: (id: string) => void;
+  /**
+   * Saved-groups UI (list, New group, editor). Shown only when `onEditGroup` is given:
+   * a read-only host (the web app) omits all of these props and its groups are ad-hoc,
+   * typed into the lookup box and never stored.
+   */
+  groups?: WordGroup[];
+  onOpenGroup?: (group: WordGroup) => void;
+  onSaveGroup?: (group: WordGroup) => void;
+  onDeleteGroup?: (id: string) => void;
   /** The group in the editor; null or undefined hides it. A group with an empty id is a new one. */
   editingGroup?: WordGroup | null;
-  onEditGroup: (group: WordGroup | null) => void;
+  onEditGroup?: (group: WordGroup | null) => void;
   labels?: Partial<WordStudyLabels>;
 }
 
@@ -61,7 +66,7 @@ export function WordStudyView(props: WordStudyViewProps) {
   const {
     overview, loading, error, occurrences, occurrencesLoading, filters, onFiltersChange, renderingMode, onRenderingModeChange,
     onModuleChange, onSelectStrongs, onOpenOccurrence, onLoadMore, formatBook, formatReference, renderVerse, onSearchAll,
-    onOpenInDictionary, query, onQueryChange, onSubmitQuery, candidates, onPickCandidate, groups, onOpenGroup, onSaveGroup,
+    onOpenInDictionary, query, onQueryChange, onSubmitQuery, candidates, onPickCandidate, groups = [], onOpenGroup, onSaveGroup,
     onDeleteGroup, editingGroup, onEditGroup,
   } = props;
   const l = mergeWordStudyLabels(props.labels);
@@ -103,6 +108,7 @@ export function WordStudyView(props: WordStudyViewProps) {
         </section>
       )}
 
+      {onEditGroup && (
       <section className="kth-ws-groups" aria-label={l.groupsTitle}>
         <div className="kth-ws-section-head">
           <h3 className="kth-ws-section-title">{l.groupsTitle}</h3>
@@ -112,7 +118,7 @@ export function WordStudyView(props: WordStudyViewProps) {
           <ul className="kth-ws-groups__list">
             {groups.map((g) => (
               <li key={g.id} className="kth-ws-groups__item">
-                <button type="button" className="kth-ws-chip kth-ws-chip--button" onClick={() => onOpenGroup(g)}>{g.label}</button>
+                <button type="button" className="kth-ws-chip kth-ws-chip--button" onClick={() => onOpenGroup?.(g)}>{g.label}</button>
                 <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" aria-label={fillTemplate(l.editGroupNamed, { label: g.label })} title={fillTemplate(l.editGroupNamed, { label: g.label })} onClick={() => onEditGroup(g)}>...</button>
               </li>
             ))}
@@ -122,13 +128,14 @@ export function WordStudyView(props: WordStudyViewProps) {
           <WordGroupEditor
             key={editingGroup.id || 'new'}
             group={editingGroup}
-            onSave={onSaveGroup}
+            onSave={(g) => onSaveGroup?.(g)}
             onCancel={() => onEditGroup(null)}
             onDelete={onDeleteGroup}
             labels={props.labels}
           />
         )}
       </section>
+      )}
 
       {error && <p className="kth-ws-notice kth-ws-notice--error" role="alert">{error}</p>}
       {loading && <p className="kth-ws-status" role="status">{l.loading}</p>}

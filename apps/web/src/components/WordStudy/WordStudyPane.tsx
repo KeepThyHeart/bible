@@ -1,7 +1,6 @@
-import { useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { WordStudyView } from '@bible/ui';
-import type { WordOccurrenceItem, WordGroup } from '@bible/core/browser';
+import type { WordOccurrenceItem } from '@bible/core/browser';
 import { wordStudyStore } from '../../stores/wordStudyStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { searchStore } from '../../stores/searchStore';
@@ -36,12 +35,8 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
   const renderingMode = useStore(s, () => s.renderingMode);
   const query = useStore(s, () => s.query);
   const candidates = useStore(s, () => s.candidates);
-  const groups = useStore(s, () => s.groups);
-  const editingGroup = useStore(s, () => s.editingGroup);
   const canBack = useStore(s, () => s.canGoBack);
   const canForward = useStore(s, () => s.canGoForward);
-
-  useEffect(() => { s.refreshGroups(); }, []);
 
   const formatBook = (book: number) => moduleStore.getBookName(book);
   const formatReference = (verseId: number) => {
@@ -106,12 +101,6 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         onSubmitQuery={(q) => void s.submit(q)}
         candidates={candidates}
         onPickCandidate={(x) => void s.pickCandidate(x)}
-        groups={groups}
-        onOpenGroup={(g: WordGroup) => void s.openGroup(g)}
-        onSaveGroup={(g) => s.saveGroup(g)}
-        onDeleteGroup={(id) => s.deleteGroup(id)}
-        editingGroup={editingGroup}
-        onEditGroup={(g) => s.editGroup(g)}
         labels={labels}
       />
       </div>

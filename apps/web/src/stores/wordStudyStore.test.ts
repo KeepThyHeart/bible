@@ -1,7 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { IDBFactory } from 'fake-indexeddb';
-import { resetUserDataForTests } from '../userdata/userData';
-import { listWordGroups } from './wordGroupStorage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('./bibleStore', () => ({ bibleStore: { getActiveModule: () => 'KJV' } }));
 
@@ -30,9 +27,7 @@ function deferred<T>(): Deferred<T> {
 
 let provider: { resolve: ReturnType<typeof vi.fn>; getOverview: ReturnType<typeof vi.fn>; getOccurrences: ReturnType<typeof vi.fn> };
 
-beforeEach(async () => {
-  localStorage.clear();
-  await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
+beforeEach(() => {
   provider = {
     resolve: vi.fn(async () => []),
     getOverview: vi.fn(async (subject) => overview(subject.kind === 'strongs' ? subject.strongs : subject.group.label)),
@@ -41,8 +36,6 @@ beforeEach(async () => {
   wordStudyStore.init(provider as unknown as IWordStudyProvider);
   wordStudyStore.reset();
 });
-
-afterEach(async () => { await resetUserDataForTests(); });
 
 describe('wordStudyStore submit', () => {
   it('a Strong\'s number studies it without resolving', async () => {
@@ -238,17 +231,13 @@ describe('wordStudyStore offline and errors', () => {
   });
 });
 
-describe('wordStudyStore groups', () => {
-  it('saves, lists, edits and deletes groups in the user-data store', async () => {
-    wordStudyStore.editGroup({ id: '', label: '', terms: [] });
-    expect(wordStudyStore.editingGroup).not.toBeNull();
-    wordStudyStore.saveGroup({ id: '', label: 'Love', terms: ['love', 'lov*'] });
-    expect(wordStudyStore.editingGroup).toBeNull();
-    expect(wordStudyStore.groups.map((g) => g.label)).toEqual(['Love']);
-    await vi.waitFor(async () => expect(await listWordGroups()).toHaveLength(1));
-    wordStudyStore.reset();
-    await vi.waitFor(() => expect(wordStudyStore.groups).toHaveLength(1));
-    wordStudyStore.deleteGroup(wordStudyStore.groups[0].id);
-    expect(wordStudyStore.groups).toEqual([]);
+describe('wordStudyStore is read-only for groups', () => {
+  it('studies an ad-hoc group without persisting anything', async () => {
+    localStorage.clear();
+    await wordStudyStore.submit('love, lov* -lovely');
+    expect(wordStudyStore.subject?.kind).toBe('group');
+    expect(localStorage.length).toBe(0);
+    expect('saveGroup' in wordStudyStore).toBe(false);
+    expect('groups' in wordStudyStore).toBe(false);
   });
 });

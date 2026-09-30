@@ -6,8 +6,8 @@
  * online: when the network is unreachable it throws {@link WordStudyOfflineError}
  * so the UI can say "available when online" instead of a generic failure.
  *
- * Saved word groups live in the browser's own storage; a group subject is sent
- * inline with each request (the server keeps no groups).
+ * The web app is read-only for word groups: a group is typed into the lookup box, sent
+ * inline with each request and never stored (the server keeps no groups either).
  */
 
 import type {
