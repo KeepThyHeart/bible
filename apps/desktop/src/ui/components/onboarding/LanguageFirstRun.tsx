@@ -359,6 +359,11 @@ const LanguageFirstRun: React.FC = () => {
     void handleConfirmLanguage();
   }, [open, languageChoiceNeeded, handleConfirmLanguage]);
 
+  // With nothing installed there is nothing to read yet, so the way out of the
+  // content step is a plain "Not now" - an emphasized "Start reading" beside
+  // an install card reads as "install these".
+  const hasInstalledModules = useModuleStore((s) => s.installedModules.length > 0);
+
   if (!open) return null;
 
   // Never paint the language step when there is nothing to choose: `step` is
@@ -476,9 +481,13 @@ const LanguageFirstRun: React.FC = () => {
               type="button"
               onClick={handleClose}
               data-testid="first-run-language-done"
-              className="rounded bg-accent px-lg py-sm text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className={
+                hasInstalledModules
+                  ? 'rounded bg-accent px-lg py-sm text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+                  : 'rounded border border-border px-lg py-sm text-sm text-text-primary hover:bg-background-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+              }
             >
-              {t('onboarding.language.done')}
+              {hasInstalledModules ? t('onboarding.language.done') : t('onboarding.language.notNow')}
             </button>
           )}
         </div>

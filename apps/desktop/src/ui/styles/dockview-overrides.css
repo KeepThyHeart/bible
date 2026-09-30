@@ -326,7 +326,8 @@
   display: none; /* Chrome, Edge, Safari */
 }
 
-/* Hide dockview's built-in overflow dropdown - we use chevron buttons instead */
+/* Hide dockview's built-in overflow dropdown - we use chevron buttons and the
+   tab-list menu (DockviewTabListMenu) instead */
 .dockview-theme-light.dockview-theme-light .dv-tabs-overflow-dropdown-default {
   display: none !important;
 }
