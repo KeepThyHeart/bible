@@ -291,6 +291,18 @@ describe('displayKeywordLabel edge cases (review round 1)', () => {
     const input: ChapterInput = { moduleId: 1, language: 'en', verses: [{ verseId: ROM + 1, words: ['LORD', 'LORD', 'LORD'].map((text) => ({ text })) }] };
     expect(suggestKeywords(input, { minCount: 3 })[0].label).toBe('LORD');
   });
+  it('suggests Lord/lord/Señor as the text has them, not upper-cased, and keeps Strong\'s LORD', () => {
+    const mk = (words: string[], language = 'en'): ChapterInput => ({ moduleId: 1, language, verses: [{ verseId: ROM + 1, words: words.map((text) => ({ text })) }] });
+    expect(suggestKeywords(mk(['Lord', 'Lord', 'lord']), { minCount: 3 })[0].label).toBe('Lord');
+    expect(suggestKeywords(mk(['lord', 'lord', 'lord']), { minCount: 3 })[0].label).toBe('lord');
+    expect(suggestKeywords(mk(['Señor', 'Señor', 'Señor'], 'es'), { minCount: 3 })[0].label).toBe('Señor');
+    const s = mk(['LORD', 'LORD', 'LORD']);
+    s.interlinear = [0, 1, 2].map((i) => ({ verseId: ROM + 1, start: i, end: i, strongs: 'H3068' }));
+    expect(suggestKeywords(s, { minCount: 3 })[0].label).toBe('LORD');
+    expect(labelFromToken('Señor')).toBe('Señor');
+    expect(displayKeywordLabel('господу', 'ru')).toBe('Господу');
+    expect(displayKeywordLabel('lord')).toBe('lord');
+  });
   it('gives time a different line from inference so colour-safe marks differ', () => {
     const m = BUILT_IN_KEYWORD_SETS[0].marks;
     const a = m.find((x) => x.id === 'en:inference')!.style, b = m.find((x) => x.id === 'en:time')!.style;

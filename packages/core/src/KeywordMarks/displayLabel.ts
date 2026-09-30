@@ -1,7 +1,7 @@
 /**
  * Display capitalization for keyword-mark labels (task 0065, round 09).
  *
- * Divine names and titles are always shown capitalized, out of respect ("God", "Jesus"), in
+ * Unambiguous divine names are always shown capitalized, out of respect ("God", "Jesus"), in
  * every language that has letter case. Ambiguous titles ("lord", señor, senhor, Herr, seigneur, господа) are NOT in
  * the tables: they can address a human master, so they stay as typed or as the text has them. This changes what is *shown*; matching is unaffected. Labels the
  * text already spells in capitals (the KJV small-caps "LORD") are left as they are.

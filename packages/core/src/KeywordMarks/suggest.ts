@@ -1,7 +1,7 @@
 /** "Auto" suggestions: frequent content words in the chapter, grouped by Strong's when rows exist. */
 import { normalizeStrongs, primaryLanguage } from './connectives';
 import { normalizeToken } from './matcher';
-import { displayKeywordLabel, labelFromToken } from './displayLabel';
+import { displayKeywordLabel, isAllCaps, labelFromToken } from './displayLabel';
 import type { ChapterInput, KeywordSuggestion } from './types';
 
 const STOPWORDS: Record<string, string> = {
@@ -19,7 +19,7 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
   const minCount = opts.minCount ?? 3;
   const max = opts.max ?? 8;
   const stop = stopwordsFor(input.language);
-  const byForm = new Map<string, { label: string; count: number; caps: number; verses: Set<number> }>();
+  const byForm = new Map<string, { label: string; count: number; caps: number; surf: Map<string, number>; verses: Set<number> }>();
   const byStrongs = new Map<string, { count: number; verses: Set<number>; forms: Map<string, number> }>();
 
   const rowsByVerse = new Map<number, NonNullable<ChapterInput['interlinear']>>();
@@ -41,7 +41,8 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
       if (toks.length === 0 || toks.every((t) => stop.has(t) || t.length < 3)) continue;
       const e = byStrongs.get(nums[0]) ?? { count: 0, verses: new Set<number>(), forms: new Map<string, number>() };
       e.count++; e.verses.add(verse.verseId);
-      const form = toks.filter((t) => !stop.has(t)).join(' ');
+      // Surface spelling (LORD, Lord) is kept for the label; stop words are judged on the normalized form.
+      const form = toks.map((t, k) => (stop.has(t) ? '' : labelFromToken(verse.words[r.start + k].text))).filter(Boolean).join(' ');
       e.forms.set(form, (e.forms.get(form) ?? 0) + 1);
       byStrongs.set(nums[0], e);
       for (let i = r.start; i <= r.end; i++) covered.add(i);
@@ -50,8 +51,10 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
       if (covered.has(i)) return;
       const t = normalizeToken(w.text);
       if (t.length < 3 || stop.has(t) || /^\d+$/.test(t)) return;
-      const e = byForm.get(t) ?? { label: t, count: 0, caps: 0, verses: new Set<number>() };
-      if (labelFromToken(w.text) !== t) e.caps++;
+      const e = byForm.get(t) ?? { label: t, count: 0, caps: 0, surf: new Map<string, number>(), verses: new Set<number>() };
+      const surf = labelFromToken(w.text);
+      if (isAllCaps(surf)) e.caps++;
+      else e.surf.set(surf, (e.surf.get(surf) ?? 0) + 1);
       e.count++; e.verses.add(verse.verseId);
       byForm.set(t, e);
     });
@@ -65,7 +68,7 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
   }
   for (const e of byForm.values()) {
     if (e.count < minCount) continue;
-    out.push({ label: displayKeywordLabel(e.caps * 2 > e.count ? e.label.toUpperCase() : e.label, input.language), rule: { kind: 'word', forms: [e.label] }, count: e.count, verses: [...e.verses].sort((a, b) => a - b) });
+    out.push({ label: displayKeywordLabel(e.caps * 2 > e.count ? e.label.toUpperCase() : [...e.surf.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? e.label, input.language), rule: { kind: 'word', forms: [e.label] }, count: e.count, verses: [...e.verses].sort((a, b) => a - b) });
   }
   return out.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)).slice(0, max);
 }
