@@ -453,6 +453,33 @@ describe('downloadFile: crash recovery and upgrades', () => {
 });
 
 describe('downloadFile: quota', () => {
+  it('quota continue path re-opens and re-hashes the partial like a retry', async () => {
+    const r = rig(400, {}, { capacityBytes: 500, reportFreeBytes: false });
+    const blocker = await r.store.openPartial(mkRef('https://assets.test/other'));
+    await blocker.append(makeBytes(300, 4));
+    await blocker.commit();
+    r.env.onQuota = async () => {
+      await r.store.delete([mkRef('https://assets.test/other')]);
+      return true;
+    };
+    const before = r.hashed.length;
+    const res = await r.run();
+    expect(res.sha256).toBe(r.sha);
+    // initial hasher + one fresh hasher from the quota re-hash
+    expect(r.hashed.length - before).toBeGreaterThanOrEqual(2);
+  });
+
+  it('200 at offset 0 replaces a stale validator with the response one', async () => {
+    const r = rig(300);
+    await seedPartial(r, new Uint8Array(0), '"old-etag"');
+    r.transport.script(URL1, { failAfter: 100 });
+    const res = await r.run();
+    expect(res.sha256).toBe(r.sha);
+    expect(r.transport.requests[1].rangeStart).toBe(100);
+    expect(r.transport.requests[1].ifRange).toBeDefined();
+    expect(r.transport.requests[1].ifRange).not.toBe('"old-etag"');
+  });
+
   it('append quota: onQuota frees space, the write is retried once and succeeds', async () => {
     const r = rig(400, {}, { capacityBytes: 500, reportFreeBytes: false });
     const blocker = await r.store.openPartial(mkRef('https://assets.test/other'));

@@ -18,6 +18,7 @@ import { NetworkBlockedError, type INetworkGateway } from '../NetworkGateway';
 
 const TEXT_MAX_BYTES = 2 * 1024 * 1024;
 const TEXT_TIMEOUT_MS = 30_000;
+const HEADER_TIMEOUT_MS = 30_000;
 
 function aborted(): AssetError {
   return new AssetError('aborted', 'Aborted');
@@ -105,7 +106,10 @@ const EMPTY: AsyncIterable<Uint8Array> = {
 };
 
 export class GatewayTransport implements IAssetTransport {
-  constructor(private readonly gateway: INetworkGateway) {}
+  constructor(
+    private readonly gateway: INetworkGateway,
+    private readonly headerTimeoutMs: number = HEADER_TIMEOUT_MS,
+  ) {}
 
   async get(req: TransportRequest): Promise<TransportResponse> {
     if (req.signal.aborted) throw aborted();
@@ -116,11 +120,34 @@ export class GatewayTransport implements IAssetTransport {
     }
 
     let result;
+    let late = false; // the race was lost (abort / timeout): a response arriving later must be dropped
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
+    const pending = this.gateway.downloadStream({ url: req.url, headers, context: 'asset download' });
+    pending.then(
+      (r) => { if (late) { try { r.request.abort(); } catch { /* ignore */ } } },
+      () => undefined,
+    );
+    const guard = new Promise<never>((_, reject) => {
+      onAbort = () => reject(aborted());
+      req.signal.addEventListener('abort', onAbort, { once: true });
+      if (this.headerTimeoutMs > 0) {
+        timer = setTimeout(
+          () => reject(new AssetError('network', `No response headers within ${this.headerTimeoutMs} ms`, true)),
+          this.headerTimeoutMs,
+        );
+      }
+    });
+    guard.catch(() => undefined);
     try {
-      result = await this.gateway.downloadStream({ url: req.url, headers, context: 'asset download' });
+      result = await Promise.race([pending, guard]);
     } catch (e) {
+      late = true;
       if (req.signal.aborted) throw aborted();
       throw mapError(e);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+      if (onAbort) req.signal.removeEventListener('abort', onAbort);
     }
     const { response, request } = result;
     const h = result.headers;

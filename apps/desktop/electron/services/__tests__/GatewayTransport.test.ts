@@ -29,6 +29,40 @@ function rig(status = 200, headers: Record<string, string | string[]> = {}): Rig
 
 const buf = (...n: number[]): Buffer => Buffer.from(n);
 
+describe('GatewayTransport.get: waiting for headers', () => {
+  function hanging() {
+    const r = rig();
+    let resolveLate!: () => void;
+    const late = new Promise<void>((res) => { resolveLate = res; });
+    const original = r.gateway.downloadStreamImpl!;
+    r.gateway.downloadStreamImpl = async (opts) => {
+      await late;
+      return original(opts);
+    };
+    return { r, resolveLate };
+  }
+
+  it('abort while waiting for headers rejects aborted, and a late response is dropped', async () => {
+    const { r, resolveLate } = hanging();
+    const ac = new AbortController();
+    const p = new GatewayTransport(r.gateway).get({ url: 'https://h/f', signal: ac.signal });
+    ac.abort();
+    await expect(p).rejects.toMatchObject({ code: 'aborted' });
+    resolveLate();
+    await new Promise((res) => setImmediate(res));
+    expect(r.request.abortCalls).toBe(1);
+  });
+
+  it('no headers within the timeout is a retryable network error', async () => {
+    const { r, resolveLate } = hanging();
+    await expect(new GatewayTransport(r.gateway, 20).get({ url: 'https://h/f', signal: new AbortController().signal }))
+      .rejects.toMatchObject({ code: 'network', retryable: true });
+    resolveLate();
+    await new Promise((res) => setImmediate(res));
+    expect(r.request.abortCalls).toBe(1);
+  });
+});
+
 describe('GatewayTransport.get', () => {
   it('yields chunks in order, sends Range + If-Range, and maps headers', async () => {
     const r = rig(206, { 'content-range': 'bytes 10-19/20', etag: '"e"', 'content-length': '10', 'content-type': 'x/y' });

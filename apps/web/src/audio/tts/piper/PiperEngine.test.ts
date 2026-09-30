@@ -55,6 +55,24 @@ describe('PiperEngine with the asset manager', () => {
     expect(assets.install.mock.calls.every(c => (c[1] as { pinned?: boolean }).pinned === true)).toBe(true);
   });
 
+  it('synthesize after a worker crash never installs, even when the catalog version differs', async () => {
+    const log: string[] = [];
+    const assets = fakeAssets(log, { 'piper-runtime': true, amy: true });
+    const newer = [{ ...manifests[0], version: '2' }, { ...manifests[1], version: '2' }];
+    const w: WorkerLike = {
+      onmessage: null, onerror: null, onmessageerror: null, terminate() {},
+      postMessage(m) {
+        log.push(`worker:${m.op}`);
+        const value = m.op === 'synthesize' ? { pcm: new Float32Array(1), sampleRate: 1, sentences: [] } : undefined;
+        queueMicrotask(() => w.onmessage?.({ data: { id: m.id, kind: 'ok', value } as never }));
+      },
+    };
+    const engine = new PiperEngine(config, { assets, cache: new MemoryAssetCache(), loadManifests: async () => newer, createWorker: () => w });
+    await engine.synthesize({ voiceId: 'amy', text: 'hi' } as never, new AbortController().signal);
+    expect(assets.install).not.toHaveBeenCalled();
+    expect(log.filter((l) => l !== 'worker:init')).toEqual(['worker:prepare', 'worker:synthesize']);
+  });
+
   it('isVoiceReady is true from the registry and false when nothing is stored', async () => {
     const log: string[] = [];
     expect(await make(fakeAssets(log, { 'piper-runtime': true, amy: true }), log).isVoiceReady('amy')).toBe(true);

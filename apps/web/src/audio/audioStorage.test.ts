@@ -42,7 +42,8 @@ describe('audio storage', () => {
     ]);
     expect((await audioStorageUsage(caches, assets)).modelBytes).toBe(7000);
     await clearModels(caches, assets);
-    expect(assets.removed).toEqual(['piper-runtime', 'amy']);
+    // every tts entry, installed or not (queued/downloading ones are cancelled by remove)
+    expect(assets.removed).toEqual(['piper-runtime', 'amy', 'other-voice']);
     expect(await caches.models.has('https://x/runtime/a.wasm')).toBe(false);
   });
 

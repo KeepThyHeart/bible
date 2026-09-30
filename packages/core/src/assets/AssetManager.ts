@@ -168,6 +168,9 @@ export class AssetManager implements IAssetManager {
     this.log = deps.log ?? (() => undefined);
     this.maxConcurrent = Math.max(1, deps.maxConcurrent ?? 2);
     this.createHasher = deps.createHasher ?? (() => new Sha256());
+    // Consumers pass these unbound (useSyncExternalStore); keep `this` safe.
+    this.getSnapshot = this.getSnapshot.bind(this);
+    this.subscribe = this.subscribe.bind(this);
   }
 
   // ---------------------------------------------------------------------------
@@ -831,6 +834,13 @@ export class AssetManager implements IAssetManager {
       this.emit();
       try {
         await this.saveRegistry();
+      } catch (e) {
+        this.log(`eviction of ${a.id} failed: registry save`, e);
+        if (!this.registry.has(a.id) && !this.jobs.has(a.id)) this.registry.set(a.id, a);
+        this.emit();
+        continue; // still installed: nothing was freed
+      }
+      try {
         await this.deps.store.delete(refsOfInstalled(a));
       } catch (e) {
         this.log(`eviction of ${a.id} failed`, e);

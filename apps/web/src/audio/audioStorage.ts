@@ -54,7 +54,8 @@ export async function audioStorageUsage(
 export async function clearModels(caches: AudioCaches = openAudioCaches(), assets?: IAssetManager): Promise<void> {
   const manager = assets ?? await getReadyAssetManager();
   for (const e of manager.getSnapshot().entries.filter(isTtsEntry)) {
-    if (manager.installed(e.id)) await manager.remove(e.id);
+    // remove() cancels a queued/downloading job first and also deletes partial files.
+    await manager.remove(e.id);
   }
   // Anything downloaded before the manager existed.
   await caches.models.delete('');

@@ -20,8 +20,20 @@ describe('piperAssets', () => {
     };
     const out = await loadPiperManifests(config, async (u) => { asked.push(u); return JSON.stringify(index); }, signal);
     expect(asked).toEqual(['https://example.test/audio/tts/piper/index.json']);
-    expect(out.map((m) => m.id)).toEqual(['amy']);
+    // index entries first; configured ids missing from the index get legacy manifests
+    expect(out.map((m) => m.id)).toEqual(['amy', PIPER_RUNTIME_ID, 'en_US-amy-low']);
     expect(out[0].files[0].url).toBe('https://example.test/audio/tts/piper/voices/amy.onnx');
+  });
+
+  it('index entries win over legacy manifests with the same id', async () => {
+    const index = {
+      schema: 'kth-asset-index/1',
+      assets: [{ id: 'en_US-amy-low', kind: 'tts-voice', version: '7', title: 'Amy', license: 'CC0', size: 3,
+        files: [{ path: 'voices/amy.onnx', url: 'voices/amy.onnx', size: 3, sha256: 'a'.repeat(64) }] }],
+    };
+    const out = await loadPiperManifests(config, async () => JSON.stringify(index), signal);
+    expect(out.map((m) => m.id)).toEqual(['en_US-amy-low', PIPER_RUNTIME_ID]);
+    expect(out[0].version).toBe('7');
   });
 
   it('falls back to legacy manifests on 404, a network error or a bad index', async () => {

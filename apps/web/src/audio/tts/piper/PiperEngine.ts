@@ -85,7 +85,7 @@ export class PiperEngine extends WorkerTtsEngine {
     await assets.install(runtime ?? PIPER_RUNTIME_ID, { signal, pinned: true, onProgress: phaseOf('engine') });
     const voice = await this.manifestOf(voiceId);
     await assets.install(voice ?? voiceId, { signal, pinned: true, onProgress: phaseOf('voice') });
-    await super.prepare(voiceId, onProgress, signal);
+    await this.loadVoiceIntoWorker(voiceId, onProgress, signal);
   }
 
   private async legacyCached(voiceId: string): Promise<boolean> {

@@ -39,3 +39,13 @@ Range, ETag and `Cache-Control: immutable` come from `express.static`; responses
 gzip middleware leaves them alone. Only `/assets/v1/...` is claimed: the client build's own bundles also
 live under `/assets/` and fall through to the normal static handler. The Content-Security-Policy is unchanged
 (same origin). Like `/audio`, the route sits behind the password gate.
+
+## Known limits
+
+- The web store keys files by URL, so a same-URL upgrade overwrites the bytes at file commit, before the
+  registry is saved. An upgrade interrupted exactly then could leave v1 metadata over v2 bytes; the next
+  install re-verifies the file by hash and repairs it.
+- The service worker rule `asset-store` may store full 200 responses from plain fetches that the manager never
+  registered. The browser quota counts them, the registry does not. Remove of an asset deletes its URLs anyway.
+- Web installs and adopted Piper files are pinned, so automatic eviction mainly matters for unpinned consumers
+  (0070/0074) and for desktop.

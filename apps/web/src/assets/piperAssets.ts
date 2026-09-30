@@ -73,7 +73,11 @@ export async function loadPiperManifests(
   if (text !== null) {
     try {
       const { assets } = parseAssetIndex(JSON.parse(text), indexUrl);
-      if (assets.length > 0) return assets;
+      if (assets.length > 0) {
+        // Index entries win; configured ids the index does not list still get a legacy manifest.
+        const have = new Set(assets.map((a) => a.id));
+        return [...assets, ...legacyPiperManifests(config).filter((m) => !have.has(m.id))];
+      }
     } catch { /* fall through to legacy */ }
   }
   return legacyPiperManifests(config);

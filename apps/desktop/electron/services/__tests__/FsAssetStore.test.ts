@@ -1,5 +1,5 @@
 /** Desktop asset store (task 0090): the shared IAssetStore contract plus fs-specific behaviour. */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { promises as fsp, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -28,6 +28,31 @@ describeAssetStoreContract(async () => {
 }, 'FsAssetStore contract');
 
 describe('FsAssetStore (fs specifics)', () => {
+  it('a failed append (ENOSPC after a partial write) truncates back to the known size', async () => {
+    const root = await tmp();
+    const store = new FsAssetStore(root);
+    const p = await store.openPartial(ref('https://x.test/n.bin', 0, { path: 'n.bin' }));
+    await p.append(makeBytes(100));
+    const realOpen = fsp.open.bind(fsp);
+    const spy = vi.spyOn(fsp, 'open').mockImplementation(async (...a: Parameters<typeof fsp.open>) => {
+      const h = await realOpen(...a);
+      const orig = h.appendFile.bind(h);
+      h.appendFile = (async (data: never) => {
+        await orig(Buffer.from(data as Uint8Array).subarray(0, 20));
+        throw Object.assign(new Error('no space'), { code: 'ENOSPC' });
+      }) as never;
+      return h;
+    });
+    await (p as unknown as { close(): Promise<void> }).close(); // drop the real handle so append re-opens
+    await expect(p.append(makeBytes(50))).rejects.toMatchObject({ code: 'quota' });
+    spy.mockRestore();
+    expect(p.size).toBe(100);
+    const names = await fsp.readdir(join(root, 'partial', 'data', 'a', '1'));
+    const part = names.find((n) => n.startsWith('n.bin') && !n.endsWith('.meta.json') && !n.endsWith('.meta'));
+    expect(part).toBeDefined();
+    expect((await fsp.stat(join(root, 'partial', 'data', 'a', '1', part!))).size).toBe(100);
+  });
+
   const f = ref('https://x.test/a.bin', 0, { path: 'sub/a.bin' });
 
   it('commits under files/<kind>/<id>/<version>/<path> and pathOf agrees', async () => {
@@ -114,6 +139,18 @@ describe('FsAssetStore (fs specifics)', () => {
     await store.pruneOtherVersions([{ kind: 'data', id: 'a', version: '2' }]);
     expect(await fsp.readdir(join(root, 'files', 'data', 'a'))).toEqual(['2']);
     expect(await fsp.readdir(join(root, 'files', 'data', 'orphan'))).toEqual(['1']);
+  });
+
+  it('pruneOtherVersions skips a directory the canRemove guard refuses', async () => {
+    const root = await tmp();
+    const store = new FsAssetStore(root);
+    for (const v of ['1', '2', '3']) {
+      const p = await store.openPartial(ref('https://x.test/a' + v, 0, { assetId: 'a', version: v, path: 'f.bin' }));
+      await p.append(makeBytes(3));
+      await p.commit();
+    }
+    await store.pruneOtherVersions([{ kind: 'data', id: 'a', version: '2' }], (_k, _i, v) => v !== '3');
+    expect((await fsp.readdir(join(root, 'files', 'data', 'a'))).sort()).toEqual(['2', '3']);
   });
 });
 

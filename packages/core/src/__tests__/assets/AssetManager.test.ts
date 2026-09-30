@@ -4,7 +4,7 @@ import { MemoryAssetRegistryStore, MemoryAssetStore } from '../../assets/memory'
 import { sha256Hex } from '../../assets/sha256';
 import { ASSET_REGISTRY_SCHEMA, AssetError } from '../../assets/types';
 import type { AssetManifest, AssetProgress, InstalledAsset } from '../../assets/types';
-import { FakeTransport, collect, createHarness, makeAsset, makeBytes, ref, until } from './fakes';
+import { FakeTransport, createHarness, makeAsset, makeBytes, ref, until } from './fakes';
 import type { Harness } from './fakes';
 
 /** Turn a promise into its outcome without an unhandled rejection. */
@@ -572,6 +572,24 @@ describe('eviction', () => {
     await h.manager.readFile('a', 'a.bin');
     const r = await h.manager.evict(50);
     expect(r.removed).toEqual(['b']);
+  });
+
+  it('a failed registry save restores the entry and does not count it as freed', async () => {
+    const h = createHarness();
+    await installAll(h, [{ id: 'a', size: 100 }]);
+    h.registry.failSaves = 1;
+    const r = await h.manager.evict(100);
+    expect(r).toEqual({ removed: [], freedBytes: 0 });
+    expect(h.manager.installed('a')).toBeDefined();
+    expect(entry(h, 'a')?.status).toBe('installed');
+  });
+
+  it('getSnapshot and subscribe work unbound (useSyncExternalStore style)', () => {
+    const h = createHarness();
+    const { getSnapshot, subscribe } = h.manager;
+    expect(getSnapshot().entries).toEqual([]);
+    const off = subscribe(() => undefined);
+    off();
   });
 
   it('ties: larger first, then id', async () => {

@@ -117,6 +117,12 @@ class FsPartialFile implements IPartialFile {
       await h.appendFile(chunk);
       this._size += chunk.length;
     } catch (e) {
+      // A failed appendFile (ENOSPC) may have written some bytes: cut back to the last known size
+      // so the file on disk matches `_size` (best effort).
+      try {
+        await this.closeHandle();
+        await fsp.truncate(this.partPath, this._size);
+      } catch { /* ignore */ }
       throw toAssetError(e, 'writing a download');
     }
   }
@@ -326,7 +332,11 @@ export class FsAssetStore implements IAssetStore {
    * is kept in the OLD version directory (desktop keys by version); this reclaims it.
    * Assets not in `installed` are left alone (crash recovery may still reuse their files).
    */
-  async pruneOtherVersions(installed: ReadonlyArray<{ kind: string; id: string; version: string }>): Promise<void> {
+  async pruneOtherVersions(
+    installed: ReadonlyArray<{ kind: string; id: string; version: string }>,
+    /** Re-checked synchronously right before each removal (an install may have started meanwhile). */
+    canRemove?: (kind: string, id: string, version: string) => boolean,
+  ): Promise<void> {
     for (const a of installed) {
       const dir = resolve(this.filesBase, a.kind, a.id);
       const rel = relative(this.filesBase, dir);
@@ -338,7 +348,9 @@ export class FsAssetStore implements IAssetStore {
         continue;
       }
       for (const name of names) {
-        if (name !== a.version) await fsp.rm(join(dir, name), { recursive: true, force: true });
+        if (name === a.version) continue;
+        if (canRemove && !canRemove(a.kind, a.id, name)) continue;
+        await fsp.rm(join(dir, name), { recursive: true, force: true });
       }
     }
   }

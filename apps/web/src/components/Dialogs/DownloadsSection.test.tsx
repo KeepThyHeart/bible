@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
-import type { AssetListSnapshot, IAssetManager } from '@bible/core/browser';
+import { AssetManager, MemoryAssetRegistryStore, MemoryAssetStore } from '@bible/core/browser';
+import type { AssetListSnapshot, IAssetManager, IAssetTransport } from '@bible/core/browser';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -52,5 +53,13 @@ describe('DownloadsSection', () => {
   it('shows the empty label when nothing is offered', () => {
     render(<DownloadsSection manager={fakeManager({ entries: [], storedBytes: 0, active: 0 })} refresh={async () => {}} />);
     expect(screen.getByText('settings.downloads.empty')).toBeTruthy();
+  });
+
+  it('works with a real AssetManager (unbound subscribe/getSnapshot)', async () => {
+    const transport = { get: vi.fn(), getText: vi.fn(async () => null) } as unknown as IAssetTransport;
+    const manager = new AssetManager({ transport, store: new MemoryAssetStore(), registry: new MemoryAssetRegistryStore() });
+    manager.setCatalog([{ id: 'v1', kind: 'tts-voice', version: '1', title: 'Real Voice', license: 'CC0', size: 10, files: [{ path: 'a.bin', url: 'https://x/a.bin', size: 10 }] } as never]);
+    render(<DownloadsSection manager={manager} refresh={async () => {}} />);
+    expect(await screen.findByText('Real Voice')).toBeTruthy();
   });
 });

@@ -261,14 +261,11 @@ export async function downloadFile(
         });
 
         if (res.status === 200) {
-          if (start > 0) {
-            // The server ignored Range, or the entity changed (If-Range): full body from byte 0.
-            await partial.reset(validatorOf(res));
-            hasher = env.createHasher();
-            ctx.onBytes(0);
-          } else if (partial.validator == null) {
-            await partial.reset(validatorOf(res));
-          }
+          // Full body from byte 0: the server ignored Range, the entity changed (If-Range),
+          // or this is a fresh start. Always restart with THIS response's validator.
+          await partial.reset(validatorOf(res));
+          hasher = env.createHasher();
+          ctx.onBytes(0);
         } else if (res.status === 206) {
           const s = parseContentRangeStart(res.headers.contentRange);
           if (s !== start) {
@@ -313,8 +310,13 @@ export async function downloadFile(
         const err = toAssetError(e);
         if (err.code === 'quota' && env.onQuota && !quotaRetried) {
           quotaRetried = true;
-          if (await env.onQuota(Math.max(1, knownSize ? ref.size - partial.size : 1))) continue;
-          throw err;
+          if (!(await env.onQuota(Math.max(1, knownSize ? ref.size - partial.size : 1)))) throw err;
+          // Re-open and re-hash like a retry: a failed append may have left unknown bytes.
+          await partial.close();
+          partial = await store.openPartial(ref);
+          await rehash();
+          ctx.onBytes(partial.size);
+          continue;
         }
         if (!isRetryable(err) || attempt >= env.maxRetries) throw err;
         attempt++;

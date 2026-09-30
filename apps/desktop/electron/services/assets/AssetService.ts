@@ -83,6 +83,13 @@ export class AssetService {
         this.manager.getSnapshot().entries
           .filter((e) => e.installedVersion !== undefined)
           .map((e) => ({ kind: e.kind, id: e.id, version: e.installedVersion as string })),
+        // A new install may start (or finish) while we scan: re-check per removal.
+        (_kind, id, version) => {
+          const e = this.manager.getSnapshot().entries.find((x) => x.id === id);
+          if (!e) return true;
+          if (e.status === 'queued' || e.status === 'downloading') return false;
+          return e.installedVersion !== version;
+        },
       );
     } catch (e) {
       log.warn('[Assets] pruning old versions failed', e);

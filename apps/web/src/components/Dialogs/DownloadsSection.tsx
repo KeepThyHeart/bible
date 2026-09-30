@@ -28,7 +28,7 @@ export interface DownloadsSectionProps {
 export function DownloadsSection({ manager, refresh = refreshAssetCatalog }: DownloadsSectionProps) {
   const { t } = useTranslation();
   const assets = manager ?? getAssetManager();
-  const snapshot = useSyncExternalStore(assets.subscribe, assets.getSnapshot);
+  const snapshot = useSyncExternalStore((cb) => assets.subscribe(cb), () => assets.getSnapshot());
 
   useEffect(() => { void refresh(); }, []);
 
