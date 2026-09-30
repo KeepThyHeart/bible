@@ -20,6 +20,7 @@ import {
   distributionGraph,
   GRAPH_WIDTH,
   runSearch,
+  skippedMessage,
   stripHighlightMarkers,
   type RunSearchTarget,
   type SearchHit,
@@ -114,6 +115,20 @@ describe.skipIf(!hasKjv)('running a search', () => {
   test('a result count can be capped, for a picker with a fixed number of digits', async () => {
     const outcome = await runSearch('love', target(), { maxResults: 5 });
     expect(outcome.hits.length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe('skippedMessage', () => {
+  test('names syntax when the index is usable but the query was skipped', () => {
+    expect(skippedMessage({ state: 'unbuilt' }, true)).toContain('Unsupported syntax');
+  });
+
+  test('uses neutral wording for index problems', () => {
+    for (const state of ['unbuilt', 'building', 'stale', 'unavailable', 'failed']) {
+      const text = skippedMessage({ state }, false);
+      expect(text).not.toContain('syntax');
+      expect(text).not.toContain('\n');
+    }
   });
 });
 

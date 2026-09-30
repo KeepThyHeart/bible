@@ -128,7 +128,7 @@ export async function runSearch(
 
   // v0.2 modules carry no FTS table: their keyword index is a sidecar file that
   // has to be configured, and built the first time, before core can search.
-  await ensureKeywordIndex(bible.module);
+  const indexReady = await ensureKeywordIndex(bible.module);
 
   const service = new BibleSearchService(new Map([[module, bible.repo]]), target.library.bookRepository());
   const started = performance.now();
@@ -154,7 +154,7 @@ export async function runSearch(
   // found and the module skipped, say so instead of reporting an empty result.
   if (results.length === 0) {
     const skipped = service.getLastSkippedModules();
-    if (skipped.length > 0) return outcome(text, module, { error: skippedMessage(skipped[0]!.reason) });
+    if (skipped.length > 0) return outcome(text, module, { error: skippedMessage(skipped[0]!.reason, indexReady) });
   }
 
   return {
@@ -167,12 +167,21 @@ export async function runSearch(
   };
 }
 
-/** Why core skipped the module, in words for the user. */
-function skippedMessage(reason: { state: string; reason?: string }): string {
+/**
+ * Why core skipped the module, in words for the user.
+ *
+ * When the index built fine yet the module was skipped, the index could not
+ * answer this query, which means syntax it does not support (e.g. NEAR/3).
+ * Any index problem (unbuilt, unavailable, failed) gets neutral wording.
+ */
+export function skippedMessage(reason: { state: string; reason?: string }, indexReady: boolean): string {
   if (reason.state === 'failed' && reason.reason !== undefined) {
     return `The search index could not be used: ${reason.reason.split('\n')[0]}`;
   }
-  return 'Unsupported syntax (e.g. NEAR/3). Try "a phrase".';
+  if (indexReady) return 'Unsupported syntax (e.g. NEAR/3). Try "a phrase".';
+  return reason.state === 'unavailable'
+    ? 'Search is not available for this module.'
+    : 'The search index is not ready for this module.';
 }
 
 /** Returns the reason proximity search cannot be answered, or `undefined`. */
