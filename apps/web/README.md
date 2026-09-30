@@ -178,7 +178,7 @@ Build-time values are read by `vite.config.ts` from environment variables and ba
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events still get 1.5x their length; the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. The desktop app takes the same variable (see its README, Build Configuration). |
+| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events still get 1.5x their length, coarse-dated items (century or millennium precision) may be framed wider, the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. The desktop app takes the same variable (see its README, Build Configuration). |
 
 ```bash
 BIBLE_TIMELINE_MIN_SPAN_YEARS=100 pnpm run build:client

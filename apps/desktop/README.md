@@ -100,7 +100,7 @@ A few user-visible values are not finalised yet, so they are supplied by environ
 | `BIBLE_APP_VERSION` | `version` from `package.json` | Version embedded in the `mailto:` issue-report subject, and shown at the foot of the Help panel. |
 | `BIBLE_DOCS_URL` | `https://docs.bible.keepthyheart.com/desktop/` | Documentation website. The Help panel offers a "Documentation website" row that opens it in the OS browser. Set it to `none` for a build with no docs site: the row is then omitted entirely - same rule as the issue tracker, no dead links. |
 | `BIBLE_ABOUT_TEXT` | *(empty)* | A sentence or two about this build, shown at the top of the Help panel. Passed through as written and **not** translated, since it arrives as one already-authored string. |
-| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Empty, zero or non-numeric values fall back to 200. The web app takes the same variable. |
+| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events get 1.5x their length, coarse-dated items (century or millennium precision) may be framed wider, and the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. Renderer-only: read directly from the define in `TimelinePane.tsx`, not via `appConfig.ts` or the preload bridge, and no `process.env` fallback at run time. The web app takes the same variable. |
 
 Example:
 
