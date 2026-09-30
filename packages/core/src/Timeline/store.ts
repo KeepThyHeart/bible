@@ -2,7 +2,8 @@ import { createStore, type ReadableStore } from '../Ui/ReadableStore';
 import { defaultChronologyId, resolveItems, type ResolvedItem } from './chronology';
 import { layoutTimeline, packRows, type TimelineLayout } from './layout';
 import { itemsForPassage } from './passages';
-import { clampView, MIN_SPAN_DAYS, minContextDays, panView, type TimeView, tOf, viewSpan, zoomView } from './scale';
+import { searchTimelineItems } from './search';
+import { clampView, DEFAULT_SPAN_DAYS, fractionToView, MIN_SPAN_DAYS, minContextDays, panView, type TimeView, tOf, viewSpan, zoomView } from './scale';
 import type { TimelineDataset } from './types';
 
 export interface TimelineState {
@@ -32,12 +33,18 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
   fit(): void;
   select(id: number | null): void;
   /** Select an item and frame it in the view. */
-  focusItem(id: number): void;
+  focusItem(id: number, opts?: { minSpan?: number }): void;
   /** Select the best item for a verse (follow-my-reading); false when none covers it. */
   focusPassage(verseId: number, verseIdEnd?: number): boolean;
   toggleLane(laneId: string): void;
   setKinds(kinds: string[] | null): void;
   setQuery(query: string): void;
+  /** Resize the window about its centre (clamped to bounds and MIN_SPAN_DAYS). */
+  setSpan(span: number): void;
+  /** Slide the window: 0 = left edge of the bounds, 1 = right edge. */
+  setCenterFraction(f: number): void;
+  /** Ranked title/summary search over the items dated under the current chronology. */
+  search(query: string, limit?: number): ResolvedItem[];
 }
 
 export interface TimelineStoreOptions {
@@ -139,13 +146,13 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
     select(id) {
       update({ selectedId: id });
     },
-    focusItem(id) {
+    focusItem(id, opts) {
       const r = resolved.find((x) => x.item.id === id);
       if (!r) return;
       const start = r.date.start;
       const end = r.date.end ?? start;
       // Frame at least a precision-aware context span (and 1.5x the item) centred on the item.
-      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS);
+      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, opts?.minSpan ?? 0);
       const mid = (start + end) / 2;
       update({ selectedId: id, view: clampView({ start: mid - span / 2, end: mid + span / 2 }, bounds) });
     },
@@ -155,7 +162,7 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
       if (!hit) return false;
       // Already selected: keep the user's zoom and pan.
       if (hit.id === state().selectedId) return true;
-      self.focusItem(hit.id);
+      self.focusItem(hit.id, { minSpan: DEFAULT_SPAN_DAYS });
       return true;
     },
     toggleLane(laneId) {
@@ -167,6 +174,20 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
     },
     setQuery(query) {
       update({ query });
+    },
+    setSpan(span) {
+      const v = state().view;
+      const mid = (v.start + v.end) / 2;
+      const next = Math.max(span, MIN_SPAN_DAYS);
+      update({ view: clampView({ start: mid - next / 2, end: mid + next / 2 }, bounds) });
+    },
+    setCenterFraction(f) {
+      const v = state().view;
+      if (viewSpan(v) >= viewSpan(bounds)) return;
+      update({ view: fractionToView(f, viewSpan(v), bounds) });
+    },
+    search(query, limit = 20) {
+      return searchTimelineItems(resolved, query, limit);
     },
   };
   return self;

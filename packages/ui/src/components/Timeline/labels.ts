@@ -70,6 +70,13 @@ export interface TimelinePanelLabels {
   zoomIn: string;
   zoomOut: string;
   fit: string;
+  settings: string;
+  fullscreen: string;
+  exitFullscreen: string;
+  zoom: string;
+  position: string;
+  searchResults: string;
+  noResults: string;
   /** Kind display names (falls back to the built-in English ones). */
   kindNames?: Record<string, string>;
   view?: Partial<TimelineViewLabels>;
@@ -84,4 +91,11 @@ export const DEFAULT_TIMELINE_PANEL_LABELS: TimelinePanelLabels = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   fit: 'Fit',
+  settings: 'Timeline settings',
+  fullscreen: 'Full screen',
+  exitFullscreen: 'Exit full screen',
+  zoom: 'Zoom',
+  position: 'Position',
+  searchResults: 'Search results',
+  noResults: 'No matching events',
 };

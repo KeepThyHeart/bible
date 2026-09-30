@@ -1,11 +1,15 @@
 /** TimelinePanel: toolbar (chronology, kinds, search, lanes, zoom), the timeline and the selected item's card. */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createTimelineStore } from '@bible/core/browser';
 import type { TimelineDataset } from '@bible/core/browser';
 import { TimelineView } from './TimelineView';
 import { TimelineItemCard } from './TimelineItemCard';
+import { TimelineSearch } from './TimelineSearch';
+import { TimelineSettingsMenu } from './TimelineSettingsMenu';
+import { TimelineZoomControls } from './TimelineZoomControls';
+import { FullscreenPanel } from '../FullscreenPanel';
 import { useTimelineStore } from './useTimelineStore';
-import { DEFAULT_TIMELINE_PANEL_LABELS, defaultFormatReference, kindLabel } from './labels';
+import { DEFAULT_TIMELINE_PANEL_LABELS, defaultFormatReference } from './labels';
 import type { TimelinePanelLabels } from './labels';
 
 export interface TimelinePanelProps {
@@ -18,6 +22,8 @@ export interface TimelinePanelProps {
   initialChronologyId?: string;
   /** Height of the timeline graphic in px (default: fit). */
   height?: number;
+  /** Show a full-screen toggle (default false). */
+  allowFullscreen?: boolean;
   className?: string;
 }
 
@@ -29,6 +35,7 @@ export function TimelinePanel({
   formatReference = defaultFormatReference,
   initialChronologyId,
   height,
+  allowFullscreen = false,
   className,
 }: TimelinePanelProps) {
   const labels = { ...DEFAULT_TIMELINE_PANEL_LABELS, ...labelOverrides };
@@ -40,61 +47,32 @@ export function TimelinePanel({
     if (focusVerse != null) store.focusPassage(focusVerse);
   }, [focusVerse, store]);
 
-  const kinds = useMemo(() => [...new Set(dataset.items.map((i) => i.kind))], [dataset]);
   const chronology = dataset.chronologies.find((c) => c.id === state.chronologyId);
   const selected = state.selectedId === null ? undefined : dataset.items.find((i) => i.id === state.selectedId);
-  const activeKinds = state.kinds ?? kinds;
+  const [fullscreen, setFullscreen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const isFullscreen = allowFullscreen && fullscreen;
 
-  const toggleKind = (kind: string) => {
-    const next = activeKinds.includes(kind) ? activeKinds.filter((k) => k !== kind) : [...activeKinds, kind];
-    store.setKinds(next.length === 0 || next.length === kinds.length ? null : next);
-  };
-
-  return (
+  const body = (
     <div className={className ? `kth-timeline ${className}` : 'kth-timeline'}>
       <div className="kth-timeline__toolbar">
-        {dataset.chronologies.length > 1 && (
-          <label className="kth-timeline__group">
-            <span>{labels.chronology}</span>
-            <select className="kth-select" value={state.chronologyId} onChange={(e) => store.setChronology(e.currentTarget.value)}>
-              {[...dataset.chronologies].sort((a, b) => a.sortOrder - b.sortOrder).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </label>
+        <TimelineSearch store={store} labels={labels} />
+        <TimelineZoomControls store={store} labels={labels} />
+        <TimelineSettingsMenu store={store} dataset={dataset} labels={labels} onOpenChange={setSettingsOpen} />
+        {allowFullscreen && (
+          <button
+            type="button"
+            className="kth-btn kth-btn--sm kth-timeline__fullscreen-btn"
+            aria-label={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
+            aria-pressed={isFullscreen}
+            onClick={() => { setSettingsOpen(false); setFullscreen(!isFullscreen); }}
+          >
+            <span aria-hidden="true">{isFullscreen ? '\u2715' : '\u26F6'}</span>
+          </button>
         )}
-        <input
-          className="kth-input"
-          type="search"
-          aria-label={labels.search}
-          placeholder={labels.search}
-          value={state.query}
-          onChange={(e) => store.setQuery(e.currentTarget.value)}
-        />
-        <div className="kth-timeline__group">
-          <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.zoomOut} onClick={() => store.zoomAt(1 / 1.5, state.width / 2)}>-</button>
-          <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.zoomIn} onClick={() => store.zoomAt(1.5, state.width / 2)}>+</button>
-          <button type="button" className="kth-btn kth-btn--sm" onClick={() => store.fit()}>{labels.fit}</button>
-        </div>
-      </div>
-      <div className="kth-timeline__toolbar">
-        <div className="kth-timeline__group" role="group" aria-label={labels.kinds}>
-          {kinds.map((k) => (
-            <button key={k} type="button" className="kth-timeline__chip" aria-pressed={activeKinds.includes(k)} onClick={() => toggleKind(k)}>
-              {kindLabel(labels.kindNames, k)}
-            </button>
-          ))}
-        </div>
-        <div className="kth-timeline__group" role="group" aria-label={labels.lanes}>
-          {[...dataset.lanes].sort((a, b) => a.sortOrder - b.sortOrder).map((l) => (
-            <button key={l.id} type="button" className="kth-timeline__chip" aria-pressed={!state.hiddenLanes.includes(l.id)} onClick={() => store.toggleLane(l.id)}>
-              {l.name}
-            </button>
-          ))}
-        </div>
       </div>
       {chronology?.description && <p className="kth-timeline__note">{chronology.description}</p>}
-      <TimelineView store={store} labels={labels.view} height={height} />
+      <TimelineView store={store} labels={labels.view} height={isFullscreen ? undefined : height} />
       {selected && (
         <TimelineItemCard
           item={selected}
@@ -107,5 +85,18 @@ export function TimelinePanel({
         />
       )}
     </div>
+  );
+
+  if (!isFullscreen) return body;
+  return (
+    <FullscreenPanel
+      open
+      onClose={() => { setSettingsOpen(false); setFullscreen(false); }}
+      label={labels.fullscreen}
+      closeOnEscape={!settingsOpen}
+      className="kth-timeline--fullscreen"
+    >
+      {body}
+    </FullscreenPanel>
   );
 }

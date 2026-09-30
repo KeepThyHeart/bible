@@ -72,7 +72,8 @@ describe('TimelinePanel', () => {
   it('switches chronology and shows its description', async () => {
     render(<TimelinePanel dataset={FIXTURE} />);
     expect(screen.getByText('Literal reading.')).toBeTruthy();
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'alt');
+    await userEvent.click(screen.getByRole('button', { name: 'Timeline settings' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Chronology' }), 'alt');
     expect(screen.getByText('Shorter.')).toBeTruthy();
   });
 
@@ -85,10 +86,51 @@ describe('TimelinePanel', () => {
     expect(await screen.findByRole('region', { name: 'Temple dedicated' })).toBeTruthy();
   });
 
-  it('toggles lanes', async () => {
+  it('toggles lanes from the settings popover', async () => {
     render(<TimelinePanel dataset={FIXTURE} />);
-    const chip = screen.getByRole('button', { name: 'Kings', pressed: true });
-    await userEvent.click(chip);
+    expect(screen.queryByRole('button', { name: 'Kings' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Timeline settings' }));
+    expect(screen.getByRole('dialog', { name: 'Timeline settings' })).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Kings', pressed: true }));
     expect(screen.getByRole('button', { name: 'Kings', pressed: false })).toBeTruthy();
+  });
+
+  it('searches, lists options and opens the card on Enter', async () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    const box = screen.getByRole('combobox', { name: 'Search the timeline' });
+    await userEvent.type(box, 'temple');
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    await userEvent.keyboard('{Enter}');
+    expect(await screen.findByRole('region', { name: 'Temple dedicated' })).toBeTruthy();
+    await userEvent.clear(box);
+    await userEvent.type(box, 'zzzz');
+    expect(screen.getByText('No matching events')).toBeTruthy();
+  });
+
+  it('zoom slider changes the span', () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    const slider = screen.getByRole('slider', { name: 'Zoom' }) as HTMLInputElement;
+    expect(slider.value).toBe('0');
+    fireEvent.change(slider, { target: { value: '500' } });
+    expect(Number((screen.getByRole('slider', { name: 'Zoom' }) as HTMLInputElement).value)).toBeGreaterThan(300);
+    expect((screen.getByRole('slider', { name: 'Position' }) as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('has no full-screen button unless allowed', () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    expect(screen.queryByRole('button', { name: 'Full screen' })).toBeNull();
+  });
+
+  it('opens full screen; Escape closes only the settings popover first', async () => {
+    render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Timeline settings' }));
+    expect(screen.getByRole('dialog', { name: 'Timeline settings' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Timeline settings' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
   });
 });

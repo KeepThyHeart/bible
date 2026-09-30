@@ -37,6 +37,8 @@ export { HoverCard } from './components/HoverCard';
 export type { HoverCardProps } from './components/HoverCard';
 export { BottomSheet, DEFAULT_BOTTOM_SHEET_LABELS } from './components/BottomSheet';
 export type { BottomSheetProps, BottomSheetLabels } from './components/BottomSheet';
+export { FullscreenPanel, DEFAULT_FULLSCREEN_PANEL_LABELS } from './components/FullscreenPanel';
+export type { FullscreenPanelProps, FullscreenPanelLabels } from './components/FullscreenPanel';
 export { useHoverIntent } from './components/useHoverIntent';
 export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';

@@ -12,6 +12,8 @@ import { getTimelineProvider } from '../../providers/TimelineDataProvider';
 interface TimelinePaneProps {
   /** Defaults to the app-wide provider; tests inject their own. */
   provider?: ITimelineDataProvider;
+  /** Offer a full-screen toggle (desktop only; the phone sheet is already full screen). */
+  allowFullscreen?: boolean;
 }
 
 type LoadState =
@@ -25,7 +27,7 @@ type LoadState =
  * sheet). The dataset is fetched on first mount, i.e. the first time the tab is
  * opened, and kept by the provider afterwards.
  */
-export function TimelinePane({ provider }: TimelinePaneProps) {
+export function TimelinePane({ provider, allowFullscreen }: TimelinePaneProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
@@ -49,6 +51,13 @@ export function TimelinePane({ provider }: TimelinePaneProps) {
     zoomIn: t('timeline.zoomIn'),
     zoomOut: t('timeline.zoomOut'),
     fit: t('timeline.fit'),
+    settings: t('timeline.settings'),
+    fullscreen: t('timeline.fullscreen'),
+    exitFullscreen: t('timeline.exitFullscreen'),
+    zoom: t('timeline.zoom'),
+    position: t('timeline.position'),
+    searchResults: t('timeline.searchResults'),
+    noResults: t('timeline.noResults'),
     kindNames: {
       reign: t('timeline.kinds.reign'),
       life: t('timeline.kinds.life'),
@@ -100,6 +109,7 @@ export function TimelinePane({ provider }: TimelinePaneProps) {
         focusVerse={verseId}
         onOpenPassage={openPassage}
         formatReference={formatVerseRange}
+        allowFullscreen={allowFullscreen}
       />
     </div>
   );

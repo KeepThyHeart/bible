@@ -2,6 +2,9 @@ import type { ResolvedItem } from './chronology';
 import type { TimelineLaneDto } from './types';
 import { type TimeView, viewSpan, xOf } from './scale';
 
+/** Case- and accent-insensitive form used by search and the dim filter. */
+export const fold = (s: string): string => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+
 export interface LayoutOptions {
   width: number;
   rowHeight?: number;
@@ -102,7 +105,7 @@ export function layoutTimeline(
   const header = opts.laneHeaderHeight ?? 18;
   const charPx = opts.charPx ?? 6.5;
   const width = opts.width;
-  const q = opts.query?.trim().toLowerCase();
+  const q = opts.query ? fold(opts.query) : '';
   const barH = Math.round(rowHeight * 0.7);
   const span = viewSpan(view);
   const out: LaneLayout[] = [];
@@ -143,7 +146,7 @@ export function layoutTimeline(
         const b = xOf(view, width, d.endMax ?? (d.end as number));
         if (b - a > 0.5) uncertainty.push({ x: a, w: b - a });
       }
-      const matches = !q || text.toLowerCase().includes(q) || (r.item.summary ?? '').toLowerCase().includes(q);
+      const matches = !q || fold(text).includes(q) || fold(r.item.summary ?? '').includes(q);
       marks.push({
         itemId: r.item.id,
         laneId: lane.id,

@@ -201,7 +201,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
               )}
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
-              {paneMode === 'timeline' && <TimelinePane />}
+              {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>

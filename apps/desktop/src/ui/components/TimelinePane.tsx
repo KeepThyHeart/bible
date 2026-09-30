@@ -83,6 +83,13 @@ const TimelinePane: React.FC = () => {
     zoomIn: t('timelinePane.zoomIn'),
     zoomOut: t('timelinePane.zoomOut'),
     fit: t('timelinePane.fit'),
+    settings: t('timelinePane.settings'),
+    fullscreen: t('timelinePane.fullscreen'),
+    exitFullscreen: t('timelinePane.exitFullscreen'),
+    zoom: t('timelinePane.zoom'),
+    position: t('timelinePane.position'),
+    searchResults: t('timelinePane.searchResults'),
+    noResults: t('timelinePane.noResults'),
     kindNames: Object.fromEntries(KIND_KEYS.map((k) => [k, t(`timelinePane.kind.${k}`)])),
     view: { group: t('timelinePane.view.group'), help: t('timelinePane.view.help') },
     card: {
@@ -149,6 +156,7 @@ const TimelinePane: React.FC = () => {
           focusVerse={follow ? readingVerseId : null}
           onOpenPassage={handleOpenPassage}
           formatReference={formatReference}
+          allowFullscreen
         />
       </div>
     </div>

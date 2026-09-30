@@ -3,6 +3,7 @@ import {
   formatVerseIdRange, minContextDays,
   bc, civilToInstant, instantToCivil, formatInstant, formatSpan, computeTicks, zoomView, panView, clampView,
   layoutTimeline, packRows, resolveItems, chronologyChain, itemsForPassage, createTimelineStore, xOf, tOf,
+  DEFAULT_SPAN_DAYS, MIN_SPAN_DAYS, spanRange, spanToFraction, fractionToSpan, centerToFraction, fractionToView, searchTimelineItems,
   type TimelineDataset, type TimelineItemDto,
 } from './index';
 
@@ -80,6 +81,24 @@ describe('scale', () => {
   });
 });
 
+describe('span and position mapping', () => {
+  const bounds = { start: 0, end: 100000 };
+  it('round-trips the log mapping', () => {
+    const { min, max } = spanRange(bounds);
+    for (const f of [0, 0.1, 0.5, 0.9, 1]) expect(spanToFraction(fractionToSpan(f, min, max), min, max)).toBeCloseTo(f, 9);
+    expect(spanToFraction(5, 10, 10)).toBe(1);
+    expect(spanToFraction(1e12, min, max)).toBe(1);
+    expect(spanToFraction(0.0001, min, max)).toBe(0);
+    expect(fractionToSpan(2, min, max)).toBeCloseTo(max);
+  });
+  it('maps centre fraction and view', () => {
+    expect(centerToFraction(bounds, bounds)).toBe(0);
+    const v = fractionToView(0.5, 1000, bounds);
+    expect(v.start).toBeCloseTo(49500);
+    expect(centerToFraction(v, bounds)).toBeCloseTo(0.5);
+  });
+});
+
 describe('chronology and passages', () => {
   it('falls back along the chain', () => {
     expect(chronologyChain(dataset, 'alt')).toEqual(['alt', 'ussher']);
@@ -145,9 +164,9 @@ describe('store', () => {
     expect(st.selectedId).toBe(3);
     expect(st.view.start).toBeLessThan(civilToInstant(33, 4, 3, 9));
     expect(st.view.end).toBeGreaterThan(civilToInstant(33, 4, 3, 9));
-    // hour precision: at least 2 days of context, centred on the item
-    expect(st.view.end - st.view.start).toBeGreaterThanOrEqual(2 - 1e-9);
-    expect(st.view.end - st.view.start).toBeLessThan(3);
+    // passage follow frames the default span (capped at the bounds span)
+    const b = s.getBounds();
+    expect(st.view.end - st.view.start).toBeCloseTo(Math.min(DEFAULT_SPAN_DAYS, b.end - b.start));
     const view = st.view;
     s.zoomAt(2, 400);
     const zoomed = s.getSnapshot().view;
@@ -155,6 +174,50 @@ describe('store', () => {
     expect(s.getSnapshot().view).toBe(zoomed);
     expect(zoomed).not.toEqual(view);
     expect(s.focusPassage(1001001)).toBe(false);
+  });
+  it('explicit focusItem keeps the precision-aware frame', () => {
+    const s = createTimelineStore(dataset);
+    s.focusItem(3);
+    const span = s.getSnapshot().view.end - s.getSnapshot().view.start;
+    expect(span).toBeGreaterThanOrEqual(2 - 1e-9);
+    expect(span).toBeLessThan(3);
+  });
+  it('setSpan zooms about the centre and clamps', () => {
+    const s = createTimelineStore(dataset);
+    const b = s.getBounds();
+    s.setSpan(1e12);
+    expect(s.getSnapshot().view).toEqual(b);
+    s.setSpan(0);
+    expect(s.getSnapshot().view.end - s.getSnapshot().view.start).toBeCloseTo(MIN_SPAN_DAYS);
+    s.setSpan(1000);
+    const v = s.getSnapshot().view;
+    expect(v.end - v.start).toBeCloseTo(1000);
+  });
+  it('setCenterFraction hits the edges and is a no-op at full span', () => {
+    const s = createTimelineStore(dataset);
+    const before = s.getSnapshot();
+    s.setCenterFraction(0.5);
+    expect(s.getSnapshot()).toBe(before);
+    s.setSpan(1000);
+    s.setCenterFraction(0);
+    expect(s.getSnapshot().view.start).toBeCloseTo(s.getBounds().start);
+    s.setCenterFraction(1);
+    expect(s.getSnapshot().view.end).toBeCloseTo(s.getBounds().end);
+  });
+  it('searches with folding, ranking and limit', () => {
+    const ds = { ...dataset, items: [
+      ...dataset.items,
+      item(40, { title: 'Réhoboam the Younger', dates: { ussher: { start: 500, precision: 'year', circa: false } } }),
+      item(41, { title: 'Son of Rehoboam', dates: { ussher: { start: 100, precision: 'year', circa: false } } }),
+      item(42, { title: 'Other', summary: 'mentions rehoboam', dates: { ussher: { start: 50, precision: 'year', circa: false } } }),
+    ] };
+    const s = createTimelineStore(ds);
+    expect(s.search('rehoboam').map((r) => r.item.id)).toEqual([1, 40, 41, 42]);
+    expect(s.search('  ABIJ ').map((r) => r.item.id)).toEqual([2]);
+    expect(s.search('rehoboam', 2)).toHaveLength(2);
+    expect(s.search('zzz')).toEqual([]);
+    expect(s.search('  ')).toEqual([]);
+    expect(searchTimelineItems([], 'x')).toEqual([]);
   });
   it('filters and toggles lanes', () => {
     const s = createTimelineStore(dataset);

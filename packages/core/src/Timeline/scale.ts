@@ -9,6 +9,9 @@ export interface TimeView {
 /** Smallest window: 3 hours, so hour-level events (Holy Week) can be told apart. */
 export const MIN_SPAN_DAYS = 3 / 24;
 
+/** Default zoom when following a passage: 200 years. */
+export const DEFAULT_SPAN_DAYS = 200 * 365.25;
+
 export function viewSpan(view: TimeView): number {
   return view.end - view.start;
 }
@@ -160,4 +163,33 @@ export function computeTicks(view: TimeView, width: number, minGapPx = 84): Tick
     }
   }
   return ticks;
+}
+
+/** Slider range for the window span: [MIN_SPAN_DAYS, whole bounds]. */
+export function spanRange(bounds: TimeView): { min: number; max: number } {
+  return { min: MIN_SPAN_DAYS, max: Math.max(viewSpan(bounds), MIN_SPAN_DAYS) };
+}
+
+const clamp01 = (f: number): number => Math.min(1, Math.max(0, f));
+
+/** Log mapping of a span to 0 (min) .. 1 (max). */
+export function spanToFraction(span: number, min: number, max: number): number {
+  if (max <= min) return 1;
+  return clamp01(Math.log(span / min) / Math.log(max / min));
+}
+
+export function fractionToSpan(f: number, min: number, max: number): number {
+  return min * Math.pow(max / min, clamp01(f));
+}
+
+/** Where the window sits within the bounds: 0 = left edge, 1 = right edge. */
+export function centerToFraction(view: TimeView, bounds: TimeView): number {
+  const room = viewSpan(bounds) - viewSpan(view);
+  if (room <= 0) return 0;
+  return clamp01((view.start - bounds.start) / room);
+}
+
+export function fractionToView(f: number, span: number, bounds: TimeView): TimeView {
+  const start = bounds.start + f * (viewSpan(bounds) - span);
+  return clampView({ start, end: start + span }, bounds);
 }
