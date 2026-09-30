@@ -175,6 +175,12 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
+      // Then the family tree sheet (it sits beneath the audio player)
+      if (studyStore.familyTreeOpen) {
+        studyStore.closeFamilyTree();
+        return;
+      }
+
       // Priority 1: Close topics browser overlay
       if (studyStore.topicsBrowserOpen) {
         studyStore.closeTopicsBrowser();
@@ -483,6 +489,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
+        bibleProvider={providers.bible}
       />
       {contextMenu && (
         <ContextMenuPopup

@@ -15,7 +15,9 @@ import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
+import { isEnabled } from './utils/featureFlags';
 import { isTagGraphEnabled } from './utils/clientConfig';
+import { TimelinePane } from './components/TimelinePane/TimelinePane';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -35,6 +37,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // anything renders, and asking for it again cost a second round trip on the
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
+  const showTimeline = isEnabled('timeline');
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
   // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
   useEffect(() => { audioStore.setLayout('desktop'); }, []);
@@ -79,7 +82,9 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // no content — which is what made a remembered Search pane look broken.
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
-    : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
+    : shared.rightPaneMode === 'timeline' && !showTimeline
+      ? 'study'
+      : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
 
   // Self-heal the persisted value so a bad id does not survive another reload.
   useEffect(() => {
@@ -160,6 +165,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 >
                   {t('rightPane.topics')}
                 </button>
+                {showTimeline && (
+                  <button
+                    class={`right-pane-tabs__tab ${paneMode === 'timeline' ? 'right-pane-tabs__tab--active' : ''}`}
+                    onClick={() => commentaryStore.setRightPaneMode('timeline')}
+                  >
+                    {t('rightPane.timeline')}
+                  </button>
+                )}
                 <button
                   class={`right-pane-tabs__tab ${paneMode === 'dictionary' ? 'right-pane-tabs__tab--active' : ''}`}
                   onClick={() => commentaryStore.setRightPaneMode('dictionary')}
@@ -188,10 +201,12 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   onStrongsHover={shared.handleStrongsHover}
                   onStrongsLeave={shared.handleStrongsLeave}
                   bibleProvider={providers.bible}
+                  genealogyProvider={providers.genealogy}
                 />
               )}
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
+              {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>
@@ -216,6 +231,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
+        bibleProvider={providers.bible}
       />
       <AudioPlayerPopup onOpenSettings={shared.openSettings} />
       {contextMenu && (

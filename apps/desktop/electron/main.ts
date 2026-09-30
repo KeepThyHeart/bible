@@ -9,7 +9,9 @@ import { registerDictionaryHandlers, closeDictionaryDbs } from './ipc/dictionary
 import { registerBookHandlers, closeBookDbs } from './ipc/bookHandlers';
 import { registerTopicalIndexHandlers, closeTopicalDbs } from './ipc/topicalIndexHandlers';
 import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferenceHandlers';
+import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
+import { registerTimelineHandlers, closeTimelineDb } from './ipc/timelineHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
@@ -538,7 +540,9 @@ async function createWindow(): Promise<void> {
   registerI18nHandlers(ipcMain);
   registerTopicalIndexHandlers(ipcMain);
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
+  registerXrefGraphHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
+  registerTimelineHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
@@ -1224,6 +1228,7 @@ app.on('quit', () => {
   stopStudyCacheSweep();
   closeStudyCache();
   closeTagGraphDb();
+  closeTimelineDb();
   closeSearchDb();
   closeSessionDb();
   closeNotesDatabase();

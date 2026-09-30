@@ -3,6 +3,9 @@
 /** Build identifier injected by vite.config.ts; compared against /api/version on boot. */
 declare const __BUILD_ID__: string;
 
+/** Timeline minimum framing span in years (build option BIBLE_TIMELINE_MIN_SPAN_YEARS); '' = default. */
+declare const __TIMELINE_MIN_SPAN_YEARS__: string;
+
 declare module 'wa-sqlite/dist/wa-sqlite-async.mjs' {
   export default function SQLiteESMFactory(): Promise<any>;
 }

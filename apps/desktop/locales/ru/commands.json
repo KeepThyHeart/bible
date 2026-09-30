@@ -62,5 +62,9 @@
   "bookmarks.manage": "Управление закладками",
   "bookmarks.manage.category": "Закладки",
   "bookmarks.manage.alias.0": "закладки",
-  "bookmarks.manage.alias.1": "сохранённые стихи"
+  "bookmarks.manage.alias.1": "сохранённые стихи",
+  "xrefGraph.open": "Показать связи перекрёстных ссылок",
+  "xrefGraph.open.category": "Изучение",
+  "xrefGraph.open.alias.0": "перекрёстные ссылки",
+  "xrefGraph.open.alias.1": "связи"
 }

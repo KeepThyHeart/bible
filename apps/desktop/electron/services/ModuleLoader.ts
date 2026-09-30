@@ -21,6 +21,7 @@ import type {
   TopicalIndexRepository,
   CrossReferenceRepository,
   TagGraphRepository,
+  TimelineRepository,
 } from '@bible/core';
 
 /**
@@ -56,6 +57,7 @@ interface ConcreteModuleRepositoryByType {
   topicalIndex: TopicalIndexRepository;
   crossRef: CrossReferenceRepository;
   tagGraph: TagGraphRepository;
+  timeline: TimelineRepository;
 }
 
 function asConcreteFactory<K extends keyof ModuleRepositoryByType>(

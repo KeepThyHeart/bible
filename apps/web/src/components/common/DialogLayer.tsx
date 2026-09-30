@@ -4,6 +4,8 @@ import { FeedbackDialog } from '../Dialogs/FeedbackDialog';
 import { CopyDialog } from '../Dialogs/CopyDialog';
 import { StrongsPopup } from '../Dialogs/StrongsPopup';
 import { StrongsTooltip } from '../Dialogs/StrongsTooltip';
+import { XrefGraphDialog } from '../Dialogs/XrefGraphDialog';
+import type { IBibleDataProvider } from '../../providers/interfaces';
 import { SemanticSearchLoadingOverlay } from './SemanticSearchLoadingOverlay';
 import { AudioGateDialog } from '../audio/AudioGateDialog';
 import { AudioLiveRegion } from '../audio/AudioLiveRegion';
@@ -22,6 +24,8 @@ interface DialogLayerProps {
   strongsPopup: { entry: StrongsEntryData; position: { top: number; left: number } } | null;
   setStrongsPopup: (value: null) => void;
   strongsTooltip: { entry: StrongsEntryData; position: { top: number; left: number } } | null;
+  /** Supplies verse text to the cross-reference graph dialog. */
+  bibleProvider?: IBibleDataProvider;
 }
 
 /**
@@ -35,6 +39,7 @@ export function DialogLayer({
   copyOpen, setCopyOpen,
   strongsPopup, setStrongsPopup,
   strongsTooltip,
+  bibleProvider,
 }: DialogLayerProps) {
   return (
     <>
@@ -62,6 +67,7 @@ export function DialogLayer({
         entry={strongsTooltip?.entry ?? null}
         position={strongsTooltip?.position ?? null}
       />
+      <XrefGraphDialog bibleProvider={bibleProvider} />
       <SemanticSearchLoadingOverlay />
       <AudioGateDialog />
       <AudioLiveRegion />

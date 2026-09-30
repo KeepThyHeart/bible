@@ -41,3 +41,8 @@ export const featureFlags = createFeatureFlags({ site: siteFlags, overrides: dev
 export function isEnabled(name: FeatureFlagName): boolean {
   return featureFlags.isEnabled(name);
 }
+
+/** The genealogy explorer: the `genealogy` flag, which itself requires `tagGraph`. */
+export function isGenealogyEnabled(): boolean {
+  return featureFlags.isEnabled('genealogy');
+}

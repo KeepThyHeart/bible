@@ -42,6 +42,19 @@ vi.mock('./StudySynthesis', () => ({
   StudySynthesis: () => <div class="study-synthesis-stub" />,
 }));
 
+let lastGenealogyProps: Record<string, unknown> = {};
+vi.mock('./GenealogyPane', () => ({
+  GenealogyPane: (props: Record<string, unknown>) => {
+    lastGenealogyProps = props;
+    return <div class="genealogy-pane-stub" />;
+  },
+}));
+
+let mockGenealogyEnabled = false;
+vi.mock('../../utils/featureFlags', () => ({
+  isGenealogyEnabled: () => mockGenealogyEnabled,
+}));
+
 vi.mock('./StudyHome', () => ({
   StudyHome: () => <div class="study-home-stub" />,
 }));
@@ -78,6 +91,8 @@ let mockPinned = false;
 let mockPinnedBook: number | null = null;
 let mockPinnedChapter: number | null = null;
 let mockPinnedVerse: number | null = null;
+let mockFamilyTreeOpen = false;
+let mockFamilyTreeFocus: { personId: string; token: number } | null = null;
 
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
@@ -86,6 +101,9 @@ vi.mock('../../hooks/useStore', () => ({
 const mockStudyStoreUnpin = vi.fn();
 const mockStudyStorePin = vi.fn();
 const mockStudyStoreLoadForVerse = vi.fn();
+const mockStudyStoreOpenFamilyTree = vi.fn();
+const mockStudyStoreCloseFamilyTree = vi.fn();
+const mockBibleStoreNavigateToPreview = vi.fn();
 
 vi.mock('../../stores/studyStore', () => ({
   studyStore: {
@@ -97,6 +115,10 @@ vi.mock('../../stores/studyStore', () => ({
     get pinnedBook() { return mockPinnedBook; },
     get pinnedChapter() { return mockPinnedChapter; },
     get pinnedVerse() { return mockPinnedVerse; },
+    get familyTreeOpen() { return mockFamilyTreeOpen; },
+    get familyTreeFocus() { return mockFamilyTreeFocus; },
+    openFamilyTree: (...args: unknown[]) => mockStudyStoreOpenFamilyTree(...args),
+    closeFamilyTree: () => mockStudyStoreCloseFamilyTree(),
     unpin: () => mockStudyStoreUnpin(),
     pin: () => mockStudyStorePin(),
     loadForVerse: (...args: unknown[]) => mockStudyStoreLoadForVerse(...args),
@@ -109,6 +131,7 @@ vi.mock('../../stores/bibleStore', () => ({
   bibleStore: {
     getActiveTab: () => ({ moduleAbbr: 'KJV', studyVerse: null, previewVerse: null }),
     adoptPreviewAsStudy: (id: number) => mockBibleStoreAdoptPreviewAsStudy(id),
+    navigateToPreview: (...args: unknown[]) => mockBibleStoreNavigateToPreview(...args),
   },
 }));
 
@@ -135,6 +158,10 @@ describe('StudyPane', () => {
     mockPinnedBook = null;
     mockPinnedChapter = null;
     mockPinnedVerse = null;
+    mockFamilyTreeOpen = false;
+    mockFamilyTreeFocus = null;
+    mockGenealogyEnabled = false;
+    lastGenealogyProps = {};
     mockSyncStatus = { status: 'synced', currentLabel: '', syncLabel: '', syncVerseId: null };
   });
 
@@ -334,5 +361,62 @@ describe('StudyPane', () => {
     const passageEl = container.querySelector('.study-pane__passage');
     expect(passageEl?.textContent).toContain('Book1');
     expect(passageEl?.textContent).toContain('1:1');
+  });
+
+  describe('Family tree mode', () => {
+    it('offers no mode tabs when the genealogy flag is off', () => {
+      const { container } = render(<StudyPane />);
+      expect(container.querySelector('.study-pane__modes')).toBeNull();
+    });
+
+    it('offers Study and Family tree tabs when the flag is on, Study selected', () => {
+      mockGenealogyEnabled = true;
+      render(<StudyPane />);
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs.map(t => t.textContent)).toEqual(['genealogyPane.study', 'genealogyPane.title']);
+      expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('opens the family tree from the tab', () => {
+      mockGenealogyEnabled = true;
+      render(<StudyPane />);
+      fireEvent.click(screen.getByRole('tab', { name: 'genealogyPane.title' }));
+      expect(mockStudyStoreOpenFamilyTree).toHaveBeenCalled();
+    });
+
+    it('renders the genealogy pane instead of the study sections while open', () => {
+      mockGenealogyEnabled = true;
+      mockFamilyTreeOpen = true;
+      mockFamilyTreeFocus = { personId: 'david', token: 1 };
+      const provider = { getDataset: vi.fn() };
+      const { container } = render(<StudyPane genealogyProvider={provider} />);
+      expect(container.querySelector('.genealogy-pane-stub')).toBeTruthy();
+      expect(container.querySelector('.study-section-stub')).toBeNull();
+      expect(lastGenealogyProps.provider).toBe(provider);
+      expect(lastGenealogyProps.focus).toEqual({ personId: 'david', token: 1 });
+    });
+
+    it('never shows the genealogy pane when the flag is off, even if the store says open', () => {
+      mockFamilyTreeOpen = true;
+      const { container } = render(<StudyPane />);
+      expect(container.querySelector('.genealogy-pane-stub')).toBeNull();
+      expect(container.querySelector('.study-section-stub')).toBeTruthy();
+    });
+
+    it('returns to the study sections from the Study tab', () => {
+      mockGenealogyEnabled = true;
+      mockFamilyTreeOpen = true;
+      render(<StudyPane />);
+      fireEvent.click(screen.getByRole('tab', { name: 'genealogyPane.study' }));
+      expect(mockStudyStoreCloseFamilyTree).toHaveBeenCalled();
+    });
+
+    it('opens a verse from the card in the Bible reader preview', () => {
+      mockGenealogyEnabled = true;
+      mockFamilyTreeOpen = true;
+      render(<StudyPane />);
+      (lastGenealogyProps.onOpenVerse as (id: number) => void)(43003016);
+      expect(mockBibleStoreNavigateToPreview).toHaveBeenCalledWith(43, 3, 16);
+    });
   });
 });

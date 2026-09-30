@@ -275,6 +275,8 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    // Timeline minimum framing span in years (empty = built-in 200); see README "Build options".
+    __TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(process.env.BIBLE_TIMELINE_MIN_SPAN_YEARS?.trim() ?? ''),
   },
   resolve: {
     alias: {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { studyStore } from '../../stores/studyStore';
+import { xrefGraphStore } from '../../stores/xrefGraphStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
 import { useStore } from '../../hooks/useStore';
@@ -162,14 +163,28 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
     handleClick(verseId, e, endVerseId);
   };
 
+  const connectionsButton = verseId ? (
+    <button
+      type="button"
+      class="study-crossrefs__connections"
+      onClick={() => xrefGraphStore.open(verseId)}
+    >
+      <i class="fa-solid fa-diagram-project fa-xs" />{' '}
+      {t('xrefGraph.showConnections', { defaultValue: 'Show connections' })}
+    </button>
+  ) : null;
+
   if (loading) {
-    return <div class="study-crossrefs__loading">{t('studyCrossRefs.loading')}</div>;
+    return <div><div class="study-crossrefs__loading">{t('studyCrossRefs.loading')}</div>{connectionsButton}</div>;
   }
 
   if (groups.length === 0) {
     return (
-      <div class="study-crossrefs__empty">
-        {!isOnline ? t('studyCrossRefs.offlineNotice') : t('studyCrossRefs.noData')}
+      <div>
+        <div class="study-crossrefs__empty">
+          {!isOnline ? t('studyCrossRefs.offlineNotice') : t('studyCrossRefs.noData')}
+        </div>
+        {connectionsButton}
       </div>
     );
   }
@@ -218,6 +233,7 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
 
   return (
     <div class="study-crossrefs">
+      {connectionsButton}
       {/* Compact reference list */}
       <ul class="study-crossrefs__list">
         {sorted.map(({ group, entries }) => {

@@ -5,6 +5,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { studyStore } from '../../stores/studyStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
+import { isGenealogyEnabled } from '../../utils/featureFlags';
 import type { ITopicalDataProvider, ITagGraphDataProvider, IBibleDataProvider } from '../../providers/interfaces';
 
 interface TopicsPaneProps {
@@ -44,6 +45,12 @@ export function TopicsPane({ topicalProvider, tagGraphProvider, bibleProvider, m
     bibleStore.navigateToPreview(bookNumber, chapter, verse);
   };
 
+  // Switch the right pane to Study in Family tree mode, centred on this person.
+  const handleShowFamilyTree = (personId: string, name: string) => {
+    studyStore.openFamilyTree({ personId, name });
+    commentaryStore.setRightPaneMode('study');
+  };
+
   return (
     <div class="topics-pane">
       <TopicsBrowser
@@ -52,6 +59,7 @@ export function TopicsPane({ topicalProvider, tagGraphProvider, bibleProvider, m
         verseEntities={verseEntities}
         loading={topicsLoading}
         onNavigateBible={handleNavigateBible}
+        onShowFamilyTree={isGenealogyEnabled() ? handleShowFamilyTree : undefined}
         topicalProvider={topicalProvider}
         tagGraphProvider={tagGraphProvider}
         bibleProvider={bibleProvider}

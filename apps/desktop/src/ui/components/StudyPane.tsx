@@ -17,6 +17,8 @@ import VersePreviewTooltip from './VersePreviewTooltip';
 import DigestDisclaimer from './commentary/DigestDisclaimer';
 import { useModuleProvenance } from './commentary/useModuleProvenance';
 import StudySection from './study/StudySection';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import StudyRichText from './study/StudyRichText';
 import { markdownToPlainText, looksLikeMarkdown } from './study/markdown';
 import { crossReferenceModuleLabel } from '../utils/moduleNaming';
@@ -502,6 +504,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
           <>
             {/* Cross-References - first, matching the web pane's ordering */}
             <CrossReferencesSection
+              verseId={currentVerseId}
               xrefGroups={xrefGroups}
               sources={xrefSources}
               notInstalled={notInstalled.xrefs}
@@ -675,12 +678,13 @@ const CombinedSummary: React.FC<{ entries: CommentarySummary[]; verseId: number 
 
 /** Cross-references section with verse tooltips */
 const CrossReferencesSection: React.FC<{
+  verseId: number | null;
   xrefGroups: XrefGroupWithEntries[];
   sources: string[];
   notInstalled: boolean;
   collapsed: boolean;
   onToggle: () => void;
-}> = ({ xrefGroups, sources, notInstalled, collapsed, onToggle }) => {
+}> = ({ verseId, xrefGroups, sources, notInstalled, collapsed, onToggle }) => {
   const { t } = useI18n();
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
@@ -751,6 +755,18 @@ const CrossReferencesSection: React.FC<{
       collapsed={collapsed}
       onToggle={onToggle}
     >
+      {sorted.length > 0 && verseId !== null && (
+        <div style={{ marginBottom: '6px' }}>
+          <button
+            type="button"
+            className="text-accent hover:text-accent-strong hover:underline"
+            style={{ fontSize: uiScaled(12) }}
+            onClick={() => useXrefGraphStore.getState().openGraph(verseId)}
+          >
+            {translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}
+          </button>
+        </div>
+      )}
       {sorted.length === 0 ? (
         notInstalled
           ? <NotInstalledNote message={t('studyPane.noCrossReferencesInstalled')} moduleType="cross_reference" />
