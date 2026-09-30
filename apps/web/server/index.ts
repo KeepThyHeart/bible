@@ -27,6 +27,8 @@ import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
+import './routes/presentRoutes.js';
+import './routes/hymnRoutes.js';
 import { getRegisteredRoutes } from './routes/routeRegistry.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
@@ -68,6 +70,20 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
 const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
 const appStateDir = resolve(packageRoot, 'data');
+
+/**
+ * Where the public-domain hymn library is read from, in order of preference.
+ *
+ * The layout matches what a standalone hymn repository would have, so pointing
+ * `BIBLE_HYMNS_DIR` at a checkout of one is the whole integration -- no
+ * submodule, no build step, no compiled index. The repo-root `hymns/` is the
+ * seed library, and `dataDir/hymns` lets an install add its own without
+ * touching the checkout. Both are read; ids must not collide.
+ */
+const hymnDirs = [
+  process.env.BIBLE_HYMNS_DIR || resolve(packageRoot, '../../hymns'),
+  resolve(dataDir, 'hymns'),
+];
 
 // Initialize file logging before any other output
 logger.init(appStateDir);
@@ -209,6 +225,9 @@ app.use(helmet({
 }));
 
 // Body size limits (item #5)
+// The presenter notes route carries a document up to 256 KB (the route enforces
+// the cap itself), so it gets its own parser ahead of the general 100 KB one.
+app.use('/api/present/s/:sessionId/notes', express.json({ limit: '300kb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
@@ -372,6 +391,11 @@ const routeDeps = {
     // directory from here rather than reaching into DatabaseManager's private
     // field, and the privacy posture so they can honor 'strict'.
     dataDir,
+    // Presentation sessions are state this instance owns and must not share:
+    // two installs pointed at one content store must not see each other's live
+    // sessions. See the dataDir/appStateDir note at the top of this file.
+    appStateDir,
+    hymnDirs,
     privacyMode,
     // Shared token the desktop uploader must present. Empty accepts any build.
     desktopReportToken: siteConfig.desktopReports.token,
@@ -498,6 +522,65 @@ if (existsSync(clientDir)) {
       }
     },
   }));
+  /**
+   * The projection viewer, at the URL people are actually handed.
+   *
+   * It is a second HTML entry point (see `build.rollupOptions.input` in
+   * vite.config.ts), not a route inside the reading app, because the machine
+   * plugged into the television must not download the reader to show a verse.
+   *
+   * This must stay above the SPA catch-all below. If it is lost, the catch-all
+   * answers the same URL with the reading app's shell -- a 200 with HTML, which
+   * looks like success to anything that only checks a status code.
+   *
+   * The join code in the path is not validated here. Serving the shell for an
+   * unknown code is harmless, the code is checked when the page opens its
+   * stream, and answering differently for a real code than for a made-up one
+   * would leak which codes exist.
+   */
+  const presentViewerHtml = join(clientDir, 'present', 'viewer.html');
+  app.get('/present/v/:joinCode', (_req, res) => {
+    if (!existsSync(presentViewerHtml)) {
+      res.status(404).json({ error: 'Projection viewer is not built' });
+      return;
+    }
+    // Same reasoning as the SPA shell: it names hashed asset files, so a stale
+    // copy pins this screen to a stale build.
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentViewerHtml);
+  });
+
+  /**
+   * `/present/solo`: the solo viewer (`present/solo.html`), a projection page
+   * driven by a local session with no join code. Same placement reasons as above.
+   */
+  const presentSoloHtml = join(clientDir, 'present', 'solo.html');
+  app.get('/present/solo', (_req, res) => {
+    if (!existsSync(presentSoloHtml)) {
+      res.status(404).json({ error: 'The solo viewer is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentSoloHtml);
+  });
+
+  /**
+   * `/watch`: the short, typeable join address (see `present/watch.html`).
+   *
+   * Above the SPA catch-all for the same reason `/present/v/:joinCode` is:
+   * this is a second, bare entry point, not a route inside the reading app,
+   * and must not fall through to `index.html`.
+   */
+  const presentWatchHtml = join(clientDir, 'present', 'watch.html');
+  app.get('/watch', (_req, res) => {
+    if (!existsSync(presentWatchHtml)) {
+      res.status(404).json({ error: 'The join page is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentWatchHtml);
+  });
+
   app.get('*', (req, res) => {
     // The SPA shell is ONLY a valid answer for genuine browser navigations.
     // Anything else — /api/*, /data/*, or any fetch/XHR that expects JSON/binary —

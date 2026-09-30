@@ -22,6 +22,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Interlinear & Strong's](features/interlinear-strongs.md) | Greek/Hebrew interlinear display and Strong's dictionary lookups (child of Bible Pane) |
 | [Commentary](features/commentary.md) | Commentary pane with multi-tab support, pin/unpin, and reference auto-linking |
 | [Search](features/search.md) | Keyword and semantic search with results panel |
+| [Presenter](features/presenter.md) | Full-page Presenter (Notes / Control / Preview), notes smart parsing, command box, simple viewer, phone layout, joining |
 | [Settings & Appearance](features/settings.md) | Theme, font, and display settings with localStorage persistence |
 | [Navigation & Layout](features/navigation-layout.md) | Header, URL hash routing, history, resizable panes, keyboard shortcuts |
 | [Copy & Export](features/copy-export.md) | Verse copying with multiple format options |

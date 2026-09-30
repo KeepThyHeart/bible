@@ -43,6 +43,16 @@
     font-weight: 600;
   }
 
+  // A session is live whether or not this tab is the one selected -- the
+  // point of the dot is that a presenter reading on another tab still sees it.
+  &__live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e0453c;
+    flex-shrink: 0;
+  }
+
   &__collapse {
     background: none;
     border: none;

@@ -12,6 +12,7 @@ import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { PresentBar } from './components/Present/PresentBar';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -76,10 +77,10 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     shared.setCopyOpen,
   );
 
-  // The Search tab exists only while a search is open, and `pane:show` lets a
-  // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has
-  // a tab for, rather than rendering a right pane with nothing highlighted and
-  // no content — which is what made a remembered Search pane look broken.
+  // The Search tab exists only while a search is open; `pane:show` lets a
+  // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
+  // than rendering a right pane with nothing highlighted and no content —
+  // which is what made a remembered Search pane look broken.
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
     : shared.rightPaneMode === 'timeline' && !showTimeline
@@ -218,6 +219,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           </div>
         )}
       </div>
+      {/* Study's companion strip while a session is live; also owns the presenter shortcuts. */}
+      <PresentBar />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}

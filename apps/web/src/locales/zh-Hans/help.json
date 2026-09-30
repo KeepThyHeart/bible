@@ -63,5 +63,71 @@
     "title": "设置",
     "descMobile": "点击齿轮图标，可自定义主题、字体和离线设置。",
     "descDesktop": "点击齿轮图标，可自定义主题、字体族、字号、行高和离线模式设置。"
+  },
+  "present": {
+    "title": "演示台帮助",
+    "close": "关闭",
+    "joining": {
+      "title": "加入",
+      "share": "开始直播后，分享加入代码、链接或二维码，电视或手机即可同步观看。",
+      "handoff": "<strong>将控制权转移到其他设备</strong>会把主讲人角色交给手机。在会话结束前，这一操作无法撤回，请只交给您信任的人。",
+      "lock": "<strong>锁定加入</strong>可阻止新的屏幕加入，不会影响已在观看的屏幕。"
+    },
+    "tab": {
+      "notes": "备注",
+      "control": "控制",
+      "preview": "预览",
+      "command": "命令框",
+      "simple": "简易视图",
+      "joining": "加入",
+      "study": "从研经使用"
+    },
+    "notes": {
+      "title": "备注",
+      "references": "在备注的任何位置输入经文引用（<strong>约 3:16</strong>、<strong>罗 8:28-30</strong>），每一处都会成为计划中的一项。",
+      "hymns": "按 <strong>诗歌 460</strong> 或 <strong>诗歌 奇异恩典</strong> 的形式输入诗歌，还可指定节数（<strong>诗歌 460 1,3,R</strong>）。",
+      "quotes": "把引文放进引用块。它会作为独立的一项显示，与您的正文区分开。",
+      "highlight": "在经文下方把文字设为<strong>粗体</strong>，即可标记要高亮的词句。匹配的粗体短语会带有淡黄色下划线；在您点出之前不会显示在屏幕上。",
+      "play": "左侧边栏中的绿色 <strong>&#9654;</strong> 标记屏幕上正在显示的内容，并跟随您最后一次点击。点击计划中的某一项即可显示。",
+      "ctrlEnter": "光标位于经文引用、诗歌或引文中时，按 <strong>Ctrl+Enter</strong> 即可显示。",
+      "amber": "琥珀色的项目需要您做出选择（未知的诗歌、含糊的经文引用）。将鼠标悬停可查看原因，点击即可选择。"
+    },
+    "control": {
+      "title": "控制",
+      "transport": "三个按钮分别是<strong>上一项</strong>、<strong>显示 / 隐藏</strong>（眼睛按钮可让屏幕黑屏而不丢失当前位置）和<strong>下一项</strong>。方向键、Page Up/Down 和遥控器的作用相同；<strong>.</strong> 或 <strong>B</strong> 可黑屏。",
+      "pickers": "<strong>经文</strong>、<strong>诗歌</strong>和<strong>引文</strong>会打开选择器：<em>立即显示</em>把它显示到屏幕上，<em>添加到备注</em>则把它写入您的备注。",
+      "chips": "当屏幕上的经文带有来自备注的高亮时，它们会显示为标签。<strong>点击标签</strong>或按 <strong>H</strong> 可显示下一个；按 <strong>X</strong> 清除。",
+      "keys": "<strong>N</strong> / <strong>Shift+N</strong> 显示计划中的下一项 / 上一项。<strong>?</strong> 打开本帮助；<strong>/</strong> 或 <strong>Ctrl+K</strong> 跳到命令框。在备注或输入框中打字时，这些按键不起作用。",
+      "prepare": "开始直播前就可以准备：预览使用的是离线副本。<strong>开始直播</strong>会从您当前的位置开始真正的会话。"
+    },
+    "preview": {
+      "title": "预览",
+      "what": "预览就是真实屏幕的缩小版。您看到的，就是会场看到的。",
+      "dblclick": "<strong>双击</strong>某个词（或拖选多个词）即可高亮；点击高亮可将其移除。",
+      "clickVerse": "点击相邻的经文，屏幕就会跳到那里。",
+      "presenterOnly": "这些手势只在演示台的预览中有效，在会场的屏幕上无效。"
+    },
+    "command": {
+      "title": "命令框",
+      "verse": "<strong>18</strong>、<strong>v18</strong> 或 <strong>18-20</strong> 跳到当前章中的某节。",
+      "passage": "<strong>约 3:16</strong>、<strong>诗 23 和合本</strong>、<strong>罗 8</strong>：书卷、章和节，可附带译本。",
+      "hymn": "<strong>诗歌 460</strong>、<strong>诗歌 奇异恩典</strong>、<strong>诗歌 460 1-3</strong>。",
+      "blank": "<strong>blank</strong> 让屏幕黑屏；<strong>.</strong> 或 <strong>clear</strong> 清除高亮；<strong>?</strong> 打开帮助。",
+      "search": "其他任何输入都视为搜索。结果显示在“控制”窗格中，可将其添加到备注或直接显示。",
+      "open": "按 <strong>/</strong> 或 <strong>Ctrl+K</strong> 聚焦命令框。上、下键可调出之前的命令。"
+    },
+    "simple": {
+      "title": "简易视图",
+      "what": "一块由您自己操控的屏幕，无需会话、加入代码或备注：可在投影仪或第二个窗口中打开。",
+      "open": "从“控制”菜单打开（<strong>打开简易视图</strong>），或访问 <strong>/present/solo</strong>。",
+      "prompt": "按 <strong>/</strong>，或点击底部的小 <strong>/</strong>，即可跳到某节。方向键和 <strong>.</strong> 的作用与演示台相同。",
+      "noSearch": "简易视图中无法使用搜索。"
+    },
+    "study": {
+      "title": "从研经窗格演示",
+      "send": "在圣经窗格中，每节左侧的圆形按钮会把该节<strong>发送</strong>到屏幕。绿色对勾（以及绿色的行）标记当前屏幕上的经文。<strong>Alt+Enter</strong> 发送所选的节。",
+      "highlight": "要高亮一个短语，请<strong>按住</strong>某个词约半秒，然后<strong>点按短语的最后一个词</strong>。<strong>发送高亮</strong>会把它显示到屏幕上；<strong>清除</strong>或 <strong>Esc</strong> 可将其移除。",
+      "companion": "底部的条栏显示屏幕上的内容，并带有上一项、下一项和黑屏按钮。点击<strong>打开演示台</strong>即可进入完整的演示台（备注、计划和预览）；返回后演示台仍在运行。"
+    }
   }
 }

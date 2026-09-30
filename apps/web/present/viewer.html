@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- `viewport-fit=cover` so the page owns the whole panel; the overscan margin
+       below is what keeps text off the bezel, not the browser's safe area. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <title>Projection</title>
+  <!--
+    A separate entry point from the reading app, and deliberately a bare one.
+
+    This page runs on whatever machine is plugged into the television, which is
+    routinely the oldest computer in the building, and it must be on screen
+    before a service starts. So it loads no reader, no stores, no plugin host,
+    no service worker, no icon font and no boot-loop machinery -- none of which
+    it could use. What it renders is Scripture at a readable size and nothing
+    else: no chrome, no controls, no error text. A stack trace on a wall in
+    front of a congregation is worse than a stale verse.
+
+    The reading font is loaded from the self-hosted stylesheet the rest of the
+    app uses (scripts/fetch-fonts.mjs), so this page and the reader render the
+    same typefaces.
+  -->
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <script>
+    /*
+     * Paint the background before the bundle runs.
+     *
+     * The session's theme arrives over the network, so it cannot be known here.
+     * What can be known is that a white flash on a projector between page load
+     * and first state is far more noticeable than a dark one, and that a viewer
+     * usually re-opens into the theme it last used.
+     */
+    (function applyLastTheme() {
+      var theme = 'dark';
+      try { theme = localStorage.getItem('present-viewer-theme') || 'dark'; } catch (e) { /* private mode */ }
+      document.documentElement.setAttribute('data-present-theme', theme === 'light' ? 'light' : 'dark');
+    })();
+  </script>
+</head>
+<body>
+  <div id="present-viewer"></div>
+  <script type="module" src="/src/present/viewer.tsx"></script>
+</body>
+</html>
