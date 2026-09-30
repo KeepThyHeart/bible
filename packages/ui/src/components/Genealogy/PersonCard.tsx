@@ -108,6 +108,11 @@ export interface PersonCardProps {
 
 interface Row { edge: GenealogyEdgeDto; other: GenealogyPersonDto | undefined; relation: string }
 
+/** Dataset values are lower-case keys ("judah", "moab"): show them as names. */
+function titleCase(v: string): string {
+  return v.replace(/(^|[\s_-])([a-z])/g, (_m, sep: string, c: string) => `${sep === '_' ? ' ' : sep}${c.toUpperCase()}`);
+}
+
 export function PersonCard({
   graph, personId, formatVerse = String, readings, labels: labelOverrides, sheet = false,
   onOpenVerse, onFocusPerson, onSelectReading, onClose,
@@ -147,8 +152,8 @@ export function PersonCard({
   const facts: Array<[string, string]> = [];
   if (person.sex) facts.push([person.sex === 'male' ? labels.male : labels.female, '']);
   else if (person.kind === 'group') facts.push([labels.group, '']);
-  if (person.tribe) facts.push([labels.tribe, person.tribe]);
-  if (person.nation) facts.push([labels.nation, person.nation]);
+  if (person.tribe) facts.push([labels.tribe, titleCase(person.tribe)]);
+  if (person.nation) facts.push([labels.nation, titleCase(person.nation)]);
   if (person.roles?.length) facts.push([labels.roles, person.roles.join(', ')]);
   if (person.aliases?.length) facts.push([labels.aliases, person.aliases.join(', ')]);
 
@@ -191,7 +196,7 @@ export function PersonCard({
               <li key={edge.id} className="kth-genealogy-card__row" data-edge-id={edge.id}>
                 <span className="kth-genealogy-card__relation">{relation}</span>{' '}
                 {other ? (
-                  <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" onClick={() => onFocusPerson?.(other.id)}>{other.name}</button>
+                  <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm kth-genealogy-card__link" onClick={() => onFocusPerson?.(other.id)}>{other.name}</button>
                 ) : null}
                 {qualifier(edge) && <span className="kth-genealogy-card__qualifier"> ({qualifier(edge)})</span>}
                 {edge.confidence ? (
@@ -234,7 +239,7 @@ export function PersonCard({
           <ul className="kth-genealogy-card__list">
             {namesakes.map((n) => (
               <li key={n.id}>
-                <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" onClick={() => onFocusPerson?.(n.id)}>{n.name}</button>
+                <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm kth-genealogy-card__link" onClick={() => onFocusPerson?.(n.id)}>{n.name}</button>
                 {n.firstRef !== undefined && <span className="kth-genealogy-card__ref"> {formatVerse(n.firstRef)}</span>}
               </li>
             ))}

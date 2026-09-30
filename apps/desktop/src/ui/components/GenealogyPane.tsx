@@ -80,6 +80,13 @@ const GenealogyPane: React.FC<GenealogyPaneProps> = ({ panelId }) => {
     tribes: t('genealogyPane.tribes'),
     highlight: t('genealogyPane.highlight'),
     showDisputed: t('genealogyPane.showDisputed'),
+    fullscreen: t('genealogyPane.fullscreen'),
+    exitFullscreen: t('genealogyPane.exitFullscreen'),
+    key: t('genealogyPane.key'),
+    showDisputedHint: t('genealogyPane.showDisputedHint'),
+    hintLine: t('genealogyPane.hintLine'),
+    hintFamily: t('genealogyPane.hintFamily'),
+    hintTribes: t('genealogyPane.hintTribes'),
   }), [t]);
 
   if (load.status === 'loading') {

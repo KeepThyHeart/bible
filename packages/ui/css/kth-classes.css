@@ -685,6 +685,20 @@
 }
 .kth-genealogy-explorer__bar { padding-inline: var(--kth-space-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
 .kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__fullscreen { margin-inline-start: auto; }
+.kth-genealogy-explorer--full {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  inline-size: auto;
+  block-size: auto;
+  padding-block: var(--kth-space-2);
+  background: var(--kth-bg);
+}
+.kth-genealogy-explorer__hint { margin: 0; padding-inline: var(--kth-space-3); color: var(--kth-text-muted); font-size: 0.9em; }
+.kth-genealogy-explorer > .kth-genealogy-key { margin-inline: var(--kth-space-3); margin-block: 0; }
+.kth-genealogy-key__swatch { margin-inline-end: var(--kth-space-1); flex: none; }
+.kth-genealogy-card__link { color: var(--kth-accent); text-decoration: underline; }
 .kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
 .kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }
 .kth-genealogy-explorer__main { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; }

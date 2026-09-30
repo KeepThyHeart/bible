@@ -17,6 +17,8 @@ import { PersonCard } from './PersonCard';
 import type { PersonCardLabels } from './PersonCard';
 import { PersonSearch } from './PersonSearch';
 import type { PersonSearchLabels } from './PersonSearch';
+import { KeyLegend } from './KeyLegend';
+import type { KeyLegendLabels } from './KeyLegend';
 import { TribeLegend } from './TribeLegend';
 import type { TribeLegendLabels } from './TribeLegend';
 import { cx } from './util';
@@ -28,10 +30,18 @@ export interface GenealogyExplorerLabels {
   tribes: string;
   highlight: string;
   showDisputed: string;
+  fullscreen: string;
+  exitFullscreen: string;
   view: Partial<GenealogyViewLabels>;
   card: Partial<PersonCardLabels>;
   search: Partial<PersonSearchLabels>;
   legend: Partial<TribeLegendLabels>;
+  key: string;
+  keyLegend: Partial<KeyLegendLabels>;
+  showDisputedHint: string;
+  hintLine: string;
+  hintFamily: string;
+  hintTribes: string;
 }
 
 export const DEFAULT_GENEALOGY_EXPLORER_LABELS: GenealogyExplorerLabels = {
@@ -39,12 +49,20 @@ export const DEFAULT_GENEALOGY_EXPLORER_LABELS: GenealogyExplorerLabels = {
   line: 'Line to Christ',
   family: 'Family',
   tribes: 'Tribes',
-  highlight: 'Highlight the line to Christ',
+  highlight: "Fade people not on Christ's line",
   showDisputed: 'Show disputed links',
+  fullscreen: 'Full screen',
+  exitFullscreen: 'Exit full screen',
   view: {},
   card: {},
   search: {},
   legend: {},
+  key: 'Key',
+  keyLegend: {},
+  showDisputedHint: 'Also draw links that Bible scholars dispute (dotted lines)',
+  hintLine: 'One line of fathers from Adam to Jesus, as listed in Genesis, Chronicles, Matthew and Luke. Click a name for details.',
+  hintFamily: 'The parents, wives and children of one person. Search for anyone, or click a name and choose Show family tree.',
+  hintTribes: 'The twelve sons of Jacob (Israel), grouped by their mothers. Click a name for details.',
 };
 
 export interface GenealogyExplorerProps {
@@ -93,12 +111,23 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
   }, [compact]);
   const isCompact = compact ?? narrow;
 
+  // Full screen: the explorer covers the viewport (CSS `position: fixed`); Escape leaves it. Self-contained
+  // on purpose (no Fullscreen API, no app hooks) so it is easy to unify with the other full-screen options later.
+  const [full, setFull] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  useEffect(() => {
+    if (!full) return undefined;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [full]);
+
   const tabLabel: Record<GenealogyViewKind, string> = { line: labels.line, family: labels.family, tribes: labels.tribes };
   const select = (id: string) => store.setState((s) => ({ ...s, selectedId: id }));
   const selected = state.selectedId && effective.has(state.selectedId) ? state.selectedId : null;
 
   return (
-    <div ref={rootRef} className={cx('kth-genealogy-explorer', isCompact && 'kth-genealogy-explorer--compact')}>
+    <div ref={rootRef} className={cx('kth-genealogy-explorer', isCompact && 'kth-genealogy-explorer--compact', full && 'kth-genealogy-explorer--full')}>
       <div className="kth-genealogy-explorer__bar">
         <div role="tablist" aria-label={labels.tabs} className="kth-genealogy-explorer__tabs">
           {TABS.map((t) => (
@@ -119,7 +148,7 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
             onChange={(e) => store.setState((s) => ({ ...s, highlightLineToChrist: e.currentTarget.checked }))} />{' '}
           {labels.highlight}
         </label>
-        <label className="kth-genealogy-explorer__toggle">
+        <label className="kth-genealogy-explorer__toggle" title={labels.showDisputedHint}>
           <input type="checkbox" checked={state.showDisputed}
             onChange={(e) => store.setState((s) => ({ ...s, showDisputed: e.currentTarget.checked }))} />{' '}
           {labels.showDisputed}
@@ -130,9 +159,25 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
           labels={labels.search}
           onPick={(id) => (layout.nodes.some((n) => n.personId === id) ? select(id) : focusPerson(store, id))}
         />
+        <button type="button" className={cx('kth-btn kth-btn--sm kth-genealogy-explorer__key', showKey && 'kth-btn--primary')}
+          aria-pressed={showKey} onClick={() => setShowKey((v) => !v)}>{labels.key}</button>
+        <button
+          type="button"
+          className="kth-btn kth-btn--sm kth-genealogy-explorer__fullscreen"
+          aria-pressed={full}
+          title={full ? labels.exitFullscreen : labels.fullscreen}
+          onClick={() => setFull((f) => !f)}
+        >
+          {full ? labels.exitFullscreen : labels.fullscreen}
+        </button>
       </div>
+      <p className="kth-genealogy-explorer__hint">
+        {state.view === 'line' ? labels.hintLine : state.view === 'family' ? labels.hintFamily : labels.hintTribes}
+      </p>
+      {showKey && <KeyLegend labels={labels.keyLegend} />}
       <div className={cx('kth-genealogy-explorer__body', isCompact && 'kth-genealogy-explorer__body--compact')}>
         <div className="kth-genealogy-explorer__main">
+          {state.view === 'tribes' && <TribeLegend labels={labels.legend} />}
           <GenealogyView
             layout={layout}
             selectedId={selected}
@@ -141,7 +186,6 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
             onSelect={select}
             onFocusPerson={(id) => focusPerson(store, id)}
           />
-          {state.view === 'tribes' && <TribeLegend labels={labels.legend} />}
         </div>
         {selected && (
           <PersonCard

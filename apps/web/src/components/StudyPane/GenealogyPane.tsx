@@ -96,6 +96,13 @@ export function GenealogyPane({ provider, focus, compact, onOpenVerse }: Genealo
     tribes: t('genealogyPane.tribes'),
     highlight: t('genealogyPane.highlight'),
     showDisputed: t('genealogyPane.showDisputed'),
+    fullscreen: t('genealogyPane.fullscreen'),
+    exitFullscreen: t('genealogyPane.exitFullscreen'),
+    key: t('genealogyPane.key'),
+    showDisputedHint: t('genealogyPane.showDisputedHint'),
+    hintLine: t('genealogyPane.hintLine'),
+    hintFamily: t('genealogyPane.hintFamily'),
+    hintTribes: t('genealogyPane.hintTribes'),
   };
 
   return (

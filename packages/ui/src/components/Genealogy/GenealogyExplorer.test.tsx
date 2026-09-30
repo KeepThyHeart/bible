@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createGenealogyStore } from '@bible/core/browser';
 import type { GenealogyGraph, GenealogyState } from '@bible/core/browser';
@@ -18,11 +18,39 @@ describe('GenealogyExplorer', () => {
     setup();
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Line to Christ', 'Family', 'Tribes']);
     expect(screen.getByRole('tab', { name: 'Line to Christ' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByLabelText('Highlight the line to Christ')).toBeChecked();
+    expect(screen.getByLabelText('Fade people not on Christ\'s line')).toBeChecked();
     expect(screen.getByLabelText('Show disputed links')).not.toBeChecked();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.getAllByRole('graphics-symbol')).toHaveLength(5);
     expect(screen.queryByRole('complementary')).toBeNull();
+  });
+
+  it('full screen toggles a class and Escape leaves it', async () => {
+    const { container, user } = setup();
+    const root = container.firstElementChild!;
+    await user.click(screen.getByRole('button', { name: 'Full screen' }));
+    expect(root).toHaveClass('kth-genealogy-explorer--full');
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toHaveAttribute('aria-pressed', 'true');
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(root).not.toHaveClass('kth-genealogy-explorer--full'));
+  });
+
+  it('shows a one-line hint per view and a Key that opens on demand', async () => {
+    const { user } = setup();
+    expect(screen.getByText(/One line of fathers from Adam to Jesus/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Key' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Key' }));
+    expect(await screen.findByRole('region', { name: 'Key' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Family' }));
+    expect(await screen.findByText(/parents, wives and children/)).toBeInTheDocument();
+  });
+
+  it('does not dim the selected person', async () => {
+    const { user } = setup();
+    await user.click(document.querySelector('[data-node-id="isaac"]')!);
+    await waitFor(() => expect(document.querySelector('[data-node-id="isaac"]')).toHaveClass('kth-genealogy-node--selected'));
+    expect(document.querySelector('[data-node-id="isaac"]')).not.toHaveClass('kth-genealogy-node--dim');
   });
 
   it('switches view through the store and recomputes the layout', async () => {
@@ -40,7 +68,7 @@ describe('GenealogyExplorer', () => {
     await user.click(screen.getByLabelText('Show disputed links'));
     expect(store.getSnapshot().showDisputed).toBe(true);
     expect(computeLayout.mock.calls.at(-1)![0].options.showDisputed).toBe(true);
-    await user.click(screen.getByLabelText('Highlight the line to Christ'));
+    await user.click(screen.getByLabelText('Fade people not on Christ\'s line'));
     expect(store.getSnapshot().highlightLineToChrist).toBe(false);
   });
 

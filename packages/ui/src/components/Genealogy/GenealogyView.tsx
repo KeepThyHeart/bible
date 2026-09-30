@@ -241,6 +241,16 @@ export function GenealogyView({
     for (const [id, el] of nodeRefs.current) el.setAttribute('tabindex', id === activeId ? '0' : '-1');
   });
 
+  // A search or link that selects someone off screen brings them into view (a click never needs this).
+  useEffect(() => {
+    if (!selectedId) return;
+    const n = nodes.find((x) => x.personId === selectedId);
+    if (!n) return;
+    const s = toPanZoom(vpRef.current).toScreen(n.x, n.y);
+    const { w, h } = sizeRef.current;
+    if (s.x < 0 || s.y < 0 || s.x > w || s.y > h) update((p) => p.centerOn(n.x, n.y, w, h));
+  }, [selectedId]);
+
   const focusNode = (id: string) => {
     setRovingId(id);
     nodeRefs.current.get(id)?.focus?.();
@@ -330,7 +340,7 @@ export function GenealogyView({
                     n.flags.onLineToChrist && 'kth-genealogy-node--christ',
                     n.flags.oneTextOnly && 'kth-genealogy-node--one-text',
                     n.flags.disputed && 'kth-genealogy-node--disputed',
-                    highlight && !n.flags.onLineToChrist && 'kth-genealogy-node--dim',
+                    highlight && !n.flags.onLineToChrist && !isSel && !n.flags.focus && 'kth-genealogy-node--dim',
                   )}
                   data-node-id={n.id}
                   data-person-id={n.personId}

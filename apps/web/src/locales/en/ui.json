@@ -550,8 +550,15 @@
     "line": "Line to Christ",
     "family": "Family",
     "tribes": "Tribes",
-    "highlight": "Highlight the line to Christ",
-    "showDisputed": "Show disputed links"
+    "highlight": "Fade people not on Christ's line",
+    "showDisputed": "Show disputed links",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "key": "Key",
+    "showDisputedHint": "Also draw links that Bible scholars dispute (dotted lines)",
+    "hintLine": "One line of fathers from Adam to Jesus, as listed in Genesis, Chronicles, Matthew and Luke. Click a name for details.",
+    "hintFamily": "The parents, wives and children of one person. Search for anyone, or click a name and choose Show family tree.",
+    "hintTribes": "The twelve sons of Jacob (Israel), grouped by their mothers. Click a name for details."
   },
   "topicsBrowser": {
     "searchAll": "Search All Topics",
