@@ -159,12 +159,14 @@ describe('desktop transport bar', () => {
     await waitFor(() => expect(screen.queryByTestId('audio-quick-settings')).toBeNull());
   });
 
-  it('keeps the speed on the bar and steps it', async () => {
+  it('keeps the speed on the bar and picks it from a pop-up', async () => {
     await start();
     render(<AudioTransportBar />);
     await playNow();
     const speed = await screen.findByTestId('audio-speed');
-    fireEvent.click(within(speed).getByLabelText('audio.speed.faster'));
+    fireEvent.click(within(speed).getByTestId('audio-speed-button'));
+    const opt = (await screen.findAllByRole('option')).find(o => o.textContent === '1.25×')!;
+    fireEvent.click(opt);
     expect(audioStore.prefs.rate).toBe(1.25);
   });
 

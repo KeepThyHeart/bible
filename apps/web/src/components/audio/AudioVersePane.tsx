@@ -10,7 +10,7 @@ import { useNowPlaying } from '../../hooks/useNowPlaying';
 import { useUserScrollIntent } from '../../hooks/useUserScrollIntent';
 import { USER_SCROLL_PAUSE_MS } from '../../hooks/useFollowScroll';
 import { VerseRenderer } from '../BiblePane/VerseRenderer';
-import { centreTarget } from './centreScroll';
+import { ANCHOR, centreTarget, endPadding } from './centreScroll';
 
 const RETRY_FRAMES = 12;
 
@@ -39,6 +39,10 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState<number | null>(null);
   const [showBack, setShowBack] = useState(false);
+  const anchor = ANCHOR[variant];
+  // Spacers at both ends of the list, sized from the pane, so the first and last verses can sit on the anchor line.
+  const [pad, setPad] = useState({ top: 0, bottom: 0 });
+  const padRef = useRef(pad);
   const intent = useUserScrollIntent({ getScrollElement: () => scrollerRef.current, keysFromDocument: false, now });
 
   const { tab, book, chapter } = np;
@@ -83,7 +87,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
     const v = el.getBoundingClientRect();
     const top = centreTarget({
       scrollTop: scroller.scrollTop, scrollerTop: s.top, clientHeight: scroller.clientHeight,
-      verseTop: v.top, verseHeight: v.height, scrollHeight: scroller.scrollHeight,
+      verseTop: v.top, verseHeight: v.height, scrollHeight: scroller.scrollHeight, anchor,
     });
     scroller.scrollTo({ top, behavior: behavior === 'smooth' && reducedMotion() ? 'auto' : behavior });
   };
@@ -138,14 +142,33 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   // The pane resized (pop-up, rotation): re-centre instantly.
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
+    if (!el) return;
+    const measure = () => {
+      const p = endPadding(el.clientHeight, anchor);
+      const last = padRef.current;
+      if (last.top === p.top && last.bottom === p.bottom) return false;
+      padRef.current = p;
+      setPad(p);
+      return true;
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
+      if (measure()) return; // the spacers changed: the effect below re-centres once they are drawn
       const id = live.current.playingId;
       if (id !== null && live.current.ready && !paused()) centre(id, 'auto');
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [ready]);
+
+  // The spacers changed the scrollable range: land the verse being read on the anchor line again.
+  useEffect(() => {
+    const id = live.current.playingId;
+    if (id === null || !live.current.ready || paused()) return;
+    if (centredKey.current !== `${Math.floor(id / 1_000_000)}:${Math.floor(id / 1_000) % 1_000}`) return; // the chapter turn lands it
+    centre(id, 'auto');
+  }, [pad.top, pad.bottom]);
 
   const jumpTo = (id: number) => {
     intent.clear();
@@ -223,6 +246,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
         style={{ fontFamily, lineHeight, fontSize: `${size}px` }}
         onKeyDown={onKeyDown}
       >
+        {ready && <div class="audio-verses__spacer" aria-hidden="true" style={{ blockSize: `${pad.top}px` }} />}
         {ready ? verses.map(v => (
           <div
             key={v.verse_id}
@@ -244,6 +268,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
         )) : (
           <div class="audio-verses__spinner" role="status" aria-live="off"><i class="fa-solid fa-spinner fa-spin" /></div>
         )}
+        {ready && <div class="audio-verses__spacer" aria-hidden="true" style={{ blockSize: `${pad.bottom}px` }} />}
       </div>
       {(showBack || showReadFrom) && (
         <div class="audio-verses__pills">

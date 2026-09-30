@@ -69,6 +69,33 @@ describe('AudioVersePane', () => {
     expect(listbox().getAttribute('aria-activedescendant')).toBe(`audio-v-${V(2)}`);
   });
 
+  it('pads both ends so the first and last verses can reach the anchor line', async () => {
+    pane();
+    await settle();
+    const spacers = Array.from(document.querySelectorAll<HTMLElement>('.audio-verses__spacer'));
+    expect(spacers.map(e => e.style.blockSize)).toEqual(['132px', '268px']); // 0.33 and 0.67 of the 400px pane
+    expect(listbox().firstElementChild).toBe(spacers[0]);
+    expect(listbox().lastElementChild).toBe(spacers[1]);
+    expect(spacers.every(e => e.getAttribute('aria-hidden') === 'true')).toBe(true);
+  });
+
+  it('centres on the phone and sits a third down in the pop-up', async () => {
+    const { unmount } = pane();
+    await settle();
+    act(() => { audioStore.follow.set(tabId, V(5)); });
+    await settle();
+    const popupTop = lastCall().top;
+    unmount();
+    scrollTo.mockClear();
+    render(<AudioVersePane variant="phone" now={() => clock} />);
+    await settle();
+    expect(listbox().parentElement!.classList.contains('audio-verses-wrap--phone')).toBe(true);
+    expect(document.querySelectorAll<HTMLElement>('.audio-verses__spacer')[0].style.blockSize).toBe('200px');
+    // Same verse geometry: the phone's anchor line is lower, so it scrolls less than the pop-up.
+    expect(popupTop).toBe(200 - (0.33 * 400 - 20));
+    expect(lastCall().top).toBe(200 - (0.5 * 400 - 20)); // verse 5 is still the one read, so the phone lands it on the middle
+  });
+
   it('follows the reading verse with a smooth scrollTo on the pane only', async () => {
     pane();
     await settle();

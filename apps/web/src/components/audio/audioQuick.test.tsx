@@ -10,6 +10,11 @@ vi.mock('react-i18next', async importOriginal => ({
   }),
 }));
 
+// The real Popover pulls in preact/compat, which breaks change events on the plain selects tested here.
+vi.mock('@bible/ui', () => ({
+  Popover: ({ open, children }: { open: boolean; children: preact.ComponentChildren }) => (open ? <div role="dialog">{children}</div> : null),
+}));
+
 import { audioStore } from '../../stores/audioStore';
 import { buildUiRig, flush, openChapter } from '../../audio/uiRig';
 import type { UiRig } from '../../audio/uiRig';
@@ -126,30 +131,58 @@ describe('AudioSpeedControl', () => {
   it('is disabled while nothing plays (no speed range)', async () => {
     await start({ recordings: true });
     render(<AudioSpeedControl />);
-    expect((screen.getByLabelText('audio.speed.slower') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByLabelText('audio.speed.faster') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('audio-speed-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('steps through presets, disables at the bounds and resets to 1x', async () => {
+  it('shows the rate, opens a list of presets and picks one', async () => {
     await start({ recordings: true });
     const p = audioStore.play();
     await flush();
     await p;
     await flush();
     render(<AudioSpeedControl large />);
-    const slower = screen.getByLabelText('audio.speed.slower') as HTMLButtonElement;
-    const faster = screen.getByLabelText('audio.speed.faster') as HTMLButtonElement;
-    expect(screen.getByRole('group').getAttribute('aria-label')).toBe('audio.speed.label');
-    expect(screen.getByRole('group').className).toContain('audio-speed--large');
-    fireEvent.click(faster);
-    await waitFor(() => expect(audioStore.prefs.rate).toBe(1.25));
-    audioStore.setPrefs({ rate: 2 });
-    await waitFor(() => expect(faster.disabled).toBe(true));
-    audioStore.setPrefs({ rate: 0.5 });
-    await waitFor(() => expect(slower.disabled).toBe(true));
-    fireEvent.click(screen.getByTitle('audio.speed.reset'));
-    await waitFor(() => expect(audioStore.prefs.rate).toBe(1));
-    expect(slower.disabled).toBe(false);
+    expect(screen.getByTestId('audio-speed').className).toContain('audio-speed--large');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    const btn = screen.getByTestId('audio-speed-button');
+    expect(btn.textContent).toBe('1.0×');
+    expect(screen.queryByLabelText('audio.speed.slower')).toBeNull(); // no +/- steppers
+    fireEvent.click(btn);
+    const list = await screen.findByRole('listbox');
+    const opts = Array.from(list.querySelectorAll('[role="option"]')).map(o => o.textContent);
+    expect(opts).toEqual(['0.5×', '0.75×', '1.0×', '1.25×', '1.5×', '1.75×', '2.0×']);
+    expect(list.querySelector('[aria-selected="true"]')?.textContent).toBe('1.0×');
+    fireEvent.click(Array.from(list.querySelectorAll('[role="option"]')).find(o => o.textContent === '1.5×')!);
+    await waitFor(() => expect(audioStore.prefs.rate).toBe(1.5));
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    expect(screen.getByTestId('audio-speed-button').textContent).toBe('1.5×');
+  });
+});
+
+describe('AudioSpeedControl keyboard', () => {
+  it('moves through the speeds with the arrow keys and closes on Escape without the event reaching the window', async () => {
+    await start({ recordings: true });
+    const p = audioStore.play();
+    await flush();
+    await p;
+    await flush();
+    const onWindowKey = vi.fn();
+    window.addEventListener('keydown', onWindowKey);
+    render(<AudioSpeedControl />);
+    fireEvent.click(screen.getByTestId('audio-speed-button'));
+    const list = await screen.findByRole('listbox');
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('1.0×'));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement?.textContent).toBe('1.25×');
+    fireEvent.keyDown(document.activeElement!, { key: 'End' });
+    expect(document.activeElement?.textContent).toBe('2.0×');
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' });
+    expect(document.activeElement?.textContent).toBe('0.5×');
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    expect(list.isConnected).toBe(false);
+    expect(onWindowKey.mock.calls.filter(([e]) => (e as KeyboardEvent).key === 'Escape')).toHaveLength(0);
+    expect(document.activeElement).toBe(screen.getByTestId('audio-speed-button'));
+    window.removeEventListener('keydown', onWindowKey);
   });
 });
 
