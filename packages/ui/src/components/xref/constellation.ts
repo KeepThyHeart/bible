@@ -109,7 +109,7 @@ export function constellationLayout(
 ): StarLayout {
   const cx = width / 2;
   const cy = height / 2;
-  const ringRadius = Math.max(60, Math.min(height / 2 - margin, width / 2 - 44));
+  const ringRadius = Math.max(60, Math.min(height / 2 - margin, width / 2 - 96));
   const stretch = Math.max(1, Math.min(2, (width / 2 - margin - 70) / ringRadius));
   const maxHop = Math.min(3, Math.max(1, ...graph.nodes.map((n) => n.hop)));
   const fractions = RING_FRACTIONS[maxHop];
@@ -145,7 +145,7 @@ export function constellationLayout(
   for (let hop = 1; hop <= maxHop; hop++) {
     const ring = stars.filter((s) => s.hop === hop).sort((a, b) => a.position - b.position || a.id - b.id);
     const base = hopRadii[Math.min(hop, hopRadii.length - 1)];
-    const step = Math.min(13, Math.max(8, ringRadius * 0.04));
+    const step = 14;
     let level = 0;
     let prevAngle = -Infinity;
     for (const s of ring) {

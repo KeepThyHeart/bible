@@ -436,7 +436,7 @@ export function XrefConstellationView({
                 const side = s.labelSide ?? (activeId === s.id ? (Math.cos(s.angle) >= 0 ? 'start' : 'end') : null);
                 if (!side) return null;
                 return (
-                  <g key={s.id} className="kth-xref-star__labelbox" style={{ transform: `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px)` }}>
+                  <g key={s.id} className={`kth-xref-star__labelbox${activeId !== null && s.id !== activeId && !neighbours.has(s.id) ? ' kth-xref-star__labelbox--dim' : ''}`} style={{ transform: `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px)` }}>
                     <text
                       className="kth-xref-web__label kth-xref-star__label"
                       x={side === 'above' ? 0 : side === 'start' ? s.radius + 5 : -s.radius - 5}

@@ -117,6 +117,10 @@ const XrefGraphDialog: React.FC = () => {
     [setAnchor, setView],
   );
 
+  useEffect(() => {
+    if (phone && full) toggleFull();
+  }, [phone, full, toggleFull]);
+
   if (!isOpen) return null;
 
   const title = translateWithDefault(t, 'xrefGraph.title', 'Cross-reference graph');

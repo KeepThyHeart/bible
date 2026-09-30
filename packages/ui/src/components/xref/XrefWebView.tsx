@@ -707,18 +707,29 @@ export function XrefWebView({
                       r={r}
                       style={{ fill: sectionVar(bookOf(n.id)) }}
                     />
-                    {(n.hop < 2 || isAnchor || near) && (
-                      <text
-                        className="kth-xref-web__label"
-                        y={r + 2 + labelPx}
-                        fontSize={labelPx}
-                        strokeWidth={3 * lScale}
-                        textAnchor="middle"
-                        aria-hidden="true"
-                      >
-                        {truncateLabel(label)}
-                      </text>
-                    )}
+                  </g>
+                );
+              })}
+            </g>
+            {/* Labels last, so no node paints over them; the camera scale keeps their size readable. */}
+            <g pointerEvents="none" aria-hidden="true">
+              {nodes.map((n) => {
+                const isAnchor = n.id === anchor;
+                const near = activeId !== null && (n.id === activeId || activeNeighbours.has(n.id));
+                if (!(n.hop < 2 || isAnchor || near)) return null;
+                const dim = activeId !== null && !near;
+                const r = nodeRadius(n.degree, n.hop);
+                return (
+                  <g key={n.id} transform={`translate(${n.x} ${n.y})`} opacity={dim ? 0.3 : 1}>
+                    <text
+                      className="kth-xref-web__label"
+                      y={r + 2 + labelPx}
+                      fontSize={labelPx}
+                      strokeWidth={3 * lScale}
+                      textAnchor="middle"
+                    >
+                      {truncateLabel(ref(n.id, n.endVerseId))}
+                    </text>
                   </g>
                 );
               })}

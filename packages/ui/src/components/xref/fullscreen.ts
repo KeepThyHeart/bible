@@ -11,6 +11,7 @@ export function useXrefFullscreen(ref: RefObject<HTMLElement | null>): { full: b
   const [full, setFull] = useState(false);
   const native = useRef(false);
   const sawFullscreen = useRef(false);
+  const wantFull = useRef(false);
 
   const toggle = useCallback(() => {
     const next = !full;
@@ -19,10 +20,17 @@ export function useXrefFullscreen(ref: RefObject<HTMLElement | null>): { full: b
     if (next) {
       if (el && typeof el.requestFullscreen === 'function' && !document.fullscreenElement) {
         native.current = true;
-        el.requestFullscreen().catch(() => { native.current = false; /* the full-window style still applies */ });
+        sawFullscreen.current = false;
+        wantFull.current = true;
+        el.requestFullscreen().then(
+          () => { if (!wantFull.current && document.fullscreenElement === el) document.exitFullscreen().catch(() => undefined); },
+          () => { native.current = false; /* the full-window style still applies */ },
+        );
       }
     } else {
+      wantFull.current = false;
       native.current = false;
+      sawFullscreen.current = false;
       // Only leave the fullscreen this element owns.
       if (el && document.fullscreenElement === el) document.exitFullscreen().catch(() => undefined);
     }

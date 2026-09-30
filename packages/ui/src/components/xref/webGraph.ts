@@ -205,7 +205,7 @@ export const MIN_ZOOM = 0.15;
 export const MAX_ZOOM = 6;
 /** Default zoom never goes below 1: the graph is read at full size and panned rather than shrunk. */
 export const FOCUS_MAX_ZOOM = 2.2;
-const FOCUS_GAP = 52;
+const FOCUS_GAP = 30;
 
 export const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k));
 
@@ -222,7 +222,9 @@ export function focusView(nodes: readonly SimNode[], anchorId: VerseId, width: n
   if (near.length > 1) {
     const gaps = near.map((n) => {
       let best = Infinity;
-      for (const m of near) if (m !== n) best = Math.min(best, Math.hypot(n.x - m.x, n.y - m.y));
+      for (const m of near) {
+        if (m !== n) best = Math.min(best, Math.hypot(n.x - m.x, n.y - m.y) - nodeRadius(n.degree, n.hop) - nodeRadius(m.degree, m.hop));
+      }
       return best;
     }).sort((x, y) => x - y);
     const median = gaps[Math.floor(gaps.length / 2)];
@@ -258,7 +260,7 @@ export function zoomAt(view: WebView, factor: number, sx: number, sy: number): W
   return { k, tx: sx - (sx - view.tx) * f, ty: sy - (sy - view.ty) * f };
 }
 
-/** Label size in screen px stays readable: it follows the zoom, but only between 0.6x and 1.6x of its base size. */
+/** Label size in screen px stays readable: it follows the zoom, but only between 0.9x and 1.6x of its base size. */
 export function labelScale(k: number): number {
   return Math.min(1.6, Math.max(0.9, k)) / k;
 }

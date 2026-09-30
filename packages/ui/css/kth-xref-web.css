@@ -65,7 +65,7 @@
   background: var(--kth-bg);
   overflow: hidden;
 }
-.kth-xref-web__svg { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; touch-action: none; }
+.kth-xref-web__svg { overscroll-behavior: contain; position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; touch-action: none; }
 .kth-xref-web__bg { fill: transparent; cursor: grab; }
 .kth-xref-web__bg:active { cursor: grabbing; }
 
