@@ -17,10 +17,18 @@ import { eventBus } from './events/eventBus';
 import { API_BASE } from './utils/apiUrl';
 import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/bootGuard';
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
-import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
-import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
-import { clientPluginManager } from './plugins/pluginManager';
+import { isTagGraphEnabled, pwaFlag, pwaUpdateMode, setClientConfig } from './utils/clientConfig';
+import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
+import { presentStore } from './stores/presentStore';
+import { followStore } from './stores/followStore';
+import { isPresenterHash, PRESENTER_HASH, rememberReaderHash } from './apps/present/route';
+import { setVerseSearchProvider } from './present/command';
+import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from './present/controlLink';
+import { lazyFeature } from '@bible/core/browser';
+import { featureFlags } from './utils/featureFlags';
+import { getAudioConfig } from './audio/config';
 import i18n, { ensureLocaleLoaded } from './i18n';
+
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
 // icons for offline/PWA use. Only the core + solid + regular styles are imported; the
@@ -29,6 +37,11 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import '@fortawesome/fontawesome-free/css/regular.min.css';
 import './styles/main.scss';
+// KTH CSS: `--kth-*` tokens aliased to this app's theme vars, then the opt-in `.kth-*` classes. Never kth-base.css
+// (the app keeps _base.scss). Both come after main.scss so the map sees the theme vars; the classes are
+// single-class and opt-in, so importing them restyles nothing by itself.
+import '@bible/ui/css/generated/map-web.css';
+import '@bible/ui/css/kth.css';
 
 /**
  * Cap how long the boot splash can wait on one request. The chapter fetch is
@@ -40,8 +53,27 @@ function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
   return Promise.race([p, new Promise<void>(resolve => setTimeout(resolve, ms))]);
 }
 
+// The Audio Bible's code loads once, and only while the `audio` flag is on.
+const loadAudio = lazyFeature(featureFlags, 'audio', () => import('./audio/initAudio'));
+
 async function init() {
   const baseUrl = API_BASE;
+
+  // Session mode. A handoff link carries the control token in its fragment, and
+  // it has to come out of the URL before anything else looks at the hash --
+  // `navigateFromHash` below reads the same slot, and a token sitting in a
+  // visible address bar on a laptop that may itself be plugged into a projector
+  // is not where it belongs. Reading it is cheap and returns null on every
+  // ordinary page load.
+  const adoptedSession = takeControlLinkFromUrl();
+
+  // Follow-along mode (`/present/f/<code>`): unlike the control link, the
+  // join code is not a secret -- it is exactly what the QR code and the
+  // viewer link already hand out -- so it stays in the path rather than
+  // being read and scrubbed. `followStore.start` is called after the first
+  // paint, alongside `presentStore.restore` below, for the same reason: the
+  // reading app has to work whether or not this is a follow-along session.
+  const followCode = takeFollowLinkFromUrl();
 
   // Kicked off now, awaited just before the first render (below): `en`'s
   // catalogs are already bundled eagerly (see `i18n.ts`), so this resolves
@@ -55,7 +87,6 @@ async function init() {
   // If the server is unreachable, continue in offline mode.
   let serverOnline = true;
   let serverStaleDays: number | undefined;
-  let pwaEnabled = true;
   // Cache a lite copy of each translation the reader opens. The server can turn
   // this off for a deployment that would rather not push several MB per
   // translation to every visitor.
@@ -116,7 +147,6 @@ async function init() {
     if (typeof cfg.staleDays === 'number') serverStaleDays = cfg.staleDays;
     if (cfg.commentaryPopularity) moduleStore.setServerPopularity(cfg.commentaryPopularity);
     if (cfg.ui) settingsStore.applyServerUiConfig(cfg.ui);
-    if (cfg.pwaEnabled === false) pwaEnabled = false;
     if (cfg.offlineDownloads) settingsStore.setServerOfflineDownloads(true);
     if (cfg.offlineAutoDownload === false) offlineAutoDownload = false;
     if (cfg.search?.semantic) semanticMode = cfg.search.semantic;
@@ -125,11 +155,13 @@ async function init() {
   // Service worker first, so a browser running a stale build starts pulling the
   // new worker before any of the app's own code has a chance to misbehave.
   //
-  // PWA_BUILD_ENABLED is the master switch (ENABLE_PWA at build time); the server
-  // flag can only turn a PWA build off, never turn a plain build on — there is no
-  // sw.js to register in that case, only the self-destroying stub.
-  if (PWA_BUILD_ENABLED && pwaEnabled) registerServiceWorker();
-  else await unregisterServiceWorkers();
+  // `features.pwa` decides: on registers the worker, off tears down any worker an
+  // earlier visit installed. When the server did not answer (offline boot) the
+  // flag is unknown and nothing is touched: unregistering now would remove the
+  // worker that is the reason this page could boot offline at all.
+  const pwa = pwaFlag();
+  if (pwa === true) registerServiceWorker({ updateMode: pwaUpdateMode() });
+  else if (pwa === false) await unregisterServiceWorkers();
 
   // Update check before render: if this bundle is not the build the server is
   // serving, replace it now rather than letting a stale client talk to a newer
@@ -183,10 +215,21 @@ async function init() {
       `${baseUrl}/ort/`,        // self-hosted ONNX Runtime wasm (CSP blocks the jsDelivr default)
     );
     searchStore.init(browserSearch);
+    setVerseSearchProvider(browserSearch);
   } else {
     searchStore.init(providers.search);
+    setVerseSearchProvider(providers.search);
   }
   settingsStore.applyTheme();
+
+  // The Audio Bible. Its code is loaded only when the site turned it on
+  // (the shared `audio` flag): a site that has not never downloads any of it.
+  const audioConfig = getAudioConfig();
+  if (audioConfig) {
+    void loadAudio()
+      .then(m => m?.initAudio(audioConfig, offlineBible))
+      .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
+  }
 
   // Load module manifest — in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.
@@ -206,11 +249,6 @@ async function init() {
   // depends on what this server actually offers.
   commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
 
-  // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
-  clientPluginManager.discover()
-    .then(() => clientPluginManager.activate())
-    .catch(err => console.warn('[Plugins] Client plugin initialization failed:', err));
-
   // Resolve the active tab BEFORE the first paint. This used to run after
   // render(), so a returning user saw the home screen (showHome defaults to
   // true and restoreSession never clears it) painted and then swapped for the
@@ -220,6 +258,11 @@ async function init() {
   // If the active tab already has cached verses from the session, render them
   // immediately without re-fetching — this makes repeat visits near-instant.
   const restoredTab = bibleStore.getActiveTab();
+  // A cold load at `#/@present` boots the reader as if there were no hash, so
+  // Back lands on the last position rather than Home; the presenter hash is put
+  // back just before the first render.
+  const coldPresenter = isPresenterHash();
+  if (coldPresenter) history.replaceState(null, '', window.location.pathname + window.location.search);
   if (window.location.hash) {
     await withBootTimeout(bibleStore.navigateFromHash(window.location.hash));
   } else if (restoredTab && restoredTab.verses.length > 0) {
@@ -240,6 +283,11 @@ async function init() {
     await withBootTimeout(bibleStore.navigateTo(restoredTab.book, restoredTab.chapter));
   }
 
+  if (coldPresenter) {
+    rememberReaderHash(window.location.hash);
+    history.replaceState(null, '', PRESENTER_HASH);
+  }
+
   // Render the app (ErrorBoundary catches component crashes)
   await localeReadyPromise;
   render(<ErrorBoundary><App providers={providers} /></ErrorBoundary>, document.getElementById('app')!);
@@ -250,6 +298,17 @@ async function init() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     (window as unknown as { hideAppLoading?: () => void }).hideAppLoading?.();
   }));
+
+  // Reconnect to a session this device is driving: one adopted from a handoff
+  // link, or one it created before a reload. After the first paint, because the
+  // reading app has to work whether or not a screen is attached.
+  presentStore.restore(adoptedSession);
+
+  // Start following, if this load was `/present/f/<code>`. Also after the
+  // first paint: the reader underneath renders exactly as it would for any
+  // other chapter, and `followStore` then nudges it to the presenter's live
+  // reference the moment the stream answers.
+  if (followCode) followStore.start(followCode);
 
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();

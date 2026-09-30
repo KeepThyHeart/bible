@@ -9,9 +9,14 @@ import { MobileStudyPane } from './components/MobileStudyPane/MobileStudyPane';
 import { MobileCommentaryView } from './components/MobileStudyPane/MobileCommentaryView';
 import { Header } from './components/Header';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
+import { PresentBar } from './components/Present/PresentBar';
+import { AudioMiniPlayer } from './components/AudioMiniPlayer';
+import { AudioPlayerScreen } from './components/AudioPlayerScreen';
+import { audioStore } from './stores/audioStore';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -21,6 +26,7 @@ import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
 import { settingsStore } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
+import { consumePresenterPop } from './apps/present/route';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -32,6 +38,8 @@ interface MobileAppProps {
 export function MobileApp({ providers }: MobileAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
+  // The audio UI is laid out per form factor: full-screen player and mini-player here.
+  useEffect(() => { audioStore.setLayout('phone'); }, []);
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
   const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary'>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
@@ -156,8 +164,28 @@ export function MobileApp({ providers }: MobileAppProps) {
     window.history.pushState({ mobileBack: true }, '');
 
     const handlePopState = (_e: PopStateEvent) => {
+      // Back out of the Presenter: it is the Presenter's own step, and the
+      // hidden Study must not also take one. (Its dummy entry is still in place.)
+      if (consumePresenterPop()) return;
+
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
+
+      // Priority 0: the full-screen audio player (playback continues)
+      if (audioStore.quickSettingsOpen) {
+        audioStore.closeQuickSettings();
+        return;
+      }
+      if (audioStore.playerOpen) {
+        audioStore.closePlayer();
+        return;
+      }
+
+      // Then the family tree sheet (it sits beneath the audio player)
+      if (studyStore.familyTreeOpen) {
+        studyStore.closeFamilyTree();
+        return;
+      }
 
       // Priority 1: Close topics browser overlay
       if (studyStore.topicsBrowserOpen) {
@@ -379,6 +407,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           {/* Center: scrollable content (no tab bars, those are in sidebar) */}
           <div class="mobile-scroll-wrapper">
             <ConnectionBanner />
+            <UpdateBanner />
             {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
             {mobileView === 'bible' && bibleContent}
             {mobileView === 'search' && (
@@ -400,8 +429,13 @@ export function MobileApp({ providers }: MobileAppProps) {
         </>
       ) : (
         <div class="mobile-scroll-wrapper">
-          <Header onSettingsClick={(section) => shared.openSettings(section)} onHelpClick={() => shared.setHelpOpen(true)} onLogoClick={() => switchMobileView('home')} />
+          <Header
+            onSettingsClick={(section) => shared.openSettings(section)}
+            onHelpClick={() => shared.setHelpOpen(true)}
+            onLogoClick={() => switchMobileView('home')}
+          />
           <ConnectionBanner />
+          <UpdateBanner />
           {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
           {mobileView === 'bible' && (
             <>
@@ -431,6 +465,9 @@ export function MobileApp({ providers }: MobileAppProps) {
           {navTooltip}
         </div>
       )}
+      <AudioMiniPlayer />
+      {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
+      <PresentBar compact />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
@@ -450,6 +487,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           </button>
         ))}
       </nav>
+      <AudioPlayerScreen onOpenSettings={shared.openSettings} />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}
@@ -463,6 +501,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
+        bibleProvider={providers.bible}
       />
       {contextMenu && (
         <ContextMenuPopup

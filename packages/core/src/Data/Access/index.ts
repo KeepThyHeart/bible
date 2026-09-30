@@ -41,4 +41,5 @@ export * from './Fts5/InModuleFts5Provider';
 export * from './Fts5/sidecarSchema';
 export * from './Fts5/SidecarFts5Provider';
 export * from './Fts5/Fts5Highlighter';
+export * from './Fts5/ModuleKeywordIndex';
 export * from './Codec';

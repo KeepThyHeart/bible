@@ -20,6 +20,10 @@ import type {
 import type { ExtensionPermission } from './Permissions';
 import type { LocalizedString } from './ExtensionApiDtos';
 import type { ExtensionPointId } from './ExtensionApiTypes';
+import type {
+  ExtensionPointPayloadMap,
+  ExtensionPointReturnMap,
+} from './ExtensionPointTypes';
 
 /**
  * Snapshot of an extension's state from the host's perspective. Returned by
@@ -291,11 +295,15 @@ export interface IExtensionHost {
   /**
    * Internal dispatch entry - called by the host's own subsystems when an
    * extension point fires. Subscribers in active extensions receive the
-   * payload via reverse RPC. The return shape depends on the point's kind
-   * (event/filter/provider - see `EXTENSION_POINT_KINDS`).
+   * payload via reverse RPC (`filter`/`provider`) or a forward event
+   * (`event`) - see `EXTENSION_POINT_KINDS` and
+   * `ExtensionHostLifecycle.dispatchExtensionPoint`'s algorithm. The payload
+   * and return types are resolved from `pointId` itself via
+   * `ExtensionPointPayloadMap`/`ExtensionPointReturnMap`, so a call site
+   * cannot pass a payload of the wrong shape for the channel it names.
    */
-  dispatchExtensionPoint<TPayload, TReturn>(
-    pointId: ExtensionPointId,
-    payload: TPayload,
-  ): Promise<TReturn>;
+  dispatchExtensionPoint<K extends ExtensionPointId>(
+    pointId: K,
+    payload: ExtensionPointPayloadMap[K],
+  ): Promise<ExtensionPointReturnMap[K]>;
 }

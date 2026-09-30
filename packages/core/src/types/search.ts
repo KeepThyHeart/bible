@@ -40,6 +40,18 @@ export interface SearchResult {
   score: number;             // Relevance score (higher = more relevant)
   type: MatchType;           // Type of match
   context?: string;          // Surrounding verses if includeContext was true
+  /**
+   * For approximate (fuzzy) rows produced by the `'coverage'` gate: the share,
+   * 0..1, of the query's significant terms this verse matches. Absent on every
+   * other row. Used only to rank approximate rows against each other.
+   */
+  termCoverage?: number;
+  /**
+   * With {@link termCoverage}: how tight the matched terms sit, as the number of
+   * words spanned by the smallest window that holds them all (smaller is
+   * closer). Ranking tie-break only.
+   */
+  matchSpan?: number;
 }
 
 /**

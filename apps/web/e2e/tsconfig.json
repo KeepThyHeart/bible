@@ -1,7 +1,7 @@
 {
   // The e2e specs were excluded from `tsconfig.json`, so nothing typechecked
   // them; a spec calling a helper with the wrong arity only surfaced as an
-  // opaque Playwright timeout. `npm run typecheck:e2e` catches it in a second.
+  // opaque Playwright timeout. `pnpm run typecheck:e2e` catches it in a second.
   "extends": "../../../packages/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,

@@ -1,0 +1,37 @@
+/* KTH base: reset + document typography for extension panel iframes. The apps keep Tailwind preflight /
+   _base.scss and must NOT import this file. */
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  color-scheme: var(--kth-color-scheme);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--kth-bg);
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-block: 0 var(--kth-space-2);
+  color: var(--kth-text-heading);
+  line-height: 1.25;
+}
+
+p, ul, ol, dl, pre, blockquote { margin-block: 0 var(--kth-space-2); }
+ul, ol { padding-inline-start: var(--kth-space-4); }
+
+a { color: var(--kth-accent); }
+a:hover { color: var(--kth-accent-hover); }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+img, svg, video { max-inline-size: 100%; }
+
+:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+::selection { background: var(--kth-accent-soft); }
+[hidden] { display: none !important; }

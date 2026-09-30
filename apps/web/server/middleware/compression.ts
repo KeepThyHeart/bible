@@ -33,8 +33,22 @@ import type { Request, Response } from 'express';
  *
  * Both are better served by pre-compressing at build time if their transfer
  * size ever becomes the constraint.
+ *
+ * `text/event-stream` is a different problem, and a worse one. The
+ * `compressible` module answers `true` for it -- everything under `text/` is
+ * compressible in principle -- but gzip is a buffering codec: it holds bytes
+ * back until it has enough to emit a block, so each presenter event would sit
+ * in a compressor waiting for the next one. On a stream whose whole purpose is
+ * to move a few hundred bytes the instant someone presses a key, that is
+ * indistinguishable from the feature not working, and it breaks only once the
+ * middleware is mounted -- so it presents as a client bug. See
+ * `routes/presentRoutes.ts`.
  */
-const SKIP_CONTENT_TYPES = ['application/octet-stream', 'application/wasm'];
+const SKIP_CONTENT_TYPES = [
+  'application/octet-stream',
+  'application/wasm',
+  'text/event-stream',
+];
 
 /**
  * Decides whether a given response should be compressed.

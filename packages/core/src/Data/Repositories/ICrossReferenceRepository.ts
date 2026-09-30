@@ -32,6 +32,19 @@ export interface RangeReverseReference extends ReverseReference {
 }
 
 /**
+ * One cross-reference link, as streamed for whole-canon aggregation
+ * ({@link ICrossReferenceRepository.forEachLink}).
+ */
+export interface CrossReferenceLinkRow {
+  sourceVerseIdStart: VerseId;
+  sourceVerseIdEnd: VerseId;
+  targetVerseIdStart: VerseId;
+  targetVerseIdEnd: VerseId;
+  /** 0-based position of the target within its phrase group (TSK lists the closest parallels first). */
+  rank: number;
+}
+
+/**
  * Interface for Cross-Reference repository
  * Defines all operations for working with cross-reference databases
  */
@@ -82,4 +95,13 @@ export interface ICrossReferenceRepository {
 
   // Counts
   getEntryCount(verseId: VerseId): number;
+
+  // Whole-module scans (cross-reference graph index, task 0068)
+  /** Total number of links in the module. */
+  getLinkCount(): number;
+  /**
+   * Visit every link once, in `(group, sort order)` order. Read in windows of groups,
+   * so a ~340k-link module is never held in memory whole.
+   */
+  forEachLink(visit: (link: CrossReferenceLinkRow) => void): void;
 }

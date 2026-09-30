@@ -28,7 +28,7 @@
  * and if Ezra SIL still fails the script only warns - fonts.css is written without
  * it (Hebrew falls back to the other families). The failure is recorded in
  * fonts/.ezra-sil-failed, and later runs skip the Ezra-only retry for 24 hours so an
- * unreachable host does not stall every `npm run dev`; --force (or deleting that
+ * unreachable host does not stall every `pnpm run dev`; --force (or deleting that
  * marker) retries at once, and a successful download removes the marker. The
  * Ezra zip is unpacked in memory with the `unzipper` package, so no system `unzip`
  * is needed. Downloads use node:https rather than fetch() because fetch's
@@ -176,7 +176,7 @@ async function tryFetchEzraSil() {
     console.warn(
       `WARNING: Ezra SIL (Hebrew font) could not be downloaded - ${err.message}\n` +
         `  Continuing without it; Hebrew text falls back to the other fonts.\n` +
-        `  Runs of this script (e.g. npm run dev) will try Ezra SIL again after 24 hours;\n` +
+        `  Runs of this script (e.g. pnpm run dev) will try Ezra SIL again after 24 hours;\n` +
         `  to retry sooner, run it with --force or delete ${path.relative(process.cwd(), EZRA_FAILURE_MARKER)}.`
     );
     return false;
@@ -246,7 +246,7 @@ async function fetchAll() {
       `could not download the Google Fonts families (${err.message}).\n` +
         `  The desktop app self-hosts these fonts and cannot be built or run without them.\n` +
         `  Check that fonts.googleapis.com and fonts.gstatic.com are reachable (proxy or\n` +
-        `  firewall), then re-run: npm run fonts -w @bible/desktop`
+        `  firewall), then re-run: pnpm --filter @bible/desktop run fonts`
     );
   }
   // With --force, a failed download still leaves a previously fetched Ezra file usable.

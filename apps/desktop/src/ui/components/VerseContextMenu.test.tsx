@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
 import type { BibleVerse } from '../services/verseCopyService';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 
 describe('withVerseMenuContext', () => {
   const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
@@ -102,6 +103,21 @@ describe('VerseContextMenu', () => {
     await user.click(screen.getByText('ui.verseContextMenu.copyPassage'));
     expect(onOpenCopyOptions).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens the cross-reference graph for the right-clicked verse', async () => {
+    useXrefGraphStore.setState({ isOpen: false, anchor: null });
+    renderWithProviders(
+      <VerseContextMenu
+        verses={mockVerse}
+        context={mockContext}
+        position={position}
+        onClose={onClose}
+      />,
+    );
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Show connections' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: 43003016 });
   });
 
   it('shows highlight option when onOpenHighlightMenu is provided', () => {
@@ -337,5 +353,38 @@ describe('VerseContextMenu', () => {
     await user.click(screen.getByText('ui.verseContextMenu.removeHighlight'));
     expect(onRemoveHighlight).toHaveBeenCalledWith(42);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  describe('keyword marks (task 0065)', () => {
+    it('offers "Mark all" for a right-clicked word and runs it', async () => {
+      const user = userEvent.setup();
+      const onMarkWord = vi.fn();
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
+          wordText="faith" onMarkWord={onMarkWord} />,
+      );
+      await user.click(screen.getByTestId('menu-mark-word'));
+      expect(onMarkWord).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+      expect(screen.queryByTestId('menu-mark-lemma')).toBeNull();
+    });
+
+    it('offers "Mark lemma" only when the word has a Strong\'s number', async () => {
+      const user = userEvent.setup();
+      const onMarkLemma = vi.fn();
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
+          wordText="faith" onMarkWord={vi.fn()} wordStrongs="G4102" onMarkLemma={onMarkLemma} />,
+      );
+      await user.click(screen.getByTestId('menu-mark-lemma'));
+      expect(onMarkLemma).toHaveBeenCalled();
+    });
+
+    it('shows neither item when no word was clicked', () => {
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
+      );
+      expect(screen.queryByTestId('menu-mark-word')).toBeNull();
+    });
   });
 });

@@ -40,7 +40,7 @@ function manifest(version = '1.0.0', extra: Record<string, unknown> = {}): strin
     engines: { bibleApp: '^1.0.0' },
     main: 'dist/main.js',
     permissions: ['bible:read'],
-    activationEvents: ['onStartup'],
+    activationEvents: ['onStartupFinished'],
     ...extra,
   });
 }
@@ -430,7 +430,7 @@ describe('hot reload', () => {
     const loaded = await host.loadUnpacked({ sourcePath: devProject });
     expect(loaded.ok).toBe(true);
 
-    // Simulate `npm run build`: rewrite the bundle *and* bump the manifest, so
+    // Simulate `pnpm run build`: rewrite the bundle *and* bump the manifest, so
     // the reload has something observable to prove it re-read from disk.
     writeFileSync(join(devProject, 'extension.json'), manifest('2.0.0'), 'utf8');
     writeFileSync(join(devProject, 'dist', 'main.js'), 'exports.activate = () => {1;};', 'utf8');

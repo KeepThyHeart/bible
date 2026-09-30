@@ -1,8 +1,14 @@
 @use 'bible-sections' as sections;
 
 // ============================================================
-// Book & Chapter Picker
+// Book & Chapter Picker: web modal frame and web-only extras.
 // ============================================================
+// The picker itself (header, reference form, book/chapter grids) is `@bible/ui`, styled by the
+// `.kth-picker*` classes in packages/ui/css/kth-classes.css over the --kth-* tokens (mapped to this
+// app's theme vars by generated/map-web.css). What stays here: the overlay and dialog frame, the
+// section colour coding (web keeps its dark-theme-aware --section-* scheme, keyed on the cell's
+// data-section attribute), and the parts only the web picker has (topics, translation selector, search
+// result states).
 .book-chapter-picker {
   &__overlay {
     position: fixed;
@@ -24,258 +30,22 @@
   flex-direction: column;
   overflow: hidden;
 
-  &__header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-
-    h3 {
-      flex: 1;
-      font-size: calc(16px * var(--ui-font-scale, 1));
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-  }
-
-  &__close-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background 0.1s, color 0.1s;
-
-    &:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-  }
-
-  &__back-btn {
-    background: none;
-    border: 1px solid var(--border-color);
-    cursor: pointer;
-    color: var(--text-primary);
-    font-size: calc(14px * var(--ui-font-scale, 1));
-    padding: 6px 12px;
-    border-radius: 6px;
-    transition: background 0.1s, border-color 0.1s;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    min-height: 36px;
-
-    &:hover {
-      background: var(--bg-tertiary);
-      border-color: var(--accent-color);
-    }
-  }
-
-  &__ref-form {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    background: var(--bg-primary);
-    z-index: 1;
-  }
-
-  &__ref-input {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    outline: none;
-
-    &:focus {
-      border-color: var(--accent-color);
-      background: var(--bg-primary);
-    }
-
-    &::placeholder {
-      color: var(--text-muted);
-    }
-  }
-
-  &__ref-go {
-    padding: 8px 14px;
-    background: var(--accent-color);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: calc(12px * var(--ui-font-scale, 1));
-    font-weight: 600;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    &:hover {
-      background: var(--accent-hover);
-    }
-  }
-
-  &__chapter-label {
-    font-size: calc(13px * var(--ui-font-scale, 1));
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 12px;
-  }
-
-  &__books {
-    overflow-y: auto;
-    padding: 12px 16px 16px;
-    flex: 1;
-  }
-
-  &__section-label {
-    font-size: calc(13px * var(--ui-font-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-primary);
-    margin-bottom: 10px;
-    margin-top: 16px;
-    padding-bottom: 6px;
-    border-bottom: 2px solid var(--accent-color);
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  &__book-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-
-  &__book-btn {
-    padding: 12px 12px;
-    min-height: 44px;
-    border: 1px solid var(--border-color);
-    background: none;
-    cursor: pointer;
-    text-align: start;
-    color: var(--text-primary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
-    border-radius: 8px;
-    transition: background 0.1s, border-color 0.1s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    &:hover {
-      background: var(--bg-tertiary);
-      border-color: var(--accent-color);
-    }
-
-    // Section color-coding (canonical Bible book divisions). Section keys come
-    // from getBibleSection() in @bible/core. Bold colored text + matching
-    // background tint distinguishes sections without the visual clutter of
-    // colored borders.
-    //
-    // The hues themselves live in _bible-sections.scss as --section-<key> /
-    // --section-<key>-text, because the search distribution chart paints its
-    // bars from the same scheme and the two have to agree. That file is also
-    // where the dark themes swap in lighter shades — hues hard-coded here get
-    // chosen against white and come out unreadable on #0d1117.
-    &--pentateuch     { @include sections.section-colors('pentateuch'); }
-    &--ot-history     { @include sections.section-colors('ot-history'); }
-    &--wisdom         { @include sections.section-colors('wisdom'); }
-    &--major-prophets { @include sections.section-colors('major-prophets'); }
-    &--minor-prophets { @include sections.section-colors('minor-prophets'); }
-    &--gospels        { @include sections.section-colors('gospels'); }
-    &--acts           { @include sections.section-colors('acts'); }
-    &--pauline        { @include sections.section-colors('pauline'); }
-    &--general        { @include sections.section-colors('general'); }
-    &--revelation     { @include sections.section-colors('revelation'); }
-
-    // --current state takes precedence over section coloring (filled accent).
-    &--current {
-      background: var(--accent-color);
-      color: #fff;
-      border-color: var(--accent-color);
-      font-weight: 600;
-
-      &:hover {
-        background: var(--accent-hover);
-      }
-    }
-  }
-
-  &__chapters {
-    overflow-y: auto;
-    padding: 16px;
-    flex: 1;
-  }
-
-  &__chapter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-    gap: 6px;
-  }
-
-  &__chapter-btn {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border-color);
-    background: none;
-    cursor: pointer;
-    color: var(--text-primary);
-    font-size: calc(14px * var(--ui-font-scale, 1));
-    border-radius: 8px;
-    transition: background 0.1s, border-color 0.1s;
-    -webkit-tap-highlight-color: transparent;
-
-    &:hover {
-      background: var(--bg-tertiary);
-      border-color: var(--accent-color);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--accent-color);
-      outline-offset: 1px;
-    }
-
-    &:focus:not(:focus-visible) {
-      outline: none;
-    }
-
-    &--current {
-      background: var(--accent-color);
-      color: #fff;
-      border-color: var(--accent-color);
-      font-weight: 600;
-
-      &:hover {
-        background: var(--accent-hover);
-      }
-    }
-  }
-
-  &__no-match {
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--text-muted);
-    font-style: italic;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+  // Section color-coding (canonical Bible book divisions). Section keys come from getBibleSection() in
+  // @bible/core, exposed as data-section on each book cell. Bold coloured text + matching background tint
+  // distinguishes sections without the visual clutter of coloured borders. The hues live in
+  // _bible-sections.scss (--section-<key>), shared with the search distribution chart, which is also where
+  // the dark themes swap in lighter shades. The current book (--active, filled accent) is left alone.
+  .kth-picker__cell--book:not(.kth-picker__cell--active) {
+    &[data-section='pentateuch'] { @include sections.section-colors('pentateuch'); }
+    &[data-section='ot-history'] { @include sections.section-colors('ot-history'); }
+    &[data-section='wisdom'] { @include sections.section-colors('wisdom'); }
+    &[data-section='major-prophets'] { @include sections.section-colors('major-prophets'); }
+    &[data-section='minor-prophets'] { @include sections.section-colors('minor-prophets'); }
+    &[data-section='gospels'] { @include sections.section-colors('gospels'); }
+    &[data-section='acts'] { @include sections.section-colors('acts'); }
+    &[data-section='pauline'] { @include sections.section-colors('pauline'); }
+    &[data-section='general'] { @include sections.section-colors('general'); }
+    &[data-section='revelation'] { @include sections.section-colors('revelation'); }
   }
 
   &__topics {
@@ -328,34 +98,6 @@
     white-space: nowrap;
   }
 
-  &__search-offer {
-    padding: 10px 16px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  &__search-offer-link {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    color: var(--accent-color);
-    font-size: inherit;
-    font-family: inherit;
-    text-decoration: underline;
-
-    &:hover {
-      color: var(--accent-hover);
-    }
-  }
-
-  &__search-results {
-    overflow-y: auto;
-    padding: 12px 16px 16px;
-    flex: 1;
-  }
-
   &__search-loading,
   &__search-empty {
     padding: 12px 0;
@@ -371,25 +113,6 @@
   }
 }
 
-// Compact mode: 3-letter abbreviations in tight grid (mobile, no filter active)
-.book-chapter-picker__book-grid--compact {
-  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)) !important;
-  gap: 4px !important;
-
-  .book-chapter-picker__book-btn {
-    padding: 8px 4px;
-    min-height: 36px;
-    text-align: center;
-    font-size: calc(11px * var(--ui-font-scale, 1));
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
-}
-
-.book-chapter-picker__books--compact {
-  overflow-y: visible;
-}
-
 @media (max-width: 768px) {
   .book-chapter-picker {
     width: 100%;
@@ -401,12 +124,12 @@
       align-items: stretch;
     }
 
-    &__book-grid {
+    // Narrower minimum than the shared grid, except in the compact short-name grid.
+    .kth-picker__grid--books:not(.kth-picker__grid--compact) {
       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }
   }
 }
-
 
 // Translation the chosen passage will open in, under the reference box.
 .book-chapter-picker__translation {

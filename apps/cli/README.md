@@ -17,7 +17,7 @@ library (`^O`) is a second screen pushed on top.
 [Bun](https://bun.sh), for development and for producing the executable. End
 users need nothing; the compiled binary embeds its own runtime.
 
-Bun is a `devDependency` of this package, so `npm install` at the repo root
+Bun is a `devDependency` of this package, so `pnpm install` at the repo root
 provides it. No other workspace needs it: if Bun is missing, the compile step
 prints a skip notice and the rest of the build proceeds.
 
@@ -25,7 +25,7 @@ The CLI consumes `@bible/core` from its compiled output, so build core first
 (from the repo root):
 
 ```bash
-npm run build:core
+pnpm run build:core
 ```
 
 ## Commands
@@ -33,14 +33,14 @@ npm run build:core
 From the repo root:
 
 ```bash
-npm run dev       -w @bible/cli    # run from source
-npm run test      -w @bible/cli    # bun test
-npm run typecheck -w @bible/cli    # tsc --noEmit
-npm run smoke     -w @bible/cli    # compile probe, from source
-npm run kjv       -w @bible/cli    # generate the bundled KJV (see below)
-npm run build     -w @bible/cli    # compile for this machine -> build/
-npm run build:all -w @bible/cli    # compile all four targets -> build/
-npm run clean     -w @bible/cli    # remove build/
+pnpm --filter @bible/cli run dev          # run from source
+pnpm --filter @bible/cli run test         # bun test
+pnpm --filter @bible/cli run typecheck    # tsc --noEmit
+pnpm --filter @bible/cli run smoke        # compile probe, from source
+pnpm --filter @bible/cli run kjv          # generate the bundled KJV (see below)
+pnpm --filter @bible/cli run build        # compile for this machine -> build/
+pnpm --filter @bible/cli run build:all    # compile all four targets -> build/
+pnpm --filter @bible/cli run clean        # remove build/
 ```
 
 Targets are `bun-windows-x64`, `bun-linux-x64`, `bun-darwin-arm64` and
@@ -78,7 +78,7 @@ does not exercise the repository round-trip.
 file is **generated, not checked in**:
 
 ```bash
-npm run kjv -w @bible/cli    # bun scripts/build-kjv.ts
+pnpm --filter @bible/cli run kjv    # bun scripts/build-kjv.ts
 ```
 
 `scripts/build-kjv.ts` copies `<repo>/data/modules/bible_kjv.db` (or

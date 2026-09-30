@@ -1,9 +1,13 @@
 /**
  * Host-side implementation of `IL10nApi` for one extension worker.
  *
- * Bridges the worker's `api.l10n.t / .currentLocale / .onDidChangeLocale`
- * calls into the renderer's `I18nService` (or any equivalent provider) via
- * the `IExtensionL10nBridge` interface.
+ * Bridges the worker's `api.l10n.t` / `.currentLocale` calls into the
+ * renderer's `I18nService` (or any equivalent provider) via the
+ * `IExtensionL10nBridge` interface. The locale-change notification lives on
+ * `api.events.subscribe('locale.changed', ...)` now, wired host-wide in
+ * `ExtensionPointWiring.ts` rather than per-worker here (task 0024 round 3,
+ * P0.3) - and the payload is wrapped as `{ locale }` there, not the bare
+ * string the bridge callback still hands back.
  *
  * Catalogs are namespaced under `ext.<extensionId>.`.
  * The api-impl forwards the bare key from the extension; the bridge
@@ -20,8 +24,6 @@ import type { IExtensionL10nBridge } from './IExtensionDataBridges';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 
-const LOCALE_CHANGE_CHANNEL = 'l10n.onDidChangeLocale';
-
 export interface L10nApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
@@ -32,7 +34,6 @@ export class L10nApiImpl {
   private readonly extensionId: string;
   private readonly router: ExtensionRpcRouter;
   private readonly bridge: IExtensionL10nBridge;
-  private unsubLocale: (() => void) | undefined;
   private disposed = false;
 
   constructor(opts: L10nApiImplOptions) {
@@ -46,24 +47,14 @@ export class L10nApiImpl {
       t: (args) => this.handleT(args),
       currentLocale: () => this.handleCurrentLocale(),
     });
-
-    this.unsubLocale = this.bridge.subscribeLocaleChange((locale) => {
-      if (this.disposed) return;
-      this.router.emitEvent(LOCALE_CHANGE_CHANNEL, locale);
-    });
+    // `bridge.subscribeLocaleChange(...)` -> `locale.changed` used to be
+    // wired here, one subscription per active worker. See
+    // `ExtensionPointWiring.ts`.
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    if (this.unsubLocale) {
-      try {
-        this.unsubLocale();
-      } catch {
-        /* best-effort */
-      }
-      this.unsubLocale = undefined;
-    }
   }
 
   private async handleT(args: unknown[]): Promise<string> {

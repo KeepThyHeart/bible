@@ -27,9 +27,9 @@
  *
  * PREREQUISITE: a packaged build must exist. Produce one with:
  *
- *     npm run build                      # from the repo root (core + desktop)
+ *     pnpm run build                      # from the repo root (core + desktop)
  *     cd apps/desktop
- *     npx electron-builder --win --dir   # or --linux --dir / --mac --dir
+ *     pnpm exec electron-builder --win --dir   # or --linux --dir / --mac --dir
  *
  * If no packaged build is present the tests skip with a loud message - a dev
  * build does not use asar and cannot answer this question.
@@ -134,10 +134,16 @@ function inlineManifest(): Record<string, unknown> {
     publisher: 'bible-app',
     description:
       'E2E fixture with a self-contained data: URL entry point, used to reach a live extension worker in a packaged asar build.',
-    engines: { bibleApp: '^1.0.0' },
+    // Matches the other e2e fixtures' `^0.1.0` (task 0024 round 3, P0.3's
+    // EXTENSION_API_VERSION retrograde) - this inline manifest was missed in
+    // that sweep since it isn't a static fixture file to grep for; found
+    // while touching this file for the `onStartup` -> `onStartupFinished`
+    // rename (P1.5). `^1.0.0` never actually satisfied `0.1.0`, so this
+    // probe's activation would have failed the engines gate outright.
+    engines: { bibleApp: '^0.1.0' },
     main: 'data:text/javascript,' + encodeURIComponent(INLINE_ENTRY_SOURCE),
     permissions: [],
-    activationEvents: ['onStartup'],
+    activationEvents: ['onStartupFinished'],
   };
 }
 
@@ -398,7 +404,7 @@ async function runProbe(
   // The probe's KV round-trip needs the `storage` permission, and sideloading
   // auto-grants only DEFAULT_GRANTED_PERMISSIONS (`bible:read`,
   // `commands:register`). Grant it the way the Extensions UI would. The probe
-  // retries through the denial, so it does not matter that `onStartup` may
+  // retries through the denial, so it does not matter that `onStartupFinished` may
   // already have run its first attempt before this lands.
   await window.evaluate(async (id: string) => {
     const api = (window as unknown as {
@@ -409,7 +415,7 @@ async function runProbe(
     await api.extensions.updatePermissions(id, ['storage']).catch(() => undefined);
   }, extensionId);
 
-  // `onStartup` may already have activated it; activate() is idempotent.
+  // `onStartupFinished` may already have activated it; activate() is idempotent.
   const activate = await window.evaluate(async (id: string) => {
     const api = (window as unknown as {
       electron: { extensions: { activate: (id: string) => Promise<void> } };
@@ -486,7 +492,7 @@ test.describe('Extension host inside app.asar (packaged build)', () => {
   test.skip(
     packaged === null,
     'No packaged build found under apps/desktop/dist. Build one with ' +
-      '`npm run build` (repo root) then `npx electron-builder --win --dir` in ' +
+      '`pnpm run build` (repo root) then `pnpm exec electron-builder --win --dir` in ' +
       'apps/desktop. A dev build does NOT use asar and cannot answer this.',
   );
 

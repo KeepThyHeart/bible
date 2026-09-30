@@ -7,11 +7,10 @@
  * into an `RpcRequest` envelope on the wire and resolves with the response.
  *
  * Each top-level namespace (`bible`, `commentary`, ...) is itself a Proxy that
- * routes property access to the request channel. Method names like
- * `onDidChangeActiveVerse` are special-cased: they return an `IEventApi<T>`
- * backed by the runtime's event emitter, so extension code can write
- * `api.bible.onDidChangeActiveVerse.subscribe(handler)` and get a real
- * disposable handle.
+ * routes property access to the request channel. `events.subscribe` and
+ * `events.publish` are special-cased - the former cannot become an RPC
+ * request at all (`handler` is a function and would not survive the wire),
+ * routing instead to the runtime's `ExtensionEventEmitter`.
  *
  * The proxy is intentionally permissive - every method call becomes an RPC
  * regardless of whether the host actually implements it. The host's router
@@ -30,7 +29,6 @@ import type { Extensions } from '@bible/core';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
 type DisposableHandle = Extensions.DisposableHandle;
-type IEventApi<T> = Extensions.IEventApi<T>;
 type RpcEnvelope = Extensions.RpcEnvelope;
 type RpcRequest = Extensions.RpcRequest;
 type RpcRequestId = Extensions.RpcRequestId;
@@ -49,44 +47,6 @@ export interface IRpcChannel {
   send(envelope: RpcEnvelope): void;
   onMessage(handler: (envelope: RpcEnvelope) => void): void;
 }
-
-/**
- * Method names that should be returned as `IEventApi<T>` rather than
- * dispatched as RPC.
- *
- * This table **must** name exactly the `IEventApi<...>` members of
- * `ExtensionApiTypes.ts` - no more, no less. Both kinds of drift fail
- * silently, which is why `ApiSurfaceContract.test.ts` derives the expected
- * table from the type declarations and diffs it against this one:
- *
- *   - **A missing name** falls through to the generic RPC branch below, so
- *     `api.notes.onDidChange` evaluates to a *function*. The author writes
- *     the documented `.subscribe(handler)` and gets
- *     `TypeError: api.notes.onDidChange.subscribe is not a function`,
- *     against an API the types say exists.
- *   - **An extra name** yields an `IEventApi` for a channel nothing ever
- *     emits. `subscribe()` resolves with a real handle and the handler is
- *     never called - indistinguishable, from inside the extension, from an
- *     event that simply has not fired yet.
- *
- * The shape is `Record<namespace, Set<eventPropName>>` so we can short-
- * circuit lookups in the proxy without iterating a flat list.
- *
- * Exported for the contract test only; extension code never sees it.
- */
-export const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = {
-  bible: new Set(['onDidChangeActiveVerse', 'onDidSelectVerseWord']),
-  commentary: new Set(['onDidChangeActiveCommentary']),
-  dictionary: new Set(['onDidChangeActiveDictionary']),
-  book: new Set(['onDidChangeActiveBook']),
-  notes: new Set(['onDidChange']),
-  highlights: new Set(['onDidChange']),
-  workspace: new Set(['onDidChangeActivePanel', 'onDidOpenPanel', 'onDidClosePanel']),
-  context: new Set(['onDidChange']),
-  storage: new Set(['onDidChangeSettings']),
-  l10n: new Set(['onDidChangeLocale']),
-  extensions: new Set(['onDidActivate', 'onDidDeactivate']),
-};
 
 interface PendingForwardRequest {
   resolve: (value: unknown) => void;
@@ -108,10 +68,18 @@ export interface IReverseEndpointTable {
 }
 
 /**
- * Endpoint prefix the host reserves for itself. An extension binding here
- * could shadow a runtime control message, so `expose` refuses it.
+ * Endpoint prefixes the host reserves for itself. An extension binding here
+ * could shadow a runtime control message (`runtime.`) or impersonate a
+ * filter/provider hook subscription and receive payloads it never
+ * subscribed to (`hook:`, registered by `ExtensionEventEmitter` for
+ * `filter`/`provider` channels - see `eventEmitter.ts`), so `expose` refuses
+ * both.
  */
-const RESERVED_ENDPOINT_PREFIX = 'runtime.';
+const RESERVED_ENDPOINT_PREFIXES = ['runtime.', 'hook:'];
+
+function isReservedEndpoint(endpoint: string): boolean {
+  return RESERVED_ENDPOINT_PREFIXES.some((p) => endpoint.startsWith(p));
+}
 
 /** Endpoint the host calls to deliver a panel iframe's message. */
 export const PANEL_MESSAGE_ENDPOINT = 'panels.onMessage';
@@ -156,15 +124,7 @@ export function createApiProxy(opts: {
     });
   }
 
-  function makeEventApi<T>(channel: string): IEventApi<T> {
-    return {
-      subscribe: (handler: (payload: T) => void | Promise<void>) =>
-        opts.emitter.subscribe<T>(channel, handler),
-    };
-  }
-
   function makeNamespaceProxy(namespace: string): Record<string, unknown> {
-    const eventNames = EVENT_PROPERTIES[namespace] ?? new Set<string>();
     const cache = new Map<string, unknown>();
     return new Proxy<Record<string, unknown>>(
       {},
@@ -172,18 +132,6 @@ export function createApiProxy(opts: {
         get(_target, prop) {
           if (typeof prop !== 'string') return undefined;
           if (cache.has(prop)) return cache.get(prop);
-          if (eventNames.has(prop)) {
-            const ev = makeEventApi(`${namespace}.${prop}`);
-            cache.set(prop, ev);
-            return ev;
-          }
-          // `IEventsApi.subscribe(channel, handler)` cannot become an RPC
-          // request - `handler` is a function and would not survive
-          // serialization. Special-case it so the call goes straight to
-          // the worker-side event emitter, which sends the appropriate
-          // `RpcSubscribe` envelope and dispatches `RpcEvent`s back to
-          // the local handler.
-
           // `storage.openDatabase` returns a worker-side
           // `IExtensionDatabase` wrapper rather than a bare RPC payload. The
           // host returns an opaque string handle; we wrap it in a small
@@ -243,22 +191,36 @@ export function createApiProxy(opts: {
             cache.set(prop, fn);
             return fn;
           }
+          // `IEventsApi.subscribe(channel, handler, opts?)` cannot become an
+          // RPC request - `handler` is a function and would not survive
+          // serialization. Special-case it so the call goes straight to the
+          // worker-side event emitter, which sends the appropriate
+          // `RpcSubscribe` envelope (and, for `filter`/`provider` channels,
+          // registers a `hook:` reverse handler) and dispatches `RpcEvent`s
+          // back to the local handler.
           if (namespace === 'events' && prop === 'subscribe') {
-            const fn = (channelName: unknown, handler: unknown) => {
+            const fn = (channelName: unknown, handler: unknown, subscribeOpts?: unknown) => {
               if (typeof channelName !== 'string') {
                 return Promise.reject(new TypeError('events.subscribe: channel must be a string'));
               }
               if (typeof handler !== 'function') {
                 return Promise.reject(new TypeError('events.subscribe: handler must be a function'));
               }
+              const order = (subscribeOpts as { order?: unknown } | undefined)?.order;
               return opts.emitter.subscribe(
                 channelName,
-                handler as (payload: unknown) => void | Promise<void>,
+                handler as (payload: unknown) => unknown | Promise<unknown>,
+                typeof order === 'number' ? { order } : undefined,
               );
             };
             cache.set(prop, fn);
             return fn;
           }
+          // `events.publish(channel, payload)` (P1.8) IS a genuine RPC call -
+          // unlike `subscribe`, there is no local worker-side state to route
+          // to, only the host's fan-out to *other* workers. It falls through
+          // to the generic RPC branch below like any other method, so no
+          // special case is needed here beyond documenting why one isn't.
           const fn = async (...args: unknown[]) => {
             const result = await makeRequest(`${namespace}.${prop}`, args);
             return maybeWrapDisposable(namespace, result, makeRequest);
@@ -271,9 +233,9 @@ export function createApiProxy(opts: {
   }
 
   // --- Build the API root ----------------------------------------------
-  // We list the namespaces explicitly so a typo in `EVENT_PROPERTIES` is
-  // caught at runtime - if a namespace is missing here, the host's
-  // `Unknown RPC method` error surfaces immediately.
+  // We list the namespaces explicitly so a typo in a call site surfaces at
+  // runtime as the host's `Unknown RPC method` error, rather than silently
+  // reaching an undefined namespace proxy.
   const namespaces = [
     'bible',
     'commentary',
@@ -353,9 +315,9 @@ function makeRuntimeMethod(
         if (typeof endpoint !== 'string' || endpoint.length === 0) {
           throw new TypeError('runtime.expose: endpoint must be a non-empty string');
         }
-        if (endpoint.startsWith(RESERVED_ENDPOINT_PREFIX)) {
+        if (isReservedEndpoint(endpoint)) {
           throw new Error(
-            `runtime.expose: '${RESERVED_ENDPOINT_PREFIX}' is reserved by the host`,
+            `runtime.expose: endpoint prefixes ${RESERVED_ENDPOINT_PREFIXES.join(', ')} are reserved by the host`,
           );
         }
         if (typeof handler !== 'function') {
@@ -494,8 +456,14 @@ export function sendSubscribe(
   channel: IRpcChannel,
   id: RpcRequestId,
   channelName: string,
+  order?: number,
 ): void {
-  const env: RpcSubscribe = { kind: 'subscribe', id, channel: channelName };
+  const env: RpcSubscribe = {
+    kind: 'subscribe',
+    id,
+    channel: channelName,
+    ...(order !== undefined ? { order } : {}),
+  };
   channel.send(env);
 }
 

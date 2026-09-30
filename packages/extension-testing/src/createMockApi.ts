@@ -29,7 +29,6 @@ import { CHAPTERS_JOHN } from './fixtures';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
 type DisposableHandle = Extensions.DisposableHandle;
-type IEventApi<T> = Extensions.IEventApi<T>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,13 +99,6 @@ function mockDisposable(): DisposableHandle {
   return { dispose: asyncMock<void>(undefined) };
 }
 
-/** Create a mock IEventApi<T>. */
-function mockEvent<T>(): IEventApi<T> {
-  return {
-    subscribe: asyncMock(mockDisposable()) as IEventApi<T>['subscribe'],
-  };
-}
-
 // ─── Namespace mock builders ──────────────────────────────────────────────────
 
 function createMockBibleApi(): Extensions.IBibleApi {
@@ -144,10 +136,9 @@ function createMockBibleApi(): Extensions.IBibleApi {
     iterateVerses: asyncMock({ verses: [], hasMore: false } as Extensions.VerseIterationResult),
     parseReference: asyncMock(null),
     getVerseTokens: asyncMock(null),
+    getTokensForRange: asyncMock({} as Record<number, Extensions.VerseTokenDto[]>),
     navigateToVerse: asyncMock<void>(undefined),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveVerse: mockEvent(),
-    onDidSelectVerseWord: mockEvent(),
   };
 }
 
@@ -158,7 +149,6 @@ function createMockCommentaryApi(): Extensions.ICommentaryApi {
     getEntriesForRange: asyncMock([] as Extensions.CommentaryEntryDto[]),
     iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.CommentaryIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveCommentary: mockEvent(),
   };
 }
 
@@ -169,7 +159,6 @@ function createMockDictionaryApi(): Extensions.IDictionaryApi {
     search: asyncMock([] as Extensions.DictionaryEntryDto[]),
     iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.DictionaryIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveDictionary: mockEvent(),
   };
 }
 
@@ -180,7 +169,6 @@ function createMockBookApi(): Extensions.IBookApi {
     listSections: asyncMock([] as Extensions.BookSectionSummaryDto[]),
     iterateSections: asyncMock({ sections: [], hasMore: false } as Extensions.BookIterationResult),
     registerProvider: asyncMock(mockDisposable()),
-    onDidChangeActiveBook: mockEvent(),
   };
 }
 
@@ -191,7 +179,6 @@ function createMockNotesApi(): Extensions.INotesApi {
     create: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
     update: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
     delete: asyncMock<void>(undefined),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -203,7 +190,6 @@ function createMockHighlightsApi(): Extensions.IHighlightsApi {
     delete: asyncMock<void>(undefined),
     registerStyle: asyncMock(mockDisposable()),
     listStyles: asyncMock([] as Extensions.HighlightStyleDescriptor[]),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -262,20 +248,21 @@ function createMockUiApi(): Extensions.IUiApi {
     registerPanelType: asyncMock(mockDisposable()),
     registerVerseDecorator: asyncMock(mockDisposable()),
     updateVerseDecorations: asyncMock<void>(undefined),
+    invalidateVerseDecorations: asyncMock<void>(undefined),
     registerVerseHover: asyncMock(mockDisposable()),
+    listThemeColorKeys: asyncMock<string[]>([]),
     registerContextMenu: asyncMock(mockDisposable()),
-    // RESERVED in the real host: `UiApiImpl.handleRegisterDisplayMode` rejects
-    // every call with `MethodNotImplementedYet`. The mock still resolves so an
-    // extension that calls it can be unit-tested at all, but a green test here
-    // says nothing about runtime - custom verse display modes do not exist.
-    registerDisplayMode: asyncMock(mockDisposable()),
     registerStatusBarItem: asyncMock(mockDisposable()),
-    showNotification: asyncMock<void>(undefined),
+    updateStatusBarItem: asyncMock<void>(undefined),
+    // Resolves undefined by default (as if dismissed with no action clicked).
+    // Override with `overrides.ui.showNotification` to simulate an action click.
+    showNotification: asyncMock(undefined as string | undefined),
     showQuickPick: asyncMock(undefined),
     showInputBox: asyncMock(undefined),
     showConfirm: asyncMock(false),
     pickFile: asyncMock(undefined),
     saveFile: asyncMock(false),
+    openSettings: asyncMock<void>(undefined),
   };
 }
 
@@ -285,9 +272,9 @@ function createMockWorkspaceApi(): Extensions.IWorkspaceApi {
     getOpenPanels: asyncMock([] as Extensions.PanelInfoDto[]),
     openPanel: asyncMock('mock-panel-id'),
     closePanel: asyncMock<void>(undefined),
-    onDidChangeActivePanel: mockEvent(),
-    onDidOpenPanel: mockEvent(),
-    onDidClosePanel: mockEvent(),
+    setPanelTitle: asyncMock<void>(undefined),
+    setPanelBadge: asyncMock<void>(undefined),
+    revealPanel: asyncMock(true),
   };
 }
 
@@ -295,7 +282,6 @@ function createMockContextApi(): Extensions.IContextApi {
   return {
     get: asyncMock(undefined),
     set: asyncMock<void>(undefined),
-    onDidChange: mockEvent(),
   };
 }
 
@@ -500,7 +486,7 @@ function createMockStorageApi(): Extensions.IStorageApi {
       secrets.delete(key);
     }),
     getSetting: asyncMock(undefined),
-    onDidChangeSettings: mockEvent(),
+    setSetting: asyncMock<void>(undefined),
     // Keyed by name, so a test can re-open the same database to inspect what
     // the extension did to it. A closed handle is replaced rather than
     // resurrected, which is what a second `openDatabase` gets on the host.
@@ -535,13 +521,13 @@ function createMockL10nApi(): Extensions.IL10nApi {
   return {
     t: asyncMock(''),
     currentLocale: asyncMock('en'),
-    onDidChangeLocale: mockEvent(),
   };
 }
 
 function createMockEventsApi(): Extensions.IEventsApi {
   return {
     subscribe: asyncMock(mockDisposable()) as Extensions.IEventsApi['subscribe'],
+    publish: asyncMock<void>(undefined),
   };
 }
 
@@ -593,8 +579,6 @@ function createMockExtensionsApi(): Extensions.IExtensionsApi {
     call: asyncMock(undefined as unknown) as Extensions.IExtensionsApi['call'],
     isActive: asyncMock(false),
     listProviders: asyncMock([] as Extensions.ExtensionProviderInfo[]),
-    onDidActivate: mockEvent(),
-    onDidDeactivate: mockEvent(),
   };
 }
 

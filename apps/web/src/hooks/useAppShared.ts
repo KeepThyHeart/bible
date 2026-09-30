@@ -4,7 +4,6 @@ import { commentaryStore } from '../stores/commentaryStore';
 import { searchStore } from '../stores/searchStore';
 import { settingsStore } from '../stores/settingsStore';
 import { eventBus } from '../events/eventBus';
-import { keybindingRegistry } from '../plugins/registries/KeybindingRegistry';
 import { useStore } from './useStore';
 import { parseVerseId } from '../utils/verseId';
 import { focusSearchField } from '../utils/focusSearchField';
@@ -139,10 +138,6 @@ export function useAppShared(providers: IDataProviders) {
         e.preventDefault();
         focusSearchField();
       }
-      // Delegate to plugin keybinding registry
-      if (keybindingRegistry.hasBindings()) {
-        keybindingRegistry.handleKeyEvent(e);
-      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -155,7 +150,16 @@ export function useAppShared(providers: IDataProviders) {
   const activeVerseFootnotes = activeTab?.verses?.find(
     v => v.verse_id === studyVerse
   )?.footnotes;
+  // The selection the effect below last ran with, to tell a page turned by audio
+  // follow-along (selection unchanged) from the reader choosing a verse.
+  const lastStudyVerseRef = useRef<number | null | undefined>(undefined);
   useEffect(() => {
+    const previous = lastStudyVerseRef.current;
+    lastStudyVerseRef.current = studyVerse;
+    // Audio follow-along turned the page: the Study pane follows the reader's
+    // selection only, so say nothing. A verse the reader then selects changes
+    // `studyVerse` and is announced as usual.
+    if (activeTab?.followNav && studyVerse === previous) return;
     if (studyVerse && activeBook && activeChapter) {
       // Only emit if studyVerse actually belongs to the current chapter.
       // During preview navigation, book/chapter change but studyVerse stays

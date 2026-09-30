@@ -7,7 +7,13 @@
  *     to 60 s. Permission: `extensions:call`.
  *   - `isActive(extensionId)` - true if installed and active.
  *   - `listProviders()` - list extensions that export at least one API method.
- *   - `onDidActivate` / `onDidDeactivate` - events.
+ *
+ * `extension.activated` / `extension.deactivated` (`api.events.subscribe`)
+ * are fired directly from `ExtensionHostLifecycle.activate`/`deactivate` now
+ * (task 0024 round 3, P0.3) - not from this class, which used to hold
+ * `emitDidActivate`/`emitDidDeactivate` for that purpose. They needed to
+ * exclude the extension the event is *about*, which is lifecycle's business,
+ * not this RPC-mediation class's.
  *
  * The host mediates every cross-extension call so neither extension can crash
  * the other. Arguments and return values must be JSON-serializable.
@@ -96,26 +102,6 @@ export class ExtensionsApiImpl {
 
   dispose(): void {
     this.disposed = true;
-  }
-
-  // --- Event emission (called from ExtensionHost) ---------------------
-
-  /**
-   * Push an `extensions.onDidActivate` event to the worker if it's
-   * subscribed. Called by the host after any extension activates.
-   */
-  emitDidActivate(extensionId: string): void {
-    if (this.disposed) return;
-    this.router.emitEvent('extensions.onDidActivate', { extensionId });
-  }
-
-  /**
-   * Push an `extensions.onDidDeactivate` event to the worker if it's
-   * subscribed. Called by the host after any extension deactivates.
-   */
-  emitDidDeactivate(extensionId: string): void {
-    if (this.disposed) return;
-    this.router.emitEvent('extensions.onDidDeactivate', { extensionId });
   }
 
   // ---- Handlers --------------------------------------------------------

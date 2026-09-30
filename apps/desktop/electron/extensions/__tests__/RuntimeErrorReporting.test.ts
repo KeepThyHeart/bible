@@ -183,7 +183,7 @@ describe('ExtensionHost surfaces worker runtime errors in extension.log (bug C)'
         name: { key: 'extension.name' },
         version: '1.0.0',
         publisher: 'test',
-        engines: { bibleApp: '^1.0.0' },
+        engines: { bibleApp: '^0.1.0' },
         main: './main.js',
         permissions: [],
       }),

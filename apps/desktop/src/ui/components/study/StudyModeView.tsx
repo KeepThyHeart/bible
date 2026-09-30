@@ -16,6 +16,10 @@ import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { isTextSelectionActive } from '../../utils/selectionUtils';
 import { isInSelectedRange } from '../../stores/bible/internals/verseRange';
 import { findVerseElement, restartArrivalFlash } from '../../hooks/verseScrollTarget';
+import { VerseGutter, useHasEnabledDecoratorLayers } from '../../extensions/VerseGutterLane';
+import { useVerseHoverTrigger } from '../../extensions/useVerseHoverTrigger';
+import { useVerseDecorationStore } from '../../extensions/verseDecorationStore';
+import { resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 
 interface BibleVerse {
   verse_id: number;
@@ -302,6 +306,24 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
     if (e.shiftKey) e.preventDefault();
   };
 
+  // Task 0036 (P0.1a, amendment A4): the gutter lane's presence, in Study
+  // mode too, next to the verse number.
+  const hasGutterLane = useHasEnabledDecoratorLayers();
+
+  // Task 0036 (P0.1c): word/verse hover popups.
+  const hoverTrigger = useVerseHoverTrigger(moduleId, currentAbbreviation, 'study');
+  const handleVerseRowMouseEnter = React.useCallback(
+    (verseId: number) => (event: React.MouseEvent) => {
+      const layers = useVerseDecorationStore.getState().getDecorationsForVerse(verseId, moduleId); // allow-getstate: imperative read at hover time
+      const verseHovers =
+        layers.length === 0
+          ? []
+          : resolveVerseDecorations({ verseId, wordCount: 0, layers, surface: 'study', resolveColor: resolveThemeColor }).verseHovers;
+      hoverTrigger.onVerseMouseEnter(verseId, verseHovers, event);
+    },
+    [moduleId, hoverTrigger],
+  );
+
   return (
     <div className="px-xl py-lg" ref={rootRef}>
       <div className="max-w-4xl mx-auto">
@@ -382,6 +404,9 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                     verse's first line; the flex default `stretch` would centre it
                     against the full height of a multi-line verse. */}
                 <div className="flex items-start gap-4">
+                  {hasGutterLane && (
+                    <VerseGutter verseId={verse.verse_id} moduleId={moduleId} surface="study" />
+                  )}
                   {!isPreface && (
                     <span
                       /* No hover fill: the verse text beside it is the click
@@ -409,6 +434,8 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                       className="verse-row"
                       onMouseDown={handleVerseMouseDown}
                       onClick={(e) => handleVerseTextClick(verse.verse_id, e.shiftKey)}
+                      onMouseEnter={handleVerseRowMouseEnter(verse.verse_id)}
+                      onMouseLeave={hoverTrigger.onVerseMouseLeave}
                     >
                     {studyOptions.showInterlinear && interlinearWords.length > 0 ? (
                       // Both branches emit the same `.word[data-word-index]`
@@ -417,7 +444,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                       // identically with interlinear on or off. `text_html` (not
                       // `text`) is passed so the token sequence is byte-for-byte
                       // the one Standard/Reading index highlights against; see
-                      // interlinearCells.ts for why interlinear positions live in
+                      // InterlinearCells.ts (@bible/core) for why interlinear positions live in
                       // that same index space.
                       <InterlinearDisplay
                         interlinearWords={interlinearWords}
@@ -426,6 +453,9 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                         onStrongsClick={onStrongsClick}
                         verseId={verse.verse_id}
                         moduleId={moduleId}
+                        keywordTabId={tabId}
+                        onWordMouseEnter={hoverTrigger.onWordMouseEnter}
+                        onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                       />
                     ) : (
                       // HighlightedVerse (not raw dangerouslySetInnerHTML) so the
@@ -442,6 +472,10 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                           verseId={verse.verse_id}
                           verseHTML={verse.text_html || verse.text}
                           moduleId={moduleId}
+                          keywordTabId={tabId}
+                          surface="study"
+                          onWordMouseEnter={hoverTrigger.onWordMouseEnter}
+                          onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                         />
                       </p>
                     )}

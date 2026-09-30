@@ -16,7 +16,7 @@ concepts. Read the table below before touching either.
 | Security | Declared permissions, install-time consent, `ExtensionPermissionGuard` at every API boundary, signature verification, blocklist | None |
 | Contents of core | **Types and validators only.** No runtime. | The actual runtime (`HookRegistry`, `PluginLoader`) |
 | Runtime lives in | The consuming app - an extension host process plus a per-extension worker | The consuming app - a plugin manager on each side it runs |
-| Versioning | `EXTENSION_API_VERSION` (`'1.0.0'`), additive-only | Unversioned |
+| Versioning | `EXTENSION_API_VERSION` (`'0.1.0'` - retrograded pre-1.0 until a stable release ships, task 0024 round 3), additive-only until then | Unversioned |
 
 Neither system is the other's successor. If you are asked to "add a hook", work
 out first whether the caller is a sandboxed third-party extension (Extensions)
@@ -85,9 +85,11 @@ Tests: `src/__tests__/HookRegistry.test.ts`,
 `src/__tests__/PluginLoader.test.ts`.
 
 `HookRegistry` is also exported from the browser barrel `src/browser.ts` (along
-with the `FilterHandler` / `ActionHandler` types), because client-side plugins run
-in the renderer and need it there. `PluginLoader` is **not** in the browser barrel
-- it reaches the filesystem, so a client needs its own loader.
+with the `FilterHandler` / `ActionHandler` types), for renderer-side use.
+`PluginLoader` is **not** in the browser barrel - it reaches the filesystem. The web
+app's old in-process client plugin system (which needed its own loader) was removed;
+web extensions will use the sandboxed-iframe model and the shared `IframeRpcBridge`
+instead (see the `uiKit` section below).
 
 ## How it works
 
@@ -115,13 +117,39 @@ extension.json
       every method call -> ExtensionPermissionGuard -> PermissionDeniedError on failure
 ```
 
-Extension points come in three kinds (`EXTENSION_POINT_KINDS`):
+Extension points come in three kinds (`EXTENSION_POINT_KINDS`), dispatched
+through one entry point, `api.events.subscribe(channel, handler, opts?)` on
+the extension side and `dispatchExtensionPoint(channel, payload)` on the host
+side (`ExtensionPointWiring.ts` in the desktop app). There are 14 channels as
+of task 0024 round 3 - a deliberate pruning from an earlier, speculative
+40-member union that had zero call sites; a channel here is one something in
+the host actually dispatches, not one that might someday exist:
 
-- **event** - fire-and-forget, subscribers run in parallel, host does not await.
-- **filter** - subscribers run sequentially; a non-`undefined` return becomes the
-  next subscriber's payload. 2-second per-subscriber timeout.
-- **provider** - subscribers run in parallel; results collected into one array
-  ordered by each subscriber's `order` hint.
+- **event** - fire-and-forget, subscribers run in parallel, host does not
+  await. A throwing subscriber is logged and skipped.
+- **filter** - subscribers run sequentially; a non-`undefined` return becomes
+  the next subscriber's payload (`EXTENSION_POINT_CANCELABLE` channels
+  instead return `'continue' | 'cancel'` and short-circuit on the first
+  `'cancel'`). 2-second per-subscriber timeout plus a 5-second total budget
+  across the whole waterfall. **Hooks fail open**: a subscriber that throws
+  or times out is skipped and the waterfall continues with the previous
+  value - it is never treated as `'cancel'`, so a buggy extension cannot
+  silently block a user action.
+- **provider** - subscribers run in parallel, each individually time-boxed;
+  results are collected into one array ordered by `(order, extensionId)`, up
+  to `PROVIDER_MAX_ITEMS`.
+
+A channel with no subscribers is not a special case at any of the three call
+sites: an event dispatch is a no-op, a transform filter returns the payload
+unchanged, a cancelable filter returns `'continue'`, and a provider returns
+`[]`.
+
+Some channels are replayed (`EXTENSION_POINT_REPLAY` - currently just
+`verse.activeChanged`): a subscriber arriving after the last change is sent
+the *current* value immediately, because the active verse is state, not a
+stream. Subscribing to a channel can also require a permission
+(`EXTENSION_POINT_PERMISSIONS`), checked at dispatch time rather than at
+`subscribe()` time, so a grant that changes later takes effect immediately.
 
 Render order is partitioned so a plugin cannot push core UI off the Z-stack:
 built-ins get `ORDER_BUILTIN_MIN`..`MAX` (0-99), plugins get
@@ -147,10 +175,42 @@ at runtime:
 `applyFilters`/`runActions` check `Map.has()` first, so an unhooked call site
 costs nothing.
 
+## Extension data and backups
+
+A manifest's optional `userData` block says which of the extension's data is the
+user's and belongs in a backup: `backup` (its key-value store; default `true`),
+and `databases`, a map from an `openDatabase()` name to `{ "backup": true }`
+(default: not included). `sync` is accepted at both levels and reserved. The type is
+`ExtensionUserDataConfig` in `ExtensionManifest.ts`, validated in
+`ExtensionManifestValidator.ts` and described in `ExtensionManifestSchema.json`
+(change all three together); `Backup.resolveExtensionBackup` applies the defaults.
+See [Backup format](backup-format.md#extension-data).
+
+## UI kit (`uiKit`) and the iframe bridge
+
+A manifest's optional `uiKit` field opts a panel into the host-served, framework-neutral
+`kth-*` custom elements: `"uiKit": { "version": "1", "components": ["kth-book-chapter-picker"] }`.
+`version` is the kit major (`UI_KIT_VERSIONS`, currently `['1']`); each tag must exist in
+`UI_KIT_COMPONENTS[version]` and appear once; the manifest must also hold
+`ui:contribute-pane`. The validator rejects an unknown major or tag at install. There is
+**no new permission**: a component adds no capability the panel lacks. Each
+`UiKitComponentSpec` lists `hostMethods` (`uikit.*` bridge methods it may call) and
+`requiresPermissions` (existing permissions). `ui.getLocale` is a plain `ui.*` method and is
+never a kit host method.
+
+Enforcement is in `IframeRpcBridge` (host side of the panel iframe's `postMessage` RPC,
+in `@bible/core/browser`, shared by the desktop renderer and, later, the web app): any
+`uikit.*` request is answered only if the host-assembled `BridgeContext.manifest.uiKit`
+declares a component whose `hostMethods` lists it and `BridgeContext.grants` cover its
+`requiresPermissions`; otherwise `PermissionDeniedError`, before any handler runs. Identity,
+manifest and grants come from the host's mount props, never from the request. Change
+`ExtensionManifest.ts`, `UiKit.ts`, the validator and the schema together
+(`UiKit.test.ts` pins the schema enums to the registry).
+
 ## Gotchas
 
 - **`src/Extensions/` contains no runtime.** Every file there is types,
-  constants, or a pure validator. The host process, the permission guard, the RPC
+  constants, a pure validator, or the platform-free `IframeRpcBridge` (structural window types, no DOM). The host process, the permission guard, the RPC
   router and the worker runtime all belong to the consuming app; core only says
   what shape they must take (`IExtensionHost`, `IExtensionRuntime`).
 

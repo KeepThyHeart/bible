@@ -5,7 +5,7 @@
  *
  *   - `engines.bibleApp` mismatches abort `activate()` with
  *     `IncompatibleApiVersionError` *before* a worker is forked.
- *   - `fireActivationEvent('onStartup')` activates only the extensions whose
+ *   - `fireActivationEvent('onStartupFinished')` activates only the extensions whose
  *     manifest opted into the event.
  */
 
@@ -93,7 +93,7 @@ function writeFixture(root: string, opts: FixtureOpts): void {
     name: { key: 'extension.name' },
     version: '1.0.0',
     publisher: 'test',
-    engines: { bibleApp: opts.engines ?? '^1.0.0' },
+    engines: { bibleApp: opts.engines ?? '^0.1.0' },
     main: './main.js',
     permissions: ['bible:read'],
   };
@@ -136,7 +136,7 @@ describe('Version check + activation events', () => {
   });
 
   it('accepts an extension whose engines.bibleApp matches the host version', async () => {
-    writeFixture(tmpRoot, { id: 'ext.test.compat', engines: '^1.0.0' });
+    writeFixture(tmpRoot, { id: 'ext.test.compat', engines: '^0.1.0' });
     host = new ExtensionHost({
       db: new FakeSql(),
       extensionsRoot: tmpRoot,
@@ -154,7 +154,7 @@ describe('Version check + activation events', () => {
   it('fireActivationEvent activates only matching extensions', async () => {
     writeFixture(tmpRoot, {
       id: 'ext.test.startup',
-      activationEvents: ['onStartup'],
+      activationEvents: ['onStartupFinished'],
     });
     writeFixture(tmpRoot, {
       id: 'ext.test.lazy',
@@ -169,7 +169,7 @@ describe('Version check + activation events', () => {
     });
     await host.loadAll();
 
-    await host.fireActivationEvent('onStartup');
+    await host.fireActivationEvent('onStartupFinished');
 
     expect(host.isActive('ext.test.startup')).toBe(true);
     expect(host.isActive('ext.test.lazy')).toBe(false);
@@ -181,7 +181,7 @@ describe('Version check + activation events', () => {
   it('fireActivationEvent skips disabled and auto-disabled extensions', async () => {
     writeFixture(tmpRoot, {
       id: 'ext.test.disabled',
-      activationEvents: ['onStartup'],
+      activationEvents: ['onStartupFinished'],
     });
     host = new ExtensionHost({
       db: new FakeSql(),
@@ -193,7 +193,7 @@ describe('Version check + activation events', () => {
     await host.loadAll();
     await host.disable('ext.test.disabled');
 
-    await host.fireActivationEvent('onStartup');
+    await host.fireActivationEvent('onStartupFinished');
     expect(host.isActive('ext.test.disabled')).toBe(false);
   });
 });

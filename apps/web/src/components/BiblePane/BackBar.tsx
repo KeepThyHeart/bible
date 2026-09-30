@@ -38,7 +38,7 @@ export function BackBar() {
       <button class="bible-back-bar__btn" onClick={handleBack}>
         <i class="fa-solid fa-arrow-left" /> Back to {backLabel}
       </button>
-      <button class="bible-back-bar__dismiss" onClick={handleDismiss} title={t('backBar.dismiss')}>
+      <button class="kth-btn kth-btn--ghost kth-btn--sm bible-back-bar__dismiss" onClick={handleDismiss} title={t('backBar.dismiss')}>
         <i class="fa-solid fa-xmark" />
       </button>
     </div>

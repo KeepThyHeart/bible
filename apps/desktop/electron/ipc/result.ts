@@ -27,6 +27,10 @@
  *   - `pack_tampered` - a verified `.biblepack`'s manifest does not match the
  *     archive's actual file bytes (wrong hash/size, an unlisted module, or a
  *     listed one that never showed up). Nothing was installed.
+ *   - `backup_password_required`, `backup_wrong_password`, `backup_newer_format`,
+ *     `backup_damaged`, `backup_not_a_backup`, `backup_restore_failed`,
+ *     `backup_inspection_expired` - the expected ways opening or restoring a
+ *     backup fails (see `backupHandlers.ts`); the renderer shows a specific message for each.
  *   - `internal` - unexpected error (DB failure, FS failure, bug)
  *
  * Handlers should classify expected user-facing errors with one of the codes
@@ -43,6 +47,13 @@ export type IpcErrorCode =
   | 'pack_signature_invalid'
   | 'pack_unverified'
   | 'pack_tampered'
+  | 'backup_password_required'
+  | 'backup_wrong_password'
+  | 'backup_newer_format'
+  | 'backup_damaged'
+  | 'backup_not_a_backup'
+  | 'backup_restore_failed'
+  | 'backup_inspection_expired'
   | 'internal';
 
 export interface IpcError {

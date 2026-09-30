@@ -54,15 +54,6 @@ export interface DisposableHandle {
   dispose(): Promise<void>;
 }
 
-/**
- * Worker-side subscription handle exposed by every `IXxxApi.onDidXxx` event.
- * Mirrors VSCode's `Event<T>` shape - `subscribe` returns a `DisposableHandle`
- * the worker can dispose to stop receiving events.
- */
-export interface IEventApi<T> {
-  subscribe(handler: (payload: T) => void | Promise<void>): Promise<DisposableHandle>;
-}
-
 // --- Verse ranges & token data ---------------------------------------------
 
 /**
@@ -152,36 +143,141 @@ export interface DecorationStyle {
   opacity?: number;
 }
 
+// --- Verse decorations (task 0036, P0.1) ------------------------------------
+//
+// Redesigned outright rather than extended: every DTO in this surface was
+// dead code with no consumer before task 0036 (see that task's design doc,
+// "P0.1 - Verse decorators and hovers", §1). `DecorationDto.range`/`.style`
+// above were never wired to anything and carry no back-compat obligation.
+// `DecorationStyle`/`ColorValue` themselves are UNCHANGED - they remain the
+// vocabulary for `HighlightStyleDescriptor.style` (a different, live
+// feature: extension-contributed *highlight styles* the user can apply by
+// hand, not automatic verse decoration). Only `DecorationDto` and its two
+// descriptor types are replaced, below.
+
+/**
+ * A decoration target. Verse ids use the host's BBBCCCVVV integer
+ * convention (`VerseIdHelper`). Word- and token-level targeting
+ * (`kind: 'word'` / `'tokens'`) is defined here for the whole P0.1 redesign
+ * but is only *matched* starting in P0.1b - see that task's requirements.
+ * A `'word'`/`'tokens'` target given to a P0.1a-only host is well-formed and
+ * accepted, it simply resolves to nothing yet.
+ */
+export type DecorationTarget =
+  /** One whole verse. */
+  | { kind: 'verse'; verseId: number }
+  /** An inclusive passage. `endVerseId >= startVerseId`. */
+  | { kind: 'passage'; startVerseId: number; endVerseId: number }
+  /**
+   * A token span within one verse, addressed by the module's own per-
+   * translation word index (`VerseTokenDto.index`, from
+   * `bible.getVerseTokens` / `bible.getTokensForRange`). `endTokenIndex`
+   * defaults to `startTokenIndex` (a single token). P0.1b resolves this
+   * directly against the rendered word sequence (design amendment A5).
+   */
+  | { kind: 'tokens'; verseId: number; startTokenIndex: number; endTokenIndex?: number }
+  /**
+   * Every word whose normalized surface form equals `text`, within `scope`.
+   * `occurrence` (1-based) narrows it to the nth match inside the scope;
+   * omitted means every match.
+   */
+  | {
+      kind: 'word';
+      text: string;
+      scope: { verseId: number } | { startVerseId: number; endVerseId: number };
+      occurrence?: number;
+      matchCase?: boolean; // default false
+    };
+
+/**
+ * A key from the host's published theme-colour allowlist
+ * (`THEME_COLOR_KEYS`, `themeColorKeys.ts`). Resolved against the active
+ * theme at render time, so a decoration is correct in every shipped theme
+ * without the extension knowing they exist.
+ */
+export type ThemeColorKeyRef = string;
+
+/** The host's closed gutter-icon set. */
+export const HOST_ICON_KEYS = [
+  'dot',
+  'flag',
+  'star',
+  'bookmark',
+  'info',
+  'warning',
+  'check',
+  'cross',
+  'question',
+  'pencil',
+] as const;
+
+/** A key from the host's closed gutter-icon set. */
+export type HostIconKey = (typeof HOST_ICON_KEYS)[number];
+
+/**
+ * A closed vocabulary of semantic decoration kinds, each with a small closed
+ * option set and host-controlled visual treatment - replaces the free-form
+ * `DecorationStyle` for verse decorations (design doc §3.3, amendment A3).
+ *
+ * No extension text colour anywhere: an unreadable-against-theme text colour
+ * would fight red-letter text and dark themes, so there is no `foreground`
+ * and `emphasis` carries no `color`. No italic either - italics already mean
+ * "translator-supplied word" throughout the reading surfaces.
+ */
+export type DecorationAppearance =
+  /** Background wash over the target. At most one wins per target. */
+  | { kind: 'tint'; color: ThemeColorKeyRef; intensity?: 'subtle' | 'normal' | 'strong' }
+  /** Underline beneath the target. Up to 3 stack, in priority order. */
+  | {
+      kind: 'underline';
+      color: ThemeColorKeyRef;
+      style?: 'solid' | 'dashed' | 'dotted';
+      thickness?: 'thin' | 'medium' | 'thick';
+    }
+  /** A mark in the verse gutter. Verse and passage targets only. Standard/Study only - never Reading mode (A4). */
+  | { kind: 'gutter'; icon: HostIconKey; color?: ThemeColorKeyRef; tooltip?: LocalizedString }
+  /** Bold weight of the target text. */
+  | { kind: 'emphasis' }
+  /** Line-through. */
+  | { kind: 'strike'; color?: ThemeColorKeyRef }
+  /** A short inline badge (`::after` content, never a selectable DOM node) rendered immediately after the target. */
+  | { kind: 'badge'; label: string; color?: ThemeColorKeyRef };
+
 export interface DecorationDto {
-  /** A single range or several ranges to apply the same style. */
-  range: VerseRange | VerseRange[];
-  style: DecorationStyle;
-  /** Optional hover content shown when the user mouses over the decorated text. */
+  /** One target or several sharing the same appearance. Max 64 per decoration. */
+  target: DecorationTarget | DecorationTarget[];
+  appearance: DecorationAppearance;
+  /** Static hover content for this decoration (P0.1c). See `VerseHoverProviderDescriptor` for the callback path. */
   hoverContent?: HoverContentDto;
-  /**
-   * Command to execute when the user clicks the decoration. The command
-   * receives `{ range, data }` as args.
-   */
-  onClickCommand?: string;
-  /** Opaque data passed through to the click handler. */
+  /** Opaque, round-tripped to the hover callback. */
   data?: unknown;
-  /** Render order. See "order hint" section of the spec. */
+  /** Priority within this layer. Higher wins. Default 0. Range -1000..1000. */
   order?: number;
-  /**
-   * Optional ID for grouping related decorations. Pass the same groupId to
-   * `ui.updateVerseDecorations` to replace the whole group atomically.
-   */
+  /** Group id, for atomic replacement via `ui.updateVerseDecorations`. */
   groupId?: string;
 }
 
 export interface VerseDecoratorDescriptor {
   id: string;
-  /** Reverse-RPC endpoint: (verseId[]) -> DecorationDto[]. */
+  /** Reverse-RPC endpoint: (DecorationRequestDto) -> DecorationDto[]. */
   decorateEndpoint: string;
-  /** If true, the host calls `decorateEndpoint` for visible verses only. Default true. */
-  visibleVersesOnly?: boolean;
-  /** When the decorator should rebuild. */
-  invalidateOn?: ('verse.activeChanged' | 'theme.changed' | 'settings.changed' | 'manual')[];
+  /**
+   * Host events that drop this decorator's cached results wholesale.
+   * Default: `['manual']`. `'verse.activeChanged'` is deliberately not an
+   * option - selection changes constantly and must not nuke a chapter's
+   * decoration cache; chapter/module changes are handled by the cache key,
+   * not by invalidation.
+   */
+  invalidateOn?: ('theme.changed' | 'settings.changed' | 'manual')[];
+  /**
+   * Which reading surfaces this decorator's output may render on. Default
+   * `['standard', 'study']` - an extension opts in to Reading mode
+   * explicitly (amendment A4). Gutter marks never render in Reading mode
+   * regardless of this list.
+   */
+  surfaces?: ('standard' | 'study' | 'reading')[];
+  /** Human-readable name for the per-extension toggle UI and diagnostics. */
+  title?: LocalizedString;
 }
 
 // --- Hover content ---------------------------------------------------------
@@ -204,12 +300,95 @@ export type HoverContentDto =
 
 export interface VerseHoverProviderDescriptor {
   id: string;
-  /** Reverse-RPC endpoint: (verseId, modifiers) -> HoverContentDto[] */
+  /** Reverse-RPC endpoint: (VerseHoverRequestDto) -> HoverContentDto[] */
   hoverEndpoint: string;
+  /** What the user must be hovering for this provider to fire. Default 'verse'. */
+  scope?: 'verse' | 'word' | 'both';
   /** Modifier keys that must be held for this hover to fire. Default: none (any hover). */
   modifiers?: ('ctrl' | 'alt' | 'shift' | 'meta')[];
-  /** Order among multiple hover providers. */
+  /** Ordering among providers in the combined popup. Lower renders first. Default 0. */
   order?: number;
+  /** Same meaning as `VerseDecoratorDescriptor.surfaces` (amendment A4). */
+  surfaces?: ('standard' | 'study' | 'reading')[];
+  title?: LocalizedString;
+}
+
+export interface VerseHoverRequestDto {
+  verseId: number;
+  moduleId: number;
+  moduleAbbrev: string;
+  /** Present when the user is hovering a specific word. */
+  word?: { renderedIndex: number; text: string };
+  modifiers: ('ctrl' | 'alt' | 'shift' | 'meta')[];
+}
+
+/**
+ * Renderer -> main `ext-bridge:ui:invoke` payload for `fetchVerseHover` (task
+ * 0036, P0.1c; design doc §11). Adds `surface` on top of the extension-
+ * facing `VerseHoverRequestDto` - the host needs it to filter which
+ * providers to even ask (`VerseHoverProviderDescriptor.surfaces`), but an
+ * extension's `hoverEndpoint` never sees it, since providers don't behave
+ * differently per surface, only render on some or none (amendment A4).
+ */
+export interface VerseHoverFetchRequest extends VerseHoverRequestDto {
+  surface: 'standard' | 'study' | 'reading';
+}
+
+export type VerseHoverFetchStatus = 'ok' | 'timeout' | 'error' | 'skipped';
+
+export interface VerseHoverFetchResult {
+  extensionId: string;
+  providerId: string;
+  title?: LocalizedString;
+  status: VerseHoverFetchStatus;
+  /** A provider may return several sections itself; empty on any non-'ok' status. */
+  content: HoverContentDto[];
+}
+
+export interface VerseHoverFetchResponse {
+  results: VerseHoverFetchResult[];
+}
+
+/** What the host asks a decorator for (design doc §3.6). */
+export interface DecorationRequestDto {
+  /** Inclusive passage. v1 always a whole chapter; later possibly narrower. */
+  startVerseId: number;
+  endVerseId: number;
+  /** The module the user is reading, so token indexes and word text line up. */
+  moduleId: number;
+  /** Stable module abbreviation, e.g. 'kjv' - easier for extensions than the numeric id. */
+  moduleAbbrev: string;
+  /** Opaque; echoed in diagnostics. Not required in the response. */
+  requestId: string;
+}
+
+/** Renderer -> main `ext-bridge:ui:invoke` payload for `fetchVerseDecorations` (design doc §5.1). */
+export interface DecorationFetchRequest {
+  startVerseId: number;
+  endVerseId: number;
+  moduleId: number;
+  moduleAbbrev: string;
+  /** Layers to fetch. Omitted = all enabled layers. Set on targeted re-fetch. */
+  layerKeys?: string[];
+  /** Per-layer revision the renderer believes is current. */
+  revisions: Record<string, number>;
+}
+
+export type DecorationFetchStatus = 'ok' | 'timeout' | 'error' | 'skipped' | 'truncated';
+
+export interface DecorationFetchResult {
+  /** `${extensionId}::${decoratorId}`. */
+  layerKey: string;
+  /** The layer revision this data belongs to. */
+  revision: number;
+  status: DecorationFetchStatus;
+  decorations: DecorationDto[];
+  /** Diagnostics: count of items dropped by validation/caps. */
+  rejected?: number;
+}
+
+export interface DecorationFetchResponse {
+  results: DecorationFetchResult[];
 }
 
 // --- Context menus ---------------------------------------------------------
@@ -249,9 +428,6 @@ export interface ContextMenuItemDescriptor {
   separatorBefore?: boolean;
   separatorAfter?: boolean;
 }
-
-/** Alias preserved for spec parity - the descriptor IS the wire DTO. */
-export type ContextMenuItemDto = ContextMenuItemDescriptor;
 
 /**
  * What a `verse` context menu item's command receives under `args.verse`:
@@ -1061,16 +1237,6 @@ export interface ExtensionPanelTypeDef {
   defaultWindowSize?: { width: number; height: number };
 }
 
-export interface DisplayModeDescriptor {
-  id: string;
-  label: LocalizedString;
-  /** 'overlay' adds decorations on top of the standard rendering; 'replace' substitutes an iframe. */
-  kind: 'overlay' | 'replace';
-  /** Reverse-RPC: (verseId[]) -> DecorationDto[] for overlay; (verseId) -> uiEntry path for replace. */
-  renderEndpoint: string;
-  /** Languages this mode applies to. Empty = all. */
-  applicableLanguages?: string[];
-}
 
 export interface StatusBarItemDescriptor {
   id: string;
@@ -1262,22 +1428,14 @@ export interface IExtensionDatabase {
 }
 
 // --- Filter / search DTOs used by extension points -------------------------
-
-export interface RenderOverride {
-  /** If present, replaces the standard verse text content. */
-  text?: string;
-  /** If present, replaces the formatting metadata. */
-  formattingData?: BibleVerseFormattingDataDto;
-  /** Optional opaque marker the host preserves alongside the override. */
-  reason?: string;
-}
-
-export interface FormatOverride {
-  /** Replacement text after formatting transforms. */
-  text?: string;
-  /** Replacement formatting metadata. */
-  formattingData?: BibleVerseFormattingDataDto;
-}
+//
+// `RenderOverride`, `FormatOverride`, `SearchResultsDto`, `SearchHitDto` and
+// `SearchSuggestionDto` used to live here, backing `verse.beforeRender`,
+// `verse.beforeFormat`, `search.afterResults` and
+// `search.suggestionsRequested` - all deleted in task 0024 round 3 (P0.3)
+// as speculative `ExtensionPointId` channels with zero call sites. None of
+// the four had any other user, so they went with the channels. `SearchQueryDto`
+// stays - `search.beforeQuery` (a filter/transform channel) keeps it live.
 
 export interface SearchQueryDto {
   query: string;
@@ -1286,29 +1444,6 @@ export interface SearchQueryDto {
   filters?: Record<string, unknown>;
   limit?: number;
   offset?: number;
-}
-
-export interface SearchResultsDto {
-  query: SearchQueryDto;
-  total: number;
-  /** Hit list - shape mirrors the host's internal SearchResult, plain JSON only. */
-  hits: SearchHitDto[];
-}
-
-export interface SearchHitDto {
-  verseId: number;
-  moduleId: string;
-  /** Snippet with optional highlight markup. */
-  snippet: string;
-  /** Relevance score (0..1 or arbitrary backend score). */
-  score: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface SearchSuggestionDto {
-  text: string;
-  /** Optional category label, e.g. 'reference', 'word', 'phrase'. */
-  category?: string;
 }
 
 // --- Error code names ------------------------------------------------------

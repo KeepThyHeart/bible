@@ -73,7 +73,7 @@ import BiblePaneOverlays from '../BiblePaneOverlays';
 import { BiblePaneProvider, BiblePaneContextValue, ContextMenuState } from '../BiblePaneContext';
 import { useBibleHighlights } from '../../hooks/useBibleHighlights';
 import { useHighlightStore } from '../../stores/useHighlightStore';
-import { captureWordSelection, takeCapturedWordSelection } from './capturedSelection';
+import { captureWordSelection, takeCapturedWordSelection } from '@bible/core/browser';
 import { enString, enT } from '../../testing/enCatalog';
 
 const MODULE_ID = 1;

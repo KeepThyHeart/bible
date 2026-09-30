@@ -29,6 +29,10 @@ export const ALLOWED_IPC_CHANNELS = [
   'highlights:get-by-note',
   'highlights:delete-for-verse-range',
   'highlights:find-overlapping',
+  // Keyword marks (task 0065)
+  'keywords:list',
+  'keywords:put',
+  'keywords:remove',
   // Notes
   'notes:get-by-id',
   'notes:get-all',
@@ -100,9 +104,11 @@ export const ALLOWED_IPC_CHANNELS = [
   'search:semanticSearch',
   // Backup/Restore channels
   'backup:create',
+  'backup:exportPlain',
   'backup:selectFile',
-  'backup:validate',
-  'backup:restore',
+  'backup:inspect',
+  'backup:apply',
+  'backup:discard',
   // File-based notes channels
   'file-notes:get-notes-dir',
   'file-notes:is-initialized',
@@ -264,6 +270,9 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getEntityByName',
   'tagGraph:getVersesForEntity',
   'tagGraph:getFacetsForEntity',
+  'tagGraph:getGenealogyDataset',
+  // Timeline
+  'timeline:getDataset',
   // Cross-references
   'xref:getAvailable',
   'xref:getGroupsForVerse',
@@ -271,6 +280,11 @@ export const TYPED_IPC_CHANNELS = [
   'xref:getEntryCount',
   'xref:getGroupsForRange',
   'xref:getReverseReferencesForRange',
+  // Cross-reference graph (task 0068)
+  'xrefGraph:getEgoGraph',
+  'xrefGraph:getNeighbours',
+  'xrefGraph:getBookMatrix',
+  'xrefGraph:getChapterArcs',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',

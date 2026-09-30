@@ -14,7 +14,7 @@
     // tsconfig `paths` at *runtime*, so mapping to source would make the CLI
     // consume core's ESM source rather than its CommonJS `dist/`, and core's
     // source is not ESM-clean. Resolving through node_modules types the CLI
-    // against the same build it runs. Consequence: `npm run build:core` is a
+    // against the same build it runs. Consequence: `pnpm run build:core` is a
     // prerequisite for typechecking, testing and building the CLI.
   },
   "include": ["src/**/*"],

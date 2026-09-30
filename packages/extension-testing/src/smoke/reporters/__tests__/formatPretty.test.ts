@@ -8,7 +8,7 @@ import type {
 
 function record(overrides: Partial<SmokeRecord> = {}): SmokeRecord {
   return {
-    hookId: 'event:bible.onDidChangeActiveVerse',
+    hookId: 'event:verse.activeChanged',
     kind: 'event',
     input: '43003016',
     inputValue: 43003016,
@@ -21,7 +21,7 @@ function record(overrides: Partial<SmokeRecord> = {}): SmokeRecord {
 
 function hookSummary(overrides: Partial<SmokeHookSummary> = {}): SmokeHookSummary {
   return {
-    hookId: 'event:bible.onDidChangeActiveVerse',
+    hookId: 'event:verse.activeChanged',
     kind: 'event',
     total: 10,
     passed: 10,
@@ -67,7 +67,7 @@ describe('formatPretty', () => {
       }),
     );
     expect(out).toContain('ext.test v0.1.0');
-    expect(out).toContain('event:bible.onDidChangeActiveVerse');
+    expect(out).toContain('event:verse.activeChanged');
     expect(out).toContain('10/10');
     expect(out).toContain('10 passed, 0 failed, 0 skipped');
     expect(out).toContain('42ms');

@@ -136,6 +136,11 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       const results = await searchService.search(query, {
         modules,
         maxResults: MAX_KEYWORD_RESULTS,
+        // Approximate matches for a multi-word query must cover a fair share of
+        // its significant terms. The core default lets a verse in on any single
+        // word ("God so loved the world" listed every verse containing "God"),
+        // which the desktop app still relies on; the web app opts in here.
+        fuzzyGate: 'coverage',
       });
 
       // `r.type` is the core MatchType — 'exact', 'stem' or 'fuzzy'. It used to

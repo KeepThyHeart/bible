@@ -5,10 +5,21 @@
   "layout.readingMode.description": "Somente a Bíblia, com margens para leitura",
   "layout.studyModeQuad.name": "Modo de estudo (quádruplo)",
   "layout.studyModeQuad.description": "Layout 2×2: comentário no canto superior esquerdo, Bíblia no canto superior direito, dicionários no canto inferior esquerdo e notas no canto inferior direito",
+  "layout.writerMode.name": "Modo de escrita",
+  "layout.writerMode.description": "As Escrituras à esquerda e um espaço para escrever à direita",
   "layout.applyPreset.title": "Aplicar {presetName}",
   "layout.dropdown.label": "Layout",
   "layout.dropdown.tooltip": "Redefinir para um layout interno",
+  "layout.reset.label": "Redefinir para o layout padrão",
+  "layout.newTab.createFailed": "Não foi possível abrir esse painel. Tente novamente.",
+  "layout.collapsePane.tooltip": "Recolher este painel",
+  "layout.expandCollapsed.label": "Mostrar painéis ocultos",
+  "layout.expandCollapsed.tooltip": "Trazer de volta à vista os painéis de estudo recolhidos",
+  "layout.expandCollapsed.tooltipNamed": "Trazer de volta: {titles}",
+  "layout.showStudyPanes.label": "Show Study Panes",
   "layout.undo.toast": "{count, plural, one {# aba reorganizada.} other {# abas reorganizadas.}}",
   "layout.undo.button": "Desfazer",
-  "layout.showStudyPanes.label": "Show Study Panes"
+  "layout.advancedMode.label": "Modo de layout avançado",
+  "layout.advancedMode.helpTooltip": "Permite arrastar painéis para reorganizá-los, dividi-los ou reencaixá-los manualmente. Abrir a configuração completa.",
+  "layout.advancedMode.helpAria": "Sobre o modo de layout avançado"
 }

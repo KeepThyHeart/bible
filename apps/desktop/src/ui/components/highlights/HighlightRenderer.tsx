@@ -1,339 +1,100 @@
-import React, { useMemo } from 'react';
-import { UserTextMarkup, markupColorName } from '@bible/core';
+import React, { useMemo, useRef } from 'react';
+import type { UserTextMarkup } from '@bible/core';
+import {
+  extractWordsWithFormatting,
+  renderVerseWords,
+  computeVerseFindState,
+  type VerseFindState,
+  type ResolvedHover,
+} from '@bible/core/browser';
 import { useHighlightStore } from '../../stores/useHighlightStore';
-import { extractWordsWithFormatting } from '../../utils/wordIndexing';
+import { useFindStore } from '../../stores/useFindStore';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
+
+/*
+ * The pure half of this file (`wordRenderAttrs`, `renderVerseWords`,
+ * `getVerseHighlightInfo`, ...) lives in `@bible/core/browser` (Annotations/
+ * WordRendering.ts) so the web client can share it. What stays here is React:
+ * the store-reading find hook and the `HighlightedVerse` component.
+ */
 
 // Constant empty array to prevent unnecessary re-renders
 const EMPTY_HIGHLIGHTS: UserTextMarkup[] = [];
 
 /**
- * Everything a single `<span class="word">` needs in order to be painted.
- *
- * Produced by {@link highlightAttrsForWord} and consumed by both renderers:
- * the HTML-string path below (Standard/Reading/Study plain text) and the JSX
- * path in `study/InterlinearDisplay.tsx`. There is deliberately one resolver -
- * a second, diverging copy of this class/style logic is exactly how Study mode
- * ended up unhighlightable in the first place.
+ * Subscribe to `useFindStore` and compute this verse's own match state
+ * (amendment A1). A plain `useMemo` over the store's matches array - cheap
+ * for the typical case (a handful of matches), and it is what lets find
+ * marks be ordinary render output instead of an imperative DOM pass.
  */
-export interface WordRenderAttrs {
-  /** Space-joined class list; always starts with `word`. */
-  className: string;
-  /**
-   * Colours the stylesheet cannot express, plus the decoration properties that
-   * have to be re-stated when a highlight and an underline land on the same
-   * word. Undefined when the word needs no inline style at all.
-   */
-  style?: React.CSSProperties;
-  /** Comma-joined markup ids, or undefined when the word carries no markup. */
-  markupIds?: string;
-  /**
-   * True when this word's trailing space belongs *inside* the span, because
-   * the same markup continues onto the next word (KAN-10: a continuous wash
-   * across a phrase rather than a striped one).
-   */
-  spaceInsideSpan: boolean;
-}
-
-/** Options describing the word itself, independent of any markup on it. */
-export interface WordRenderContext {
-  /** Word is inside a `<span class="christ-words">` (red-letter). */
-  isChristWords: boolean;
-  /** Word is inside a `<span class="divine-name">` (small caps). */
-  isDivineName?: boolean;
-  /** Source text had whitespace after this word. */
-  hasTrailingSpace: boolean;
-  /**
-   * Index of the word that visually follows this one, or null when this is the
-   * last word of its run. Used only to decide `spaceInsideSpan`; the interlinear
-   * renderer passes null at cell boundaries because a wash cannot meaningfully
-   * bridge two stacked columns.
-   */
-  nextWordIndex: number | null;
-}
-
-/**
- * Resolve the classes, inline styles and markup ids for one word.
- *
- * @param verseId Verse being rendered
- * @param wordIndex 0-based index into the verse's English word sequence
- * @param highlights Markup already filtered to this verse
- * @param context Formatting facts about the word itself
- */
-export function highlightAttrsForWord(
-  verseId: number,
-  wordIndex: number,
-  highlights: UserTextMarkup[],
-  context: WordRenderContext
-): WordRenderAttrs {
-  const classes: string[] = ['word'];
-  if (context.isChristWords) classes.push('christ-words');
-  if (context.isDivineName) classes.push('divine-name');
-
-  const wordHighlights = findHighlightsForWord(wordIndex, verseId, highlights);
-
-  if (wordHighlights.length === 0) {
-    return { className: classes.join(' '), spaceInsideSpan: false };
-  }
-
-  classes.push('highlighted');
-
-  const markupIds: number[] = [];
-
-  // Track resolved styles across all markups for the inline style fallback.
-  // `highlight.color` is canonical hex `#RRGGBB` for anything written
-  // since Module Format v2, while highlights.css is keyed by the six palette
-  // *names* (`.highlight-yellow`). Class names therefore come from
-  // getColorName()/markupColorName(), and a colour outside the palette -
-  // which has no rule to key off at all - is painted inline instead.
-  let resolvedBgHex: string | null = null;
-  let resolvedBgName: string | undefined;
-  let resolvedUnderlineStyle: string | null = null;
-  let resolvedUnderlineHex: string | null = null;
-  let resolvedUnderlineName: string | undefined;
-
-  // Apply styles from all highlights (allowing highlight color + underline to coexist)
-  for (const highlight of wordHighlights) {
-    if (highlight.markupId != null) markupIds.push(highlight.markupId);
-
-    if (highlight.hasHighlight()) {
-      resolvedBgName = highlight.getColorName();
-      resolvedBgHex = highlight.getColorHex();
-      if (resolvedBgName) classes.push(`highlight-${resolvedBgName}`);
-    }
-
-    if (highlight.hasUnderline()) {
-      resolvedUnderlineStyle = highlight.getUnderlineStyle();
-      resolvedUnderlineHex = highlight.getUnderlineColor();
-      resolvedUnderlineName = markupColorName(resolvedUnderlineHex);
-      classes.push(`underline-${resolvedUnderlineStyle}`);
-      if (resolvedUnderlineName) classes.push(`underline-color-${resolvedUnderlineName}`);
-    }
-  }
-
-  const style: React.CSSProperties = {};
-  let hasStyle = false;
-
-  // Custom colours have no stylesheet rule, so they only exist inline.
-  if (resolvedBgHex && !resolvedBgName) {
-    style.backgroundColor = resolvedBgHex;
-    hasStyle = true;
-  }
-  if (resolvedUnderlineHex && !resolvedUnderlineName) {
-    style.textDecorationColor = resolvedUnderlineHex;
-    hasStyle = true;
-  }
-
-  // Highlight + underline on the same word: guarantee the decoration survives
-  // the background wash. The palette colours themselves stay on the classes so
-  // they remain theme-aware.
-  if (resolvedBgHex && resolvedUnderlineStyle) {
-    style.textDecorationLine = 'underline';
-    style.textDecorationStyle = resolvedUnderlineStyle as React.CSSProperties['textDecorationStyle'];
-    style.textDecorationThickness = '2px';
-    style.textDecorationSkipInk = 'none';
-    hasStyle = true;
-  }
-
-  // KAN-10: include the trailing space inside the span when the NEXT word
-  // carries one of the same markups, so the wash reads as one continuous
-  // phrase and still stops at the phrase's end.
-  let spaceInsideSpan = false;
-  if (context.hasTrailingSpace && context.nextWordIndex !== null) {
-    const nextWordHighlights = findHighlightsForWord(context.nextWordIndex, verseId, highlights);
-    spaceInsideSpan = wordHighlights.some(h =>
-      nextWordHighlights.some(nh => nh.markupId === h.markupId)
-    );
-  }
-
-  return {
-    className: classes.join(' '),
-    style: hasStyle ? style : undefined,
-    markupIds: markupIds.join(','),
-    spaceInsideSpan,
-  };
-}
-
-/**
- * Serialise {@link WordRenderAttrs.style} back to a CSS declaration string for
- * the HTML-string renderer. Only the camelCase properties this module actually
- * sets are handled; anything else would be a programming error here.
- */
-function styleToCssText(style: React.CSSProperties): string {
-  return Object.entries(style)
-    .map(([property, value]) => `${property.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}:${String(value)}`)
-    .join(';');
-}
-
-/**
- * Apply highlights to verse HTML
- *
- * @param verseId - Verse ID being rendered
- * @param verseHTML - Original HTML content of verse
- * @param highlights - Array of highlights that may apply to this verse
- * @returns HTML string with highlight markup applied
- */
-export function applyHighlightsToVerse(
-  verseId: number,
-  verseHTML: string,
-  highlights: UserTextMarkup[]
-): string {
-  // Extract words with formatting metadata (including christ-words)
-  const wordsInfo = extractWordsWithFormatting(verseHTML);
-
-  // Filter highlights that affect this verse
-  const applicableHighlights = highlights.filter(h => h.coversVerse(verseId));
-
-  // Render each word with appropriate highlight and formatting classes
-  const renderedWords = wordsInfo.map((wordInfo, index) => {
-    const attrs = highlightAttrsForWord(verseId, index, applicableHighlights, {
-      isChristWords: wordInfo.isChristWords,
-      // isDivineName has to be forwarded for the same reason isChristWords
-      // does: this path does NOT re-emit the incoming HTML, it rebuilds the
-      // verse from flattened words, so the source `<span class="divine-name">`
-      // wrapper is gone by the time these spans are written. Without the class
-      // here, the Tetragrammaton's small-caps treatment is silently dropped in
-      // every mode that renders through HighlightedVerse - which is all of
-      // them: Standard, Reading, and Study.
-      isDivineName: wordInfo.isDivineName,
-      hasTrailingSpace: wordInfo.hasTrailingSpace,
-      nextWordIndex: index + 1 < wordsInfo.length ? index + 1 : null,
-    });
-
-    // Use displayText (includes punctuation) for rendering, not text (clean for indexing)
-    const wordContent = wordInfo.displayText;
-    const styleAttr = attrs.style ? ` style="${styleToCssText(attrs.style)}"` : '';
-
-    if (attrs.markupIds === undefined) {
-      // No highlight - plain word (but may still have christ-words class)
-      const trailingSpace = wordInfo.hasTrailingSpace ? ' ' : '';
-      return `<span class="${attrs.className}" data-word-index="${index}">${wordContent}</span>${trailingSpace}`;
-    }
-
-    if (attrs.spaceInsideSpan) {
-      // Include space inside span for continuous highlight
-      return `<span class="${attrs.className}" data-word-index="${index}" data-markup-id="${attrs.markupIds}"${styleAttr}>${wordContent} </span>`;
-    }
-
-    // Last word in highlight range or no trailing space - keep space outside
-    const trailingSpace = wordInfo.hasTrailingSpace ? ' ' : '';
-    return `<span class="${attrs.className}" data-word-index="${index}" data-markup-id="${attrs.markupIds}"${styleAttr}>${wordContent}</span>${trailingSpace}`;
-  });
-
-  // Join words without additional spaces (spaces are now included appropriately)
-  return renderedWords.join('');
-}
-
-/**
- * Find ALL highlights that cover a specific word index in a verse
- * This allows combining multiple highlights (e.g., highlight color + underline)
- *
- * @param wordIndex - Word index (0-based)
- * @param verseId - Verse ID
- * @param highlights - Array of highlights
- * @returns Array of highlights that cover this word
- */
-function findHighlightsForWord(
-  wordIndex: number,
-  verseId: number,
-  highlights: UserTextMarkup[]
-): UserTextMarkup[] {
-  const matchingHighlights: UserTextMarkup[] = [];
-
-  for (const highlight of highlights) {
-    const range = highlight.getWordRangeForVerse(verseId);
-
-    if (!range) continue;
-
-    const start = range.start ?? 0;
-    const end = range.end ?? Infinity;
-
-    const afterStart = wordIndex >= start;
-    const beforeEnd = end === null || wordIndex <= end;
-    if (afterStart && beforeEnd) {
-      matchingHighlights.push(highlight);
-    }
-  }
-
-  return matchingHighlights;
-}
-
-/**
- * Determine if a verse is highlighted and get word range
- *
- * @param verseId - Verse ID to check
- * @param highlight - Highlight object
- * @returns Object with highlighted flag and word range (if applicable)
- */
-export function getVerseHighlightInfo(
-  verseId: number,
-  highlight: UserTextMarkup
-): { highlighted: boolean; wordStart?: number; wordEnd?: number | null } {
-  const start = highlight.verseIdStart;
-  const end = highlight.verseIdEnd || start;
-
-  // Check if verse is in range
-  if (verseId < start || verseId > end) {
-    return { highlighted: false };
-  }
-
-  // Single verse or first & last are same
-  if (start === end) {
-    return {
-      highlighted: true,
-      wordStart: highlight.textStart ?? 0,
-      wordEnd: highlight.textEnd ?? null
-    };
-  }
-
-  // First verse
-  if (verseId === start) {
-    return {
-      highlighted: true,
-      wordStart: highlight.textStart ?? 0,
-      wordEnd: null  // To end of verse
-    };
-  }
-
-  // Last verse
-  if (verseId === end) {
-    return {
-      highlighted: true,
-      wordStart: 0,
-      wordEnd: highlight.textEnd ?? null
-    };
-  }
-
-  // Middle verse (fully highlighted)
-  return {
-    highlighted: true,
-    wordStart: 0,
-    wordEnd: null  // Entire verse
-  };
+function useVerseFindState(verseId: number): VerseFindState | undefined {
+  const isVisible = useFindStore((s) => s.isVisible);
+  const matches = useFindStore((s) => s.matches);
+  const currentMatchIndex = useFindStore((s) => s.currentMatchIndex);
+  return useMemo(
+    () => computeVerseFindState(verseId, isVisible, matches, currentMatchIndex),
+    [isVisible, matches, currentMatchIndex, verseId],
+  );
 }
 
 interface HighlightedVerseProps {
   verseId: number;
   verseHTML: string;
   moduleId: number;
+  /** Bible tab whose keyword marks apply to this verse (task 0065). */
+  keywordTabId?: string;
   /** Optional React node to render inline at the end of the verse text */
   suffix?: React.ReactNode;
+  /**
+   * Which reading surface this is rendered on. `undefined` (Parallel view,
+   * or any caller that hasn't opted in) means NO extension decorations -
+   * amendment A1's `useResolvedVerseDecorations` returns `null` for an
+   * undefined surface, which is the mechanism by which Parallel view stays
+   * decoration-free without every other caller having to know it exists.
+   */
+  surface?: 'standard' | 'reading' | 'study';
   onWordMouseDown?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
   onWordMouseMove?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
   onWordMouseUp?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
+  /**
+   * Fires once per word entered (task 0036, P0.1c; design doc §11.2) - wired
+   * via `onMouseOver`/`onMouseOut` rather than `onMouseEnter`/`onMouseLeave`
+   * (which don't bubble, so they can't use the same event-delegation pattern
+   * as `onWordMouseDown`/`Move`/`Up`), with a guard so sweeping across a
+   * word's own text nodes doesn't re-fire. Carries this word's already-
+   * resolved static hover content (`WordPaint.hovers`), if any, so the
+   * caller's hover trigger doesn't need to re-derive it.
+   */
+  onWordMouseEnter?: (
+    verseId: number,
+    wordIndex: number,
+    wordText: string,
+    hovers: ResolvedHover[] | undefined,
+    event: React.MouseEvent,
+  ) => void;
+  onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
 }
 
 /**
- * Renders a verse with highlights applied
+ * Renders a verse with highlights, extension decorations and find-in-page
+ * marks applied. Verse text never waits on any of them: the first render has
+ * no decorations and no find state, and this component re-renders (from its
+ * own store subscriptions) as soon as either arrives - it never blocks or
+ * delays the initial paint (task 0036, P0.1a).
  */
 export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
   verseId,
   verseHTML,
   moduleId,
+  keywordTabId,
   suffix,
+  surface,
   onWordMouseDown,
   onWordMouseMove,
-  onWordMouseUp
+  onWordMouseUp,
+  onWordMouseEnter,
+  onWordMouseLeave
 }) => {
   // Get all highlights for this module (stable reference from Map)
   const moduleHighlights = useHighlightStore(state =>
@@ -346,10 +107,16 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
     [moduleHighlights, verseId]
   );
 
+  // Extracted once and shared with the decoration resolver (amendment A1).
+  const words = useMemo(() => extractWordsWithFormatting(verseHTML), [verseHTML]);
+
+  const resolved = useResolvedVerseDecorations(verseId, moduleId, surface, words, keywordTabId);
+  const find = useVerseFindState(verseId);
+
   // Apply highlights to HTML (memoized)
   const renderedHTML = useMemo(
-    () => applyHighlightsToVerse(verseId, verseHTML, highlights),
-    [verseId, verseHTML, highlights]
+    () => renderVerseWords(verseId, words, highlights, resolved, find),
+    [verseId, words, highlights, resolved, find]
   );
 
   // Handle mouse events on words
@@ -373,6 +140,34 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
     }
   };
 
+  // Task 0036, P0.1c: word hover, via onMouseOver/onMouseOut (bubbling
+  // delegation, unlike mouseenter/mouseleave) with a "did the word actually
+  // change" guard - see the `onWordMouseEnter` doc comment above.
+  const lastHoveredWordIndexRef = useRef<number | null>(null);
+
+  const handleMouseOver = (event: React.MouseEvent) => {
+    if (!onWordMouseEnter) return;
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('word')) return;
+    const wordIndex = parseInt(target.getAttribute('data-word-index') || '0', 10);
+    if (lastHoveredWordIndexRef.current === wordIndex) return;
+    lastHoveredWordIndexRef.current = wordIndex;
+    onWordMouseEnter(verseId, wordIndex, words[wordIndex]?.text ?? '', resolved?.words.get(wordIndex)?.hovers, event);
+  };
+
+  const handleMouseOut = (event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('word')) return;
+    const wordIndex = parseInt(target.getAttribute('data-word-index') || '0', 10);
+    if (lastHoveredWordIndexRef.current !== wordIndex) return;
+    const related = event.relatedTarget as HTMLElement | null;
+    if (related?.classList?.contains('word') && related.getAttribute('data-word-index') === String(wordIndex)) {
+      return; // still inside the same word (e.g. a child text node boundary)
+    }
+    lastHoveredWordIndexRef.current = null;
+    onWordMouseLeave?.(verseId, wordIndex, event);
+  };
+
   return (
     <span
       className="verse-content"
@@ -380,6 +175,8 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
       onMouseDown={(e) => handleMouseEvent('down', e)}
       onMouseMove={(e) => handleMouseEvent('move', e)}
       onMouseUp={(e) => handleMouseEvent('up', e)}
+      onMouseOver={handleMouseOver}
+      onMouseOut={handleMouseOut}
     >
       <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedHTML) }} />
       {suffix}

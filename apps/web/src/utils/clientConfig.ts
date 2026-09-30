@@ -18,10 +18,17 @@ export interface ClientConfig {
   staleDays?: number;
   commentaryPopularity?: Record<string, number>;
   ui?: Record<string, unknown>;
+  /** Every feature flag, resolved by the server (see `utils/featureFlags.ts`). */
+  features?: Record<string, boolean>;
+  /** `features.pwa`: true only when the server has the PWA on. Absent (offline) means unknown. */
   pwaEnabled?: boolean;
+  /** `features.pwaUpdate`: how a newer build reaches an open page. Default `silent`. */
+  pwaUpdate?: 'silent' | 'prompt';
   offlineDownloads?: boolean;
   offlineAutoDownload?: boolean;
   search?: { semantic?: 'server' | 'browser' | 'off' };
+  /** Audio Bible settings; absent unless the operator turned the feature on. */
+  audio?: unknown;
   repoUrl?: string;
   docsUrl?: string;
   [key: string]: unknown;
@@ -49,4 +56,22 @@ export function getClientConfig(): ClientConfig {
  */
 export function isTagGraphEnabled(): boolean {
   return config.showTagGraph === true;
+}
+
+/**
+ * Whether the PWA (service worker, manifest, install) is on for this deployment.
+ *
+ * Tri-state on purpose: `true`/`false` when the server answered, `undefined`
+ * when it did not (offline boot). Callers must not treat "unknown" as "off":
+ * unregistering the worker because the network is down would delete the very
+ * thing that lets the app boot offline. This is the one place that reads the
+ * flag, so a settings/feature-flag registry can replace it later.
+ */
+export function pwaFlag(): boolean | undefined {
+  return typeof config.pwaEnabled === 'boolean' ? config.pwaEnabled : undefined;
+}
+
+/** Update mode for an open page; see `UpdateMode` in `appUpdate.ts`. */
+export function pwaUpdateMode(): 'silent' | 'prompt' {
+  return config.pwaUpdate === 'prompt' ? 'prompt' : 'silent';
 }

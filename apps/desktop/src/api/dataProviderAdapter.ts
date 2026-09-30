@@ -40,7 +40,7 @@
 import { requireElectronAPI } from '../ui/services/electronAPI';
 import { unwrap } from '../ui/services/ipcResult';
 import { bibleAPI, commentaryAPI, dictionaryAPI, searchAPI } from '../ui/services/electronAPI';
-import type { Providers } from '@bible/core/browser';
+import type { Providers, IGenealogyDataProvider, GenealogyDatasetDto } from '@bible/core/browser';
 
 // Local aliases so the rest of this file reads exactly like
 // `ServerDataProvider.ts`'s own implementation, which imports these names
@@ -490,6 +490,25 @@ class DesktopStudyOverviewProvider implements IStudyOverviewProvider {
   }
 }
 
+/** Genealogy explorer dataset (task 0067): one whole-dataset IPC read, cached in memory. */
+class DesktopGenealogyDataProvider implements IGenealogyDataProvider {
+  private cached: Promise<GenealogyDatasetDto | null> | null = null;
+
+  // Desktop has a single tag graph, so the optional module argument is ignored.
+  getDataset(_module?: string): Promise<GenealogyDatasetDto | null> {
+    if (!this.cached) {
+      const api = requireElectronAPI();
+      const pending = (unwrap(api.tagGraph.getGenealogyDataset()) as unknown as Promise<GenealogyDatasetDto | null>)
+        .catch((err: unknown) => {
+          this.cached = null; // do not cache failures
+          throw err;
+        });
+      this.cached = pending;
+    }
+    return this.cached;
+  }
+}
+
 /** Build the full `IDataProviders` set from desktop's existing IPC surface. */
 export function createDesktopDataProviders(): IDataProviders {
   return {
@@ -503,5 +522,6 @@ export function createDesktopDataProviders(): IDataProviders {
     topical: new DesktopTopicalDataProvider(),
     tagGraph: new DesktopTagGraphDataProvider(),
     studyOverview: new DesktopStudyOverviewProvider(),
+    genealogy: new DesktopGenealogyDataProvider(),
   };
 }

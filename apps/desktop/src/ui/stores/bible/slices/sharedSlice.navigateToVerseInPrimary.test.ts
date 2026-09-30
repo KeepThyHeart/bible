@@ -132,3 +132,54 @@ describe('navigateToVerseInPrimary targets the right Bible pane', () => {
     expect(panelState(PANEL_SECOND).selectedVerseId).toBe(JOHN_3_16);
   });
 });
+
+describe('navigateToVerseInPrimary activates the target pane in dockview', () => {
+  beforeEach(() => {
+    useBibleStore.setState({ panels: new Map(), availableBibles: [KJV], initialLoadComplete: false });
+    useLayoutStore.setState({
+      panels: new Map(),
+      activePanelId: null,
+      lastActiveBiblePanelId: null,
+      dockviewApi: null,
+    });
+
+    useBibleStore.getState().initPanel(PANEL_FIRST);
+    useBibleStore.getState().openBible(PANEL_FIRST, KJV.abbreviation, KJV.name);
+    useLayoutStore.getState().registerPanel({
+      panelId: PANEL_FIRST,
+      contentType: 'bible',
+      displayName: 'Bible',
+    });
+  });
+
+  it('is a no-op when dockview has not mounted yet (dockviewApi is null)', async () => {
+    // Regression guard: this must not throw when nothing has called
+    // setDockviewApi (e.g. many store-level tests never mount DockviewLayout).
+    await expect(useBibleStore.getState().navigateToVerseInPrimary(JOHN_3_16)).resolves.toBeUndefined();
+  });
+
+  it("calls the target dockview panel's api.setActive(), not some other panel's", async () => {
+    const setActiveTarget = vi.fn();
+    const setActiveOther = vi.fn();
+    const dockviewApi = {
+      getPanel: (id: string) => {
+        if (id === PANEL_FIRST) return { api: { setActive: setActiveTarget } };
+        if (id === 'commentary_1') return { api: { setActive: setActiveOther } };
+        return undefined;
+      },
+    };
+    useLayoutStore.setState({ dockviewApi: dockviewApi as never });
+
+    await useBibleStore.getState().navigateToVerseInPrimary(JOHN_3_16);
+
+    expect(setActiveTarget).toHaveBeenCalledTimes(1);
+    expect(setActiveOther).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when dockview no longer has the target panel', async () => {
+    const dockviewApi = { getPanel: () => undefined };
+    useLayoutStore.setState({ dockviewApi: dockviewApi as never });
+
+    await expect(useBibleStore.getState().navigateToVerseInPrimary(JOHN_3_16)).resolves.toBeUndefined();
+  });
+});

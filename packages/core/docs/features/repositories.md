@@ -47,8 +47,8 @@ Schema: `sql/schemas/initial/UserDatabase.sql`. Models: `src/Data/Models/User/`.
 | `src/Data/Repositories/DictionaryRepository.ts` | `IDictionaryRepository.ts` | `dictionary_*.db` | `dictionary_entry`, `word_occurrence` |
 | `src/Data/Repositories/BookRepository.ts` | `IBookRepository.ts` | `book_*.db` | `book_section`, `scripture_reference`, `verse_link` |
 | `src/Data/Repositories/CrossReferenceRepository.ts` | `ICrossReferenceRepository.ts` | `xref_*.db` | `cross_reference_group`, `cross_reference_entry`, `verse_link` |
-| `src/Data/Repositories/TopicalIndexRepository.ts` | `ITopicalIndexRepository.ts` | `topical_*.db` | `topic`, `topic_fts`, `verse_link` |
-| `src/Data/Repositories/TagGraphRepository.ts` | `ITagGraphRepository.ts` | `tag_graph.db` | `people`, `places`, `objects`, `themes`, `entity_verses`, `entity_facets`, `entity_facet_members`, `entity_topic_links`, `tag_associations`, `association_verses`, the three `*_attribute_map` tables, `people_roles`, `people_relationships` |
+| `src/Data/Repositories/TopicalIndexRepository.ts` | `ITopicalIndexRepository.ts` | `topical_*.db` | `topic`, `verse_link` (+ `topic_fts` in a v0.1 module; see [Search](search.md#where-the-keyword-index-lives)) |
+| `src/Data/Repositories/TagGraphRepository.ts` | `ITagGraphRepository.ts` | `tag_graph.db` | `person`, `place`, `object`, `theme`, `entity_verse_link`, `entity_facet`, `entity_facet_member`, `entity_topic_link`, `tag_association`, the `*_attribute_map` and `person_role_map` tables, `person_role`, `person_relationship`, and the genealogy tables `lineage`, `lineage_step`, `person_external_id`, `interpretive_case`, `data_source` (see [genealogy.md](genealogy.md)) |
 | `src/Data/Repositories/EnrichmentRepository.ts` | `IEnrichmentRepository.ts` | `enrichments_*.db` | `enrichment_units`, `enrichment_tags` |
 
 Shared base: `src/Data/Repositories/BaseModuleRepository.ts` supplies `mapModuleIdentity` and the `module_info` identity/provenance block that every module type's info model uses. Schemas: `sql/schemas/initial/`. Models: `src/Data/Models/<Type>/`.

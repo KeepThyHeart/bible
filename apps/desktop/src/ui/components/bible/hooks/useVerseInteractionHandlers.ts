@@ -6,7 +6,7 @@ import { useDictionaryStore } from '../../../stores/useDictionaryStore';
 import { ContextMenuState } from '../../BiblePaneContext';
 import { revealNotesPanel } from '../revealNotesPanel';
 import { openStrongsInDictionary } from '../openStrongsInDictionary';
-import { captureWordSelection } from '../../highlights/capturedSelection';
+import { captureWordSelection } from '@bible/core/browser';
 import { computeSelectedRange } from '../../../stores/bible/internals/verseRange';
 
 /**
@@ -124,6 +124,16 @@ export function useVerseInteractionHandlers(args: {
 
     const hasSelection = hasTextSelection();
     let markupId: number | undefined;
+    // The clicked word, forwarded for keyword marks ("Mark all ...", task 0065).
+    let wordIndex: number | undefined;
+    let wordText: string | undefined;
+    if (target.classList?.contains('word') && target.hasAttribute('data-word-index')) {
+      const idx = parseInt(target.getAttribute('data-word-index') ?? '', 10);
+      if (!Number.isNaN(idx)) {
+        wordIndex = idx;
+        wordText = target.textContent ?? undefined;
+      }
+    }
     if (target.classList?.contains('word') && target.hasAttribute('data-markup-id')) {
       const markupIdStr = target.getAttribute('data-markup-id');
       if (markupIdStr) {
@@ -178,7 +188,9 @@ export function useVerseInteractionHandlers(args: {
       verses: versesToCopy,
       position: { x: event.clientX, y: event.clientY },
       isMultiple,
-      markupId
+      markupId,
+      wordIndex,
+      wordText
     });
   }, [currentVerses, dismissFloatingToolbar, setContextMenu, selectedVerseId, selectionEndVerseId]);
 

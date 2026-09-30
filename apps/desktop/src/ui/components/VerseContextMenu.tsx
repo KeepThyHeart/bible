@@ -8,6 +8,8 @@ import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
 /**
@@ -50,6 +52,14 @@ export interface VerseContextMenuProps {
   onReplaceBookmark?: (pinId: number) => void;
   /** Remove every bookmark on this verse. */
   onRemoveBookmark?: () => void;
+  /** Right-clicked word, for keyword marks (task 0065). Enables "Mark all ...". */
+  wordText?: string;
+  /** Mark every occurrence of the clicked word in the chapter. */
+  onMarkWord?: () => void;
+  /** Strong's number of the clicked word, when interlinear rows are available for it. */
+  wordStrongs?: string;
+  /** Mark every occurrence of the clicked word's lemma (Strong's number). */
+  onMarkLemma?: () => void;
 }
 
 /**
@@ -104,7 +114,11 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   isBookmarked = false,
   onAddBookmark,
   onReplaceBookmark,
-  onRemoveBookmark
+  onRemoveBookmark,
+  wordText,
+  onMarkWord,
+  wordStrongs,
+  onMarkLemma,
 }) => {
   const { t, i18n } = useI18n();
   const { registry } = useAppServices();
@@ -431,6 +445,30 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </>
       )}
 
+      {/* Cross-reference graph for the right-clicked verse */}
+      {versesArray.length > 0 && (
+        <>
+          <div className="border-t border-border my-1"></div>
+          <button
+            onClick={() => {
+              const verseId = versesArray[0].verse_id;
+              onClose();
+              useXrefGraphStore.getState().openGraph(verseId);
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="12" r="2.5" strokeWidth={2} />
+              <circle cx="18" cy="6" r="2.5" strokeWidth={2} />
+              <circle cx="18" cy="18" r="2.5" strokeWidth={2} />
+              <path strokeLinecap="round" strokeWidth={2} d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
+            </svg>
+            <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
+          </button>
+        </>
+      )}
+
       {/* Bookmarks. A flyout rather than an immediate save: "add" and
           "re-point an existing one" are both one click in, and the reader can
           see what they already have before choosing - without losing sight of
@@ -579,7 +617,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               highlight branch - which needs to know WHICH words were selected -
               sees nothing and highlights the whole verse instead. Belt and
               braces: the selection is also snapshotted when the menu opens
-              (see capturedSelection.ts), which is what actually guarantees the
+              (see core Annotations/CapturedSelection.ts), which is what actually guarantees the
               behaviour on platforms where mousedown does collapse it.
             */
             onMouseDown={(e) => e.preventDefault()}
@@ -634,6 +672,38 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               <span>{i18n.resolve(item.label)}</span>
             </button>
           ))}
+        </>
+      )}
+
+      {wordText && onMarkWord && (
+        <>
+          <div className="border-t border-border-secondary my-1" role="separator" />
+          <button
+            onClick={() => {
+              onMarkWord();
+              onClose();
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+            data-testid="menu-mark-word"
+          >
+            <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>{t('keywords.menu.markWord', { word: wordText })}</span>
+          </button>
+          {wordStrongs && onMarkLemma && (
+            <button
+              onClick={() => {
+                onMarkLemma();
+                onClose();
+              }}
+              className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+              role="menuitem"
+              data-testid="menu-mark-lemma"
+            >
+              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>{t('keywords.menu.markLemma', { strongs: wordStrongs })}</span>
+            </button>
+          )}
         </>
       )}
 

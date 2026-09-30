@@ -21,14 +21,14 @@ test.describe('Tab Management', () => {
     await page.locator('.bible-tab-bar__add').click();
 
     // Book/chapter picker should appear
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
 
     // Select Genesis (book 1) — click the first book button
-    const genesisBook = page.locator('.book-chapter-picker__book-btn').first();
+    const genesisBook = page.locator('.kth-picker__cell--book').first();
     await genesisBook.click();
 
     // Select chapter 1
-    const chapter1 = page.locator('.book-chapter-picker__chapter-btn').first();
+    const chapter1 = page.locator('.kth-picker__cell--chapter').first();
     await chapter1.click();
 
     // Should now have 2 tabs
@@ -49,9 +49,9 @@ test.describe('Tab Management', () => {
   test('close a tab', async ({ page }) => {
     // Add a second tab first
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn').first().click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book').first().click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await expect(page.locator('.bible-tab-bar__tab')).toHaveCount(2);
 
     // Close buttons should be visible when there are 2+ tabs
@@ -71,9 +71,9 @@ test.describe('Tab Management', () => {
   test('tab state preservation across switches', async ({ page }) => {
     // Tab 1 is already on John 3. Add a second tab on Genesis 1.
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
-    await page.locator('.book-chapter-picker__book-btn').first().click();
-    await page.locator('.book-chapter-picker__chapter-btn').first().click();
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
+    await page.locator('.kth-picker__cell--book').first().click();
+    await page.locator('.kth-picker__cell--chapter').first().click();
     await page.waitForSelector('.verse', { timeout: 10000 });
 
     // Tab 2 should show Genesis 1

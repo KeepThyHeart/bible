@@ -44,6 +44,7 @@ const h = vi.hoisted(() => {
     moduleAbbr?: string;
     studyVerse?: number | null;
     previewVerse?: number | null;
+    followNav?: boolean;
     verses?: Array<{ verse_id: number; footnotes?: unknown }>;
   }
 
@@ -100,8 +101,6 @@ const h = vi.hoisted(() => {
     commentaryStore: new FakeCommentaryStore(),
     searchStore: new FakeSearchStore(),
     settingsStore: new FakeSettingsStore(),
-    hasBindings: vi.fn(() => false),
-    handleKeyEvent: vi.fn(),
   };
 });
 
@@ -111,12 +110,6 @@ vi.mock('../stores/bibleStore', () => ({ bibleStore: h.bibleStore }));
 vi.mock('../stores/commentaryStore', () => ({ commentaryStore: h.commentaryStore }));
 vi.mock('../stores/searchStore', () => ({ searchStore: h.searchStore }));
 vi.mock('../stores/settingsStore', () => ({ settingsStore: h.settingsStore }));
-vi.mock('../plugins/registries/KeybindingRegistry', () => ({
-  keybindingRegistry: {
-    hasBindings: h.hasBindings,
-    handleKeyEvent: h.handleKeyEvent,
-  },
-}));
 
 import { useAppShared } from './useAppShared';
 import { eventBus } from '../events/eventBus';
@@ -153,7 +146,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 3, displayMode: 'standard' };
   h.commentaryStore.collapsed = false;
-  h.hasBindings.mockReturnValue(false);
   document.body.innerHTML = '';
   window.location.hash = '';
 });
@@ -409,25 +401,14 @@ describe('keyboard shortcuts', () => {
     expect(document.activeElement).not.toBe(input);
   });
 
-  it('delegates to the plugin keybinding registry only when it has bindings', () => {
-    render();
-
-    press({ key: 'x' });
-    expect(h.handleKeyEvent).not.toHaveBeenCalled();
-
-    h.hasBindings.mockReturnValue(true);
-    press({ key: 'x' });
-    expect(h.handleKeyEvent).toHaveBeenCalled();
-  });
-
   it('stops listening once unmounted', () => {
-    h.hasBindings.mockReturnValue(true);
+    const input = searchField();
     const { unmount } = render();
     unmount();
 
-    press({ key: 'x' });
+    press({ key: '/' });
 
-    expect(h.handleKeyEvent).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(input);
   });
 });
 
@@ -481,6 +462,35 @@ describe('broadcasting the selected verse', () => {
     render();
 
     expect(selections()).toEqual([]);
+  });
+
+  it('says nothing when audio follow-along turns the page (the Study pane follows the reader only)', () => {
+    h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 3, displayMode: 'standard', studyVerse: JOHN_3_16 };
+    const view = render();
+    emit.mockClear();
+    // Follow-along moves to John 4 and leaves studyVerse alone (null, say, after a deselect).
+    act(() => { h.bibleStore.update(() => { h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 4, displayMode: 'standard', studyVerse: JOHN_3_16, followNav: true }; }); });
+    expect(selections()).toEqual([]);
+    view.unmount?.();
+  });
+
+  it('with no verse selected, a page turned by audio does not announce verse 1; the reader\'s own navigation still does', () => {
+    h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 3, displayMode: 'standard', studyVerse: null };
+    render();
+    emit.mockClear();
+    act(() => { h.bibleStore.update(() => { h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 4, displayMode: 'standard', studyVerse: null, followNav: true }; }); });
+    expect(selections()).toEqual([]);
+    act(() => { h.bibleStore.update(() => { h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 5, displayMode: 'standard', studyVerse: null, followNav: false }; }); });
+    expect(selections()).toContainEqual(expect.objectContaining({ book: JOHN, chapter: 5, verse: 1 }));
+  });
+
+  it('a verse the reader selects after an audio page turn is announced', () => {
+    h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 4, displayMode: 'standard', studyVerse: null, followNav: true };
+    render();
+    emit.mockClear();
+    const picked = 43004007;
+    act(() => { h.bibleStore.update(() => { h.bibleStore.activeTab = { id: 'tab-1', book: JOHN, chapter: 4, displayMode: 'standard', studyVerse: picked, followNav: true }; }); });
+    expect(selections()).toContainEqual(expect.objectContaining({ verseId: picked, verse: 7 }));
   });
 
   it('falls back to verse 1 when no verse is selected', () => {

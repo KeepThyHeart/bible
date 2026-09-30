@@ -25,6 +25,15 @@ export {
 export { createTestHost, type TestHost, type TestHostOptions } from './createTestHost';
 export * as fixtures from './fixtures';
 export * as smoke from './smoke';
+export {
+  createMockPanelHost,
+  loadUiKit,
+  readBundledUiKit,
+  type MockPanelHost,
+  type MockPanelHostOptions,
+  type PanelBridgeHandler,
+  type PanelDirection,
+} from './panel';
 
 // Re-export individual fixtures for convenience
 export {

@@ -6,7 +6,7 @@
  * createZip.ts` to plain CommonJS, NOT a shared import of it. That package
  * has no `prepare`/`postinstall` step, so on a fresh clone its `dist/` (where
  * the compiled version of that file would live) does not exist until someone
- * runs its own build - a repo-root `npm install`/`npm ci` does not produce
+ * runs its own build - a repo-root `pnpm install`/`pnpm install --frozen-lockfile` does not produce
  * it. A build tool under `scripts/` has to work right after a fresh clone
  * with no build step of its own, so depending on another package's build
  * output here would be fragile in exactly the way this file exists to avoid.

@@ -8,7 +8,7 @@
  *
  * `src/assets/bible_kjv.db` is generated, not checked in:
  *
- *     npm run kjv -w @bible/cli
+ *     pnpm --filter @bible/cli run kjv
  *
  * `scripts/build.js` builds it when it is missing, or creates a placeholder if
  * there is no module library to build it from, so the package always

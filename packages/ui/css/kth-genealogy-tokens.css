@@ -1,0 +1,19 @@
+/*
+ * Genealogy explorer palette (task 0067). Private tokens (--_kth-gen-*): they are not part of the app-mappable
+ * --kth-* contract, so they need no KTH_MAP entry; an app that wants other colours overrides them on :root.
+ * Dark variants follow the same theme ids as generated/kth-scheme.css.
+ */
+:where(:root) {
+  --_kth-gen-leah: #b5527a;
+  --_kth-gen-rachel: #3f7fbf;
+  --_kth-gen-bilhah: #2f9aa0;
+  --_kth-gen-zilpah: #7c5cb0;
+  --_kth-gen-gold: #c9a227;
+}
+:where([data-theme="dark"], [data-theme="midnight"], [data-theme="slate"], [data-theme="sunset"]) {
+  --_kth-gen-leah: #e07fa6;
+  --_kth-gen-rachel: #6fa8e6;
+  --_kth-gen-bilhah: #5cc3c9;
+  --_kth-gen-zilpah: #a98ee0;
+  --_kth-gen-gold: #e6c04a;
+}

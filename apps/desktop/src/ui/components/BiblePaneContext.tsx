@@ -51,6 +51,9 @@ export interface ContextMenuState {
   position: { x: number; y: number };
   isMultiple: boolean;
   markupId?: number;
+  /** Index (in the verse's word space) and text of the word right-clicked, if it was a word (keyword marks, task 0065). */
+  wordIndex?: number;
+  wordText?: string;
 }
 
 export interface CopyOptionsDialogState {

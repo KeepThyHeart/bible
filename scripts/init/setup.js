@@ -4,25 +4,25 @@
 /**
  * scripts/init/setup.js -- from a fresh clone to apps that run, in one command.
  *
- * `npm run setup` runs this.  It performs the steps the README lists, in
+ * `pnpm run setup` runs this.  It performs the steps the README lists, in
  * order, each of which is also a script of its own:
  *
- *   build-core   npm run build:core           compile @bible/core, which both apps import
+ *   build-core   pnpm run build:core           compile @bible/core, which both apps import
  *   modules      scripts/init/index.js --catalog ...
  *                                             download modules, build data/main.db
- *   desktop      npm run init:desktop         desktop registry and the modules link
- *   electron     npm run init:electron        download the Electron binary
- *   sqlite       npm run rebuild-sqlite       Electron build of the desktop's SQLite driver
+ *   desktop      pnpm run init:desktop         desktop registry and the modules link
+ *   electron     pnpm run init:electron        download the Electron binary
+ *   sqlite       pnpm run rebuild-sqlite       Electron build of the desktop's SQLite driver
  *
  * Every choice can be given on the command line.  On a terminal, whatever was
  * not given is asked for, with the default one Enter away.  With --yes, when
  * stdin is not a terminal, or when CI is set, nothing is asked and the
- * defaults stand, so `npm run setup -- --yes` does what the plain chain of npm
+ * defaults stand, so `pnpm run setup --yes` does what the plain chain of pnpm
  * scripts used to.
  *
  * ## Usage
  *
- *   npm run setup -- [options]      (or: node scripts/init/setup.js [options])
+ *   pnpm run setup [options]      (or: node scripts/init/setup.js [options])
  *
  *   --apps=APPS         web, desktop, or both (the default).  Web alone skips
  *                       the desktop registry, the Electron download and the
@@ -40,7 +40,7 @@
  *   --yes, -y           Ask nothing: defaults for everything not given.
  *   --help, -h
  *
- *   npm run setup:web   The same as --apps=web.
+ *   pnpm run setup:web   The same as --apps=web.
  *
  * Re-running is safe and quick: modules whose SHA-256 already matches are not
  * downloaded again, an existing site-config.json is kept, and the Electron
@@ -60,7 +60,7 @@ const { nodeVersionProblem, PRESETS } = require('./index');
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const INIT_SCRIPT = path.join(__dirname, 'index.js');
 
-/** The unsigned development catalog, as `npm run init:modules:dev` uses it. */
+/** The unsigned development catalog, as `pnpm run init:modules:dev` uses it. */
 const DEV_CATALOG_URL = 'https://modules-dev.bible.keepthyheart.com/modules/';
 
 const ALL_APPS = ['web', 'desktop'];
@@ -158,7 +158,7 @@ async function askMissing(options) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log('Setting up this checkout.  Press Enter to take the default for each question;');
-    console.log('`npm run setup -- --help` lists the options that skip these questions.');
+    console.log('`pnpm run setup --help` lists the options that skip these questions.');
 
     if (!options.apps) {
       options.apps = await choose(rl, 'Which apps?', [
@@ -200,18 +200,19 @@ async function askMissing(options) {
 // ============================================================================
 
 /**
- * How to run npm from here, on every platform.
+ * How to run pnpm from here, on every platform.
  *
- * Under `npm run`, `npm_execpath` is npm's own CLI script, which the running
- * Node can execute directly: no shell, no PATH lookup, and the same npm that
- * started us.  Run directly with `node`, fall back to the `npm` on PATH, which
- * on Windows is a .cmd file that only a shell can start.
+ * Under `pnpm run`, `npm_execpath` is pnpm's own CLI script, which the running
+ * Node can execute directly: no shell, no PATH lookup, and the same pnpm that
+ * started us.  Run directly with `node`, fall back to the `pnpm` on PATH (put
+ * there by `corepack enable`), which on Windows is a .cmd file that only a
+ * shell can start.
  */
-function npmInvocation(args) {
-  const npmCli = process.env.npm_execpath;
-  if (npmCli && /npm-cli\.[cm]?js$/.test(npmCli)) return { command: process.execPath, args: [npmCli, ...args], shell: false };
-  if (process.platform === 'win32') return { command: 'npm.cmd', args, shell: true };
-  return { command: 'npm', args, shell: false };
+function pnpmInvocation(args) {
+  const pnpmCli = process.env.npm_execpath;
+  if (pnpmCli && /pnpm\.[cm]?js$/.test(pnpmCli)) return { command: process.execPath, args: [pnpmCli, ...args], shell: false };
+  if (process.platform === 'win32') return { command: 'pnpm.cmd', args, shell: true };
+  return { command: 'pnpm', args, shell: false };
 }
 
 function nodeInvocation(args) {
@@ -233,9 +234,9 @@ function buildSteps(options) {
   steps.push({
     id: 'build-core',
     title: 'Build @bible/core',
-    run: npmInvocation(['run', 'build:core']),
-    display: 'npm run build:core',
-    hint: 'The errors above come from compiling packages/core.  If node_modules looks incomplete, run `npm install` again.',
+    run: pnpmInvocation(['run', 'build:core']),
+    display: 'pnpm run build:core',
+    hint: 'The errors above come from compiling packages/core.  If node_modules looks incomplete, run `pnpm install` again.',
   });
 
   // The web registry is built even for a desktop-only setup: data/ is the
@@ -253,9 +254,9 @@ function buildSteps(options) {
     run: nodeInvocation(initArgs),
     display: ['node scripts/init/index.js', ...initArgs.slice(1)].join(' '),
     hint: mode === 'none'
-      ? 'Copy module .db files into data/modules/ first, or let setup download them: `npm run setup -- --select=starter`.'
+      ? 'Copy module .db files into data/modules/ first, or let setup download them: `pnpm run setup --select=starter`.'
       : 'If the catalog could not be reached, see Troubleshooting in README.md.  To work offline, copy module\n'
-        + '.db files into data/modules/ and run `npm run setup -- --select=none`.',
+        + '.db files into data/modules/ and run `pnpm run setup --select=none`.',
   });
 
   if (desktop) {
@@ -263,22 +264,22 @@ function buildSteps(options) {
       id: 'desktop',
       title: 'Desktop registry and modules link',
       run: nodeInvocation([INIT_SCRIPT, '--target=desktop']),
-      display: 'npm run init:desktop',
-      hint: 'See the messages above; `npm run init -- --help` describes the desktop target.',
+      display: 'pnpm run init:desktop',
+      hint: 'See the messages above; `pnpm run init --help` describes the desktop target.',
     });
     steps.push({
       id: 'electron',
       title: 'Download the Electron binary',
-      run: npmInvocation(['run', 'init:electron']),
-      display: 'npm run init:electron',
+      run: pnpmInvocation(['run', 'init:electron']),
+      display: 'pnpm run init:electron',
       hint: 'The Electron binary comes from GitHub.  `TypeError: fetch failed` usually means a slow DNS lookup or\n'
         + 'broken IPv6 to github.com; see "Electron failed to install correctly" under Troubleshooting in README.md.',
     });
     steps.push({
       id: 'sqlite',
       title: 'Electron build of the desktop\'s SQLite driver',
-      run: npmInvocation(['run', 'rebuild-sqlite']),
-      display: 'npm run rebuild-sqlite',
+      run: pnpmInvocation(['run', 'rebuild-sqlite']),
+      display: 'pnpm run rebuild-sqlite',
       hint: 'No prebuilt binary could be fetched and compiling it failed.  Compiling needs Python 3 and a C++\n'
         + 'toolchain (see Prerequisites in README.md); a stalled download usually means a DNS or IPv6 problem\n'
         + '(see Troubleshooting).',
@@ -363,7 +364,7 @@ async function main() {
     process.exit(1);
   }
   if (!fs.existsSync(path.join(REPO_ROOT, 'node_modules', 'typescript'))) {
-    console.error('setup: the dependencies are not installed.  Run `npm install` at the repository root first.');
+    console.error('setup: the dependencies are not installed.  Run `pnpm install` at the repository root first.');
     process.exit(1);
   }
 
@@ -390,8 +391,8 @@ async function main() {
   if (!runSteps(steps)) process.exit(1);
 
   console.log('');
-  if (options.apps.includes('web')) console.log('  npm run dev:web    web app: open http://localhost:5173/');
-  if (options.apps.includes('desktop')) console.log('  npm run dev        desktop app');
+  if (options.apps.includes('web')) console.log('  pnpm run dev:web    web app: open http://localhost:5173/');
+  if (options.apps.includes('desktop')) console.log('  pnpm run dev        desktop app');
 }
 
 if (require.main === module) {

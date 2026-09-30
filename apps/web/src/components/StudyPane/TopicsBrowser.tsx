@@ -24,6 +24,11 @@ interface TopicsBrowserProps {
   verseEntities: TagGraphEntityData[];
   loading: boolean;
   onNavigateBible?: (verseId: number) => void;
+  /**
+   * Shows a "Show family tree" action on a person's detail view. Absent when the
+   * genealogy feature is off, in which case no action is rendered.
+   */
+  onShowFamilyTree?: (personId: string, name: string) => void;
   onOpenInTab?: (topicId: number, module: string) => void;
   topicalProvider?: ITopicalDataProvider;
   tagGraphProvider?: ITagGraphDataProvider;
@@ -91,6 +96,7 @@ export function TopicsBrowser({
   verseEntities,
   loading,
   onNavigateBible,
+  onShowFamilyTree,
   topicalProvider,
   tagGraphProvider,
   bibleProvider,
@@ -718,6 +724,14 @@ export function TopicsBrowser({
 
         {!detailLoading && entityDetail && (
           <div class="topics-browser__detail">
+            {onShowFamilyTree && currentEntry.entityCategory === 'people' && currentEntry.entityId && (
+              <button
+                class="topics-browser__family-tree"
+                onClick={() => onShowFamilyTree(currentEntry.entityId!, currentEntry.entityName ?? '')}
+              >
+                <i class="fa-solid fa-sitemap" /> {t('genealogyPane.showFamilyTree')}
+              </button>
+            )}
             {entityDetail.notes && (
               <div class="topics-browser__entity-notes">{entityDetail.notes as string}</div>
             )}

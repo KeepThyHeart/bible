@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -29,6 +29,44 @@ describe('SiteConfig', () => {
       const config = new SiteConfig(tempDir);
       expect(config.auth.enabled).toBe(false);
       expect(config.auth.passwordHash).toBe('abc:def');
+    });
+
+    describe('features.pwa', () => {
+      const write = (features: object) =>
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+      afterEach(() => { delete process.env.FEATURE_PWA; });
+
+      it('is off by default and is always reported to the client', () => {
+        write({});
+        const config = new SiteConfig(tempDir);
+        expect(config.features.pwa).toBe(false);
+        expect(config.getClientConfig().pwaEnabled).toBe(false);
+      });
+
+      it('turns on only when set to true', () => {
+        write({ pwa: true });
+        const config = new SiteConfig(tempDir);
+        expect(config.features.pwa).toBe(true);
+        expect(config.getClientConfig().pwaEnabled).toBe(true);
+      });
+
+      it('is overridden by FEATURE_PWA', () => {
+        write({ pwa: true });
+        process.env.FEATURE_PWA = '0';
+        expect(new SiteConfig(tempDir).features.pwa).toBe(false);
+        write({});
+        process.env.FEATURE_PWA = '1';
+        expect(new SiteConfig(tempDir).features.pwa).toBe(true);
+      });
+
+      it('reports the update mode only when it is prompt and the PWA is on', () => {
+        write({ pwa: true, pwaUpdate: 'prompt' });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBe('prompt');
+        write({ pwa: true });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBeUndefined();
+        write({ pwaUpdate: 'prompt' });
+        expect(new SiteConfig(tempDir).getClientConfig().pwaUpdate).toBeUndefined();
+      });
     });
 
     it('loads features', () => {
@@ -156,6 +194,7 @@ describe('SiteConfig', () => {
       expect(config.auth.passwordHash).toBeUndefined();
       expect(config.features.tagGraph).toBe(false);
       expect(config.features.semanticSearch).toBe(false);
+      expect(config.isEnabled('genealogy')).toBe(false);
       expect(config.modules).toBeNull();
       expect(config.commentaryPopularity).toBeUndefined();
       expect(config.offline.staleDays).toBe(15);
@@ -163,6 +202,31 @@ describe('SiteConfig', () => {
       expect(config.search.minScore).toBe(0.15);
       expect(config.search.pipelineConfigPath).toBe('search-pipeline.json');
       expect(config.repoUrl).toBe('');
+    });
+  });
+
+  // ── Genealogy flag ──────────────────────────────────────────────
+
+  describe('features.genealogy', () => {
+    const load = (features: Record<string, boolean>) => {
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+      return new SiteConfig(tempDir);
+    };
+
+    it('is on when genealogy and tagGraph are both true', () => {
+      const config = load({ tagGraph: true, genealogy: true });
+      expect(config.isEnabled('genealogy')).toBe(true);
+      expect((config.getClientConfig().features as Record<string, boolean>).genealogy).toBe(true);
+    });
+
+    it('is off when tagGraph is false, even if genealogy is true', () => {
+      const config = load({ tagGraph: false, genealogy: true });
+      expect(config.isEnabled('genealogy')).toBe(false);
+      expect((config.getClientConfig().features as Record<string, boolean>).genealogy).toBe(false);
+    });
+
+    it('is off by default when tagGraph is true', () => {
+      expect(load({ tagGraph: true }).isEnabled('genealogy')).toBe(false);
     });
   });
 
@@ -202,6 +266,62 @@ describe('SiteConfig', () => {
     });
   });
 
+  // ── Feature flags (task 0087) ───────────────────────────────────
+
+  describe('feature flags', () => {
+    const write = (features: unknown) =>
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features }));
+
+    afterEach(() => {
+      delete process.env.BIBLE_FEATURE_FLAGS;
+      vi.unstubAllEnvs();
+    });
+
+    it('answers isEnabled from site config over the declared defaults', () => {
+      write({ audio: true, pwa: false, tagGraph: true, genealogy: true });
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(true);
+      expect(config.isEnabled('pwa')).toBe(false);
+      expect(config.isEnabled('timeline')).toBe(false);
+      expect(config.isEnabled('genealogy')).toBe(true); // tagGraph is on
+      expect(config.isEnabled('offlineAutoDownload')).toBe(true);
+    });
+
+    it('agrees with the legacy typed accessors', () => {
+      write({ tagGraph: true, offlineDownloads: true });
+      const config = new SiteConfig(tempDir);
+      for (const key of ['tagGraph', 'semanticSearch', 'pwa', 'offlineDownloads', 'offlineAutoDownload'] as const) {
+        expect(config.isEnabled(key)).toBe(config.features[key]);
+      }
+    });
+
+    it('sends every resolved flag to the client', () => {
+      write({ audio: true });
+      const client = new SiteConfig(tempDir).getClientConfig() as { features: Record<string, boolean> };
+      expect(client.features.audio).toBe(true);
+      expect(client.features.offlineAutoDownload).toBe(true);
+      expect(client.features.timeline).toBe(false);
+    });
+
+    it('takes a dev override from BIBLE_FEATURE_FLAGS outside production', () => {
+      write({});
+      process.env.BIBLE_FEATURE_FLAGS = 'audio,-pwa';
+      vi.stubEnv('NODE_ENV', 'development');
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(true);
+      expect(config.isEnabled('pwa')).toBe(false);
+    });
+
+    it('ignores BIBLE_FEATURE_FLAGS in production', () => {
+      write({});
+      process.env.BIBLE_FEATURE_FLAGS = 'audio,-offlineAutoDownload';
+      vi.stubEnv('NODE_ENV', 'production');
+      const config = new SiteConfig(tempDir);
+      expect(config.isEnabled('audio')).toBe(false);
+      expect(config.isEnabled('offlineAutoDownload')).toBe(true);
+    });
+  });
+
   // ── getClientConfig ─────────────────────────────────────────────
 
   describe('getClientConfig', () => {
@@ -232,6 +352,46 @@ describe('SiteConfig', () => {
 
       writeFileSync(join(tempDir, 'site-config.json'), '{}');
       expect(new SiteConfig(tempDir).getClientConfig()).not.toHaveProperty('docsUrl');
+    });
+
+    describe('audio', () => {
+      const voice = { id: 'v1', label: 'V', language: 'en', files: ['a.onnx'] };
+
+      it('is off by default: no client block, no CSP origins', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({}));
+        const config = new SiteConfig(tempDir);
+        expect(config.features.audio).toBe(false);
+        expect(config.getClientConfig()).not.toHaveProperty('audio');
+        expect(config.audio.externalOrigins).toEqual([]);
+      });
+
+      it('sends the normalized block when switched on, with same-origin defaults', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ features: { audio: true } }));
+        const config = new SiteConfig(tempDir);
+        expect(config.getClientConfig().audio).toEqual({ base: '/audio', recorded: true, engines: [] });
+        expect(config.audio.dir).toBe(join(tempDir, 'audio'));
+        expect(config.audio.externalOrigins).toEqual([]);
+      });
+
+      it('drops unusable engine entries and does not leak server-only keys', () => {
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({
+          features: { audio: true },
+          audio: { dir: 'media/audio', tts: { engines: [{ id: 'piper', voices: [voice, { id: 'bad' }] }] } },
+        }));
+        const config = new SiteConfig(tempDir);
+        const client = config.getClientConfig().audio as { engines: { voices: unknown[] }[] };
+        expect(client.engines[0].voices).toHaveLength(1);
+        expect(client).not.toHaveProperty('dir');
+        expect(config.audio.dir).toBe(join(tempDir, 'media/audio'));
+      });
+
+      it('reports remote origins for the CSP only when audio is on', () => {
+        const raw = { audio: { base: 'https://audio.example.com/x' } };
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify(raw));
+        expect(new SiteConfig(tempDir).audio.externalOrigins).toEqual([]);
+        writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ ...raw, features: { audio: true } }));
+        expect(new SiteConfig(tempDir).audio.externalOrigins).toEqual(['https://audio.example.com']);
+      });
     });
 
     it('includes commentary popularity when configured', () => {

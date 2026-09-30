@@ -221,6 +221,19 @@ export class BibleBridge implements IExtensionBibleBridge {
     return words.map(toTokenDto);
   }
 
+  getTokensForRange(startVerseId: number, endVerseId: number, moduleId?: string): Record<number, VerseTokenDto[]> {
+    const repo = this.resolveRepo(moduleId);
+    if (!repo) return {};
+    if (!repo.hasInterlinearData()) return {};
+    const byVerse = repo.getInterlinearWordsForRange(startVerseId, endVerseId);
+    const result: Record<number, VerseTokenDto[]> = {};
+    for (const [verseId, words] of byVerse) {
+      if (words.length === 0) continue;
+      result[verseId] = words.map(toTokenDto);
+    }
+    return result;
+  }
+
   async navigateToVerse(verseId: number): Promise<void> {
     this.deps.sendNavigateToVerse(verseId);
   }

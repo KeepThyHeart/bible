@@ -88,6 +88,16 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <i class="fa-solid fa-magnifying-glass" />
           <span>{t('homeScreen.search')}</span>
         </button>
+        {/*
+          A plain link, not a store action: `/watch` is a separate, bare page
+          (see `present/watch.html`), the same way the projection viewer is --
+          not a route this app itself renders. Someone handed a code by a
+          presenter, rather than a link or a QR code, starts here.
+        */}
+        <a class="home-screen__action-btn" href="/watch">
+          <i class="fa-solid fa-tv" />
+          <span>{t('homeScreen.watchPresentation')}</span>
+        </a>
       </div>
     </div>
   );

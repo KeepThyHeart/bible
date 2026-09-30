@@ -36,7 +36,7 @@ codec (`'none'`, `'deflate'` or `'zstd'`; open set, no CHECK), and
 | `sql/schemas/initial/Devotional.sql` | `devotional_entry`, `verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/CrossReference.sql` | `cross_reference_group` + `verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/TopicalIndex.sql` | `topic` + `verse_link`, `module_feature`, `compression_dictionary`. |
-| `sql/schemas/initial/TagGraph.sql` | People / places / objects / themes, `tag_association`, `entity_facet`, `verse_link`, `entity_verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/TagGraph.sql` | People / places / objects / themes (genealogy tables: see [genealogy.md](genealogy.md)), `tag_association`, `entity_facet`, `verse_link`, `entity_verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/MainDatabase.sql` | `main.db`: `bible_book`, `chapter_info`, `module_metadata`, `module_repository`, `module_download_queue`, `module_update`, search tables, `setting`, `schema_migration`. |
 | `sql/schemas/initial/UserDatabase.sql` | `user_*.db` - see [User data](user-data.md). |
 
@@ -44,8 +44,8 @@ As of schema v0.2, no module schema declares an FTS5 virtual table. Each
 module type shipped its own keyword index (`bible_verse_fts`,
 `commentary_entry_fts`, etc.) through v0.1; those tables and their
 sync triggers are gone. Full-text search over module content now lives in an
-app-side sidecar index outside the module file, out of scope for this
-document.
+app-side sidecar index outside the module file; see
+[Search](search.md#where-the-keyword-index-lives).
 
 ### Shared fragments
 
@@ -145,9 +145,9 @@ for the full `FORMAT_VERSION` / `READABLE_FORMAT_VERSIONS` /
   type's own `*_fts` table and its sync triggers (`bible_verse_fts`,
   `commentary_entry_fts`, `dictionary_entry_fts`, `book_section_fts`,
   `devotional_entry_fts`, `topic_fts`) were removed from the schema files.
-  Full-text search over module content is being rebuilt as an app-side
-  sidecar index, out of scope for this document -- do not expect any of those
-  tables to exist in a v0.2 module.
+  Full-text search over module content is an app-side sidecar index (see
+  [Search](search.md#where-the-keyword-index-lives)) -- do not expect any of
+  those tables to exist in a v0.2 module.
 
 - **`isPublicDomain()` falls back to substring-matching the freeform
   `copyright` string** when `license_spdx` is absent. That is why the shipped

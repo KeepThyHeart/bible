@@ -4,6 +4,7 @@ import type { Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
+import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
 
 // Capture the current git commit SHA at build time so the About dialog and
 // the diagnostics uploader can name the exact source revision a binary came
@@ -109,6 +110,8 @@ const DOCS_URL = envOrEmpty('BIBLE_DOCS_URL');
 const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
+// Timeline minimum framing span in years; empty means the built-in 200.
+const TIMELINE_MIN_SPAN_YEARS = envOrEmpty('BIBLE_TIMELINE_MIN_SPAN_YEARS');
 
 const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_PRODUCT_NAME__: JSON.stringify(PRODUCT_NAME),
@@ -125,6 +128,7 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_DIAGNOSTICS_URL__: JSON.stringify(DIAGNOSTICS_URL),
   __BIBLE_DIAGNOSTICS_TOKEN__: JSON.stringify(DIAGNOSTICS_TOKEN),
   __BIBLE_ABOUT_TEXT__: JSON.stringify(ABOUT_TEXT),
+  __BIBLE_TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(TIMELINE_MIN_SPAN_YEARS),
 };
 
 /**
@@ -220,7 +224,9 @@ export default defineConfig({
     // `keytar` is in `optionalDependencies`, which `externalizeDeps` does not
     // read, so it is named here: it is native, and must stay a runtime `require`
     // that encryptionKeyManager can catch when the module is absent.
-    plugins: [quickjsGuestBundlePlugin()],
+    // `kthKitPlugin` exposes `virtual:kth-kit` (the extension UI kit bundle served at `ext-ui://host/kit/1/`);
+    // main only: the renderer and preload never see it. See hostKit.ts.
+    plugins: [quickjsGuestBundlePlugin(), kthKitPlugin(resolve(__dirname, '../../packages/ui/scripts/build-kit.mjs'))],
     resolve: {
       alias: {
         // Resolve to core's TypeScript SOURCE, not its `dist`. `packages/core`
@@ -228,7 +234,7 @@ export default defineConfig({
         // calls; rollup cannot statically determine named exports through those,
         // so bundling dist fails with `"X" is not exported by ../core/dist/index.js`.
         // The renderer config below already aliases to source for the same reason.
-        // `npm run build:core` is still required - the desktop's typecheck and
+        // `pnpm run build:core` is still required - the desktop's typecheck and
         // the web package consume `packages/core/dist`.
         '@bible/core': resolve(__dirname, '../../packages/core/src')
       }
@@ -244,7 +250,11 @@ export default defineConfig({
           // Bundled extension worker entry. Lives next to
           // `out/main/index.js` so it ships in the same Vite build pass and
           // ExtensionHost can resolve it via `__dirname/extension-runtime/index.js`.
-          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts')
+          'extension-runtime/index': resolve(__dirname, 'extension-runtime/index.ts'),
+          // Worker thread that runs Argon2id for backups, so the ~0.5 s key
+          // derivation does not block the main process. Emitted next to
+          // `out/main/index.js`, where `workerKdf.ts` looks for it.
+          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }
@@ -287,7 +297,11 @@ export default defineConfig({
         '@services': resolve(__dirname, 'src/Services'),
         '@controllers': resolve(__dirname, 'src/Controllers'),
         // Alias to source files to avoid better-sqlite3 dependency
-        '@bible/core': resolve(__dirname, '../../packages/core/src')
+        '@bible/core': resolve(__dirname, '../../packages/core/src'),
+        // Shared UI kit (packages/ui), consumed as source. The css entry must
+        // come first: the first matching string alias wins.
+        '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
+        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts')
       }
     },
     optimizeDeps: {
@@ -302,6 +316,15 @@ export default defineConfig({
     plugins: [brandingHtmlPlugin(), react()],
     build: {
       rollupOptions: {
+        // Renderer code imports the `@bible/core` barrel, which also re-exports
+        // Node-only modules (contentDigest -> node:crypto, the codecs ->
+        // node:zlib, ...). Vite stubs those builtins for the browser as empty
+        // modules, so rollup would fail on their named imports ("createHash is
+        // not exported by __vite-browser-external"). Nothing in the renderer
+        // calls that code; it is tree-shaken, and if it were ever reached it
+        // would hit `undefined` at the call site. Shim the missing exports
+        // rather than splitting the barrel.
+        shimMissingExports: true,
         input: {
           index: resolve(__dirname, 'index.html'),
           detached: resolve(__dirname, 'detached.html')

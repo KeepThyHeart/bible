@@ -3,50 +3,41 @@
  * host renderer.
  *
  * The iframe runs `@bible/extension-ui` which sends `RpcRequest` envelopes
- * via `window.parent.postMessage`. This hook:
+ * via `window.parent.postMessage`. The transport, source check, envelope
+ * validation, deny-by-default `uikit.*` allowlist and error mapping live in
+ * `IframeRpcBridge` (`@bible/core/browser`), shared with the web app, and the
+ * iframe plus the bridge lifecycle live in `ExtensionPanelHost` (`@bible/ui`).
+ * `useDesktopBridgeParts` supplies what is desktop-specific:
  *
- *   1. Listens for `message` events on the window.
- *   2. Validates the sender is the expected iframe (origin check).
- *   3. Dispatches recognised RPC methods (navigate, popup, theme).
- *   4. Sends `RpcResponse` / `RpcEvent` envelopes back to the iframe.
+ *   1. the handler map (IPC, Zustand stores, iframe geometry);
+ *   2. the host-assembled context (identity from mount props, manifest/grants
+ *      from `getAccess`), never from anything the iframe says;
+ *   3. host -> panel pushes (worker messages, theme, active verse).
  *
  * The hook intentionally handles a small, fixed set of renderer-side
  * methods. Extension business logic goes through the worker's RPC channel,
  * not through the iframe bridge.
  */
 
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  IframeRpcBridge,
+  directionForTag,
+  type BridgeContext,
+  type BridgeHandlers,
+} from '@bible/core/browser';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { usePreferencesStore } from '../../stores/usePreferencesStore';
-import { subscribeToPanelMessages } from '../../extensions/extensionUiStore';
+import { subscribeToPanelMessages, useExtensionUiStore } from '../../extensions/extensionUiStore';
+import { subscribeActiveVerseBroadcast } from '../../extensions/activeVerseBroadcast';
 
-// -- Inlined envelope types (kept in sync with @bible/core RpcEnvelope) ---
+// -- Hooks ----------------------------------------------------------------
 
-interface RpcRequest {
-  kind: 'request';
-  id: string;
-  method: string;
-  args: unknown[];
+/** What the host knows about the extension that owns the panel (from main, not the iframe). */
+export interface PanelAccess {
+  manifest: BridgeContext['manifest'];
+  grants: BridgeContext['grants'];
 }
-
-interface RpcResponse {
-  kind: 'response';
-  id: string;
-  result?: unknown;
-  error?: { code: string; message: string };
-}
-
-interface RpcEvent {
-  kind: 'event';
-  channel: string;
-  payload: unknown;
-}
-
-function isRpcRequest(v: unknown): v is RpcRequest {
-  return typeof v === 'object' && v !== null && (v as { kind?: string }).kind === 'request';
-}
-
-// -- Hook -----------------------------------------------------------------
 
 interface UseIframeBridgeOpts {
   extensionId: string;
@@ -58,116 +49,174 @@ interface UseIframeBridgeOpts {
    */
   panelId?: string;
   panelTypeId?: string;
+  /**
+   * Manifest (`uiKit`) and granted permissions of the owning extension, read
+   * once per request. Absent or `manifest: null` means no `uikit.*` method is
+   * allowed.
+   */
+  getAccess?: () => PanelAccess;
+  /** Current UI locale tag for `ui.getLocale`. Defaults to `'en'` when absent. */
+  getLocale?: () => string;
 }
 
-export function useIframeBridge({
+const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
+
+/**
+ * The desktop-specific pieces of a panel bridge, for a host that owns the
+ * iframe and the `IframeRpcBridge` itself (the shared `ExtensionPanelHost` in
+ * `@bible/ui`): pass `context`, `handlers` and `onBridge` straight through.
+ * All three are referentially stable across renders.
+ *
+ * `onBridge(bridge)` starts the host -> panel pushes (worker messages, theme,
+ * active verse) and `onBridge(null)` stops them; the pushes use the identity
+ * from the latest props.
+ */
+export interface DesktopBridgeParts {
+  context: () => BridgeContext;
+  handlers: BridgeHandlers;
+  onBridge: (bridge: IframeRpcBridge | null) => void;
+}
+
+export function useDesktopBridgeParts({
   extensionId,
   iframeRef,
   panelId,
   panelTypeId,
-}: UseIframeBridgeOpts): void {
-  const sendToIframe = useCallback((envelope: RpcResponse | RpcEvent) => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) return;
-    // Post to the iframe's origin. Because `sandbox` strips same-origin,
-    // the iframe's actual origin is opaque ('null'). We must use '*' as
-    // the target origin. Security is enforced by validating the *source*
-    // of incoming messages, not the target of outgoing ones.
-    iframe.contentWindow.postMessage(envelope, '*');
-  }, [iframeRef]);
+  getAccess,
+  getLocale,
+}: UseIframeBridgeOpts): DesktopBridgeParts {
+  // Latest-callback refs: the parts are created once, not per render.
+  const identityRef = useRef({ extensionId, panelId, panelTypeId });
+  identityRef.current = { extensionId, panelId, panelTypeId };
+  const getAccessRef = useRef(getAccess);
+  getAccessRef.current = getAccess;
+  const getLocaleRef = useRef(getLocale);
+  getLocaleRef.current = getLocale;
+  const teardownRef = useRef<(() => void) | null>(null);
 
-  // -- Handle incoming requests from the iframe -------------------------
+  const context = useCallback((): BridgeContext => {
+    const access = getAccessRef.current?.() ?? NO_ACCESS;
+    const { extensionId: id, panelId: pId, panelTypeId: ptId } = identityRef.current;
+    return { extensionId: id, panelId: pId, panelTypeId: ptId, manifest: access.manifest, grants: access.grants };
+  }, []);
 
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      // Because the iframe has sandbox="allow-scripts" without
-      // allow-same-origin, its origin is 'null'. We can't do a strict
-      // origin check. Instead, verify the source is our iframe's window.
-      if (event.source !== iframeRef.current?.contentWindow) return;
-      if (!isRpcRequest(event.data)) return;
+  const handlers = useMemo(
+    () => createHandlers(iframeRef, () => getLocaleRef.current?.() ?? 'en'),
+    [iframeRef],
+  );
 
-      const req = event.data;
-      handleRequest(req, { extensionId, panelId, panelTypeId }).then(
-        (result) => {
-          sendToIframe({ kind: 'response', id: req.id, result });
-        },
-        (err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          sendToIframe({
-            kind: 'response',
-            id: req.id,
-            error: { code: 'BridgeError', message },
-          });
-        },
-      );
-    };
+  const onBridge = useCallback((bridge: IframeRpcBridge | null) => {
+    teardownRef.current?.();
+    teardownRef.current = null;
+    if (!bridge) return;
 
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [sendToIframe, iframeRef, extensionId, panelId, panelTypeId]);
+    // -- Worker -> panel pushes -----------------------------------------
 
-  // -- Worker -> panel pushes -------------------------------------------
-
-  // `api.panels.postMessage(...)` in the worker arrives here as a renderer
-  // notification. Deliver it only to iframes this extension owns, and only to
-  // the addressed panel when the worker named one.
-  useEffect(() => {
-    return subscribeToPanelMessages((msg) => {
-      if (msg.extensionId !== extensionId) return;
-      if (msg.panelId !== undefined && msg.panelId !== panelId) return;
-      sendToIframe({
-        kind: 'event',
-        channel: 'panel.message',
-        payload: msg.message,
-      });
+    // `api.panels.postMessage(...)` in the worker arrives here as a renderer
+    // notification. Deliver it only to iframes this extension owns, and only to
+    // the addressed panel when the worker named one.
+    const unsubPanelMessages = subscribeToPanelMessages((msg) => {
+      const { extensionId: id, panelId: pId } = identityRef.current;
+      if (msg.extensionId !== id) return;
+      if (msg.panelId !== undefined && msg.panelId !== pId) return;
+      bridge.emit('panel.message', msg.message);
     });
-  }, [sendToIframe, extensionId, panelId]);
 
-  // -- Forward host events to the iframe --------------------------------
+    // -- Forward host events to the iframe ------------------------------
 
-  // Theme changes.
-  useEffect(() => {
+    // Theme changes.
     let prevTheme = usePreferencesStore.getState().theme; // allow-getstate: effect/init - read latest theme snapshot
-    const unsub = usePreferencesStore.subscribe((state) => {
+    const unsubTheme = usePreferencesStore.subscribe((state) => {
       if (state.theme !== prevTheme) {
         prevTheme = state.theme;
-        sendToIframe({
-          kind: 'event',
-          channel: 'theme.changed',
-          payload: { mode: state.theme },
-        });
+        bridge.emit('theme.changed', { mode: state.theme });
       }
     });
-    return unsub;
-  }, [sendToIframe]);
-}
 
-// -- Request dispatch -----------------------------------------------------
+    // Active-verse changes. `BibleExtUI.onActiveVerseChanged` declared this
+    // channel from the start; nothing ever sent it - `useIframeBridge`
+    // forwarded only `theme.changed`. See `activeVerseBroadcast.ts` for why
+    // this subscribes there rather than to `useBibleStore` directly: it is the
+    // same signal a worker extension gets via `verse.activeChanged`
+    // (`api.events.subscribe`), published from the same two call sites.
+    const unsubActiveVerse = subscribeActiveVerseBroadcast(({ verseId }) => {
+      // `source` is reserved for a future finer-grained provenance (click
+      // vs. search vs. another extension's navigateToVerse) the host does
+      // not yet track - see BibleExtUI.onActiveVerseChanged.
+      bridge.emit('verse.activeChanged', { verseId, source: 'host' });
+    });
+
+    teardownRef.current = () => {
+      unsubPanelMessages();
+      unsubTheme();
+      unsubActiveVerse();
+    };
+  }, []);
+
+  // A host unmounting without a final `onBridge(null)` must not leak subscriptions.
+  useEffect(
+    () => () => {
+      teardownRef.current?.();
+      teardownRef.current = null;
+    },
+    [],
+  );
+
+  return { context, handlers, onBridge };
+}
 
 /**
- * Who the host believes this iframe to be. Assembled by the panel host from
- * the props it was mounted with - never from anything the iframe said.
+ * Hook form for a caller that owns its own iframe ref and wants the bridge
+ * created here: builds the parts above and one `IframeRpcBridge` per
+ * identity. The panel host does not use it (the shared `ExtensionPanelHost`
+ * owns the bridge); it stays for callers and tests that drive a bare iframe
+ * ref.
  */
-interface PanelIdentity {
-  extensionId: string;
-  panelId?: string;
-  panelTypeId?: string;
+export function useIframeBridge(opts: UseIframeBridgeOpts): void {
+  const { iframeRef, extensionId, panelId, panelTypeId } = opts;
+  const { context, handlers, onBridge } = useDesktopBridgeParts(opts);
+
+  useEffect(() => {
+    const bridge = new IframeRpcBridge({
+      context,
+      handlers,
+      hostWindow: window,
+      // Read lazily: the iframe mounts after this effect runs (the panel host
+      // first renders a loading state), and may be remounted.
+      getTarget: () => iframeRef.current?.contentWindow,
+    });
+    bridge.attach();
+    onBridge(bridge);
+    return () => {
+      bridge.dispose();
+      onBridge(null);
+    };
+  }, [iframeRef, extensionId, panelId, panelTypeId, context, handlers, onBridge]);
 }
 
-async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<unknown> {
-  const { extensionId } = identity;
-  switch (req.method) {
-    case 'network.fetch': {
+// -- Request handlers -----------------------------------------------------
+
+/**
+ * Desktop handler map. Identity (`extensionId`, `panelId`, `panelTypeId`)
+ * always comes from `ctx` - assembled by the panel host from the props it
+ * mounted the iframe with - never from the request arguments.
+ */
+function createHandlers(
+  iframeRef: React.RefObject<HTMLIFrameElement | null>,
+  currentLocale: () => string,
+): BridgeHandlers {
+  return {
+    'network.fetch': (args, { extensionId }) => {
       // The iframe's CSP does not allow it to reach any remote host
       // directly, so this is its only egress. Note that
       // `extensionId` comes from the closure that mounted *this* iframe - the
       // request payload never names an extension, so a panel cannot ask to
       // spend another extension's network grant.
-      const url = req.args[0];
+      const url = args[0];
       if (typeof url !== 'string' || url.length === 0) {
         throw new Error('network.fetch: url must be a non-empty string');
       }
-      const init = req.args[1];
+      const init = args[1];
       if (init !== undefined && (typeof init !== 'object' || init === null)) {
         throw new Error('network.fetch: init must be an object when provided');
       }
@@ -184,16 +233,15 @@ async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<
         throw new Error('network.fetch: extensions:uiFetch IPC is not available');
       }
       return uiFetch(extensionId, url, init);
-    }
+    },
 
-    case 'panel.invoke': {
+    'panel.invoke': (args, { extensionId, panelId, panelTypeId }) => {
       // The panel's only route to its own extension's API surface. It carries
       // exactly one thing from the iframe - the message - and three things
       // from the closure that mounted it. That split is the security
       // property: `network.fetch` above works the same way, and for the same
       // reason. A panel that could name an extension could spend another
       // extension's grants.
-      const { panelId, panelTypeId } = identity;
       if (!panelId || !panelTypeId) {
         throw new Error(
           'panel.invoke: this panel was mounted without an identity, so it ' +
@@ -217,32 +265,51 @@ async function handleRequest(req: RpcRequest, identity: PanelIdentity): Promise<
       if (!panelInvoke) {
         throw new Error('panel.invoke: extensions:panelInvoke IPC is not available');
       }
-      return panelInvoke(extensionId, panelId, panelTypeId, req.args[0]);
-    }
+      return panelInvoke(extensionId, panelId, panelTypeId, args[0]);
+    },
 
-    case 'bible.navigateToVerse': {
-      const verseId = req.args[0];
+    'bible.navigateToVerse': (args) => {
+      const verseId = args[0];
       if (typeof verseId !== 'number') throw new Error('verseId must be a number');
       useBibleStore.getState().navigateToVerseInPrimary(verseId); // allow-getstate: event handler - imperative navigation, no subscription needed
       return undefined;
-    }
+    },
 
-    case 'ui.getTheme': {
+    'ui.getTheme': () => {
       const theme = usePreferencesStore.getState().theme; // allow-getstate: effect/init - read latest theme snapshot
       return { mode: theme };
-    }
+    },
 
-    case 'ui.showVersePopup': {
-      // Future: wire to the host's verse popup overlay.
-      // For now, accept silently - the host decides whether to show.
+    // Read-only, un-gated: the UI locale is not user data. Lets kit components
+    // and panels pick book names / direction without app i18n.
+    'ui.getLocale': () => {
+      const locale = currentLocale();
+      return { locale, direction: directionForTag(locale) };
+    },
+
+    'ui.showVersePopup': (args, ctx) => {
+      const verseId = args[0];
+      const rect = args[1] as
+        | { x: number; y: number; width: number; height: number }
+        | undefined;
+      if (typeof verseId !== 'number' || !rect) return undefined; // best-effort, per the SDK's own contract
+      const iframeEl = iframeRef.current;
+      if (!iframeEl) return undefined; // iframe unmounted mid-flight; nothing to anchor to
+      // `rect` is relative to the iframe's own document. Translate into host
+      // page coordinates via the iframe element's own rect, then hand off to
+      // the same VersePreviewTooltip the host's built-in verse hovers use -
+      // see ExtensionUiHost.tsx.
+      const iframeRect = iframeEl.getBoundingClientRect();
+      useExtensionUiStore.getState().showVersePopup(ctx.extensionId, verseId, {
+        x: iframeRect.left + rect.x,
+        y: iframeRect.top + rect.y + rect.height,
+      });
       return undefined;
-    }
+    },
 
-    case 'ui.hideVersePopup': {
+    'ui.hideVersePopup': () => {
+      useExtensionUiStore.getState().hideVersePopup();
       return undefined;
-    }
-
-    default:
-      throw new Error(`Unknown iframe bridge method: ${req.method}`);
-  }
+    },
+  };
 }

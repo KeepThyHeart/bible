@@ -113,6 +113,11 @@ export * from './Services/Search';
 // StudyOverview - cross-module aggregation services
 export * from './Services/StudyOverview';
 
+// Cross-reference graph service and index builder (task 0068); the pure half is in ./Services/XrefGraph.
+export { XrefGraphService, USER_SOURCE, UNKNOWN_RANK } from './Services/XrefGraph/XrefGraphService';
+export * from './Services/XrefGraph/types';
+export { XrefGraphIndexBuilder } from './Services/XrefGraph/XrefGraphIndexBuilder';
+
 // Plugin system (hook registry, loader, types)
 export * from './Plugin';
 
@@ -150,3 +155,21 @@ export { parseUSFM, UsfmParseError } from './Export/parseUSFM';
 // Namespaced (like `Extensions`/`Usfm` above): two DTO names collide with
 // pre-existing root exports - see `browser.ts`'s copy of this comment.
 export * as Providers from './Providers';
+
+// Crypto primitives (task 0078): also re-exported from `./browser`.
+export * as Crypto from './Crypto';
+
+// Backup format v1 (task 0078): also re-exported from `./browser`.
+export * as Backup from './Backup';
+
+// Keyword marks (task 0065): also re-exported from `./browser`.
+export * from './KeywordMarks';
+export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+
+// Web user-data store (task 0084): also re-exported from `./browser`.
+export * as UserData from './UserData';
+
+// Audio Bible contracts, manifest validators and site-config parser (task 0059).
+// Namespaced because `VerseRef` collides with the root export of
+// `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
+export * as AudioBible from './audio';

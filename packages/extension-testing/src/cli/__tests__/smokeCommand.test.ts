@@ -112,7 +112,7 @@ describe('runSmokeCommand', () => {
 
   it('returns 1 when a registered event subscriber throws on invocation', async () => {
     const body = `exports.activate = async function(api){
-      await api.bible.onDidChangeActiveVerse.subscribe(function(){
+      await api.events.subscribe('verse.activeChanged', function(){
         throw new Error('subscriber exploded');
       });
     };`;

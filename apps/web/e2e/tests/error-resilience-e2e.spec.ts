@@ -115,7 +115,7 @@ test.describe('Error Resilience', () => {
 
     // 2. Tab management
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.keyboard.press('Escape');
     // Wait for the picker overlay to close before clicking Settings
     await expect(page.locator('.book-chapter-picker__overlay')).not.toBeVisible({ timeout: 3000 });

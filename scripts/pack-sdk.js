@@ -5,16 +5,16 @@
  * `@bible/core` and `@bible/extension-testing` are not on any registry, so a
  * project created outside this repository cannot resolve them by version -
  * `npm install` fails on the first command an author is told to run. Until the
- * packages are published, `npm pack` output is the bridge: a tarball installs
+ * packages are published, `pnpm pack` output is the bridge: a tarball installs
  * with the same resolution, hoisting and lifecycle behaviour as a registry
- * install, which a `file:` link to a workspace directory does not (npm symlinks
+ * install, which a `file:` link to a workspace directory does not (package managers symlink
  * those, so an author ends up typechecking against `src/` and can silently
  * depend on something `files` would never ship).
  *
  * Output lands in `build/sdk/`, which `create-bible-extension --local-sdk=<dir>`
  * consumes.
  *
- * Usage:  npm run pack:sdk [-- --out=<dir>]
+ * Usage:  pnpm run pack:sdk [--out=<dir>]
  */
 
 const { execFileSync } = require('node:child_process');
@@ -47,7 +47,7 @@ function run(command, args, cwd) {
   execFileSync(command, args, {
     cwd,
     stdio: 'inherit',
-    // npm is a .cmd shim on Windows, which execFile cannot launch directly.
+    // pnpm is a .cmd shim on Windows, which execFile cannot launch directly.
     shell: process.platform === 'win32',
   });
 }
@@ -60,7 +60,7 @@ function main() {
     const packageDir = path.join(repoRoot, pkg.dir);
 
     console.log(`\n=== building ${pkg.name} ===`);
-    run('npm', ['run', 'build', '-w', pkg.name], repoRoot);
+    run('pnpm', ['--filter', pkg.name, 'run', 'build'], repoRoot);
 
     // Clear this package's previous tarballs so a stale version cannot be the
     // one `--local-sdk` picks up after a version bump.
@@ -72,7 +72,9 @@ function main() {
     }
 
     console.log(`=== packing ${pkg.name} ===`);
-    run('npm', ['pack', '--pack-destination', outDir], packageDir);
+    // `pnpm pack`, not `npm pack`: it rewrites the `workspace:` ranges in
+    // package.json to real versions, so the tarball installs outside the monorepo.
+    run('pnpm', ['pack', '--pack-destination', outDir], packageDir);
   }
 
   const tarballs = fs.readdirSync(outDir).filter((f) => f.endsWith('.tgz')).sort();

@@ -1,6 +1,9 @@
 import { Store } from './Store';
 import { eventBus } from '../events/eventBus';
 import { bibleStore } from './bibleStore';
+import { getUserData } from '../userdata/userData';
+import { loadVerseHistory, saveVerseHistory } from './studyHistoryStorage';
+import type { VerseHistoryEntry } from './studyHistoryStorage';
 import type { PendingTopicNav } from './commentaryStore';
 import type {
   ICrossRefDataProvider,
@@ -35,6 +38,13 @@ import type {
  * worth making. A section nobody has opened costs nothing; one that is open
  * reloads exactly as before, because its effect re-runs on the verse change.
  */
+/** A request to centre the family tree on a person. See StudyStore.familyTreeFocus. */
+export interface FamilyTreeFocus {
+  personId: string;
+  name?: string;
+  token: number;
+}
+
 class StudyStore extends Store {
   private crossRefProvider: ICrossRefDataProvider | null = null;
   private topicalProvider: ITopicalDataProvider | null = null;
@@ -97,6 +107,16 @@ class StudyStore extends Store {
   /** Topic the mobile Topics overlay should open next. See PendingTopicNav for why it carries a token. */
   pendingTopicNav: PendingTopicNav | null = null;
   private _topicNavToken = 0;
+
+  /**
+   * Family tree (genealogy explorer, task 0067). Desktop: the Study pane shows the
+   * explorer instead of its sections while this is on. Mobile: a full-screen sheet.
+   * Not persisted — a reload starts back on the ordinary Study view.
+   */
+  familyTreeOpen = false;
+  /** Person the explorer should centre on next; the token lets a repeat request for the same person re-fire. */
+  familyTreeFocus: FamilyTreeFocus | null = null;
+  private _familyTreeToken = 0;
 
   // Cache keys — what the loaded data belongs to.
   private crossRefLoadedKey = '';
@@ -266,6 +286,19 @@ class StudyStore extends Store {
   closeTopicsBrowser(): void {
     this.topicsBrowserOpen = false;
     this.pendingTopicNav = null;
+    this.notify();
+  }
+
+  /** Open the family tree, optionally focused on a person (by genealogy id, tag-graph entity id or name). */
+  openFamilyTree(focus?: { personId: string; name?: string }): void {
+    this.familyTreeFocus = focus ? { ...focus, token: ++this._familyTreeToken } : null;
+    this.familyTreeOpen = true;
+    this.notify();
+  }
+
+  closeFamilyTree(): void {
+    this.familyTreeOpen = false;
+    this.familyTreeFocus = null;
     this.notify();
   }
 
@@ -516,17 +549,26 @@ class StudyStore extends Store {
     this.saveHistory();
   }
 
+  /** Verse history lives in the user-data store (`app:study`), not in localStorage. */
   private saveHistory(): void {
-    try {
-      localStorage.setItem('bible-reader-study-history', JSON.stringify(this.verseHistory));
-    } catch { /* ignore */ }
+    void saveVerseHistory(this.verseHistory);
   }
 
   private restoreHistory(): void {
-    try {
-      const data = localStorage.getItem('bible-reader-study-history');
-      if (data) this.verseHistory = JSON.parse(data);
-    } catch { /* ignore */ }
+    const apply = (loaded: VerseHistoryEntry[], keepLocal: boolean): void => {
+      // On the first load, a jump made before it finished is newer than anything stored: keep it in front.
+      // After that the store is the truth (another tab may have removed entries).
+      const fresh = keepLocal ? this.verseHistory.filter(h => !loaded.some(l => l.verseId === h.verseId)) : [];
+      const merged = [...fresh, ...loaded].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+      if (JSON.stringify(merged) === JSON.stringify(this.verseHistory)) return;
+      this.verseHistory = merged;
+      this.notify();
+    };
+    void loadVerseHistory().then(l => apply(l, true));
+    // Another tab's jumps show up here too.
+    void getUserData().then(store => store.onRemoteChange(changes => {
+      if (changes.some(c => c.type === 'item:put' || c.type === 'item:delete')) void loadVerseHistory().then(l => apply(l, false));
+    }));
   }
 
   // ========== Session persistence ==========

@@ -9,7 +9,7 @@
  * This is the "unit-or-light-e2e" half of the acceptance criterion. The full
  * Playwright fixture e2e requires building the desktop app and rebuilding
  * native modules, both of which are gated on
- * `npm run build` + `npx electron-rebuild` per
+ * `pnpm run build` + `pnpm exec electron-rebuild` per
  * `apps/desktop/e2e/README.md`.
  */
 
@@ -190,7 +190,7 @@ describe('Minimal fixture acceptance', () => {
     const list = await host.listExtensions();
     expect(list).toHaveLength(1);
     expect(list[0]!.manifest.id).toBe('ext.test.minimal');
-    expect(list[0]!.manifest.engines.bibleApp).toBe('^1.0.0');
+    expect(list[0]!.manifest.engines.bibleApp).toBe('^0.1.0');
   });
 
   it('activating the fixture writes lastVerse=43003016 into extension_storage', async () => {
@@ -206,6 +206,7 @@ describe('Minimal fixture acceptance', () => {
       subscribeActiveVerse: () => () => {},
       iterateVerses: () => ({ verses: [], hasMore: false }),
       getVerseTokens: () => null,
+      getTokensForRange: () => ({}),
       subscribeWordSelection: () => () => {},
       navigateToVerse: async () => {},
     };

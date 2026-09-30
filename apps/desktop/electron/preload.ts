@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
+import type { TimelineDataset } from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -40,6 +41,7 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
 import type {
   UnsupportedReason,
@@ -195,6 +197,12 @@ export interface ElectronAPI {
     getEntityByName: (name: string) => Promise<Result<any | null>>;
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
+    getGenealogyDataset: () => Promise<Result<any | null>>;
+  };
+
+  // Timeline module. `null` when no timeline module is installed.
+  timeline: {
+    getDataset: () => Promise<Result<TimelineDataset | null>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -208,6 +216,15 @@ export interface ElectronAPI {
     /** Reverse references for a whole chapter in one call. */
     getReverseReferencesForRange: (abbreviation: string, startVerseId: number, endVerseId: number) => Promise<Result<any[]>>;
     getEntryCount: (abbreviation: string, verseId: number) => Promise<Result<number>>;
+  };
+
+  // Cross-reference graph (task 0068). Replies use the `Result<T>` envelope; the payload types are
+  // `XrefGraph`, `XrefEdge[]`, `BookMatrix` and `ChapterArcs` from `@bible/core/browser`.
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) => Promise<Result<any>>;
+    getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
+    getBookMatrix: () => Promise<Result<number[][]>>;
+    getChapterArcs: () => Promise<Result<any>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -360,22 +377,15 @@ export interface ElectronAPI {
   // Backup/Restore methods. Replies use the `Result<T>` envelope;
   // callers should unwrap via `src/ui/services/ipcResult.ts#unwrap`.
   backup: {
-    create: (options: { password: string; includeHistory?: boolean }) => Promise<Result<{
-      path: string;
-      metadata?: any;
-    } | null>>;
+    /** Encrypted backup (`.bbk`). Resolves with `null` if the save dialog is cancelled. */
+    create: (options: { password: string; includeHistory: boolean }) => Promise<Result<BackupSummary | null>>;
+    /** Unencrypted portable export (`.zip`). Resolves with `null` if the save dialog is cancelled. */
+    exportPlain: (options: { includeHistory: boolean }) => Promise<Result<BackupSummary | null>>;
     selectFile: () => Promise<Result<{ path: string } | null>>;
-    validate: (backupPath: string, password: string) => Promise<Result<{
-      valid: boolean;
-      metadata?: any;
-      error?: string;
-    }>>;
-    restore: (options: { backupPath: string; password: string; mode: 'merge' | 'replace' }) => Promise<Result<{
-      success: boolean;
-      tablesRestored?: string[];
-      rowCounts?: Record<string, number>;
-      error?: string;
-    }>>;
+    /** Open and fully verify a backup file; nothing is written. `password` is needed only for encrypted files. */
+    inspect: (options: { backupPath: string; password?: string }) => Promise<Result<BackupInspection>>;
+    apply: (options: { token: string; mode: 'merge' | 'replace'; sections: string[] }) => Promise<Result<BackupApplyResult>>;
+    discard: (token: string) => Promise<Result<null>>;
   };
 
   // Module Manager methods. Replies use the `Result<T>` envelope (cleanup item
@@ -605,7 +615,7 @@ export interface ElectronAPI {
     resetCrashState: (extensionId: string) => Promise<void>;
     getLog: (extensionId: string, limit?: number) => Promise<any[]>;
     getCrashLog: (extensionId: string, limit?: number) => Promise<any[]>;
-    getPanelTypeUiEntry: (extensionId: string, panelTypeId: string) => Promise<{ uiEntry: string; title?: string; allowAutoplay?: boolean } | null>;
+    getPanelTypeUiEntry: (extensionId: string, panelTypeId: string) => Promise<{ uiEntry: string; title?: string; allowAutoplay?: boolean; uiKit?: { version: string; components: string[] }; grantedPermissions?: string[] } | null>;
     openInstallFolder: (extensionId: string) => Promise<boolean>;
     /** Panel-iframe egress, routed through the extension's own gateway. */
     uiFetch: (extensionId: string, url: string, init?: unknown) => Promise<unknown>;
@@ -796,6 +806,12 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getVersesForEntity', entityId, category),
     getFacetsForEntity: (entityId: string, category: string) =>
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
+    getGenealogyDataset: () =>
+      ipcRenderer.invoke('tagGraph:getGenealogyDataset'),
+  },
+
+  timeline: {
+    getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
   },
 
   crossReference: {
@@ -810,6 +826,14 @@ const electronAPI: ElectronAPI = {
       typedInvoke('xref:getReverseReferencesForRange', abbreviation, startVerseId, endVerseId),
     getEntryCount: (abbreviation: string, verseId: number) =>
       ipcRenderer.invoke('xref:getEntryCount', abbreviation, verseId)
+  },
+
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) =>
+      typedInvoke('xrefGraph:getEgoGraph', anchor, opts),
+    getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
+    getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
+    getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
   },
 
   search: {
@@ -1018,13 +1042,16 @@ const electronAPI: ElectronAPI = {
   },
 
   backup: {
-    create: (options: { password: string; includeHistory?: boolean }) =>
+    create: (options: { password: string; includeHistory: boolean }) =>
       ipcRenderer.invoke('backup:create', options),
+    exportPlain: (options: { includeHistory: boolean }) =>
+      ipcRenderer.invoke('backup:exportPlain', options),
     selectFile: () => ipcRenderer.invoke('backup:selectFile'),
-    validate: (backupPath: string, password: string) =>
-      ipcRenderer.invoke('backup:validate', backupPath, password),
-    restore: (options: { backupPath: string; password: string; mode: 'merge' | 'replace' }) =>
-      ipcRenderer.invoke('backup:restore', options),
+    inspect: (options: { backupPath: string; password?: string }) =>
+      ipcRenderer.invoke('backup:inspect', options),
+    apply: (options: { token: string; mode: 'merge' | 'replace'; sections: string[] }) =>
+      ipcRenderer.invoke('backup:apply', options),
+    discard: (token: string) => ipcRenderer.invoke('backup:discard', token),
   },
 
   moduleManager: {

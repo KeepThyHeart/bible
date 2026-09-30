@@ -22,7 +22,7 @@ A minimal reference extension that displays a word count for the current Bible c
 
 - **Extension manifest** (`extension.json`) with permissions, activation events, and metadata
 - **Lifecycle hooks** (`activate` / `deactivate`) for setup and teardown
-- **Event subscription** via `api.bible.onDidChangeActiveVerse`
+- **Event subscription** via `api.events.subscribe('verse.activeChanged', ...)`
 - **Bible data access** via `api.bible.getRange()` to read passage text
 - **Status bar contributions** via `api.ui.registerStatusBarItem()`
 - **Disposable pattern** for cleaning up subscriptions and UI contributions

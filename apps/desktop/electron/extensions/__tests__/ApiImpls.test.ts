@@ -8,9 +8,12 @@
  *     arrives;
  *   - permission gates throw `PermissionDeniedError` over the wire when the
  *     grant is missing the required permission;
- *   - the storage api enforces its quota and reserved key prefixes;
- *   - the bridge `subscribe*` channels emit `RpcEvent` envelopes only when
- *     the worker has actually subscribed.
+ *   - the storage api enforces its quota and reserved key prefixes.
+ *
+ * The bridge-sourced forward events (active verse, panel open/close/focus,
+ * locale change, ...) used to be tested here too, but task 0024 round 3
+ * (P0.3) moved that subscription out of the api-impls entirely and into
+ * `ExtensionPointWiring.ts` - see `ExtensionPointWiring.test.ts`.
  *
  * The aim is confidence that the contract is glued end-to-end, without
  * standing up a real worker process or Electron window. The full e2e test
@@ -45,8 +48,6 @@ import { FakeSql } from './fakeSql';
 
 type RpcRequest = Extensions.RpcRequest;
 type RpcResponse = Extensions.RpcResponse;
-type RpcEvent = Extensions.RpcEvent;
-type RpcSubscribe = Extensions.RpcSubscribe;
 
 // --- Paired transports - same shape as in ExtensionRpcRouter.test.ts -------
 
@@ -244,38 +245,52 @@ describe('BibleApiImpl', () => {
     expect(res.error?.code).toBe('PermissionDeniedError');
   });
 
-  it('emits onDidChangeActiveVerse only when the worker subscribed', async () => {
-    // No subscription yet - fire should be a no-op.
-    bridge.fireActiveVerse({ verseId: 43003016, module: 'kjv' });
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'bible.onDidChangeActiveVerse'))).toHaveLength(
-      0,
-    );
-
-    // Subscribe and fire - should emit.
-    const sub: RpcSubscribe = {
-      kind: 'subscribe',
-      id: 'sub-1',
-      channel: 'bible.onDidChangeActiveVerse',
-    };
-    pair.workerSide.send(sub);
-    await new Promise((r) => setImmediate(r));
-    bridge.fireActiveVerse({ verseId: 43003017, module: 'kjv' });
-    const events = pair.hostSent.filter((e) =>
-      isEventOn(e, 'bible.onDidChangeActiveVerse'),
-    );
-    expect(events).toHaveLength(1);
-    expect((events[0] as RpcEvent).payload).toEqual({ verseId: 43003017, module: 'kjv' });
+  it('navigateToVerse forwards to the bridge, which activates the Bible pane', async () => {
+    // The renderer side of this call - `navigateToVerseInPrimary` - resolves
+    // or creates the primary Bible pane AND calls the target dockview
+    // panel's `api.setActive()` to bring its tab to front (see
+    // `sharedSlice.navigateToVerseInPrimary.test.ts`, which covers that part
+    // of the path in full). This test covers the extension-facing half: that
+    // `api.bible.navigateToVerse(verseId)` actually reaches the bridge with
+    // the right verseId and the right permission gate - the task 0032 "Show
+    // in Bible" acceptance case (0024's task folded it in).
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      43003016,
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastNavigatedVerse).toBe(43003016);
   });
-});
 
-function isEventOn(env: unknown, channel: string): boolean {
-  return (
-    typeof env === 'object' &&
-    env !== null &&
-    (env as RpcEvent).kind === 'event' &&
-    (env as RpcEvent).channel === channel
-  );
-}
+  it('navigateToVerse rejects a non-numeric verseId', async () => {
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      'not-a-number',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
+
+  it('navigateToVerse rejects without bible:read', async () => {
+    const router2 = new ExtensionRpcRouter(pair.hostSide);
+    const api = new BibleApiImpl({
+      extensionId: 'ext.test.bible',
+      router: router2,
+      bridge,
+      grant: buildGrant('ext.test.bible', []),
+    });
+    api.attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'bible.navigateToVerse', [
+      43003016,
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+  });
+
+  // The active-verse forward event (`verse.activeChanged`) used to be tested
+  // here, constructing a bare `BibleApiImpl` and firing the bridge directly.
+  // Task 0024 round 3 (P0.3) moved that subscription out of `BibleApiImpl`
+  // entirely and into `ExtensionPointWiring.ts`, which needs a full
+  // `ExtensionHostContext` (not just a bridge + router) to fan out to every
+  // active worker - see `ExtensionPointWiring.test.ts` for the equivalent
+  // coverage against the new module.
+});
 
 // --- Commentary / Dictionary / Book api-impls -----------------------------
 
@@ -490,6 +505,40 @@ describe('UiApiImpl', () => {
     expect(bridge.notifications[0]?.message).toBe('Hello');
   });
 
+  it('resolves showNotification with whatever the bridge resolves (the clicked action id)', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryUiBridge();
+    bridge.notificationActionResponse = 'retry';
+    new UiApiImpl({
+      extensionId: 'ext.test.ui',
+      router,
+      bridge,
+      grant: buildGrant('ext.test.ui', ['ui:notification']),
+    }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.showNotification', [
+      'Failed',
+      { actions: [{ id: 'retry', label: 'Retry' }] },
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe('retry');
+  });
+
+  it('resolves showNotification with undefined when dismissed with no action clicked', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryUiBridge();
+    new UiApiImpl({
+      extensionId: 'ext.test.ui',
+      router,
+      bridge,
+      grant: buildGrant('ext.test.ui', ['ui:notification']),
+    }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'ui.showNotification', ['Hi']);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBeUndefined();
+  });
+
   it('rejects showNotification without ui:notification', async () => {
     const pair = pairedTransports();
     const router = new ExtensionRpcRouter(pair.hostSide);
@@ -559,20 +608,127 @@ describe('WorkspaceApiImpl', () => {
     expect((after.result as unknown[]).length).toBe(0);
   });
 
-  it('forwards onDidOpenPanel only when the worker subscribed', async () => {
+  // The panel.opened/closed/focused forward events used to be tested here,
+  // constructing a bare `WorkspaceApiImpl` and firing the bridge directly.
+  // Task 0024 round 3 (P0.3) moved that subscription out of
+  // `WorkspaceApiImpl` entirely and into `ExtensionPointWiring.ts` - see
+  // `ExtensionPointWiring.test.ts`.
+
+  it('revealPanel focuses an already-open panel and resolves true, with no ownership check', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('bible'); // a built-in panel this extension does not own
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.revealPanel', [panelId]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe(true);
+    expect(bridge.revealedPanelIds).toEqual([panelId]);
+  });
+
+  it('revealPanel resolves false for a panel that is not open', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.revealPanel', [
+      'nope',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(res.result).toBe(false);
+  });
+
+  it('setPanelTitle succeeds on the extension\'s own panel', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.test.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      '5 due',
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastSetTitle).toEqual({ panelId, title: '5 due' });
+  });
+
+  it('setPanelTitle rejects a panel the extension does not own', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('bible'); // built-in
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      'Not the Bible anymore',
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+    expect(bridge.lastSetTitle).toBeUndefined();
+  });
+
+  it('setPanelTitle rejects another extension\'s panel', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.other.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      panelId,
+      'Hijacked',
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
+  });
+
+  it('setPanelTitle rejects a panelId that is not open', async () => {
     const pair = pairedTransports();
     const router = new ExtensionRpcRouter(pair.hostSide);
     const bridge = new InMemoryWorkspaceBridge();
     new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
 
-    bridge.openPanel('bible'); // no subscription yet
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'workspace.onDidOpenPanel'))).toHaveLength(0);
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelTitle', [
+      'nope',
+      'X',
+    ]);
+    expect(res.error?.code).toBe('RpcProtocolError');
+  });
 
-    pair.workerSide.send({ kind: 'subscribe', id: 's1', channel: 'workspace.onDidOpenPanel' });
-    await new Promise((r) => setImmediate(r));
-    bridge.openPanel('commentary');
-    const events = pair.hostSent.filter((e) => isEventOn(e, 'workspace.onDidOpenPanel'));
-    expect(events).toHaveLength(1);
+  it('setPanelBadge succeeds on the extension\'s own panel and can be cleared', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('ext:ext.test.viewer');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      5,
+    ]);
+    expect(res.error).toBeUndefined();
+    expect(bridge.lastSetBadge).toEqual({ panelId, badge: 5 });
+
+    await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      null,
+    ]);
+    expect(bridge.lastSetBadge).toEqual({ panelId, badge: undefined });
+  });
+
+  it('setPanelBadge rejects a panel the extension does not own', async () => {
+    const pair = pairedTransports();
+    const router = new ExtensionRpcRouter(pair.hostSide);
+    const bridge = new InMemoryWorkspaceBridge();
+    new WorkspaceApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
+    const panelId = bridge.openPanel('commentary');
+
+    const res = await workerCall(pair.workerSide, pair.hostSent, 'workspace.setPanelBadge', [
+      panelId,
+      1,
+    ]);
+    expect(res.error?.code).toBe('PermissionDeniedError');
   });
 });
 
@@ -592,18 +748,9 @@ describe('L10nApiImpl', () => {
     expect(res.result).toBe('Hello, World');
   });
 
-  it('emits l10n.onDidChangeLocale only when subscribed', async () => {
-    const pair = pairedTransports();
-    const router = new ExtensionRpcRouter(pair.hostSide);
-    const bridge = new InMemoryL10nBridge();
-    new L10nApiImpl({ extensionId: 'ext.test', router, bridge }).attach();
-    bridge.setLocale('fr');
-    expect(pair.hostSent.filter((e) => isEventOn(e, 'l10n.onDidChangeLocale'))).toHaveLength(0);
-    pair.workerSide.send({ kind: 'subscribe', id: 's1', channel: 'l10n.onDidChangeLocale' });
-    await new Promise((r) => setImmediate(r));
-    bridge.setLocale('es');
-    const events = pair.hostSent.filter((e) => isEventOn(e, 'l10n.onDidChangeLocale'));
-    expect(events).toHaveLength(1);
-    expect((events[0] as RpcEvent).payload).toBe('es');
-  });
+  // The locale-change forward event used to be tested here, constructing a
+  // bare `L10nApiImpl` and firing the bridge directly. Task 0024 round 3
+  // (P0.3) moved that subscription out of `L10nApiImpl` entirely and into
+  // `ExtensionPointWiring.ts` (which also wraps the bridge's bare locale
+  // string as `{ locale }`) - see `ExtensionPointWiring.test.ts`.
 });

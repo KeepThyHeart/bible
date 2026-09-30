@@ -6,7 +6,7 @@
  *   node scripts/build.js --local    just this machine's target
  *   node scripts/build.js --entry=smoke --local   the compile probe
  *
- * Run with Node, not Bun, so that the root `npm run build --workspaces` can
+ * Run with Node, not Bun, so that the root `pnpm run build` (`pnpm -r`) can
  * invoke it on a machine that has no Bun and get a clear skip rather than a
  * spawn error.
  */
@@ -71,7 +71,7 @@ function main() {
     // workspace script (typecheck, tests) runs without it.
     process.stderr.write(
       '@bible/cli: bun not found on PATH — skipping the compile step.\n' +
-        '            Install it from https://bun.sh, then re-run `npm run build -w @bible/cli`.\n',
+        '            Install it from https://bun.sh, then re-run `pnpm --filter @bible/cli run build`.\n',
     );
     return 0;
   }
@@ -83,7 +83,7 @@ function main() {
   if (!existsSync(coreDist)) {
     process.stderr.write(
       '@bible/cli: @bible/core is not built — skipping the compile step.\n' +
-        '            Run `npm run build:core` from the repo root first.\n',
+        '            Run `pnpm run build:core` from the repo root first.\n',
     );
     return 0;
   }
@@ -103,7 +103,7 @@ function main() {
       writeFileSync(kjvAsset, '');
       process.stderr.write(
         '@bible/cli: could not build the bundled KJV — building with an empty placeholder.\n' +
-          '            Put a bible_kjv.db in data/modules and run `npm run kjv -w @bible/cli`.\n',
+          '            Put a bible_kjv.db in data/modules and run `pnpm --filter @bible/cli run kjv`.\n',
       );
     }
   }

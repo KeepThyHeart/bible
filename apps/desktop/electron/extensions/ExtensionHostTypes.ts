@@ -393,4 +393,24 @@ export interface ExtensionHostContext {
   deactivate(extensionId: string): Promise<void>;
   /** True while the extension's worker is alive and serving RPC. */
   isActive(extensionId: string): boolean;
+
+  /**
+   * In-flight activations, keyed by extension id (task 0024 round 3, P1.5).
+   * `activeWorkers` only becomes populated after `worker.spawn()` resolves
+   * (`ExtensionHostLifecycle.ts`'s `activateInner`), so without this, two
+   * concurrent `activate()` calls for the same extension each spawn their own
+   * worker - a live bug fixed by having every caller await the same promise.
+   * See `ExtensionHostLifecycle.activate`, the coalescing wrapper.
+   */
+  readonly activating: Map<string, Promise<void>>;
+
+  /**
+   * Called after a worker goes away (deactivate, clean exit, crash) or a
+   * failed activation, and after install / uninstall / enable / disable, so
+   * `DeclaredContributions` can re-sync the declared placeholders for one
+   * extension. Absent in every host wired without a `DeclaredContributions`
+   * instance (every test host that does not exercise P1.5's declarative
+   * layer) - always safe to call as `ctx.onDeclaredResync?.(extensionId)`.
+   */
+  onDeclaredResync?: (extensionId: string) => void;
 }

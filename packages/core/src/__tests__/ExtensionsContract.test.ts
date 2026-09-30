@@ -30,12 +30,13 @@ import {
  * These are pure contract assertions - no host runtime is involved.
  */
 describe('Extensions contract', () => {
-  // 1.1.0, not 1.0.0: the `runtime`, `panels` and `collections` namespaces
-  // were added to `BibleExtensionAPI`. Purely additive - nothing was removed
-  // or given a new signature - so a minor bump is right and an extension
-  // written against 1.0.0 still runs unchanged.
-  it('exports EXTENSION_API_VERSION 1.1.0 at the package root', () => {
-    expect(EXTENSION_API_VERSION).toBe('1.1.0');
+  // Retrograded to 0.1.0 in task 0024 round 3: no beta or public release has
+  // shipped, so the strict-semver / 12-month-dual-support policy this
+  // constant used to follow (1.1.0, then 1.2.0) was premature. See the doc
+  // comment on EXTENSION_API_VERSION for the full reasoning, including why
+  // 0.1.0 rather than the bare "0.1" the human suggested.
+  it('exports EXTENSION_API_VERSION 0.1.0 at the package root', () => {
+    expect(EXTENSION_API_VERSION).toBe('0.1.0');
   });
 
   it('exports the same version through the Extensions namespace alias', () => {
@@ -80,10 +81,11 @@ describe('Extensions contract', () => {
   it('every extension point has a registered kind', () => {
     const kinds = new Set(Object.values(EXTENSION_POINT_KINDS));
     expect(kinds).toEqual(new Set(['event', 'filter', 'provider']));
-    // Spot-check a known filter and a known provider
-    expect(EXTENSION_POINT_KINDS['verse.beforeRender']).toBe('filter');
-    expect(EXTENSION_POINT_KINDS['verse.decorate']).toBe('provider');
-    expect(EXTENSION_POINT_KINDS['app.ready']).toBe('event');
+    // Spot-check a known filter and a known provider (task 0024 round 3
+    // pruned the union to 14 members - see ExtensionApiTypes.ts).
+    expect(EXTENSION_POINT_KINDS['notes.beforeDelete']).toBe('filter');
+    expect(EXTENSION_POINT_KINDS['crossReferences.requested']).toBe('provider');
+    expect(EXTENSION_POINT_KINDS['settings.changed']).toBe('event');
   });
 
   it('error code tuple contains the spec-mandated names', () => {

@@ -17,7 +17,59 @@ import { useI18n } from '../contexts/useI18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { ExtensionCatalogBrowser } from './extensions/ExtensionCatalogBrowser';
 import { ExtensionCatalogSources } from './extensions/ExtensionCatalogSources';
+import ExtensionSettingsRenderer from './extensions/ExtensionSettingsRenderer';
 import type { BlockDecision } from './extensions/marketplaceTypes';
+import { useExtensionUiStore } from '../extensions/extensionUiStore';
+import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
+
+/**
+ * "Show verse decorations" toggle (task 0036, P0.1a; design doc §13).
+ *
+ * Rendered only when `extensionId` has at least one registered decorator or
+ * hover provider - `useExtensionUiStore`'s `verseDecorators`/
+ * `verseHoverProviders` answer that directly, the same "what has been
+ * contributed" surface `ContributionRegistry` backs on the main side.
+ *
+ * Session-scoped in P0.1a: this toggles `verseDecorationStore`'s in-memory
+ * `disabledDecorationExtensions` set (renderer) and, via
+ * `setLayerEnabled`/`invokeUiBridge`, tells `VerseDecorationService`
+ * (main) to stop fetching for this extension too. It does not yet persist
+ * across app restarts - no host-settings-file backing for this exists in
+ * the codebase yet, and building one was out of this round's scope. Noted
+ * in this task's delivery message, not silently decided.
+ */
+function VerseDecorationsToggle({ extensionId }: { extensionId: string }): JSX.Element | null {
+  const decorators = useExtensionUiStore((s) => s.verseDecorators);
+  const hoverProviders = useExtensionUiStore((s) => s.verseHoverProviders);
+  const disabled = useExtensionUiStore((s) => s.disabledDecorationExtensions.has(extensionId));
+  const setDecorationsEnabled = useExtensionUiStore((s) => s.setDecorationsEnabled);
+
+  const hasAny =
+    decorators.some((d) => d.extensionId === extensionId) ||
+    hoverProviders.some((h) => h.extensionId === extensionId);
+  if (!hasAny) return null;
+
+  const toggle = (): void => {
+    const nextEnabled = disabled; // currently disabled -> enabling
+    setDecorationsEnabled(extensionId, nextEnabled);
+    // Layer keys aren't known here (they're per-decorator); the store enables
+    // by extension across every one of its decorators.
+    for (const d of decorators) {
+      if (d.extensionId === extensionId) {
+        useVerseDecorationStore.getState().setLayerEnabled(extensionId, d.descriptor.id, nextEnabled);
+      }
+    }
+  };
+
+  return (
+    <div className="text-xs">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={!disabled} onChange={toggle} />
+        Show verse decorations
+      </label>
+    </div>
+  );
+}
 
 type ExtensionsTab = 'installed' | 'browse' | 'catalogs';
 
@@ -30,7 +82,13 @@ interface ExtensionStateInfo {
     description?: string | { key: string };
     permissions?: string[];
     contributes?: {
-      configuration?: ConfigurationSchema;
+      /**
+       * JSON Schema (or a `{ $ref }` the host does not resolve - see
+       * `ExtensionSettingsRenderer.tsx`'s doc comment). Passed straight
+       * through as `unknown`; `ExtensionSettingsRenderer` is the one place
+       * that knows how to walk it.
+       */
+      configuration?: unknown;
     };
   };
   installPath: string;
@@ -45,18 +103,6 @@ interface ExtensionStateInfo {
   devMode?: boolean;
   /** Provenance tier derived by the host. Absent is treated as untrusted. */
   trustTier?: 'untrusted' | 'signed' | 'marketplace';
-}
-
-interface ConfigurationSchema {
-  type?: 'object';
-  properties?: Record<string, ConfigurationProperty>;
-}
-
-interface ConfigurationProperty {
-  type?: 'string' | 'number' | 'boolean';
-  default?: unknown;
-  description?: string;
-  enum?: unknown[];
 }
 
 interface CrashRecord {
@@ -134,7 +180,16 @@ const TrustBadge: React.FC<{ trustTier?: 'untrusted' | 'signed' | 'marketplace' 
   );
 };
 
-export function ExtensionsSection(): JSX.Element {
+interface ExtensionsSectionProps {
+  /**
+   * Set by `api.ui.openSettings(section?)` via `PreferencesDialog` (task
+   * 0024 round 3, P1.7): expand this extension's row and, if `section` is
+   * given, scroll its settings form to that key on open.
+   */
+  initialExpand?: { extensionId: string; section?: string };
+}
+
+export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JSX.Element {
   const { t } = useI18n();
   const [extensions, setExtensions] = useState<ExtensionStateInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,8 +199,7 @@ export function ExtensionsSection(): JSX.Element {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [openCrashId, setOpenCrashId] = useState<string | null>(null);
   const [crashRecords, setCrashRecords] = useState<CrashRecord[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(initialExpand?.extensionId ?? null);
   const [developerMode, setDeveloperMode] = useState(false);
   const [activeTab, setActiveTab] = useState<ExtensionsTab>('installed');
   /**
@@ -316,23 +370,12 @@ export function ExtensionsSection(): JSX.Element {
     }
   }, []);
 
-  const handleExpand = useCallback(async (ext: ExtensionStateInfo) => {
-    if (expandedId === ext.manifest.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(ext.manifest.id);
-    if (ext.manifest.contributes?.configuration) {
-      try {
-        const values = await window.electron.extensions.getSettings(ext.manifest.id);
-        setSettings(values);
-      } catch {
-        setSettings({});
-      }
-    } else {
-      setSettings({});
-    }
-  }, [expandedId]);
+  const handleExpand = useCallback((ext: ExtensionStateInfo) => {
+    // `ExtensionSettingsRenderer` fetches its own settings via
+    // `getSettings`/`setSettings` IPC on mount, so expanding a row no longer
+    // needs to prefetch anything here - it just tracks which row is open.
+    setExpandedId((prev) => (prev === ext.manifest.id ? null : ext.manifest.id));
+  }, []);
 
   const handleTogglePermission = useCallback(
     async (id: string, current: string[], permission: string) => {
@@ -347,19 +390,6 @@ export function ExtensionsSection(): JSX.Element {
       }
     },
     [refresh],
-  );
-
-  const handleSettingChange = useCallback(
-    async (extensionId: string, key: string, value: unknown) => {
-      const next = { ...settings, [key]: value };
-      setSettings(next);
-      try {
-        await window.electron.extensions.setSettings(extensionId, next);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    },
-    [settings],
   );
 
   const handleOpenFolder = useCallback(async (id: string) => {
@@ -806,8 +836,18 @@ export function ExtensionsSection(): JSX.Element {
                       )}
                     </div>
 
-                    {/* Settings rendered from contributes.configuration */}
-                    {ext.manifest.contributes?.configuration?.properties && (
+                    <VerseDecorationsToggle extensionId={id} />
+
+                    {/*
+                      Settings, rendered from `contributes.configuration` by
+                      the shared `ExtensionSettingsRenderer` (task 0024 round
+                      3, P1.7) - the same component the form and
+                      `storage.setSetting` validation both build on, in place
+                      of the inline form this used to hand-roll (which
+                      degraded integers/arrays/nested groups to text boxes -
+                      see thread/02-claude.md item 7).
+                    */}
+                    {Boolean(ext.manifest.contributes?.configuration) && (
                       <div>
                         <div
                           className="text-xs font-semibold mb-1"
@@ -815,68 +855,13 @@ export function ExtensionsSection(): JSX.Element {
                         >
                           {t('extensionsSection.settings')}
                         </div>
-                        <div className="space-y-2">
-                          {Object.entries(ext.manifest.contributes.configuration.properties).map(
-                            ([key, schema]) => {
-                              const value = settings[key] ?? schema.default;
-                              const inputId = `${id}-${key}`;
-                              return (
-                                <div key={key} className="flex flex-col gap-1">
-                                  <label htmlFor={inputId} className="text-xs">
-                                    <code>{key}</code>
-                                    {schema.description && (
-                                      <span
-                                        className="ms-2 italic"
-                                        style={{ color: 'var(--theme-text-muted)' }}
-                                      >
-                                        {schema.description}
-                                      </span>
-                                    )}
-                                  </label>
-                                  {schema.type === 'boolean' ? (
-                                    <input
-                                      id={inputId}
-                                      type="checkbox"
-                                      checked={Boolean(value)}
-                                      onChange={(e) => handleSettingChange(id, key, e.target.checked)}
-                                    />
-                                  ) : schema.enum ? (
-                                    <select
-                                      id={inputId}
-                                      value={String(value ?? '')}
-                                      onChange={(e) => handleSettingChange(id, key, e.target.value)}
-                                      className="px-2 py-1 rounded text-xs"
-                                      style={{ backgroundColor: 'var(--theme-bg-hover)' }}
-                                    >
-                                      {schema.enum.map((opt) => (
-                                        <option key={String(opt)} value={String(opt)}>
-                                          {String(opt)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <input
-                                      id={inputId}
-                                      type={schema.type === 'number' ? 'number' : 'text'}
-                                      value={value === undefined || value === null ? '' : String(value)}
-                                      onChange={(e) =>
-                                        handleSettingChange(
-                                          id,
-                                          key,
-                                          schema.type === 'number'
-                                            ? Number(e.target.value)
-                                            : e.target.value,
-                                        )
-                                      }
-                                      className="px-2 py-1 rounded text-xs"
-                                      style={{ backgroundColor: 'var(--theme-bg-hover)' }}
-                                    />
-                                  )}
-                                </div>
-                              );
-                            },
-                          )}
-                        </div>
+                        <ExtensionSettingsRenderer
+                          extensionId={id}
+                          schema={ext.manifest.contributes?.configuration}
+                          {...(initialExpand?.extensionId === id && initialExpand.section
+                            ? { scrollToKey: initialExpand.section }
+                            : {})}
+                        />
                       </div>
                     )}
                   </div>

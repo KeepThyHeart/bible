@@ -61,7 +61,6 @@ type DecorationDto = Extensions.DecorationDto;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
@@ -152,6 +151,14 @@ export class InMemoryBibleBridge implements IExtensionBibleBridge {
 
   getVerseTokens(verseId: number, _moduleId?: string): VerseTokenDto[] | null {
     return this.tokens.get(verseId) ?? null;
+  }
+
+  getTokensForRange(startVerseId: number, endVerseId: number, _moduleId?: string): Record<number, VerseTokenDto[]> {
+    const result: Record<number, VerseTokenDto[]> = {};
+    for (const [verseId, tokens] of this.tokens) {
+      if (verseId >= startVerseId && verseId <= endVerseId && tokens.length > 0) result[verseId] = tokens;
+    }
+    return result;
   }
 
   listModules(): BibleModuleInfoDto[] {
@@ -422,6 +429,8 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
   inputBoxResponse: string | undefined = undefined;
   confirmResponse: boolean = false;
   quickPickResponse: unknown | undefined = undefined;
+  /** What `showNotification` resolves with - simulates the user clicking this action id (or undefined = dismissed). */
+  notificationActionResponse: string | undefined = undefined;
 
   private readonly panelTypes = new Map<string, ExtensionPanelTypeDef>();
   private readonly panelTypeOwners = new Map<string, string>();
@@ -430,8 +439,9 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     extensionId: string,
     message: LocalizedString,
     opts?: NotificationOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     this.notifications.push({ extensionId, message, ...(opts !== undefined ? { opts } : {}) });
+    return this.notificationActionResponse;
   }
 
   async showQuickPick<T>(
@@ -494,11 +504,22 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
 
   // --- T2 UI methods -------------------------------------------------------
 
-  readonly decorators: { extensionId: string; descriptor: VerseDecoratorDescriptor }[] = [];
+  readonly decorators: {
+    extensionId: string;
+    descriptor: VerseDecoratorDescriptor;
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>;
+  }[] = [];
   readonly decorationUpdates: { extensionId: string; groupId: string; decorations: DecorationDto[] }[] = [];
-  readonly hoverProviders: { extensionId: string; descriptor: VerseHoverProviderDescriptor }[] = [];
+  readonly hoverProviders: {
+    extensionId: string;
+    descriptor: VerseHoverProviderDescriptor;
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>;
+  }[] = [];
+  readonly invalidateCalls: {
+    extensionId: string;
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number };
+  }[] = [];
   readonly contextMenuItems: { extensionId: string; target: ContextMenuTarget; item: ContextMenuItemDescriptor }[] = [];
-  readonly displayModes: { extensionId: string; descriptor: DisplayModeDescriptor }[] = [];
   readonly statusBarItems: { extensionId: string; item: StatusBarItemDescriptor }[] = [];
   readonly filePickRequests: { extensionId: string; opts?: PickFileOpts }[] = [];
   readonly fileSaveRequests: { extensionId: string; content: string | ArrayBuffer | Uint8Array; opts?: SaveFileOpts }[] = [];
@@ -507,8 +528,12 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
   pickFileResponse: PickedFileDto | undefined = undefined;
   saveFileResponse = true;
 
-  registerVerseDecorator(extensionId: string, descriptor: VerseDecoratorDescriptor): () => void {
-    const entry = { extensionId, descriptor };
+  registerVerseDecorator(
+    extensionId: string,
+    descriptor: VerseDecoratorDescriptor,
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>,
+  ): () => void {
+    const entry = { extensionId, descriptor, fetch };
     this.decorators.push(entry);
     return () => {
       const idx = this.decorators.indexOf(entry);
@@ -524,8 +549,19 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     this.decorationUpdates.push({ extensionId, groupId, decorations });
   }
 
-  registerVerseHover(extensionId: string, descriptor: VerseHoverProviderDescriptor): () => void {
-    const entry = { extensionId, descriptor };
+  async invalidateVerseDecorations(
+    extensionId: string,
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number },
+  ): Promise<void> {
+    this.invalidateCalls.push({ extensionId, ...(opts !== undefined ? { opts } : {}) });
+  }
+
+  registerVerseHover(
+    extensionId: string,
+    descriptor: VerseHoverProviderDescriptor,
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>,
+  ): () => void {
+    const entry = { extensionId, descriptor, fetch };
     this.hoverProviders.push(entry);
     return () => {
       const idx = this.hoverProviders.indexOf(entry);
@@ -546,21 +582,28 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     };
   }
 
-  registerDisplayMode(extensionId: string, descriptor: DisplayModeDescriptor): () => void {
-    const entry = { extensionId, descriptor };
-    this.displayModes.push(entry);
-    return () => {
-      const idx = this.displayModes.indexOf(entry);
-      if (idx >= 0) this.displayModes.splice(idx, 1);
-    };
-  }
-
+  /**
+   * Keyed by `${extensionId}::${item.id}`, mirroring production
+   * `RendererUiBridge`: registering the same id again replaces the entry in
+   * place rather than appending a duplicate, and the returned disposer
+   * removes *whatever currently occupies that key* - not necessarily the
+   * entry this particular call created. That is deliberate: it is the same
+   * "last write wins, any handle can delete the current occupant" shape the
+   * production bridge has, which is exactly what `UiApiImpl` must not rely
+   * on a stale handle to interact with (see `registerOrReplaceStatusBarItem`).
+   */
   registerStatusBarItem(extensionId: string, item: StatusBarItemDescriptor): () => void {
+    const key = `${extensionId}::${item.id}`;
     const entry = { extensionId, item };
-    this.statusBarItems.push(entry);
+    const idx = this.statusBarItems.findIndex((e) => `${e.extensionId}::${e.item.id}` === key);
+    if (idx >= 0) {
+      this.statusBarItems.splice(idx, 1, entry);
+    } else {
+      this.statusBarItems.push(entry);
+    }
     return () => {
-      const idx = this.statusBarItems.indexOf(entry);
-      if (idx >= 0) this.statusBarItems.splice(idx, 1);
+      const i = this.statusBarItems.findIndex((e) => `${e.extensionId}::${e.item.id}` === key);
+      if (i >= 0) this.statusBarItems.splice(i, 1);
     };
   }
 
@@ -578,13 +621,18 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     return this.saveFileResponse;
   }
 
+  readonly openSettingsRequests: { extensionId: string; section?: string }[] = [];
+
+  openSettings(extensionId: string, section?: string): void {
+    this.openSettingsRequests.push({ extensionId, ...(section !== undefined ? { section } : {}) });
+  }
+
   disposeUiContributionsByOwner(extensionId: string): number {
     let removed = 0;
     const arrays = [
       this.decorators,
       this.hoverProviders,
       this.contextMenuItems,
-      this.displayModes,
       this.statusBarItems,
     ] as { extensionId: string }[][];
     for (const arr of arrays) {
@@ -642,6 +690,31 @@ export class InMemoryWorkspaceBridge implements IExtensionWorkspaceBridge {
     for (const h of this.closeHandlers) {
       h({ panelId, contentType: panel.contentType });
     }
+  }
+
+  /** Test assertion helper: last title/badge passed to setPanelTitle/setPanelBadge. */
+  lastSetTitle: { panelId: string; title: LocalizedString } | undefined;
+  lastSetBadge: { panelId: string; badge: string | number | undefined } | undefined;
+  /** Test assertion helper: panelIds revealPanel was actually asked to focus. */
+  readonly revealedPanelIds: string[] = [];
+
+  setPanelTitle(panelId: string, title: LocalizedString): void {
+    this.lastSetTitle = { panelId, title };
+    const panel = this.panels.get(panelId);
+    if (panel) this.panels.set(panelId, { ...panel, title });
+  }
+
+  setPanelBadge(panelId: string, badge: string | number | undefined): void {
+    this.lastSetBadge = { panelId, badge };
+  }
+
+  revealPanel(panelId: string): boolean {
+    const found = this.panels.has(panelId);
+    if (found) {
+      this.revealedPanelIds.push(panelId);
+      this.activePanelId = panelId;
+    }
+    return found;
   }
 
   subscribeActivePanel(handler: (p: PanelInfoDto | null) => void): () => void {

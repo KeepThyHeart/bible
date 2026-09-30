@@ -26,7 +26,7 @@
  * modes from one implementation.
  *
  * Event subscriptions are the exception: in the realm the extension does not
- * call `api.bible.onDidChangeActiveVerse.subscribe(...)` on the mock at all —
+ * call `api.events.subscribe('verse.activeChanged', ...)` on the mock at all —
  * it sends a `subscribe` envelope. The harness registers a synthetic
  * subscriber for that channel so hook enumeration and invocation see the same
  * shape they see in-process.

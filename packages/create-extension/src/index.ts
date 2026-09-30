@@ -30,10 +30,17 @@ function manifestTemplate(id: string, name: string): string {
       version: '0.1.0',
       publisher: 'your-name',
       description: `A Bible app extension: ${name}`,
-      engines: { bibleApp: '>=1.0.0' },
+      engines: { bibleApp: '>=0.1.0' },
       main: 'dist/main.js',
       permissions: ['bible:read'],
-      activationEvents: ['onStartup'],
+      // Lazy activation: the host reads `contributes` below at load time and
+      // pre-registers your command and panel before this extension has ever
+      // run, so both are already reachable (palette, Tools menu, new-tab
+      // page). Your worker only starts the first time one is actually used -
+      // whichever of these two fires first. `onStartupFinished` (activate at
+      // boot, unconditionally) exists too, but most extensions do not need
+      // it; see the README's "activationEvents" section.
+      activationEvents: [`onCommand:ext.your-name.${id}.helloWorld`, 'onView:panel'],
       contributes: {
         commands: [
           {
@@ -44,10 +51,13 @@ function manifestTemplate(id: string, name: string): string {
         ],
         panelTypes: [
           {
-            // Short id. The validator qualifies it to
-            // `ext.your-name.<ext>.panel` for you, and it is the same id
-            // src/main.ts passes to api.ui.registerPanelType — where a
-            // pre-qualified id would be prefixed a second time.
+            // Short id ('panel'), even though the manifest's `commands[].id`
+            // above is long-form (`ext.your-name.<ext>.helloWorld`). The
+            // validator qualifies both internally, but panel content types
+            // are addressed by the short id (`ext:<extensionId>.panel`) while
+            // commands are addressed by the long one - see
+            // `activationEvents` above, which uses each contribution's own
+            // native spelling (`onCommand:` long, `onView:` short).
             id: 'panel',
             title: `${name}`,
             uiEntry: 'ui/index.html',
@@ -87,28 +97,24 @@ export async function activate(api: BibleExtensionAPI): Promise<void> {
   // you can read from the app's extension details view.
   console.log('${name} extension activated');
 
-  // Declaring a panel in extension.json is NOT enough to make it appear.
-  // Despite what the manifest's own doc comments suggest, nothing in the host
-  // currently reads \`contributes.panelTypes\` — the only parts of
-  // \`contributes\` anything reads are \`apiExports\` and \`configuration\`.
-  // Panels and commands reach the registry through these imperative calls and
-  // no other way, so the manifest entry is documentation until that changes.
+  // Your panel is ALREADY registered — the host read \`contributes.panelTypes\`
+  // from extension.json and pre-registered it before this function ever ran
+  // (that declaration is what made \`onView:panel\` a legal activation event
+  // above). Calling \`api.ui.registerPanelType\` again here would just be a
+  // second, redundant write to the same row, so there is nothing to do for
+  // it in \`activate()\` at all — the panel appears in the new-tab page and
+  // opens on click regardless of whether this extension has ever run.
   //
-  // Note the id is the SHORT one ('panel'), not the fully-qualified id in
-  // extension.json: the host composes the content type as
-  // \`ext:<extensionId>.<this id>\` and would otherwise repeat your prefix.
-  await api.ui.registerPanelType({
-    id: 'panel',
-    title: '${name}',
-    uiEntry: 'ui/index.html',
-  });
+  // The one thing a declarative panel type cannot do on its own is talk back
+  // to the worker: that channel only exists once the extension is active,
+  // which is why \`api.panels.onMessage\` below still lives here.
 
   // THIS is the line that makes the command in extension.json actually do
   // something. A \`handlerEndpoint\` in the manifest is a *name*, not a
   // function — a function cannot survive the RPC hop to the host. The host
-  // calls back with that name when the user runs the command, and until
-  // something binds it here, the command appears in the palette and the Tools
-  // menu and silently does nothing when clicked.
+  // calls back with that name when the user runs the command (activating
+  // this extension first, if it was not already running), and until
+  // something binds it here, invoking the command fails.
   await api.runtime.expose('helloWorld', async () => {
     if (lastVerseId === null) {
       console.log('Hello from ${name}! No verse is active yet.');
@@ -135,7 +141,7 @@ export async function activate(api: BibleExtensionAPI): Promise<void> {
 
   // Example: listen for verse changes. \`event\` needs no annotation — its
   // shape comes from the typed \`api\` above, and so does the autocomplete.
-  await api.bible.onDidChangeActiveVerse.subscribe((event) => {
+  await api.events.subscribe('verse.activeChanged', (event) => {
     lastVerseId = event ? event.verseId : null;
     // Push it at the panel too, so an open panel updates without polling.
     // Fire-and-forget: a panel that is not open simply is not there.
@@ -182,13 +188,30 @@ function uiHtmlTemplate(name: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${name}</title>
+  <!--
+    The host serves its own design tokens (colors, spacing) as CSS custom
+    properties at this reserved URL - link it before your own stylesheet so
+    your panel matches the app's current theme instead of guessing colors.
+    kit/1/kth.css builds on it: the stable --kth-* tokens, a small base reset
+    and the .kth-* classes (.kth-btn, .kth-input, ...). Link both statically
+    (no flash of unstyled content on first paint); src/panel.ts calls
+    bible.useHostStyles(), which adopts these links and re-links theme.css
+    when the user switches theme while the panel is open.
+    ext-ui://host/controls.css is also available, with ready-made classes
+    (.control-toolbar, .control-toolbar-button, .control-nav-button) for
+    panels that want the host's own toolbar/button chrome. All of these are
+    documented in apps/desktop/docs/features/extensions.md under "Panel
+    styling".
+  -->
+  <link rel="stylesheet" href="ext-ui://host/theme.css">
+  <link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <h1>Hello from ${name}!</h1>
     <p id="output">Loading…</p>
-    <button id="refresh" type="button">Refresh</button>
+    <button id="refresh" type="button" class="kth-btn kth-btn--primary">Refresh</button>
   </div>
 
   <!--
@@ -220,6 +243,12 @@ function panelTemplate(name: string): string {
 // sandboxed origin, and giving it a slice of the API would put permission
 // decisions in the renderer, which is the least appropriate place for them.
 const bible = BibleExtUI.init();
+
+// Keep the panel in step with the host theme: links the host stylesheets
+// (index.html already does, and this adopts those links), sets
+// <html data-theme>, and swaps theme.css when the user changes theme while the
+// panel is open. Call it once, early.
+bible.useHostStyles();
 
 const output = document.getElementById('output');
 
@@ -257,20 +286,29 @@ console.log('${name} panel ready');
 }
 
 function uiStylesTemplate(): string {
-  return `/* Extension panel styles */
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+  return `/*
+ * Extension panel styles.
+ *
+ * index.html links ext-ui://host/theme.css and ext-ui://host/kit/1/kth.css
+ * before this file. kth.css already resets the box model and styles the body,
+ * headings, links and buttons, so this file only adds your own layout.
+ *
+ * Use the stable --kth-* tokens rather than hard-coded colors and your panel
+ * follows the app's theme, including a live theme switch:
+ *
+ *   colors   --kth-bg --kth-surface --kth-text --kth-text-heading
+ *            --kth-text-muted --kth-border --kth-accent --kth-danger ...
+ *   spacing  --kth-space-1 .. --kth-space-4
+ *   shape    --kth-radius --kth-shadow
+ *   type     --kth-font-ui --kth-font-size-ui
+ *
+ * Prefer logical properties (margin-inline-start, padding-block) so the panel
+ * also works in right-to-left locales. The full list is in
+ * apps/desktop/docs/features/extensions.md under "Panel styling".
+ */
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  padding: 16px;
+  padding: var(--kth-space-4);
 }
 
 #app {
@@ -280,11 +318,10 @@ body {
 h1 {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 8px;
 }
 
-p {
-  color: #666;
+#output {
+  color: var(--kth-text-muted);
 }
 `;
 }
@@ -332,14 +369,12 @@ describe('${id} extension', () => {
   it('should subscribe to verse change events', async () => {
     const subscribeSpy = vi.fn().mockResolvedValue({ dispose: vi.fn() });
     const api = createMockApi({
-      bible: {
-        onDidChangeActiveVerse: { subscribe: subscribeSpy },
-      },
+      events: { subscribe: subscribeSpy },
     });
 
     await activate(api);
 
-    expect(subscribeSpy).toHaveBeenCalled();
+    expect(subscribeSpy).toHaveBeenCalledWith('verse.activeChanged', expect.any(Function));
   });
 
   it('can use test fixtures', () => {
@@ -553,7 +588,7 @@ export default defineConfig({
  * project created outside this repository cannot resolve them by version:
  * `npm install` fails on the very first command the README tells an author to
  * run. `--local-sdk=<dir>` points the scaffold at packed tarballs instead
- * (`npm run pack:sdk` in the monorepo produces them), so out-of-tree
+ * (`pnpm run pack:sdk` in the monorepo produces them), so out-of-tree
  * development works today and the same scaffold keeps working unchanged once
  * the packages are published.
  */
@@ -586,7 +621,7 @@ function resolveLocalSdk(sdkDir: string, targetDir: string): SdkSpecs {
     if (!chosen) {
       console.error(
         `Error: no ${packageName} tarball (${prefix}*.tgz) in ${resolved}\n` +
-          `       Run "npm run pack:sdk" in the Bible repository first.`,
+          `       Run "pnpm run pack:sdk" in the Bible repository first.`,
       );
       process.exit(1);
     }
@@ -768,8 +803,13 @@ Key fields:
 - **engines.bibleApp**: Semver range of compatible API versions
 - **main**: Path to the compiled entry point
 - **permissions**: Array of permissions your extension needs
-- **activationEvents**: When the extension should be activated
-- **contributes**: Static declarations (commands, panels, menus, etc.)
+- **activationEvents**: When the extension should be activated. Prefer
+  \`onCommand:<id>\` / \`onView:<id>\` (this template uses both) so the extension
+  starts lazily, on first real use, instead of at every app launch;
+  \`onStartupFinished\` activates unconditionally, after the window is shown,
+  for the rare extension that genuinely needs to run before any interaction.
+  \`*\` is reserved for built-ins and is always rejected.
+- **contributes**: Static declarations (commands, panels, settings schema, api exports, bible providers)
 
 ## API Usage
 
@@ -797,6 +837,51 @@ Your \`activate(api)\` function receives a \`BibleExtensionAPI\` object with
 | tasks       | Background tasks with progress       |
 | extensions  | Inter-extension calls                |
 | ai          | AI provider (reserved, v1 stub)      |
+
+## Panel UI and the UI kit
+
+\`ui/index.html\` links the host's theme (\`ext-ui://host/theme.css\`) and the
+KTH stylesheet (\`ext-ui://host/kit/1/kth.css\`: \`--kth-*\` tokens, a small
+reset and \`.kth-*\` classes such as \`.kth-btn\`). \`src/panel.ts\` calls
+\`bible.useHostStyles()\`, so the panel also follows a theme switch made while
+it is open.
+
+The host also serves a small kit of ready-made custom elements
+(\`<kth-reference-picker>\`, \`<kth-book-chapter-picker>\`,
+\`<kth-highlight-swatch>\`). It is opt-in and this template does not use it.
+To use it, declare it in \`extension.json\` (the kit needs the
+\`ui:contribute-pane\` permission, which is not granted by default, so users
+will see an extra permission line):
+
+\`\`\`json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+\`\`\`
+
+Then add the element to \`ui/index.html\` and load the kit from \`src/panel.ts\`
+(use the same component list as the manifest):
+
+\`\`\`html
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+\`\`\`
+
+\`\`\`typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+\`\`\`
+
+Render \`kth-*\` elements childless: the kit owns their contents. There is no
+kit \`<script>\` tag to add; \`loadKit()\` adds it.
 
 ## Testing
 
@@ -883,7 +968,7 @@ Arguments:
 Options:
   --local-sdk=<dir>  Resolve @bible/core and @bible/extension-testing from
                      packed tarballs in <dir> instead of a registry. Run
-                     "npm run pack:sdk" in the Bible repository to produce
+                     "pnpm run pack:sdk" in the Bible repository to produce
                      them. Needed until those packages are published.
   --help             Show this help message
 

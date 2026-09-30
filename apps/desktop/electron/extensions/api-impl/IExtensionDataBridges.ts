@@ -44,7 +44,6 @@ type DecorationDto = Extensions.DecorationDto;
 type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
 type ContextMenuTarget = Extensions.ContextMenuTarget;
 type ContextMenuItemDescriptor = Extensions.ContextMenuItemDescriptor;
-type DisplayModeDescriptor = Extensions.DisplayModeDescriptor;
 type StatusBarItemDescriptor = Extensions.StatusBarItemDescriptor;
 type PickFileOpts = Extensions.PickFileOpts;
 type PickedFileDto = Extensions.PickedFileDto;
@@ -98,9 +97,16 @@ export interface IExtensionBibleBridge {
   getVerseTokens(verseId: number, moduleId?: string): VerseTokenDto[] | null;
 
   /**
+   * Batch form of `getVerseTokens` over an inclusive verse-id range (task
+   * 0036, P0.1b; design doc §4.4). Keyed by verse id; a verse with no token
+   * data is simply absent, never a `null`/empty entry.
+   */
+  getTokensForRange(startVerseId: number, endVerseId: number, moduleId?: string): Record<number, VerseTokenDto[]>;
+
+  /**
    * Navigate the primary Bible pane to a specific verse. The bridge sends an
    * IPC message to the renderer which calls `navigateToVerseInPrimary`. The
-   * existing `broadcast-verse-change` flow fires `onDidChangeActiveVerse`
+   * existing `broadcast-verse-change` flow dispatches `verse.activeChanged`
    * after the renderer processes the navigation.
    */
   navigateToVerse(verseId: number): Promise<void>;
@@ -185,11 +191,12 @@ export interface IExtensionBookBridge {
  * the api-impl without an Electron window.
  */
 export interface IExtensionUiBridge {
+  /** Resolves with the clicked action's id, or undefined - see `IUiApi.showNotification`. */
   showNotification(
     extensionId: string,
     message: LocalizedString,
     opts?: NotificationOpts,
-  ): Promise<void>;
+  ): Promise<string | undefined>;
 
   showQuickPick<T>(
     extensionId: string,
@@ -239,10 +246,16 @@ export interface IExtensionUiBridge {
 
   // --- T2 UI methods -------------------------------------------------------
 
-  /** Register a verse decorator. Returns a disposer. */
+  /**
+   * Register a verse decorator. `fetch` is the reverse-RPC closure the
+   * api-impl built for `descriptor.decorateEndpoint` (mirrors
+   * `commandsApiImpl.ts`'s `invoke` closure) - the bridge/service calls it
+   * once per chapter fetch. Returns a disposer.
+   */
   registerVerseDecorator(
     extensionId: string,
     descriptor: VerseDecoratorDescriptor,
+    fetch: (request: Extensions.DecorationRequestDto) => Promise<unknown>,
   ): () => void;
 
   /** Replace all decorations in a group atomically. */
@@ -252,23 +265,28 @@ export interface IExtensionUiBridge {
     decorations: DecorationDto[],
   ): Promise<void>;
 
-  /** Register a verse hover provider. Returns a disposer. */
+  /**
+   * Register a verse hover provider. `fetch` is the reverse-RPC closure for
+   * `descriptor.hoverEndpoint`, same shape as `registerVerseDecorator`'s.
+   * Returns a disposer.
+   */
   registerVerseHover(
     extensionId: string,
     descriptor: VerseHoverProviderDescriptor,
+    fetch: (request: Extensions.VerseHoverRequestDto) => Promise<unknown>,
   ): () => void;
+
+  /** Drop cached pull results for this extension's decorators - see `IUiApi.invalidateVerseDecorations`. */
+  invalidateVerseDecorations(
+    extensionId: string,
+    opts?: { decoratorId?: string; startVerseId?: number; endVerseId?: number },
+  ): Promise<void>;
 
   /** Register a context menu item on a target. Returns a disposer. */
   registerContextMenu(
     extensionId: string,
     target: ContextMenuTarget,
     item: ContextMenuItemDescriptor,
-  ): () => void;
-
-  /** Register an extension-contributed display mode. Returns a disposer. */
-  registerDisplayMode(
-    extensionId: string,
-    descriptor: DisplayModeDescriptor,
   ): () => void;
 
   /** Register a status bar item. Returns a disposer. */
@@ -287,6 +305,16 @@ export interface IExtensionUiBridge {
     opts?: SaveFileOpts,
   ): Promise<boolean>;
 
+  /**
+   * Open the host's Extensions preferences page, expanded to `extensionId`'s
+   * own settings form. `section` optionally names one of its
+   * `contributes.configuration` property keys (dot-path) to scroll to.
+   * Fire-and-forget, like `postPanelMessage` - the renderer decides what
+   * "open" means (mount the dialog if it is not already showing, switch tabs
+   * if it is).
+   */
+  openSettings(extensionId: string, section?: string): void;
+
   /** Drop every T2 UI registration owned by `extensionId`. */
   disposeUiContributionsByOwner(extensionId: string): number;
 }
@@ -303,6 +331,12 @@ export interface IExtensionWorkspaceBridge {
   getOpenPanels(): PanelInfoDto[];
   openPanel(contentType: string, opts?: OpenPanelOpts): string;
   closePanel(panelId: string): void;
+  /** Change an open panel's tab title. The api-impl has already checked ownership. */
+  setPanelTitle(panelId: string, title: LocalizedString): void;
+  /** Set (or, with `undefined`, clear) an open panel's tab badge. The api-impl has already checked ownership. */
+  setPanelBadge(panelId: string, badge: string | number | undefined): void;
+  /** Focus an open panel's tab. Returns whether `panelId` was found (and so focused). */
+  revealPanel(panelId: string): boolean;
   subscribeActivePanel(handler: (panel: PanelInfoDto | null) => void): () => void;
   subscribeOpenPanel(handler: (panel: PanelInfoDto) => void): () => void;
   subscribeClosePanel(

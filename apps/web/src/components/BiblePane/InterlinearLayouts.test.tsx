@@ -4,7 +4,7 @@
  * The bug these layouts were written to fix is a *missing* one: the previous
  * renderer emitted a block per interlinear row and nothing else, so any English
  * word no row claimed vanished from the page — 5.7% of the KJV, including every
- * italicised supplied word, and over half of RWebster. `interlinearCells.ts` is
+ * italicised supplied word, and over half of RWebster. `InterlinearCells.ts` (in `@bible/core`) is
  * tested for producing a cell per unclaimed run; nothing checked that the
  * layouts then *render* those cells.
  *
@@ -15,8 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
-import type { InterlinearCell, InterlinearWord } from '../../utils/interlinearCells';
-import type { WordInfo } from '../../utils/wordIndexing';
+import type { InterlinearCell, InterlinearWord, WordInfo } from '@bible/core/browser';
 import type { StrongsEntryData } from '../../types';
 
 const mockPerformSearch = vi.fn();

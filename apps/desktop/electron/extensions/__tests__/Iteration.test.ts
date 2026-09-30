@@ -4,7 +4,6 @@
  * Tests cover:
  *   - bible.iterateVerses: cursor stability, page size clamping, range filtering
  *   - bible.getVerseTokens: round-tripping token data, null for non-interlinear
- *   - bible.onDidSelectVerseWord: event forwarding
  *   - commentary.iterateEntries: cursor-based paging
  *   - dictionary.iterateEntries: cursor-based paging with keyPrefix filter
  *   - book.iterateSections: cursor-based paging
@@ -29,8 +28,6 @@ import {
 
 type RpcRequest = Extensions.RpcRequest;
 type RpcResponse = Extensions.RpcResponse;
-type RpcEvent = Extensions.RpcEvent;
-type RpcSubscribe = Extensions.RpcSubscribe;
 type VerseIterationResult = Extensions.VerseIterationResult;
 type CommentaryIterationResult = Extensions.CommentaryIterationResult;
 type DictionaryIterationResult = Extensions.DictionaryIterationResult;
@@ -103,15 +100,6 @@ async function workerCall(
     }
   }
   throw new Error(`workerCall: no response for ${method}`);
-}
-
-function isEventOn(env: unknown, channel: string): boolean {
-  return (
-    typeof env === 'object' &&
-    env !== null &&
-    (env as RpcEvent).kind === 'event' &&
-    (env as RpcEvent).channel === channel
-  );
 }
 
 // --- bible.iterateVerses ----------------------------------------------------
@@ -249,35 +237,11 @@ describe('BibleApiImpl — iteration + tokens', () => {
     expect(res.error?.code).toBe('RpcProtocolError');
   });
 
-  // --- bible.onDidSelectVerseWord ----------------------------------------
-
-  it('emits onDidSelectVerseWord when subscribed', async () => {
-    const channel = 'bible.onDidSelectVerseWord';
-
-    // Fire before subscription - should not emit
-    bridge.fireWordSelection({
-      verseId: 43003016,
-      range: { verseId: 43003016, startOffset: 4, endOffset: 7 },
-      word: 'God',
-    });
-    expect(pair.hostSent.filter((e) => isEventOn(e, channel))).toHaveLength(0);
-
-    // Subscribe
-    const sub: RpcSubscribe = { kind: 'subscribe', id: 'sub-ws', channel };
-    pair.workerSide.send(sub);
-    await new Promise((r) => setImmediate(r));
-
-    // Fire after subscription - should emit
-    bridge.fireWordSelection({
-      verseId: 43003016,
-      range: { verseId: 43003016, startOffset: 4, endOffset: 7 },
-      word: 'God',
-      token: { index: 1, text: 'God', startOffset: 4, endOffset: 7, strongsNumber: 'G2316' },
-    });
-    const events = pair.hostSent.filter((e) => isEventOn(e, channel));
-    expect(events).toHaveLength(1);
-    expect((events[0] as RpcEvent).payload).toMatchObject({ word: 'God', verseId: 43003016 });
-  });
+  // The `verse.wordSelected` forward event used to be tested here,
+  // constructing a bare `BibleApiImpl` and firing the bridge directly. Task
+  // 0024 round 3 (P0.3) moved that subscription out of `BibleApiImpl`
+  // entirely and into `ExtensionPointWiring.ts` - see
+  // `ExtensionPointWiring.test.ts`.
 
   // --- permission gating -------------------------------------------------
 

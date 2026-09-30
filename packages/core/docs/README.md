@@ -21,13 +21,18 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Repositories](features/repositories.md) | Every repository mapped to its database file and tables |
 | [Verse identity](features/verse-identity.md) | Verse IDs, the `Book` enum, book names, reference parsing and collapsing, Strong's numbers |
 | [Module format](features/module-format.md) | The module `.db` format, its schemas, discovery, registration, catalogs |
+| [Genealogy explorer](features/genealogy.md) | Family trees from the tag graph: schema, DTOs, graph queries, layouts, data provenance |
 | [Migrations](features/migrations.md) | The `NNN_name.sql` sequence, `MigrationRunner`, the `schema_migration` ledger, user-schema repair |
 | [User data](features/user-data.md) | Notes, markup, collections, sessions, the unified `verse_link` table |
+| [User-data store](features/user-data-store.md) | The generic `user_data_item` / `verse_link` store on desktop and web, the contract suite, registering collections, backup classification checklist |
+| [Backup format](features/backup-format.md) | The encrypted `.bbk` container, the ZIP payload and unencrypted export, the user-table registry, restore and merge, the crypto primitives |
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
+| [Keyword marks](features/keyword-marks.md) | Colouring words, phrases, Strong's numbers and connectives in the chapter: matcher, lexicon, decoration layer, sets |
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
+| [Cross-reference graph](features/xref-graph.md) | Ego graphs, edge weights, whole-canon arc index |
 | [Extensions & plugins](features/extensions-plugins.md) | The third-party extension contract and the in-process hook system |
 | [USFM export](features/usfm-export.md) | `src/Export/` - USFM read and write |
 | [Browser subset](features/browser-subset.md) | `@bible/core/browser`, what belongs in it and why |
@@ -36,12 +41,12 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 ## Build and test
 
 ```bash
-npm run build:core        # tsc + copy SQL assets (from the repo root)
-npm run typecheck         # all packages, tests included
-npm run test -w @bible/core
+pnpm run build:core        # tsc + copy SQL assets (from the repo root)
+pnpm run typecheck         # all packages, tests included
+pnpm --filter @bible/core run test
 ```
 
-**A consuming app's build does not necessarily rebuild core.** After changing anything in `packages/core/src/`, run `npm run build:core` (or `npm run build`) before running an app against it, or you will hit runtime errors like `"X is not a constructor"` from a stale `dist/`.
+**A consuming app's build does not necessarily rebuild core.** After changing anything in `packages/core/src/`, run `pnpm run build:core` (or `pnpm run build`) before running an app against it, or you will hit runtime errors like `"X is not a constructor"` from a stale `dist/`.
 
 Type-checking uses `packages/core/tsconfig.typecheck.json`, which adds the tests that the emit-only `tsconfig.json` deliberately excludes. Keep `tsconfig.json` emit-only - adding tests to it ships them in `dist/`.
 

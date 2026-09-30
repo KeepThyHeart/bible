@@ -394,6 +394,37 @@ export class SidecarFts5Provider implements IKeywordIndexProvider {
    * because it is no longer the state of the world.
    */
   async status(target: IndexTarget): Promise<KeywordCapability> {
+    return this.statusSync(target);
+  }
+
+  /**
+   * The `.kwi` a synchronous reader can query for `target` right now, or
+   * `null` when there is none worth opening.
+   *
+   * Same rule as {@link open}: `ready` and `stale` are searchable (a stale
+   * index was built from this exact revision, just by an older builder), and
+   * everything else is not. Exists because every content repository's search
+   * method is synchronous - `ISql` is - and attaches this file to its own
+   * module connection rather than going through the async `open()`; see
+   * `BaseModuleRepository.keywordIndexTable()`.
+   */
+  readyIndexPath(target: IndexTarget): string | null {
+    const capability = this.statusSync(target);
+    if (capability.state !== 'ready' && capability.state !== 'stale') return null;
+    return this.paths(target).finalPath;
+  }
+
+  /** The configured index directory - what a composition root passes as `RuntimeEnvironment.indexDir`. */
+  get indexDirectory(): string {
+    return this.indexDir;
+  }
+
+  /**
+   * {@link status}'s body. Every step is a synchronous filesystem or SQLite
+   * call, so the async wrapper above exists only to satisfy
+   * `IKeywordIndexProvider`.
+   */
+  private statusSync(target: IndexTarget): KeywordCapability {
     if (this.unsupportedReason(target) !== null) {
       return { state: 'unavailable', reason: 'no-provider' };
     }

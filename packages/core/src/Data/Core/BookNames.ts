@@ -229,6 +229,29 @@ export function getBookName(bookNumber: number, format: BookNameFormat = 'long')
   return NAME_TABLES[format][bookNumber] ?? `Book ${bookNumber}`;
 }
 
+/**
+ * Chapter count per book, keyed by book number 1-66 (standard English / KJV
+ * versification - the only scheme the apps support). One table for both
+ * clients: pickers, prev/next chapter navigation and the advanced-search
+ * chapter range all clamp against it.
+ */
+export const MAX_CHAPTERS: Record<number, number> = {
+  1: 50, 2: 40, 3: 27, 4: 36, 5: 34, 6: 24, 7: 21, 8: 4, 9: 31, 10: 24,
+  11: 22, 12: 25, 13: 29, 14: 36, 15: 10, 16: 13, 17: 10, 18: 42, 19: 150,
+  20: 31, 21: 12, 22: 8, 23: 66, 24: 52, 25: 5, 26: 48, 27: 12,
+  28: 14, 29: 3, 30: 9, 31: 1, 32: 4, 33: 7, 34: 3, 35: 3, 36: 3, 37: 2,
+  38: 14, 39: 4, 40: 28, 41: 16, 42: 24, 43: 21, 44: 28, 45: 16,
+  46: 16, 47: 13, 48: 6, 49: 6, 50: 4, 51: 4, 52: 5, 53: 3, 54: 6, 55: 4,
+  56: 3, 57: 1, 58: 13, 59: 5, 60: 5, 61: 3, 62: 5, 63: 1, 64: 1, 65: 1,
+  66: 22,
+};
+
+/** Book numbers of the Old Testament (1-39), in canonical order. */
+export const OT_BOOKS: number[] = Array.from({ length: 39 }, (_, i) => i + 1);
+
+/** Book numbers of the New Testament (40-66), in canonical order. */
+export const NT_BOOKS: number[] = Array.from({ length: 27 }, (_, i) => i + 40);
+
 /** True when the book has a single chapter ("Jude 5" means "Jude 1:5"). */
 export function isSingleChapterBook(bookNumber: number): boolean {
   return ENGLISH_SINGLE_CHAPTER_BOOKS.has(bookNumber);

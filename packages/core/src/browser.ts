@@ -28,6 +28,16 @@
 // --- Verse identity and book names -----------------------------------------
 export { VerseIdHelper, Book } from './Data/Core/Types';
 export type { VerseId, BookNumber } from './Data/Core/Types';
+export type { HighlightColor } from './Data/Core/Types';
+
+// --- Highlight palette and stored-colour helpers (Colors.ts imports only Types) ---------
+export {
+  HIGHLIGHT_COLOR_NAMES,
+  HIGHLIGHT_COLOR_HEX,
+  normalizeMarkupColor,
+  markupColorName,
+  isHexColor,
+} from './Data/Core/Colors';
 
 export {
   BOOK_COUNT,
@@ -35,7 +45,10 @@ export {
   ENGLISH_DISPLAY_NAMES,
   ENGLISH_SINGLE_CHAPTER_BOOKS,
   LONG_NAMES,
+  MAX_CHAPTERS,
   MEDIUM_NAMES,
+  NT_BOOKS,
+  OT_BOOKS,
   SHORT_NAMES,
   getBookName,
   getBookNumber,
@@ -106,6 +119,125 @@ export {
 } from './Services/DictionaryDefinitionFormatter';
 export type { NewlineHandling } from './Services/DictionaryDefinitionFormatter';
 
+// --- Verse text formatting --------------------------------------------------
+// The pure half of `VerseFormatter`: raw module text + word-range metadata in,
+// display HTML out (Words of Christ, divine-name small caps, OSIS strip). The
+// web client's offline read path calls this so it renders exactly what the
+// server does; `formatVerseText(BibleVerse)` (the model adapter) stays out.
+export {
+  formatVerseFields,
+  stripOsisTags,
+  highlightSearchTerms,
+  hasWordsOfChrist,
+  getFootnotes,
+} from './Services/VerseTextFormatter';
+export type { FormattedVerse, VerseFormattingData, VerseWordRange } from './Services/VerseTextFormatter';
+
+// --- Word indexing and interlinear cells ------------------------------------
+// The English-word index space (`extractWordsWithFormatting`) that interlinear
+// rows, highlights and formatting spans all address, and the cell builder that
+// partitions it for the interlinear view. DOM-free, so the desktop renderer,
+// the web client and Node scripts tokenise a verse identically.
+export {
+  extractWordsWithFormatting,
+  extractWords,
+  countWordsInRange,
+} from './Services/WordIndexing';
+export type { WordInfo } from './Services/WordIndexing';
+export {
+  buildInterlinearCells,
+  cellsPartitionWordSpace,
+  cellStrongsNumbers,
+} from './Services/InterlinearCells';
+export type { InterlinearWord, InterlinearCell } from './Services/InterlinearCells';
+
+// --- Annotations (highlights, decorations, find marks, selection capture) ----
+// The React-free half of verse annotation painting: per-word classes/styles
+// (`wordRenderAttrs`), the verse-to-HTML producer (`renderVerseWords`), the
+// extension-decoration resolver, theme colour keys and the DOM selection
+// mapping. Apps keep only their framework glue (store hooks, components).
+// Flat exports: no name collides with the rest of this barrel.
+export * from './Annotations';
+
+// --- Extension panel iframe RPC (task 0062, S6/K6) -----------------------------
+// Host side of the extension-iframe postMessage channel, plus the manifest UI-kit
+// registry it authorizes against. Structural window types only (no DOM lib), so it
+// serves the desktop renderer now and the web app later.
+export { IframeRpcBridge, authorizeBridgeMethod } from './Extensions/IframeRpcBridge';
+export type {
+  AuthorizeResult,
+  BridgeContext,
+  BridgeEventSource,
+  BridgeHandler,
+  BridgeHandlers,
+  BridgeMessageEvent,
+  BridgePostTarget,
+  IframeRpcBridgeOptions,
+} from './Extensions/IframeRpcBridge';
+export { isRpcEnvelope } from './Extensions/RpcEnvelope';
+export type {
+  RpcEnvelope,
+  RpcErrorPayload,
+  RpcEvent,
+  RpcRequest,
+  RpcRequestId,
+  RpcResponse,
+} from './Extensions/RpcEnvelope';
+export { ExtensionApiError, PermissionDeniedError } from './Extensions/ExtensionApiErrors';
+export {
+  UI_KIT_COMPONENTS,
+  UI_KIT_VERSIONS,
+  isUiKitVersion,
+  isUiKitMethodAllowed,
+  validateUiKitDeclaration,
+} from './Extensions/UiKit';
+export type { UiKitComponentSpec, UiKitDeclaration, UiKitVersion } from './Extensions/UiKit';
+export type { ExtensionPermission } from './Extensions/Permissions';
+export type { ExtensionManifest } from './Extensions/ExtensionManifest';
+
+// --- Readable stores (framework-neutral state seam) ---------------------------
+// `subscribe` + `getSnapshot`: the shape `useSyncExternalStore` (React, and
+// Preact via compat) consumes. `fromZustand` adapts a desktop store,
+// `fromSelector` derives a stable slice, `createStore` is a tiny value store.
+export { fromZustand, fromSelector, createStore } from './Ui/ReadableStore';
+export type { ReadableStore, WritableStore, ZustandLike } from './Ui/ReadableStore';
+
+// --- Popup positioning and hover intent (used by @bible/ui Popover / HoverCard / BottomSheet) ---
+export { computePopupPosition, isPopupRect } from './Ui/popupPosition';
+export type {
+  PopupAnchor,
+  PopupAlign,
+  PopupDir,
+  PopupPlacement,
+  PopupPoint,
+  PopupPositionInput,
+  PopupPositionResult,
+  PopupRect,
+} from './Ui/popupPosition';
+export { createHoverIntent, DEFAULT_SHOW_DELAY, DEFAULT_HIDE_DELAY } from './Ui/hoverIntent';
+export type { HoverIntent, HoverIntentOptions } from './Ui/hoverIntent';
+
+// --- Content text direction ---------------------------------------------------
+// Direction of a *module's* text (by its language), independent of UI locale.
+export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
+
+// --- Module catalog metadata ----------------------------------------------------
+// Language-free module facts: which module is the AI digest, recommended
+// translations, commentary sort order, machine-authorship detection. The prose
+// and notice wording stay in each app's own localization.
+export {
+  DIGEST_MODULE_ABBR,
+  isDigestModule,
+  isAiGeneratedMetadata,
+  getModuleProvenanceKind,
+  isAiGeneratedModule,
+  RECOMMENDED_BIBLES,
+  DEFAULT_COMMENTARY_PRIORITY,
+  COMMENTARY_PRIORITY,
+  getCommentaryPriority,
+} from './Services/ModuleDescriptions';
+export type { ModuleProvenanceKind, ModuleProvenanceMetadata } from './Services/ModuleDescriptions';
+
 // --- Text truncation --------------------------------------------------------
 export { truncateAtWordBoundary, TRUNCATION_ELLIPSIS } from './Services/TextTruncation';
 export type { TruncatedText } from './Services/TextTruncation';
@@ -128,3 +260,51 @@ export type { FilterHandler, ActionHandler } from './Plugin/HookRegistry';
 // exports (`Data/Models/Main/SavedSearch.ts`, `Services/Search/TopicExpansion.ts`) -
 // a flat `export *` would be ambiguous for both.
 export * as Providers from './Providers';
+
+// --- Crypto primitives (task 0078) -------------------------------------------
+// Argon2id (hash-wasm, loaded lazily), HKDF-SHA-256 and AES-256-GCM over
+// WebCrypto, plus strict base64url and KDF-parameter validation. Shared by the
+// backup format and, later, by account sync so both use one implementation and
+// one set of test vectors. Namespaced: the names are generic.
+export * as Crypto from './Crypto';
+
+// --- Backup format v1 (task 0078) ---------------------------------------------
+// The encrypted container, ZIP payload, user-table registry and restore
+// planner. Namespaced because the names are generic.
+export * as Backup from './Backup';
+
+// --- Keyword marks (task 0065) --------------------------------------------------
+// The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
+// validation and the set service. Pure TypeScript; both apps wrap it in a UI.
+export * from './KeywordMarks';
+export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+
+// --- Genealogy explorer (task 0067): DTOs, graph queries, layouts, pan/zoom ---
+export * from './Genealogy';
+
+// --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
+export * from './Timeline';
+
+// --- Cross-reference graph (task 0068) -----------------------------------------
+// Types, the edge-weight formula, canon geometry, chapter-pair packing and the
+// budgeted ego-graph walk. Pure; the repository-backed service and index builder
+// live in the Node entry point.
+export * from './Services/XrefGraph';
+
+// --- Web user-data store (task 0084) ------------------------------------------
+// In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
+// import for them, and the localStorage migration helper. Namespaced: it re-exports
+// a few model names that also exist on the main barrel.
+export * as UserData from './UserData';
+
+// --- Settings registry and feature flags (task 0087) ----------------------------
+// Declarative settings (schema, defaults, scope, validation), a typed store over a
+// storage port, the flat field model shared with extension settings, and the
+// feature-flag resolver. Pure TypeScript.
+export * from './Settings';
+
+// --- Audio Bible (task 0059) -----------------------------------------------
+// The contracts (provider, TTS engine, player, manifest source, locator,
+// cache, ...), the recorded-chapter manifest and index validators plus their
+// JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
+export * from './audio';

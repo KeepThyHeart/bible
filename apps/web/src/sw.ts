@@ -2,6 +2,10 @@
 /**
  * Keep Thy Heart service worker (built by `vite-plugin-pwa` in `injectManifest` mode).
  *
+ * What it caches at run time is declared in `src/sw/rules/`, not here. The server
+ * chooses whether this worker or `sw-kill.js` is served at `/sw.js`
+ * (`features.pwa`).
+ *
  * One rule drives the design: **a navigation request is answered from the network
  * whenever the network answers at all** — including when it answers 401 with the
  * login page. The precached shell is a fallback for *network failure only*, which
@@ -14,7 +18,8 @@
  * is what makes `request.mode === 'navigate'` matching possible; the generated
  * worker can only match on URL patterns.
  */
-import { clientsClaim } from 'workbox-core';
+import { clientsClaim, cacheNames } from 'workbox-core';
+import type { WorkboxPlugin } from 'workbox-core';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching';
@@ -22,10 +27,14 @@ import { RangeRequestsPlugin } from 'workbox-range-requests';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import {
-  COMMENTARY_CACHE_PATTERN,
-  INTERLINEAR_CACHE_PATTERN,
-  STUDY_OVERVIEW_CACHE_PATTERN,
-} from './utils/swCachePatterns';
+  cacheNamesFor,
+  cacheRuleFor,
+  EXTERNAL_CACHES,
+  resolveCacheName,
+  validateRules,
+  type CacheRule,
+} from './sw/cacheRules';
+import { CACHE_RULES } from './sw/rules';
 
 declare let self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<string | { url: string; revision: string | null }>;
@@ -56,6 +65,23 @@ const NAVIGATION_TIMEOUT_MS = 3000;
 const SHELL_URL = new URL('index.html', self.location.href).href;
 
 /**
+ * The Presenter's viewer pages are separate HTML entries (see `present/*.html`
+ * and the `input` map in vite.config.ts); the `html` glob in `injectManifest`
+ * precaches them as `present/viewer.html` and `present/solo.html`. Offline, the
+ * pre-live preview iframe (`/present/v/<code>`) and `/present/solo` must get
+ * those, not the reading app's shell.
+ */
+const VIEWER_URL = new URL('present/viewer.html', self.location.href).href;
+const SOLO_URL = new URL('present/solo.html', self.location.href).href;
+
+/** The precache key of the page a navigation to `pathname` should get offline, else the app shell. */
+export function offlinePageFor(pathname: string): string {
+  if (/(^|\/)present\/v\/[^/]+\/?$/.test(pathname)) return VIEWER_URL;
+  if (/(^|\/)present\/solo\/?$/.test(pathname)) return SOLO_URL;
+  return SHELL_URL;
+}
+
+/**
  * Reject after `ms` so a reachable-but-dead server (captive portal, LAN box down,
  * half-open TCP) falls back to the cached shell instead of hanging the boot until
  * the browser's own multi-minute timeout.
@@ -76,6 +102,8 @@ async function handleNavigation({ request }: { request: Request }): Promise<Resp
     // 503. Only a transport failure is grounds for reaching into the cache.
     return await withTimeout(fetch(request), NAVIGATION_TIMEOUT_MS);
   } catch {
+    const page = await matchPrecache(offlinePageFor(new URL(request.url).pathname));
+    if (page) return page;
     const shell = await matchPrecache(SHELL_URL);
     if (shell) return shell;
     return new Response(
@@ -96,80 +124,68 @@ registerRoute(new NavigationRoute(handleNavigation, {
   denylist: [/(^|\/)api\//, /(^|\/)data\//],
 }));
 
-// ── Runtime caching ─────────────────────────────────────────────────────────
-
-// Self-hosted embedding model for browser-side semantic search. Large, immutable
-// files — cache aggressively so the ~130 MB model downloads once, then works offline.
-registerRoute(
-  /\/data\/models\/.*/i,
-  new CacheFirst({
-    cacheName: 'embedding-model',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new RangeRequestsPlugin(),
-    ],
-  }),
-  'GET',
-);
-
-// Semantic search index (int8 vectors + metadata) served from /data.
-registerRoute(
-  /\/data\/semantic_[^/]+$/i,
-  new CacheFirst({
-    cacheName: 'semantic-index',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
-  }),
-  'GET',
-);
-
-// Commentary text and study overview are not user-specific — safe to cache.
-// `statuses: [200]` keeps a 401 login page from ever being stored as content.
+// ── Runtime caching: driven entirely by the rule registry ───────────────────
 //
-// Patterns live in utils/swCachePatterns.ts so they can be tested; the `$` they
-// used to end with silently matched nothing once a query string was involved.
+// Features add rules under src/sw/rules/; nothing below changes when they do.
+// See docs/features/service-worker-cache-rules.md.
+
+const ruleProblems = validateRules(CACHE_RULES);
+if (ruleProblems.length > 0) {
+  // A malformed rule must not take the worker down (a dead worker is a stuck
+  // client), so this only logs. The unit test on the registry is what keeps a
+  // bad rule from ever shipping.
+  console.error('[SW] Invalid cache rules:\n' + ruleProblems.join('\n'));
+}
+
+function strategyFor(rule: CacheRule): CacheFirst {
+  const plugins: WorkboxPlugin[] = [
+    new CacheableResponsePlugin({ statuses: rule.statuses ?? [200] }),
+  ];
+  if (rule.maxEntries || rule.maxAgeSeconds) {
+    plugins.push(new ExpirationPlugin({
+      maxEntries: rule.maxEntries,
+      maxAgeSeconds: rule.maxAgeSeconds,
+    }));
+  }
+  if (rule.strategy === 'cache-first-range') plugins.push(new RangeRequestsPlugin());
+  return new CacheFirst({ cacheName: resolveCacheName(rule), plugins });
+}
+
+const strategies = new Map<string, CacheFirst>();
+for (const rule of CACHE_RULES) {
+  if (rule.strategy !== 'network-only') strategies.set(rule.id, strategyFor(rule));
+}
+
+// One route for every rule: `cacheRuleFor` is the single decision point, so the
+// safety rules (never /api/sync, API only when a rule opts in) cannot be
+// bypassed by registration order or by a second registerRoute somewhere.
 registerRoute(
-  COMMENTARY_CACHE_PATTERN,
-  new CacheFirst({
-    cacheName: 'commentary-text',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 }),
-      new CacheableResponsePlugin({ statuses: [200] }),
-    ],
-  }),
+  ({ url, sameOrigin }) => sameOrigin && cacheRuleFor(CACHE_RULES, url) !== undefined,
+  ({ url, request, event }) => {
+    const rule = cacheRuleFor(CACHE_RULES, url)!;
+    return strategies.get(rule.id)!.handle({ request, event });
+  },
   'GET',
 );
 
-// Chapter-keyed and immutable, and carries `?module=` — see above.
-registerRoute(
-  INTERLINEAR_CACHE_PATTERN,
-  new CacheFirst({
-    cacheName: 'chapter-metadata',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 }),
-      new CacheableResponsePlugin({ statuses: [200] }),
-    ],
-  }),
-  'GET',
-);
-
-registerRoute(
-  STUDY_OVERVIEW_CACHE_PATTERN,
-  new CacheFirst({
-    cacheName: 'study-overview',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 }),
-      new CacheableResponsePlugin({ statuses: [200] }),
-    ],
-  }),
-  'GET',
-);
-
-// Other /api/ responses are deliberately not cached — they are auth-gated and
+// Anything else, including every other /api/ response, is deliberately not
+// handled: it goes to the network. API responses are auth-gated and
 // user-specific, and caching them masks 401s after logout.
+
+// ── Activation: drop every cache the current build no longer uses ────────────
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil((async () => {
+    const keep = new Set<string>([
+      ...cacheNamesFor(CACHE_RULES),
+      ...EXTERNAL_CACHES,
+      cacheNames.precache,
+      cacheNames.runtime,
+    ]);
+    const names = await caches.keys();
+    await Promise.all(names.filter(n => !keep.has(n)).map(n => caches.delete(n)));
+  })());
+});
 
 // ── Messages ────────────────────────────────────────────────────────────────
 

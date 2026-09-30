@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
 
 export default defineConfig({
+  // Builds the extension UI kit in memory when a test imports `electron/extensions/hostKit.ts` (about 0.3 s);
+  // no prebuilt file is needed. See scripts/kthKitPlugin.mjs.
+  plugins: [kthKitPlugin(path.resolve(__dirname, '../../packages/ui/scripts/build-kit.mjs'))],
   resolve: {
     // Force ONE copy of React. This app pins react/react-dom 18.3.1, but its
     // React libraries (zustand, @dnd-kit, @tiptap/react, dockview-react,
@@ -15,6 +19,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src/ui'),
       '@bible/core': path.resolve(__dirname, '../../packages/core/src'),
       '@bible/extension-testing': path.resolve(__dirname, '../../packages/extension-testing/src'),
+      // Shared UI kit (packages/ui), consumed as source; css entry first (first match wins).
+      '@bible/ui/css': path.resolve(__dirname, '../../packages/ui/css'),
+      '@bible/ui': path.resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
   test: {
@@ -29,17 +36,20 @@ export default defineConfig({
 
     // Vitest replaces CSS modules with empty stubs by default, which is right
     // for the hundreds of component tests that import a stylesheet only so the
-    // component can render. It is wrong for exactly one file: `themes.css` is
+    // component can render. It is wrong for two files: `themes.css` is
     // imported as TEXT (`?raw`) by `electron/extensions/hostThemeCss.ts`, which
     // parses it to build the design-token sheet served to extension panels over
     // `ext-ui://host/theme.css`. Stubbed, that import yields an empty string,
     // the parser finds no rules, and every token assertion fails against an
     // empty `:root {}` block - a failure that looks like a parser bug and is
-    // not one.
+    // not one. `controls.css` is imported the same way by
+    // `electron/extensions/hostControlsCss.ts`, served at
+    // `ext-ui://host/controls.css`; stubbed, any test asserting on its content
+    // would see an empty string instead of the shared toolbar/back-button rules.
     //
     // Scoped by regex rather than turned on globally so nothing else starts
     // paying for PostCSS/Tailwind processing in unit tests.
-    css: { include: [/themes\.css/] },
+    css: { include: [/themes\.css/, /controls\.css/] },
 
     // Test file patterns
     include: [

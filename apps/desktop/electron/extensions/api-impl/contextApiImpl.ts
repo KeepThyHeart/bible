@@ -12,16 +12,14 @@
  *     `PermissionDeniedError`, which the worker re-raises through the
  *     api proxy.
  *
- * `IContextApi` also declares an `onDidChange` event. **It is not wired up
- * yet** - nothing calls `router.emitEvent` for it, so a subscriber never
- * fires. The channel the contract implies is `onDidChange` ->
- * `context.onDidChange`. That is asserted against the type declarations by
- * `ApiSurfaceContract.test.ts`, which lists this event in
- * `DECLARED_BUT_NOT_EMITTED`.
- *
- * Wiring it needs a subscription to `WhenContextService.onDidChange`, which
- * is why it is not simply a line in `attach()`: the long-lived
- * `IWhenContextService` is not part of the per-call bridge surface.
+ * `IContextApi` used to declare an `onDidChange` event, but nothing ever
+ * called `router.emitEvent` for it - wiring it needed a subscription to
+ * `WhenContextService.onDidChange`, which does not exist, so a subscriber
+ * would never have fired. Task 0024 round 3 (P0.3) deleted the property
+ * outright rather than adding a `context.changed` channel with nothing
+ * behind it - see `ExtensionPointTypes.ts`'s doc comment on the pruned
+ * `ExtensionPointId` union. Re-add it, under `api.events.subscribe`, once
+ * `WhenContextService` actually has something to subscribe to.
  */
 
 import { Extensions } from '@bible/core';

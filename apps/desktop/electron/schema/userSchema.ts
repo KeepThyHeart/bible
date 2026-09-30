@@ -7,7 +7,7 @@
  * instead.
  */
 import type { ISql } from '@bible/core';
-import { repairUserSchema } from '@bible/core';
+import { repairUserSchema, Backup } from '@bible/core';
 
 /**
  * Create all user database tables, indexes, triggers, and FTS tables.
@@ -251,10 +251,39 @@ export function initializeUserSchema(db: ISql): void {
   `);
   db.execute('CREATE INDEX IF NOT EXISTS idx_command_history_last_used ON command_history(last_used DESC)');
 
+  // --- Generic user data store ------------------------------------------
+  // Same table core's UserDatabase.sql defines (section 4.7). Keyword marks
+  // (task 0065) keep their sets here as owner 'app:keyword-marks'. Created
+  // with IF NOT EXISTS, so it appears on an existing profile on next launch;
+  // no row upgrade is needed, hence no USER_SCHEMA_VERSION bump.
+  db.execute(`
+    CREATE TABLE IF NOT EXISTS user_data_item (
+      item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_uuid TEXT NOT NULL,
+      collection TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      value TEXT,
+      value_type TEXT NOT NULL DEFAULT 'json',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_date TEXT DEFAULT CURRENT_TIMESTAMP,
+      modified_date TEXT DEFAULT CURRENT_TIMESTAMP,
+      metadata TEXT,
+      UNIQUE(owner_uuid, collection, item_key),
+      CHECK (value_type IN ('string', 'int', 'bool', 'json'))
+    )
+  `);
+  db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_user_data_owner_collection ON user_data_item(owner_uuid, collection, sort_order)'
+  );
+
   // Everything above is CREATE ... IF NOT EXISTS, which is a no-op on a
   // database an older build already created - so an upgraded profile keeps the
   // old build's constraints forever. That is not hypothetical: it is why
   // highlighting and underlining were dead on every profile older than the
   // hex-colour change. Repair runs last, once the tables are known to exist.
   repairUserSchema(db);
+
+  // Record which version of the user-table shapes (`Backup.USER_TABLES`) this
+  // database follows, so a backup can tell whether its rows need upgrading.
+  Backup.stampUserSchemaVersion(db);
 }

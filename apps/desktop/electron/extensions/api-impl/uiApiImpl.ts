@@ -14,9 +14,6 @@
  *   - `registerVerseHover` - hover content providers
  *   - `registerContextMenu` - context menu item contributions
  *   - `registerStatusBarItem` - status bar contributions
- *   - `registerDisplayMode` - RESERVED. Declared in `IUiApi` but never
- *     implemented; always rejects with `MethodNotImplementedYet`. See the
- *     handler for the full reasoning.
  *   - `pickFile` / `saveFile` - file picker round-trips
  */
 
@@ -27,14 +24,18 @@ import {
   type ExtensionPermissionGrant,
   requirePermission,
 } from '../ExtensionPermissionGuard';
-// Value import, and safe from a cycle: ExtensionHostTypes.ts imports this
-// module (via ./api-impl) with `import type` only, so that edge is erased.
-import { MethodNotImplementedYet } from '../ExtensionHostTypes';
 import type { IExtensionUiBridge } from './IExtensionDataBridges';
+import type { ContributionRegistry } from '../ContributionRegistry';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
+const { THEME_COLOR_KEYS, HOST_ICON_KEYS } = Extensions;
 
 type ExtensionPanelTypeDef = Extensions.ExtensionPanelTypeDef;
+type VerseDecoratorDescriptor = Extensions.VerseDecoratorDescriptor;
+type VerseHoverProviderDescriptor = Extensions.VerseHoverProviderDescriptor;
+type DecorationDto = Extensions.DecorationDto;
+type DecorationTarget = Extensions.DecorationTarget;
+type DecorationAppearance = Extensions.DecorationAppearance;
 
 // Valid context menu targets - kept in sync with ExtensionApiDtos.ts.
 const VALID_CONTEXT_MENU_TARGETS = new Set([
@@ -43,11 +44,27 @@ const VALID_CONTEXT_MENU_TARGETS = new Set([
   'panel.tab',
 ]);
 
+// Task 0036 (P0.1) - verse decorators/hovers. Design doc §9.
+const DECORATION_FETCH_TIMEOUT_MS = 3_000;
+const HOVER_FETCH_TIMEOUT_MS = 2_000;
+const MAX_DECORATOR_LAYERS_PER_EXTENSION = 4;
+const MAX_HOVER_PROVIDERS_PER_EXTENSION = 4;
+const MAX_TARGETS_PER_DECORATION = 64;
+const MAX_DECORATIONS_PER_PUSH = 2_000;
+const DECORATOR_ID_RE = /^[a-z0-9][a-z0-9._-]*$/i;
+const VALID_INVALIDATE_ON = new Set(['theme.changed', 'settings.changed', 'manual']);
+const VALID_SURFACES = new Set(['standard', 'study', 'reading']);
+const VALID_HOVER_SCOPES = new Set(['verse', 'word', 'both']);
+const VALID_MODIFIERS = new Set(['ctrl', 'alt', 'shift', 'meta']);
+const THEME_COLOR_KEY_SET = new Set<string>(THEME_COLOR_KEYS as readonly string[]);
+const HOST_ICON_KEY_SET = new Set<string>(HOST_ICON_KEYS as readonly string[]);
+
 export interface UiApiImplOptions {
   extensionId: string;
   router: ExtensionRpcRouter;
   bridge: IExtensionUiBridge;
   grant: ExtensionPermissionGrant;
+  contributionRegistry?: ContributionRegistry;
 }
 
 export class UiApiImpl {
@@ -56,14 +73,30 @@ export class UiApiImpl {
   private readonly bridge: IExtensionUiBridge;
   private readonly grant: ExtensionPermissionGrant;
   private readonly disposers = new Map<string, () => void>();
+  /**
+   * Status bar bookkeeping, keyed by the extension-facing item `id` (not the
+   * `${extensionId}::${id}` bridge key - this instance is already scoped to
+   * one extension). Lets `updateStatusBarItem` patch-and-reregister without
+   * requiring the caller to resend the whole descriptor, and lets
+   * re-registering the same id replace its disposer instead of stacking a
+   * new one on top - see `registerOrReplaceStatusBarItem`.
+   */
+  private readonly statusBarDescriptors = new Map<string, Extensions.StatusBarItemDescriptor>();
+  private readonly statusBarDisposalIdByItemId = new Map<string, string>();
   private nextDisposalId = 1;
   private disposed = false;
+  private readonly contributionRegistry: ContributionRegistry | undefined;
+  private decoratorCount = 0;
+  private hoverProviderCount = 0;
+  private readonly decoratorIds = new Set<string>();
+  private readonly hoverIds = new Set<string>();
 
   constructor(opts: UiApiImplOptions) {
     this.extensionId = opts.extensionId;
     this.router = opts.router;
     this.bridge = opts.bridge;
     this.grant = opts.grant;
+    this.contributionRegistry = opts.contributionRegistry;
   }
 
   attach(): void {
@@ -78,12 +111,15 @@ export class UiApiImpl {
       // T2
       registerVerseDecorator: (args) => this.handleRegisterVerseDecorator(args),
       updateVerseDecorations: (args) => this.handleUpdateVerseDecorations(args),
+      invalidateVerseDecorations: (args) => this.handleInvalidateVerseDecorations(args),
       registerVerseHover: (args) => this.handleRegisterVerseHover(args),
+      listThemeColorKeys: () => this.handleListThemeColorKeys(),
       registerContextMenu: (args) => this.handleRegisterContextMenu(args),
-      registerDisplayMode: (args) => this.handleRegisterDisplayMode(args),
       registerStatusBarItem: (args) => this.handleRegisterStatusBarItem(args),
+      updateStatusBarItem: (args) => this.handleUpdateStatusBarItem(args),
       pickFile: (args) => this.handlePickFile(args),
       saveFile: (args) => this.handleSaveFile(args),
+      openSettings: (args) => this.handleOpenSettings(args),
     });
   }
 
@@ -103,6 +139,8 @@ export class UiApiImpl {
       }
     }
     this.disposers.clear();
+    this.statusBarDescriptors.clear();
+    this.statusBarDisposalIdByItemId.clear();
   }
 
   // --- T1 RPC handlers ---------------------------------------------------
@@ -122,7 +160,7 @@ export class UiApiImpl {
     return { disposalId };
   }
 
-  private async handleShowNotification(args: unknown[]): Promise<void> {
+  private async handleShowNotification(args: unknown[]): Promise<string | undefined> {
     this.assertActive();
     requirePermission(this.grant, 'ui:notification');
     const message = args[0];
@@ -133,7 +171,7 @@ export class UiApiImpl {
     if (opts !== undefined && opts !== null && typeof opts !== 'object') {
       throw new RpcProtocolError('ui.showNotification: opts must be an object when provided');
     }
-    await this.bridge.showNotification(
+    return this.bridge.showNotification(
       this.extensionId,
       message,
       (opts ?? undefined) as Extensions.NotificationOpts | undefined,
@@ -194,6 +232,17 @@ export class UiApiImpl {
     } catch {
       /* best-effort */
     }
+    // If this handle was the current registration of a tracked status bar
+    // item, drop the tracking too - otherwise a later `updateStatusBarItem`
+    // for the same id would silently revive an item the extension just
+    // disposed instead of rejecting.
+    for (const [itemId, id] of this.statusBarDisposalIdByItemId) {
+      if (id === disposalId) {
+        this.statusBarDisposalIdByItemId.delete(itemId);
+        this.statusBarDescriptors.delete(itemId);
+        break;
+      }
+    }
   }
 
   // --- T2 RPC handlers ---------------------------------------------------
@@ -207,9 +256,35 @@ export class UiApiImpl {
         'ui.registerVerseDecorator: expected VerseDecoratorDescriptor as first arg',
       );
     }
-    const disposer = this.bridge.registerVerseDecorator(this.extensionId, d);
+    if (this.decoratorIds.has(d.id)) {
+      throw new RpcProtocolError(`ui.registerVerseDecorator: duplicate decorator id '${d.id}'`);
+    }
+    if (this.decoratorCount >= MAX_DECORATOR_LAYERS_PER_EXTENSION) {
+      throw new RpcProtocolError(
+        `ui.registerVerseDecorator: extension already has ${MAX_DECORATOR_LAYERS_PER_EXTENSION} decorators registered`,
+      );
+    }
+    // Mirrors commandsApiImpl.ts:205-213 - build the reverse-RPC closure the
+    // fetch service calls once per chapter fetch, and hand it (not the raw
+    // endpoint string) to the bridge, since the endpoint string alone is not
+    // callable from the renderer/main side.
+    const fetch = (request: Extensions.DecorationRequestDto): Promise<unknown> =>
+      this.router.request(d.decorateEndpoint, [request], {
+        timeoutMs: DECORATION_FETCH_TIMEOUT_MS,
+      });
+    const bridgeDisposer = this.bridge.registerVerseDecorator(this.extensionId, d, fetch);
+    const registryDispose = this.contributionRegistry
+      ? this.contributionRegistry.register(this.extensionId, 'verseDecorator', d.id, d)
+      : (): void => {};
+    this.decoratorCount++;
+    this.decoratorIds.add(d.id);
     const disposalId = `decorator-${this.nextDisposalId++}`;
-    this.disposers.set(disposalId, disposer);
+    this.disposers.set(disposalId, () => {
+      bridgeDisposer();
+      registryDispose();
+      this.decoratorCount--;
+      this.decoratorIds.delete(d.id);
+    });
     return { disposalId };
   }
 
@@ -224,7 +299,28 @@ export class UiApiImpl {
     if (!Array.isArray(decorations)) {
       throw new RpcProtocolError('ui.updateVerseDecorations: decorations must be an array');
     }
-    await this.bridge.updateVerseDecorations(this.extensionId, groupId, decorations);
+    if (decorations.length > MAX_DECORATIONS_PER_PUSH) {
+      throw new RpcProtocolError(
+        `ui.updateVerseDecorations: at most ${MAX_DECORATIONS_PER_PUSH} decorations per call`,
+      );
+    }
+    const validated = decorations
+      .map((d) => validateDecorationDto(d))
+      .filter((d): d is DecorationDto => d !== null);
+    await this.bridge.updateVerseDecorations(this.extensionId, groupId, validated);
+  }
+
+  private async handleInvalidateVerseDecorations(args: unknown[]): Promise<void> {
+    this.assertActive();
+    requirePermission(this.grant, 'ui:verse-decorator');
+    const opts = args[0];
+    if (opts !== undefined && opts !== null && typeof opts !== 'object') {
+      throw new RpcProtocolError('ui.invalidateVerseDecorations: opts must be an object when provided');
+    }
+    await this.bridge.invalidateVerseDecorations(
+      this.extensionId,
+      (opts ?? undefined) as { decoratorId?: string; startVerseId?: number; endVerseId?: number } | undefined,
+    );
   }
 
   private async handleRegisterVerseHover(args: unknown[]): Promise<{ disposalId: string }> {
@@ -236,10 +332,37 @@ export class UiApiImpl {
         'ui.registerVerseHover: expected VerseHoverProviderDescriptor as first arg',
       );
     }
-    const disposer = this.bridge.registerVerseHover(this.extensionId, h);
+    if (this.hoverIds.has(h.id)) {
+      throw new RpcProtocolError(`ui.registerVerseHover: duplicate hover provider id '${h.id}'`);
+    }
+    if (this.hoverProviderCount >= MAX_HOVER_PROVIDERS_PER_EXTENSION) {
+      throw new RpcProtocolError(
+        `ui.registerVerseHover: extension already has ${MAX_HOVER_PROVIDERS_PER_EXTENSION} hover providers registered`,
+      );
+    }
+    const fetch = (request: Extensions.VerseHoverRequestDto): Promise<unknown> =>
+      this.router.request(h.hoverEndpoint, [request], {
+        timeoutMs: HOVER_FETCH_TIMEOUT_MS,
+      });
+    const bridgeDisposer = this.bridge.registerVerseHover(this.extensionId, h, fetch);
+    const registryDispose = this.contributionRegistry
+      ? this.contributionRegistry.register(this.extensionId, 'verseHover', h.id, h)
+      : (): void => {};
+    this.hoverProviderCount++;
+    this.hoverIds.add(h.id);
     const disposalId = `hover-${this.nextDisposalId++}`;
-    this.disposers.set(disposalId, disposer);
+    this.disposers.set(disposalId, () => {
+      bridgeDisposer();
+      registryDispose();
+      this.hoverProviderCount--;
+      this.hoverIds.delete(h.id);
+    });
     return { disposalId };
+  }
+
+  private async handleListThemeColorKeys(): Promise<string[]> {
+    this.assertActive();
+    return [...THEME_COLOR_KEYS];
   }
 
   private async handleRegisterContextMenu(args: unknown[]): Promise<{ disposalId: string }> {
@@ -267,52 +390,6 @@ export class UiApiImpl {
     return { disposalId };
   }
 
-  /**
-   * RESERVED - always rejects with `MethodNotImplementedYet`.
-   *
-   * `ui.registerDisplayMode` is declared in `IUiApi`, validated here, and
-   * pushed to the renderer by `RendererUiBridge` - but custom verse display
-   * modes were never built. Nothing in the renderer consumes a registered mode:
-   * the Bible pane's Display Mode picker is driven by the fixed
-   * Simple/Standard/Study set in `useBibleStore`, and no listener for the
-   * `displayModeRegistered` notification exists anywhere in `src/ui`. The type
-   * shipped ahead of the decision.
-   *
-   * Until this change an extension got a valid `DisposableHandle` back and then
-   * nothing happened - no error, no warning, no rendering. That is the one
-   * outcome that cannot stay: it is indistinguishable from a bug in the
-   * extension, so the author's only route to the truth is reading host source.
-   * A predictable rejection carrying a stable code costs the extension nothing
-   * it actually had, and turns an invisible dead end into a message.
-   *
-   * The throw is UNCONDITIONAL and comes before the permission check and the
-   * descriptor validation on purpose. Neither can change the answer - no grant
-   * and no well-formed descriptor makes a display mode render - so gating the
-   * reserved error behind them would hand back `PermissionDeniedError` or
-   * `RpcProtocolError` for calls whose real problem is that the feature does not
-   * exist. One method, one answer.
-   *
-   * `MethodNotImplementedYet` (ExtensionHostTypes.ts) is reused rather than a
-   * new code because it is exactly what it was declared for, and because it is
-   * deliberately NOT a member of the closed `ExtensionApiErrorCode` union - a
-   * host-internal "not built yet" marker is not part of the extension API's
-   * stable error contract. `serializeError` in `ExtensionRpcRouter` carries the
-   * code across the wire, and the worker runtime revives it as a plain
-   * `ExtensionApiError` whose `.code` is `'MethodNotImplementedYet'`, so an
-   * extension can branch on it.
-   *
-   * When display modes are implemented, delete this throw and restore the
-   * `display-mode:provide` permission check, an `isDisplayModeDescriptor` type
-   * guard, and the `bridge.registerDisplayMode` delegation. The bridge method
-   * and `DisplayModeDescriptor` are both still in place; only the guard was
-   * removed here, because `noUnusedLocals` will not tolerate a dead one.
-   */
-  private async handleRegisterDisplayMode(_args: unknown[]): Promise<never> {
-    throw new MethodNotImplementedYet(
-      'ui.registerDisplayMode (reserved: custom verse display modes are declared in the API but not implemented)',
-    );
-  }
-
   private async handleRegisterStatusBarItem(args: unknown[]): Promise<{ disposalId: string }> {
     this.assertActive();
     requirePermission(this.grant, 'ui:status-bar');
@@ -322,9 +399,69 @@ export class UiApiImpl {
         'ui.registerStatusBarItem: expected StatusBarItemDescriptor as first arg',
       );
     }
+    return this.registerOrReplaceStatusBarItem(item);
+  }
+
+  private async handleUpdateStatusBarItem(args: unknown[]): Promise<void> {
+    this.assertActive();
+    requirePermission(this.grant, 'ui:status-bar');
+    const itemId = args[0];
+    if (typeof itemId !== 'string' || itemId.length === 0) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: itemId must be a non-empty string');
+    }
+    const patch = args[1];
+    if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: patch must be an object');
+    }
+    const current = this.statusBarDescriptors.get(itemId);
+    if (!current) {
+      throw new RpcProtocolError(
+        `ui.updateStatusBarItem: '${itemId}' is not a currently-registered status bar item for this extension`,
+      );
+    }
+    const merged: Extensions.StatusBarItemDescriptor = {
+      ...current,
+      ...(patch as Partial<Extensions.StatusBarItemDescriptor>),
+      id: itemId, // `id` is never patchable - strip anything the caller sent for it.
+    };
+    if (!isStatusBarItemDescriptor(merged)) {
+      throw new RpcProtocolError('ui.updateStatusBarItem: patch produced an invalid descriptor');
+    }
+    this.registerOrReplaceStatusBarItem(merged);
+  }
+
+  /**
+   * Register `item` with the bridge, replacing any earlier registration of
+   * the same `item.id` from this extension.
+   *
+   * Before this existed, re-registering an id minted a brand-new
+   * `disposalId` and added it to `this.disposers` on every call without
+   * ever dropping the previous one - `this.disposers` grew by one entry per
+   * call for the extension's whole lifetime, and an author who later
+   * invoked one of the earlier (stale) handles would delete the *current*
+   * bridge entry out from under the latest registration, since the bridge
+   * itself keys status bar items by `${extensionId}::${item.id}` and knows
+   * nothing about which host-side handle is "current".
+   *
+   * The fix: track the current `disposalId` per `item.id` here, and when a
+   * new registration for the same id lands, drop the old `disposalId` entry
+   * from `this.disposers` *without invoking it* - invoking it would delete
+   * the bridge entry this call is about to (re)write. The old handle
+   * becomes a harmless no-op (`ui.dispose` on an unknown id is a no-op by
+   * design), and only one live entry per status bar item ever exists.
+   */
+  private registerOrReplaceStatusBarItem(
+    item: Extensions.StatusBarItemDescriptor,
+  ): { disposalId: string } {
+    const previousDisposalId = this.statusBarDisposalIdByItemId.get(item.id);
+    if (previousDisposalId !== undefined) {
+      this.disposers.delete(previousDisposalId);
+    }
     const disposer = this.bridge.registerStatusBarItem(this.extensionId, item);
     const disposalId = `statusbar-${this.nextDisposalId++}`;
     this.disposers.set(disposalId, disposer);
+    this.statusBarDisposalIdByItemId.set(item.id, disposalId);
+    this.statusBarDescriptors.set(item.id, item);
     return { disposalId };
   }
 
@@ -359,6 +496,18 @@ export class UiApiImpl {
     );
   }
 
+  private async handleOpenSettings(args: unknown[]): Promise<void> {
+    this.assertActive();
+    const section = args[0];
+    if (section !== undefined && section !== null && typeof section !== 'string') {
+      throw new RpcProtocolError('ui.openSettings: section must be a string when provided');
+    }
+    this.bridge.openSettings(
+      this.extensionId,
+      typeof section === 'string' ? section : undefined,
+    );
+  }
+
   private assertActive(): void {
     if (this.disposed) {
       throw new ExtensionNotActiveError(`uiApiImpl for ${this.extensionId} is disposed`);
@@ -383,20 +532,190 @@ function isExtensionPanelTypeDef(value: unknown): value is ExtensionPanelTypeDef
   return true;
 }
 
-function isVerseDecoratorDescriptor(value: unknown): value is Extensions.VerseDecoratorDescriptor {
+function isValidDecoratorId(id: unknown): id is string {
+  return typeof id === 'string' && id.length > 0 && id.length <= 64 && DECORATOR_ID_RE.test(id);
+}
+
+function isValidSurfaces(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!Array.isArray(value)) return false;
+  return value.every((s) => typeof s === 'string' && VALID_SURFACES.has(s));
+}
+
+function isVerseDecoratorDescriptor(value: unknown): value is VerseDecoratorDescriptor {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || v.id.length === 0) return false;
-  if (typeof v.decorateEndpoint !== 'string' || v.decorateEndpoint.length === 0) return false;
+  if (!isValidDecoratorId(v.id)) return false;
+  if (typeof v.decorateEndpoint !== 'string' || v.decorateEndpoint.length === 0 || v.decorateEndpoint.length > 128) {
+    return false;
+  }
+  if (v.invalidateOn !== undefined) {
+    if (!Array.isArray(v.invalidateOn)) return false;
+    if (!v.invalidateOn.every((i) => typeof i === 'string' && VALID_INVALIDATE_ON.has(i))) return false;
+  }
+  if (!isValidSurfaces(v.surfaces)) return false;
+  if (v.title !== undefined && !isLocalizedString(v.title)) return false;
   return true;
 }
 
-function isVerseHoverProviderDescriptor(value: unknown): value is Extensions.VerseHoverProviderDescriptor {
+function isVerseHoverProviderDescriptor(value: unknown): value is VerseHoverProviderDescriptor {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || v.id.length === 0) return false;
-  if (typeof v.hoverEndpoint !== 'string' || v.hoverEndpoint.length === 0) return false;
+  if (!isValidDecoratorId(v.id)) return false;
+  if (typeof v.hoverEndpoint !== 'string' || v.hoverEndpoint.length === 0 || v.hoverEndpoint.length > 128) {
+    return false;
+  }
+  if (v.scope !== undefined && (typeof v.scope !== 'string' || !VALID_HOVER_SCOPES.has(v.scope))) return false;
+  if (v.modifiers !== undefined) {
+    if (!Array.isArray(v.modifiers)) return false;
+    if (!v.modifiers.every((m) => typeof m === 'string' && VALID_MODIFIERS.has(m))) return false;
+  }
+  if (v.order !== undefined && typeof v.order !== 'number') return false;
+  if (!isValidSurfaces(v.surfaces)) return false;
+  if (v.title !== undefined && !isLocalizedString(v.title)) return false;
   return true;
+}
+
+// --- Decoration DTO validation (design doc §3.8) --------------------------
+//
+// Shared by both the pull response path (`VerseDecorationService`, applied
+// per fetched layer) and the push path (`handleUpdateVerseDecorations`
+// above). A malformed decoration is dropped, not fatal - the rest of the
+// array still renders.
+
+function isValidVerseId(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0;
+}
+
+function isDecorationTarget(value: unknown): value is DecorationTarget {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  switch (v.kind) {
+    case 'verse':
+      return isValidVerseId(v.verseId);
+    case 'passage':
+      return (
+        isValidVerseId(v.startVerseId) &&
+        isValidVerseId(v.endVerseId) &&
+        (v.endVerseId as number) >= (v.startVerseId as number)
+      );
+    case 'tokens':
+      return (
+        isValidVerseId(v.verseId) &&
+        typeof v.startTokenIndex === 'number' &&
+        v.startTokenIndex >= 0 &&
+        (v.endTokenIndex === undefined || (typeof v.endTokenIndex === 'number' && v.endTokenIndex >= v.startTokenIndex))
+      );
+    case 'word': {
+      if (typeof v.text !== 'string' || v.text.length === 0) return false;
+      const scope = v.scope as Record<string, unknown> | undefined;
+      if (typeof scope !== 'object' || scope === null) return false;
+      const scopeOk =
+        isValidVerseId(scope.verseId) ||
+        (isValidVerseId(scope.startVerseId) && isValidVerseId(scope.endVerseId));
+      if (!scopeOk) return false;
+      if (v.occurrence !== undefined && (typeof v.occurrence !== 'number' || v.occurrence < 1)) return false;
+      if (v.matchCase !== undefined && typeof v.matchCase !== 'boolean') return false;
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+function resolveColorKeyOrDrop<T extends { color?: unknown }>(v: T): boolean {
+  if (v.color === undefined) return true;
+  return typeof v.color === 'string' && THEME_COLOR_KEY_SET.has(v.color);
+}
+
+function isDecorationAppearance(value: unknown): value is DecorationAppearance {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  switch (v.kind) {
+    case 'tint':
+      if (typeof v.color !== 'string' || !THEME_COLOR_KEY_SET.has(v.color)) return false;
+      if (v.intensity !== undefined && !['subtle', 'normal', 'strong'].includes(v.intensity as string)) return false;
+      return true;
+    case 'underline':
+      if (typeof v.color !== 'string' || !THEME_COLOR_KEY_SET.has(v.color)) return false;
+      if (v.style !== undefined && !['solid', 'dashed', 'dotted'].includes(v.style as string)) return false;
+      if (v.thickness !== undefined && !['thin', 'medium', 'thick'].includes(v.thickness as string)) return false;
+      return true;
+    case 'gutter':
+      if (typeof v.icon !== 'string' || !HOST_ICON_KEY_SET.has(v.icon)) return false;
+      if (!resolveColorKeyOrDrop(v)) return false;
+      if (v.tooltip !== undefined && !isLocalizedString(v.tooltip)) return false;
+      return true;
+    case 'emphasis':
+      return true;
+    case 'strike':
+      return resolveColorKeyOrDrop(v);
+    case 'badge':
+      if (typeof v.label !== 'string' || v.label.length === 0 || v.label.length > 12) return false;
+      if (!/^[\p{L}\p{N} .:·+#/-]{1,12}$/u.test(v.label)) return false;
+      return resolveColorKeyOrDrop(v);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Validates one `DecorationDto`. Returns `null` (drop it) if malformed.
+ * Exported for `VerseDecorationService`, which applies the same validator to
+ * pull responses (design doc §3.8: one validator, both push and pull).
+ */
+export function validateDecorationDto(value: unknown): DecorationDto | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Record<string, unknown>;
+  const targets = Array.isArray(v.target) ? v.target : [v.target];
+  if (targets.length === 0 || targets.length > MAX_TARGETS_PER_DECORATION) return null;
+  if (!targets.every((t) => isDecorationTarget(t))) return null;
+  if (!isDecorationAppearance(v.appearance)) return null;
+  if (v.order !== undefined && (typeof v.order !== 'number' || v.order < -1000 || v.order > 1000)) return null;
+  if (v.groupId !== undefined && typeof v.groupId !== 'string') return null;
+  if (v.hoverContent !== undefined && !isHoverContentDto(v.hoverContent)) return null;
+  return v as unknown as DecorationDto;
+}
+
+// --- Hover content validation (task 0036, P0.1c; design doc §3.7, §11) ----
+//
+// Shared by `DecorationDto.hoverContent` (static, validated above) and
+// `VerseDecorationService.fetchHover`'s callback-provider responses (one
+// provider may return several sections - `validateHoverContentArray`).
+
+const VALID_HOVER_KINDS = new Set(['text', 'markdown', 'iframe']);
+/** Generous but bounded - a hover popup is not a document viewer. */
+const MAX_HOVER_TEXT_LENGTH = 4_000;
+/** Per provider, per fetch - mirrors the badge/gutter-style "cap, don't reject" caps elsewhere in this vocabulary. */
+export const MAX_HOVER_SECTIONS_PER_PROVIDER = 8;
+
+export function isHoverContentDto(value: unknown): value is Extensions.HoverContentDto {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.kind !== 'string' || !VALID_HOVER_KINDS.has(v.kind)) return false;
+  switch (v.kind) {
+    case 'text':
+      return typeof v.text === 'string' && v.text.length > 0 && v.text.length <= MAX_HOVER_TEXT_LENGTH;
+    case 'markdown':
+      if (typeof v.markdown !== 'string' || v.markdown.length === 0 || v.markdown.length > MAX_HOVER_TEXT_LENGTH) {
+        return false;
+      }
+      return v.allowImages === undefined || typeof v.allowImages === 'boolean';
+    case 'iframe':
+      if (typeof v.uiEntry !== 'string' || v.uiEntry.length === 0) return false;
+      if (v.width !== undefined && typeof v.width !== 'number') return false;
+      if (v.height !== undefined && typeof v.height !== 'number') return false;
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Validates a callback hover provider's raw response. Drops malformed items; caps the rest. */
+export function validateHoverContentArray(raw: unknown): Extensions.HoverContentDto[] {
+  if (!Array.isArray(raw)) return [];
+  const valid = raw.filter((item): item is Extensions.HoverContentDto => isHoverContentDto(item));
+  return valid.slice(0, MAX_HOVER_SECTIONS_PER_PROVIDER);
 }
 
 function isContextMenuItemDescriptor(value: unknown): value is Extensions.ContextMenuItemDescriptor {
@@ -407,11 +726,6 @@ function isContextMenuItemDescriptor(value: unknown): value is Extensions.Contex
   if (typeof v.command !== 'string' || v.command.length === 0) return false;
   return true;
 }
-
-// `isDisplayModeDescriptor` used to sit here. It went with the descriptor
-// validation in `handleRegisterDisplayMode`, which now rejects unconditionally:
-// a guard nothing calls is a `noUnusedLocals` error, and a commented-out one is
-// worse than none. Restore it from history when display modes are built.
 
 function isStatusBarItemDescriptor(value: unknown): value is Extensions.StatusBarItemDescriptor {
   if (typeof value !== 'object' || value === null) return false;

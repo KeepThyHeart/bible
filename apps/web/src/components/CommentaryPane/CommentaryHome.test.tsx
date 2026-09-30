@@ -77,7 +77,7 @@ const mocks = {
   // Rest parameter, not `() =>`: the store method is forwarded as
   // `(...args: unknown[]) => mocks.fetchModuleEntries(...args)`, and an
   // argument-less implementation narrows the mock to zero arity.
-  fetchModuleEntries: vi.fn((..._args: unknown[]) => Promise.resolve([])),
+  fetchModuleEntries: vi.fn((..._args: unknown[]) => Promise.resolve([] as unknown[])),
   addTab: vi.fn(),
   toggleMuted: vi.fn(),
   togglePromoted: vi.fn(),
@@ -315,6 +315,47 @@ describe('CommentaryHome', () => {
     const item = container.querySelector<HTMLElement>('.commentary-home__list-item')!;
     fireEvent.click(item);
     expect(mocks.fetchModuleEntries).toHaveBeenCalled();
+  });
+
+  // ------------------------------------------------------------------
+  // Regression: an expanded module showed another chapter's notes
+  // ------------------------------------------------------------------
+  const entry = (id: number, verseId: number, text: string, level = 'verse') => ({
+    entry_id: id,
+    verse_id_start: verseId,
+    verse_id_end: verseId,
+    entry_level: level,
+    content: text,
+    word_count: 1,
+  });
+
+  it('never shows another chapter\u2019s entries under this passage', async () => {
+    // Genesis 3:15 is selected, but the store hands back John 3's entries — the
+    // stale-cache case. They used to be shown via the "no verse matched, show
+    // everything" fallback, as "John 3:1 notes" under a Genesis heading.
+    state.syncedBook = 1;
+    state.syncedChapter = 3;
+    state.liveHighlightedVerse = 1003015;
+    mocks.fetchModuleEntries.mockResolvedValueOnce([
+      entry(1, 43003001, 'JOHN THREE ONE'),
+      entry(2, 43003016, 'JOHN THREE SIXTEEN'),
+    ]);
+    const { container } = render(<CommentaryHome />);
+    fireEvent.click(container.querySelector<HTMLElement>('.commentary-home__list-item')!);
+    await screen.findByText('commentaryHome.noContentForThisVerse');
+
+    expect(container.textContent).not.toContain('JOHN THREE');
+  });
+
+  it('still falls back to this chapter\u2019s entries when none is specific to the verse', async () => {
+    // A chapter-level commentary has nothing keyed to verse 16; showing its
+    // chapter notes is the intended fallback and must keep working.
+    mocks.fetchModuleEntries.mockResolvedValueOnce([
+      entry(1, 43003001, 'CHAPTER NOTE', 'chapter'),
+    ]);
+    const { container } = render(<CommentaryHome />);
+    fireEvent.click(container.querySelector<HTMLElement>('.commentary-home__list-item')!);
+    await screen.findByText('CHAPTER NOTE');
   });
 
   // ------------------------------------------------------------------

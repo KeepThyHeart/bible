@@ -1,0 +1,30 @@
+packages:
+  - packages/*
+  - apps/*
+
+# Replaces the npm "overrides" block that used to live in the root package.json.
+overrides:
+  react: 18.3.1
+  react-dom: 18.3.1
+  sharp: ^0.35.4
+  vite: ^7.3.6
+  express>qs: ^6.16.0
+
+# Dependencies whose install scripts may run (replaces npm's "allowScripts").
+# Native addons / binary downloads need them. protobufjs (postinstall is only a
+# version check) stays off, and electron's binary is fetched by `pnpm init:electron`.
+allowBuilds:
+  '@parcel/watcher': true
+  better-sqlite3: true
+  better-sqlite3-multiple-ciphers: true
+  bun: true
+  electron-winstaller: true
+  esbuild: true
+  keytar: true
+  onnxruntime-node: true
+  protobufjs: false
+  unrs-resolver: true
+  usearch: true
+
+# Run npm-style pre*/post* hooks (predev, pretest, postbuild ...) as the scripts here expect.
+enablePrePostScripts: true

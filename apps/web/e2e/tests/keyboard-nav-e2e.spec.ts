@@ -164,10 +164,10 @@ test.describe('Keyboard Navigation', () => {
     test.skip(browserName === 'webkit', 'book-chapter picker chapter buttons not visible in WebKit/Safari; skipped until layout fix');
     // Click the + button to open book-chapter picker
     await page.locator('.bible-tab-bar__add').click();
-    await expect(page.locator('.book-chapter-picker__books')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
 
     // Should show book buttons
-    const bookBtns = page.locator('.book-chapter-picker__book-btn');
+    const bookBtns = page.locator('.kth-picker__cell--book');
     expect(await bookBtns.count()).toBeGreaterThan(0);
 
     // Click Psalms (approximate middle of list)
@@ -176,8 +176,8 @@ test.describe('Keyboard Navigation', () => {
       await psalmsBtn.click();
 
       // Chapter buttons should appear
-      await expect(page.locator('.book-chapter-picker__chapter-btn').first()).toBeVisible({ timeout: 3000 });
-      const chapterBtns = page.locator('.book-chapter-picker__chapter-btn');
+      await expect(page.locator('.kth-picker__cell--chapter').first()).toBeVisible({ timeout: 3000 });
+      const chapterBtns = page.locator('.kth-picker__cell--chapter');
       // Psalms has 150 chapters
       expect(await chapterBtns.count()).toBeGreaterThan(100);
 

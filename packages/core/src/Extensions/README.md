@@ -18,9 +18,9 @@ README is the navigation aid.
 | `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. |
 | `ActivationEvents.ts` | Activation event identifiers and string-composition helpers. |
 | `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. |
-| `ExtensionPointTypes.ts` | Payload and return types for the ~30 host-emitted extension points. |
+| `ExtensionPointTypes.ts` | Kinds, payload and return types for the 14 host-emitted extension points (pruned from a speculative 40-member union with zero call sites - task 0024 round 3), plus the cancelable/replay/permission/timeout tables the dispatcher reads. |
 | `ExtensionManifest.ts` | The TypeScript shape of `extension.json`. |
-| `ExtensionManifestSchema.json` | JSON Schema (draft-07) the manifest loader validates against. The schema is the only validator. |
+| `ExtensionManifestSchema.json` | JSON Schema (draft-07), an **authoring aid for editors only** (autocomplete/validation) - it is never loaded at runtime. The sole runtime gate is the hand-written `ExtensionManifestValidator.ts`; the two must be kept in sync by hand, and `ExtensionManifestSchemaParity.test.ts` asserts they agree on the `contributes.*` keys and the `Permission` enum. |
 
 ## Entry point resolution (`manifest.main`)
 
@@ -68,16 +68,18 @@ project - manifest, TypeScript config, bundler config, entry point and a passing
 test. `packages/word-count-example/` is a worked reference extension to read
 alongside it.
 
-For the manifest itself, `ExtensionManifestSchema.json` in this folder is the
-authority: it is the only validator the loader runs, so anything it accepts is
-valid and anything it rejects will not load.
+For the manifest itself, `ExtensionManifestSchema.json` in this folder is an
+authoring aid for editors (autocomplete, inline validation) - it is never
+loaded at runtime. The hand-written `ExtensionManifestValidator.ts` is the
+sole runtime gate, kept in sync with the schema by hand (see
+`ExtensionManifestSchemaParity.test.ts`).
 
 ## Future enhancements (T3)
 
 Headlines and one-line descriptions only - this list is a signpost, not a design
 document.
 
-> These are deliberately **not implemented** in 1.0.0. Designing them without
+> These are deliberately **not implemented**. Designing them without
 > a real consumer risks bloat and bad fits. The list exists so contributors
 > working in this folder can see the deferred ideas, and so the additive-only
 > versioning policy can plan around them.
@@ -91,13 +93,14 @@ document.
 7. **`IEditorApi`.** Rich-text editor extensibility for notes/documents - completion providers, snippet expansion, key handlers, content transforms.
 8. **File importer contributions.** `contributes.fileImporters` - register handlers for OSIS, USFM, ePub, etc.
 9. **Theme / font / icon contributions.** Defer until the host theme system is settled.
-10. **Custom verse display modes (`ui.registerDisplayMode`).** Alternative renderer for the Bible pane (overlay or replace) - interlinear, color-coded grammar, paraphrase comparison.
+10. **Custom verse display modes.** Alternative renderer for the Bible pane (overlay or replace) - interlinear, color-coded grammar, paraphrase comparison. A reserved, rejecting `ui.registerDisplayMode` method and a `displayModes` manifest field briefly existed for this; task 0024 round 3 (P2.13) deleted the whole tentacle as dead code (nothing ever rendered a registered mode), so a real implementation starts from scratch, not from that removed API shape.
 11. **`IAiApi` host UI.** Where AI responses render, how streaming is shown, how prompts compose. Reserved namespace exists; surface needs a real provider implementation first.
-12. **TTS / audio provider role.** Reserved as `ttsVoice`. Defer until the host's own TTS work is mature enough to know what to expose.
+12. **TTS / audio provider role, and a search-provider / content-importer role.** `tts:provide`, `search:provide` and `import:provide` used to sit here as reserved permissions with nothing behind them; task 0024 removed all three outright (see `Permissions.ts`) rather than leave the user asked to grant a capability the host cannot deliver. `display-mode:provide` was kept at the time for the same reason `ui.registerDisplayMode` still existed (rejecting, but real); task 0024 round 3 later removed `ui.registerDisplayMode` itself as dead code, and `display-mode:provide` went with it. Re-add a permission (here, in the schema, and in the validator's allowlist) only alongside a real API namespace.
 13. **Custom note types contribution.** Memory verse, prayer request, sermon outline - `contributes.noteTypes` with a JSON Schema for fields.
 14. **Reading-progress signals.** Events when the user finishes today's reading, completes a chapter, etc.
 15. **Webhook / external trigger receiver.** Localhost HTTP endpoint other apps POST to in order to trigger extension activation.
 16. **Plugin marketplace + discovery UI.** Marketplace metadata fields are already reserved in the manifest.
+17. **The 27 extension points pruned in task 0024 round 3.** `ExtensionPointTypes.ts` went from a speculative 40-member `ExtensionPointId` union to 14 real channels with actual call sites - see that file's doc comment for the full list. The likeliest to come back, with what each needs first: `verse.beforeRender` / `verse.afterRender` / `verse.hover` / `verse.decorate` / `verse.contextMenu` / `verse.word.contextMenu` (item 2's decorator/hover generalization, and task 0036's verse-decorator work), `command.beforeExecute` (a renderer-side dispatch proxy over `RendererCommandBridge` - `CommandRegistry.execute` lives in the renderer, not the main process where the dispatcher runs), `theme.changed` (no theme bridge exists yet - add it with the bridge, not before), `module.installed` / `module.updated` / `module.removed` (the module manager is live and may grow these, but "likely" was exactly the standard that produced the 40-channel union in the first place - wait for an actual consumer). The rest (`commentary.*`, `dictionary.*`, `book.beforeShow`, `notes.beforeSave`, `bookmarks.afterAdd`, `search.afterResults` / `suggestionsRequested`, `layout.presetApplied`, `bible.referenceParsed`, `app.ready`, `session.restored`, `permissions.changed`) had no chokepoint identified at all - re-add only alongside a real one.
 
 ### Deliberately NOT on this list (and why)
 

@@ -8,14 +8,25 @@ import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
 import { getAllBookNames, getLocalizedBookName } from '../utils/bookNames';
 import { focusSearchField } from '../utils/focusSearchField';
+import { presentStore } from '../stores/presentStore';
+import { openPresenter } from '../apps/present/route';
 import { localizedBookAliases } from '../constants';
 import type { Localizer } from '@bible/core/browser';
 
 
-// Common abbreviation mappings (lowercase)
-const BOOK_ABBREV_MAP: Record<string, number> = {
+/**
+ * Common abbreviation mappings (lowercase).
+ *
+ * Exported so other code that needs to recognise a book name -- the
+ * presenter's paste-to-detect-references scanner (`present/referenceScan.ts`)
+ * is the one other caller today -- has one table to consult rather than a
+ * second copy invented for it.
+ */
+export const BOOK_ABBREV_MAP: Record<string, number> = {
   'gen': 1, 'exo': 2, 'exod': 2, 'exodus': 2, 'lev': 3, 'num': 4, 'deu': 5, 'deut': 5,
   'jos': 6, 'josh': 6, 'jdg': 7, 'judg': 7, 'judges': 7, 'rut': 8, 'ruth': 8,
+  'ps': 19, 'psa': 19, 'psalm': 19, 'psalms': 19, 'pro': 20, 'prov': 20, 'proverbs': 20,
+  'ecc': 21, 'eccl': 21, 'eccles': 21, 'ecclesiastes': 21,
   'isa': 23, 'isaiah': 23, 'jer': 24, 'jeremiah': 24, 'lam': 25, 'eze': 26, 'ezek': 26,
   'dan': 27, 'daniel': 27, 'hos': 28, 'hosea': 28, 'joe': 29, 'joel': 29,
   'amo': 30, 'amos': 30, 'oba': 31, 'obad': 31, 'jon': 32, 'jonah': 32,
@@ -290,6 +301,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const searchQuery = useStore(searchStore, () => searchStore.query);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
+  const presenting = useStore(presentStore, () => presentStore.session !== null);
   const localizer = useLocalizer();
   const bookAliases = useMemo(() => headerBookAliases(localizer), [localizer]);
 
@@ -527,6 +539,18 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         <i class="fa-solid fa-list" />
       </button>
       <div class="header__actions">
+        {/*
+          Session mode's one entry point: the Presenter workspace. Starting a
+          session is "Go live" in its Control pane, so this only navigates.
+        */}
+        <button
+          class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
+          onClick={openPresenter}
+          title={t('present.openPresenter')}
+          aria-label={t('present.openPresenter')}
+        >
+          <i class="fa-solid fa-tv" />
+        </button>
         {offlineEnabled && !isOnline && (
           <span class="header__offline-badge" title={t('header.offlineTooltip')}>
             <i class="fa-solid fa-wifi" style={{ opacity: 0.5 }} />

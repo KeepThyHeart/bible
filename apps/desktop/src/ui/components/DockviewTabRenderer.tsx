@@ -145,6 +145,10 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   const dynamicSubtitle = useLayoutStore(s => s.dynamicSubtitles.get(api.id));
   const subtitle = localizePaneLabel(t, contentType, dynamicSubtitle || staticSubtitle);
   const icon = tabIconFor(contentType);
+  // `workspace.setPanelBadge` - only ever set for an extension's own
+  // `ext:`-content-type panel (the api-impl enforces that), so no
+  // `paneType === 'extension'` guard is needed here.
+  const badge = useExtensionUiStore(s => s.panelBadges[api.id]);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -448,6 +452,22 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           </div>
         ) : (
           <span>{title}</span>
+        )}
+        {badge !== undefined && (
+          <span
+            data-testid="panel-tab-badge"
+            style={{
+              fontSize: controlScaled(10),
+              fontWeight: 600,
+              lineHeight: 1,
+              padding: `${controlScaled(1)} ${controlScaled(5)}`,
+              borderRadius: controlScaled(8),
+              background: 'var(--theme-accent-bg, var(--theme-accent))',
+              color: 'var(--theme-accent-text)',
+            }}
+          >
+            {badge}
+          </span>
         )}
         {groupTabCount > 1 && (
           <button

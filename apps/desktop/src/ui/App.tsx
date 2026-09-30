@@ -30,6 +30,7 @@ import { useBackupStore } from './stores/useBackupStore';
 import { getIssueReportUrl, getProductName } from './config/appConfig';
 import { useI18n } from './contexts/useI18n';
 import './styles/highlights.css';
+import './styles/extensionDecorations.css';
 import './styles/dockview-overrides.css';
 
 // EXP-E: dialogs and onboarding overlays are split out of the first-paint
@@ -38,6 +39,7 @@ import './styles/dockview-overrides.css';
 // has to parse before it can draw anything.
 const LazyDialogs = {
   AdvancedSearchDialog: React.lazy(() => import('./components/AdvancedSearchDialog')),
+  XrefGraphDialog: React.lazy(() => import('./components/XrefGraphDialog')),
   ModuleManagerDialog: React.lazy(() => import('./components/ModuleManagerDialog')),
   PreferencesDialog: React.lazy(() => import('./components/PreferencesDialog')),
   KeyboardShortcutsDialog: React.lazy(() => import('./components/KeyboardShortcutsDialog')),
@@ -54,6 +56,7 @@ const LazyDialogs = {
   ),
 } as const;
 const AdvancedSearchDialog = LazyDialogs.AdvancedSearchDialog;
+const XrefGraphDialog = LazyDialogs.XrefGraphDialog;
 const ModuleManagerDialog = LazyDialogs.ModuleManagerDialog;
 const PreferencesDialog = LazyDialogs.PreferencesDialog;
 const KeyboardShortcutsDialog = LazyDialogs.KeyboardShortcutsDialog;
@@ -165,6 +168,9 @@ function App() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferencesInitialSection, setPreferencesInitialSection] = useState<string>('general');
   const [preferencesFontPane, setPreferencesFontPane] = useState<PaneType | undefined>(undefined);
+  const [preferencesExtensionTarget, setPreferencesExtensionTarget] = useState<
+    { extensionId: string; section?: string } | undefined
+  >(undefined);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showDocumentation, setShowDocumentation] = useState(false);
   const [showManageBookmarks, setShowManageBookmarks] = useState(false);
@@ -268,6 +274,22 @@ function App() {
     window.addEventListener('open-preferences-fonts', handler);
     return () => window.removeEventListener('open-preferences-fonts', handler);
   }, [openPreferencesToFonts]);
+
+  // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). Same shape as
+  // `open-preferences-fonts` above: the extension bridge dispatches this
+  // event (see `extensionRendererBridge.ts`) rather than reaching into a
+  // store, since App.tsx already owns every "which Preferences section is
+  // open" flag.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { extensionId: string; section?: string };
+      setPreferencesExtensionTarget(detail);
+      setPreferencesInitialSection('extensions');
+      setShowPreferences(true);
+    };
+    window.addEventListener('open-preferences-extension-settings', handler);
+    return () => window.removeEventListener('open-preferences-extension-settings', handler);
+  }, []);
 
   // Command bus subscriptions. The KeybindingService now owns global
   // shortcuts and dispatches commands; the command handlers in
@@ -439,6 +461,9 @@ function App() {
         {/* Advanced Search Dialog (modal overlay) */}
         <AdvancedSearchDialog />
 
+        {/* Cross-reference graph dialog (modal overlay) */}
+        <XrefGraphDialog />
+
         {/* Module Manager Dialog (modal overlay) */}
         {showModuleManager && (
           <ModuleManagerDialog
@@ -461,7 +486,11 @@ function App() {
           <PreferencesDialog
             initialSection={preferencesInitialSection}
             initialFontPane={preferencesFontPane}
-            onClose={() => setShowPreferences(false)}
+            initialExtensionTarget={preferencesExtensionTarget}
+            onClose={() => {
+              setShowPreferences(false);
+              setPreferencesExtensionTarget(undefined);
+            }}
           />
         )}
 

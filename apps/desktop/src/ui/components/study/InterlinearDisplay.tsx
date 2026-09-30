@@ -3,17 +3,23 @@ import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/co
 import { dictionaryAPI } from '../../services/electronAPI';
 import { useI18n } from '../../contexts/useI18n';
 import { usePopupPosition } from '../../hooks/usePopupPosition';
-import { useHoverIntent } from '../../hooks/useHoverIntent';
+import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
-import { extractWordsWithFormatting, type WordInfo } from '../../utils/wordIndexing';
-import { highlightAttrsForWord, HighlightedVerse } from '../highlights/HighlightRenderer';
+import { useKeywordMarkStore } from '../../stores/useKeywordMarkStore';
+import { HighlightedVerse } from '../highlights/HighlightRenderer';
+import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
+  extractWordsWithFormatting,
+  wordRenderAttrs,
+  type ResolvedVerse,
+  type ResolvedHover,
   type InterlinearCell,
   type InterlinearWord,
-} from './interlinearCells';
+  type WordInfo,
+} from '@bible/core/browser';
 
 export type { InterlinearWord };
 
@@ -48,6 +54,17 @@ interface InterlinearDisplayProps {
   verseId: number;
   /** Owning module. Required: highlights are stored per module. */
   moduleId: number;
+  /** Bible tab whose keyword marks apply (task 0065). */
+  keywordTabId?: string;
+  /** Task 0036, P0.1c - see `HighlightedVerse`'s prop of the same name. Forwarded to each cell's English word spans. */
+  onWordMouseEnter?: (
+    verseId: number,
+    wordIndex: number,
+    wordText: string,
+    hovers: ResolvedHover[] | undefined,
+    event: React.MouseEvent,
+  ) => void;
+  onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
 }
 
 /** Stable empty array so the store selector below doesn't churn renders. */
@@ -129,8 +146,11 @@ const StrongsPreviewTooltip: React.FC<{
   position: { x: number; y: number };
   onClose: () => void;
   onMouseEnter?: () => void;
-}> = ({ strongsNumber, position, onClose, onMouseEnter }) => {
+  /** Bible tab whose keyword marks the "Mark in this chapter" action targets (task 0065). */
+  keywordTabId?: string;
+}> = ({ strongsNumber, position, onClose, onMouseEnter, keywordTabId }) => {
   const { t } = useI18n();
+  const addKeywordMark = useKeywordMarkStore((state) => state.addMarkFromWord);
   // Subscribed rather than read via getState(): this is render-time wiring for
   // an action the tooltip owns, and the selector keeps the reference stable.
   const searchStrongsNumber = useSearchStore((state) => state.searchStrongsNumber);
@@ -310,6 +330,19 @@ const StrongsPreviewTooltip: React.FC<{
           {t('ui.interlinear.searchOccurrences')}
         </button>
       )}
+      {!loading && keywordTabId && (
+        <button
+          type="button"
+          onClick={() => {
+            void addKeywordMark(keywordTabId, { text: strongsNumber, strongs: strongsNumber }, 'strongs');
+            onClose();
+          }}
+          className="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          data-testid="strongs-mark-in-chapter"
+        >
+          {t('keywords.strongs.markInChapter')}
+        </button>
+      )}
     </div>
   );
 };
@@ -383,7 +416,7 @@ function cleanInterlinearWord(word: InterlinearWord): InterlinearWord {
   // Use gloss if available, otherwise use cleaned original as gloss if it looks like English.
   //
   // The gloss is no longer *rendered*: the English tokens shown come from the
-  // verse text itself (see interlinearCells.ts), which is what makes them
+  // verse text itself (see InterlinearCells.ts (@bible/core)), which is what makes them
   // addressable by word index. The gloss is only used to decide which English
   // indices a row claims, so any residual OSIS markup in it is harmless here -
   // it never reaches the DOM.
@@ -410,7 +443,7 @@ function cleanInterlinearWord(word: InterlinearWord): InterlinearWord {
  *
  * Every English word is emitted as its own
  * `<span class="word" data-word-index=N>`, in the same 0-based index space
- * highlights, underlines and find-in-page use - see `interlinearCells.ts` for
+ * highlights, underlines and find-in-page use - see `InterlinearCells.ts (@bible/core)` for
  * why that is sound. Original-language, transliteration and Strong's lines
  * deliberately carry no `data-word-index`, so dragging across Greek text can
  * never be mapped onto English indices.
@@ -422,6 +455,9 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
   onStrongsClick,
   verseId,
   moduleId,
+  keywordTabId,
+  onWordMouseEnter,
+  onWordMouseLeave,
 }) => {
   // Clean up any XML/OSIS markup in the interlinear data
   const cleanedWords = useMemo(
@@ -447,6 +483,13 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
     [moduleHighlights, verseId]
   );
 
+  // Task 0036 (P0.1a): verse/passage-level decorations paint EVERY word of
+  // the verse, including here - the interlinear English row is the ONLY
+  // rendering of those words when interlinear is on, so it needs the same
+  // resolved paint `HighlightedVerse` gets, not a separate decoration-free
+  // path (acceptance criteria: "Study with interlinear on" must decorate).
+  const resolved = useResolvedVerseDecorations(verseId, moduleId, 'study', englishWords, keywordTabId);
+
   // Fail soft. A module whose interlinear positions contradict its own text
   // would otherwise render a verse with words missing or duplicated; showing
   // the plain highlighted verse is strictly better than showing garbage.
@@ -462,7 +505,15 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
       // Same emphasis as Study mode's ordinary verse text: this fallback is
       // the verse, not a degraded copy of it.
       <p className="study-verse-text">
-        <HighlightedVerse verseId={verseId} verseHTML={displayHtml} moduleId={moduleId} />
+        <HighlightedVerse
+          verseId={verseId}
+          verseHTML={displayHtml}
+          moduleId={moduleId}
+          keywordTabId={keywordTabId}
+          surface="study"
+          onWordMouseEnter={onWordMouseEnter}
+          onWordMouseLeave={onWordMouseLeave}
+        />
       </p>
     );
   }
@@ -474,6 +525,10 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
         verseId={verseId}
         highlights={highlights}
         onStrongsClick={onStrongsClick}
+        resolved={resolved}
+        keywordTabId={keywordTabId}
+        onWordMouseEnter={onWordMouseEnter}
+        onWordMouseLeave={onWordMouseLeave}
       />
     );
   }
@@ -483,7 +538,11 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
       cells={cells}
       verseId={verseId}
       highlights={highlights}
+      onWordMouseEnter={onWordMouseEnter}
+      onWordMouseLeave={onWordMouseLeave}
       onStrongsClick={onStrongsClick}
+      resolved={resolved}
+      keywordTabId={keywordTabId}
     />
   );
 };
@@ -500,17 +559,33 @@ const CellEnglish: React.FC<{
   cell: InterlinearCell;
   verseId: number;
   highlights: UserTextMarkup[];
-}> = ({ cell, verseId, highlights }) => (
+  resolved: ResolvedVerse | null;
+  onWordMouseEnter?: (
+    verseId: number,
+    wordIndex: number,
+    wordText: string,
+    hovers: ResolvedHover[] | undefined,
+    event: React.MouseEvent,
+  ) => void;
+  onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
+}> = ({ cell, verseId, highlights, resolved, onWordMouseEnter, onWordMouseLeave }) => (
   <>
     {cell.englishWords.map((word: WordInfo, offset: number) => {
       const wordIndex = cell.wordStart + offset;
       const isLastInCell = offset === cell.englishWords.length - 1;
-      const attrs = highlightAttrsForWord(verseId, wordIndex, highlights, {
-        isChristWords: word.isChristWords,
-        isDivineName: word.isDivineName,
-        hasTrailingSpace: word.hasTrailingSpace,
-        nextWordIndex: isLastInCell ? null : wordIndex + 1,
-      });
+      const attrs = wordRenderAttrs(
+        verseId,
+        wordIndex,
+        highlights,
+        {
+          isChristWords: word.isChristWords,
+          isDivineName: word.isDivineName,
+          hasTrailingSpace: word.hasTrailingSpace,
+          nextWordIndex: isLastInCell ? null : wordIndex + 1,
+          nextWordSourceKeys: isLastInCell ? undefined : resolved?.words.get(wordIndex + 1)?.sourceKeys,
+        },
+        resolved?.words.get(wordIndex),
+      );
 
       return (
         <React.Fragment key={wordIndex}>
@@ -519,6 +594,12 @@ const CellEnglish: React.FC<{
             data-word-index={wordIndex}
             data-markup-id={attrs.markupIds}
             style={attrs.style}
+            // Task 0036, P0.1c - each token is already its own span here (no
+            // event-delegation trick needed, unlike HighlightRenderer's
+            // HTML-string path), so plain onMouseEnter/Leave is correct and
+            // simplest.
+            onMouseEnter={onWordMouseEnter ? (e) => onWordMouseEnter(verseId, wordIndex, word.text, resolved?.words.get(wordIndex)?.hovers, e) : undefined}
+            onMouseLeave={onWordMouseLeave ? (e) => onWordMouseLeave(verseId, wordIndex, e) : undefined}
           >
             {word.displayText}
             {attrs.spaceInsideSpan ? ' ' : ''}
@@ -577,18 +658,29 @@ interface LayoutProps {
   verseId: number;
   highlights: UserTextMarkup[];
   onStrongsClick?: (strongsNumber: string) => void;
+  resolved: ResolvedVerse | null;
+  /** Bible tab whose keyword marks the Strong's tooltip's "Mark in this chapter" targets (task 0065). */
+  keywordTabId?: string;
+  onWordMouseEnter?: (
+    verseId: number,
+    wordIndex: number,
+    wordText: string,
+    hovers: ResolvedHover[] | undefined,
+    event: React.MouseEvent,
+  ) => void;
+  onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
 }
 
 /**
  * Stacked layout - one `inline-block` column per cell: English on top, then
  * original language, transliteration and Strong's numbers.
  */
-const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick }) => {
+const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, keywordTabId, onWordMouseEnter, onWordMouseLeave }) => {
   // Hover tooltip state. Show/hide timing (300ms show delay, 200ms hide
   // delay so the pointer can reach the tooltip) is shared with InlineLayout
   // via useHoverIntent rather than each layout keeping its own timeout refs.
   const [hoveredStrongs, setHoveredStrongs] = useState<HoveredStrongs | null>(null);
-  const { scheduleShow, scheduleHide, cancelHide } = useHoverIntent<HoveredStrongs>({
+  const { scheduleShow, scheduleHide, cancelHide } = useAmbientHoverIntent<HoveredStrongs>({
     onShow: setHoveredStrongs,
     onHide: () => setHoveredStrongs(null),
   });
@@ -634,7 +726,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
               className="text-center text-sm text-text-primary font-semibold mb-1 interlinear-english"
               data-testid="interlinear-gloss"
             >
-              <CellEnglish cell={cell} verseId={verseId} highlights={highlights} />
+              <CellEnglish cell={cell} verseId={verseId} highlights={highlights} resolved={resolved} onWordMouseEnter={onWordMouseEnter} onWordMouseLeave={onWordMouseLeave} />
             </div>
 
             {/* Original language word (middle) */}
@@ -681,6 +773,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
           position={hoveredStrongs.position}
           onClose={() => setHoveredStrongs(null)}
           onMouseEnter={cancelHide}
+          keywordTabId={keywordTabId}
         />
       )}
     </div>
@@ -691,10 +784,10 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
  * Inline layout - English text reads as prose, with each cell's original
  * language, transliteration and Strong's numbers in a small parenthetical.
  */
-const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick }) => {
+const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, keywordTabId, onWordMouseEnter, onWordMouseLeave }) => {
   // Hover tooltip state
   const [hoveredStrongs, setHoveredStrongs] = useState<HoveredStrongs | null>(null);
-  const { scheduleShow, scheduleHide, cancelHide } = useHoverIntent<HoveredStrongs>({
+  const { scheduleShow, scheduleHide, cancelHide } = useAmbientHoverIntent<HoveredStrongs>({
     onShow: setHoveredStrongs,
     onHide: () => setHoveredStrongs(null),
   });
@@ -731,7 +824,7 @@ const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStr
             <span className="whitespace-nowrap" data-testid="interlinear-word">
               {/* English words */}
               <span className="text-text-primary interlinear-english" data-testid="interlinear-gloss">
-                <CellEnglish cell={cell} verseId={verseId} highlights={highlights} />
+                <CellEnglish cell={cell} verseId={verseId} highlights={highlights} resolved={resolved} onWordMouseEnter={onWordMouseEnter} onWordMouseLeave={onWordMouseLeave} />
               </span>
 
               {/* Original language in parentheses - with hover for definition preview */}
@@ -777,6 +870,7 @@ const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStr
           position={hoveredStrongs.position}
           onClose={() => setHoveredStrongs(null)}
           onMouseEnter={cancelHide}
+          keywordTabId={keywordTabId}
         />
       )}
     </p>

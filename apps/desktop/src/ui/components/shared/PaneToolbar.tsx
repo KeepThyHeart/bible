@@ -16,6 +16,12 @@ import React from 'react';
  * Deliberately not a general design system: the props here are exactly what the
  * reading panes need, and anything more specific (a version selector, a display
  * mode switch) stays in the pane that owns it.
+ *
+ * The actual look lives in `styles/controls.css` (`.control-toolbar` /
+ * `.control-toolbar-button`), not in Tailwind classes here - that stylesheet is
+ * also served to extension panels at `ext-ui://host/controls.css`, so an
+ * extension's own toolbar can match this one pixel for pixel instead of
+ * drifting from it. See that file's header for the full rationale.
  */
 
 export interface PaneToolbarProps {
@@ -35,14 +41,13 @@ export const PaneToolbar: React.FC<PaneToolbarProps> = ({
   testId,
 }) => (
   <div
-    className="flex items-stretch justify-between border-b border-border flex-shrink-0 min-w-0 overflow-hidden"
-    style={{ background: 'var(--theme-bg-secondary)', padding: 0 }}
+    className="control-toolbar"
     role="toolbar"
     aria-label={ariaLabel}
     data-testid={testId}
   >
-    <div className="flex items-stretch min-w-0 overflow-hidden flex-shrink">{children}</div>
-    {trailing && <div className="flex items-stretch flex-shrink-0">{trailing}</div>}
+    <div className="control-toolbar__group">{children}</div>
+    {trailing && <div className="control-toolbar__group control-toolbar__group--trailing">{trailing}</div>}
   </div>
 );
 
@@ -83,19 +88,15 @@ export const PaneToolbarButton: React.FC<PaneToolbarButtonProps> = ({
   children,
   ...rest
 }) => {
-  const rule = `${strongDivider ? 2 : 1}px solid var(--theme-border-primary)`;
+  const dividerClass = divider === 'none' ? '' : ` control-toolbar-button--divider-${divider}`;
+  const strongClass = strongDivider && divider !== 'none' ? ' control-toolbar-button--divider-strong' : '';
   return (
     <button
       type="button"
       onClick={onClick}
       onMouseDown={onMouseDown}
       disabled={disabled}
-      className="flex items-center px-2.5 hover:bg-background-active disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      style={{
-        borderInlineEnd: divider === 'end' ? rule : undefined,
-        borderInlineStart: divider === 'start' ? rule : undefined,
-        borderRadius: 0,
-      }}
+      className={`control-toolbar-button${dividerClass}${strongClass}`}
       title={label}
       aria-label={label}
       data-testid={testId}

@@ -53,11 +53,81 @@
     "focusSearch": "Enfocar la barra de búsqueda",
     "focusSearchAlt": "Enfocar la barra de búsqueda (cuando no se está escribiendo)",
     "copyDialog": "Abrir el cuadro de diálogo de copiar (cuando no hay texto seleccionado)",
-    "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta"
+    "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta",
+    "audioToggle": "Reproducir o pausar la Biblia en audio",
+    "audioVerse": "Versículo anterior / siguiente al escuchar",
+    "audioChapter": "Capítulo anterior / siguiente al escuchar",
+    "audioFocus": "Ir al reproductor de audio"
   },
   "settings": {
     "title": "Configuración",
     "descMobile": "Toque el icono del engranaje para personalizar el tema, la fuente y la configuración sin conexión.",
     "descDesktop": "Haga clic en el icono del engranaje para personalizar el tema, la familia tipográfica, el tamaño de fuente, el interlineado y la configuración del modo sin conexión."
+  },
+  "present": {
+    "title": "Ayuda del Presentador",
+    "close": "Cerrar",
+    "joining": {
+      "title": "Conexión",
+      "share": "Después de iniciar la emisión, comparta el código de conexión, el enlace o el QR para que un televisor o un teléfono pueda seguir la presentación.",
+      "handoff": "<strong>Pasar el control a otro dispositivo</strong> cede el papel de presentador a un teléfono. Es una puerta de sentido único hasta que termine la sesión, así que hágalo solo con personas de confianza.",
+      "lock": "<strong>Bloquear conexiones</strong> impide que se unan nuevas pantallas sin afectar a las que ya están mirando."
+    },
+    "tab": {
+      "notes": "Notas",
+      "control": "Control",
+      "preview": "Vista previa",
+      "command": "Cuadro de comandos",
+      "simple": "Visor sencillo",
+      "joining": "Conexión",
+      "study": "Desde Estudio"
+    },
+    "notes": {
+      "title": "Notas",
+      "references": "Escriba referencias bíblicas en cualquier parte de sus notas (<strong>Juan 3:16</strong>, <strong>Rom 8:28-30</strong>): cada una se convierte en un elemento del plan.",
+      "hymns": "Escriba un himno como <strong>himno 460</strong> o <strong>himno Sublime gracia</strong>, opcionalmente con estrofas (<strong>himno 460 1,3,R</strong>).",
+      "quotes": "Ponga una cita en un bloque de cita. Se muestra como un elemento propio, separado de su texto.",
+      "highlight": "Ponga en <strong>negrita</strong> un texto bajo un versículo para marcar palabras que resaltar. Una frase en negrita que coincida recibe un sutil subrayado amarillo; no aparece en la pantalla hasta que usted la muestre.",
+      "play": "El <strong>&#9654;</strong> verde del margen izquierdo marca lo que está en pantalla y sigue su último clic. Haga clic en un elemento del plan para mostrarlo.",
+      "ctrlEnter": "<strong>Ctrl+Intro</strong> con el cursor en una referencia, un himno o una cita la muestra.",
+      "amber": "Un elemento ámbar requiere una decisión (un himno desconocido, una referencia ambigua). Pase el cursor por encima para ver el motivo; haga clic para elegir."
+    },
+    "control": {
+      "title": "Control",
+      "transport": "Los tres botones son <strong>anterior</strong>, <strong>mostrar / ocultar</strong> (el ojo oculta la pantalla sin perder el lugar) y <strong>siguiente</strong>. Las teclas de flecha, Re Pág/Av Pág y un control remoto hacen lo mismo; <strong>.</strong> o <strong>B</strong> oculta la pantalla.",
+      "pickers": "<strong>Versículo</strong>, <strong>Himno</strong> y <strong>Cita</strong> abren un selector: <em>Mostrar ahora</em> lo pone en pantalla y <em>Añadir a las notas</em> lo escribe en sus notas.",
+      "chips": "Cuando el versículo en pantalla tiene resaltados de sus notas, aparecen como etiquetas. <strong>Haga clic en una etiqueta</strong>, o pulse <strong>H</strong>, para mostrar la siguiente; <strong>X</strong> las borra.",
+      "keys": "<strong>N</strong> / <strong>Mayús+N</strong> muestra el elemento siguiente / anterior del plan. <strong>?</strong> abre esta ayuda; <strong>/</strong> o <strong>Ctrl+K</strong> salta al cuadro de comandos. Ninguna de estas teclas actúa mientras escribe en sus notas o en un campo.",
+      "prepare": "Puede prepararse antes de iniciar la emisión: la vista previa funciona con una copia sin conexión. <strong>Iniciar emisión</strong> comienza la sesión real exactamente desde donde está."
+    },
+    "preview": {
+      "title": "Vista previa",
+      "what": "La vista previa es la pantalla real, a escala reducida. Lo que usted ve es lo que ve la sala.",
+      "dblclick": "<strong>Haga doble clic</strong> en una palabra (o arrastre sobre varias) para resaltarla; haga clic en un resaltado para quitarlo.",
+      "clickVerse": "Haga clic en un versículo vecino para llevar la pantalla hasta él.",
+      "presenterOnly": "Estos gestos solo funcionan en la vista previa del Presentador, nunca en las pantallas de la sala."
+    },
+    "command": {
+      "title": "Cuadro de comandos",
+      "verse": "<strong>18</strong>, <strong>v18</strong> o <strong>18-20</strong> va a un versículo del capítulo actual.",
+      "passage": "<strong>juan 3:16</strong>, <strong>sal 23 rvr</strong>, <strong>rom 8</strong>: un libro, capítulo y versículo, con una traducción opcional.",
+      "hymn": "<strong>himno 460</strong>, <strong>himno sublime gracia</strong>, <strong>himno 460 1-3</strong>.",
+      "blank": "<strong>blank</strong> oculta la pantalla; <strong>.</strong> o <strong>clear</strong> borra los resaltados; <strong>?</strong> abre la ayuda.",
+      "search": "Cualquier otra cosa es una búsqueda. Los resultados aparecen en el panel Control; añada uno a sus notas o muéstrelo.",
+      "open": "Pulse <strong>/</strong> o <strong>Ctrl+K</strong> para activarlo. Arriba y Abajo recuperan comandos anteriores."
+    },
+    "simple": {
+      "title": "Visor sencillo",
+      "what": "Una pantalla que usted maneja por sí mismo, sin sesión, código de conexión ni notas: ábrala en un proyector o en una segunda ventana.",
+      "open": "Ábralo desde el menú Control (<strong>Abrir el visor sencillo</strong>) o en <strong>/present/solo</strong>.",
+      "prompt": "Pulse <strong>/</strong>, o haga clic en la pequeña <strong>/</strong> de abajo, para ir a un versículo. Las teclas de flecha y <strong>.</strong> funcionan igual que en el Presentador.",
+      "noSearch": "La búsqueda no está disponible en el visor sencillo."
+    },
+    "study": {
+      "title": "Presentar desde Estudio",
+      "send": "En el panel de la Biblia, el botón redondo a la izquierda de cada versículo lo <strong>envía</strong> a la pantalla. Una marca verde (y una fila verde) señala el versículo que está ahora en pantalla. <strong>Alt+Intro</strong> envía el versículo seleccionado.",
+      "highlight": "Para resaltar una frase, <strong>mantenga pulsada</strong> una palabra durante medio segundo y luego <strong>toque la última palabra</strong> de la frase. <strong>Enviar resaltado</strong> lo pone en pantalla; <strong>Borrar</strong> o <strong>Esc</strong> lo quita.",
+      "companion": "La franja inferior muestra lo que está en pantalla, con botones de anterior, siguiente y ocultar. <strong>Abrir el Presentador</strong> lo lleva al Presentador completo (notas, plan y vista previa); el Presentador sigue funcionando cuando vuelve."
+    }
   }
 }

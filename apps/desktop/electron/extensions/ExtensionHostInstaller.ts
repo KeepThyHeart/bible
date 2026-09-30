@@ -197,6 +197,13 @@ export async function installExtension(
     message: `Installed ${manifest.id}@${manifest.version} (signature: ${sigResult.status})`,
   });
 
+  // Pre-register this extension's declared commands/panel types (task 0024
+  // round 3, P1.5). A no-op for a fresh install (`enabled` is false until the
+  // user turns it on - `syncDeclared` checks that), but matters for an
+  // in-place upgrade of an already-enabled extension: its declared
+  // contributions must refresh immediately to match the new manifest.
+  ctx.onDeclaredResync?.(manifest.id);
+
   if (opts.activateNow) {
     // Not wired yet. Surface the limitation rather than silently no-op.
     log.warn('[ExtensionHost] activateNow requested, but worker runtime is not implemented yet.');
@@ -313,6 +320,9 @@ export async function uninstallExtension(
       level: 'info',
       message: `Unloaded unpacked ${extensionId} (files at ${entry.installPath} left in place)`,
     });
+    // The row is gone, so `syncDeclared` (task 0024 round 3, P1.5) will find
+    // nothing and drop every placeholder for it.
+    ctx.onDeclaredResync?.(extensionId);
     return;
   }
 
@@ -323,6 +333,7 @@ export async function uninstallExtension(
     level: 'info',
     message: `Uninstalled ${extensionId}`,
   });
+  ctx.onDeclaredResync?.(extensionId);
 }
 
 export async function enableExtension(
@@ -332,6 +343,11 @@ export async function enableExtension(
   if (!ctx.registry.has(extensionId)) return;
   ctx.registry.setEnabled(extensionId, true);
   ctx.logger.appendLog(extensionId, { ts: Date.now(), level: 'info', message: 'Enabled' });
+  // Re-place this extension's declared placeholders now that it is enabled
+  // (task 0024 round 3, P1.5) - `deactivate`'s own resync only fires when a
+  // worker was torn down, which never happened for an extension that was
+  // disabled (and therefore never activated) in the first place.
+  ctx.onDeclaredResync?.(extensionId);
 }
 
 export async function disableExtension(
@@ -348,6 +364,13 @@ export async function disableExtension(
   }
   ctx.registry.setEnabled(extensionId, false);
   ctx.logger.appendLog(extensionId, { ts: Date.now(), level: 'info', message: 'Disabled' });
+  // `deactivate` above (if it ran) already called `onDeclaredResync`, but at
+  // that point `enabled` was still true, so it would have wrongly restored
+  // the placeholders it should be dropping. This second call, after
+  // `setEnabled(false)`, is the one that actually drops them - the first is
+  // a harmless, briefly-redundant register/dispose pair a caller never
+  // observes (task 0024 round 3, P1.5).
+  ctx.onDeclaredResync?.(extensionId);
 }
 
 export async function resetCrashState(

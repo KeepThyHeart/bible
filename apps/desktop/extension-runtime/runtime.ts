@@ -99,23 +99,32 @@ export class ExtensionRuntime implements IExtensionRuntime {
       channel: opts.channel,
       ...(opts.boundaryProcess !== undefined ? { process: opts.boundaryProcess } : {}),
     });
-    this.emitter = new ExtensionEventEmitter(opts.channel, (channelName, err) => {
-      this.errorBoundary.report(`event-handler:${channelName}`, err);
-    });
-    // The proxy needs to bind author callbacks into the same table
-    // `handleReverseRequest` dispatches from, so `api.runtime.expose(...)` and
-    // `api.panels.onMessage(...)` land where the host's reverse requests are
-    // looked up. Without this the table stays empty and every reverse request
-    // - every command handler, hover provider and panel message - comes back
+    // Shared reverse-RPC endpoint table. `api.runtime.expose(...)` and
+    // `api.panels.onMessage(...)` bind author callbacks into it so
+    // `handleReverseRequest` can look them up; the event emitter binds into
+    // the same table (under the reserved `hook:` prefix) so a `filter`/
+    // `provider` channel's local handler(s) can answer the host's reverse
+    // request for that channel. Without this the table stays empty and
+    // every reverse request - every command handler, hover provider, panel
+    // message, or filter/provider hook - comes back
     // `Unknown reverse RPC method`.
+    const endpoints = {
+      register: (endpoint: string, handler: ReverseRpcHandler) =>
+        this.registerReverseHandler(endpoint, handler),
+      unregister: (endpoint: string) => this.unregisterReverseHandler(endpoint),
+      list: () => [...this.reverseHandlers.keys()],
+    };
+    this.emitter = new ExtensionEventEmitter(
+      opts.channel,
+      (channelName, err) => {
+        this.errorBoundary.report(`event-handler:${channelName}`, err);
+      },
+      endpoints,
+    );
     this.proxy = createApiProxy({
       channel: opts.channel,
       emitter: this.emitter,
-      endpoints: {
-        register: (endpoint, handler) => this.registerReverseHandler(endpoint, handler),
-        unregister: (endpoint) => this.unregisterReverseHandler(endpoint),
-        list: () => [...this.reverseHandlers.keys()],
-      },
+      endpoints,
     });
     this.moduleLoader = opts.moduleLoader;
     this.activateTimeoutMs = opts.activateTimeoutMs ?? DEFAULT_ACTIVATE_TIMEOUT_MS;

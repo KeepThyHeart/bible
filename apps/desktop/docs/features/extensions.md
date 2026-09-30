@@ -1,6 +1,6 @@
 # Extensions
 
-**Last verified:** 2026-09-09
+**Last verified:** 2026-09-23
 
 Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `utilityProcess`. It never touches the renderer, never gets a Node.js global, and reaches the app only through an RPC surface the host defines. This doc is the file map for finding your way around that surface.
 
@@ -10,7 +10,8 @@ Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `util
 |---|---|
 | `electron/extensions/ExtensionHost.ts` | Public entry point; composes the subsystems below |
 | `electron/extensions/ExtensionHostTypes.ts` | `ExtensionHostContext` - the internal object passed to every subsystem |
-| `electron/extensions/ExtensionHostLifecycle.ts` | Activate / deactivate / crash handling. **Blocklist enforcement lives here**, before the worker spawns |
+| `electron/extensions/ExtensionHostLifecycle.ts` | Activate / deactivate / crash handling. **Blocklist enforcement lives here**, before the worker spawns. `activate()` coalesces concurrent calls for the same extension (task 0024 round 3, P1.5) |
+| `electron/extensions/DeclaredContributions.ts` | Reads `contributes.commands`/`contributes.panelTypes` and pre-registers placeholders before the owning worker exists (P1.5) - see "Lazy activation" below |
 | `electron/extensions/ExtensionHostDiscovery.ts` | Scans the extensions root and lists installed extensions |
 | `electron/extensions/ExtensionHostInstaller.ts`, `ExtensionInstaller.ts` | Install from folder or `.zip`, including zip-slip refusal |
 | `electron/extensions/ExtensionRegistry.ts` | SQLite-backed record of what is installed, enabled, granted, and where it came from |
@@ -24,7 +25,7 @@ Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `util
 | `electron/extensions/ExtensionDevConfig.ts`, `ExtensionDevWatcher.ts`, `ExtensionHostDevMode.ts` | Developer Mode: the opt-in config, the reload-on-change watcher, and the host wiring. Off until the user turns it on |
 | `electron/extensions/extUiProtocol.ts` | The `ext-ui://` scheme handler that serves an extension's panel assets to the iframe |
 | `electron/ipc/extensionHandlers.ts` | The renderer-facing `extensions:*` channels (everything that is not marketplace) |
-| `electron/main.ts` | The **only production composition site** - `initializeExtensionHostInBackground()` builds the `ExtensionHost` with the real worker factory, gateways, bridges and keychain, then registers the IPC surfaces and fires `onStartup` / `*` |
+| `electron/main.ts` | The **only production composition site** - `initializeExtensionHostInBackground()` builds the `ExtensionHost` with the real worker factory, gateways, bridges and keychain, wires `DeclaredContributions`, then registers the IPC surfaces and fires `onStartupFinished` |
 
 ## Host - sandbox and RPC
 
@@ -55,7 +56,7 @@ Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `util
 
 **`api.ai` is a reserved stub.** `ai.isAvailable` is registered directly on the router and always resolves `false`; there is no api-impl behind it. It exists so an extension that politely checks for AI support gets the documented `false` instead of `Unknown RPC method`.
 
-**`ui.registerDisplayMode` is reserved and rejects.** Custom verse display modes are declared in `IUiApi` and were never implemented: nothing renders a registered mode, and the Bible pane's Display Mode picker is the fixed Simple/Standard/Study set. Until this was decided, a call resolved with a valid `DisposableHandle` and then did nothing - no error, no warning, no rendering, and no way for an author to tell that from a bug in their own code. `UiApiImpl.handleRegisterDisplayMode` now rejects every call with the code `MethodNotImplementedYet`, unconditionally: before the permission check and before descriptor validation, because neither can change the answer and answering `PermissionDeniedError` would send an author off granting something that changes nothing. `RendererUiBridge` no longer notifies the renderer for it either - those notifications had no listener, and an IPC channel with no receiver reads as a wired-up feature. The signature stays in `IUiApi` so implementing display modes later is not a breaking change.
+**`ui.registerDisplayMode` no longer exists.** Custom verse display modes were declared in `IUiApi` but never implemented: nothing rendered a registered mode, and the Bible pane's Display Mode picker is the fixed Simple/Standard/Study set. It briefly existed as a reserved method that rejected every call with `MethodNotImplementedYet`; task 0024 round 3 (P2.13) removed the whole tentacle outright - the manifest field, the runtime method, the bridge plumbing and the `display-mode:provide` permission - on the same "delete dead code" precedent that had already removed `search:provide` / `import:provide` / `tts:provide` / `ai:provide`. A real declarative-and-imperative registration path can be added from scratch if custom display modes are ever built.
 
 ## Trust and provenance
 
@@ -90,9 +91,9 @@ There is deliberately no `blocklist:refresh` channel and no timer: block rules a
 | `src/ui/components/extensions/ExtensionCatalogSources.tsx` | Catalogs tab - add/confirm/refresh/remove sources, plus the read-only block-rule list |
 | `src/ui/components/extensions/marketplaceTypes.ts` | Renderer mirrors of the wire shapes (the preload types these channels as `any`) |
 | `src/ui/components/extensions/ExtensionConsentDialog.tsx` | The permission prompt, shown for sideloads and catalog installs alike |
-| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe |
+| `src/ui/components/extensions/ExtensionUiHost.tsx`, `ExtensionPanelHost.tsx` | Hosts extension-contributed panels in a locked-down iframe. `ExtensionPanelHost.tsx` is a thin wrapper (IPC lookup, `computeSandboxAttr`, loading/error copy) over the shared `ExtensionPanelHost` in `@bible/ui`, which owns the iframe and the one `IframeRpcBridge` per panel |
 | `src/ui/components/extensions/ExtensionSettingsRenderer.tsx`, `extensionSettingsSchema.ts` | Renders `contributes.configuration` |
-| `src/ui/components/extensions/useIframeBridge.ts` | The postMessage channel between the panel iframe and the renderer host. Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
+| `src/ui/components/extensions/useIframeBridge.ts` | The desktop half of the postMessage channel between the panel iframe and the renderer host: `useDesktopBridgeParts` supplies the handler map, the context and the `onBridge` pushes to the shared panel host (`useIframeBridge` is the same with the bridge created in the hook). Also carries `panel.invoke` (panel -> worker) and delivers worker pushes back as a `panel.message` event |
 | `src/ui/components/StatusBar.tsx` | The app status bar, filled entirely by `ui.registerStatusBarItem` contributions. Renders `null` when there are none - see [Status Bar](status-bar.md) |
 | `src/ui/components/VerseContextMenu.tsx` | Renders `ui.registerContextMenu('verse', ...)` contributions beneath the built-in items, behind a separator |
 | `src/ui/menu/buildMenuSpec.ts` | `buildExtensionToolsSubmenu` - the Tools menu, built from commands carrying an `ownerExtensionId`. Omitted entirely when empty, so a fresh install has no Tools menu |
@@ -142,6 +143,154 @@ Both size caps exist because the worker is a QuickJS-in-WASM realm with a bounde
 - **Status bar** (`src/ui/components/StatusBar.tsx`), which did not exist as a component at all. Full detail in [Status Bar](status-bar.md).
 - **Tools menu** (`src/ui/menu/buildMenuSpec.ts`, `buildExtensionToolsSubmenu`). The only place in the application menu an extension can reach. Commands carrying an `ownerExtensionId` and not marked `hidden`, grouped by owning extension in id order, then by the command's `order`, then by resolved label. Omitted entirely when empty, so a fresh install has no Tools menu at all. Labels come from the extension's own already-localized command title, not from the `menu.*` catalog - the app cannot know a phrase for something it did not ship.
 
+## Permission enforcement that was declared but not checked
+
+Two confused-deputy holes: any installed extension, with zero granted permissions, could register a command (`commands:register` was in `DEFAULT_GRANTED_PERMISSIONS` but never actually checked) and could execute *any* built-in command through `commands.execute` - including ones that write notes, open Preferences, or change the layout - because `commandsApiImpl.ts` had no permission gate on it at all and simply forwarded to the same `ICommandRegistry` the menu uses.
+
+- `commandsApiImpl.ts` now checks `commands:register` on `commands.register`.
+- `commands.execute` now always permits an extension's own commands (anything under its `ext.<id>.` prefix - structurally guaranteed, since `CommandRegistry.register` refuses anything outside that prefix) and gates everything else behind a new permission, `commands:execute-builtin`, **and** a reviewed, hand-maintained allowlist (`BUILTIN_COMMAND_ALLOWLIST` in `commandsApiImpl.ts`) of which built-ins are safe to expose - adding a new built-in command never silently widens what an already-permissioned extension can reach. Another extension's command (also `ext.`-prefixed, but under a different id) is never reachable this way; that is what `api.extensions.call` is for.
+- The four permissions with no API behind them at all - `search:provide`, `import:provide`, `tts:provide`, `ai:provide` - were removed outright (schema, validator, consent dialog): don't ask the user to grant a capability the host cannot deliver. `display-mode:provide` was kept at the time because `ui.registerDisplayMode` existed and rejected loudly rather than doing nothing - but task 0024 round 3 (P2.13) later removed `ui.registerDisplayMode` itself as dead code, and `display-mode:provide` went with it, on the same rule.
+- Found along the way: `bible:provide` was in the manifest JSON schema's permission enum but missing from `ExtensionManifestValidator`'s `ALLOWED_PERMISSIONS`, so a manifest declaring it - to use the real, already-implemented `bible:provide` gate in `bibleApiImpl.ts` - was unconditionally rejected at install time. Fixed as part of the same pass. Task 0024 round 3 later found and fixed the same class of bug twice more: `contributes.bibleProviders` (in the schema, missing from the validator's `contributes` allow-list) and `ui:media` (in the schema and in `Permissions.ts`'s type union, missing from `ALLOWED_PERMISSIONS`) - see `ExtensionManifestValidator.ts` and its new schema/validator parity test.
+
+## Workspace: panel presence (`api.workspace`)
+
+`getOpenPanels()`/`getActivePanel()` could see a panel, but an extension that owned a tab had no way to say anything about it beyond the status bar - no "5 due" on its own tab, no way to bring it forward from elsewhere in the UI.
+
+| Method | Gate | Notes |
+|---|---|---|
+| `workspace.setPanelTitle(panelId, title)` | Restricted to panels whose `contentType` is the caller's own (`ext:<extensionId>.*`) | Renaming a built-in or another extension's tab would be a spoofing vector; `workspaceApiImpl.assertOwnsPanel` checks via the same synchronous `getOpenPanels()` cache read the unrestricted methods already use. Renderer side calls dockview's `panel.api.setTitle()` (`extensionRendererBridge.ts`'s `setPanelTitle` op) |
+| `workspace.setPanelBadge(panelId, badge)` | Same ownership check | Writes into `extensionUiStore.panelBadges`; `DockviewTabRenderer.tsx` renders a small badge pill next to the tab title for `ext:`-content-type tabs |
+| `workspace.revealPanel(panelId)` | Unrestricted, like `openPanel`/`closePanel` | Focuses an already-open tab without touching its content - calls the same `panel.api.setActive()` `navigateToVerseInPrimary` and the `revealNotesPanel`/`revealDictionaryPanel` helpers already use. Resolves `false` if the panel is no longer open |
+
+`api.bible.navigateToVerse` already activates the Bible pane's tab (`sharedSlice.ts`'s `navigateToVerseInPrimary` calls `dockPanel.api.setActive()`) as of a change already on this branch before task 0024 - no host change was needed for that half of the "Show in Bible" case task 0032 asked for; `BibleApiImpl`'s `navigateToVerse` test closes the extension-API-facing half of the coverage.
+
+## Settings, both directions (`storage.setSetting` / `ui.openSettings`)
+
+Settings used to be read-only to the extension - the user could edit them through the form, `getSetting` could read them back, and that was the whole surface. Two gaps followed from that: an extension could not write its own setting (e.g. persist a token it obtained through an OAuth flow), and it had no way to send the user to its own settings page - only the ungated `commands.execute('app.openPreferences')`, which lands on the General section, not the extension's own.
+
+| Method | Gate | Notes |
+|---|---|---|
+| `storage.setSetting(key, value)` | None beyond the schema check below - same reasoning as `getSetting`: a setting the extension declared in its own manifest is already its own | Rejects (`RpcProtocolError`) unless `key` names a property in the extension's own `contributes.configuration` and `value` type-checks against that property's declared type (and, for `enum`, is one of the declared values; for `number`/`integer`, within `minimum`/`maximum`). Implemented in `storageApiImpl.ts`, reusing `extensionSettingsSchema.ts`'s `extractFields`/`findField`/`validateSettingValue` - the same pure functions the settings form renders from, so the form and this call can never disagree about what is valid. Writes one `__settings.<key>` row (upsert, not the wholesale replace the form's `setSettings` does) and fires `settings.changed` to the extension's own worker, exactly as a user edit does |
+| `ui.openSettings(section?)` | None | Opens the host's Extensions preferences page, expanded to the caller's own settings form. `section` optionally names one of the extension's own configuration keys (dot-path, e.g. `'advanced.endpoint'`) to scroll to. Routes through `RendererUiBridge.openSettings` (a fire-and-forget push, like `postPanelMessage`) to a `window` `CustomEvent` (`open-preferences-extension-settings`) that `App.tsx` listens for - the same shape as the pre-existing `open-preferences-fonts` event |
+
+The settings **form** itself changed underneath both of these: `ExtensionsSection.tsx`'s hand-rolled inline form (which degraded `integer` to a text input saved as a string, flattened `array`/`object` to `String(value)`, and ignored `required`/`title`/nested groups entirely) is now `ExtensionSettingsRenderer.tsx` + `extensionSettingsSchema.ts` - both already existed, fully built, and were imported nowhere in production before this. `ExtensionsSection` also takes an `initialExpand` prop so `ui.openSettings` can pre-expand the right extension's row (and, via `ExtensionSettingsRenderer`'s `scrollToKey`, scroll to the named field) instead of just switching to the Extensions tab and leaving the user to find it.
+
+Not fixed here: a `{ $ref: string }` `contributes.configuration` (a schema file reference rather than an inline object) still renders no fields and so accepts no `setSetting` key - `extractFields` does not resolve `$ref`, matching the form's pre-existing limitation. No manifest in this repository uses it.
+
+## Lazy activation (task 0024 round 3, P1.5)
+
+Every installed, enabled extension used to activate (spawn its worker) unconditionally at boot. `DeclaredContributions.ts` reads `contributes.commands`/`contributes.panelTypes` at load time and pre-registers a *placeholder* for each - an ordinary command/panel type as far as the palette, the Tools menu, the keyboard and the new-tab page are concerned - so the extension itself starts only on first real use.
+
+**Activation events the host actually fires**, as of this round (`ActivationEvents.ts`'s `FIRED_ACTIVATION_EVENTS`):
+
+| Event | Fires | Notes |
+|---|---|---|
+| `onStartupFinished` | Once, after the window is shown (`main.ts`'s boot sequence) | The one bare "activate at boot" event. Replaces the inert pre-round-3 `'onStartup'`, which is now rejected outright - there is no compatibility alias (`EXTENSION_API_VERSION` is `0.1.0`, pre-release; one first-party extension exists and was updated in the same round) |
+| `onCommand:<fully-qualified command id>` | When a declared command's placeholder is invoked (palette, Tools menu, or its `shortcut`'s accelerator) and the extension is not already active | `RendererCommandBridge.invokeDeclared` |
+| `onView:<short panel type id>` | When a declared panel type's content is about to mount and the extension is not already active | `extensionHandlers.ts`'s `extensions:getPanelTypeUiEntry` - every way a panel opens (palette, new-tab page, restored layout, pop-out) passes through this one handler |
+
+The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`, etc.) remain in the accepted vocabulary - declaring one is not an error - but the host has no firing site for them yet; `DeclaredContributions.warnOnUnfiredEvents()` logs a one-time note per extension to that effect. `'*'` (built-ins only) is now enforced by the validator and rejected unconditionally - there is no built-in-extension concept in this codebase, so nothing may legally declare it.
+
+**The state machine**, per declared command id: `placeholder` (worker not active, the declared invoker is registered) -> `superseded` (the worker activated and called `api.commands.register` for the same id itself - the placeholder is disposed and the real registration takes over) -> back to `placeholder` if the real registration is later disposed (the worker deactivates, crashes, or disposes it itself) - the command comes back, it does not vanish. A declared command with a `handlerEndpoint` but no imperative registration is called directly via reverse RPC (`ExtensionHost.callWorkerEndpoint`, mirroring `commandsApiImpl.ts`'s own dispatch) once activation succeeds - `IRuntimeApi.expose`'s own doc comment already specified this: "the host may call before any imperative registration has run". A declared command with neither rejects as unresolved (logged once, not on every invocation) but the placeholder is left in place, so it starts working the moment the manifest or `activate()` is fixed. Panel types have no such states - `RendererUiBridge.registerPanelType` already replaces by key, so a declared pre-registration and a later imperative one are simply one row, written twice.
+
+**A subtlety worth knowing if you touch this code:** `contributes.panelTypes[].id` is validated and stored in its LONG form (`ext.<publisher.name>.<id>`), like every other contribution id - but the renderer addresses a panel type by its SHORT id (`RendererUiBridge.registerPanelType`'s `${extensionId}.${def.id}` key, `extensionUiStore.ts`'s `contentType: ext:${extensionId}.${def.id}`). `RendererUiBridge.registerDeclaredPanelType` strips the prefix back off before registering; forgetting this produces a ghost panel type under a doubled prefix (`ext:ext.pub.name.ext.pub.name.panel`) that never collides with the real one and just silently never opens.
+
+**`commands[].shortcut`** (deferred from P2.13, settled here): rides the existing native-menu-accelerator path, not `KeybindingService`. A declared command's `shortcut` is copied onto the placeholder's registration exactly as the imperative `api.commands.register({ shortcut })` path already does; `buildExtensionToolsSubmenu` (`buildMenuSpec.ts`) builds a Tools-menu entry with that accelerator for every visible extension command, dispatching by command id - so a shortcut on a not-yet-active extension's command activates it, exactly like a palette invocation. `KeybindingService`'s dedicated `'extension'` source is deliberately not fed yet: its `keydown` listener would double-fire alongside the OS accelerator, and its `user > extension > builtin` priority table has no built-ins registered in it today, so an `'extension'` entry would win every conflict by default rather than lose to one. A `shortcut` on a `hidden: true` command is rejected at validation time - `buildExtensionToolsSubmenu` skips hidden commands, so the accelerator would be silently unreachable.
+
+**Concurrency:** `ExtensionHostLifecycle.activate` coalesces concurrent calls for the same extension id - a fixed bug, not new-for-this-feature: before this, two callers invoking `activate()` for the same extension in close succession (e.g. a shortcut fired twice while a worker was still spawning) could each spawn their own worker, since the only prior guard (`activeWorkers.has(id)`) does not become true until well after the worker process exists.
+
+## Notifications that resolve with an action
+
+`ui.showNotification`'s `opts.actions` was validated and sent to the renderer, and nothing rendered it - a toast was a message and a dismiss button, and the promise resolved the instant the toast was queued rather than when the user did anything. It now resolves with the clicked action's `id`, or `undefined` if dismissed, replaced, or auto-dismissed - the same "wait for the user" shape `showConfirm`/`showQuickPick`/`showInputBox` already have. `extensionUiStore.ts` tracks one resolver per notification (settled exactly once, by whichever of action-click / manual dismiss / timeout happens first); `ExtensionUiHost.tsx` renders `opts.actions` as buttons.
+
+## Task progress in the status bar
+
+`api.tasks.run` has always documented "the host shows a progress entry in the status bar"; `electron/main.ts` never supplied `taskStatusBridge` to `ExtensionHost`, so nothing did. `RendererTaskStatusBridge.ts` closes that by piggy-backing on the same status bar surface described in [Status Bar](status-bar.md#background-tasks) rather than a second one. `taskNotifier` (for `notifyOnComplete`) is wired the same pass, as a one-line adapter onto `uiBridge.showNotification`.
+
+## Extension data in backups
+
+An extension says which of its data is the user's with an optional `userData` block in
+`extension.json`: `backup` (its key-value store; included unless `false`) and `databases`
+(a map from the name given to `openDatabase()` to `{ "backup": true }`; a database is
+included only when declared, because databases are often caches). Secrets are never
+included, and no extension code runs during a backup or restore. The declarations are
+read from the running host by `electron/services/backup/nodeAdapters.ts`; the file
+format and the restore rules are in `packages/core/docs/features/backup-format.md`, and
+the desktop side is in [Backup & Restore](backup-restore.md).
+
+## Panel iframe SDK: verse events and popups
+
+`packages/extension-ui/src/BibleExtUI.ts` declared `onActiveVerseChanged` and `showVersePopup`/`hideVersePopup` from the start; none of the three worked.
+
+- **`onActiveVerseChanged`**: `useIframeBridge.ts` forwarded only `theme.changed` to panel iframes. It now also forwards `verse.activeChanged`, sourced from a new renderer-local pub/sub (`src/ui/extensions/activeVerseBroadcast.ts`) that `verseSlice.ts` publishes to from the same two call sites it already uses to IPC an active-verse change to workers (the same channel a worker extension gets via `api.events.subscribe('verse.activeChanged', ...)` - named `bible.onDidChangeActiveVerse` at the time this fix shipped, before task 0024 round 3's event-system unification) - so a panel iframe sees exactly the same active-verse changes a worker extension does, not a second, possibly-diverging notion of "active". The SDK's payload shape was also wrong: the channel's declared shape is `{ verseId, module } | null` (`ExtensionPointTypes.ts`; corrected from an earlier, never-implemented `{ verseId, source }` in the same round-3 pass), but `onActiveVerseChanged` expected a bare number. Fixed as a clean break (no SDK release has shipped) rather than a compat shim.
+- **`showVersePopup(verseId, rect)` / `hideVersePopup()`**: `useIframeBridge.ts` accepted both and discarded them ("Future: wire to the host's verse popup overlay"). `showVersePopup` now translates `rect` (iframe-local) into host-page coordinates via the iframe element's own `getBoundingClientRect()` and shows a real popup - reusing `VersePreviewTooltip`, the same component the host's built-in cross-reference and note hovers use, rather than a bespoke extension-only one. Neither call is permission-gated beyond the panel already needing `ui:contribute-pane` to exist, matching `bible.navigateToVerse`'s existing trust model in the same bridge.
+
+## Panel styling
+
+A panel renders in a sandboxed iframe on its own `ext-ui://<extensionId>` origin, which shares nothing with the app's renderer by default - no stylesheet, no `<html data-theme>` attribute, no CSS custom properties. Read-only stylesheets are served at the reserved `ext-ui://host` origin (already permitted by the panel CSP's `style-src`) so a panel author does not have to reinvent the app's visual language from guesswork:
+
+- **`ext-ui://host/theme.css`** (`electron/extensions/hostThemeCss.ts`) - the app's ~143 `--theme-*` design tokens (`src/ui/styles/themes.css`), flattened to a single `:root` block for whichever theme the user has active *when the sheet is fetched*. Link it before your own stylesheet and use the custom properties instead of hard-coded colors. `theme.css?theme=<id>` serves a specific theme (see below).
+- **`ext-ui://host/kit/1/kth.css`** - the stable `--kth-*` tokens, a small base reset and the `.kth-*` classes, built on `theme.css`. Link it after `theme.css`.
+- **`ext-ui://host/controls.css`** (`electron/extensions/hostControlsCss.ts`) - ready-made classes for the host's own toolbar/button chrome (`.control-toolbar`, `.control-toolbar-button`, `.control-nav-button`).
+
+**Following theme changes.** A linked stylesheet is fetched once, so linking alone does **not** follow a theme switch made while the panel is open. Call `bible.useHostStyles()` (`@bible/extension-ui`, `packages/extension-ui/src/hostStyles.ts`) once at startup. It adopts (or adds) the `theme.css` and `kth.css` links, sets `<html data-theme>`, and on the host's `theme.changed` event inserts a new `<link href="ext-ui://host/theme.css?theme=<id>">` after the old one and removes the old one only when the new one has loaded (or errored, or 3 s have passed), so there is no unstyled flash. The id is validated (`/^[a-z0-9-]{1,40}$/`) before it goes into a URL, and rapid switches supersede each other. `useHostStyles({ kthCss: false })` skips `kth.css`. `create-bible-extension`'s scaffold links both sheets statically (no first-paint flash) and calls `useHostStyles()`.
+
+These are token/utility-class offers, not component takeovers: only `--`-prefixed custom properties and the named classes are exported, never the app's full component CSS or layout rules - a panel's own layout stays its own. Icons are not separately served; an extension bundles whatever icon assets its own `ui/` folder needs, same as any other panel asset.
+
+### UI kit manifest field (`uiKit`)
+
+`extension.json` may declare `"uiKit": { "version": "1", "components": ["kth-book-chapter-picker", ...] }` (requires `ui:contribute-pane`; unknown version or tag, or a duplicate, fails validation at install). It adds no permission. The only host surface it can reach is `uikit.*` bridge methods, and `IframeRpcBridge` (`@bible/core/browser`) answers one only when the panel's manifest lists a component whose `hostMethods` includes it and the extension holds that component's `requiresPermissions`; otherwise `PermissionDeniedError`, before any handler runs (v1 has no `uikit.*` handlers). `useIframeBridge.ts` supplies the desktop handlers and the context; the manifest's `uiKit` and the extension's granted permissions come from main via `extensions:getPanelTypeUiEntry` (`uiKit?`, `grantedPermissions`), held in a ref by `ExtensionPanelHost.tsx` (unknown until it answers, so `uikit.*` is denied). Also new: `ui.getLocale` -> `{ locale, direction }` (read-only, ungated; SDK `BibleExtUI.getLocale()`).
+
+### Serving the UI kit (`ext-ui://host/kit/1/`)
+
+The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picker`, `kth-book-chapter-picker`, `kth-highlight-swatch`; contract in `packages/ui/README.md`, "Extension UI kit"), bundled as a classic-script IIFE on preact/compat with a stylesheet. The reserved `host` origin serves two more exact paths:
+
+- **`ext-ui://host/kit/1/kth-kit.js`** - `text/javascript; charset=utf-8`. Loading it only assigns `globalThis.KthKit`; `KthKit.init({ rpc, components })` defines the listed elements and reads `ui.getLocale`. Use a classic `<script src>` (not `type="module"`: a module script from an opaque origin needs CORS).
+- **`ext-ui://host/kit/1/kth.css`** - `text/css; charset=utf-8`. The KTH tokens mapped from `theme.css`, base rules, and the `.kth-*` classes. Link it after `theme.css`.
+
+Both carry the panel CSP, `nosniff` and `no-store`, like the other host resources. The `kit/1/` segment is the kit major; within a major, attributes and events are additive only, and a breaking change is `kit/2/` with `1` kept for at least one host minor. `theme.css` also accepts `?theme=<id>` for any id in `HOST_THEME_IDS` (else the active theme), so a panel that heard `theme.changed` can re-link to the new palette without racing the main process's own theme state (`getHostThemeCssFor` in `hostThemeCss.ts`; it never changes the active theme).
+
+**How it is built and served.** `electron/extensions/hostKit.ts` imports the virtual module `virtual:kth-kit`, which `apps/desktop/scripts/kthKitPlugin.mjs` builds with esbuild (through `packages/ui/scripts/build-kit.mjs`, in memory) when the desktop main bundle is built, and inlines as two strings, the way `hostThemeCss.ts` inlines `themes.css?raw`. The plugin is wired into `electron.vite.config.ts` (main only) and `vitest.config.ts`, so `pnpm run dev`, `pnpm run build`, the release `package:*` scripts and the tests all produce the kit themselves: there is no "build the kit first" step, no prebuilt file, no runtime disk read, and no electron-builder change. An esbuild error fails the build. `pnpm --filter @bible/ui run build:kit` writes the same bundle to `packages/ui/dist-kit/` (gitignored) for inspection and for extension testing. The loader that adds the script tag for authors is `loadKit` in `@bible/extension-ui` (next section).
+
+**Loading the kit from a panel (`loadKit`).** `bible.loadKit({ components })` (`@bible/extension-ui`, `packages/extension-ui/src/kit.ts`) adds a classic `<script src="ext-ui://host/kit/1/kth-kit.js">` (unless one is already in the page), waits for the `KthKit` global, checks its major version, and calls `KthKit.init({ rpc, components })`, which defines the listed elements and reads `ui.getLocale` once. It returns `{ version, ready, dispose() }`: `ready` resolves with `KthKit`, and rejects on a load error, a 10 s timeout (`timeoutMs`), an incompatible major, or an `init` failure. The kit is host-served only; `@bible/extension-ui` never bundles it. Copy-paste example (declare the kit and the permission it needs, then use an element):
+
+```json
+"permissions": ["bible:read", "ui:contribute-pane"],
+"uiKit": { "version": "1", "components": ["kth-reference-picker"] }
+```
+
+```html
+<link rel="stylesheet" href="ext-ui://host/theme.css">
+<link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
+<kth-reference-picker id="ref" label="Go to reference"></kth-reference-picker>
+<script src="panel.js"></script>
+```
+
+```typescript
+import { BibleExtUI, type KthReferenceChangeDetail } from '@bible/extension-ui';
+
+const bible = BibleExtUI.init();
+bible.useHostStyles();
+const kit = bible.loadKit({ components: ['kth-reference-picker'] });
+kit.ready.catch((err) => console.error('UI kit unavailable', err));
+document.getElementById('ref')?.addEventListener('kth-change', (e) => {
+  const { verseId } = (e as CustomEvent<KthReferenceChangeDetail>).detail;
+  void bible.navigateToVerse(verseId);
+});
+```
+
+The component list passed to `loadKit` should match `uiKit.components`. The scaffold (`create-bible-extension`) does not declare `uiKit` (it would add an extra permission consent line); its README shows this opt-in. Render `kth-*` elements childless. For tests, `@bible/extension-testing` provides `createMockPanelHost()` and `loadUiKit()`.
+
+**Security review checklist for changes to the kit or its serving** (adapted to what is implemented):
+
+1. `HOST_RESOURCES` in `extUiProtocol.ts` is an exact-path `Map`; a new kit path is added there with 404 tests for its near-misses (`ExtUiProtocolKit.test.ts`: version, case, trailing slash, `.map`, `%2f`, `%00`). A malformed percent escape answers 400.
+2. `ExtUiCsp.test.ts` is unchanged: no new origin, no `unsafe-eval`, `connect-src` not widened. The kit is loaded by `<script src>` and never calls `fetch`.
+3. The sandbox string (`computeSandboxAttr` test) is unchanged: the kit runs inside the panel's own sandbox with the panel's own privileges.
+4. The bundle test (`packages/ui/src/kit/kitBundle.test.ts`) passes: input allowlist (only `packages/ui`, `packages/core/src`, `preact`); no `eval(`, `new Function`, `process.env`, `__BIBLE_`, `window.electron`, `ipcRenderer`, `parent.document`, `localStorage`, `sessionStorage`, `fetch(`, `document.write`; no `innerHTML`/`outerHTML`/`dangerouslySetInnerHTML` in any kit or core source that reaches the bundle. **preact exception:** preact's own source assigns `innerHTML` (twice, for `dangerouslySetInnerHTML` and SVG), so the bundle-level rule is "the count of `.innerHTML =` equals preact's own", not zero; no kit prop reaches those paths, and the ESLint guard bans `dangerouslySetInnerHTML` in `packages/ui`. `KIT_JS` must contain no host build ids or config: the only esbuild `define` is `NODE_ENV`.
+5. Every `uikit.*` or new `ui.*` bridge method gets argument validation, an allowlist plus permission check in `IframeRpcBridge`, and a denial test. v1 has none: the kit's only host call is the read-only `ui.getLocale`, made by `KthKit.init`.
+6. The manifest validator rejects an unknown kit major or tag; the schema parity test passes. `UI_KIT_COMPONENTS` (core) and `KIT_ELEMENTS` (`packages/ui/src/kit/elements.ts`) list the same tags; `elements.test.tsx` enforces it.
+7. The kit reads no user data in v1. Any future `hostMethods` that touches user data must list the matching `*:read` permission in `requiresPermissions`.
+
 ## Popping an extension panel out
 
 Extension panels detach into their own window like any other pane. Two things stopped that working before:
@@ -155,11 +304,11 @@ The load-bearing detail is in the main process: `registerExtUiProtocol` is calle
 
 ## Developing an extension outside this repository
 
-Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `npm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
+Everything above describes extensions as the host sees them. This section is the other side: what a third-party author needs, and where it comes from. The platform was complete long before this path was — an author outside the monorepo could not `pnpm install` the SDK, had no editor validation for `extension.json`, no typed `api`, and no way to produce the artifact the installer accepts.
 
 | Piece | Where |
 |---|---|
-| `scripts/pack-sdk.js` | `npm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
+| `scripts/pack-sdk.js` | `pnpm run pack:sdk` — builds and `npm pack`s `@bible/core` and `@bible/extension-testing` into `build/sdk/`. The bridge until those packages are published |
 | `packages/create-extension/src/index.ts` | The scaffolder. `--local-sdk=<dir>` writes `file:` specifiers for the packed tarballs instead of version ranges |
 | `packages/core/scripts/copy-assets.js` | Copies `ExtensionManifestSchema.json` into `dist/` after `tsc`. Nothing imports it, so `tsc` never emitted it, so it reached nobody outside this repo — which is its only audience |
 | `packages/extension-testing/src/cli/validateCommand.ts` | `bible-ext validate` — manifest schema, then the files the manifest points at |
@@ -170,7 +319,7 @@ Everything above describes extensions as the host sees them. This section is the
 
 Three decisions worth not re-litigating:
 
-- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `npm install`s an extension, so a peer range there was a claim with no consumer to honour it.
+- **`@bible/core` is a type-only dependency for an extension**, imported with `import type` and erased at build. That is what lets an MIT-licensed extension use the API contract of a GPL-3.0-or-later package without linking it, and it is why the scaffold declares no `peerDependencies` — nobody `pnpm install`s an extension, so a peer range there was a claim with no consumer to honour it.
 - **`createZip` takes no dependency.** `archiver` and `jszip` are both in this tree, but only transitively via electron-builder; depending on either would push a real dependency tree onto every extension author. The format needed is one method and three record types.
 - **Archives are reproducible** — fixed entry timestamps, not mtimes — because `installFromCatalog` verifies a published SHA-256 before unpacking, and an author cannot publish a digest they cannot reproduce.
 
@@ -178,11 +327,11 @@ Three decisions worth not re-litigating:
 
 ## Bundling a first-party extension
 
-`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `npm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
+`packages/word-count-example` is a real extension package in this repository, and nothing referenced it from a build script - so it reached neither `pnpm run dev` nor a packaged installer, and `data/extensions/` was absent from the `extraResources` allowlist besides.
 
 | File | Role |
 |---|---|
-| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `npm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
+| `scripts/stage-extensions.js` | Copies each package in its explicit `BUNDLED_EXTENSIONS` list into an extensions root, defaulting to `data/extensions/`. It never wipes that root - in a dev tree it also holds sideloaded extensions and every extension's `db/` directory and lifecycle log - and replaces only the directories it owns. Run by `pnpm run stage-extensions`; `--out=<dir>` retargets it for the curated config, which ships `build-data/` rather than `data/` |
 | `electron-builder.yml` | One `extensions/<id>/**` line per bundled extension inside the `data` allowlist. Named per extension, **not** `extensions/**`: in a dev tree that directory also holds whatever the developer sideloaded or installed from a catalog, plus arbitrary per-extension user data |
 
 The bundled list is deliberate and explicit rather than a glob over `packages/`, which also holds `@bible/core`, `@bible/extension-ui`, `@bible/extension-testing` and a scaffolder - none of them extensions. Whether a given extension ships in v1 is a product decision; the mechanism is one line in each of those two files.
@@ -193,9 +342,10 @@ Licensing here is the opposite of the module allowlist beside it: a bundled exte
 
 ## Tests
 
-- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`
+- **Host / sandbox:** `electron/extensions/__tests__/` - including `SandboxEscape`, `RpcFuzzing`, `ApiSurfaceContract`, `TrustTiers`, `ExtensionCatalog`, `ExtensionMarketplace`, `ExtensionPermissionGuard`, `ExtensionSqlGuard`, `ExtensionRpcRouter`, `ExtensionWorkerProcess`, `ExtUiCsp`, `ExtUiProtocolHost`, `PanelChannel`, `UiTier2`, `DeveloperMode`, `CommandsContextIntegration` (permission gates + the built-in allowlist), `RendererTaskStatusBridge`, `TasksApi` (`showInStatusBar` filtering), `LazyActivation` (P1.5 end-to-end: boot laziness, enable/disable/auto-disable eligibility, `activate()` coalescing and failure retry), `DeclaredContributionsBridges` (the declared-command/panel-type placeholder state machine inside `RendererCommandBridge`/`RendererUiBridge` directly - one of the few files here that mocks `electron` to unit-test a production `Renderer*Bridge`)
 - **Runtime:** `extension-runtime/__tests__/` - realm behaviour, guest bundle, bundle size, worker bootstrap, supervisor, smoke harness
-- **UI:** `src/ui/components/extensions/ExtensionMarketplace.test.tsx`, `extensionSettingsSchema.test.ts`, `src/ui/components/extensions/useIframeBridge.test.tsx`, `src/ui/extensions/contributedUi.test.tsx` (verse context menu + status bar), `src/ui/components/extensionPopOut.test.ts`, `src/ui/menu/extensionToolsMenu.test.ts`
+- **UI:** `src/ui/components/extensions/ExtensionMarketplace.test.tsx`, `extensionSettingsSchema.test.ts`, `src/ui/components/extensions/useIframeBridge.test.tsx` (including `verse.activeChanged` forwarding and verse popups), `src/ui/extensions/contributedUi.test.tsx` (verse context menu + status bar), `src/ui/extensions/notifications.test.tsx` (action-click resolution), `src/ui/extensions/workspaceBridge.test.ts` (`setPanelTitle`/`setPanelBadge`/`revealPanel` renderer wiring), `src/ui/components/extensionPopOut.test.ts`, `src/ui/menu/extensionToolsMenu.test.ts`
+- **SDK:** `packages/extension-ui/src/BibleExtUI.test.ts` - `onActiveVerseChanged`'s payload shape, `showVersePopup`/`hideVersePopup` request dispatch
 - **Runtime endpoint binding:** `extension-runtime/__tests__/reverseEndpointBinding.test.ts` - that `api.runtime.expose` and `api.panels.onMessage` land in the table `handleReverseRequest` dispatches from
 - **E2E:** `e2e/tests/extension-host-asar.spec.ts`
 - `electron/extensions/__tests__/fakeSql.ts` is a hand-rolled in-memory `ISql`; it exists so these tests avoid better-sqlite3's Electron ABI. Adding a table or column to `extensionSchema.ts` usually means teaching `fakeSql` the new query shape. `makeZip.ts` beside it builds the archives the installer tests unpack.

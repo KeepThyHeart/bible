@@ -1,0 +1,957 @@
+/* KTH classes. Opt-in, kth- prefixed, single-class specificity, --kth-* tokens only, logical properties only. */
+
+/* --- Button ---------------------------------------------------------------- */
+.kth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kth-space-1);
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-3);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.kth-btn:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+.kth-btn:where(:active:not(:disabled)) { background: var(--kth-bg-active); }
+.kth-btn:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-btn:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
+
+.kth-btn--primary {
+  border-color: var(--kth-accent);
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+}
+.kth-btn--primary:where(:hover:not(:disabled)) {
+  border-color: var(--kth-accent-hover);
+  background: var(--kth-accent-hover);
+}
+
+.kth-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+.kth-btn--ghost:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+
+.kth-btn--danger {
+  border-color: var(--kth-danger);
+  background: var(--kth-danger);
+  color: var(--kth-accent-text);
+}
+.kth-btn--danger:where(:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--kth-danger) 85%, var(--kth-text));
+}
+
+.kth-btn--sm {
+  min-block-size: 1.5rem;
+  padding-block: calc(var(--kth-space-1) / 2);
+  padding-inline: var(--kth-space-2);
+  border-radius: calc(var(--kth-radius) - 2px);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+
+/* --- Input / select ---------------------------------------------------------- */
+.kth-input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-input-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-input-bg);
+  color: var(--kth-text);
+  color-scheme: var(--kth-color-scheme);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+}
+.kth-input::placeholder { color: var(--kth-text-muted); opacity: 1; }
+.kth-input:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; border-color: var(--kth-focus); }
+.kth-input:where([aria-invalid="true"]) { border-color: var(--kth-danger); }
+.kth-input:where(:disabled) { opacity: 0.6; cursor: not-allowed; }
+
+.kth-select {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-input-border);
+  border-radius: var(--kth-radius);
+  background-color: var(--kth-input-bg);
+  color: var(--kth-text);
+  color-scheme: var(--kth-color-scheme);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.25;
+  cursor: pointer;
+}
+.kth-select:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; border-color: var(--kth-focus); }
+.kth-select:where(:disabled) { opacity: 0.6; cursor: not-allowed; }
+
+/* --- Settings form field (SettingsForm) --------------------------------------- */
+.kth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-1);
+  margin-block-end: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-field__hint {
+  margin: 0;
+  color: var(--kth-text-muted);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+.kth-fieldset {
+  margin: 0 0 var(--kth-space-3);
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+}
+
+/* --- Card -------------------------------------------------------------------- */
+.kth-card {
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+}
+
+/* --- Toolbar (the .control-toolbar* rules from desktop controls.css, token-for-token) ---------------------- */
+.kth-toolbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding: 0;
+  border-block-end: 1px solid var(--kth-border);   /* was var(--theme-border-primary) */
+  background: var(--kth-bg-subtle);                 /* was var(--theme-bg-secondary) */
+}
+.kth-toolbar__group {
+  display: flex;
+  align-items: stretch;
+  min-inline-size: 0;
+  overflow: hidden;
+  flex-shrink: 1;
+}
+.kth-toolbar__group--trailing { flex-shrink: 0; }
+
+.kth-toolbar__button {
+  display: flex;
+  align-items: center;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.kth-toolbar__button:where(:hover:not(:disabled)) { background: var(--kth-bg-active); }  /* was --theme-bg-active */
+.kth-toolbar__button:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-toolbar__button:where(:disabled) { opacity: 0.3; cursor: not-allowed; }
+.kth-toolbar__button--divider-end { border-inline-end: var(--_kth-divider-width, 1px) solid var(--kth-border); }
+.kth-toolbar__button--divider-start { border-inline-start: var(--_kth-divider-width, 1px) solid var(--kth-border); }
+/* Replaces the two-class `.--divider-strong.--divider-end` compound: a private knob keeps single-class specificity. */
+.kth-toolbar__button--divider-strong { --_kth-divider-width: 2px; }
+.kth-toolbar__icon { inline-size: 1rem; block-size: 1rem; }
+
+/* --- Menu -------------------------------------------------------------------- */
+.kth-menu {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 10rem;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: 0;
+  list-style: none;
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  box-shadow: var(--kth-shadow);
+}
+.kth-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  inline-size: 100%;
+  margin: 0;
+  padding-block: var(--kth-space-1);
+  padding-inline: var(--kth-space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kth-menu__item:where(:hover, :focus-visible) { background: var(--kth-bg-hover); outline: none; }
+.kth-menu__item:where(:focus-visible) { box-shadow: inset 2px 0 0 var(--kth-focus); }
+.kth-menu__item:where([aria-checked="true"], [aria-current="true"], [aria-selected="true"]) {
+  background: var(--kth-accent-soft);
+}
+.kth-menu__item:where(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Combobox (ReferencePicker: input with an absolutely positioned suggestion list) ----------------------- */
+.kth-combobox {
+  position: relative;
+  display: block;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+}
+.kth-combobox__label {
+  display: block;
+  margin-block-end: var(--kth-space-1);
+  color: var(--kth-text-muted);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-combobox__list {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  z-index: 10;
+  max-block-size: 16rem;
+  margin-block-start: 2px;
+  overflow-y: auto;
+}
+.kth-combobox__list:where([hidden]) { display: none; }
+
+/* --- Picker (BookChapterPicker: header, reference form, book/chapter grids) -------------------------------- */
+.kth-picker {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;          /* fills the app's dialog frame (a flex column) */
+  min-block-size: 0;
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-picker__header {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  flex-shrink: 0;
+  padding-block: var(--kth-space-3);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-picker__title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--kth-text);
+}
+.kth-picker__form {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  flex-shrink: 0;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-picker__input { flex: 1; min-inline-size: 0; }
+.kth-picker__offer {
+  flex-shrink: 0;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+  color: var(--kth-text-muted);
+  font-size: 0.9em;
+}
+.kth-picker__offer-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--kth-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.kth-picker__offer-link:where(:hover) { color: var(--kth-accent-hover); }
+.kth-picker__offer-link:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+
+/* Scrolling region under the form: the book list, the chapter grid or the app's search results. */
+.kth-picker__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding-block: var(--kth-space-3) var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+}
+.kth-picker__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-1);
+}
+.kth-picker__section-label {
+  margin-block: var(--kth-space-4) var(--kth-space-2);
+  padding-block-end: var(--kth-space-1);
+  border-block-end: 2px solid var(--kth-accent);
+  color: var(--kth-text);
+  font-size: 0.9em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.kth-picker__section-label:where(:first-child) { margin-block-start: 0; }
+.kth-picker__label {
+  margin-block-end: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: 0.9em;
+  font-weight: 700;
+}
+.kth-picker__status {
+  padding-block: var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+  color: var(--kth-text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+.kth-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));     /* chapters: web used 48px */
+  gap: var(--kth-space-1);
+}
+.kth-picker__grid--books { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); } /* web used 120px */
+.kth-picker__grid--compact { grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr)); } /* short names, phones */
+.kth-picker__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;                                          /* 44px touch target, as web */
+  margin: 0;
+  padding: var(--kth-space-2);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.kth-picker__cell:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); border-color: var(--kth-border-strong); }
+.kth-picker__cell:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
+.kth-picker__cell:where(:disabled) { opacity: 0.4; cursor: not-allowed; }
+.kth-picker__cell--book {
+  display: block;
+  padding-block: var(--kth-space-3);
+  padding-inline: var(--kth-space-3);
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kth-picker__cell--chapter { aspect-ratio: 1; }
+.kth-picker__cell--compact {
+  min-block-size: 2.25rem;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-1);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.kth-picker__cell--active {
+  border-color: var(--kth-accent);
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+  font-weight: 600;
+}
+.kth-picker__cell--active:where(:hover:not(:disabled)) {
+  border-color: var(--kth-accent-hover);
+  background: var(--kth-accent-hover);
+}
+/* The current book in the soft appearance (desktop): accent tint instead of a filled cell. */
+.kth-picker__cell--current {
+  border-color: transparent;
+  background: var(--kth-accent-soft);
+  color: var(--kth-accent);
+  font-weight: 600;
+}
+.kth-picker__cell--current:where(:hover:not(:disabled)) { background: var(--kth-accent-soft); border-color: var(--kth-accent); }
+
+/* --- Swatch (colour set inline by the component: style={{ backgroundColor }}) --- */
+.kth-swatch {
+  display: inline-block;
+  flex-shrink: 0;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--kth-border-strong);
+  border-radius: 50%;
+  background-color: transparent;
+  cursor: pointer;
+}
+.kth-swatch:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-swatch:where([aria-pressed="true"], [aria-checked="true"]) {
+  box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
+}
+.kth-swatch:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+.kth-swatch--sm { inline-size: 1rem; block-size: 1rem; }
+.kth-swatch-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-1);
+  align-items: center;
+  padding: var(--kth-space-1); /* room for the 4px selection ring */
+}
+
+/* --- Panel host (ExtensionPanelHost: the sandboxed iframe and its loading/error box) ------------------------ */
+.kth-panel-host__frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  background-color: var(--kth-bg);
+}
+.kth-panel-host__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 100%;
+  padding: var(--kth-space-4);
+  box-sizing: border-box;
+  text-align: center;
+  color: var(--kth-text-muted);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+
+/* --- Badge ------------------------------------------------------------------- */
+.kth-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.25rem;
+  padding-inline: var(--kth-space-1);
+  border-radius: 999px;
+  background: var(--kth-accent);
+  color: var(--kth-accent-text);
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Visually hidden (screen-reader only) ------------------------------------ */
+.kth-visually-hidden {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* --- Keyword marks (0065). Colour is passed by the component as the custom property --mark-color
+   (rgb(var(--kth-mark-N-rgb))), so no colour function appears here. --------------------------------- */
+.kth-mark-swatch {
+  /* The mark IS the shape: a coloured glyph (filled or outline), never a box or badge around it. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--kth-radius);
+  background: none;
+  color: var(--mark-color, currentColor);
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  text-decoration-line: none;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.kth-mark-swatch:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
+.kth-mark-swatch:where([aria-checked="true"]) {
+  box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
+}
+.kth-mark-swatch:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+.kth-mark-swatch--static { cursor: default; }
+.kth-mark-swatch--bold { font-weight: 700; }
+/* Background tint: shown in the text only; the legend shape stays a bare glyph (no box). */
+.kth-mark-swatch--fill { background-image: none; }
+/* The line style shows as an underline under the shape. */
+.kth-mark-swatch--line-solid { text-decoration-line: underline; text-decoration-style: solid; }
+.kth-mark-swatch--line-dashed { text-decoration-line: underline; text-decoration-style: dashed; }
+.kth-mark-swatch--line-dotted { text-decoration-line: underline; text-decoration-style: dotted; }
+.kth-mark-swatch--line-thick { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: 4px; }
+.kth-mark-swatch--line-none { text-decoration-line: none; }
+/* Line and symbol choices: neutral chips (the colour is not what they pick). */
+.kth-mark-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-inline-size: 2rem;
+  min-block-size: 1.75rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  cursor: pointer;
+}
+.kth-mark-choice:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+.kth-mark-choice:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-mark-choice:where([aria-checked="true"]) { border-color: var(--kth-accent); background: var(--kth-accent-soft); }
+.kth-mark-choice:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+/* Shape choices: just the shape, in the chosen colour; only the selected one gets a ring. */
+.kth-mark-choice--shape {
+  border-color: transparent;
+  background: none;
+  color: var(--mark-color, var(--kth-text));
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.kth-mark-choice--shape:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
+@media (forced-colors: active) {
+  .kth-mark-choice--shape:where([aria-checked="true"]), .kth-mark-swatch:where([aria-checked="true"]) { outline: 2px solid Highlight; }
+}
+.kth-mark-choice--shape:where([aria-checked="true"]) { border-color: transparent; background: none; box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent); }
+.kth-mark-choice__line {
+  display: inline-block;
+  inline-size: 1.5rem;
+  block-size: 0;
+  border-block-end: 2px solid var(--kth-text);
+}
+.kth-mark-choice__line--dashed { border-block-end-style: dashed; }
+.kth-mark-choice__line--dotted { border-block-end-style: dotted; }
+.kth-mark-choice__line--thick { border-block-end-width: 5px; }
+.kth-mark-choice__line--none { border-block-end-style: none; }
+
+.kth-mark-picker { display: flex; flex-direction: column; gap: var(--kth-space-2); }
+.kth-mark-picker__group { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); align-items: center; padding: var(--kth-space-1); }
+.kth-mark-picker__caption { font-size: calc(var(--kth-font-size-ui) * 0.9); color: var(--kth-text-muted); }
+.kth-mark-picker__toggles { display: flex; flex-wrap: wrap; gap: var(--kth-space-3); }
+
+.kth-legend { display: flex; flex-direction: column; gap: var(--kth-space-2); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-legend__head { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-2); }
+.kth-legend__list { display: flex; flex-direction: column; gap: var(--kth-space-1); margin: 0; padding: 0; list-style: none; }
+.kth-legend__row { display: flex; align-items: center; gap: var(--kth-space-2); }
+.kth-legend__label--hidden { text-decoration: line-through; opacity: 0.6; }
+.kth-legend__label { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; text-align: start; justify-content: flex-start; }
+.kth-legend__set { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-legend__count { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kth-legend__approx { color: var(--kth-warning); font-size: calc(var(--kth-font-size-ui) * 0.85); white-space: nowrap; }
+.kth-legend__note { margin: 0; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-legend__heading { margin: 0; font-size: var(--kth-font-size-ui); font-weight: 600; color: var(--kth-text-heading); }
+.kth-legend__footer { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); }
+
+.kth-mark-editor { display: flex; flex-direction: column; gap: var(--kth-space-3); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-mark-editor__field { display: flex; flex-direction: column; gap: var(--kth-space-1); }
+.kth-mark-editor__label { font-weight: 600; }
+.kth-mark-editor__hint { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-mark-editor__error { margin: 0; color: var(--kth-danger); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-mark-editor__check { display: inline-flex; align-items: center; gap: var(--kth-space-2); }
+.kth-mark-editor__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); justify-content: flex-end; }
+
+/* --- Genealogy explorer (task 0067) ------------------------------------------- */
+/* Colour keys: a node's colorKey adds kth-genealogy-color-<key>; unknown keys fall back to muted text. */
+.kth-genealogy-color-leah { --_kth-gen-fill: var(--_kth-gen-leah); }
+.kth-genealogy-color-rachel { --_kth-gen-fill: var(--_kth-gen-rachel); }
+.kth-genealogy-color-bilhah { --_kth-gen-fill: var(--_kth-gen-bilhah); }
+.kth-genealogy-color-zilpah { --_kth-gen-fill: var(--_kth-gen-zilpah); }
+
+.kth-genealogy-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 16rem;
+  overflow: hidden;
+  background: var(--kth-bg-subtle);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+}
+.kth-genealogy-view__svg {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.kth-genealogy-view__svg:where(:active) { cursor: grabbing; }
+.kth-genealogy-view__svg:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-genealogy-view__toolbar {
+  position: absolute;
+  inset-block-start: var(--kth-space-2);
+  inset-inline-end: var(--kth-space-2);
+  z-index: 1;
+  display: flex;
+  gap: var(--kth-space-1);
+}
+.kth-genealogy-view__empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  color: var(--kth-text-muted);
+}
+
+.kth-genealogy-node { cursor: pointer; outline: none; }
+/* State modifiers set private custom properties on the node group; the shape reads them (later rules win). */
+.kth-genealogy-node__shape {
+  fill: color-mix(in srgb, var(--_kth-gen-fill, var(--kth-text-muted)) 18%, var(--kth-surface));
+  stroke: var(--_kth-gen-stroke, var(--_kth-gen-fill, var(--kth-border-strong)));
+  stroke-width: var(--_kth-gen-sw, 1.5);
+  stroke-dasharray: var(--_kth-gen-dash, none);
+  stroke-linecap: round;
+}
+.kth-genealogy-node__dot {
+  fill: var(--_kth-gen-fill, var(--kth-text-muted));
+  stroke: var(--_kth-gen-stroke, none);
+  stroke-width: var(--_kth-gen-sw, 1.5);
+}
+.kth-genealogy-node__label {
+  fill: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: 12px;
+  pointer-events: none;
+}
+.kth-genealogy-node:where(:hover) { --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--one-text { --_kth-gen-dash: 5 3; }
+.kth-genealogy-node--disputed { --_kth-gen-dash: 1.5 3; }
+.kth-genealogy-node--christ { --_kth-gen-stroke: var(--_kth-gen-gold); --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--selected { --_kth-gen-stroke: var(--kth-accent); --_kth-gen-sw: 3; }
+.kth-genealogy-node--focus { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3; --_kth-gen-dash: none; }
+.kth-genealogy-node:where(:focus-visible) { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3.5; }
+.kth-genealogy-node--dim { opacity: 0.35; }
+.kth-genealogy-node__christ-mark { fill: var(--_kth-gen-gold); stroke: var(--kth-surface); stroke-width: 1; }
+.kth-genealogy-node__badge rect { fill: var(--kth-accent); }
+.kth-genealogy-node__badge text { fill: var(--kth-accent-text); font-size: 10px; font-family: var(--kth-font-ui); }
+.kth-genealogy-node__gap line { stroke: var(--kth-warning); stroke-width: 2; }
+.kth-genealogy-node__gap text { fill: var(--kth-text-muted); font-size: 9px; font-family: var(--kth-font-ui); }
+
+/* Edge modifiers set private custom properties; the group and its (double-edge) child paths both read them. */
+.kth-genealogy-edge, .kth-genealogy-edge path {
+  fill: none;
+  stroke: var(--_kth-gen-edge, var(--kth-border-strong));
+  stroke-width: var(--_kth-gen-ew, 1.5);
+  stroke-dasharray: var(--_kth-gen-edash, none);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.kth-genealogy-edge--dashed { --_kth-gen-edash: 6 4; }
+.kth-genealogy-edge--dotted { --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--spouse { --_kth-gen-edge: var(--kth-text-muted); }
+.kth-genealogy-edge--cross { --_kth-gen-edge: var(--kth-info); }
+.kth-genealogy-edge--gap { --_kth-gen-edge: var(--kth-warning); --_kth-gen-edash: 2 3; }
+.kth-genealogy-edge--same_as { --_kth-gen-edge: var(--kth-info); --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--christ { --_kth-gen-edge: var(--_kth-gen-gold); --_kth-gen-ew: 3; }
+.kth-genealogy-edge__label { fill: var(--kth-text-muted); font-size: 10px; font-family: var(--kth-font-ui); stroke: none; }
+.kth-genealogy-edge--dim { opacity: 0.4; }
+
+.kth-genealogy-swatch {
+  display: inline-block;
+  inline-size: 0.9em;
+  block-size: 0.9em;
+  margin-inline-end: var(--kth-space-1);
+  border-radius: 2px;
+  border: 1px solid var(--_kth-gen-fill, var(--kth-border-strong));
+  background: var(--_kth-gen-fill, var(--kth-text-muted));
+  vertical-align: middle;
+}
+.kth-genealogy-swatch--christ { --_kth-gen-fill: var(--_kth-gen-gold); }
+.kth-genealogy-legend { margin-block-start: var(--kth-space-2); font-size: 0.9em; }
+.kth-genealogy-legend__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-2) var(--kth-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-genealogy-legend__item { display: inline-flex; align-items: center; }
+
+.kth-genealogy-search { position: relative; min-inline-size: 12rem; }
+.kth-genealogy-search__input { inline-size: 100%; }
+.kth-genealogy-search__list {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  max-block-size: 14rem;
+  overflow: auto;
+  list-style: none;
+  background: var(--kth-surface-raised);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-search__option { padding: var(--kth-space-1) var(--kth-space-2); cursor: pointer; }
+.kth-genealogy-search__option:where([aria-selected="true"], :hover) { background: var(--kth-accent-soft); }
+.kth-genealogy-search__hint, .kth-genealogy-search__none { color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-genealogy-search__none { padding: var(--kth-space-1) var(--kth-space-2); }
+
+.kth-genealogy-card {
+  box-sizing: border-box;
+  inline-size: 22rem;
+  max-inline-size: 100%;
+  overflow: auto;
+  padding: var(--kth-space-3);
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-card--sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  inline-size: auto;
+  max-block-size: 60%;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-2); }
+.kth-genealogy-card__title { margin: 0; font-size: 1.25em; }
+.kth-genealogy-card__heading { margin-block: var(--kth-space-3) var(--kth-space-1); font-size: 1em; }
+.kth-genealogy-card__facts, .kth-genealogy-card__empty, .kth-genealogy-card__ref { color: var(--kth-text-muted); }
+.kth-genealogy-card__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); margin-block: var(--kth-space-2); }
+.kth-genealogy-card__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-card__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-card__relation { color: var(--kth-text-muted); }
+.kth-genealogy-card__qualifier { color: var(--kth-text-muted); font-style: italic; }
+.kth-genealogy-card__confidence--disputed { background: var(--kth-danger); }
+.kth-genealogy-card__confidence--probable, .kth-genealogy-card__confidence--possible { background: var(--kth-warning); }
+.kth-genealogy-card__confidence--certain { background: var(--kth-success); }
+.kth-genealogy-card__readings { margin-block: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius); }
+.kth-genealogy-card__reading { display: block; padding-block: var(--kth-space-1); }
+.kth-genealogy-card__case { margin-block-end: var(--kth-space-3); }
+.kth-genealogy-card__case-title { margin-block: var(--kth-space-2) var(--kth-space-1); }
+.kth-genealogy-card__kjv {
+  margin-inline: 0;
+  padding-inline-start: var(--kth-space-3);
+  border-inline-start: 3px solid var(--kth-border-strong);
+  font-style: italic;
+}
+.kth-genealogy-card__verse { color: var(--kth-accent); }
+
+.kth-genealogy-compare { display: flex; flex-wrap: wrap; gap: var(--kth-space-4); }
+.kth-genealogy-compare__column { flex: 1 1 14rem; min-inline-size: 0; }
+.kth-genealogy-compare__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-compare__step { padding-block: 2px; }
+.kth-genealogy-compare__gap { margin: 0; color: var(--kth-warning); font-size: 0.85em; }
+.kth-genealogy-compare__marker { background: var(--kth-info); }
+
+.kth-genealogy-explorer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 24rem;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-explorer__bar { padding-inline: var(--kth-space-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
+.kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__fullscreen { margin-inline-start: auto; }
+.kth-genealogy-explorer--full {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  inline-size: auto;
+  block-size: auto;
+  padding-block: var(--kth-space-2);
+  background: var(--kth-bg);
+}
+.kth-genealogy-explorer__hint { margin: 0; padding-inline: var(--kth-space-3); color: var(--kth-text-muted); font-size: 0.9em; }
+.kth-genealogy-key { margin-inline: var(--kth-space-3); margin-block: 0; }
+.kth-genealogy-key__swatch { margin-inline-end: var(--kth-space-1); flex: none; }
+.kth-genealogy-card__link { color: var(--kth-accent); text-decoration: underline; }
+.kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }
+.kth-genealogy-legend--tribes { padding-inline: var(--kth-space-3); margin-block-start: 0; }
+.kth-genealogy-key { max-block-size: 30vh; overflow: auto; }
+.kth-genealogy-explorer__main { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; }
+.kth-genealogy-explorer__body--compact { flex-direction: column; }
+/* --- Popover / hover card / bottom sheet ---------------------------------------
+   Placement (position, inset, width, max-height) is set inline by the component (viewport-relative numbers,
+   RTL-aware). Visual defaults are zero-specificity (:where) so an app class on the same element can adjust them.
+   The popover sets no colour or font: it inherits them from where it is portalled (the app's body). */
+:where(.kth-popover) {
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: var(--kth-space-3);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface-raised);
+  box-shadow: var(--kth-shadow);
+}
+:where(.kth-popover):where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+
+:where(.kth-popover-backdrop) {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.kth-hovercard-trigger { display: inline; }
+
+.kth-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.kth-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--kth-overlay);
+}
+.kth-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-block-size: 50dvh;
+  border-start-start-radius: calc(var(--kth-radius) * 2);
+  border-start-end-radius: calc(var(--kth-radius) * 2);
+  border: 1px solid var(--kth-border);
+  border-block-end: 0;
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  box-shadow: var(--kth-shadow);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.5;
+  padding-block-end: env(safe-area-inset-bottom, 0);
+}
+.kth-sheet:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-sheet__header {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kth-space-2);
+  padding-block: var(--kth-space-3) var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+}
+.kth-sheet__grip {
+  position: absolute;
+  inset-block-start: var(--kth-space-1);
+  inset-inline-start: 50%;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  margin-inline-start: -1.25rem;
+  border-radius: 999px;
+  background: var(--kth-border-strong);
+}
+.kth-sheet__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-weight: 600;
+  color: var(--kth-text-heading);
+}
+.kth-sheet__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0 var(--kth-space-4);
+  padding-inline: var(--kth-space-4);
+}
+
+.kth-fullscreen-root {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+}
+.kth-fullscreen {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100dvh;
+  background: var(--kth-bg);
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.5;
+  padding-block: env(safe-area-inset-top, 0) env(safe-area-inset-bottom, 0);
+  padding-inline: env(safe-area-inset-left, 0) env(safe-area-inset-right, 0);
+}
+.kth-fullscreen:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-fullscreen__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kth-space-2);
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-4);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-fullscreen__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-weight: 600;
+  color: var(--kth-text-heading);
+}
+.kth-fullscreen__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: var(--kth-space-4);
+}

@@ -38,7 +38,6 @@ export type HookKind =
   | 'statusBar'
   | 'hover'
   | 'decorator'
-  | 'displayMode'
   | 'bibleProvider'
   | 'commentaryProvider'
   | 'dictionaryProvider'
@@ -188,7 +187,6 @@ export interface CapturedRegistrations {
     target: Extensions.ContextMenuTarget;
     item: Extensions.ContextMenuItemDescriptor;
   }>;
-  displayModes: Extensions.DisplayModeDescriptor[];
   statusBarItems: Extensions.StatusBarItemDescriptor[];
   highlightStyles: Extensions.HighlightStyleDescriptor[];
   bibleProviders: Extensions.BibleProviderDescriptor[];
@@ -196,10 +194,14 @@ export interface CapturedRegistrations {
   dictionaryProviders: Extensions.DictionaryProviderDescriptor[];
   bookProviders: Extensions.BookProviderDescriptor[];
   /**
-   * Event subscriptions the extension set up during activate. Keyed by the
-   * canonical event path (e.g. `bible.onDidChangeActiveVerse`). A single
-   * event may have multiple subscribers; the harness fans the invocation
-   * out to every registered handler.
+   * Event subscriptions the extension set up via `api.events.subscribe(...)`
+   * during activate. Keyed by the channel string itself (e.g.
+   * `'verse.activeChanged'`, `'notes.changed'`, or an `ext.<id>.*` broadcast
+   * channel) - task 0024 round 3 unified every `onDid*` property and the
+   * dead `ExtensionPointId` vocabulary into this one subscribe method, so
+   * there is no more per-namespace path to key by. A single event may have
+   * multiple subscribers; the harness fans the invocation out to every
+   * registered handler.
    */
   eventSubscribers: Map<string, Array<(payload: unknown) => unknown | Promise<unknown>>>;
 }

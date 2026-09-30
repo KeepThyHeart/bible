@@ -24,7 +24,7 @@ import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { build } from 'esbuild';
 
-import type { Extensions } from '@bible/core';
+import { Extensions } from '@bible/core';
 import { QuickJSRealm } from '../host/QuickJSRealm';
 import { buildGuestBundle } from './guestBundle';
 
@@ -46,7 +46,7 @@ beforeAll(async () => {
   // The CLI ships compiled. Build it if this checkout has not been built yet,
   // so the test is self-sufficient rather than silently order-dependent.
   if (!existsSync(SCAFFOLDER_CLI)) {
-    execFileSync('npx', ['tsc'], { cwd: SCAFFOLDER_ROOT, shell: true, stdio: 'pipe' });
+    execFileSync('pnpm', ['exec', 'tsc'], { cwd: SCAFFOLDER_ROOT, shell: true, stdio: 'pipe' });
   }
 
   workDir = mkdtempSync(join(tmpdir(), 'bible-scaffold-'));
@@ -59,9 +59,9 @@ afterAll(() => {
 });
 
 /**
- * Build the scaffolded project the way `npm run build` would, but by reading
+ * Build the scaffolded project the way `pnpm run build` would, but by reading
  * the options out of the emitted `esbuild.config.mjs` rather than restating
- * them. Running the file itself would need a real `npm install` in the temp
+ * them. Running the file itself would need a real `pnpm install` in the temp
  * directory; parsing the options keeps the test honest about *which* options
  * are under test without paying for one.
  */
@@ -200,34 +200,25 @@ describe('create-bible-extension output loads in the realm', () => {
     const d = await loadIntoRealm(bundle);
     try {
       d.settle({
-        'ui.registerPanelType': () => ({ id: 'ext.your-name.sample-tools.panel' }),
         // `api.panels.onMessage` binds its handler in the worker's own
         // endpoint table AND tells the host a handler now exists, so it awaits
         // a real round trip. Leave it unsettled and activation parks here
-        // forever - the panel registration above lands, and nothing after this
-        // line in the template ever runs, which reads as "the scaffold stopped
-        // subscribing to verse changes" rather than as a stalled promise.
+        // forever, which reads as "the scaffold stopped subscribing to verse
+        // changes" rather than as a stalled promise.
+        //
+        // The template no longer calls `api.ui.registerPanelType` here at all
+        // (task 0024 round 3, P1.5): its panel type is declared in
+        // `extension.json`'s `contributes.panelTypes` and pre-registered by
+        // the host before this extension ever runs, so re-registering it
+        // imperatively in `activate()` would just be a redundant write to the
+        // same row.
         'panels.setMessageHandler': () => undefined,
       });
 
-      // The template registers its declared panel type during activate()...
-      const panel = d.requests().find((r) => r.method === 'ui.registerPanelType');
-      expect(panel).toBeDefined();
-
-      // ...as a definition object carrying the SHORT id, not a qualified
-      // string. `handleRegisterPanelType` takes the def's `id` verbatim and
-      // `RendererUiBridge` keys the panel as `${extensionId}.${panelTypeId}`,
-      // so passing the fully-qualified id here produces
-      // `ext:ext.a.b.ext.a.b.panel` - the extension's own prefix, twice. This
-      // assertion previously pinned the older, wrong shape.
-      expect(panel!.args[0]).toEqual(
-        expect.objectContaining({ id: 'panel', uiEntry: 'ui/index.html' }),
-      );
-
-      // ...and subscribes to the verse-change channel.
+      // The template subscribes to the verse-change channel.
       const subscribe = d.sent.find((e) => e.kind === 'subscribe');
       expect((subscribe as Extensions.RpcSubscribe | undefined)?.channel).toBe(
-        'bible.onDidChangeActiveVerse',
+        'verse.activeChanged',
       );
 
       // Activation reported success and nothing threw on the way.
@@ -236,6 +227,38 @@ describe('create-bible-extension output loads in the realm', () => {
       expect(d.runtimeErrors()).toEqual([]);
     } finally {
       d.dispose();
+    }
+  });
+
+  it('emits a manifest the host validator accepts', () => {
+    const manifest = JSON.parse(readFileSync(join(projectDir, 'extension.json'), 'utf8')) as Record<string, unknown>;
+    const result = Extensions.validateManifest(manifest);
+    expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);
+    // `uiKit` needs `ui:contribute-pane` (not default-granted), so the template
+    // keeps it out and documents the opt-in in its README. If a future template
+    // declares it, it must also request that permission.
+    if ('uiKit' in manifest) {
+      expect(manifest.permissions).toContain('ui:contribute-pane');
+    }
+  });
+
+  it('styles the panel from the host and follows live theme changes', () => {
+    const html = readFileSync(join(projectDir, 'ui/index.html'), 'utf8');
+    const panel = readFileSync(join(projectDir, 'src/panel.ts'), 'utf8');
+    expect(html).toContain('href="ext-ui://host/theme.css"');
+    expect(html).toContain('href="ext-ui://host/kit/1/kth.css"');
+    expect(panel).toContain('bible.useHostStyles()');
+  });
+
+  it('keeps panel scripts external and every URL relative or on the host origin', () => {
+    const html = readFileSync(join(projectDir, 'ui/index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+      expect(m[1].trim(), 'inline <script> body').toBe('');
+    }
+    const urls = [...html.matchAll(/\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      expect(url.startsWith('ext-ui://host/') || !/^[a-z][a-z0-9+.-]*:/i.test(url), url).toBe(true);
     }
   });
 

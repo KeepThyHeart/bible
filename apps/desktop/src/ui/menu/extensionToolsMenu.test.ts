@@ -147,4 +147,49 @@ describe('extension Tools submenu', () => {
     expect(items[0]?.type).toBe('command');
     expect(items[items.length - 1]?.type).toBe('command');
   });
+
+  // Task 0024 round 3, P1.5: `commands[].shortcut` rides this exact fallback -
+  // a declared command's `shortcut` becomes a real accelerator with no new
+  // code beyond copying the field onto the registration (see
+  // `RendererCommandBridge.registerDeclaredCommand`). These two cases were
+  // deliberately not covered above (`makeDeps`'s own comment: "accelerators
+  // are orthogonal to the selection rule") - selection is orthogonal, but the
+  // shortcut *mechanism* is what P1.5 depends on, so it gets its own coverage.
+  describe('shortcut fallback (no KeybindingService binding registered)', () => {
+    it('uses the command’s own shortcut.key as the accelerator', () => {
+      const deps = makeDeps([
+        {
+          id: 'ext.a.run',
+          title: 'Run',
+          ownerExtensionId: 'ext.a',
+          shortcut: { key: 'CmdOrCtrl+Shift+L' },
+        },
+      ]);
+      const items = buildExtensionToolsSubmenu(deps);
+      expect(items).toHaveLength(1);
+      expect((items[0] as { accelerator?: string }).accelerator).toBe('CmdOrCtrl+Shift+L');
+    });
+
+    it('prefers the mac-specific form when isMac is true', () => {
+      const deps = {
+        ...makeDeps([
+          {
+            id: 'ext.a.run',
+            title: 'Run',
+            ownerExtensionId: 'ext.a',
+            shortcut: { key: 'Ctrl+Shift+L', mac: 'Cmd+Shift+L' },
+          },
+        ]),
+        isMac: true,
+      };
+      const items = buildExtensionToolsSubmenu(deps);
+      expect((items[0] as { accelerator?: string }).accelerator).toBe('Cmd+Shift+L');
+    });
+
+    it('omits the accelerator entirely when the command declares no shortcut', () => {
+      const deps = makeDeps([{ id: 'ext.a.run', title: 'Run', ownerExtensionId: 'ext.a' }]);
+      const items = buildExtensionToolsSubmenu(deps);
+      expect((items[0] as { accelerator?: string }).accelerator).toBeUndefined();
+    });
+  });
 });

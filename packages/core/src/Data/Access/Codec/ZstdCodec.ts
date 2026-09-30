@@ -35,10 +35,11 @@ const nodeZstd = zlib as Partial<ZstdZlib>;
  * Falls back to 100 - libzstd's own `ZSTD_c_compressionLevel` enum value - so
  * the parameter is still addressed correctly on a runtime that has the
  * functions but typings that don't; `isZstdAvailable()` gates everything that
- * reads this anyway.
+ * reads this anyway. `zlib.constants` itself is undefined where the bundler stubs
+ * `zlib` out (the Electron renderer), so it is read defensively.
  */
 const ZSTD_C_COMPRESSION_LEVEL =
-  (zlib.constants as unknown as Record<string, number>).ZSTD_c_compressionLevel ?? 100;
+  (zlib.constants as unknown as Record<string, number> | undefined)?.ZSTD_c_compressionLevel ?? 100;
 
 /**
  * Whether this runtime can read zstd at all.
@@ -140,10 +141,21 @@ export class ZstdCodec implements IContentCodec {
     if (!isZstdAvailable()) {
       throw new ZstdUnavailableError();
     }
-    const out = nodeZstd.zstdDecompressSync!(
-      blob,
-      this.dictionary ? { dictionary: this.dictionary } : undefined
-    );
+    let out: Buffer;
+    try {
+      out = nodeZstd.zstdDecompressSync!(
+        blob,
+        this.dictionary ? { dictionary: this.dictionary } : undefined
+      );
+    } catch (err) {
+      // Newer Node (24.21+) reports a truncated frame itself, as Z_BUF_ERROR
+      // "unexpected end of file". Surface it as the same error the size check
+      // below raises on runtimes that still return silently.
+      if ((err as { code?: unknown })?.code === 'Z_BUF_ERROR') {
+        throw new Error(`zstd frame is truncated or corrupt: ${(err as Error).message}.`);
+      }
+      throw err;
+    }
     const declared = declaredFrameContentSize(blob);
     if (declared !== null && declared !== out.length) {
       throw new Error(
@@ -172,8 +184,10 @@ export class ZstdCodec implements IContentCodec {
  * ## Why this exists: Node's zstd does not report truncation
  *
  * `zlib.inflateRawSync` throws `Z_BUF_ERROR` on a truncated DEFLATE stream.
- * `zlib.zstdDecompressSync` on a truncated zstd frame throws NOTHING: it
- * returns whatever it managed to decode - which for a frame cut in half is a
+ * `zlib.zstdDecompressSync` on a truncated zstd frame throws NOTHING (up to
+ * at least Node 24.20, the version Electron 44 bundles; 24.21 started throwing
+ * `Z_BUF_ERROR`, which {@link ZstdCodec.decode} also handles): it returns
+ * whatever it managed to decode - which for a frame cut in half is a
  * zero-length buffer. Left alone, a damaged cell would therefore decode to
  * `''`, and an empty commentary entry looks exactly like an entry that is
  * legitimately empty. That is the silent corruption this whole format is

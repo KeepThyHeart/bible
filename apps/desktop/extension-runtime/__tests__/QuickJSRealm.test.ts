@@ -177,7 +177,7 @@ describe('word-count runs end-to-end inside the realm', () => {
     // ...and it subscribed to the verse-change channel.
     const subscribe = h.sent.find((e) => e.kind === 'subscribe');
     expect(subscribe).toBeDefined();
-    expect((subscribe as Extensions.RpcSubscribe).channel).toBe('bible.onDidChangeActiveVerse');
+    expect((subscribe as Extensions.RpcSubscribe).channel).toBe('verse.activeChanged');
 
     // ...and told the host it activated cleanly.
     const ack = h.sent.find((e) => e.kind === 'response' && e.id === 'host-init');
@@ -196,6 +196,13 @@ describe('word-count runs end-to-end inside the realm', () => {
         lastStatusText = (args[0] as { text: string }).text;
         return { id: 'ext.bible-app.word-count.display' };
       },
+      // word-count-example patches its status bar item on every active-verse
+      // change (ui.updateStatusBarItem) rather than re-registering the whole
+      // descriptor - see ui.registerStatusBarItem above for the initial value.
+      'ui.updateStatusBarItem': (args: unknown[]) => {
+        lastStatusText = (args[1] as { text: string }).text;
+        return undefined;
+      },
       'bible.getRange': () => [
         { verseId: 43003016, text: 'For God so loved the world', textPlain: 'For God so loved the world' },
         { verseId: 43003017, text: 'that he gave his only Son', textPlain: 'that he gave his only Son' },
@@ -208,7 +215,7 @@ describe('word-count runs end-to-end inside the realm', () => {
     // event in -> RPC out -> response in -> continuation -> RPC out.
     h.realm.deliver({
       kind: 'event',
-      channel: 'bible.onDidChangeActiveVerse',
+      channel: 'verse.activeChanged',
       payload: { verseId: 43003016 },
     });
     h.settle(handlers);

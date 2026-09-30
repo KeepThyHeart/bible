@@ -21,6 +21,26 @@ import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
 import { WordFamilyService, WordFamilyMember } from './WordFamilyService';
 import { ENGLISH_STOP_WORDS } from './Search/StopWords';
+import { hasModuleTable, moduleKeywordIndex } from '../Data/Access/Fts5/ModuleKeywordIndex';
+
+/**
+ * Whether a Bible module is searched by `InModuleFts5Provider` - i.e. is NOT a
+ * v0.2 module, whose verses are in `bible_verse` with no `bible_verse_fts`
+ * beside them, and whose index is therefore the sidecar.
+ *
+ * Anything else stays in-module: a v0.1 file with its own table, and a
+ * repository whose connection says nothing either way (a test double that
+ * answers `searchVersesWithHighlighting()` itself) - which is what every
+ * repository was before v0.2.
+ */
+function shipsInModuleIndex(repository: IBibleRepository): boolean {
+  try {
+    const sql = repository.getSql();
+    return !(hasModuleTable(sql, 'bible_verse') && !hasModuleTable(sql, 'bible_verse_fts'));
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Bible Search Service
@@ -98,15 +118,27 @@ export class BibleSearchService implements ISearchService {
     // stop. This value is therefore a valid-but-unused placeholder until a
     // later subtask (M11) threads a real environment down from wherever the
     // app composes its data-access layer.
+    //
+    // A v0.2 module ships no `bible_verse_fts` at all; its index is the
+    // sidecar the composition root configured (`configureModuleKeywordIndex`).
+    // Registration order is the routing: the registry asks providers in
+    // order, the in-module provider only ever accepts modules registered with
+    // it (see `registerModuleWithProvider()`, which registers only those that
+    // carry their own table), and everything else falls through to the
+    // sidecar. `indexDir` is what `SidecarFts5Provider.supports()` checks.
+    const sidecar = moduleKeywordIndex();
     const env: RuntimeEnvironment = {
       runtime: 'node-server',
       sqlite: { fts5: true, writableModules: false },
       codecs: new Set(),
-      indexDir: null,
+      indexDir: sidecar?.indexDirectory ?? null,
     };
     this.keywordIndexRegistry = new KeywordIndexRegistry(env);
     this.fts5Provider = new InModuleFts5Provider();
     this.keywordIndexRegistry.register(this.fts5Provider);
+    if (sidecar) {
+      this.keywordIndexRegistry.register(sidecar);
+    }
 
     // Modules passed in through the constructor need registering with the
     // provider exactly like a module added later through addBibleModule()
@@ -191,7 +223,9 @@ export class BibleSearchService implements ISearchService {
    */
   private registerModuleWithProvider(abbreviation: string, repository: IBibleRepository): void {
     const target = this.indexTargetFor(abbreviation, repository);
-    this.fts5Provider.register(target, repository);
+    if (shipsInModuleIndex(repository)) {
+      this.fts5Provider.register(target, repository);
+    }
     this.targetKeyToAbbr.set(indexTargetKey(target), abbreviation);
   }
 
@@ -264,6 +298,32 @@ export class BibleSearchService implements ISearchService {
    * table is contentless) is therefore no longer read here - see
    * `verseToSearchResultWithHighlight`'s doc comment for the full reasoning.
    */
+  /**
+   * One registry search per module, merged.
+   *
+   * `limit` here means "up to this many hits from EACH module" - every
+   * provider applies it per target. The registry treats `limit` as a total
+   * instead, and stops asking later provider groups once it is reached. With
+   * one provider that never mattered; with the in-module provider for v0.1
+   * Bibles and the sidecar for v0.2 ones, a common query would fill the limit
+   * from the first group and drop every module in the second. Asking per
+   * module keeps each module's own limit, whichever provider serves it.
+   */
+  private async searchEachModule(
+    query: KeywordQuery,
+    targets: IndexTarget[],
+    limit: number
+  ): Promise<KeywordSearchResponse> {
+    const merged: KeywordSearchResponse = { hits: [], skipped: [], truncated: false };
+    for (const target of targets) {
+      const response = await this.keywordIndexRegistry.search(query, { targets: [target], limit });
+      merged.hits.push(...response.hits);
+      merged.skipped.push(...response.skipped);
+      merged.truncated = merged.truncated || response.truncated;
+    }
+    return merged;
+  }
+
   private async searchViaKeywordIndex(
     query: KeywordQuery,
     modules: Map<string, IBibleRepository>,
@@ -271,10 +331,7 @@ export class BibleSearchService implements ISearchService {
     highlightTerms: string[]
   ): Promise<SearchResult[]> {
     const targets = this.targetsForModules(modules);
-    const response = await this.keywordIndexRegistry.search(query, {
-      targets,
-      limit: options.maxResults || 200,
-    });
+    const response = await this.searchEachModule(query, targets, options.maxResults || 200);
 
     this.reportSkippedTargets(response.skipped);
 
@@ -616,10 +673,7 @@ export class BibleSearchService implements ISearchService {
     }
 
     for (let i = 0; i < terms.length; i++) {
-      const response = await this.keywordIndexRegistry.search(termQueries[i], {
-        targets,
-        limit: 10000,
-      });
+      const response = await this.searchEachModule(termQueries[i], targets, 10000);
       this.reportSkippedTargets(response.skipped);
 
       for (const hit of response.hits) {
@@ -1691,6 +1745,15 @@ export class BibleSearchService implements ISearchService {
         if (!aHasPhrase && bHasPhrase) return 1;
       }
 
+      // Approximate rows from the 'coverage' gate carry how much of the query
+      // they matched: more of the query first, then the tighter cluster.
+      if (a.termCoverage !== undefined && b.termCoverage !== undefined) {
+        if (a.termCoverage !== b.termCoverage) return b.termCoverage - a.termCoverage;
+        if (a.matchSpan !== undefined && b.matchSpan !== undefined && a.matchSpan !== b.matchSpan) {
+          return a.matchSpan - b.matchSpan;
+        }
+      }
+
       // Within same type, sort by verse ID (Bible order)
       return a.verseId - b.verseId;
     });
@@ -1709,6 +1772,12 @@ export class BibleSearchService implements ISearchService {
     const terms = parsed.terms || [];
 
     if (terms.length === 0) return [];
+
+    // A multi-word query is judged on how much of it a verse matches, rather
+    // than on any one word of it. Opt-in: see SearchOptions.fuzzyGate.
+    if (options.fuzzyGate === 'coverage' && terms.length > 1) {
+      return this.addCoverageFuzzyMatches(terms, existingResults, options);
+    }
 
     // Search with fuzzy variants
     const fuzzyResults: SearchResult[] = [];
@@ -1738,6 +1807,171 @@ export class BibleSearchService implements ISearchService {
     // Filter out results that already exist
     const existingIds = new Set(existingResults.map(r => r.verseId));
     return fuzzyResults.filter(r => !existingIds.has(r.verseId));
+  }
+
+  /**
+   * The gate for approximate matches to a multi-word query (`fuzzyGate:
+   * 'coverage'`).
+   *
+   * The historical supplement (see {@link addFuzzyMatches}) searches each term
+   * on its own and keeps whatever any of them finds. For "God so loved the
+   * world" that means every verse with "God*", "so*" or "the*" in it — a
+   * 20-row slice of them per term, taken in Bible order, which is how Genesis
+   * 1:1 came to lead the approximate list. A verse that shares one common word
+   * with the query is not an approximation of it.
+   *
+   * Here a verse qualifies only if it matches enough of the query:
+   *
+   *  1. Stop words ("so", "the", "thou", ...) neither count towards coverage
+   *     nor are required, so they cannot carry a verse in.
+   *  2. With N significant terms left, a verse must match at least
+   *     `max(2, ceil(0.6 * N))` of them: 2 of 2, 2 of 3, 3 of 4, 3 of 5, 4 of 6.
+   *     Word forms count (a term matches a word that begins with its stem, so
+   *     "loved" finds "loveth" and "loving"), which is what "approximate" is
+   *     for; a single stray word does not.
+   *  3. When fewer than two significant terms remain (the query is mostly stop
+   *     words, e.g. "God so"), there is nothing to weigh coverage against, so
+   *     every term must match, as a word form.
+   *
+   * Qualifying verses are found by ANDing combinations of the terms, from all
+   * of them down to the minimum (so each database query is selective, unlike a
+   * lone "God"), then ranked by coverage, then by how tightly the matches
+   * cluster, then by Bible order. See {@link rankResults}.
+   */
+  private async addCoverageFuzzyMatches(
+    terms: string[],
+    existingResults: SearchResult[],
+    options: SearchOptions
+  ): Promise<SearchResult[]> {
+    const significant = terms.filter(t => !BibleSearchService.isStopWord(t));
+    const useCoverage = significant.length >= 2;
+    const scored = useCoverage ? significant : terms;
+    const required = useCoverage
+      ? Math.max(2, Math.ceil(scored.length * BibleSearchService.FUZZY_COVERAGE_RATIO))
+      : scored.length;
+
+    const prefixes = scored.map(t => BibleSearchService.stemPrefix(t));
+    // Largest combinations first: a verse matching every term is the best
+    // approximate match there is, and the per-query row cap (taken in Bible
+    // order) must not be spent on smaller combinations before it is found.
+    const combos: number[][] = [];
+    for (let size = prefixes.length; size >= required; size--) {
+      combos.push(...BibleSearchService.combinations(prefixes.length, size));
+    }
+    combos.length = Math.min(combos.length, BibleSearchService.FUZZY_MAX_COMBINATIONS);
+
+    const existingIds = new Set(existingResults.map(r => r.verseId));
+    const found = new Map<string, SearchResult>();
+    for (const combo of combos) {
+      // A 'prefixes' query, not 'terms': a term containing `*` is quoted by the
+      // compiler and so turns the prefix into a literal ("lov*" would then
+      // match only the token "lov").
+      const stems = combo.map(i => prefixes[i]);
+      const query: KeywordQuery = { kind: 'prefixes', stems, all: true };
+      const rows = await this.searchViaKeywordIndex(query, this.getModulesToSearch(options), {
+        ...options,
+        maxResults: BibleSearchService.FUZZY_PER_COMBINATION_LIMIT,
+      }, stems);
+      for (const row of rows) {
+        if (existingIds.has(row.verseId)) continue;
+        found.set(`${row.module}|${row.verseId}`, row);
+      }
+    }
+
+    const ranked: SearchResult[] = [];
+    for (const row of found.values()) {
+      const { matched, span } = this.measureCoverage(row.text, prefixes);
+      // The AND queries guarantee `required` terms, but the stem prefixes are
+      // looser than the tokenizer's, so confirm against the text itself.
+      if (matched < required) continue;
+      row.type = 'fuzzy';
+      row.termCoverage = matched / prefixes.length;
+      row.matchSpan = span;
+      ranked.push(row);
+    }
+
+    ranked.sort((a, b) =>
+      (b.termCoverage! - a.termCoverage!) ||
+      (a.matchSpan! - b.matchSpan!) ||
+      (a.verseId - b.verseId));
+    return ranked.slice(0, BibleSearchService.FUZZY_MAX_RESULTS);
+  }
+
+  /** Share of significant query terms an approximate match must cover (see addCoverageFuzzyMatches). */
+  private static readonly FUZZY_COVERAGE_RATIO = 0.6;
+  /** Most approximate rows a coverage-gated search adds. */
+  private static readonly FUZZY_MAX_RESULTS = 30;
+  /** Row cap for each term-combination query. */
+  private static readonly FUZZY_PER_COMBINATION_LIMIT = 100;
+  /** Guard against a very long query fanning out into hundreds of queries. */
+  private static readonly FUZZY_MAX_COMBINATIONS = 30;
+  /** Words too common in Bible English to say anything about a match, beyond the general list. */
+  private static readonly ARCHAIC_STOP_WORDS = new Set([
+    'thou', 'thee', 'thy', 'thine', 'ye', 'unto', 'hath', 'doth', 'shalt', 'wilt', 'art', 'o',
+  ]);
+
+  private static isStopWord(term: string): boolean {
+    const t = term.toLowerCase();
+    return ENGLISH_STOP_WORDS.has(t) || BibleSearchService.ARCHAIC_STOP_WORDS.has(t);
+  }
+
+  /**
+   * The part of a word that its inflected forms share: "loved" -> "lov"
+   * (love, loved, loveth, loving, lovers). Only strips a suffix when at least
+   * three letters remain, so short words are left alone.
+   */
+  private static stemPrefix(term: string): string {
+    const t = term.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const suffix of ['eth', 'est', 'ing', 'ed', 'es', 'ly', 's', 'e']) {
+      if (t.endsWith(suffix) && t.length - suffix.length >= 3) return t.slice(0, -suffix.length);
+    }
+    return t;
+  }
+
+  /** All k-element index subsets of 0..n-1, in lexicographic order. */
+  private static combinations(n: number, k: number): number[][] {
+    const out: number[][] = [];
+    const walk = (start: number, chosen: number[]): void => {
+      if (chosen.length === k) { out.push([...chosen]); return; }
+      for (let i = start; i < n; i++) {
+        chosen.push(i);
+        walk(i + 1, chosen);
+        chosen.pop();
+      }
+    };
+    walk(0, []);
+    return out;
+  }
+
+  /**
+   * How many of `prefixes` occur in `text` as the start of a word, and how many
+   * words the smallest window holding one occurrence of each matched prefix
+   * spans (1 = a single word; larger = more spread out).
+   */
+  private measureCoverage(text: string, prefixes: string[]): { matched: number; span: number } {
+    const words = text.replace(/<[^>]*>/g, ' ').toLowerCase().match(/[a-z0-9']+/g) ?? [];
+    const positions: number[][] = prefixes.map(() => []);
+    words.forEach((word, idx) => {
+      prefixes.forEach((prefix, p) => { if (prefix && word.startsWith(prefix)) positions[p].push(idx); });
+    });
+    const present = positions.filter(list => list.length > 0);
+    if (present.length === 0) return { matched: 0, span: Number.MAX_SAFE_INTEGER };
+
+    // Smallest window containing at least one position of every matched term.
+    const tagged = present.flatMap((list, t) => list.map(pos => ({ pos, t }))).sort((a, b) => a.pos - b.pos);
+    const counts = new Array<number>(present.length).fill(0);
+    let covered = 0;
+    let best = Number.MAX_SAFE_INTEGER;
+    let left = 0;
+    for (let right = 0; right < tagged.length; right++) {
+      if (counts[tagged[right].t]++ === 0) covered++;
+      while (covered === present.length) {
+        best = Math.min(best, tagged[right].pos - tagged[left].pos + 1);
+        if (--counts[tagged[left].t] === 0) covered--;
+        left++;
+      }
+    }
+    return { matched: present.length, span: best };
   }
 
   /**

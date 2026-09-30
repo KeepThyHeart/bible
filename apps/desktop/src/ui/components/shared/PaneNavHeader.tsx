@@ -25,6 +25,13 @@ interface PaneNavHeaderProps {
 /**
  * Shared navigation header with Back, Forward, Home, and Pin controls.
  * Used in Study Pane and Topics Pane headers.
+ *
+ * The Back/Forward/Home buttons render `.control-nav-button` from
+ * `styles/controls.css` rather than inline styles - that stylesheet is also
+ * served to extension panels at `ext-ui://host/controls.css`, so an extension
+ * that needs its own "back" affordance can match this one instead of
+ * inventing a fourth shape for it. `:disabled` there carries the same
+ * dimmed-color/not-allowed treatment `buttonStyle` used to compute by hand.
  */
 const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
   canGoBack,
@@ -37,16 +44,6 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
   canGoHome = true,
 }) => {
   const { t } = useI18n();
-  const buttonStyle = (enabled: boolean): React.CSSProperties => ({
-    padding: '4px 8px',
-    fontSize: '13px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    color: enabled ? 'var(--theme-text-primary)' : 'var(--theme-text-secondary)',
-    cursor: enabled ? 'pointer' : 'default',
-    opacity: enabled ? 1 : 0.4,
-    borderRadius: '4px',
-  });
 
   return (
     <div style={{
@@ -58,29 +55,29 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
       flexShrink: 0,
     }}>
       <button
+        className="control-nav-button"
         data-testid="pane-nav-back"
         onClick={onBack}
         disabled={!canGoBack}
-        style={buttonStyle(canGoBack)}
         title={t('ui.paneNav.goBack')}
       >
         &lt;
       </button>
       <button
+        className="control-nav-button"
         data-testid="pane-nav-forward"
         onClick={onForward}
         disabled={!canGoForward}
-        style={buttonStyle(canGoForward)}
         title={t('ui.paneNav.goForward')}
       >
         &gt;
       </button>
       {onHome && (
         <button
+          className="control-nav-button"
           data-testid="pane-nav-home"
           onClick={onHome}
           disabled={!canGoHome}
-          style={buttonStyle(canGoHome)}
           title={t('ui.paneNav.goHome')}
           aria-label={t('ui.paneNav.goHome')}
         >

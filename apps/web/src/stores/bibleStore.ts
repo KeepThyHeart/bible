@@ -67,6 +67,14 @@ export interface BibleTab {
    */
   versesModule?: string;
   /**
+   * True when the tab's book/chapter was last changed by the audio follow-along
+   * turning the page (`navigateTo({ follow: true })`), not by the reader. The
+   * Study-sync effect in `useAppShared` reads it so that a page turn never emits
+   * `bible:verse-selected` (which would move the Study pane and add a Study
+   * history entry): those follow the reader's selection only.
+   */
+  followNav?: boolean;
+  /**
    * Monotonic counter identifying the newest load started for this tab.
    *
    * Every chapter fetch takes a copy before awaiting and re-checks it after,
@@ -353,17 +361,31 @@ class BibleStore extends Store {
    * history pick, the book/chapter picker) leaves a new breadcrumb. It is an
    * explicit flag rather than an adjacency test on purpose: "John 4 after
    * John 3" is a page for the chapter buttons and a jump when it was typed.
+   *
+   * `follow` is for the audio player turning the page as the reading moves into
+   * the next chapter. It changes what the reader is *shown* and nothing they
+   * chose: the selected verse (`studyVerse`) is left alone, the commentary is
+   * not told to reload, the Home screen and the URL hash of an inactive tab are
+   * left as they are, and the move always replaces the current history entry.
+   * `tabId` names the tab to move (the playing tab need not be the active one);
+   * without it the active tab moves, as always.
    */
-  async navigateTo(book: number, chapter: number, verse?: number, options?: { fromLink?: boolean; endVerse?: number; replace?: boolean }): Promise<void> {
-    const tab = this.getActiveTab();
+  async navigateTo(
+    book: number,
+    chapter: number,
+    verse?: number,
+    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; follow?: boolean; tabId?: string },
+  ): Promise<void> {
+    const follow = options?.follow === true;
+    const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
     if (!tab || !this.bible) return;
 
     // Track whether we need to dismiss home screen after data loads
-    const wasShowingHome = this.showHome;
+    const wasShowingHome = follow ? false : this.showHome;
 
     // Before navigating away, update the current history entry with the
     // highlighted verse and scroll position so goBack() can restore them.
-    if (options?.fromLink && tab.historyIndex >= 0 && tab.historyIndex < tab.history.length) {
+    if (!follow && options?.fromLink && tab.historyIndex >= 0 && tab.historyIndex < tab.history.length) {
       const current = tab.history[tab.historyIndex];
       if (tab.studyVerse) {
         const v = tab.studyVerse % 1000;
@@ -378,6 +400,7 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = book;
     tab.chapter = chapter;
+    tab.followNav = follow;
     const seq = this.beginLoad(tab);
     const cancelLoadingFn = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
@@ -398,43 +421,50 @@ class BibleStore extends Store {
       tab.coveredBooks = data.coveredBooks;
       tab.previewVerse = null;
       tab.previewVerseEnd = null;
-      // A passage selection is anchored to verses in the chapter being left.
-      tab.selectionEndVerse = null;
-      if (verse) {
-        // Calculate full verseId — select the specific verse
-        const verseId = (book * 1000000) + (chapter * 1000) + verse;
-        tab.studyVerse = verseId;
-        tab.pendingScrollVerse = verseId;
-        // A typed range ("John 3:16-18") lands as the same anchor + far-end
-        // pair a click-then-shift-click produces, so the range highlight and
-        // the copy dialog pick it up with no further wiring.
-        if (options?.endVerse && options.endVerse > verse) {
-          tab.selectionEndVerse = (book * 1000000) + (chapter * 1000) + options.endVerse;
-        }
+      if (follow) {
+        // The reader's selection stays exactly where it was (see the doc above);
+        // the audio follow-along scrolls to the verse being read itself.
+        tab.pendingScrollVerse = null;
       } else {
-        // No specific verse asked for: select the chapter's first verse so the
-        // study and commentary panes have something to bind to immediately.
-        //
-        // Not left null for an effect in CommentaryContent to back-fill by
-        // measuring the DOM for the first visible verse: that effect runs
-        // before the Bible pane has mounted its verses on a fresh chapter load
-        // or a cold start, finds nothing, and its deps do not change again —
-        // leaving the pane stuck on "select a verse" until the user clicks one.
-        // The verse data is right here, so there is no reason to go to the DOM.
-        tab.studyVerse = tab.verses[0]?.verse_id ?? null;
-        // Chapter navigation with no named verse still selects one (the first),
-        // and the reader should land on it. Leaving this null meant a prev/next
-        // chapter step kept the previous chapter's scroll offset, so the
-        // selected verse was scrolled to only when the caller happened to name
-        // one — the inconsistency this fixes.
-        tab.pendingScrollVerse = tab.studyVerse;
+        // A passage selection is anchored to verses in the chapter being left.
+        tab.selectionEndVerse = null;
+        if (verse) {
+          // Calculate full verseId — select the specific verse
+          const verseId = (book * 1000000) + (chapter * 1000) + verse;
+          tab.studyVerse = verseId;
+          tab.pendingScrollVerse = verseId;
+          // A typed range ("John 3:16-18") lands as the same anchor + far-end
+          // pair a click-then-shift-click produces, so the range highlight and
+          // the copy dialog pick it up with no further wiring.
+          if (options?.endVerse && options.endVerse > verse) {
+            tab.selectionEndVerse = (book * 1000000) + (chapter * 1000) + options.endVerse;
+          }
+        } else {
+          // No specific verse asked for: select the chapter's first verse so the
+          // study and commentary panes have something to bind to immediately.
+          //
+          // Not left null for an effect in CommentaryContent to back-fill by
+          // measuring the DOM for the first visible verse: that effect runs
+          // before the Bible pane has mounted its verses on a fresh chapter load
+          // or a cold start, finds nothing, and its deps do not change again —
+          // leaving the pane stuck on "select a verse" until the user clicks one.
+          // The verse data is right here, so there is no reason to go to the DOM.
+          tab.studyVerse = tab.verses[0]?.verse_id ?? null;
+          // Chapter navigation with no named verse still selects one (the first),
+          // and the reader should land on it. Leaving this null meant a prev/next
+          // chapter step kept the previous chapter's scroll offset, so the
+          // selected verse was scrolled to only when the caller happened to name
+          // one — the inconsistency this fixes.
+          tab.pendingScrollVerse = tab.studyVerse;
+        }
       }
       tab.loading = false;
       tab.scrollPosition = 0;
-      tab.showBackBar = !!(options?.fromLink && this.canGoBack());
+      tab.showBackBar = !follow && !!(options?.fromLink && this.canGoBack());
 
-      // Sync commentary to this chapter (explicit, not auto-synced)
-      eventBus.emit('commentary:load-chapter', { book, chapter });
+      // Sync commentary to this chapter (explicit, not auto-synced). Not while
+      // following audio: the panes update only when the reader selects a verse.
+      if (!follow) eventBus.emit('commentary:load-chapter', { book, chapter });
 
       // Dismiss home screen now that verse data is ready (no blank flash)
       if (wasShowingHome) {
@@ -442,8 +472,8 @@ class BibleStore extends Store {
       }
 
       // Push to history
-      this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace });
-      this.updateHash();
+      this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
+      if (tab.id === this.activeTabId) this.updateHash();
       this.saveSession();
       this.notify();
 
@@ -461,16 +491,57 @@ class BibleStore extends Store {
     }
   }
 
+  /**
+   * Make sure a Bible tab is the one on screen, and return it.
+   *
+   * The left pane can be showing something other than a Bible tab: the Home
+   * screen is a peer of the tabs in the tab bar, and it leaves `activeTabId`
+   * pointing at whichever Bible tab was last in use. A verse link clicked in
+   * the right pane (Topics, Commentary, Study, Search…) must land in a Bible
+   * tab, so:
+   *
+   *  - the most recently active Bible tab is the target — `activeTabId`,
+   *    which Home does not disturb — and it is brought forward by dismissing
+   *    Home;
+   *  - if that id no longer names a tab (a stale restore), the right-most tab
+   *    is used;
+   *  - with no Bible tab at all, one is opened.
+   *
+   * Dismissing Home is left to the caller (see `navigateToPreview`), which
+   * knows whether the chapter is already loaded.
+   */
+  ensureBibleTabFocused(): BibleTab | undefined {
+    let tab = this.getActiveTab();
+    if (!tab) {
+      tab = this.tabs[this.tabs.length - 1];
+      if (tab) {
+        this.activeTabId = tab.id;
+      } else {
+        this.addTab();
+        tab = this.getActiveTab();
+      }
+    }
+    return tab;
+  }
+
   /** Navigate to a verse as a preview (from study pane links, search results).
    *  Sets previewVerse instead of studyVerse — no panes auto-sync or pin. */
   async navigateToPreview(book: number, chapter: number, verse?: number, endVerseId?: number): Promise<void> {
-    const tab = this.getActiveTab();
-    if (!tab || !this.bible) return;
+    if (!this.bible) return;
+    // A verse link is a request to *read* the verse, so a Bible tab has to be
+    // the thing on screen — not the Home screen, and not no tab at all.
+    const tab = this.ensureBibleTabFocused();
+    if (!tab) return;
+    // Dismissal is held back for a different chapter until its text is in, the
+    // same way `navigateTo` does it, so the Home screen does not give way to a
+    // blank pane while the chapter loads.
+    const wasShowingHome = this.showHome;
 
     const verseId = verse ? (book * 1000000) + (chapter * 1000) + verse : null;
 
     // Same chapter — just set previewVerse and scroll
     if (tab.book === book && tab.chapter === chapter) {
+      this.showHome = false;
       tab.previewVerse = verseId;
       tab.previewVerseEnd = endVerseId ?? null;
       if (verseId) tab.pendingScrollVerse = verseId;
@@ -494,12 +565,13 @@ class BibleStore extends Store {
     tab.loadError = undefined;
     tab.book = book;
     tab.chapter = chapter;
+    tab.followNav = false;
     tab.previewVerse = verseId;
     tab.previewVerseEnd = endVerseId ?? null;
     const seq = this.beginLoad(tab);
     const cancelLoading = this.deferLoading(tab, seq);
     const requestedModule = tab.moduleAbbr;
-    this.notify();
+    if (!wasShowingHome) this.notify();
 
     try {
       const data = await this.bible.getChapter(requestedModule, book, chapter);
@@ -520,6 +592,7 @@ class BibleStore extends Store {
       tab.loading = false;
       tab.scrollPosition = 0;
       tab.showBackBar = this.canGoBack();
+      this.showHome = false;
 
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse, fromPreview: true });
       this.updateHash();
@@ -530,6 +603,7 @@ class BibleStore extends Store {
       console.error('Preview navigation failed:', error);
       tab.loading = false;
       tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      this.showHome = false;
       this.notify();
     }
   }
@@ -551,6 +625,58 @@ class BibleStore extends Store {
     }
     // The history entry for this chapter should name the last verse actually
     // visited in it, not the one the chapter was opened at.
+    this.rememberVerseInCurrentEntry(tab);
+    this.notify();
+  }
+
+  /**
+   * Move the study verse to the next/previous verse of the loaded chapter --
+   * the up/down-arrow analogue of clicking a verse, used while presenting so
+   * that stepping through a passage to decide what to send also moves the
+   * study focus shown in the Bible pane, rather than keeping presenter-only
+   * state the reader underneath never sees. Never crosses a chapter boundary:
+   * "next chapter" is a bigger decision than an arrow key should make.
+   *
+   * With nothing selected yet, this starts at the chapter's first verse
+   * rather than guessing a direction from nothing.
+   */
+  stepStudyVerse(direction: 'next' | 'previous'): void {
+    const tab = this.getActiveTab();
+    if (!tab || tab.verses.length === 0) return;
+
+    const currentIndex = tab.studyVerse !== null
+      ? tab.verses.findIndex(v => v.verse_id === tab.studyVerse)
+      : -1;
+    const nextIndex = currentIndex === -1
+      ? 0
+      : Math.min(Math.max(currentIndex + (direction === 'next' ? 1 : -1), 0), tab.verses.length - 1);
+
+    const verse = tab.verses[nextIndex];
+    if (!verse || verse.verse_id === tab.studyVerse) return;
+
+    tab.previewVerse = null;
+    tab.previewVerseEnd = null;
+    tab.selectionEndVerse = null;
+    tab.studyVerse = verse.verse_id;
+    this.rememberVerseInCurrentEntry(tab);
+    this.notify();
+  }
+
+  /**
+   * Make verse number `verse` of the loaded chapter the study verse, without
+   * the deselect-on-second-click toggle `setStudyVerse` has -- for something
+   * that *follows* another position (the presenter's wall) rather than for a
+   * click. A verse the chapter does not have leaves everything as it was.
+   */
+  focusVerseNumber(verse: number): void {
+    const tab = this.getActiveTab();
+    if (!tab) return;
+    const target = tab.verses.find(v => v.verse === verse);
+    if (!target || target.verse_id === tab.studyVerse) return;
+    tab.previewVerse = null;
+    tab.previewVerseEnd = null;
+    tab.selectionEndVerse = null;
+    tab.studyVerse = target.verse_id;
     this.rememberVerseInCurrentEntry(tab);
     this.notify();
   }
@@ -883,8 +1009,8 @@ class BibleStore extends Store {
   }
 
   // History (per-tab)
-  private pushHistory(entry: HistoryEntry, options?: { replace?: boolean }): void {
-    const tab = this.getActiveTab();
+  private pushHistory(entry: HistoryEntry, options?: { replace?: boolean; tab?: BibleTab }): void {
+    const tab = options?.tab ?? this.getActiveTab();
     if (!tab) return;
 
     const current = tab.historyIndex >= 0 && tab.historyIndex < tab.history.length
@@ -984,6 +1110,7 @@ class BibleStore extends Store {
     // Update book/chapter immediately so the header title renders without flicker
     tab.book = entry.book;
     tab.chapter = entry.chapter;
+    tab.followNav = false;
     const seq = this.beginLoad(tab);
     const cancelLoading = this.deferLoading(tab, seq);
     this.notify();
