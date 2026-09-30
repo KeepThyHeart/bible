@@ -59,12 +59,19 @@ export class ReciteCursor {
     return false;
   }
 
-  push(chunk: RecognizedWord[]): CursorEvent {
-    const tokens = heardTokens(chunk, this.kit);
+  /**
+   * Feed one recognised chunk. A chunk is a command when it is a multi-word
+   * command phrase, or a single command word that does not match the next
+   * expected words (so "again" in "born again" stays recitation).
+   * `commands: false` disables command detection entirely.
+   */
+  push(chunk: RecognizedWord[], opts?: { commands?: boolean }): CursorEvent {
+    const tokens = heardTokens(chunk, this.kit, false);
 
-    // Whole-chunk command phrase.
-    const phrase = this.commandPhrase(chunk);
-    if (phrase !== null) return { kind: 'command', command: phrase };
+    if (opts === undefined || opts.commands !== false) {
+      const phrase = this.commandPhrase(chunk);
+      if (phrase !== null) return { kind: 'command', command: phrase };
+    }
 
     this.heard.push(...chunk);
     if (tokens.length === 0) return { kind: 'uncertain' };
@@ -78,7 +85,7 @@ export class ReciteCursor {
     // 1. On track: prefix alignment against the window after the position.
     const winLen = 2 * tokens.length + this.windowExtra;
     const win = this.expected.slice(winStart, winStart + winLen);
-    const res = alignRecitation(win, chunk, this.kit, POLICIES.normal, { mode: 'prefix' });
+    const res = alignRecitation(win, chunk, this.kit, POLICIES.normal, { mode: 'prefix', ignoreCommands: false });
     let matched = 0;
     let first = -1;
     let last = -1;
@@ -123,6 +130,17 @@ export class ReciteCursor {
       .join(' ');
     if (raw === '') return null;
     const cmds = this.kit.commands;
-    return Object.prototype.hasOwnProperty.call(cmds, raw) ? cmds[raw] : null;
+    if (!Object.prototype.hasOwnProperty.call(cmds, raw)) return null;
+    // A single command word that is the real next word is recitation.
+    if (raw.indexOf(' ') < 0 && this.matchesNextExpected(raw)) return null;
+    return cmds[raw];
+  }
+
+  /** True when `norm` matches the expected word at position+1 or position+2. */
+  private matchesNextExpected(norm: string): boolean {
+    for (let i = this.position + 1; i <= this.position + 2 && i < this.expected.length; i++) {
+      if (compareWords(this.expected[i], norm, this.kit, this.cache).verdict !== 'wrong') return true;
+    }
+    return false;
   }
 }

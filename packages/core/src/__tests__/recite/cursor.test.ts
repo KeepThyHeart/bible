@@ -104,4 +104,43 @@ describe('ReciteCursor', () => {
     const r = alignRecitation(PASSAGE, c.heard, englishKit, POLICIES.normal, { mode: 'prefix' });
     expect(r.lastMatched).toBe(17);
   });
+
+  describe('command words vs Scripture words', () => {
+    const v = () => new ReciteCursor(ev('Jesus answered Ye must be born again marvel not'), englishKit);
+
+    it('"born again" recited as chunks is recitation', () => {
+      const c = v();
+      c.push(rw('Jesus answered ye must be born'));
+      const e = c.push(rw('again'));
+      expect(e).toEqual({ kind: 'on-track', position: 6 });
+      expect(c.heard.map((w) => w.text)).toContain('again');
+    });
+
+    it('a lone "again" as the real next word is recitation', () => {
+      const c = new ReciteCursor(ev('again and again'), englishKit);
+      expect(c.push(rw('again')).kind).toBe('on-track');
+    });
+
+    it('a lone "again" when the next word is something else is a command', () => {
+      const c = v();
+      c.push(rw('Jesus answered ye must'));
+      expect(c.push(rw('again'))).toEqual({ kind: 'command', command: 'again' });
+      expect(c.heard.length).toBe(4);
+    });
+
+    it('multi-word phrases are commands even when the words match', () => {
+      const c = new ReciteCursor(ev('try again my soul'), englishKit);
+      expect(c.push(rw('try again'))).toEqual({ kind: 'command', command: 'again' });
+      expect(c.push(rw('give me a hint'))).toEqual({ kind: 'command', command: 'hint' });
+    });
+
+    it('commands:false always treats the chunk as recitation', () => {
+      const c = v();
+      c.push(rw('Jesus answered ye must'));
+      const e = c.push(rw('again'), { commands: false });
+      expect(e.kind).not.toBe('command');
+      expect(c.heard.length).toBe(5);
+      expect(c.push(rw('where am I'), { commands: false }).kind).not.toBe('command');
+    });
+  });
 });

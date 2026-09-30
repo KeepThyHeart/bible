@@ -44,6 +44,8 @@ export interface AlignOptions {
   mode?: 'full' | 'prefix';
   /** Testing: never band the DP, whatever the size. */
   unbanded?: boolean;
+  /** false: a heard utterance that is exactly a command is still recitation (default true: ignored). */
+  ignoreCommands?: boolean;
 }
 
 export type StepKind = 'diag' | 'del' | 'ins' | 'join' | 'split';
@@ -286,9 +288,9 @@ function alignTokens(
 }
 
 /** Tokenise the heard side: fillers dropped, digits expanded, whole-utterance commands ignored. */
-export function heardTokens(heard: RecognizedWord[], kit: ILanguageKit): HeardToken[] {
+export function heardTokens(heard: RecognizedWord[], kit: ILanguageKit, ignoreCommands = true): HeardToken[] {
   const toks = tokenizeHeard(heard, kit).filter((t) => !kit.fillers.has(t.norm));
-  if (toks.length > 0) {
+  if (ignoreCommands && toks.length > 0) {
     const phrase = toks.map((t) => t.norm).join(' ');
     if (Object.prototype.hasOwnProperty.call(kit.commands, phrase)) return [];
   }
@@ -385,7 +387,7 @@ export function alignRecitation(
   if (n === 0) return { words: [], extras: [], score: 0, verseScores: [], lastMatched: -1 };
   const prefix = opts !== undefined && opts.mode === 'prefix';
   const E = foldExpected(expected);
-  const H = heardTokens(heard, kit);
+  const H = heardTokens(heard, kit, opts === undefined || opts.ignoreCommands !== false);
   const cache: CmpCache = new Map();
 
   const dp = alignTokens(E, H, kit, cache, {

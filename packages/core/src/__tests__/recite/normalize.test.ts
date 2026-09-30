@@ -57,3 +57,16 @@ describe('targetTokens and kitFor', () => {
     expect(kitFor('ens')).toBeNull();
   });
 });
+
+import { stripEdgePunctuation } from '../../recite';
+
+describe('stripEdgePunctuation', () => {
+  it('strips edges and keeps inner apostrophes', () => {
+    expect(stripEdgePunctuation('“Lord’s,”')).toBe('Lord’s');
+    expect(stripEdgePunctuation("...don't!")).toBe("don't");
+    expect(stripEdgePunctuation('  (hello) ')).toBe('hello');
+    expect(stripEdgePunctuation('—')).toBe('');
+    expect(stripEdgePunctuation('café;')).toBe('café');
+    expect(stripEdgePunctuation('')).toBe('');
+  });
+});
