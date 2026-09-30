@@ -63,21 +63,27 @@ export function layoutFamily(g: GenealogyGraph, focusId: string, opts: FamilyLay
   const spouseNodes = spouses.filter(s => !placed.has(s)).map(s => claim(s));
 
   // Ancestors.
+  // A person with two listed fathers gets both; the second is expanded one level only (`secondary`).
+  const secondary = new Set<string>();
   const parentsOf = (pid: string) => {
-    const f = g.fatherId(pid), m = showMothers ? g.motherId(pid) : undefined;
-    return [f, m].filter((x): x is string => !!x);
+    const fathers = uniqIds(g.fatherEdges(pid).map(e => e.from)).slice(0, 2);
+    const m = showMothers ? g.motherId(pid) : undefined;
+    return [...fathers, m].filter((x): x is string => !!x);
   };
   const buildUp = (t: TreeNode, depth: number) => {
     const pid = t.node.personId;
     const ps = parentsOf(pid);
     if (!ps.length) return;
-    if (depth >= up || (pid !== focusId && collapsed.has(pid))) {
+    if (depth >= up || (pid !== focusId && collapsed.has(pid)) || secondary.has(pid)) {
       const hidden = countReachable(pid, parentsOf);
       if (hidden) t.node.flags.collapsed = hidden;
       return;
     }
+    const fatherIds = g.fatherEdges(pid).map(e => e.from);
     for (const p of ps) {
       if (placed.has(p)) continue; // pedigree collapse: drawn as a cross edge later
+      const second = fatherIds.length > 1 && fatherIds.indexOf(p) > 0 && p !== g.motherId(pid);
+      if (second) secondary.add(p);
       const kid: TreeNode = { node: claim(p), kids: [] };
       t.kids.push(kid);
       treeLinks.push([kid.node, t.node]);
@@ -130,7 +136,17 @@ export function layoutFamily(g: GenealogyGraph, focusId: string, opts: FamilyLay
   placeForest(downRoot.kids, rowCentre, ROW_H, ROW_H);
 
   // Edges: tree links, focus marriages, the spouses' links to their children with the focus.
-  for (const [p, c] of treeLinks) { edges.push(treeEdge(g, p, c)); drawn.add(pairKey(p.personId, c.personId)); }
+  for (const [p, c] of treeLinks) {
+    const edge = treeEdge(g, p, c);
+    if (secondary.has(p.personId)) {
+      const stored = g.fatherEdges(c.personId).find(e => e.from === p.personId);
+      const label = stored?.qualifier ?? stored?.reading;
+      if (label && label !== 'default') edge.label = label;
+      if (edge.style === 'solid') edge.style = 'dashed';
+    }
+    edges.push(edge);
+    drawn.add(pairKey(p.personId, c.personId));
+  }
   for (const s of spouseNodes) {
     const e = g.spouses(focusId).find(e => e.from === s.personId || e.to === s.personId);
     edges.push({ id: `spouse:${focus.id}-${s.id}`, from: focus.id, to: s.id, points: sidePoints(focus, s), style: 'solid', kind: 'spouse', verseId: firstVerse(e) });
@@ -147,3 +163,5 @@ export function layoutFamily(g: GenealogyGraph, focusId: string, opts: FamilyLay
   edges.push(...sameAsEdges(g, byPerson, new Set()));
   return finish([...placed.values()], edges);
 }
+
+function uniqIds(a: string[]): string[] { return [...new Set(a)]; }

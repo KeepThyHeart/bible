@@ -571,6 +571,7 @@
 .kth-genealogy-edge--gap { --_kth-gen-edge: var(--kth-warning); --_kth-gen-edash: 2 3; }
 .kth-genealogy-edge--same_as { --_kth-gen-edge: var(--kth-info); --_kth-gen-edash: 1 4; }
 .kth-genealogy-edge--christ { --_kth-gen-edge: var(--_kth-gen-gold); --_kth-gen-ew: 3; }
+.kth-genealogy-edge__label { fill: var(--kth-text-muted); font-size: 10px; font-family: var(--kth-font-ui); stroke: none; }
 .kth-genealogy-edge--dim { opacity: 0.4; }
 
 .kth-genealogy-swatch {
@@ -682,7 +683,7 @@
   font-family: var(--kth-font-ui);
   font-size: var(--kth-font-size-ui);
 }
-.kth-genealogy-explorer__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
+.kth-genealogy-explorer__bar { padding-inline: var(--kth-space-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
 .kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
 .kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
 .kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }

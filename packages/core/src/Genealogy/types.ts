@@ -164,6 +164,8 @@ export interface LayoutEdge {
   onLineToChrist?: boolean;
   /** Verse where the link is stated, for click-through. */
   verseId?: number;
+  /** Short qualifier drawn at the edge midpoint (a second father's `legal`, `ancestor`, ...). */
+  label?: string;
 }
 
 export interface LayoutBounds {

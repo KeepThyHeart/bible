@@ -31,7 +31,7 @@ export const TRIBE_LISTS: Record<'gen_49' | 'num_26' | 'rev_7', string[]> = {
  */
 export function layoutTribes(g: GenealogyGraph, opts: TribesLayoutOptions = {}): GraphLayout {
   const list = opts.list ?? 'gen_49';
-  const depth = opts.depth ?? 2;
+  const depth = opts.depth ?? 1;
   const collapsed = new Set(opts.collapsed ?? []);
   const jacob = resolvePerson(g, 'jacob');
   if (!jacob) return finish([], []);

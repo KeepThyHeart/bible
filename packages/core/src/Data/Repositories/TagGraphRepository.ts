@@ -627,6 +627,24 @@ export class TagGraphRepository implements ITagGraphRepository {
       return e;
     });
 
+    // A person with no verse link of their own is first mentioned where a link naming them is
+    // stated: use the earliest verse of their relationship evidence (tells namesakes apart).
+    const earliest = new Map<string, number>();
+    for (const e of edges) {
+      for (const v of e.verses) {
+        for (const id of [e.from, e.to]) {
+          const cur = earliest.get(id);
+          if (cur === undefined || v.start < cur) earliest.set(id, v.start);
+        }
+      }
+    }
+    for (const p of persons) {
+      if (p.firstRef === undefined) {
+        const e = earliest.get(p.id);
+        if (e !== undefined) p.firstRef = e;
+      }
+    }
+
     // Lineages -------------------------------------------------------------
     const lineages = this.readLineages();
 

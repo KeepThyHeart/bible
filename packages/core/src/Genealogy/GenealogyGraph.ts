@@ -64,7 +64,9 @@ export class GenealogyGraph {
     }
     for (const e of ds.edges) {
       if (e.readingGroup && !chosen.has(e.id)) continue;
-      if (!this.options.showDisputed && e.confidence === 'disputed') continue;
+      // A link inside a reading group is one alternative reading (the chosen one is kept even when
+      // 'disputed', so the KJV wording, e.g. Luke 3:23 "son of Heli", is never dropped by the toggle).
+      if (!this.options.showDisputed && e.confidence === 'disputed' && !e.readingGroup) continue;
       if (!this.people.has(e.from) || !this.people.has(e.to)) continue;
       if (PARENT_TYPES.has(e.type)) {
         push(this.childEdges, e.from, e);
@@ -100,8 +102,22 @@ export class GenealogyGraph {
   spouseIds(id: string): string[] {
     return uniq(this.spouses(id).map(e => (e.from === id ? e.to : e.from)));
   }
+  /**
+   * father_of edges into `id`, most direct first: no qualifier and not disputed, then the rest by
+   * sort order, keeping dataset order for ties. A person with two listed fathers (Joseph, Zerubbabel,
+   * Salah) has both, so callers can show both links.
+   */
+  fatherEdges(id: string): GenealogyEdgeDto[] {
+    const rank = (e: GenealogyEdgeDto) => (e.qualifier ? 2 : 0) + (e.confidence === 'disputed' ? 1 : 0);
+    return this.parents(id)
+      .filter(e => e.type === 'father_of')
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => rank(a.e) - rank(b.e) || bySort(a.e, b.e) || a.i - b.i)
+      .map(x => x.e);
+  }
+  /** The first of `fatherEdges` (deterministic, independent of the "show disputed" toggle order). */
   fatherId(id: string): string | undefined {
-    return this.parents(id).find(e => e.type === 'father_of')?.from;
+    return this.fatherEdges(id)[0]?.from;
   }
   motherId(id: string): string | undefined {
     return this.parents(id).find(e => e.type === 'mother_of')?.from;
@@ -141,12 +157,13 @@ export class GenealogyGraph {
     const scored: { p: GenealogyPersonDto; s: number }[] = [];
     for (const p of this.dataset.persons) {
       let best = Infinity;
-      for (const n of [p.name, ...(p.aliases ?? [])]) {
+      [p.name, ...(p.aliases ?? [])].forEach((n, idx) => {
         const k = normName(n);
         const i = k.indexOf(q);
-        if (i === 0) best = Math.min(best, k === q ? 0 : 1);
-        else if (i > 0) best = Math.min(best, 2);
-      }
+        const penalty = idx === 0 ? 0 : 0.5; // an alias match ranks below a primary-name match
+        if (i === 0) best = Math.min(best, (k === q ? 0 : 1) + penalty);
+        else if (i > 0) best = Math.min(best, 2 + penalty);
+      });
       if (best < Infinity) scored.push({ p, s: best });
     }
     scored.sort((a, b) => a.s - b.s || a.p.name.localeCompare(b.p.name));

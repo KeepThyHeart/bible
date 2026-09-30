@@ -74,6 +74,8 @@ const FALLBACK_SIZE = { w: 800, h: 600 };
 const KEY_PAN = 60;
 const KEY_ZOOM = 1.2;
 const DRAG_THRESHOLD = 3;
+/** Below this scale a fitted layout would be unreadable; fit opens at this scale instead (centred on the focus). */
+const MIN_FIT_SCALE = 0.5;
 const arrowDir: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
 function toPanZoom(v: GenealogyViewport): PanZoom { return new PanZoom(v.k, v.tx, v.ty); }
@@ -110,8 +112,18 @@ export function GenealogyView({
     commit(fromPanZoom(fn(toPanZoom(vpRef.current))));
   }, [commit]);
   const fit = useCallback(() => {
-    update((p) => p.fit(layout.bounds, sizeRef.current.w, sizeRef.current.h));
-  }, [update, layout.bounds]);
+    update((p) => {
+      p.fit(layout.bounds, sizeRef.current.w, sizeRef.current.h);
+      if (p.k < MIN_FIT_SCALE) {
+        // A very wide layout (the whole line, all tribes) would open as unreadable dots:
+        // open at a readable scale, centred on the focus person (else the first node).
+        const target = layout.nodes.find((n) => n.flags.focus) ?? layout.nodes[0];
+        p.k = MIN_FIT_SCALE;
+        if (target) p.centerOn(target.x, target.y, sizeRef.current.w, sizeRef.current.h);
+      }
+      return p;
+    });
+  }, [update, layout.bounds, layout.nodes]);
 
   // Measure the container (ResizeObserver where available).
   useLayoutEffect(() => {
@@ -161,7 +173,10 @@ export function GenealogyView({
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) moved.current = false;
     pointers.current.set(e.pointerId, local(e));
-    try { svgRef.current?.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
+    // Capture only once a drag starts (see capture below): capturing here would send the click to the svg, not the node.
+  };
+  const capture = (id: number) => {
+    try { svgRef.current?.setPointerCapture?.(id); } catch { /* not capturable */ }
   };
   const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const prev = pointers.current.get(e.pointerId);
@@ -170,6 +185,7 @@ export function GenealogyView({
     if (pointers.current.size === 1) {
       const dx = cur.x - prev.x, dy = cur.y - prev.y;
       if (!moved.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      if (!moved.current) capture(e.pointerId);
       moved.current = true;
       pointers.current.set(e.pointerId, cur);
       update((p) => p.pan(dx, dy));
@@ -180,6 +196,7 @@ export function GenealogyView({
       const mid = { x: (cur.x + others.x) / 2, y: (cur.y + others.y) / 2 };
       const midPrev = { x: (prev.x + others.x) / 2, y: (prev.y + others.y) / 2 };
       pointers.current.set(e.pointerId, cur);
+      for (const id of pointers.current.keys()) capture(id);
       moved.current = true;
       update((p) => p.pan(mid.x - midPrev.x, mid.y - midPrev.y).zoomAt(after / before, mid.x, mid.y));
     }
@@ -357,7 +374,23 @@ function EdgeShape({ edge, dim }: { edge: LayoutEdge; dim: boolean }) {
       </g>
     );
   }
-  return <path className={cls} data-edge-id={edge.id} d={pathData(edge.points)} />;
+  return (
+    <>
+      <path className={cls} data-edge-id={edge.id} d={pathData(edge.points)} />
+      {edge.label ? <EdgeLabel edge={edge} /> : null}
+    </>
+  );
+}
+
+function EdgeLabel({ edge }: { edge: LayoutEdge }) {
+  const pts = edge.points;
+  if (pts.length < 2) return null;
+  const a = pts[Math.floor((pts.length - 1) / 2)], b = pts[Math.ceil((pts.length - 1) / 2)];
+  return (
+    <text className="kth-genealogy-edge__label" x={(a.x + b.x) / 2 + 4} y={(a.y + b.y) / 2} dominantBaseline="central">
+      {edge.label}
+    </text>
+  );
 }
 
 function NodeDot({ node, k }: { node: LayoutNode; k: number }) {
@@ -380,7 +413,7 @@ function NodeBody({ node, shape, showGapText }: { node: LayoutNode; shape: strin
       {flags.collapsed ? (
         <g className="kth-genealogy-node__badge" transform={`translate(${w / 2} ${h / 2})`}>
           <rect x={-12} y={-8} width={24} height={16} rx={8} />
-          <text textAnchor="middle" dominantBaseline="central">{`+${flags.collapsed}`}</text>
+          <text textAnchor="middle" dominantBaseline="central">{flags.collapsed > 99 ? '99+' : `+${flags.collapsed}`}</text>
         </g>
       ) : null}
       {flags.gapNote ? (
