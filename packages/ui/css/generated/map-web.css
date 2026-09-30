@@ -26,4 +26,4 @@
   --kth-overlay: var(--overlay-bg);
   --kth-font-size-ui: var(--ui-font-size, 14px);
 }
-/* Not mapped here; contract default applies: --kth-danger, --kth-danger-soft, --kth-success, --kth-warning, --kth-info, --kth-font-ui */
+/* Not mapped here; contract default applies: --kth-danger, --kth-danger-soft, --kth-success, --kth-warning, --kth-info, --kth-mark-1-rgb, --kth-mark-2-rgb, --kth-mark-3-rgb, --kth-mark-4-rgb, --kth-mark-5-rgb, --kth-mark-6-rgb, --kth-mark-7-rgb, --kth-mark-8-rgb, --kth-font-ui */

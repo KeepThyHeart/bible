@@ -58,3 +58,37 @@ describe('resolveThemeColor', () => {
     expect(resolveThemeColor('bogus')).toBe(resolveThemeColor('accent'));
   });
 });
+
+/** WCAG relative luminance / contrast for `R G B` triplets. */
+function luminance([r, g, b]: number[]): number {
+  const f = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+function contrast(a: number[], b: number[]): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function rgbVar(block: string, name: string): number[] | null {
+  const m = block.match(new RegExp(`--theme-${name}-rgb:\\s*(\\d+) (\\d+) (\\d+)`));
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+describe('keyword mark colours (task 0065)', () => {
+  it.each(THEME_IDS)('[data-theme="%s"] defines mark-1..8 with >= 3:1 contrast on page and surface backgrounds', (theme) => {
+    const block = themeBlock(theme);
+    const backgrounds = ['bg-primary', 'surface-primary', 'bg-secondary']
+      .map((n) => rgbVar(block, n))
+      .filter((c): c is number[] => c !== null);
+    expect(backgrounds.length).toBeGreaterThan(0);
+    for (let i = 1; i <= 8; i++) {
+      const mark = rgbVar(block, `mark-${i}`);
+      expect(mark, `--theme-mark-${i}-rgb missing from [data-theme="${theme}"]`).not.toBeNull();
+      for (const bg of backgrounds) {
+        expect(contrast(mark!, bg), `mark-${i} on ${bg.join(' ')} in ${theme}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+});

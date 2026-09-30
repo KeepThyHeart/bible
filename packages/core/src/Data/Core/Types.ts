@@ -171,7 +171,8 @@ export const MODULE_TYPES = [
   'lexicon',
   'topical_index',
   'cross_reference',
-  'tag_graph'
+  'tag_graph',
+  'timeline'
 ] as const;
 
 /** Module types supported by the application. */
@@ -347,6 +348,7 @@ export const SOURCE_TYPES = [
   'verse',                  // bible module shipping publisher cross-references
   'cross_reference_group',  // xref module: the phrase group owning the targets
   'entity_facet',           // tag graph: the only integer-keyed link source
+  'timeline_item',          // timeline module: an item's passages
   'user_data_item'          // generic user store: a module's own verse metadata
 ] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];

@@ -75,6 +75,15 @@ const KTH_MAP = {
   '--kth-info':           { web: null, desktop: 'var(--theme-info)' },
   '--kth-shadow':         { web: '0 4px 12px var(--dropdown-shadow)', desktop: null },
   '--kth-overlay':        { web: 'var(--overlay-bg)',   desktop: 'var(--theme-bg-overlay)' },
+  // Keyword-mark colours (0065): space-separated RGB triplets, used as rgb(var(--kth-mark-N-rgb)). Web has no palette token: contract/scheme defaults.
+  '--kth-mark-1-rgb': { web: null, desktop: 'var(--theme-mark-1-rgb)' },
+  '--kth-mark-2-rgb': { web: null, desktop: 'var(--theme-mark-2-rgb)' },
+  '--kth-mark-3-rgb': { web: null, desktop: 'var(--theme-mark-3-rgb)' },
+  '--kth-mark-4-rgb': { web: null, desktop: 'var(--theme-mark-4-rgb)' },
+  '--kth-mark-5-rgb': { web: null, desktop: 'var(--theme-mark-5-rgb)' },
+  '--kth-mark-6-rgb': { web: null, desktop: 'var(--theme-mark-6-rgb)' },
+  '--kth-mark-7-rgb': { web: null, desktop: 'var(--theme-mark-7-rgb)' },
+  '--kth-mark-8-rgb': { web: null, desktop: 'var(--theme-mark-8-rgb)' },
   // Fonts follow each app's live "UI text" setting. Contract defaults remain the fallback.
   '--kth-font-ui':        { web: null, desktop: 'var(--ui-font-family)' },
   '--kth-font-size-ui':   { web: 'var(--ui-font-size, 14px)', desktop: 'calc(var(--ui-font-size) * var(--global-font-scale, 1))' },
@@ -87,13 +96,33 @@ const DARK_DEFAULTS = {
   '--kth-success': '#22c55e',       // 34 197 94
   '--kth-warning': '#f59e0b',       // 245 158 11
   '--kth-info': '#60a5fa',          // 96 165 250
+  '--kth-mark-1-rgb': '86 180 233',
+  '--kth-mark-2-rgb': '255 138 61',
+  '--kth-mark-3-rgb': '47 211 160',
+  '--kth-mark-4-rgb': '231 155 194',
+  '--kth-mark-5-rgb': '240 192 74',
+  '--kth-mark-6-rgb': '124 196 240',
+  '--kth-mark-7-rgb': '184 154 224',
+  '--kth-mark-8-rgb': '176 176 176',
   '--kth-shadow': '0 4px 12px rgb(0 0 0 / 0.5)',
   '--kth-color-scheme': 'dark',
+  '--kth-section-0': '#f59e0b',
+  '--kth-section-1': '#4ade80',
+  '--kth-section-2': '#22d3ee',
+  '--kth-section-3': '#c084fc',
+  '--kth-section-4': '#f472b6',
+  '--kth-section-5': '#f87171',
+  '--kth-section-6': '#fb923c',
+  '--kth-section-7': '#60a5fa',
+  '--kth-section-8': '#a3e635',
+  '--kth-section-9': '#94a3b8',
 };
 
 /** Contract tokens that are constants: declared in the contract, not mapped per app. */
 const CONTRACT_CONSTANTS = [
   '--kth-radius', '--kth-space-1', '--kth-space-2', '--kth-space-3', '--kth-space-4', '--kth-color-scheme',
+  '--kth-section-0', '--kth-section-1', '--kth-section-2', '--kth-section-3', '--kth-section-4',
+  '--kth-section-5', '--kth-section-6', '--kth-section-7', '--kth-section-8', '--kth-section-9',
 ];
 
 /** Web custom properties set at runtime (settingsStore.ts), always written with a fallback. */

@@ -35,10 +35,11 @@ const nodeZstd = zlib as Partial<ZstdZlib>;
  * Falls back to 100 - libzstd's own `ZSTD_c_compressionLevel` enum value - so
  * the parameter is still addressed correctly on a runtime that has the
  * functions but typings that don't; `isZstdAvailable()` gates everything that
- * reads this anyway.
+ * reads this anyway. `zlib.constants` itself is undefined where the bundler stubs
+ * `zlib` out (the Electron renderer), so it is read defensively.
  */
 const ZSTD_C_COMPRESSION_LEVEL =
-  (zlib.constants as unknown as Record<string, number>).ZSTD_c_compressionLevel ?? 100;
+  (zlib.constants as unknown as Record<string, number> | undefined)?.ZSTD_c_compressionLevel ?? 100;
 
 /**
  * Whether this runtime can read zstd at all.

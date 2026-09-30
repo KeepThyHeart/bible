@@ -37,6 +37,16 @@
   --kth-warning: #d97706;
   --kth-info: #2563eb;
 
+  /* Keyword marks (0065): RGB triplets, use as rgb(var(--kth-mark-N-rgb)); Okabe-Ito based, colour-blind safe */
+  --kth-mark-1-rgb: 0 114 178;
+  --kth-mark-2-rgb: 213 94 0;
+  --kth-mark-3-rgb: 0 158 115;
+  --kth-mark-4-rgb: 204 121 167;
+  --kth-mark-5-rgb: 184 134 11;
+  --kth-mark-6-rgb: 58 155 213;
+  --kth-mark-7-rgb: 123 78 163;
+  --kth-mark-8-rgb: 102 102 102;
+
   /* Elevation */
   --kth-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
   --kth-overlay: rgb(0 0 0 / 0.5);
@@ -48,6 +58,18 @@
   --kth-space-2: 8px;
   --kth-space-3: 12px;
   --kth-space-4: 16px;
+
+  /* Bible section palette (pentateuch .. revelation, index = BIBLE_SECTIONS order); dark variants in generated/kth-scheme.css */
+  --kth-section-0: #b45309;
+  --kth-section-1: #15803d;
+  --kth-section-2: #0e7490;
+  --kth-section-3: #7e22ce;
+  --kth-section-4: #be185d;
+  --kth-section-5: #dc2626;
+  --kth-section-6: #ea580c;
+  --kth-section-7: #2563eb;
+  --kth-section-8: #65a30d;
+  --kth-section-9: #475569;
 
   /* Typography (mapped per app to the live UI font setting) */
   --kth-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

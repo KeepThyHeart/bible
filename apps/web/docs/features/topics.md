@@ -61,6 +61,7 @@ The Study pane these live in has no doc of its own; its host components are:
 2. **Topics pane (search):** `TopicsBrowser.handleSearch()` calls both `topicalProvider.searchTopics()` and `tagGraphProvider.searchEntities()` in parallel
 3. **Cross-pane navigation:** Clicking a topic in `StudyTopics` calls `commentaryStore.navigateToTopic()`, which sets `pendingTopicNav` (carrying a `token`) and switches to the topics pane. `TopicsPane` reads it and passes it down as `topicRequest`; `TopicsBrowser` opens it and calls `onTopicRequestHandled` to clear it. See "Opening a topic from another pane".
 4. **Entity detail:** Clicking an entity card navigates to entity detail view showing notes, topic links (Nave's/Torrey's), associations (clickable → navigate to that entity), and verses (clickable → navigate Bible pane). Uses `tagGraphProvider.getEntity()`, `.getAssociations()`, `.getVersesForEntity()`, `.getTopicLinksForEntity()` in parallel.
+   With `features.genealogy` on (which itself requires `features.tagGraph`), a people entity's detail view also shows a "Show family tree" button. It opens the Study pane in Family tree mode focused on that person — see [Genealogy](genealogy.md).
 5. **Entity → Topic bridge:** Entity detail shows linked Nave's/Torrey's topics via `entity_topic_links` table. Clicking a topic link navigates to the topic detail view with breadcrumbs.
 6. **Topic breadcrumbs:** Topic detail view shows the parent chain as clickable breadcrumbs for navigating the Nave's/Torrey's hierarchy.
 

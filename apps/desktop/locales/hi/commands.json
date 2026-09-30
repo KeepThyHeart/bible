@@ -62,5 +62,13 @@
   "bookmarks.manage": "बुकमार्क प्रबंधित करें",
   "bookmarks.manage.category": "बुकमार्क",
   "bookmarks.manage.alias.0": "बुकमार्क",
-  "bookmarks.manage.alias.1": "सहेजे गए पद"
+  "bookmarks.manage.alias.1": "सहेजे गए पद",
+  "bible.toggleKeywordMarks": "मुख्य शब्द चिह्न टॉगल करें",
+  "bible.toggleKeywordMarks.category": "बाइबल",
+  "bible.toggleKeywordMarks.alias.0": "मुख्य शब्द",
+  "bible.toggleKeywordMarks.alias.1": "शब्द चिह्नित करें",
+  "xrefGraph.open": "क्रॉस-रेफरेंस कनेक्शन दिखाएँ",
+  "xrefGraph.open.category": "अध्ययन",
+  "xrefGraph.open.alias.0": "क्रॉस-रेफरेंस",
+  "xrefGraph.open.alias.1": "कनेक्शन"
 }

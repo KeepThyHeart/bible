@@ -62,5 +62,13 @@
   "bookmarks.manage": "Manage Bookmarks",
   "bookmarks.manage.category": "Bookmarks",
   "bookmarks.manage.alias.0": "bookmarks",
-  "bookmarks.manage.alias.1": "saved verses"
+  "bookmarks.manage.alias.1": "saved verses",
+  "bible.toggleKeywordMarks": "Toggle Keyword Marks",
+  "bible.toggleKeywordMarks.category": "Bible",
+  "bible.toggleKeywordMarks.alias.0": "keywords",
+  "bible.toggleKeywordMarks.alias.1": "mark words",
+  "xrefGraph.open": "Show cross-reference connections",
+  "xrefGraph.open.category": "Study",
+  "xrefGraph.open.alias.0": "cross references",
+  "xrefGraph.open.alias.1": "connections"
 }

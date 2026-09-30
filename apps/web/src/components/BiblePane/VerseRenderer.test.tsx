@@ -54,6 +54,14 @@ vi.mock('../../stores/commentaryStore', () => ({
 }));
 
 import { VerseRenderer, HIGHLIGHT_HOLD_MS } from './VerseRenderer';
+import {
+  extractWordsWithFormatting,
+  matchKeywordMarks,
+  toDecorationLayer,
+  type KeywordSet,
+  type ResolvedVerse,
+} from '@bible/core/browser';
+import { resolveChapterDecorations, verseWordTexts } from '../../keywordMarks/chapterMarks';
 import { resetInterlinearWarnings } from '../../utils/interlinearRows';
 
 // ---- helpers -------------------------------------------------------------
@@ -113,6 +121,19 @@ describe('VerseRenderer', () => {
     const verse = makeVerse();
     const { container } = render(<VerseRenderer verse={verse} {...defaultProps} isHighlighted />);
     expect(container.querySelector('.verse--study')).toBeTruthy();
+  });
+
+  it('marks the verse being read aloud with verse--playing, independently of the selection', () => {
+    const verse = makeVerse({});
+    const { container, rerender } = render(<VerseRenderer verse={verse} {...defaultProps} isPlaying />);
+    const el = container.querySelector('.verse')!;
+    expect(el.classList.contains('verse--playing')).toBe(true);
+    expect(el.classList.contains('verse--study')).toBe(false);
+    rerender(<VerseRenderer verse={verse} {...defaultProps} isPlaying isHighlighted />);
+    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(true);
+    expect(container.querySelector('.verse')!.classList.contains('verse--study')).toBe(true);
+    rerender(<VerseRenderer verse={verse} {...defaultProps} />);
+    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(false);
   });
 
   it('applies verse--preview class when isSelected and not highlighted', () => {
@@ -687,6 +708,85 @@ describe('VerseRenderer', () => {
         expect(onTap).toHaveBeenCalledWith(4);
         expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Keyword-mark word spans (task 0065)
+  // ------------------------------------------------------------------
+  describe('keyword mark paint', () => {
+    const SET: KeywordSet = {
+      schema: 1, id: 'set-x', name: 'X', scope: { kind: 'everywhere' }, updatedAt: '2026-01-01T00:00:00Z',
+      marks: [{
+        id: 'm-loved', label: 'loved', rule: { kind: 'word', forms: ['loved'] },
+        style: { color: 'mark.1', line: 'solid' }, enabled: true,
+      }],
+    };
+
+    function paintFor(verse: VerseData, surface: 'standard' | 'reading' | 'study'): ResolvedVerse | undefined {
+      const result = matchKeywordMarks(
+        { moduleId: 1, language: 'en', verses: [{ verseId: verse.verse_id, words: verseWordTexts(verse) }] },
+        [SET],
+      );
+      const layer = toDecorationLayer(result, [SET], { colorSafe: true });
+      return resolveChapterDecorations([verse], layer, surface).get(verse.verse_id);
+    }
+
+    for (const mode of ['standard', 'reading'] as const) {
+      it(`paints only the marked word in ${mode} mode and keeps the text identical`, () => {
+        mockWordsOfChristInRed = true;
+        const verse = makeVerse({ text_html: 'For God so <span class="christ-words">loved</span> the world' });
+        const plain = render(<VerseRenderer verse={verse} {...defaultProps} displayMode={mode} />);
+        const plainText = plain.container.querySelector('.verse')!.textContent;
+        plain.unmount();
+
+        const { container } = render(
+          <VerseRenderer verse={verse} {...defaultProps} displayMode={mode} resolved={paintFor(verse, mode)} />,
+        );
+        const words = container.querySelectorAll('.word');
+        expect(words.length).toBe(6);
+        const painted = container.querySelectorAll('.word.ext-deco');
+        expect(painted.length).toBe(1);
+        expect(painted[0].textContent).toContain('loved');
+        expect(painted[0].getAttribute('data-word-index')).toBe('3');
+        expect(painted[0].classList.contains('christ-words')).toBe(true);
+        expect(painted[0].getAttribute('style')).toContain('--ext-bg-image');
+        expect(container.querySelector('.verse')!.textContent).toBe(plainText);
+      });
+    }
+
+    it('keeps the verse markup untouched when nothing is painted', () => {
+      const verse = makeVerse({ text_html: 'For God so <i>loved</i> the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} resolved={null} />);
+      expect(container.querySelector('.word')).toBeNull();
+      expect(container.innerHTML).toContain('<i>loved</i>');
+      const { container: c2 } = render(
+        <VerseRenderer verse={verse} {...defaultProps} resolved={{ words: new Map(), gutter: [], gutterOverflow: 0, verseHovers: [] }} />,
+      );
+      expect(c2.querySelector('.word')).toBeNull();
+    });
+
+    it('rebuilds the verse from the same words the marks were matched against', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} resolved={paintFor(verse, 'standard')} />);
+      const texts = [...container.querySelectorAll('.word')].map((w) => w.textContent?.trim());
+      expect(texts).toEqual(extractWordsWithFormatting(verse.text_html).map((w) => w.displayText.trim()));
+    });
+
+    it('paints the English cell of an interlinear verse and leaves other cells alone', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const rows: InterlinearWordData[] = [
+        { verseId: verse.verse_id, position: 0, positionEnd: 1, originalWord: 'Houtos', transliteration: 'h', strongsNumber: 'G3779', morphology: '', language: 'greek', gloss: 'so' },
+        { verseId: verse.verse_id, position: 2, positionEnd: 3, originalWord: 'egapesen', transliteration: 'e', strongsNumber: 'G25', morphology: '', language: 'greek', gloss: 'loved' },
+        { verseId: verse.verse_id, position: 4, positionEnd: 5, originalWord: 'kosmon', transliteration: 'k', strongsNumber: 'G2889', morphology: '', language: 'greek', gloss: 'world' },
+      ];
+      const { container } = render(
+        <VerseRenderer verse={verse} {...defaultProps} displayMode="study" interlinearWords={rows} resolved={paintFor(verse, 'study')} />,
+      );
+      const painted = container.querySelectorAll('.word.ext-deco');
+      expect(painted.length).toBe(1);
+      expect(painted[0].textContent).toBe('loved');
+      expect(container.querySelectorAll('.verse__interlinear-inline-word').length).toBe(3);
     });
   });
 });

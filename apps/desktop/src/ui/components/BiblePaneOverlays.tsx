@@ -19,6 +19,8 @@ import { StudyPaneTab } from '../stores/useDictionaryStore';
 import { useI18n } from '../contexts/useI18n';
 import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
+import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useWordStrongs } from './bible/hooks/useWordStrongs';
 
 interface BibleTabInfo {
   tabId: string;
@@ -77,6 +79,8 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    wordIndex?: number;
+    wordText?: string;
   } | null;
   setContextMenu: React.Dispatch<React.SetStateAction<{
     visible: boolean;
@@ -84,6 +88,8 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    wordIndex?: number;
+    wordText?: string;
   } | null>>;
   activeTab: BibleTabInfo | undefined;
   handleRemoveHighlight: (markupId: number) => Promise<void>;
@@ -214,6 +220,19 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
   const replaceBookmarkRef = useBookmarkStore(s => s.replaceBookmarkRef);
   const removeVerseFromAllCollections = useBookmarkStore(s => s.removeVerseFromAllCollections);
   const loadBookmarks = useBookmarkStore(s => s.loadBookmarks);
+
+  // Keyword marks (task 0065): the right-clicked word, and its Strong's number when interlinear rows have one.
+  const addKeywordMark = useKeywordMarkStore(s => s.addMarkFromWord);
+  const clickedVerseId = contextMenu?.verses[0]?.verse_id;
+  const keywordWord =
+    contextMenu && contextMenu.wordIndex !== undefined && contextMenu.wordText?.trim() && activeTab
+      ? { tabId: activeTab.tabId, text: contextMenu.wordText.trim() }
+      : undefined;
+  const wordStrongs = useWordStrongs(
+    keywordWord ? activeTab?.abbreviation : undefined,
+    clickedVerseId,
+    keywordWord ? contextMenu?.wordIndex : undefined,
+  );
 
   /**
    * What the context menu's bookmark actions should point at.
@@ -378,6 +397,10 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           isMultipleVerses={contextMenu.isMultiple}
           markupId={contextMenu.markupId}
           onRemoveHighlight={handleRemoveHighlight}
+          wordText={keywordWord?.text}
+          onMarkWord={keywordWord ? () => { void addKeywordMark(keywordWord.tabId, { text: keywordWord.text }, 'word'); } : undefined}
+          wordStrongs={wordStrongs}
+          onMarkLemma={keywordWord && wordStrongs ? () => { void addKeywordMark(keywordWord.tabId, { text: keywordWord.text, strongs: wordStrongs }, 'strongs'); } : undefined}
           bookmarks={bookmarks}
           isBookmarked={
             contextMenu.verses[0]?.verse_id !== undefined &&

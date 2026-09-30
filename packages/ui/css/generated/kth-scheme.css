@@ -9,6 +9,24 @@
   --kth-success: #22c55e;
   --kth-warning: #f59e0b;
   --kth-info: #60a5fa;
+  --kth-mark-1-rgb: 86 180 233;
+  --kth-mark-2-rgb: 255 138 61;
+  --kth-mark-3-rgb: 47 211 160;
+  --kth-mark-4-rgb: 231 155 194;
+  --kth-mark-5-rgb: 240 192 74;
+  --kth-mark-6-rgb: 124 196 240;
+  --kth-mark-7-rgb: 184 154 224;
+  --kth-mark-8-rgb: 176 176 176;
   --kth-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
   --kth-color-scheme: dark;
+  --kth-section-0: #f59e0b;
+  --kth-section-1: #4ade80;
+  --kth-section-2: #22d3ee;
+  --kth-section-3: #c084fc;
+  --kth-section-4: #f472b6;
+  --kth-section-5: #f87171;
+  --kth-section-6: #fb923c;
+  --kth-section-7: #60a5fa;
+  --kth-section-8: #a3e635;
+  --kth-section-9: #94a3b8;
 }

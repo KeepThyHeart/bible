@@ -9,6 +9,8 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
+import { contentSecurityPolicyDirectives } from './cspDirectives.js';
+import { createAudioRouter } from './routes/audioRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
 import './routes/bibleRoutes.js';
@@ -17,8 +19,10 @@ import './routes/interlinearRoutes.js';
 import './routes/searchRoutes.js';
 import './routes/strongsRoutes.js';
 import './routes/crossRefRoutes.js';
+import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
+import './routes/timelineRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
@@ -204,32 +208,14 @@ if (authConfig.passwordHash) {
   siteConfig.persistAuth(sitePasswordHash);
 }
 
-// Security headers via Helmet
+// Security headers via Helmet. The directives live in cspDirectives.ts; they
+// are unchanged unless the Audio Bible is enabled (see the comment there).
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      // 'unsafe-inline' is required for the error-fallback inline script in index.html.
-      // The hash alternative would require rebuilding the client on every change.
-      // 'wasm-unsafe-eval' lets WebAssembly compile. Without it the browser
-      // refuses to instantiate any wasm module, which kills the wa-sqlite
-      // worker behind offline module storage and the in-browser search index
-      // ("Refused to compile or instantiate WebAssembly module"). It is the
-      // narrow directive for exactly this — it does NOT re-enable eval() for
-      // JavaScript, unlike 'unsafe-eval'.
-      scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'"],
-      // No external origins: reading fonts are self-hosted under /fonts (see
-      // scripts/fetch-fonts.mjs) and Font Awesome is bundled from node_modules
-      // (see the comment in src/main.tsx). The Google Fonts and cdnjs
-      // allowances these directives used to carry are both dead.
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      fontSrc: ["'self'"],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
-      // Do NOT include upgrade-insecure-requests: it causes browsers to upgrade HTTP
-      // requests to HTTPS, breaking local dev servers that serve over plain HTTP.
-      upgradeInsecureRequests: null,
-    }
+    directives: contentSecurityPolicyDirectives({
+      enabled: siteConfig.audio.enabled,
+      externalOrigins: siteConfig.audio.externalOrigins,
+    }),
   },
   // HSTS is only meaningful for production HTTPS deployments. In local/test
   // environments the server runs over HTTP, so HSTS would cause browsers to
@@ -397,6 +383,7 @@ const routeDeps = {
     hybridDefault: searchHybridDefault,
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
+    showTimeline: siteConfig.isEnabled('timeline'),
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,
@@ -416,6 +403,17 @@ const routeDeps = {
 };
 for (const reg of getRegisteredRoutes()) {
   app.use(reg.path, reg.createRoutes(routeDeps));
+}
+
+/**
+ * Audio Bible files (recordings, TTS engine files) at `/audio`, when enabled.
+ * After the password gate above, so they are as private as the rest of the app.
+ * Not under `/api`, so the API rate limiter (which counts requests, not bytes)
+ * does not apply to bulk media.
+ */
+if (siteConfig.audio.enabled) {
+  app.use('/audio', createAudioRouter(siteConfig.audio.dir));
+  logger.info(`Audio Bible enabled; serving ${siteConfig.audio.dir} at /audio`);
 }
 
 /**
@@ -589,7 +587,7 @@ if (existsSync(clientDir)) {
     // must 404 loudly instead of silently receiving index.html. Serving HTML where
     // JSON is expected is how a routing/auth bug masquerades as "working" while the
     // client chokes on JSON.parse(<!DOCTYPE html>...).
-    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/');
+    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/');
     const wantsHtml = req.accepts(['html', 'json']) === 'html';
     if (isApiOrData || !wantsHtml) {
       res.status(404).json({ error: 'Not found', path: req.path });

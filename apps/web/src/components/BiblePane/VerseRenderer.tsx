@@ -6,6 +6,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { applyRedLetterSetting, tuckTrailingPunctuation } from '../../utils/verseHtml';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { buildVerseInterlinearCells } from '../../utils/interlinearRows';
+import { extractWordsWithFormatting, renderVerseWords, type ResolvedVerse } from '@bible/core/browser';
 import { StackedInterlinear, InlineInterlinear } from './InterlinearLayouts';
 import { tokenizeVerse } from '../../present/tokenize';
 import { highlightSpansForVerse, spanContaining, sweepStep } from '../../present/highlight';
@@ -16,6 +17,8 @@ import type { VerseData, InterlinearWordData, StrongsEntryData, VerseFootnote } 
 interface VerseRendererProps {
   verse: VerseData;
   isHighlighted: boolean;
+  /** The verse being read aloud right now (audio follow-along). A highlight only: it is not the selection. */
+  isPlaying?: boolean;
   isSelected?: boolean;
   /** Inside a shift-click passage selection, but not the anchor verse. */
   isInRange?: boolean;
@@ -24,6 +27,12 @@ interface VerseRendererProps {
   interlinearWords?: InterlinearWordData[];
   strongsEntries?: Record<string, StrongsEntryData>;
   showNotes?: boolean;
+  /**
+   * Resolved keyword-mark paint for this verse. Only verses with something to
+   * paint take the word-span path; without it the markup is exactly the
+   * verse's own `text_html`.
+   */
+  resolved?: ResolvedVerse | null;
   onVerseClick: (verseId: number, extend: boolean) => void;
   onStrongsClick?: (strongsNumber: string) => void;
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
@@ -251,6 +260,7 @@ function FollowHighlightedText(props: { html: string; verseId: number; highlight
 export function VerseRenderer({
   verse,
   isHighlighted,
+  isPlaying,
   isSelected,
   isInRange,
   showVerseNumbers,
@@ -259,6 +269,7 @@ export function VerseRenderer({
   strongsEntries,
   onVerseClick,
   showNotes,
+  resolved,
   onStrongsClick,
   onStrongsHover,
   onStrongsLeave,
@@ -276,6 +287,7 @@ export function VerseRenderer({
   const classList = [
     'verse',
     isHighlighted ? 'verse--study' : '',
+    isPlaying ? 'verse--playing' : '',
     isSelected && !isHighlighted ? 'verse--preview' : '',
     isInRange && !isHighlighted ? 'verse--in-range' : '',
     isBlock ? 'verse--block' : '',
@@ -316,8 +328,10 @@ export function VerseRenderer({
   // taken before footnote markers are appended, so those markers cannot be
   // mistaken for words of the verse.
   const interlinearSourceHtml = textHtml;
+  const paint = resolved && resolved.words.size > 0 ? resolved : null;
 
   // Insert footnote markers into verse text for study mode
+  let footnoteMarkersHtml = '';
   const footnotes = verse.footnotes;
   const showFootnotes = displayMode === 'study' && showNotes && footnotes && footnotes.length > 0;
   if (showFootnotes) {
@@ -327,8 +341,20 @@ export function VerseRenderer({
     const markerHtml = markerLetters
       .map((letter: string) => `<sup class="verse__footnote-marker">${letter}</sup>`)
       .join('');
+    footnoteMarkersHtml = markerHtml;
     textHtml = textHtml.trimEnd() + markerHtml;
   }
+
+  // Standard/Reading/plain-Study body: the verse's own HTML, or (only when
+  // something is painted on it) word spans built from its words so each word
+  // can carry its paint. Footnote markers are appended after either.
+  const bodyHtml = (): string => {
+    if (!paint) return textHtml;
+    const words = extractWordsWithFormatting(interlinearSourceHtml);
+    let html = renderVerseWords(verse.verse_id, words, [], paint);
+    if (!isBlock) html = html.replace(/[\s\u00a0]+$/, '');
+    return html + footnoteMarkersHtml;
+  };
 
   // Footnotes block for study mode
   const footnotesBlock = showFootnotes ? (
@@ -349,7 +375,7 @@ export function VerseRenderer({
     ? <PresenterWords html={verse.text_html} verseId={verse.verse_id} wordHighlight={wordHighlight} />
     : followHighlights && followHighlights.length > 0
       ? <FollowHighlightedText html={verse.text_html} verseId={verse.verse_id} highlights={followHighlights} />
-      : <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(textHtml) }} />;
+      : <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(bodyHtml()) }} />;
 
   const railEl = sendRail ? <SendRailButton rail={sendRail} /> : null;
 
@@ -365,7 +391,7 @@ export function VerseRenderer({
       'VerseRenderer', verse.verse_id, interlinearSourceHtml, interlinearWords,
     );
     if (cells) {
-      const layoutProps = { cells, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave };
+      const layoutProps = { cells, resolved: paint, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave };
       return (
         <>
         {headingEl}

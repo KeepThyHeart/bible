@@ -40,6 +40,11 @@ import type {
   readNewlineHandling as readNewlineHandlingType,
 } from '@bible/core';
 import type {
+  XrefGraphService as XrefGraphServiceType,
+  XrefGraphIndexBuilder as XrefGraphIndexBuilderType,
+} from '@bible/core';
+import type { encodeChapterArcs as encodeChapterArcsType } from '@bible/core/browser';
+import type {
   createFeatureFlags as createFeatureFlagsType,
   parseFlagOverrides as parseFlagOverridesType,
   FeatureFlagName as FeatureFlagNameType,
@@ -51,6 +56,7 @@ export type FeatureFlags = FeatureFlagsType;
 
 const require = createRequire(import.meta.url);
 const core = require('@bible/core');
+const coreBrowser = require('@bible/core/browser');
 
 export const BibleBookRepository: typeof BibleBookRepositoryType = core.BibleBookRepository;
 export const ModuleMetadataRepository: typeof ModuleMetadataRepositoryType = core.ModuleMetadataRepository;
@@ -88,9 +94,13 @@ export const clampSearchQuery: typeof clampSearchQueryType = core.clampSearchQue
 export const MAX_SEARCH_QUERY_CHARS: number = core.MAX_SEARCH_QUERY_CHARS;
 export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewlineHandling;
 
+// Cross-reference graph (task 0068). The service and index builder are Node-side; the byte encoder is in the pure browser barrel.
+export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
+export const XrefGraphIndexBuilder: typeof XrefGraphIndexBuilderType = core.XrefGraphIndexBuilder;
+export const encodeChapterArcs: typeof encodeChapterArcsType = coreBrowser.encodeChapterArcs;
+
 // Feature flags (task 0087) come from the platform-free browser barrel: it is pure logic
 // shared with both apps, and requiring it avoids loading the Data layer for config code.
-const coreBrowser = require('@bible/core/browser');
 export const createFeatureFlags: typeof createFeatureFlagsType = coreBrowser.createFeatureFlags;
 export const parseFlagOverrides: typeof parseFlagOverridesType = coreBrowser.parseFlagOverrides;
 export const FEATURE_FLAG_NAMES: readonly FeatureFlagNameType[] = coreBrowser.FEATURE_FLAG_NAMES;

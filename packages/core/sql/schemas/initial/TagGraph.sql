@@ -2,7 +2,8 @@
 -- Database: tag_graph[_abbreviation].db
 -- Purpose: Biblical entity graph - people, places, objects, themes, their attributes,
 --          their relationships/associations, and the passages that evidence them
--- Version: 0.1.0
+-- Version: 0.2.0 (adds genealogy: person.sex/kind, relationship qualifier and readings,
+--          lineage, lineage_step, person_external_id, shared data_source)
 -- Generated: 2026-07-24
 --
 -- ============================================================================
@@ -118,7 +119,14 @@ CREATE TABLE person (
                                                     -- text, not a FK to `place`: a nation is not the
                                                     -- same thing as a location.
     notes    TEXT,                                  -- Prose about the person
-    metadata TEXT                                   -- JSON: anything not modelled above
+    metadata TEXT,                                  -- JSON: anything not modelled above
+    sex      TEXT CHECK (sex IN ('male', 'female')),  -- Where the text says. NULL = not stated. Closed
+                                                    -- domain, so the CHECK is kept.
+    kind     TEXT NOT NULL DEFAULT 'individual'     -- 'individual' | 'group'. A group is a nation or
+        CHECK (kind IN ('individual', 'group'))     -- clan named after an ancestor (Gen 10, tribes);
+                                                    -- it links to its founder with 'founded_by' and
+                                                    -- is shown only in the Table of Nations and
+                                                    -- Tribes views.
 );
 
 CREATE INDEX idx_person_name ON person(name COLLATE NOCASE);
@@ -176,11 +184,82 @@ CREATE TABLE person_relationship (
                                                     --   'derived'   Inferred by the build, not by a
                                                     --               reader -- machine-generated
                                                     -- NULL = unrated, not 'certain'.
-    notes                        TEXT                -- Prose, typically the passage establishing it
+    notes                        TEXT,               -- Prose, typically the passage establishing it
+    qualifier                    TEXT,               -- NULL = biological/ordinary. Open set:
+                                                    --   'legal'    Legal fatherhood (Jesus/Joseph)
+                                                    --   'levirate' Deut 25 (Ruth 4, Obed)
+                                                    --   'adoptive'
+                                                    --   'ancestor' The text skips generations: read
+                                                    --              'father_of' as "forefather of"
+                                                    --              (Mt 1:8, 1:11)
+    reading_group                TEXT,               -- Rows sharing a value are ALTERNATIVE readings of
+                                                    -- one link (Lk 3:23 Heli); a consumer shows one
+                                                    -- and lists the others. NULL = not in dispute.
+    reading                      TEXT,               -- 'default' or a short label naming this
+                                                    -- alternative ('heli_father_of_mary')
+    sort_order                   INTEGER,            -- Birth order among a parent's children, where the
+                                                    -- text gives one
+    source                       TEXT                -- What produced the row: 'tipnr' | 'bibledata' |
+                                                    -- 'curated' | 'llm'. Evidence verses are
+                                                    -- entity_verse_link rows with
+                                                    -- source_type = 'person_relationship'.
 );
 
 CREATE INDEX idx_person_relationship_p1 ON person_relationship(person_1_id);
 CREATE INDEX idx_person_relationship_p2 ON person_relationship(person_2_id);
+-- New open tokens (0.2.0): 'possibly_same_as' (symmetric; identity in dispute) and
+-- 'founded_by' (group -> founder).
+
+-- 1.6 Lineages: a genealogy as the TEXT gives it (Mt 1, Lk 3, Gen 5, Num 26 ...).
+-- Parent links alone cannot say that Mt 1:8 skips three kings or that Lk 3:36 adds
+-- Cainan; the ordered list can.
+CREATE TABLE lineage (
+    id             TEXT PRIMARY KEY,                -- 'matthew_1', 'luke_3', 'genesis_5'
+    name           TEXT NOT NULL,                   -- "Matthew 1: Abraham to Jesus"
+    kind           TEXT NOT NULL,                   -- 'genealogy' | 'tribe_list' | 'succession'
+    direction      TEXT NOT NULL CHECK (direction IN ('descending', 'ascending')),
+                                                    -- 'descending' (Mt 1) | 'ascending' (Lk 3)
+    verse_id_start INTEGER NOT NULL,                -- Passage the list occupies, inclusive
+    verse_id_end   INTEGER NOT NULL,
+    notes          TEXT
+);
+
+CREATE TABLE lineage_step (
+    lineage_id TEXT NOT NULL REFERENCES lineage(id),
+    seq        INTEGER NOT NULL,                    -- Order in the text
+    person_id  TEXT NOT NULL REFERENCES person(id),
+    verse_id   INTEGER NOT NULL,                    -- Where this step is stated
+    gap_before TEXT,                                -- JSON array of person ids the text skips here
+    note       TEXT,
+
+    PRIMARY KEY (lineage_id, seq)
+);
+
+CREATE INDEX idx_lineage_step_person ON lineage_step(person_id);
+
+-- 1.7 Crosswalk to the source datasets (also used by the timeline module)
+CREATE TABLE person_external_id (
+    person_id   TEXT NOT NULL REFERENCES person(id),
+    scheme      TEXT NOT NULL,                      -- 'tipnr' | 'bibledata' | 'theographic' | 'wikidata'
+    external_id TEXT NOT NULL,                      -- 'Shealtiel@Luk.3.27'
+
+    PRIMARY KEY (scheme, external_id)
+);
+
+CREATE INDEX idx_person_external_id_person ON person_external_id(person_id);
+
+-- 1.8 Interpretive cases (Heli, Cainan, skipped kings): what the KJV says, and the
+-- readings scholars hold. Verses live in entity_verse_link (source_type='interpretive_case').
+CREATE TABLE interpretive_case (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    text       TEXT NOT NULL,                       -- What the KJV says, literally
+    person_ids TEXT,                                -- JSON array of person ids
+    readings   TEXT                                 -- JSON array of {label, summary, heldBy}
+);
+
+-- 1.9 Where the data came from (licence and attribution); shared with the timeline schema.
+-- @include ../shared/data_source.sql
 
 -- ============================================================================
 -- 2. Places
