@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force';
+import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force';
 import type { ForceLink, Simulation } from 'd3-force';
 import { bookOf } from '@bible/core/browser';
 import type { IXrefGraphProvider, VerseId, XrefGraph } from '@bible/core/browser';
@@ -163,6 +163,8 @@ export function XrefWebView({
     setVersion((v) => v + 1);
   }, []);
 
+  const spreadRef = useRef(1);
+
   const scheduleRender = useCallback(() => {
     if (rafRef.current !== null || unmountedRef.current) return;
     const run = () => {
@@ -179,12 +181,15 @@ export function XrefWebView({
     unmountedRef.current = false;
     const link = forceLink<SimNode, SimLink>([])
       .id((d) => d.id)
-      .distance((l) => 36 + (1 - l.weight) * 90)
+      .distance((l) => (36 + (1 - l.weight) * 90) * spreadRef.current)
       .strength((l) => 0.15 + l.weight * 0.6);
     const sim = forceSimulation<SimNode>([])
       .force('link', link)
       .force('charge', forceManyBody<SimNode>().strength(-140))
       .force('center', forceCenter(0, 0))
+      // The pane is wide and short: a stronger pull on y keeps the cloud an ellipse inside it.
+      .force('x', forceX<SimNode>(0).strength(0.03))
+      .force('y', forceY<SimNode>(0).strength(0.14))
       .force('collide', forceCollide<SimNode>().radius((d) => nodeRadius(d.degree, d.hop) + 4))
       .on('tick', scheduleRender);
     sim.stop();
@@ -213,6 +218,10 @@ export function XrefWebView({
     nodesRef.current = merged.nodes;
     linksRef.current = merged.links;
     if (!sim) return;
+    // A busy graph needs more room: spread links and repulsion with the node count so labels stay readable.
+    const n = merged.nodes.length;
+    spreadRef.current = 1 + Math.min(0.5, n / 120);
+    (sim.force('charge') as ReturnType<typeof forceManyBody<SimNode>>).strength(-(140 + Math.min(n, 100) * 2.5));
     const link = sim.force('link') as ForceLink<SimNode, SimLink>;
     link.links([]);
     sim.nodes(merged.nodes);

@@ -410,6 +410,9 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
         if (selected !== null) { e.preventDefault(); openIndex(selected); }
         return;
       case 'Escape':
+        // With a selection, Escape clears it; with none, it is left alone so
+        // the dialog around the view closes on this second press.
+        if (selected === null) return;
         e.preventDefault();
         reset();
         return;

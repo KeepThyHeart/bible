@@ -76,6 +76,18 @@ describe('XrefArcView', () => {
     expect(screen.getByText(DEFAULT_XREF_ARCS_LABELS.hint)).toBeInTheDocument();
   });
 
+  it('a second Escape is not consumed, so the dialog can close', async () => {
+    const { region, user } = await setup();
+    region.focus();
+    await user.keyboard('{ArrowRight}');
+    const seen: boolean[] = [];
+    const spy = (e: KeyboardEvent) => { if (e.key === 'Escape') seen.push(e.defaultPrevented); };
+    document.addEventListener('keydown', spy);
+    await user.keyboard('{Escape}{Escape}');
+    document.removeEventListener('keydown', spy);
+    expect(seen).toEqual([true, false]);
+  });
+
   it('starts with the current chapter selected and offers explore', async () => {
     const onExploreChapter = vi.fn();
     const { user } = await setup({ current: { book: 43, chapter: 1 }, onExploreChapter });

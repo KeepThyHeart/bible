@@ -35,6 +35,8 @@ Built once per set of installed modules (fingerprint = module abbreviations, ver
 | core browser (`@bible/core/browser`) | Types, weight, canon, packing, ego walk. |
 | `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force), `XrefArcView` (canvas), section colours `--kth-section-0..9`. |
 | web | `/api/xref-graph/*` routes, `XrefGraphProvider` (fetch), dialog opened from the verse context menu and the study pane. |
-| desktop | `xrefGraph:*` IPC, `XrefGraphIpcProvider`, dialog opened from the verse context menu and the study pane. |
+| desktop | `xrefGraph:*` IPC, `XrefGraphIpcProvider`, dialog opened from the verse context menu, the study pane and the command palette (`xrefGraph.open`, for the selected verse). |
 
 Data source in v1 is TSK (public domain) plus the user's own cross-references (desktop). OpenBible votes, a book ring, a constellation view and an extension read namespace are later.
+
+Escape: in the arc and web views the first press clears a selection; when nothing is selected the key is left alone, so the surrounding dialog closes on the next press.
