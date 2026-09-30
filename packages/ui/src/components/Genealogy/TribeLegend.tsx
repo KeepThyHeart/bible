@@ -30,7 +30,7 @@ const MOTHERS = ['leah', 'rachel', 'bilhah', 'zilpah'] as const;
 export function TribeLegend({ labels: overrides, showChrist = true }: TribeLegendProps) {
   const labels = { ...DEFAULT_TRIBE_LEGEND_LABELS, ...overrides };
   return (
-    <section className="kth-genealogy-legend" aria-label={labels.title}>
+    <section className="kth-genealogy-legend kth-genealogy-legend--tribes" aria-label={labels.title}>
       <ul className="kth-genealogy-legend__list">
         {MOTHERS.map((m) => (
           <li key={m} className="kth-genealogy-legend__item">

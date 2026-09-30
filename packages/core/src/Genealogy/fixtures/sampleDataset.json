@@ -159,9 +159,6 @@
    "sex": "male",
    "kind": "individual",
    "tribe": "judah",
-   "aliases": [
-    "Amos"
-   ],
    "firstRef": 12021018,
    "notes": "King living at the time of Divided Monarchy. King of Judah"
   },
@@ -234,9 +231,6 @@
    "sex": "male",
    "kind": "individual",
    "tribe": "judah",
-   "aliases": [
-    "Asaph"
-   ],
    "firstRef": 11015008,
    "notes": "King living at the time of Divided Monarchy. King of Judah"
   },
@@ -266,7 +260,6 @@
    "kind": "individual",
    "tribe": "asher",
    "aliases": [
-    "Ashurites",
     "Aser"
    ],
    "firstRef": 1030013,
@@ -336,9 +329,7 @@
    "aliases": [
     "Benjamite",
     "Benjaminite",
-    "Ben-oni",
-    "Jamin",
-    "Jeminite"
+    "Ben-oni"
    ],
    "firstRef": 1035018,
    "notes": "Jacob's son living at the time of the Patriarchs. Son of Israel"
@@ -399,7 +390,7 @@
    "sex": "male",
    "kind": "individual",
    "firstRef": 42003036,
-   "notes": "Named only in Luke 3:36 (\"Sala, which was the son of Cainan, which was the son of Arphaxad\"); Genesis 11:12 and 1 Chronicles 1:18, 24 go from Arphaxad to Salah. Luke only. See case cainan_lk3_36."
+   "notes": "Named only in Luke 3:36 (\"Sala, which was the son of Cainan, which was the son of Arphaxad\"); Genesis 11:12 and 1 Chronicles 1:18, 24 go from Arphaxad to Salah. Luke only. See the interpretive case on this card."
   },
   {
    "id": "carmi",
@@ -579,9 +570,7 @@
    "kind": "individual",
    "tribe": "ephraim",
    "aliases": [
-    "Ephraimite",
-    "Ephron",
-    "Ephrain"
+    "Ephraimite"
    ],
    "firstRef": 1041052,
    "notes": "Joseph's son living at the time of the Patriarchs. Son of Joseph"
@@ -785,7 +774,7 @@
     "Esrom"
    ],
    "firstRef": 1046012,
-   "notes": "Man living at the time of Egypt and Wilderness. Son of Perez"
+   "notes": "Son of Pharez (Gen 46:12); father of Ram (1 Chr 2:9)."
   },
   {
    "id": "hezron_gen_46_9",
@@ -1063,7 +1052,6 @@
     "Joyachin",
     "Jeconiah",
     "Coniah",
-    "Shallum",
     "Jechoniah",
     "Jechonias"
    ],
@@ -1273,7 +1261,7 @@
    "kind": "individual",
    "aliases": [
     "Zaphenath-paneah",
-    "Zaphnath–paaneah"
+    "Zaphnath-paaneah"
    ],
    "firstRef": 1030024,
    "notes": "Jacob's son living at the time of the Patriarchs. Jacob's son"
@@ -1501,7 +1489,7 @@
    "sex": "female",
    "kind": "individual",
    "firstRef": 40001016,
-   "notes": "Mother of Jesus (Mt 1:16). Her tribe is not stated in the KJV (Elisabeth is called her cousin, Lk 1:36, but the text does not say Mary was a Levite). See case mary_tribe."
+   "notes": "Mother of Jesus (Mt 1:16). Her tribe is not stated in the KJV (Elisabeth is called her cousin, Lk 1:36, but the text does not say Mary was a Levite). See the interpretive case on this card."
   },
   {
    "id": "mattatha",
@@ -1834,7 +1822,7 @@
    "kind": "individual",
    "tribe": "judah",
    "firstRef": 13003018,
-   "notes": "Man living at the time of Divided Monarchy. Son of Shealtiel"
+   "notes": "Listed among \"the sons of Jeconiah\" (1 Chr 3:17-18); \"the sons of Pedaiah were, Zerubbabel, and Shimei\" (1 Chr 3:19)."
   },
   {
    "id": "peleg",
@@ -1938,7 +1926,7 @@
     "Arni"
    ],
    "firstRef": 8004019,
-   "notes": "Man living at the time of United Monarchy. Son of Hezron"
+   "notes": "Son of Hezron (1 Chr 2:9); father of Amminadab (1 Chr 2:10). \"Aram\" in Mt 1:3-4."
   },
   {
    "id": "rehoboam",
@@ -2059,8 +2047,7 @@
    "kind": "individual",
    "tribe": "judah",
    "aliases": [
-    "Salma",
-    "Sala"
+    "Salma"
    ],
    "firstRef": 8004020,
    "notes": "Man living before Israel's Monarchy. Son of Nahshon"
@@ -2167,7 +2154,7 @@
     "Salathiel"
    ],
    "firstRef": 13003017,
-   "notes": "Man living at the time of Exile and Return. Grandfather of Zerubbabel"
+   "notes": "Father of Zerubbabel (Ezr 3:2); called Salathiel in Mt 1:12. 1 Chr 3:17 lists him among \"the sons of Jeconiah\"."
   },
   {
    "id": "shelah",
@@ -2753,7 +2740,7 @@
    "type": "father_of",
    "confidence": "certain",
    "source": "curated",
-   "notes": "\"Arphaxad ... begat Salah\" (Gen 11:12; 10:24; 1 Chr 1:18). Luke 3:35-36 has \"Sala, which was the son of Cainan, which was the son of Arphaxad\". See case cainan_lk3_36.",
+   "notes": "\"Arphaxad ... begat Salah\" (Gen 11:12; 10:24; 1 Chr 1:18). Luke 3:35-36 has \"Sala, which was the son of Cainan, which was the son of Arphaxad\". See the interpretive case on this card.",
    "verses": [
     {
      "start": 1010024,
@@ -3091,7 +3078,7 @@
    "type": "father_of",
    "confidence": "certain",
    "source": "curated",
-   "notes": "Stated in Luke 3:35-36 only. See case cainan_lk3_36.",
+   "notes": "Stated in Luke 3:35-36 only. See the interpretive case on this card.",
    "verses": [
     {
      "start": 42003035,
@@ -7293,7 +7280,7 @@
     {
      "personId": "cainan_luk_3_36",
      "verseId": 42003036,
-     "note": "Named here between Sala and Arphaxad; not in Gen 11:12 or 1 Chr 1:18, 24. See case cainan_lk3_36."
+     "note": "Named here between Sala and Arphaxad; not in Gen 11:12 or 1 Chr 1:18, 24. See the interpretive case on this card."
     },
     {
      "personId": "arphaxad",
@@ -7422,7 +7409,7 @@
     {
      "personId": "salah",
      "verseId": 1011012,
-     "note": "\"Arphaxad ... begat Salah\". Luke 3:35-36 names Cainan between them. See case cainan_lk3_36."
+     "note": "\"Arphaxad ... begat Salah\". Luke 3:35-36 names Cainan between them. See the interpretive case on this card."
     },
     {
      "personId": "eber",

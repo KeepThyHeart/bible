@@ -78,6 +78,17 @@ describe('sample dataset (KJV-based fixture)', () => {
       expect(alias('moses')).not.toContain('Manasseh');
     });
 
+    it('does not give a person another man\'s name as an alias (names the KJV does not use for him)', () => {
+      const wrong: Array<[string, string]> = [['jehoiachin', 'Shallum'], ['asa', 'Asaph'], ['amon', 'Amos'], ['salmon', 'Sala'], ['barnabas', 'Joseph'], ['benjamin', 'Jamin']];
+      for (const [id, a] of wrong) if (g.person(id)) expect(alias(id), `${id} ${a}`).not.toContain(a);
+      expect(g.person('jehoiachin')).toBeDefined();
+      expect(g.person('asa')).toBeDefined();
+    });
+
+    it('shows aliases as plain names (no markup, brackets or underscores)', () => {
+      for (const p of ds.persons) for (const a of p.aliases ?? []) expect(a, p.id).not.toMatch(/[<(=_/]|–|^KJV$/);
+    });
+
     it('makes Nahash Abigail\'s father and gives David no named mother (2 Sam 17:25)', () => {
       const nahash = g.person('nahash_2sa_17_25');
       expect(nahash?.sex).toBe('male');

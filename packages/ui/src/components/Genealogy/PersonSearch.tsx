@@ -11,6 +11,8 @@ export interface PersonSearchLabels {
   noResults: string;
   /** Live-region text; `{count}` is replaced. */
   count: string;
+  /** Beside a name to tell namesakes apart; `{tribe}` is replaced. */
+  tribeOf: string;
 }
 
 export const DEFAULT_PERSON_SEARCH_LABELS: PersonSearchLabels = {
@@ -19,6 +21,7 @@ export const DEFAULT_PERSON_SEARCH_LABELS: PersonSearchLabels = {
   listbox: 'Matching people',
   noResults: 'No matching people',
   count: '{count} matches',
+  tribeOf: 'Tribe of {tribe}',
 };
 
 export interface PersonSearchProps {
@@ -96,7 +99,7 @@ export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, li
             {(() => {
               const hint = [
                 (nameCount.get(p.name) ?? 0) > 1 ? gloss(p.notes) : undefined,
-                p.tribe ? p.tribe.charAt(0).toUpperCase() + p.tribe.slice(1) : undefined,
+                p.tribe ? fill(labels.tribeOf, { tribe: p.tribe.charAt(0).toUpperCase() + p.tribe.slice(1) }) : undefined,
                 formatVerse && p.firstRef !== undefined ? formatVerse(p.firstRef) : undefined,
               ].filter(Boolean).join(' · ');
               return hint ? <span className="kth-genealogy-search__hint">{' '}{hint}</span> : null;

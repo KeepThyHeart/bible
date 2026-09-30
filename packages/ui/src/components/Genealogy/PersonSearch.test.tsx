@@ -56,7 +56,7 @@ describe('PersonSearch', () => {
     const rows = screen.getAllByRole('option').map((o) => o.textContent);
     expect(rows).toHaveLength(3);
     expect(new Set(rows).size).toBe(3);
-    expect(rows).toContain('Judah Son of Israel · Judah · v1029035');
+    expect(rows).toContain('Judah Son of Israel · Tribe of Judah · v1029035');
     expect(rows).toContain('Judah Returned priest · v16012036');
   });
 });
