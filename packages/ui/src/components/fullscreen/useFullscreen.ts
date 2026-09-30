@@ -130,9 +130,25 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>, options: UseFu
       else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
     };
     doc.addEventListener('keydown', onKey);
+    // A `contain: layout`/transform ancestor (dockview panes) would make the fixed overlay fill only that ancestor: lift it while full.
+    const lifted: Array<{ el: HTMLElement; contain: string; transform: string }> = [];
+    for (let a = ref.current?.parentElement; a; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      const contain = /layout|paint|strict|content/.test(cs.contain || '');
+      const transform = !!cs.transform && cs.transform !== 'none';
+      if (contain || transform) {
+        lifted.push({ el: a, contain: a.style.contain, transform: a.style.transform });
+        if (contain) a.style.contain = 'none';
+        if (transform) a.style.transform = 'none';
+      }
+    }
     const prevOverflow = doc.documentElement.style.overflow;
     doc.documentElement.style.overflow = 'hidden';
-    return () => { doc.removeEventListener('keydown', onKey); doc.documentElement.style.overflow = prevOverflow; };
+    return () => {
+      doc.removeEventListener('keydown', onKey);
+      doc.documentElement.style.overflow = prevOverflow;
+      for (const l of lifted) { l.el.style.contain = l.contain; l.el.style.transform = l.transform; }
+    };
   }, [full, ref, exit]);
 
   return { full, toggle, enter, exit };

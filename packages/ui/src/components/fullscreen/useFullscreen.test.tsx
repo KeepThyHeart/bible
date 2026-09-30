@@ -95,6 +95,20 @@ describe('useFullscreen', () => {
     expect(b.result.current.full).toBe(true);
   });
 
+  it('lifts contain/transform from ancestors while full and restores them', () => {
+    const parent = document.createElement('div');
+    parent.style.contain = 'layout';
+    document.body.appendChild(parent);
+    const el = document.createElement('div');
+    parent.appendChild(el);
+    const { result } = withEl(el, { native: false });
+    act(() => result.current.enter());
+    expect(parent.style.contain).toBe('none');
+    act(() => result.current.exit());
+    expect(parent.style.contain).toBe('layout');
+    parent.remove();
+  });
+
   it('locks page scroll while full and restores it', () => {
     const { result } = withEl(document.createElement('div'), { native: false });
     act(() => result.current.enter());

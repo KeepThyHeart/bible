@@ -96,7 +96,7 @@
 .kth-timeline--fs > .kth-timeline__toolbar, .kth-timeline--fs > .kth-timeline__note { grid-column: 1 / -1; }
 .kth-timeline--fs > .kth-timeline__toolbar { grid-row: 1; }
 .kth-timeline--fs > .kth-timeline__note { grid-row: 2; }
-.kth-timeline--fs > .kth-timeline-view { grid-column: 1; grid-row: 3; min-block-size: 0; block-size: 100%; }
+.kth-timeline--fs > .kth-timeline-view { grid-column: 1; grid-row: 3; min-block-size: 0; block-size: 100%; max-block-size: none; }
 .kth-timeline--fs > .kth-timeline-card { grid-column: 1 / -1; grid-row: 4; max-block-size: 35dvh; overflow: auto; min-block-size: 0; }
 @media (min-width: 720px) {
   .kth-timeline--fs-card { grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem); grid-template-rows: auto auto minmax(0, 1fr); }
