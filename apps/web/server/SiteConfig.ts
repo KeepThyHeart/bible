@@ -23,7 +23,7 @@ interface AuthConfig {
 
 interface FeaturesConfig {
   tagGraph?: boolean;
-  /** Show the Timeline explorer tab (it also hides itself when no timeline module is installed). Default false. */
+  /** Show the Timeline explorer tab (with no timeline module installed it shows an install hint). Default false. */
   timeline?: boolean;
   semanticSearch?: boolean;
   /**

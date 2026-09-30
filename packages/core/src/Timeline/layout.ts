@@ -114,12 +114,10 @@ export function layoutTimeline(
     if (opts.hiddenLanes?.has(lane.id)) continue;
     const items = resolved.filter((r) => r.item.laneId === lane.id && (!opts.kinds || opts.kinds.has(r.item.kind)));
     if (items.length === 0) continue;
-    const laneRows = Math.max(...items.map((r) => rows.get(r.item.id) ?? 0)) + 1;
     const marks: Mark[] = [];
-    const labelEnd: number[] = []; // per row: right edge of the last label drawn
-    const ordered = [...items].sort((a, b) => a.date.start - b.date.start);
+    const ordered = [...items].sort((a, b) => a.date.start - b.date.start || a.item.id - b.item.id);
     for (const r of ordered) {
-      const row = rows.get(r.item.id) ?? 0;
+      const packed = rows.get(r.item.id) ?? 0;
       const isSpan = r.date.end !== undefined;
       const x0 = xOf(view, width, r.date.start);
       const x1 = isSpan ? xOf(view, width, r.date.end as number) : x0;
@@ -133,26 +131,6 @@ export function layoutTimeline(
       const w = isSpan ? Math.max(rawW, 2) : 12;
       const x = isSpan ? x0 : x0 - 6;
       const text = r.item.title;
-      const labelPx = text.length * charPx + 8;
-      let labelVisible = false;
-      let labelX = 0;
-      let labelInside = false;
-      if (isSpan) {
-        const left = Math.max(x, 0);
-        const right = Math.min(x + w, width);
-        if (right - left >= labelPx) {
-          labelVisible = true;
-          labelInside = true;
-          labelX = left + 4;
-        }
-      } else {
-        const lx = x + w + 4;
-        if ((labelEnd[row] ?? -Infinity) + 4 <= lx) {
-          labelVisible = true;
-          labelX = lx;
-          labelEnd[row] = lx + labelPx;
-        }
-      }
       const uncertainty: { x: number; w: number }[] = [];
       const d = r.date;
       if (d.startMin !== undefined || d.startMax !== undefined) {
@@ -172,9 +150,9 @@ export function layoutTimeline(
         kind: r.item.kind,
         isSpan,
         title: text,
-        row,
+        row: packed,
         x,
-        y: y + header + row * rowHeight + (rowHeight - barH) / 2,
+        y: 0,
         w,
         h: barH,
         uncertainty,
@@ -182,11 +160,48 @@ export function layoutTimeline(
         viaFallback: r.viaFallback,
         selected,
         dim: !matches,
-        labelVisible,
-        labelX,
-        labelInside,
+        labelVisible: false,
+        labelX: 0,
+        labelInside: false,
       });
     }
+
+    // Compact the packed rows of the visible marks into dense rows, so empty rows take no space.
+    const usedRows = [...new Set(marks.map((m) => m.row))].sort((a, b) => a - b);
+    const dense = new Map(usedRows.map((row, i) => [row, i]));
+    for (const m of marks) {
+      m.row = dense.get(m.row) ?? 0;
+      m.y = y + header + m.row * rowHeight + (rowHeight - barH) / 2;
+    }
+    const laneRows = Math.max(usedRows.length, 1);
+
+    // Labels: inside a wide-enough bar, else after the mark when clear of the previous label and the next mark.
+    const nextX: number[] = new Array(marks.length).fill(Infinity);
+    const seenX = new Map<number, number>();
+    for (let i = marks.length - 1; i >= 0; i--) {
+      nextX[i] = seenX.get(marks[i].row) ?? Infinity;
+      seenX.set(marks[i].row, marks[i].x);
+    }
+    const labelEnd: number[] = []; // per row: right edge of the last outside label drawn
+    marks.forEach((m, i) => {
+      const labelPx = m.title.length * charPx + 8;
+      if (m.isSpan) {
+        const left = Math.max(m.x, 0);
+        const right = Math.min(m.x + m.w, width);
+        if (right - left >= labelPx) {
+          m.labelVisible = true;
+          m.labelInside = true;
+          m.labelX = left + 4;
+          return;
+        }
+      }
+      const lx = m.x + m.w + 4;
+      if ((labelEnd[m.row] ?? -Infinity) + 4 <= lx && lx + labelPx < nextX[i] && lx + labelPx <= width) {
+        m.labelVisible = true;
+        m.labelX = lx;
+        labelEnd[m.row] = lx + labelPx;
+      }
+    });
     const height = header + laneRows * rowHeight;
     out.push({ lane, y, height, rows: laneRows, marks });
     y += height + laneGap;

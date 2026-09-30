@@ -110,8 +110,9 @@ CREATE INDEX idx_timeline_date_chronology ON timeline_date(chronology_id, start_
 
 -- @include ../shared/module_feature.sql
 
--- Licence and attribution per source dataset (shared with the tag graph). Items name their
--- source in `timeline_item.metadata`; this table holds what to credit.
+-- Licence and attribution per source dataset (a shared fragment, also used by the genealogy
+-- schema of the tag graph). Items name their source in `timeline_item.metadata`; this table
+-- holds what to credit.
 -- @include ../shared/data_source.sql
 
 -- ============================================================================

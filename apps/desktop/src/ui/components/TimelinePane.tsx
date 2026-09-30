@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { TimelinePanel } from '@bible/ui';
 import type { TimelineDataset } from '@bible/core/browser';
-import { getBookName } from '@bible/core/browser';
+import { formatVerseIdRange, getBookName } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { navigateToVerseInPrimary } from '../stores/crossStoreBridge';
@@ -71,12 +71,7 @@ const TimelinePane: React.FC = () => {
       const cached = getBookNameFromCache(bookNumber);
       return cached && cached !== 'Unknown' ? cached : getBookName(bookNumber);
     };
-    const a = parseVerseId(verseId);
-    const head = `${name(verseId)} ${a.chapter}:${a.verse}`;
-    if (endVerseId === undefined || endVerseId === verseId) return head;
-    const z = parseVerseId(endVerseId);
-    if (z.bookNumber !== a.bookNumber) return `${head} - ${name(endVerseId)} ${z.chapter}:${z.verse}`;
-    return z.chapter === a.chapter ? `${head}-${z.verse}` : `${head}-${z.chapter}:${z.verse}`;
+    return formatVerseIdRange(verseId, endVerseId, name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookNamesReady]);
 

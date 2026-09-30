@@ -1,5 +1,5 @@
 /** Labels (English defaults) and small formatting helpers shared by the timeline components. */
-import { getBookName } from '@bible/core/browser';
+import { formatVerseIdRange, getBookName } from '@bible/core/browser';
 
 export const DEFAULT_TIMELINE_KIND_LABELS: Record<string, string> = {
   reign: 'Kings and reigns',
@@ -14,15 +14,9 @@ export function kindLabel(kinds: Record<string, string> | undefined, kind: strin
   return kinds?.[kind] ?? DEFAULT_TIMELINE_KIND_LABELS[kind] ?? kind.charAt(0).toUpperCase() + kind.slice(1);
 }
 
-/** "Genesis 1:1" / "Genesis 1:1-2:3" from verse ids (English book names). */
+/** "Genesis 1:1" / "Genesis 1:1-2:3" / "Genesis 5" (verse 999 = chapter end) from verse ids (English book names). */
 export function defaultFormatReference(verseId: number, endVerseId?: number): string {
-  const part = (id: number) => ({ b: Math.floor(id / 1_000_000), c: Math.floor((id % 1_000_000) / 1000), v: id % 1000 });
-  const a = part(verseId);
-  const head = `${getBookName(a.b)} ${a.c}:${a.v}`;
-  if (endVerseId === undefined || endVerseId === verseId) return head;
-  const z = part(endVerseId);
-  if (z.b !== a.b) return `${head} - ${getBookName(z.b)} ${z.c}:${z.v}`;
-  return z.c === a.c ? `${head}-${z.v}` : `${head}-${z.c}:${z.v}`;
+  return formatVerseIdRange(verseId, endVerseId, getBookName);
 }
 
 export interface TimelineViewLabels {

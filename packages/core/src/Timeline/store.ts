@@ -2,7 +2,7 @@ import { createStore, type ReadableStore } from '../Ui/ReadableStore';
 import { defaultChronologyId, resolveItems, type ResolvedItem } from './chronology';
 import { layoutTimeline, packRows, type TimelineLayout } from './layout';
 import { itemsForPassage } from './passages';
-import { clampView, fitRange, MIN_SPAN_DAYS, panView, type TimeView, tOf, viewSpan, zoomView } from './scale';
+import { clampView, MIN_SPAN_DAYS, minContextDays, panView, type TimeView, tOf, viewSpan, zoomView } from './scale';
 import type { TimelineDataset } from './types';
 
 export interface TimelineState {
@@ -143,13 +143,18 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
       const r = resolved.find((x) => x.item.id === id);
       if (!r) return;
       const start = r.date.start;
-      const end = r.date.end ?? start + MIN_SPAN_DAYS * 4;
-      update({ selectedId: id, view: fitRange(start, end, bounds, r.date.end === undefined ? 1 : 0.25) });
+      const end = r.date.end ?? start;
+      // Frame at least a precision-aware context span (and 1.5x the item) centred on the item.
+      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS);
+      const mid = (start + end) / 2;
+      update({ selectedId: id, view: clampView({ start: mid - span / 2, end: mid + span / 2 }, bounds) });
     },
     focusPassage(verseId, verseIdEnd) {
       const dated = new Set(resolved.map((r) => r.item.id));
       const hit = itemsForPassage(dataset, verseId, verseIdEnd).find((i) => dated.has(i.id));
       if (!hit) return false;
+      // Already selected: keep the user's zoom and pan.
+      if (hit.id === state().selectedId) return true;
       self.focusItem(hit.id);
       return true;
     },

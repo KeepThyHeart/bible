@@ -47,6 +47,20 @@ export function panView(view: TimeView, deltaDays: number, bounds: TimeView): Ti
   return clampView({ start: view.start + deltaDays, end: view.end + deltaDays }, bounds);
 }
 
+/** Smallest useful context window (days) when framing an item of a given precision. */
+export function minContextDays(precision: string): number {
+  switch (precision) {
+    case 'millennium': return 2000 * 365.25;
+    case 'century': return 500 * 365.25;
+    case 'decade': return 100 * 365.25;
+    case 'year': return 50 * 365.25;
+    case 'month': return 2 * 365.25;
+    case 'day': return 60;
+    case 'hour': return 2;
+    default: return 60;
+  }
+}
+
 /** A window around [start, end] with `pad` (a fraction of the span) on each side. */
 export function fitRange(start: number, end: number, bounds: TimeView, pad = 0.15): TimeView {
   const span = Math.max(end - start, MIN_SPAN_DAYS);
@@ -127,7 +141,9 @@ export function computeTicks(view: TimeView, width: number, minGapPx = 84): Tick
       if (d < view.start) continue;
       if (spec.step > 1 && Math.floor(d) % spec.step !== 0) continue;
       const c = instantToCivil(d);
-      ticks.push({ t: d, label: `${MONTH_SHORT[c.month - 1]} ${c.day}, ${formatYear(c.year)}`, major: c.day === 1 });
+      const major = c.day === 1;
+      const short = `${MONTH_SHORT[c.month - 1]} ${c.day}`;
+      ticks.push({ t: d, label: major || ticks.length === 0 ? `${short}, ${formatYear(c.year)}` : short, major });
     }
   } else {
     const stepDays = spec.step / 24;

@@ -9,13 +9,14 @@ import { chronologyChain, computeTicks, formatSpan, resolveItem, xOf } from '@bi
 import type { Mark, TimelineStore } from '@bible/core/browser';
 import { useTimelineStore } from './useTimelineStore';
 import { DEFAULT_TIMELINE_VIEW_LABELS } from './labels';
+import { pinchStep } from './pointerGestures';
 import type { TimelineViewLabels } from './labels';
 
 export interface TimelineViewProps {
   store: TimelineStore;
   labels?: Partial<TimelineViewLabels>;
   onSelect?: (itemId: number) => void;
-  /** Visible height in px; the graphic scrolls vertically when the lanes are taller. Default: fit the lanes. */
+  /** Visible height in px; the graphic scrolls vertically when the lanes are taller. Default: min(360px, 55vh) via CSS. */
   height?: number;
 }
 
@@ -57,7 +58,8 @@ export function TimelineView({ store, labels: labelOverrides, onSelect, height }
   const layout = store.getLayout();
   const boxRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ id: number; x: number; moved: number } | null>(null);
+  const pointers = useRef(new Map<number, number>());
+  const moved = useRef(0);
   const suppressClick = useRef(false);
 
   // Measure our own width.
@@ -87,6 +89,18 @@ export function TimelineView({ store, labels: labelOverrides, onSelect, height }
     return () => el.removeEventListener('wheel', onWheel);
   }, [store]);
 
+  // Keep the selected mark visible inside the scrolling container.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || state.selectedId === null) return;
+    const el = box.querySelector<SVGGElement>(`[data-item-id="${state.selectedId}"]`);
+    if (!el) return;
+    const b = box.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    if (r.top < b.top + AXIS_H) box.scrollTop += r.top - b.top - AXIS_H - 4;
+    else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom + 4;
+  }, [state.selectedId]);
+
   const dateText = useMemo(() => {
     const chain = chronologyChain(store.dataset, state.chronologyId);
     const out = new Map<number, string>();
@@ -99,7 +113,6 @@ export function TimelineView({ store, labels: labelOverrides, onSelect, height }
 
   const ticks = computeTicks(state.view, state.width);
   const total = AXIS_H + layout.height + 8;
-  const shownH = height ?? total;
   const laneIndex = new Map(store.dataset.lanes.map((l, i) => [l.id, i]));
 
   const select = (id: number) => {
@@ -122,25 +135,42 @@ export function TimelineView({ store, labels: labelOverrides, onSelect, height }
 
   const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
     if (e.button !== undefined && e.button !== 0) return;
-    drag.current = { id: e.pointerId, x: e.clientX, moved: 0 };
-    suppressClick.current = false;
+    pointers.current.set(e.pointerId, e.clientX);
+    moved.current = 0;
+    suppressClick.current = pointers.current.size > 1;
     try { svgRef.current?.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
   };
   const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const d = drag.current;
-    if (!d || d.id !== e.pointerId) return;
-    const dx = e.clientX - d.x;
-    d.x = e.clientX;
-    d.moved += Math.abs(dx);
-    if (d.moved > 3) suppressClick.current = true;
+    const map = pointers.current;
+    const prevX = map.get(e.pointerId);
+    if (prevX === undefined) return;
+    if (map.size >= 2) {
+      const ids = [...map.keys()];
+      const prev: [number, number] = [map.get(ids[0]) as number, map.get(ids[1]) as number];
+      map.set(e.pointerId, e.clientX);
+      const next: [number, number] = [map.get(ids[0]) as number, map.get(ids[1]) as number];
+      const step = pinchStep(prev, next);
+      suppressClick.current = true;
+      if (step) {
+        const left = svgRef.current?.getBoundingClientRect().left ?? 0;
+        store.zoomAt(step.ratio, step.mid - left);
+        if (step.midDelta !== 0) store.panByPixels(step.midDelta);
+      }
+      return;
+    }
+    const dx = e.clientX - prevX;
+    map.set(e.pointerId, e.clientX);
+    moved.current += Math.abs(dx);
+    if (moved.current > 3) suppressClick.current = true;
     if (dx !== 0) store.panByPixels(dx);
   };
   const endDrag = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (drag.current?.id === e.pointerId) drag.current = null;
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size === 1) moved.current = 4; // a lifted pinch finger must not turn into a tap
   };
 
   return (
-    <div ref={boxRef} className="kth-timeline-view" style={{ maxBlockSize: shownH, overflowY: shownH < total ? 'auto' : 'hidden' }}>
+    <div ref={boxRef} className="kth-timeline-view" style={height === undefined ? undefined : { maxBlockSize: height }}>
       <svg
         ref={svgRef}
         className="kth-timeline-view__svg"

@@ -39,7 +39,7 @@
         },
         "timeline": {
           "type": "boolean",
-          "description": "Show the Timeline explorer tab. The tab also hides itself when no timeline module is installed.",
+          "description": "Show the Timeline explorer tab. Without an installed timeline module the tab shows an install hint.",
           "default": false
         },
         "semanticSearch": {

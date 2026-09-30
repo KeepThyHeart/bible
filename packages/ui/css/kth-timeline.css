@@ -8,8 +8,8 @@
 .kth-timeline__chip:where([aria-pressed="true"]) { border-color: var(--kth-accent); background: var(--kth-accent-soft); color: var(--kth-text); }
 .kth-timeline__chip:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
 
-.kth-timeline-view { position: relative; inline-size: 100%; overflow: hidden; border: 1px solid var(--kth-border); border-radius: var(--kth-radius); background: var(--kth-bg); }
-.kth-timeline-view__svg { display: block; inline-size: 100%; touch-action: none; user-select: none; cursor: grab; }
+.kth-timeline-view { position: relative; inline-size: 100%; max-block-size: min(360px, 55vh); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--kth-border); border-radius: var(--kth-radius); background: var(--kth-bg); }
+.kth-timeline-view__svg { display: block; inline-size: 100%; touch-action: pan-y; user-select: none; cursor: grab; }
 .kth-timeline-view__svg:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
 .kth-timeline-axis { fill: var(--kth-bg-subtle); stroke: var(--kth-border); }
 .kth-timeline-grid { stroke: var(--kth-border); stroke-width: 1; }
@@ -43,8 +43,8 @@
 .kth-timeline-shape--selected { stroke: var(--kth-text-heading); stroke-width: 2.5; stroke-dasharray: none; }
 .kth-timeline-mark--dim { opacity: 0.25; }
 .kth-timeline-band { fill: var(--_kth-tl-color); opacity: 0.28; pointer-events: none; }
-.kth-timeline-label { fill: var(--kth-text); font-size: 11px; pointer-events: none; dominant-baseline: central; }
-.kth-timeline-label--inside { fill: var(--kth-accent-text); font-weight: 600; }
+.kth-timeline-label { fill: var(--kth-text); font-size: 11px; pointer-events: none; dominant-baseline: central; paint-order: stroke; stroke: var(--kth-bg); stroke-width: 3px; stroke-linejoin: round; }
+.kth-timeline-label--inside { fill: var(--kth-accent-text); font-weight: 600; stroke: none; }
 
 .kth-timeline-card { display: flex; flex-direction: column; gap: var(--kth-space-2); }
 .kth-timeline-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--kth-space-2); }

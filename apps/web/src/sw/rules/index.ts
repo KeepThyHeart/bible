@@ -2,6 +2,7 @@ import type { CacheRule } from '../cacheRules';
 import { CONTENT_RULES } from './content';
 import { DATA_RULES } from './data';
 import { NETWORK_ONLY_RULES } from './network';
+import { TIMELINE_RULES } from './timeline';
 
 /**
  * Every cache rule, in precedence order (first match wins). Network-only rules
@@ -15,4 +16,5 @@ export const CACHE_RULES: CacheRule[] = [
   ...NETWORK_ONLY_RULES,
   ...CONTENT_RULES,
   ...DATA_RULES,
+  ...TIMELINE_RULES,
 ];

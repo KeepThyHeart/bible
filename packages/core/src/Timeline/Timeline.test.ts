@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatVerseIdRange, minContextDays,
   bc, civilToInstant, instantToCivil, formatInstant, formatSpan, computeTicks, zoomView, panView, clampView,
   layoutTimeline, packRows, resolveItems, chronologyChain, itemsForPassage, createTimelineStore, xOf, tOf,
   type TimelineDataset, type TimelineItemDto,
@@ -71,6 +72,12 @@ describe('scale', () => {
     expect(week.some((t) => /Apr/.test(t.label))).toBe(true);
     expect(day.some((t) => /:00$/.test(t.label))).toBe(true);
   });
+  it('day ticks omit the year except on the first and major ticks', () => {
+    const t = computeTicks({ start: civilToInstant(33, 4, 20), end: civilToInstant(33, 4, 26) }, 1000);
+    expect(t.length).toBeGreaterThan(3);
+    expect(t[0].label).toMatch(/, /);
+    expect(t.slice(1).every((k) => /^[A-Za-z]{3} \d+$/.test(k.label))).toBe(true);
+  });
 });
 
 describe('chronology and passages', () => {
@@ -138,7 +145,15 @@ describe('store', () => {
     expect(st.selectedId).toBe(3);
     expect(st.view.start).toBeLessThan(civilToInstant(33, 4, 3, 9));
     expect(st.view.end).toBeGreaterThan(civilToInstant(33, 4, 3, 9));
-    expect(st.view.end - st.view.start).toBeLessThan(2);
+    // hour precision: at least 2 days of context, centred on the item
+    expect(st.view.end - st.view.start).toBeGreaterThanOrEqual(2 - 1e-9);
+    expect(st.view.end - st.view.start).toBeLessThan(3);
+    const view = st.view;
+    s.zoomAt(2, 400);
+    const zoomed = s.getSnapshot().view;
+    expect(s.focusPassage(43019020)).toBe(true);
+    expect(s.getSnapshot().view).toBe(zoomed);
+    expect(zoomed).not.toEqual(view);
     expect(s.focusPassage(1001001)).toBe(false);
   });
   it('filters and toggles lanes', () => {
@@ -148,5 +163,40 @@ describe('store', () => {
     s.toggleLane('judah');
     s.setKinds(['event']);
     expect(s.getLayout().lanes.map((l) => l.lane.id)).toEqual(['events']);
+  });
+});
+
+describe('formatVerseIdRange', () => {
+  const name = (b: number) => (b === 1 ? 'Genesis' : b === 65 ? 'Jude' : `Book${b}`);
+  it('formats verses and chapters, treating 999 as chapter end', () => {
+    expect(formatVerseIdRange(1001001, undefined, name)).toBe('Genesis 1:1');
+    expect(formatVerseIdRange(1001001, 1001003, name)).toBe('Genesis 1:1-3');
+    expect(formatVerseIdRange(1001001, 1002003, name)).toBe('Genesis 1:1-2:3');
+    expect(formatVerseIdRange(1005001, 1005999, name)).toBe('Genesis 5');
+    expect(formatVerseIdRange(1005001, 1006999, name)).toBe('Genesis 5-6');
+    expect(formatVerseIdRange(1005003, 1006999, name)).toBe('Genesis 5:3-6');
+    expect(formatVerseIdRange(1005003, 1005999, name)).toBe('Genesis 5:3ff');
+    expect(formatVerseIdRange(1050001, 2003999, name)).toBe('Genesis 50 - Book2 3');
+    expect(formatVerseIdRange(65001001, 65001999, name, { isSingleChapterBook: () => true })).toBe('Jude');
+  });
+});
+
+describe('layout compaction and focus framing', () => {
+  it('sizes lanes from visible marks only', () => {
+    const a = item(31, { laneId: 'events', kind: 'event', title: 'A', dates: { ussher: { start: 100, end: 200, precision: 'year', circa: false } } });
+    const b = item(32, { laneId: 'events', kind: 'event', title: 'B', dates: { ussher: { start: 150, end: 250, precision: 'year', circa: false } } });
+    const c = item(33, { laneId: 'events', kind: 'event', title: 'C', dates: { ussher: { start: 5000, end: 6000, precision: 'year', circa: false } } });
+    const ds = { ...dataset, items: [a, b, c] };
+    const all = resolveItems(ds, 'ussher');
+    const wide = layoutTimeline(all, ds.lanes, { start: 0, end: 7000 }, { width: 800 });
+    const narrow = layoutTimeline(all, ds.lanes, { start: 4900, end: 6100 }, { width: 800 });
+    expect(wide.lanes[0].rows).toBe(2);
+    expect(narrow.lanes[0].rows).toBe(1);
+    expect(narrow.lanes[0].marks[0].row).toBe(0);
+  });
+  it('minContextDays follows precision', () => {
+    expect(minContextDays('year')).toBeGreaterThanOrEqual(50 * 365);
+    expect(minContextDays('day')).toBe(60);
+    expect(minContextDays('hour')).toBe(2);
   });
 });
