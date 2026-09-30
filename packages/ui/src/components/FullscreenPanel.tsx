@@ -17,6 +17,8 @@ export interface FullscreenPanelProps {
   /** Accessible name when there is no visible `title`. */
   label?: string;
   labels?: Partial<FullscreenPanelLabels>;
+  /** Omit the header (title and close button); the caller provides its own exit control. The dialog is still named by `title` or `label`. */
+  hideHeader?: boolean;
   /** Escape closes. Default true. */
   closeOnEscape?: boolean;
   /** Render into `document.body` (default true). */
@@ -35,7 +37,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
  * Escape (optional) and the close button close it. Content scrolls; the header stays put.
  */
 export function FullscreenPanel(props: FullscreenPanelProps) {
-  const { open, onClose, title, label, labels, closeOnEscape = true, portal = true, id, className, children } = props;
+  const { open, onClose, title, label, labels, hideHeader = false, closeOnEscape = true, portal = true, id, className, children } = props;
   const panelRef = useRef<HTMLDivElement>(null);
   const generatedId = useRef<string | null>(null);
   if (generatedId.current === null) generatedId.current = `kth_fullscreen_${++nextPanelId}`;
@@ -66,18 +68,20 @@ export function FullscreenPanel(props: FullscreenPanelProps) {
         id={baseId}
         role="dialog"
         aria-modal="true"
-        aria-label={title ? undefined : label}
-        aria-labelledby={title ? titleId : undefined}
+        aria-label={title && !hideHeader ? undefined : label}
+        aria-labelledby={title && !hideHeader ? titleId : undefined}
         tabIndex={-1}
         className={className ? `kth-fullscreen ${className}` : 'kth-fullscreen'}
         onKeyDown={onKeyDown}
       >
-        <div className="kth-fullscreen__header">
-          {title ? <div id={titleId} className="kth-fullscreen__title">{title}</div> : <span className="kth-fullscreen__title" />}
-          <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" aria-label={l.close} onClick={onClose}>
-            {'×'}
-          </button>
-        </div>
+        {!hideHeader && (
+          <div className="kth-fullscreen__header">
+            {title ? <div id={titleId} className="kth-fullscreen__title">{title}</div> : <span className="kth-fullscreen__title" />}
+            <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" aria-label={l.close} onClick={onClose}>
+              {'×'}
+            </button>
+          </div>
+        )}
         <div className="kth-fullscreen__body">{children}</div>
       </div>
     </div>

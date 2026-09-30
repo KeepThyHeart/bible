@@ -48,6 +48,7 @@ export function TimelineSettingsMenu({ store, dataset, labels, onOpenChange }: T
         open={open}
         anchor={open && btnRef.current ? btnRef.current.getBoundingClientRect() : null}
         onClose={() => setOpen(false)}
+        insideRefs={[btnRef]}
         role="dialog"
         label={labels.settings}
         autoFocus
@@ -65,6 +66,7 @@ export function TimelineSettingsMenu({ store, dataset, labels, onOpenChange }: T
             </select>
           </label>
         )}
+        <span className="kth-timeline-settings__heading">{labels.kinds}</span>
         <div className="kth-timeline__group" role="group" aria-label={labels.kinds}>
           {kinds.map((k) => (
             <button key={k} type="button" className="kth-timeline__chip" aria-pressed={activeKinds.includes(k)} onClick={() => toggleKind(k)}>
@@ -72,6 +74,7 @@ export function TimelineSettingsMenu({ store, dataset, labels, onOpenChange }: T
             </button>
           ))}
         </div>
+        <span className="kth-timeline-settings__heading">{labels.lanes}</span>
         <div className="kth-timeline__group" role="group" aria-label={labels.lanes}>
           {[...dataset.lanes].sort((a, b) => a.sortOrder - b.sortOrder).map((l) => (
             <button key={l.id} type="button" className="kth-timeline__chip" aria-pressed={!state.hiddenLanes.includes(l.id)} onClick={() => store.toggleLane(l.id)}>

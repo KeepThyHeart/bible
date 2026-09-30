@@ -20,6 +20,9 @@ export function TimelineZoomControls({ store, labels }: TimelineZoomControlsProp
   const zoomValue = Math.round(STEPS * (1 - spanToFraction(span, min, max)));
   const posValue = Math.round(STEPS * centerToFraction(view, bounds));
   const atFull = span >= viewSpan(bounds);
+  const startYear = yearOf(view.start);
+  const endYear = yearOf(view.end);
+  const rangeText = startYear === endYear ? formatYear(startYear) : `${formatYear(startYear)} to ${formatYear(endYear)}`;
   const mid = (view.start + view.end) / 2;
 
   return (
@@ -29,6 +32,7 @@ export function TimelineZoomControls({ store, labels }: TimelineZoomControlsProp
         <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.zoomIn} onClick={() => store.zoomAt(1.5, state.width / 2)}>+</button>
         <button type="button" className="kth-btn kth-btn--sm" onClick={() => store.fit()}>{labels.fit}</button>
       </div>
+      <span className="kth-timeline__slider-icon" aria-hidden="true">{'\u{1F50D}\uFE0E'}</span>
       <input
         type="range"
         className="kth-timeline-range"
@@ -36,10 +40,11 @@ export function TimelineZoomControls({ store, labels }: TimelineZoomControlsProp
         max={STEPS}
         step={1}
         aria-label={labels.zoom}
-        aria-valuetext={`${formatYear(yearOf(view.start))} - ${formatYear(yearOf(view.end))}`}
+        aria-valuetext={rangeText}
         value={zoomValue}
         onChange={(e) => store.setSpan(fractionToSpan(1 - Number(e.currentTarget.value) / STEPS, min, max))}
       />
+      <span className="kth-timeline__slider-icon" aria-hidden="true">{'\u2194'}</span>
       <input
         type="range"
         className="kth-timeline-range"
@@ -52,6 +57,7 @@ export function TimelineZoomControls({ store, labels }: TimelineZoomControlsProp
         disabled={atFull}
         onChange={(e) => store.setCenterFraction(Number(e.currentTarget.value) / STEPS)}
       />
+      <span className="kth-timeline__range-text" aria-hidden="true">{rangeText}</span>
     </div>
   );
 }

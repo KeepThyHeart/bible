@@ -50,6 +50,11 @@ export function TimelineSearch({ store, labels }: TimelineSearchProps) {
         e.preventDefault();
         e.stopPropagation();
         setOpen(false);
+      } else if (query !== '') {
+        // Only clear the text; do not also exit full screen.
+        e.preventDefault();
+        e.stopPropagation();
+        store.setQuery('');
       }
     }
   };
@@ -81,13 +86,10 @@ export function TimelineSearch({ store, labels }: TimelineSearchProps) {
         role="listbox"
         aria-label={labels.searchResults}
         className="kth-timeline-search__list"
-        hidden={!showList}
+        hidden={!showList || results.length === 0}
         // Keep input focus when pressing an option.
         onMouseDown={(e) => e.preventDefault()}
       >
-        {showList && results.length === 0 && (
-          <li className="kth-timeline-search__empty" role="status">{labels.noResults}</li>
-        )}
         {showList && results.map((r, i) => (
           <li
             key={r.item.id}
@@ -102,6 +104,9 @@ export function TimelineSearch({ store, labels }: TimelineSearchProps) {
           </li>
         ))}
       </ul>
+      <div className="kth-timeline-search__empty" role="status">
+        {showList && results.length === 0 ? labels.noResults : ''}
+      </div>
     </div>
   );
 }

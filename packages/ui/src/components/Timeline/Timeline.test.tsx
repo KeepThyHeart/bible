@@ -133,4 +133,69 @@ describe('TimelinePanel', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
   });
+  it('returns focus to the inline full-screen toggle after Escape', async () => {
+    render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    const dialog = screen.getByRole('dialog', { name: 'Full screen' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    // No header: the toolbar exit button uses a different glyph than the enter one.
+    expect(dialog.querySelector('.kth-fullscreen__header')).toBeNull();
+    const exit = screen.getByRole('button', { name: 'Exit full screen' });
+    expect(exit.textContent).not.toBe('\u2715');
+    expect(exit.textContent).not.toBe('\u26F6');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Full screen' }));
+  });
+
+  it('lays out full screen with the card beside the view when an item is selected', async () => {
+    render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    const root = () => screen.getByRole('dialog', { name: 'Full screen' }).querySelector('.kth-timeline') as HTMLElement;
+    expect(root().classList.contains('kth-timeline--fs')).toBe(true);
+    expect(root().classList.contains('kth-timeline--fs-card')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: /^Solomon/ }));
+    expect(root().classList.contains('kth-timeline--fs-card')).toBe(true);
+  });
+
+  it('the settings button toggles the popover closed and shows headings', async () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    const btn = screen.getByRole('button', { name: 'Timeline settings' });
+    await userEvent.click(btn);
+    expect(screen.getByRole('dialog', { name: 'Timeline settings' })).toBeTruthy();
+    expect(screen.getByText('Lanes', { selector: '.kth-timeline-settings__heading' })).toBeTruthy();
+    expect(screen.getByText('Show', { selector: '.kth-timeline-settings__heading' })).toBeTruthy();
+    await userEvent.click(btn);
+    expect(screen.queryByRole('dialog', { name: 'Timeline settings' })).toBeNull();
+  });
+
+  it('search Escape clears text first and does not exit full screen; empty Escape passes through', async () => {
+    render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    const box = screen.getByRole('combobox', { name: 'Search the timeline' }) as HTMLInputElement;
+    await userEvent.type(box, 'temple');
+    await userEvent.keyboard('{Escape}'); // closes the list
+    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}'); // clears the text
+    expect(box.value).toBe('');
+    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}'); // empty: exits
+    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
+  });
+
+  it('shows no-results as a status outside the listbox', async () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    await userEvent.type(screen.getByRole('combobox', { name: 'Search the timeline' }), 'zzzz');
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('No matching events');
+    expect(status.closest('[role="listbox"]')).toBeNull();
+    expect(status.tagName).not.toBe('LI');
+  });
+
+  it('zoom slider valuetext reads a short span as one year', () => {
+    render(<TimelinePanel dataset={FIXTURE} />);
+    const slider = screen.getByRole('slider', { name: 'Zoom' });
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/BC|AD/);
+    expect(slider.getAttribute('aria-valuetext')).not.toMatch(/^(.+) - \1$/);
+  });
 });

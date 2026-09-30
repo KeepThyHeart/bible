@@ -53,4 +53,10 @@ describe('FullscreenPanel', () => {
     expect(opener).toHaveFocus();
     opener.remove();
   });
+
+  it('hideHeader omits the header but keeps the dialog named by label', () => {
+    render(<FullscreenPanel open onClose={() => {}} label="Map" hideHeader>body</FullscreenPanel>);
+    expect(screen.getByRole('dialog', { name: 'Map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  });
 });

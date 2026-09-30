@@ -85,6 +85,20 @@
 .kth-fullscreen .kth-timeline { flex: 1; min-block-size: 0; block-size: 100%; }
 .kth-fullscreen .kth-timeline-view { max-block-size: none; flex: 1; }
 
+.kth-timeline__slider-icon { flex: none; color: var(--kth-text-muted); line-height: 1; }
+.kth-timeline__range-text { flex: none; color: var(--kth-text-muted); font-size: 0.8em; white-space: nowrap; }
+.kth-timeline-settings__heading { color: var(--kth-text-muted); font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Full screen: the view fills the height; the item card sits beside it (wide) or below, capped (narrow). */
+.kth-timeline--fs { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; gap: var(--kth-space-2); }
+.kth-timeline--fs > .kth-timeline__toolbar, .kth-timeline--fs > .kth-timeline__note { grid-column: 1 / -1; }
+.kth-timeline--fs > .kth-timeline-view { grid-column: 1; min-block-size: 0; block-size: 100%; }
+.kth-timeline--fs > .kth-timeline-card { grid-column: 1 / -1; max-block-size: 35%; overflow: auto; min-block-size: 0; }
+@media (min-width: 720px) {
+  .kth-timeline--fs-card { grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem); grid-template-rows: auto auto minmax(0, 1fr); }
+  .kth-timeline--fs-card > .kth-timeline-card { grid-column: 2; grid-row: 3; max-block-size: none; block-size: 100%; }
+}
+
 @media (max-width: 480px) {
   .kth-timeline__toolbar > .kth-timeline-search { flex: 1 1 100%; }
   .kth-timeline__zoom { flex: 1 1 100%; }

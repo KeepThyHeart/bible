@@ -1,5 +1,5 @@
 /** TimelinePanel: toolbar (chronology, kinds, search, lanes, zoom), the timeline and the selected item's card. */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createTimelineStore } from '@bible/core/browser';
 import type { TimelineDataset } from '@bible/core/browser';
 import { TimelineView } from './TimelineView';
@@ -52,22 +52,32 @@ export function TimelinePanel({
   const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const isFullscreen = allowFullscreen && fullscreen;
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const wasFullscreen = useRef(false);
+  // Leaving full screen: the dialog unmounts, so put focus back on the inline toggle.
+  useLayoutEffect(() => {
+    if (wasFullscreen.current && !isFullscreen) toggleRef.current?.focus();
+    wasFullscreen.current = isFullscreen;
+  }, [isFullscreen]);
+  const rootClass = ['kth-timeline', isFullscreen && 'kth-timeline--fs', isFullscreen && selected && 'kth-timeline--fs-card', className]
+    .filter(Boolean).join(' ');
 
   const body = (
-    <div className={className ? `kth-timeline ${className}` : 'kth-timeline'}>
+    <div className={rootClass}>
       <div className="kth-timeline__toolbar">
         <TimelineSearch store={store} labels={labels} />
         <TimelineZoomControls store={store} labels={labels} />
         <TimelineSettingsMenu store={store} dataset={dataset} labels={labels} onOpenChange={setSettingsOpen} />
         {allowFullscreen && (
           <button
+            ref={toggleRef}
             type="button"
             className="kth-btn kth-btn--sm kth-timeline__fullscreen-btn"
             aria-label={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
             aria-pressed={isFullscreen}
             onClick={() => { setSettingsOpen(false); setFullscreen(!isFullscreen); }}
           >
-            <span aria-hidden="true">{isFullscreen ? '\u2715' : '\u26F6'}</span>
+            <span aria-hidden="true">{isFullscreen ? '\u21F2' : '\u26F6'}</span>
           </button>
         )}
       </div>
@@ -93,6 +103,7 @@ export function TimelinePanel({
       open
       onClose={() => { setSettingsOpen(false); setFullscreen(false); }}
       label={labels.fullscreen}
+      hideHeader
       closeOnEscape={!settingsOpen}
       className="kth-timeline--fullscreen"
     >
