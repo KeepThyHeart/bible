@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { resetUserDataForTests } from '../userdata/userData';
+import { listWordGroups } from './wordGroupStorage';
 
 vi.mock('./bibleStore', () => ({ bibleStore: { getActiveModule: () => 'KJV' } }));
 
@@ -27,8 +30,9 @@ function deferred<T>(): Deferred<T> {
 
 let provider: { resolve: ReturnType<typeof vi.fn>; getOverview: ReturnType<typeof vi.fn>; getOccurrences: ReturnType<typeof vi.fn> };
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
+  await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
   provider = {
     resolve: vi.fn(async () => []),
     getOverview: vi.fn(async (subject) => overview(subject.kind === 'strongs' ? subject.strongs : subject.group.label)),
@@ -37,6 +41,8 @@ beforeEach(() => {
   wordStudyStore.init(provider as unknown as IWordStudyProvider);
   wordStudyStore.reset();
 });
+
+afterEach(async () => { await resetUserDataForTests(); });
 
 describe('wordStudyStore submit', () => {
   it('a Strong\'s number studies it without resolving', async () => {
@@ -233,14 +239,15 @@ describe('wordStudyStore offline and errors', () => {
 });
 
 describe('wordStudyStore groups', () => {
-  it('saves, lists, edits and deletes groups in browser storage', () => {
+  it('saves, lists, edits and deletes groups in the user-data store', async () => {
     wordStudyStore.editGroup({ id: '', label: '', terms: [] });
     expect(wordStudyStore.editingGroup).not.toBeNull();
     wordStudyStore.saveGroup({ id: '', label: 'Love', terms: ['love', 'lov*'] });
     expect(wordStudyStore.editingGroup).toBeNull();
     expect(wordStudyStore.groups.map((g) => g.label)).toEqual(['Love']);
+    await vi.waitFor(async () => expect(await listWordGroups()).toHaveLength(1));
     wordStudyStore.reset();
-    expect(wordStudyStore.groups).toHaveLength(1);
+    await vi.waitFor(() => expect(wordStudyStore.groups).toHaveLength(1));
     wordStudyStore.deleteGroup(wordStudyStore.groups[0].id);
     expect(wordStudyStore.groups).toEqual([]);
   });

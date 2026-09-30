@@ -1057,7 +1057,9 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
     const ph = strongsVariants.map(() => '?').join(', ');
     const params: (string | number)[] = [...strongsVariants];
-    let sql = `SELECT verse_id, word_position_start, word_position_end, extra_word_positions,
+    // Modules built before `extra_word_positions` existed still work: single-span hits only.
+    const extraCol = this.hasInterlinearExtraColumn() ? 'extra_word_positions' : 'NULL AS extra_word_positions';
+    let sql = `SELECT verse_id, word_position_start, word_position_end, ${extraCol},
                       gloss, morphology, original_word
                FROM interlinear_word WHERE strongs_number IN (${ph})`;
     if (options.range) {
@@ -1129,6 +1131,21 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
       wordCount: row.word_count,
       metadata: parseJsonField(row.metadata)
     });
+  }
+
+  private interlinearExtraColumn: boolean | undefined;
+
+  private hasInterlinearExtraColumn(): boolean {
+    if (this.interlinearExtraColumn === undefined) {
+      try {
+        this.interlinearExtraColumn = this.sql
+          .queryAll<{ name: string }>('PRAGMA table_info(interlinear_word)')
+          .some(c => c.name === 'extra_word_positions');
+      } catch {
+        this.interlinearExtraColumn = false;
+      }
+    }
+    return this.interlinearExtraColumn;
   }
 
   private mapRowToInterlinearWord(row: InterlinearWordRow): InterlinearWord {

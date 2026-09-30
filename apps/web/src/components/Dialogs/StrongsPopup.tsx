@@ -84,19 +84,6 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         <button class="strongs-popup__close" onClick={onClose}>
           <i class="fa-solid fa-xmark" />
         </button>
-        <button
-          type="button"
-          class="strongs-popup__search-btn"
-          data-testid="strongs-popup-word-study"
-          onClick={(e) => {
-            e.stopPropagation();
-            openWordStudy({ strongs: entry.strongsNumber });
-            onClose();
-          }}
-        >
-          <i class="fa-solid fa-language" style={{ marginInlineEnd: '4px' }} />
-          {t('wordStudy.open')}
-        </button>
       </div>
       <div class="strongs-popup__body">
         {translit && (
@@ -130,6 +117,19 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
       >
         <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
         {t('strongsPopup.searchOccurrences')}
+      </button>
+      <button
+        type="button"
+        class="strongs-popup__search-btn"
+        data-testid="strongs-popup-word-study"
+        onClick={(e) => {
+          e.stopPropagation();
+          openWordStudy({ strongs: entry.strongsNumber });
+          onClose();
+        }}
+      >
+        <i class="fa-solid fa-language" style={{ marginInlineEnd: '4px' }} />
+        {t('wordStudy.open')}
       </button>
     </Popover>
   );

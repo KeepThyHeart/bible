@@ -59,6 +59,7 @@ class WordStudyStore extends Store {
   private trailIndex = -1;
   /** True once the reader picked a module themselves; until then the active Bible is only a preference. */
   private moduleExplicit = false;
+  private groupsSeq = 0;
   private studySeq = 0;
   private occSeq = 0;
   private resolveSeq = 0;
@@ -66,13 +67,16 @@ class WordStudyStore extends Store {
   /** Inject a provider (tests); defaults to the app's server provider. */
   init(provider?: IWordStudyProvider): void {
     this.provider = provider ?? null;
-    this.groups = listWordGroups();
     this.notify();
+    void this.refreshGroups();
   }
 
-  /** Re-read saved groups from browser storage (the pane calls this on mount). */
-  refreshGroups(): void {
-    this.groups = listWordGroups();
+  /** Re-read saved groups from the user-data store (the pane calls this on mount). */
+  async refreshGroups(): Promise<void> {
+    const seq = ++this.groupsSeq;
+    const loaded = await listWordGroups();
+    if (seq !== this.groupsSeq) return; // a save or delete happened meanwhile; its state wins
+    this.groups = loaded;
     this.notify();
   }
 
@@ -87,8 +91,8 @@ class WordStudyStore extends Store {
     this.query = ''; this.candidates = []; this.overview = null; this.occurrences = null;
     this.loading = false; this.occurrencesLoading = false; this.error = null; this.offline = false;
     this.editingGroup = null; this.trail = []; this.trailIndex = -1; this.moduleExplicit = false;
-    this.groups = listWordGroups();
     this.notify();
+    void this.refreshGroups();
   }
 
   get canGoBack(): boolean { return this.trailIndex > 0; }
@@ -224,8 +228,11 @@ class WordStudyStore extends Store {
   }
 
   saveGroup(group: WordGroup): void {
-    const saved = saveWordGroup(normalizeWordGroup(group));
-    this.groups = listWordGroups();
+    const saved = normalizeWordGroup(group);
+    // Update memory at once so the UI is immediate; the user-data store write follows.
+    this.groupsSeq++;
+    this.groups = [...this.groups.filter((g) => g.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
+    void saveWordGroup(saved);
     this.editingGroup = null;
     this.notify();
     if (this.subject?.kind === 'group' && this.subject.group.id === saved.id) {
@@ -234,8 +241,9 @@ class WordStudyStore extends Store {
   }
 
   deleteGroup(id: string): void {
-    removeWordGroup(id);
-    this.groups = listWordGroups();
+    this.groupsSeq++;
+    this.groups = this.groups.filter((g) => g.id !== id);
+    void removeWordGroup(id);
     this.editingGroup = null;
     this.notify();
   }

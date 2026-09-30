@@ -1,56 +1,81 @@
 /**
- * Saved word groups for the Word study pane.
+ * Saved word groups for the Word study pane, on the web user-data store.
  *
- * The word study server keeps no groups, so they live in this browser's
- * localStorage. TODO(task 0063): move them to the core user-data layer when web
- * accounts / sync land, so groups follow the reader across devices.
+ *   owner       app:word-study   (same as desktop, see WordGroupStore in @bible/core)
+ *   collection  groups
+ *   itemKey     the group id
+ *   value       JSON WordGroup `{ id, label, terms, exclude?, ... }`
+ *
+ * Backup classification: user_data_item rows are `content` in the backup registry, so
+ * groups are backed up with the rest of the user's own data; no new table is added and
+ * nothing in `USER_TABLES` changes. Contains no secrets. Not anchored to scripture, so no
+ * verse_link rows exist for these items.
+ *
+ * The old `bible.wordGroups.v1` localStorage array is copied in once (existing items are
+ * never overwritten) and then removed by `migrateLocalStorage`.
  */
-import { normalizeWordGroup } from '@bible/core/browser';
+import { UserData, WordGroupStore, WORD_GROUP_OWNER, WORD_GROUP_COLLECTION, normalizeWordGroup } from '@bible/core/browser';
 import type { WordGroup } from '@bible/core/browser';
+import { getUserData } from '../userdata/userData';
+
+const { migrateLocalStorage } = UserData;
 
 export const WORD_GROUPS_KEY = 'bible.wordGroups.v1';
 
-function readAll(): WordGroup[] {
+function convertLegacy(raw: string) {
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) return null;
+  const out: { itemKey: string; payload: WordGroup }[] = [];
+  for (const item of parsed) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Partial<WordGroup>;
+    if (!Array.isArray(rec.terms) || !rec.terms.every((t) => typeof t === 'string')) continue;
+    const group = normalizeWordGroup({ ...rec, terms: rec.terms as string[] });
+    if (group.terms.length > 0) out.push({ itemKey: group.id, payload: group });
+  }
+  return out;
+}
+
+/** One migration per store instance (the app's singleton; tests open several). */
+const migrations = new WeakMap<object, Promise<void>>();
+
+async function ready() {
+  const store = await getUserData();
+  let migration = migrations.get(store);
+  if (!migration) {
+    migration = migrateLocalStorage(
+      store.items,
+      localStorage,
+      [{ legacyKey: WORD_GROUPS_KEY, ownerUuid: WORD_GROUP_OWNER, collection: WORD_GROUP_COLLECTION, convert: convertLegacy }],
+      () => store.flush()
+    ).then(() => undefined, () => undefined);
+    migrations.set(store, migration);
+  }
+  await migration;
+  return new WordGroupStore(store.items);
+}
+
+/** All saved groups, sorted by label. Never rejects. */
+export async function listWordGroups(): Promise<WordGroup[]> {
   try {
-    const raw = localStorage.getItem(WORD_GROUPS_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const out: WordGroup[] = [];
-    for (const item of parsed) {
-      if (!item || typeof item !== 'object') continue;
-      const rec = item as Partial<WordGroup>;
-      if (!Array.isArray(rec.terms) || !rec.terms.every((t) => typeof t === 'string')) continue;
-      const group = normalizeWordGroup({ ...rec, terms: rec.terms as string[] });
-      if (group.terms.length > 0) out.push(group);
-    }
-    return out;
+    return (await ready()).list();
   } catch {
     return [];
   }
 }
 
-function writeAll(groups: WordGroup[]): void {
-  try {
-    localStorage.setItem(WORD_GROUPS_KEY, JSON.stringify(groups));
-  } catch { /* storage unavailable or full: groups just do not persist */ }
-}
-
-/** All saved groups, oldest first. */
-export function listWordGroups(): WordGroup[] {
-  return readAll();
-}
-
-/** Save (insert or replace by id) a group; returns the normalized group that was stored. */
-export function saveWordGroup(group: WordGroup): WordGroup {
+/** Save (insert or replace by id); resolves with the normalized group. Falls back to the normalized input if storage fails. */
+export async function saveWordGroup(group: WordGroup): Promise<WordGroup> {
   const normalized = normalizeWordGroup(group);
-  const all = readAll();
-  const i = all.findIndex((g) => g.id === normalized.id);
-  if (i >= 0) all[i] = normalized; else all.push(normalized);
-  writeAll(all);
-  return normalized;
+  try {
+    return (await ready()).save(normalized);
+  } catch {
+    return normalized;
+  }
 }
 
-export function removeWordGroup(id: string): void {
-  writeAll(readAll().filter((g) => g.id !== id));
+export async function removeWordGroup(id: string): Promise<void> {
+  try {
+    (await ready()).remove(id);
+  } catch { /* storage unavailable: the group stays in memory for the session */ }
 }

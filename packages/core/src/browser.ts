@@ -275,6 +275,7 @@ export * as Backup from './Backup';
 
 // --- Word study (pure: tokenising, stemming, word groups, rendering grouping, DTOs) ---
 export * from './WordStudy';
+export * from './Services/WordGroupStore';
 // --- Web user-data store (task 0084) ------------------------------------------
 // In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
 // import for them, and the localStorage migration helper. Namespaced: it re-exports

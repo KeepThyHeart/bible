@@ -1,3 +1,5 @@
+import { IDBFactory } from 'fake-indexeddb';
+import { resetUserDataForTests } from '../../userdata/userData';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
@@ -27,8 +29,9 @@ const overview: WordStudyOverview = {
 
 let provider: { resolve: ReturnType<typeof vi.fn>; getOverview: ReturnType<typeof vi.fn>; getOccurrences: ReturnType<typeof vi.fn> };
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
+  await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
   navigateToPreview.mockClear(); performSearch.mockClear();
   provider = {
     resolve: vi.fn(async () => []),

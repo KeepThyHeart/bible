@@ -89,6 +89,16 @@ describe('BibleRepository word study queries', () => {
     expect(repos[1].countStrongs(v)).toEqual({ occurrences: 0, verses: 0 });
     expect(repos[1].getStrongsHits(v)).toEqual([]);
   });
+  it('still lists hits from modules built before extra_word_positions existed', () => {
+    const old = makeBible('old', 'en', true);
+    repos.push(old);
+    const sql = old.getSql() as TestSqliteProvider;
+    sql.exec('ALTER TABLE interlinear_word DROP COLUMN extra_word_positions');
+    const hits = old.getStrongsHits(['G25']);
+    expect(hits).toHaveLength(4);
+    expect(hits[0]).not.toHaveProperty('extra');
+  });
+
   it('finds padded Hebrew numbers through the variants', () => {
     expect(repos[0].countStrongs(['H7462', 'H07462']).occurrences).toBe(1);
   });
