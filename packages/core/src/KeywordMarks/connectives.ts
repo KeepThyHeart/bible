@@ -4,6 +4,7 @@
  * (task 0065 C3): with interlinear rows a surface hit only counts when it is
  * aligned to an anchor, which removes "for" the preposition.
  */
+import { primaryLanguage } from '../Text/language';
 import type { ConnectiveCategory, MarkColorKey, MarkSymbol } from './types';
 
 export interface ConnectiveEntry {
@@ -82,10 +83,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
   },
 };
 
-/** Primary language subtag, lower-cased ("en-US" -> "en"). */
-export function primaryLanguage(tag: string): string {
-  return (tag || '').split(/[-_]/)[0].toLowerCase();
-}
+export { primaryLanguage };
 
 /** Languages for which a connective lexicon exists. */
 export function connectiveLanguages(): string[] {

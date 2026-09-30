@@ -273,6 +273,19 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
+// --- Shared text tools (task 0089) ------------------------------------------------
+// Tokenising, normalising, stemming, stop words, word/phrase matching. KeywordMarks
+// re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
+// left out of this list to avoid duplicate `export *` names.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, modernizeVerbEnding, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // --- Keyword marks (task 0065) --------------------------------------------------
 // The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
 // validation and the set service. Pure TypeScript; both apps wrap it in a UI.
