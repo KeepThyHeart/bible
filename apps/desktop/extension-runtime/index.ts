@@ -158,7 +158,7 @@ export function startSupervisor(
         channel: '__runtime.log',
         payload: { level, message: line.slice(0, MAX_LOG_LINE_CHARS) },
       });
-      // Still echoed to stdout, which is where it shows up under `npm run dev`.
+      // Still echoed to stdout, which is where it shows up under `pnpm run dev`.
       process.stdout.write(`[${level}] ${line}\n`);
     },
     onFatal: (message) => {

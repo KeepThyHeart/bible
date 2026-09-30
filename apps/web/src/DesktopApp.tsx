@@ -11,9 +11,11 @@ import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
-import { isTagGraphEnabled, isTimelineEnabled } from './utils/clientConfig';
+import { isEnabled } from './utils/featureFlags';
+import { isTagGraphEnabled } from './utils/clientConfig';
 import { TimelinePane } from './components/TimelinePane/TimelinePane';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
@@ -33,7 +35,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // anything renders, and asking for it again cost a second round trip on the
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
-  const showTimeline = isTimelineEnabled();
+  const showTimeline = isEnabled('timeline');
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
 
   // Auto-switch to search mode when a search is performed, and force the pane
@@ -113,6 +115,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         onFeedbackClick={() => shared.setFeedbackOpen(true)}
       />
       <ConnectionBanner />
+      <UpdateBanner />
       <div class="main-layout">
         <div class="main-layout__bible" style={bibleStyle}>
           <BiblePane

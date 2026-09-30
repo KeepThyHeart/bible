@@ -44,5 +44,5 @@ export function createTimelineRoutes(db: DatabaseManager, options?: { enabled?: 
 
 registerRoute({
   path: '/api/timeline',
-  createRoutes: (deps) => createTimelineRoutes(deps.db, { enabled: (deps.extra.showTimeline as boolean | undefined) ?? true }),
+  createRoutes: (deps) => createTimelineRoutes(deps.db, { enabled: (deps.extra.showTimeline as boolean | undefined) ?? false }),
 });

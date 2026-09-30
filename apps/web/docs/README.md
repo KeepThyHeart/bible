@@ -31,13 +31,14 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Mobile Study Pane](features/navigation-layout.md#mobile-study-pane) | All-in-one mobile study hub with icon grid, breadcrumb navigation, verse history |
 | [State Management](features/state-management.md) | Store architecture, data providers, hooks |
 | [Study Pane](features/topics.md#ui-components) | Desktop Study pane host components (cross-refs, topics, synthesis, interlinear sections) are mapped in the Topics doc |
-| [PWA & Offline](features/pwa-offline.md) | Service worker (**off by default** — opt in with `ENABLE_PWA=1`), installability, HTTP cache headers, offline module storage via OPFS |
+| [PWA & Offline](features/pwa-offline.md) | Service worker (**off by default**, switched by `features.pwa` on the server), cache-rule registry, Reset app cache, installability, HTTP cache headers, offline module storage via OPFS |
+| [Service-worker cache rules](features/service-worker-cache-rules.md) | How a feature adds (or forbids) a cached route: the rule registry, strategies, safety rules, versions |
 
 ## Testing
 
 - **Unit tests:** Vitest (`src/__tests__/`, `server/__tests__/`)
 - **Component tests:** Vitest + `@testing-library/preact` (next to each component, e.g. `Header.test.tsx`)
-- **E2E tests:** Playwright (`e2e/tests/`) — `npm run test:e2e -w @bible/web`. See [`e2e/README.md`](../e2e/README.md) for how the suite builds its own data directory and why it never reuses a server you started yourself.
+- **E2E tests:** Playwright (`e2e/tests/`) — `pnpm --filter @bible/web run test:e2e`. See [`e2e/README.md`](../e2e/README.md) for how the suite builds its own data directory and why it never reuses a server you started yourself.
 - **Exploratory UI testing:** `exploratory-ui-testing.md` — **not yet imported into this repo**; upstream it is a flow-by-flow plan for driving the app in a real browser (by hand or via Claude for Chrome), covering the judgment calls Playwright cannot make.
 
 Component tests follow the store-mocking pattern established in `src/components/ConnectionBanner.test.tsx` and `src/components/BiblePane/BibleToolbar.test.tsx`. All stores use a mutable container object for state so that `vi.mock` hoisting doesn't cause temporal dead zone issues.

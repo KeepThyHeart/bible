@@ -127,10 +127,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The pnpm version comes from `packageManager` in the root package.json.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: pnpm
 
       # Electron's V8 headers put a GNU attribute after a C++11 one in a class
       # head (`class [[deprecated]] __attribute__((visibility)) Value`), which
@@ -148,7 +151,7 @@ jobs:
           echo "CXX=$cxx" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       # The main.db template the installer ships: schema plus the 66-book
       # reference space, built offline from files in the repo, with an empty
@@ -164,7 +167,7 @@ jobs:
           for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
             [ -n "${!name}" ] || unset "$name"
           done
-          npm run package:code-only:${{ matrix.target }} -w @bible/desktop -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
+          pnpm --filter @bible/desktop run package:code-only:${{ matrix.target }} --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
 
       # Verifiable with: gh attestation verify <file> -R <owner>/<repo>
       - name: Attest build provenance

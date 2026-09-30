@@ -29,7 +29,8 @@ const SHARED_TABLES = [
   'schema_version',
   'schema_migration',
   'setting',
-  'module_feature'
+  'module_feature',
+  'data_source'
 ] as const;
 
 /** The eight module-type schemas (excludes `MainDatabase.sql` and `UserDatabase.sql`). */

@@ -7,7 +7,7 @@ import { VerseIdHelper } from '@bible/core';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
 import { useBibleStore } from '../stores/useBibleStore';
 import { sanitizeHtml } from '../utils/sanitize';
-import { usePopupPosition, PopupPortal } from '../hooks/usePopupPosition';
+import { Popover } from '@bible/ui';
 import { getVersesCached, primeVerseCache, type CachedVerse } from '../services/verseFetchCache';
 import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 
@@ -97,11 +97,6 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
   const [verses, setVerses] = useState<CachedVerse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { ref: tooltipRef, style: popupStyle } = usePopupPosition(position, {
-    width: TOOLTIP_WIDTH,
-    estimatedHeight: isRange ? ESTIMATED_HEIGHT_RANGE : ESTIMATED_HEIGHT_SINGLE,
-    ...(offsetY === undefined ? {} : { offsetY }),
-  });
   const targetVerseRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -214,18 +209,6 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
     }
   }, [loading, verses]);
 
-  // Close on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
   // Get reference string for the target verse or range
   const getReference = () => {
     if (isRange && endVerseId) {
@@ -238,12 +221,16 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
   };
 
   return (
-    <PopupPortal>
-    <div
-      ref={tooltipRef}
+    <Popover
+      open
+      anchor={position}
+      onClose={onClose}
+      width={TOOLTIP_WIDTH}
+      estimatedHeight={isRange ? ESTIMATED_HEIGHT_RANGE : ESTIMATED_HEIGHT_SINGLE}
+      offset={offsetY}
+      label={getReference()}
       className={`z-50 rounded-lg shadow-xl p-4${showRedLetter === false ? ' no-red-letter' : ''}`}
       style={{
-        ...popupStyle,
         backgroundColor: 'var(--theme-bg-primary)',
         border: '1px solid var(--theme-border-primary)',
         color: 'var(--theme-text-primary)',
@@ -316,8 +303,7 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
           {hint}
         </div>
       )}
-    </div>
-    </PopupPortal>
+    </Popover>
   );
 };
 

@@ -31,3 +31,13 @@ export {
   defaultFormatReference,
 } from './components/Timeline/labels';
 export type { TimelineViewLabels, TimelineItemCardLabels, TimelinePanelLabels } from './components/Timeline/labels';
+export { Popover } from './components/Popover';
+export type { PopoverProps } from './components/Popover';
+export { HoverCard } from './components/HoverCard';
+export type { HoverCardProps } from './components/HoverCard';
+export { BottomSheet, DEFAULT_BOTTOM_SHEET_LABELS } from './components/BottomSheet';
+export type { BottomSheetProps, BottomSheetLabels } from './components/BottomSheet';
+export { useHoverIntent } from './components/useHoverIntent';
+export type { UseHoverIntentOptions } from './components/useHoverIntent';
+export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
+export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';

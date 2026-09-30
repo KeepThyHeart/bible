@@ -1,0 +1,47 @@
+// ============================================================
+// Update Banner ("new version ready")
+// ============================================================
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #fff;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  z-index: 100;
+
+  i:first-child {
+    flex-shrink: 0;
+  }
+
+  &__message {
+    flex: 1;
+  }
+
+  &__action {
+    background: #fff;
+    color: #1d4ed8;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.8;
+    flex-shrink: 0;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

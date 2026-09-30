@@ -23,7 +23,7 @@
  *   <data-dir>/site-config.json   (web target only, and only when absent)
  *   <data-dir>/keyword-index/     (web target) one sidecar keyword index per
  *                           module, which search reads -- v0.2 modules ship
- *                           no FTS5 table.  Needs `npm run build:core` first.
+ *                           no FTS5 table.  Needs `pnpm run build:core` first.
  *   apps/desktop/data/modules -> data/modules   (desktop target; see --no-link)
  *
  * Everything is derived from files already in the repository -- the schema
@@ -71,11 +71,11 @@
  *   --quiet                Only warnings and errors.
  *   --help
  *
- *   npm run init:modules   The official catalog with --select=starter
+ *   pnpm run init:modules   The official catalog with --select=starter
  *                          (init:modules:dev for the development catalog).
- *   npm run setup          Core build, starter modules, web and desktop init,
+ *   pnpm run setup          Core build, starter modules, web and desktop init,
  *                          the Electron download and native rebuild, in one go
- *                          (scripts/init/setup.js; `npm run setup -- --help`).
+ *                          (scripts/init/setup.js; `pnpm run setup --help`).
  *
  * Needs Node.js 20.19 or newer.
  *
@@ -115,7 +115,7 @@ function nodeVersionProblem(version = process.versions.node) {
   return [
     `This repository needs Node.js ${minMajor}.${minMinor} or newer; this is ${version}.`,
     'Install a current release (24 is recommended; `nvm install` reads .nvmrc), then',
-    're-run `npm install` so native modules are built for it.',
+    're-run `pnpm install` so native modules are built for it.',
   ];
 }
 
@@ -130,8 +130,8 @@ let sqliteDriver = null;
  */
 function sqlite() {
   if (!sqliteDriver) {
-    // Resolved from `apps/web`, which depends on it: npm may install it in that
-    // workspace's own node_modules rather than hoisting it to the root.
+    // Resolved from `apps/web`, which depends on it: pnpm installs it in that
+    // workspace's own node_modules, not the root's.
     const driverPath = require.resolve('better-sqlite3-web', { paths: [path.join(REPO_ROOT, 'apps/web')] });
     sqliteDriver = require(driverPath);
   }
@@ -145,7 +145,7 @@ function sqlite() {
  * Database()`, so requiring the package proves nothing: an in-memory database
  * is opened to make the binding load here, where the failure can be explained.
  * The two failures worth explaining are the two a newcomer actually hits --
- * `npm install` not having been run, and a binding compiled for a different
+ * `pnpm install` not having been run, and a binding compiled for a different
  * Node.js (installed under one version, run under another).  Anything else is
  * rethrown untouched.
  */
@@ -158,13 +158,13 @@ function sqliteDriverProblem() {
     if (cause.code === 'MODULE_NOT_FOUND' && cause.message.includes('better-sqlite3-web')) {
       return [
         'The better-sqlite3-web package is not installed.',
-        'Run `npm install` at the repository root first.',
+        'Run `pnpm install` at the repository root first.',
       ];
     }
     if (cause.code === 'ERR_DLOPEN_FAILED' || /NODE_MODULE_VERSION|Could not locate the bindings file/.test(cause.message)) {
       return [
         `better-sqlite3-web's native binding is missing or was built for a different Node.js (this is ${process.version}).`,
-        'Rebuild it for this one:  npm rebuild better-sqlite3-web',
+        'Rebuild it for this one:  pnpm rebuild better-sqlite3-web',
         `  (${cause.message.split('\n')[0]})`,
       ];
     }
@@ -688,7 +688,7 @@ function checkDefaultModule(configPath, modules, log) {
   log.warn(`${configPath} names "${configured}" as ui.defaultModule, but no such Bible is installed.`);
   log.warn(bibles.length > 0
     ? `  Fresh sessions will fail to load a chapter.  Set it to one of: ${bibles.join(', ')}.`
-    : '  No Bible is installed at all; install one (npm run init:modules) and set it to that.');
+    : '  No Bible is installed at all; install one (pnpm run init:modules) and set it to that.');
 }
 
 // ============================================================================
@@ -766,7 +766,7 @@ function linkSharedModules(linkPath, sharedDir, log) {
  * connect "no ASV" to "the Playwright run stops before the first test".  A
  * count of modules does not tell them; a list of what will not work does.
  *
- * But the consequence has to be sized honestly.  A plain `npm run setup`
+ * But the consequence has to be sized honestly.  A plain `pnpm run setup`
  * installs `starter`, which by design leaves out the modules only the test
  * suites name, so every normal install is "missing" those.  Reporting them in
  * capitals as NOT installed made a successful setup read as a failed one.  So
@@ -791,17 +791,17 @@ function reportCoverage(installed, log) {
     log.warn('');
     log.warn(`${starter.length} module(s) of the starter set are not installed:`);
     for (const m of starter) log.warn(line(m));
-    log.warn('  Both apps still run, with less to show.  `npm run init:modules` fetches them.');
+    log.warn('  Both apps still run, with less to show.  `pnpm run init:modules` fetches them.');
   }
 
   if (testOnly.length > 0) {
     log.info('');
     log.info('Not installed, and only needed to run the test suites (the starter set leaves');
-    log.info('them out on purpose; `npm run init:modules -- --select=tests` fetches them):');
+    log.info('them out on purpose; `pnpm run init:modules --select=tests` fetches them):');
     for (const m of testOnly) log.info(line(m));
     const effects = [];
     if (testOnly.some((m) => m.need === 'required')) effects.push('the unit suites that name them skip');
-    if (testOnly.some((m) => m.need === 'e2e')) effects.push('`npm run test:e2e -w @bible/web` stops before its first test');
+    if (testOnly.some((m) => m.need === 'e2e')) effects.push('`pnpm --filter @bible/web run test:e2e` stops before its first test');
     if (testOnly.some((m) => m.need === 'desktop-e2e')) effects.push('the desktop Playwright specs that name them fail');
     log.info(`  Without them ${effects.join('; ')}.  Nothing else is affected.`);
   }
@@ -881,12 +881,12 @@ function reportNoModules(modulesDir, log) {
   log.error('Two ways forward:');
   log.error('');
   log.error('  1. Download the starter set (about 80 MB) from the official catalog:');
-  log.error('       npm run init:modules');
+  log.error('       pnpm run init:modules');
   log.error('     or every module the test suites name (about 170 MB):');
-  log.error('       npm run init:modules -- --select=tests');
+  log.error('       pnpm run init:modules --select=tests');
   log.error('');
   log.error('  2. If you already have module files, copy them into that directory and re-run:');
-  log.error('       npm run init');
+  log.error('       pnpm run init');
   log.error('');
 }
 
@@ -990,7 +990,7 @@ async function main() {
   if (scan.rejected.length > 0) {
     log.warn(`Skipped ${scan.rejected.length} file(s) that are not usable modules:`);
     for (const r of scan.rejected) log.warn(`  ${r.file}: ${r.error}`);
-    log.warn('  `npm run validate:module -- --all` explains a module format failure in full.');
+    log.warn('  `pnpm run validate:module --all` explains a module format failure in full.');
   }
 
   for (const dataDir of dataDirs) {
@@ -1021,7 +1021,7 @@ async function main() {
  * but time -- but doing it here means the first start is not the one that
  * pays, and the test suites (which share this directory) find them ready.
  *
- * Uses the built `@bible/core` (`npm run build:core`, which `npm run setup`
+ * Uses the built `@bible/core` (`pnpm run build:core`, which `pnpm run setup`
  * and CI both run first). Without it this says so and carries on: the index
  * builder is TypeScript in core, and duplicating it here would be a second
  * copy of the tokenizer and document mapping to keep in step.
@@ -1029,10 +1029,12 @@ async function main() {
 async function buildKeywordIndexes({ dataDir, scan, log }) {
   let core;
   try {
-    core = require(require.resolve('@bible/core', { paths: [REPO_ROOT] }));
+    // Resolved from `apps/web`, which declares it: pnpm links workspace
+    // packages only into the workspaces that depend on them, not the root.
+    core = require(require.resolve('@bible/core', { paths: [path.join(REPO_ROOT, 'apps/web')] }));
   } catch {
     log.warn('');
-    log.warn('Keyword indexes not built: @bible/core is not built yet (npm run build:core).');
+    log.warn('Keyword indexes not built: @bible/core is not built yet (pnpm run build:core).');
     log.warn('The web server builds them when it starts; so will the next init run.');
     return;
   }

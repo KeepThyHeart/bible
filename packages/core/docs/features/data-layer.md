@@ -62,8 +62,8 @@ That is why `packages/core/package.json` lists `better-sqlite3` under `devDepend
 - **SQLite has no boolean type.** Rows come back as `0`/`1`; convert explicitly (`row.is_indexed === 1`). A raw `0` is truthy-negative in SQL but falsy in JS, so an unconverted value usually *looks* right until it doesn't.
 - **`metadata` columns may be absent or null.** Always `row.metadata ? JSON.parse(row.metadata) : undefined`, and `JSON.stringify` only when the value exists. `JsonHelpers.ts` wraps both directions.
 - **A missing column reads as `undefined` from `SELECT *`.** Tolerant row mapping relies on this rather than probing the schema - see [Module format](module-format.md) before "fixing" one.
-- **`packages/core/tsconfig.json` is the build config and excludes tests on purpose.** Type-check with `npm run typecheck` (which uses `tsconfig.typecheck.json`); adding tests to the build config ships them in `dist/`.
-- **Changing `src/` requires `npm run build:core` before the desktop app will see it.** `npm run build:desktop` does not rebuild core, and a stale `dist/` surfaces as `"X is not a constructor"` at runtime.
+- **`packages/core/tsconfig.json` is the build config and excludes tests on purpose.** Type-check with `pnpm run typecheck` (which uses `tsconfig.typecheck.json`); adding tests to the build config ships them in `dist/`.
+- **Changing `src/` requires `pnpm run build:core` before the desktop app will see it.** `pnpm run build:desktop` does not rebuild core, and a stale `dist/` surfaces as `"X is not a constructor"` at runtime.
 
 ## Related
 

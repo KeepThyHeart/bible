@@ -9,10 +9,10 @@ import { initializeMainDatabase } from './initMainDatabase';
 /**
  * These tests drive real SQLite, so they need the native binding compiled for
  * the Node.js ABI vitest runs under. The repo normally keeps it compiled for
- * Electron (via `npx electron-rebuild`, required by `npm run dev` and the e2e
+ * Electron (via `pnpm exec electron-rebuild`, required by `pnpm run dev` and the e2e
  * suite), so in a default checkout the binding fails to load here. Skip rather
- * than fail - run `npm rebuild better-sqlite3-multiple-ciphers` to exercise
- * these, then `npx electron-rebuild -f -w better-sqlite3-multiple-ciphers` to
+ * than fail - run `pnpm rebuild better-sqlite3-multiple-ciphers` to exercise
+ * these, then `pnpm exec electron-rebuild -f -w better-sqlite3-multiple-ciphers` to
  * restore the Electron build.
  */
 const nativeSqliteAvailable = ((): boolean => {
@@ -29,7 +29,7 @@ const nativeSqliteAvailable = ((): boolean => {
 
 /**
  * The official catalog source is seeded on whichever start first finds none -
- * not only when this code creates the database, which `npm run init` and the
+ * not only when this code creates the database, which `pnpm run init` and the
  * installer's main.db template both do instead.
  */
 describe.skipIf(!nativeSqliteAvailable)('initMainDatabase official repository seed', () => {

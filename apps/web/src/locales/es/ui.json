@@ -105,6 +105,11 @@
   "connectionBanner": {
     "dismiss": "Descartar"
   },
+  "updateBanner": {
+    "message": "Hay una nueva versión lista.",
+    "reload": "Recargar",
+    "later": "Más tarde"
+  },
   "search": {
     "placeholder": "Buscar en la Biblia...",
     "keyword": "Palabra clave",
@@ -292,6 +297,8 @@
     "about": {
       "title": "Acerca de",
       "refreshApp": "Actualizar la aplicación",
+      "resetCache": "Restablecer caché de la app",
+      "resetCacheHint": "Borra los archivos guardados de esta app y el service worker en segundo plano de este dispositivo, y luego recarga. Úsalo si la app parece desactualizada o falla. Se conservan tus ajustes, módulos descargados y notas.",
       "appName": "Aplicación de estudio bíblico",
       "description": "Una aplicación moderna y de código abierto para el estudio de la Biblia, diseñada para la lectura y la investigación de la Escritura en profundidad.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",

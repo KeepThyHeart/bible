@@ -9,7 +9,7 @@
  * This is the "unit-or-light-e2e" half of the acceptance criterion. The full
  * Playwright fixture e2e requires building the desktop app and rebuilding
  * native modules, both of which are gated on
- * `npm run build` + `npx electron-rebuild` per
+ * `pnpm run build` + `pnpm exec electron-rebuild` per
  * `apps/desktop/e2e/README.md`.
  */
 

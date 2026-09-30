@@ -24,12 +24,12 @@
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "ensure-sqlite": "node -e \"try{new (require('better-sqlite3'))(':memory:').close()}catch{process.exit(1)}\" || npm rebuild better-sqlite3",
-    "pretest": "npm run ensure-sqlite",
+    "ensure-sqlite": "node -e \"try{new (require('better-sqlite3'))(':memory:').close()}catch{process.exit(1)}\" || pnpm rebuild better-sqlite3",
+    "pretest": "pnpm run ensure-sqlite",
     "test": "vitest run",
-    "pretest:watch": "npm run ensure-sqlite",
+    "pretest:watch": "pnpm run ensure-sqlite",
     "test:watch": "vitest",
-    "pretest:coverage": "npm run ensure-sqlite",
+    "pretest:coverage": "pnpm run ensure-sqlite",
     "test:coverage": "vitest run --coverage"
   },
   "files": [

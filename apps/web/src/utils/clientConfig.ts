@@ -15,12 +15,15 @@
 export interface ClientConfig {
   /** Whether the tag-graph (entities) feature is turned on for this deployment. */
   showTagGraph?: boolean;
-  /** Whether the Timeline explorer tab is on. Absent means on. */
-  showTimeline?: boolean;
   staleDays?: number;
   commentaryPopularity?: Record<string, number>;
   ui?: Record<string, unknown>;
+  /** Every feature flag, resolved by the server (see `utils/featureFlags.ts`). */
+  features?: Record<string, boolean>;
+  /** `features.pwa`: true only when the server has the PWA on. Absent (offline) means unknown. */
   pwaEnabled?: boolean;
+  /** `features.pwaUpdate`: how a newer build reaches an open page. Default `silent`. */
+  pwaUpdate?: 'silent' | 'prompt';
   offlineDownloads?: boolean;
   offlineAutoDownload?: boolean;
   search?: { semantic?: 'server' | 'browser' | 'off' };
@@ -54,11 +57,19 @@ export function isTagGraphEnabled(): boolean {
 }
 
 /**
- * Whether the Timeline explorer tab is enabled for this deployment.
+ * Whether the PWA (service worker, manifest, install) is on for this deployment.
  *
- * On unless the server says otherwise — matching `SiteConfig.features.timeline`.
- * The tab additionally hides itself when no timeline module is installed.
+ * Tri-state on purpose: `true`/`false` when the server answered, `undefined`
+ * when it did not (offline boot). Callers must not treat "unknown" as "off":
+ * unregistering the worker because the network is down would delete the very
+ * thing that lets the app boot offline. This is the one place that reads the
+ * flag, so a settings/feature-flag registry can replace it later.
  */
-export function isTimelineEnabled(): boolean {
-  return config.showTimeline !== false;
+export function pwaFlag(): boolean | undefined {
+  return typeof config.pwaEnabled === 'boolean' ? config.pwaEnabled : undefined;
+}
+
+/** Update mode for an open page; see `UpdateMode` in `appUpdate.ts`. */
+export function pwaUpdateMode(): 'silent' | 'prompt' {
+  return config.pwaUpdate === 'prompt' ? 'prompt' : 'silent';
 }

@@ -12,7 +12,8 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isTagGraphEnabled, isTimelineEnabled } from '../../utils/clientConfig';
+import { isEnabled } from '../../utils/featureFlags';
+import { isTagGraphEnabled } from '../../utils/clientConfig';
 import { TimelinePane } from '../TimelinePane/TimelinePane';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
@@ -44,7 +45,7 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const topicsLoading = useStore(studyStore, () => studyStore.topicsLoading);
 
-  const showTimeline = isTimelineEnabled();
+  const showTimeline = isEnabled('timeline');
   const [timelineOpen, setTimelineOpen] = useState(false);
 
   // Build verse label
