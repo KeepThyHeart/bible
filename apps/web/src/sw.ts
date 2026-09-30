@@ -68,16 +68,18 @@ const SHELL_URL = new URL('index.html', self.location.href).href;
  * The Presenter's viewer pages are separate HTML entries (see `present/*.html`
  * and the `input` map in vite.config.ts); the `html` glob in `injectManifest`
  * precaches them as `present/viewer.html` and `present/solo.html`. Offline, the
- * pre-live preview iframe (`/present/v/<code>`) and `/present/solo` must get
+ * pre-live preview iframe (`/present/v/<code>`) and `/present/solo` and `/watch` must get
  * those, not the reading app's shell.
  */
 const VIEWER_URL = new URL('present/viewer.html', self.location.href).href;
 const SOLO_URL = new URL('present/solo.html', self.location.href).href;
+const WATCH_URL = new URL('present/watch.html', self.location.href).href;
 
 /** The precache key of the page a navigation to `pathname` should get offline, else the app shell. */
 export function offlinePageFor(pathname: string): string {
   if (/(^|\/)present\/v\/[^/]+\/?$/.test(pathname)) return VIEWER_URL;
   if (/(^|\/)present\/solo\/?$/.test(pathname)) return SOLO_URL;
+  if (/(^|\/)watch\/?$/.test(pathname)) return WATCH_URL;
   return SHELL_URL;
 }
 
