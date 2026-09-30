@@ -11,9 +11,14 @@ export const MARK_COLOR_KEYS = [
 ] as const;
 export type MarkColorKey = (typeof MARK_COLOR_KEYS)[number];
 
-/** Closed list of badge symbols (generic; not any published method's symbol set). */
-export const MARK_SYMBOLS = ['∴', '∵', '⇄', '→', '✚', '◆', '●', '▲', '■', '★', '†', '?'] as const;
+/** Closed list of badge shapes: circle, square and triangle, each filled or open (round 09-me: keep it simple). */
+export const MARK_SYMBOLS = ['●', '○', '■', '□', '▲', '△'] as const;
 export type MarkSymbol = (typeof MARK_SYMBOLS)[number];
+
+/** Symbols from earlier rounds, mapped to the nearest allowed shape when a stored set or import is read. */
+export const LEGACY_MARK_SYMBOLS: Readonly<Record<string, MarkSymbol>> = {
+  '∴': '▲', '∵': '△', '⇄': '■', '→': '□', '✚': '■', '◆': '□', '★': '▲', '†': '△', '?': '○',
+};
 
 export const MARK_LINES = ['solid', 'dashed', 'dotted', 'thick', 'none'] as const;
 export type MarkLine = (typeof MARK_LINES)[number];

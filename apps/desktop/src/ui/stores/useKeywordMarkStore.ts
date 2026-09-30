@@ -13,6 +13,7 @@ import {
   newKeywordId,
   normalizeToken,
   occurrencesOf,
+  displayKeywordLabel,
   suggestKeywords,
   type ChapterInput,
   type KeywordMark,
@@ -331,7 +332,7 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
         } else {
           const mark: KeywordMark = {
             id: newKeywordId('mark'),
-            label: kind === 'strongs' ? (text || word.strongs!) : normalizeToken(text),
+            label: displayKeywordLabel(kind === 'strongs' ? (text || word.strongs!) : normalizeToken(text), latest.get(tabId)?.language),
             rule,
             style: { color: nextFreeColor(resolveActiveSets(service.all(), get().getTabState(tabId), latest.get(tabId)?.language ?? '')), line: 'solid' },
             enabled: true,

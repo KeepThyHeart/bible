@@ -23,8 +23,8 @@ export const DEFAULT_MARK_LINE_NAMES: Record<MarkLine, string> = {
 };
 
 export const DEFAULT_MARK_SYMBOL_NAMES: Record<MarkSymbol, string> = {
-  '∴': 'Therefore', '∵': 'Because', '⇄': 'Contrast', '→': 'Arrow', '✚': 'Cross', '◆': 'Diamond',
-  '●': 'Circle', '▲': 'Triangle', '■': 'Square', '★': 'Star', '†': 'Dagger', '?': 'Question mark',
+  '●': 'Filled circle', '○': 'Open circle', '■': 'Filled square', '□': 'Open square',
+  '▲': 'Filled triangle', '△': 'Open triangle',
 };
 
 /** Class list for a swatch showing a style (colour, line, bold, fill). */

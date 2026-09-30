@@ -5,6 +5,7 @@
  */
 import type { DecorationDto, DecorationTarget } from '../Extensions/ExtensionApiDtos';
 import type { LayerDecorations } from '../Annotations/DecorationResolver';
+import { displayKeywordLabel } from './displayLabel';
 import type { KeywordMark, KeywordSet, MarkColorKey, MarkSymbol, MatchResult } from './types';
 
 export const KEYWORD_LAYER_KEY = 'core::keywords';
@@ -14,8 +15,8 @@ export const KEYWORD_LAYER_ORDER = 50;
 const MAX_TARGETS_PER_DECORATION = 64;
 
 const DEFAULT_SYMBOL_FOR_COLOR: Record<MarkColorKey, MarkSymbol> = {
-  'mark.1': '✚', 'mark.2': '◆', 'mark.3': '▲', 'mark.4': '■',
-  'mark.5': '★', 'mark.6': '●', 'mark.7': '†', 'mark.8': '?',
+  'mark.1': '▲', 'mark.2': '△', 'mark.3': '■', 'mark.4': '□',
+  'mark.5': '●', 'mark.6': '○', 'mark.7': '▲', 'mark.8': '□',
 };
 
 export interface LayerOptions {
@@ -62,7 +63,7 @@ export function toDecorationLayer(result: MatchResult, sets: KeywordSet[], opts:
   for (const [markId, b] of buckets) {
     const mark = marks.get(markId)!;
     const count = result.counts.get(markId)?.hits ?? 0;
-    const hover = { kind: 'text' as const, text: (opts.hoverText ?? ((m, n) => `${m.label} (${n})`))(mark, count) };
+    const hover = { kind: 'text' as const, text: (opts.hoverText ?? ((m, n) => `${displayKeywordLabel(m.label)} (${n})`))(mark, count) };
     const { style } = mark;
     const push = (targets: DecorationTarget[], appearance: DecorationDto['appearance'], withHover: boolean): void => {
       for (const part of chunk(targets, MAX_TARGETS_PER_DECORATION)) {

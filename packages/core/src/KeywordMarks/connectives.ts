@@ -23,7 +23,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['por tanto', 'por lo tanto', 'así que', 'por consiguiente', 'de modo que'],
     },
     anchors: ['G3767', 'G1352', 'G686', 'G5620', 'G5106', 'H3651'],
-    symbol: '∴', color: 'mark.1',
+    symbol: '▲', color: 'mark.1',
     labels: { en: 'Inference', es: 'Inferencia' },
   },
   reason: {
@@ -32,7 +32,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['porque', 'pues', 'ya que', 'puesto que'],
     },
     anchors: ['G1063', 'G3754', 'G1360', 'G1893', 'H3588', 'H3282'],
-    symbol: '∵', color: 'mark.2',
+    symbol: '△', color: 'mark.2',
     labels: { en: 'Reason', es: 'Razón' },
   },
   contrast: {
@@ -41,7 +41,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['pero', 'mas', 'sino', 'sin embargo', 'no obstante'],
     },
     anchors: ['G1161', 'G235', 'G4133', 'G3305', 'H61', 'H389'],
-    symbol: '⇄', color: 'mark.3',
+    symbol: '■', color: 'mark.3',
     labels: { en: 'Contrast', es: 'Contraste' },
   },
   purpose: {
@@ -50,7 +50,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['para que', 'a fin de que', 'a fin de', 'no sea que'],
     },
     anchors: ['G2443', 'G3704', 'H4616'],
-    symbol: '→', color: 'mark.4',
+    symbol: '□', color: 'mark.4',
     labels: { en: 'Purpose', es: 'Propósito' },
   },
   condition: {
@@ -59,7 +59,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['si', 'a menos que', 'excepto'],
     },
     anchors: ['G1487', 'G1437', 'G3361', 'H518'],
-    symbol: '?', color: 'mark.5',
+    symbol: '○', color: 'mark.5',
     labels: { en: 'Condition', es: 'Condición' },
   },
   comparison: {
@@ -68,7 +68,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['como', 'así como', 'asimismo', 'de la misma manera'],
     },
     anchors: ['G5613', 'G2531', 'G3668', 'G3779', 'H834'],
-    symbol: '■', color: 'mark.6',
+    symbol: '●', color: 'mark.6',
     labels: { en: 'Comparison', es: 'Comparación' },
   },
   time: {
@@ -77,7 +77,7 @@ export const CONNECTIVE_LEXICON: Record<ConnectiveCategory, ConnectiveEntry> = {
       es: ['cuando', 'entonces', 'después', 'hasta que', 'mientras', 'antes'],
     },
     anchors: ['G3753', 'G5119', 'G2193', 'G3752', 'G3326', 'H227'],
-    symbol: '●', color: 'mark.7',
+    symbol: '▲', color: 'mark.7',
     labels: { en: 'Time', es: 'Tiempo' },
   },
 };

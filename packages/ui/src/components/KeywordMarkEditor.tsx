@@ -9,6 +9,7 @@ import type { FormEvent } from 'react';
 import {
   CONNECTIVE_CATEGORIES, isValidationErrors, newKeywordId, validateKeywordSet,
 } from '@bible/core/browser';
+import { displayKeywordLabel } from '@bible/core/browser';
 import type { ConnectiveCategory, KeywordMark, MarkStyle, MatchRule } from '@bible/core/browser';
 import { MarkStylePicker } from './MarkStylePicker';
 import type { MarkStylePickerProps } from './MarkStylePicker';
@@ -124,7 +125,7 @@ export function KeywordMarkEditor({ mark, defaultColor = 'mark.1', onSave, onCan
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const draft = { id: mark?.id ?? newKeywordId(), label, rule: buildRule(), style, enabled };
+    const draft = { id: mark?.id ?? newKeywordId(), label: displayKeywordLabel(label), rule: buildRule(), style, enabled };
     const result = validateKeywordSet({
       schema: 1, id: 'draft', name: 'draft', scope: { kind: 'everywhere' }, marks: [draft], updatedAt: new Date(0).toISOString(),
     });

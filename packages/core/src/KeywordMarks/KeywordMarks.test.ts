@@ -5,7 +5,7 @@ import { resolveThemeColor } from '../Annotations/ThemeColorResolver';
 import {
   BUILT_IN_KEYWORD_SETS, KeywordSetService, MemoryKeywordSetStore, StorageKeywordSetStore, exportKeywordSet,
   importKeywordSet, isValidationErrors, matchKeywordMarks, nextFreeColor, normalizeStrongs, occurrencesOf,
-  suggestKeywords, toDecorationLayer, validateKeywordSet,
+  suggestKeywords, toDecorationLayer, validateKeywordSet, MARK_SYMBOLS, LEGACY_MARK_SYMBOLS, displayKeywordLabel,
   type ChapterInput, type KeywordSet,
 } from './index';
 
@@ -103,7 +103,7 @@ describe('matchKeywordMarks', () => {
 
 describe('toDecorationLayer', () => {
   it('composes through resolveVerseDecorations with underline + badge and hover', () => {
-    const s = set([{ ...wordMark('faith', ['faith']), style: { color: 'mark.2' as const, line: 'dashed' as const, symbol: '✚' as const } }]);
+    const s = set([{ ...wordMark('faith', ['faith']), style: { color: 'mark.2' as const, line: 'dashed' as const, symbol: '□' as const } }]);
     const words = KJV.verses[0].words;
     const layer = toDecorationLayer(matchKeywordMarks(KJV, [s]), [s]);
     const resolved = resolveVerseDecorations({
@@ -111,7 +111,7 @@ describe('toDecorationLayer', () => {
     });
     const paint = resolved.words.get(4)!;
     expect(paint.underlines[0]).toMatchObject({ style: 'dashed', color: 'rgb(var(--theme-mark-2-rgb))' });
-    expect(paint.badges[0].label).toBe('✚');
+    expect(paint.badges[0].label).toBe('□');
     expect(paint.hovers?.[0].content).toEqual({ kind: 'text', text: 'faith (2)' });
     expect(resolved.words.has(3)).toBe(false);
   });
@@ -199,5 +199,55 @@ describe('KeywordSetService', () => {
     await b.load();
     expect(b.get(s.id)?.name).toBe('Persisted');
     expect(nextFreeColor([s])).not.toBe('mark.1');
+  });
+});
+
+describe('mark shapes (round 09)', () => {
+  it('offers only circle, square and triangle, filled or open', () => {
+    expect([...MARK_SYMBOLS]).toEqual(['●', '○', '■', '□', '▲', '△']);
+    for (const s of BUILT_IN_KEYWORD_SETS) for (const m of s.marks) expect(MARK_SYMBOLS).toContain(m.style.symbol);
+  });
+
+  it('migrates removed symbols to the nearest shape and still rejects unknown ones', () => {
+    const base = { schema: 1, id: 'x', name: 'x', scope: { kind: 'everywhere' }, updatedAt: '2026-01-01T00:00:00.000Z' };
+    const mk = (symbol: string) => ({ ...base, marks: [{ id: 'm', label: 'a', rule: { kind: 'word', forms: ['a'] }, style: { color: 'mark.1', line: 'solid', symbol }, enabled: true }] });
+    const ok = validateKeywordSet(mk('★'));
+    expect(isValidationErrors(ok)).toBe(false);
+    if (!isValidationErrors(ok)) expect(ok.marks[0].style.symbol).toBe('▲');
+    for (const [old, now] of Object.entries(LEGACY_MARK_SYMBOLS)) {
+      const r = validateKeywordSet(mk(old));
+      if (!isValidationErrors(r)) expect(r.marks[0].style.symbol).toBe(now);
+    }
+    expect(isValidationErrors(validateKeywordSet(mk('star')))).toBe(true);
+  });
+});
+
+describe('displayKeywordLabel', () => {
+  it('capitalizes divine names in each language and leaves other words', () => {
+    expect(displayKeywordLabel('god')).toBe('God');
+    expect(displayKeywordLabel('the lord jesus christ', 'en')).toBe('the Lord Jesus Christ');
+    expect(displayKeywordLabel('holy spirit', 'en')).toBe('Holy Spirit');
+    expect(displayKeywordLabel('dios', 'es')).toBe('Dios');
+    expect(displayKeywordLabel('espíritu santo', 'es-MX')).toBe('Espíritu Santo');
+    expect(displayKeywordLabel('deus', 'pt-BR')).toBe('Deus');
+    expect(displayKeywordLabel('господь', 'ru')).toBe('Господь');
+    expect(displayKeywordLabel('faith', 'en')).toBe('faith');
+    expect(displayKeywordLabel('godly', 'en')).toBe('godly');
+  });
+  it('keeps small-caps LORD as the text has it, is idempotent, and is safe for caseless scripts', () => {
+    expect(displayKeywordLabel('LORD', 'en')).toBe('LORD');
+    expect(displayKeywordLabel('God', 'en')).toBe('God');
+    expect(displayKeywordLabel(displayKeywordLabel('god'))).toBe('God');
+    expect(displayKeywordLabel('الله', 'ar')).toBe('الله');
+    expect(displayKeywordLabel('上帝', 'zh-Hans')).toBe('上帝');
+  });
+  it('capitalizes suggestions and the default hover text, not the matching', () => {
+    const input: ChapterInput = { moduleId: 1, language: 'en', verses: [{ verseId: ROM + 1, words: ['god', 'god', 'god'].map((text) => ({ text })) }] };
+    const s = suggestKeywords(input, { minCount: 3 });
+    expect(s[0].label).toBe('God');
+    expect(s[0].rule).toEqual({ kind: 'word', forms: ['god'] });
+    const set1 = set([wordMark('god', ['god'])]);
+    const layer = toDecorationLayer(matchKeywordMarks(input, [set1]), [set1]);
+    expect(layer.decorations[0].hoverContent).toEqual({ kind: 'text', text: 'God (3)' });
   });
 });

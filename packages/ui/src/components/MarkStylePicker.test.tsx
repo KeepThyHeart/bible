@@ -26,18 +26,18 @@ describe('MarkStylePicker', () => {
   });
 
   it('checks the current values with a roving tab stop', () => {
-    setup({ color: 'mark.3', line: 'dashed', symbol: '★' });
+    setup({ color: 'mark.3', line: 'dashed', symbol: '△' });
     expect(screen.getByRole('radio', { name: 'Green' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'Dashed underline' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Star' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Open triangle' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'Green' }).tabIndex).toBe(0);
     expect(screen.getByRole('radio', { name: 'Blue' }).tabIndex).toBe(-1);
   });
 
   it('shows the symbol inside the colour swatches, never colour alone', () => {
-    setup({ color: 'mark.1', line: 'dotted', symbol: '∴' });
+    setup({ color: 'mark.1', line: 'dotted', symbol: '▲' });
     const swatch = screen.getByRole('radio', { name: 'Vermilion' });
-    expect(swatch).toHaveTextContent('∴');
+    expect(swatch).toHaveTextContent('▲');
     expect(swatch.className).toContain('kth-mark-swatch--line-dotted');
   });
 
@@ -59,8 +59,8 @@ describe('MarkStylePicker', () => {
     const { onChange, user } = setup();
     await user.click(screen.getByRole('radio', { name: 'Thick underline' }));
     expect(onChange).toHaveBeenLastCalledWith({ color: 'mark.1', line: 'thick' });
-    await user.click(screen.getByRole('radio', { name: 'Diamond' }));
-    expect(onChange).toHaveBeenLastCalledWith({ color: 'mark.1', line: 'thick', symbol: '◆' });
+    await user.click(screen.getByRole('radio', { name: 'Open square' }));
+    expect(onChange).toHaveBeenLastCalledWith({ color: 'mark.1', line: 'thick', symbol: '□' });
     await user.click(screen.getByRole('radio', { name: 'No symbol' }));
     expect(onChange).toHaveBeenLastCalledWith({ color: 'mark.1', line: 'thick' });
   });

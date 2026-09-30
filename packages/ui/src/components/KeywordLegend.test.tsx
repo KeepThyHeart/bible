@@ -5,7 +5,7 @@ import type { KeywordLegendProps, LegendRow } from './KeywordLegend';
 
 const rows: LegendRow[] = [
   { id: 'a', label: 'love', color: 'mark.1', line: 'solid', symbol: '●', count: 4, hidden: false },
-  { id: 'b', label: 'therefore', color: 'mark.2', line: 'dashed', symbol: '∴', count: 2, hidden: true, approximate: true, setName: 'Connectives' },
+  { id: 'b', label: 'therefore', color: 'mark.2', line: 'dashed', symbol: '▲', count: 2, hidden: true, approximate: true, setName: 'Connectives' },
   { id: 'c', label: 'grace', color: 'mark.3', line: 'none', count: 0, hidden: false },
 ];
 
@@ -25,6 +25,16 @@ describe('KeywordLegend', () => {
     expect(items[0]).toHaveTextContent('●');
     expect(within(items[0]).getByLabelText('4 occurrences')).toBeInTheDocument();
     expect(within(items[2]).getByLabelText('0 occurrences')).toBeInTheDocument();
+  });
+
+  it('always shows divine names capitalized, in rows, controls and suggestions', () => {
+    setup({
+      rows: [{ id: 'g', label: 'god', color: 'mark.1', line: 'solid', symbol: '○', count: 3, hidden: false }],
+      suggestions: [{ key: '0', label: 'jesus', count: 5 }],
+    });
+    expect(screen.getByRole('button', { name: 'Hide God' })).toHaveTextContent('God');
+    expect(screen.getByRole('button', { name: 'Next God' })).toBeInTheDocument();
+    expect(screen.getByText('Jesus')).toBeInTheDocument();
   });
 
   it('master toggle is a pressed button', async () => {

@@ -6,7 +6,7 @@
 
 | File | Purpose |
 |---|---|
-| `types.ts` | `KeywordSet`, `KeywordMark`, `MatchRule` (`word`, `phrase`, `strongs`, `connective`), `MarkStyle`, the eight colour slots `mark.1` to `mark.8`, the closed symbol list, `ChapterInput`, `MatchResult`. |
+| `types.ts` | `KeywordSet`, `KeywordMark`, `MatchRule` (`word`, `phrase`, `strongs`, `connective`), `MarkStyle`, the eight colour slots `mark.1` to `mark.8`, the closed shape list (circle, square, triangle, each filled or open; earlier symbols migrate to the nearest shape on read), `ChapterInput`, `MatchResult`. |
 | `matcher.ts` | `matchKeywordMarks(chapter, sets)`: hits per verse and counts per mark; `occurrencesOf` for stepping through a mark. |
 | `connectives.ts` | The connective lexicon (English, Spanish): surface forms per category plus the Greek and Hebrew Strong's numbers that anchor them. |
 | `builtins.ts` | Read-only built-in sets ("Connectives" per language). Never stored. |
@@ -35,3 +35,7 @@ The colour-safe option is a registry setting, `keywordColorSafe` (device scope, 
 The "Key people and themes" set, book-wide counts, saving marks as highlights, an extension read API, morphology (imperative) rules and Chinese word matching (whitespace tokenising).
 
 Mark ids are global across sets (counts, hidden state and decorations key on them), so built-ins use `<language>:<category>`, and `duplicate`/`import` give every mark a fresh id.
+
+## Display names
+
+`displayKeywordLabel(label, language?)` (`displayLabel.ts`) capitalizes divine names and titles (God, Jesus, Christ, Lord, Holy Spirit and their es, pt and ru equivalents) wherever a mark label is shown: the legend, hover text, suggestions, announcements and newly created marks. It changes display only; matching is unchanged, and all-capital text such as the KJV "LORD" is left alone. Scripts without letter case (ar, hi, zh) need no change.

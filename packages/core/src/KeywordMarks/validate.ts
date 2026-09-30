@@ -1,5 +1,5 @@
 import {
-  CONNECTIVE_CATEGORIES, MARK_COLOR_KEYS, MARK_LINES, MARK_SYMBOLS,
+  CONNECTIVE_CATEGORIES, LEGACY_MARK_SYMBOLS, MARK_COLOR_KEYS, MARK_LINES, MARK_SYMBOLS,
   type KeywordMark, type KeywordSet, type MatchRule, type KeywordValidationError,
 } from './types';
 
@@ -46,6 +46,12 @@ function validateRule(r: unknown, path: string, errs: KeywordValidationError[]):
   }
 }
 
+/** An allowed shape as is, a removed earlier symbol as its nearest shape, anything else undefined. */
+function migrateSymbol(s: unknown): (typeof MARK_SYMBOLS)[number] | undefined {
+  if ((MARK_SYMBOLS as readonly unknown[]).includes(s)) return s as (typeof MARK_SYMBOLS)[number];
+  return typeof s === 'string' ? LEGACY_MARK_SYMBOLS[s] : undefined;
+}
+
 function validateMark(m: unknown, path: string, errs: KeywordValidationError[]): KeywordMark | undefined {
   if (!isObj(m)) { errs.push({ path, message: 'mark must be an object' }); return undefined; }
   const before = errs.length;
@@ -57,7 +63,7 @@ function validateMark(m: unknown, path: string, errs: KeywordValidationError[]):
   else {
     if (!(MARK_COLOR_KEYS as readonly unknown[]).includes(st.color)) errs.push({ path: `${path}.style.color`, message: 'unknown colour key' });
     if (!(MARK_LINES as readonly unknown[]).includes(st.line)) errs.push({ path: `${path}.style.line`, message: 'unknown line style' });
-    if (st.symbol !== undefined && !(MARK_SYMBOLS as readonly unknown[]).includes(st.symbol)) errs.push({ path: `${path}.style.symbol`, message: 'unknown symbol' });
+    if (st.symbol !== undefined && migrateSymbol(st.symbol) === undefined) errs.push({ path: `${path}.style.symbol`, message: 'unknown symbol' });
   }
   if (errs.length > before || !rule || !isObj(st)) return undefined;
   return {
@@ -66,7 +72,7 @@ function validateMark(m: unknown, path: string, errs: KeywordValidationError[]):
       color: st.color as never, line: st.line as never,
       ...(st.fill === 'subtle' ? { fill: 'subtle' as const } : {}),
       ...(st.bold === true ? { bold: true } : {}),
-      ...(st.symbol !== undefined ? { symbol: st.symbol as never } : {}),
+      ...(st.symbol !== undefined ? { symbol: migrateSymbol(st.symbol) as never } : {}),
     },
     enabled: m.enabled !== false,
     ...(typeof m.note === 'string' && m.note ? { note: m.note.slice(0, 1000) } : {}),

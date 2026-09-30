@@ -6,7 +6,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { keywordMarkStore } from '../../stores/keywordMarkStore';
 import { useStore } from '../../hooks/useStore';
 import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
-import { directionForLanguage } from '@bible/core/browser';
+import { directionForLanguage, displayKeywordLabel } from '@bible/core/browser';
 import { legendLabels } from './keywordLabels';
 
 const FLASH_MS = 1400;
@@ -73,7 +73,7 @@ export function KeywordMarksButton() {
     cursors.current.set(id, idx);
     const o = occ[idx];
     revealOccurrence(o.verseId, o.start);
-    const label = rows.find((r) => r.markId === id)?.label ?? '';
+    const label = displayKeywordLabel(rows.find((r) => r.markId === id)?.label ?? '');
     setAnnouncement(t('keywordMarks.announce', { label, verse: o.verseId % 1000, index: idx + 1, total: occ.length }));
   };
 

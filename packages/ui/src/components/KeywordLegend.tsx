@@ -4,6 +4,7 @@
  * through occurrences), optional suggestions with an Add button each, and a live region that announces the
  * `announcement` string the parent computes after stepping. The component keeps no state of its own.
  */
+import { displayKeywordLabel } from '@bible/core/browser';
 import type { MarkColorKey, MarkLine, MarkSymbol } from '@bible/core/browser';
 import { markColorStyle, swatchClass } from './markStyle';
 
@@ -87,9 +88,12 @@ export interface KeywordLegendProps {
 }
 
 export function KeywordLegend({
-  enabled, onToggleEnabled, rows, onToggleRow, onStep, onAdd, onEdit, onManageSets,
-  suggestions, onAcceptSuggestion, interlinearNote, announcement, labels, dir,
+  enabled, onToggleEnabled, rows: rawRows, onToggleRow, onStep, onAdd, onEdit, onManageSets,
+  suggestions: rawSuggestions, onAcceptSuggestion, interlinearNote, announcement, labels, dir,
 }: KeywordLegendProps) {
+  // Divine names always display capitalized (display only; ids and matching are untouched).
+  const rows = rawRows.map((r) => ({ ...r, label: displayKeywordLabel(r.label), ...(r.setName ? { setName: displayKeywordLabel(r.setName) } : {}) }));
+  const suggestions = rawSuggestions?.map((s) => ({ ...s, label: displayKeywordLabel(s.label) }));
   const L = { ...DEFAULT_KEYWORD_LEGEND_LABELS, ...labels };
   const off = !enabled;
   return (

@@ -8,7 +8,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { KeywordLegend } from '@bible/ui';
-import { suggestKeywords, type ChapterInput } from '@bible/core/browser';
+import { suggestKeywords, displayKeywordLabel, type ChapterInput } from '@bible/core/browser';
 import { useI18n } from '../../contexts/useI18n';
 import { useOverlayDismissal } from '../../hooks/useOverlayDismissal';
 import { useKeywordMarkStore } from '../../stores/useKeywordMarkStore';
@@ -59,7 +59,7 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
     stepped.current.set(markId, idx);
     const root = anchorRef.current?.closest('[data-testid="bible-pane"]') ?? document;
     scrollToOccurrence(root, occ[idx]);
-    const label = rows.find((r) => r.id === markId)?.label ?? '';
+    const label = displayKeywordLabel(rows.find((r) => r.id === markId)?.label ?? '');
     setAnnouncement(t('keywords.legend.announce', { label, verse: occ[idx].verseId % 1000, index: idx + 1, total: occ.length }));
   };
 
