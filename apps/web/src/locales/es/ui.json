@@ -278,6 +278,10 @@
       "draftNote": "Los idiomas marcados como borrador están traducidos automáticamente y todavía no los ha revisado un hablante nativo.",
       "betaNote": "Los idiomas marcados como beta están traducidos automáticamente y completos, pero todavía no los ha revisado un hablante nativo. Las correcciones son bienvenidas.",
       "moreComingNote": "Habrá más idiomas disponibles próximamente. Aquí solo se ofrecen sin distintivo las traducciones que ha revisado un hablante nativo."
+    },
+    "keywords": {
+      "colorSafe": "Marcas de palabras clave seguras para el color (subrayado y símbolo adicionales)",
+      "colorSafeHint": "Añade un estilo de subrayado y un símbolo a cada marca para no depender solo del color."
     }
   },
   "copyDialog": {

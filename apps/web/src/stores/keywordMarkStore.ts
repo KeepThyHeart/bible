@@ -2,7 +2,7 @@
  * Keyword-mark state for the web reader (task 0065).
  *
  * Holds the keyword sets (a `KeywordSetService` over an `IKeywordSetStore`,
- * localStorage today, so it can move to the web user DB later), per-pane state
+ * the web user-data store, `getUserData()`, with the old localStorage blob migrated once), per-pane state
  * (`enabled`, `activeSetIds`, `hiddenMarkIds`, persisted per pane), the
  * colour-safe flag, and a per-chapter interlinear cache. It also memoises the
  * match for the chapter in view. The legend / occurrences / suggestion
@@ -12,7 +12,6 @@
 import {
   BUILT_IN_KEYWORD_SETS,
   KeywordSetService,
-  StorageKeywordSetStore,
   suggestKeywords,
   occurrencesOf,
   type ChapterInput,
@@ -26,6 +25,8 @@ import {
   type StringStorage,
 } from '@bible/core/browser';
 import { Store } from './Store';
+import { WebKeywordSetStore, onKeywordSetsChangedElsewhere } from '../keywordMarks/userDataSetStore';
+import { webSettings } from './settingsRegistry';
 import type { InterlinearWordData, VerseData } from '../types';
 import {
   MY_KEYWORDS_SET_NAME,
@@ -88,11 +89,15 @@ function defaultStorage(): StringStorage | null {
 
 export class KeywordMarkStore extends Store {
   sets: KeywordSet[] = [...BUILT_IN_KEYWORD_SETS];
-  colorSafe = true;
   /** Bumped whenever the sets change; part of the match memo key. */
   setsRevision = 0;
   /** Bumped when an interlinear fetch lands, so consumers recompute. */
   interlinearRevision = 0;
+
+  /** Colour-safe marks: a registry setting (`keywordColorSafe`), shown in Settings > Theme. */
+  get colorSafe(): boolean {
+    return webSettings.get('keywordColorSafe') !== false;
+  }
 
   private readonly storage: StringStorage | null;
   private readonly service: KeywordSetService;
@@ -102,12 +107,15 @@ export class KeywordMarkStore extends Store {
   private readonly cache = new Map<string, MatchCacheEntry>();
   private readonly announced = new Map<string, ChapterMarks | null>();
   private initPromise: Promise<void> | null = null;
+  private readonly hasCustomSetStore: boolean;
 
   constructor(opts: KeywordMarkStoreOptions = {}) {
     super();
+    this.hasCustomSetStore = !!opts.setStore;
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
-    this.service = new KeywordSetService(opts.setStore ?? new StorageKeywordSetStore(this.storage ?? memoryStorage()));
+    this.service = new KeywordSetService(opts.setStore ?? new WebKeywordSetStore());
     this.readPersisted();
+    webSettings.subscribe(() => this.notify());
     this.service.subscribe((sets) => {
       this.sets = sets;
       this.setsRevision++;
@@ -117,7 +125,12 @@ export class KeywordMarkStore extends Store {
 
   /** Load the user's sets once. Safe to call from every render. */
   init(): Promise<void> {
-    this.initPromise ??= this.service.load().then(() => undefined, () => undefined);
+    if (!this.initPromise) {
+      this.initPromise = this.service.load().then(() => undefined, () => undefined);
+      if (!this.hasCustomSetStore) {
+        onKeywordSetsChangedElsewhere(() => { void this.service.load().catch(() => undefined); });
+      }
+    }
     return this.initPromise;
   }
 
@@ -159,9 +172,7 @@ export class KeywordMarkStore extends Store {
   }
 
   setColorSafe(on: boolean): void {
-    this.colorSafe = on;
-    this.persist();
-    this.notify();
+    webSettings.set('keywordColorSafe', on);
   }
 
   /** The sets the pane has switched on (unknown ids, e.g. a deleted set, are ignored). */
@@ -359,7 +370,12 @@ export class KeywordMarkStore extends Store {
       const raw = this.storage?.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw) as { colorSafe?: unknown; panes?: Record<string, Partial<PaneKeywordState>> };
-      if (typeof data.colorSafe === 'boolean') this.colorSafe = data.colorSafe;
+      // Before the settings registry, colour-safe lived in this blob: carry a saved choice over once.
+      if (typeof data.colorSafe === 'boolean') {
+        if (data.colorSafe === false && webSettings.get('keywordColorSafe') === true) webSettings.set('keywordColorSafe', false);
+        delete data.colorSafe;
+        this.storage?.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
       for (const [id, p] of Object.entries(data.panes ?? {})) {
         const d = defaultPaneState();
         this.panes.set(id, {
@@ -374,15 +390,10 @@ export class KeywordMarkStore extends Store {
   private persist(): void {
     try {
       this.storage?.setItem(STORAGE_KEY, JSON.stringify({
-        colorSafe: this.colorSafe, panes: Object.fromEntries(this.panes),
+        panes: Object.fromEntries(this.panes),
       }));
     } catch { /* quota or private mode */ }
   }
-}
-
-function memoryStorage(): StringStorage {
-  const m = new Map<string, string>();
-  return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => { m.set(k, v); }, removeItem: (k) => { m.delete(k); } };
 }
 
 export const keywordMarkStore = new KeywordMarkStore();

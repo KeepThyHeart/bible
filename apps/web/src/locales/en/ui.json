@@ -278,6 +278,10 @@
       "draftNote": "Languages marked as drafts are machine-translated and have not yet been reviewed by a native speaker.",
       "betaNote": "Languages marked as beta are machine-translated and complete, but have not yet been reviewed by a native speaker. Corrections are welcome.",
       "moreComingNote": "More languages are on the way. Only translations that have been reviewed by a native speaker are offered here without a badge."
+    },
+    "keywords": {
+      "colorSafe": "Colour-safe keyword marks (extra underline and symbol cues)",
+      "colorSafeHint": "Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone."
     }
   },
   "copyDialog": {

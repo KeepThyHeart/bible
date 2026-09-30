@@ -14,7 +14,7 @@
 | `suggest.ts` | `suggestKeywords`: frequent content words, grouped by Strong's when interlinear rows exist. |
 | `validate.ts` | `validateKeywordSet` for untrusted JSON; `exportKeywordSet` / `importKeywordSet`. |
 | `service.ts` | `KeywordSetService` (built-ins plus a store, change events), `IKeywordSetStore`, `MemoryKeywordSetStore`, `StorageKeywordSetStore` (localStorage-shaped). |
-| `UserDataKeywordSetStore.ts` | Node-side store over `IUserDataRepository`. Not in the browser barrel. |
+| `UserDataKeywordSetStore.ts` | Store over `IUserDataRepository` (browser-safe, in both barrels): desktop passes SQLite, web the in-memory user-data store. |
 
 ## How it works
 
@@ -26,7 +26,9 @@ A connective category matches surface forms. With interlinear rows the hit only 
 
 ## Persistence
 
-One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. Web uses `StorageKeywordSetStore` over localStorage until it has a user database.
+One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. Web uses the same `UserDataKeywordSetStore` over `getUserData()` (`apps/web/src/keywordMarks/userDataSetStore.ts`); the old `kth.keywordSets` localStorage array is migrated in once with `migrateLocalStorage`, and other tabs' changes reload the sets. `StorageKeywordSetStore` remains for hosts with only a key-value store.
+
+The colour-safe option is a registry setting, `keywordColorSafe` (device scope, default on): web Settings > Theme and the desktop Keywords popover both read and write it.
 
 ## Not in v1
 

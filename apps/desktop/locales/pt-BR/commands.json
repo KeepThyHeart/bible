@@ -62,5 +62,9 @@
   "bookmarks.manage": "Gerenciar marcadores",
   "bookmarks.manage.category": "Marcadores",
   "bookmarks.manage.alias.0": "marcadores",
-  "bookmarks.manage.alias.1": "versículos salvos"
+  "bookmarks.manage.alias.1": "versículos salvos",
+  "bible.toggleKeywordMarks": "Alternar marcas de palavras-chave",
+  "bible.toggleKeywordMarks.category": "Bíblia",
+  "bible.toggleKeywordMarks.alias.0": "palavras-chave",
+  "bible.toggleKeywordMarks.alias.1": "marcar palavras"
 }

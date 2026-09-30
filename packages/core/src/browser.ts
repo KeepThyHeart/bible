@@ -278,6 +278,7 @@ export * as Backup from './Backup';
 // The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
 // validation and the set service. Pure TypeScript; both apps wrap it in a UI.
 export * from './KeywordMarks';
+export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
 
 // --- Web user-data store (task 0084) ------------------------------------------
 // In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and

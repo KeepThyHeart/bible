@@ -158,7 +158,7 @@ export * as Crypto from './Crypto';
 export * as Backup from './Backup';
 
 
-// Keyword marks (task 0065): also re-exported from `./browser` (the store below is Node-only).
+// Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
 

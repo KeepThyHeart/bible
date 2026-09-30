@@ -62,5 +62,9 @@
   "bookmarks.manage": "Управление закладками",
   "bookmarks.manage.category": "Закладки",
   "bookmarks.manage.alias.0": "закладки",
-  "bookmarks.manage.alias.1": "сохранённые стихи"
+  "bookmarks.manage.alias.1": "сохранённые стихи",
+  "bible.toggleKeywordMarks": "Включить/выключить пометки ключевых слов",
+  "bible.toggleKeywordMarks.category": "Библия",
+  "bible.toggleKeywordMarks.alias.0": "ключевые слова",
+  "bible.toggleKeywordMarks.alias.1": "пометить слова"
 }

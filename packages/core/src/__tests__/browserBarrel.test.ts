@@ -116,10 +116,10 @@ describe('@bible/core/browser barrel', () => {
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
-    // Settings registry and the web UserData store.
+    // Settings registry and the web UserData store, then (to 110) for the keyword-mark set store.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(100);
+    expect(files.size).toBeLessThan(110);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

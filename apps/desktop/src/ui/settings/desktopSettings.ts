@@ -18,6 +18,7 @@ import {
   type SettingsStoragePort,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
 
 export const DESKTOP_SETTINGS = defineSettings([
   {
@@ -31,15 +32,28 @@ export const DESKTOP_SETTINGS = defineSettings([
     descriptionKey: 'preferencesDialog.advancedPaneManagerDescription',
     description: 'When off, dragging a pane asks for confirmation before it moves.',
   },
+  {
+    key: 'keywordColorSafe',
+    type: 'boolean',
+    default: true,
+    scope: 'device',
+    group: 'keywords',
+    labelKey: 'keywords.settings.colorSafe',
+    label: 'Colour-safe marks (extra underline and symbol cues)',
+  },
 ]);
 
 /** Port over `usePreferencesStore` (session-persisted, per device). */
 export const preferencesStoragePort: SettingsStoragePort = {
   read: () => ({
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
+    keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
   }),
   write: (changes: readonly SettingChange[]) => {
     for (const change of changes) {
+      if (change.key === 'keywordColorSafe' && useKeywordMarkStore.getState().colorSafe !== change.value) {
+        useKeywordMarkStore.getState().setColorSafe(change.value as boolean);
+      }
       if (
         change.key === 'advancedPaneManagerEnabled' &&
         usePreferencesStore.getState().advancedPaneManagerEnabled !== change.value
@@ -60,6 +74,9 @@ export function getDesktopSettingsStore(): SettingsStore {
     // dialog; mirror those in so the settings view never shows a stale value.
     usePreferencesStore.subscribe((state) => {
       store!.set('advancedPaneManagerEnabled', state.advancedPaneManagerEnabled);
+    });
+    useKeywordMarkStore.subscribe((state) => {
+      store!.set('keywordColorSafe', state.colorSafe);
     });
   }
   return store;

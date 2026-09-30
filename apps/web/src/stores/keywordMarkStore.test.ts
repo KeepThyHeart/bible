@@ -135,9 +135,10 @@ describe('KeywordMarkStore addMarkFromWord', () => {
 
   it('keeps the user set across a new store on the same storage', async () => {
     const storage = memStorage();
-    const first = new KeywordMarkStore({ storage });
+    const shared = new MemoryKeywordSetStore();
+    const first = new KeywordMarkStore({ storage, setStore: shared });
     await first.addMarkFromWord('bible', { text: 'God' }, 'word');
-    const second = new KeywordMarkStore({ storage });
+    const second = new KeywordMarkStore({ storage, setStore: shared });
     await second.init();
     expect(second.sets.some((s) => s.name === 'My keywords' && s.marks.length === 1)).toBe(true);
   });

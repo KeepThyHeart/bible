@@ -1,4 +1,4 @@
-/** Node-side store: keyword sets as `user_data_item` rows (owner `app:keyword-marks`). Not in the browser barrel. */
+/** Keyword sets as `user_data_item` rows (owner `app:keyword-marks`). Browser-safe: desktop passes SQLite, web the in-memory store. */
 import { UserDataItem, appOwner } from '../Data/Models/User/UserDataItem';
 import type { IUserDataRepository } from '../Data/Repositories/IUserDataRepository';
 import type { IKeywordSetStore } from './service';
