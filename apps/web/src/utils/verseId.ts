@@ -1,3 +1,4 @@
+import { formatVerseIdRange } from '@bible/core/browser';
 import { formatPassageRef, isSingleChapterBook } from '../constants';
 import { getLocalizedBookName } from './bookNames';
 
@@ -26,6 +27,10 @@ export function formatVerseRange(verseIdStart: number, verseIdEnd?: number | nul
   const start = parseVerseId(verseIdStart);
   const bookName = getLocalizedBookName(start.bookNumber);
   const single = isSingleChapterBook(start.bookNumber);
+  // Verse 999 is the dataset's "end of chapter": whole-chapter wording.
+  if (start.verse === 999 || (verseIdEnd && verseIdEnd % 1000 === 999)) {
+    return formatVerseIdRange(verseIdStart, verseIdEnd ?? undefined, getLocalizedBookName, { isSingleChapterBook: isSingleChapterBook });
+  }
   if (verseIdEnd && verseIdEnd !== verseIdStart) {
     const end = parseVerseId(verseIdEnd);
     if (single) {

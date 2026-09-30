@@ -66,5 +66,9 @@
   "bible.toggleKeywordMarks": "开关关键词标记",
   "bible.toggleKeywordMarks.category": "圣经",
   "bible.toggleKeywordMarks.alias.0": "关键词",
-  "bible.toggleKeywordMarks.alias.1": "标记词语"
+  "bible.toggleKeywordMarks.alias.1": "标记词语",
+  "xrefGraph.open": "显示交叉引用连接",
+  "xrefGraph.open.category": "学习",
+  "xrefGraph.open.alias.0": "交叉引用",
+  "xrefGraph.open.alias.1": "连接"
 }

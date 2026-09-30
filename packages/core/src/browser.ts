@@ -279,6 +279,18 @@ export * as Backup from './Backup';
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
 
+// --- Genealogy explorer (task 0067): DTOs, graph queries, layouts, pan/zoom ---
+export * from './Genealogy';
+
+// --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
+export * from './Timeline';
+
+// --- Cross-reference graph (task 0068) -----------------------------------------
+// Types, the edge-weight formula, canon geometry, chapter-pair packing and the
+// budgeted ego-graph walk. Pure; the repository-backed service and index builder
+// live in the Node entry point.
+export * from './Services/XrefGraph';
+
 // --- Web user-data store (task 0084) ------------------------------------------
 // In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
 // import for them, and the localStorage migration helper. Namespaced: it re-exports
@@ -291,3 +303,8 @@ export * as UserData from './UserData';
 // feature-flag resolver. Pure TypeScript.
 export * from './Settings';
 
+// --- Audio Bible (task 0059) -----------------------------------------------
+// The contracts (provider, TTS engine, player, manifest source, locator,
+// cache, ...), the recorded-chapter manifest and index validators plus their
+// JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
+export * from './audio';

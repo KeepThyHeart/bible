@@ -68,6 +68,13 @@ describe('Tag Graph Routes (disabled)', () => {
     expect(res.body).toEqual([]);
   });
 
+  it('GET /genealogy returns an empty DTO-shaped dataset when disabled', async () => {
+    if (!localDisabledApp) return;
+    const res = await request(localDisabledApp).get('/api/taggraph/genealogy');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ module: '', persons: [], edges: [], lineages: [], sources: [] });
+  });
+
   it('GET /entity/:category/:entityId returns [] when disabled', async () => {
     if (!localDisabledApp) return;
     const res = await request(localDisabledApp).get('/api/taggraph/entity/people/adam');
@@ -101,6 +108,17 @@ describe('Tag Graph Routes (disabled)', () => {
 // Enabled tests — require tag_graph.db
 // ---------------------------------------------------------------------------
 describe.skipIf(!hasTagGraphDb)('Tag Graph Routes (enabled)', () => {
+  it('GET /genealogy returns the dataset with public caching and an ETag', async () => {
+    const res = await request(app).get('/api/taggraph/genealogy');
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('public, max-age=3600');
+    expect(res.headers['etag']).toBeTruthy();
+    for (const key of ['persons', 'edges', 'lineages', 'sources']) {
+      expect(Array.isArray(res.body[key])).toBe(true);
+    }
+    expect(typeof res.body.module).toBe('string');
+  });
+
   // Discover a known entity via search so subsequent tests have valid IDs.
   beforeAll(async () => {
     const res = await request(app).get('/api/taggraph/search?q=Moses');

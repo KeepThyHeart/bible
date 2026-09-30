@@ -66,5 +66,9 @@
   "bible.toggleKeywordMarks": "Alternar marcas de palavras-chave",
   "bible.toggleKeywordMarks.category": "Bíblia",
   "bible.toggleKeywordMarks.alias.0": "palavras-chave",
-  "bible.toggleKeywordMarks.alias.1": "marcar palavras"
+  "bible.toggleKeywordMarks.alias.1": "marcar palavras",
+  "xrefGraph.open": "Mostrar conexões de referências cruzadas",
+  "xrefGraph.open.category": "Estudo",
+  "xrefGraph.open.alias.0": "referências cruzadas",
+  "xrefGraph.open.alias.1": "conexões"
 }

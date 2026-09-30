@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
 import type { BibleVerse } from '../services/verseCopyService';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 
 describe('withVerseMenuContext', () => {
   const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
@@ -102,6 +103,21 @@ describe('VerseContextMenu', () => {
     await user.click(screen.getByText('ui.verseContextMenu.copyPassage'));
     expect(onOpenCopyOptions).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens the cross-reference graph for the right-clicked verse', async () => {
+    useXrefGraphStore.setState({ isOpen: false, anchor: null });
+    renderWithProviders(
+      <VerseContextMenu
+        verses={mockVerse}
+        context={mockContext}
+        position={position}
+        onClose={onClose}
+      />,
+    );
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Show connections' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: 43003016 });
   });
 
   it('shows highlight option when onOpenHighlightMenu is provided', () => {

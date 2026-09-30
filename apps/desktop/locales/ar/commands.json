@@ -66,5 +66,9 @@
   "bible.toggleKeywordMarks": "تبديل علامات الكلمات المفتاحية",
   "bible.toggleKeywordMarks.category": "الكتاب المقدس",
   "bible.toggleKeywordMarks.alias.0": "كلمات مفتاحية",
-  "bible.toggleKeywordMarks.alias.1": "تعليم الكلمات"
+  "bible.toggleKeywordMarks.alias.1": "تعليم الكلمات",
+  "xrefGraph.open": "إظهار روابط المراجع المتقاطعة",
+  "xrefGraph.open.category": "دراسة",
+  "xrefGraph.open.alias.0": "مراجع متقاطعة",
+  "xrefGraph.open.alias.1": "روابط"
 }

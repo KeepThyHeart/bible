@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { BibleTabBar } from './BibleTabBar';
 import { BibleToolbar } from './BibleToolbar';
+import { AudioTransportBar } from './AudioTransportBar';
 import { BackBar } from './BackBar';
 import { BibleContent } from './BibleContent';
 import { ChapterNav } from './ChapterNav';
@@ -10,6 +11,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
+import { useFollowScroll } from '../../hooks/useFollowScroll';
 import type { IInterlinearDataProvider, IStrongsProvider } from '../../providers/interfaces';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 
@@ -121,6 +123,14 @@ export function BiblePane({
     }
     return el;
   };
+
+  // Audio follow-along: keep the verse being read in view, without fighting the
+  // reader's own scrolling. Moves the viewport only; never the selection.
+  useFollowScroll({
+    getScrollElement: () => getScrollElement() as HTMLElement | null,
+    getContainer: () => scrollContainerRef.current,
+    activeTabId,
+  });
 
   // Save scroll position when switching tabs
   useEffect(() => {
@@ -454,6 +464,7 @@ export function BiblePane({
         <>
           {!hideBars && <BackBar />}
           {!hideBars && <BibleToolbar onOpenSettings={onOpenSettings} />}
+          {!hideBars && <AudioTransportBar onOpenSettings={onOpenSettings} />}
           <div class="bible-pane__scroll-container" ref={scrollContainerRef}>
             <div style={swipeStyle}>
               <BibleContent

@@ -106,11 +106,23 @@ const DARK_DEFAULTS = {
   '--kth-mark-8-rgb': '176 176 176',
   '--kth-shadow': '0 4px 12px rgb(0 0 0 / 0.5)',
   '--kth-color-scheme': 'dark',
+  '--kth-section-0': '#f59e0b',
+  '--kth-section-1': '#4ade80',
+  '--kth-section-2': '#22d3ee',
+  '--kth-section-3': '#c084fc',
+  '--kth-section-4': '#f472b6',
+  '--kth-section-5': '#f87171',
+  '--kth-section-6': '#fb923c',
+  '--kth-section-7': '#60a5fa',
+  '--kth-section-8': '#a3e635',
+  '--kth-section-9': '#94a3b8',
 };
 
 /** Contract tokens that are constants: declared in the contract, not mapped per app. */
 const CONTRACT_CONSTANTS = [
   '--kth-radius', '--kth-space-1', '--kth-space-2', '--kth-space-3', '--kth-space-4', '--kth-color-scheme',
+  '--kth-section-0', '--kth-section-1', '--kth-section-2', '--kth-section-3', '--kth-section-4',
+  '--kth-section-5', '--kth-section-6', '--kth-section-7', '--kth-section-8', '--kth-section-9',
 ];
 
 /** Web custom properties set at runtime (settingsStore.ts), always written with a fallback. */

@@ -66,5 +66,9 @@
   "bible.toggleKeywordMarks": "Включить/выключить пометки ключевых слов",
   "bible.toggleKeywordMarks.category": "Библия",
   "bible.toggleKeywordMarks.alias.0": "ключевые слова",
-  "bible.toggleKeywordMarks.alias.1": "пометить слова"
+  "bible.toggleKeywordMarks.alias.1": "пометить слова",
+  "xrefGraph.open": "Показать связи перекрёстных ссылок",
+  "xrefGraph.open.category": "Изучение",
+  "xrefGraph.open.alias.0": "перекрёстные ссылки",
+  "xrefGraph.open.alias.1": "связи"
 }

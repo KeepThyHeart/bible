@@ -38,6 +38,13 @@ import type {
  * worth making. A section nobody has opened costs nothing; one that is open
  * reloads exactly as before, because its effect re-runs on the verse change.
  */
+/** A request to centre the family tree on a person. See StudyStore.familyTreeFocus. */
+export interface FamilyTreeFocus {
+  personId: string;
+  name?: string;
+  token: number;
+}
+
 class StudyStore extends Store {
   private crossRefProvider: ICrossRefDataProvider | null = null;
   private topicalProvider: ITopicalDataProvider | null = null;
@@ -100,6 +107,16 @@ class StudyStore extends Store {
   /** Topic the mobile Topics overlay should open next. See PendingTopicNav for why it carries a token. */
   pendingTopicNav: PendingTopicNav | null = null;
   private _topicNavToken = 0;
+
+  /**
+   * Family tree (genealogy explorer, task 0067). Desktop: the Study pane shows the
+   * explorer instead of its sections while this is on. Mobile: a full-screen sheet.
+   * Not persisted — a reload starts back on the ordinary Study view.
+   */
+  familyTreeOpen = false;
+  /** Person the explorer should centre on next; the token lets a repeat request for the same person re-fire. */
+  familyTreeFocus: FamilyTreeFocus | null = null;
+  private _familyTreeToken = 0;
 
   // Cache keys — what the loaded data belongs to.
   private crossRefLoadedKey = '';
@@ -269,6 +286,19 @@ class StudyStore extends Store {
   closeTopicsBrowser(): void {
     this.topicsBrowserOpen = false;
     this.pendingTopicNav = null;
+    this.notify();
+  }
+
+  /** Open the family tree, optionally focused on a person (by genealogy id, tag-graph entity id or name). */
+  openFamilyTree(focus?: { personId: string; name?: string }): void {
+    this.familyTreeFocus = focus ? { ...focus, token: ++this._familyTreeToken } : null;
+    this.familyTreeOpen = true;
+    this.notify();
+  }
+
+  closeFamilyTree(): void {
+    this.familyTreeOpen = false;
+    this.familyTreeFocus = null;
     this.notify();
   }
 

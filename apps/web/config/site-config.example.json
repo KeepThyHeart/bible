@@ -6,10 +6,19 @@
   },
   "features": {
     "tagGraph": false,
+    "genealogy": false,
+    "timeline": false,
     "semanticSearch": false,
     "pwa": false,
     "offlineDownloads": false,
-    "offlineAutoDownload": true
+    "offlineAutoDownload": true,
+    "audio": false
+  },
+  "audio": {
+    "dir": "audio",
+    "base": "/audio",
+    "recorded": true,
+    "tts": { "engines": [] }
   },
   "modules": {
     "about": "A modern, open-source Bible study application.",

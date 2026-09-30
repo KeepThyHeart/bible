@@ -4,6 +4,7 @@ import { EntityTopicLink } from '../Models/TagGraph/EntityTopicLink';
 import { EntityFacet } from '../Models/TagGraph/EntityFacet';
 import { EntityVerse } from '../Models/TagGraph/EntityVerse';
 import { VerseId } from '../Core/Types';
+import type { GenealogyDatasetDto, LineageDto } from '../../Genealogy/types';
 
 /**
  * Result of a verse-to-entity reverse lookup.
@@ -124,6 +125,18 @@ export interface ITagGraphRepository {
     startVerseId: VerseId,
     endVerseId: VerseId
   ): EntityVerseRangeResult[];
+
+  /**
+   * One bulk read of everything the genealogy explorer needs: persons (with
+   * aliases and roles), person_relationship edges with evidence verses,
+   * lineages with ordered steps, data sources, interpretive cases and external
+   * ids. Returns an empty-but-valid dataset (`persons: []`) when the genealogy
+   * tables are empty or missing (older tag graph databases); never throws for that.
+   */
+  getGenealogyDataset(moduleId: string): GenealogyDatasetDto;
+
+  /** A single lineage with its ordered steps, or undefined if there is no such lineage. */
+  getLineage(id: string): LineageDto | undefined;
 }
 
 /**

@@ -27,10 +27,12 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Copy & Export](features/copy-export.md) | Verse copying with multiple format options |
 | [Modules](features/modules.md) | Module management and data loading (Bible, Commentary, Dictionary), plus the Dictionary pane and its search |
 | [Topics & Tag Graph](features/topics.md) | Topical index browsing (Nave's, Torrey's) and tag graph entities |
+| [Genealogy Explorer](features/genealogy.md) | Family tree mode of the Study pane (line to Christ, family, tribes); flag `features.genealogy`, needs the tag graph |
 | [Server & API](features/server-api.md) | Express backend, database management, API routes |
 | [Mobile Study Pane](features/navigation-layout.md#mobile-study-pane) | All-in-one mobile study hub with icon grid, breadcrumb navigation, verse history |
 | [State Management](features/state-management.md) | Store architecture, data providers, hooks |
 | [Study Pane](features/topics.md#ui-components) | Desktop Study pane host components (cross-refs, topics, synthesis, interlinear sections) are mapped in the Topics doc |
+| [Audio Bible](features/audio.md) | Listening to a chapter: recorded chapters and on-device speech (Piper) behind one player; off by default (`features.audio`) |
 | [PWA & Offline](features/pwa-offline.md) | Service worker (**off by default**, switched by `features.pwa` on the server), cache-rule registry, Reset app cache, installability, HTTP cache headers, offline module storage via OPFS |
 | [Service-worker cache rules](features/service-worker-cache-rules.md) | How a feature adds (or forbids) a cached route: the rule registry, strategies, safety rules, versions |
 

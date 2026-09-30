@@ -63,7 +63,10 @@ describe('shipped cache rules', () => {
 
   it('keep the large caches on reset, including the external transformers cache', () => {
     expect(preservedOnReset(CACHE_RULES).sort()).toEqual(
-      ['embedding-model-v1', 'semantic-index-v1', 'transformers-cache'].sort(),
+      [
+        'audio-chapters-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
+        'transformers-cache', 'tts-models-v1',
+      ].sort(),
     );
   });
 
@@ -118,5 +121,20 @@ describe('isApiPath', () => {
     expect(isApiPath('/base/api/x')).toBe(true);
     expect(isApiPath('/rapid/x')).toBe(false);
     expect(isApiPath('/data/api-docs.json')).toBe(false);
+  });
+});
+
+describe('audio rules', () => {
+  it('resolve to the cache names the page writes to', async () => {
+    const { AUDIO_CACHE_NAMES } = await import('../audio/cacheNames');
+    const names = Object.values(AUDIO_CACHE_NAMES).sort();
+    const fromRules = CACHE_RULES.filter(r => r.owner === 'audio').map(resolveCacheName).sort();
+    expect(fromRules).toEqual(names);
+  });
+
+  it('cache recorded chapters with range support and never the mutable index', () => {
+    const file = cacheRuleFor(CACHE_RULES, new URL('https://x.test/audio/v1/KJV/narr/r1/43/003.ogg'));
+    expect(file?.strategy).toBe('cache-first-range');
+    expect(cacheRuleFor(CACHE_RULES, new URL('https://x.test/audio/v1/KJV/index.json'))).toBeUndefined();
   });
 });

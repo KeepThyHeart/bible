@@ -10,6 +10,7 @@ import { resolve } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { loadSiteSettings, type SiteSettings } from './siteSettings.js';
 import { logger } from './utils/logger.js';
+import { AudioBible } from '@bible/core';
 import type { SearchPipelineConfig, ScoringConfig } from '@bible/core';
 import { createFeatureFlags, parseFlagOverrides, type FeatureFlagName, type FeatureFlags } from './core.js';
 
@@ -23,6 +24,10 @@ interface AuthConfig {
 
 interface FeaturesConfig {
   tagGraph?: boolean;
+  /** Enable the genealogy explorer. Default false; requires `tagGraph` to be true. */
+  genealogy?: boolean;
+  /** Show the Timeline explorer tab (with no timeline module installed it shows an install hint). Default false. */
+  timeline?: boolean;
   semanticSearch?: boolean;
   /**
    * Enable the PWA (manifest, install, service worker). Default false.
@@ -45,6 +50,26 @@ interface FeaturesConfig {
    * OPFS import in every fresh browser context.
    */
   offlineAutoDownload?: boolean;
+  /**
+   * Show the Audio Bible controls (Listen button, player, Audio settings).
+   * Default false: the feature needs recordings under `<data dir>/audio/v1`
+   * and/or a TTS engine whose runtime and voice files are hosted, so it is
+   * for the operator to switch on once one of those exists.
+   */
+  audio?: boolean;
+}
+
+/**
+ * The `audio` block. `dir` (default `audio`, relative to the data directory)
+ * is where recordings (`v1/...`) and TTS engine files (`tts/...`) live and is
+ * served at `/audio`. Everything else is the client-facing configuration, which
+ * `AudioBible.parseAudioSiteConfig` validates; see its doc comment.
+ */
+interface AudioBlockConfig {
+  dir?: string;
+  base?: string;
+  recorded?: boolean;
+  tts?: { engines?: unknown[] };
 }
 
 interface OfflineConfig {
@@ -92,6 +117,7 @@ interface RawSiteConfig {
   $schema?: string;
   auth?: AuthConfig;
   features?: FeaturesConfig;
+  audio?: AudioBlockConfig;
   modules?: SiteSettings;
   commentaryPopularity?: Record<string, number>;
   offline?: OfflineConfig;
@@ -173,7 +199,7 @@ export class SiteConfig {
     };
   }
 
-  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; pwaUpdate: 'silent' | 'prompt'; offlineDownloads: boolean; offlineAutoDownload: boolean } {
+  get features(): { tagGraph: boolean; semanticSearch: boolean; pwa: boolean; pwaUpdate: 'silent' | 'prompt'; offlineDownloads: boolean; offlineAutoDownload: boolean; audio: boolean } {
     return {
       tagGraph: this.raw.features?.tagGraph === true,
       semanticSearch: this.raw.features?.semanticSearch === true,
@@ -182,6 +208,26 @@ export class SiteConfig {
       pwaUpdate: this.raw.features?.pwaUpdate === 'prompt' ? 'prompt' : 'silent',
       offlineDownloads: this.raw.features?.offlineDownloads === true, // default false
       offlineAutoDownload: this.raw.features?.offlineAutoDownload !== false, // default true
+      // The shared flag resolver: site config, then BIBLE_FEATURE_FLAGS in development.
+      audio: this.flags.isEnabled('audio'),
+    };
+  }
+
+  /**
+   * Audio Bible settings. `client` is the normalized block sent to browsers;
+   * `dir` is the absolute directory served at `/audio`; `externalOrigins` are
+   * the remote origins that must be added to the Content-Security-Policy (empty
+   * unless the operator points recordings or engine files at another host).
+   */
+  get audio(): { enabled: boolean; dir: string; client: AudioBible.AudioSiteConfig; externalOrigins: string[] } {
+    const block = this.raw.audio ?? {};
+    const client = AudioBible.parseAudioSiteConfig(block);
+    const enabled = this.isEnabled('audio');
+    return {
+      enabled,
+      dir: resolve(this.dataDir, typeof block.dir === 'string' && block.dir ? block.dir : 'audio'),
+      client,
+      externalOrigins: enabled ? AudioBible.audioExternalOrigins(client) : [],
     };
   }
 
@@ -300,6 +346,10 @@ export class SiteConfig {
 
     // Only sent when off, so the default stays an absent key.
     if (!this.features.offlineAutoDownload) cfg.offlineAutoDownload = false;
+
+    // Audio Bible: absent unless the operator turned it on, so a default install
+    // sends the client nothing new.
+    if (this.features.audio) cfg.audio = this.audio.client;
 
     const staleDays = this.offline.staleDays;
     if (staleDays !== DEFAULT_STALE_DAYS) cfg.staleDays = staleDays;

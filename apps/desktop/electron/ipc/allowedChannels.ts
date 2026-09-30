@@ -270,6 +270,9 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getEntityByName',
   'tagGraph:getVersesForEntity',
   'tagGraph:getFacetsForEntity',
+  'tagGraph:getGenealogyDataset',
+  // Timeline
+  'timeline:getDataset',
   // Cross-references
   'xref:getAvailable',
   'xref:getGroupsForVerse',
@@ -277,6 +280,11 @@ export const TYPED_IPC_CHANNELS = [
   'xref:getEntryCount',
   'xref:getGroupsForRange',
   'xref:getReverseReferencesForRange',
+  // Cross-reference graph (task 0068)
+  'xrefGraph:getEgoGraph',
+  'xrefGraph:getNeighbours',
+  'xrefGraph:getBookMatrix',
+  'xrefGraph:getChapterArcs',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',

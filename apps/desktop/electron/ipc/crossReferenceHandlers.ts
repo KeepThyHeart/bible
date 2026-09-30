@@ -23,6 +23,12 @@ function getXrefRepository(abbreviation: string): CrossReferenceRepository | nul
   return loader.get(abbreviation);
 }
 
+/** Opens (once) and returns a cross-reference module's repository; shared with the graph handlers (task 0068). */
+export async function ensureXrefRepository(abbreviation: string): Promise<CrossReferenceRepository | null> {
+  await loader.ensure(abbreviation);
+  return loader.get(abbreviation);
+}
+
 interface XrefModuleSummary {
   module_id: number | undefined;
   abbreviation: string;

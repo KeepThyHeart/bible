@@ -1,0 +1,97 @@
+// Audio Bible: the settings popover/sheet and the speed picker
+
+.audio-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+
+  &__btn {
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font: inherit;
+    min-inline-size: 52px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+
+    &:hover:not(:disabled) { background: var(--bg-tertiary); }
+    &:disabled { opacity: 0.4; cursor: default; }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+  }
+
+  &--large {
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    gap: 6px;
+
+    .audio-speed__btn { min-inline-size: 72px; min-block-size: 44px; }
+  }
+
+  &__sr {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__opt {
+    inline-size: 100%;
+    min-block-size: 36px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+
+    &:hover { background: var(--bg-tertiary); }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+    &--on { background: color-mix(in srgb, var(--accent-color) 16%, transparent); font-weight: 600; }
+  }
+}
+
+.audio-source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  // Why an option is disabled, written out because phones have no tooltips.
+  &__reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.audio-quick {
+  &--phone {
+    padding-block-end: 8px;
+
+    .audio-segmented { align-self: stretch; }
+    .audio-segmented__btn { flex: 1 1 auto; min-block-size: 44px; }
+    .audio-select { min-block-size: 44px; }
+    .audio-panel__more { min-block-size: 44px; }
+  }
+}
+
+.audio-settings__engine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 6px;
+}

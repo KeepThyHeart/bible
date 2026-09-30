@@ -24,6 +24,9 @@ import { ipcHandler, IpcKnownError } from './handler-helper';
 import { validateString, validatePositiveInt } from '../utils/validation';
 import { getModuleDatabaseRegistry } from '../services/ModuleDatabaseRegistry';
 
+/** Whole-dataset DTO (task 0067), derived from the repository so no extra export is needed. */
+type GenealogyDatasetDto = ReturnType<TagGraphRepository['getGenealogyDataset']>;
+
 let tagGraphRepo: TagGraphRepository | null = null;
 
 /** Task 0034 (finishing M11): the factory `tagGraphRepo` routes through below. */
@@ -200,6 +203,16 @@ export function registerTagGraphHandlers(_ipcMain: IpcMain): void {
       const repo = getTagGraphRepository();
       if (!repo) return [];
       return repo.getFacetsForEntity(entityId, cat);
+    }
+  );
+
+  // Whole genealogy dataset in one read (task 0067); null when no tag graph db.
+  ipcHandler<[], GenealogyDatasetDto | null>(
+    'tagGraph:getGenealogyDataset',
+    () => {
+      const repo = getTagGraphRepository();
+      if (!repo) return null;
+      return repo.getGenealogyDataset('genealogy');
     }
   );
 }

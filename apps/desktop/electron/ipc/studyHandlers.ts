@@ -174,7 +174,7 @@ function getUserNoteRepoForLinks(): UserNoteRepository | undefined {
   cachedUserNoteRepo = new UserNoteRepository(provider);
   return cachedUserNoteRepo;
 }
-function getUserXrefRepoForLinks(): UserCrossReferenceRepository | undefined {
+export function getUserXrefRepoForLinks(): UserCrossReferenceRepository | undefined {
   if (cachedUserXrefRepo !== undefined) {
     return cachedUserXrefRepo ?? undefined;
   }

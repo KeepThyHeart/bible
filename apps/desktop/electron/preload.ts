@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
+import type { TimelineDataset } from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -196,6 +197,12 @@ export interface ElectronAPI {
     getEntityByName: (name: string) => Promise<Result<any | null>>;
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
+    getGenealogyDataset: () => Promise<Result<any | null>>;
+  };
+
+  // Timeline module. `null` when no timeline module is installed.
+  timeline: {
+    getDataset: () => Promise<Result<TimelineDataset | null>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -209,6 +216,15 @@ export interface ElectronAPI {
     /** Reverse references for a whole chapter in one call. */
     getReverseReferencesForRange: (abbreviation: string, startVerseId: number, endVerseId: number) => Promise<Result<any[]>>;
     getEntryCount: (abbreviation: string, verseId: number) => Promise<Result<number>>;
+  };
+
+  // Cross-reference graph (task 0068). Replies use the `Result<T>` envelope; the payload types are
+  // `XrefGraph`, `XrefEdge[]`, `BookMatrix` and `ChapterArcs` from `@bible/core/browser`.
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) => Promise<Result<any>>;
+    getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
+    getBookMatrix: () => Promise<Result<number[][]>>;
+    getChapterArcs: () => Promise<Result<any>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -790,6 +806,12 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getVersesForEntity', entityId, category),
     getFacetsForEntity: (entityId: string, category: string) =>
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
+    getGenealogyDataset: () =>
+      ipcRenderer.invoke('tagGraph:getGenealogyDataset'),
+  },
+
+  timeline: {
+    getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
   },
 
   crossReference: {
@@ -804,6 +826,14 @@ const electronAPI: ElectronAPI = {
       typedInvoke('xref:getReverseReferencesForRange', abbreviation, startVerseId, endVerseId),
     getEntryCount: (abbreviation: string, verseId: number) =>
       ipcRenderer.invoke('xref:getEntryCount', abbreviation, verseId)
+  },
+
+  xrefGraph: {
+    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) =>
+      typedInvoke('xrefGraph:getEgoGraph', anchor, opts),
+    getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
+    getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
+    getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
   },
 
   search: {

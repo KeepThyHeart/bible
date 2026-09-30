@@ -13,6 +13,9 @@ import { UpdateBanner } from './components/UpdateBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
+import { AudioMiniPlayer } from './components/AudioMiniPlayer';
+import { AudioPlayerScreen } from './components/AudioPlayerScreen';
+import { audioStore } from './stores/audioStore';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -33,6 +36,8 @@ interface MobileAppProps {
 export function MobileApp({ providers }: MobileAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
+  // The audio UI is laid out per form factor: full-screen player and mini-player here.
+  useEffect(() => { audioStore.setLayout('phone'); }, []);
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
   const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary'>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
@@ -159,6 +164,22 @@ export function MobileApp({ providers }: MobileAppProps) {
     const handlePopState = (_e: PopStateEvent) => {
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
+
+      // Priority 0: the full-screen audio player (playback continues)
+      if (audioStore.quickSettingsOpen) {
+        audioStore.closeQuickSettings();
+        return;
+      }
+      if (audioStore.playerOpen) {
+        audioStore.closePlayer();
+        return;
+      }
+
+      // Then the family tree sheet (it sits beneath the audio player)
+      if (studyStore.familyTreeOpen) {
+        studyStore.closeFamilyTree();
+        return;
+      }
 
       // Priority 1: Close topics browser overlay
       if (studyStore.topicsBrowserOpen) {
@@ -434,6 +455,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           {navTooltip}
         </div>
       )}
+      <AudioMiniPlayer />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
@@ -453,6 +475,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           </button>
         ))}
       </nav>
+      <AudioPlayerScreen onOpenSettings={shared.openSettings} />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}
@@ -466,6 +489,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
+        bibleProvider={providers.bible}
       />
       {contextMenu && (
         <ContextMenuPopup

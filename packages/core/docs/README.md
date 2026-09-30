@@ -21,6 +21,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Repositories](features/repositories.md) | Every repository mapped to its database file and tables |
 | [Verse identity](features/verse-identity.md) | Verse IDs, the `Book` enum, book names, reference parsing and collapsing, Strong's numbers |
 | [Module format](features/module-format.md) | The module `.db` format, its schemas, discovery, registration, catalogs |
+| [Genealogy explorer](features/genealogy.md) | Family trees from the tag graph: schema, DTOs, graph queries, layouts, data provenance |
 | [Migrations](features/migrations.md) | The `NNN_name.sql` sequence, `MigrationRunner`, the `schema_migration` ledger, user-schema repair |
 | [User data](features/user-data.md) | Notes, markup, collections, sessions, the unified `verse_link` table |
 | [User-data store](features/user-data-store.md) | The generic `user_data_item` / `verse_link` store on desktop and web, the contract suite, registering collections, backup classification checklist |
@@ -31,6 +32,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
+| [Cross-reference graph](features/xref-graph.md) | Ego graphs, edge weights, whole-canon arc index |
 | [Extensions & plugins](features/extensions-plugins.md) | The third-party extension contract and the in-process hook system |
 | [USFM export](features/usfm-export.md) | `src/Export/` - USFM read and write |
 | [Browser subset](features/browser-subset.md) | `@bible/core/browser`, what belongs in it and why |

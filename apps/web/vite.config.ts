@@ -275,6 +275,8 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    // Timeline minimum framing span in years (empty = built-in 200); see README "Build options".
+    __TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(process.env.BIBLE_TIMELINE_MIN_SPAN_YEARS?.trim() ?? ''),
   },
   resolve: {
     alias: {
@@ -397,6 +399,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       [`${basePath.replace(/\/$/, '')}/api`]: {
+        target: 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
+      },
+      // Audio Bible recordings and TTS engine files (server route, when enabled).
+      [`${basePath.replace(/\/$/, '')}/audio`]: {
         target: 'http://localhost:3100',
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),

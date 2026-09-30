@@ -66,5 +66,9 @@
   "bible.toggleKeywordMarks": "Activar o desactivar marcas de palabras clave",
   "bible.toggleKeywordMarks.category": "Biblia",
   "bible.toggleKeywordMarks.alias.0": "palabras clave",
-  "bible.toggleKeywordMarks.alias.1": "marcar palabras"
+  "bible.toggleKeywordMarks.alias.1": "marcar palabras",
+  "xrefGraph.open": "Mostrar conexiones de referencias cruzadas",
+  "xrefGraph.open.category": "Estudio",
+  "xrefGraph.open.alias.0": "referencias cruzadas",
+  "xrefGraph.open.alias.1": "conexiones"
 }
