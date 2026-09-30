@@ -121,7 +121,7 @@ describe('@bible/core/browser barrel', () => {
     // the genealogy explorer (task 0067), then for the keyword-mark set store.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(150);
+    expect(files.size).toBeLessThan(200);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

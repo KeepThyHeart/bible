@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Recitation contracts. Pure types, QuickJS-safe: the only import is a type
  * import from ../speech/types.

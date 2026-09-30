@@ -12,7 +12,9 @@
  */
 
 export {
+  createFakeSpeechApi,
   createMockApi,
+  FakeSpeechApi,
   getMockPanelChannel,
   getMockRuntimeEndpoints,
   type MockApiOverrides,

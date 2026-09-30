@@ -308,3 +308,7 @@ export * from './Settings';
 // cache, ...), the recorded-chapter manifest and index validators plus their
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
+
+// --- Speech recognition and recitation (task 0071) ---------------------------
+export * as Speech from './speech';
+export * as Recite from './recite';

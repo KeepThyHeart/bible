@@ -173,3 +173,9 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Speech recognition contracts and fakes, and the recitation library (task 0071).
+// Namespaced; also re-exported from `./browser`. `@bible/core/recite` is the
+// QuickJS-safe subpath the Scripture Memory extension bundles.
+export * as Speech from './speech';
+export * as Recite from './recite';

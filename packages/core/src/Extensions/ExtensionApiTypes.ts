@@ -95,6 +95,16 @@ import type {
   ExtensionPointReturnMap,
 } from './ExtensionPointTypes';
 
+import type { ISpeechApi } from '../speech/apiTypes';
+
+export type {
+  EarconKind,
+  ISpeechApi,
+  SpeechStatusDto,
+  StartListeningDto,
+  UtteranceOutcomeDto,
+} from '../speech/apiTypes';
+
 /**
  * The current extension API version. Used by the host and worker to negotiate
  * compatibility (see `engines.bibleApp` in the manifest).
@@ -173,6 +183,14 @@ export interface BibleExtensionAPI {
   extensions: IExtensionsApi;
   /** RESERVED - provider-role plumbing only in v1. */
   ai: IAiApi;
+  /**
+   * Speech: listen and speak. Methods only (no events). `status()` is ungated and reports
+   * what is granted; `speak`/`earcon` need `speech:speak`; `startListening`/`nextUtterance`
+   * need `speech:listen`, which is prompted separately. Consent copy for `speech:listen`:
+   * "Listen to your microphone while you recite. Audio stays on this device." Transcripts
+   * only, never audio; the host never logs them.
+   */
+  speech: ISpeechApi;
 }
 
 // --- IBibleApi *(T1 - read methods are foundation; iterate/tokens are T2)* -

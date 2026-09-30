@@ -1998,6 +1998,8 @@
   "extensionConsent.permission.fsReadUser": "Ler arquivos que você seleciona com o seletor de arquivos do sistema.",
   "extensionConsent.permission.fsWriteUser": "Gravar arquivos que você seleciona com o seletor de arquivos do sistema.",
   "extensionConsent.permission.fsManagedFolder": "Ler e gravar arquivos em uma pasta que você escolher para ela.",
+  "extensionConsent.permission.speechListen": "Ouvir o seu microfone enquanto você recita. O áudio permanece neste dispositivo.",
+  "extensionConsent.permission.speechSpeak": "Falar textos em voz alta e tocar sons curtos.",
   "extensionConsent.permission.bibleProvide": "Fornecer texto bíblico ao aplicativo a partir de sua própria fonte.",
   "extensionConsent.permission.commentaryProvide": "Fornecer entradas de comentários ao aplicativo.",
   "extensionConsent.permission.dictionaryProvide": "Fornecer entradas de dicionários e léxicos ao aplicativo.",

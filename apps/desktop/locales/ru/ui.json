@@ -1998,6 +1998,8 @@
   "extensionConsent.permission.fsReadUser": "Читать файлы, которые вы выберете в системном диалоге выбора файлов.",
   "extensionConsent.permission.fsWriteUser": "Записывать файлы, которые вы выберете в системном диалоге выбора файлов.",
   "extensionConsent.permission.fsManagedFolder": "Читать и записывать файлы в выбранной вами для него папке.",
+  "extensionConsent.permission.speechListen": "Слушать микрофон, пока вы читаете наизусть. Звук остаётся на этом устройстве.",
+  "extensionConsent.permission.speechSpeak": "Произносить текст вслух и воспроизводить короткие сигналы.",
   "extensionConsent.permission.bibleProvide": "Предоставлять приложению текст Библии из собственного источника.",
   "extensionConsent.permission.commentaryProvide": "Предоставлять приложению статьи комментариев.",
   "extensionConsent.permission.dictionaryProvide": "Предоставлять приложению статьи словарей и лексиконов.",

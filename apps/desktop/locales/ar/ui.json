@@ -1998,6 +1998,8 @@
   "extensionConsent.permission.fsReadUser": "قراءة الملفات التي تختارها بمنتقي الملفات في النظام.",
   "extensionConsent.permission.fsWriteUser": "الكتابة في الملفات التي تختارها بمنتقي الملفات في النظام.",
   "extensionConsent.permission.fsManagedFolder": "قراءة الملفات وكتابتها في مجلد تختاره له.",
+  "extensionConsent.permission.speechListen": "الاستماع إلى الميكروفون أثناء التلاوة. يبقى الصوت على هذا الجهاز.",
+  "extensionConsent.permission.speechSpeak": "نطق النص بصوت عالٍ وتشغيل أصوات قصيرة.",
   "extensionConsent.permission.bibleProvide": "تزويد التطبيق بنص الكتاب المقدس من مصدره الخاص.",
   "extensionConsent.permission.commentaryProvide": "تزويد التطبيق بمداخل تفسير.",
   "extensionConsent.permission.dictionaryProvide": "تزويد التطبيق بمداخل القواميس والمعاجم.",

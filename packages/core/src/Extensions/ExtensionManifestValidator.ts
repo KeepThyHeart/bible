@@ -131,6 +131,8 @@ export const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
   'tasks',
   'network',
   'network:oauth',
+  'speech:listen',
+  'speech:speak',
   'extensions:call',
   'fs:read-user',
   'fs:write-user',
