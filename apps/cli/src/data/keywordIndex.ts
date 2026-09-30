@@ -8,10 +8,11 @@
  * root for that: one provider, an index directory next to the modules, and a
  * build of whatever index the module in use is missing.
  *
- * Where the directory is, in order: `<data>/keyword-index` beside a
- * `<data>/modules` folder (the layout the desktop and web apps use, so an index
- * they already built is reused), else `<BIBLE_HOME or ~/.bible>/keyword-index`
- * when that place is not writable or is not laid out that way.
+ * Where the directory is: beside a `modules` folder the CLI or a checkout owns
+ * (`<BIBLE_HOME>/keyword-index`, `<repo>/data/keyword-index`, the layout the web
+ * server uses), else `<BIBLE_HOME or ~/.bible>/keyword-index`. The desktop app's own
+ * module folders are never written to: it keeps its indexes under its user data
+ * folder in a layout of its own, and may be running.
  */
 import { existsSync, mkdirSync, accessSync, constants } from 'node:fs';
 import { homedir } from 'node:os';
@@ -24,14 +25,16 @@ import {
 } from '@bible/core';
 
 import { BunSql } from './BunSql';
+import type { DiscoveredModule } from './modules';
 
-/** The directory holding the `.kwi` files for a module file at `modulePath`. */
+/** The directory holding the `.kwi` files for `module`. */
 export function keywordIndexDirFor(
-  modulePath: string,
+  module: Pick<DiscoveredModule, 'path'> & { readonly root: Pick<DiscoveredModule['root'], 'kind'> },
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): string {
-  const modulesDir = dirname(modulePath);
-  if (basename(modulesDir) === 'modules') {
+  const ownsFolder = module.root.kind === 'repo' || module.root.kind === 'cli' || module.root.kind === 'override';
+  const modulesDir = dirname(module.path);
+  if (ownsFolder && basename(modulesDir) === 'modules') {
     const beside = join(dirname(modulesDir), 'keyword-index');
     if (existsSync(beside) || isWritableDir(dirname(modulesDir))) return beside;
   }
@@ -51,14 +54,15 @@ let configuredDir: string | undefined;
 let provider: SidecarFts5Provider | undefined;
 
 /**
- * Make sure the module at `modulePath` can be keyword-searched: configure the
+ * Make sure the module at the module can be keyword-searched: configure the
  * sidecar provider (once per index directory) and build this module's index if
  * it is missing or stale. Cheap when the index is current. Never throws: a
  * failure leaves search returning no results for that module, which core logs.
  */
-export async function ensureKeywordIndex(modulePath: string): Promise<void> {
+export async function ensureKeywordIndex(module: Pick<DiscoveredModule, 'path'> & { readonly root: Pick<DiscoveredModule['root'], 'kind'> }): Promise<void> {
+  const modulePath = module.path;
   try {
-    const dir = keywordIndexDirFor(modulePath);
+    const dir = keywordIndexDirFor(module);
     if (provider === undefined || configuredDir !== dir) {
       mkdirSync(dir, { recursive: true });
       provider = new SidecarFts5Provider({

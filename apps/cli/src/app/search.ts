@@ -128,7 +128,7 @@ export async function runSearch(
 
   // v0.2 modules carry no FTS table: their keyword index is a sidecar file that
   // has to be configured, and built the first time, before core can search.
-  await ensureKeywordIndex(bible.module.path);
+  await ensureKeywordIndex(bible.module);
 
   const service = new BibleSearchService(new Map([[module, bible.repo]]), target.library.bookRepository());
   const started = performance.now();

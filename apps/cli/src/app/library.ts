@@ -23,6 +23,7 @@ import {
   DictionaryRepository,
   TopicalIndexRepository,
   VerseIdHelper,
+  isReadableFormatVersion,
   type BibleVerse,
   type IBibleBookRepository,
   type Testament,
@@ -554,6 +555,8 @@ function schemaRank(module: DiscoveredModule): number {
   const major = Number.parseInt(majorText ?? '', 10);
   if (Number.isNaN(major)) return 0;
   if (major === 0) {
+    // A 0.N this build refuses (say a 0.3) must not win a tie only to be rejected after.
+    if (!isReadableFormatVersion(module.schemaVersion ?? '')) return 0;
     const minor = Number.parseInt(minorText ?? '', 10);
     return 1000 + (Number.isNaN(minor) ? 0 : minor);
   }

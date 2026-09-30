@@ -142,7 +142,7 @@ import {
   wrapRuns,
   wrapTokens,
 } from '../term/layout';
-import { clampScroll, jumpScroll, layoutReading, type ReadingLine } from '../term/reading';
+import { clampScroll, jumpScroll, layoutReading, superscript, type ReadingLine } from '../term/reading';
 import { mergeStyle, type ColorDepth, type Style, type StyledLine } from '../term/style';
 import { layoutCommentary } from '../app/commentaryMarkup';
 import {
@@ -2415,10 +2415,13 @@ export class MainScreen implements Screen {
     if (this.shortcutsExpanded) {
       rows.push([{ text: '? for the verse text', style: ctx.theme.muted }]);
     } else {
-      // The lines were wrapped to the main pane's width; re-wrap the verse to this
-      // pane's, or the narrow pane clips them and drops words.
-      const runs = laid.lines.filter((l) => l.verse === cursorNum).flatMap((l) => l.segments);
-      rows.push(...wrapRuns(runs, { width }));
+      // Wrap the verse's own runs to this pane's width. (The laid-out lines were
+      // wrapped for the main pane: clipping them drops words, and a paragraph's
+      // last line also holds the start of the next verse.)
+      const verse = laid.verses.find((v) => v.verse === cursorNum);
+      if (verse !== undefined) {
+        rows.push(...wrapRuns([{ text: superscript(cursorNum), style: ctx.theme.muted }, ...verse.runs], { width }));
+      }
     }
     rows.push([]);
 
