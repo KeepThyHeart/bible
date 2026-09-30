@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentType } from 'preact';
 import { useTranslation } from 'react-i18next';
-import { XrefHopper, XrefWebView, XrefArcView, XrefConstellationView, useXrefFullscreen } from '@bible/ui';
-import type { XrefHopperProps, XrefWebViewProps, XrefArcViewProps, XrefConstellationViewProps } from '@bible/ui';
+import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, useXrefFullscreen } from '@bible/ui';
+import type { XrefHopperProps, XrefWebViewProps, XrefArcViewProps, XrefCompassViewProps } from '@bible/ui';
 import { xrefGraphStore } from '../../stores/xrefGraphStore';
 import type { XrefGraphView } from '../../stores/xrefGraphStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -19,9 +19,9 @@ import type { IBibleDataProvider } from '../../providers/interfaces';
 const Hopper = XrefHopper as unknown as ComponentType<XrefHopperProps>;
 const WebView = XrefWebView as unknown as ComponentType<XrefWebViewProps>;
 const ArcView = XrefArcView as unknown as ComponentType<XrefArcViewProps>;
-const ConstellationView = XrefConstellationView as unknown as ComponentType<XrefConstellationViewProps>;
+const CompassView = XrefCompassView as unknown as ComponentType<XrefCompassViewProps>;
 
-const VIEWS: XrefGraphView[] = ['hopper', 'web', 'constellation', 'arcs'];
+const VIEWS: XrefGraphView[] = ['hopper', 'web', 'compass', 'arcs'];
 const PHONE_WIDTH = 600;
 
 const isPhone = () => window.innerWidth < PHONE_WIDTH;
@@ -133,7 +133,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const tabLabel: Record<XrefGraphView, string> = {
     hopper: t('xrefGraph.view.hopper', { defaultValue: 'Hopper' }),
     web: t('xrefGraph.view.web', { defaultValue: 'Verse web' }),
-    constellation: t('xrefGraph.view.constellation', { defaultValue: 'Constellation' }),
+    compass: t('xrefGraph.view.compass', { defaultValue: 'Compass' }),
     arcs: t('xrefGraph.view.arcs', { defaultValue: 'Canon arcs' }),
   };
 
@@ -236,8 +236,8 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
               getVerseText={getVerseText}
               labels={labels.web}
             />
-          ) : view === 'constellation' ? (
-            <ConstellationView
+          ) : view === 'compass' ? (
+            <CompassView
               provider={xrefGraphProvider}
               anchor={anchor}
               onAnchorChange={(id) => xrefGraphStore.setAnchor(id)}
@@ -245,7 +245,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
               formatRef={formatRef}
               bookName={getLocalizedBookName}
               getVerseText={getVerseText}
-              labels={labels.constellation}
+              labels={labels.compass}
             />
           ) : (
             <ArcView

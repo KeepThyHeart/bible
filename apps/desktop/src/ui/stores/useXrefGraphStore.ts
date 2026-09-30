@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 
-export type XrefGraphView = 'hopper' | 'web' | 'constellation' | 'arcs';
+export type XrefGraphView = 'hopper' | 'web' | 'compass' | 'arcs';
 
 export const XREF_GRAPH_VIEW_STORAGE_KEY = 'xrefGraph.lastView';
 
 /** Viewport width below which the dialog is full-screen and the Hopper is the default view. */
 export const XREF_GRAPH_PHONE_WIDTH = 600;
 
-const VIEWS: readonly XrefGraphView[] = ['hopper', 'web', 'constellation', 'arcs'];
+const VIEWS: readonly XrefGraphView[] = ['hopper', 'web', 'compass', 'arcs'];
 
 function readSavedView(): XrefGraphView | null {
   try {

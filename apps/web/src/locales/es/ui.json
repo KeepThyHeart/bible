@@ -719,7 +719,7 @@
       "hopper": "Saltador",
       "web": "Red de versículos",
       "arcs": "Arcos canónicos",
-      "constellation": "Constelación"
+      "compass": "Brújula"
     },
     "showConnections": "Mostrar conexiones",
     "noVerse": "Selecciona un versículo para explorar sus conexiones",
@@ -813,7 +813,7 @@
     },
     "fullscreen": "Pantalla completa",
     "exitFullscreen": "Salir de pantalla completa",
-    "constellation": {
+    "compass": {
       "back": "Atrás",
       "depthLabel": "Saltos",
       "depthHint": "Hasta dónde mirar desde el versículo central. 1 muestra los versículos que cita directamente, 2 añade los que estos citan, y 3 llega un paso más allá.",
@@ -823,8 +823,8 @@
       "minStrengthAny": "Cualquiera",
       "minStrengthValue": "{n} de 5 o más",
       "help": "¿Qué significan estos controles?",
-      "region": "Constelación",
-      "toolbar": "Controles de la constelación",
+      "region": "Brújula",
+      "toolbar": "Controles de la brújula",
       "summary": "{n} versículos conectados",
       "hint": "Cada estrella se sitúa en la dirección de su lugar en la Biblia: Génesis arriba, en sentido horario hasta Apocalipsis. Los anillos muestran a cuántos saltos del centro está un versículo.",
       "ringStart": "Génesis",
@@ -833,7 +833,7 @@
       "empty": "No hay referencias cruzadas para este versículo",
       "error": "No se pudieron cargar las conexiones",
       "retry": "Reintentar",
-      "graph": "Constelación de referencias cruzadas",
+      "graph": "Brújula de referencias cruzadas",
       "detail": "Versículo seleccionado",
       "recentre": "Re-centrar aquí",
       "openInReader": "Abrir en lector",

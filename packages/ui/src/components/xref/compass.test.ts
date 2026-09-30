@@ -1,5 +1,5 @@
 import type { XrefGraph } from '@bible/core/browser';
-import { RING_FRACTIONS, bookSegments, canonAngle, constellationLayout } from './constellation';
+import { RING_FRACTIONS, bookSegments, canonAngle, compassLayout, compassTicks } from './compass';
 
 const GEN = 1001001;
 const JOHN = 43003016;
@@ -23,8 +23,8 @@ function graph(): XrefGraph {
   };
 }
 
-describe('constellationLayout', () => {
-  const layout = constellationLayout(graph(), { width: 800, height: 600 });
+describe('compassLayout', () => {
+  const layout = compassLayout(graph(), { width: 800, height: 600 });
   const star = (id: number) => layout.stars.find((s) => s.id === id)!;
 
   it('puts the anchor at the centre', () => {
@@ -51,7 +51,7 @@ describe('constellationLayout', () => {
     const g = graph();
     g.nodes = g.nodes.filter((n) => n.hop <= 1);
     g.edges = g.edges.filter((e) => e.to !== 45005008);
-    const l = constellationLayout(g, { width: 800, height: 600 });
+    const l = compassLayout(g, { width: 800, height: 600 });
     expect(l.hopRadii).toHaveLength(RING_FRACTIONS[1].length);
   });
 
@@ -62,7 +62,7 @@ describe('constellationLayout', () => {
       nodes: [{ verseId: JOHN, hop: 0, degree: 3 }, ...[1, 2, 3, 4].map((v) => ({ verseId: 45005000 + v, hop: 1, degree: 1 }))],
       edges: [1, 2, 3, 4].map((v) => ({ from: JOHN, to: 45005000 + v, weight: 0.5, sources: [], direction: 'out' as const })),
     };
-    const l = constellationLayout(g, { width: 800, height: 600 });
+    const l = compassLayout(g, { width: 800, height: 600 });
     const radii = new Set(l.stars.filter((s) => s.hop === 1).map((s) => Math.round(Math.hypot((s.x - 400) / l.stretch, s.y - 300))));
     expect(radii.size).toBeGreaterThan(1);
     for (const s of l.stars.filter((x) => x.hop === 1)) {
@@ -71,7 +71,7 @@ describe('constellationLayout', () => {
   });
 
   it('keeps the ring inside a narrow, tall stage (phone)', () => {
-    const l = constellationLayout(graph(), { width: 360, height: 640 });
+    const l = compassLayout(graph(), { width: 360, height: 640 });
     for (const s of l.stars) {
       expect(s.x).toBeGreaterThan(0);
       expect(s.x).toBeLessThan(360);
@@ -87,7 +87,7 @@ describe('constellationLayout', () => {
       nodes: [{ verseId: JOHN, hop: 0, degree: 3 }, ...ids.map((verseId) => ({ verseId, hop: 1, degree: 1 }))],
       edges: ids.map((to) => ({ from: JOHN, to, weight: 0.5, sources: [], direction: 'out' as const })),
     };
-    const l = constellationLayout(g, { width: 800, height: 600 });
+    const l = compassLayout(g, { width: 800, height: 600 });
     const radii = l.stars.filter((s) => s.hop === 1).map((s) => Math.round(Math.hypot((s.x - 400) / l.stretch, s.y - 300)));
     expect(new Set(radii).size).toBe(5);
   });
@@ -103,7 +103,7 @@ describe('constellationLayout', () => {
     expect(layout.edges[0].d).toMatch(/^M[\d. ]+Q[\d. ]+[\d. ]+$/);
     const g = graph();
     g.edges.push({ from: JOHN, to: 99999999, weight: 1, sources: [], direction: 'out' });
-    expect(constellationLayout(g, { width: 800, height: 600 }).edges).toHaveLength(3);
+    expect(compassLayout(g, { width: 800, height: 600 }).edges).toHaveLength(3);
   });
 });
 
@@ -114,5 +114,19 @@ describe('bookSegments', () => {
     expect(segs[0].start).toBe(0);
     expect(segs[65].end).toBe(1);
     for (let i = 1; i < segs.length; i++) expect(segs[i].start).toBeCloseTo(segs[i - 1].end);
+  });
+});
+
+describe('compassTicks', () => {
+  const ticks = compassTicks();
+  it('has one notch per book, ordered around the ring', () => {
+    expect(ticks).toHaveLength(66);
+    expect(ticks.every((t, i) => i === 0 || t.pos > ticks[i - 1].pos)).toBe(true);
+  });
+  it('makes section and testament boundaries longer', () => {
+    expect(ticks[0].rank).toBe(2);
+    expect(ticks[39].rank).toBe(2);
+    expect(ticks.filter((t) => t.rank === 1).length).toBeGreaterThanOrEqual(5);
+    expect(ticks[1].rank).toBe(0);
   });
 });

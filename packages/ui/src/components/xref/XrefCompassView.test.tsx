@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EgoOptions, VerseId, XrefGraph } from '@bible/core/browser';
-import { XrefConstellationView } from './XrefConstellationView';
+import { XrefCompassView } from './XrefCompassView';
 
 const A = 43003016; // John 3:16
 const B = 45005008; // Romans 5:8
@@ -16,7 +16,7 @@ function makeGraph(anchor: VerseId, others: VerseId[], truncated = false): XrefG
   };
 }
 
-function setup(over: Partial<React.ComponentProps<typeof XrefConstellationView>> = {}, getEgoGraph?: (a: VerseId, o: EgoOptions) => Promise<XrefGraph>) {
+function setup(over: Partial<React.ComponentProps<typeof XrefCompassView>> = {}, getEgoGraph?: (a: VerseId, o: EgoOptions) => Promise<XrefGraph>) {
   const fn = vi.fn(getEgoGraph ?? (async (a: VerseId) => makeGraph(a, a === A ? [B, C] : [A, C])));
   const props = {
     provider: { getEgoGraph: fn },
@@ -26,11 +26,11 @@ function setup(over: Partial<React.ComponentProps<typeof XrefConstellationView>>
     getVerseText: vi.fn(async (id: VerseId) => `text of ${id}`),
     ...over,
   };
-  const utils = render(<XrefConstellationView {...props} />);
+  const utils = render(<XrefCompassView {...props} />);
   return { fn, props, user: userEvent.setup(), ...utils };
 }
 
-describe('XrefConstellationView', () => {
+describe('XrefCompassView', () => {
   it('draws the anchor and its cross-references as stars, with the layout hint', async () => {
     setup();
     expect(await screen.findByRole('button', { name: 'John 3:16' })).toBeInTheDocument();

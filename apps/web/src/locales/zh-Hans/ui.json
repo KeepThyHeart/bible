@@ -719,7 +719,7 @@
       "hopper": "跳转",
       "web": "节经网络",
       "arcs": "正典弧",
-      "constellation": "星座图"
+      "compass": "罗盘图"
     },
     "showConnections": "显示连接",
     "noVerse": "选择节以探索其连接",
@@ -813,7 +813,7 @@
     },
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",
-    "constellation": {
+    "compass": {
       "back": "返回",
       "depthLabel": "跳数",
       "depthHint": "从中心节向外查看的范围。1 显示它直接引用的节，2 再加上这些节所引用的节，3 再多延伸一步。",
@@ -823,8 +823,8 @@
       "minStrengthAny": "任意",
       "minStrengthValue": "{n} / 5 及以上",
       "help": "这些控件是什么意思？",
-      "region": "星座图",
-      "toolbar": "星座图控件",
+      "region": "罗盘图",
+      "toolbar": "罗盘图控件",
       "summary": "{n} 个相连节",
       "hint": "每颗星按其在圣经中的位置排布：创世记在顶部，顺时针排列至启示录。圆环表示该节与中心相距几跳。",
       "ringStart": "创世记",
@@ -833,7 +833,7 @@
       "empty": "此节无交叉引用",
       "error": "无法加载连接",
       "retry": "重试",
-      "graph": "交叉引用星座图",
+      "graph": "交叉引用罗盘图",
       "detail": "所选节",
       "recentre": "在此重新居中",
       "openInReader": "在阅读器中打开",

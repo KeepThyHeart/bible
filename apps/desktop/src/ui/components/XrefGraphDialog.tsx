@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { XrefHopper, XrefWebView, XrefArcView, XrefConstellationView, useXrefFullscreen } from '@bible/ui';
+import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, useXrefFullscreen } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { useDirection } from '../contexts/useDirection';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -15,11 +15,11 @@ import { localizedBookNames } from '../constants/bibleBooks';
 import { xrefGraphProvider } from '../services/xrefGraphProvider';
 import { getVersesCached } from '../services/verseFetchCache';
 
-const VIEW_ORDER: readonly XrefGraphView[] = ['hopper', 'web', 'constellation', 'arcs'];
+const VIEW_ORDER: readonly XrefGraphView[] = ['hopper', 'web', 'compass', 'arcs'];
 const VIEW_DEFAULTS: Record<XrefGraphView, string> = {
   hopper: 'Hopper',
   web: 'Verse web',
-  constellation: 'Constellation',
+  compass: 'Compass',
   arcs: 'Canon arcs',
 };
 
@@ -162,9 +162,9 @@ const XrefGraphDialog: React.FC = () => {
         />
       );
     }
-    if (view === 'constellation') {
+    if (view === 'compass') {
       return (
-        <XrefConstellationView
+        <XrefCompassView
           provider={xrefGraphProvider}
           anchor={anchor}
           onAnchorChange={setAnchor}
@@ -172,7 +172,7 @@ const XrefGraphDialog: React.FC = () => {
           formatRef={formatRef}
           bookName={bookName}
           getVerseText={getVerseText}
-          labels={labels.constellation}
+          labels={labels.compass}
           dir={dir}
         />
       );

@@ -719,7 +719,7 @@
       "hopper": "Hopper",
       "web": "Verse web",
       "arcs": "Canon arcs",
-      "constellation": "Constellation"
+      "compass": "Compass"
     },
     "showConnections": "Show connections",
     "noVerse": "Select a verse to explore its connections",
@@ -813,7 +813,7 @@
     },
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",
-    "constellation": {
+    "compass": {
       "back": "Back",
       "depthLabel": "Hops",
       "depthHint": "How far from the centre verse to look. 1 shows the verses it references directly, 2 adds the verses those reference, and 3 goes one step further.",
@@ -823,8 +823,8 @@
       "minStrengthAny": "Any",
       "minStrengthValue": "{n} of 5 and up",
       "help": "What do these controls mean?",
-      "region": "Constellation",
-      "toolbar": "Constellation controls",
+      "region": "Compass",
+      "toolbar": "Compass controls",
       "summary": "{n} connected verses",
       "hint": "Each star sits in the direction of its place in the Bible: Genesis at the top, running clockwise to Revelation. The rings show how many hops a verse is from the centre.",
       "ringStart": "Genesis",
@@ -833,7 +833,7 @@
       "empty": "No cross-references for this verse",
       "error": "Could not load the connections",
       "retry": "Retry",
-      "graph": "Cross-reference constellation",
+      "graph": "Cross-reference compass",
       "detail": "Selected verse",
       "recentre": "Re-centre here",
       "openInReader": "Open in reader",

@@ -33,7 +33,7 @@ Built once per set of installed modules (fingerprint = module abbreviations, ver
 |---|---|
 | core (`@bible/core`) | Service, index builder, repository stream. |
 | core browser (`@bible/core/browser`) | Types, weight, canon, packing, ego walk. |
-| `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force, zoom and pan), `XrefConstellationView` (SVG, pure layout in `constellation.ts`), `XrefArcView` (canvas), shared hop/strength controls (`controls.tsx`), `useXrefFullscreen`, section colours `--kth-section-0..9`. |
+| `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force, zoom and pan), `XrefCompassView` (SVG, pure layout in `compass.ts`), `XrefArcView` (canvas), shared hop/strength controls (`controls.tsx`), `useXrefFullscreen`, section colours `--kth-section-0..9`. |
 | web | `/api/xref-graph/*` routes, `XrefGraphProvider` (fetch), dialog opened from the verse context menu and the study pane. |
 | desktop | `xrefGraph:*` IPC, `XrefGraphIpcProvider`, dialog opened from the verse context menu, the study pane and the command palette (`xrefGraph.open`, for the selected verse). |
 
@@ -46,6 +46,6 @@ Escape: in the arc and web views the first press clears a selection; when nothin
 
 The 1/2/3 buttons are the hop count (`EgoOptions.depth`): 1 = the verses the centre verse cites directly, 2 adds the verses those cite, 3 goes one step further. The strength slider (1 to 5) sets `EgoOptions.minWeight` through `minWeightForStep()`: links whose display step (`weightStep`) is below the chosen value are dropped, and verses reachable only through them vanish. Today the weight comes from TSK rank position (closest parallels first), with a boost when the link runs both ways or two sources agree; there are no vote counts yet (OpenBible votes would enter through `baseWeight`). In the canon arcs the same slider is a floor on the summed weight of all links between two chapters.
 
-## Constellation, zoom and full screen
+## Compass, zoom and full screen
 
-The constellation puts each star at the angle of its `canonPosition` (Genesis at the top, clockwise); hop rings are radial, stars sharing an angle are staggered along the radius, and a wide stage stretches the circle into an ellipse. The verse web's camera focuses on the anchor by default (zoomed in, never below 1), pans by dragging the background, zooms by wheel, pinch, buttons or `+`/`-`, and "Fit all" zooms out to everything. Full screen: `useXrefFullscreen(ref)` (in `@bible/ui`) gives `{ full, toggle }`; each app stretches its dialog when `full` is set and the element also requests the browser's Fullscreen API.
+The compass puts each star at the angle of its `canonPosition` (Genesis at the top, clockwise); hop rings are radial, stars sharing an angle are staggered along the radius, and a wide stage stretches the circle into an ellipse. The verse web's camera focuses on the anchor by default (zoomed in, never below 1), pans by dragging the background, zooms by wheel, pinch, buttons or `+`/`-`, and "Fit all" zooms out to everything. Full screen: `useXrefFullscreen(ref)` (in `@bible/ui`) gives `{ full, toggle }`; each app stretches its dialog when `full` is set and the element also requests the browser's Fullscreen API.

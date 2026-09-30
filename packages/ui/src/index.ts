@@ -22,8 +22,8 @@ export { XrefHopper, DEFAULT_XREF_HOPPER_LABELS } from './components/xref/XrefHo
 export type { XrefHopperProps, XrefHopperLabels } from './components/xref/XrefHopper';
 export { XrefWebView, DEFAULT_XREF_WEB_LABELS } from './components/xref/XrefWebView';
 export type { XrefWebViewProps, XrefWebViewLabels } from './components/xref/XrefWebView';
-export { XrefConstellationView, DEFAULT_XREF_CONSTELLATION_LABELS } from './components/xref/XrefConstellationView';
-export type { XrefConstellationViewProps, XrefConstellationLabels } from './components/xref/XrefConstellationView';
+export { XrefCompassView, DEFAULT_XREF_COMPASS_LABELS } from './components/xref/XrefCompassView';
+export type { XrefCompassViewProps, XrefCompassLabels } from './components/xref/XrefCompassView';
 export { useXrefFullscreen } from './components/xref/fullscreen';
 export { XrefArcView, DEFAULT_XREF_ARCS_LABELS } from './components/xref/XrefArcView';
 export type { XrefArcViewProps, XrefArcViewLabels } from './components/xref/XrefArcView';

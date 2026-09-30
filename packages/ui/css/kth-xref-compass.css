@@ -1,9 +1,12 @@
-/* Cross-reference graph: constellation view (task 0068). Builds on the kth-xref-web toolbar, stage and detail classes. */
+/* Cross-reference graph: compass view (task 0068). Builds on the kth-xref-web toolbar, stage and detail classes. */
 .kth-xref-star__svg { background: var(--kth-bg); }
 .kth-xref-star__bg { fill: transparent; cursor: default; }
 .kth-xref-star__book { fill: none; stroke-width: 5; opacity: 0.7; }
 .kth-xref-star__ring { fill: none; stroke: var(--kth-border); stroke-dasharray: 2 5; }
 .kth-xref-star__divide { stroke: var(--kth-border-strong); stroke-dasharray: 2 4; }
+.kth-xref-star__tick { stroke: var(--kth-text-muted); stroke-width: 1; stroke-linecap: round; opacity: 0.45; }
+.kth-xref-star__tick--1 { stroke-width: 1.4; opacity: 0.7; }
+.kth-xref-star__tick--2 { stroke: var(--kth-border-strong); stroke-width: 1.8; opacity: 1; }
 .kth-xref-star__ringlabel { fill: var(--kth-text-muted); font-size: 11px; }
 
 .kth-xref-star__edge { fill: none; stroke: var(--kth-text-muted); stroke-linecap: round; opacity: 0.16; animation: kth-xref-star-fade 500ms ease-out; }

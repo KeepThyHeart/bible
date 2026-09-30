@@ -1,5 +1,5 @@
 /**
- * Pure layout for the constellation view (task 0068, wireframe D): the canon as a night sky.
+ * Pure layout for the compass view (task 0068, wireframe D): the canon as a night sky.
  *
  * The outer ring is the whole canon, Genesis at the top running clockwise. The anchor is the centre star; hop 1
  * sits on an inner ring, hop 2 and 3 on rings beyond it, and every star's ANGLE is its place in the canon
@@ -93,6 +93,23 @@ export function bookSegments(): BookSegment[] {
   return out;
 }
 
+export interface CompassTick {
+  /** Canon position 0..1. */
+  pos: number;
+  /** 0 = book boundary, 1 = section boundary (Law, History, ...), 2 = testament boundary. */
+  rank: 0 | 1 | 2;
+}
+
+/** Notches around the ring: one per book start, longer where the section changes, longest at the New Testament. */
+export function compassTicks(): CompassTick[] {
+  const segs = bookSegments();
+  return segs.map((s, i) => {
+    const prev = segs[i - 1];
+    const rank = s.book === 40 ? 2 : prev && prev.section !== s.section ? 1 : s.book === 1 ? 2 : 0;
+    return { pos: s.start, rank };
+  });
+}
+
 /** Rough text width for label collision tests (px at the 11px label size). */
 const labelWidth = (chars: number) => chars * 6.4 + 4;
 
@@ -102,7 +119,7 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 &
 /**
  * Lay the ego graph out. `labelOf` gives the text each star would carry (used only to size label boxes).
  */
-export function constellationLayout(
+export function compassLayout(
   graph: XrefGraph,
   { width, height, margin = 52 }: StarLayoutOptions,
   labelOf: (id: VerseId, end?: VerseId) => string = (id) => String(id),

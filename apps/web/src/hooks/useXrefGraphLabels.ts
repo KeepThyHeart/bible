@@ -4,14 +4,14 @@ import {
   DEFAULT_XREF_HOPPER_LABELS,
   DEFAULT_XREF_WEB_LABELS,
   DEFAULT_XREF_ARCS_LABELS,
-  DEFAULT_XREF_CONSTELLATION_LABELS,
+  DEFAULT_XREF_COMPASS_LABELS,
 } from '@bible/ui';
-import type { XrefHopperLabels, XrefWebViewLabels, XrefArcViewLabels, XrefConstellationLabels } from '@bible/ui';
+import type { XrefHopperLabels, XrefWebViewLabels, XrefArcViewLabels, XrefCompassLabels } from '@bible/ui';
 
 export interface XrefGraphLabels {
   hopper: XrefHopperLabels;
   web: XrefWebViewLabels;
-  constellation: XrefConstellationLabels;
+  compass: XrefCompassLabels;
   arcs: XrefArcViewLabels;
 }
 
@@ -33,7 +33,7 @@ export function useXrefGraphLabels(): XrefGraphLabels {
   return useMemo(() => ({
     hopper: build('hopper', DEFAULT_XREF_HOPPER_LABELS, t as unknown as TFn),
     web: build('web', DEFAULT_XREF_WEB_LABELS, t as unknown as TFn),
-    constellation: build('constellation', DEFAULT_XREF_CONSTELLATION_LABELS, t as unknown as TFn),
+    compass: build('compass', DEFAULT_XREF_COMPASS_LABELS, t as unknown as TFn),
     arcs: build('arcs', DEFAULT_XREF_ARCS_LABELS, t as unknown as TFn),
   }), [t, i18n.language]);
 }

@@ -1,5 +1,5 @@
 /**
- * Controls shared by the verse web and the constellation (task 0068): how many hops to show and the minimum
+ * Controls shared by the verse web and the compass (task 0068): how many hops to show and the minimum
  * link strength, each with a visible label, a tooltip and an expandable plain-language explanation.
  *
  * Both controls describe what the query asks the provider for: `depth` is `EgoOptions.depth` and the strength

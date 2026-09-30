@@ -1,11 +1,11 @@
 /**
- * XrefConstellationView: the canon as a night sky (task 0068, wireframe D). The centre star is the verse being
+ * XrefCompassView: the canon as a night sky (task 0068, wireframe D). The centre star is the verse being
  * explored; the outer ring is every chapter of the Bible, Genesis at the top running clockwise. Cross-references sit
  * on rings around the centre (one per hop) and each star's ANGLE is its place in the Bible, so cross-references line
  * up in the direction of their book: a cluster low left is the Gospels. Select a star for its text, re-centre on it
  * and the sky re-forms around it (stars glide to their new places).
  *
- * The layout is pure (`constellation.ts`): no physics, instant and stable. React renders SVG. Data, depth and the
+ * The layout is pure (`compass.ts`): no physics, instant and stable. React renders SVG. Data, depth and the
  * strength floor work exactly as in the verse web (same `getEgoGraph` request, shared controls).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,12 +16,12 @@ import { defaultFormatRef, sectionVarOfVerse, useElementSize, usePrefersReducedM
 import type { FormatRef } from './common';
 import { DEFAULT_XREF_CONTROL_LABELS, XrefControlsHelp, XrefDepthControl, XrefStrengthControl, fillTpl as fill, minWeightForStep } from './controls';
 import type { XrefControlLabels } from './controls';
-import { bookSegments, canonAngle, constellationLayout } from './constellation';
-import type { Star } from './constellation';
+import { bookSegments, canonAngle, compassLayout, compassTicks } from './compass';
+import type { Star } from './compass';
 import { neighbourInDirection, rankedNeighbours } from './webGraph';
 import type { ArrowDir } from './webGraph';
 
-export interface XrefConstellationLabels extends XrefControlLabels {
+export interface XrefCompassLabels extends XrefControlLabels {
   region: string;
   toolbar: string;
   /** `{n}` is the number of connected verses shown. */
@@ -54,10 +54,10 @@ export interface XrefConstellationLabels extends XrefControlLabels {
   hopName: string;
 }
 
-export const DEFAULT_XREF_CONSTELLATION_LABELS: XrefConstellationLabels = {
+export const DEFAULT_XREF_COMPASS_LABELS: XrefCompassLabels = {
   ...DEFAULT_XREF_CONTROL_LABELS,
-  region: 'Constellation',
-  toolbar: 'Constellation controls',
+  region: 'Compass',
+  toolbar: 'Compass controls',
   summary: '{n} connected verses',
   hint: 'Each star sits in the direction of its place in the Bible: Genesis at the top, running clockwise to Revelation. The rings show how many hops a verse is from the centre.',
   ringStart: 'Genesis',
@@ -66,7 +66,7 @@ export const DEFAULT_XREF_CONSTELLATION_LABELS: XrefConstellationLabels = {
   empty: 'No cross-references for this verse',
   error: 'Could not load the connections',
   retry: 'Retry',
-  graph: 'Cross-reference constellation',
+  graph: 'Cross-reference compass',
   detail: 'Selected verse',
   recentre: 'Re-centre here',
   openInReader: 'Open in reader',
@@ -81,7 +81,7 @@ export const DEFAULT_XREF_CONSTELLATION_LABELS: XrefConstellationLabels = {
   hopName: 'hop {hop}',
 };
 
-export interface XrefConstellationViewProps {
+export interface XrefCompassViewProps {
   provider: Pick<IXrefGraphProvider, 'getEgoGraph'>;
   anchor: VerseId;
   onAnchorChange?: (verseId: VerseId) => void;
@@ -92,7 +92,7 @@ export interface XrefConstellationViewProps {
   getVerseText?: (verseId: VerseId, endVerseId?: VerseId) => Promise<string | undefined>;
   initialDepth?: 1 | 2 | 3;
   initialMaxNodes?: number;
-  labels?: Partial<XrefConstellationLabels>;
+  labels?: Partial<XrefCompassLabels>;
   dir?: 'ltr' | 'rtl';
 }
 
@@ -100,6 +100,8 @@ const ARROWS: Record<string, ArrowDir> = { ArrowLeft: 'left', ArrowRight: 'right
 type Load = 'idle' | 'loading' | 'error';
 
 const SEGMENTS = bookSegments();
+const TICKS = compassTicks();
+const TICK_LENGTH = [4, 9, 14] as const;
 const NT_START = bookFirstChapterIndex(40) / CHAPTER_COUNT;
 
 /** Arc path of the canon ring between two canon positions. */
@@ -111,7 +113,7 @@ function arcPath(cx: number, cy: number, r: number, sx: number, from: number, to
   return `M${p(a0)} A${(r * sx).toFixed(1)} ${r} 0 ${large} 1 ${p(a1)}`;
 }
 
-export function XrefConstellationView({
+export function XrefCompassView({
   provider,
   anchor: anchorProp,
   onAnchorChange,
@@ -123,8 +125,8 @@ export function XrefConstellationView({
   initialMaxNodes = 60,
   labels: labelOverrides,
   dir,
-}: XrefConstellationViewProps) {
-  const L = useMemo(() => ({ ...DEFAULT_XREF_CONSTELLATION_LABELS, ...labelOverrides }), [labelOverrides]);
+}: XrefCompassViewProps) {
+  const L = useMemo(() => ({ ...DEFAULT_XREF_COMPASS_LABELS, ...labelOverrides }), [labelOverrides]);
   const reduced = usePrefersReducedMotion();
   const stageRef = useRef<HTMLDivElement>(null);
   const { width, height } = useElementSize(stageRef);
@@ -211,7 +213,7 @@ export function XrefConstellationView({
 
   const ref = useCallback((id: VerseId, end?: VerseId) => formatRef(id, end), [formatRef]);
   const layout = useMemo(
-    () => (graph ? constellationLayout(graph, { width, height }, (id, end) => ref(id, end)) : null),
+    () => (graph ? compassLayout(graph, { width, height }, (id, end) => ref(id, end)) : null),
     [graph, width, height, ref],
   );
   const stars = layout?.stars ?? [];
@@ -337,6 +339,21 @@ export function XrefConstellationView({
                   style={{ stroke: `var(--kth-section-${s.section})` }}
                 />
               ))}
+              {TICKS.map((t) => {
+                const a = canonAngle(t.pos);
+                const r0 = ringR + 5;
+                const r1 = r0 + TICK_LENGTH[t.rank];
+                return (
+                  <line
+                    key={t.pos}
+                    className={`kth-xref-star__tick kth-xref-star__tick--${t.rank}`}
+                    x1={cx + Math.cos(a) * r0 * sx}
+                    y1={cy + Math.sin(a) * r0}
+                    x2={cx + Math.cos(a) * r1 * sx}
+                    y2={cy + Math.sin(a) * r1}
+                  />
+                );
+              })}
               {layout && layout.hopRadii.slice(1).map((r, i) => (
                 <ellipse key={i} className="kth-xref-star__ring" cx={cx} cy={cy} rx={r * sx} ry={r} />
               ))}
