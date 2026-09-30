@@ -349,6 +349,12 @@ export const TYPED_IPC_CHANNELS = [
   'featurePack:install-from-file',
   'featurePack:cancel',
   'featurePack:uninstall',
+  // Asset store (task 0090): downloadable voices/models/data; ids only
+  'assets:list',
+  'assets:install',
+  'assets:cancel',
+  'assets:remove',
+  'assets:refresh',
   // Download management
   'download:get-progress',
   'download:get-active',

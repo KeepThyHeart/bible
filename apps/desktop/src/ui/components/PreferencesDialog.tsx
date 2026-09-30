@@ -30,6 +30,7 @@ import { TypographySection } from './PreferencesDialog/TypographySection';
 import { FontsSection } from './PreferencesDialog/FontsSection';
 import { ThemesSection } from './PreferencesDialog/ThemesSection';
 import { PrivacySection } from './PreferencesDialog/PrivacySection';
+import { DownloadsSection } from './PreferencesDialog/DownloadsSection';
 import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
 
@@ -176,6 +177,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'fonts' && <FontsSection initialPane={initialFontPane} />}
             {activeSection === 'themes' && <ThemesSection />}
             {activeSection === 'privacy' && <PrivacySection />}
+            {activeSection === 'downloads' && <DownloadsSection />}
             {activeSection === 'extensions' && (
               <ExtensionsSection initialExpand={initialExtensionTarget} />
             )}
