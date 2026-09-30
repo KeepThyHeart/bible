@@ -18,7 +18,7 @@ import { AudioProgress } from './audio/AudioProgress';
 import { AudioTransportButtons } from './audio/AudioTransportButtons';
 import { useSources } from './audio/useSources';
 import { sourceChipText } from './audio/sourceChip';
-import { setAudioPlayerFocuser } from '../audio/audioShortcuts';
+import { focusAudioPlayer, setAudioPlayerFocuser } from '../audio/audioShortcuts';
 
 export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section?: string) => void }) {
   const { t } = useTranslation();
@@ -93,10 +93,10 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
         >
           <i class="fa-solid fa-gear" aria-hidden="true" />
         </button>
-        <button type="button" class="audio-btn" onClick={() => audioStore.setPlayerStyle('bar')} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
+        <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('bar'); requestAnimationFrame(() => focusAudioPlayer()); }} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
           <i class="fa-solid fa-window-minimize" aria-hidden="true" />
         </button>
-        <button type="button" class="audio-btn" onClick={() => audioStore.stop()} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-close">
+        <button type="button" class="audio-btn" onClick={() => { audioStore.stop(); document.querySelector<HTMLElement>('[data-testid="audio-listen"]')?.focus(); }} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-close">
           <i class="fa-solid fa-xmark" aria-hidden="true" />
         </button>
       </div>

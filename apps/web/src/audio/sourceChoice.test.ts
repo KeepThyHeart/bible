@@ -66,6 +66,6 @@ describe('uiOptions', () => {
     const o = uiOptions([], 'KJV', 'en', t);
     expect(o.map(x => x.disabled)).toEqual([false, true, true]);
     expect(o[1].reason).toContain('noRecording');
-    expect(o[2].reason).toContain('noVoice');
+    expect(o[2].reason).toContain('noGenerated');
   });
 });

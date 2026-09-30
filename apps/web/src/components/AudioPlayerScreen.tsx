@@ -28,6 +28,7 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
   const enabled = useStore(audioStore, () => audioStore.enabled);
   const layout = useStore(audioStore, () => audioStore.layout);
   const open = useStore(audioStore, () => audioStore.playerOpen);
+  const voiceId = useStore(audioStore, () => audioStore.voiceId);
   const sheetOpen = useStore(audioStore, () => audioStore.quickSettingsOpen);
   const providerId = useStore(audioStore, () => audioStore.providerId);
   const now = useNowPlaying();
@@ -50,7 +51,8 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
   if (!visible) return null;
 
   const active = sources.find(s => s.provider.id === providerId);
-  const sub = sourceChipText(t, providerId, active?.provider.label, undefined, now.moduleAbbr ?? '');
+  const voiceLabel = active?.voices.find(v => v.id === voiceId)?.label;
+  const sub = sourceChipText(t, providerId, active?.provider.label, voiceLabel, now.moduleAbbr ?? '');
 
   return (
     <div class="audio-screen" role="dialog" aria-modal="true" aria-label={t('audio.player.label')} data-testid="audio-player-screen">
@@ -62,7 +64,7 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
           <span class="audio-screen__ref-main">{now.refLabel}</span>
           <span class="audio-screen__ref-sub">{sub}</span>
         </div>
-        <button type="button" class="audio-btn audio-btn--large" onClick={() => audioStore.openQuickSettings()} title={t('audio.transport.settings')} aria-label={t('audio.transport.settings')} aria-haspopup="dialog" data-testid="audio-player-gear">
+        <button type="button" class="audio-btn audio-btn--large" onClick={() => audioStore.openQuickSettings()} title={t('audio.quick.title')} aria-label={t('audio.quick.title')} aria-haspopup="dialog" aria-expanded={sheetOpen} data-testid="audio-player-gear">
           <i class="fa-solid fa-gear" aria-hidden="true" />
         </button>
       </div>

@@ -207,4 +207,16 @@ describe('AudioVersePane', () => {
     act(() => { tab.studyVerse = V(5, 9); notifyBible(); });
     expect(screen.queryByText(/audio.verses.readFrom/)).toBeNull(); // another chapter
   });
+
+  it('does not offer "Read from" for the selection playback started from, only for a later change', async () => {
+    const tab = bibleStore.tabs.find(x => x.id === tabId)!;
+    tab.studyVerse = V(1); // play-from-selection: the reading moves on, the selection stays
+    pane();
+    await settle();
+    expect(screen.queryByText(/audio.verses.readFrom/)).toBeNull();
+    act(() => { audioStore.follow.set(tabId, V(3)); });
+    expect(screen.queryByText(/audio.verses.readFrom/)).toBeNull();
+    act(() => { tab.studyVerse = V(6); notifyBible(); });
+    expect(screen.queryByText(/audio.verses.readFrom/)).not.toBeNull();
+  });
 });

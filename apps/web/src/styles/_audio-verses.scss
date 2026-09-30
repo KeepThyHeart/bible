@@ -5,6 +5,11 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-block-size: 0;
+  // The frame is on the wrap so the fade below (a mask on the scroller) never fades the border.
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  overflow: hidden;
 }
 
 .audio-verses {
@@ -12,11 +17,8 @@
   min-block-size: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
   padding: 8px 12px;
   color: var(--text-primary);
-  background: var(--bg-primary);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
 

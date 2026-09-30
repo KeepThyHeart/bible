@@ -786,7 +786,8 @@
       "browserUnsupported": "{engine} 无法在此浏览器中运行。",
       "noVoice": "{engine} 没有适用于 {language} 的声音。",
       "generated": "合成语音",
-      "engine": "语音引擎"
+      "engine": "语音引擎",
+      "noGenerated": "此设备上没有适用于{language}的合成语音。"
     },
     "voice": {
       "label": "声音"

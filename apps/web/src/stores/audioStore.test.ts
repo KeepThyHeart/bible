@@ -464,6 +464,19 @@ describe('errors and alternatives', () => {
     expect(audioStore.status).toBe('playing');
     expect(rig.storage.get(AUDIO_PREFS_KEY)).toBe(stored);
   });
+
+  it('an explicit source pick afterwards beats "use on-device speech instead"', async () => {
+    rig.recorded.openFails = { code: 'not-found', message: 'not recorded', retryable: false };
+    await playNow();
+    await audioStore.useOnDeviceInstead();
+    await flush();
+    expect(audioStore.providerId).toBe('tts:fake');
+    rig.recorded.openFails = undefined;
+    audioStore.setTranslationSource('KJV', 'recorded');
+    await flush();
+    await flush();
+    expect(audioStore.providerId).toBe('recorded');
+  });
 });
 
 describe('preferences while playing', () => {

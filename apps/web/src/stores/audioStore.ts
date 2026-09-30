@@ -553,6 +553,7 @@ class AudioStore extends Store {
 
   /** Source for one translation; `undefined` goes back to the global choice. */
   setTranslationSource(moduleAbbr: string, source: AudioSourceChoice | undefined): void {
+    this.sessionOverride.delete(moduleAbbr); // an explicit pick beats "use on-device speech instead"
     const per = { ...this.prefs.perTranslation };
     const entry = { ...per[moduleAbbr], source };
     if (source === undefined) delete entry.source;
@@ -578,6 +579,7 @@ class AudioStore extends Store {
 
   setPrefs(patch: Partial<AudioUiPrefs>): void {
     const before = this.prefs;
+    if (patch.source !== undefined) this.sessionOverride.clear();
     this.prefs = sanitizeAudioPrefs({ ...before, ...patch });
     saveAudioPrefs(this.prefs, this.storage === undefined ? undefined : this.storage);
     this.notify();

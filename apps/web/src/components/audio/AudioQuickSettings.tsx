@@ -30,7 +30,9 @@ export function AudioQuickSettings({ moduleAbbr, variant, onOpenSettings }: Audi
   const ui = uiSourceOf(chosen);
 
   // The engine whose voices are offered: the chosen one, else the one playing.
-  const engineProviderId = chosen.startsWith('tts:') ? chosen : providerId?.startsWith('tts:') ? providerId : null;
+  // (the chosen engine may be unusable for this translation: then the one playing instead)
+  const chosenUsable = chosen.startsWith('tts:') && sources.some(s => s.provider.id === chosen && s.usable);
+  const engineProviderId = chosenUsable ? chosen : providerId?.startsWith('tts:') ? providerId : null;
   const engineStatus = engineProviderId ? sources.find(s => s.provider.id === engineProviderId && s.usable) : undefined;
   const voices = engineStatus ? engineStatus.voices : [];
   const engine = engineStatus ? engineStatus.provider.id.slice(4) : null;
@@ -64,7 +66,7 @@ export function AudioQuickSettings({ moduleAbbr, variant, onOpenSettings }: Audi
           <EngineSelect
             id="audio-quick-engine"
             sources={sources}
-            value={chosen.startsWith('tts:') ? chosen : (providerId ?? '')}
+            value={chosenUsable ? chosen : (providerId ?? '')}
             onChange={c => audioStore.setTranslationSource(moduleAbbr, c)}
           />
         </div>

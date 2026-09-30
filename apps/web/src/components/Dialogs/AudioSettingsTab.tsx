@@ -30,7 +30,7 @@ export function AudioSettingsTab() {
   const prefs = useStore(audioStore, () => audioStore.prefs);
   const enabled = useStore(audioStore, () => audioStore.enabled);
   const providerId = useStore(audioStore, () => audioStore.providerId);
-  const layout = audioStore.layout;
+  const layout = useStore(audioStore, () => audioStore.layout);
   const moduleAbbr = useStore(bibleStore, () => bibleStore.getActiveModule());
   const sources = useSources(moduleAbbr);
   const language = audioStore.languageFor(moduleAbbr);

@@ -61,7 +61,7 @@ describe('AudioQuickSettings: source', () => {
     await start({ recordings: true, engine: false });
     render(<AudioQuickSettings moduleAbbr="KJV" variant="phone" />);
     await waitFor(() => expect((radio('audio.source.generated') as HTMLButtonElement).disabled).toBe(true));
-    expect(screen.getByTestId('audio-source-reasons').textContent).toContain('audio.source.noVoice');
+    expect(screen.getByTestId('audio-source-reasons').textContent).toContain('audio.source.noGenerated');
   });
 });
 

@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Popover } from '@bible/ui';
+import { focusAudioPlayer } from '../../audio/audioShortcuts';
 import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { useNowPlaying } from '../../hooks/useNowPlaying';
@@ -65,7 +66,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         >
           <i class="fa-solid fa-gear" aria-hidden="true" />
         </button>
-        <button type="button" class="audio-btn" onClick={() => audioStore.setPlayerStyle('popup')} title={t('audio.transport.popOut')} aria-label={t('audio.transport.popOut')} data-testid="audio-popout">
+        <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('popup'); requestAnimationFrame(() => focusAudioPlayer()); }} title={t('audio.transport.popOut')} aria-label={t('audio.transport.popOut')} data-testid="audio-popout">
           <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />
         </button>
         <button type="button" class="audio-btn" onClick={() => audioStore.stop()} title={t('audio.transport.close')} aria-label={t('audio.transport.close')} data-testid="audio-close">

@@ -786,7 +786,8 @@
       "browserUnsupported": "{engine} no puede ejecutarse en este navegador.",
       "noVoice": "{engine} no tiene voz para {language}.",
       "generated": "Generado",
-      "engine": "Motor de voz"
+      "engine": "Motor de voz",
+      "noGenerated": "No hay voz generada para {language} en este dispositivo."
     },
     "voice": {
       "label": "Voz"

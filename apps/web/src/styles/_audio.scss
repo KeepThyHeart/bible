@@ -322,7 +322,7 @@
     &:last-child { border-inline-end: none; }
     &:hover:not(:disabled) { background: var(--bg-tertiary); }
     &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
-    &:disabled { color: var(--text-muted); cursor: not-allowed; text-decoration: line-through; }
+    &:disabled { color: var(--text-muted); cursor: not-allowed; }
 
     // Selected by fill and weight, not colour alone.
     &--active {

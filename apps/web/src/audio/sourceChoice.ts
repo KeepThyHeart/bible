@@ -14,13 +14,25 @@ type T = (key: string, options?: Record<string, string>) => string;
 
 const RECORDED_ID = 'recorded';
 
+/** "en" -> "English" (in the reader's language), falling back to the code itself. */
+export function displayLanguage(code: string): string {
+  const primary = code.split(/[-_]/)[0];
+  if (!primary) return code;
+  try {
+    const ui = typeof document !== 'undefined' && document.documentElement.lang ? document.documentElement.lang : 'en';
+    return new Intl.DisplayNames([ui], { type: 'language' }).of(primary) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 /** Why a source cannot be chosen, in words. */
 export function unusableText(status: SourceStatus, moduleAbbr: string, language: string, t: (k: string, o?: Record<string, string>) => string): string {
   const name = status.provider.kind === 'recorded' ? '' : status.provider.label;
   switch (status.reason) {
     case 'no-recording': return t('audio.source.noRecording', { module: moduleAbbr });
     case 'browser': return t('audio.source.browserUnsupported', { engine: name });
-    default: return t('audio.source.noVoice', { engine: name, language });
+    default: return t('audio.source.noVoice', { engine: name, language: displayLanguage(language) });
   }
 }
 
@@ -77,7 +89,7 @@ export function uiOptions(statuses: SourceStatus[], moduleAbbr: string, language
     },
     {
       id: 'generated', label: t('audio.source.generated'), disabled: !generatedOk,
-      reason: generatedOk ? undefined : engines[0] ? unusableText(engines[0], moduleAbbr, language, t) : t('audio.source.noVoice', { engine: '', language }),
+      reason: generatedOk ? undefined : engines[0] ? unusableText(engines[0], moduleAbbr, language, t) : t('audio.source.noGenerated', { language: displayLanguage(language) }),
     },
   ];
 }

@@ -51,6 +51,10 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   const live = useRef({ playingId, ready });
   live.current = { playingId, ready };
   const centredKey = useRef<string | null>(null);
+  // The selection when playback began or the reader last jumped: "Read from" is offered only when it changes after that.
+  const studyBaseline = useRef<number | null | undefined>(undefined);
+  if (studyBaseline.current === undefined && ready) studyBaseline.current = studyVerse;
+  const checkFrame = useRef(0);
   const frame = useRef(0);
 
   const paused = () => now() - intent.lastAt.current < USER_SCROLL_PAUSE_MS;
@@ -88,6 +92,8 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
     if (!chapterKey || centredKey.current === chapterKey) return;
     centredKey.current = chapterKey;
     setCursor(null);
+    setShowBack(false);
+    intent.clear();
     const id = live.current.playingId;
     if (id !== null) centre(id, 'auto');
   }, [chapterKey]);
@@ -99,6 +105,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
       if (id === null || !live.current.ready) return;
       if (paused()) { setShowBack(!inView(id)); return; }
       setShowBack(false);
+      setCursor(null); // the pause is over: the view is back on the verse being read
       if (centredKey.current !== `${Math.floor(id / 1_000_000)}:${Math.floor(id / 1_000) % 1_000}`) return; // the chapter turn lands it
       centre(id, 'smooth');
     });
@@ -115,9 +122,9 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
       const id = live.current.playingId;
       setShowBack(id !== null && paused() && !inView(id));
     };
-    const onScroll = () => { if (!pending && paused()) { pending = true; requestAnimationFrame(check); } };
+    const onScroll = () => { if (!pending && paused()) { pending = true; checkFrame.current = requestAnimationFrame(check); } };
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
+    return () => { el.removeEventListener('scroll', onScroll); cancelAnimationFrame(checkFrame.current); };
   }, [ready]);
 
   // The pane resized (pop-up, rotation): re-centre instantly.
@@ -136,6 +143,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
     intent.clear();
     setShowBack(false);
     setCursor(null);
+    studyBaseline.current = np.tab?.studyVerse ?? null;
     audioStore.jumpToVerse(id % 1000);
   };
 
@@ -186,7 +194,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   const contentDir = directionForLanguage(contentLang);
   const size = variant === 'phone' ? 20 : Math.min(fontSize, 22);
 
-  const showReadFrom = ready && studyVerse !== null && playingId !== null && studyVerse !== playingId
+  const showReadFrom = ready && studyVerse !== null && studyVerse !== studyBaseline.current && playingId !== null && studyVerse !== playingId
     && Math.floor(studyVerse / 1000) === (book as number) * 1000 + (chapter as number);
   const readFromRef = showReadFrom ? `${np.chapterLabel}:${studyVerse! % 1000}` : '';
   const activeId = cursor ?? playingId;
