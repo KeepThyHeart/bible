@@ -23,14 +23,13 @@ export interface EditorCallbacks {
  */
 export function markInputRule(pattern: RegExp, markType: MarkType): InputRule {
   return new InputRule(pattern, (state, match, start, end) => {
-    const [full, prefix, text] = match;
+    const [, prefix, text] = match;
     const from = start + prefix.length;
     const tr = state.tr;
     tr.delete(from, end);
     tr.insertText(text, from);
     tr.addMark(from, from + text.length, markType.create());
     tr.removeStoredMark(markType);
-    void full;
     return tr;
   });
 }

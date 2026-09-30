@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import { presentStore, type ControllerSession } from '../../../stores/presentStore';
 import { HandoffSection, JoinSection, ScreenSection } from './sections';
 
@@ -38,7 +39,8 @@ export function ControlMenu(props: {
     };
   }, [props.onClose]);
 
-  return (
+  // In a portal: the pane clips its children, which cut the menu and the handoff QR short.
+  return createPortal(
     <div class="pz-menu present-panel" ref={ref} role="menu" aria-label={t('present.menu')}>
       <ScreenSection />
       {session && <JoinSection session={session} />}
@@ -68,6 +70,7 @@ export function ControlMenu(props: {
           <p class="present-panel__hint">{t('present.leaveHint')}</p>
         </section>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -12,6 +12,7 @@ import { ControlMenu } from './ControlMenu';
 import { isSetupDone, markSetupDone } from './setupState';
 import { SetupCard } from './SetupCard';
 import { StatusRow } from './StatusRow';
+import { notesStore } from '../notes/notesStore';
 import { Transport } from './Transport';
 
 /**
@@ -31,6 +32,7 @@ export function ControlPane(props: {
   const view = usePresenter();
   const state = usePresenterState();
   const session = useStore(presentStore, () => presentStore.session);
+  useStore(notesStore, () => notesStore.planItems);
   const [menuOpen, setMenuOpen] = useState(false);
   const [setupDone, setSetupDone] = useState(isSetupDone);
 
@@ -64,7 +66,7 @@ export function ControlPane(props: {
         )}
 
         <Transport />
-        {!state?.live && <p class="pz-hint pz-control__nohint">{t('present.control.noPlanHint')}</p>}
+        {!state?.live && notesStore.planItems.length === 0 && <p class="pz-hint pz-control__nohint">{t('present.control.noPlanHint')}</p>}
         <HighlightChips />
         <AddRow onAddToNotes={props.onAddToNotes} />
       </div>

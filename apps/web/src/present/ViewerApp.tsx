@@ -11,7 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { HighlightRange, PresentState, PresentTheme } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
-import { usePassage, type ChapterVerse, type Passage } from './usePassage';
+import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
 import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit, shrinkToFitWidth } from './typography';
@@ -219,6 +219,7 @@ function renderBody(
         highlights={state.position.highlights}
         theme={theme}
         sink={sink}
+        range={selectedVerses(passage, state.live)}
       />
     );
   }
@@ -238,6 +239,8 @@ function PassageView(props: {
   fontStep: number;
   highlights: HighlightRange[];
   theme: PresentTheme;
+  /** The verses the item asks for; the rest of the chapter is shown only as dimmed context. */
+  range: ChapterVerse[];
   /** Set only when interactive; see `usePointerIntents`. */
   sink?: IntentSink;
 }): preact.JSX.Element {
@@ -314,7 +317,7 @@ function PassageView(props: {
           <p
             key={verse.verse_id}
             ref={verse.verse === props.anchor ? anchorRef : undefined}
-            class={`pv-verse${verse.verse === props.anchor ? ' pv-verse--anchor' : ''}`}
+            class={`pv-verse${verse.verse === props.anchor ? ' pv-verse--anchor' : ''}${props.range.some(r => r.verse === verse.verse) ? '' : ' pv-verse--outside'}`}
             // What the pointer layer reads a click back into: which verse (by
             // id, for highlight ranges) and its number (for `goTo`). Inert
             // attributes, so a plain wall renders exactly as before.

@@ -681,3 +681,7 @@ body {
 .pv-hymn-credit {
   opacity: 0.75;
 }
+
+/* Chapter context outside the item's verse range: visible, but clearly not part of it and not clickable. */
+.pv-verse.pv-verse--outside,
+.pv-passage--max .pv-verse.pv-verse--outside { opacity: 0.4; pointer-events: none; }
