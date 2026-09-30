@@ -79,3 +79,16 @@ export async function removeWordGroup(id: string): Promise<void> {
     (await ready()).remove(id);
   } catch { /* storage unavailable: the group stays in memory for the session */ }
 }
+
+/** Call `listener` when another tab changes saved word groups. Resolves with an unsubscribe function. */
+export async function onWordGroupsChangedElsewhere(listener: () => void): Promise<() => void> {
+  try {
+    const store = await getUserData();
+    return store.onRemoteChange((changes) => {
+      if (changes.some((c) => (c.type === 'item:put' && c.row.owner_uuid === WORD_GROUP_OWNER)
+        || (c.type === 'item:delete' && c.ownerUuid === WORD_GROUP_OWNER))) listener();
+    });
+  } catch {
+    return () => {};
+  }
+}

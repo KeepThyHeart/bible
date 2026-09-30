@@ -62,5 +62,10 @@
   "bookmarks.manage": "बुकमार्क प्रबंधित करें",
   "bookmarks.manage.category": "बुकमार्क",
   "bookmarks.manage.alias.0": "बुकमार्क",
-  "bookmarks.manage.alias.1": "सहेजे गए पद"
+  "bookmarks.manage.alias.1": "सहेजे गए पद",
+  "wordStudy.open": "Open Word Study",
+  "wordStudy.open.category": "Study",
+  "wordStudy.open.alias.0": "word study",
+  "wordStudy.open.alias.1": "strongs study",
+  "wordStudy.open.alias.2": "concordance"
 }

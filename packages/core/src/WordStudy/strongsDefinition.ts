@@ -20,13 +20,17 @@ export interface ParsedStrongsDefinition {
 export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew'): ParsedStrongsDefinition {
   const def = raw ?? '';
   const numMatch = def.match(/^\s*(\d+)/);
-  const header = def.match(/^\s*(\d+)\s+(\S+)\s+\S+\s+(\S+)\s*\{([^}]*)\}/);
-  const braceEnd = def.indexOf('}');
   const sep = def.indexOf(':--');
+  // Greek: "25 ἀγαπάω ajgapavw agapao {ag-ap-ah'-o} ..."
+  // Hebrew: "157 'ahab aw-hab' or raheb {aw-habe'}; ..." (transliteration, pronunciation, optional variant, optional braces)
+  const greek = language === 'Greek' ? def.match(/^\s*(\d+)\s+(\S+)\s+\S+\s+(\S+)\s*\{([^}]*)\}/) : null;
+  const hebrew = language === 'Hebrew' ? def.match(/^\s*(\d+)\s+(\S+)\s+(\S+)(?:\s+or\s+\S+)?(?:\s*\{[^}]*\})?\s*;?/) : null;
+  const header = greek ?? hebrew;
+  const headerEnd = header ? (header.index ?? 0) + header[0].length : 0;
 
   let sense = '';
-  if (sep >= 0) sense = def.slice(header && braceEnd >= 0 ? braceEnd + 1 : 0, sep);
-  else if (header && braceEnd >= 0) sense = def.slice(braceEnd + 1);
+  if (sep >= 0) sense = def.slice(headerEnd, sep);
+  else if (header) sense = def.slice(headerEnd);
   sense = sense.replace(/\s+/g, ' ').trim();
 
   let lexiconRenderings: string[] = [];
@@ -40,7 +44,7 @@ export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew'
     lexiconRenderings = tail.split(',').map(s => s.trim()).filter(Boolean);
   }
 
-  const fromMatch = def.match(/\bfrom\s+(\d+)\s*[;,]/);
+  const fromMatch = def.match(/\b(?:from|plural of|feminine of|masculine of)\s+(\d+)\s*[;,]/);
   const derivedFrom = fromMatch ? parseInt(fromMatch[1], 10) : undefined;
   const seeRefs: number[] = [];
   const lang = language === 'Greek' ? 'GREEK' : 'HEBREW';
@@ -56,9 +60,9 @@ export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew'
 
   return {
     number: numMatch ? parseInt(numMatch[1], 10) : 0,
-    originalWord: header?.[2],
-    transliteration: header?.[3],
-    pronunciation: header?.[4],
+    originalWord: greek?.[2],
+    transliteration: greek ? greek[3] : hebrew?.[2],
+    pronunciation: greek ? greek[4] : hebrew?.[3],
     sense,
     lexiconRenderings,
     derivedFrom,

@@ -173,6 +173,10 @@ export function countForms(matches: GroupMatch[]): Array<{ form: string; count: 
  * the term as its label.
  */
 export function groupFromQuery(query: string): WordGroup {
-  const terms = query.split(/[,;|\n]+/).map(s => s.trim()).filter(Boolean);
-  return normalizeWordGroup({ id: `adhoc-${foldWord(terms.join('-'))}`, label: terms[0] ?? query.trim(), terms });
+  const parts = query.split(/[,;|\n]+/).map(s => s.trim()).filter(Boolean);
+  // "-lovely" excludes that form (a bare "-" is not a term).
+  const exclude = parts.filter(t => /^-\S/.test(t)).map(t => t.slice(1));
+  const terms = parts.filter(t => !/^-\S/.test(t));
+  const id = `adhoc-${foldWord(terms.join('-'))}${exclude.length ? `-x-${foldWord(exclude.join('-'))}` : ''}`;
+  return normalizeWordGroup({ id, label: terms[0] ?? query.trim(), terms, ...(exclude.length ? { exclude } : {}) });
 }

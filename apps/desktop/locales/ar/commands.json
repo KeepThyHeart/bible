@@ -62,5 +62,10 @@
   "bookmarks.manage": "إدارة العلامات المرجعية",
   "bookmarks.manage.category": "العلامات المرجعية",
   "bookmarks.manage.alias.0": "علامات مرجعية",
-  "bookmarks.manage.alias.1": "آيات محفوظة"
+  "bookmarks.manage.alias.1": "آيات محفوظة",
+  "wordStudy.open": "Open Word Study",
+  "wordStudy.open.category": "Study",
+  "wordStudy.open.alias.0": "word study",
+  "wordStudy.open.alias.1": "strongs study",
+  "wordStudy.open.alias.2": "concordance"
 }

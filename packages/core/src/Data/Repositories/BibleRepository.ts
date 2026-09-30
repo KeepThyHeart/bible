@@ -1066,7 +1066,7 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
       sql += ' AND verse_id BETWEEN ? AND ?';
       params.push(options.range.startVerseId, options.range.endVerseId);
     }
-    sql += ' ORDER BY verse_id, word_position_start';
+    sql += ' ORDER BY verse_id, word_position_start, interlinear_id';
     if (options.limit !== undefined) {
       sql += ' LIMIT ? OFFSET ?';
       params.push(options.limit, options.offset ?? 0);

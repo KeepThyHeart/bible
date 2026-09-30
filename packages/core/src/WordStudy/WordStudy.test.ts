@@ -85,8 +85,27 @@ describe('parseStrongsDefinition', () => {
     expect(p.seeRefs).toEqual([]);
     expect(p.lexiconRenderings).toEqual(['(feast of) charity(-ably)', 'dear', 'love']);
   });
+  it('parses the Hebrew layout (no script, optional variant and braces)', () => {
+    const a = parseStrongsDefinition("157 'ahab aw-hab' or raheb {aw-habe'}; a primitive root; to have affection for (sexually or otherwise):--(be-)love(-d, -ly, -r), like, friend.", 'Hebrew');
+    expect(a.transliteration).toBe("'ahab");
+    expect(a.pronunciation).toBe("aw-hab'");
+    expect(a.originalWord).toBeUndefined();
+    expect(a.sense).toBe('a primitive root; to have affection for (sexually or otherwise)');
+    const b = parseStrongsDefinition("430 'elohiym el-o-heem' plural of 433; gods in the ordinary sense:--angels, God. see HEBREW for 0433", 'Hebrew');
+    expect(b.transliteration).toBe("'elohiym");
+    expect(b.derivedFrom).toBe(433);
+    expect(b.sense).toBe('plural of 433; gods in the ordinary sense');
+  });
   it('degrades on an unparseable entry', () => {
     expect(parseStrongsDefinition('999 some word', 'Hebrew').number).toBe(999);
+  });
+});
+
+describe('groupFromQuery exclusions', () => {
+  it('moves -terms into exclude', () => {
+    const g = groupFromQuery('love, lov*, -lovely');
+    expect(g.terms).toEqual(['love', 'lov*']);
+    expect(g.exclude).toEqual(['lovely']);
   });
 });
 

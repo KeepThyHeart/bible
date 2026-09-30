@@ -1,7 +1,7 @@
 import { Store } from './Store';
 import { bibleStore } from './bibleStore';
 import { getWordStudyProvider, isWordStudyOfflineError } from '../providers/WordStudyProvider';
-import { listWordGroups, saveWordGroup, removeWordGroup } from './wordGroupStorage';
+import { listWordGroups, saveWordGroup, removeWordGroup, onWordGroupsChangedElsewhere } from './wordGroupStorage';
 import { groupFromQuery, normalizeWordGroup } from '@bible/core/browser';
 import type {
   IWordStudyProvider,
@@ -59,7 +59,11 @@ class WordStudyStore extends Store {
   private trailIndex = -1;
   /** True once the reader picked a module themselves; until then the active Bible is only a preference. */
   private moduleExplicit = false;
-  private groupsSeq = 0;
+  private pendingWrites = 0;
+  private groupsSaveFailed = false;
+  private writeChain: Promise<void> = Promise.resolve();
+  private remoteSubscribed = false;
+  private unsubscribeRemote: (() => void) | null = null;
   private studySeq = 0;
   private occSeq = 0;
   private resolveSeq = 0;
@@ -73,9 +77,12 @@ class WordStudyStore extends Store {
 
   /** Re-read saved groups from the user-data store (the pane calls this on mount). */
   async refreshGroups(): Promise<void> {
-    const seq = ++this.groupsSeq;
+    if (!this.remoteSubscribed) {
+      this.remoteSubscribed = true;
+      void onWordGroupsChangedElsewhere(() => void this.refreshGroups()).then((u) => { this.unsubscribeRemote = u; });
+    }
     const loaded = await listWordGroups();
-    if (seq !== this.groupsSeq) return; // a save or delete happened meanwhile; its state wins
+    if (this.pendingWrites > 0) return; // a save or delete is in flight; its own refresh follows
     this.groups = loaded;
     this.notify();
   }
@@ -230,9 +237,9 @@ class WordStudyStore extends Store {
   saveGroup(group: WordGroup): void {
     const saved = normalizeWordGroup(group);
     // Update memory at once so the UI is immediate; the user-data store write follows.
-    this.groupsSeq++;
+    if (saved.terms.length === 0) return; // nothing to save: keep the editor open
     this.groups = [...this.groups.filter((g) => g.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
-    void saveWordGroup(saved);
+    this.persist(() => saveWordGroup(saved));
     this.editingGroup = null;
     this.notify();
     if (this.subject?.kind === 'group' && this.subject.group.id === saved.id) {
@@ -240,10 +247,23 @@ class WordStudyStore extends Store {
     }
   }
 
+  /** Queue a store write; afterwards re-read the list (also picks up groups migrated from localStorage). */
+  private persist(write: () => Promise<unknown>): void {
+    this.pendingWrites++;
+    this.writeChain = this.writeChain.then(write).then(() => undefined, () => { this.groupsSaveFailed = true; }).then(() => {
+      this.pendingWrites--;
+      if (this.groupsSaveFailed) {
+        this.groupsSaveFailed = false;
+        this.error = 'Could not save word groups in this browser.';
+        this.notify();
+      }
+      if (this.pendingWrites === 0) void this.refreshGroups();
+    });
+  }
+
   deleteGroup(id: string): void {
-    this.groupsSeq++;
     this.groups = this.groups.filter((g) => g.id !== id);
-    void removeWordGroup(id);
+    this.persist(() => removeWordGroup(id));
     this.editingGroup = null;
     this.notify();
   }
