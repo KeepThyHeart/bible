@@ -26,10 +26,12 @@ A connective category matches surface forms. With interlinear rows the hit only 
 
 ## Persistence
 
-One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. Web uses the same `UserDataKeywordSetStore` over `getUserData()` (`apps/web/src/keywordMarks/userDataSetStore.ts`); the old `kth.keywordSets` localStorage array is migrated in once with `migrateLocalStorage`, and other tabs' changes reload the sets. `StorageKeywordSetStore` remains for hosts with only a key-value store.
+One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. Web uses the same `UserDataKeywordSetStore` over `getUserData()` (`apps/web/src/keywordMarks/userDataSetStore.ts`); the old `kth.keywordSets` localStorage array is migrated in once with `migrateLocalStorage` (the old key is kept if some sets failed validation; when IndexedDB is unavailable the sets stay in localStorage), and other tabs' changes reload the sets. `StorageKeywordSetStore` remains for hosts with only a key-value store.
 
 The colour-safe option is a registry setting, `keywordColorSafe` (device scope, default on): web Settings > Theme and the desktop Keywords popover both read and write it.
 
 ## Not in v1
 
 The "Key people and themes" set, book-wide counts, saving marks as highlights, an extension read API, morphology (imperative) rules and Chinese word matching (whitespace tokenising).
+
+Mark ids are global across sets (counts, hidden state and decorations key on them), so built-ins use `<language>:<category>`, and `duplicate`/`import` give every mark a fresh id.

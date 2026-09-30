@@ -178,10 +178,13 @@ describe('KeywordSetService', () => {
     const mine = await svc.create('Mine', { language: 'en', marks: [wordMark('a', ['faith'])] });
     const dup = await svc.duplicate(BUILT_IN_KEYWORD_SETS[0].id);
     expect(dup.builtIn).toBeUndefined();
+    const builtInIds = new Set(BUILT_IN_KEYWORD_SETS[0].marks.map((m) => m.id));
+    expect(dup.marks.some((m) => builtInIds.has(m.id))).toBe(false); // no shared mark ids
     await expect(svc.save({ ...BUILT_IN_KEYWORD_SETS[0] })).rejects.toThrow(/read-only/);
     await expect(svc.remove(BUILT_IN_KEYWORD_SETS[0].id)).rejects.toThrow();
     const imported = await svc.import(svc.export(mine.id));
     expect(isValidationErrors(imported)).toBe(false);
+    if (!isValidationErrors(imported)) expect(imported.marks[0].id).not.toBe(mine.marks[0].id);
     await svc.remove(mine.id);
     expect(svc.get(mine.id)).toBeUndefined();
     expect(seen.length).toBeGreaterThan(3);

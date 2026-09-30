@@ -7,7 +7,9 @@
  *   value       JSON `KeywordSet`
  *
  * The old localStorage key (`kth.keywordSets`, one JSON array of sets) is copied in once
- * and then removed. Reads and writes wait for the store to open and for that migration.
+ * and then removed (kept when some sets failed validation). If the store is memory-only
+ * (IndexedDB unavailable) the sets stay in localStorage as before. Reads and writes wait for the
+ * store to open and for that migration.
  */
 import {
   UserData,

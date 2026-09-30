@@ -129,6 +129,7 @@ export class KeywordSetService {
     delete copy.builtIn;
     copy.id = newKeywordId('set');
     copy.name = name ?? `${src.name} (copy)`;
+    copy.marks = copy.marks.map((m) => ({ ...m, id: newKeywordId('m') })); // mark ids are global: a copy must not share them
     return this.save(copy);
   }
 
@@ -158,6 +159,6 @@ export class KeywordSetService {
   async import(text: string): Promise<KeywordSet | KeywordValidationError[]> {
     const parsed = importKeywordSet(text);
     if (isValidationErrors(parsed)) return parsed;
-    return this.save({ ...parsed, id: newKeywordId('set') });
+    return this.save({ ...parsed, id: newKeywordId('set'), marks: parsed.marks.map((m) => ({ ...m, id: newKeywordId('m') })) });
   }
 }

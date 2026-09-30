@@ -87,7 +87,7 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         </button>
         <button
           type="button"
-          class="strongs-popup__search-btn"
+          class="strongs-popup__mark-btn"
           onClick={(e) => {
             e.stopPropagation();
             void keywordMarkStore.addMarkFromWord(KEYWORD_PANE_ID, { text: entry.word, strongs: entry.strongsNumber }, 'strongs');
