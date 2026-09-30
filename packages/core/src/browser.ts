@@ -321,3 +321,8 @@ export * from './Settings';
 // cache, ...), the recorded-chapter manifest and index validators plus their
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
+
+// --- Asset store (task 0090) -------------------------------------------------
+// Download/cache manager for large optional assets: manifest, ports (transport,
+// store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
+export * from './assets';

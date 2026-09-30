@@ -78,3 +78,5 @@ export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
 
+export { AssetList, DEFAULT_ASSET_LIST_LABELS } from './components/AssetList';
+export type { AssetListProps, AssetListLabels, AssetListRow, AssetListStatus } from './components/AssetList';

@@ -20,6 +20,8 @@ import { registerKeywordHandlers, resetKeywordStore } from './ipc/keywordHandler
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
 import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
 import { configureDesktopKeywordSearch } from './services/KeywordIndexService';
+import { registerAssetHandlers } from './ipc/assetHandlers';
+import { closeAssetService } from './services/assets/AssetService';
 import { registerFeaturePackHandlers, closeFeaturePackHandlers } from './ipc/featurePackHandlers';
 import { registerI18nHandlers } from './ipc/i18nHandlers';
 import { loadMainCatalogs, t } from './services/MainI18n';
@@ -539,6 +541,7 @@ async function createWindow(): Promise<void> {
   registerKeywordHandlers();
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
+  registerAssetHandlers(ipcMain);
   registerI18nHandlers(ipcMain);
   registerTopicalIndexHandlers(ipcMain);
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
@@ -1185,6 +1188,8 @@ app.whenReady().then(async () => {
 let quitRequested = false;
 app.on('before-quit', () => {
   quitRequested = true;
+  // Persist pending last-used times of the asset registry (best effort; not awaited).
+  void closeAssetService();
 });
 
 app.on('window-all-closed', () => {

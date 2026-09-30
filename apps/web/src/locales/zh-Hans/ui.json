@@ -304,6 +304,24 @@
       "download": "下载",
       "failed": "失败"
     },
+    "downloads": {
+      "title": "下载与存储",
+      "download": "下载",
+      "update": "更新",
+      "retry": "重试",
+      "cancel": "取消",
+      "remove": "移除",
+      "queued": "排队中",
+      "downloading": "{percent}%",
+      "installed": "已安装",
+      "total": "此设备上：{size}",
+      "empty": "没有可下载的内容。",
+      "unverified": "未验证",
+      "kind": {
+        "ttsRuntime": "语音引擎",
+        "ttsVoice": "语音"
+      }
+    },
     "about": {
       "title": "关于",
       "refreshApp": "刷新应用",
@@ -1366,6 +1384,21 @@
       "edgeBoth": "{from} 和 {to} 相互引用",
       "strength": "强度 {n} / 5",
       "hopName": "第 {hop} 跳"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "您处于离线状态（或网络访问已关闭）。",
+      "network": "下载被中断，请重试。",
+      "http": "服务器拒绝了此下载。",
+      "not-found": "此下载已不可用。",
+      "integrity": "下载已损坏并已被丢弃。",
+      "size-mismatch": "下载已损坏并已被丢弃。",
+      "unverifiable": "无法验证此文件。",
+      "quota": "存储空间不足。",
+      "storage": "无法保存文件。",
+      "invalid-manifest": "此条目无效。",
+      "busy": "另一个版本正在下载。"
     }
   }
 }

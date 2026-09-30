@@ -8,7 +8,7 @@ import { PiperEngine } from './PiperEngine';
 import type { WorkerLike } from '../WorkerTtsEngine';
 import { serveTtsWorker, type WorkerScopeLike } from '../serveTtsWorker';
 import type { TtsWorkerReply, TtsWorkerRequest } from '../ttsWorkerProtocol';
-import type { LoadProgress } from '@bible/core/browser';
+import type { IAssetManager, LoadProgress } from '@bible/core/browser';
 
 const BASE = 'https://site.test/audio/tts/piper';
 const VOICE_FILES = [`${BASE}/voices/v.onnx`, `${BASE}/voices/v.onnx.json`];
@@ -227,6 +227,15 @@ describe('createPiperHandlers', () => {
 });
 
 describe('PiperEngine', () => {
+  /** The asset manager is covered by PiperEngine.test.ts; here the worker does the downloading. */
+  const noAssets = {
+    installed: () => undefined,
+    install: async () => ({}),
+    adopt: async () => false,
+    remove: async () => {},
+  } as unknown as IAssetManager;
+  const noManifests = async () => [];
+
   class FakeWorker implements WorkerLike {
     onmessage: ((e: { data: TtsWorkerReply }) => void) | null = null;
     onerror = null; onmessageerror = null;
@@ -245,7 +254,7 @@ describe('PiperEngine', () => {
     serveTtsWorker(worker.scope, r.handlers);
     const engine = new PiperEngine(
       { id: 'piper', enabled: true, assetBase: BASE, voices: [{ id: 'v', label: 'V', language: 'en-US', files: ['voices/v.onnx', 'voices/v.onnx.json'] }] },
-      { createWorker: () => worker, cache: r.cache },
+      { createWorker: () => worker, cache: r.cache, assets: noAssets, loadManifests: noManifests },
     );
     expect(await engine.isVoiceReady('v')).toBe(false);
     await engine.prepare('v', () => {}, signal());
@@ -260,7 +269,7 @@ describe('PiperEngine', () => {
   });
 
   it('declares its capabilities without loading anything, and a voice with no files is never ready', async () => {
-    const engine = new PiperEngine({ id: 'piper', enabled: true, assetBase: BASE, voices: [{ id: 'x', label: 'X', language: 'en', files: [] }] }, { cache: new MemoryAssetCache() });
+    const engine = new PiperEngine({ id: 'piper', enabled: true, assetBase: BASE, voices: [{ id: 'x', label: 'X', language: 'en', files: [] }] }, { cache: new MemoryAssetCache(), assets: noAssets, loadManifests: noManifests });
     expect(engine.capabilities.rate).toEqual({ min: 0.5, max: 2, step: 0.1 });
     expect(engine.capabilities.nativeRate).toBe(true);
     expect(await engine.isVoiceReady('x')).toBe(false);

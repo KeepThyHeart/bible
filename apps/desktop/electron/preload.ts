@@ -51,6 +51,7 @@ import type {
 // Type-only, so nothing from the main-process service or @bible/core is pulled
 // into the preload bundle - the imports are erased at compile time.
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
+import type { AssetListSnapshot } from '@bible/core/browser';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -490,6 +491,16 @@ export interface ElectronAPI {
     removeRepository: (repositoryId: number) => Promise<Result<boolean>>;
     updateRepositoryUrl: (repositoryId: number, newUrl: string) => Promise<Result<any>>;
     setRepositoryEnabled: (repositoryId: number, enabled: boolean) => Promise<Result<void>>;
+  };
+
+  // Asset store (task 0090). The renderer sends ids only; `install` returns once the download
+  // has been queued and the renderer polls `list` while `active > 0`.
+  assets: {
+    list: () => Promise<Result<AssetListSnapshot>>;
+    install: (id: string) => Promise<Result<{ started: true }>>;
+    cancel: (id: string) => Promise<Result<{ cancelled: boolean }>>;
+    remove: (id: string) => Promise<Result<{ removed: boolean }>>;
+    refresh: () => Promise<Result<AssetListSnapshot>>;
   };
 
   // Optional feature packs (semantic search). A pack is a downloadable
@@ -1118,6 +1129,14 @@ const electronAPI: ElectronAPI = {
     setRepositoryEnabled: (repositoryId: number, enabled: boolean) =>
       typedInvoke('repository:set-enabled', repositoryId, enabled)
 
+  },
+
+  assets: {
+    list: () => typedInvoke('assets:list'),
+    install: (id: string) => typedInvoke('assets:install', id),
+    cancel: (id: string) => typedInvoke('assets:cancel', id),
+    remove: (id: string) => typedInvoke('assets:remove', id),
+    refresh: () => typedInvoke('assets:refresh'),
   },
 
   featurePacks: {

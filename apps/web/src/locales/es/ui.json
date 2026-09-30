@@ -304,6 +304,24 @@
       "download": "Descargar",
       "failed": "Ha fallado"
     },
+    "downloads": {
+      "title": "Descargas y almacenamiento",
+      "download": "Descargar",
+      "update": "Actualizar",
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "remove": "Quitar",
+      "queued": "En cola",
+      "downloading": "{percent}%",
+      "installed": "Instalado",
+      "total": "En este dispositivo: {size}",
+      "empty": "No hay nada que descargar.",
+      "unverified": "sin verificar",
+      "kind": {
+        "ttsRuntime": "Motor de voz",
+        "ttsVoice": "Voz"
+      }
+    },
     "about": {
       "title": "Acerca de",
       "refreshApp": "Actualizar la aplicación",
@@ -1366,6 +1384,21 @@
       "edgeBoth": "{from} y {to} se citan mutuamente",
       "strength": "Fortaleza {n} de 5",
       "hopName": "salto {hop}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "No tienes conexión (o el acceso a la web está desactivado).",
+      "network": "La descarga se interrumpió. Inténtalo de nuevo.",
+      "http": "El servidor rechazó la descarga.",
+      "not-found": "Esta descarga ya no está disponible.",
+      "integrity": "La descarga estaba dañada y se descartó.",
+      "size-mismatch": "La descarga estaba dañada y se descartó.",
+      "unverifiable": "No se puede verificar este archivo.",
+      "quota": "No hay suficiente espacio de almacenamiento.",
+      "storage": "No se pudo guardar el archivo.",
+      "invalid-manifest": "Esta entrada no es válida.",
+      "busy": "Se está descargando otra versión."
     }
   }
 }

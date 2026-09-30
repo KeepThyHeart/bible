@@ -110,6 +110,13 @@ export interface RepositoryCatalog {
    * any field is read. Absent in older catalogs.
    */
   starter_packs?: unknown[];
+  /**
+   * Optional downloadable assets (TTS voices, STT models, data files; task 0090):
+   * `AssetManifest` objects with ABSOLUTE urls. Typed `unknown[]` for the same
+   * reason as `feature_packs`: run each entry through `parseAssetManifest`
+   * (`requireAbsolute: true`) before reading a field. Absent in older catalogs.
+   */
+  assets?: unknown[];
 }
 
 /** One Ed25519 signature over the SHA-256 digest of a catalog's exact bytes. */

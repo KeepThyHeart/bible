@@ -304,6 +304,24 @@
       "download": "Download",
       "failed": "Failed"
     },
+    "downloads": {
+      "title": "Downloads & storage",
+      "download": "Download",
+      "update": "Update",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "remove": "Remove",
+      "queued": "Queued",
+      "downloading": "{percent}%",
+      "installed": "Installed",
+      "total": "On this device: {size}",
+      "empty": "Nothing to download.",
+      "unverified": "unverified",
+      "kind": {
+        "ttsRuntime": "Speech engine",
+        "ttsVoice": "Voice"
+      }
+    },
     "about": {
       "title": "About",
       "refreshApp": "Refresh App",
@@ -1366,6 +1384,21 @@
       "edgeBoth": "{from} and {to} cite each other",
       "strength": "Strength {n} of 5",
       "hopName": "hop {hop}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "You are offline (or web access is off).",
+      "network": "The download was interrupted. Try again.",
+      "http": "The server refused the download.",
+      "not-found": "This download is no longer available.",
+      "integrity": "The download was damaged and was discarded.",
+      "size-mismatch": "The download was damaged and was discarded.",
+      "unverifiable": "This file cannot be verified.",
+      "quota": "Not enough storage space.",
+      "storage": "Could not save the file.",
+      "invalid-manifest": "This entry is invalid.",
+      "busy": "Another version is downloading."
     }
   }
 }

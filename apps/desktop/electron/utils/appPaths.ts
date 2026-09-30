@@ -73,6 +73,14 @@ export function getUserModulesPath(): string {
 }
 
 /**
+ * Root of the asset store (task 0090): committed files, resumable partials and
+ * `registry.json`. A re-downloadable device cache, so it is not backed up.
+ */
+export function getAssetStoreRoot(): string {
+  return join(getUserDataPath(), 'assets');
+}
+
+/**
  * Absolute path to the persisted main-window geometry.
  *
  * Deliberately NOT under `getUserDataPath()`. That helper resolves to the
