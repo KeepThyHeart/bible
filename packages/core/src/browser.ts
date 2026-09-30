@@ -326,3 +326,9 @@ export * from './audio';
 // Download/cache manager for large optional assets: manifest, ports (transport,
 // store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
 export * from './assets';
+
+// --- Similar passages (task 0070) --------------------------------------------
+// Types, ranking weights/policy, match explanations, the SNB1 neighbour table
+// reader and the service that picks table or live source. Pure TypeScript; the
+// Node-only vector source is on the main entry.
+export * from './Services/Similar';

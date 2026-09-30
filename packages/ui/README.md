@@ -204,6 +204,24 @@ map + `kth-base.css` + `kth.css`); the host serves both from `ext-ui://host/kit/
 | `index.ts` | Entry: assigns the frozen global `KthKit`. Loading the script defines no elements. |
 | `kit.css` | CSS entry (imports the map, base and `kth.css`; esbuild inlines them). |
 
+### `SimilarList`
+
+A fully controlled list of passages similar to a source passage (task 0070). No state, no fetching: the app hydrates `reference` and `text`
+and handles the callbacks.
+
+| Prop | Meaning |
+|---|---|
+| `rows` | `SimilarListRow[]`: a core `SimilarPassage` plus `key`, `reference`, `text`. |
+| `floor` | Lower end of the 5-step bar scale (default 0); the top of the scale is the best row's similarity. `similarityStep(similarity, floor, top1)` is exported. |
+| `onOpen(row, { newTab })` | Reference click; Ctrl/Cmd or middle click gives `newTab: true`. |
+| `onMoreLike(row)` | "More like this" button. |
+| `onMenu?(row, anchor)` | Optional menu button (hidden when omitted). |
+| `reasonsFor?(row)` | `MatchReason[]` for chips (Strong's + lemma + gloss, topic, words); `[]` shows "Similar in meaning"; `undefined` shows none. |
+| `onVisible?(row)` | Once per row when first visible (immediately without `IntersectionObserver`), e.g. to fetch explanations lazily. |
+| `labels` | Partial `SimilarListLabels` (`{step}`, `{max}` replaced in `barLabel`); English defaults in `DEFAULT_SIMILAR_LIST_LABELS`. |
+
+Classes `kth-similar` (`__row`, `__head`, `__ref`, `__bar`, `__seg`, `__badge`, `__text`, `__chips`, `__chip`, `__actions`, `__empty`) in `css/kth-similar.css`.
+
 ### Contract (kit major 1: attributes, events and `hostMethods` are additive only)
 
 | Tag | Attributes | Property only | Events (all bubble, composed) |

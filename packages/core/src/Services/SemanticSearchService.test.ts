@@ -279,3 +279,131 @@ describe('SemanticSearchService - malformed indexes', () => {
     expect(() => new SemanticSearchService(db)).toThrow(/2 components/);
   });
 });
+
+// ============================================================================
+// Passage rows and vector search (task 0070)
+// ============================================================================
+
+describe('SemanticSearchService - passage rows and searchByVectors', () => {
+  const mean = [0.1, 0.05, 0, -0.05];
+  const metadata = {
+    index_format: '2',
+    embedding_dim: '4',
+    vector_encoding: 'int8',
+    mean_vector: JSON.stringify(mean),
+    min_similarity: '0.5',
+  };
+  const raw = {
+    a: [0.9, 0.1, 0.1, 0.0],
+    b: [0.1, 0.9, 0.2, 0.1],
+    c: [0.2, 0.1, 0.9, 0.3],
+    d: [0.8, 0.3, 0.1, 0.1],
+  };
+
+  function svc(extraMeta: Record<string, string> = {}): SemanticSearchService {
+    return new SemanticSearchService(
+      buildIndex({ ...metadata, ...extraMeta }, [
+        { id: 'a', start: 1001001, blob: int8Blob(raw.a, 4, mean) },
+        { id: 'a_s0', start: 1001001, blob: int8Blob(raw.d, 4, mean) },
+        { id: 'b', start: 1001002, blob: int8Blob(raw.b, 4, mean) },
+        { id: 'c', start: 2001001, blob: int8Blob(raw.c, 4, mean) },
+        { id: 'p', level: 'paragraph', start: 1001001, end: 1001002, blob: int8Blob(raw.a, 4, mean) },
+        { id: 'ch', level: 'chapter', start: 1001001, end: 1001031, blob: int8Blob(raw.b, 4, mean) },
+      ])
+    );
+  }
+
+  function norm(v: Float32Array): number {
+    return Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
+  }
+
+  it('returns unit vectors for rows inside the selection, honouring levels', () => {
+    const rows = svc().getPassageRows(1001001, 1001001, ['verse', 'paragraph']);
+
+    expect(rows.map(r => r.id)).toEqual(['a', 'a_s0']);
+    for (const row of rows) expect(norm(row.vector)).toBeCloseTo(1, 5);
+
+    const span = svc().getPassageRows(1001001, 1001002, ['verse', 'paragraph']);
+    expect(span.map(r => r.id).sort()).toEqual(['a', 'a_s0', 'b', 'p']);
+    expect(svc().getPassageRows(1001001, 1001002, ['chapter'])).toEqual([]);
+    expect(svc().getPassageRows(9999999, 9999999, ['verse'])).toEqual([]);
+  });
+
+  it('returns unit vectors for float32 indexes too', () => {
+    const db = buildIndex({ embedding_dim: '3' }, [
+      { id: 'x', start: 1001001, blob: float32Blob([3, 0, 4]) },
+    ]);
+    const rows = new SemanticSearchService(db).getPassageRows(1001001, 1001001, ['verse']);
+
+    expect(norm(rows[0].vector)).toBeCloseTo(1, 5);
+    expect(rows[0].vector[0]).toBeCloseTo(0.6, 5);
+  });
+
+  it('ranks a row\'s own vector first with similarity about 1', () => {
+    const service = svc();
+    const [row] = service.getPassageRows(1001002, 1001002, ['verse']);
+
+    const [hits] = service.searchByVectors([row.vector], { levels: ['verse'], topK: 3 });
+
+    expect(hits[0].id).toBe('b');
+    expect(hits[0].similarity).toBeCloseTo(1, 4);
+    expect(hits).toHaveLength(3);
+  });
+
+  it('applies no similarity floor', () => {
+    const service = svc();
+    const [row] = service.getPassageRows(1001002, 1001002, ['verse']);
+
+    const [hits] = service.searchByVectors([row.vector], { levels: ['verse'], topK: 10 });
+
+    expect(hits).toHaveLength(4); // every verse row, even below the 0.5 index floor
+  });
+
+  it('answers several queries in one pass exactly as separate calls', () => {
+    const service = svc();
+    const vectors = service.getPassageRows(1001001, 2001001, ['verse']).map(r => r.vector);
+
+    const together = service.searchByVectors(vectors, { levels: ['verse', 'paragraph'], topK: 3 });
+    const apart = vectors.map(v => service.searchByVectors([v], { levels: ['verse', 'paragraph'], topK: 3 })[0]);
+
+    expect(together).toEqual(apart);
+    expect(together.every(h => h.length === 3)).toBe(true);
+  });
+
+  it('bounded selection equals the head of the full ranking, ties in row order', () => {
+    const service = svc();
+    const [row] = service.getPassageRows(1001001, 1001001, ['verse']);
+
+    const [full] = service.searchByVectors([row.vector], { levels: ['verse', 'paragraph', 'chapter'], topK: 100 });
+    const [top2] = service.searchByVectors([row.vector], { levels: ['verse', 'paragraph', 'chapter'], topK: 2 });
+
+    expect(top2.map(h => h.id)).toEqual(full.slice(0, 2).map(h => h.id));
+  });
+
+  it('rejects a vector of the wrong width', () => {
+    expect(() => svc().searchByVectors([new Float32Array(3)], { levels: ['verse'], topK: 1 })).toThrow(/4/);
+  });
+
+  it('clears the row map on unload and rebuilds it on demand', () => {
+    const service = svc();
+    expect(service.getPassageRows(1001001, 1001001, ['verse'])).toHaveLength(2);
+    service.unloadEmbeddings();
+    expect(service.getPassageRows(1001001, 1001001, ['verse'])).toHaveLength(2);
+  });
+
+  it('reads the neighbour floor from metadata, else the search floor', () => {
+    expect(svc().neighbourMinSimilarity()).toBe(0.5);
+    expect(svc({ neighbour_min_similarity: '0.62' }).neighbourMinSimilarity()).toBe(0.62);
+    expect(new SemanticSearchService(buildIndex({ embedding_dim: '3' }, [])).neighbourMinSimilarity()).toBe(0.3);
+  });
+
+  it('search() with maxResults keeps the same head as before', () => {
+    const service = svc();
+    const query = Float32Array.from([...raw.a, 0, 0]);
+
+    const all = service.search(query, { minSimilarity: -1, maxResults: 100, levels: ['verse', 'paragraph', 'chapter'] });
+    const two = service.search(query, { minSimilarity: -1, maxResults: 2, levels: ['verse', 'paragraph', 'chapter'] });
+
+    expect(two.map(r => r.id)).toEqual(all.slice(0, 2).map(r => r.id));
+  });
+});

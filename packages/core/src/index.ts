@@ -183,3 +183,7 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
+export * from './Services/Similar';
+export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';

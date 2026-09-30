@@ -80,3 +80,6 @@ export type { SettingsFormLabels, SettingsFormProps } from './components/Setting
 
 export { AssetList, DEFAULT_ASSET_LIST_LABELS } from './components/AssetList';
 export type { AssetListProps, AssetListLabels, AssetListRow, AssetListStatus } from './components/AssetList';
+
+export { SimilarList, DEFAULT_SIMILAR_LIST_LABELS, similarityStep } from './components/Similar/SimilarList';
+export type { SimilarListProps, SimilarListLabels, SimilarListRow } from './components/Similar/SimilarList';
