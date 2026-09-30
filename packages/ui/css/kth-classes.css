@@ -501,14 +501,15 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.kth-mark-swatch:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-mark-swatch:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
 .kth-mark-swatch:where([aria-checked="true"]) {
   box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
 }
 .kth-mark-swatch:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
 .kth-mark-swatch--static { cursor: default; }
 .kth-mark-swatch--bold { font-weight: 700; }
-.kth-mark-swatch--fill { background-image: linear-gradient(var(--kth-accent-soft), var(--kth-accent-soft)); }
+/* Background tint: shown in the text only; the legend shape stays a bare glyph (no box). */
+.kth-mark-swatch--fill { background-image: none; }
 /* The line style shows as an underline under the shape. */
 .kth-mark-swatch--line-solid { text-decoration-line: underline; text-decoration-style: solid; }
 .kth-mark-swatch--line-dashed { text-decoration-line: underline; text-decoration-style: dashed; }
@@ -545,6 +546,10 @@
   color: var(--mark-color, var(--kth-text));
   font-size: 1.35rem;
   line-height: 1;
+}
+.kth-mark-choice--shape:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
+@media (forced-colors: active) {
+  .kth-mark-choice--shape:where([aria-checked="true"]), .kth-mark-swatch:where([aria-checked="true"]) { outline: 2px solid Highlight; }
 }
 .kth-mark-choice--shape:where([aria-checked="true"]) { border-color: transparent; background: none; box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent); }
 .kth-mark-choice__line {

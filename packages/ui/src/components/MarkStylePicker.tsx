@@ -155,7 +155,7 @@ export function MarkStylePicker({ id, value, onChange, labels, dir, disabled }: 
     onSelect: () => set({ line: l }),
   }));
   const symbolOptions: Option[] = [
-    { key: 'none', label: L.noSymbol, selected: value.symbol === undefined, className: 'kth-mark-choice',
+    { key: 'none', label: L.noSymbol, selected: value.symbol === undefined, className: 'kth-mark-choice kth-mark-choice--shape',
       content: <span aria-hidden="true">{'∅'}</span>, onSelect: () => setSymbol(undefined) },
     ...MARK_SYMBOLS.map((s): Option => ({
       key: s, label: L.symbols[s], selected: value.symbol === s, className: 'kth-mark-choice kth-mark-choice--shape',
