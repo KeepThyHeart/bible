@@ -737,13 +737,15 @@
       "speed": "播放速度",
       "source": "音频来源、声音和速度",
       "settings": "音频设置",
-      "close": "停止并关闭播放器"
+      "close": "停止并关闭播放器",
+      "popOut": "在弹出窗口中打开播放器"
     },
     "player": {
       "label": "音频播放器",
       "close": "关闭播放器（音频继续播放）",
       "open": "打开音频播放器",
-      "narrator": "朗读者"
+      "narrator": "朗读者",
+      "stop": "停止"
     },
     "status": {
       "gettingReady": "正在准备…",
@@ -757,7 +759,9 @@
     "chip": {
       "recorded": "录音 · {module}",
       "onDevice": "{engine} · 本设备",
-      "onDeviceVoice": "{engine} · {voice} · 本设备"
+      "onDeviceVoice": "{engine} · {voice} · 本设备",
+      "generated": "合成语音",
+      "generatedVoice": "合成语音 · {voice}"
     },
     "notice": {
       "noAudio": "此译本暂无录音或合成语音。",
@@ -780,13 +784,18 @@
       "for": "{module} 的来源",
       "noRecording": "{module} 没有录音。",
       "browserUnsupported": "{engine} 无法在此浏览器中运行。",
-      "noVoice": "{engine} 没有适用于 {language} 的声音。"
+      "noVoice": "{engine} 没有适用于 {language} 的声音。",
+      "generated": "合成语音",
+      "engine": "语音引擎"
     },
     "voice": {
       "label": "声音"
     },
     "speed": {
-      "label": "速度"
+      "label": "速度",
+      "slower": "更慢",
+      "faster": "更快",
+      "reset": "将速度重置为 1×"
     },
     "gate": {
       "batteryTitle": "在这部手机上朗读？",
@@ -832,6 +841,27 @@
       "storage": "存储",
       "storageVoices": "合成语音和引擎 · {size}",
       "storageChapters": "最近播放的章节 · {size} · {count, plural, other {# 章}}"
+    },
+    "quick": {
+      "title": "音频设置",
+      "all": "全部音频设置…"
+    },
+    "style": {
+      "label": "播放器",
+      "bar": "工具条",
+      "popup": "弹出窗口"
+    },
+    "popup": {
+      "label": "音频播放器",
+      "dock": "以工具条显示播放器"
+    },
+    "verses": {
+      "label": "本章经文。选择一节从那里开始朗读。",
+      "backTo": "回到第 {verse} 节",
+      "readFrom": "从 {ref} 开始朗读"
+    },
+    "shortcut": {
+      "focusPlayer": "转到音频播放器"
     }
   }
 }

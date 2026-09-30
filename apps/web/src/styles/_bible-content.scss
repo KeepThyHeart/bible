@@ -337,12 +337,11 @@
   }
 
   // The verse being read aloud (Audio Bible follow-along). Marked by a rule on
-  // the inline-start edge and a heavier weight as well as a tint, so it does not
-  // depend on colour alone, and it is a different mark from the selection
+  // the inline-start edge as well as a tint, so it does not depend on colour
+  // alone (the weight never changes, so the text does not reflow), and it is a different mark from the selection
   // (`--study`): the two can be on different verses at once, and the selection is
   // what the Study and Commentary panes follow.
   &--playing {
-    font-weight: 600;
     box-shadow: inset 3px 0 0 var(--accent-color);
     background: color-mix(in srgb, var(--accent-color) 10%, transparent);
 

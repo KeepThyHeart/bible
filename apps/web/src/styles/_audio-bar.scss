@@ -1,0 +1,43 @@
+// Audio Bible: desktop transport bar and its settings popover
+// ---- Desktop transport bar --------------------------------------------------
+
+.audio-transport {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px;
+  }
+
+  &__buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  &__now {
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &--notice {
+    padding: 2px 0;
+  }
+}
+
+.audio-popover {
+  // Position, size, elevation and dismissal come from the shared `Popover`; only the
+  // surface is set here.
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 60;
+}
+

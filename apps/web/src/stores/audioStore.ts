@@ -33,13 +33,13 @@ import { bibleStore } from './bibleStore';
 import type { BibleTab } from './bibleStore';
 import { moduleStore } from './moduleStore';
 import {
-  defaultAudioPrefs, effectiveRate, loadAudioPrefs, saveAudioPrefs, sanitizeAudioPrefs,
+  defaultAudioPrefs, effectiveRate, loadAudioPrefs, saveAudioPrefs, sanitizeAudioPrefs, stepRate,
 } from '../audio/audioPrefs';
+import type { AudioUiPrefs, PlayerStyle } from '../audio/audioPrefs';
 import type { AudioSourceResolver, SourceStatus } from '../audio/AudioSourceResolver';
 import type {
   AudioCapabilities,
   AudioError,
-  AudioPrefs,
   AudioSiteConfig,
   AudioSourceChoice,
   AudioVoice,
@@ -116,7 +116,7 @@ class AudioStore extends Store {
   readonly position = new PositionStore();
   readonly follow = new FollowStore();
 
-  prefs: AudioPrefs = defaultAudioPrefs();
+  prefs: AudioUiPrefs = defaultAudioPrefs();
   status: AudioUiStatus = 'idle';
   playingTabId: string | null = null;
   playingModule: string | null = null;
@@ -133,6 +133,8 @@ class AudioStore extends Store {
   enabled = false;
   /** Phone only: the full-screen player is showing (playback continues when it is closed). */
   playerOpen = false;
+  /** Phone only: the settings sheet over the player is open (Back closes it before the player). */
+  quickSettingsOpen = false;
   /** Bumped when what can play changes, so source lists re-ask. */
   sourcesVersion = 0;
 
@@ -204,6 +206,30 @@ class AudioStore extends Store {
     if (!this.playerOpen) return;
     this.playerOpen = false;
     this.notify();
+  }
+
+  openQuickSettings(): void {
+    if (this.quickSettingsOpen) return;
+    this.quickSettingsOpen = true;
+    this.notify();
+  }
+
+  closeQuickSettings(): void {
+    if (!this.quickSettingsOpen) return;
+    this.quickSettingsOpen = false;
+    this.notify();
+  }
+
+  setPlayerStyle(style: PlayerStyle): void {
+    if (this.prefs.playerStyle === style) return;
+    this.setPrefs({ playerStyle: style });
+  }
+
+  /** One preset faster or slower (within what the current source supports). */
+  stepRate(dir: 1 | -1): void {
+    const caps = this.capabilities;
+    const next = stepRate(effectiveRate(this.prefs.rate, caps ?? {}), dir, caps?.rate);
+    if (next !== null) this.setPrefs({ rate: next });
   }
 
   setLayout(layout: 'desktop' | 'phone'): void {
@@ -495,7 +521,11 @@ class AudioStore extends Store {
   jumpToVerse(verse: number): void {
     const tab = this.playingTabId ? bibleStore.tabs.find(t => t.id === this.playingTabId) : undefined;
     const current = this.system?.player.state.current;
-    if (!tab || !current || verse === current.verse) return;
+    if (!tab || !current) return;
+    if (verse === current.verse) {
+      if (this.status === 'paused') this.resume();
+      return;
+    }
     void this.startPlayback(tab, { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr, verse });
   }
 
@@ -546,7 +576,7 @@ class AudioStore extends Store {
 
   // ---------------------------------------------------------------- prefs
 
-  setPrefs(patch: Partial<AudioPrefs>): void {
+  setPrefs(patch: Partial<AudioUiPrefs>): void {
     const before = this.prefs;
     this.prefs = sanitizeAudioPrefs({ ...before, ...patch });
     saveAudioPrefs(this.prefs, this.storage === undefined ? undefined : this.storage);
@@ -700,6 +730,7 @@ class AudioStore extends Store {
 
   private resetPlayback(): void {
     this.playerOpen = false;
+    this.quickSettingsOpen = false;
     this.preparing = false;
     this.status = 'idle';
     this.playingTabId = null;

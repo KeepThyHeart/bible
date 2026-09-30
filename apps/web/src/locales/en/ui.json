@@ -737,13 +737,15 @@
       "speed": "Playback speed",
       "source": "Audio source, voice and speed",
       "settings": "Audio settings",
-      "close": "Stop and close the player"
+      "close": "Stop and close the player",
+      "popOut": "Open the player in a pop-up"
     },
     "player": {
       "label": "Audio player",
       "close": "Close the player (audio keeps playing)",
       "open": "Open the audio player",
-      "narrator": "Narrator"
+      "narrator": "Narrator",
+      "stop": "Stop"
     },
     "status": {
       "gettingReady": "Getting ready…",
@@ -757,7 +759,9 @@
     "chip": {
       "recorded": "Recorded · {module}",
       "onDevice": "{engine} · on this device",
-      "onDeviceVoice": "{engine} · {voice} · on this device"
+      "onDeviceVoice": "{engine} · {voice} · on this device",
+      "generated": "Generated",
+      "generatedVoice": "Generated · {voice}"
     },
     "notice": {
       "noAudio": "No recording or speech voice is available for this translation yet.",
@@ -774,19 +778,24 @@
       "unknown": "Audio could not be played."
     },
     "source": {
-      "auto": "Automatic",
+      "auto": "Auto",
       "recorded": "Recorded",
       "useDefault": "Use default",
       "for": "Source for {module}",
       "noRecording": "No recording for {module}.",
       "browserUnsupported": "{engine} cannot run in this browser.",
-      "noVoice": "{engine} has no voice for {language}."
+      "noVoice": "{engine} has no voice for {language}.",
+      "generated": "Generated",
+      "engine": "Speech engine"
     },
     "voice": {
       "label": "Voice"
     },
     "speed": {
-      "label": "Speed"
+      "label": "Speed",
+      "slower": "Slower",
+      "faster": "Faster",
+      "reset": "Reset speed to 1×"
     },
     "gate": {
       "batteryTitle": "Read aloud on this phone?",
@@ -832,6 +841,27 @@
       "storage": "Storage",
       "storageVoices": "Speech voices and engine · {size}",
       "storageChapters": "Recently played chapters · {size} · {count, plural, one {# chapter} other {# chapters}}"
+    },
+    "quick": {
+      "title": "Audio settings",
+      "all": "All audio settings…"
+    },
+    "style": {
+      "label": "Player",
+      "bar": "Bar",
+      "popup": "Pop-up"
+    },
+    "popup": {
+      "label": "Audio player",
+      "dock": "Show the player as a bar"
+    },
+    "verses": {
+      "label": "Chapter text. Choose a verse to read from there.",
+      "backTo": "Back to verse {verse}",
+      "readFrom": "Read from {ref}"
+    },
+    "shortcut": {
+      "focusPlayer": "Go to the audio player"
     }
   }
 }

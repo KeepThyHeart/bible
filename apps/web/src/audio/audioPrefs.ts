@@ -9,7 +9,7 @@
  * put the feature in a state the UI cannot represent.
  */
 
-import type { AudioCapabilities, AudioPrefs, AudioSourceChoice } from '@bible/core/browser';
+import type { AudioCapabilities, AudioPrefs, AudioSourceChoice, RateRange } from '@bible/core/browser';
 
 export const AUDIO_PREFS_KEY = 'bible-audio-prefs';
 const VERSION = 1;
@@ -20,7 +20,15 @@ export const GLOBAL_RATE = { min: 0.5, max: 2 } as const;
 const MAX_PER_TRANSLATION = 200;
 const SOURCE_PATTERN = /^(auto|recorded|tts:[a-z0-9_-]+)$/;
 
-export const DEFAULT_AUDIO_PREFS: AudioPrefs = {
+/** Where the desktop player lives: docked under the toolbar, or in a floating pop-up. */
+export type PlayerStyle = 'bar' | 'popup';
+/** The app's preferences: the core contract plus UI-only fields the resolver never sees. */
+export type AudioUiPrefs = AudioPrefs & { playerStyle: PlayerStyle };
+
+/** The speeds the on-screen stepper walks through (each is clamped to what the source supports). */
+export const RATE_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+
+export const DEFAULT_AUDIO_PREFS: AudioUiPrefs = {
   source: 'auto',
   perTranslation: {},
   voiceByEngineLang: {},
@@ -30,9 +38,10 @@ export const DEFAULT_AUDIO_PREFS: AudioPrefs = {
   continueAfterChapter: 'next-chapter',
   readChapterIntro: true,
   phoneBatteryNoticeSeen: {},
+  playerStyle: 'popup',
 };
 
-export function defaultAudioPrefs(): AudioPrefs {
+export function defaultAudioPrefs(): AudioUiPrefs {
   return {
     ...DEFAULT_AUDIO_PREFS,
     perTranslation: {},
@@ -48,7 +57,7 @@ export const isSourceChoice = (x: unknown): x is AudioSourceChoice =>
   typeof x === 'string' && SOURCE_PATTERN.test(x);
 
 /** Validate an unknown payload into prefs. Never throws. */
-export function sanitizeAudioPrefs(raw: unknown): AudioPrefs {
+export function sanitizeAudioPrefs(raw: unknown): AudioUiPrefs {
   const out = defaultAudioPrefs();
   if (!isObject(raw)) return out;
 
@@ -81,6 +90,7 @@ export function sanitizeAudioPrefs(raw: unknown): AudioPrefs {
     out.continueAfterChapter = raw.continueAfterChapter;
   }
   if (typeof raw.readChapterIntro === 'boolean') out.readChapterIntro = raw.readChapterIntro;
+  if (raw.playerStyle === 'bar' || raw.playerStyle === 'popup') out.playerStyle = raw.playerStyle;
 
   if (isObject(raw.phoneBatteryNoticeSeen)) {
     for (const [engine, seen] of Object.entries(raw.phoneBatteryNoticeSeen)) {
@@ -90,7 +100,7 @@ export function sanitizeAudioPrefs(raw: unknown): AudioPrefs {
   return out;
 }
 
-export function loadAudioPrefs(storage: Pick<Storage, 'getItem'> | null = safeStorage()): AudioPrefs {
+export function loadAudioPrefs(storage: Pick<Storage, 'getItem'> | null = safeStorage()): AudioUiPrefs {
   try {
     const text = storage?.getItem(AUDIO_PREFS_KEY);
     if (!text) return defaultAudioPrefs();
@@ -100,7 +110,7 @@ export function loadAudioPrefs(storage: Pick<Storage, 'getItem'> | null = safeSt
   }
 }
 
-export function saveAudioPrefs(prefs: AudioPrefs, storage: Pick<Storage, 'setItem'> | null = safeStorage()): void {
+export function saveAudioPrefs(prefs: AudioUiPrefs, storage: Pick<Storage, 'setItem'> | null = safeStorage()): void {
   try {
     storage?.setItem(AUDIO_PREFS_KEY, JSON.stringify({ v: VERSION, ...prefs }));
   } catch { /* storage unavailable or full: the prefs simply do not persist */ }
@@ -125,4 +135,16 @@ export function effectiveRate(wish: number, caps: Pick<AudioCapabilities, 'rate'
   const steps = Math.round((clamped - range.min) / range.step + 1e-9);
   const snapped = range.min + steps * range.step;
   return Math.round(Math.min(range.max, Math.max(range.min, snapped)) * 100) / 100;
+}
+
+/**
+ * The next speed preset above or below `current`, inside the source's range.
+ * `null` at the bound, or when the source has no speed control.
+ */
+export function stepRate(current: number, dir: 1 | -1, range: RateRange | null | undefined): number | null {
+  if (!range) return null;
+  const eps = 1e-9;
+  const inRange = RATE_PRESETS.filter(r => r >= range.min - eps && r <= range.max + eps);
+  const next = dir === 1 ? inRange.find(r => r > current + eps) : [...inRange].reverse().find(r => r < current - eps);
+  return next ?? null;
 }

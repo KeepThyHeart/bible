@@ -737,13 +737,15 @@
       "speed": "Velocidad de reproducción",
       "source": "Fuente de audio, voz y velocidad",
       "settings": "Ajustes de audio",
-      "close": "Detener y cerrar el reproductor"
+      "close": "Detener y cerrar el reproductor",
+      "popOut": "Abrir el reproductor en una ventana emergente"
     },
     "player": {
       "label": "Reproductor de audio",
       "close": "Cerrar el reproductor (el audio sigue sonando)",
       "open": "Abrir el reproductor de audio",
-      "narrator": "Narrador"
+      "narrator": "Narrador",
+      "stop": "Detener"
     },
     "status": {
       "gettingReady": "Preparando…",
@@ -757,7 +759,9 @@
     "chip": {
       "recorded": "Grabado · {module}",
       "onDevice": "{engine} · en este dispositivo",
-      "onDeviceVoice": "{engine} · {voice} · en este dispositivo"
+      "onDeviceVoice": "{engine} · {voice} · en este dispositivo",
+      "generated": "Generado",
+      "generatedVoice": "Generado · {voice}"
     },
     "notice": {
       "noAudio": "Aún no hay grabación ni voz sintética disponible para esta traducción.",
@@ -774,19 +778,24 @@
       "unknown": "No se pudo reproducir el audio."
     },
     "source": {
-      "auto": "Automática",
+      "auto": "Auto",
       "recorded": "Grabada",
       "useDefault": "Usar la predeterminada",
       "for": "Fuente para {module}",
       "noRecording": "No hay grabación de {module}.",
       "browserUnsupported": "{engine} no puede ejecutarse en este navegador.",
-      "noVoice": "{engine} no tiene voz para {language}."
+      "noVoice": "{engine} no tiene voz para {language}.",
+      "generated": "Generado",
+      "engine": "Motor de voz"
     },
     "voice": {
       "label": "Voz"
     },
     "speed": {
-      "label": "Velocidad"
+      "label": "Velocidad",
+      "slower": "Más lento",
+      "faster": "Más rápido",
+      "reset": "Restablecer la velocidad a 1×"
     },
     "gate": {
       "batteryTitle": "¿Leer en voz alta en este teléfono?",
@@ -832,6 +841,27 @@
       "storage": "Almacenamiento",
       "storageVoices": "Voces sintéticas y motor · {size}",
       "storageChapters": "Capítulos reproducidos recientemente · {size} · {count, plural, one {# capítulo} other {# capítulos}}"
+    },
+    "quick": {
+      "title": "Ajustes de audio",
+      "all": "Todos los ajustes de audio…"
+    },
+    "style": {
+      "label": "Reproductor",
+      "bar": "Barra",
+      "popup": "Ventana emergente"
+    },
+    "popup": {
+      "label": "Reproductor de audio",
+      "dock": "Mostrar el reproductor como barra"
+    },
+    "verses": {
+      "label": "Texto del capítulo. Elige un versículo para leer desde allí.",
+      "backTo": "Volver al versículo {verse}",
+      "readFrom": "Leer desde {ref}"
+    },
+    "shortcut": {
+      "focusPlayer": "Ir al reproductor de audio"
     }
   }
 }
