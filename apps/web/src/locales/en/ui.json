@@ -158,7 +158,8 @@
     "topics": "Topics",
     "commentary": "Commentary",
     "dictionary": "Dictionary",
-    "study": "Study"
+    "study": "Study",
+    "similar": "Find similar passages"
   },
   "rightPane": {
     "study": "Study",
@@ -167,7 +168,8 @@
     "dictionary": "Dictionary",
     "search": "Search",
     "collapseRight": "Collapse right pane",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "similar": "Similar"
   },
   "timeline": {
     "title": "Timeline",
@@ -1400,5 +1402,32 @@
       "invalid-manifest": "This entry is invalid.",
       "busy": "Another version is downloading."
     }
+  },
+  "similar": {
+    "moreLikeThis": "More like this",
+    "crossRef": "Cross-reference",
+    "otNtBadge": "OT ↔ NT",
+    "similarInMeaning": "Similar in meaning",
+    "barLabel": "Similarity {step} of {max}",
+    "menu": "More actions",
+    "empty": "No similar passages found.",
+    "filters": "Similar passage filters",
+    "back": "Back",
+    "hideKnown": "Hide known cross-references",
+    "testament": {
+      "label": "Testament",
+      "any": "All",
+      "ot": "Old Testament",
+      "nt": "New Testament"
+    },
+    "similarTo": "Similar to {{reference}}",
+    "approximate": "Based on the individual verses of your selection.",
+    "selectVerse": "Select a verse to find similar passages.",
+    "loading": "Loading similar passages...",
+    "downloading": "Downloading similar passages data...",
+    "unavailable": "Similar passages data is not available on this server.",
+    "error": "Could not load similar passages.",
+    "retry": "Try again",
+    "showMore": "Show 10 more"
   }
 }

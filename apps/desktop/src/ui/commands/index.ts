@@ -30,6 +30,7 @@ import { registerSearchBarCommands } from './searchBarCommands';
 import { registerDiagnosticsCommands } from './diagnosticsCommands';
 import { registerNetworkCommands } from './networkCommands';
 import { registerXrefGraphCommands } from './xrefGraphCommands';
+import { registerSimilarCommands } from './similarCommands';
 
 export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable {
   const all: IDisposable[] = [
@@ -53,6 +54,7 @@ export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable
     ...registerDiagnosticsCommands(registry),
     ...registerNetworkCommands(registry),
     ...registerXrefGraphCommands(registry),
+    ...registerSimilarCommands(registry),
   ];
   return {
     dispose: () => {

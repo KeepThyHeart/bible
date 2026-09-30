@@ -79,6 +79,12 @@ describe('ContextMenuPopup', () => {
     expect(dividers.length).toBe(1);
   });
 
+  it('calls onAction with "similar" when Find similar passages is clicked', () => {
+    const { onAction } = renderMenu();
+    fireEvent.click(screen.getByText('contextMenu.similar'));
+    expect(onAction).toHaveBeenCalledWith('similar');
+  });
+
   it('calls onAction with "connections" when Show connections is clicked', () => {
     const { onAction } = renderMenu();
     fireEvent.click(screen.getByText('xrefGraph.showConnections'));

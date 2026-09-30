@@ -285,6 +285,10 @@ export const TYPED_IPC_CHANNELS = [
   'xrefGraph:getNeighbours',
   'xrefGraph:getBookMatrix',
   'xrefGraph:getChapterArcs',
+  // Similar passages (task 0070)
+  'similar:find',
+  'similar:explain',
+  'similar:status',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',

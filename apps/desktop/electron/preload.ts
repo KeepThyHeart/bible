@@ -52,6 +52,8 @@ import type {
 // into the preload bundle - the imports are erased at compile time.
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
 import type { AssetListSnapshot } from '@bible/core/browser';
+import type { SimilarOptions, MatchReason } from '@bible/core/browser';
+import type { SimilarFindResponse, SimilarStatus } from './ipc/similarTypes';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -226,6 +228,13 @@ export interface ElectronAPI {
     getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
     getBookMatrix: () => Promise<Result<number[][]>>;
     getChapterArcs: () => Promise<Result<any>>;
+  };
+
+  // Similar passages (task 0070). Payload types: `ipc/similarTypes.ts`.
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) => Promise<Result<SimilarFindResponse>>;
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) => Promise<Result<MatchReason[]>>;
+    status: () => Promise<Result<SimilarStatus>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -845,6 +854,14 @@ const electronAPI: ElectronAPI = {
     getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
     getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
     getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
+  },
+
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) =>
+      typedInvoke('similar:find', range, opts, module),
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) =>
+      typedInvoke('similar:explain', a, b, module),
+    status: () => typedInvoke('similar:status'),
   },
 
   search: {

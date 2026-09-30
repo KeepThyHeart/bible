@@ -25,6 +25,7 @@ import { useStudyStore } from './useStudyStore';
 import { useTopicsStore } from './useTopicsStore';
 import { DEFAULT_PANEL_ID } from './helpers/panelStateHelpers';
 import { syncPanesWithVerse } from './syncPanesWithVerse';
+import { setSimilarModuleResolver } from './useSimilarStore';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
 import { useSessionStore } from './useSessionStore';
@@ -172,6 +173,15 @@ export function wireStoreSync(): void {
   window.electron?.window?.onVerseChanged?.((verseId: number) => {
     detachedBibleVerseId = verseId;
     syncPanesWithVerse(verseId);
+  });
+
+  // Similar passages: which translation to show the rows in (the Bible pane
+  // the reader was last in).
+  setSimilarModuleResolver(() => {
+    const bibleState = useBibleStore.getState();
+    const lastId = useLayoutStore.getState().lastActiveBiblePanelId;
+    const panel = (lastId ? bibleState.panels.get(lastId) : undefined) ?? bibleState.panels.values().next().value;
+    return panel?.openTabs[panel.activeTabIndex]?.abbreviation;
   });
 
   // Search store uses this to gather the full set of open module

@@ -10,6 +10,7 @@ import { registerBookHandlers, closeBookDbs } from './ipc/bookHandlers';
 import { registerTopicalIndexHandlers, closeTopicalDbs } from './ipc/topicalIndexHandlers';
 import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferenceHandlers';
 import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
+import { registerSimilarHandlers } from './ipc/similarHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
 import { registerTimelineHandlers, closeTimelineDb } from './ipc/timelineHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
@@ -546,6 +547,7 @@ async function createWindow(): Promise<void> {
   registerTopicalIndexHandlers(ipcMain);
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   registerXrefGraphHandlers(ipcMain);
+  registerSimilarHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
   registerTimelineHandlers(ipcMain);
   registerStudyHandlers(ipcMain);

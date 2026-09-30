@@ -5,6 +5,7 @@ import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
 import { SearchResultsPanel } from './components/Search/SearchResultsPanel';
 import { StudyPane } from './components/StudyPane/StudyPane';
 import { TopicsPane } from './components/StudyPane/TopicsPane';
+import { SimilarPane } from './components/SimilarPane/SimilarPane';
 import { DictionaryPane } from './components/DictionaryPane/DictionaryPane';
 import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
@@ -180,6 +181,12 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 >
                   {t('rightPane.dictionary')}
                 </button>
+                <button
+                  class={`right-pane-tabs__tab ${paneMode === 'similar' ? 'right-pane-tabs__tab--active' : ''}`}
+                  onClick={() => commentaryStore.setRightPaneMode('similar')}
+                >
+                  {t('rightPane.similar')}
+                </button>
                 {shared.searchIsOpen && (
                   <button
                     class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
@@ -209,6 +216,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
               {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
+              {paneMode === 'similar' && <SimilarPane providers={providers} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>
           </>

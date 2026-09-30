@@ -9,6 +9,7 @@ import { useAppServices } from '../contexts/ContextProvider';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { useSimilarStore } from '../stores/useSimilarStore';
 import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
@@ -465,6 +466,25 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               <path strokeLinecap="round" strokeWidth={2} d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
             </svg>
             <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
+          </button>
+          <button
+            onClick={() => {
+              const first = versesArray[0].verse_id;
+              const last = versesArray[versesArray.length - 1].verse_id;
+              onClose();
+              useSimilarStore.getState().openFor({
+                startVerseId: Math.min(first, last),
+                endVerseId: Math.max(first, last),
+              });
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 12h8M8 17h5" />
+              <rect x="4" y="3" width="16" height="18" rx="2" strokeWidth={2} />
+            </svg>
+            <span>{t('ui.verseContextMenu.findSimilar')}</span>
           </button>
         </>
       )}

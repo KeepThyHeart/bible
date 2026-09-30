@@ -5,6 +5,7 @@ import React from 'react';
 import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
 import type { BibleVerse } from '../services/verseCopyService';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { useSimilarStore } from '../stores/useSimilarStore';
 
 describe('withVerseMenuContext', () => {
   const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
@@ -118,6 +119,17 @@ describe('VerseContextMenu', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Show connections' }));
     expect(onClose).toHaveBeenCalled();
     expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: 43003016 });
+  });
+
+  it('opens Similar passages for the right-clicked verse', async () => {
+    const openFor = vi.spyOn(useSimilarStore.getState(), 'openFor').mockImplementation(() => {});
+    renderWithProviders(
+      <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
+    );
+    await userEvent.click(screen.getByRole('menuitem', { name: 'ui.verseContextMenu.findSimilar' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(openFor).toHaveBeenCalledWith({ startVerseId: 43003016, endVerseId: 43003016 });
+    openFor.mockRestore();
   });
 
   it('shows highlight option when onOpenHighlightMenu is provided', () => {

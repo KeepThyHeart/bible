@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve } from 'path';
-import { ALLOWED_IPC_CHANNELS } from '../allowedChannels';
+import { ALLOWED_IPC_CHANNELS, TYPED_IPC_CHANNELS } from '../allowedChannels';
 
 const RENDERER_ROOT = resolve(__dirname, '../../../src');
 
@@ -107,5 +107,17 @@ describe('ALLOWED_IPC_CHANNELS', () => {
       .map(site => `${site.channel} (${site.file})`);
 
     expect(missing, 'channels invoked but not allowlisted').toEqual([]);
+  });
+});
+
+describe('TYPED_IPC_CHANNELS', () => {
+  it('is free of duplicates', () => {
+    expect(new Set(TYPED_IPC_CHANNELS).size).toBe(TYPED_IPC_CHANNELS.length);
+  });
+
+  it('includes the similar passages channels (task 0070)', () => {
+    for (const channel of ['similar:find', 'similar:explain', 'similar:status']) {
+      expect(TYPED_IPC_CHANNELS as readonly string[]).toContain(channel);
+    }
   });
 });

@@ -32,6 +32,9 @@ export function ContextMenuPopup({ x, y, menuRef, onAction }: ContextMenuPopupPr
       <button class="verse-context-menu__item" onClick={() => onAction('connections')}>
         <i class="fa-solid fa-diagram-project" /> {t('xrefGraph.showConnections', { defaultValue: 'Show connections' })}
       </button>
+      <button class="verse-context-menu__item" onClick={() => onAction('similar')}>
+        <i class="fa-solid fa-clone" /> {t('contextMenu.similar')}
+      </button>
     </div>
   );
 }

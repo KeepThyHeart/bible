@@ -6,6 +6,9 @@
 import type { ElectronAPI } from '../../../electron/preload';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import { unwrap, IpcResultError, type Result } from './ipcResult';
+import type {
+  PassageRange, SimilarOptions, SimilarFindResponse, SimilarStatus, MatchReason,
+} from '../../../electron/ipc/similarTypes';
 
 // Check if running in Electron
 const isElectron = typeof window !== 'undefined' && window.electron !== undefined;
@@ -442,6 +445,34 @@ export const assetsAPI = {
   },
   async refresh() {
     return unwrap(assetsBridge().refresh() as Promise<Result<AssetListSnapshot>>);
+  },
+};
+
+/**
+ * Similar passages (task 0070). Typed loosely via a local bridge until the preload
+ * `similar` bridge is in `ElectronAPI`; payload shapes come from the main process.
+ */
+interface SimilarBridge {
+  find(range: PassageRange, opts?: SimilarOptions, module?: string): Promise<Result<SimilarFindResponse>>;
+  explain(a: PassageRange, b: PassageRange, module?: string): Promise<Result<MatchReason[]>>;
+  status(): Promise<Result<SimilarStatus>>;
+}
+
+function similarBridge(): SimilarBridge {
+  const api = requireElectronAPI() as unknown as { similar?: SimilarBridge };
+  if (!api.similar) throw new Error('Similar passages is not available in this build.');
+  return api.similar;
+}
+
+export const similarAPI = {
+  async find(range: PassageRange, opts?: SimilarOptions, module?: string) {
+    return unwrap(similarBridge().find(range, opts, module));
+  },
+  async explain(a: PassageRange, b: PassageRange, module?: string) {
+    return unwrap(similarBridge().explain(a, b, module));
+  },
+  async status() {
+    return unwrap(similarBridge().status());
   },
 };
 

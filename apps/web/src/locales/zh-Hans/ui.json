@@ -158,7 +158,8 @@
     "topics": "主题",
     "commentary": "注释",
     "dictionary": "词典",
-    "study": "研经"
+    "study": "研经",
+    "similar": "查找相似经文"
   },
   "rightPane": {
     "study": "研经",
@@ -167,7 +168,8 @@
     "dictionary": "词典",
     "search": "搜索",
     "collapseRight": "折叠右侧窗格",
-    "timeline": "时间线"
+    "timeline": "时间线",
+    "similar": "相似经文"
   },
   "timeline": {
     "title": "时间线",
@@ -1400,5 +1402,32 @@
       "invalid-manifest": "此条目无效。",
       "busy": "另一个版本正在下载。"
     }
+  },
+  "similar": {
+    "moreLikeThis": "更多类似经文",
+    "crossRef": "串珠",
+    "otNtBadge": "旧约 ↔ 新约",
+    "similarInMeaning": "意义相近",
+    "barLabel": "相似度 {step}/{max}",
+    "menu": "更多操作",
+    "empty": "未找到相似经文。",
+    "filters": "相似经文筛选",
+    "back": "返回",
+    "hideKnown": "隐藏已知串珠",
+    "testament": {
+      "label": "约",
+      "any": "全部",
+      "ot": "旧约",
+      "nt": "新约"
+    },
+    "similarTo": "与 {{reference}} 相似",
+    "approximate": "基于所选经文的各节。",
+    "selectVerse": "请选择一节经文以查找相似经文。",
+    "loading": "正在加载相似经文...",
+    "downloading": "正在下载相似经文数据...",
+    "unavailable": "此服务器上没有相似经文数据。",
+    "error": "无法加载相似经文。",
+    "retry": "重试",
+    "showMore": "再显示 10 条"
   }
 }
