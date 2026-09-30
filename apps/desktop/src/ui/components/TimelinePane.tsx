@@ -10,6 +10,9 @@ import { unwrap } from '../services/ipcResult';
 import { bibleAPI } from '../services/electronAPI';
 import { loadBookNamesCache, getBookNameFromCache, parseVerseId } from '../utils/verseReference';
 
+/** Build option BIBLE_TIMELINE_MIN_SPAN_YEARS baked in by electron.vite.config.ts; '' = default 200. */
+declare const __BIBLE_TIMELINE_MIN_SPAN_YEARS__: string | undefined;
+
 /**
  * The verse the reader is on: the selected verse of the primary Bible panel,
  * else the first verse of the chapter on screen. A plain number, so the
@@ -157,6 +160,7 @@ const TimelinePane: React.FC = () => {
           onOpenPassage={handleOpenPassage}
           formatReference={formatReference}
           allowFullscreen
+          minSpanYears={typeof __BIBLE_TIMELINE_MIN_SPAN_YEARS__ === 'string' ? Number(__BIBLE_TIMELINE_MIN_SPAN_YEARS__) : undefined}
         />
       </div>
     </div>

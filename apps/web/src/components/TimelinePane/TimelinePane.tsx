@@ -110,6 +110,7 @@ export function TimelinePane({ provider, allowFullscreen }: TimelinePaneProps) {
         onOpenPassage={openPassage}
         formatReference={formatVerseRange}
         allowFullscreen={allowFullscreen}
+        minSpanYears={typeof __TIMELINE_MIN_SPAN_YEARS__ === 'string' ? Number(__TIMELINE_MIN_SPAN_YEARS__) : undefined}
       />
     </div>
   );

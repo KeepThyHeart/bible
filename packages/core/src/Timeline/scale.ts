@@ -9,8 +9,18 @@ export interface TimeView {
 /** Smallest window: 3 hours, so hour-level events (Holy Week) can be told apart. */
 export const MIN_SPAN_DAYS = 3 / 24;
 
-/** Default zoom when following a passage: 200 years. */
-export const DEFAULT_SPAN_DAYS = 200 * 365.25;
+/** Days in a Julian year, as used for span settings. */
+export const DAYS_PER_YEAR = 365.25;
+
+/** Default minimum framing span (search jumps, follow-my-reading): 200 years. */
+export const DEFAULT_SPAN_YEARS = 200;
+export const DEFAULT_SPAN_DAYS = DEFAULT_SPAN_YEARS * DAYS_PER_YEAR;
+
+/** Years to days; non-positive or non-numeric input falls back to the default. */
+export function spanYearsToDays(years: unknown): number {
+  const n = typeof years === 'string' ? Number(years) : years;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n * DAYS_PER_YEAR : DEFAULT_SPAN_DAYS;
+}
 
 export function viewSpan(view: TimeView): number {
   return view.end - view.start;

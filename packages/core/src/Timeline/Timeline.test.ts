@@ -3,7 +3,7 @@ import {
   formatVerseIdRange, minContextDays,
   bc, civilToInstant, instantToCivil, formatInstant, formatSpan, computeTicks, zoomView, panView, clampView,
   layoutTimeline, packRows, resolveItems, chronologyChain, itemsForPassage, createTimelineStore, xOf, tOf,
-  DEFAULT_SPAN_DAYS, MIN_SPAN_DAYS, spanRange, spanToFraction, fractionToSpan, centerToFraction, fractionToView, searchTimelineItems,
+  DEFAULT_SPAN_DAYS, MIN_SPAN_DAYS, spanYearsToDays, spanRange, spanToFraction, fractionToSpan, centerToFraction, fractionToView, searchTimelineItems,
   type TimelineDataset, type TimelineItemDto,
 } from './index';
 
@@ -175,12 +175,24 @@ describe('store', () => {
     expect(zoomed).not.toEqual(view);
     expect(s.focusPassage(1001001)).toBe(false);
   });
-  it('explicit focusItem keeps the precision-aware frame', () => {
+  it('focusItem (search jump) frames at least the default minimum span, centred', () => {
     const s = createTimelineStore(dataset);
     s.focusItem(3);
-    const span = s.getSnapshot().view.end - s.getSnapshot().view.start;
-    expect(span).toBeGreaterThanOrEqual(2 - 1e-9);
-    expect(span).toBeLessThan(3);
+    const v = s.getSnapshot().view;
+    const b = s.getBounds();
+    expect(v.end - v.start).toBeCloseTo(Math.min(DEFAULT_SPAN_DAYS, b.end - b.start));
+  });
+  it('minSpanDays option sets the search-jump span; spanYearsToDays parses config', () => {
+    const s = createTimelineStore(dataset, { minSpanDays: 5 });
+    s.focusItem(3);
+    const v = s.getSnapshot().view;
+    expect(v.end - v.start).toBeGreaterThanOrEqual(5 - 1e-9);
+    expect(v.end - v.start).toBeLessThan(6);
+    expect(spanYearsToDays('50')).toBeCloseTo(50 * 365.25);
+    expect(spanYearsToDays('')).toBe(DEFAULT_SPAN_DAYS);
+    expect(spanYearsToDays('abc')).toBe(DEFAULT_SPAN_DAYS);
+    expect(spanYearsToDays(-3)).toBe(DEFAULT_SPAN_DAYS);
+    expect(spanYearsToDays(undefined)).toBe(DEFAULT_SPAN_DAYS);
   });
   it('setSpan zooms about the centre and clamps', () => {
     const s = createTimelineStore(dataset);

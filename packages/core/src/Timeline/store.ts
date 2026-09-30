@@ -32,8 +32,8 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
   setView(view: TimeView): void;
   fit(): void;
   select(id: number | null): void;
-  /** Select an item and frame it in the view. */
-  focusItem(id: number, opts?: { minSpan?: number }): void;
+  /** Select an item and frame it in the view (at least the store's minimum span, centred on the item). */
+  focusItem(id: number): void;
   /** Select the best item for a verse (follow-my-reading); false when none covers it. */
   focusPassage(verseId: number, verseIdEnd?: number): boolean;
   toggleLane(laneId: string): void;
@@ -50,6 +50,8 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
 export interface TimelineStoreOptions {
   chronologyId?: string;
   width?: number;
+  /** Minimum span (days) framed by search jumps and follow-my-reading. Default DEFAULT_SPAN_DAYS. */
+  minSpanDays?: number;
 }
 
 const FALLBACK_BOUNDS: TimeView = { start: 0, end: 365 };
@@ -59,6 +61,11 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
     options.chronologyId && dataset.chronologies.some((c) => c.id === options.chronologyId)
       ? options.chronologyId
       : defaultChronologyId(dataset) ?? '';
+
+  const minSpanDays =
+    options.minSpanDays !== undefined && Number.isFinite(options.minSpanDays) && options.minSpanDays > 0
+      ? options.minSpanDays
+      : DEFAULT_SPAN_DAYS;
 
   let resolved: ResolvedItem[] = [];
   let rows = new Map<number, number>();
@@ -146,13 +153,13 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
     select(id) {
       update({ selectedId: id });
     },
-    focusItem(id, opts) {
+    focusItem(id) {
       const r = resolved.find((x) => x.item.id === id);
       if (!r) return;
       const start = r.date.start;
       const end = r.date.end ?? start;
-      // Frame at least a precision-aware context span (and 1.5x the item) centred on the item.
-      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, opts?.minSpan ?? 0);
+      // Frame at least the configured minimum span (and 1.5x the item) centred on the item.
+      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, minSpanDays);
       const mid = (start + end) / 2;
       update({ selectedId: id, view: clampView({ start: mid - span / 2, end: mid + span / 2 }, bounds) });
     },
@@ -162,7 +169,7 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
       if (!hit) return false;
       // Already selected: keep the user's zoom and pan.
       if (hit.id === state().selectedId) return true;
-      self.focusItem(hit.id, { minSpan: DEFAULT_SPAN_DAYS });
+      self.focusItem(hit.id);
       return true;
     },
     toggleLane(laneId) {

@@ -172,6 +172,18 @@ Deployments that predate `site-config.json` still read `server-config.json` from
 | `NO_AUTH` | — | Set to `1` to disable password gate |
 | `SITE_PASSWORD` | — | Override password (alternative to server-config.json) |
 
+### Build options
+
+Build-time values are read by `vite.config.ts` from environment variables and baked into the client, so changing one needs a rebuild.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events still get 1.5x their length; the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. The desktop app takes the same variable (see its README, Build Configuration). |
+
+```bash
+BIBLE_TIMELINE_MIN_SPAN_YEARS=100 pnpm run build:client
+```
+
 ### Branding
 
 The product name, tagline and theme colour are not written in `index.html`. They live in `admin/brand/branding.json` at the repo root, and `brandingPlugin()` in `vite.config.ts` substitutes them into the HTML shell and the PWA manifest at build time. The tracked `index.html` keeps `%BRAND_*%` placeholders and is never rewritten on disk, so building produces nothing to commit.

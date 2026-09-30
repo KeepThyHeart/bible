@@ -1,6 +1,6 @@
 /** TimelinePanel: toolbar (chronology, kinds, search, lanes, zoom), the timeline and the selected item's card. */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createTimelineStore } from '@bible/core/browser';
+import { createTimelineStore, spanYearsToDays } from '@bible/core/browser';
 import type { TimelineDataset } from '@bible/core/browser';
 import { TimelineView } from './TimelineView';
 import { TimelineItemCard } from './TimelineItemCard';
@@ -24,6 +24,8 @@ export interface TimelinePanelProps {
   height?: number;
   /** Show a full-screen toggle (default false). */
   allowFullscreen?: boolean;
+  /** Minimum span (years) framed by search jumps and follow-my-reading; build config, default 200. */
+  minSpanYears?: number;
   className?: string;
 }
 
@@ -36,11 +38,14 @@ export function TimelinePanel({
   initialChronologyId,
   height,
   allowFullscreen = false,
+  minSpanYears,
   className,
 }: TimelinePanelProps) {
   const labels = { ...DEFAULT_TIMELINE_PANEL_LABELS, ...labelOverrides };
   // A new dataset is a new store; the initial chronology only seeds it.
-  const store = useMemo(() => createTimelineStore(dataset, { chronologyId: initialChronologyId }), [dataset]);
+  const store = useMemo(() => createTimelineStore(dataset, { chronologyId: initialChronologyId, minSpanDays: spanYearsToDays(minSpanYears) }),
+    [dataset, minSpanYears],
+  );
   const state = useTimelineStore(store);
 
   useEffect(() => {
