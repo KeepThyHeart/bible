@@ -51,9 +51,10 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   const live = useRef({ playingId, ready });
   live.current = { playingId, ready };
   const centredKey = useRef<string | null>(null);
-  // The selection when playback began or the reader last jumped: "Read from" is offered only when it changes after that.
-  const studyBaseline = useRef<number | null | undefined>(undefined);
-  if (studyBaseline.current === undefined && ready) studyBaseline.current = studyVerse;
+  // "Read from" is offered only after the reader selects a verse: not for the selection playback started
+  // from, and not again after a jump. Tracked as an event (a change of selection), not a value.
+  const [selectionTouched, setSelectionTouched] = useState(false);
+  const selWatch = useRef<{ tabId: string | undefined; verse: number | null | undefined }>({ tabId: undefined, verse: undefined });
   const checkFrame = useRef(0);
   const frame = useRef(0);
 
@@ -86,6 +87,13 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
     });
     scroller.scrollTo({ top, behavior: behavior === 'smooth' && reducedMotion() ? 'auto' : behavior });
   };
+
+  useEffect(() => {
+    const tabId = np.tab?.id;
+    const w = selWatch.current;
+    if (w.tabId !== tabId) { selWatch.current = { tabId, verse: studyVerse }; setSelectionTouched(false); return; } // playback moved to another tab
+    if (w.verse !== studyVerse) { w.verse = studyVerse; setSelectionTouched(true); }
+  }, [np.tab?.id, studyVerse]);
 
   // A new chapter has arrived (or the pane just mounted): land on the verse at once.
   useEffect(() => {
@@ -143,7 +151,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
     intent.clear();
     setShowBack(false);
     setCursor(null);
-    studyBaseline.current = np.tab?.studyVerse ?? null;
+    setSelectionTouched(false);
     audioStore.jumpToVerse(id % 1000);
   };
 
@@ -194,7 +202,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
   const contentDir = directionForLanguage(contentLang);
   const size = variant === 'phone' ? 20 : Math.min(fontSize, 22);
 
-  const showReadFrom = ready && studyVerse !== null && studyVerse !== studyBaseline.current && playingId !== null && studyVerse !== playingId
+  const showReadFrom = ready && selectionTouched && studyVerse !== null && playingId !== null && studyVerse !== playingId
     && Math.floor(studyVerse / 1000) === (book as number) * 1000 + (chapter as number);
   const readFromRef = showReadFrom ? `${np.chapterLabel}:${studyVerse! % 1000}` : '';
   const activeId = cursor ?? playingId;

@@ -218,5 +218,7 @@ describe('AudioVersePane', () => {
     expect(screen.queryByText(/audio.verses.readFrom/)).toBeNull();
     act(() => { tab.studyVerse = V(6); notifyBible(); });
     expect(screen.queryByText(/audio.verses.readFrom/)).not.toBeNull();
+    act(() => { tab.studyVerse = V(1); notifyBible(); }); // choosing the start verse again is a choice too
+    expect(screen.queryByText(/audio.verses.readFrom/)).not.toBeNull();
   });
 });
