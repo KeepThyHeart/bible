@@ -48,4 +48,6 @@ The 1/2/3 buttons are the hop count (`EgoOptions.depth`): 1 = the verses the cen
 
 ## Compass, zoom and full screen
 
+Notches around the outer ring mark each book start, longer where the section changes and longest at Genesis and Matthew (`compassTicks()`).
+
 The compass puts each star at the angle of its `canonPosition` (Genesis at the top, clockwise); hop rings are radial, stars sharing an angle are staggered along the radius, and a wide stage stretches the circle into an ellipse. The verse web's camera focuses on the anchor by default (zoomed in, never below 1), pans by dragging the background, zooms by wheel, pinch, buttons or `+`/`-`, and "Fit all" zooms out to everything. Full screen: `useXrefFullscreen(ref)` (in `@bible/ui`) gives `{ full, toggle }`; each app stretches its dialog when `full` is set and the element also requests the browser's Fullscreen API.

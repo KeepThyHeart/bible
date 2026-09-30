@@ -330,7 +330,7 @@ export function XrefCompassView({
           >
             <rect className="kth-xref-web__bg kth-xref-star__bg" x={0} y={0} width={width} height={height} onClick={() => setSelected(null)} />
             {/* The canon: one arc per book, coloured by section. */}
-            <g className="kth-xref-star__canon" aria-hidden="true">
+            <g className="kth-xref-star__canon" aria-hidden="true" style={{ direction: 'ltr' }}>
               {SEGMENTS.map((s) => (
                 <path
                   key={s.book}
@@ -341,16 +341,22 @@ export function XrefCompassView({
               ))}
               {TICKS.map((t) => {
                 const a = canonAngle(t.pos);
-                const r0 = ringR + 5;
-                const r1 = r0 + TICK_LENGTH[t.rank];
+                // Fixed pixel length along the ellipse normal, so ticks look alike on stretched stages.
+                const nx = Math.cos(a) / sx;
+                const ny = Math.sin(a);
+                const n = Math.hypot(nx, ny) || 1;
+                const px = cx + Math.cos(a) * ringR * sx;
+                const py = cy + Math.sin(a) * ringR;
+                const d0 = 5;
+                const d1 = d0 + TICK_LENGTH[t.rank];
                 return (
                   <line
                     key={t.pos}
                     className={`kth-xref-star__tick kth-xref-star__tick--${t.rank}`}
-                    x1={cx + Math.cos(a) * r0 * sx}
-                    y1={cy + Math.sin(a) * r0}
-                    x2={cx + Math.cos(a) * r1 * sx}
-                    y2={cy + Math.sin(a) * r1}
+                    x1={px + (nx / n) * d0}
+                    y1={py + (ny / n) * d0}
+                    x2={px + (nx / n) * d1}
+                    y2={py + (ny / n) * d1}
                   />
                 );
               })}
@@ -365,8 +371,8 @@ export function XrefCompassView({
                     className="kth-xref-star__divide"
                     x1={cx + Math.cos(a) * R * 0.2 * sx}
                     y1={cy + Math.sin(a) * R * 0.2}
-                    x2={cx + Math.cos(a) * (ringR + 14) * sx}
-                    y2={cy + Math.sin(a) * (ringR + 14)}
+                    x2={cx + Math.cos(a) * (ringR - 3) * sx}
+                    y2={cy + Math.sin(a) * (ringR - 3)}
                   />
                 );
               })}
