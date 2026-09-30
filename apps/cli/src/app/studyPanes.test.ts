@@ -122,7 +122,10 @@ describe.skipIf(!hasLibrary)('crossReferenceGroups', () => {
     const groups = crossReferenceGroups(library(), undefined, JOHN_3_16, theme, DISPLAY);
     const rows = groups.flatMap((g) => g.rows);
 
-    const sameChapter = rows.find((r) => VerseIdHelper.parse(r.targetVerseId).bookNumber === JOHN);
+    const sameChapter = rows.find((r) => {
+      const target = VerseIdHelper.parse(r.targetVerseId);
+      return target.bookNumber === JOHN && target.chapter === 3;
+    });
     expect(sameChapter?.label).toMatch(/^v\d+/);
 
     const romans = rows.find((r) => VerseIdHelper.parse(r.targetVerseId).bookNumber === ROMANS);

@@ -2152,6 +2152,9 @@ export class BibleSearchService implements ISearchService {
   // Verse Distance Calculation (for Verse Proximity Search)
   // ========================================================================
 
+  /** bookNumber -> (chapter -> verse count); see countVersesBetween. */
+  private readonly chapterVerseCountCache = new Map<number, Map<number, number>>();
+
   /**
    * Calculate the number of verses between two verse IDs
    * Returns the absolute distance in verses, or Infinity if in different books
@@ -2182,17 +2185,21 @@ export class BibleSearchService implements ISearchService {
     // Ensure v1 is before v2 for easier calculation
     const [first, second] = v1.chapter < v2.chapter ? [v1, v2] : [v2, v1];
 
-    // Get chapter info for this book
-    const chapterInfoList = this.bibleBookRepo.getChapterInfoByBookNumber(first.bookNumber);
-    if (chapterInfoList.length === 0) {
-      // Fallback: can't calculate precisely, use large number
-      return Infinity;
-    }
-
-    // Build a map of chapter -> verse count
-    const chapterMap = new Map<number, number>();
-    for (const info of chapterInfoList) {
-      chapterMap.set(info.chapter, info.verseCount);
+    // Chapter -> verse count for this book, cached: this runs once per pair of
+    // candidate verses, and a DB query per pair made cross-chapter verse
+    // proximity take ~10s on the KJV (right at the test timeout).
+    let chapterMap = this.chapterVerseCountCache.get(first.bookNumber);
+    if (!chapterMap) {
+      const chapterInfoList = this.bibleBookRepo.getChapterInfoByBookNumber(first.bookNumber);
+      if (chapterInfoList.length === 0) {
+        // Fallback: can't calculate precisely, use large number
+        return Infinity;
+      }
+      chapterMap = new Map<number, number>();
+      for (const info of chapterInfoList) {
+        chapterMap.set(info.chapter, info.verseCount);
+      }
+      this.chapterVerseCountCache.set(first.bookNumber, chapterMap);
     }
 
     let distance = 0;
@@ -2221,6 +2228,12 @@ export class BibleSearchService implements ISearchService {
    * @returns true if verses are within distance, false otherwise
    */
   private isWithinVerseDistance(verseId1: VerseId, verseId2: VerseId, maxDistance: number): boolean {
+    // Cheap rejection: every chapter holds at least one verse, so two verses
+    // N chapters apart are at least N verses apart.
+    const a = VerseIdHelper.parse(verseId1);
+    const b = VerseIdHelper.parse(verseId2);
+    if (a.bookNumber !== b.bookNumber) return false;
+    if (Math.abs(a.chapter - b.chapter) > maxDistance) return false;
     return this.countVersesBetween(verseId1, verseId2) <= maxDistance;
   }
 

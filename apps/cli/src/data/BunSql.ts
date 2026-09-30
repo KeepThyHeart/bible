@@ -35,6 +35,12 @@ export interface BunSqlOptions {
    * tree and uses a plain read-only open for the user tree.
    */
   immutable?: boolean;
+  /**
+   * Apply the app's usual pragmas (WAL, cache size, ...). On by default. The
+   * sidecar keyword-index builder turns it off: a `.kwi.part` is finished with
+   * one rename, so a `-wal` file beside it would be orphaned.
+   */
+  pragmas?: boolean;
 }
 
 /** Cap on cached prepared statements. Bounded so a long session cannot grow without limit. */
@@ -70,7 +76,7 @@ export class BunSql implements ISql {
     this.db = new Database(filename, flags);
 
     try {
-      this.applyPragmas(options.readonly === true);
+      if (options.pragmas !== false) this.applyPragmas(options.readonly === true);
     } catch (error) {
       // `new Database` succeeds on a file that is not a database — the failure
       // surfaces at the first statement, which is here. Without this the handle
@@ -162,6 +168,15 @@ export class BunSql implements ISql {
   ): T {
     try {
       return body(this.prepare(sql), bindArgs(sql, params));
+    } catch (error) {
+      throw wrapSqlError(error, sql);
+    }
+  }
+
+  /** Run statements with no bind parameters (DDL, `PRAGMA`); `SidecarSql` needs it. */
+  exec(sql: string): void {
+    try {
+      this.db.exec(sql);
     } catch (error) {
       throw wrapSqlError(error, sql);
     }

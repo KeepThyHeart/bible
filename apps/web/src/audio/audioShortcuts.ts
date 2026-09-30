@@ -8,8 +8,9 @@
  *
  * The four arrow shortcuts act only while audio is active, so Alt+Left keeps
  * meaning "browser back" the rest of the time, and never while typing in a field.
- * Checked against the existing bindings: the app's own shortcuts use Ctrl/Cmd and
- * `/`, none use Alt. (On macOS Option+P types a different character, so Alt+P works
+ * The Presenter also uses Alt+Left / Alt+Right (previous / next on the wall), so
+ * the arrow shortcuts stand down while a presenting session is open (`suppressArrows`).
+ * The app's other shortcuts use Ctrl/Cmd and `/`, none use Alt. (On macOS Option+P types a different character, so Alt+P works
  * on Windows and Linux only; the transport bar has the same actions as buttons.)
  */
 
@@ -79,14 +80,16 @@ const isTextEntry = (el: Element | null): boolean =>
   !!el && (el instanceof HTMLInputElement && !['range', 'checkbox', 'radio', 'button'].includes(el.type)
     || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable === true);
 
-export function registerAudioShortcuts(registry: ShortcutRegistry, audio: ShortcutTarget): () => void {
+export function registerAudioShortcuts(registry: ShortcutRegistry, audio: ShortcutTarget, suppressArrows: () => boolean = () => false): () => void {
   const active = () => audio.enabled && audio.status !== 'idle' && !isTextEntry(document.activeElement);
+  // Alt+arrows belong to the Presenter while it is running (see the header comment).
+  const arrows = () => active() && !suppressArrows();
   const offs = [
     registry.register({ id: 'audio.toggle', key: 'alt+p', label: 'Play or pause audio', when: () => audio.enabled, handler: () => audio.togglePlay() }),
-    registry.register({ id: 'audio.prevVerse', key: 'alt+arrowleft', label: 'Previous verse (audio)', when: active, handler: () => audio.seekVerse(-1) }),
-    registry.register({ id: 'audio.nextVerse', key: 'alt+arrowright', label: 'Next verse (audio)', when: active, handler: () => audio.seekVerse(1) }),
-    registry.register({ id: 'audio.prevChapter', key: 'alt+shift+arrowleft', label: 'Previous chapter (audio)', when: active, handler: () => audio.seekChapter(-1) }),
-    registry.register({ id: 'audio.nextChapter', key: 'alt+shift+arrowright', label: 'Next chapter (audio)', when: active, handler: () => audio.seekChapter(1) }),
+    registry.register({ id: 'audio.prevVerse', key: 'alt+arrowleft', label: 'Previous verse (audio)', when: arrows, handler: () => audio.seekVerse(-1) }),
+    registry.register({ id: 'audio.nextVerse', key: 'alt+arrowright', label: 'Next verse (audio)', when: arrows, handler: () => audio.seekVerse(1) }),
+    registry.register({ id: 'audio.prevChapter', key: 'alt+shift+arrowleft', label: 'Previous chapter (audio)', when: arrows, handler: () => audio.seekChapter(-1) }),
+    registry.register({ id: 'audio.nextChapter', key: 'alt+shift+arrowright', label: 'Next chapter (audio)', when: arrows, handler: () => audio.seekChapter(1) }),
     registry.register({ id: 'audio.focusPlayer', key: 'alt+shift+p', label: 'Go to the audio player', when: () => audio.enabled && audio.status !== 'idle', handler: focusAudioPlayer }),
   ];
   return () => { for (const off of offs) off(); };

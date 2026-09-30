@@ -12,6 +12,8 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { FORMAT_VERSION } from '@bible/core';
+
 import {
   type DiscoveryEnv,
   type ModuleDescriptor,
@@ -233,6 +235,10 @@ describe('schema version support', () => {
 
   test('rejects a newer major version', () => {
     expect(isSupportedSchema('3.0.0')).toBe(false);
+    // 0.x is an allow-list: the current and previous minors read, a newer one is refused.
+    expect(isSupportedSchema('0.1')).toBe(true);
+    expect(isSupportedSchema('0.2')).toBe(true);
+    expect(isSupportedSchema('0.3')).toBe(false);
   });
 
   test('missing or unparseable versions are attempted rather than refused', () => {
@@ -382,7 +388,8 @@ describe('against a real module', () => {
     expect(descriptor?.abbreviation).toBe('KJV');
     expect(descriptor?.language).toBe('en');
     expect(descriptor?.contentSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(descriptor?.schemaVersion).toBe('2.0.0');
+    // Module formats are numbered 0.N now (core's FORMAT_VERSION), not 2.0.0.
+    expect(descriptor?.schemaVersion).toBe(FORMAT_VERSION);
     expect(isSupportedSchema(descriptor?.schemaVersion)).toBe(true);
   });
 

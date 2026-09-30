@@ -71,7 +71,7 @@ export function ensureBookIndex(
     // The table is missing entirely — an older or hand-made module.
     return {
       state: 'unavailable',
-      detail: 'this module has no proximity-search tables',
+      detail: 'this module is read-only and has no proximity-search tables',
     };
   }
 

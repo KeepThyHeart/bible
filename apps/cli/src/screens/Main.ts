@@ -139,9 +139,10 @@ import {
   stringWidth,
   tokenizeText,
   truncateLineToWidth,
+  wrapRuns,
   wrapTokens,
 } from '../term/layout';
-import { clampScroll, jumpScroll, layoutReading, type ReadingLine } from '../term/reading';
+import { clampScroll, jumpScroll, layoutReading, superscript, type ReadingLine } from '../term/reading';
 import { mergeStyle, type ColorDepth, type Style, type StyledLine } from '../term/style';
 import { layoutCommentary } from '../app/commentaryMarkup';
 import {
@@ -2414,7 +2415,13 @@ export class MainScreen implements Screen {
     if (this.shortcutsExpanded) {
       rows.push([{ text: '? for the verse text', style: ctx.theme.muted }]);
     } else {
-      rows.push(...laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments));
+      // Wrap the verse's own runs to this pane's width. (The laid-out lines were
+      // wrapped for the main pane: clipping them drops words, and a paragraph's
+      // last line also holds the start of the next verse.)
+      const verse = laid.verses.find((v) => v.verse === cursorNum);
+      if (verse !== undefined) {
+        rows.push(...wrapRuns([{ text: superscript(cursorNum), style: ctx.theme.muted }, ...verse.runs], { width }));
+      }
     }
     rows.push([]);
 
@@ -2557,7 +2564,7 @@ export class MainScreen implements Screen {
       return '↑↓ scroll  esc back';
     }
     if (!reading) return '↑↓ scroll  esc back';
-    if (showRightPane) return '↑↓ verse  n p chapter  y copy  / go to or search';
+    if (showRightPane) return '↑↓ verse  n p chapter  y copy';
     return '↑↓ verse  s shortcuts  / go to or search';
   }
 }

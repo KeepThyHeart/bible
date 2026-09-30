@@ -8,7 +8,7 @@ import { navigateToVerseInPrimary } from '../stores/crossStoreBridge';
 import { openModuleManager } from '../utils/openModuleManager';
 import { unwrap } from '../services/ipcResult';
 import { bibleAPI } from '../services/electronAPI';
-import { loadBookNamesCache, getBookNameFromCache, parseVerseId } from '../utils/verseReference';
+import { loadBookNamesCache, getBookNameFromCache } from '../utils/verseReference';
 
 /** Build option BIBLE_TIMELINE_MIN_SPAN_YEARS baked in by electron.vite.config.ts; '' = default 200. */
 declare const __BIBLE_TIMELINE_MIN_SPAN_YEARS__: string | undefined;
@@ -69,8 +69,8 @@ const TimelinePane: React.FC = () => {
   }, []);
 
   const formatReference = useCallback((verseId: number, endVerseId?: number): string => {
-    const name = (id: number) => {
-      const { bookNumber } = parseVerseId(id);
+    // Core hands over a book number (not a verse id) to name.
+    const name = (bookNumber: number) => {
       const cached = getBookNameFromCache(bookNumber);
       return cached && cached !== 'Unknown' ? cached : getBookName(bookNumber);
     };

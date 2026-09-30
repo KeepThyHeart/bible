@@ -19,6 +19,7 @@ import { BibleSearchService, VerseIdHelper, type SearchResult } from '@bible/cor
 import { SearchQueryParser } from '@bible/core/Services/SearchQueryParser';
 
 import { ensureBookIndex } from '../data/bookIndex';
+import { ensureKeywordIndex } from '../data/keywordIndex';
 import type { Library } from './library';
 import { stringWidth, truncateToWidth } from '../term/layout';
 import type { StyledLine, StyledSegment, Theme } from '../term/style';
@@ -124,6 +125,10 @@ export async function runSearch(
     const index = probeBookIndex(bible.sql, bible.repo, target.bookNumber);
     if (index !== undefined) return outcome(text, module, { unanswerable: index });
   }
+
+  // v0.2 modules carry no FTS table: their keyword index is a sidecar file that
+  // has to be configured, and built the first time, before core can search.
+  await ensureKeywordIndex(bible.module);
 
   const service = new BibleSearchService(new Map([[module, bible.repo]]), target.library.bookRepository());
   const started = performance.now();
