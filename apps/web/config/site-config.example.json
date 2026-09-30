@@ -6,6 +6,7 @@
   },
   "features": {
     "tagGraph": false,
+    "timeline": false,
     "semanticSearch": false,
     "pwa": false,
     "offlineDownloads": false,

@@ -143,4 +143,6 @@ export const CONTENT_MAP: Record<ModuleType, readonly ContentShape[]> = {
                     indexed: ['name', 'content'] }],
   cross_reference: [],
   tag_graph: [],
+  // Timeline carries dated data, not prose; nothing is indexed or compressed.
+  timeline: [],
 };

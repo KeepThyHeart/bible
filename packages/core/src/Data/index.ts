@@ -170,6 +170,7 @@ export * from './Repositories/IBookRepository';
 export * from './Repositories/ITopicalIndexRepository';
 export * from './Repositories/ICrossReferenceRepository';
 export * from './Repositories/ITagGraphRepository';
+export * from './Repositories/ITimelineRepository';
 export * from './Repositories/IEnrichmentRepository';
 export * from './Repositories/IVerseLinkRepository';
 // F8 (task 0027 revision 2): durable keyword-index state in main.db.
@@ -196,6 +197,7 @@ export * from './Repositories/TopicalIndexRepository';
 export * from './Repositories/ModuleKeywordIndexes';
 export * from './Repositories/CrossReferenceRepository';
 export * from './Repositories/TagGraphRepository';
+export * from './Repositories/TimelineRepository';
 export * from './Repositories/EnrichmentRepository';
 export * from './Repositories/BibleSearchRepository';
 export * from './Repositories/VerseLinkRepository';

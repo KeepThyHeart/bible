@@ -266,6 +266,8 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getEntityByName',
   'tagGraph:getVersesForEntity',
   'tagGraph:getFacetsForEntity',
+  // Timeline
+  'timeline:getDataset',
   // Cross-references
   'xref:getAvailable',
   'xref:getGroupsForVerse',

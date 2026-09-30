@@ -16,6 +16,21 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+export { TimelineView } from './components/Timeline/TimelineView';
+export type { TimelineViewProps } from './components/Timeline/TimelineView';
+export { TimelineItemCard } from './components/Timeline/TimelineItemCard';
+export type { TimelineItemCardProps } from './components/Timeline/TimelineItemCard';
+export { TimelinePanel } from './components/Timeline/TimelinePanel';
+export type { TimelinePanelProps } from './components/Timeline/TimelinePanel';
+export { useTimelineStore } from './components/Timeline/useTimelineStore';
+export {
+  DEFAULT_TIMELINE_VIEW_LABELS,
+  DEFAULT_TIMELINE_ITEM_CARD_LABELS,
+  DEFAULT_TIMELINE_PANEL_LABELS,
+  DEFAULT_TIMELINE_KIND_LABELS,
+  defaultFormatReference,
+} from './components/Timeline/labels';
+export type { TimelineViewLabels, TimelineItemCardLabels, TimelinePanelLabels } from './components/Timeline/labels';
 export { defaultFormatRef, sectionVar, sectionVarOfVerse } from './components/xref/common';
 export type { FormatRef } from './components/xref/common';
 export { XrefHopper, DEFAULT_XREF_HOPPER_LABELS } from './components/xref/XrefHopper';
@@ -33,6 +48,8 @@ export { HoverCard } from './components/HoverCard';
 export type { HoverCardProps } from './components/HoverCard';
 export { BottomSheet, DEFAULT_BOTTOM_SHEET_LABELS } from './components/BottomSheet';
 export type { BottomSheetProps, BottomSheetLabels } from './components/BottomSheet';
+export { FullscreenPanel, DEFAULT_FULLSCREEN_PANEL_LABELS } from './components/FullscreenPanel';
+export type { FullscreenPanelProps, FullscreenPanelLabels } from './components/FullscreenPanel';
 export { useHoverIntent } from './components/useHoverIntent';
 export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';

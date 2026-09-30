@@ -26,6 +26,7 @@ import type {
   CrossReferenceRepository as CrossReferenceRepositoryT,
   TopicalIndexRepository as TopicalIndexRepositoryT,
   TagGraphRepository as TagGraphRepositoryT,
+  ITimelineRepository,
   WordFamilyService as WordFamilyServiceT,
   IBibleRepository,
   ICommentaryRepository,
@@ -161,6 +162,7 @@ export class DatabaseManager {
   private commentaryLoader: ModuleLoaderT<CommentaryRepositoryT> | null = null;
   private crossRefLoader: ModuleLoaderT<CrossReferenceRepositoryT> | null = null;
   private topicalIndexLoader: ModuleLoaderT<TopicalIndexRepositoryT> | null = null;
+  private timelineLoader: ModuleLoaderT<ITimelineRepository> | null = null;
 
   /**
    * @param dataDir  Directory for app-level data (main.db, settings.json, semantic DBs, etc.)
@@ -281,6 +283,21 @@ export class DatabaseManager {
       });
     }
     return this.topicalIndexLoader;
+  }
+
+  private getTimelineLoader(): ModuleLoaderT<ITimelineRepository> {
+    if (!this.timelineLoader) {
+      this.timelineLoader = new ModuleLoader<ITimelineRepository>({
+        moduleType: 'timeline',
+        metadataRepo: this.getModuleMetadataRepo(),
+        pathResolver: { resolveModulePath: (p: string) => this.resolveModulePath(p) },
+        store: this.moduleStore,
+        factory: moduleRepositoryFactoryFor(this.repositoryFactory, 'timeline', this.codecs),
+        readonly: MODULE_DB_OPTIONS.readonly,
+        fileExists: existsSync,
+      });
+    }
+    return this.timelineLoader;
   }
 
   /** Resolve a module's database_path against the modules directory. */
@@ -600,6 +617,21 @@ export class DatabaseManager {
     return result;
   }
 
+  /**
+   * The repository of the first installed module of type 'timeline' (by module
+   * name), or null when none is installed or it cannot be opened.
+   */
+  getTimelineRepo(): ITimelineRepository | null {
+    try {
+      const [first] = this.getModuleMetadataRepo().getByType('timeline');
+      if (!first) return null;
+      const abbr = first.abbreviation || first.getAbbreviation();
+      return this.getTimelineLoader().get(abbr) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   getTagGraphRepo(): TagGraphRepositoryT | null {
     if (this._tagGraphRepo) return this._tagGraphRepo;
 
@@ -656,6 +688,7 @@ export class DatabaseManager {
     this.commentaryLoader?.closeAll();
     this.crossRefLoader?.closeAll();
     this.topicalIndexLoader?.closeAll();
+    this.timelineLoader?.closeAll();
 
     for (const db of this.dictionaryDbs.values()) {
       try { db.close(); } catch (err) { console.debug('Error closing dictionary DB:', err); }
@@ -684,6 +717,7 @@ export class DatabaseManager {
     this.commentaryLoader = null;
     this.crossRefLoader = null;
     this.topicalIndexLoader = null;
+    this.timelineLoader = null;
     this.dictionaryRepos.clear();
     this.dictionaryDbs.clear();
     this._tagGraphDb = null;
