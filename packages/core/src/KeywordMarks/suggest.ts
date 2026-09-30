@@ -1,13 +1,13 @@
 /** "Auto" suggestions: frequent content words in the chapter, grouped by Strong's when rows exist. */
 import { normalizeStrongs } from './connectives';
-import { normalizeToken, foldWord } from '../Text';
+import { normalizeToken } from '../Text';
 import { getStopWords } from '../Text/stopwords';
 import { displayKeywordLabel, isAllCaps, labelFromToken } from './displayLabel';
 import type { ChapterInput, KeywordSuggestion } from './types';
 
 export interface SuggestOptions { minCount?: number; max?: number }
 
-/** Folded stop words for a language (shared list in `Text/stopwords`); test with `foldWord(token)`. */
+/** Stop words for a language (shared list in `Text/stopwords`); test with a `normalizeToken`ed word. */
 export function stopwordsFor(language: string): ReadonlySet<string> {
   return getStopWords(language);
 }
@@ -15,8 +15,7 @@ export function stopwordsFor(language: string): ReadonlySet<string> {
 export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}): KeywordSuggestion[] {
   const minCount = opts.minCount ?? 3;
   const max = opts.max ?? 8;
-  const stopSet = stopwordsFor(input.language);
-  const stop = { has: (t: string): boolean => stopSet.has(foldWord(t)) };
+  const stop = stopwordsFor(input.language);
   const byForm = new Map<string, { label: string; count: number; caps: number; surf: Map<string, number>; verses: Set<number> }>();
   const byStrongs = new Map<string, { count: number; verses: Set<number>; forms: Map<string, number> }>();
 

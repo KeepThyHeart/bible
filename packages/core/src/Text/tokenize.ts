@@ -1,11 +1,14 @@
 /**
- * Tokenising plain text into the app's word-index space.
+ * Tokenising plain text.
  *
  * A verse is split on whitespace and each piece is one word, addressed by its
- * 0-based index. This is the same space `extractWords()` /
- * `extractWordsWithFormatting()` (Services/WordIndexing) produce from verse
- * HTML: every whitespace piece is a token, including pure-punctuation ones, so
- * indices from either agree. Use those for HTML; use these for plain text.
+ * 0-based index. The app's word-index space (interlinear rows, decorations) is
+ * defined by `extractWords()` / `extractWordsWithFormatting()` in
+ * Services/WordIndexing, which ALSO start a new token at inline markup
+ * boundaries (`the <span class="divine-name">LORD</span>'s house` is 4 tokens,
+ * the plain text 3). So for text that came from verse HTML use `extractWords()`
+ * or `TermMatcher.matchHtml`; `tokenizeVerseWords` agrees with it only for
+ * markup-free text, and its `text` also trims more edge characters.
  */
 import { normalizeToken, trimEdgePunctuation } from './normalize';
 

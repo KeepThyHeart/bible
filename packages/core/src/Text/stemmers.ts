@@ -159,6 +159,7 @@ export function getStemmer(language: string | undefined): Stemmer | undefined {
   return registry.get(canonicalLanguage(language));
 }
 
+/** Does the language have a stemmer? */
 export function hasStemmer(language: string | undefined): boolean {
   return getStemmer(language) !== undefined;
 }

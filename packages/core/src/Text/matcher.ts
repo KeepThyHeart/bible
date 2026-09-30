@@ -11,9 +11,11 @@
  *  - `lov*`        prefix wildcard: any word starting with "lov" (never stemmed)
  *  - `loving kindness` / `"loving kindness"`  a phrase: consecutive words
  *  - `=loved`      exact (accent- and case-insensitive) form only, never stemmed
- * `exclude` lists forms that must never match ("lovely"); exact forms only.
+ * `exclude` lists single forms that must never match ("lovely"); compared folded and exact
+ * (never stemmed); a multi-word entry is ignored.
  */
 import { foldWord, normalizeToken, normalizeArchaic, trimEdgePunctuation } from './normalize';
+import { extractWords } from '../Services/WordIndexing';
 import { tokenizePhrase, tokenizeVerseWords } from './tokenize';
 import { getStemmer, type Stemmer } from './stemmers';
 
@@ -78,8 +80,18 @@ export interface TermMatch {
 
 export interface TermMatcher {
   readonly stemming: boolean;
-  /** All non-overlapping matches in text, in order. Indices are word-index space. */
+  /**
+   * All non-overlapping matches in PLAIN text (no markup), in order. Indices follow
+   * `tokenizeVerseWords`, which equals the HTML word index only when the HTML has no
+   * inline markup that splits a word (divine-name spans with attached punctuation, etc.).
+   */
   matchText(text: string): TermMatch[];
+  /**
+   * Match over verse display HTML, in the word-index space of `extractWords()`
+   * (markup boundaries split tokens), so indices line up with interlinear rows and decorations.
+   * Use this, not `matchText`, for text that came from verse HTML.
+   */
+  matchHtml(html: string): TermMatch[];
   /** The same over pre-split words (index = array position). */
   matchWords(words: readonly string[]): TermMatch[];
   /** Does a single word match any single-word term (exclusions applied)? */
@@ -88,6 +100,9 @@ export interface TermMatcher {
 
 interface Part { kind: 'exact' | 'stem' | 'prefix'; value: string }
 interface CompiledTerm { raw: string; parts: Part[] }
+
+/** ASCII hyphen, Unicode hyphens, en/em dash, Hebrew maqaf. */
+const HYPHENS = /[-\u2010\u2011\u2013\u2014\u05BE]/;
 
 function cleanTerm(raw: string): string {
   return raw.trim().replace(/^"+|"+$/g, '').trim();
@@ -108,7 +123,7 @@ export function compileTermMatcher(options: TermMatcherOptions): TermMatcher {
     const parts: Part[] = [];
     for (const word of t.split(/\s+/)) {
       if (word.endsWith('*')) {
-        const v = foldWord(word.slice(0, -1));
+        const v = foldWord(trimEdgePunctuation(word.slice(0, -1)));
         if (v) parts.push({ kind: 'prefix', value: v });
       } else {
         const v = fold(trimEdgePunctuation(word));
@@ -123,8 +138,8 @@ export function compileTermMatcher(options: TermMatcherOptions): TermMatcher {
   const excluded = new Set((options.exclude ?? []).map((t) => foldWord(cleanTerm(t).replace(/^=/, ''))).filter(Boolean));
   const maxLen = terms.reduce((m, t) => Math.max(m, t.parts.length), 1);
 
-  const wordMatches = (part: Part, folded: string): boolean => {
-    if (part.kind === 'prefix') return foldWord(folded).startsWith(part.value);
+  const wordMatches = (part: Part, folded: string, plainForm: string): boolean => {
+    if (part.kind === 'prefix') return plainForm.startsWith(part.value);
     if (part.kind === 'exact') return folded === part.value;
     return folded === part.value || stemmer!(folded) === part.value;
   };
@@ -134,7 +149,9 @@ export function compileTermMatcher(options: TermMatcherOptions): TermMatcher {
     const plain = words.map((w) => foldWord(trimEdgePunctuation(w)));
     const folded = words.map((w) => fold(trimEdgePunctuation(w)));
     const trimmed = words.map(trimEdgePunctuation);
-    const pieces = folded.map((f) => (f.includes('-') ? f.split('-').filter(Boolean) : [f]));
+    const split = (f: string): string[] => (HYPHENS.test(f) ? f.split(HYPHENS).filter(Boolean) : [f]);
+    const pieces = folded.map(split);
+    const plainPieces = plain.map(split);
     const out: TermMatch[] = [];
     let i = 0;
     while (i < words.length) {
@@ -148,8 +165,9 @@ export function compileTermMatcher(options: TermMatcherOptions): TermMatcher {
             const f = folded[i + k];
             if (!f || excluded.has(plain[i + k]) || excluded.has(f)) { ok = false; break; }
             // A hyphenated word matches when the whole or any of its parts does.
-            ok = wordMatches(term.parts[k], f) ||
-              (pieces[i + k].length > 1 && pieces[i + k].some((p) => !excluded.has(p) && wordMatches(term.parts[k], p)));
+            ok = wordMatches(term.parts[k], f, plain[i + k]) ||
+              (pieces[i + k].length > 1 &&
+                pieces[i + k].some((p, n) => !excluded.has(plainPieces[i + k][n] ?? p) && !excluded.has(p) && wordMatches(term.parts[k], p, plainPieces[i + k][n] ?? p)));
           }
           if (ok) {
             hit = { start: i, end: i + len - 1, form: trimmed.slice(i, i + len).join(' '), term: term.raw };
@@ -166,6 +184,7 @@ export function compileTermMatcher(options: TermMatcherOptions): TermMatcher {
   return {
     stemming: stemmer !== undefined,
     matchWords,
+    matchHtml: (html) => matchWords(extractWords(html)),
     matchText: (text) => matchWords(tokenizeVerseWords(text).map((w) => w.text)),
     matchesWord: (word) => {
       const hits = matchWords([word]);

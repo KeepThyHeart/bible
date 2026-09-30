@@ -8,7 +8,7 @@ export { tokenizeVerseWords, tokenizePhrase } from './tokenize';
 export type { TextWord } from './tokenize';
 export {
   normalizeToken, foldWord, foldLemma, trimEdgePunctuation,
-  normalizeArchaic, modernizeVerbEnding, ARCHAIC_EN,
+  normalizeArchaic, ARCHAIC_EN,
 } from './normalize';
 export { porterStem, getStemmer, hasStemmer, registerStemmer } from './stemmers';
 export type { Stemmer } from './stemmers';

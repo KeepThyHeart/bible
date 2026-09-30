@@ -279,7 +279,7 @@ export * as Backup from './Backup';
 // left out of this list to avoid duplicate `export *` names.
 export {
   canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
-  normalizeArchaic, modernizeVerbEnding, ARCHAIC_EN,
+  normalizeArchaic, ARCHAIC_EN,
   porterStem, getStemmer, hasStemmer, registerStemmer,
   getStopWords, registerStopWords, isStopWord,
   findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,

@@ -5,6 +5,8 @@ import {
   isStopWord, getStopWords, canonicalLanguage,
 } from './index';
 import { extractWords } from '../Services/WordIndexing';
+import { findSequences, registerStopWords } from './index';
+import * as browser from '../browser';
 
 describe('stemmers', () => {
   it('folds English inflections, including archaic -eth', () => {
@@ -50,8 +52,8 @@ describe('folding, normalising and tokenising', () => {
   });
   it('modernises archaic English only for English', () => {
     expect(normalizeArchaic('thou')).toBe('you');
-    expect(normalizeArchaic('loveth')).toBe('loves');
-    expect(normalizeArchaic('goeth')).toBe('goes');
+    expect(normalizeArchaic('teeth')).toBe('teeth');
+    expect(normalizeArchaic('nazareth')).toBe('nazareth');
     expect(normalizeArchaic('thou', 'es')).toBe('thou');
   });
 });
@@ -81,7 +83,7 @@ describe('term matcher', () => {
     const m = run({ terms: ['beloved', 'lov*', '=world', 'God is'], exclude: ['lovely'], stem: false, language: 'en' });
     expect(m.map((x) => x.form)).toEqual(['loved', 'world', 'loveth', 'God is', 'love', 'loving-kindness']);
   });
-  it('excludes by stem-conflated forms with exclude', () => {
+  it('excludes an exact form that the stemmer would otherwise conflate', () => {
     const m = run({ terms: ['love'], exclude: ['lovely'], language: 'en' });
     expect(m.map((x) => x.form)).toEqual(['loved', 'loveth', 'love', 'loving-kindness']);
   });
@@ -105,6 +107,41 @@ describe('term matcher', () => {
     expect(parseTermQuery('love, lov*, -lovely')).toEqual({ terms: ['love', 'lov*'], exclude: ['lovely'] });
     const m = compileTermMatcher({ terms: ['love', 'loved', 'beloved', 'lov*'], language: 'en' }).matchText('love Love loved');
     expect(countForms(m)).toEqual([{ form: 'love', count: 2 }, { form: 'loved', count: 1 }]);
+  });
+});
+
+describe('review fixes', () => {
+  it('matchHtml uses the HTML word index; matchText drifts after markup', () => {
+    const html = 'the <span class="divine-name">LORD</span>\'s house, yea <span class="divine-name">LORD</span>.';
+    const m = compileTermMatcher({ terms: ['house'], stem: false });
+    expect(m.matchHtml(html)[0].start).toBe(extractWords(html).indexOf('house'));
+    expect(tokenizeVerseWords("the LORD's house").length).toBe(3);
+    expect(extractWords(html).slice(0, 4)).toEqual(['the', 'LORD', "'s", 'house']);
+  });
+  it('prefixes test the plain form under archaic, and trim edge punctuation', () => {
+    const m = compileTermMatcher({ terms: ['tho*'], archaic: true, stem: false });
+    expect(m.matchText('thou art').length).toBe(1);
+    expect(compileTermMatcher({ terms: ['yo*'], archaic: true, stem: false }).matchText('thou art').length).toBe(0);
+    expect(compileTermMatcher({ terms: ['(lov*'], stem: false }).matchText('loved').length).toBe(1);
+  });
+  it('splits compounds on Unicode hyphens and maqaf, and excludes pieces', () => {
+    expect(compileTermMatcher({ terms: ['kindness'], stem: false }).matchText('loving\u2013kindness').length).toBe(1);
+    expect(compileTermMatcher({ terms: ['הארץ'], stem: false }).matchText('כל\u05BEהארץ').length).toBe(1);
+    expect(compileTermMatcher({ terms: ['kindness'], exclude: ['kindness'], stem: false }).matchText('loving-kindness')).toEqual([]);
+  });
+  it('keeps the keyword-mark stop lists (accent-sensitive) and registers new ones', () => {
+    expect(getStopWords('es').has('aquí')).toBe(true);
+    expect(isStopWord('él', 'es')).toBe(false);
+    expect(isStopWord('it\'s', 'en')).toBe(false);
+    expect(isStopWord('doth', 'en')).toBe(false);
+    registerStopWords('xx', ['Foo']);
+    expect(isStopWord('foo,', 'xx')).toBe(true);
+  });
+  it('findSequences and the browser entry point export the tools', () => {
+    expect(findSequences(['a', 'b', 'a', 'b'], ['a', 'b'])).toEqual([[0, 1], [2, 3]]);
+    for (const n of ['compileTermMatcher', 'foldWord', 'getStemmer', 'isStopWord', 'normalizeArchaic']) {
+      expect(typeof (browser as Record<string, unknown>)[n]).toBe('function');
+    }
   });
 });
 

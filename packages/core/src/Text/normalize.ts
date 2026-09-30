@@ -8,6 +8,8 @@
  *  - {@link normalizeArchaic}: maps archaic English forms (thou, hath, ...) to modern ones.
  */
 
+import { canonicalLanguage } from './language';
+
 const EDGE_PUNCT = /^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu;
 const EDGE_TRIM_MARKS = /^[^\p{L}\p{N}\p{M}]+|[^\p{L}\p{N}\p{M}]+$/gu;
 const APOSTROPHES = /['’ʼ׳]/g;
@@ -47,31 +49,19 @@ export function foldLemma(s: string): string {
 /**
  * Archaic English -> modern English, for word forms that stemming cannot
  * reach (pronouns and irregular verbs). Keys are folded lower-case words.
- * Regular "-eth"/"-est" verbs are left to the stemmer / {@link modernizeVerbEnding}.
+ * Regular "-eth"/"-est" verbs are deliberately not rewritten here (it would corrupt
+ * teeth, Nazareth, twentieth): the English stemmer handles "-eth".
  */
 export const ARCHAIC_EN: Readonly<Record<string, string>> = {
   thou: 'you', thee: 'you', thy: 'your', thine: 'your', ye: 'you', thyself: 'yourself',
   hath: 'has', hast: 'have', doth: 'does', dost: 'do', didst: 'did', art: 'are', wast: 'was', wert: 'were',
   shalt: 'shall', wilt: 'will', canst: 'can', wouldest: 'would', shouldest: 'should', couldest: 'could',
-  saith: 'says', saidst: 'said', hither: 'here', thither: 'there', whither: 'where', whence: 'from where',
+  saith: 'says', saidst: 'said', hither: 'here', thither: 'there', whither: 'where',
   nay: 'no', yea: 'yes', unto: 'to', ere: 'before', wherefore: 'why', whosoever: 'whoever', whatsoever: 'whatever',
 };
 
-/**
- * "loveth" -> "loves", "goeth" -> "goes", "knoweth" -> "knows" (best effort; English only).
- * The silent "e" is restored after a consonant-vowel-consonant stem ("lov", "mak").
- */
-export function modernizeVerbEnding(word: string): string {
-  if (word.length > 4 && word.endsWith('eth')) {
-    const stem = word.slice(0, -3);
-    const cvc = /[^aeiou][aeiou][^aeiouwxy]$/.test(stem) && stem.length <= 4;
-    return /(s|x|z|ch|sh|o)$/.test(stem) || cvc ? `${stem}es` : `${stem}s`;
-  }
-  return word;
-}
-
-/** Modernise one folded English word; other words come back unchanged. */
+/** Modernise one folded English word from {@link ARCHAIC_EN}; other words come back unchanged. */
 export function normalizeArchaic(foldedWord: string, language: string | undefined = 'en'): string {
-  if (language && !/^en/i.test(language) && language !== 'eng') return foldedWord;
-  return ARCHAIC_EN[foldedWord] ?? modernizeVerbEnding(foldedWord);
+  if (canonicalLanguage(language) !== 'en') return foldedWord;
+  return ARCHAIC_EN[foldedWord] ?? foldedWord;
 }
