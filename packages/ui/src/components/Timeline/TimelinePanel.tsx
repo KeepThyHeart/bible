@@ -74,7 +74,7 @@ export function TimelinePanel({
             type="button"
             className="kth-btn kth-btn--sm kth-timeline__fullscreen-btn"
             aria-label={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
-            aria-pressed={isFullscreen}
+            title={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
             onClick={() => { setSettingsOpen(false); setFullscreen(!isFullscreen); }}
           >
             <span aria-hidden="true">{isFullscreen ? '\u21F2' : '\u26F6'}</span>

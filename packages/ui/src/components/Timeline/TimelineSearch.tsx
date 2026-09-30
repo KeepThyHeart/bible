@@ -66,7 +66,7 @@ export function TimelineSearch({ store, labels }: TimelineSearchProps) {
         type="search"
         role="combobox"
         aria-label={labels.search}
-        aria-expanded={showList}
+        aria-expanded={showList && results.length > 0}
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={showList && results.length > 0 ? optionId(activeIndex) : undefined}
