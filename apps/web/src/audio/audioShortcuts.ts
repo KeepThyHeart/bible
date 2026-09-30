@@ -4,6 +4,7 @@
  *   Alt+P               play / pause (starts reading the selected verse when idle)
  *   Alt+Left / Alt+Right          previous / next verse
  *   Alt+Shift+Left / Right        previous / next chapter
+ *   Alt+Shift+P         go to the audio player (pop-up verse pane, or the bar's play button); acts while audio is active
  *
  * The four arrow shortcuts act only while audio is active, so Alt+Left keeps
  * meaning "browser back" the rest of the time, and never while typing in a field.
@@ -48,6 +49,20 @@ export function createKeybindingRegistry(target: Pick<Document, 'addEventListene
   };
 }
 
+/**
+ * The pop-up registers a function that moves focus into itself while it is showing; without one
+ * (bar style) the shortcut focuses the bar's play button.
+ */
+let playerFocuser: (() => void) | null = null;
+export function setAudioPlayerFocuser(fn: (() => void) | null): () => void {
+  playerFocuser = fn;
+  return () => { if (playerFocuser === fn) playerFocuser = null; };
+}
+export function focusAudioPlayer(): void {
+  if (playerFocuser) { playerFocuser(); return; }
+  document.querySelector<HTMLElement>('[data-testid="audio-play-pause"]')?.focus();
+}
+
 export interface ShortcutRegistry {
   register(binding: KeyBinding): () => void;
 }
@@ -72,6 +87,7 @@ export function registerAudioShortcuts(registry: ShortcutRegistry, audio: Shortc
     registry.register({ id: 'audio.nextVerse', key: 'alt+arrowright', label: 'Next verse (audio)', when: active, handler: () => audio.seekVerse(1) }),
     registry.register({ id: 'audio.prevChapter', key: 'alt+shift+arrowleft', label: 'Previous chapter (audio)', when: active, handler: () => audio.seekChapter(-1) }),
     registry.register({ id: 'audio.nextChapter', key: 'alt+shift+arrowright', label: 'Next chapter (audio)', when: active, handler: () => audio.seekChapter(1) }),
+    registry.register({ id: 'audio.focusPlayer', key: 'alt+shift+p', label: 'Go to the audio player', when: () => audio.enabled && audio.status !== 'idle', handler: focusAudioPlayer }),
   ];
   return () => { for (const off of offs) off(); };
 }

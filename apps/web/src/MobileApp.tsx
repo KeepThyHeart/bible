@@ -166,6 +166,10 @@ export function MobileApp({ providers }: MobileAppProps) {
       window.history.pushState({ mobileBack: true }, '');
 
       // Priority 0: the full-screen audio player (playback continues)
+      if (audioStore.quickSettingsOpen) {
+        audioStore.closeQuickSettings();
+        return;
+      }
       if (audioStore.playerOpen) {
         audioStore.closePlayer();
         return;

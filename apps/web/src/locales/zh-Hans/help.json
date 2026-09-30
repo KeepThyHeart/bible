@@ -56,7 +56,8 @@
     "closeDialog": "关闭任意打开的对话框或弹出窗口",
     "audioToggle": "播放或暂停有声圣经",
     "audioVerse": "收听时上一节 / 下一节",
-    "audioChapter": "收听时上一章 / 下一章"
+    "audioChapter": "收听时上一章 / 下一章",
+    "audioFocus": "转到音频播放器"
   },
   "settings": {
     "title": "设置",

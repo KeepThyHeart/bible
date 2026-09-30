@@ -9,14 +9,15 @@ import { useSyncExternalStore } from 'preact/compat';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { SettingsForm } from '@bible/ui';
-import type { AudioSourceChoice, AudioVoice, ITtsEngine, LoadProgress } from '@bible/core/browser';
+import type { AudioVoice, ITtsEngine, LoadProgress } from '@bible/core/browser';
 import { audioStore } from '../../stores/audioStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { audioStorageUsage, clearChapters, clearModels, formatBytes } from '../../audio/audioStorage';
 import type { AudioStorageUsage } from '../../audio/audioStorage';
 import { effectiveRate } from '../../audio/audioPrefs';
-import { RateSlider, SourceSegmented, UnusableNotes } from '../audio/AudioControls';
+import { EngineSelect, RateSlider, SourceSegmented } from '../audio/AudioControls';
+import { choiceOfUi, uiSourceOf } from '../../audio/sourceChoice';
 import { useSources } from '../audio/useSources';
 import { AUDIO_SETTINGS, createAudioSettingsStore } from '../../audio/audioSettings';
 import { isEnabled } from '../../utils/featureFlags';
@@ -28,6 +29,8 @@ export function AudioSettingsTab() {
   const { t } = useTranslation();
   const prefs = useStore(audioStore, () => audioStore.prefs);
   const enabled = useStore(audioStore, () => audioStore.enabled);
+  const providerId = useStore(audioStore, () => audioStore.providerId);
+  const layout = audioStore.layout;
   const moduleAbbr = useStore(bibleStore, () => bibleStore.getActiveModule());
   const sources = useSources(moduleAbbr);
   const language = audioStore.languageFor(moduleAbbr);
@@ -95,7 +98,7 @@ export function AudioSettingsTab() {
     refreshUsage();
   };
 
-  const translationSource = prefs.perTranslation[moduleAbbr]?.source ?? 'default';
+  const translationChoice = prefs.perTranslation[moduleAbbr]?.source;
 
   // One speed range for the tab: the widest any usable source offers. `effectiveRate` narrows it per source.
   const ranges = sources.filter(s => s.usable).map(s => s.provider.capabilities(moduleAbbr).rate).filter((r): r is NonNullable<typeof r> => !!r);
@@ -111,27 +114,64 @@ export function AudioSettingsTab() {
         <h5 class="audio-settings__heading">{t('audio.settings.source')}</h5>
         <SourceSegmented
           sources={sources}
-          value={prefs.source}
-          withAuto
+          value={uiSourceOf(prefs.source)}
           label={t('audio.settings.source')}
           moduleAbbr={moduleAbbr}
           language={language}
-          onChange={source => audioStore.setPrefs({ source: source as AudioSourceChoice })}
+          onChange={ui => {
+            const choice = ui === 'default' ? null : choiceOfUi(ui, sources, prefs.source, providerId);
+            if (choice) audioStore.setPrefs({ source: choice });
+          }}
         />
+        {uiSourceOf(prefs.source) === 'generated' && (
+          <label class="audio-settings__engine">
+            <span>{t('audio.source.engine')}</span>
+            <EngineSelect id="audio-default-engine" sources={sources} value={prefs.source} onChange={c => audioStore.setPrefs({ source: c })} />
+          </label>
+        )}
         <p class="audio-settings__hint">{t('audio.settings.sourceHint')}</p>
-        <UnusableNotes sources={sources} moduleAbbr={moduleAbbr} language={language} />
 
         <h5 class="audio-settings__heading">{t('audio.settings.thisTranslation', { module: moduleAbbr })}</h5>
         <SourceSegmented
           sources={sources}
-          value={translationSource}
+          value={translationChoice ? uiSourceOf(translationChoice) : 'default'}
           withDefault
           label={t('audio.settings.thisTranslation', { module: moduleAbbr })}
           moduleAbbr={moduleAbbr}
           language={language}
-          onChange={source => audioStore.setTranslationSource(moduleAbbr, source === 'default' ? undefined : source as AudioSourceChoice)}
+          onChange={ui => {
+            if (ui === 'default') { audioStore.setTranslationSource(moduleAbbr, undefined); return; }
+            const choice = choiceOfUi(ui, sources, translationChoice ?? prefs.source, providerId);
+            if (choice) audioStore.setTranslationSource(moduleAbbr, choice);
+          }}
         />
+        {translationChoice && uiSourceOf(translationChoice) === 'generated' && (
+          <label class="audio-settings__engine">
+            <span>{t('audio.source.engine')}</span>
+            <EngineSelect id="audio-translation-engine" sources={sources} value={translationChoice} onChange={c => audioStore.setTranslationSource(moduleAbbr, c)} />
+          </label>
+        )}
       </div>
+
+      {layout === 'desktop' && (
+        <div class="audio-settings__group" data-testid="audio-player-style">
+          <h5 class="audio-settings__heading" id="audio-style-heading">{t('audio.style.label')}</h5>
+          <div class="audio-segmented" role="radiogroup" aria-labelledby="audio-style-heading">
+            {(['bar', 'popup'] as const).map(style => (
+              <button
+                key={style}
+                type="button"
+                role="radio"
+                aria-checked={prefs.playerStyle === style}
+                class={`audio-segmented__btn${prefs.playerStyle === style ? ' audio-segmented__btn--active' : ''}`}
+                onClick={() => audioStore.setPlayerStyle(style)}
+              >
+                {t(`audio.style.${style}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {rows.length > 0 && (
         <div class="audio-settings__group" data-testid="audio-voices">

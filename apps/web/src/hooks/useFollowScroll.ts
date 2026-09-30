@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
+import { useUserScrollIntent } from './useUserScrollIntent';
 import { audioStore } from '../stores/audioStore';
 
 /** After the reader scrolls by hand, auto-scroll stays out of the way for this long. */
@@ -17,8 +18,6 @@ export interface FollowScrollOptions {
   now?: () => number;
 }
 
-const NAV_KEYS = new Set(['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' ']);
-
 /**
  * Scrolls the Bible pane to the verse being read aloud, without ever fighting
  * the reader.
@@ -31,38 +30,11 @@ const NAV_KEYS = new Set(['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'Arrow
  * the viewport.
  */
 export function useFollowScroll({ getScrollElement, getContainer, activeTabId, now = Date.now }: FollowScrollOptions): void {
-  const lastUserScrollAt = useRef(-Infinity);
-
-  // The reader's own scrolling. Listened for on the document, and checked when
-  // the event happens: the pane's scroll element does not exist while the Home
-  // screen shows and is replaced when it comes back, and keyboard scrolling
-  // reaches the document (focus is usually on the body), not the scroller.
-  useEffect(() => {
-    const inScroller = (target: EventTarget | null): boolean => {
-      const el = getScrollElement();
-      return !!el && target instanceof Node && (target === el || el.contains(target));
-    };
-    const mark = () => { lastUserScrollAt.current = now(); };
-    const onPointer = (e: Event) => { if (e.target === getScrollElement()) mark(); }; // a scrollbar drag lands on the scroller itself
-    const onPointerLike = (e: Event) => { if (inScroller(e.target)) mark(); };
-    const onKey = (e: KeyboardEvent) => {
-      if (!NAV_KEYS.has(e.key)) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; // typing, not scrolling
-      mark();
-    };
-    const opts = { capture: true, passive: true } as AddEventListenerOptions;
-    document.addEventListener('wheel', onPointerLike, opts);
-    document.addEventListener('touchmove', onPointerLike, opts);
-    document.addEventListener('pointerdown', onPointer, opts);
-    document.addEventListener('keydown', onKey as EventListener, opts);
-    return () => {
-      document.removeEventListener('wheel', onPointerLike, opts);
-      document.removeEventListener('touchmove', onPointerLike, opts);
-      document.removeEventListener('pointerdown', onPointer, opts);
-      document.removeEventListener('keydown', onKey as EventListener, opts);
-    };
-  }, []);
+  // The reader's own scrolling, listened for on the document (see useUserScrollIntent):
+  // the pane's scroll element does not exist while the Home screen shows, and
+  // keyboard scrolling reaches the document, not the scroller.
+  const intent = useUserScrollIntent({ getScrollElement, keysFromDocument: true, now });
+  const lastUserScrollAt = intent.lastAt;
 
   // Follow the verse being read.
   useEffect(() => {

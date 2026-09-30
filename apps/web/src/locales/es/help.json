@@ -56,7 +56,8 @@
     "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta",
     "audioToggle": "Reproducir o pausar la Biblia en audio",
     "audioVerse": "Versículo anterior / siguiente al escuchar",
-    "audioChapter": "Capítulo anterior / siguiente al escuchar"
+    "audioChapter": "Capítulo anterior / siguiente al escuchar",
+    "audioFocus": "Ir al reproductor de audio"
   },
   "settings": {
     "title": "Configuración",

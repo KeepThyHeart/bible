@@ -1,1 +1,75 @@
 // Audio Bible: the verse pane shared by the phone player and the desktop pop-up
+.audio-verses-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.audio-verses {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+
+  // The verse being read: tint and inline-start rule only, no size/weight/padding change.
+  .verse--playing {
+    background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    box-shadow: inset 3px 0 0 var(--accent-color);
+  }
+
+  &__opt {
+    border-radius: 4px;
+
+    // An outline, never a background, so it is not mistaken for the highlight.
+    &--cursor {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+    }
+  }
+
+  &__spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    block-size: 100%;
+    min-block-size: 96px;
+    color: var(--text-muted);
+    font-size: 1.5em;
+  }
+
+  &__pills {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  &__pill {
+    pointer-events: auto;
+    border: 1px solid var(--accent-color);
+    border-radius: 999px;
+    padding: 6px 14px;
+    min-block-size: 32px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+
+    &:hover { background: var(--bg-tertiary, var(--bg-secondary)); }
+  }
+}

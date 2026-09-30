@@ -1,11 +1,8 @@
 /**
- * The desktop transport bar, docked under the Bible toolbar while audio plays
- * (or reports a state): chapter and verse skipping, play/pause, progress, the
- * speed and source chips (which open the source panel), settings and close.
- * The phone has its own full-screen player and mini-player instead.
- *
- * Hidden entirely when the feature is off, and when nothing is playing and there
- * is nothing to report.
+ * The desktop transport bar, docked under the Bible toolbar when the player style is 'bar': skipping,
+ * play/pause, progress, the verse being read, speed, the quick-settings gear, pop-out and stop.
+ * In pop-up style it renders nothing while audio is active; the idle notice strip (for example "no
+ * audio for this translation") shows in either style. The phone has its own player.
  */
 
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -17,10 +14,8 @@ import { useNowPlaying } from '../../hooks/useNowPlaying';
 import { AudioTransportButtons } from '../audio/AudioTransportButtons';
 import { AudioProgress } from '../audio/AudioProgress';
 import { AudioStatusLine } from '../audio/AudioStatusLine';
-import { AudioSourcePanel } from '../audio/AudioSourcePanel';
-import { formatRate } from '../audio/AudioControls';
-import { useSources } from '../audio/useSources';
-import { sourceChipText } from '../audio/sourceChip';
+import { AudioSpeedControl } from '../audio/AudioSpeedControl';
+import { AudioQuickSettings } from '../audio/AudioQuickSettings';
 
 export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (section?: string) => void }) {
   const { t } = useTranslation();
@@ -28,79 +23,50 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
   const layout = useStore(audioStore, () => audioStore.layout);
   const status = useStore(audioStore, () => audioStore.status);
   const notice = useStore(audioStore, () => audioStore.notice);
-  const rate = useStore(audioStore, () => audioStore.rate);
-  const providerId = useStore(audioStore, () => audioStore.providerId);
-  const voiceId = useStore(audioStore, () => audioStore.voiceId);
+  const style = useStore(audioStore, () => audioStore.prefs.playerStyle);
   const now = useNowPlaying();
-  const sources = useSources(now.moduleAbbr);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const speedChipRef = useRef<HTMLButtonElement>(null);
-  const sourceChipRef = useRef<HTMLButtonElement>(null);
+  const [gearOpen, setGearOpen] = useState(false);
+  const gearRef = useRef<HTMLButtonElement>(null);
 
-  // The shared Popover owns outside-press, Escape and focus return. The chips only say
-  // what it is anchored to (the element, so its rectangle is read fresh on every render).
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const openPanel = (e: MouseEvent) => {
-    const el = e.currentTarget as HTMLElement;
-    if (panelOpen && anchorEl === el) { setPanelOpen(false); return; }
-    setAnchorEl(el);
-    setPanelOpen(true);
-  };
-  // Stopping, switching layout or the feature going off must not leave the panel armed
-  // for the next play.
-  const inactive = !enabled || layout !== 'desktop' || status === 'idle';
-  useEffect(() => { if (inactive) setPanelOpen(false); }, [inactive]);
+  const idle = status === 'idle';
+  const hidden = !enabled || layout !== 'desktop' || (!idle && style === 'popup');
+  // Stopping, switching style or the feature going off must not leave the popover armed for next time.
+  useEffect(() => { if (hidden || idle) setGearOpen(false); }, [hidden, idle]);
 
   if (!enabled || layout !== 'desktop') return null;
-  const idle = status === 'idle';
-  if (idle && !notice) return null;
-
-  // Nothing is playing, but the reader should hear why (e.g. no audio for this translation).
   if (idle) {
+    // Nothing is playing, but the reader should hear why (e.g. no audio for this translation).
+    if (!notice) return null;
     return (
-      <div class="audio-transport audio-transport--notice" data-testid="audio-transport" ref={rootRef}>
+      <div class="audio-transport audio-transport--notice" data-testid="audio-transport">
         <AudioStatusLine />
       </div>
     );
   }
-
-  const active = sources.find(s => s.provider.id === providerId);
-  const chip = sourceChipText(t, providerId, active?.provider.label, active?.voices.find(v => v.id === voiceId)?.label, now.moduleAbbr ?? '');
-  const panelId = 'audio-source-panel-popover';
+  if (style === 'popup') return null;
 
   return (
-    <div class="audio-transport" role="toolbar" aria-label={t('audio.transport.label')} data-testid="audio-transport" ref={rootRef}>
+    <div class="audio-transport" role="toolbar" aria-label={t('audio.transport.label')} data-testid="audio-transport">
       <div class="audio-transport__row">
         <AudioTransportButtons />
         <AudioProgress />
         <span class="audio-transport__now" data-testid="audio-now-playing">{now.refLabel}</span>
+        <AudioSpeedControl />
         <button
           type="button"
-          class="audio-chip"
-          ref={speedChipRef}
+          class="audio-btn"
+          ref={gearRef}
           aria-haspopup="dialog"
-          aria-expanded={panelOpen}
-          aria-controls={panelOpen ? panelId : undefined}
-          title={t('audio.transport.speed')}
-          onClick={openPanel}
+          aria-expanded={gearOpen}
+          title={t('audio.quick.title')}
+          aria-label={t('audio.quick.title')}
+          data-testid="audio-gear"
+          onClick={() => setGearOpen(o => !o)}
         >
-          {formatRate(rate)}
-        </button>
-        <button
-          type="button"
-          class="audio-chip audio-chip--source"
-          ref={sourceChipRef}
-          aria-haspopup="dialog"
-          aria-expanded={panelOpen}
-          aria-controls={panelOpen ? panelId : undefined}
-          title={t('audio.transport.source')}
-          onClick={openPanel}
-        >
-          {chip}
-        </button>
-        <button type="button" class="audio-btn" onClick={() => onOpenSettings?.('audio')} title={t('audio.transport.settings')} aria-label={t('audio.transport.settings')}>
           <i class="fa-solid fa-gear" aria-hidden="true" />
+        </button>
+        <button type="button" class="audio-btn" onClick={() => audioStore.setPlayerStyle('popup')} title={t('audio.transport.popOut')} aria-label={t('audio.transport.popOut')} data-testid="audio-popout">
+          <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />
         </button>
         <button type="button" class="audio-btn" onClick={() => audioStore.stop()} title={t('audio.transport.close')} aria-label={t('audio.transport.close')} data-testid="audio-close">
           <i class="fa-solid fa-xmark" aria-hidden="true" />
@@ -108,19 +74,24 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
       </div>
       <AudioStatusLine />
       <Popover
-        open={panelOpen && !!now.moduleAbbr}
-        anchor={panelOpen && anchorEl ? anchorEl.getBoundingClientRect() : null}
-        onClose={() => setPanelOpen(false)}
-        id={panelId}
-        labelledBy="audio-panel-source"
+        open={gearOpen && !!now.moduleAbbr}
+        anchor={gearOpen && gearRef.current ? gearRef.current.getBoundingClientRect() : null}
+        onClose={() => setGearOpen(false)}
+        label={t('audio.quick.title')}
         width={340}
-        estimatedHeight={260}
+        estimatedHeight={320}
         align="end"
         autoFocus
         className="audio-popover"
-        insideRefs={[speedChipRef, sourceChipRef]}
+        insideRefs={[gearRef]}
       >
-        {now.moduleAbbr && <AudioSourcePanel moduleAbbr={now.moduleAbbr} onOpenSettings={section => { setPanelOpen(false); onOpenSettings?.(section); }} />}
+        {now.moduleAbbr && (
+          <AudioQuickSettings
+            moduleAbbr={now.moduleAbbr}
+            variant="desktop"
+            onOpenSettings={section => { setGearOpen(false); onOpenSettings?.(section); }}
+          />
+        )}
       </Popover>
     </div>
   );

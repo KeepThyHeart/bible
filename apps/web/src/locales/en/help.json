@@ -56,7 +56,8 @@
     "closeDialog": "Close any open dialog or popup",
     "audioToggle": "Play or pause the Audio Bible",
     "audioVerse": "Previous / next verse while listening",
-    "audioChapter": "Previous / next chapter while listening"
+    "audioChapter": "Previous / next chapter while listening",
+    "audioFocus": "Go to the audio player"
   },
   "settings": {
     "title": "Settings",

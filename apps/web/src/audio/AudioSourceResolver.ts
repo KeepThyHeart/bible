@@ -108,6 +108,17 @@ export class AudioSourceResolver implements IAudioSourceResolver {
         const pick = await this.pickVoice(p, moduleAbbr, language, prefs);
         return { provider: p, voiceId: pick.voiceId, reason: 'preferred', notice: pick.notice };
       }
+      // "Generated" means any generated voice: try the other engines before giving up on it.
+      if (want.startsWith('tts:')) {
+        for (const id of this.deps.engineOrder) {
+          if (`tts:${id}` === want) continue;
+          const other = this.deps.providers.get(`tts:${id}`);
+          if (other && await this.usable(other, moduleAbbr, language)) {
+            const pick = await this.pickVoice(other, moduleAbbr, language, prefs);
+            return { provider: other, voiceId: pick.voiceId, reason: 'preferred', notice: pick.notice };
+          }
+        }
+      }
       failed = true;
       notice = 'audio.notice.preferredUnavailable';
     }

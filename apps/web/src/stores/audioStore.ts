@@ -228,7 +228,7 @@ class AudioStore extends Store {
   /** One preset faster or slower (within what the current source supports). */
   stepRate(dir: 1 | -1): void {
     const caps = this.capabilities;
-    const next = stepRate(effectiveRate(this.prefs.rate, caps ?? {}), dir, caps?.rate);
+    const next = stepRate(effectiveRate(this.prefs.rate, caps ?? { rate: null }), dir, caps?.rate);
     if (next !== null) this.setPrefs({ rate: next });
   }
 

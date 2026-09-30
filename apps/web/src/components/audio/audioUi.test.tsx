@@ -33,6 +33,7 @@ async function start(opts: Parameters<typeof buildUiRig>[0] = {}) {
   rig = buildUiRig(opts);
   await openChapter();
   await flush();
+  audioStore.setPlayerStyle('bar'); // the desktop bar tests below; the pop-up has its own tests
 }
 
 /** The phone's battery notice is asked once per engine; these tests are not about it. */
@@ -92,14 +93,13 @@ describe('Listen button', () => {
 });
 
 describe('desktop transport bar', () => {
-  it('is hidden when idle and shows the state, verse and source chip while playing', async () => {
+  it('is hidden when idle and shows the state, verse and progress while playing', async () => {
     await start();
     render(<AudioTransportBar />);
     expect(screen.queryByTestId('audio-transport')).toBeNull();
     await playNow();
     await screen.findByTestId('audio-transport');
     expect(screen.getByTestId('audio-now-playing').textContent).toMatch(/\d+:1$/);
-    expect(screen.getByText(/audio\.chip\.onDevice/).textContent).toContain('Fake');
     expect(screen.getByLabelText('audio.transport.progress')).toBeTruthy();
     expect(screen.getByTestId('audio-progress-label').textContent).toContain('audio.transport.verseOf');
   });
@@ -143,18 +143,38 @@ describe('desktop transport bar', () => {
     expect(screen.getByText('audio.action.retry')).toBeTruthy();
   });
 
-  it('opens the source panel from the chip; choosing a source is remembered for the translation', async () => {
+  it('opens the settings from the gear; choosing Generated while a recording exists is remembered and plays generated speech', async () => {
     await start({ recordings: true });
     render(<AudioTransportBar />);
     await playNow();
-    fireEvent.click(await screen.findByTitle('audio.transport.source'));
-    const panel = await screen.findByTestId('audio-source-panel');
-    await waitFor(() => expect(panel.querySelectorAll('[role="radio"]').length).toBe(3)); // automatic, recorded, speech
-    fireEvent.click(screen.getByRole('radio', { name: 'Fake' }));
+    expect(screen.queryByTitle('audio.transport.source')).toBeNull(); // no source chip on the bar any more
+    fireEvent.click(await screen.findByTestId('audio-gear'));
+    const panel = await screen.findByTestId('audio-quick-settings');
+    await waitFor(() => expect(within(panel).getAllByRole('radio', { name: /audio\.source\.(auto|recorded|generated)$/ }).length).toBe(3));
+    fireEvent.click(within(panel).getByRole('radio', { name: 'audio.source.generated' }));
     expect(audioStore.prefs.perTranslation.KJV?.source).toBe('tts:fake');
-    // Escape closes it and returns focus to the chip.
+    await waitFor(() => expect(audioStore.providerId).toBe('tts:fake'));
+    // Escape closes it.
     fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByTestId('audio-source-panel')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('audio-quick-settings')).toBeNull());
+  });
+
+  it('keeps the speed on the bar and steps it', async () => {
+    await start();
+    render(<AudioTransportBar />);
+    await playNow();
+    const speed = await screen.findByTestId('audio-speed');
+    fireEvent.click(within(speed).getByLabelText('audio.speed.faster'));
+    expect(audioStore.prefs.rate).toBe(1.25);
+  });
+
+  it('is replaced by the pop-up while playing when the player style is pop-up', async () => {
+    await start();
+    render(<AudioTransportBar />);
+    await playNow();
+    await screen.findByTestId('audio-transport');
+    audioStore.setPlayerStyle('popup');
+    await waitFor(() => expect(screen.queryByTestId('audio-transport')).toBeNull());
   });
 
   it('with no audio for the translation, says so instead of showing a bar', async () => {
@@ -351,10 +371,10 @@ describe('settings tab', () => {
   it('sets the global source and a per-translation source', async () => {
     await start({ recordings: true });
     render(<AudioSettingsTab />);
-    await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(4));
+    await waitFor(() => expect((screen.getAllByRole('radio', { name: 'audio.source.generated' })[1] as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getAllByRole('radio', { name: 'audio.source.recorded' })[0]);
     expect(audioStore.prefs.source).toBe('recorded');
-    fireEvent.click(screen.getAllByRole('radio', { name: 'Fake' })[1]);
+    fireEvent.click(screen.getAllByRole('radio', { name: 'audio.source.generated' })[1]);
     expect(audioStore.prefs.perTranslation.KJV?.source).toBe('tts:fake');
     fireEvent.click(screen.getByRole('radio', { name: 'audio.source.useDefault' }));
     expect(audioStore.prefs.perTranslation.KJV).toBeUndefined();

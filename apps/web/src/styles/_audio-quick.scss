@@ -1,1 +1,78 @@
 // Audio Bible: the settings popover/sheet and the speed stepper
+
+.audio-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+
+  &__btn,
+  &__reset {
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font: inherit;
+
+    &:hover:not(:disabled) { background: var(--bg-tertiary); }
+    &:disabled { opacity: 0.4; cursor: default; }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+  }
+
+  &__btn {
+    inline-size: 28px;
+    block-size: 28px;
+    border-radius: 50%;
+    padding: 0;
+  }
+
+  &__value { display: inline-flex; }
+
+  &__reset {
+    min-inline-size: 52px;
+    padding: 4px 6px;
+    border-color: transparent;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  &--large {
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    gap: 6px;
+
+    .audio-speed__btn { inline-size: 44px; block-size: 44px; }
+    .audio-speed__reset { min-inline-size: 64px; min-block-size: 44px; }
+  }
+}
+
+.audio-source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  // Why an option is disabled, written out because phones have no tooltips.
+  &__reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.audio-quick {
+  &--phone {
+    padding-block-end: 8px;
+
+    .audio-segmented { align-self: stretch; }
+    .audio-segmented__btn { flex: 1 1 auto; min-block-size: 44px; }
+    .audio-select { min-block-size: 44px; }
+    .audio-panel__more { min-block-size: 44px; }
+  }
+}
+
+.audio-settings__engine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 6px;
+}

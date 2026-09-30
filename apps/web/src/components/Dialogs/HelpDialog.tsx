@@ -158,6 +158,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
                       <tr><td><kbd>Alt+P</kbd></td><td>{t('shortcuts.audioToggle')}</td></tr>
                       <tr><td><kbd>Alt+←</kbd> <kbd>Alt+→</kbd></td><td>{t('shortcuts.audioVerse')}</td></tr>
                       <tr><td><kbd>Alt+Shift+←</kbd> <kbd>Alt+Shift+→</kbd></td><td>{t('shortcuts.audioChapter')}</td></tr>
+                      <tr><td><kbd>Alt+Shift+P</kbd></td><td>{t('shortcuts.audioFocus')}</td></tr>
                     </>
                   )}
                 </tbody>

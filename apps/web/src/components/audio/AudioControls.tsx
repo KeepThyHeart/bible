@@ -1,5 +1,5 @@
 /**
- * The controls the source popover and the settings tab share. Each is built from
+ * The controls the quick settings and the settings tab share. Each is built from
  * what the registered providers report (`capabilities`, `voices`, `usable`), so a
  * new engine appears in them without any change here.
  */
@@ -9,68 +9,73 @@ import type { AudioCapabilities, RateRange } from '@bible/core/browser';
 import type { SourceStatus } from '../../audio/AudioSourceResolver';
 import { audioStore } from '../../stores/audioStore';
 import { effectiveRate } from '../../audio/audioPrefs';
-
-/** Text for a provider in the segmented control. */
-export function providerLabel(status: SourceStatus, t: (k: string) => string): string {
-  return status.provider.kind === 'recorded' ? t('audio.source.recorded') : status.provider.label;
-}
+import { unusableText, uiOptions, usableEngines } from '../../audio/sourceChoice';
+import type { UiSource } from '../../audio/sourceChoice';
 
 /** Why a source cannot be chosen, in words. */
-export function unusableText(status: SourceStatus, moduleAbbr: string, language: string, t: (k: string, o?: Record<string, string>) => string): string {
-  const name = status.provider.kind === 'recorded' ? '' : status.provider.label;
-  switch (status.reason) {
-    case 'no-recording': return t('audio.source.noRecording', { module: moduleAbbr });
-    case 'browser': return t('audio.source.browserUnsupported', { engine: name });
-    default: return t('audio.source.noVoice', { engine: name, language });
-  }
-}
+export { unusableText };
 
 export interface SourceSegmentedProps {
   sources: SourceStatus[];
-  /** A provider id, `auto`, or `default`. */
-  value: string;
-  onChange(value: string): void;
-  /** Add "Automatic" as the first choice. */
-  withAuto?: boolean;
+  /** `auto`, `recorded`, `generated`, or `default` (with `withDefault`). */
+  value: UiSource | 'default';
+  onChange(value: UiSource | 'default'): void;
   /** Add "Use default" as the first choice (a per-translation override that can be cleared). */
   withDefault?: boolean;
   label: string;
-  /** For the tooltip that says why a source is unavailable. */
+  /** For the reason a source is unavailable. */
   moduleAbbr: string;
   language: string;
 }
 
-/** A radio group drawn as a segmented control; unusable sources are disabled with the reason as their tooltip. */
-export function SourceSegmented({ sources, value, onChange, withAuto, withDefault, label, moduleAbbr, language }: SourceSegmentedProps) {
+/**
+ * Auto / Recorded / Generated as a radio group drawn as a segmented control. An
+ * unusable option is disabled, and its reason is written under the control (phones
+ * have no tooltips) as well as in its `title`.
+ */
+export function SourceSegmented({ sources, value, onChange, withDefault, label, moduleAbbr, language }: SourceSegmentedProps) {
   const { t } = useTranslation();
-  const items: Array<{ id: string; text: string; disabled: boolean; title?: string }> = [];
+  const tt = (k: string, o?: Record<string, string>) => t(k, o);
+  const options = uiOptions(sources, moduleAbbr, language, tt);
+  const items: Array<{ id: UiSource | 'default'; text: string; disabled: boolean; title?: string }> = [];
   if (withDefault) items.push({ id: 'default', text: t('audio.source.useDefault'), disabled: false });
-  if (withAuto) items.push({ id: 'auto', text: t('audio.source.auto'), disabled: false });
-  for (const s of sources) {
-    items.push({
-      id: s.provider.id,
-      text: providerLabel(s, t),
-      disabled: !s.usable,
-      title: s.usable ? undefined : unusableText(s, moduleAbbr, language, (k, o) => t(k, o)),
-    });
-  }
+  for (const o of options) items.push({ id: o.id, text: o.label, disabled: o.disabled, title: o.reason });
+  const reasons = options.filter(o => o.disabled && o.reason);
   return (
-    <div class="audio-segmented" role="radiogroup" aria-label={label}>
-      {items.map(item => (
-        <button
-          key={item.id}
-          type="button"
-          role="radio"
-          aria-checked={value === item.id}
-          disabled={item.disabled}
-          title={item.title}
-          class={`audio-segmented__btn${value === item.id ? ' audio-segmented__btn--active' : ''}`}
-          onClick={() => onChange(item.id)}
-        >
-          {item.text}
-        </button>
-      ))}
+    <div class="audio-source">
+      <div class="audio-segmented" role="radiogroup" aria-label={label}>
+        {items.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            role="radio"
+            aria-checked={value === item.id}
+            disabled={item.disabled}
+            title={item.title}
+            class={`audio-segmented__btn${value === item.id ? ' audio-segmented__btn--active' : ''}`}
+            onClick={() => onChange(item.id)}
+          >
+            {item.text}
+          </button>
+        ))}
+      </div>
+      {reasons.length > 0 && (
+        <p class="audio-note audio-source__reasons" data-testid="audio-source-reasons">
+          {reasons.map(o => <span key={o.id} class="audio-source__reason" data-source={o.id}>{o.reason}</span>)}
+        </p>
+      )}
     </div>
+  );
+}
+
+/** A `<select>` of the usable engines (only worth showing with two or more); writes `tts:<id>`. */
+export function EngineSelect({ sources, value, id, onChange }: { sources: SourceStatus[]; value: string; id: string; onChange(choice: `tts:${string}`): void }) {
+  const engines = usableEngines(sources);
+  if (engines.length < 2) return null;
+  return (
+    <select id={id} class="audio-select" value={value} onChange={e => onChange((e.target as HTMLSelectElement).value as `tts:${string}`)}>
+      {engines.map(s => <option key={s.provider.id} value={s.provider.id}>{s.provider.label}</option>)}
+    </select>
   );
 }
 

@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
@@ -216,6 +217,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
       />
+      <AudioPlayerPopup onOpenSettings={shared.openSettings} />
       {contextMenu && (
         <ContextMenuPopup
           x={contextMenu.x}

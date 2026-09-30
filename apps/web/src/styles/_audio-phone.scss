@@ -11,63 +11,36 @@
   padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   background: var(--bg-primary);
   color: var(--text-primary);
-  overflow-y: auto;
+  block-size: 100dvh;
+  overflow: hidden;
 
   &__top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-
-  &__source {
-    font-size: calc(12px * var(--ui-font-scale, 1));
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    gap: 8px;
   }
 
   &__ref {
+    flex: 1;
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 2px;
+    text-align: center;
   }
 
-  &__ref-main { font-size: calc(22px * var(--ui-font-scale, 1)); font-weight: 700; }
+  &__ref-main { font-size: calc(20px * var(--ui-font-scale, 1)); font-weight: 700; }
   &__ref-sub { font-size: calc(13px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
 
-  &__text {
-    flex: 1;
-    min-block-size: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 12px;
-    padding: 8px 0;
-    line-height: 1.5;
-  }
+  .audio-verses-wrap { flex: 1; min-block-size: 0; }
 
-  &__verse {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: calc(16px * var(--ui-font-scale, 1));
-
-    sup { font-size: 0.7em; margin-inline-end: 2px; }
-
-    &--current {
-      color: var(--text-primary);
-      font-size: calc(19px * var(--ui-font-scale, 1));
-      font-weight: 600;
-      padding-inline-start: 10px;
-      box-shadow: inset 3px 0 0 var(--accent-color);
-    }
-  }
-
-  &__chips {
+  &__bottom {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
   }
 
   .audio-transport__buttons { justify-content: center; gap: 6px; }

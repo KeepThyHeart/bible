@@ -32,17 +32,17 @@ test.describe('Audio Bible: desktop', () => {
   test('plays the recording from the selected verse; the highlight follows but the selection does not move', async ({ page }) => {
     await open(page, '#/KJV/43/3/16');
     await expect(page.locator('.verse--study')).toHaveAttribute('data-verse-id', '43003016');
-    await expect(page.locator('.audio-transport')).toHaveCount(0);
+    await expect(page.getByTestId('audio-popup')).toHaveCount(0);
     const urlBefore = page.url();
 
     const listen = page.getByTestId('audio-listen');
     await expect(listen).toBeEnabled({ timeout: 15000 });
     await listen.click();
 
-    // The transport bar docks under the toolbar and says what is playing.
-    const bar = page.getByTestId('audio-transport');
-    await expect(bar).toBeVisible({ timeout: 10000 });
-    await expect(bar).toContainText('Recorded · KJV');
+    // The player pop-up (the desktop default) opens in the corner and says what is playing.
+    const popup = page.getByTestId('audio-popup');
+    await expect(popup).toBeVisible({ timeout: 10000 });
+    await expect(popup).toContainText('Recorded · KJV');
     await expect(listen).toHaveAttribute('aria-pressed', 'true');
 
     // The highlight starts at verse 16 and moves on; the selected verse stays 16.
@@ -54,12 +54,12 @@ test.describe('Audio Bible: desktop', () => {
     expect(page.url()).toBe(urlBefore);
   });
 
-  test('pause, resume and close from the transport bar', async ({ page }) => {
+  test('pause, resume and close from the pop-up', async ({ page }) => {
     await open(page, '#/KJV/43/3/1');
     const listen = page.getByTestId('audio-listen');
     await expect(listen).toBeEnabled({ timeout: 15000 });
     await listen.click();
-    await expect(page.getByTestId('audio-transport')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('audio-popup')).toBeVisible({ timeout: 10000 });
     await expect(playingVerse(page)).toBeVisible({ timeout: 10000 });
 
     await page.getByTestId('audio-play-pause').click();
@@ -72,7 +72,7 @@ test.describe('Audio Bible: desktop', () => {
     await expect.poll(async () => verseIdOf(page, '.verse--playing'), { timeout: 10000 }).toBeGreaterThan(pausedAt);
 
     await page.getByTestId('audio-close').click();
-    await expect(page.getByTestId('audio-transport')).toHaveCount(0);
+    await expect(page.getByTestId('audio-popup')).toHaveCount(0);
     await expect(page.locator('.verse--playing')).toHaveCount(0);
   });
 
@@ -88,11 +88,46 @@ test.describe('Audio Bible: desktop', () => {
     await expect.poll(async () => verseIdOf(page, '.verse--playing'), { timeout: 10000 }).toBeGreaterThanOrEqual(43003030);
   });
 
+  test('clicking a verse in the pop-up moves the reading there, in both panes, and not the selection', async ({ page }) => {
+    await open(page, '#/KJV/43/3/1');
+    await expect(page.getByTestId('audio-listen')).toBeEnabled({ timeout: 15000 });
+    await page.getByTestId('audio-listen').click();
+    const popup = page.getByTestId('audio-popup');
+    await expect(popup).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('audio-play-pause').click(); // hold still while clicking
+    const target = popup.locator('.verse[data-verse-id="43003020"]');
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
+    await expect(popup.locator('.verse--playing')).toHaveAttribute('data-verse-id', '43003020', { timeout: 10000 });
+    await expect(page.locator('.bible-content .verse--playing')).toHaveAttribute('data-verse-id', '43003020');
+    await expect(page.locator('.verse--study')).toHaveCount(1);
+    await expect(page.locator('.verse--study')).toHaveAttribute('data-verse-id', '43003001');
+  });
+
+  test('the player can be a bar instead, and switched back to the pop-up', async ({ page }) => {
+    await open(page, '#/KJV/43/3/1');
+    await expect(page.getByTestId('audio-listen')).toBeEnabled({ timeout: 15000 });
+    await page.getByTestId('audio-listen').click();
+    await expect(page.getByTestId('audio-popup')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('audio-dock').click();
+    await expect(page.getByTestId('audio-popup')).toHaveCount(0);
+    const bar = page.getByTestId('audio-transport');
+    await expect(bar).toBeVisible();
+    // Speed is on the bar; the rest is behind the settings icon.
+    await expect(bar.getByTestId('audio-speed')).toBeVisible();
+    await bar.getByTestId('audio-gear').click();
+    await expect(page.getByTestId('audio-quick-settings')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await bar.getByTestId('audio-popout').click();
+    await expect(page.getByTestId('audio-popup')).toBeVisible();
+    await expect(page.getByTestId('audio-transport')).toHaveCount(0);
+  });
+
   test('Alt+P toggles playback', async ({ page }) => {
     await open(page, '#/KJV/43/3/1');
     await expect(page.getByTestId('audio-listen')).toBeEnabled({ timeout: 15000 });
     await page.keyboard.press('Alt+p');
-    await expect(page.getByTestId('audio-transport')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('audio-popup')).toBeVisible({ timeout: 10000 });
     await page.keyboard.press('Alt+p');
     await expect(page.getByTestId('audio-play-pause')).toHaveAttribute('aria-label', 'Play');
   });
@@ -152,6 +187,25 @@ test.describe('Audio Bible: phone', () => {
     await page.getByTestId('audio-player-stop').click();
     await expect(player).toHaveCount(0);
     await expect(mini).toHaveCount(0);
+  });
+
+  test('tapping a verse in the player moves the reading; the gear opens the settings sheet, and Back closes the sheet first', async ({ page }) => {
+    await open(page, '#/KJV/43/3/1');
+    await expect(page.getByTestId('audio-listen')).toBeEnabled({ timeout: 15000 });
+    await page.getByTestId('audio-listen').click();
+    const player = page.getByTestId('audio-player-screen');
+    await expect(player).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('audio-play-pause').click(); // hold still
+    const target = player.locator('.verse[data-verse-id="43003012"]');
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
+    await expect(player.locator('.verse--playing')).toHaveAttribute('data-verse-id', '43003012', { timeout: 10000 });
+
+    await page.getByTestId('audio-player-gear').click();
+    await expect(page.getByTestId('audio-quick-settings')).toBeVisible();
+    await page.goBack();
+    await expect(page.getByTestId('audio-quick-settings')).toHaveCount(0);
+    await expect(player).toBeVisible();
   });
 
   test('the Android Back button closes the player and leaves playback going', async ({ page }) => {

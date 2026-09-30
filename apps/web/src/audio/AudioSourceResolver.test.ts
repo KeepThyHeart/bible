@@ -3,9 +3,10 @@ import { Registry } from '@bible/core/browser';
 import type { AudioVoice, IAudioProvider } from '@bible/core/browser';
 import { AudioSourceResolver, NEGATIVE_TTL_MS } from './AudioSourceResolver';
 import { defaultAudioPrefs } from './audioPrefs';
+import { generatedChoice } from './sourceChoice';
 import { RecordedAudioProvider } from './RecordedAudioProvider';
 import { CdnAudioLocator } from './CdnAudioLocator';
-import { FakeManifestSource, FakeTtsEngine, deferred } from './testing';
+import { FakeManifestSource, FakeProvider, FakeTtsEngine, deferred } from './testing';
 import { TtsAudioProvider } from './tts/TtsAudioProvider';
 import { TextPreparer } from './TextPreparer';
 
@@ -96,9 +97,12 @@ describe('resolve: with a fixture manifest', () => {
     expect(await r.resolver.resolve('KJV', 'en', prefs)).toMatchObject({ reason: 'fallback', notice: 'audio.notice.preferredUnavailable' });
   });
 
-  it('a preference naming an unregistered provider is treated the same way', async () => {
+  it('a preference naming an unregistered engine plays another generated voice, without a notice', async () => {
     const prefs = { ...defaultAudioPrefs(), source: 'tts:kokoro' as const };
-    expect(await r.resolver.resolve('KJV', 'en', prefs)).toMatchObject({ reason: 'fallback' });
+    const res = await r.resolver.resolve('KJV', 'en', prefs);
+    expect(res).toMatchObject({ reason: 'preferred' });
+    expect(res?.provider.id).toBe('tts:piper');
+    expect(res?.notice).toBeUndefined();
   });
 
   it('another translation in the same language is not covered by these recordings', async () => {
@@ -223,5 +227,57 @@ describe('sourceStatus', () => {
     const first = (await r.resolver.sourceStatus('KJV', 'en'))[0];
     expect(first.usable).toBe(true);
     expect(first.reason).toBeUndefined();
+  });
+});
+
+describe('resolve: Generated means any generated voice', () => {
+  /** Recorded + two engines (a, b); engine a's browser support and voices are switchable. */
+  function twoEngines(opts: { recordings?: boolean; aSupported?: boolean; bSupported?: boolean }) {
+    const providers = new Registry<IAudioProvider>();
+    const recorded = new FakeProvider('recorded', 'player', 'Recorded');
+    if (!opts.recordings) vi.spyOn(recorded, 'supports').mockResolvedValue(false);
+    const a = new FakeProvider('tts:a', 'engine', 'A');
+    const b = new FakeProvider('tts:b', 'engine', 'B');
+    for (const p of [a, b]) vi.spyOn(p, 'voices').mockResolvedValue([en('v1')]);
+    providers.register(recorded); providers.register(a); providers.register(b);
+    const resolver = new AudioSourceResolver({
+      providers, engineOrder: ['a', 'b'], defaultVoice: () => undefined,
+      engineSupported: async id => (id === 'a' ? opts.aSupported !== false : opts.bSupported !== false),
+    });
+    return resolver;
+  }
+
+  it('tts:a unusable and tts:b usable gives tts:b, reason preferred, no notice', async () => {
+    const resolver = twoEngines({ recordings: true, aSupported: false });
+    const res = await resolver.resolve('KJV', 'en', { ...defaultAudioPrefs(), source: 'tts:a' });
+    expect(res?.provider.id).toBe('tts:b');
+    expect(res?.reason).toBe('preferred');
+    expect(res?.notice).toBeUndefined();
+  });
+
+  it('no engine usable and a recording present gives recorded with the preferredUnavailable notice', async () => {
+    const resolver = twoEngines({ recordings: true, aSupported: false, bSupported: false });
+    const res = await resolver.resolve('KJV', 'en', { ...defaultAudioPrefs(), source: 'tts:a' });
+    expect(res).toMatchObject({ reason: 'fallback', notice: 'audio.notice.preferredUnavailable' });
+    expect(res?.provider.id).toBe('recorded');
+  });
+
+  it('a usable tts:a is kept even when tts:b is also usable', async () => {
+    const resolver = twoEngines({ recordings: true });
+    expect((await resolver.resolve('KJV', 'en', { ...defaultAudioPrefs(), source: 'tts:a' }))?.provider.id).toBe('tts:a');
+  });
+
+  it('picking Generated while a recording exists writes tts:<id> and re-resolves to TTS', async () => {
+    r = rig({ recordings: true });
+    // Auto plays the recording...
+    expect((await r.resolver.resolve('KJV', 'en', defaultAudioPrefs()))?.provider.id).toBe('recorded');
+    // ...and the Generated choice for this translation, as the UI writes it, plays speech.
+    const statuses = await r.resolver.sourceStatus('KJV', 'en');
+    const choice = generatedChoice(statuses, 'auto', 'recorded');
+    expect(choice).toBe('tts:piper');
+    const prefs = { ...defaultAudioPrefs(), perTranslation: { KJV: { source: choice! } } };
+    const res = await r.resolver.resolve('KJV', 'en', prefs);
+    expect(res?.provider.id).toBe('tts:piper');
+    expect(res?.reason).toBe('preferred');
   });
 });

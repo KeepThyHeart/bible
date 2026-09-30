@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createKeybindingRegistry, registerAudioShortcuts, type KeyBinding, type ShortcutTarget } from './audioShortcuts';
+import { createKeybindingRegistry, registerAudioShortcuts, setAudioPlayerFocuser, focusAudioPlayer, type KeyBinding, type ShortcutTarget } from './audioShortcuts';
 
 function setup(state: Partial<ShortcutTarget> = {}) {
   const bindings = new Map<string, KeyBinding>();
@@ -13,9 +13,9 @@ function setup(state: Partial<ShortcutTarget> = {}) {
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('audio shortcuts', () => {
-  it('registers the five documented keys', () => {
+  it('registers the six documented keys', () => {
     const { bindings } = setup();
-    expect([...bindings.values()].map(b => b.key)).toEqual(['alt+p', 'alt+arrowleft', 'alt+arrowright', 'alt+shift+arrowleft', 'alt+shift+arrowright']);
+    expect([...bindings.values()].map(b => b.key)).toEqual(['alt+p', 'alt+arrowleft', 'alt+arrowright', 'alt+shift+arrowleft', 'alt+shift+arrowright', 'alt+shift+p']);
   });
 
   it('their handlers call the store', () => {
@@ -80,5 +80,28 @@ describe('createKeybindingRegistry', () => {
     reg.dispose();
     press({ key: 'p', altKey: true });
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('focus the audio player (Alt+Shift+P)', () => {
+  it('acts only while audio is active', () => {
+    expect(setup({ status: 'idle' }).bindings.get('audio.focusPlayer')!.when!()).toBe(false);
+    expect(setup().bindings.get('audio.focusPlayer')!.when!()).toBe(true);
+    expect(setup({ enabled: false }).bindings.get('audio.focusPlayer')!.when!()).toBe(false);
+  });
+
+  it('calls the pop-up focuser when one is registered', () => {
+    const { bindings } = setup();
+    const fn = vi.fn();
+    const off = setAudioPlayerFocuser(fn);
+    bindings.get('audio.focusPlayer')!.handler();
+    expect(fn).toHaveBeenCalledTimes(1);
+    off();
+  });
+
+  it('otherwise focuses the bar play button', () => {
+    document.body.innerHTML = '<button data-testid="audio-play-pause">p</button>';
+    focusAudioPlayer();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('audio-play-pause');
   });
 });
