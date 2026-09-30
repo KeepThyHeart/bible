@@ -133,6 +133,10 @@ export async function runSearch(
   const service = new BibleSearchService(new Map([[module, bible.repo]]), target.library.bookRepository());
   const started = performance.now();
   let results: SearchResult[];
+  // Core logs each skipped module with console.warn; on a full-screen terminal
+  // that would scribble over the display, and the same fact is reported below.
+  const warn = console.warn;
+  console.warn = () => {};
   try {
     results = await service.search(text, {
       modules: [module],
@@ -141,6 +145,8 @@ export async function runSearch(
     });
   } catch (error) {
     return outcome(text, module, { error: message(error) });
+  } finally {
+    console.warn = warn;
   }
 
   // Core turns a provider that cannot answer into "skipped" and returns no
