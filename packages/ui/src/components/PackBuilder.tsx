@@ -113,12 +113,39 @@ function percentOf(loaded: number, total: number): number | undefined {
   return Math.max(0, Math.min(100, Math.floor((loaded / total) * 100)));
 }
 
+// Literal class names per state (the CSS coverage test reads class names from source, so no template classes).
+const BAR_TONE_CLASS: Record<string, string> = {
+  fits: 'kth-pack-bar kth-pack-bar--fits',
+  tight: 'kth-pack-bar kth-pack-bar--tight',
+  no: 'kth-pack-bar kth-pack-bar--no',
+  unknown: 'kth-pack-bar',
+};
+const BADGE_CLASS: Record<string, string> = {
+  absent: 'kth-pack-badge',
+  installed: 'kth-pack-badge kth-pack-badge--installed',
+  'update-available': 'kth-pack-badge kth-pack-badge--update-available',
+  installing: 'kth-pack-badge kth-pack-badge--installing',
+  error: 'kth-pack-badge kth-pack-badge--error',
+};
+const FIT_CLASS: Record<string, string> = {
+  fits: 'kth-pack-summary__fit kth-pack-summary__fit--fits',
+  tight: 'kth-pack-summary__fit kth-pack-summary__fit--tight',
+  no: 'kth-pack-summary__fit kth-pack-summary__fit--no',
+  unknown: 'kth-pack-summary__fit kth-pack-summary__fit--unknown',
+};
+const RESULT_CLASS: Record<string, string> = {
+  done: 'kth-pack-run__result kth-pack-run__result--done',
+  partial: 'kth-pack-run__result kth-pack-run__result--partial',
+  failed: 'kth-pack-run__result kth-pack-run__result--failed',
+  cancelled: 'kth-pack-run__result kth-pack-run__result--cancelled',
+};
+
 function fill(text: string, values: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? (values[k] as string) : m));
 }
 
 function Bar({ label, percent, tone }: { label: string; percent: number | undefined; tone?: string }) {
-  const cls = tone ? `kth-pack-bar kth-pack-bar--${tone}` : 'kth-pack-bar';
+  const cls = (tone && BAR_TONE_CLASS[tone]) || 'kth-pack-bar';
   if (percent === undefined) {
     return <div className={`${cls} kth-pack-bar--indeterminate`} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} />;
   }
@@ -209,13 +236,13 @@ export function PackBuilder({
             {rows
               .filter((r) => r.group === g.id)
               .map((r) => {
-                const inputId = `kth-pack-${r.key}`;
+                const inputId = `pack-check-${r.key}`;
                 const installed = r.status === 'installed';
                 const keepFlow = !!onRemove;
                 const removable = keepFlow && (r.status === 'installed' || r.status === 'update-available');
                 const pct = r.progress ? percentOf(r.progress.loaded, r.progress.total) : undefined;
                 return (
-                  <li key={r.key} className={`kth-pack-row kth-pack-row--${r.status}`}>
+                  <li key={r.key} className="kth-pack-row">
                     <input
                       id={inputId}
                       type="checkbox"
@@ -230,7 +257,7 @@ export function PackBuilder({
                       {r.detail ? <span className="kth-pack-row__detail">{r.detail}</span> : null}
                     </label>
                     <span className="kth-pack-row__size">{formatBytes(r.sizeBytes)}</span>
-                    <span className={`kth-pack-badge kth-pack-badge--${r.status}`}>{statusText[r.status]}</span>
+                    <span className={BADGE_CLASS[r.status] ?? 'kth-pack-badge'}>{statusText[r.status]}</span>
                     {removable ? (
                       <button type="button" className="kth-pack-row__remove" disabled={running} onClick={() => onRemove?.(r.key)}>
                         {l.remove ?? 'Remove'}
@@ -254,7 +281,7 @@ export function PackBuilder({
         </span>
         {storagePct !== undefined ? (
           <div
-            className={`kth-pack-bar kth-pack-bar--${summary.fit}`}
+            className={BAR_TONE_CLASS[summary.fit] ?? 'kth-pack-bar'}
             role="progressbar"
             aria-label={l.storageBarLabel}
             aria-valuemin={0}
@@ -264,7 +291,7 @@ export function PackBuilder({
             <div className="kth-pack-bar__fill" style={{ inlineSize: `${storagePct}%` }} />
           </div>
         ) : null}
-        <span className={`kth-pack-summary__fit kth-pack-summary__fit--${summary.fit}`}>{fitText}</span>
+        <span className={FIT_CLASS[summary.fit] ?? 'kth-pack-summary__fit'}>{fitText}</span>
       </div>
 
       {warnings.length > 0 ? (
@@ -300,7 +327,7 @@ export function PackBuilder({
               </span>
             </>
           ) : (
-            <span className={`kth-pack-run__result kth-pack-run__result--${run.state}`}>{runResult}</span>
+            <span className={RESULT_CLASS[run.state] ?? 'kth-pack-run__result'}>{runResult}</span>
           )}
         </div>
       ) : null}
