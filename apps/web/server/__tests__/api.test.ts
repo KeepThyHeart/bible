@@ -25,7 +25,7 @@ let app: express.Express;
 
 /**
  * Clarke is in the `tests` module preset but not `starter`, so a default
- * `npm run setup` does not install it. Its tests skip without it, as core's
+ * `pnpm run setup` does not install it. Its tests skip without it, as core's
  * data-backed suites do, rather than fail with a 404 that reads like a route
  * bug -- and say so, so the skip is not mistaken for coverage.
  */
@@ -34,7 +34,7 @@ const clarkeInstalled = existsSync(CLARKE_DB);
 if (!clarkeInstalled) {
   console.warn(
     `\n[api tests] SKIPPING the Clarke commentary tests -- module not found:\n    ${CLARKE_DB}\n` +
-      '  Install it with `npm run init:modules -- --select=tests` to run them.\n'
+      '  Install it with `pnpm run init:modules --select=tests` to run them.\n'
   );
 }
 

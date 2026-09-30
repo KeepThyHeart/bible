@@ -226,6 +226,23 @@ function requireCatalogService(): ModuleCatalogService {
 /**
  * Require the keyword-index service to be initialized, or throw an IpcKnownError.
  */
+/**
+ * Startup catch-up for keyword indexes: build the index of every installed
+ * module that lacks one (see `KeywordIndexService.buildMissingIndexes`).
+ * Fire-and-forget; failures are logged and recorded, never thrown.
+ */
+export function buildMissingKeywordIndexesInBackground(): void {
+  void (async () => {
+    try {
+      initializeModuleManager();
+      const built = await requireKeywordIndexService().buildMissingIndexes();
+      if (built > 0) log.info(`[ModuleManager] Built ${built} missing keyword index(es)`);
+    } catch (error) {
+      log.error('[ModuleManager] Building missing keyword indexes failed:', error);
+    }
+  })();
+}
+
 function requireKeywordIndexService(): KeywordIndexService {
   if (!keywordIndexService) {
     throw new IpcKnownError('unavailable', 'Module manager not initialized');

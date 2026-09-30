@@ -8,26 +8,26 @@
  *
  * This is the engine behind verify-linux.sh, verify-macos.sh and
  * verify-windows.ps1, which check the platform's prerequisites and then run
- * it.  It needs nothing but Node.js, git and npm: no package is loaded until
- * `npm ci` has installed it.
+ * it.  It needs nothing but Node.js, git and pnpm: no package is loaded until
+ * `pnpm install` has installed it.
  *
  * The steps, in order.  One that fails does not stop the ones that do not
  * depend on it, so a run reports every independent failure at once:
  *
- *   prerequisites     Node.js, npm and git versions; free disk space
+ *   prerequisites     Node.js, pnpm and git versions; free disk space
  *   clone             (--fresh) a clean clone of the commit under test
- *   install           npm ci
- *   setup             npm run setup -- --yes --select=tests (every module a suite names)
+ *   install           pnpm install --frozen-lockfile
+ *   setup             pnpm run setup --yes --select=tests (every module a suite names)
  *   init-checks       node scripts/init/checks.js
- *   typecheck         npm run typecheck
+ *   typecheck         pnpm run typecheck
  *   sqlite-node       (desktop) the SQLite driver built for Node, so the desktop
  *                     suites that open a real database run instead of skipping
- *   unit-tests        npm test
- *   build-web         npm run build:web
+ *   unit-tests        pnpm test
+ *   build-web         pnpm run build:web
  *   web-runs          start the built web server; check /api/health, the page,
  *                     the module list and a Bible chapter
  *   sqlite-electron   (desktop) the SQLite driver built for Electron again
- *   build-desktop     npm run build:desktop
+ *   build-desktop     pnpm run build:desktop
  *   desktop-runs      start the built desktop app; check it renders a Bible chapter
  *   e2e-desktop, e2e-web   (--e2e) the Playwright suites
  *
@@ -38,7 +38,7 @@
  *
  * ## Usage
  *
- *   node admin/scripts/verify.js [options]     (or: npm run verify -- [options])
+ *   node admin/scripts/verify.js [options]     (or: pnpm run verify [options])
  *
  *   --fresh[=URL]         Verify a fresh clone instead of this checkout: clone URL
  *                         (default: this checkout, which verifies committed work
@@ -56,9 +56,9 @@
  *   --verbose             Show every step's output as it runs.
  *   --help
  *
- * Without --fresh this changes the checkout the way setting it up does: `npm
- * ci` replaces node_modules, modules land in data/, and the desktop is left
- * ready for `npm run dev`.
+ * Without --fresh this changes the checkout the way setting it up does: `pnpm
+ * install` replaces node_modules, modules land in data/, and the desktop is left
+ * ready for `pnpm run dev`.
  *
  * Exit code 0 when every step passed, 1 when any failed, 2 for a usage error.
  */
@@ -70,7 +70,7 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const {
-  StepRunner, npm, capture, killTree, tail, timestamp, describeMachine, displayWrapper,
+  StepRunner, pnpm, capture, killTree, tail, timestamp, describeMachine, displayWrapper,
 } = require('./lib/steps');
 
 const SCRIPT_REPO = path.resolve(__dirname, '../..');
@@ -290,7 +290,7 @@ async function main() {
   // --- prerequisites ---------------------------------------------------------
   await runner.run({
     id: 'prerequisites',
-    title: 'Prerequisites (Node.js, npm, git, disk space)',
+    title: 'Prerequisites (Node.js, pnpm, git, disk space)',
     fn: async ({ log }) => {
       const problems = [];
       const [major, minor] = process.versions.node.split('.').map(Number);
@@ -298,11 +298,11 @@ async function main() {
       if (major < MIN_NODE[0] || (major === MIN_NODE[0] && minor < MIN_NODE[1])) {
         problems.push(`Node.js ${MIN_NODE.join('.')} or newer is needed (24 recommended); this is ${process.version}.`);
       }
-      const npmInv = npm(['--version']);
-      const npmVersion = capture(npmInv.command, npmInv.args, { shell: npmInv.shell });
-      log(`npm ${npmVersion || 'NOT FOUND'}`);
-      if (!npmVersion) problems.push('npm was not found (it comes with Node.js).');
-      else facts.npm = npmVersion;
+      const pnpmInv = pnpm(['--version']);
+      const pnpmVersion = capture(pnpmInv.command, pnpmInv.args, { shell: pnpmInv.shell });
+      log(`pnpm ${pnpmVersion || 'NOT FOUND'}`);
+      if (!pnpmVersion) problems.push('pnpm was not found (run `corepack enable`; Corepack comes with Node.js).');
+      else facts.pnpm = pnpmVersion;
       const gitVersion = capture('git', ['--version']);
       log(gitVersion || 'git NOT FOUND');
       if (!gitVersion) problems.push('git was not found.');
@@ -324,7 +324,7 @@ async function main() {
         if (display.error) problems.push(display.error);
       }
       if (problems.length > 0) throw new Error(problems.join('\n'));
-      return `Node ${process.version}, npm ${npmVersion}, ${gitVersion.replace(/^git version /, 'git ')}`;
+      return `Node ${process.version}, pnpm ${pnpmVersion}, ${gitVersion.replace(/^git version /, 'git ')}`;
     },
   });
 
@@ -360,8 +360,8 @@ async function main() {
 
   // --- install and set up ----------------------------------------------------
   await runner.run({
-    id: 'install', title: 'Install dependencies (npm ci)', needs: ready,
-    ...inRepo(npm(['ci', '--no-audit', '--no-fund'])), timeoutMs: 45 * MINUTE,
+    id: 'install', title: 'Install dependencies (pnpm install --frozen-lockfile)', needs: ready,
+    ...inRepo(pnpm(['install', '--frozen-lockfile'])), timeoutMs: 45 * MINUTE,
     hint: 'A native module failing to compile needs Python 3 and a C++ toolchain; a stalled download is usually DNS or IPv6 (README.md, Troubleshooting).',
   });
 
@@ -383,7 +383,7 @@ async function main() {
   }
 
   await runner.run({
-    id: 'setup', title: 'Set up (npm run setup, test modules)', needs: ['install'],
+    id: 'setup', title: 'Set up (pnpm run setup, test modules)', needs: ['install'],
     ...inRepo({ command: process.execPath, args: ['scripts/init/setup.js', '--yes', '--select=tests', `--apps=${opts.apps.join(',')}`], shell: false }),
     timeoutMs: 45 * MINUTE,
     hint: 'The log names the setup step that failed and how to retry it.',
@@ -396,7 +396,7 @@ async function main() {
 
   await runner.run({
     id: 'typecheck', title: 'Type-check every workspace', needs: ['setup'],
-    ...inRepo(npm(['run', 'typecheck'])), timeoutMs: 20 * MINUTE,
+    ...inRepo(pnpm(['run', 'typecheck'])), timeoutMs: 20 * MINUTE,
   });
 
   // --- unit tests ------------------------------------------------------------
@@ -404,13 +404,13 @@ async function main() {
   if (desktop) {
     await runner.run({
       id: 'sqlite-node', title: 'SQLite driver built for Node (for the desktop suites)', needs: ['setup'],
-      ...inRepo(npm(['rebuild', 'better-sqlite3-multiple-ciphers'])), timeoutMs: 20 * MINUTE,
+      ...inRepo(pnpm(['rebuild', 'better-sqlite3-multiple-ciphers'])), timeoutMs: 20 * MINUTE,
     });
     testNeeds.push('sqlite-node');
   }
   await runner.run({
-    id: 'unit-tests', title: 'Unit tests (npm test)', needs: testNeeds,
-    ...inRepo(npm(['test'])), timeoutMs: 60 * MINUTE,
+    id: 'unit-tests', title: 'Unit tests (pnpm test)', needs: testNeeds,
+    ...inRepo(pnpm(['test'])), timeoutMs: 60 * MINUTE,
     hint: 'The failing suite and assertion are in the log above; search it for "FAIL".',
   });
 
@@ -418,10 +418,10 @@ async function main() {
   if (web) {
     await runner.run({
       id: 'build-web', title: 'Build the web app', needs: ['setup'],
-      ...inRepo(npm(['run', 'build:web'])), timeoutMs: 30 * MINUTE,
+      ...inRepo(pnpm(['run', 'build:web'])), timeoutMs: 30 * MINUTE,
       hint: 'The build first downloads the search embedding model (about 130 MB) from huggingface.co into data/models/.\n'
         + '"[fetch-model] ERROR: fetch failed" is a network problem, often the slow DNS lookup described under\n'
-        + 'Troubleshooting in README.md; retry with `npm run fetch:model -w @bible/web`.',
+        + 'Troubleshooting in README.md; retry with `pnpm --filter @bible/web run fetch:model`.',
     });
     await runner.run({
       id: 'web-runs', title: 'The web app runs', needs: ['build-web'],
@@ -434,11 +434,11 @@ async function main() {
   if (desktop) {
     await runner.run({
       id: 'sqlite-electron', title: 'SQLite driver built for Electron', needs: ['setup'],
-      ...inRepo(npm(['run', 'rebuild-native:force', '-w', '@bible/desktop'])), timeoutMs: 20 * MINUTE,
+      ...inRepo(pnpm(['--filter', '@bible/desktop', 'run', 'rebuild-native:force'])), timeoutMs: 20 * MINUTE,
     });
     await runner.run({
       id: 'build-desktop', title: 'Build the desktop app', needs: ['sqlite-electron'],
-      ...inRepo(npm(['run', 'build:desktop'])), timeoutMs: 30 * MINUTE,
+      ...inRepo(pnpm(['run', 'build:desktop'])), timeoutMs: 30 * MINUTE,
     });
     await runner.run({
       id: 'desktop-runs', title: 'The desktop app runs', needs: ['build-desktop'],
@@ -455,7 +455,7 @@ async function main() {
   // --- end-to-end ------------------------------------------------------------
   if (opts.e2e) {
     if (desktop) {
-      const inv = npm(['run', 'test:e2e', '-w', '@bible/desktop']);
+      const inv = pnpm(['--filter', '@bible/desktop', 'run', 'test:e2e']);
       const wrapped = display.prefix.length ? { command: display.prefix[0], args: [...display.prefix.slice(1), inv.command, ...inv.args], shell: false } : inv;
       await runner.run({
         id: 'e2e-desktop', title: 'Desktop end-to-end suite (Playwright)', needs: ['build-desktop'],
@@ -466,13 +466,13 @@ async function main() {
     if (web) {
       await runner.run({
         id: 'e2e-browsers', title: 'Playwright browsers for the web suite', needs: ['install'],
-        ...inRepo(npm(['exec', '--', 'playwright', 'install', 'chromium', 'webkit']), { cwd: path.join(repo, 'apps', 'web') }),
+        ...inRepo(pnpm(['exec', 'playwright', 'install', 'chromium', 'webkit']), { cwd: path.join(repo, 'apps', 'web') }),
         timeoutMs: 30 * MINUTE,
-        hint: 'On Linux the browsers also need system libraries: `sudo npx playwright install-deps chromium webkit`.',
+        hint: 'On Linux the browsers also need system libraries: `sudo pnpm exec playwright install-deps chromium webkit`.',
       });
       await runner.run({
         id: 'e2e-web', title: 'Web end-to-end suite (Playwright)', needs: ['setup', 'e2e-browsers'],
-        ...inRepo(npm(['run', 'test:e2e', '-w', '@bible/web']), { env: { ...process.env, CI: '1' } }), timeoutMs: 60 * MINUTE,
+        ...inRepo(pnpm(['--filter', '@bible/web', 'run', 'test:e2e']), { env: { ...process.env, CI: '1' } }), timeoutMs: 60 * MINUTE,
       });
     }
   }

@@ -151,13 +151,15 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
   searchTopics(query: string, options?: { limit?: number; offset?: number }): Topic[] {
     const match = toTopicFtsQuery(query);
     if (match === '') return [];
+    const fts = this.keywordIndexTable('topic_fts', 'topical_index');
+    if (!fts) return [];
     const limit = options?.limit ?? 50;
     const offset = options?.offset ?? 0;
     const rows = this.sql.queryAll<TopicRow>(
       `SELECT t.* FROM topic t
-       JOIN topic_fts fts ON t.topic_id = fts.rowid
-       WHERE topic_fts MATCH ?
-       ORDER BY rank
+       JOIN ${fts.table} fts ON t.topic_id = fts.rowid
+       WHERE fts.${fts.column} MATCH ?
+       ORDER BY fts.rank
        LIMIT ? OFFSET ?`,
       [match, limit, offset]
     );
@@ -183,10 +185,12 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
       // "(A penalty)" is meaningless away from its parent "Fine". But someone
       // who types "(A penalty)" is asking for exactly that subtopic, so a
       // search spans every level of the hierarchy.
+      const fts = this.keywordIndexTable('topic_fts', 'topical_index');
+      if (!fts) return [];
       const rows = this.sql.queryAll<TopicRow>(
         `SELECT t.* FROM topic t
-         JOIN topic_fts fts ON t.topic_id = fts.rowid
-         WHERE topic_fts MATCH ?
+         JOIN ${fts.table} fts ON t.topic_id = fts.rowid
+         WHERE fts.${fts.column} MATCH ?
          ORDER BY t.name
          LIMIT ? OFFSET ?`,
         [options.filter, limit, offset]
@@ -207,10 +211,12 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
     if (filter) {
       // See `getAllTopicsPaginated`: a filtered count spans every level too,
       // so that it stays the count of what a filtered page actually returns.
+      const fts = this.keywordIndexTable('topic_fts', 'topical_index');
+      if (!fts) return 0;
       const row = this.sql.queryOne<{ count: number }>(
         `SELECT COUNT(*) as count FROM topic t
-         JOIN topic_fts fts ON t.topic_id = fts.rowid
-         WHERE topic_fts MATCH ?`,
+         JOIN ${fts.table} fts ON t.topic_id = fts.rowid
+         WHERE fts.${fts.column} MATCH ?`,
         [filter]
       );
       return row?.count ?? 0;

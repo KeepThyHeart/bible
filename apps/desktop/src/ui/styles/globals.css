@@ -7,6 +7,12 @@
 /* Theme CSS variables (light, dark, sepia) - KAN-51 */
 @import './themes.css';
 
+/* KTH CSS (packages/ui): `--kth-*` tokens aliased to the --theme-* vars above, then the opt-in `.kth-*` classes
+   (used by the shared @bible/ui components and by app components that adopt them). Must follow themes.css.
+   Never kth-base.css: the app keeps Tailwind preflight. */
+@import '@bible/ui/css/generated/map-desktop.css';
+@import '@bible/ui/css/kth.css';
+
 /* Shared toolbar/back-button chrome - also served to extension panels at
    ext-ui://host/controls.css (see hostControlsCss.ts). */
 @import './controls.css';

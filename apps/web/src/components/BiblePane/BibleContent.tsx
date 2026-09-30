@@ -16,7 +16,7 @@ import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { draftIsOnWall } from '../../present/wordHighlight';
-import { directionForLanguage } from '../../utils/textDirection';
+import { directionForLanguage } from '@bible/core/browser';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData } from '../../providers/interfaces';
 

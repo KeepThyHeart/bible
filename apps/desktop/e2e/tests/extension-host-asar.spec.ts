@@ -27,9 +27,9 @@
  *
  * PREREQUISITE: a packaged build must exist. Produce one with:
  *
- *     npm run build                      # from the repo root (core + desktop)
+ *     pnpm run build                      # from the repo root (core + desktop)
  *     cd apps/desktop
- *     npx electron-builder --win --dir   # or --linux --dir / --mac --dir
+ *     pnpm exec electron-builder --win --dir   # or --linux --dir / --mac --dir
  *
  * If no packaged build is present the tests skip with a loud message - a dev
  * build does not use asar and cannot answer this question.
@@ -492,7 +492,7 @@ test.describe('Extension host inside app.asar (packaged build)', () => {
   test.skip(
     packaged === null,
     'No packaged build found under apps/desktop/dist. Build one with ' +
-      '`npm run build` (repo root) then `npx electron-builder --win --dir` in ' +
+      '`pnpm run build` (repo root) then `pnpm exec electron-builder --win --dir` in ' +
       'apps/desktop. A dev build does NOT use asar and cannot answer this.',
   );
 

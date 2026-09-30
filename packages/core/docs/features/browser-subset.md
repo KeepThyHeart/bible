@@ -28,23 +28,34 @@ belongs in the barrel instead, imported once.
 
 ## What is re-exported
 
-Nine groups, all of it from `src/browser.ts`:
+The groups below, all of it from `src/browser.ts`:
 
 | Group | Exports | From |
 |---|---|---|
 | Verse identity | `VerseIdHelper`, `Book`; types `VerseId`, `BookNumber` | `src/Data/Core/Types.ts` |
-| Book names | `BOOK_COUNT`, `ENGLISH_BOOK_NAMES`, `ENGLISH_DISPLAY_NAMES`, `ENGLISH_SINGLE_CHAPTER_BOOKS`, `LONG_NAMES`, `MEDIUM_NAMES`, `SHORT_NAMES`, `getBookName`, `getBookNumber`, `isSingleChapterBook`; type `BookNameFormat` | `src/Data/Core/BookNames.ts` |
+| Book names | `BOOK_COUNT`, `ENGLISH_BOOK_NAMES`, `ENGLISH_DISPLAY_NAMES`, `ENGLISH_SINGLE_CHAPTER_BOOKS`, `LONG_NAMES`, `MAX_CHAPTERS` (chapter count per book), `OT_BOOKS`, `NT_BOOKS`, `MEDIUM_NAMES`, `SHORT_NAMES`, `getBookName`, `getBookNumber`, `isSingleChapterBook`; type `BookNameFormat` | `src/Data/Core/BookNames.ts` |
 | Reference parsing / formatting | `ReferenceParser`; types `ParsedReference`, `IReferenceParser`, `ReferenceParserConfig` - plus `collapseReferences`, `collapseReferencesStructured`; types `CollapseOptions`, `CollapsedSegment` | `src/Services/ReferenceParser.ts`, `src/Services/ReferenceCollapser.ts` |
 | Bible structure | `BIBLE_SECTIONS`, `getBibleSection`; types `BibleSectionKey`, `BibleSectionInfo` | `src/Services/BibleSections.ts` |
 | Copy templates | `renderTemplate`, `BUILTIN_TEMPLATES`, `exportTemplates`, `importTemplates`; type `SavedTemplate` | `src/Services/CopyService.ts` |
 | Passage formatting | The whole format engine - `getPassageFormatCatalog` and the rest of the numbered catalog, `renderPassageMarkup` + `passageMarkupToHtml`/`...ToText`/`...ToSourceText`/`...ToMarkdown`, `renderPassageCopy`, `renderCopyTemplate`, the verse-text extraction (`getVerseTextForFormat`, `buildPassageReference`) and the option defaults and normalizers | `src/Services/PassageFormat/` |
+| Verse text formatting | `formatVerseFields`, `stripOsisTags`, `highlightSearchTerms`, `hasWordsOfChrist`, `getFootnotes`; types `FormattedVerse`, `VerseFormattingData`, `VerseWordRange` - the pure half of `VerseFormatter` (raw text + word-range payload in, display HTML out); the `BibleVerse` adapter `formatVerseText` stays out | `src/Services/VerseTextFormatter.ts` |
+| Word indexing and interlinear cells | `extractWordsWithFormatting`, `extractWords`, `countWordsInRange`; type `WordInfo` - the DOM-free verse tokenizer that defines the word index space - and `buildInterlinearCells`, `cellsPartitionWordSpace`, `cellStrongsNumbers`; types `InterlinearWord`, `InterlinearCell` (the barrel's `InterlinearWord` is the cell builder's input row, not the `Data` model class of the same name exported by the root entry) | `src/Services/WordIndexing.ts`, `src/Services/InterlinearCells.ts` |
+| Annotations | Flat re-export of `src/Annotations/index.ts`: `wordRenderAttrs`, `renderVerseWords`, `getVerseHighlightInfo`, `findHighlightsForWord`, `computeVerseFindState`, `styleToCssText`, `escapeForAttribute`, type `CssProperties` (plain `Record<string, string \| number>` standing in for React's `CSSProperties`) and the `WordRender*`/`VerseFindState` types; `resolveVerseDecorations`, `buildWordPaintStyle`, `countWordTextMatches` and the `WordPaint`/`ResolvedVerse` types; `resolveThemeColor`; `registerVerseWords`, `sumCachedMatches`; and the DOM-selection mapping `wordSelectionFromElements`, `readWordSelection`, `captureWordSelection`, `takeCapturedWordSelection`, `clearCapturedWordSelection` (typed against small structural DOM interfaces because core builds without the DOM lib). Inputs (highlights, find state, decorations) are plain arguments; the apps keep their store hooks and components | `src/Annotations/` |
+| Readable stores | `fromZustand`, `fromSelector`, `createStore`; types `ReadableStore`, `WritableStore`, `ZustandLike` - the `subscribe` + `getSnapshot` seam `useSyncExternalStore` consumes, so one store type can serve the React and Preact apps. `fromSelector` returns a stable snapshot (previous value kept while `isEqual` holds) and wakes listeners only when the selected slice changed | `src/Ui/ReadableStore.ts` |
+| Content text direction | `directionForLanguage`, `isRtlLanguage` - direction of a module's language, independent of the UI locale | `src/Data/Locales/TextDirection.ts` |
+| Module catalog metadata | `DIGEST_MODULE_ABBR`, `isDigestModule`, `isAiGeneratedMetadata`, `getModuleProvenanceKind`, `isAiGeneratedModule`, `RECOMMENDED_BIBLES`, `DEFAULT_COMMENTARY_PRIORITY`, `COMMENTARY_PRIORITY`, `getCommentaryPriority`; types `ModuleProvenanceKind`, `ModuleProvenanceMetadata` - language-free facts only; each app keeps its own notice wording and descriptions | `src/Services/ModuleDescriptions.ts` |
 | Dictionary rendering | `dictionaryDefinitionToHtml`, `definitionHasHtmlMarkup`, `newlinesToLineBreaks`, `readNewlineHandling`, `resolveNewlineHandling`, `NEWLINE_HANDLING_KEY`; type `NewlineHandling` | `src/Services/DictionaryDefinitionFormatter.ts` |
 | Strong's numbers | `StrongsNumberHelper`; types `StrongsLanguage`, `ParsedStrongsNumber` | `src/Data/Core/StrongsNumberHelper.ts` |
 | Plugin hooks | `HookRegistry`; types `FilterHandler`, `ActionHandler` | `src/Plugin/HookRegistry.ts` |
+| User-data store | The `UserData` namespace: `MemoryUserDb` (in-memory `IUserDataRepository` and `IVerseLinkRepository`), backup export and import for them, `migrateLocalStorage` - see [User-data store](user-data-store.md) | `src/UserData/` |
+| Crypto and backups | The namespaces `Crypto` (Argon2id, HKDF-SHA-256, AES-256-GCM, base64url, KDF-parameter validation) and `Backup` (the encrypted container, payload, table registry, restore) - see [Backup format](backup-format.md) | `src/Crypto/`, `src/Backup/` |
+
+Two groups reach outside the repository on purpose: `hash-wasm` (Argon2id, loaded lazily) and `fflate` (the ZIP codec) are the only bare specifiers the barrel may reach, allow-listed in `browserBarrel.test.ts`, and the file-count bound there was raised again (to 90) for them.
 
 Note what is **not** here: no repositories, no `ISql`, no `SqliteProvider`, no
-`VerseFormatter` (which the web offline path duplicates by hand instead - see
-[Text rendering](text-rendering.md)), no controllers.
+`formatVerseText(BibleVerse)` adapter (the web offline path calls the pure
+`formatVerseFields` beneath it instead - see [Text rendering](text-rendering.md)),
+no controllers.
 
 The passage-format group is the largest thing in the barrel and the reason its
 file-count bound was raised from 25 to 40. It came out of the desktop renderer,
@@ -120,7 +131,7 @@ must agree.
   should map only the `/browser` subpath, so that the plain specifier fails to
   resolve rather than failing at bundle time - that guard is worth setting up
   deliberately.
-- **Building core does not run the guard; the test suite does.** `npm run test -w @bible/core`
+- **Building core does not run the guard; the test suite does.** `pnpm --filter @bible/core run test`
   is where a violation surfaces. A `tsc` build of core will happily compile a
   `browser.ts` that re-exports something impure.
 - **The barrel is TypeScript source to the web build and `dist/browser.js` to

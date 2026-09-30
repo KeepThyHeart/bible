@@ -8,7 +8,7 @@
  * when a step fails, the end of its log.  So a failed run already shows the
  * error, and the full logs are there for anything more.
  *
- * Nothing here needs an npm package: verify.js runs before `npm ci` has.
+ * Nothing here needs an npm package: verify.js runs before `pnpm install` has.
  */
 'use strict';
 
@@ -33,17 +33,17 @@ function timestamp(date = new Date()) {
 }
 
 /**
- * How to run npm, on every platform.
+ * How to run pnpm, on every platform.
  *
- * Under `npm run`, `npm_execpath` is npm's own CLI script, which this Node can
- * run directly.  Otherwise the `npm` on PATH, which on Windows is a .cmd file
- * that only a shell can start.
+ * Under `pnpm run`, `npm_execpath` is pnpm's own CLI script, which this Node can
+ * run directly.  Otherwise the `pnpm` on PATH (put there by `corepack enable`),
+ * which on Windows is a .cmd file that only a shell can start.
  */
-function npm(args) {
-  const npmCli = process.env.npm_execpath;
-  if (npmCli && /npm-cli\.[cm]?js$/.test(npmCli)) return { command: process.execPath, args: [npmCli, ...args], shell: false };
-  if (process.platform === 'win32') return { command: 'npm.cmd', args, shell: true };
-  return { command: 'npm', args, shell: false };
+function pnpm(args) {
+  const pnpmCli = process.env.npm_execpath;
+  if (pnpmCli && /pnpm\.[cm]?js$/.test(pnpmCli)) return { command: process.execPath, args: [pnpmCli, ...args], shell: false };
+  if (process.platform === 'win32') return { command: 'pnpm.cmd', args, shell: true };
+  return { command: 'pnpm', args, shell: false };
 }
 
 /** Run a command to completion and return its trimmed stdout, or null when it fails. */
@@ -339,5 +339,5 @@ function displayWrapper() {
 }
 
 module.exports = {
-  StepRunner, runLogged, npm, capture, killTree, tail, formatDuration, timestamp, describeMachine, displayWrapper,
+  StepRunner, runLogged, pnpm, capture, killTree, tail, formatDuration, timestamp, describeMachine, displayWrapper,
 };

@@ -579,7 +579,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               highlight branch - which needs to know WHICH words were selected -
               sees nothing and highlights the whole verse instead. Belt and
               braces: the selection is also snapshotted when the menu opens
-              (see capturedSelection.ts), which is what actually guarantees the
+              (see core Annotations/CapturedSelection.ts), which is what actually guarantees the
               behaviour on platforms where mousedown does collapse it.
             */
             onMouseDown={(e) => e.preventDefault()}

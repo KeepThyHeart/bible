@@ -74,6 +74,14 @@ be backed up or synced independently.
 | `src/Data/Migration/repairUserSchema.test.ts` | The upgraded-profile markup repair - see [Migrations](migrations.md). |
 | `src/Data/Core/Colors.test.ts` | `normalizeMarkupColor` / `markupColorName`. |
 
+## The table registry
+
+`src/Backup/Registry.ts` lists every user table with its columns, keys, foreign keys
+(including the logical ones), backup class and `USER_SCHEMA_VERSION`. Backups, restore
+and merge are driven by it, and drift tests compare it with `UserDatabase.sql` and
+with the desktop's own DDL, so a table added without being classified fails a test.
+See [Backup format](backup-format.md#the-table-registry).
+
 ## The unified `verse_link` table
 
 "Unified" means: **one table shape for every kind of content->verse reference,

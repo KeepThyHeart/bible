@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync } from 'fs';
 import { createRequire } from 'module';
 import { SqliteProvider } from './providers/SqliteProvider.js';
 import {
@@ -42,6 +42,10 @@ import type {
   IModuleStore,
   IModuleRepositoryFactory,
   ICodecRegistry,
+  SidecarFts5Provider as SidecarFts5ProviderT,
+  configureModuleKeywordIndex as configureModuleKeywordIndexT,
+  ensureModuleKeywordIndexes as ensureModuleKeywordIndexesT,
+  EnsureModuleKeywordIndexesResult,
 } from '@bible/core';
 
 /**
@@ -69,6 +73,18 @@ const moduleRepositoryFactoryFor: typeof moduleRepositoryFactoryForT = coreCjs.m
 const nodeCodecRegistry: typeof nodeCodecRegistryT = coreCjs.nodeCodecRegistry;
 /** Task 0034 (finishing M11): wraps an already-open `SqliteProvider` as an `IModuleConnection` for `repositoryFactory.create()`. */
 const wrapSqlConnection: typeof wrapSqlConnectionT = coreCjs.wrapSqlConnection;
+const SidecarFts5Provider: typeof SidecarFts5ProviderT = coreCjs.SidecarFts5Provider;
+const configureModuleKeywordIndex: typeof configureModuleKeywordIndexT = coreCjs.configureModuleKeywordIndex;
+const ensureModuleKeywordIndexes: typeof ensureModuleKeywordIndexesT = coreCjs.ensureModuleKeywordIndexes;
+
+/**
+ * Where this server's sidecar keyword indexes live: `<dataDir>/keyword-index`,
+ * the same directory `init:modules` builds into. Module schema v0.2 ships no
+ * FTS5 table, so every keyword search over a v0.2 module reads one of these.
+ */
+export function keywordIndexDirFor(dataDir: string): string {
+  return join(dataDir, 'keyword-index');
+}
 
 /**
  * `IModuleRepositoryFactory.create()` (and so `moduleRepositoryFactoryFor()`)
@@ -152,7 +168,45 @@ export class DatabaseManager {
    *                    database_path values (e.g. "modules/bible_kjv.db") resolve from here
    *                    instead of dataDir. Allows shared module storage across packages.
    */
-  constructor(private dataDir: string, private modulesDir?: string) {}
+  /** See {@link keywordIndexDirFor}. */
+  private readonly keywordIndexes: SidecarFts5ProviderT;
+
+  /**
+   * Also makes this server's sidecar keyword indexes the ones every module
+   * repository and search service searches (`configureModuleKeywordIndex`).
+   * That touches no disk - the provider only looks when a search asks - so it
+   * keeps this class's promise that nothing is opened before the first
+   * request. Building missing indexes is {@link prepareKeywordIndexes}.
+   */
+  constructor(private dataDir: string, private modulesDir?: string) {
+    this.keywordIndexes = new SidecarFts5Provider({
+      indexDir: keywordIndexDirFor(dataDir),
+      openDatabase: (path, opts) => new SqliteProvider(path, { readonly: opts.readonly, fileMustExist: !opts.create }),
+    });
+    configureModuleKeywordIndex(this.keywordIndexes);
+  }
+
+  /**
+   * Build the keyword index for every module file that lacks a current one,
+   * and delete indexes of modules that are gone. Run before the server
+   * listens: `init:modules` normally built them already, in which case this
+   * is one small read per module; a module added since (or a data directory
+   * set up another way) gets its index here instead of searching as empty.
+   */
+  async prepareKeywordIndexes(log?: (message: string) => void): Promise<EnsureModuleKeywordIndexesResult> {
+    const modulesPath = join(this.modulesDir || this.dataDir, 'modules');
+    const modulePaths = existsSync(modulesPath)
+      ? readdirSync(modulesPath).filter((name) => name.endsWith('.db')).map((name) => join(modulesPath, name))
+      : [];
+    mkdirSync(keywordIndexDirFor(this.dataDir), { recursive: true });
+    return ensureModuleKeywordIndexes({
+      provider: this.keywordIndexes,
+      modulePaths,
+      openModule: (path) => new SqliteProvider(path, MODULE_DB_OPTIONS),
+      log,
+      pruneOthers: true,
+    });
+  }
 
   /**
    * `readonly: true` is passed explicitly on every one of the four loaders

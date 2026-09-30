@@ -32,7 +32,7 @@ interface HighlightSelectorProps {
  *
  * The row handler already opens VerseContextMenu, whose "Highlight/
  * Underline..." item opens the highlight menu with the selection captured at
- * menu-open time (see capturedSelection.ts). Wiring a handler back in here
+ * menu-open time (see core Annotations/CapturedSelection.ts). Wiring a handler back in here
  * would give the app two competing right-click menus.
  *
  * The component itself stays because BibleVerseList renders it as the verse

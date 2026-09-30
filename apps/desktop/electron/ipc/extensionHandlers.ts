@@ -20,7 +20,7 @@
  *   extensions:setSettings             -> void
  *   extensions:getLog                  -> ExtensionLogEntry[]
  *   extensions:getCrashLog             -> ExtensionCrashRecord[]
- *   extensions:getPanelTypeUiEntry     -> { uiEntry, title? } | null
+ *   extensions:getPanelTypeUiEntry     -> { uiEntry, title?, allowAutoplay?, uiKit?, grantedPermissions } | null
  *   extensions:uiFetch                 -> NetworkFetchResponse
  *
  * The renderer-driven per-permission consent dialog (see
@@ -334,6 +334,10 @@ export function registerExtensionHandlers(
         uiEntry: def.uiEntry,
         ...(def.title !== undefined ? { title: def.title } : {}),
         ...(allowAutoplay ? { allowAutoplay: true } : {}),
+        // Host-side facts for the renderer's iframe bridge (never sent to the
+        // iframe): the UI-kit allowlist and the grants it is checked against.
+        ...(state?.manifest.uiKit !== undefined ? { uiKit: state.manifest.uiKit } : {}),
+        grantedPermissions: state?.grantedPermissions ?? [],
       };
     },
   );

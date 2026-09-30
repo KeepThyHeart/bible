@@ -14,8 +14,9 @@
  *      (so an iframe pointing at `ext-ui://made-up.id/...` is a dead end).
  *   4. Reserves ONE hostname, `host`, for the app itself: `ext-ui://host/`
  *      serves host-owned resources that every panel may read: the design
- *      token sheet (`theme.css`) and the shared control-chrome stylesheet
- *      (`controls.css`). See `EXT_UI_HOST_HOSTNAME` below.
+ *      token sheet (`theme.css`), the shared control-chrome stylesheet
+ *      (`controls.css`) and the extension UI kit (`kit/1/kth-kit.js`,
+ *      `kit/1/kth.css`). See `EXT_UI_HOST_HOSTNAME` below.
  *
  * The protocol must be registered as "privileged" via
  * `protocol.registerSchemesAsPrivileged` BEFORE `app.whenReady()` so that
@@ -36,8 +37,9 @@ import { join, normalize, sep } from 'path';
 import log from 'electron-log';
 
 import type { ExtensionHost } from './ExtensionHost';
-import { getActiveHostThemeCss } from './hostThemeCss';
+import { getHostThemeCssFor } from './hostThemeCss';
 import { getHostControlsCss } from './hostControlsCss';
+import { HOST_KIT_MAJOR, getHostKitCss, getHostKitJs } from './hostKit';
 
 export const EXT_UI_SCHEME = 'ext-ui';
 
@@ -63,17 +65,38 @@ export const EXT_UI_SCHEME = 'ext-ui';
  */
 export const EXT_UI_HOST_HOSTNAME = 'host';
 
+const CSS = 'text/css; charset=utf-8';
+// Chromium refuses to execute a script served with a non-JavaScript type once `nosniff` is set.
+const JS = 'text/javascript; charset=utf-8';
+
+interface HostResource {
+  contentType: string;
+  /** `url` carries the query string (only `theme.css` reads it). */
+  body: (url: URL) => string;
+}
+
 /**
- * The complete set of paths served under `ext-ui://host/`, as an allowlist.
+ * The complete set of paths served under `ext-ui://host/`, as an exact-path allowlist:
+ *
+ *   - `theme.css`  (optionally `?theme=<id>`)
+ *   - `controls.css`
+ *   - `kit/1/kth-kit.js`  and  `kit/1/kth.css`  (the extension UI kit, `hostKit.ts`)
  *
  * An allowlist rather than a directory walk, because there is no directory:
  * these responses are synthesized, not read off disk. That also means the
  * `..`-escape and symlink-escape machinery the extension branch needs has
  * nothing to escape from here - a path either is one of these exact strings or
- * it is a 404, so `ext-ui://host/../../etc/passwd`, `%2e%2e%2ftheme.css` and
- * `subdir/theme.css` all fall out the same way without any path arithmetic.
+ * it is a 404, so `ext-ui://host/../../etc/passwd`, `%2e%2e%2ftheme.css`,
+ * `subdir/theme.css`, `kit/2/kth-kit.js` and `kit/1/KTH-KIT.JS` all fall out the
+ * same way without any path arithmetic. `Map.get` does no prefix, case or
+ * prototype matching. The query string is not part of the key.
  */
-const HOST_RESOURCES = new Set<string>(['theme.css', 'controls.css']);
+const HOST_RESOURCES: ReadonlyMap<string, HostResource> = new Map<string, HostResource>([
+  ['theme.css', { contentType: CSS, body: (url) => getHostThemeCssFor(url.searchParams.get('theme')) }],
+  ['controls.css', { contentType: CSS, body: () => getHostControlsCss() }],
+  [`kit/${HOST_KIT_MAJOR}/kth-kit.js`, { contentType: JS, body: () => getHostKitJs() }],
+  [`kit/${HOST_KIT_MAJOR}/kth.css`, { contentType: CSS, body: () => getHostKitCss() }],
+]);
 
 /**
  * Call ONCE before `app.whenReady()`. Marks the scheme as standard +
@@ -193,23 +216,25 @@ function frameAncestorsDirective(): string {
  *     whereas `theme.css`'s body changes under the user's feet every time they
  *     switch theme - a cached copy would pin an already-open panel to the old
  *     palette until it was reloaded, which is precisely the staleness this
- *     workstream exists to remove. `controls.css` never changes at runtime,
- *     but it gets the same header anyway: one rule for the whole reserved
- *     origin is easier to reason about than a resource-by-resource cache
- *     policy, and the cost of never caching a few hundred bytes of CSS is
- *     nothing next to that.
+ *     workstream exists to remove. `controls.css` and the kit never change at
+ *     runtime, but they get the same header anyway: one rule for the whole
+ *     reserved origin is easier to reason about than a resource-by-resource
+ *     cache policy, and the cost of never caching a few KB served from memory
+ *     is nothing next to that.
+ *
+ * The content type is per resource (see `HOST_RESOURCES`): the kit script must
+ * be `text/javascript`, or `nosniff` makes Chromium refuse to run it.
  */
-function serveHostResource(relPath: string): Response {
-  if (!HOST_RESOURCES.has(relPath)) {
+function serveHostResource(relPath: string, url: URL): Response {
+  const resource = HOST_RESOURCES.get(relPath);
+  if (!resource) {
     return new Response('Not found', { status: 404 });
   }
 
-  const body = relPath === 'controls.css' ? getHostControlsCss() : getActiveHostThemeCss();
-
-  return new Response(body, {
+  return new Response(resource.body(url), {
     status: 200,
     headers: {
-      'Content-Type': 'text/css; charset=utf-8',
+      'Content-Type': resource.contentType,
       'Content-Security-Policy': buildExtensionPanelCsp(),
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-store',
@@ -246,7 +271,13 @@ export function createExtUiHandler(
     // Path is relative to the extension's install directory. URL.pathname
     // begins with '/', so strip it before joining. We don't decodeURI here
     // because Electron's `Request` already normalizes the URL.
-    const relPath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    // A malformed escape ("%E0%A4%A") makes decodeURIComponent throw; unguarded that rejected the handler.
+    let relPath: string;
+    try {
+      relPath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    } catch {
+      return new Response('Bad request', { status: 400 });
+    }
     if (relPath.length === 0) {
       return new Response('Missing path', { status: 400 });
     }
@@ -265,7 +296,7 @@ export function createExtUiHandler(
     // Folding here means the reservation holds in all of them rather than
     // depending on which parser saw the URL first.
     if (extensionId.toLowerCase() === EXT_UI_HOST_HOSTNAME) {
-      return serveHostResource(relPath);
+      return serveHostResource(relPath, url);
     }
 
     // Refuse anything that contains `..` segments after normalization. We

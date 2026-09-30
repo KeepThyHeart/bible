@@ -48,18 +48,16 @@ Data/
 ```
 ui/
 +-- components/highlights/
-|   +-- HighlightRenderer.tsx             # Applies markup to verse HTML
+|   +-- HighlightRenderer.tsx             # HighlightedVerse component (pure logic: @bible/core/browser Annotations)
 |   +-- HighlightSelector.tsx             # Drag-to-highlight interaction
 |   +-- HighlightMenu.tsx                 # Color/style picker
 |   +-- FloatingAnnotationToolbar.tsx     # Toolbar shown over a live selection
 |   +-- UnderlineSwatch.tsx               # One swatch of the underline-colour picker
-|   +-- capturedSelection.ts              # DOM selection -> verse/word indices
 |   +-- IntegrationExample.tsx            # Full example
 |   +-- index.ts                          # Component exports
 +-- stores/
 |   +-- useHighlightStore.ts              # Zustand state management
 +-- utils/
-|   +-- wordIndexing.ts                   # Word extraction and DOM navigation
 |   +-- highlightHelpers.ts               # Helper utilities
 +-- styles/
     +-- highlights.css                    # Styling for highlights and underlines
@@ -440,10 +438,10 @@ export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple' | 'o
 
 ### Unit Tests
 
-Test word indexing:
+Word indexing is tested in core (`packages/core/src/Services/WordIndexing.test.ts`); for example:
 
 ```typescript
-import { extractWords } from './utils/wordIndexing';
+import { extractWords } from '@bible/core/browser';
 
 test('extractWords strips HTML', () => {
   const html = '<sup>16</sup> For God so <em>loved</em> the world';

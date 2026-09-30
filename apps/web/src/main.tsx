@@ -17,8 +17,8 @@ import { eventBus } from './events/eventBus';
 import { API_BASE } from './utils/apiUrl';
 import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/bootGuard';
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
-import { isTagGraphEnabled, setClientConfig } from './utils/clientConfig';
-import { applyUpdateIfStale, PWA_BUILD_ENABLED, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
+import { isTagGraphEnabled, pwaFlag, pwaUpdateMode, setClientConfig } from './utils/clientConfig';
+import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
 import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
 import { followStore } from './stores/followStore';
@@ -35,6 +35,11 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import '@fortawesome/fontawesome-free/css/regular.min.css';
 import './styles/main.scss';
+// KTH CSS: `--kth-*` tokens aliased to this app's theme vars, then the opt-in `.kth-*` classes. Never kth-base.css
+// (the app keeps _base.scss). Both come after main.scss so the map sees the theme vars; the classes are
+// single-class and opt-in, so importing them restyles nothing by itself.
+import '@bible/ui/css/generated/map-web.css';
+import '@bible/ui/css/kth.css';
 
 /**
  * Cap how long the boot splash can wait on one request. The chapter fetch is
@@ -77,7 +82,6 @@ async function init() {
   // If the server is unreachable, continue in offline mode.
   let serverOnline = true;
   let serverStaleDays: number | undefined;
-  let pwaEnabled = true;
   // Cache a lite copy of each translation the reader opens. The server can turn
   // this off for a deployment that would rather not push several MB per
   // translation to every visitor.
@@ -138,7 +142,6 @@ async function init() {
     if (typeof cfg.staleDays === 'number') serverStaleDays = cfg.staleDays;
     if (cfg.commentaryPopularity) moduleStore.setServerPopularity(cfg.commentaryPopularity);
     if (cfg.ui) settingsStore.applyServerUiConfig(cfg.ui);
-    if (cfg.pwaEnabled === false) pwaEnabled = false;
     if (cfg.offlineDownloads) settingsStore.setServerOfflineDownloads(true);
     if (cfg.offlineAutoDownload === false) offlineAutoDownload = false;
     if (cfg.search?.semantic) semanticMode = cfg.search.semantic;
@@ -147,11 +150,13 @@ async function init() {
   // Service worker first, so a browser running a stale build starts pulling the
   // new worker before any of the app's own code has a chance to misbehave.
   //
-  // PWA_BUILD_ENABLED is the master switch (ENABLE_PWA at build time); the server
-  // flag can only turn a PWA build off, never turn a plain build on — there is no
-  // sw.js to register in that case, only the self-destroying stub.
-  if (PWA_BUILD_ENABLED && pwaEnabled) registerServiceWorker();
-  else await unregisterServiceWorkers();
+  // `features.pwa` decides: on registers the worker, off tears down any worker an
+  // earlier visit installed. When the server did not answer (offline boot) the
+  // flag is unknown and nothing is touched: unregistering now would remove the
+  // worker that is the reason this page could boot offline at all.
+  const pwa = pwaFlag();
+  if (pwa === true) registerServiceWorker({ updateMode: pwaUpdateMode() });
+  else if (pwa === false) await unregisterServiceWorkers();
 
   // Update check before render: if this bundle is not the build the server is
   // serving, replace it now rather than letting a stale client talk to a newer
@@ -229,11 +234,6 @@ async function init() {
   // The first commentary tab waits for the manifest: which module it opens
   // depends on what this server actually offers.
   commentaryStore.openDefaultTab(moduleStore.getCommentaryModules());
-
-  // Initialize client-side plugins (non-blocking — failure doesn't prevent app launch)
-  clientPluginManager.discover()
-    .then(() => clientPluginManager.activate())
-    .catch(err => console.warn('[Plugins] Client plugin initialization failed:', err));
 
   // Resolve the active tab BEFORE the first paint. This used to run after
   // render(), so a returning user saw the home screen (showHome defaults to

@@ -15,7 +15,8 @@ import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
-import { registerModuleHandlers, closeModuleManager } from './ipc/moduleHandlers';
+import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
+import { configureDesktopKeywordSearch } from './services/KeywordIndexService';
 import { registerFeaturePackHandlers, closeFeaturePackHandlers } from './ipc/featurePackHandlers';
 import { registerI18nHandlers } from './ipc/i18nHandlers';
 import { loadMainCatalogs, t } from './services/MainI18n';
@@ -73,6 +74,7 @@ import { CollectionRepository, CollectionService, Extensions } from '@bible/core
 import { createRendererConsentPrompter } from './extensions/bridges/RendererConsentPrompter';
 import { SafeStorageSecretsKeychain } from './extensions/SecretsKeychain';
 import { ExtensionDatabaseRegistry } from './extensions/ExtensionDatabaseRegistry';
+import type { ExtensionPort } from './services/backup/nodeAdapters';
 import { openHardenedExtensionDatabase } from './extensions/ExtensionSqlGuard';
 import {
   ElectronNetworkGateway,
@@ -194,6 +196,25 @@ let menuBuilder: MenuBuilder | null = null;
 let windowStateService: WindowStateService | null = null;
 let extensionHost: ExtensionHost | null = null;
 let extensionBibleBridge: BibleBridge | null = null;
+let extensionDatabaseRegistryRef: ExtensionDatabaseRegistry | null = null;
+
+/**
+ * What a backup needs from the extension host: each installed extension's
+ * `userData` declaration, and its database files. Undefined until the host has
+ * booted (it starts in the background after the handlers register), in which
+ * case a backup simply carries no extension databases.
+ */
+function getBackupExtensionPort(): ExtensionPort | undefined {
+  const host = extensionHost;
+  const registry = extensionDatabaseRegistryRef;
+  if (!host || !registry) return undefined;
+  return {
+    listEntries: () => host.listEntries().map(({ id, entry }) => ({ id, manifest: entry.manifest })),
+    dbRoot: join(getUserDataPath(), 'extensions'),
+    openReadonly: (filePath) => openHardenedExtensionDatabase(filePath, { readonly: true }) as ReturnType<ExtensionPort['openReadonly']>,
+    closeDatabases: (id) => registry.closeAll(id),
+  };
+}
 
 /**
  * Register window management IPC handlers
@@ -519,7 +540,7 @@ async function createWindow(): Promise<void> {
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
   registerTagGraphHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
-  registerBackupHandlers();
+  registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
   registerFileNotesHandlers();
   // Initialize the single network egress gateway + master offline switch
@@ -959,6 +980,7 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     const blocklist = new ExtensionBlocklistService({ db: userDb });
     const catalogService = new ExtensionCatalogService({ db: userDb });
 
+    extensionDatabaseRegistryRef = extensionDatabaseRegistry;
     extensionHost = new ExtensionHost({
       blocklist,
       db: userDb,
@@ -1090,6 +1112,11 @@ app.whenReady().then(async () => {
   mainDbInit.close(); // Close init connection; handlers open their own
   log.info('Main database schema initialized at:', mainDbPath);
 
+  // Keyword search over v0.2 modules reads the sidecar indexes
+  // KeywordIndexService builds; point every repository at them before
+  // anything can search. Touches no module file.
+  configureDesktopKeywordSearch();
+
   // Register the menu:rebuild IPC handler. The renderer pushes a fresh
   // MenuSpec at boot and on locale/keybinding changes; the handler hands it
   // off to whichever MenuBuilder is currently active.
@@ -1118,6 +1145,11 @@ app.whenReady().then(async () => {
     } catch (error) {
       log.error('Failed to detect modules:', error);
     }
+
+    // After detection, so newly registered modules are included. One module
+    // at a time, yielding between them; search degrades to "no results" for a
+    // module until its index exists.
+    buildMissingKeywordIndexesInBackground();
 
     // Warm the study-overview cache in the background. Started only after
     // module detection, since the cache is keyed by the installed module set;

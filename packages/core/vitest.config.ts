@@ -8,6 +8,11 @@ export default defineConfig({
     // Test environment
     environment: 'node',
 
+    // v0.2 modules ship no FTS5 table: build the real test modules' sidecar
+    // keyword indexes once, then configure every worker to search them.
+    globalSetup: ['src/__tests__/setup/keywordIndexGlobalSetup.ts'],
+    setupFiles: ['src/__tests__/setup/keywordIndexSetup.ts'],
+
     // Test file patterns
     include: ['src/**/*.{test,spec}.{js,ts}'],
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],

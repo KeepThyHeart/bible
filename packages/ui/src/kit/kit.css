@@ -1,0 +1,5 @@
+/* CSS entry of the extension UI kit (kit/1/kth.css): desktop token map, base element rules, KTH contract,
+   scheme and component classes. esbuild inlines the imports, so the served file has none. */
+@import '../../css/generated/map-desktop.css';
+@import '../../css/kth-base.css';
+@import '../../css/kth.css';

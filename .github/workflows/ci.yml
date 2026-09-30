@@ -7,12 +7,13 @@
 # the download of what changed. The key follows scripts/init/index.js, where
 # the presets are defined.
 #
-# `npm ci` leaves the desktop's SQLite driver built for Node rather than
-# Electron, so the desktop suites that open a real database run here instead of
-# skipping themselves as they do in a checkout set up for `npm run dev`.
+# `pnpm install --frozen-lockfile` leaves the desktop's SQLite driver built for
+# Node rather than Electron, so the desktop suites that open a real database run
+# here instead of skipping themselves as they do in a checkout set up for
+# `pnpm run dev`.
 #
 # Not covered: the Playwright suites (desktop needs xvfb and a build, web needs
-# `npx playwright install`).
+# `pnpm exec playwright install`).
 name: CI
 
 on:
@@ -34,12 +35,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The pnpm version comes from `packageManager` in the root package.json.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Restore modules
         uses: actions/cache@v4
@@ -48,7 +52,7 @@ jobs:
           key: modules-tests-${{ hashFiles('scripts/init/index.js') }}
           restore-keys: modules-tests-
 
-      - run: npm run build:core
-      - run: npm run init:modules -- --select=tests --yes
-      - run: npm run typecheck
-      - run: npm test
+      - run: pnpm run build:core
+      - run: pnpm run init:modules --select=tests --yes
+      - run: pnpm run typecheck
+      - run: pnpm test

@@ -12,6 +12,7 @@ import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { PresentBar } from './components/Present/PresentBar';
+import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
 import { isTagGraphEnabled } from './utils/clientConfig';
@@ -110,6 +111,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         onFeedbackClick={() => shared.setFeedbackOpen(true)}
       />
       <ConnectionBanner />
+      <UpdateBanner />
       <div class="main-layout">
         <div class="main-layout__bible" style={bibleStyle}>
           <BiblePane

@@ -27,6 +27,25 @@ Most namespaces resolve a fixed default. Storage does not, because persistence i
 
 There is no SQL engine: `query` / `queryOne` / `run` record the statement and return the empty defaults. A test that needs rows back should override `storage.openDatabase` with its own fake.
 
+## Testing panel code
+
+For the code in your panel iframe (the part that uses `@bible/extension-ui`), run the test under jsdom (`// @vitest-environment jsdom`) and install a fake host:
+
+```ts
+import { createMockPanelHost, loadUiKit } from '@bible/extension-testing';
+
+const host = createMockPanelHost({ locale: 'es' });   // answers ui.getLocale / ui.getTheme
+const bible = BibleExtUI.init();
+await bible.getLocale();                              // { locale: 'es', direction: 'ltr' }
+host.setTheme('dark');                                // emits theme.changed to onThemeChanged / useHostStyles
+host.emit('verse.activeChanged', { verseId: 43003016 });
+host.dispose();                                       // restores globalThis.parent
+```
+
+`handlers` overrides or adds bridge methods; unknown methods reject with the real bridge's `Unknown iframe bridge method` error and `uikit.*` calls are denied (v1 kit components make no host calls). `host.requests` records everything the panel sent.
+
+`loadUiKit()` evaluates the bundled `kth-*` kit (built into `dist/kit/` by `npm run build`) in the current jsdom realm and returns `KthKit`; call `kit.init({ locale: 'en', components: [...] })` to define elements, then render them.
+
 ## Fixtures
 
 `fixtures` carries realistic sample data so tests are not built on invented shapes -- verses (`VERSE_JOHN_3_16`, `VERSES_GEN_1_1_3`, ...), modules, chapter extents (`CHAPTERS_JOHN`), commentary and dictionary entries, notes, highlights, bookmarks, collections, interlinear tokens and parsed references. Import the namespace or the individual constants:

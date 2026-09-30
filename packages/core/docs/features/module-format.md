@@ -44,8 +44,8 @@ As of schema v0.2, no module schema declares an FTS5 virtual table. Each
 module type shipped its own keyword index (`bible_verse_fts`,
 `commentary_entry_fts`, etc.) through v0.1; those tables and their
 sync triggers are gone. Full-text search over module content now lives in an
-app-side sidecar index outside the module file, out of scope for this
-document.
+app-side sidecar index outside the module file; see
+[Search](search.md#where-the-keyword-index-lives).
 
 ### Shared fragments
 
@@ -145,9 +145,9 @@ for the full `FORMAT_VERSION` / `READABLE_FORMAT_VERSIONS` /
   type's own `*_fts` table and its sync triggers (`bible_verse_fts`,
   `commentary_entry_fts`, `dictionary_entry_fts`, `book_section_fts`,
   `devotional_entry_fts`, `topic_fts`) were removed from the schema files.
-  Full-text search over module content is being rebuilt as an app-side
-  sidecar index, out of scope for this document -- do not expect any of those
-  tables to exist in a v0.2 module.
+  Full-text search over module content is an app-side sidecar index (see
+  [Search](search.md#where-the-keyword-index-lives)) -- do not expect any of
+  those tables to exist in a v0.2 module.
 
 - **`isPublicDomain()` falls back to substring-matching the freeform
   `copyright` string** when `license_spdx` is absent. That is why the shipped
