@@ -142,6 +142,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
         aria-label={t('xrefGraph.title', { defaultValue: 'Cross-reference graph' })}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => trapTab(e as KeyboardEvent, dialogRef.current)}
       >
         <div class="xref-graph-dialog__header">
           <h3 class="xref-graph-dialog__title">
@@ -233,6 +234,25 @@ function refArgs(id: number): [number, number, number] {
 }
 
 /** Modal "Cross-reference graph": tabs for the shared hopper, verse web and canon arc views. Mounted only while open. */
+/** Keep Tab and Shift+Tab inside the modal dialog (aria-modal does not do it by itself). */
+function trapTab(e: KeyboardEvent, root: HTMLElement | null): void {
+  if (e.key !== 'Tab' || !root) return;
+  const items = Array.from(
+    root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+  ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex >= 0 && el.offsetParent !== null);
+  if (items.length === 0) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (e.shiftKey && (active === first || active === root)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 export function XrefGraphDialog({ bibleProvider }: XrefGraphDialogProps) {
   const isOpen = useStore(xrefGraphStore, () => xrefGraphStore.isOpen);
   if (!isOpen) return null;

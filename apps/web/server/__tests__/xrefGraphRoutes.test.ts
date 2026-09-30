@@ -70,6 +70,7 @@ describe('xref graph routes', () => {
     expect((await request(app).get('/api/xref-graph/ego/abc')).status).toBe(400);
     expect((await request(app).get(`/api/xref-graph/ego/${JOHN_3_16}?depth=9`)).status).toBe(400);
     expect((await request(app).get(`/api/xref-graph/ego/${JOHN_3_16}?minWeight=2`)).status).toBe(400);
+    expect((await request(app).get(`/api/xref-graph/ego/${JOHN_3_16}?sources=%3Cscript%3E`)).status).toBe(400);
     expect((await request(app).get(`/api/xref-graph/neighbours/${JOHN_3_16}?limit=0`)).status).toBe(400);
     expect((await request(app).get('/api/xref-graph/neighbours/12')).status).toBe(400);
   });

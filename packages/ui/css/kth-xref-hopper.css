@@ -38,6 +38,7 @@
 
 .kth-xref-hopper-card-main { flex: 1 1 12rem; min-inline-size: 0; }
 .kth-xref-hopper-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-xref-hopper-title:focus { outline: none; }
 .kth-xref-hopper-title { margin: 0; font-size: 1.15em; color: var(--kth-text-heading); }
 .kth-xref-hopper-ref { font-weight: 600; color: var(--kth-text-heading); }
 .kth-xref-hopper-meta { color: var(--kth-text-muted); font-size: 0.85em; }

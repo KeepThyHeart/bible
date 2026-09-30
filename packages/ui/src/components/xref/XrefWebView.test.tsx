@@ -67,6 +67,15 @@ describe('XrefWebView', () => {
     expect(screen.queryByRole('complementary')).toBeNull();
   });
 
+  it('keeps the hidden list out of the tab order', async () => {
+    setup();
+    await screen.findByRole('button', { name: 'Rom 5:8' });
+    const list = screen.getByRole('list');
+    const buttons = within(list).getAllByRole('button', { hidden: true });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const b of buttons) expect(b.getAttribute('tabindex')).toBe('-1');
+  });
+
   it('Enter re-centres and refetches; Back returns', async () => {
     const { user, fn, props } = setup();
     const n = await screen.findByRole('button', { name: 'Rom 5:8' });

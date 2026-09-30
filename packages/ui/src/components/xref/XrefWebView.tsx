@@ -128,6 +128,12 @@ export function XrefWebView({
   const [history, setHistory] = useState<VerseId[]>([]);
   const [depth, setDepth] = useState<1 | 2 | 3>(initialDepth);
   const [minWeight, setMinWeight] = useState(0);
+  // The slider moves freely; the request follows it after a pause, so dragging does not fire one per step.
+  const [queryWeight, setQueryWeight] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setQueryWeight(minWeight), 250);
+    return () => clearTimeout(t);
+  }, [minWeight]);
   const [attempt, setAttempt] = useState(0);
   const [graph, setGraph] = useState<XrefGraph | null>(null);
   const [load, setLoad] = useState<Load>('loading');
@@ -212,6 +218,17 @@ export function XrefWebView({
     };
   }, [scheduleRender]);
 
+  // Pull the cloud into the shape of the stage: wide stages spread sideways, tall (phone) stages downwards.
+  useEffect(() => {
+    const sim = simRef.current;
+    if (!sim || width <= 0 || height <= 0) return;
+    const ratio = width / height;
+    const clamp = (v: number) => Math.min(0.2, Math.max(0.02, v));
+    (sim.force('x') as ReturnType<typeof forceX<SimNode>>).strength(clamp(0.07 / ratio));
+    (sim.force('y') as ReturnType<typeof forceY<SimNode>>).strength(clamp(0.055 * ratio));
+    if (nodesRef.current.length) sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
+  }, [width, height]);
+
   const applyGraph = useCallback((g: XrefGraph) => {
     const sim = simRef.current;
     const merged = mergeGraph(nodesRef.current, g);
@@ -243,7 +260,7 @@ export function XrefWebView({
       resolve(providerRef.current.getEgoGraph(anchor, {
         depth,
         maxNodes: initialMaxNodes,
-        ...(minWeight > 0 ? { minWeight } : {}),
+        ...(queryWeight > 0 ? { minWeight: queryWeight } : {}),
       }));
     }).then(
       (g) => {
@@ -258,7 +275,7 @@ export function XrefWebView({
         setLoad('error');
       },
     );
-  }, [anchor, depth, minWeight, initialMaxNodes, attempt, applyGraph, bump]);
+  }, [anchor, depth, queryWeight, initialMaxNodes, attempt, applyGraph, bump]);
 
   // Re-sync when the prop changes.
   useEffect(() => {
@@ -388,6 +405,16 @@ export function XrefWebView({
   const selNode = selected !== null ? nodeById.get(selected) : undefined;
   const isEmpty = load === 'idle' && graph !== null && graph.nodes.length <= 1;
   const endOf = (v: unknown): VerseId => (typeof v === 'object' && v !== null ? (v as SimNode).id : (v as VerseId));
+  // The active node's neighbours, built once per render (not per node).
+  const activeNeighbours = new Set<VerseId>();
+  if (activeId !== null) {
+    for (const l of linksRef.current) {
+      const a = endOf(l.source);
+      const b = endOf(l.target);
+      if (a === activeId) activeNeighbours.add(b);
+      else if (b === activeId) activeNeighbours.add(a);
+    }
+  }
 
   const edgeTitle = (l: SimLink) => {
     const from = ref(l.from);
@@ -516,12 +543,8 @@ export function XrefWebView({
                 const r = nodeRadius(n.degree, n.hop);
                 const label = ref(n.id, n.endVerseId);
                 const isAnchor = n.id === anchor;
-                const dim = activeId !== null && n.id !== activeId
-                  && !linksRef.current.some((l) => {
-                    const a = endOf(l.source);
-                    const b = endOf(l.target);
-                    return (a === activeId && b === n.id) || (b === activeId && a === n.id);
-                  });
+                const near = activeId !== null && (n.id === activeId || activeNeighbours.has(n.id));
+                const dim = activeId !== null && !near;
                 const cls = ['kth-xref-web__node', dim ? 'kth-xref-web__node--dim' : ''].filter(Boolean).join(' ');
                 return (
                   <g
@@ -565,9 +588,11 @@ export function XrefWebView({
                       r={r}
                       style={{ fill: sectionVar(bookOf(n.id)) }}
                     />
-                    <text className="kth-xref-web__label" y={r + 12} textAnchor="middle" aria-hidden="true">
-                      {truncateLabel(label)}
-                    </text>
+                    {(n.hop < 2 || isAnchor || near) && (
+                      <text className="kth-xref-web__label" y={r + 12} textAnchor="middle" aria-hidden="true">
+                        {truncateLabel(label)}
+                      </text>
+                    )}
                   </g>
                 );
               })}
@@ -617,6 +642,7 @@ export function XrefWebView({
                   type="button"
                   className="kth-xref-web__btn"
                   aria-label={fill(L.selectOn, { ref: name })}
+                  tabIndex={showList ? undefined : -1}
                   onClick={() => setSelected(r.verseId)}
                 >
                   {L.detail}
@@ -625,6 +651,7 @@ export function XrefWebView({
                   type="button"
                   className="kth-xref-web__btn"
                   aria-label={fill(L.recentreOn, { ref: name })}
+                  tabIndex={showList ? undefined : -1}
                   onClick={() => recentre(r.verseId)}
                 >
                   {L.recentre}

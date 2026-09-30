@@ -414,7 +414,8 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
         // the dialog around the view closes on this second press.
         if (selected === null) return;
         e.preventDefault();
-        reset();
+        setSelected(null);
+        setAnnounce(L.cleared);
         return;
       default: return;
     }

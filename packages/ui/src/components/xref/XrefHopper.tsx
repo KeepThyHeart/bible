@@ -248,6 +248,15 @@ export function XrefHopper({
     return () => { /* stale results are dropped by the id check */ };
   }, [st.current, count, retryKey]);
 
+  // A hop removes the card or button that had focus; keep focus in the view by moving it to the new heading.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const firstAnchor = useRef(st.current);
+  useEffect(() => {
+    if (firstAnchor.current === st.current) return;
+    firstAnchor.current = st.current;
+    titleRef.current?.focus({ preventScroll: true });
+  }, [st.current]);
+
   const move = useCallback((next: HopperState) => {
     setSt(prev => {
       if (next === prev) return prev;
@@ -286,7 +295,7 @@ export function XrefHopper({
         <span className="kth-xref-hopper-bar" aria-hidden="true" />
         <div className="kth-xref-hopper-card-main">
           <span className="kth-xref-hopper-meta">{labels.currentVerse}</span>
-          <h3 className="kth-xref-hopper-title">{formatRef(st.current)}</h3>
+          <h3 className="kth-xref-hopper-title" ref={titleRef} tabIndex={-1}>{formatRef(st.current)}</h3>
           {currentText ? <p className="kth-xref-hopper-text">{currentText}</p> : null}
         </div>
         <button type="button" className="kth-btn kth-btn--sm" onClick={() => onOpenVerse(st.current)}>

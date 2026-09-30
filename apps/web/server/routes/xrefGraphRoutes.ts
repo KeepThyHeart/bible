@@ -40,9 +40,12 @@ export function createXrefGraphRoutes(db: Pick<DatabaseManager, 'getModuleMetada
       if (maxNodes !== undefined && !Number.isFinite(maxNodes)) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid maxNodes'); return; }
       const minWeight = req.query.minWeight === undefined ? undefined : Number(req.query.minWeight);
       if (minWeight !== undefined && !(minWeight >= 0 && minWeight <= 1)) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'minWeight must be between 0 and 1'); return; }
-      const sources = typeof req.query.sources === 'string' && req.query.sources
-        ? req.query.sources.split(',').filter(s => /^[a-zA-Z0-9_-]{1,100}$/.test(s))
-        : undefined;
+      const sourceList = typeof req.query.sources === 'string' && req.query.sources ? req.query.sources.split(',') : undefined;
+      if (sourceList && !sourceList.every(s => /^[a-zA-Z0-9_-]{1,100}$/.test(s))) {
+        sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid sources');
+        return;
+      }
+      const sources = sourceList;
       res.set('Cache-Control', 'public, max-age=3600');
       res.json(host.service().getEgoGraph(verseId, { depth: depthRaw as 1 | 2 | 3, maxNodes, minWeight, sources }));
     } catch (error) { fail(res, error, 'cross-reference graph'); }
