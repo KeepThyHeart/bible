@@ -48,7 +48,7 @@ export interface WordStudyViewProps {
   candidates?: WordKeyCandidate[];
   onPickCandidate?: (strongs: string) => void;
   /**
-   * Saved-groups UI (list, New group, editor). Shown only when `onEditGroup` is given:
+   * Saved-groups UI (list, New group, editor). Shown only when `onEditGroup` and `onSaveGroup` are given:
    * a read-only host (the web app) omits all of these props and its groups are ad-hoc,
    * typed into the lookup box and never stored.
    */
@@ -108,7 +108,7 @@ export function WordStudyView(props: WordStudyViewProps) {
         </section>
       )}
 
-      {onEditGroup && (
+      {onEditGroup && onSaveGroup && (
       <section className="kth-ws-groups" aria-label={l.groupsTitle}>
         <div className="kth-ws-section-head">
           <h3 className="kth-ws-section-title">{l.groupsTitle}</h3>

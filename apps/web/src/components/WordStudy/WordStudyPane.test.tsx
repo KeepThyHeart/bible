@@ -41,9 +41,9 @@ beforeEach(() => {
 describe('WordStudyPane', () => {
   it('offers no saving: no saved-groups list, New group or Save', () => {
     render(<WordStudyPane />);
-    expect(screen.queryByText('wordStudy.newGroup')).toBeNull();
-    expect(screen.queryByText('wordStudy.groupsTitle')).toBeNull();
-    expect(screen.queryByText('wordStudy.save')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New group' })).toBeNull();
+    expect(screen.queryByText('Word groups')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
 
   it('shows the lookup prompt before anything is studied', () => {
