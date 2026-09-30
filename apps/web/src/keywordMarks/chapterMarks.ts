@@ -14,16 +14,12 @@ import {
   resolveVerseDecorations,
   resolveThemeColor,
   occurrencesOf,
-  nextFreeColor,
-  newKeywordId,
-  normalizeToken,
   type ChapterInput,
   type InterlinearSpan,
   type KeywordMark,
   type KeywordSet,
   type LayerDecorations,
   type MatchResult,
-  type MatchRule,
   type ResolvedVerse,
 } from '@bible/core/browser';
 import type { InterlinearWordData, VerseData } from '../types';

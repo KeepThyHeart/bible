@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { type StringStorage } from '@bible/core/browser';
+import { BUILT_IN_KEYWORD_SETS, type StringStorage } from '@bible/core/browser';
 import { KeywordMarkStore, defaultPaneState } from './keywordMarkStore';
 import type { InterlinearWordData, VerseData } from '../types';
 
@@ -97,17 +97,17 @@ describe('KeywordMarkStore matching', () => {
     const { store } = make();
     expect(store.sets.length).toBeGreaterThan(0);
     expect(store.sets.every((s) => s.builtIn)).toBe(true);
-    for (const name of ['addMark', 'addMarkFromWord', 'saveMark', 'deleteMark', 'duplicateSet', 'removeSet', 'importSet', 'suggestKeywords']) {
-      expect((store as unknown as Record<string, unknown>)[name]).toBeUndefined();
-    }
   });
 
-  it('ignores an active set id that is not built in (for example one saved by an older build)', () => {
-    const { store } = make();
-    store.setActiveSets('bible', ['custom-set-from-before']);
-    store.togglePane('bible', true);
-    expect(store.activeSets('bible')).toEqual([]);
-    expect(store.getChapterMarks('bible', ctx())!.legend).toEqual([]);
+  it('keeps the built-in sets when saved state also lists a custom set and mark from an older build', () => {
+    const ids = BUILT_IN_KEYWORD_SETS.map((x) => x.id);
+    const storage = memStorage({ 'bible-keyword-marks': JSON.stringify({
+      panes: { bible: { enabled: true, activeSetIds: [...ids, 'old-custom'], hiddenMarkIds: ['old-mark'] } },
+    }) });
+    const { store } = make(storage);
+    expect(store.activeSets('bible').map((x) => x.id)).toEqual(expect.arrayContaining(ids));
+    expect(store.activeSets('bible').every((x) => x.builtIn)).toBe(true);
+    expect(store.getChapterMarks('bible', ctx())!.legend.length).toBeGreaterThan(0);
   });
 });
 

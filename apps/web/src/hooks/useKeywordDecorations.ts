@@ -39,11 +39,10 @@ const NONE: KeywordDecorations = { marks: null, resolved: null };
  * the server only), and resolves the layer per verse for the renderers.
  */
 export function useKeywordDecorations(paneId: string, input: KeywordDecorationsInput): KeywordDecorations {
-  // Re-render on any store change (sets, pane state, interlinear cache).
+  // Re-render on any store change (pane state, interlinear cache).
   useStore(keywordMarkStore, () => keywordMarkStore.interlinearRevision);
   const enabled = keywordMarkStore.isEnabled(paneId);
   const { book, chapter, moduleAbbr, moduleId, language, verses, surface, studyRows, interlinearProvider } = input;
-
 
   const chapterKey = `${moduleAbbr}:${book}:${chapter}`;
   const studySpans = useMemo(

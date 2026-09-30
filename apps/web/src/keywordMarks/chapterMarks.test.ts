@@ -17,10 +17,10 @@ const VERSES = [verse(16, 'For God so loved the world'), verse(17, 'God sent not
 function set(marks: KeywordSet['marks']): KeywordSet {
   return { schema: 1, id: 's1', name: 'S', scope: { kind: 'everywhere' }, marks, updatedAt: '2026-01-01T00:00:00Z' };
 }
-function newMark(rule: KeywordSet['marks'][number]['rule'], label: string, _sets: KeywordSet[]): KeywordSet['marks'][number] {
+function newMark(rule: KeywordSet['marks'][number]['rule'], label: string): KeywordSet['marks'][number] {
   return { id: `mark-${label}`, label, rule, style: { color: 'mark.1', line: 'solid' }, enabled: true };
 }
-const GOD = newMark({ kind: 'word', forms: ['god'] }, 'God', []);
+const GOD = newMark({ kind: 'word', forms: ['god'] }, 'God');
 
 describe('interlinearToSpans', () => {
   const row = (o: Partial<InterlinearWordData>): InterlinearWordData => ({
@@ -54,8 +54,8 @@ describe('computeChapterMarks', () => {
   });
 
   it('lists nothing for a mark that never hits and orders rows by count', () => {
-    const world = newMark({ kind: 'word', forms: ['world'] }, 'world', []);
-    const said = newMark({ kind: 'word', forms: ['said'] }, 'said', []);
+    const world = newMark({ kind: 'word', forms: ['world'] }, 'world');
+    const said = newMark({ kind: 'word', forms: ['said'] }, 'said');
     const input = buildChapterInput(1, 'en', VERSES);
     const rows = legendRows(
       computeChapterMarks(input, [set([world, said, GOD])], { colorSafe: true, hiddenMarkIds: new Set() }).result,
