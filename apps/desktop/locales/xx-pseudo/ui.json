@@ -2434,7 +2434,7 @@
   "moduleManager.packs.statusInstalling": "⟦Îñšţåļļîñĝ ···⟧",
   "moduleManager.packs.statusError": "⟦Ƒåîļéð ··⟧",
   "moduleManager.packs.start": "⟦Îñšţåļļ šéļéçţéð ····⟧",
-  "moduleManager.packs.cancel": "⟦Šţøþ åƒţéŕ ţĥîš ɱøðüļé ······⟧",
+  "moduleManager.packs.cancel": "⟦Çåñçéļ ··⟧",
   "moduleManager.packs.summaryDownload": "⟦Ðøŵñļøåð: {size} ···⟧",
   "moduleManager.packs.summaryStored": "⟦Ðîšķ šþåçé: {size} ···⟧",
   "moduleManager.packs.summaryFree": "⟦Ƒŕéé: {size} ··⟧",

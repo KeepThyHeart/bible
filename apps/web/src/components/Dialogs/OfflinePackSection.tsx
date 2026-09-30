@@ -12,11 +12,12 @@ import { PackBuilder } from '@bible/ui';
 import type { PackBuilderLabels, PackBuilderRow, PackBuilderStatus } from '@bible/ui';
 import { PackRun, planPack } from '@bible/core/browser';
 import type { IPackInstaller, IPackSource, PackItemKind, PackOffer, PackPreset, PackRunSnapshot, PlanWarning } from '@bible/core/browser';
-import { formatBytes } from '../../audio/audioStorage';
+import { useLocalizer } from '../../hooks/useLocalizer';
+import { formatBytesLocalized } from '../../offline/formatBytes';
+import { getAssetManager } from '../../assets/webAssets';
+import { pinModuleAsset } from '../../offline/moduleAssets';
 import { createWebPackSource } from '../../offline/webPackSource';
 import { createWebPackInstallers } from '../../offline/webPackInstallers';
-
-export { formatBytes };
 
 export interface OfflinePackSectionProps {
   /** Test seam; default the web pack source. */
@@ -25,7 +26,26 @@ export interface OfflinePackSectionProps {
   installers?: Partial<Record<PackItemKind, IPackInstaller>>;
   /** Without the offline app shell (PWA, task 0085) a pack only helps while a tab is already open. */
   showShellNotice?: boolean;
+  /** Test seam; default `offlineStorageManager.removeModule` (asset + legacy file + offlineStore entry). */
+  removeModule?: (abbreviation: string) => Promise<void>;
+  /** Test seam; default the main asset manager's `remove`. */
+  removeAsset?: (id: string) => Promise<void>;
+  /** Test seam; default `pinModuleAsset`. */
+  pinModule?: (abbreviation: string) => Promise<void>;
+  /** Test seam; default the main asset manager's pinned `install` of the installed version. */
+  pinAsset?: (id: string) => Promise<void>;
 }
+
+const defaultRemoveModule = async (abbr: string): Promise<void> => {
+  const { offlineStorageManager } = await import('../../offline/sharedInstances');
+  await offlineStorageManager.removeModule(abbr);
+};
+const defaultRemoveAsset = async (id: string): Promise<void> => {
+  await getAssetManager().remove(id);
+};
+const defaultPinAsset = async (id: string): Promise<void> => {
+  await getAssetManager().install(id, { pinned: true });
+};
 
 const GROUPS = ['bible', 'commentary', 'dictionary', 'crossref', 'topical', 'other', 'speech', 'data'] as const;
 
@@ -68,8 +88,18 @@ function mkRows(
     });
 }
 
-export function OfflinePackSection({ source, installers, showShellNotice = true }: OfflinePackSectionProps) {
+export function OfflinePackSection({
+  source,
+  installers,
+  showShellNotice = true,
+  removeModule = defaultRemoveModule,
+  removeAsset = defaultRemoveAsset,
+  pinModule = pinModuleAsset,
+  pinAsset = defaultPinAsset,
+}: OfflinePackSectionProps) {
   const { t } = useTranslation();
+  const localizer = useLocalizer();
+  const formatBytes = (n: number): string => formatBytesLocalized(n, localizer);
   const tt = (key: string, defaultValue: string): string => t(`settings.offline.pack.${key}`, { defaultValue });
 
   const src = useMemo(() => source ?? createWebPackSource(), [source]);
@@ -127,7 +157,7 @@ export function OfflinePackSection({ source, installers, showShellNotice = true 
       case 'over-quota':
         return tt('warn.overQuota', 'About {size} more space is needed.').replace('{size}', formatBytes(w.shortfallBytes));
       case 'quota-unknown':
-        return tt('warn.quotaUnknown', 'Free space on this device is unknown.');
+        return ''; // the summary already says that free space is unknown
     }
   };
   const errorText = (code: string, message: string): string => t(`assets.error.${code}`, { defaultValue: message });
@@ -163,6 +193,8 @@ export function OfflinePackSection({ source, installers, showShellNotice = true 
     runPartial: tt('run.partial', 'Some items were not downloaded.'),
     runFailed: tt('run.failed', 'The download failed.'),
     runCancelled: tt('run.cancelled', 'Cancelled. Partial downloads are kept and resume next time.'),
+    remove: tt('remove', 'Remove'),
+    keepHint: tt('keepHint', 'Selecting an item on this device keeps it here; it is never cleaned up automatically.'),
   };
 
   const onToggle = (key: string, on: boolean): void => {
@@ -184,7 +216,27 @@ export function OfflinePackSection({ source, installers, showShellNotice = true 
     setSelected(next);
   };
 
+  const onRemove = (key: string): void => {
+    const o = offers.find((x) => x.key === key);
+    if (!o) return;
+    const next = new Set(selected);
+    next.delete(key);
+    setSelected(next);
+    void (o.ref.kind === 'module' ? removeModule(o.ref.id) : removeAsset(o.ref.id)).catch(() => {}).then(() => load());
+  };
+
+  /** Choosing an item that is already on the device keeps it: pin it so automatic cleanup skips it. */
+  const pinPresent = (): void => {
+    for (const key of plan.present) {
+      if (!selected.has(key)) continue;
+      const o = offers.find((x) => x.key === key);
+      if (!o) continue;
+      void (o.ref.kind === 'module' ? pinModule(o.ref.id) : pinAsset(o.ref.id)).catch(() => {});
+    }
+  };
+
   const onStart = (): void => {
+    pinPresent();
     if (plan.steps.length === 0) return;
     try {
       // Called from the click: persistent storage needs a user gesture in some browsers.
@@ -199,12 +251,10 @@ export function OfflinePackSection({ source, installers, showShellNotice = true 
 
   return (
     <div class="settings-panel__section offline-pack-section" data-section="offline-pack">
-      {showShellNotice ? (
-        <p class="settings-panel__hint offline-pack-section__notice">
-          {tt('shellNotice', 'Until the offline app shell is available, downloaded packs only help while a tab of this site is already open.')}
-        </p>
-      ) : null}
       <PackBuilder
+        headingLevel={4}
+        notice={showShellNotice ? tt('shellNotice', 'Until the offline app shell is available, downloaded packs only help while a tab of this site is already open.') : undefined}
+        onRemove={onRemove}
         groups={GROUPS.map((g) => ({ id: g, label: tt(`group.${g}`, { bible: 'Bibles', commentary: 'Commentaries', dictionary: 'Dictionaries', crossref: 'Cross-references', topical: 'Topical', other: 'Other modules', speech: 'Speech voices', data: 'Data files' }[g]) }))}
         rows={rows}
         presets={presets.map((p) => ({ id: p.id, label: p.name }))}
@@ -217,7 +267,7 @@ export function OfflinePackSection({ source, installers, showShellNotice = true 
           fit: plan.fit,
           shortfallBytes: plan.shortfallBytes,
         }}
-        warnings={plan.warnings.map(warningText)}
+        warnings={plan.warnings.map(warningText).filter(Boolean)}
         run={builderRun}
         onStart={onStart}
         onCancel={() => run?.cancel()}

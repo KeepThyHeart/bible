@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { IPackInstaller, IPackSource, PackOffer } from '@bible/core/browser';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, o?: { defaultValue?: string }) => o?.defaultValue ?? key }),
+  useTranslation: () => ({ t: (key: string, o?: { defaultValue?: string }) => o?.defaultValue ?? key, i18n: { language: 'en' } }),
 }));
-vi.mock('../../offline/moduleAssets', () => ({ installModuleAsset: vi.fn() }));
+vi.mock('../../offline/moduleAssets', () => ({ installModuleAsset: vi.fn(), pinModuleAsset: vi.fn() }));
 vi.mock('../../assets/webAssets', () => ({ getAssetManager: vi.fn() }));
 
 import { OfflinePackSection } from './OfflinePackSection';
@@ -42,10 +42,10 @@ describe('OfflinePackSection', () => {
     const installers: Record<string, IPackInstaller> = { module: { install } };
     render(<OfflinePackSection source={source([offer('KJV', 'bible', true)])} installers={installers} />);
     await screen.findByText('KJV');
-    expect(screen.getByText('Download: 0 KB')).toBeTruthy();
+    expect(screen.getByText('Download: 0 B')).toBeTruthy();
     fireEvent.click(screen.getByLabelText(/KJV/));
-    await waitFor(() => expect(screen.getByText('Download: 2 MB')).toBeTruthy());
-    expect(screen.getByText('Stored: 5 MB')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Download: 1.9 MB')).toBeTruthy());
+    expect(screen.getByText('Stored: 4.8 MB')).toBeTruthy();
     fireEvent.click(screen.getByText('Download selected'));
     await waitFor(() => expect(screen.getByText('Done. Everything is on this device.')).toBeTruthy());
     expect(install).toHaveBeenCalledTimes(1);
@@ -77,6 +77,63 @@ describe('OfflinePackSection', () => {
     fireEvent.click(screen.getByText('Starter'));
     await waitFor(() => expect((screen.getByLabelText(/KJV/) as HTMLInputElement).checked).toBe(true));
     expect((screen.getByLabelText(/MHC/) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('shows the notice under the title and omits the quota-unknown warning', async () => {
+    render(<OfflinePackSection source={source([offer('KJV', 'bible', true)], null)} installers={{}} />);
+    await screen.findByText('KJV');
+    fireEvent.click(screen.getByLabelText(/KJV/));
+    await waitFor(() => expect(screen.getByText('Free space unknown')).toBeTruthy());
+    expect(screen.queryByText('Free space on this device is unknown.')).toBeNull();
+    const title = screen.getByRole('heading', { level: 4, name: 'Offline packs' });
+    expect(title.nextElementSibling?.textContent).toMatch(/offline app shell/);
+  });
+
+  it('formats sizes with a GB step', async () => {
+    render(<OfflinePackSection source={source([offer('KJV', 'bible', true)], 3 * 1024 ** 3)} installers={{}} />);
+    await waitFor(() => expect(screen.getByText('Free: 3.0 GB')).toBeTruthy());
+  });
+
+  it('Remove on an installed module row removes it and on an asset row removes the asset, then refreshes', async () => {
+    const listOffers = vi.fn(async () => [
+      offer('KJV', 'bible', true, { status: 'installed' }),
+      { ...offer('voice', 'speech', true, { status: 'installed' }), ref: { kind: 'asset' as const, id: 'tts.voice' }, key: 'asset:tts.voice', title: 'Voice' },
+    ]);
+    const removeModule = vi.fn(async () => {});
+    const removeAsset = vi.fn(async () => {});
+    render(<OfflinePackSection source={{ ...source([]), listOffers }} installers={{}} removeModule={removeModule} removeAsset={removeAsset} />);
+    await screen.findByText('KJV');
+    const buttons = screen.getAllByText('Remove');
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(removeModule).toHaveBeenCalledWith('KJV'));
+    await waitFor(() => expect(listOffers).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getAllByText('Remove')[1]);
+    await waitFor(() => expect(removeAsset).toHaveBeenCalledWith('tts.voice'));
+  });
+
+  it('selecting an installed module and pressing Download pins it (no install step)', async () => {
+    const pinModule = vi.fn(async () => {});
+    const pinAsset = vi.fn(async () => {});
+    const install = vi.fn(async () => {});
+    render(
+      <OfflinePackSection
+        source={source([offer('KJV', 'bible', true, { status: 'installed' })])}
+        installers={{ module: { install } }}
+        pinModule={pinModule}
+        pinAsset={pinAsset}
+        removeModule={async () => {}}
+      />,
+    );
+    await screen.findByText('KJV');
+    const box = screen.getByLabelText(/KJV/) as HTMLInputElement;
+    expect(box.disabled).toBe(false);
+    fireEvent.click(box);
+    await waitFor(() => expect((screen.getByText('Download selected') as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByText('Download selected'));
+    await waitFor(() => expect(pinModule).toHaveBeenCalledWith('KJV'));
+    expect(install).not.toHaveBeenCalled();
+    expect(pinAsset).not.toHaveBeenCalled();
   });
 
   it('keeps no pack state in browser storage', async () => {

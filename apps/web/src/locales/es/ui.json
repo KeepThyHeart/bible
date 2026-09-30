@@ -359,9 +359,10 @@
           "dependencyAdded": "Se añadió {name} porque {for} lo necesita.",
           "missingDependency": "{name} necesita {requires}, que no está disponible.",
           "cycle": "Algunos elementos dependen entre sí; se instalarán en un orden fijo.",
-          "overQuota": "Se necesitan unos {size} más de espacio.",
-          "quotaUnknown": "Se desconoce el espacio libre del dispositivo."
-        }
+          "overQuota": "Se necesitan unos {size} más de espacio."
+        },
+        "remove": "Quitar",
+        "keepHint": "Seleccionar un elemento que ya está en este dispositivo lo conserva aquí; nunca se elimina automáticamente."
       }
     },
     "downloads": {

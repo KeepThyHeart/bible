@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IPackInstaller, IPackSource, PackOffer } from '@bible/core/browser';
 import { OfflinePacksPanel } from './OfflinePacksPanel';
 import { ContextProvider, type AppServices } from '../../contexts/ContextProvider';
+import { setCurrentPackRun } from '../../services/desktopPackRun';
 import { enT } from '../../testing/enCatalog';
 
 const services: AppServices = {
@@ -40,14 +41,17 @@ function setup(installer: IPackInstaller['install']) {
     listPresets: async () => [{ id: 'basic', name: 'Basics', items: [{ kind: 'module', id: 'kjv' }] }],
     freeBytes: async () => null,
   };
-  render(
+  const ui = (
     <ContextProvider services={services}>
       <OfflinePacksPanel source={source} installers={{ module: { install: installer } }} />
     </ContextProvider>
   );
+  return render(ui);
 }
 
 describe('OfflinePacksPanel', () => {
+  beforeEach(() => setCurrentPackRun(null));
+
   it('lists offers, selects one, shows totals and runs the install', async () => {
     const install = vi.fn(async (_s, ctx) => {
       ctx.onBytes(25 * 1024 * 1024, 50 * 1024 * 1024);
@@ -73,5 +77,33 @@ describe('OfflinePacksPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Basics' }));
     expect(screen.getByLabelText(/King James/)).toBeChecked();
     expect(screen.getByLabelText(/World English/)).not.toBeChecked();
+  });
+
+  it('keeps the run alive across unmount and re-attaches on remount', async () => {
+    let release!: () => void;
+    let signal: AbortSignal | undefined;
+    const install = vi.fn(
+      (_s, ctx) =>
+        new Promise<void>((r) => {
+          signal = ctx.signal;
+          release = r;
+        })
+    );
+    const first = setup(install);
+    const user = userEvent.setup();
+    await screen.findByText('King James');
+    await user.click(screen.getByLabelText(/King James/));
+    await user.click(screen.getByRole('button', { name: 'Install selected' }));
+    await waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+
+    first.unmount();
+    expect(signal?.aborted).toBe(false);
+
+    setup(install);
+    await screen.findByText('Installing one module at a time');
+    expect(screen.getByRole('button', { name: 'Install selected' })).toBeDisabled();
+    release();
+    await screen.findByText('Everything is installed.');
+    expect(install).toHaveBeenCalledTimes(1);
   });
 });

@@ -24,7 +24,7 @@ function mgr(entries: Partial<AssetEntry>[], installed: Record<string, { version
   } as unknown as IAssetManager;
 }
 
-const base = { refreshModules: async () => true, presets: () => [] };
+const base = { refreshModules: async () => true, presets: () => [], legacyModules: () => [] };
 
 describe('createWebPackSource', () => {
   it('maps modules: only bible is offline readable, sizes and group', async () => {
@@ -47,6 +47,20 @@ describe('createWebPackSource', () => {
     expect(by['module:a']!.status).toBe('installed');
     expect(by['module:b']).toMatchObject({ status: 'update-available', installedVersion: '1', installedStoredBytes: 3000 });
     expect(by['module:c']!.status).toBe('installing');
+  });
+
+  it('treats a legacy offlineStore download as installed, matching the client abbreviation case-insensitively', async () => {
+    const shortMod = { ...mod('Short', 'bible'), id: 'module.longdbname' } as AssetManifest;
+    const s = createWebPackSource({
+      ...base,
+      moduleCatalog: () => [shortMod, mod('Other', 'bible')],
+      moduleManager: () => mgr([]),
+      assetManager: () => mgr([]),
+      legacyModules: () => [{ abbreviation: 'SHORT', name: 'Short', type: 'bible', sizeBytes: 7777, downloadedAt: '' }],
+    });
+    const by = Object.fromEntries((await s.listOffers()).map((o) => [o.key, o]));
+    expect(by['module:short']).toMatchObject({ status: 'installed', installedStoredBytes: 7777 });
+    expect(by['module:other']!.status).toBe('absent');
   });
 
   it('offers voices (requiring the runtime) and data from the main catalog', async () => {

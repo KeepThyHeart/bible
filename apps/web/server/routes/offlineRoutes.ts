@@ -14,10 +14,18 @@
  * That first call can take seconds to minutes on a large library; it does not block
  * the event loop (async zlib), apart from building a missing Bible lite copy.
  *
+ * Warm-up cost (known, not mitigated): there is no background pre-hashing, so the very first
+ * manifest request after a cold start (or after source files change) pays for gzip + sha256 of
+ * every visible module inline. Run one request after deploy to warm the on-disk cache.
+ *
  * Identity trap: the client-visible abbreviation is `entry.shortName || abbr`, exactly
  * what `/api/modules` returns, while lookups use the database abbreviation. The asset id
  * and the file lookup both key on the database abbreviation; `meta.abbreviation` and the
- * file name carry the client one.
+ * file name carry the client one. Clients therefore resolve a module by `meta.abbreviation`
+ * first and only then by the derived id, and must use the manifest's real `id`.
+ *
+ * Cache: files are `private` (everything under /api is password-gated, so a shared cache must
+ * not store them), immutable and `no-transform`.
  *
  * Files are sent as application/gzip with `no-transform` and no Content-Encoding, so the
  * compression middleware leaves them alone and the bytes match the declared sha256.
@@ -39,7 +47,7 @@ import { ensureOfflineFile, safeAbbr } from '../offline/offlineFiles.js';
 import type { OfflineFile } from '../offline/offlineFiles.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 
-const IMMUTABLE = 'public, max-age=31536000, immutable, no-transform';
+const IMMUTABLE = 'private, max-age=31536000, immutable, no-transform';
 const HASH_CONCURRENCY = 2;
 
 type ModuleRecord = ReturnType<ReturnType<DatabaseManager['getModuleMetadataRepo']>['getAll']>[number];

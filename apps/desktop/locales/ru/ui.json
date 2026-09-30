@@ -2449,7 +2449,7 @@
   "moduleManager.packs.statusInstalling": "Установка",
   "moduleManager.packs.statusError": "Ошибка",
   "moduleManager.packs.start": "Установить выбранное",
-  "moduleManager.packs.cancel": "Остановить после этого модуля",
+  "moduleManager.packs.cancel": "Отмена",
   "moduleManager.packs.summaryDownload": "Загрузка: {size}",
   "moduleManager.packs.summaryStored": "Место на диске: {size}",
   "moduleManager.packs.summaryFree": "Свободно: {size}",

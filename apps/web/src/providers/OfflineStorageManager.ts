@@ -6,9 +6,8 @@ import { isAssetError } from '@bible/core/browser';
 import { offlineStore } from '../stores/offlineStore';
 import { opfsAvailable } from '../offline/OpfsModuleStore';
 import {
-  getModuleCatalog,
   installModuleAsset,
-  moduleAssetId,
+  findModuleManifest,
   refreshModuleCatalog,
   removeModuleAsset,
 } from '../offline/moduleAssets';
@@ -117,10 +116,9 @@ export class OfflineStorageManager {
     onProgress?: (loaded: number, total: number) => void,
   ): Promise<boolean> {
     if (!opfsAvailable()) return false;
-    const id = moduleAssetId(abbreviation);
-    if (!getModuleCatalog().some(a => a.id === id)) {
+    if (!findModuleManifest(abbreviation)) {
       await refreshModuleCatalog();
-      if (!getModuleCatalog().some(a => a.id === id)) return false;
+      if (!findModuleManifest(abbreviation)) return false;
     }
     try {
       await installModuleAsset(abbreviation, { pinned, onProgress });

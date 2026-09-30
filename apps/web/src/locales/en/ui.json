@@ -359,9 +359,10 @@
           "dependencyAdded": "{name} was added because {for} needs it.",
           "missingDependency": "{name} needs {requires}, which is not offered.",
           "cycle": "Some items depend on each other; they will be installed in a fixed order.",
-          "overQuota": "About {size} more space is needed.",
-          "quotaUnknown": "Free space on this device is unknown."
-        }
+          "overQuota": "About {size} more space is needed."
+        },
+        "remove": "Remove",
+        "keepHint": "Selecting an item on this device keeps it here; it is never cleaned up automatically."
       }
     },
     "downloads": {

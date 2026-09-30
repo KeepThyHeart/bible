@@ -10,11 +10,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../offline/moduleAssets', () => ({
-  getModuleCatalog: () => mocks.catalog as readonly AssetManifest[],
+  findModuleManifest: (a: string) =>
+    (mocks.catalog as AssetManifest[]).find((m) => {
+      const ab = m.meta?.abbreviation;
+      return (typeof ab === 'string' && ab.toLowerCase() === a.toLowerCase()) || m.id === `module.${a.toLowerCase()}`;
+    }),
   refreshModuleCatalog: mocks.refreshModuleCatalog,
   installModuleAsset: mocks.installModuleAsset,
   removeModuleAsset: mocks.removeModuleAsset,
-  moduleAssetId: (a: string) => `module.${a.toLowerCase()}`,
 }));
 
 import { OfflineStorageManager } from './OfflineStorageManager';
@@ -56,6 +59,14 @@ describe('OfflineStorageManager module downloads', () => {
     await mgr.downloadModule('KJV', 'King James');
     expect(mocks.installModuleAsset).toHaveBeenCalledWith('KJV', expect.objectContaining({ pinned: true }));
     expect(mocks.refreshModuleCatalog).not.toHaveBeenCalled();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('resolves a module whose client abbreviation differs from the database id (shortName)', async () => {
+    mocks.catalog = [{ id: 'module.dbabbr', meta: { abbreviation: 'Short' } }];
+    const fetchFn = legacyFetch();
+    await mgr.downloadModule('short', 'Short Bible');
+    expect(mocks.installModuleAsset).toHaveBeenCalledWith('short', expect.objectContaining({ pinned: true }));
     expect(fetchFn).not.toHaveBeenCalled();
   });
 

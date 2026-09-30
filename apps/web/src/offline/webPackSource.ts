@@ -12,6 +12,8 @@
 import { compareAssetVersions, packKey } from '@bible/core/browser';
 import type { AssetEntry, AssetManifest, IAssetManager, IPackSource, PackGroup, PackOffer, PackPreset } from '@bible/core/browser';
 import { getAssetManager } from '../assets/webAssets';
+import { offlineStore } from '../stores/offlineStore';
+import type { DownloadedModule } from '../stores/offlineStore';
 import { getModuleAssetManager, getModuleCatalog, refreshModuleCatalog } from './moduleAssets';
 import { getWebPresets } from './webPresets';
 
@@ -23,6 +25,8 @@ export interface WebPackSourceDeps {
   refreshModules?: (signal?: AbortSignal) => Promise<boolean>;
   assetManager?: () => IAssetManager;
   presets?: () => PackPreset[];
+  /** Modules recorded in `offlineStore` (legacy downloads have a file but no asset registry entry). Default the store. */
+  legacyModules?: () => readonly DownloadedModule[];
   /** Default `navigator.storage.estimate`. */
   estimate?: () => Promise<{ quota?: number; usage?: number } | undefined>;
 }
@@ -64,6 +68,7 @@ export function createWebPackSource(deps: WebPackSourceDeps = {}): IPackSource {
   const refreshModules = deps.refreshModules ?? refreshModuleCatalog;
   const assetManager = deps.assetManager ?? getAssetManager;
   const presets = deps.presets ?? getWebPresets;
+  const legacyModules = deps.legacyModules ?? (() => offlineStore.downloadedModules);
   const estimate =
     deps.estimate ??
     (async () => (typeof navigator !== 'undefined' && navigator.storage?.estimate ? navigator.storage.estimate() : undefined));
@@ -82,6 +87,7 @@ export function createWebPackSource(deps: WebPackSourceDeps = {}): IPackSource {
 
       const mm = moduleManager();
       const mEntries = entryMap(mm);
+      const legacy = new Map(legacyModules().map((x) => [x.abbreviation.toLowerCase(), x]));
       for (const m of moduleCatalog()) {
         if (m.kind !== 'module') continue;
         const meta = m.meta ?? {};
@@ -99,6 +105,12 @@ export function createWebPackSource(deps: WebPackSourceDeps = {}): IPackSource {
           offlineReadable: moduleType === 'bible',
           ...statusOf(mm, mEntries, m),
         };
+        // A legacy (pre-asset-store) download is on this device but not in the registry.
+        const old = legacy.get(abbr.toLowerCase());
+        if (old && offer.status === 'absent') {
+          offer.status = 'installed';
+          offer.installedStoredBytes = old.sizeBytes;
+        }
         if (typeof meta.languageCode === 'string' && meta.languageCode) offer.language = meta.languageCode;
         offers.push(offer);
       }

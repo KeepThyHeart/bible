@@ -2449,7 +2449,7 @@
   "moduleManager.packs.statusInstalling": "جاري التثبيت",
   "moduleManager.packs.statusError": "فشل",
   "moduleManager.packs.start": "تثبيت المختار",
-  "moduleManager.packs.cancel": "توقف بعد هذه الوحدة",
+  "moduleManager.packs.cancel": "إلغاء",
   "moduleManager.packs.summaryDownload": "التحميل: {size}",
   "moduleManager.packs.summaryStored": "مساحة القرص: {size}",
   "moduleManager.packs.summaryFree": "مساحة حرة: {size}",

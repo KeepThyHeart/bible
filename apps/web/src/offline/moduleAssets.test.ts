@@ -4,9 +4,11 @@ import { sha256Hex } from '@bible/core/browser';
 import { createFakeOpfs, type FakeDir } from '../testing/fakeOpfs';
 import { offlineStore } from '../stores/offlineStore';
 import {
+  findModuleManifest,
   getModuleAssetManager,
   getModuleCatalog,
   installModuleAsset,
+  pinModuleAsset,
   moduleAssetId,
   refreshModuleCatalog,
   removeModuleAsset,
@@ -21,20 +23,20 @@ function dbBytes(seed = 1): Uint8Array {
   return out;
 }
 
-interface Served { gz: Uint8Array; version: string }
+interface Served { gz: Uint8Array; version: string; dbAbbr?: string }
 
 function makeServer(mods: Record<string, Served & { rawSha?: string }>, opts: { index?: () => Response } = {}) {
   const calls: Array<{ url: string; range?: string }> = [];
   const index = () => ({
     schema: 'kth-asset-index/1',
     assets: Object.entries(mods).map(([abbr, m]) => ({
-      id: moduleAssetId(abbr),
+      id: moduleAssetId(m.dbAbbr ?? abbr),
       kind: 'module',
       version: m.version,
       title: abbr,
       license: 'Public Domain',
       size: m.gz.length,
-      files: [{ path: `${abbr}.db.gz`, url: `files/${moduleAssetId(abbr)}/${m.version}/${abbr}.db.gz`, size: m.gz.length, sha256: m.rawSha ?? sha256Hex(m.gz) }],
+      files: [{ path: `${abbr}.db.gz`, url: `files/${moduleAssetId(m.dbAbbr ?? abbr)}/${m.version}/${abbr}.db.gz`, size: m.gz.length, sha256: m.rawSha ?? sha256Hex(m.gz) }],
       meta: { moduleType: 'bible', abbreviation: abbr, name: `${abbr} Bible`, languageCode: 'en', storedSize: 3016, encoding: 'gzip' },
     })),
   });
@@ -117,6 +119,42 @@ describe('installModuleAsset / removeModuleAsset', () => {
     expect(entry).toMatchObject({ name: 'KJV Bible', type: 'bible', sizeBytes: 3016, autoDownloaded: false });
     expect(getModuleAssetManager().installed('module.kjv')?.pinned).toBe(true);
     expect(root.peek('modules/.registry.json')).toBeDefined();
+  });
+
+  it('installs, reports and removes a module whose client abbreviation differs from its asset id (shortName)', async () => {
+    const db = dbBytes();
+    const gz = new Uint8Array(gzipSync(db));
+    const { fetchFn } = makeServer({ Short: { gz, version: 's1', dbAbbr: 'LongDbName' } });
+    vi.stubGlobal('fetch', fetchFn);
+    await refreshModuleCatalog();
+    expect(findModuleManifest('short')?.id).toBe('module.longdbname');
+    await installModuleAsset('Short', { pinned: true });
+    expect(root.peek('modules/Short.db')).toEqual(db);
+    expect(getModuleAssetManager().installed('module.longdbname')?.pinned).toBe(true);
+    await removeModuleAsset('Short');
+    expect(getModuleAssetManager().installed('module.longdbname')).toBeUndefined();
+    expect(root.peek('modules/Short.db')).toBeUndefined();
+    expect(offlineStore.isModuleDownloaded('Short')).toBe(false);
+  });
+
+  it('pinModuleAsset pins an auto-installed module without downloading again, and unflags a legacy entry', async () => {
+    const gz = new Uint8Array(gzipSync(dbBytes()));
+    const { fetchFn, calls } = makeServer({ KJV: { gz, version: 's1' } });
+    vi.stubGlobal('fetch', fetchFn);
+    await refreshModuleCatalog();
+    await installModuleAsset('KJV');
+    expect(getModuleAssetManager().installed('module.kjv')?.pinned).toBe(false);
+    expect(offlineStore.downloadedModules[0].autoDownloaded).toBe(true);
+    const before = calls.length;
+    await pinModuleAsset('kjv');
+    expect(calls.length).toBe(before);
+    expect(getModuleAssetManager().installed('module.kjv')?.pinned).toBe(true);
+    expect(offlineStore.downloadedModules.find((m) => m.abbreviation === 'KJV')?.autoDownloaded).toBe(false);
+
+    offlineStore.addDownloadedModule({ abbreviation: 'OLD', name: 'Old', type: 'bible', sizeBytes: 1, downloadedAt: '', autoDownloaded: true });
+    await pinModuleAsset('OLD');
+    expect(offlineStore.downloadedModules.find((m) => m.abbreviation === 'OLD')?.autoDownloaded).toBe(false);
+    expect(calls.length).toBe(before);
   });
 
   it('rejects a hash mismatch and leaves no database', async () => {

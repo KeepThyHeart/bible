@@ -4,9 +4,9 @@
  * keyword index). Desktop modules are NOT on the core AssetManager in this milestone.
  *
  * CANCEL SEMANTICS: PackRun runs with concurrency 1. When a download cancel API is supplied the active
- * module download is cancelled; otherwise cancel means "stop after the current module": the module
- * install finishes, then this installer rejects with AssetError('aborted') so PackRun does not start
- * the next step.
+ * module download is aborted immediately and already-installed modules are kept; without it the module
+ * install finishes. If the install already succeeded when cancel arrives, the installer returns
+ * normally (the module counts as done); PackRun does not start the next step after a cancel.
  *
  * Licence: GPL-3.0-or-later.
  */
@@ -73,7 +73,8 @@ export function createDesktopPackInstallers(deps: DesktopPackInstallerDeps): { m
           if (signal.aborted) throw aborted();
           throw e;
         }
-        if (signal.aborted) throw aborted();
+        // A module that finished installing stays installed even if cancel arrived meanwhile.
+        if (!ok && signal.aborted) throw aborted();
         if (!ok) throw new Error(deps.getLastError?.() || `Installing ${step.offer.title} failed`);
         onBytes(step.offer.downloadBytes, step.offer.downloadBytes);
       } finally {

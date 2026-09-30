@@ -32,6 +32,8 @@ const labels: PackBuilderLabels = {
   runPartial: 'Some items failed',
   runFailed: 'Download failed',
   runCancelled: 'Cancelled',
+  remove: 'Remove',
+  keepHint: 'Keep on this device',
 };
 
 const fmt = (n: number) => `${n} B`;
@@ -46,7 +48,7 @@ const row = (o: Partial<PackBuilderRow> & Pick<PackBuilderRow, 'key'>): PackBuil
 });
 
 function setup(props: Partial<PackBuilderProps> = {}) {
-  const fns = { onPreset: vi.fn(), onToggle: vi.fn(), onStart: vi.fn(), onCancel: vi.fn() };
+  const fns = { onPreset: vi.fn(), onToggle: vi.fn(), onStart: vi.fn(), onCancel: vi.fn(), onRemove: undefined as PackBuilderProps['onRemove'] };
   const all: PackBuilderProps = {
     groups: [
       { id: 'text', label: 'Text' },
@@ -98,6 +100,45 @@ describe('PackBuilder', () => {
     setup({ rows: [row({ key: 'i', status: 'installed' })] });
     expect(screen.getByText('On this device')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Item i/ })).toBeChecked();
+  });
+
+  it('with onRemove, installed rows are selectable (keep) and get a Remove button', async () => {
+    const onRemove = vi.fn();
+    const onToggle = vi.fn();
+    const { user } = setup({
+      onRemove,
+      onToggle,
+      rows: [
+        row({ key: 'i', status: 'installed' }),
+        row({ key: 'u', status: 'update-available' }),
+        row({ key: 'n', status: 'absent' }),
+        row({ key: 'p', status: 'installing' }),
+      ],
+    });
+    const box = screen.getByRole('checkbox', { name: /Item i/ });
+    expect(box).toBeEnabled();
+    expect(box).not.toBeChecked();
+    expect(box).toHaveAttribute('title', 'Keep on this device');
+    await user.click(box);
+    expect(onToggle).toHaveBeenCalledWith('i', true);
+    const buttons = screen.getAllByRole('button', { name: 'Remove' });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[0]);
+    expect(onRemove).toHaveBeenCalledWith('i');
+  });
+
+  it('has no Remove buttons without onRemove', () => {
+    setup({ rows: [row({ key: 'i', status: 'installed' })] });
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+
+  it('title level defaults to 3 and follows headingLevel; the notice sits under the title', () => {
+    const { unmount } = render(<PackBuilder {...({ groups: [], rows: [], presets: [], onPreset() {}, onToggle() {}, onStart() {}, onCancel() {}, summary: { downloadBytes: 0, newStoredBytes: 0, freeBytes: null, fit: 'unknown', shortfallBytes: 0 }, warnings: [], labels, formatBytes: fmt, notice: 'Shell notice' } as PackBuilderProps)} />);
+    expect(screen.getByRole('heading', { level: 3, name: 'Offline packs' })).toBeInTheDocument();
+    expect(screen.getByText('Shell notice').previousElementSibling).toBe(screen.getByRole('heading', { level: 3 }));
+    unmount();
+    render(<PackBuilder {...({ groups: [], rows: [], presets: [], onPreset() {}, onToggle() {}, onStart() {}, onCancel() {}, summary: { downloadBytes: 0, newStoredBytes: 0, freeBytes: null, fit: 'unknown', shortfallBytes: 0 }, warnings: [], labels, formatBytes: fmt, headingLevel: 4 } as PackBuilderProps)} />);
+    expect(screen.getByRole('heading', { level: 4, name: 'Offline packs' })).toBeInTheDocument();
   });
 
   it('Start is enabled, calls back, and is disabled when fit is no, nothing selected or running', async () => {

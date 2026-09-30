@@ -359,9 +359,10 @@
           "dependencyAdded": "因 {for} 需要，已添加 {name}。",
           "missingDependency": "{name} 需要 {requires}，但其不可用。",
           "cycle": "部分项目互相依赖，将按固定顺序安装。",
-          "overQuota": "还需要约 {size} 空间。",
-          "quotaUnknown": "此设备的可用空间未知。"
-        }
+          "overQuota": "还需要约 {size} 空间。"
+        },
+        "remove": "移除",
+        "keepHint": "选中已在此设备上的项目会将其保留在此处，不会被自动清理。"
       }
     },
     "downloads": {

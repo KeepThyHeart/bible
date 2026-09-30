@@ -2449,7 +2449,7 @@
   "moduleManager.packs.statusInstalling": "स्थापन जारी",
   "moduleManager.packs.statusError": "विफल",
   "moduleManager.packs.start": "चयनित स्थापित करें",
-  "moduleManager.packs.cancel": "इस मॉड्यूल के बाद रोकें",
+  "moduleManager.packs.cancel": "रद्द करें",
   "moduleManager.packs.summaryDownload": "डाउनलोड: {size}",
   "moduleManager.packs.summaryStored": "डिस्क स्पेस: {size}",
   "moduleManager.packs.summaryFree": "खाली: {size}",

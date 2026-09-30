@@ -146,7 +146,7 @@ describe('offline files', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-encoding']).toBeUndefined();
     expect(res.headers['content-type']).toContain('application/gzip');
-    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable, no-transform');
+    expect(res.headers['cache-control']).toBe('private, max-age=31536000, immutable, no-transform');
     expect(res.headers.etag).toBeTruthy();
     const body = res.body as Buffer;
     expect(body.length).toBe(a.files[0].size);

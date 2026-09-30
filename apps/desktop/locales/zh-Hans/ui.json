@@ -2451,7 +2451,7 @@
   "moduleManager.packs.statusInstalling": "正在安装",
   "moduleManager.packs.statusError": "失败",
   "moduleManager.packs.start": "安装所选项",
-  "moduleManager.packs.cancel": "当前模块完成后停止",
+  "moduleManager.packs.cancel": "取消",
   "moduleManager.packs.summaryDownload": "下载：{size}",
   "moduleManager.packs.summaryStored": "磁盘空间：{size}",
   "moduleManager.packs.summaryFree": "可用：{size}",

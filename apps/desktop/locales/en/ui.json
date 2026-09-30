@@ -2434,7 +2434,7 @@
   "moduleManager.packs.statusInstalling": "Installing",
   "moduleManager.packs.statusError": "Failed",
   "moduleManager.packs.start": "Install selected",
-  "moduleManager.packs.cancel": "Stop after this module",
+  "moduleManager.packs.cancel": "Cancel",
   "moduleManager.packs.summaryDownload": "Download: {size}",
   "moduleManager.packs.summaryStored": "Disk space: {size}",
   "moduleManager.packs.summaryFree": "Free: {size}",

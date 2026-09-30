@@ -78,6 +78,10 @@ export interface PackBuilderLabels {
   runPartial: string;
   runFailed: string;
   runCancelled: string;
+  /** Row button shown when `onRemove` is given. Default 'Remove'. */
+  remove?: string;
+  /** Tooltip of the checkbox of an installed row when `onRemove` is given ("selecting keeps it on this device"). */
+  keepHint?: string;
 }
 
 export interface PackBuilderProps {
@@ -86,6 +90,15 @@ export interface PackBuilderProps {
   presets: { id: string; label: string }[];
   onPreset: (id: string) => void;
   onToggle: (key: string, selected: boolean) => void;
+  /**
+   * When given, installed / update-available rows (not installing) get a Remove button, and installed rows
+   * become selectable (selecting one keeps it on this device) instead of a fixed checked box.
+   */
+  onRemove?: (key: string) => void;
+  /** Level of the title element (default 3). */
+  headingLevel?: 2 | 3 | 4;
+  /** Already localized text shown directly under the title. */
+  notice?: string;
   summary: PackBuilderSummary;
   warnings: string[];
   run?: PackBuilderRun;
@@ -122,6 +135,9 @@ export function PackBuilder({
   presets,
   onPreset,
   onToggle,
+  onRemove,
+  headingLevel = 3,
+  notice,
   summary,
   warnings,
   run,
@@ -130,6 +146,7 @@ export function PackBuilder({
   labels: l,
   formatBytes,
 }: PackBuilderProps) {
+  const Heading = `h${headingLevel}` as 'h3';
   const running = run?.state === 'running';
   const anySelected = rows.some((r) => r.selected && !r.disabled);
   const startDisabled = running || summary.fit === 'no' || !anySelected;
@@ -169,7 +186,8 @@ export function PackBuilder({
 
   return (
     <section className="kth-pack-builder" aria-label={l.title}>
-      <h2 className="kth-pack-builder__title">{l.title}</h2>
+      <Heading className="kth-pack-builder__title">{l.title}</Heading>
+      {notice ? <p className="kth-pack-builder__notice">{notice}</p> : null}
 
       {presets.length > 0 ? (
         <div className="kth-pack-builder__presets" role="group" aria-label={l.presetsHeading}>
@@ -193,6 +211,8 @@ export function PackBuilder({
               .map((r) => {
                 const inputId = `kth-pack-${r.key}`;
                 const installed = r.status === 'installed';
+                const keepFlow = !!onRemove;
+                const removable = keepFlow && (r.status === 'installed' || r.status === 'update-available');
                 const pct = r.progress ? percentOf(r.progress.loaded, r.progress.total) : undefined;
                 return (
                   <li key={r.key} className={`kth-pack-row kth-pack-row--${r.status}`}>
@@ -200,8 +220,9 @@ export function PackBuilder({
                       id={inputId}
                       type="checkbox"
                       className="kth-pack-row__check"
-                      checked={r.selected || (installed && !r.disabled)}
-                      disabled={r.disabled || running || (installed && !r.selected)}
+                      checked={keepFlow ? r.selected : r.selected || (installed && !r.disabled)}
+                      disabled={r.disabled || running || (!keepFlow && installed && !r.selected)}
+                      title={keepFlow && installed ? l.keepHint : undefined}
                       onChange={(e) => onToggle(r.key, e.currentTarget.checked)}
                     />
                     <label htmlFor={inputId} className="kth-pack-row__info">
@@ -210,6 +231,11 @@ export function PackBuilder({
                     </label>
                     <span className="kth-pack-row__size">{formatBytes(r.sizeBytes)}</span>
                     <span className={`kth-pack-badge kth-pack-badge--${r.status}`}>{statusText[r.status]}</span>
+                    {removable ? (
+                      <button type="button" className="kth-pack-row__remove" disabled={running} onClick={() => onRemove?.(r.key)}>
+                        {l.remove ?? 'Remove'}
+                      </button>
+                    ) : null}
                     {r.disabled && r.disabledReason ? <span className="kth-pack-row__reason">{r.disabledReason}</span> : null}
                     {r.status === 'installing' ? <Bar label={r.title} percent={pct} /> : null}
                     {r.error ? <span className="kth-pack-row__error">{r.error}</span> : null}

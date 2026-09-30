@@ -61,7 +61,7 @@ describe('createDesktopPackInstallers', () => {
     expect(installModule).not.toHaveBeenCalled();
   });
 
-  it('without a cancel API, finishes the current module then rejects aborted', async () => {
+  it('without a cancel API, a module that finished installing returns normally after cancel', async () => {
     let finish!: (ok: boolean) => void;
     const installModule = vi.fn(() => new Promise<boolean>((r) => (finish = r)));
     const { module } = createDesktopPackInstallers({ installModule, getActiveDownloads: async () => [] });
@@ -69,7 +69,7 @@ describe('createDesktopPackInstallers', () => {
     const p = module.install(step(), { signal: ac.signal, onBytes: vi.fn() });
     ac.abort();
     finish(true);
-    await expect(p).rejects.toMatchObject({ code: 'aborted' });
+    await expect(p).resolves.toBeUndefined();
   });
 
   it('with a cancel API, cancels the matching download on abort', async () => {

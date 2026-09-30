@@ -2449,7 +2449,7 @@
   "moduleManager.packs.statusInstalling": "Instalando",
   "moduleManager.packs.statusError": "Falhou",
   "moduleManager.packs.start": "Instalar selecionado",
-  "moduleManager.packs.cancel": "Parar após este módulo",
+  "moduleManager.packs.cancel": "Cancelar",
   "moduleManager.packs.summaryDownload": "Download: {size}",
   "moduleManager.packs.summaryStored": "Espaço em disco: {size}",
   "moduleManager.packs.summaryFree": "Livre: {size}",

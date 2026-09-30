@@ -92,7 +92,18 @@ export function getModuleCatalog(): readonly AssetManifest[] {
   return catalog;
 }
 
-function catalogEntry(abbr: string): AssetManifest | undefined {
+/**
+ * The catalog manifest for a client-facing abbreviation. The server keys the asset id on the
+ * DATABASE abbreviation while `meta.abbreviation` (and the file name) carry the client one
+ * (`shortName || abbr`), so match `meta.abbreviation` first (case-insensitive), then the derived id.
+ */
+export function findModuleManifest(abbr: string): AssetManifest | undefined {
+  const lower = abbr.toLowerCase();
+  const byMeta = catalog.find((a) => {
+    const m = a.meta?.abbreviation;
+    return typeof m === 'string' && m.toLowerCase() === lower;
+  });
+  if (byMeta) return byMeta;
   const id = moduleAssetId(abbr);
   return catalog.find((a) => a.id === id);
 }
@@ -109,8 +120,12 @@ export interface InstallModuleOptions {
  * `offlineStore`. Rejects with AssetError (`not-found` when the catalog lacks the module).
  */
 export async function installModuleAsset(abbr: string, opts: InstallModuleOptions = {}): Promise<void> {
-  const manifest = catalogEntry(abbr);
+  const manifest = findModuleManifest(abbr);
   if (!manifest) throw new AssetError('not-found', `Module ${abbr} is not in the offline catalog`);
+  // The canonical (client) abbreviation keys the file, the worker DB and the offlineStore entry,
+  // whatever casing the caller used.
+  const canonical = manifest.meta?.abbreviation;
+  if (typeof canonical === 'string' && canonical) abbr = canonical;
   const m = await readyManager();
   const current = m.installed(manifest.id);
   // An update replaces the file the worker may hold open.
@@ -129,7 +144,7 @@ export async function installModuleAsset(abbr: string, opts: InstallModuleOption
   });
   const meta = (installed.meta ?? manifest.meta ?? {}) as Record<string, unknown>;
   const now = new Date().toISOString();
-  const previous = offlineStore.downloadedModules.find((x) => x.abbreviation === abbr);
+  const previous = offlineStore.downloadedModules.find((x) => x.abbreviation.toLowerCase() === abbr.toLowerCase());
   offlineStore.addDownloadedModule({
     abbreviation: abbr,
     name: typeof meta.name === 'string' && meta.name ? meta.name : manifest.title,
@@ -142,12 +157,34 @@ export async function installModuleAsset(abbr: string, opts: InstallModuleOption
   });
 }
 
+/**
+ * Keep an already-installed module on this device: pins its asset registry entry (no download when the
+ * installed version is the offered one) and clears `autoDownloaded` so the 15-day cleanup skips it.
+ * A legacy download (no registry entry) only gets the offlineStore flag; nothing is downloaded.
+ */
+export async function pinModuleAsset(abbr: string): Promise<void> {
+  const manifest = findModuleManifest(abbr);
+  if (manifest) {
+    const m = await readyManager();
+    const current = m.installed(manifest.id);
+    if (current && current.version === manifest.version) {
+      await installModuleAsset(abbr, { pinned: true });
+      return;
+    }
+  }
+  const lower = abbr.toLowerCase();
+  const previous = offlineStore.downloadedModules.find((x) => x.abbreviation.toLowerCase() === lower);
+  if (previous && previous.autoDownloaded) offlineStore.addDownloadedModule({ ...previous, autoDownloaded: false });
+}
+
 /** Close the worker DB, remove the asset (file, partials, registry entry) and the offlineStore entry. */
 export async function removeModuleAsset(abbr: string): Promise<void> {
+  const canonical = findModuleManifest(abbr)?.meta?.abbreviation;
+  if (typeof canonical === 'string' && canonical) abbr = canonical;
   closeWorkerDb(abbr);
   try {
     const m = await readyManager();
-    await m.remove(moduleAssetId(abbr));
+    await m.remove(findModuleManifest(abbr)?.id ?? moduleAssetId(abbr));
   } finally {
     offlineStore.removeDownloadedModule(abbr);
   }

@@ -1022,3 +1022,8 @@
 .kth-pack-run__result--partial { color: var(--kth-warning); }
 .kth-pack-run__result--failed { color: var(--kth-danger); }
 .kth-pack-run__result--cancelled { color: var(--kth-text-muted); }
+.kth-pack-builder__notice { margin: 0 0 0.5rem; font-size: 0.85em; opacity: 0.75; }
+.kth-pack-row__remove { padding: 0 var(--kth-space-2); border: 1px solid var(--kth-border); border-radius: 999px; background: transparent; color: var(--kth-text); font: inherit; font-size: calc(var(--kth-font-size-ui) * 0.8); cursor: pointer; }
+.kth-pack-row__remove:hover:not(:disabled) { border-color: var(--kth-danger); color: var(--kth-danger); }
+.kth-pack-row__remove:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-pack-row__remove:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -3,16 +3,16 @@
  * module store. Selection lives in component state (nothing is persisted), `planPack` re-runs on every
  * change, and Start runs a `PackRun` through the existing module install path.
  *
- * CANCEL: modules install one at a time (PackRun concurrency 1) and a module install in flight cannot
- * always be aborted, so the Cancel button is labelled "Stop after this module" and never starts the
- * next module. See `desktopPackInstallers.ts`.
+ * CANCEL: modules install one at a time (PackRun concurrency 1). Cancel aborts the current download and
+ * keeps already-installed modules. Leaving the tab does NOT cancel: the run lives in `desktopPackRun.ts`
+ * and a remounted panel re-attaches to it. See `desktopPackInstallers.ts`.
  *
  * Desktop ignores site-config feature flags; this tab is always available.
  *
  * Licence: GPL-3.0-or-later.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PackBuilder } from '@bible/ui';
 import type { PackBuilderLabels, PackBuilderRow } from '@bible/ui';
 import { PackRun, packKey, planPack } from '@bible/core/browser';
@@ -22,6 +22,7 @@ import { useModuleStore } from '../../stores/useModuleStore';
 import { createDesktopPackSource } from '../../services/desktopPackSource';
 import type { PackStarterPack } from '../../services/desktopPackSource';
 import { createDesktopPackInstallers } from '../../services/desktopPackInstallers';
+import { getCurrentPackRun, isPackRunActive, setCurrentPackRun } from '../../services/desktopPackRun';
 import { useTd } from './moduleManagerI18n';
 
 export interface OfflinePacksPanelProps {
@@ -88,8 +89,15 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   const [presets, setPresets] = useState<PackPreset[]>([]);
   const [freeBytes, setFreeBytes] = useState<number | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [snapshot, setSnapshot] = useState<PackRunSnapshot | undefined>(undefined);
-  const runRef = useRef<PackRun | null>(null);
+  const [snapshot, setSnapshot] = useState<PackRunSnapshot | undefined>(() => getCurrentPackRun()?.getSnapshot());
+
+  // Re-attach to a run started before this mount; unsubscribe (never cancel) on unmount.
+  useEffect(() => {
+    const run = getCurrentPackRun();
+    if (!run) return;
+    setSnapshot(run.getSnapshot());
+    return run.subscribe(() => setSnapshot(run.getSnapshot()));
+  }, []);
 
   // Reload when the source changes or the store's catalog, installed set or downloads change.
   useEffect(() => {
@@ -184,21 +192,18 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   );
 
   const onStart = useCallback(() => {
-    if (plan.steps.length === 0 || runRef.current) return;
+    if (plan.steps.length === 0 || isPackRunActive()) return;
     const run = new PackRun(plan, installers, { concurrency: 1 });
-    runRef.current = run;
+    setCurrentPackRun(run);
     setSnapshot(run.getSnapshot());
     run.subscribe(() => setSnapshot(run.getSnapshot()));
     void run.start().then(() => {
-      runRef.current = null;
       // The store refreshes its own installed list per module; make sure the final state shows.
       if (!installersProp) void useModuleStore.getState().loadInstalledModules();
     });
   }, [plan, installers, installersProp]);
 
-  const onCancel = useCallback(() => runRef.current?.cancel(), []);
-
-  useEffect(() => () => runRef.current?.cancel(), []);
+  const onCancel = useCallback(() => getCurrentPackRun()?.cancel(), []);
 
   const labels: PackBuilderLabels = {
     title: td('moduleManager.packs.title', 'Offline packs'),
@@ -211,7 +216,7 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
     statusInstalling: td('moduleManager.packs.statusInstalling', 'Installing'),
     statusError: td('moduleManager.packs.statusError', 'Failed'),
     start: td('moduleManager.packs.start', 'Install selected'),
-    cancel: td('moduleManager.packs.cancel', 'Stop after this module'),
+    cancel: td('moduleManager.packs.cancel', 'Cancel'),
     summaryDownload: td('moduleManager.packs.summaryDownload', 'Download: {size}'),
     summaryStored: td('moduleManager.packs.summaryStored', 'Disk space: {size}'),
     summaryFree: td('moduleManager.packs.summaryFree', 'Free: {size}'),
