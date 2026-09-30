@@ -102,7 +102,7 @@ describe.skipIf(!hasKjv)('running a search', () => {
   test('unsupported syntax such as NEAR/3 is an error, not an empty result', async () => {
     const outcome = await runSearch('faith NEAR/3 works', target());
     expect(outcome.hits).toHaveLength(0);
-    expect(outcome.error).toContain('not supported');
+    expect(outcome.error).toContain('Unsupported syntax');
     expect(outcome.error).not.toContain('\n');
   });
 
