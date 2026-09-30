@@ -248,8 +248,9 @@ export function GenealogyView({
     if (!n) return;
     const s = toPanZoom(vpRef.current).toScreen(n.x, n.y);
     const { w, h } = sizeRef.current;
-    if (s.x < 0 || s.y < 0 || s.x > w || s.y > h) update((p) => p.centerOn(n.x, n.y, w, h));
-  }, [selectedId]);
+    const m = 24;
+    if (s.x < m || s.y < m || s.x > w - m || s.y > h - m) update((p) => p.centerOn(n.x, n.y, w, h));
+  }, [selectedId, nodes, update]);
 
   const focusNode = (id: string) => {
     setRovingId(id);

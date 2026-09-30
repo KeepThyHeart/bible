@@ -701,6 +701,8 @@
 .kth-genealogy-card__link { color: var(--kth-accent); text-decoration: underline; }
 .kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
 .kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }
+.kth-genealogy-explorer__main > .kth-genealogy-legend { padding-inline: var(--kth-space-3); margin-block-start: 0; }
+.kth-genealogy-explorer > .kth-genealogy-key { max-block-size: 30vh; overflow: auto; }
 .kth-genealogy-explorer__main { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; }
 .kth-genealogy-explorer__body--compact { flex-direction: column; }
 /* --- Popover / hover card / bottom sheet ---------------------------------------

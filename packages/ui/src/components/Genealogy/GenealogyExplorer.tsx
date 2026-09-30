@@ -117,9 +117,17 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
   const [showKey, setShowKey] = useState(false);
   useEffect(() => {
     if (!full) return undefined;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const doc = rootRef.current?.ownerDocument ?? document;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      setFull(false);
+    };
+    doc.addEventListener('keydown', onKey);
+    // The page behind must not scroll while the explorer covers it.
+    const prevOverflow = doc.documentElement.style.overflow;
+    doc.documentElement.style.overflow = 'hidden';
+    return () => { doc.removeEventListener('keydown', onKey); doc.documentElement.style.overflow = prevOverflow; };
   }, [full]);
 
   const tabLabel: Record<GenealogyViewKind, string> = { line: labels.line, family: labels.family, tribes: labels.tribes };
@@ -181,7 +189,7 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
           <GenealogyView
             layout={layout}
             selectedId={selected}
-            highlight={state.highlightLineToChrist}
+            highlight={state.highlightLineToChrist && state.view !== 'tribes'}
             labels={labels.view}
             onSelect={select}
             onFocusPerson={(id) => focusPerson(store, id)}
