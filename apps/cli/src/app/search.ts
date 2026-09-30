@@ -172,7 +172,7 @@ function skippedMessage(reason: { state: string; reason?: string }): string {
   if (reason.state === 'failed' && reason.reason !== undefined) {
     return `The search index could not be used: ${reason.reason.split('\n')[0]}`;
   }
-  return 'This search syntax is not supported here (for example NEAR/3). Try words, "a phrase", (a AND b) or word ~3v.';
+  return 'That search syntax is not supported (e.g. NEAR/3). Try "a phrase" or ~3v.';
 }
 
 /** Returns the reason proximity search cannot be answered, or `undefined`. */
