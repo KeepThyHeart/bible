@@ -44,7 +44,7 @@ export interface ScoringPolicy {
   lowConfidence: number;
 }
 
-export type LoopCommand = 'hint' | 'repeat' | 'skip' | 'again' | 'stop' | 'resume' | 'where';
+export type LoopCommand = 'hint' | 'repeat' | 'skip' | 'again' | 'stop' | 'resume' | 'pause' | 'where';
 
 export type BiasLevel = 'none' | 'names' | 'vocabulary' | 'full';
 

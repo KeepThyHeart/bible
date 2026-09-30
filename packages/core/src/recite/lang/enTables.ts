@@ -220,7 +220,7 @@ export const FILLERS: string[] = [
 ];
 
 /** Whole-utterance commands, normalised tokens joined by one space. */
-export const COMMANDS: Record<string, 'hint' | 'repeat' | 'skip' | 'again' | 'stop' | 'resume' | 'where'> = {
+export const COMMANDS: Record<string, 'hint' | 'repeat' | 'skip' | 'again' | 'stop' | 'resume' | 'pause' | 'where'> = {
   hint: 'hint',
   'give me a hint': 'hint',
   repeat: 'repeat',
@@ -232,7 +232,7 @@ export const COMMANDS: Record<string, 'hint' | 'repeat' | 'skip' | 'again' | 'st
   'try again': 'again',
   'start over': 'again',
   stop: 'stop',
-  pause: 'stop',
+  pause: 'pause',
   resume: 'resume',
   continue: 'resume',
   'where am i': 'where',
