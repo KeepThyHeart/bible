@@ -20,20 +20,26 @@
  * Usage:
  *   node scripts/fetch-piper-assets.mjs --voice=en_US-amy-medium [--voice=es_ES-davefx-medium ...]
  *   node scripts/fetch-piper-assets.mjs --runtime-only
+ *   node scripts/fetch-piper-assets.mjs --index-only      (no download: rebuild sidecars and tts/piper/index.json)
  *   node scripts/fetch-piper-assets.mjs --dest=/srv/bible/data/audio --voice=en_US-hfc_female-medium
  *
  * Environment: BIBLE_DATA_DIR (as the server), FORCE_PIPER_FETCH=1 to re-download,
  * PIPER_VOICES_BASE to use another voices repository or mirror.
  *
+ * Every file also gets a `<file>.sha256` sidecar, and `tts/piper/index.json` is written in the
+ * asset-index schema (kth-asset-index/1, urls relative to that file) so the in-app asset manager
+ * can verify and list the runtime and voices.
+ *
  * It ends by printing the `audio` block to merge into the site configuration.
  */
 
-import { existsSync, mkdirSync, renameSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
 import { createWriteStream } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { hashFile, writeSidecar, INDEX_SCHEMA } from './build-asset-index.mjs';
 
 const ORT_VERSION = '1.22.0';
 const PHONEMIZE_VERSION = '1.0.0';
@@ -88,12 +94,82 @@ async function fetchTo(url, dest, transform) {
   log(`downloaded: ${dest} (${(statSync(dest).size / 1024 / 1024).toFixed(1)} MB)`);
 }
 
+
+const RUNTIME_LICENSE = 'MIT (ONNX Runtime, piper-wasm); GPL-3.0 (espeak-ng)';
+
+/** Files of `dir` (flat), excluding sidecars and temp files, sorted. */
+function flatFiles(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter(e => e.isFile() && !e.name.startsWith('.') && !/\.(sha256|part|tmp)$/.test(e.name))
+    .map(e => e.name).sort();
+}
+
+async function indexFile(piperDir, sub, name) {
+  const full = join(piperDir, sub, name);
+  const { sha256, size } = await hashFile(full);
+  writeSidecar(full, sha256);
+  const f = { path: name, url: `${sub}/${encodeURIComponent(name)}`, size, sha256 };
+  if (name.endsWith('.json')) f.contentType = 'application/json';
+  else if (name.endsWith('.wasm')) f.contentType = 'application/wasm';
+  else if (name.endsWith('.mjs') || name.endsWith('.js')) f.contentType = 'text/javascript';
+  return f;
+}
+
+/**
+ * Write sidecars for everything under `piperDir` and `piperDir/index.json` (asset-index schema,
+ * urls relative to the index): one `piper-runtime` (`runtime/*`) and one `tts-voice` per
+ * `voices/<id>.onnx` (+ `.onnx.json`). Works from what is on disk, so it serves `--index-only`.
+ */
+export async function buildPiperIndex(piperDir) {
+  const assets = [];
+  const runtimeNames = flatFiles(join(piperDir, 'runtime'));
+  if (runtimeNames.length > 0) {
+    const files = [];
+    for (const n of runtimeNames) files.push(await indexFile(piperDir, 'runtime', n));
+    assets.push({
+      id: 'piper-runtime', kind: 'tts-runtime', version: `${ORT_VERSION}-${PHONEMIZE_VERSION}`,
+      title: 'Piper speech runtime', license: RUNTIME_LICENSE,
+      size: files.reduce((n, f) => n + f.size, 0), files,
+    });
+  }
+  const voiceNames = flatFiles(join(piperDir, 'voices'));
+  for (const n of voiceNames.filter(v => v.endsWith('.onnx'))) {
+    const id = n.slice(0, -'.onnx'.length);
+    const names = [n, `${id}.onnx.json`].filter(x => voiceNames.includes(x));
+    const files = [];
+    for (const x of names) files.push(await indexFile(piperDir, 'voices', x));
+    let cfg = {};
+    try { cfg = JSON.parse(readFileSync(join(piperDir, 'voices', `${id}.onnx.json`), 'utf8')); } catch { /* no config */ }
+    const license = typeof cfg.license === 'string' && cfg.license ? cfg.license
+      : typeof cfg.dataset === 'string' && cfg.dataset ? `dataset: ${cfg.dataset} (see MODEL_CARD)` : 'see MODEL_CARD';
+    const lang = (cfg.language?.code ?? id.split('-')[0]).replace('_', '-');
+    const meta = {};
+    if (['x_low', 'low', 'medium', 'high'].includes(cfg.audio?.quality)) meta.quality = cfg.audio.quality;
+    if (cfg.audio?.sample_rate) meta.sampleRate = cfg.audio.sample_rate;
+    const m = {
+      id, kind: 'tts-voice', version: '1', title: id.split('-').slice(1, -1).join(' ').replace(/_/g, ' ') || id,
+      license, languages: [lang], size: files.reduce((s, f) => s + f.size, 0), files,
+    };
+    if (Object.keys(meta).length) m.meta = meta;
+    assets.push(m);
+  }
+  assets.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const index = { schema: INDEX_SCHEMA, generatedAt: new Date().toISOString(), assets };
+  const dest = join(piperDir, 'index.json');
+  mkdirSync(piperDir, { recursive: true });
+  writeFileSync(`${dest}.tmp`, `${JSON.stringify(index, null, 2)}\n`);
+  renameSync(`${dest}.tmp`, dest);
+  return index;
+}
+
 function parseArgs(argv) {
-  const opts = { voices: [], dest: null, runtimeOnly: false };
+  const opts = { voices: [], dest: null, runtimeOnly: false, indexOnly: false };
   for (const a of argv) {
     if (a.startsWith('--voice=')) opts.voices.push(...a.slice(8).split(',').filter(Boolean));
     else if (a.startsWith('--dest=')) opts.dest = a.slice(7);
     else if (a === '--runtime-only') opts.runtimeOnly = true;
+    else if (a === '--index-only') opts.indexOnly = true;
     else if (a === '-h' || a === '--help') { opts.help = true; }
     else throw new Error(`Unknown argument: ${a}`);
   }
@@ -107,7 +183,7 @@ function languageOf(id) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) { log('see the header of scripts/fetch-piper-assets.mjs'); return; }
-  if (opts.voices.length === 0 && !opts.runtimeOnly) throw new Error('Name at least one --voice=<id> (or use --runtime-only).');
+  if (opts.voices.length === 0 && !opts.runtimeOnly && !opts.indexOnly) throw new Error('Name at least one --voice=<id> (or use --runtime-only).');
   for (const id of opts.voices) voicePath(id); // validate before downloading anything
 
   const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -115,6 +191,12 @@ async function main() {
   const audioDir = opts.dest ? resolve(opts.dest) : join(dataDir, 'audio');
   const piperDir = join(audioDir, 'tts', 'piper');
   log(`target: ${piperDir}`);
+
+  if (opts.indexOnly) {
+    const idx = await buildPiperIndex(piperDir);
+    log(`index rebuilt: ${idx.assets.length} asset(s) in ${join(piperDir, 'index.json')}`);
+    return;
+  }
 
   for (const f of RUNTIME) await fetchTo(f.from, join(piperDir, 'runtime', f.to), f.transform);
 
@@ -135,6 +217,9 @@ async function main() {
       files: [`voices/${id}.onnx`, `voices/${id}.onnx.json`],
     });
   }
+
+  const idx = await buildPiperIndex(piperDir);
+  log(`sidecars and index written: ${idx.assets.length} asset(s)`);
 
   if (voices.length > 0) {
     const defaultVoices = {};

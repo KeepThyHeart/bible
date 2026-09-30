@@ -70,7 +70,7 @@ describe('audio routes', () => {
   it('serves engine files from tts/ without the immutable year', async () => {
     const res = await request(app).get('/audio/tts/piper/voice.onnx');
     expect(res.status).toBe(200);
-    expect(res.headers['cache-control']).toBe('public, max-age=604800');
+    expect(res.headers['cache-control']).toBe('public, max-age=604800, no-transform');
   });
 
   it('answers 404 JSON, never the SPA shell, for missing files and translations', async () => {
