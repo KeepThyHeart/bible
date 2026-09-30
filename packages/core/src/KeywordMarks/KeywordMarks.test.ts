@@ -226,7 +226,7 @@ describe('mark shapes (round 09)', () => {
 describe('displayKeywordLabel', () => {
   it('capitalizes divine names in each language and leaves other words', () => {
     expect(displayKeywordLabel('god')).toBe('God');
-    expect(displayKeywordLabel('the lord jesus christ', 'en')).toBe('the Lord Jesus Christ');
+    expect(displayKeywordLabel('the lord jesus christ', 'en')).toBe('the lord Jesus Christ');
     expect(displayKeywordLabel('holy spirit', 'en')).toBe('Holy Spirit');
     expect(displayKeywordLabel('dios', 'es')).toBe('Dios');
     expect(displayKeywordLabel('espíritu santo', 'es-MX')).toBe('Espíritu Santo');
@@ -235,6 +235,27 @@ describe('displayKeywordLabel', () => {
     expect(displayKeywordLabel('faith', 'en')).toBe('faith');
     expect(displayKeywordLabel('godly', 'en')).toBe('godly');
   });
+  it('capitalizes only unambiguous divine names; lord/Lord/LORD stay as typed', () => {
+    expect(displayKeywordLabel('my lord', 'en')).toBe('my lord');
+    expect(displayKeywordLabel('Lord', 'en')).toBe('Lord');
+    expect(displayKeywordLabel('LORD', 'en')).toBe('LORD');
+    expect(displayKeywordLabel('god', 'en')).toBe('God');
+    expect(displayKeywordLabel('jesus', 'en')).toBe('Jesus');
+    expect(displayKeywordLabel('holy ghost', 'en')).toBe('Holy Ghost');
+    expect(displayKeywordLabel('mi señor', 'es')).toBe('mi señor');
+    expect(displayKeywordLabel('dios', 'es')).toBe('Dios');
+    expect(displayKeywordLabel('meu senhor', 'pt')).toBe('meu senhor');
+    expect(displayKeywordLabel('deus', 'pt')).toBe('Deus');
+    expect(displayKeywordLabel('herr', 'de')).toBe('herr');
+    expect(displayKeywordLabel('gott', 'de')).toBe('Gott');
+    expect(displayKeywordLabel('mon seigneur', 'fr')).toBe('mon seigneur');
+    expect(displayKeywordLabel('dieu', 'fr')).toBe('Dieu');
+    expect(displayKeywordLabel('господа', 'ru')).toBe('господа');
+    expect(displayKeywordLabel('бог', 'ru')).toBe('Бог');
+    expect(labelFromToken('lord,')).toBe('lord');
+    expect(labelFromToken('Lord')).toBe('Lord');
+  });
+
   it('keeps small-caps LORD as the text has it, is idempotent, and is safe for caseless scripts', () => {
     expect(displayKeywordLabel('LORD', 'en')).toBe('LORD');
     expect(displayKeywordLabel('God', 'en')).toBe('God');
