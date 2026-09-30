@@ -164,8 +164,9 @@ describe('store', () => {
     expect(st.selectedId).toBe(3);
     expect(st.view.start).toBeLessThan(civilToInstant(33, 4, 3, 9));
     expect(st.view.end).toBeGreaterThan(civilToInstant(33, 4, 3, 9));
-    // an hour-dated item frames at its own precision, not the default span
-    expect(st.view.end - st.view.start).toBeLessThan(5);
+    // follow-my-reading keeps the default span even for an hour-dated item
+    const b = s.getBounds();
+    expect(st.view.end - st.view.start).toBeCloseTo(Math.min(DEFAULT_SPAN_DAYS, b.end - b.start));
     const view = st.view;
     s.zoomAt(2, 400);
     const zoomed = s.getSnapshot().view;
@@ -192,9 +193,9 @@ describe('store', () => {
     expect(spanYearsToDays(-3)).toBe(DEFAULT_SPAN_DAYS);
     expect(spanYearsToDays(undefined)).toBe(DEFAULT_SPAN_DAYS);
   });
-  it('focusItem frames a day/hour-dated item at its own precision, ignoring the minimum span', () => {
+  it('focusItem with fitPrecision frames a day/hour-dated item at its own precision, ignoring the minimum span', () => {
     const s = createTimelineStore(dataset);
-    s.focusItem(3);
+    s.focusItem(3, { fitPrecision: true });
     const v = s.getSnapshot().view;
     expect(v.end - v.start).toBeLessThan(5);
     const t = civilToInstant(33, 4, 3, 9);

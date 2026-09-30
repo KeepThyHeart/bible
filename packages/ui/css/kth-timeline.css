@@ -77,6 +77,7 @@
 .kth-timeline-range__band { position: absolute; inset-block: 0; min-inline-size: 6px; background: var(--kth-accent-soft); border-inline: 2px solid var(--kth-accent); cursor: grab; }
 .kth-timeline-range__band:active { cursor: grabbing; }
 .kth-timeline-range__flag { position: absolute; inset-block: -4px; inline-size: 14px; background: var(--kth-accent); cursor: ew-resize; touch-action: none; z-index: 1; }
+.kth-timeline-range__flag::before { content: ''; position: absolute; inset: 0 -8px; }
 .kth-timeline-range__flag--from { transform: translateX(-100%); clip-path: polygon(45% 0, 100% 0, 100% 100%, 0 100%); }
 .kth-timeline-range__flag--to { clip-path: polygon(0 0, 55% 0, 100% 100%, 0 100%); }
 .kth-timeline-range__flag:where(:hover) { background: var(--kth-accent-hover); }

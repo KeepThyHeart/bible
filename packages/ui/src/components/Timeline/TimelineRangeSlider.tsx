@@ -17,7 +17,7 @@ export interface TimelineRangeSliderProps {
   toLabel: string;
 }
 
-type Drag = { kind: 'start' | 'end' } | { kind: 'pan'; grabT: number; startAtGrab: number };
+type Drag = { kind: 'start' | 'end'; offset: number } | { kind: 'pan'; grabT: number; startAtGrab: number };
 
 /** Read-out precision that suits the window's span. */
 export function precisionForSpan(spanDays: number): 'year' | 'month' | 'day' | 'hour' {
@@ -25,6 +25,11 @@ export function precisionForSpan(spanDays: number): 'year' | 'month' | 'day' | '
   if (spanDays < 120) return 'day';
   if (spanDays < 3 * 365.25) return 'month';
   return 'year';
+}
+
+/** Edge instant as read aloud and shown; the stored end is exclusive, so read it from just inside the window. */
+export function edgeText(t: number, edge: 'start' | 'end', precision: ReturnType<typeof precisionForSpan>): string {
+  return formatInstant(edge === 'end' && precision !== 'hour' ? t - 1 / 48 : t, precision);
 }
 
 export function TimelineRangeSlider({ store, label, fromLabel, toLabel }: TimelineRangeSliderProps) {
@@ -57,7 +62,7 @@ export function TimelineRangeSlider({ store, label, fromLabel, toLabel }: Timeli
     if (!d) return;
     const t = tAt(e.clientX);
     if (d.kind === 'pan') store.panTo(d.startAtGrab + (t - d.grabT));
-    else store.setEdge(d.kind, t);
+    else store.setEdge(d.kind, t + d.offset);
   };
   const end = (e: ReactPointerEvent<HTMLElement>): void => {
     drag.current = null;
@@ -66,7 +71,7 @@ export function TimelineRangeSlider({ store, label, fromLabel, toLabel }: Timeli
   const grabBand = (e: ReactPointerEvent<HTMLElement>, centre: boolean): void => {
     const t = tAt(e.clientX);
     if (centre) store.panTo(t - span / 2);
-    begin(e, { kind: 'pan', grabT: t, startAtGrab: centre ? t - span / 2 : view.start });
+    begin(e, { kind: 'pan', grabT: t, startAtGrab: centre ? store.getSnapshot().view.start : view.start });
   };
 
   const onKey = (edge: 'start' | 'end') => (e: KeyboardEvent<HTMLElement>): void => {
@@ -113,18 +118,22 @@ export function TimelineRangeSlider({ store, label, fromLabel, toLabel }: Timeli
         aria-valuemin={edge === 'start' ? bounds.start : view.start + MIN_SPAN_DAYS}
         aria-valuemax={edge === 'start' ? view.end - MIN_SPAN_DAYS : bounds.end}
         aria-valuenow={t}
-        aria-valuetext={formatInstant(t, precision)}
+        aria-valuetext={edgeText(t, edge, precision)}
         onKeyDown={onKey(edge)}
-        onPointerDown={(e) => begin(e, { kind: edge })}
+        onPointerDown={(e) => {
+          e.currentTarget.focus();
+          begin(e, { kind: edge, offset: t - tAt(e.clientX) });
+        }}
         onPointerMove={onMove}
         onPointerUp={end}
         onPointerCancel={end}
+        onLostPointerCapture={end}
       />
     );
   };
 
   return (
-    <div className="kth-timeline-range" role="group" aria-label={label}>
+    <div className="kth-timeline-range" dir="ltr" role="group" aria-label={label}>
       <div className="kth-timeline-range__track" ref={trackRef} onPointerDown={(e) => grabBand(e, true)} onPointerMove={onMove} onPointerUp={end} onPointerCancel={end}>
         <div
           className="kth-timeline-range__band"

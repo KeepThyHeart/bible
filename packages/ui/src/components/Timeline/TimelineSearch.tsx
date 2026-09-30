@@ -27,7 +27,7 @@ export function TimelineSearch({ store, labels }: TimelineSearchProps) {
   const choose = (index: number) => {
     const hit = results[index];
     if (!hit) return;
-    store.focusItem(hit.item.id);
+    store.focusItem(hit.item.id, { fitPrecision: true });
     setOpen(false);
   };
 

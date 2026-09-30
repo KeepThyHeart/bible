@@ -1,8 +1,8 @@
 /** TimelineZoomControls: -, +, Fit, and the two-handle From/To range slider. */
-import { formatInstant, viewSpan } from '@bible/core/browser';
+import { viewSpan } from '@bible/core/browser';
 import type { TimelineStore } from '@bible/core/browser';
 import { useTimelineStore } from './useTimelineStore';
-import { precisionForSpan, TimelineRangeSlider } from './TimelineRangeSlider';
+import { edgeText, precisionForSpan, TimelineRangeSlider } from './TimelineRangeSlider';
 import type { TimelinePanelLabels } from './labels';
 
 export interface TimelineZoomControlsProps {
@@ -14,9 +14,8 @@ export function TimelineZoomControls({ store, labels }: TimelineZoomControlsProp
   const state = useTimelineStore(store);
   const { view } = state;
   const precision = precisionForSpan(viewSpan(view));
-  const from = formatInstant(view.start, precision);
-  // The stored end is exclusive; read it back from just inside the window.
-  const to = formatInstant(view.end - (precision === 'hour' ? 0 : 1 / 48), precision);
+  const from = edgeText(view.start, 'start', precision);
+  const to = edgeText(view.end, 'end', precision);
   const rangeText = from === to ? from : `${from} to ${to}`;
 
   return (

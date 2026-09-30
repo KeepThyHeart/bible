@@ -32,8 +32,8 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
   setView(view: TimeView): void;
   fit(): void;
   select(id: number | null): void;
-  /** Select an item and frame it in the view (at least the store's minimum span, centred on the item; day/hour-dated items frame at their own precision). */
-  focusItem(id: number): void;
+  /** Select an item and frame it in the view (at least the store's minimum span, centred on the item). With `fitPrecision` (search jumps), day/hour-dated items frame at their own precision instead. */
+  focusItem(id: number, opts?: { fitPrecision?: boolean }): void;
   /** Select the best item for a verse (follow-my-reading); false when none covers it. */
   focusPassage(verseId: number, verseIdEnd?: number): boolean;
   toggleLane(laneId: string): void;
@@ -157,14 +157,14 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
     select(id) {
       update({ selectedId: id });
     },
-    focusItem(id) {
+    focusItem(id, opts) {
       const r = resolved.find((x) => x.item.id === id);
       if (!r) return;
       const start = r.date.start;
       const end = r.date.end ?? start;
-      // Frame the item at its own precision when it is dated to the day or hour; otherwise at least the
+      // With fitPrecision, frame a day/hour-dated item at its own precision; otherwise at least the
       // configured minimum span (and 1.5x the item), centred on the item.
-      const fine = r.date.precision === 'day' || r.date.precision === 'hour';
+      const fine = !!opts?.fitPrecision && (r.date.precision === 'day' || r.date.precision === 'hour');
       const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, fine ? 0 : minSpanDays);
       const mid = (start + end) / 2;
       update({ selectedId: id, view: clampView({ start: mid - span / 2, end: mid + span / 2 }, bounds) });
