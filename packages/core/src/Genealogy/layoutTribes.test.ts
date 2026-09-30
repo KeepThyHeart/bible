@@ -56,7 +56,7 @@ describe('layoutTribes', () => {
   const headsInOrder = (l: GraphLayout, y: number) => l.nodes.filter(n => n.y === y).sort((a, b) => a.x - b.x).map(n => n.id);
 
   it('orders the sons per Genesis 49 and colours them by mother', () => {
-    const l = layoutTribes(g);
+    const l = layoutTribes(g, { depth: 2 });
     expectSane(l);
     const jacob = node(l, 'jacob')!;
     const reuben = node(l, 'reuben')!;

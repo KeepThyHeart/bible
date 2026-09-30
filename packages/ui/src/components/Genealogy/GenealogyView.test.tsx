@@ -126,7 +126,8 @@ describe('GenealogyView', () => {
   it('refits when the layout changes', () => {
     const { container, rerender } = render(<GenealogyView layout={layout} />);
     rerender(<GenealogyView layout={{ ...layout, bounds: { x: 0, y: 0, w: 1600, h: 1200 } }} />);
-    expect(vpEl(container).getAttribute('data-k')).toBe('0.46');
+    // Fit would give 0.46, below the readable minimum, so it opens at MIN_FIT_SCALE.
+    expect(vpEl(container).getAttribute('data-k')).toBe('0.5');
   });
 
   it('uses a roving tabindex, arrow keys move by coordinates, Enter and Space select', async () => {
