@@ -313,3 +313,8 @@ export * from './audio';
 // Download/cache manager for large optional assets: manifest, ports (transport,
 // store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
 export * from './assets';
+
+// --- Offline packs (task 0075) -----------------------------------------------
+// Pack types, planner (dependencies, sizes, fit), presets from starter packs and
+// the pack runner over per-kind installers. Pure TypeScript.
+export * from './offline';
