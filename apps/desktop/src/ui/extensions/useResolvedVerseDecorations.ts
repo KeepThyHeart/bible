@@ -21,6 +21,8 @@ import {
   type WordInfo,
 } from '@bible/core/browser';
 import { useVerseDecorationStore } from './verseDecorationStore';
+import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { appendKeywordLayers } from './keywordMarkLayer';
 
 const EMPTY_LAYERS: LayerDecorations[] = [];
 
@@ -29,10 +31,20 @@ export function useResolvedVerseDecorations(
   moduleId: number,
   surface: 'standard' | 'reading' | 'study' | undefined,
   words: Pick<WordInfo, 'text'>[],
+  /** The Bible tab whose keyword marks (task 0065) apply to this verse; omit for none. */
+  keywordTabId?: string,
 ): ResolvedVerse | null {
-  const layers = useVerseDecorationStore((s) =>
+  const extLayers = useVerseDecorationStore((s) =>
     surface ? s.getDecorationsForVerse(verseId, moduleId) : EMPTY_LAYERS,
   );
+  // Keyword marks: this verse's slice of its tab's chapter match (stable
+  // reference until the match is recomputed).
+  const keywordLayers = useKeywordMarkStore((s) => {
+    if (!surface || !keywordTabId) return undefined;
+    const chapter = s.chapters[keywordTabId];
+    return chapter && chapter.input.moduleId === moduleId ? chapter.verseLayers.get(verseId) : undefined;
+  });
+  const layers = useMemo(() => appendKeywordLayers(extLayers, keywordLayers), [extLayers, keywordLayers]);
 
   // Registers this verse's rendered words for any sibling verse's cumulative
   // `occurrence` count (P0.1b - see `VerseWordTextCache.ts` (core)). Cheap and

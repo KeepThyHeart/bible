@@ -323,6 +323,10 @@
       "draftNote": "Los idiomas marcados como borrador están traducidos automáticamente y todavía no los ha revisado un hablante nativo.",
       "betaNote": "Los idiomas marcados como beta están traducidos automáticamente y completos, pero todavía no los ha revisado un hablante nativo. Las correcciones son bienvenidas.",
       "moreComingNote": "Habrá más idiomas disponibles próximamente. Aquí solo se ofrecen sin distintivo las traducciones que ha revisado un hablante nativo."
+    },
+    "keywords": {
+      "colorSafe": "Marcas de palabras clave seguras para el color (subrayado y símbolo adicionales)",
+      "colorSafeHint": "Añade un estilo de subrayado y un símbolo a cada marca para no depender solo del color."
     }
   },
   "copyDialog": {
@@ -779,6 +783,22 @@
     "submit": "Entrar",
     "incorrectPassword": "Contraseña incorrecta.",
     "tooManyAttempts": "Demasiados intentos. Inténtelo de nuevo más tarde."
+  },
+  "keywordMarks": {
+    "button": "Palabras clave",
+    "buttonTitle": "Marcas de palabras clave",
+    "title": "Marcas de palabras clave",
+    "toggle": "Marcas de palabras clave",
+    "empty": "Ninguna palabra clave coincide en este capítulo.",
+    "count": "{count, plural, one {# aparición} other {# apariciones}}",
+    "show": "Mostrar {label}",
+    "hide": "Ocultar {label}",
+    "next": "Siguiente {label}",
+    "prev": "Anterior {label}",
+    "approximate": "aprox.",
+    "approximateHint": "Aproximado: coincide por forma de la palabra, no por la palabra del idioma original",
+    "interlinearNote": "Las marcas de Strong necesitan una traducción interlineal.",
+    "announce": "{label}, versículo {verse}, {index} de {total}"
   },
   "audio": {
     "listen": "Escuchar",

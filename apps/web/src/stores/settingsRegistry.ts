@@ -71,6 +71,18 @@ export const WEB_SETTINGS = defineSettings([
     description:
       'How far you must swipe across the Commentary pane before navigating to the previous or next verse.',
   },
+  {
+    key: 'keywordColorSafe',
+    type: 'boolean',
+    default: true,
+    scope: 'device',
+    group: 'keywords',
+    order: 1,
+    labelKey: 'settings.keywords.colorSafe',
+    label: 'Colour-safe keyword marks (extra underline and symbol cues)',
+    descriptionKey: 'settings.keywords.colorSafeHint',
+    description: 'Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone.',
+  },
 ]);
 
 function readBlob(): Record<string, unknown> {

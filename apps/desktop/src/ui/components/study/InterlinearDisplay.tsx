@@ -6,6 +6,7 @@ import { usePopupPosition } from '../../hooks/usePopupPosition';
 import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
+import { useKeywordMarkStore } from '../../stores/useKeywordMarkStore';
 import { HighlightedVerse } from '../highlights/HighlightRenderer';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
 import {
@@ -53,6 +54,8 @@ interface InterlinearDisplayProps {
   verseId: number;
   /** Owning module. Required: highlights are stored per module. */
   moduleId: number;
+  /** Bible tab whose keyword marks apply (task 0065). */
+  keywordTabId?: string;
   /** Task 0036, P0.1c - see `HighlightedVerse`'s prop of the same name. Forwarded to each cell's English word spans. */
   onWordMouseEnter?: (
     verseId: number,
@@ -143,8 +146,11 @@ const StrongsPreviewTooltip: React.FC<{
   position: { x: number; y: number };
   onClose: () => void;
   onMouseEnter?: () => void;
-}> = ({ strongsNumber, position, onClose, onMouseEnter }) => {
+  /** Bible tab whose keyword marks the "Mark in this chapter" action targets (task 0065). */
+  keywordTabId?: string;
+}> = ({ strongsNumber, position, onClose, onMouseEnter, keywordTabId }) => {
   const { t } = useI18n();
+  const addKeywordMark = useKeywordMarkStore((state) => state.addMarkFromWord);
   // Subscribed rather than read via getState(): this is render-time wiring for
   // an action the tooltip owns, and the selector keeps the reference stable.
   const searchStrongsNumber = useSearchStore((state) => state.searchStrongsNumber);
@@ -324,6 +330,19 @@ const StrongsPreviewTooltip: React.FC<{
           {t('ui.interlinear.searchOccurrences')}
         </button>
       )}
+      {!loading && keywordTabId && (
+        <button
+          type="button"
+          onClick={() => {
+            void addKeywordMark(keywordTabId, { text: strongsNumber, strongs: strongsNumber }, 'strongs');
+            onClose();
+          }}
+          className="mt-1 w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          data-testid="strongs-mark-in-chapter"
+        >
+          {t('keywords.strongs.markInChapter')}
+        </button>
+      )}
     </div>
   );
 };
@@ -436,6 +455,7 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
   onStrongsClick,
   verseId,
   moduleId,
+  keywordTabId,
   onWordMouseEnter,
   onWordMouseLeave,
 }) => {
@@ -468,7 +488,7 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
   // rendering of those words when interlinear is on, so it needs the same
   // resolved paint `HighlightedVerse` gets, not a separate decoration-free
   // path (acceptance criteria: "Study with interlinear on" must decorate).
-  const resolved = useResolvedVerseDecorations(verseId, moduleId, 'study', englishWords);
+  const resolved = useResolvedVerseDecorations(verseId, moduleId, 'study', englishWords, keywordTabId);
 
   // Fail soft. A module whose interlinear positions contradict its own text
   // would otherwise render a verse with words missing or duplicated; showing
@@ -489,6 +509,7 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
           verseId={verseId}
           verseHTML={displayHtml}
           moduleId={moduleId}
+          keywordTabId={keywordTabId}
           surface="study"
           onWordMouseEnter={onWordMouseEnter}
           onWordMouseLeave={onWordMouseLeave}
@@ -505,6 +526,7 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
         highlights={highlights}
         onStrongsClick={onStrongsClick}
         resolved={resolved}
+        keywordTabId={keywordTabId}
         onWordMouseEnter={onWordMouseEnter}
         onWordMouseLeave={onWordMouseLeave}
       />
@@ -520,6 +542,7 @@ const InterlinearDisplay: React.FC<InterlinearDisplayProps> = ({
       onWordMouseLeave={onWordMouseLeave}
       onStrongsClick={onStrongsClick}
       resolved={resolved}
+      keywordTabId={keywordTabId}
     />
   );
 };
@@ -636,6 +659,8 @@ interface LayoutProps {
   highlights: UserTextMarkup[];
   onStrongsClick?: (strongsNumber: string) => void;
   resolved: ResolvedVerse | null;
+  /** Bible tab whose keyword marks the Strong's tooltip's "Mark in this chapter" targets (task 0065). */
+  keywordTabId?: string;
   onWordMouseEnter?: (
     verseId: number,
     wordIndex: number,
@@ -650,7 +675,7 @@ interface LayoutProps {
  * Stacked layout - one `inline-block` column per cell: English on top, then
  * original language, transliteration and Strong's numbers.
  */
-const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, onWordMouseEnter, onWordMouseLeave }) => {
+const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, keywordTabId, onWordMouseEnter, onWordMouseLeave }) => {
   // Hover tooltip state. Show/hide timing (300ms show delay, 200ms hide
   // delay so the pointer can reach the tooltip) is shared with InlineLayout
   // via useHoverIntent rather than each layout keeping its own timeout refs.
@@ -748,6 +773,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
           position={hoveredStrongs.position}
           onClose={() => setHoveredStrongs(null)}
           onMouseEnter={cancelHide}
+          keywordTabId={keywordTabId}
         />
       )}
     </div>
@@ -758,7 +784,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
  * Inline layout - English text reads as prose, with each cell's original
  * language, transliteration and Strong's numbers in a small parenthetical.
  */
-const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, onWordMouseEnter, onWordMouseLeave }) => {
+const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStrongsClick, resolved, keywordTabId, onWordMouseEnter, onWordMouseLeave }) => {
   // Hover tooltip state
   const [hoveredStrongs, setHoveredStrongs] = useState<HoveredStrongs | null>(null);
   const { scheduleShow, scheduleHide, cancelHide } = useAmbientHoverIntent<HoveredStrongs>({
@@ -844,6 +870,7 @@ const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStr
           position={hoveredStrongs.position}
           onClose={() => setHoveredStrongs(null)}
           onMouseEnter={cancelHide}
+          keywordTabId={keywordTabId}
         />
       )}
     </p>

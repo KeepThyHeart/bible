@@ -162,6 +162,11 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     isEnabled,
     values: registryValues,
   });
+  const keywordFields = WEB_SETTINGS.toFields('keywords', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
   const audioEnabled = useStore(audioStore, () => audioStore.enabled);
@@ -568,6 +573,12 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   </label>
                   <div class="settings-panel__field-hint">{t('settings.theme.leftHandedHint')}</div>
                 </div>
+                <SettingsForm
+                  fields={keywordFields}
+                  values={registryValues}
+                  idPrefix="settings-keywords"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
               </div>
             )}
 

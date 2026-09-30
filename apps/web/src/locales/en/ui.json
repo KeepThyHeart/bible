@@ -323,6 +323,10 @@
       "draftNote": "Languages marked as drafts are machine-translated and have not yet been reviewed by a native speaker.",
       "betaNote": "Languages marked as beta are machine-translated and complete, but have not yet been reviewed by a native speaker. Corrections are welcome.",
       "moreComingNote": "More languages are on the way. Only translations that have been reviewed by a native speaker are offered here without a badge."
+    },
+    "keywords": {
+      "colorSafe": "Colour-safe keyword marks (extra underline and symbol cues)",
+      "colorSafeHint": "Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone."
     }
   },
   "copyDialog": {
@@ -779,6 +783,22 @@
     "submit": "Enter",
     "incorrectPassword": "Incorrect password.",
     "tooManyAttempts": "Too many attempts. Please try again later."
+  },
+  "keywordMarks": {
+    "button": "Keywords",
+    "buttonTitle": "Keyword marks",
+    "title": "Keyword marks",
+    "toggle": "Keyword marks",
+    "empty": "No keywords match in this chapter.",
+    "count": "{count, plural, one {# occurrence} other {# occurrences}}",
+    "show": "Show {label}",
+    "hide": "Hide {label}",
+    "next": "Next {label}",
+    "prev": "Previous {label}",
+    "approximate": "approx.",
+    "approximateHint": "Approximate: matched by word form, not by original-language word",
+    "interlinearNote": "Strong's marks need an interlinear translation.",
+    "announce": "{label}, verse {verse}, {index} of {total}"
   },
   "audio": {
     "listen": "Listen",

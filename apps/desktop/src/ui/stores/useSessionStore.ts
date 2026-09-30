@@ -177,6 +177,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         textSettings: get_('textSettings'),
         textSettingsCustomized: get_('textSettingsCustomized'),
         preferences: get_('preferences'),
+        // Task 0065: keyword-mark switches per Bible tab (not yet in core's SessionData.ui type).
+        ...(serializers.has('keywordMarks') ? { keywordMarks: get_('keywordMarks') } : {}),
         ...get_('fileNotes')
       }
     };

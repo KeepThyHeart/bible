@@ -17,6 +17,14 @@ export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue 
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
 
+export { MarkStylePicker, DEFAULT_MARK_STYLE_PICKER_LABELS } from './components/MarkStylePicker';
+export type { MarkStylePickerLabels, MarkStylePickerProps } from './components/MarkStylePicker';
+export { KeywordLegend, DEFAULT_KEYWORD_LEGEND_LABELS } from './components/KeywordLegend';
+export type { KeywordLegendLabels, KeywordLegendProps, LegendRow, LegendSuggestion } from './components/KeywordLegend';
+export { KeywordMarkEditor, DEFAULT_KEYWORD_MARK_EDITOR_LABELS } from './components/KeywordMarkEditor';
+export type { KeywordMarkEditorLabels, KeywordMarkEditorProps, KeywordMarkEditorField } from './components/KeywordMarkEditor';
+export { markCssColor } from './components/markStyle';
+
 // Genealogy explorer (task 0067). Layouts are computed by the app and passed in; nothing here imports them.
 export { GenealogyView, DEFAULT_GENEALOGY_VIEW_LABELS } from './components/Genealogy/GenealogyView';
 export type { GenealogyViewProps, GenealogyViewLabels, GenealogyViewport } from './components/Genealogy/GenealogyView';
@@ -69,3 +77,4 @@ export { useHoverIntent } from './components/useHoverIntent';
 export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
+

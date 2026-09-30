@@ -9,6 +9,7 @@ import StudyModeView from './study/StudyModeView';
 import { isTextSelectionActive } from '../utils/selectionUtils';
 import { HighlightSelector } from './highlights/HighlightSelector';
 import { HighlightedVerse } from './highlights/HighlightRenderer';
+import { useKeywordChapterSync } from '../extensions/useKeywordChapterSync';
 import BibleHeader from './BibleHeader';
 import { directionForLanguage, resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
@@ -96,6 +97,17 @@ const BibleVerseList: React.FC = () => {
       endVerseId: range.endVerseId ?? range.startVerseId,
     });
   }, [isParallelViewMode, moduleId, moduleAbbrev, currentBook, currentChapter]);
+  // Task 0065: keep this tab's keyword-mark match current for the chapter on screen.
+  useKeywordChapterSync({
+    tabId: activeTab?.tabId,
+    moduleId,
+    abbreviation: moduleAbbrev,
+    language: availableBibles.find((b) => b.abbreviation === moduleAbbrev)?.language_code,
+    bookNumber: currentBook,
+    chapter: currentChapter,
+    verses: currentVerses,
+    active: !isParallelViewMode,
+  });
   const hasGutterLane = useHasEnabledDecoratorLayers();
 
   // Task 0036 (P0.1c): word/verse hover popups. `surface` matches whichever
@@ -437,6 +449,7 @@ const BibleVerseList: React.FC = () => {
                                             verseId={verse.verse_id}
                                             verseHTML={verse.text_html || verse.text}
                                             moduleId={activeTab!.moduleId ?? 0}
+                                            keywordTabId={activeTab!.tabId}
                                             surface="reading"
                                             suffix={renderVerseIndicators(verse.verse_id, 'w-3 h-3', 'ms-0.5')}
                                             onWordMouseEnter={hoverTrigger.onWordMouseEnter}
@@ -553,6 +566,7 @@ const BibleVerseList: React.FC = () => {
                                   verseId={verse.verse_id}
                                   verseHTML={verse.text_html || verse.text}
                                   moduleId={activeTab!.moduleId ?? 0}
+                                  keywordTabId={activeTab!.tabId}
                                   surface="standard"
                                   suffix={renderVerseIndicators(verse.verse_id, 'w-3.5 h-3.5', 'ms-1')}
                                   onWordMouseEnter={hoverTrigger.onWordMouseEnter}

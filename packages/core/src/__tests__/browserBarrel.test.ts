@@ -118,10 +118,10 @@ describe('@bible/core/browser barrel', () => {
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
     // Settings registry and the web UserData store, the audio contracts, then
     // for the pure Timeline engine (calendar, layout, scale, store), then for
-    // the genealogy explorer (task 0067).
+    // the genealogy explorer (task 0067), then for the keyword-mark set store.
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(140);
+    expect(files.size).toBeLessThan(150);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

@@ -52,6 +52,14 @@ export interface VerseContextMenuProps {
   onReplaceBookmark?: (pinId: number) => void;
   /** Remove every bookmark on this verse. */
   onRemoveBookmark?: () => void;
+  /** Right-clicked word, for keyword marks (task 0065). Enables "Mark all ...". */
+  wordText?: string;
+  /** Mark every occurrence of the clicked word in the chapter. */
+  onMarkWord?: () => void;
+  /** Strong's number of the clicked word, when interlinear rows are available for it. */
+  wordStrongs?: string;
+  /** Mark every occurrence of the clicked word's lemma (Strong's number). */
+  onMarkLemma?: () => void;
 }
 
 /**
@@ -106,7 +114,11 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   isBookmarked = false,
   onAddBookmark,
   onReplaceBookmark,
-  onRemoveBookmark
+  onRemoveBookmark,
+  wordText,
+  onMarkWord,
+  wordStrongs,
+  onMarkLemma,
 }) => {
   const { t, i18n } = useI18n();
   const { registry } = useAppServices();
@@ -660,6 +672,38 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               <span>{i18n.resolve(item.label)}</span>
             </button>
           ))}
+        </>
+      )}
+
+      {wordText && onMarkWord && (
+        <>
+          <div className="border-t border-border-secondary my-1" role="separator" />
+          <button
+            onClick={() => {
+              onMarkWord();
+              onClose();
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+            data-testid="menu-mark-word"
+          >
+            <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>{t('keywords.menu.markWord', { word: wordText })}</span>
+          </button>
+          {wordStrongs && onMarkLemma && (
+            <button
+              onClick={() => {
+                onMarkLemma();
+                onClose();
+              }}
+              className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+              role="menuitem"
+              data-testid="menu-mark-lemma"
+            >
+              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>{t('keywords.menu.markLemma', { strongs: wordStrongs })}</span>
+            </button>
+          )}
         </>
       )}
 

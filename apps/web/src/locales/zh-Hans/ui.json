@@ -323,6 +323,10 @@
       "draftNote": "标记为“草稿”的语言由机器翻译生成，尚未经过母语者审校。",
       "betaNote": "标记为“测试版”的语言由机器翻译生成，内容已完整，但尚未经过母语者审校，欢迎提出更正。",
       "moreComingNote": "更多语言即将推出。只有经过母语者审校的译文才会在此处不带标记地显示。"
+    },
+    "keywords": {
+      "colorSafe": "色觉友好的关键词标记（额外的下划线和符号提示）",
+      "colorSafeHint": "为每个关键词标记添加下划线样式和符号，不再仅靠颜色区分。"
     }
   },
   "copyDialog": {
@@ -779,6 +783,22 @@
     "submit": "进入",
     "incorrectPassword": "密码错误。",
     "tooManyAttempts": "尝试次数过多，请稍后再试。"
+  },
+  "keywordMarks": {
+    "button": "关键词",
+    "buttonTitle": "关键词标记",
+    "title": "关键词标记",
+    "toggle": "关键词标记",
+    "empty": "本章没有匹配的关键词。",
+    "count": "{count, plural, other {# 处}}",
+    "show": "显示{label}",
+    "hide": "隐藏{label}",
+    "next": "下一处{label}",
+    "prev": "上一处{label}",
+    "approximate": "近似",
+    "approximateHint": "近似：按词形匹配，而非按原文词匹配",
+    "interlinearNote": "Strong 编号标记需要逐字对照译本。",
+    "announce": "{label}，第 {verse} 节，第 {index} 处，共 {total} 处"
   },
   "audio": {
     "listen": "收听",

@@ -5,6 +5,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { TranslationDialog } from './TranslationDialog';
+import { KeywordMarksButton } from './KeywordMarksButton';
 
 interface BibleToolbarProps {
   onOpenSettings?: (section?: string) => void;
@@ -187,6 +188,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
       </div>
 
       <div class="bible-toolbar__right">
+        <KeywordMarksButton />
+
         {audioEnabled && (
           <button
             class="bible-toolbar__btn bible-toolbar__listen"

@@ -7,6 +7,7 @@ import BookmarkMenu from './bible/BookmarkMenu';
 import ToolbarPopover from './bible/ToolbarPopover';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { openModuleManager } from '../utils/openModuleManager';
+import KeywordsButton from './keywords/KeywordsButton';
 
 /**
  * The Bible pane's single control band.
@@ -255,6 +256,9 @@ const BibleToolbar: React.FC = () => {
             </button>
           );
         })()}
+
+        {/* Keyword marks (task 0065): toggle + legend popover. */}
+        <KeywordsButton tabId={activeTab.tabId} />
       </div>
 
       {/* Right: settings + chapter navigation */}
