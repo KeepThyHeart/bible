@@ -24,6 +24,8 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 
+import { isReadableFormatVersion } from '@bible/core';
+
 import { BunSql } from './BunSql';
 
 /** Module types, as the filename prefix spells them. Lifted from `moduleDetector.ts`. */
@@ -358,6 +360,9 @@ export function isSupportedSchema(version: string | undefined): boolean {
   if (!version) return true; // absent means an early module; try it
   const major = Number.parseInt(version.split('.')[0] ?? '', 10);
   if (Number.isNaN(major)) return true;
+  // Pre-1.0 every 0.x minor is its own format, so it is an allow-list in core
+  // (`0.1` and `0.2` today; a `0.3` is refused, not guessed at).
+  if (major === 0) return isReadableFormatVersion(version);
   return major <= MAX_SCHEMA_MAJOR;
 }
 

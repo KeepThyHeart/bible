@@ -91,11 +91,12 @@ describe.skipIf(!hasKjv)('running a search', () => {
   });
 
   test('a query the index rejects is reported, not thrown', async () => {
-    const outcome = await runSearch('faith NEAR/3 works', target());
-    expect(outcome.error).toBeDefined();
-    // One line: SQLite appends the whole failing statement to its message.
+    // Core's query parser rejects broken syntax before any index is touched
+    // (module schema v0.2 moved keyword search to a sidecar index, so SQLite's
+    // own `fts5: syntax error` can no longer reach the caller).
+    const outcome = await runSearch('(faith', target());
+    expect(outcome.error).toContain('Unmatched opening parenthesis');
     expect(outcome.error).not.toContain('\n');
-    expect(outcome.error).toContain('fts5');
   });
 
   test('an unmatched quote is refused before it reaches SQLite', async () => {

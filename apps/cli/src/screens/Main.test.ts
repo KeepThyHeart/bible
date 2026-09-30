@@ -939,7 +939,7 @@ describe.skipIf(!hasKjv)('the main screen — `/` search', () => {
     await screen.submit(classifyInput('zzzzqqq', { book: JOHN, chapter: 3 }), ctx);
     expect(textOf(screen.view(ctx))).toContain('No verse in KJV matches');
 
-    await screen.submit(classifyInput('faith NEAR/3 works', { book: JOHN, chapter: 3 }), ctx);
+    await screen.submit(classifyInput('(faith', { book: JOHN, chapter: 3 }), ctx);
     expect(textOf(screen.view(ctx))).toContain('could not be run');
   });
 
