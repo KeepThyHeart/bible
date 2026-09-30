@@ -16,6 +16,21 @@ export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/H
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
+
+// Genealogy explorer (task 0067). Layouts are computed by the app and passed in; nothing here imports them.
+export { GenealogyView, DEFAULT_GENEALOGY_VIEW_LABELS } from './components/Genealogy/GenealogyView';
+export type { GenealogyViewProps, GenealogyViewLabels, GenealogyViewport } from './components/Genealogy/GenealogyView';
+export { PersonCard, DEFAULT_PERSON_CARD_LABELS } from './components/Genealogy/PersonCard';
+export type { PersonCardProps, PersonCardLabels } from './components/Genealogy/PersonCard';
+export { PersonSearch, DEFAULT_PERSON_SEARCH_LABELS } from './components/Genealogy/PersonSearch';
+export type { PersonSearchProps, PersonSearchLabels } from './components/Genealogy/PersonSearch';
+export { TribeLegend, DEFAULT_TRIBE_LEGEND_LABELS } from './components/Genealogy/TribeLegend';
+export type { TribeLegendProps, TribeLegendLabels } from './components/Genealogy/TribeLegend';
+export { LineageCompare, DEFAULT_LINEAGE_COMPARE_LABELS } from './components/Genealogy/LineageCompare';
+export type { LineageCompareProps, LineageCompareLabels } from './components/Genealogy/LineageCompare';
+export { GenealogyExplorer, DEFAULT_GENEALOGY_EXPLORER_LABELS } from './components/Genealogy/GenealogyExplorer';
+export type { GenealogyExplorerProps, GenealogyExplorerLabels } from './components/Genealogy/GenealogyExplorer';
+export { labelVisible, nearestInDirection, shapeOf } from './components/Genealogy/geometry';
 export { TimelineView } from './components/Timeline/TimelineView';
 export type { TimelineViewProps } from './components/Timeline/TimelineView';
 export { TimelineItemCard } from './components/Timeline/TimelineItemCard';

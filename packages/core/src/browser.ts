@@ -273,6 +273,9 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
+// --- Genealogy explorer (task 0067): DTOs, graph queries, layouts, pan/zoom ---
+export * from './Genealogy';
+
 // --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
 export * from './Timeline';
 

@@ -27,6 +27,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Copy & Export](features/copy-export.md) | Verse copying with multiple format options |
 | [Modules](features/modules.md) | Module management and data loading (Bible, Commentary, Dictionary), plus the Dictionary pane and its search |
 | [Topics & Tag Graph](features/topics.md) | Topical index browsing (Nave's, Torrey's) and tag graph entities |
+| [Genealogy Explorer](features/genealogy.md) | Family tree mode of the Study pane (line to Christ, family, tribes); flag `features.genealogy`, needs the tag graph |
 | [Server & API](features/server-api.md) | Express backend, database management, API routes |
 | [Mobile Study Pane](features/navigation-layout.md#mobile-study-pane) | All-in-one mobile study hub with icon grid, breadcrumb navigation, verse history |
 | [State Management](features/state-management.md) | Store architecture, data providers, hooks |

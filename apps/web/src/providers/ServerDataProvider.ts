@@ -14,6 +14,7 @@ import type {
   ITagGraphDataProvider,
   IDataProviders,
 } from './interfaces';
+import type { IGenealogyDataProvider, GenealogyDatasetDto } from '@bible/core/browser';
 import { StudyOverviewProvider } from './StudyOverviewProvider';
 import { bootFetch } from '../utils/bootPrefetch';
 import { settingsStore } from '../stores/settingsStore';
@@ -358,6 +359,24 @@ class TagGraphDataProvider implements ITagGraphDataProvider {
   }
 }
 
+/** Genealogy explorer dataset (task 0067): one whole JSON, fetched once and cached in memory. */
+export class GenealogyDataProvider implements IGenealogyDataProvider {
+  private cached: Promise<GenealogyDatasetDto | null> | null = null;
+
+  constructor(private baseUrl: string) {}
+
+  // The server holds one genealogy dataset, so the optional module argument is ignored.
+  getDataset(_module?: string): Promise<GenealogyDatasetDto | null> {
+    if (!this.cached) {
+      this.cached = fetchJson<GenealogyDatasetDto | null>(`${this.baseUrl}/api/taggraph/genealogy`).catch(err => {
+        this.cached = null; // do not cache failures
+        throw err;
+      });
+    }
+    return this.cached;
+  }
+}
+
 export function createServerProviders(baseUrl: string): IDataProviders {
   return {
     bible: new BibleDataProvider(baseUrl),
@@ -370,5 +389,6 @@ export function createServerProviders(baseUrl: string): IDataProviders {
     topical: new TopicalDataProvider(baseUrl, () => settingsStore.excludedTopicalModules),
     tagGraph: new TagGraphDataProvider(baseUrl),
     studyOverview: new StudyOverviewProvider(baseUrl),
+    genealogy: new GenealogyDataProvider(baseUrl),
   };
 }

@@ -160,6 +160,12 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
 
+      // Priority 0: Close the family tree sheet
+      if (studyStore.familyTreeOpen) {
+        studyStore.closeFamilyTree();
+        return;
+      }
+
       // Priority 1: Close topics browser overlay
       if (studyStore.topicsBrowserOpen) {
         studyStore.closeTopicsBrowser();

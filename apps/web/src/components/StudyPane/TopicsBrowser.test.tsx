@@ -248,6 +248,39 @@ describe('TopicsBrowser', () => {
   });
 
   // ------------------------------------------------------------------
+  // Show family tree (genealogy explorer)
+  // ------------------------------------------------------------------
+  async function openFirstEntity(extra: Record<string, unknown>, entities = makeVerseEntities(1)) {
+    const tagGraphProvider = makeTagGraphProvider();
+    const utils = render(
+      <TopicsBrowser {...defaultProps} verseEntities={entities} tagGraphProvider={tagGraphProvider} {...extra} />
+    );
+    await act(async () => { fireEvent.click(utils.container.querySelector<HTMLElement>('.entity-card--clickable')!); });
+    return utils;
+  }
+
+  it('shows a family tree action on a person detail view and reports the entity id and name', async () => {
+    const onShowFamilyTree = vi.fn();
+    const { container } = await openFirstEntity({ onShowFamilyTree });
+    const button = container.querySelector<HTMLElement>('.topics-browser__family-tree')!;
+    expect(button).toBeTruthy();
+    expect(button.textContent).toContain('genealogyPane.showFamilyTree');
+    fireEvent.click(button);
+    expect(onShowFamilyTree).toHaveBeenCalledWith('entity-1', 'Person 1');
+  });
+
+  it('shows no family tree action when onShowFamilyTree is not provided', async () => {
+    const { container } = await openFirstEntity({});
+    expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
+  });
+
+  it('shows no family tree action for a place', async () => {
+    const places = [{ entity_id: 'p1', category: 'places', name: 'Bethel' }] as TagGraphEntityData[];
+    const { container } = await openFirstEntity({ onShowFamilyTree: vi.fn() }, places);
+    expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
+  });
+
+  // ------------------------------------------------------------------
   // Search
   // ------------------------------------------------------------------
   it('clears search when the cancel button is clicked', async () => {

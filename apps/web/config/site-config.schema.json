@@ -37,6 +37,11 @@
           "description": "Enable the tag graph visualization feature.",
           "default": false
         },
+        "genealogy": {
+          "type": "boolean",
+          "description": "Enable the genealogy explorer. Requires tagGraph to be true (the genealogy data lives in the tag graph database); ignored when tagGraph is false.",
+          "default": false
+        },
         "timeline": {
           "type": "boolean",
           "description": "Show the Timeline explorer tab. Without an installed timeline module the tab shows an install hint.",
