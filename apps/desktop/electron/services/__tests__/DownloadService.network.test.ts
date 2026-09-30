@@ -65,6 +65,27 @@ describe('DownloadService via NetworkGateway', () => {
     expect(gateway.downloadCalls[0]!.headers).toEqual({ Range: `bytes=${'partial'.length}-` });
   });
 
+  it('restarts from zero when the server answers 200 to a Range request', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 200, chunks: ['whole-file'] });
+    await service.startDownload(3, 'https://cdn.example/module.db', destination);
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('whole-file');
+  });
+
+  it('appends a 206 body to the partial', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 206, chunks: ['-rest'] });
+    await service.startDownload(4, 'https://cdn.example/module.db', destination);
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('partial-rest');
+  });
+
+  it('drops the partial on 416 so a retry starts clean', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 416, chunks: [] });
+    await expect(service.startDownload(5, 'https://cdn.example/module.db', destination)).rejects.toThrow(/416/);
+    expect(fs.existsSync(destination)).toBe(false);
+  });
+
   it('creates the destination folder when a fresh profile has none', async () => {
     const nested = path.join(path.dirname(destination), 'temp', 'downloads', 'module.db.gz');
     gateway.downloadStreamImpl = async () => downloadResult({ status: 200, chunks: ['module-bytes'] });

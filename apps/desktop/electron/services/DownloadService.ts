@@ -131,10 +131,25 @@ export class DownloadService implements IDownloadService {
     const { queueId, destination } = state;
     const { status, headers, response, request } = stream;
     state.request = request;
+    // A 200 to a Range request means the server ignored the range (or the file
+    // changed) and is sending the WHOLE body. Appending it to the partial would
+    // corrupt the file, so restart from zero and truncate instead.
+    if (startByte > 0 && status === 200) {
+      startByte = 0;
+      state.bytesDownloaded = 0;
+    }
 
     return new Promise<string>((resolve, reject) => {
       // Check for successful response
       if (status !== 200 && status !== 206) {
+        // 416: the partial is longer than (or unrelated to) the file; drop it so a retry starts clean.
+        if (status === 416 && startByte > 0) {
+          try {
+            fs.rmSync(destination, { force: true });
+          } catch {
+            /* ignore */
+          }
+        }
         const error = new Error(`Download failed with status ${status}`);
         this.handleError(queueId, error);
         reject(error);
