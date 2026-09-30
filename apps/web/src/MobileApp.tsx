@@ -473,7 +473,6 @@ export function MobileApp({ providers }: MobileAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
-          word={contextMenu.word}
         />
       )}
     </div>

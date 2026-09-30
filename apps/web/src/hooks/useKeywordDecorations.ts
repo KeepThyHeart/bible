@@ -40,11 +40,10 @@ const NONE: KeywordDecorations = { marks: null, resolved: null };
  */
 export function useKeywordDecorations(paneId: string, input: KeywordDecorationsInput): KeywordDecorations {
   // Re-render on any store change (sets, pane state, interlinear cache).
-  useStore(keywordMarkStore, () => keywordMarkStore.setsRevision + keywordMarkStore.interlinearRevision);
+  useStore(keywordMarkStore, () => keywordMarkStore.interlinearRevision);
   const enabled = keywordMarkStore.isEnabled(paneId);
   const { book, chapter, moduleAbbr, moduleId, language, verses, surface, studyRows, interlinearProvider } = input;
 
-  useEffect(() => { if (enabled) void keywordMarkStore.init(); }, [enabled]);
 
   const chapterKey = `${moduleAbbr}:${book}:${chapter}`;
   const studySpans = useMemo(

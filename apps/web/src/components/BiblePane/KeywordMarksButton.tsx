@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { KeywordLegend, type LegendRow } from '@bible/ui';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { keywordMarkStore } from '../../stores/keywordMarkStore';
 import { useStore } from '../../hooks/useStore';
-import { buildChapterInput } from '../../keywordMarks/chapterMarks';
 import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
-import { directionForLanguage, nextFreeColor } from '@bible/core/browser';
-import { MarkEditorDialog, KeywordSetsDialog } from './KeywordDialogs';
+import { directionForLanguage } from '@bible/core/browser';
 import { legendLabels } from './keywordLabels';
 
 const FLASH_MS = 1400;
@@ -25,7 +23,8 @@ function revealOccurrence(verseId: number, start: number): void {
 
 /**
  * The "Keywords" toolbar button: a pressed toggle with an occurrence-count badge that opens the
- * keyword legend panel (rows, stepping, suggestions, add/edit, manage sets).
+ * keyword legend panel (rows, stepping). Web offers the built-in sets only, so the panel has no
+ * add, edit or manage-sets controls.
  */
 export function KeywordMarksButton() {
   const { t } = useTranslation();
@@ -34,10 +33,7 @@ export function KeywordMarksButton() {
   const enabled = useStore(keywordMarkStore, () => keywordMarkStore.isEnabled(paneId));
   const rows = keywordMarkStore.legend(paneId);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<{ markId?: string } | null>(null);
-  const [showSets, setShowSets] = useState(false);
   const [announcement, setAnnouncement] = useState('');
-  const [notice, setNotice] = useState('');
   const cursors = useRef(new Map<string, number>());
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -54,18 +50,10 @@ export function KeywordMarksButton() {
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, []);
 
-  useEffect(() => { if (open) void keywordMarkStore.init(); }, [open]);
-
   const total = enabled ? rows.filter((r) => !r.hidden).reduce((n, r) => n + r.hits, 0) : 0;
   const bibleModule = moduleStore.getBibleModules().find((m) => m.abbreviation === tab?.moduleAbbr);
   const language = bibleModule?.language_code ?? 'en';
   const dir = directionForLanguage(language);
-
-  const suggestions = useMemo(() => {
-    if (!open || !tab || bibleModule?.module_id === undefined || tab.verses.length === 0) return [];
-    return keywordMarkStore.suggestKeywords(buildChapterInput(bibleModule.module_id, language, tab.verses));
-  // Rows are in the deps so an accepted suggestion (which becomes a row) drops out of the list.
-  }, [open, tab?.verses, bibleModule?.module_id, language, rows.length]);
 
   if (!tab) return null;
 
@@ -88,21 +76,6 @@ export function KeywordMarksButton() {
     const label = rows.find((r) => r.markId === id)?.label ?? '';
     setAnnouncement(t('keywordMarks.announce', { label, verse: o.verseId % 1000, index: idx + 1, total: occ.length }));
   };
-
-  const editRow = (id: string) => {
-    const found = keywordMarkStore.findMark(id);
-    if (found?.set.builtIn) { setNotice(t('keywordMarks.builtInReadOnly')); return; }
-    setNotice('');
-    setEditing({ markId: id });
-    setOpen(false);
-  };
-
-  const acceptSuggestion = (key: string) => {
-    const s = suggestions.find((x) => `${x.label}` === key);
-    if (s) void keywordMarkStore.addMark(paneId, s.rule, s.label);
-  };
-
-  const editedMark = editing?.markId ? keywordMarkStore.findMark(editing.markId)?.mark : undefined;
 
   return (
     <div class="bible-toolbar__keywords" ref={wrapRef}>
@@ -128,28 +101,13 @@ export function KeywordMarksButton() {
             rows={legendRows}
             onToggleRow={(id) => keywordMarkStore.toggleMark(paneId, id)}
             onStep={step}
-            onAdd={() => { setEditing({}); setOpen(false); }}
-            onEdit={editRow}
-            onManageSets={() => { setShowSets(true); setOpen(false); }}
-            suggestions={suggestions.map((s) => ({ key: s.label, label: s.label, count: s.count }))}
-            onAcceptSuggestion={acceptSuggestion}
             interlinearNote={keywordMarkStore.needsInterlinear(paneId) ? t('keywordMarks.interlinearNote') : null}
             announcement={announcement}
             labels={legendLabels(t)}
             dir={dir}
           />
-          {notice && <p class="kth-legend__note" role="status">{notice}</p>}
         </div>
       )}
-      {editing && (
-        <MarkEditorDialog
-          paneId={paneId}
-          mark={editedMark}
-          defaultColor={editedMark ? undefined : nextFreeColor(keywordMarkStore.sets)}
-          onClose={() => setEditing(null)}
-        />
-      )}
-      {showSets && <KeywordSetsDialog onClose={() => setShowSets(false)} />}
     </div>
   );
 }

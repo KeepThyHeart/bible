@@ -1,44 +1,31 @@
 /**
  * Keyword-mark state for the web reader (task 0065).
  *
- * Holds the keyword sets (a `KeywordSetService` over an `IKeywordSetStore`,
- * the web user-data store, `getUserData()`, with the old localStorage blob migrated once), per-pane state
- * (`enabled`, `activeSetIds`, `hiddenMarkIds`, persisted per pane), the
- * colour-safe flag, and a per-chapter interlinear cache. It also memoises the
- * match for the chapter in view. The legend / occurrences / suggestion
- * selectors and the toggle / add actions are what the toolbar and legend UI
- * call.
+ * Web is read-only for personal content until accounts exist (task 0063), so only the
+ * built-in keyword sets are offered: there is no creating, editing, importing or deleting
+ * of custom sets here. Holds per-pane state (`enabled`, `activeSetIds`, `hiddenMarkIds`,
+ * persisted per pane in localStorage, a UI preference), the colour-safe flag, and a
+ * per-chapter interlinear cache. It also memoises the match for the chapter in view. The
+ * legend and occurrence selectors and the toggle actions are what the toolbar and legend
+ * UI call. The core `KeywordSetService` is storage-agnostic, so custom sets can return
+ * on web once accounts land.
  */
 import {
   BUILT_IN_KEYWORD_SETS,
-  KeywordSetService,
-  suggestKeywords,
   occurrencesOf,
-  type ChapterInput,
-  type IKeywordSetStore,
   type InterlinearSpan,
-  type KeywordMark,
   type KeywordSet,
-  type KeywordSuggestion,
-  type KeywordValidationError,
-  type MatchRule,
   type StringStorage,
 } from '@bible/core/browser';
 import { Store } from './Store';
-import { WebKeywordSetStore, onKeywordSetsChangedElsewhere } from '../keywordMarks/userDataSetStore';
 import { webSettings } from './settingsRegistry';
 import type { InterlinearWordData, VerseData } from '../types';
 import {
-  MY_KEYWORDS_SET_NAME,
   buildChapterInput,
   computeChapterMarks,
-  findMarkByRule,
   interlinearToSpans,
-  newMark,
-  ruleForPick,
   type ChapterMarks,
   type LegendRow,
-  type WordPick,
 } from '../keywordMarks/chapterMarks';
 
 const STORAGE_KEY = 'bible-keyword-marks';
@@ -69,14 +56,12 @@ interface MatchCacheEntry {
   chapterKey: string;
   verses: readonly VerseData[];
   interlinear: InterlinearSpan[] | undefined;
-  setsRevision: number;
   paneKey: string;
   marks: ChapterMarks;
 }
 
 export interface KeywordMarkStoreOptions {
   storage?: StringStorage | null;
-  setStore?: IKeywordSetStore;
 }
 
 function defaultStorage(): StringStorage | null {
@@ -88,9 +73,8 @@ function defaultStorage(): StringStorage | null {
 }
 
 export class KeywordMarkStore extends Store {
-  sets: KeywordSet[] = [...BUILT_IN_KEYWORD_SETS];
-  /** Bumped whenever the sets change; part of the match memo key. */
-  setsRevision = 0;
+  /** The built-in sets; web offers no custom sets (see the file header). */
+  readonly sets: readonly KeywordSet[] = BUILT_IN_KEYWORD_SETS;
   /** Bumped when an interlinear fetch lands, so consumers recompute. */
   interlinearRevision = 0;
 
@@ -100,41 +84,20 @@ export class KeywordMarkStore extends Store {
   }
 
   private readonly storage: StringStorage | null;
-  private readonly service: KeywordSetService;
   private readonly panes = new Map<string, PaneKeywordState>();
   private readonly interlinear = new Map<string, InterlinearSpan[]>();
   private readonly pending = new Set<string>();
   private readonly cache = new Map<string, MatchCacheEntry>();
   private readonly announced = new Map<string, ChapterMarks | null>();
-  private initPromise: Promise<void> | null = null;
-  private readonly hasCustomSetStore: boolean;
 
   constructor(opts: KeywordMarkStoreOptions = {}) {
     super();
-    this.hasCustomSetStore = !!opts.setStore;
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
-    this.service = new KeywordSetService(opts.setStore ?? new WebKeywordSetStore());
     this.readPersisted();
     let lastColorSafe = this.colorSafe;
     webSettings.subscribe(() => {
       if (this.colorSafe !== lastColorSafe) { lastColorSafe = this.colorSafe; this.notify(); }
     });
-    this.service.subscribe((sets) => {
-      this.sets = sets;
-      this.setsRevision++;
-      this.notify();
-    });
-  }
-
-  /** Load the user's sets once. Safe to call from every render. */
-  init(): Promise<void> {
-    if (!this.initPromise) {
-      this.initPromise = this.service.load().then(() => undefined, () => undefined);
-      if (!this.hasCustomSetStore) {
-        onKeywordSetsChangedElsewhere(() => { void this.service.load().catch(() => undefined); });
-      }
-    }
-    return this.initPromise;
   }
 
   // ---- pane state -------------------------------------------------------
@@ -220,7 +183,7 @@ export class KeywordMarkStore extends Store {
 
   /**
    * Marks for the chapter in view, or null when the pane has them off.
-   * Memoised per chapter, verses, interlinear, sets and pane settings.
+   * Memoised per chapter, verses, interlinear and pane settings.
    */
   getChapterMarks(paneId: string, ctx: ChapterContext): ChapterMarks | null {
     const pane = this.getPaneState(paneId);
@@ -230,14 +193,14 @@ export class KeywordMarkStore extends Store {
     const hit = this.cache.get(paneId);
     if (
       hit && hit.chapterKey === ctx.chapterKey && hit.verses === ctx.verses
-      && hit.interlinear === interlinear && hit.setsRevision === this.setsRevision && hit.paneKey === paneKey
+      && hit.interlinear === interlinear && hit.paneKey === paneKey
     ) return hit.marks;
     const input = buildChapterInput(ctx.moduleId, ctx.language, ctx.verses, interlinear);
     const marks = computeChapterMarks(input, this.activeSets(paneId), {
       colorSafe: this.colorSafe, hiddenMarkIds: new Set(pane.hiddenMarkIds),
     });
     this.cache.set(paneId, {
-      chapterKey: ctx.chapterKey, verses: ctx.verses, interlinear, setsRevision: this.setsRevision, paneKey, marks,
+      chapterKey: ctx.chapterKey, verses: ctx.verses, interlinear, paneKey, marks,
     });
     return marks;
   }
@@ -274,97 +237,11 @@ export class KeywordMarkStore extends Store {
     return marks ? occurrencesOf(marks.result, markId) : [];
   }
 
-  /** Words worth marking in this chapter. Works while marks are off, from the chapter input alone. */
-  suggestKeywords(input: ChapterInput | null | undefined): KeywordSuggestion[] {
-    return input ? suggestKeywords(input) : [];
-  }
-
-  // ---- actions that create marks ----------------------------------------
-
-  /** Add a mark with `rule` to the user's "My keywords" set and switch it on in the pane. Returns the mark id. */
-  async addMark(paneId: string, rule: MatchRule, label: string): Promise<string> {
-    await this.init();
-    const existing = findMarkByRule(this.sets, rule);
-    let markId: string;
-    let setId: string;
-    if (existing) {
-      markId = existing.id;
-      setId = this.sets.find((s) => s.marks.some((m) => m.id === existing.id))!.id;
-    } else {
-      const mark = newMark(rule, label, this.sets);
-      await this.appendToMine(paneId, mark);
-      return mark.id;
-    }
-    const pane = this.getPaneState(paneId);
-    this.patchPane(paneId, {
-      enabled: true,
-      activeSetIds: pane.activeSetIds.includes(setId) ? pane.activeSetIds : [...pane.activeSetIds, setId],
-      hiddenMarkIds: pane.hiddenMarkIds.filter((i) => i !== markId),
-    });
-    return markId;
-  }
-
-  /** Mark every occurrence of a tapped word (`'word'`) or of its Strong's number (`'strongs'`). Null when the pick has nothing to match. */
-  async addMarkFromWord(paneId: string, pick: WordPick, kind: 'word' | 'strongs'): Promise<string | null> {
-    const rule = ruleForPick(pick, kind);
-    if (!rule) return null;
-    const word = pick.text.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
-    const label = rule.kind === 'strongs' ? `${word} (${rule.numbers[0]})`.trim() : word;
-    return this.addMark(paneId, rule, label);
-  }
-
-  /** Append `mark` to "My keywords" (created on demand) and switch that set on in the pane. */
-  private async appendToMine(paneId: string, mark: KeywordMark): Promise<void> {
-    let mine = this.sets.find((s) => !s.builtIn && s.name === MY_KEYWORDS_SET_NAME);
-    if (!mine) mine = await this.service.create(MY_KEYWORDS_SET_NAME);
-    await this.service.addMark(mine.id, mark);
-    const pane = this.getPaneState(paneId);
-    this.patchPane(paneId, {
-      enabled: true,
-      activeSetIds: pane.activeSetIds.includes(mine.id) ? pane.activeSetIds : [...pane.activeSetIds, mine.id],
-      hiddenMarkIds: pane.hiddenMarkIds.filter((i) => i !== mark.id),
-    });
-  }
-
-  // ---- set management (the Manage sets dialog and the mark editor) --------
-
   /** Whether the last match wants Strong's data it does not have (the legend then says so). */
   needsInterlinear(paneId: string): boolean {
     const marks = this.lastMarks(paneId);
     return !!marks && marks.result.needsInterlinear && !marks.input.interlinear;
   }
-
-  /** A mark and the set that holds it. */
-  findMark(markId: string): { set: KeywordSet; mark: KeywordMark } | undefined {
-    for (const set of this.sets) {
-      const mark = set.marks.find((m) => m.id === markId);
-      if (mark) return { set, mark };
-    }
-    return undefined;
-  }
-
-  /** Save an edited mark in its (user) set, or add a new one to "My keywords". */
-  async saveMark(paneId: string, mark: KeywordMark): Promise<void> {
-    await this.init();
-    const found = this.findMark(mark.id);
-    if (!found) {
-      await this.appendToMine(paneId, mark);
-      return;
-    }
-    if (found.set.builtIn) throw new Error('Built-in marks are read-only.');
-    await this.service.save({ ...found.set, marks: found.set.marks.map((m) => (m.id === mark.id ? mark : m)) });
-  }
-
-  async deleteMark(markId: string): Promise<void> {
-    const found = this.findMark(markId);
-    if (!found || found.set.builtIn) return;
-    await this.service.save({ ...found.set, marks: found.set.marks.filter((m) => m.id !== markId) });
-  }
-
-  duplicateSet(id: string): Promise<KeywordSet> { return this.service.duplicate(id); }
-  removeSet(id: string): Promise<void> { return this.service.remove(id); }
-  exportSet(id: string): string { return this.service.export(id); }
-  importSet(text: string): Promise<KeywordSet | KeywordValidationError[]> { return this.service.import(text); }
 
   // ---- persistence -------------------------------------------------------
 

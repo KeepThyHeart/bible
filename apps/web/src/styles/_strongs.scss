@@ -115,24 +115,6 @@
     font-style: italic;
   }
 
-  &__mark-btn {
-    display: inline-flex;
-    align-items: center;
-    flex: none;
-    margin-inline-start: 8px;
-    padding: 4px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-secondary);
-    color: var(--accent-color);
-    font-size: calc(12px * var(--ui-font-scale, 1));
-    cursor: pointer;
-
-    &:hover {
-      background: var(--bg-tertiary);
-    }
-  }
-
   &__search-btn {
     display: block;
     flex: none;

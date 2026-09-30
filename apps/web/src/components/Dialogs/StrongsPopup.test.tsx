@@ -30,12 +30,7 @@ vi.mock('../../stores/commentaryStore', () => ({
   },
 }));
 
-vi.mock('../../stores/keywordMarkStore', () => ({
-  keywordMarkStore: { addMarkFromWord: vi.fn(() => Promise.resolve('m1')) },
-}));
-
 import { StrongsPopup } from './StrongsPopup';
-import { keywordMarkStore } from '../../stores/keywordMarkStore';
 import type { StrongsEntryData } from '../../types';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -257,15 +252,5 @@ describe('StrongsPopup', () => {
       <StrongsPopup entry={entry} position={DEFAULT_POSITION} onClose={vi.fn()} />,
     );
     expect(container.querySelector('.strongs-popup__glosses')).toBeNull();
-  });
-
-  it('marks the Strong\'s number in the chapter', () => {
-    const onClose = vi.fn();
-    render(<StrongsPopup entry={makeEntry()} position={{ top: 0, left: 0 }} onClose={onClose} />);
-    fireEvent.click(screen.getByText('keywordMarks.markInChapter'));
-    expect(keywordMarkStore.addMarkFromWord).toHaveBeenCalledWith(
-      'bible', expect.objectContaining({ strongs: 'G25' }), 'strongs',
-    );
-    expect(onClose).toHaveBeenCalled();
   });
 });

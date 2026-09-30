@@ -78,22 +78,4 @@ describe('ContextMenuPopup', () => {
     const dividers = container.querySelectorAll('.verse-context-menu__divider');
     expect(dividers.length).toBe(1);
   });
-
-  it('offers no keyword entries without a word', () => {
-    renderMenu();
-    expect(screen.queryByText(/keywordMarks\.wordMenu/)).toBeNull();
-  });
-
-  it('offers "mark all" for a word and reports it', () => {
-    const { onAction } = renderMenu({ word: { text: 'faith' } });
-    fireEvent.click(screen.getByText(/keywordMarks\.wordMenu\.markWord/));
-    expect(onAction).toHaveBeenCalledWith('mark-word');
-    expect(screen.queryByText(/markStrongs/)).toBeNull();
-  });
-
-  it('offers "mark lemma" only when the word has a Strong\'s number', () => {
-    const { onAction } = renderMenu({ word: { text: 'faith', strongs: 'G4102' } });
-    fireEvent.click(screen.getByText(/keywordMarks\.wordMenu\.markStrongs/));
-    expect(onAction).toHaveBeenCalledWith('mark-strongs');
-  });
 });

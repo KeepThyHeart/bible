@@ -3,8 +3,6 @@ import { Popover } from '@bible/ui';
 import type { StrongsEntryData } from '../../types';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
-import { keywordMarkStore } from '../../stores/keywordMarkStore';
-import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
 
 interface StrongsPopupProps {
   entry: StrongsEntryData | null;
@@ -84,18 +82,6 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         </div>
         <button class="strongs-popup__close" onClick={onClose}>
           <i class="fa-solid fa-xmark" />
-        </button>
-        <button
-          type="button"
-          class="strongs-popup__mark-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            void keywordMarkStore.addMarkFromWord(KEYWORD_PANE_ID, { text: entry.word, strongs: entry.strongsNumber }, 'strongs');
-            onClose();
-          }}
-        >
-          <i class="fa-solid fa-highlighter" style={{ marginInlineEnd: '4px' }} />
-          {t('keywordMarks.markInChapter')}
         </button>
       </div>
       <div class="strongs-popup__body">

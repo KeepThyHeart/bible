@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { KeywordSet } from '@bible/core/browser';
 import type { InterlinearWordData, VerseData } from '../types';
 import {
-  buildChapterInput, computeChapterMarks, findMarkByRule, interlinearToSpans, legendRows,
-  newMark, resolveChapterDecorations, ruleForPick, ruleKey,
+  buildChapterInput, computeChapterMarks, interlinearToSpans, legendRows, resolveChapterDecorations,
 } from './chapterMarks';
 
 function verse(n: number, html: string): VerseData {
@@ -17,6 +16,9 @@ const VERSES = [verse(16, 'For God so loved the world'), verse(17, 'God sent not
 
 function set(marks: KeywordSet['marks']): KeywordSet {
   return { schema: 1, id: 's1', name: 'S', scope: { kind: 'everywhere' }, marks, updatedAt: '2026-01-01T00:00:00Z' };
+}
+function newMark(rule: KeywordSet['marks'][number]['rule'], label: string, _sets: KeywordSet[]): KeywordSet['marks'][number] {
+  return { id: `mark-${label}`, label, rule, style: { color: 'mark.1', line: 'solid' }, enabled: true };
 }
 const GOD = newMark({ kind: 'word', forms: ['god'] }, 'God', []);
 
@@ -82,29 +84,5 @@ describe('resolveChapterDecorations', () => {
   it('paints nothing on an empty layer', () => {
     const marks = computeChapterMarks(buildChapterInput(1, 'en', VERSES), [], { colorSafe: true, hiddenMarkIds: new Set() });
     expect(resolveChapterDecorations(VERSES, marks.layer, 'standard').size).toBe(0);
-  });
-});
-
-describe('picking a word', () => {
-  it('builds word, phrase and Strong\'s rules', () => {
-    expect(ruleForPick({ text: 'Loved,' }, 'word')).toEqual({ kind: 'word', forms: ['loved'] });
-    expect(ruleForPick({ text: 'so that' }, 'word')).toEqual({ kind: 'phrase', text: 'so that' });
-    expect(ruleForPick({ text: 'loved', strongs: 'strong:g25' }, 'strongs')).toEqual({ kind: 'strongs', numbers: ['G25'] });
-    expect(ruleForPick({ text: 'loved' }, 'strongs')).toBeNull();
-    expect(ruleForPick({ text: '...' }, 'word')).toBeNull();
-  });
-
-  it('finds an existing mark for the same rule regardless of case', () => {
-    const s = set([GOD]);
-    expect(findMarkByRule([s], { kind: 'word', forms: ['GOD'] })?.id).toBe(GOD.id);
-    expect(findMarkByRule([s], { kind: 'word', forms: ['lord'] })).toBeUndefined();
-    expect(ruleKey({ kind: 'strongs', numbers: ['g25'] })).toBe(ruleKey({ kind: 'strongs', numbers: ['G25'] }));
-  });
-
-  it('gives a new mark the first least-used colour', () => {
-    const first = newMark({ kind: 'word', forms: ['a'] }, 'a', []);
-    const second = newMark({ kind: 'word', forms: ['b'] }, 'b', [set([first])]);
-    expect(first.style.color).toBe('mark.1');
-    expect(second.style.color).toBe('mark.2');
   });
 });

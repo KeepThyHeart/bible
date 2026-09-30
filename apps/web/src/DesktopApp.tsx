@@ -219,7 +219,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
-          word={contextMenu.word}
         />
       )}
     </div>

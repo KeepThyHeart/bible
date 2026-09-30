@@ -1,11 +1,11 @@
 /**
  * Tests for the Keywords toolbar button: pressed state and badge, the legend
- * panel, stepping (scroll, flash, announcement), suggestions and the dialogs.
- * The keyword store is the real singleton over an in-memory set store; the
- * Bible and module stores are mocked.
+ * panel and stepping (scroll, flash, announcement), and that web offers no custom-set
+ * controls (add, edit, manage sets, suggestions). The keyword store is the real singleton;
+ * the Bible and module stores are mocked.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -18,7 +18,7 @@ const verse = (n: number, html: string) => ({
   verse_id: 43003000 + n, book_number: 43, chapter: 3, verse: n, text: html, text_html: html,
   is_paragraph_start: false, words_of_christ: false,
 });
-const VERSES = [verse(1, 'love and love'), verse(2, 'we love faith faith faith faith'), verse(3, 'faith is good')];
+const VERSES = [verse(1, 'For God so loved the world'), verse(2, 'therefore we believe, therefore we speak'), verse(3, 'but the world knew him not')];
 
 vi.mock('../../stores/bibleStore', () => ({
   bibleStore: {
@@ -39,12 +39,10 @@ function paint() {
 }
 
 describe('KeywordMarksButton', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.clear();
     keywordMarkStore.togglePane('bible', false);
-    // Drop the user's marks between tests.
-    await keywordMarkStore.init();
-    for (const s of keywordMarkStore.sets) if (!s.builtIn) await keywordMarkStore.removeSet(s.id);
+    for (const id of keywordMarkStore.getPaneState('bible').hiddenMarkIds) keywordMarkStore.toggleMark('bible', id);
   });
 
   afterEach(() => { document.body.innerHTML = ''; });
@@ -56,80 +54,56 @@ describe('KeywordMarksButton', () => {
     expect(screen.queryByTestId('keyword-marks-badge')).toBeNull();
   });
 
-  it('shows the pressed state and an occurrence count once a mark is on', async () => {
-    await keywordMarkStore.addMark('bible', { kind: 'word', forms: ['faith'] }, 'faith');
+  it('shows the pressed state and an occurrence count once marks are on', () => {
+    keywordMarkStore.togglePane('bible', true);
     paint();
     render(<KeywordMarksButton />);
     expect(screen.getByTestId('keyword-marks-toggle').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('keyword-marks-badge').textContent).toBe('5');
+    const total = keywordMarkStore.legend('bible').reduce((n, r) => n + r.hits, 0);
+    expect(total).toBeGreaterThan(0);
+    expect(screen.getByTestId('keyword-marks-badge').textContent).toBe(String(total));
   });
 
-  it('opens the legend with a row per mark and toggles a row', async () => {
-    await keywordMarkStore.addMark('bible', { kind: 'word', forms: ['faith'] }, 'faith');
-    paint();
-    render(<KeywordMarksButton />);
-    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    const hide = screen.getByRole('button', { name: /keywordMarks\.hide.*faith/ });
-    fireEvent.click(hide);
-    await waitFor(() => expect(keywordMarkStore.getPaneState('bible').hiddenMarkIds).toHaveLength(1));
-  });
-
-  it('steps through occurrences: scrolls, flashes the word and announces it', async () => {
-    await keywordMarkStore.addMark('bible', { kind: 'word', forms: ['faith'] }, 'faith');
-    paint();
-    document.body.innerHTML = `<div data-verse-id="43003002">${
-      [0, 1, 2, 3, 4, 5].map((i) => `<span class="word" data-word-index="${i}">w${i}</span>`).join('')}</div>`;
-    const scroll = vi.fn();
-    (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView = scroll;
-    render(<KeywordMarksButton />, { container: document.body.appendChild(document.createElement('div')) });
-    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    fireEvent.click(screen.getByRole('button', { name: /keywordMarks\.next.*faith/ }));
-    // First "faith" is word 2 of verse 2.
-    expect(scroll).toHaveBeenCalled();
-    expect(document.querySelector('[data-word-index="2"]')!.classList.contains('keyword-flash')).toBe(true);
-    const status = screen.getByRole('status');
-    expect(status.textContent).toContain('"verse":2');
-    expect(status.textContent).toContain('"index":1');
-    expect(status.textContent).toContain('"total":5');
-    fireEvent.click(screen.getByRole('button', { name: /keywordMarks\.prev.*faith/ }));
-    expect(screen.getByRole('status').textContent).toContain('"index":5');
-  });
-
-  it('accepting a suggestion adds a mark', async () => {
-    const add = vi.spyOn(keywordMarkStore, 'addMark');
-    render(<KeywordMarksButton />);
-    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    const accept = await screen.findAllByRole('button', { name: /keywordMarks\.addSuggestion/ });
-    fireEvent.click(accept[0]);
-    expect(add).toHaveBeenCalled();
-    add.mockRestore();
-  });
-
-  it('opens the add-keyword dialog', () => {
-    render(<KeywordMarksButton />);
-    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    fireEvent.click(screen.getByRole('button', { name: 'keywordMarks.add' }));
-    expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('keywordMarks.newTitle');
-  });
-
-  it('opens the manage-sets dialog listing built-in sets without a delete button', () => {
-    render(<KeywordMarksButton />);
-    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    fireEvent.click(screen.getByRole('button', { name: 'keywordMarks.manageSets' }));
-    expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('keywordMarks.sets.title');
-    expect(screen.getAllByRole('button', { name: 'keywordMarks.sets.duplicate' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'keywordMarks.sets.delete' })).toBeNull();
-  });
-
-  it('says built-in marks are read-only instead of editing them', async () => {
+  it('opens the legend with a row per built-in mark and toggles a row', async () => {
     keywordMarkStore.togglePane('bible', true);
     paint();
     render(<KeywordMarksButton />);
     fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
-    const edit = screen.queryAllByRole('button', { name: /keywordMarks\.edit/ });
-    if (edit.length === 0) return; // chapter has no connective hits: nothing to edit
-    fireEvent.click(edit[0]);
-    expect(screen.getByText('keywordMarks.builtInReadOnly')).toBeTruthy();
-    await act(async () => {});
+    const hide = screen.getAllByRole('button', { name: /keywordMarks\.hide/ })[0];
+    fireEvent.click(hide);
+    await waitFor(() => expect(keywordMarkStore.getPaneState('bible').hiddenMarkIds).toHaveLength(1));
+  });
+
+  it('steps through occurrences: scrolls, flashes the word and announces it', () => {
+    keywordMarkStore.togglePane('bible', true);
+    paint();
+    const row = keywordMarkStore.legend('bible')[0];
+    const first = keywordMarkStore.occurrencesOf('bible', row.markId)[0];
+    document.body.innerHTML = `<div data-verse-id="${first.verseId}">${
+      Array.from({ length: 12 }, (_, i) => `<span class="word" data-word-index="${i}">w${i}</span>`).join('')}</div>`;
+    const scroll = vi.fn();
+    (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView = scroll;
+    render(<KeywordMarksButton />, { container: document.body.appendChild(document.createElement('div')) });
+    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
+    fireEvent.click(screen.getAllByRole('button', { name: /keywordMarks\.next/ })[0]);
+    expect(scroll).toHaveBeenCalled();
+    expect(document.querySelector(`[data-word-index="${first.start}"]`)!.classList.contains('keyword-flash')).toBe(true);
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain('"index":1');
+    expect(status.textContent).toContain(`"total":${row.hits}`);
+    fireEvent.click(screen.getAllByRole('button', { name: /keywordMarks\.prev/ })[0]);
+    expect(screen.getByRole('status').textContent).toContain(`"index":${row.hits}`);
+  });
+
+  it('offers no add, edit, manage-sets or suggestion controls (web is read-only for personal content)', () => {
+    keywordMarkStore.togglePane('bible', true);
+    paint();
+    render(<KeywordMarksButton />);
+    fireEvent.click(screen.getByTestId('keyword-marks-toggle'));
+    expect(screen.getAllByRole('button', { name: /keywordMarks\.hide/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'keywordMarks.add' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'keywordMarks.manageSets' })).toBeNull();
+    expect(screen.queryAllByRole('button', { name: /keywordMarks\.edit/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /keywordMarks\.addSuggestion/ })).toHaveLength(0);
   });
 });

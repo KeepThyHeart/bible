@@ -14,7 +14,7 @@
 | `suggest.ts` | `suggestKeywords`: frequent content words, grouped by Strong's when interlinear rows exist. |
 | `validate.ts` | `validateKeywordSet` for untrusted JSON; `exportKeywordSet` / `importKeywordSet`. |
 | `service.ts` | `KeywordSetService` (built-ins plus a store, change events), `IKeywordSetStore`, `MemoryKeywordSetStore`, `StorageKeywordSetStore` (localStorage-shaped). |
-| `UserDataKeywordSetStore.ts` | Store over `IUserDataRepository` (browser-safe, in both barrels): desktop passes SQLite, web the in-memory user-data store. |
+| `UserDataKeywordSetStore.ts` | Store over `IUserDataRepository` (browser-safe, in both barrels): desktop passes SQLite; web does not use it until accounts exist. |
 
 ## How it works
 
@@ -26,7 +26,7 @@ A connective category matches surface forms. With interlinear rows the hit only 
 
 ## Persistence
 
-One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. Web uses the same `UserDataKeywordSetStore` over `getUserData()` (`apps/web/src/keywordMarks/userDataSetStore.ts`); the old `kth.keywordSets` localStorage array is migrated in once with `migrateLocalStorage` (the old key is kept if some sets failed validation; when IndexedDB is unavailable the sets stay in localStorage), and other tabs' changes reload the sets. `StorageKeywordSetStore` remains for hosts with only a key-value store.
+One `user_data_item` per set: owner `app:keyword-marks`, collection `sets`, key = set id, JSON value. Backup treats it as content (newest wins). Which sets are switched on per Bible tab is app session state, not part of the set. **Web offers the built-in sets only.** Web is read-only for personal content until web accounts exist (task 0063): browser storage can be wiped, so nothing a user creates may look saved there. The web reader keeps the toggle, the legend (with stepping) and colour-safe mode, but has no creating, duplicating, editing, importing or deleting of custom sets, no "mark this word" menu entries and no suggestions; the web store (`apps/web/src/stores/keywordMarkStore.ts`) uses `BUILT_IN_KEYWORD_SETS` directly. Per-tab toggles and hidden marks are a UI preference in localStorage (`bible-keyword-marks`); a saved active-set id that is not built in is ignored. An old `kth.keywordSets` value left in a browser is neither read nor deleted. `KeywordSetService`, `UserDataKeywordSetStore` and `StorageKeywordSetStore` stay storage-agnostic, so web custom sets can return, on a store that syncs, once accounts land. Desktop keeps custom sets unchanged. `StorageKeywordSetStore` remains for hosts with only a key-value store.
 
 The colour-safe option is a registry setting, `keywordColorSafe` (device scope, default on): web Settings > Theme and the desktop Keywords popover both read and write it.
 
