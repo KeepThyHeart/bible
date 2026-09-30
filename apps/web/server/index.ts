@@ -14,6 +14,7 @@ import { createAudioRouter } from './routes/audioRoutes.js';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
+import './routes/offlineRoutes.js';
 import './routes/bibleRoutes.js';
 import './routes/commentaryRoutes.js';
 import './routes/interlinearRoutes.js';
@@ -385,6 +386,8 @@ const routeDeps = {
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
+    // /api/offline (pack builder manifest and files): on with either offline feature flag.
+    offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,

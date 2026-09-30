@@ -80,3 +80,14 @@ export type { SettingsFormLabels, SettingsFormProps } from './components/Setting
 
 export { AssetList, DEFAULT_ASSET_LIST_LABELS } from './components/AssetList';
 export type { AssetListProps, AssetListLabels, AssetListRow, AssetListStatus } from './components/AssetList';
+
+export { PackBuilder } from './components/PackBuilder';
+export type {
+  PackBuilderProps,
+  PackBuilderRow,
+  PackBuilderLabels,
+  PackBuilderSummary,
+  PackBuilderRun,
+  PackBuilderRunState,
+  PackBuilderStatus,
+} from './components/PackBuilder';

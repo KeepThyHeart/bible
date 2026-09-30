@@ -96,7 +96,18 @@ export class DownloadService implements IDownloadService {
       startByte = stats.size;
       state.bytesDownloaded = startByte;
     }
-    const headers = startByte > 0 ? { Range: `bytes=${startByte}-` } : undefined;
+    const headers: Record<string, string> | undefined =
+      startByte > 0 ? { Range: `bytes=${startByte}-` } : undefined;
+    if (headers) {
+      // If-Range makes the server answer 200 (whole file) instead of a stale
+      // 206 slice when the file changed since the partial began. Weak ETags
+      // are not valid for If-Range (RFC 9110), so only a strong one is sent.
+      const validator = this.readEtag(destination);
+      if (validator) headers['If-Range'] = validator;
+    } else {
+      // A fresh start owns no validator from an earlier, abandoned partial.
+      this.removeEtag(destination);
+    }
 
     let stream: DownloadStreamResult;
     try {
@@ -137,6 +148,7 @@ export class DownloadService implements IDownloadService {
     if (startByte > 0 && status === 200) {
       startByte = 0;
       state.bytesDownloaded = 0;
+      this.removeEtag(destination);
     }
 
     return new Promise<string>((resolve, reject) => {
@@ -144,6 +156,7 @@ export class DownloadService implements IDownloadService {
       if (status !== 200 && status !== 206) {
         // 416: the partial is longer than (or unrelated to) the file; drop it so a retry starts clean.
         if (status === 416 && startByte > 0) {
+          this.removeEtag(destination);
           try {
             fs.rmSync(destination, { force: true });
           } catch {
@@ -156,6 +169,31 @@ export class DownloadService implements IDownloadService {
         return;
       }
 
+      // A 206 must start exactly where we asked. A different (or unparseable)
+      // Content-Range means the body is the wrong slice; appending it would
+      // corrupt the file, and we cannot re-slice a stream that is already the
+      // wrong one. Simplest correct behaviour: abort, delete the partial and
+      // its validator, and fail with a retryable error so the retry starts
+      // clean from zero.
+      if (startByte > 0 && status === 206) {
+        const rangeStart = this.parseContentRangeStart(headers['content-range']);
+        if (rangeStart !== startByte) {
+          try {
+            request.abort();
+          } catch {
+            /* ignore */
+          }
+          fs.rmSync(destination, { force: true });
+          this.removeEtag(destination);
+          const error = new Error(
+            `Download resume mismatch: server returned a different byte range than requested (retry will restart from zero)`
+          );
+          this.handleError(queueId, error);
+          reject(error);
+          return;
+        }
+      }
+
       // Get total size
       const contentLength = headers['content-length'];
       if (contentLength) {
@@ -166,6 +204,22 @@ export class DownloadService implements IDownloadService {
       // The download directory is not created anywhere else, and a fresh
       // profile has none - without this, every first install fails with ENOENT.
       fs.mkdirSync(path.dirname(destination), { recursive: true });
+
+      // Remember the validator so a later resume can send If-Range. Only when
+      // this response begins the file; a resumed 206 keeps the existing one.
+      if (startByte === 0) {
+        const etag = headers['etag'];
+        const value = Array.isArray(etag) ? etag[0] : etag;
+        if (value && !value.startsWith('W/')) {
+          try {
+            fs.writeFileSync(this.etagPath(destination), value);
+          } catch {
+            /* best effort: resume simply goes without If-Range */
+          }
+        } else {
+          this.removeEtag(destination);
+        }
+      }
 
       // Create write stream (append mode if resuming)
       const writeStream = fs.createWriteStream(destination, {
@@ -239,6 +293,7 @@ export class DownloadService implements IDownloadService {
             }
 
             // Clean up
+            this.removeEtag(destination);
             this.downloads.delete(queueId);
 
             // Emit completion
@@ -270,6 +325,34 @@ export class DownloadService implements IDownloadService {
         reject(error);
       });
     });
+  }
+
+  private etagPath(destination: string): string {
+    return `${destination}.etag`;
+  }
+
+  private readEtag(destination: string): string | undefined {
+    try {
+      const value = fs.readFileSync(this.etagPath(destination), 'utf-8').trim();
+      return value || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private removeEtag(destination: string): void {
+    try {
+      fs.rmSync(this.etagPath(destination), { force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Start offset of `Content-Range: bytes START-END/TOTAL`, or undefined if unparseable. */
+  private parseContentRangeStart(value: string | string[] | undefined): number | undefined {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const match = raw ? /^\s*bytes\s+(\d+)-\d+\/(?:\d+|\*)\s*$/i.exec(raw) : null;
+    return match ? parseInt(match[1]!, 10) : undefined;
   }
 
   /**
@@ -317,10 +400,11 @@ export class DownloadService implements IDownloadService {
       }
       this.downloads.delete(queueId);
 
-      // Delete partial file
+      // Delete partial file and its validator
       if (fs.existsSync(state.destination)) {
         fs.unlinkSync(state.destination);
       }
+      this.removeEtag(state.destination);
     }
   }
 
