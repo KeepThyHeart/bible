@@ -551,7 +551,14 @@
     "family": "家庭",
     "tribes": "支派",
     "highlight": "突出显示基督的世系",
-    "showDisputed": "显示有争议的关系"
+    "showDisputed": "显示有争议的关系",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "key": "Key",
+    "showDisputedHint": "Also draw links that Bible scholars dispute (dotted lines)",
+    "hintLine": "One line of fathers from Adam to Jesus, as listed in Genesis, Chronicles, Matthew and Luke. Click a name for details.",
+    "hintFamily": "The parents, wives and children of one person. Search for anyone, or click a name and choose Show family tree.",
+    "hintTribes": "The twelve sons of Jacob (Israel), grouped by their mothers. Click a name for details."
   },
   "topicsBrowser": {
     "searchAll": "搜索所有主题",
