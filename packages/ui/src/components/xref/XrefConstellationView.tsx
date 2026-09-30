@@ -393,7 +393,6 @@ export function XrefConstellationView({
                 const near = activeId !== null && (s.id === activeId || neighbours.has(s.id));
                 const dim = activeId !== null && !near;
                 const label = starLabel(s);
-                const side = s.labelSide ?? (activeId === s.id ? (Math.cos(s.angle) >= 0 ? 'start' : 'end') : null);
                 const cls = ['kth-xref-star__star', dim ? 'kth-xref-star__star--dim' : ''].filter(Boolean).join(' ');
                 const color = sectionVarOfVerse(s.id);
                 return (
@@ -421,22 +420,31 @@ export function XrefConstellationView({
                     onMouseLeave={() => setHoverId(null)}
                   >
                     <title>{`${label} (${fill(L.hopName, { hop: s.hop })}, ${fill(L.connections, { n: s.degree })})`}</title>
-                    <circle className="kth-xref-star__halo" r={s.radius * 2.6} style={{ fill: color }} />
+                    <circle className="kth-xref-star__halo" r={s.radius * 1.7} style={{ fill: color }} />
                     {isAnchor && <circle className="kth-xref-web__anchor-ring" r={s.radius + 4} />}
                     {selected === s.id && <circle className="kth-xref-web__sel-ring" r={s.radius + 3} />}
                     {focused && focusId === s.id && <circle className="kth-xref-web__focus-ring" r={s.radius + 6} />}
                     <circle className="kth-xref-star__core" r={s.radius} style={{ fill: color }} />
-                    {side && (
-                      <text
-                        className="kth-xref-web__label kth-xref-star__label"
-                        x={side === 'above' ? 0 : side === 'start' ? s.radius + 5 : -s.radius - 5}
-                        y={side === 'above' ? -s.radius - 6 : 4}
-                        textAnchor={side === 'above' ? 'middle' : side}
-                        aria-hidden="true"
-                      >
-                        {label}
-                      </text>
-                    )}
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* Labels come last so no star paints over them. */}
+            <g aria-hidden="true" pointerEvents="none">
+              {stars.map((s) => {
+                const side = s.labelSide ?? (activeId === s.id ? (Math.cos(s.angle) >= 0 ? 'start' : 'end') : null);
+                if (!side) return null;
+                return (
+                  <g key={s.id} className="kth-xref-star__labelbox" style={{ transform: `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px)` }}>
+                    <text
+                      className="kth-xref-web__label kth-xref-star__label"
+                      x={side === 'above' ? 0 : side === 'start' ? s.radius + 5 : -s.radius - 5}
+                      y={side === 'above' ? -s.radius - 6 : 4}
+                      textAnchor={side === 'above' ? 'middle' : side}
+                    >
+                      {starLabel(s)}
+                    </text>
                   </g>
                 );
               })}

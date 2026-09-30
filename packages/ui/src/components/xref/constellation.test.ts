@@ -70,6 +70,28 @@ describe('constellationLayout', () => {
     }
   });
 
+  it('keeps the ring inside a narrow, tall stage (phone)', () => {
+    const l = constellationLayout(graph(), { width: 360, height: 640 });
+    for (const s of l.stars) {
+      expect(s.x).toBeGreaterThan(0);
+      expect(s.x).toBeLessThan(360);
+    }
+    expect(l.cx + l.ringRadius * l.stretch + 12).toBeLessThan(360);
+  });
+
+  it('spreads six stars at one angle over distinct radii', () => {
+    const ids = [1, 2, 3, 4, 5, 6].map((v) => 45005000 + v);
+    const g: XrefGraph = {
+      anchor: JOHN,
+      truncated: false,
+      nodes: [{ verseId: JOHN, hop: 0, degree: 3 }, ...ids.map((verseId) => ({ verseId, hop: 1, degree: 1 }))],
+      edges: ids.map((to) => ({ from: JOHN, to, weight: 0.5, sources: [], direction: 'out' as const })),
+    };
+    const l = constellationLayout(g, { width: 800, height: 600 });
+    const radii = l.stars.filter((s) => s.hop === 1).map((s) => Math.round(Math.hypot((s.x - 400) / l.stretch, s.y - 300)));
+    expect(new Set(radii).size).toBe(5);
+  });
+
   it('labels the anchor, keeps labels apart and inside the stage', () => {
     expect(star(JOHN).labelSide).toBe('above');
     const labelled = layout.stars.filter((s) => s.labelSide);

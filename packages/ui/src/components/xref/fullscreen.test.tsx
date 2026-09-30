@@ -34,6 +34,10 @@ describe('useXrefFullscreen', () => {
     (el as unknown as { requestFullscreen: () => Promise<void> }).requestFullscreen = async () => undefined;
     const { result } = renderHook(() => useXrefFullscreen({ current: el }));
     await act(async () => { result.current.toggle(); });
+    Object.defineProperty(document, 'fullscreenElement', { value: el, configurable: true });
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')); });
+    expect(result.current.full).toBe(true);
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
     act(() => { document.dispatchEvent(new Event('fullscreenchange')); });
     expect(result.current.full).toBe(false);
   });

@@ -26,7 +26,7 @@ import type { FormatRef } from './common';
 import { DEFAULT_XREF_CONTROL_LABELS, XrefControlsHelp, XrefDepthControl, XrefStrengthControl, fillTpl as fill, minWeightForStep } from './controls';
 import type { XrefControlLabels } from './controls';
 import {
-  edgeWidth, fitAllView, focusView, labelScale, mergeGraph, neighbourInDirection, nodeRadius, rankedNeighbours,
+  MAX_ZOOM, MIN_ZOOM, edgeWidth, fitAllView, focusView, labelScale, mergeGraph, neighbourInDirection, nodeRadius, rankedNeighbours,
   truncateLabel, zoomAt,
 } from './webGraph';
 import type { ArrowDir, SimLink, SimNode, WebView } from './webGraph';
@@ -299,6 +299,9 @@ export function XrefWebView({
     );
   }, [anchor, depth, queryWeight, initialMaxNodes, attempt, applyGraph, bump]);
 
+  // A new centre verse or depth brings the default camera back.
+  useEffect(() => { setCamera('focus'); }, [anchor, depth]);
+
   // Re-sync when the prop changes.
   useEffect(() => {
     if (anchorProp !== anchorRef.current) {
@@ -423,9 +426,12 @@ export function XrefWebView({
   // Wheel zoom needs a non-passive listener to stop the page from scrolling.
   const wheelRef = useRef<(e: WheelEvent) => void>(() => undefined);
   wheelRef.current = (e: WheelEvent) => {
+    const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
+    const k = viewRef.current.k;
+    // At the zoom limit the wheel is left to the page.
+    if ((factor > 1 && k >= MAX_ZOOM) || (factor < 1 && k <= MIN_ZOOM)) return;
     e.preventDefault();
     const p = toStage(e.clientX, e.clientY);
-    const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
     applyManual(zoomAt(viewRef.current, factor, p.x, p.y));
   };
   useEffect(() => {
@@ -447,6 +453,7 @@ export function XrefWebView({
     if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return;
     const node = nodesRef.current.find((n) => n.id === d.id);
     if (!node) return;
+    if (!d.moved) applyManual(viewRef.current); // dragging a node freezes the camera, or it would chase the node
     d.moved = true;
     const p = toSvg(e.clientX, e.clientY);
     node.fx = p.x;

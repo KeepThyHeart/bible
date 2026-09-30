@@ -208,7 +208,9 @@ const XrefGraphDialog: React.FC = () => {
             // already handled the event; only an untouched Escape closes.
             if (e.key === 'Escape' && !e.defaultPrevented) {
               e.stopPropagation();
-              close();
+              // In full screen the first Escape leaves it.
+              if (full && !phone) toggleFull();
+              else close();
             }
           }}
         >
@@ -217,7 +219,7 @@ const XrefGraphDialog: React.FC = () => {
               {title}
             </h2>
             <div className="flex items-center gap-sm">
-              <button
+              {!phone && <button
                 type="button"
                 onClick={toggleFull}
                 aria-pressed={full}
@@ -226,7 +228,7 @@ const XrefGraphDialog: React.FC = () => {
                 {full
                   ? translateWithDefault(t, 'xrefGraph.exitFullscreen', 'Exit full screen')
                   : translateWithDefault(t, 'xrefGraph.fullscreen', 'Full screen')}
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={close}
@@ -240,7 +242,7 @@ const XrefGraphDialog: React.FC = () => {
           <div
             role="tablist"
             aria-label={translateWithDefault(t, 'xrefGraph.views', 'Graph views')}
-            className="flex gap-xs px-lg pt-sm border-b border-border"
+            className="flex gap-xs px-lg pt-sm border-b border-border overflow-x-auto"
           >
             {VIEW_ORDER.map((id) => (
               <button
@@ -264,7 +266,7 @@ const XrefGraphDialog: React.FC = () => {
                     document.getElementById(`xref-graph-tab-${next}`)?.focus();
                   }
                 }}
-                className={`px-md py-sm text-sm border-b-2 ${
+                className={`px-md py-sm text-sm border-b-2 whitespace-nowrap ${
                   view === id
                     ? 'border-accent text-text-heading font-semibold'
                     : 'border-transparent text-text-secondary hover:text-text-primary'

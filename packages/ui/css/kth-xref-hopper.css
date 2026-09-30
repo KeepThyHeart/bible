@@ -49,7 +49,7 @@
 .kth-xref-hopper-phrase { color: var(--kth-text-muted); }
 .kth-xref-hopper-text { margin: 2px 0 0; }
 .kth-xref-hopper-sources { font-size: 0.8em; color: var(--kth-text-muted); }
-.kth-xref-hopper-sources::before { content: "\00B7\00A0"; }
+.kth-xref-hopper-open { margin-inline-start: auto; align-self: center; }
 
 .kth-xref-hopper-weight { display: inline-flex; gap: 2px; }
 .kth-xref-hopper-dot {

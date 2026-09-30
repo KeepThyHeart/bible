@@ -302,12 +302,12 @@ export function XrefHopper({
           <div className="kth-xref-hopper-card-head">
             <h3 className="kth-xref-hopper-title" ref={titleRef} tabIndex={-1}>{formatRef(st.current)}</h3>
             <span className="kth-xref-hopper-meta">{labels.currentVerse}</span>
+            <button type="button" className="kth-btn kth-btn--sm kth-xref-hopper-open" onClick={() => onOpenVerse(st.current)}>
+              {labels.openInReader}
+            </button>
           </div>
           {currentText ? <p className="kth-xref-hopper-text">{currentText}</p> : null}
         </div>
-        <button type="button" className="kth-btn kth-btn--sm" onClick={() => onOpenVerse(st.current)}>
-          {labels.openInReader}
-        </button>
       </header>
 
       <nav className="kth-xref-hopper-nav" aria-label={labels.trail}>

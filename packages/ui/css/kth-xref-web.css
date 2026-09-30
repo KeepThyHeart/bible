@@ -58,7 +58,7 @@
 .kth-xref-web__stage {
   flex: 1 1 24rem;
   min-inline-size: 0;
-  min-block-size: 24rem;
+  min-block-size: 16rem;
   position: relative;
   border: 1px solid var(--kth-border);
   border-radius: var(--kth-radius);

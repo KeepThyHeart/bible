@@ -103,7 +103,7 @@ describe('web camera', () => {
   const mk = (id: number, x: number, y: number, hop: number): SimNode => ({ id, x, y, hop, degree: 3, vx: 0, vy: 0 });
 
   it('focus view centres on the anchor and zooms in on a small graph', () => {
-    const v = focusView([mk(1, 10, 20, 0), mk(2, 60, 20, 1)], 1, 800, 500);
+    const v = focusView([mk(1, 10, 20, 0), mk(2, 30, 20, 1)], 1, 800, 500);
     expect(v.k).toBeGreaterThan(1);
     expect(v.tx).toBeCloseTo(-10 * v.k);
     expect(v.ty).toBeCloseTo(-20 * v.k);
@@ -131,9 +131,9 @@ describe('web camera', () => {
     expect(zoomAt({ k: 5, tx: 0, ty: 0 }, 10, 0, 0).k).toBe(MAX_ZOOM);
   });
 
-  it('label scale keeps labels between 0.6x and 1.6x on screen', () => {
+  it('label scale keeps labels between 0.9x and 1.6x on screen', () => {
     expect(labelScale(1)).toBe(1);
-    expect(labelScale(0.2) * 0.2).toBeCloseTo(0.6);
+    expect(labelScale(0.2) * 0.2).toBeCloseTo(0.9);
     expect(labelScale(4) * 4).toBeCloseTo(1.6);
   });
 });

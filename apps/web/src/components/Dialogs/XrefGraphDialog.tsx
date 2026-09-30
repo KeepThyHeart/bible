@@ -41,6 +41,10 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const view = useStore(xrefGraphStore, () => xrefGraphStore.view);
   const dialogRef = useRef<HTMLDivElement>(null);
   const { full, toggle: toggleFull } = useXrefFullscreen(dialogRef);
+  const fullRef = useRef(full);
+  fullRef.current = full;
+  const toggleRef = useRef(toggleFull);
+  toggleRef.current = toggleFull;
   // Captured during the first render, before focus moves into the dialog.
   const [opener] = useState<Element | null>(() => document.activeElement);
 
@@ -56,7 +60,9 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       e.preventDefault();
-      xrefGraphStore.close();
+      // In full screen the first Escape leaves it (the browser handles native full screen itself).
+      if (fullRef.current) toggleRef.current();
+      else xrefGraphStore.close();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -156,7 +162,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
           <div class="xref-graph-dialog__actions">
           <button
             type="button"
-            class="xref-graph-dialog__close"
+            class="xref-graph-dialog__close xref-graph-dialog__fullscreen"
             aria-pressed={full}
             aria-label={full
               ? t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' })

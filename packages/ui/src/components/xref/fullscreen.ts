@@ -10,6 +10,7 @@ import type { RefObject } from 'react';
 export function useXrefFullscreen(ref: RefObject<HTMLElement | null>): { full: boolean; toggle: () => void } {
   const [full, setFull] = useState(false);
   const native = useRef(false);
+  const sawFullscreen = useRef(false);
 
   const toggle = useCallback(() => {
     const next = !full;
@@ -17,23 +18,30 @@ export function useXrefFullscreen(ref: RefObject<HTMLElement | null>): { full: b
     const el = ref.current;
     if (next) {
       if (el && typeof el.requestFullscreen === 'function' && !document.fullscreenElement) {
-        el.requestFullscreen().then(() => { native.current = true; }, () => { /* the full-window style still applies */ });
+        native.current = true;
+        el.requestFullscreen().catch(() => { native.current = false; /* the full-window style still applies */ });
       }
-    } else if (document.fullscreenElement) {
+    } else {
       native.current = false;
-      document.exitFullscreen().catch(() => undefined);
+      // Only leave the fullscreen this element owns.
+      if (el && document.fullscreenElement === el) document.exitFullscreen().catch(() => undefined);
     }
   }, [full, ref]);
 
   useEffect(() => {
     const onChange = () => {
-      if (!document.fullscreenElement && native.current) {
+      // The request may still be pending when this fires with no element: only a real exit counts.
+      if (!document.fullscreenElement && native.current && sawFullscreen.current) {
+        sawFullscreen.current = false;
         native.current = false;
         setFull(false);
       }
     };
+    const onEnter = () => { if (document.fullscreenElement) sawFullscreen.current = true; };
+    document.addEventListener('fullscreenchange', onEnter);
     document.addEventListener('fullscreenchange', onChange);
     return () => {
+      document.removeEventListener('fullscreenchange', onEnter);
       document.removeEventListener('fullscreenchange', onChange);
       if (native.current && document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
     };

@@ -35,7 +35,7 @@ export const DEFAULT_XREF_CONTROL_LABELS: XrefControlLabels = {
   depthOption: 'Hops: {n}',
   minWeight: 'Minimum strength',
   minStrengthHint:
-    'Hides weaker links. Strength (1 to 5) is how closely two verses are tied: the Treasury of Scripture Knowledge lists its closest parallels first, and links that run both ways or appear in more than one source score higher. 1 shows every link, 5 only the strongest.',
+    'Hides weaker links. Strength (1 to 5) is how closely two verses are tied: the Treasury of Scripture Knowledge lists the most direct references first for each phrase, and links that run both ways or appear in more than one source score higher. 1 shows every link, 5 only the strongest.',
   minStrengthAny: 'Any',
   minStrengthValue: '{n} of 5 and up',
   help: 'What do these controls mean?',

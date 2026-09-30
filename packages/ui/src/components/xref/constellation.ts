@@ -9,7 +9,6 @@
  */
 import { CHAPTER_COUNT, bookFirstChapterIndex, bookOf, canonPosition, sectionIndexOfBook, weightStep } from '@bible/core/browser';
 import type { VerseId, XrefGraph } from '@bible/core/browser';
-import { nodeRadius } from './webGraph';
 
 export interface StarLayoutOptions {
   width: number;
@@ -67,7 +66,8 @@ export const RING_FRACTIONS: Record<number, number[]> = {
   2: [0, 0.5, 0.8],
   3: [0, 0.38, 0.64, 0.88],
 };
-const STAGGER_LEVELS = 3;
+const STAGGER_LEVELS = 5;
+const STAGGER_OFFSETS = [0, 1, -1, 2, -2];
 const MAX_LABELS = 16;
 
 /** Angle in radians for a canon position: 0 at the top, clockwise. */
@@ -109,7 +109,7 @@ export function constellationLayout(
 ): StarLayout {
   const cx = width / 2;
   const cy = height / 2;
-  const ringRadius = Math.max(60, height / 2 - margin);
+  const ringRadius = Math.max(60, Math.min(height / 2 - margin, width / 2 - 44));
   const stretch = Math.max(1, Math.min(2, (width / 2 - margin - 70) / ringRadius));
   const maxHop = Math.min(3, Math.max(1, ...graph.nodes.map((n) => n.hop)));
   const fractions = RING_FRACTIONS[maxHop];
@@ -136,7 +136,7 @@ export function constellationLayout(
       angle: canonAngle(position),
       x: cx,
       y: cy,
-      radius: Math.max(3.5, nodeRadius(n.degree, n.hop) * (n.hop === 0 ? 0.9 : 0.62)),
+      radius: n.hop === 0 ? 8 : n.hop === 1 ? 4.5 + Math.min(1.8, n.degree / 40) : 3.4,
       labelSide: null,
     };
   });
@@ -145,14 +145,14 @@ export function constellationLayout(
   for (let hop = 1; hop <= maxHop; hop++) {
     const ring = stars.filter((s) => s.hop === hop).sort((a, b) => a.position - b.position || a.id - b.id);
     const base = hopRadii[Math.min(hop, hopRadii.length - 1)];
-    const step = Math.min(14, Math.max(8, ringRadius * 0.045));
+    const step = Math.min(13, Math.max(8, ringRadius * 0.04));
     let level = 0;
     let prevAngle = -Infinity;
     for (const s of ring) {
       const minGap = (s.radius * 2 + 3) / Math.max(1, base * stretch);
       level = s.angle - prevAngle < minGap ? (level + 1) % STAGGER_LEVELS : 0;
       prevAngle = s.angle;
-      const r = base + [0, 1, -1][level] * step;
+      const r = base + STAGGER_OFFSETS[level] * step;
       s.x = cx + Math.cos(s.angle) * r * stretch;
       s.y = cy + Math.sin(s.angle) * r;
     }
@@ -160,6 +160,8 @@ export function constellationLayout(
 
   // Labels: the anchor, then the strongest stars first, each only if its box is free.
   const placed: Box[] = [];
+  const starBox = (s: Star): Box => ({ x0: s.x - s.radius - 2, x1: s.x + s.radius + 2, y0: s.y - s.radius - 2, y1: s.y + s.radius + 2 });
+  const boxes = new Map(stars.map((s) => [s, starBox(s)]));
   const box = (s: Star, side: 'start' | 'end' | 'above', text: string): Box => {
     const w = labelWidth(text.length);
     if (side === 'above') return { x0: s.x - w / 2, x1: s.x + w / 2, y0: s.y - s.radius - 16, y1: s.y - s.radius - 3 };
@@ -178,6 +180,9 @@ export function constellationLayout(
       const b = box(s, side, text);
       if (b.x0 < 2 || b.x1 > width - 2 || b.y0 < 2 || b.y1 > height - 2) continue;
       if (placed.some((p) => overlaps(p, b))) continue;
+      let hitStar = false;
+      for (const [o, ob] of boxes) if (o !== s && overlaps(ob, b)) { hitStar = true; break; }
+      if (hitStar) continue;
       placed.push(b);
       s.labelSide = side;
       labelled += 1;

@@ -205,6 +205,7 @@ export const MIN_ZOOM = 0.15;
 export const MAX_ZOOM = 6;
 /** Default zoom never goes below 1: the graph is read at full size and panned rather than shrunk. */
 export const FOCUS_MAX_ZOOM = 2.2;
+const FOCUS_GAP = 52;
 
 export const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k));
 
@@ -212,17 +213,21 @@ export const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k)
  * The default camera: centred on the anchor, as close as the anchor's direct neighbours still fit, never
  * smaller than 1 (a busy graph overflows the stage and the user pans) and never larger than {@link FOCUS_MAX_ZOOM}.
  */
-export function focusView(nodes: readonly SimNode[], anchorId: VerseId, width: number, height: number, pad = 44): WebView {
+export function focusView(nodes: readonly SimNode[], anchorId: VerseId, width: number, height: number): WebView {
   const a = nodes.find((n) => n.id === anchorId);
   if (!a || width <= 0 || height <= 0) return { k: 1, tx: 0, ty: 0 };
-  let dx = 1;
-  let dy = 1;
-  for (const n of nodes) {
-    if (n.hop > 1) continue;
-    dx = Math.max(dx, Math.abs(n.x - a.x) + nodeRadius(n.degree, n.hop) + 24);
-    dy = Math.max(dy, Math.abs(n.y - a.y) + nodeRadius(n.degree, n.hop) + 18);
+  // Zoom until the typical gap between neighbouring nodes leaves room for a label (about FOCUS_GAP px).
+  const near = nodes.filter((n) => n.hop <= 1);
+  let k = FOCUS_MAX_ZOOM;
+  if (near.length > 1) {
+    const gaps = near.map((n) => {
+      let best = Infinity;
+      for (const m of near) if (m !== n) best = Math.min(best, Math.hypot(n.x - m.x, n.y - m.y));
+      return best;
+    }).sort((x, y) => x - y);
+    const median = gaps[Math.floor(gaps.length / 2)];
+    k = Math.min(FOCUS_MAX_ZOOM, Math.max(1, FOCUS_GAP / Math.max(1, median)));
   }
-  const k = Math.min(FOCUS_MAX_ZOOM, Math.max(1, Math.min((width / 2 - pad / 2) / dx, (height / 2 - pad / 2) / dy)));
   return { k, tx: -a.x * k, ty: -a.y * k };
 }
 
@@ -255,5 +260,5 @@ export function zoomAt(view: WebView, factor: number, sx: number, sy: number): W
 
 /** Label size in screen px stays readable: it follows the zoom, but only between 0.6x and 1.6x of its base size. */
 export function labelScale(k: number): number {
-  return Math.min(1.6, Math.max(0.6, k)) / k;
+  return Math.min(1.6, Math.max(0.9, k)) / k;
 }

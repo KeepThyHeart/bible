@@ -188,4 +188,27 @@ describe('XrefWebView controls and camera', () => {
     await user.click(screen.getByRole('button', { name: 'Focus' }));
     expect(screen.getByRole('button', { name: 'Focus' })).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('dragging a node freezes the camera instead of chasing the node', async () => {
+    const { container } = setup();
+    const anchor = await screen.findByRole('button', { name: 'John 3:16' });
+    const layer = () => container.querySelector('svg > g')!.getAttribute('transform');
+    fireEvent.pointerDown(anchor, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(anchor, { pointerId: 1, clientX: 160, clientY: 140 });
+    const during = layer();
+    fireEvent.pointerMove(anchor, { pointerId: 1, clientX: 220, clientY: 180 });
+    fireEvent.pointerUp(anchor, { pointerId: 1 });
+    expect(layer()).toBe(during);
+  });
+
+  it('returns to the default camera when the centre verse changes', async () => {
+    const { user, container, props, rerender } = setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(screen.getByRole('button', { name: 'Focus' })).toHaveAttribute('aria-pressed', 'false');
+    rerender(<XrefWebView {...props} anchor={B} />);
+    await screen.findByRole('button', { name: 'Rom 5:8' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Focus' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(container).toBeTruthy();
+  });
 });
