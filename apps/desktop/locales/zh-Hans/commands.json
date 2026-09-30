@@ -62,5 +62,9 @@
   "bookmarks.manage": "管理书签",
   "bookmarks.manage.category": "书签",
   "bookmarks.manage.alias.0": "书签",
-  "bookmarks.manage.alias.1": "已保存经文"
+  "bookmarks.manage.alias.1": "已保存经文",
+  "xrefGraph.open": "显示交叉引用连接",
+  "xrefGraph.open.category": "学习",
+  "xrefGraph.open.alias.0": "交叉引用",
+  "xrefGraph.open.alias.1": "连接"
 }
