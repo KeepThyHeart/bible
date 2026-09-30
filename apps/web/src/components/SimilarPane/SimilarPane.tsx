@@ -6,6 +6,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { studyStore } from '../../stores/studyStore';
 import { similarStore } from '../../stores/similarStore';
 import type { SimilarRowData, SimilarTestament } from '../../stores/similarStore';
+import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
 import { createWebSimilar, formatPassage } from '../../similar/webSimilarService';
@@ -16,7 +17,7 @@ interface SimilarPaneProps {
   mobile?: boolean;
 }
 
-const TESTAMENTS: SimilarTestament[] = ['any', 'ot', 'nt'];
+const TESTAMENTS: SimilarTestament[] = ['any', 'ot', 'nt', 'other'];
 
 /**
  * Passages similar to the selected verse or passage, from the precomputed neighbour table (asset
@@ -41,7 +42,13 @@ export function SimilarPane({ providers, mobile }: SimilarPaneProps) {
   const reasons = useStore(similarStore, () => similarStore.reasons);
 
   useEffect(() => {
-    similarStore.configure(createWebSimilar(providers, () => bibleStore.getActiveModule()));
+    similarStore.configure(createWebSimilar(providers, () => bibleStore.getActiveModule(), {
+      getLanguage: () => {
+        const code = moduleStore.getBibleModules().find((m) => m.abbreviation === bibleStore.getActiveModule())?.language_code;
+        return (code ?? 'en').toLowerCase().split(/[-_]/)[0] || 'en';
+      },
+      crossRefModule: studyStore.crossRefModule,
+    }));
     return () => similarStore.configure(null);
   }, [providers]);
 
@@ -71,17 +78,22 @@ export function SimilarPane({ providers, mobile }: SimilarPaneProps) {
 
   return (
     <div class="similar-pane" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }} data-mobile={mobile ? 'true' : undefined}>
-      <div class="kth-toolbar" role="group" aria-label={t('similar.filters')}>
+      <div
+        class="similar-pane__filters"
+        role="group"
+        aria-label={t('similar.filters')}
+        style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: '0.75rem', rowGap: '0.4rem' }}
+      >
         {canGoBack && (
           <button type="button" class="kth-btn kth-btn--sm" onClick={() => similarStore.back()}>
             {t('similar.back')}
           </button>
         )}
-        <label class="kth-field">
-          <input type="checkbox" checked={hideKnown} onChange={(e) => similarStore.setHideKnown((e.target as HTMLInputElement).checked)} />{' '}
-          {t('similar.hideKnown')}
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+          <input type="checkbox" style={{ margin: 0 }} checked={hideKnown} onChange={(e) => similarStore.setHideKnown((e.target as HTMLInputElement).checked)} />
+          <span>{t('similar.hideKnown')}</span>
         </label>
-        <span class="kth-toolbar__group" role="group" aria-label={t('similar.testament.label')}>
+        <span role="group" aria-label={t('similar.testament.label')} style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.25rem' }}>
           {TESTAMENTS.map((v) => (
             <button
               key={v}
@@ -113,6 +125,7 @@ export function SimilarPane({ providers, mobile }: SimilarPaneProps) {
       )}
       {status === 'unavailable' && <p role="status">{t('similar.unavailable')}</p>}
       {status === 'empty' && <p role="status">{t('similar.empty')}</p>}
+      {status === 'needsLive' && <p role="status">{t('similar.rangeNeedsLive')}</p>}
       {status === 'error' && (
         <div role="alert">
           <p>{t('similar.error')}{errorMessage ? ` (${errorMessage})` : ''}</p>

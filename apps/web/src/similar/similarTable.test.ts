@@ -3,10 +3,10 @@ import { gzipSync } from 'node:zlib';
 import { encodeNeighbourTable } from '@bible/core/browser';
 import type { NeighbourTableMeta } from '@bible/core/browser';
 
-const state = vi.hoisted(() => ({ manager: null as unknown }));
+const state = vi.hoisted(() => ({ manager: null as unknown, refresh: null as null | (() => Promise<void>) }));
 vi.mock('../assets/webAssets', () => ({
   getReadyAssetManager: async () => state.manager,
-  refreshAssetCatalog: async () => {},
+  refreshAssetCatalog: async () => { await state.refresh?.(); },
 }));
 
 import { loadSimilarTable, resetSimilarTable, getLoadedSimilarTable } from './similarTable';
@@ -35,7 +35,7 @@ function fakeManager(opts: { installed?: boolean; inCatalog?: boolean; file?: Ui
 }
 
 describe('loadSimilarTable', () => {
-  beforeEach(() => resetSimilarTable());
+  beforeEach(() => { resetSimilarTable(); state.refresh = null; });
 
   it('reads an installed table and gunzips it', async () => {
     const m = fakeManager({ installed: true });
@@ -76,5 +76,20 @@ describe('loadSimilarTable', () => {
     expect(loadSimilarTable()).toBe(first);
     expect(m.install).toHaveBeenCalledTimes(1);
     expect(m2.install).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not memoise a null after a failed catalog fetch, but keeps a definite not-offered', async () => {
+    let fail = true;
+    const m = fakeManager({});
+    const refresh = vi.fn(async () => { if (fail) throw new Error('offline'); });
+    state.refresh = refresh;
+    expect(await loadSimilarTable()).toBeNull();
+    expect(await loadSimilarTable()).toBeNull();
+    expect(refresh).toHaveBeenCalledTimes(2); // retried, not memoised
+    fail = false;
+    expect(await loadSimilarTable()).toBeNull();
+    expect(await loadSimilarTable()).toBeNull();
+    expect(refresh).toHaveBeenCalledTimes(3); // definite null is memoised
+    expect(m.install).not.toHaveBeenCalled();
   });
 });

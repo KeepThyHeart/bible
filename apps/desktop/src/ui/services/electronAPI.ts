@@ -7,7 +7,7 @@ import type { ElectronAPI } from '../../../electron/preload';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import { unwrap, IpcResultError, type Result } from './ipcResult';
 import type {
-  PassageRange, SimilarOptions, SimilarFindResponse, SimilarStatus, MatchReason,
+  PassageRange, SimilarOptions,
 } from '../../../electron/ipc/similarTypes';
 
 // Check if running in Electron
@@ -448,21 +448,8 @@ export const assetsAPI = {
   },
 };
 
-/**
- * Similar passages (task 0070). Typed loosely via a local bridge until the preload
- * `similar` bridge is in `ElectronAPI`; payload shapes come from the main process.
- */
-interface SimilarBridge {
-  find(range: PassageRange, opts?: SimilarOptions, module?: string): Promise<Result<SimilarFindResponse>>;
-  explain(a: PassageRange, b: PassageRange, module?: string): Promise<Result<MatchReason[]>>;
-  status(): Promise<Result<SimilarStatus>>;
-}
-
-function similarBridge(): SimilarBridge {
-  const api = requireElectronAPI() as unknown as { similar?: SimilarBridge };
-  if (!api.similar) throw new Error('Similar passages is not available in this build.');
-  return api.similar;
-}
+/** Similar passages (task 0070); payload shapes come from the main process. */
+const similarBridge = () => requireElectronAPI().similar;
 
 export const similarAPI = {
   async find(range: PassageRange, opts?: SimilarOptions, module?: string) {
@@ -473,6 +460,10 @@ export const similarAPI = {
   },
   async status() {
     return unwrap(similarBridge().status());
+  },
+  /** Drop the main process's cached similar results (after the user's cross-references change). */
+  async reset() {
+    return unwrap(similarBridge().reset());
   },
 };
 

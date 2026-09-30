@@ -235,6 +235,7 @@ export interface ElectronAPI {
     find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) => Promise<Result<SimilarFindResponse>>;
     explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) => Promise<Result<MatchReason[]>>;
     status: () => Promise<Result<SimilarStatus>>;
+    reset: () => Promise<Result<true>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -862,6 +863,7 @@ const electronAPI: ElectronAPI = {
     explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) =>
       typedInvoke('similar:explain', a, b, module),
     status: () => typedInvoke('similar:status'),
+    reset: () => typedInvoke('similar:reset'),
   },
 
   search: {

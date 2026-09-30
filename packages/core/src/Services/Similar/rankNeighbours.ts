@@ -73,8 +73,8 @@ export interface RankContext {
 }
 
 /**
- * Order of work: overlap with the source, nearby same-chapter verses, the source's own paragraph,
- * same chapter/book, testament, sections; then the floor (max(ctx.floor, top1 * 0.8), or
+ * Order of work: overlap with the source (which also drops the source's own paragraph), nearby
+ * same-chapter verses, same chapter/book, testament, sections; then the floor (max(ctx.floor, top1 * 0.8), or
  * o.minSimilarity), consolidate(), cross-reference policy, per-book cap, maxResults.
  */
 export function rankNeighbours(
@@ -87,9 +87,6 @@ export function rankNeighbours(
   let list = cands.filter((c) => {
     if (rangesOverlap(source, c)) return false;
     if (sharesChapter(source, c) && nearby(source, c, o.excludeNearby)) return false;
-    if (c.level === 'paragraph' && c.startVerseId <= source.startVerseId && c.endVerseId >= source.endVerseId) {
-      return false;
-    }
     if (o.excludeSameChapter && sharesChapter(source, c)) return false;
     if (o.excludeSameBook && sharesBook(source, c)) return false;
     const cNT = isNT(c.startVerseId);
@@ -106,7 +103,8 @@ export function rankNeighbours(
   const floor = o.minSimilarity ?? Math.max(ctx.floor, top1 * 0.8);
   list = list.filter((c) => c.score >= floor);
 
-  const merged = consolidate(list, Number.MAX_SAFE_INTEGER);
+  // Order by the value emitted as `similarity` (consolidation orders by its boosted score).
+  const merged = [...consolidate(list, Number.MAX_SAFE_INTEGER)].sort((a, b) => b.score - a.score);
   const out: SimilarPassage[] = [];
   const perBook = new Map<number, number>();
   for (const c of merged) {

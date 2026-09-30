@@ -5,13 +5,13 @@
  */
 
 import { Store } from './Store';
-import { loadSimilarTable } from '../similar/similarTable';
+import { loadSimilarTable, resetSimilarTable } from '../similar/similarTable';
 import { formatPassage } from '../similar/webSimilarService';
 import type { WebSimilar } from '../similar/webSimilarService';
 import type { MatchReason, PassageRange, SimilarPassage, SimilarResult } from '@bible/core/browser';
 
-export type SimilarStatus = 'idle' | 'loading' | 'downloading' | 'ready' | 'unavailable' | 'empty' | 'error';
-export type SimilarTestament = 'any' | 'ot' | 'nt';
+export type SimilarStatus = 'idle' | 'loading' | 'downloading' | 'ready' | 'unavailable' | 'empty' | 'needsLive' | 'error';
+export type SimilarTestament = 'any' | 'ot' | 'nt' | 'other';
 
 export interface SimilarRowData extends SimilarPassage {
   key: string;
@@ -91,6 +91,7 @@ class SimilarStore extends Store {
   }
 
   retry(): void {
+    resetSimilarTable();
     void this.run(this.source, true);
   }
 
@@ -144,7 +145,7 @@ class SimilarStore extends Store {
         maxResults: this.limit,
         crossRefs: this.hideKnown ? 'hide' : 'flag',
         testament: this.testament,
-        source: 'table',
+        source: 'auto',
       });
       if (my !== this.token) return;
       const rows = await Promise.all(
@@ -160,7 +161,9 @@ class SimilarStore extends Store {
       this.floor = result.floor;
       this.approximate = result.approximate;
       this.canShowMore = rows.length >= this.limit;
-      this.status = result.via === 'none' ? 'empty' : rows.length ? 'ready' : 'empty';
+      this.status = result.via === 'none'
+        ? (result.reason === 'range-needs-live' ? 'needsLive' : 'empty')
+        : rows.length ? 'ready' : 'empty';
       this.progress = null;
     } catch (e) {
       if (my !== this.token) return;

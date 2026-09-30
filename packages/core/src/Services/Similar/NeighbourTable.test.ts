@@ -115,6 +115,38 @@ describe('NeighbourTable', () => {
     expect(t.lookup({ startVerseId: 43003016, endVerseId: 43003016 })).toHaveLength(2);
   });
 
+  it('rejects version 0, huge metaLen, and unknown level bytes', () => {
+    const code = (b: Uint8Array): string | undefined => {
+      try {
+        NeighbourTable.fromBytes(b);
+      } catch (e) {
+        return (e as NeighbourTableError).code;
+      }
+      return undefined;
+    };
+    const v0 = sample();
+    new DataView(v0.buffer).setUint16(4, 0, true);
+    expect(code(v0)).toBe('version');
+
+    const huge = sample();
+    new DataView(huge.buffer).setUint32(12, 0xffffffff, true);
+    expect(code(huge)).toBe('truncated');
+
+    const good = sample();
+    const dv = new DataView(good.buffer);
+    const metaLen = dv.getUint32(12, true);
+    const keysOffset = 16 + metaLen + ((4 - (metaLen % 4)) % 4);
+    const badKey = good.slice();
+    badKey[keysOffset + 8] = 7;
+    expect(code(badKey)).toBe('meta');
+
+    const keyCount = dv.getUint32(8, true);
+    const entriesOffset = keysOffset + keyCount * 16;
+    const badEntry = good.slice();
+    badEntry[entriesOffset + 8] = 9;
+    expect(code(badEntry)).toBe('meta');
+  });
+
   it('throws typed errors', () => {
     const bytes = sample();
     const catchCode = (b: Uint8Array): string | undefined => {

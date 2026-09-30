@@ -33,6 +33,9 @@ export interface SimilarPassagesDeps {
 
 const DEFAULT_CACHE_SIZE = 200;
 
+/** Live scans run on the caller's thread; use at most this many query vectors. */
+const LIVE_MAX_QUERY_VECTORS = 8;
+
 /** JSON with sorted object keys, for cache keys. */
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
@@ -209,17 +212,19 @@ export class SimilarPassagesService {
     live: IPassageVectorSource
   ): Promise<SimilarResult> {
     const floor = live.neighbourFloor();
-    const rows = live.getPassageRows(source, o.levels);
+    // Classify query rows with the same rules as the hits below, whatever the source used.
+    const classify = compileKindClassifier(this.weights);
+    const rows = live.getPassageRows(source, o.levels).map(r => ({ ...r, kind: classify(r.id) }));
     if (rows.length === 0) {
       return { source, passages: [], via: 'none', approximate: false, reason: 'no-data', floor };
     }
 
-    const queries = pickQueryRows(rows, this.weights.maxQueryVectors);
+    const queries = pickQueryRows(rows, Math.min(this.weights.maxQueryVectors, LIVE_MAX_QUERY_VECTORS));
     const hitsPerQuery = live.searchRows(
       queries.map(q => q.vector),
       { levels: o.levels, topK: this.weights.perQueryTopK }
     );
-    const cands = aggregateHits(queries, hitsPerQuery, compileKindClassifier(this.weights), this.weights);
+    const cands = aggregateHits(queries, hitsPerQuery, classify, this.weights);
     const passages = rankNeighbours(source, cands, o, { crossRefs: await this.crossRefs(source), floor, via: 'live' });
     return { source, passages, via: 'live', approximate: false, floor: o.minSimilarity ?? floor };
   }

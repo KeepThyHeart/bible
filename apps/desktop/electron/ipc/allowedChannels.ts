@@ -289,6 +289,7 @@ export const TYPED_IPC_CHANNELS = [
   'similar:find',
   'similar:explain',
   'similar:status',
+  'similar:reset',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',

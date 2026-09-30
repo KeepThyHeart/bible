@@ -62,7 +62,7 @@ export function sameRange(a: PassageRange | null, b: PassageRange | null): boole
 }
 
 export function explanationKey(source: PassageRange, row: PassageRange): string {
-  return `${source.startVerseId}-${source.endVerseId}|${row.startVerseId}-${row.endVerseId}`;
+  return `${resolveModule() ?? ''}|${source.startVerseId}-${source.endVerseId}|${row.startVerseId}-${row.endVerseId}`;
 }
 
 interface SimilarStoreState {
@@ -149,6 +149,8 @@ export const useSimilarStore = create<SimilarStoreState>((set, get) => {
 
   const setSource = (panelId: string, range: PassageRange, history: PassageRange[]) => {
     patch(panelId, { source: range, history, maxResults: SIMILAR_DEFAULT_RESULTS });
+    // Explanations are per (module, source, row); drop them when a source changes so the map stays bounded.
+    if (get().explanations.size > 0) set({ explanations: new Map() });
     load(panelId);
   };
 

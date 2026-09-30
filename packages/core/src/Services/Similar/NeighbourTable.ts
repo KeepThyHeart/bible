@@ -50,7 +50,7 @@ function levelIndex(level: SemanticLevel): number {
 }
 
 function pad4(n: number): number {
-  return (n + 3) & ~3;
+  return n + ((4 - (n % 4)) % 4);
 }
 
 function compareKeys(a: NeighbourTableKey, b: NeighbourTableKey): number {
@@ -127,11 +127,14 @@ export class NeighbourTable implements INeighbourTable {
     }
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const version = view.getUint16(4, true);
-    if (version > VERSION) {
-      throw new NeighbourTableError('version', `Neighbour table version ${version} is newer than this app understands`);
+    if (version !== VERSION) {
+      throw new NeighbourTableError('version', `Neighbour table version ${version} is not supported (expected ${VERSION})`);
     }
     const keyCount = view.getUint32(8, true);
     const metaLen = view.getUint32(12, true);
+    if (metaLen > bytes.byteLength - HEADER_BYTES) {
+      throw new NeighbourTableError('truncated', 'Neighbour table ends inside its metadata');
+    }
     const keysOffset = HEADER_BYTES + pad4(metaLen);
     const entriesOffset = keysOffset + keyCount * KEY_BYTES;
     if (entriesOffset > bytes.byteLength) {
@@ -164,6 +167,16 @@ export class NeighbourTable implements INeighbourTable {
       const extent = view.getUint32(at + 12, true) + view.getUint8(at + 9);
       if (extent > totalEntries) {
         throw new NeighbourTableError('truncated', 'Neighbour table ends inside its entry block');
+      }
+      if (view.getUint8(at + 8) > 2) {
+        throw new NeighbourTableError('meta', 'Neighbour table has an unknown level in a key');
+      }
+      const first = view.getUint32(at + 12, true);
+      const count = view.getUint8(at + 9);
+      for (let j = 0; j < count; j++) {
+        if (view.getUint8(entriesOffset + (first + j) * ENTRY_BYTES + 8) > 2) {
+          throw new NeighbourTableError('meta', 'Neighbour table has an unknown level in an entry');
+        }
       }
     }
     return new NeighbourTable(meta, view, keyCount, keysOffset, entriesOffset);

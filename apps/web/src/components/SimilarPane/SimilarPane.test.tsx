@@ -17,9 +17,12 @@ vi.mock('../../stores/bibleStore', async () => {
 });
 vi.mock('../../stores/studyStore', async () => {
   const { Store } = await import('../../stores/Store');
-  class Fake extends Store { verseId = 43003016; }
+  class Fake extends Store { verseId = 43003016; crossRefModule = 'TSKxref'; }
   return { studyStore: new Fake() };
 });
+vi.mock('../../stores/moduleStore', () => ({
+  moduleStore: { getBibleModules: () => [{ abbreviation: 'KJV', language_code: 'en' }] },
+}));
 vi.mock('../../utils/verseId', () => ({
   parseVerseId: (id: number) => ({ bookNumber: Math.floor(id / 1000000), chapter: Math.floor((id % 1000000) / 1000), verse: id % 1000 }),
 }));
@@ -95,5 +98,12 @@ describe('SimilarPane', () => {
     expect(hide).toHaveBeenCalledWith(true);
     fireEvent.click(screen.getByText('similar.testament.nt'));
     expect(tst).toHaveBeenCalledWith('nt');
+  });
+
+  it('offers the other-testament filter and a range-needs-live message', () => {
+    similarStore.status = 'needsLive';
+    render(<SimilarPane providers={providers} />);
+    expect(screen.getByText('similar.testament.other')).toBeTruthy();
+    expect(screen.getByText('similar.rangeNeedsLive')).toBeTruthy();
   });
 });

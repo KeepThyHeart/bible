@@ -17,6 +17,8 @@ export type SimilarTableProgress = (p: { loaded: number; total: number }) => voi
 
 let memo: Promise<NeighbourTable | null> | null = null;
 let loaded: NeighbourTable | null = null;
+/** True only when the last load ended null after a successful catalog read (a definite "not offered"). */
+let definiteNull = false;
 
 /** The table once loaded, else null (the service reads it through this getter). */
 export function getLoadedSimilarTable(): NeighbourTable | null {
@@ -33,14 +35,22 @@ async function gunzip(bytes: Uint8Array): Promise<Uint8Array> {
 }
 
 async function load(onProgress?: SimilarTableProgress): Promise<NeighbourTable | null> {
+  let catalogRead = false;
+  definiteNull = false;
   const m = await getReadyAssetManager();
   if (!m.installed(SIMILAR_ASSET_ID)) {
     let offered = m.getSnapshot().entries.some((e) => e.id === SIMILAR_ASSET_ID);
     if (!offered) {
-      try { await refreshAssetCatalog(); } catch { /* keep going with what we have */ }
+      try {
+        await refreshAssetCatalog();
+        catalogRead = true;
+      } catch { /* keep going with what we have; a null from here is not definite */ }
       offered = m.getSnapshot().entries.some((e) => e.id === SIMILAR_ASSET_ID);
     }
-    if (!offered) return null;
+    if (!offered) {
+      definiteNull = catalogRead;
+      return null;
+    }
     await m.install(SIMILAR_ASSET_ID, {
       pinned: false,
       onProgress: (p: AssetProgress) => onProgress?.({ loaded: p.loaded, total: p.total }),
@@ -52,14 +62,15 @@ async function load(onProgress?: SimilarTableProgress): Promise<NeighbourTable |
   return table;
 }
 
-/** Memoised. A failed load (AssetError, bad bytes) is forgotten so the next call retries; a null (not offered) is kept. */
+/** Memoised. A failed load (AssetError, bad bytes) is forgotten so the next call retries; a null is kept only when the catalog was read successfully and does not offer the table. */
 export function loadSimilarTable(onProgress?: SimilarTableProgress): Promise<NeighbourTable | null> {
   if (!memo) {
     const p = load(onProgress);
     memo = p;
-    p.catch(() => {
-      if (memo === p) memo = null;
-    });
+    p.then(
+      (t) => { if (t === null && !definiteNull && memo === p) memo = null; },
+      () => { if (memo === p) memo = null; },
+    );
   }
   return memo;
 }
@@ -68,4 +79,5 @@ export function loadSimilarTable(onProgress?: SimilarTableProgress): Promise<Nei
 export function resetSimilarTable(): void {
   memo = null;
   loaded = null;
+  definiteNull = false;
 }

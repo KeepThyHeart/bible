@@ -8,7 +8,7 @@ vi.mock('../contexts/useI18n', () => ({
   useI18n: () => ({ t: (key: string) => `<${key}>`, localizer: { referenceParserConfig: undefined } }),
 }));
 vi.mock('../services/electronAPI', () => ({
-  similarAPI: { find: vi.fn(), explain: vi.fn().mockResolvedValue([]) },
+  similarAPI: { find: vi.fn(), explain: vi.fn().mockResolvedValue([]), reset: vi.fn().mockResolvedValue(true) },
   bibleAPI: { createUserCrossReference: vi.fn() },
 }));
 vi.mock('../utils/openModuleManager', () => ({ openModuleManager: vi.fn() }));

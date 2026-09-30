@@ -43,7 +43,19 @@ export interface WebSimilar {
   explain(source: PassageRange, candidate: SimilarPassage): Promise<MatchReason[]>;
 }
 
-export function createWebSimilar(providers: SimilarProviders, getModule: () => string, language = 'en'): WebSimilar {
+export interface WebSimilarOptions {
+  /** Language of the display module (stop words and stemming for the "why" chips). Default 'en'. */
+  getLanguage?: () => string;
+  /** The cross-reference module (studyStore.crossRefModule), which is not the Bible module. */
+  crossRefModule?: string;
+}
+
+/** Explanation cache bound (source facts). */
+const FACTS_CACHE_MAX = 8;
+
+export function createWebSimilar(providers: SimilarProviders, getModule: () => string, options: WebSimilarOptions = {}): WebSimilar {
+  const getLanguage = options.getLanguage ?? (() => 'en');
+  const crossRefModule = options.crossRefModule ?? 'TSKxref';
   const textOf = async (r: PassageRange): Promise<string> => {
     const ids = idsIn(r);
     const res = await providers.bible.getVerseTexts(getModule(), ids);
@@ -52,10 +64,14 @@ export function createWebSimilar(providers: SimilarProviders, getModule: () => s
 
   const crossRefsFor = async (r: PassageRange): Promise<PassageRange[]> => {
     const out: PassageRange[] = [];
-    const groups = await providers.crossRef.getGroupsForVerse(getModule(), r.startVerseId).catch(() => []);
-    for (const g of groups) {
-      for (const e of g.entries) {
-        out.push({ startVerseId: e.target_verse_id, endVerseId: e.target_verse_end_id ?? e.target_verse_id });
+    const all = await Promise.all(
+      idsIn(r, 40).map((id) => providers.crossRef.getGroupsForVerse(crossRefModule, id).catch(() => [])),
+    );
+    for (const groups of all) {
+      for (const g of groups) {
+        for (const e of g.entries) {
+          out.push({ startVerseId: e.target_verse_id, endVerseId: e.target_verse_end_id ?? e.target_verse_id });
+        }
       }
     }
     return out;
@@ -63,7 +79,7 @@ export function createWebSimilar(providers: SimilarProviders, getModule: () => s
 
   const facts = (r: PassageRange): Promise<PassageFacts> =>
     gatherPassageFacts(r, {
-      language,
+      language: getLanguage(),
       text: textOf,
       topics: async (range) => {
         const topics = await providers.topical.getTopicsForVerse(range.startVerseId).catch(() => []);
@@ -76,11 +92,22 @@ export function createWebSimilar(providers: SimilarProviders, getModule: () => s
 
   const service = new SimilarPassagesService({ table: getLoadedSimilarTable, crossRefsFor });
 
-  const sourceFacts = new Map<string, Promise<PassageFacts>>();
+  // Keyed by module + language + source range; cleared when the source changes; bounded.
+  let sourceFacts = new Map<string, Promise<PassageFacts>>();
+  let factsSource = '';
   const explain = async (source: PassageRange, candidate: SimilarPassage): Promise<MatchReason[]> => {
-    const key = `${source.startVerseId}-${source.endVerseId}`;
+    const srcKey = `${source.startVerseId}-${source.endVerseId}`;
+    if (srcKey !== factsSource) {
+      sourceFacts = new Map();
+      factsSource = srcKey;
+    }
+    const key = `${getModule()}|${getLanguage()}|${srcKey}`;
     let s = sourceFacts.get(key);
-    if (!s) sourceFacts.set(key, (s = facts(source)));
+    if (!s) {
+      if (sourceFacts.size >= FACTS_CACHE_MAX) sourceFacts.delete(sourceFacts.keys().next().value as string);
+      sourceFacts.set(key, (s = facts(source)));
+      s.catch(() => { if (sourceFacts.get(key) === s) sourceFacts.delete(key); });
+    }
     const [a, b] = await Promise.all([s, facts(candidate)]);
     return explainMatch(a, b);
   };

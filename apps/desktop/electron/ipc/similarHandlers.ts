@@ -13,7 +13,10 @@ import {
   SimilarPassagesService,
   createSemanticVectorSource,
   explainMatch,
+  FREQUENT_STRONGS,
+  compileKindClassifier,
   formatVerseText,
+  stripFactsHtml,
   gatherPassageFacts,
   resolveSimilarWeights,
 } from '@bible/core';
@@ -77,6 +80,8 @@ export interface SimilarEnv {
     repo: { getTopicsByVerse(verseId: number): Array<{ name: string }> };
   }>;
   weights?: SimilarWeights;
+  /** Strong's numbers left out of the "why" chips; defaults to core's FREQUENT_STRONGS. */
+  frequentStrongs?: ReadonlySet<string>;
   fallbackModule?: string;
 }
 
@@ -110,7 +115,7 @@ export function validateRange(value: unknown, name = 'range'): PassageRange {
 function spanVerses(r: PassageRange): number {
   const chapter = (id: number) => Math.floor(id / 1000);
   if (chapter(r.startVerseId) === chapter(r.endVerseId)) return r.endVerseId - r.startVerseId + 1;
-  // Across chapters: assume a worst case of 176 verses per chapter boundary crossed.
+  // Across chapters: estimate 40 verses per chapter spanned (the real count is not needed for a size guard).
   return (chapter(r.endVerseId) - chapter(r.startVerseId) + 1) * 40;
 }
 
@@ -174,10 +179,10 @@ function sanitizeModule(v: unknown): string | undefined {
   return v;
 }
 
-// --- Hydration ---------------------------------------------------------------------
+// --- Hydration (rows carry plain text: tags stripped, common entities decoded) ---------------------------------------------------------------------
 
-function verseHtml(verse: { verseId: number }): string {
-  return formatVerseText(verse as never).textHtml;
+function verseText(verse: { verseId: number }): string {
+  return stripFactsHtml(formatVerseText(verse as never).textHtml);
 }
 
 // --- API ---------------------------------------------------------------------------
@@ -191,7 +196,7 @@ export function createSimilarApi(env: SimilarEnv): SimilarApi {
     if (!svc || !svc.isAvailable()) return null;
     if (svc !== cachedSvc) {
       cachedSvc = svc;
-      cachedSource = createSemanticVectorSource(svc);
+      cachedSource = createSemanticVectorSource(svc, compileKindClassifier(env.weights ?? resolveSimilarWeights()));
     }
     return cachedSource;
   };
@@ -219,12 +224,12 @@ export function createSimilarApi(env: SimilarEnv): SimilarApi {
       try {
         if (r.startVerseId === r.endVerseId) {
           const v = repo.getVerse(r.startVerseId);
-          if (v) return verseHtml(v);
+          if (v) return verseText(v);
           continue;
         }
         const verses = repo.getVerseRange(r.startVerseId, r.endVerseId);
         if (verses.length === 0) continue;
-        const head = verses.slice(0, maxVerses).map(verseHtml).join(' ');
+        const head = verses.slice(0, maxVerses).map(verseText).join(' ');
         return verses.length > maxVerses ? `${head} …` : head;
       } catch (e) {
         log.warn('[Similar] text lookup failed', e);
@@ -312,7 +317,7 @@ export function createSimilarApi(env: SimilarEnv): SimilarApi {
       const b = checkSpan(validateRange(bRaw, 'b'), 'b');
       const module = sanitizeModule(moduleRaw);
       const [fa, fb] = await Promise.all([factsFor(a, module), factsFor(b, module)]);
-      return explainMatch(fa, fb);
+      return explainMatch(fa, fb, { frequentStrongs: env.frequentStrongs ?? FREQUENT_STRONGS });
     },
     async status() {
       const state = await env.table.ensure(false);
@@ -431,4 +436,8 @@ export function registerSimilarHandlers(_ipcMain: IpcMain): void {
     (await get()).explain(a, b, module)
   );
   ipcHandler<[], SimilarStatus>('similar:status', async () => (await get()).status());
+  ipcHandler<[], true>('similar:reset', async () => {
+    (await get()).reset();
+    return true as const;
+  });
 }

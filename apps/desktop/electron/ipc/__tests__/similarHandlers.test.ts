@@ -271,6 +271,18 @@ describe('explain', () => {
     expect(reasons.some(r => r.kind === 'topic' && r.label === 'Love' && r.source === 'naves')).toBe(true);
   });
 
+  it('leaves frequent Strong\'s numbers out of the chips', async () => {
+    const { api } = makeEnv(assetFake({ path: gzPath }), { frequentStrongs: new Set(['G25']) });
+    const reasons = await api.explain(range(JOHN_3_16), range(ROM_5_8));
+    expect(reasons.some(r => r.kind === 'lemma')).toBe(false);
+  });
+
+  it('returns plain text in rows (no markup)', async () => {
+    const { api } = makeEnv(assetFake({ path: gzPath }));
+    const res = await api.find(range(JOHN_3_16), { excludeNearby: 5 });
+    for (const row of res.result!.rows) expect(row.text).not.toMatch(/<[a-z]/i);
+  });
+
   it('validates both ranges', async () => {
     const { api } = makeEnv(assetFake());
     await expect(api.explain(range(JOHN_3_16), { startVerseId: -1, endVerseId: 2 })).rejects.toThrow();

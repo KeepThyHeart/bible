@@ -90,4 +90,16 @@ describe('ContextMenuPopup', () => {
     fireEvent.click(screen.getByText('xrefGraph.showConnections'));
     expect(onAction).toHaveBeenCalledWith('connections');
   });
+
+  it('hides the similar-passages entry when showSimilar is false (mobile)', () => {
+    renderMenu({ showSimilar: false });
+    expect(screen.queryByText('contextMenu.similar')).toBeNull();
+    cleanupAndCheckDefault();
+  });
 });
+
+function cleanupAndCheckDefault() {
+  document.body.innerHTML = '';
+  renderMenu();
+  expect(screen.getByText('contextMenu.similar')).toBeTruthy();
+}

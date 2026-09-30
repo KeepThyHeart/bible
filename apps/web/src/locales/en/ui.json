@@ -1418,9 +1418,10 @@
       "label": "Testament",
       "any": "All",
       "ot": "Old Testament",
-      "nt": "New Testament"
+      "nt": "New Testament",
+      "other": "Opposite testament"
     },
-    "similarTo": "Similar to {{reference}}",
+    "similarTo": "Similar to {reference}",
     "approximate": "Based on the individual verses of your selection.",
     "selectVerse": "Select a verse to find similar passages.",
     "loading": "Loading similar passages...",
@@ -1428,6 +1429,7 @@
     "unavailable": "Similar passages data is not available on this server.",
     "error": "Could not load similar passages.",
     "retry": "Try again",
-    "showMore": "Show 10 more"
+    "showMore": "Show 10 more",
+    "rangeNeedsLive": "This passage has no precomputed matches here; select a single verse instead."
   }
 }

@@ -8,7 +8,7 @@ import { useToastStore } from '../stores/useToastStore';
 import {
   useSimilarStore, explanationKey, SIMILAR_MAX_RESULTS, type SimilarTestament,
 } from '../stores/useSimilarStore';
-import { bibleAPI } from '../services/electronAPI';
+import { bibleAPI, similarAPI } from '../services/electronAPI';
 import { localizedBookNames } from '../constants/bibleBooks';
 import { openModuleManager } from '../utils/openModuleManager';
 
@@ -111,6 +111,9 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
     try {
       await bibleAPI.createUserCrossReference(USER_XREF_DB, source.startVerseId, row.startVerseId);
       useToastStore.getState().addToast(t('similar.xrefAdded'), 'info'); // allow-getstate: event handler
+      // Cached results lack the new link; drop them and reload this panel.
+      await similarAPI.reset().catch(() => undefined);
+      useSimilarStore.getState().retry(panelId); // allow-getstate: event handler
     } catch (err) {
       console.error('[SimilarPane] Could not add cross-reference:', err);
       useToastStore.getState().addToast(t('similar.xrefFailed'), 'error'); // allow-getstate: event handler

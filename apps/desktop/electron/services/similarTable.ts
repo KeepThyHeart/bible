@@ -36,9 +36,12 @@ export interface SimilarTableDeps {
 /** Minimum gap before a failed install is started again. */
 const RETRY_MS = 60_000;
 
+/** Largest decompressed table accepted. */
+const MAX_TABLE_BYTES = 64 * 1024 * 1024;
+
 export async function readTableFile(path: string): Promise<NeighbourTable> {
   let bytes: Uint8Array = await fsp.readFile(path);
-  if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = zlib.gunzipSync(bytes);
+  if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = zlib.gunzipSync(bytes, { maxOutputLength: MAX_TABLE_BYTES });
   return NeighbourTable.fromBytes(new Uint8Array(bytes));
 }
 

@@ -116,7 +116,7 @@ describe('TYPED_IPC_CHANNELS', () => {
   });
 
   it('includes the similar passages channels (task 0070)', () => {
-    for (const channel of ['similar:find', 'similar:explain', 'similar:status']) {
+    for (const channel of ['similar:find', 'similar:explain', 'similar:status', 'similar:reset']) {
       expect(TYPED_IPC_CHANNELS as readonly string[]).toContain(channel);
     }
   });

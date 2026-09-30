@@ -1418,9 +1418,10 @@
       "label": "Testamento",
       "any": "Todos",
       "ot": "Antiguo Testamento",
-      "nt": "Nuevo Testamento"
+      "nt": "Nuevo Testamento",
+      "other": "Otro testamento"
     },
-    "similarTo": "Similar a {{reference}}",
+    "similarTo": "Similar a {reference}",
     "approximate": "Basado en los versículos individuales de su selección.",
     "selectVerse": "Seleccione un versículo para buscar pasajes similares.",
     "loading": "Cargando pasajes similares...",
@@ -1428,6 +1429,7 @@
     "unavailable": "Los datos de pasajes similares no están disponibles en este servidor.",
     "error": "No se pudieron cargar los pasajes similares.",
     "retry": "Reintentar",
-    "showMore": "Mostrar 10 más"
+    "showMore": "Mostrar 10 más",
+    "rangeNeedsLive": "Este pasaje no tiene coincidencias precalculadas aquí; seleccione un solo versículo."
   }
 }

@@ -10,3 +10,4 @@ export * from './explainMatch';
 export * from './passageFacts';
 export * from './NeighbourTable';
 export * from './SimilarPassagesService';
+export * from './frequentStrongs';

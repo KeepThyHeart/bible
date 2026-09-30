@@ -1418,9 +1418,10 @@
       "label": "约",
       "any": "全部",
       "ot": "旧约",
-      "nt": "新约"
+      "nt": "新约",
+      "other": "另一约"
     },
-    "similarTo": "与 {{reference}} 相似",
+    "similarTo": "与 {reference} 相似",
     "approximate": "基于所选经文的各节。",
     "selectVerse": "请选择一节经文以查找相似经文。",
     "loading": "正在加载相似经文...",
@@ -1428,6 +1429,7 @@
     "unavailable": "此服务器上没有相似经文数据。",
     "error": "无法加载相似经文。",
     "retry": "重试",
-    "showMore": "再显示 10 条"
+    "showMore": "再显示 10 条",
+    "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
   }
 }

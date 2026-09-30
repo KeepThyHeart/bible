@@ -144,6 +144,18 @@ describe('SimilarPassagesService live path', () => {
     expect(res.passages[0].via).toBe('live');
   });
 
+  it('caps live query vectors at 8 and reclassifies rows with the service weights', async () => {
+    const many: QueryRow[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `r${i}`,
+      kind: 'explanation',
+      level: 'verse',
+      vector: Float32Array.from([1, i / 20]),
+    }));
+    const live = makeLive({ getPassageRows: vi.fn(() => many) as never });
+    await new SimilarPassagesService({ live: () => live }).findSimilar(verse(PS23_1));
+    expect(live.searchRows.mock.calls[0][0].length).toBeLessThanOrEqual(8);
+  });
+
   it('reports no-data when the verse has no index rows', async () => {
     const live = makeLive({ getPassageRows: () => [] });
     const res = await new SimilarPassagesService({ live: () => live }).findSimilar(verse(PS23_1));

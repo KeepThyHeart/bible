@@ -114,6 +114,17 @@ describe('useSimilarStore', () => {
     expect(state()).toMatchObject({ status: 'error', error: 'boom' });
   });
 
+  it('clears explanations when a source changes', async () => {
+    find.mockResolvedValue(okResp());
+    explain.mockResolvedValue([{ kind: 'word', label: 'love' }]);
+    useSimilarStore.getState().openFor(r(1));
+    useSimilarStore.getState().requestExplanation('p1', r(9));
+    await flush();
+    expect(useSimilarStore.getState().explanations.size).toBe(1);
+    useSimilarStore.getState().moreLike('p1', r(2));
+    expect(useSimilarStore.getState().explanations.size).toBe(0);
+  });
+
   it('caches explanations and fetches each pair once', async () => {
     find.mockResolvedValue(okResp());
     explain.mockResolvedValue([{ kind: 'word', label: 'love' }]);
