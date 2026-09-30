@@ -31,6 +31,17 @@ export {
   defaultFormatReference,
 } from './components/Timeline/labels';
 export type { TimelineViewLabels, TimelineItemCardLabels, TimelinePanelLabels } from './components/Timeline/labels';
+export { defaultFormatRef, sectionVar, sectionVarOfVerse } from './components/xref/common';
+export type { FormatRef } from './components/xref/common';
+export { XrefHopper, DEFAULT_XREF_HOPPER_LABELS } from './components/xref/XrefHopper';
+export type { XrefHopperProps, XrefHopperLabels } from './components/xref/XrefHopper';
+export { XrefWebView, DEFAULT_XREF_WEB_LABELS } from './components/xref/XrefWebView';
+export type { XrefWebViewProps, XrefWebViewLabels } from './components/xref/XrefWebView';
+export { XrefCompassView, DEFAULT_XREF_COMPASS_LABELS } from './components/xref/XrefCompassView';
+export type { XrefCompassViewProps, XrefCompassLabels } from './components/xref/XrefCompassView';
+export { useXrefFullscreen } from './components/xref/fullscreen';
+export { XrefArcView, DEFAULT_XREF_ARCS_LABELS } from './components/xref/XrefArcView';
+export type { XrefArcViewProps, XrefArcViewLabels } from './components/xref/XrefArcView';
 export { Popover } from './components/Popover';
 export type { PopoverProps } from './components/Popover';
 export { HoverCard } from './components/HoverCard';

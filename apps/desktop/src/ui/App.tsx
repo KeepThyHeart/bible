@@ -39,6 +39,7 @@ import './styles/dockview-overrides.css';
 // has to parse before it can draw anything.
 const LazyDialogs = {
   AdvancedSearchDialog: React.lazy(() => import('./components/AdvancedSearchDialog')),
+  XrefGraphDialog: React.lazy(() => import('./components/XrefGraphDialog')),
   ModuleManagerDialog: React.lazy(() => import('./components/ModuleManagerDialog')),
   PreferencesDialog: React.lazy(() => import('./components/PreferencesDialog')),
   KeyboardShortcutsDialog: React.lazy(() => import('./components/KeyboardShortcutsDialog')),
@@ -55,6 +56,7 @@ const LazyDialogs = {
   ),
 } as const;
 const AdvancedSearchDialog = LazyDialogs.AdvancedSearchDialog;
+const XrefGraphDialog = LazyDialogs.XrefGraphDialog;
 const ModuleManagerDialog = LazyDialogs.ModuleManagerDialog;
 const PreferencesDialog = LazyDialogs.PreferencesDialog;
 const KeyboardShortcutsDialog = LazyDialogs.KeyboardShortcutsDialog;
@@ -458,6 +460,9 @@ function App() {
 
         {/* Advanced Search Dialog (modal overlay) */}
         <AdvancedSearchDialog />
+
+        {/* Cross-reference graph dialog (modal overlay) */}
+        <XrefGraphDialog />
 
         {/* Module Manager Dialog (modal overlay) */}
         {showModuleManager && (

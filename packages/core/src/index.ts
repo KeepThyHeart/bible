@@ -113,6 +113,11 @@ export * from './Services/Search';
 // StudyOverview - cross-module aggregation services
 export * from './Services/StudyOverview';
 
+// Cross-reference graph service and index builder (task 0068); the pure half is in ./Services/XrefGraph.
+export { XrefGraphService, USER_SOURCE, UNKNOWN_RANK } from './Services/XrefGraph/XrefGraphService';
+export * from './Services/XrefGraph/types';
+export { XrefGraphIndexBuilder } from './Services/XrefGraph/XrefGraphIndexBuilder';
+
 // Plugin system (hook registry, loader, types)
 export * from './Plugin';
 

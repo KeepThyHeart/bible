@@ -7,7 +7,8 @@ import {
   ICrossReferenceRepository,
   CrossReferenceGroupWithEntries,
   ReverseReference,
-  RangeReverseReference
+  RangeReverseReference,
+  CrossReferenceLinkRow
 } from './ICrossReferenceRepository';
 import { BaseModuleRepository, mapModuleIdentity } from './BaseModuleRepository';
 import { ModuleInfoRow, CrossReferenceGroupRow } from '../Core/RowTypes';
@@ -243,6 +244,50 @@ export class CrossReferenceRepository extends BaseModuleRepository<CrossReferenc
     );
     return row?.count ?? 0;
     
+  }
+
+  // ========================================================================
+  // Whole-module scans
+  // ========================================================================
+
+  getLinkCount(): number {
+    const row = this.sql.queryOne<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM verse_link WHERE source_type = 'cross_reference_group'`
+    );
+    return row?.count ?? 0;
+  }
+
+  forEachLink(visit: (link: CrossReferenceLinkRow) => void): void {
+    const bounds = this.sql.queryOne<{ lo: number | null; hi: number | null }>(
+      `SELECT MIN(group_id) AS lo, MAX(group_id) AS hi FROM cross_reference_group`
+    );
+    if (bounds?.lo == null || bounds.hi == null) return;
+    const WINDOW = 4000;
+    for (let lo = bounds.lo; lo <= bounds.hi; lo += WINDOW) {
+      const rows = this.sql.queryAll(
+        `SELECT g.group_id AS group_id, g.verse_id_start AS source_start, g.verse_id_end AS source_end,
+                vl.verse_id_start AS target_start,
+                COALESCE(vl.verse_id_end, vl.verse_id_start) AS target_end
+         FROM cross_reference_group g
+         JOIN verse_link vl ON vl.source_id = g.group_id
+         WHERE g.group_id >= ? AND g.group_id < ? AND vl.source_type = 'cross_reference_group'
+         ORDER BY g.group_id, vl.sort_order, vl.link_id`,
+        [lo, lo + WINDOW]
+      );
+      let currentGroup = -1;
+      let rank = 0;
+      for (const row of rows) {
+        const groupId = row.group_id as number;
+        if (groupId !== currentGroup) { currentGroup = groupId; rank = 0; }
+        visit({
+          sourceVerseIdStart: row.source_start as VerseId,
+          sourceVerseIdEnd: row.source_end as VerseId,
+          targetVerseIdStart: row.target_start as VerseId,
+          targetVerseIdEnd: row.target_end as VerseId,
+          rank: rank++,
+        });
+      }
+    }
   }
 
   // ========================================================================

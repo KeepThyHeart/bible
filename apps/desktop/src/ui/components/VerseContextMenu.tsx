@@ -8,6 +8,8 @@ import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
+import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
 /**
@@ -427,6 +429,30 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <span>{t('ui.verseContextMenu.addNote')}</span>
+          </button>
+        </>
+      )}
+
+      {/* Cross-reference graph for the right-clicked verse */}
+      {versesArray.length > 0 && (
+        <>
+          <div className="border-t border-border my-1"></div>
+          <button
+            onClick={() => {
+              const verseId = versesArray[0].verse_id;
+              onClose();
+              useXrefGraphStore.getState().openGraph(verseId);
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="12" r="2.5" strokeWidth={2} />
+              <circle cx="18" cy="6" r="2.5" strokeWidth={2} />
+              <circle cx="18" cy="18" r="2.5" strokeWidth={2} />
+              <path strokeLinecap="round" strokeWidth={2} d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
+            </svg>
+            <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
           </button>
         </>
       )}
