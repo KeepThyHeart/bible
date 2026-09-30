@@ -27,7 +27,7 @@ Canonical edges are `father_of`/`mother_of` (parent to child) and `husband_of`/`
 
 ## Data
 
-The dataset is not in this repository. It is built from STEPBible TIPNR and BibleData (both CC BY 4.0) plus lineages transcribed from the KJV, by a builder that lives in the `bible-scripts` repository, and shipped as the `tag_graph` module. Until that module is installed the feature is dark: desktop returns `null` from `tagGraph:getGenealogyDataset` and the web flag `features.genealogy` (which requires `features.tagGraph`) is off by default.
+The dataset is not in this repository. It is built from STEPBible TIPNR and BibleData (both CC BY 4.0) plus lineages transcribed from the KJV, by a builder that lives in the `bible-scripts` repository, and shipped as the `tag_graph` module. Until that module is installed the feature is dark: desktop returns `null` from `tagGraph:getGenealogyDataset` and the `genealogy` feature flag (`isEnabled('genealogy')`, which requires `tagGraph`; site config `features.genealogy`) is off by default.
 
 ## Consumers
 

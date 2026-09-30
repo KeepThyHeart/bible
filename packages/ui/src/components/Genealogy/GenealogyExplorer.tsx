@@ -64,7 +64,7 @@ const TABS: GenealogyViewKind[] = ['line', 'family', 'tribes'];
 
 export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, onOpenVerse, labels: overrides, compact }: GenealogyExplorerProps) {
   const labels = { ...DEFAULT_GENEALOGY_EXPLORER_LABELS, ...overrides };
-  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
 
   const effective = useMemo(
     () => GenealogyGraph.from(graph.dataset, { readings: state.readings, showDisputed: state.showDisputed }),
@@ -116,12 +116,12 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
         </div>
         <label className="kth-genealogy-explorer__toggle">
           <input type="checkbox" checked={state.highlightLineToChrist}
-            onChange={(e) => store.setState((s) => ({ ...s, highlightLineToChrist: e.target.checked }))} />{' '}
+            onChange={(e) => store.setState((s) => ({ ...s, highlightLineToChrist: e.currentTarget.checked }))} />{' '}
           {labels.highlight}
         </label>
         <label className="kth-genealogy-explorer__toggle">
           <input type="checkbox" checked={state.showDisputed}
-            onChange={(e) => store.setState((s) => ({ ...s, showDisputed: e.target.checked }))} />{' '}
+            onChange={(e) => store.setState((s) => ({ ...s, showDisputed: e.currentTarget.checked }))} />{' '}
           {labels.showDisputed}
         </label>
         <PersonSearch

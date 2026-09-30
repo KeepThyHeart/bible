@@ -4,7 +4,7 @@ Family tree mode of the Study pane: the line from Adam to Christ, an hourglass v
 
 ## Feature flag
 
-`features.genealogy` in `site-config.json`, **off by default and only honoured together with `features.tagGraph`** (`SiteConfig.features.genealogy` is `tagGraph && genealogy`). The client reads it as `isGenealogyEnabled()` in `src/utils/clientConfig.ts`. With it off there is no mode tab, no mobile section, no "Show family tree" action and no request to `/api/taggraph/genealogy`.
+`features.genealogy` in `site-config.json` (the `genealogy` feature flag), **off by default and only honoured together with `features.tagGraph`** (the flag declares `requires: ['tagGraph']`). The client reads it as `isEnabled('genealogy')` from `src/utils/featureFlags.ts` (wrapped as `isGenealogyEnabled()`); the server as `SiteConfig.isEnabled('genealogy')`. With it off there is no mode tab, no mobile section, no "Show family tree" action and no request to `/api/taggraph/genealogy`.
 
 ## Key Files
 

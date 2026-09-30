@@ -66,7 +66,7 @@ export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, li
         aria-activedescendant={showList && results[active] ? `${id}-opt-${active}` : undefined}
         placeholder={labels.placeholder}
         value={text}
-        onChange={(e) => { setText(e.target.value); setActive(0); setOpen(true); }}
+        onChange={(e) => { setText(e.currentTarget.value); setActive(0); setOpen(true); }}
         onKeyDown={onKeyDown}
       />
       <ul id={`${id}-listbox`} role="listbox" aria-label={labels.listbox} className="kth-genealogy-search__list" hidden={!showList}>

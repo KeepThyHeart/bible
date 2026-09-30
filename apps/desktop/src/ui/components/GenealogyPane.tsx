@@ -14,9 +14,14 @@ interface GenealogyPaneProps {
 }
 
 /** One provider for the whole renderer: it caches the (large) dataset after the first read. */
-let sharedProvider: ReturnType<typeof createDesktopDataProviders>['genealogy'] | null = null;
-function getGenealogyProvider() {
-  if (!sharedProvider) sharedProvider = createDesktopDataProviders().genealogy;
+type GenealogyProvider = NonNullable<ReturnType<typeof createDesktopDataProviders>['genealogy']>;
+let sharedProvider: GenealogyProvider | null = null;
+function getGenealogyProvider(): GenealogyProvider {
+  if (!sharedProvider) {
+    const provider = createDesktopDataProviders().genealogy;
+    if (!provider) throw new Error('Genealogy data provider is not available');
+    sharedProvider = provider;
+  }
   return sharedProvider;
 }
 

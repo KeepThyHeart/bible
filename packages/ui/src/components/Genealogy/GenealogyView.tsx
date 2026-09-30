@@ -153,7 +153,7 @@ export function GenealogyView({
   // ---- pointer: drag to pan, two pointers to pinch ----
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const moved = useRef(false);
-  const local = (e: ReactPointerEvent) => {
+  const local = (e: ReactPointerEvent<SVGSVGElement>) => {
     const r = svgRef.current?.getBoundingClientRect();
     return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
   };
@@ -276,7 +276,7 @@ export function GenealogyView({
       <svg
         ref={svgRef}
         className="kth-genealogy-view__svg"
-        role="graphics-document"
+        role={"graphics-document" as never}
         aria-label={labels.graph}
         width="100%"
         height="100%"
@@ -313,11 +313,11 @@ export function GenealogyView({
                   data-node-id={n.id}
                   data-person-id={n.personId}
                   transform={`translate(${n.x} ${n.y})`}
-                  role="graphics-symbol"
+                  role={"graphics-symbol" as never}
                   aria-label={nodeName(n)}
                   aria-current={isSel ? 'true' : undefined}
                   onClick={() => onNodeClick(n)}
-                  onDoubleClick={() => onFocusPerson?.(n.personId)}
+                  {...({ onDoubleClick: () => onFocusPerson?.(n.personId) } as object)}
                   onKeyDown={(e) => onNodeKeyDown(e, n)}
                   onFocus={() => setRovingId(n.id)}
                 >

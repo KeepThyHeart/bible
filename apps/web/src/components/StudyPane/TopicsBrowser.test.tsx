@@ -275,7 +275,7 @@ describe('TopicsBrowser', () => {
   });
 
   it('shows no family tree action for a place', async () => {
-    const places = [{ entity_id: 'p1', category: 'places', name: 'Bethel', notes: null }] as TagGraphEntityData[];
+    const places = [{ entity_id: 'p1', category: 'places', name: 'Bethel' }] as TagGraphEntityData[];
     const { container } = await openFirstEntity({ onShowFamilyTree: vi.fn() }, places);
     expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
   });
