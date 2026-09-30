@@ -19,7 +19,6 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, pwaFlag, pwaUpdateMode, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
-import { clientPluginManager } from './plugins/pluginManager';
 import { presentStore } from './stores/presentStore';
 import { followStore } from './stores/followStore';
 import { isPresenterHash, PRESENTER_HASH, rememberReaderHash } from './apps/present/route';
