@@ -74,7 +74,9 @@ export interface TimelinePanelLabels {
   fullscreen: string;
   exitFullscreen: string;
   zoom: string;
-  position: string;
+  /** Names of the range slider's two handles. */
+  rangeFrom: string;
+  rangeTo: string;
   searchResults: string;
   noResults: string;
   /** Kind display names (falls back to the built-in English ones). */
@@ -95,7 +97,8 @@ export const DEFAULT_TIMELINE_PANEL_LABELS: TimelinePanelLabels = {
   fullscreen: 'Full screen',
   exitFullscreen: 'Exit full screen',
   zoom: 'Zoom',
-  position: 'Position',
+  rangeFrom: 'From',
+  rangeTo: 'To',
   searchResults: 'Search results',
   noResults: 'No matching events',
 };

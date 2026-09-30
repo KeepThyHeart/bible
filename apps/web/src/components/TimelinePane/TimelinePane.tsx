@@ -55,7 +55,8 @@ export function TimelinePane({ provider, allowFullscreen }: TimelinePaneProps) {
     fullscreen: t('timeline.fullscreen'),
     exitFullscreen: t('timeline.exitFullscreen'),
     zoom: t('timeline.zoom'),
-    position: t('timeline.position'),
+    rangeFrom: t('timeline.rangeFrom'),
+    rangeTo: t('timeline.rangeTo'),
     searchResults: t('timeline.searchResults'),
     noResults: t('timeline.noResults'),
     kindNames: {

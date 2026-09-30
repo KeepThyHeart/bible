@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTimelineStore } from '@bible/core/browser';
 import { TimelineView } from './TimelineView';
 import { TimelineItemCard } from './TimelineItemCard';
 import { TimelinePanel } from './TimelinePanel';
-import { defaultFormatReference } from './labels';
+import { TimelineZoomControls } from './TimelineZoomControls';
+import { DEFAULT_TIMELINE_PANEL_LABELS, defaultFormatReference } from './labels';
 import { FIXTURE } from './fixture';
 
 describe('TimelineView', () => {
@@ -107,13 +108,27 @@ describe('TimelinePanel', () => {
     expect(screen.getByText('No matching events')).toBeTruthy();
   });
 
-  it('zoom slider changes the span', () => {
-    render(<TimelinePanel dataset={FIXTURE} />);
-    const slider = screen.getByRole('slider', { name: 'Zoom' }) as HTMLInputElement;
-    expect(slider.value).toBe('0');
-    fireEvent.change(slider, { target: { value: '500' } });
-    expect(Number((screen.getByRole('slider', { name: 'Zoom' }) as HTMLInputElement).value)).toBeGreaterThan(300);
-    expect((screen.getByRole('slider', { name: 'Position' }) as HTMLInputElement).disabled).toBe(false);
+  it('range slider: From and To flags are sliders that move their own edge and stay in sync', () => {
+    const store = createTimelineStore(FIXTURE, { width: 800 });
+    render(<TimelineZoomControls store={store} labels={DEFAULT_TIMELINE_PANEL_LABELS} />);
+    const from = screen.getByRole('slider', { name: 'From' });
+    const to = screen.getByRole('slider', { name: 'To' });
+    expect(from.getAttribute('aria-valuetext')).toMatch(/BC|AD/);
+    const full = store.getSnapshot().view;
+    fireEvent.keyDown(from, { key: 'ArrowRight' });
+    let v = store.getSnapshot().view;
+    expect(v.start).toBeGreaterThan(full.start);
+    expect(v.end).toBe(full.end);
+    fireEvent.keyDown(to, { key: 'PageDown' });
+    const v2 = store.getSnapshot().view;
+    expect(v2.end).toBeLessThan(v.end);
+    expect(v2.start).toBe(v.start);
+    expect(Number(screen.getByRole('slider', { name: 'To' }).getAttribute('aria-valuenow'))).toBe(v2.end);
+    fireEvent.keyDown(from, { key: 'Home' });
+    expect(store.getSnapshot().view.start).toBe(full.start);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    v = store.getSnapshot().view;
+    expect(Number(screen.getByRole('slider', { name: 'From' }).getAttribute('aria-valuenow'))).toBe(v.start);
   });
 
   it('has no full-screen button unless allowed', () => {
@@ -192,10 +207,11 @@ describe('TimelinePanel', () => {
     expect(status.tagName).not.toBe('LI');
   });
 
-  it('zoom slider valuetext reads a short span as one year', () => {
-    render(<TimelinePanel dataset={FIXTURE} />);
-    const slider = screen.getByRole('slider', { name: 'Zoom' });
-    expect(slider.getAttribute('aria-valuetext')).toMatch(/BC|AD/);
-    expect(slider.getAttribute('aria-valuetext')).not.toMatch(/^(.+) - \1$/);
+  it('range flags read a short window with a precise date', () => {
+    const store = createTimelineStore(FIXTURE, { width: 800 });
+    render(<TimelineZoomControls store={store} labels={DEFAULT_TIMELINE_PANEL_LABELS} />);
+    const b = store.getBounds();
+    act(() => store.setView({ start: b.start + 10, end: b.start + 12 }));
+    expect(screen.getByRole('slider', { name: 'From' }).getAttribute('aria-valuetext')).toMatch(/\d+:\d\d/);
   });
 });

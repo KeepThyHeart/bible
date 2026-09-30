@@ -32,7 +32,7 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
   setView(view: TimeView): void;
   fit(): void;
   select(id: number | null): void;
-  /** Select an item and frame it in the view (at least the store's minimum span, centred on the item). */
+  /** Select an item and frame it in the view (at least the store's minimum span, centred on the item; day/hour-dated items frame at their own precision). */
   focusItem(id: number): void;
   /** Select the best item for a verse (follow-my-reading); false when none covers it. */
   focusPassage(verseId: number, verseIdEnd?: number): boolean;
@@ -41,6 +41,10 @@ export interface TimelineStore extends ReadableStore<TimelineState> {
   setQuery(query: string): void;
   /** Resize the window about its centre (clamped to bounds and MIN_SPAN_DAYS). */
   setSpan(span: number): void;
+  /** Move one edge of the window to instant `t` (clamped to the bounds; never crosses the other edge). */
+  setEdge(edge: 'start' | 'end', t: number): void;
+  /** Slide the window, keeping its span, so it starts at `start` (clamped to the bounds). */
+  panTo(start: number): void;
   /** Slide the window: 0 = left edge of the bounds, 1 = right edge. */
   setCenterFraction(f: number): void;
   /** Ranked title/summary search over the items dated under the current chronology. */
@@ -158,8 +162,10 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
       if (!r) return;
       const start = r.date.start;
       const end = r.date.end ?? start;
-      // Frame at least the configured minimum span (and 1.5x the item) centred on the item.
-      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, minSpanDays);
+      // Frame the item at its own precision when it is dated to the day or hour; otherwise at least the
+      // configured minimum span (and 1.5x the item), centred on the item.
+      const fine = r.date.precision === 'day' || r.date.precision === 'hour';
+      const span = Math.max(minContextDays(r.date.precision), (end - start) * 1.5, MIN_SPAN_DAYS, fine ? 0 : minSpanDays);
       const mid = (start + end) / 2;
       update({ selectedId: id, view: clampView({ start: mid - span / 2, end: mid + span / 2 }, bounds) });
     },
@@ -187,6 +193,20 @@ export function createTimelineStore(dataset: TimelineDataset, options: TimelineS
       const mid = (v.start + v.end) / 2;
       const next = Math.max(span, MIN_SPAN_DAYS);
       update({ view: clampView({ start: mid - next / 2, end: mid + next / 2 }, bounds) });
+    },
+    setEdge(edge, t) {
+      const v = state().view;
+      if (!Number.isFinite(t)) return;
+      const next =
+        edge === 'start'
+          ? { start: Math.min(Math.max(t, bounds.start), v.end - MIN_SPAN_DAYS), end: v.end }
+          : { start: v.start, end: Math.max(Math.min(t, bounds.end), v.start + MIN_SPAN_DAYS) };
+      update({ view: clampView(next, bounds) });
+    },
+    panTo(start) {
+      const v = state().view;
+      if (!Number.isFinite(start)) return;
+      update({ view: clampView({ start, end: start + viewSpan(v) }, bounds) });
     },
     setCenterFraction(f) {
       const v = state().view;

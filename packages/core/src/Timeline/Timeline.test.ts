@@ -164,9 +164,8 @@ describe('store', () => {
     expect(st.selectedId).toBe(3);
     expect(st.view.start).toBeLessThan(civilToInstant(33, 4, 3, 9));
     expect(st.view.end).toBeGreaterThan(civilToInstant(33, 4, 3, 9));
-    // passage follow frames the default span (capped at the bounds span)
-    const b = s.getBounds();
-    expect(st.view.end - st.view.start).toBeCloseTo(Math.min(DEFAULT_SPAN_DAYS, b.end - b.start));
+    // an hour-dated item frames at its own precision, not the default span
+    expect(st.view.end - st.view.start).toBeLessThan(5);
     const view = st.view;
     s.zoomAt(2, 400);
     const zoomed = s.getSnapshot().view;
@@ -177,22 +176,49 @@ describe('store', () => {
   });
   it('focusItem (search jump) frames at least the default minimum span, centred', () => {
     const s = createTimelineStore(dataset);
-    s.focusItem(3);
+    s.focusItem(1);
     const v = s.getSnapshot().view;
     const b = s.getBounds();
     expect(v.end - v.start).toBeCloseTo(Math.min(DEFAULT_SPAN_DAYS, b.end - b.start));
   });
   it('minSpanDays option sets the search-jump span; spanYearsToDays parses config', () => {
-    const s = createTimelineStore(dataset, { minSpanDays: 5 });
-    s.focusItem(3);
+    const s = createTimelineStore(dataset, { minSpanDays: 30000 });
+    s.focusItem(1);
     const v = s.getSnapshot().view;
-    expect(v.end - v.start).toBeGreaterThanOrEqual(5 - 1e-9);
-    expect(v.end - v.start).toBeLessThan(6);
+    expect(v.end - v.start).toBeCloseTo(30000);
     expect(spanYearsToDays('50')).toBeCloseTo(50 * 365.25);
     expect(spanYearsToDays('')).toBe(DEFAULT_SPAN_DAYS);
     expect(spanYearsToDays('abc')).toBe(DEFAULT_SPAN_DAYS);
     expect(spanYearsToDays(-3)).toBe(DEFAULT_SPAN_DAYS);
     expect(spanYearsToDays(undefined)).toBe(DEFAULT_SPAN_DAYS);
+  });
+  it('focusItem frames a day/hour-dated item at its own precision, ignoring the minimum span', () => {
+    const s = createTimelineStore(dataset);
+    s.focusItem(3);
+    const v = s.getSnapshot().view;
+    expect(v.end - v.start).toBeLessThan(5);
+    const t = civilToInstant(33, 4, 3, 9);
+    expect(v.start).toBeLessThan(t);
+    expect(v.end).toBeGreaterThan(t);
+  });
+  it('setEdge moves one edge, clamps to bounds and never crosses; panTo keeps the span', () => {
+    const s = createTimelineStore(dataset);
+    const b = s.getBounds();
+    s.setView({ start: b.start + 1000, end: b.start + 2000 });
+    s.setEdge('start', b.start + 1500);
+    expect(s.getSnapshot().view).toEqual({ start: b.start + 1500, end: b.start + 2000 });
+    s.setEdge('start', b.start + 5000);
+    expect(s.getSnapshot().view.end).toBe(b.start + 2000);
+    expect(s.getSnapshot().view.start).toBeLessThan(b.start + 2000);
+    s.setEdge('end', b.start + 1e9);
+    expect(s.getSnapshot().view.end).toBe(b.end);
+    s.setEdge('start', b.start - 1e9);
+    expect(s.getSnapshot().view.start).toBe(b.start);
+    s.setView({ start: b.start + 1000, end: b.start + 2000 });
+    s.panTo(b.start + 3000);
+    expect(s.getSnapshot().view).toEqual({ start: b.start + 3000, end: b.start + 4000 });
+    s.panTo(b.end + 1e6);
+    expect(s.getSnapshot().view.end).toBe(b.end);
   });
   it('setSpan zooms about the centre and clamps', () => {
     const s = createTimelineStore(dataset);
