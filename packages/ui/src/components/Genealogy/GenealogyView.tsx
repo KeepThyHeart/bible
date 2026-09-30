@@ -75,7 +75,7 @@ const KEY_PAN = 60;
 const KEY_ZOOM = 1.2;
 const DRAG_THRESHOLD = 3;
 /** Below this scale a fitted layout would be unreadable; fit opens at this scale instead (centred on the focus). */
-const MIN_FIT_SCALE = 0.5;
+const MIN_FIT_SCALE = 0.9;
 const arrowDir: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
 function toPanZoom(v: GenealogyViewport): PanZoom { return new PanZoom(v.k, v.tx, v.ty); }
@@ -111,15 +111,20 @@ export function GenealogyView({
   const update = useCallback((fn: (p: PanZoom) => PanZoom) => {
     commit(fromPanZoom(fn(toPanZoom(vpRef.current))));
   }, [commit]);
-  const fit = useCallback(() => {
+  const fit = useCallback((readable = false) => {
     update((p) => {
-      p.fit(layout.bounds, sizeRef.current.w, sizeRef.current.h);
-      if (p.k < MIN_FIT_SCALE) {
+      const { w, h } = sizeRef.current;
+      p.fit(layout.bounds, w, h);
+      if (readable && p.k < MIN_FIT_SCALE) {
         // A very wide layout (the whole line, all tribes) would open as unreadable dots:
-        // open at a readable scale, centred on the focus person (else the first node).
-        const target = layout.nodes.find((n) => n.flags.focus) ?? layout.nodes[0];
+        // open at a readable scale, on the focus person, else the start of the layout at the left edge.
         p.k = MIN_FIT_SCALE;
-        if (target) p.centerOn(target.x, target.y, sizeRef.current.w, sizeRef.current.h);
+        const focus = layout.nodes.find((n) => n.flags.focus);
+        if (focus) p.centerOn(focus.x, focus.y, w, h);
+        else {
+          p.centerOn(layout.bounds.x, layout.bounds.y + layout.bounds.h / 2, w, h);
+          p.tx = 24 - layout.bounds.x * p.k;
+        }
       }
       return p;
     });
@@ -146,7 +151,7 @@ export function GenealogyView({
 
   // Fit on mount and whenever the layout changes (uncontrolled only).
   useLayoutEffect(() => {
-    if (!propsRef.current.viewport) fit();
+    if (!propsRef.current.viewport) fit(true);
   }, [layout]);
 
   // Wheel zoom must be non-passive to preventDefault, so it is attached natively.
@@ -211,7 +216,7 @@ export function GenealogyView({
     const { w, h } = sizeRef.current;
     if (e.key === '+' || e.key === '=') { update((p) => p.zoomAt(KEY_ZOOM, w / 2, h / 2)); e.preventDefault(); }
     else if (e.key === '-' || e.key === '_') { update((p) => p.zoomAt(1 / KEY_ZOOM, w / 2, h / 2)); e.preventDefault(); }
-    else if (e.key === 'Home') { fit(); e.preventDefault(); }
+    else if (e.key === 'Home') { fit(false); e.preventDefault(); }
     else if (e.target === e.currentTarget && arrowDir[e.key]) {
       const d = arrowDir[e.key];
       update((p) => p.pan(d === 'left' ? KEY_PAN : d === 'right' ? -KEY_PAN : 0, d === 'up' ? KEY_PAN : d === 'down' ? -KEY_PAN : 0));
@@ -288,7 +293,7 @@ export function GenealogyView({
           onClick={() => update((p) => p.zoomAt(1 / KEY_ZOOM, size.w / 2, size.h / 2))}>−</button>
         <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.zoomIn}
           onClick={() => update((p) => p.zoomAt(KEY_ZOOM, size.w / 2, size.h / 2))}>+</button>
-        <button type="button" className="kth-btn kth-btn--sm" onClick={fit}>{labels.fit}</button>
+        <button type="button" className="kth-btn kth-btn--sm" onClick={() => fit(false)}>{labels.fit}</button>
       </div>
       <svg
         ref={svgRef}

@@ -28,7 +28,7 @@ export const DEFAULT_GENEALOGY_STATE: GenealogyState = {
   focusId: null,
   selectedId: null,
   lineageIds: [],
-  tribeList: 'num_26',
+  tribeList: 'gen_49',
   highlightLineToChrist: true,
   showMothers: true,
   showDisputed: false,

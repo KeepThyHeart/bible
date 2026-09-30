@@ -9,7 +9,7 @@ import {
 export interface TribesLayoutOptions {
   /** Order of the tribes (KJV): Gen 49 (default), Num 26 or Rev 7. */
   list?: 'gen_49' | 'num_26' | 'rev_7';
-  /** Generations shown below each tribe head (default 2). */
+  /** Generations shown below each tribe head (default 0: heads only). */
   depth?: number;
   collapsed?: string[];
   highlightLineToChrist?: boolean;
@@ -31,7 +31,7 @@ export const TRIBE_LISTS: Record<'gen_49' | 'num_26' | 'rev_7', string[]> = {
  */
 export function layoutTribes(g: GenealogyGraph, opts: TribesLayoutOptions = {}): GraphLayout {
   const list = opts.list ?? 'gen_49';
-  const depth = opts.depth ?? 1;
+  const depth = opts.depth ?? 0;
   const collapsed = new Set(opts.collapsed ?? []);
   const jacob = resolvePerson(g, 'jacob');
   if (!jacob) return finish([], []);
