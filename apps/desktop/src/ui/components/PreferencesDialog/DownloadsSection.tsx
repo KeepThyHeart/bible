@@ -84,7 +84,7 @@ export const DownloadsSection: React.FC = () => {
     return {
       id: e.id,
       title: e.title,
-      detail: [e.kind, e.license, e.verified ? null : t('downloads.unverified')].filter(Boolean).join(' · '),
+      detail: [e.kind, e.license, (e.status !== 'installed' || e.verified) ? null : t('downloads.unverified')].filter(Boolean).join(' · '),
       status: e.status,
       sizeBytes: e.size,
       storedBytes: e.storedBytes,
