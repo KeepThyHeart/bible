@@ -110,6 +110,8 @@ const DOCS_URL = envOrEmpty('BIBLE_DOCS_URL');
 const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
+// Timeline minimum framing span in years; empty means the built-in 200.
+const TIMELINE_MIN_SPAN_YEARS = envOrEmpty('BIBLE_TIMELINE_MIN_SPAN_YEARS');
 
 const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_PRODUCT_NAME__: JSON.stringify(PRODUCT_NAME),
@@ -126,6 +128,7 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_DIAGNOSTICS_URL__: JSON.stringify(DIAGNOSTICS_URL),
   __BIBLE_DIAGNOSTICS_TOKEN__: JSON.stringify(DIAGNOSTICS_TOKEN),
   __BIBLE_ABOUT_TEXT__: JSON.stringify(ABOUT_TEXT),
+  __BIBLE_TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(TIMELINE_MIN_SPAN_YEARS),
 };
 
 /**

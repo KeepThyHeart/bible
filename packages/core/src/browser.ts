@@ -275,6 +275,16 @@ export * as Backup from './Backup';
 
 // --- Genealogy explorer (task 0067): DTOs, graph queries, layouts, pan/zoom ---
 export * from './Genealogy';
+
+// --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
+export * from './Timeline';
+
+// --- Cross-reference graph (task 0068) -----------------------------------------
+// Types, the edge-weight formula, canon geometry, chapter-pair packing and the
+// budgeted ego-graph walk. Pure; the repository-backed service and index builder
+// live in the Node entry point.
+export * from './Services/XrefGraph';
+
 // --- Web user-data store (task 0084) ------------------------------------------
 // In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
 // import for them, and the localStorage migration helper. Namespaced: it re-exports

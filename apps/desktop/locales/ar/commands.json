@@ -62,5 +62,9 @@
   "bookmarks.manage": "إدارة العلامات المرجعية",
   "bookmarks.manage.category": "العلامات المرجعية",
   "bookmarks.manage.alias.0": "علامات مرجعية",
-  "bookmarks.manage.alias.1": "آيات محفوظة"
+  "bookmarks.manage.alias.1": "آيات محفوظة",
+  "xrefGraph.open": "إظهار روابط المراجع المتقاطعة",
+  "xrefGraph.open.category": "دراسة",
+  "xrefGraph.open.alias.0": "مراجع متقاطعة",
+  "xrefGraph.open.alias.1": "روابط"
 }

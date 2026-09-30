@@ -37,4 +37,5 @@ export const MODULE_TYPE_LABELS: Record<ModuleType, { key: string; fallback: str
   topical_index: { key: 'moduleManagerDialog.typeTopicalIndexes', fallback: 'Topical Indexes' },
   cross_reference: { key: 'moduleManagerDialog.typeCrossReferences', fallback: 'Cross-References' },
   tag_graph: { key: 'moduleManagerDialog.typeTagGraphs', fallback: 'Tag Graphs' },
+  timeline: { key: 'moduleManagerDialog.typeTimelines', fallback: 'Timelines' },
 };

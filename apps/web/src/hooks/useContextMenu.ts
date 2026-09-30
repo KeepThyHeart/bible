@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import { useViewportPosition } from './useViewportPosition';
 import { bibleStore } from '../stores/bibleStore';
+import { xrefGraphStore } from '../stores/xrefGraphStore';
 import { eventBus } from '../events/eventBus';
 import { parseVerseId } from '../utils/verseId';
 
@@ -81,6 +82,12 @@ export function useContextMenu(
     if (action === 'copy') {
       bibleStore.adoptPreviewAsStudy(verseId);
       setCopyOpen(true);
+      return;
+    }
+
+    if (action === 'connections') {
+      bibleStore.adoptPreviewAsStudy(verseId);
+      xrefGraphStore.open(verseId);
       return;
     }
 

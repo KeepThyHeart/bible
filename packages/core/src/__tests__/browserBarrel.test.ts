@@ -116,8 +116,9 @@ describe('@bible/core/browser barrel', () => {
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
-    // Settings registry and the web UserData store,
-    // then for the genealogy explorer (task 0067).
+    // Settings registry and the web UserData store, then for the
+    // pure Timeline engine (calendar, layout, scale, store), then for the
+    // genealogy explorer (task 0067).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
     expect(files.size).toBeLessThan(120);

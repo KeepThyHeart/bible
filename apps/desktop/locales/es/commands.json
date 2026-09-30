@@ -62,5 +62,9 @@
   "bookmarks.manage": "Gestionar marcadores",
   "bookmarks.manage.category": "Marcadores",
   "bookmarks.manage.alias.0": "marcadores",
-  "bookmarks.manage.alias.1": "versículos guardados"
+  "bookmarks.manage.alias.1": "versículos guardados",
+  "xrefGraph.open": "Mostrar conexiones de referencias cruzadas",
+  "xrefGraph.open.category": "Estudio",
+  "xrefGraph.open.alias.0": "referencias cruzadas",
+  "xrefGraph.open.alias.1": "conexiones"
 }

@@ -96,6 +96,11 @@ vi.mock('../../stores/bibleStore', () => ({
   },
 }));
 
+const mockXrefOpen = vi.fn();
+vi.mock('../../stores/xrefGraphStore', () => ({
+  xrefGraphStore: { open: (...a: unknown[]) => mockXrefOpen(...a) },
+}));
+
 import { StudyCrossRefs } from './StudyCrossRefs';
 
 function makeGroup(overrides: Partial<{
@@ -407,5 +412,26 @@ describe('StudyCrossRefs', () => {
     const seps = container.querySelectorAll('.study-crossrefs__sep');
     expect(seps.length).toBeGreaterThan(0);
     expect(seps[0].textContent).toBe('; ');
+  });
+
+  it('opens the cross-reference graph for the selected verse', () => {
+    mockVerseId = 43003016;
+    mockCrossRefGroups = [makeGroup()];
+    render(<StudyCrossRefs />);
+    fireEvent.click(screen.getByText('xrefGraph.showConnections'));
+    expect(mockXrefOpen).toHaveBeenCalledWith(43003016);
+  });
+
+  it('offers the graph button even when there are no cross-reference groups', () => {
+    mockVerseId = 43003016;
+    render(<StudyCrossRefs />);
+    expect(screen.getByText('xrefGraph.showConnections')).toBeTruthy();
+  });
+
+  it('hides the graph button when no verse is selected', () => {
+    mockVerseId = null;
+    render(<StudyCrossRefs />);
+    expect(screen.queryByText('xrefGraph.showConnections')).toBeNull();
+    mockVerseId = 43003016;
   });
 });

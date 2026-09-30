@@ -29,6 +29,9 @@ export function ContextMenuPopup({ x, y, menuRef, onAction }: ContextMenuPopupPr
       <button class="verse-context-menu__item" onClick={() => onAction('study')}>
         <i class="fa-solid fa-microscope" /> {t('contextMenu.study')}
       </button>
+      <button class="verse-context-menu__item" onClick={() => onAction('connections')}>
+        <i class="fa-solid fa-diagram-project" /> {t('xrefGraph.showConnections', { defaultValue: 'Show connections' })}
+      </button>
     </div>
   );
 }

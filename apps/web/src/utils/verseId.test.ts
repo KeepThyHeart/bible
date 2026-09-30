@@ -64,6 +64,13 @@ describe('formatVerseRange', () => {
     expect(formatVerseRange(57001010)).toBe('Philemon 10');
   });
 
+  it('treats verse 999 as the end of the chapter', () => {
+    expect(formatVerseRange(43003001, 43003999)).toBe('John 3');
+    expect(formatVerseRange(43003001, 43004999)).toBe('John 3-4');
+    expect(formatVerseRange(43003016, 43004999)).toBe('John 3:16-4');
+    expect(formatVerseRange(65001001, 65001999)).toBe('Jude');
+  });
+
   it('treats an end equal to the start as a single verse', () => {
     expect(formatVerseRange(43003016, 43003016)).toBe('John 3:16');
   });

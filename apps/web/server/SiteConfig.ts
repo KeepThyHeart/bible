@@ -25,6 +25,8 @@ interface FeaturesConfig {
   tagGraph?: boolean;
   /** Enable the genealogy explorer. Default false; requires `tagGraph` to be true. */
   genealogy?: boolean;
+  /** Show the Timeline explorer tab (with no timeline module installed it shows an install hint). Default false. */
+  timeline?: boolean;
   semanticSearch?: boolean;
   /**
    * Enable the PWA (manifest, install, service worker). Default false.

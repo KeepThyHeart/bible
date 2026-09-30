@@ -38,6 +38,7 @@ is the `path` the file passes to `registerRoute`.
 | `server/routes/crossRefRoutes.ts` (`/api/xref`) | `/:module/:verseId/groups`, `/:module/:verseId/count` |
 | `server/routes/topicalRoutes.ts` (`/api/topical`) | `/modules`, `/verse/:verseId`, `/:module/topic/:topicId`, `/:module/topic/:topicId/children`, `/:module/topic/:topicId/verses`, `/search` — see [Topics](topics.md) |
 | `server/routes/tagGraphRoutes.ts` (`/api/taggraph`) | `/verse/:verseId`, `/entity/:category/:entityId`, plus `/associations`, `/verses`, `/facets`, `/topic-links` under that entity path; `/search`, `/topic-link/:sourceModule/:topicId`, and `/genealogy` (the whole genealogy dataset, fetched once by the client; needs `features.genealogy` as well — see [Genealogy](genealogy.md)). Gated by the `showTagGraph` feature flag — see [Topics](topics.md) |
+| `server/routes/timelineRoutes.ts` (`/api/timeline`) | `GET /` returns the whole installed `timeline` module as one JSON `TimelineDataset` (ETag, `private, max-age=3600, stale-while-revalidate=86400`); 404 JSON error when no timeline module is installed or the `timeline` feature flag is off (the default; set `features.timeline: true`) |
 | `server/routes/moduleRoutes.ts` (`/api`, **not** `/api/modules`) | `/modules`, `/books`, `/module-sections` (client UI grouping from `site-config.json`), `/modules/:name/download` (full module `.db` for offline; `:name` may be `semantic-index`), `/modules/:name/download-lite` (trimmed copy, cached under `<dataDir>/lite-cache`), `/modules/:name/info` |
 | `server/routes/studyOverviewRoutes.ts` (`/api/study/overview`) | `/:book/:chapter` — bundled pre-generated study data (commentary overview, topics, cross-refs, entities) served from static cache |
 | `server/routes/feedbackRoutes.ts` (`/api/feedback`) | `POST /` — see "User feedback" below |
@@ -105,7 +106,7 @@ overlapping path.
 
 | Tier | Limit/min | Covers |
 |---|---:|---|
-| `content` | 600 | bible, commentary, dictionary, interlinear, strongs, xref, topical, taggraph, study, books, modules, module-sections |
+| `content` | 600 | bible, commentary, dictionary, interlinear, strongs, xref, topical, taggraph, timeline, study, books, modules, module-sections |
 | `search` | 60 | search |
 | `default` | 120 | everything else — health, config, version, plugins |
 | `global` | 10,000 | process-wide overload valve, mounted on `/api` only |

@@ -31,6 +31,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
+| [Cross-reference graph](features/xref-graph.md) | Ego graphs, edge weights, whole-canon arc index |
 | [Extensions & plugins](features/extensions-plugins.md) | The third-party extension contract and the in-process hook system |
 | [USFM export](features/usfm-export.md) | `src/Export/` - USFM read and write |
 | [Browser subset](features/browser-subset.md) | `@bible/core/browser`, what belongs in it and why |

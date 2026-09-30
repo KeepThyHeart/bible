@@ -41,6 +41,7 @@ import type { IBookRepository } from '../Repositories/IBookRepository';
 import type { ITopicalIndexRepository } from '../Repositories/ITopicalIndexRepository';
 import type { ICrossReferenceRepository } from '../Repositories/ICrossReferenceRepository';
 import type { ITagGraphRepository } from '../Repositories/ITagGraphRepository';
+import type { ITimelineRepository } from '../Repositories/ITimelineRepository';
 
 /**
  * Every module type that has both a real content repository AND a public
@@ -62,6 +63,7 @@ export interface ModuleRepositoryByType {
   topicalIndex: ITopicalIndexRepository;
   crossRef: ICrossReferenceRepository;
   tagGraph: ITagGraphRepository;
+  timeline: ITimelineRepository;
 }
 
 /**
@@ -117,6 +119,8 @@ export function moduleRepositoryTypeFor(moduleType: ModuleType): keyof ModuleRep
       return 'crossRef';
     case 'tag_graph':
       return 'tagGraph';
+    case 'timeline':
+      return 'timeline';
     case 'devotional':
     default:
       return null;
