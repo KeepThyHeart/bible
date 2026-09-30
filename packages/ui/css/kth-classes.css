@@ -987,7 +987,7 @@
 .kth-pack-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-2); padding: var(--kth-space-2) 0; border-block-end: 1px solid var(--kth-border); }
 .kth-pack-row__check { flex: 0 0 auto; inline-size: 1.1em; block-size: 1.1em; accent-color: var(--kth-accent); }
 .kth-pack-row__check:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
-.kth-pack-row__info { display: flex; flex-direction: column; flex: 1 1 auto; min-inline-size: 0; cursor: pointer; }
+.kth-pack-row__info { display: flex; flex-direction: column; flex: 1 1 10rem; min-inline-size: 0; cursor: pointer; }
 .kth-pack-row__title { font-weight: 600; color: var(--kth-text-heading); overflow-wrap: anywhere; }
 .kth-pack-row__detail { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
 .kth-pack-row__size { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }

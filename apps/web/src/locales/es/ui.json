@@ -302,7 +302,67 @@
       "semanticNotAvailable": "El índice de búsqueda semántica no está disponible en el servidor",
       "remove": "Eliminar",
       "download": "Descargar",
-      "failed": "Ha fallado"
+      "failed": "Ha fallado",
+      "pack": {
+        "title": "Paquetes sin conexión",
+        "presets": "Paquetes iniciales",
+        "groups": "Contenido",
+        "empty": "No hay nada disponible para descargar.",
+        "loadFailed": "No se pudo cargar la lista de paquetes.",
+        "notReadable": "La aplicación web aún no tiene lector sin conexión para este tipo.",
+        "shellNotice": "Hasta que esté disponible la aplicación sin conexión, los paquetes descargados solo sirven mientras ya haya una pestaña de este sitio abierta.",
+        "start": "Descargar selección",
+        "cancel": "Cancelar",
+        "storageBar": "Uso de almacenamiento",
+        "runProgress": "Progreso de la descarga",
+        "status": {
+          "absent": "No descargado",
+          "installed": "En este dispositivo",
+          "update": "Actualización disponible",
+          "installing": "Descargando",
+          "error": "Error"
+        },
+        "summary": {
+          "download": "Descarga: {size}",
+          "stored": "Almacenado: {size}",
+          "free": "Libre: {size}",
+          "freeUnknown": "Espacio libre desconocido"
+        },
+        "fit": {
+          "fits": "Cabe en este dispositivo",
+          "tight": "Cabe, pero el almacenamiento está casi lleno",
+          "no": "Espacio insuficiente: faltan {size}",
+          "unknown": "No se puede saber si cabe"
+        },
+        "run": {
+          "count": "{done} de {total} elementos",
+          "bytes": "{loaded} de {total}",
+          "running": "Descargando...",
+          "done": "Listo. Todo está en este dispositivo.",
+          "partial": "Algunos elementos no se descargaron.",
+          "failed": "La descarga falló.",
+          "cancelled": "Cancelado. Las descargas parciales se conservan y continuarán la próxima vez."
+        },
+        "group": {
+          "bible": "Biblias",
+          "commentary": "Comentarios",
+          "dictionary": "Diccionarios",
+          "crossref": "Referencias cruzadas",
+          "topical": "Temáticos",
+          "other": "Otros módulos",
+          "speech": "Voces",
+          "data": "Archivos de datos"
+        },
+        "warn": {
+          "unavailable": "{name} ya no está disponible.",
+          "notReadable": "{name} aún no se puede leer sin conexión en la aplicación web.",
+          "dependencyAdded": "Se añadió {name} porque {for} lo necesita.",
+          "missingDependency": "{name} necesita {requires}, que no está disponible.",
+          "cycle": "Algunos elementos dependen entre sí; se instalarán en un orden fijo.",
+          "overQuota": "Se necesitan unos {size} más de espacio.",
+          "quotaUnknown": "Se desconoce el espacio libre del dispositivo."
+        }
+      }
     },
     "downloads": {
       "title": "Descargas y almacenamiento",

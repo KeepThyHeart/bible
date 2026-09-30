@@ -302,7 +302,67 @@
       "semanticNotAvailable": "Semantic search index not available on server",
       "remove": "Remove",
       "download": "Download",
-      "failed": "Failed"
+      "failed": "Failed",
+      "pack": {
+        "title": "Offline packs",
+        "presets": "Starter packs",
+        "groups": "Contents",
+        "empty": "Nothing is available to download.",
+        "loadFailed": "The list of packs could not be loaded.",
+        "notReadable": "No offline reader for this type in the web app yet.",
+        "shellNotice": "Until the offline app shell is available, downloaded packs only help while a tab of this site is already open.",
+        "start": "Download selected",
+        "cancel": "Cancel",
+        "storageBar": "Storage use",
+        "runProgress": "Download progress",
+        "status": {
+          "absent": "Not downloaded",
+          "installed": "On this device",
+          "update": "Update available",
+          "installing": "Downloading",
+          "error": "Failed"
+        },
+        "summary": {
+          "download": "Download: {size}",
+          "stored": "Stored: {size}",
+          "free": "Free: {size}",
+          "freeUnknown": "Free space unknown"
+        },
+        "fit": {
+          "fits": "Fits on this device",
+          "tight": "Fits, but storage is nearly full",
+          "no": "Not enough space: {size} short",
+          "unknown": "Cannot tell if it fits"
+        },
+        "run": {
+          "count": "{done} of {total} items",
+          "bytes": "{loaded} of {total}",
+          "running": "Downloading...",
+          "done": "Done. Everything is on this device.",
+          "partial": "Some items were not downloaded.",
+          "failed": "The download failed.",
+          "cancelled": "Cancelled. Partial downloads are kept and resume next time."
+        },
+        "group": {
+          "bible": "Bibles",
+          "commentary": "Commentaries",
+          "dictionary": "Dictionaries",
+          "crossref": "Cross-references",
+          "topical": "Topical",
+          "other": "Other modules",
+          "speech": "Speech voices",
+          "data": "Data files"
+        },
+        "warn": {
+          "unavailable": "{name} is no longer offered.",
+          "notReadable": "{name} cannot be read offline in the web app yet.",
+          "dependencyAdded": "{name} was added because {for} needs it.",
+          "missingDependency": "{name} needs {requires}, which is not offered.",
+          "cycle": "Some items depend on each other; they will be installed in a fixed order.",
+          "overQuota": "About {size} more space is needed.",
+          "quotaUnknown": "Free space on this device is unknown."
+        }
+      }
     },
     "downloads": {
       "title": "Downloads & storage",

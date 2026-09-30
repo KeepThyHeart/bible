@@ -101,7 +101,7 @@ export interface ModuleFilter {
  * plus the `features` (feature packs) and `repositories` (sources) panels,
  * which render their own content instead of a module table.
  */
-export type ModuleManagerTab = ModuleType | 'features' | 'repositories';
+export type ModuleManagerTab = ModuleType | 'features' | 'repositories' | 'packs';
 
 /** The All / Installed / Updates filter chip group shown inside each module-type tab. */
 export type ModuleInstallFilter = 'all' | 'installed' | 'updates';

@@ -55,7 +55,8 @@ function mkRows(
         status,
         selected: selected.has(o.key),
       };
-      const detail = [o.language, o.version].filter(Boolean).join(' · ');
+      // The module version is a content hash on web: not shown.
+      const detail = o.language ?? '';
       if (detail) row.detail = detail;
       if (!o.offlineReadable) {
         row.disabled = true;
