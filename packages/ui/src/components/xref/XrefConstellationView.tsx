@@ -103,12 +103,12 @@ const SEGMENTS = bookSegments();
 const NT_START = bookFirstChapterIndex(40) / CHAPTER_COUNT;
 
 /** Arc path of the canon ring between two canon positions. */
-function arcPath(cx: number, cy: number, r: number, from: number, to: number): string {
+function arcPath(cx: number, cy: number, r: number, sx: number, from: number, to: number): string {
   const a0 = canonAngle(from);
   const a1 = canonAngle(Math.min(to, from + 0.99999));
   const large = to - from > 0.5 ? 1 : 0;
-  const p = (a: number) => `${(cx + Math.cos(a) * r).toFixed(1)} ${(cy + Math.sin(a) * r).toFixed(1)}`;
-  return `M${p(a0)} A${r} ${r} 0 ${large} 1 ${p(a1)}`;
+  const p = (a: number) => `${(cx + Math.cos(a) * r * sx).toFixed(1)} ${(cy + Math.sin(a) * r).toFixed(1)}`;
+  return `M${p(a0)} A${(r * sx).toFixed(1)} ${r} 0 ${large} 1 ${p(a1)}`;
 }
 
 export function XrefConstellationView({
@@ -281,7 +281,8 @@ export function XrefConstellationView({
 
   const cx = layout?.cx ?? width / 2;
   const cy = layout?.cy ?? height / 2;
-  const R = layout?.ringRadius ?? Math.min(width, height) / 2 - 40;
+  const R = layout?.ringRadius ?? height / 2 - 52;
+  const sx = layout?.stretch ?? 1;
   const ringR = R + 12;
   const rootClass = ['kth-xref-web', 'kth-xref-star', reduced ? 'kth-xref-star--still' : ''].filter(Boolean).join(' ');
 
@@ -333,12 +334,12 @@ export function XrefConstellationView({
                 <path
                   key={s.book}
                   className="kth-xref-star__book"
-                  d={arcPath(cx, cy, ringR, s.start, s.end)}
+                  d={arcPath(cx, cy, ringR, sx, s.start, s.end)}
                   style={{ stroke: `var(--kth-section-${s.section})` }}
                 />
               ))}
               {layout && layout.hopRadii.slice(1).map((r, i) => (
-                <circle key={i} className="kth-xref-star__ring" cx={cx} cy={cy} r={r} />
+                <ellipse key={i} className="kth-xref-star__ring" cx={cx} cy={cy} rx={r * sx} ry={r} />
               ))}
               {[0, NT_START].map((p) => {
                 const a = canonAngle(p);
@@ -346,9 +347,9 @@ export function XrefConstellationView({
                   <line
                     key={p}
                     className="kth-xref-star__divide"
-                    x1={cx + Math.cos(a) * R * 0.2}
+                    x1={cx + Math.cos(a) * R * 0.2 * sx}
                     y1={cy + Math.sin(a) * R * 0.2}
-                    x2={cx + Math.cos(a) * (ringR + 14)}
+                    x2={cx + Math.cos(a) * (ringR + 14) * sx}
                     y2={cy + Math.sin(a) * (ringR + 14)}
                   />
                 );
@@ -357,7 +358,7 @@ export function XrefConstellationView({
               {[40, 66].map((b) => {
                 const p = b === 66 ? 0.97 : NT_START;
                 const a = canonAngle(p);
-                const x = cx + Math.cos(a) * (ringR + 26);
+                const x = cx + Math.cos(a) * (ringR + 26) * sx;
                 const y = cy + Math.sin(a) * (ringR + 26);
                 return (
                   <text

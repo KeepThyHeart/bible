@@ -51,8 +51,10 @@ export interface StarEdge {
 export interface StarLayout {
   cx: number;
   cy: number;
-  /** Radius of the canon ring. */
+  /** Vertical radius of the canon ring; the horizontal radius is `ringRadius * stretch`. */
   ringRadius: number;
+  /** Horizontal stretch (>= 1): a wide stage turns the circle into an ellipse, so angles keep their meaning. */
+  stretch: number;
   /** Radius of each hop ring (index = hop, 0 unused). */
   hopRadii: number[];
   stars: Star[];
@@ -102,12 +104,13 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 &
  */
 export function constellationLayout(
   graph: XrefGraph,
-  { width, height, margin = 40 }: StarLayoutOptions,
+  { width, height, margin = 52 }: StarLayoutOptions,
   labelOf: (id: VerseId, end?: VerseId) => string = (id) => String(id),
 ): StarLayout {
   const cx = width / 2;
   const cy = height / 2;
-  const ringRadius = Math.max(60, Math.min(width, height) / 2 - margin);
+  const ringRadius = Math.max(60, height / 2 - margin);
+  const stretch = Math.max(1, Math.min(2, (width / 2 - margin - 70) / ringRadius));
   const maxHop = Math.min(3, Math.max(1, ...graph.nodes.map((n) => n.hop)));
   const fractions = RING_FRACTIONS[maxHop];
   const hopRadii = fractions.map((f) => f * ringRadius);
@@ -146,11 +149,11 @@ export function constellationLayout(
     let level = 0;
     let prevAngle = -Infinity;
     for (const s of ring) {
-      const minGap = (s.radius * 2 + 3) / Math.max(1, base);
+      const minGap = (s.radius * 2 + 3) / Math.max(1, base * stretch);
       level = s.angle - prevAngle < minGap ? (level + 1) % STAGGER_LEVELS : 0;
       prevAngle = s.angle;
       const r = base + [0, 1, -1][level] * step;
-      s.x = cx + Math.cos(s.angle) * r;
+      s.x = cx + Math.cos(s.angle) * r * stretch;
       s.y = cy + Math.sin(s.angle) * r;
     }
   }
@@ -205,7 +208,7 @@ export function constellationLayout(
       d: `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${qx.toFixed(1)} ${qy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`,
     });
   }
-  return { cx, cy, ringRadius, hopRadii, stars, edges };
+  return { cx, cy, ringRadius, stretch, hopRadii, stars, edges };
 }
 
 /** Book the star belongs to (for colours and the accessible name). */

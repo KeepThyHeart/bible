@@ -38,13 +38,13 @@ describe('constellationLayout', () => {
     // Genesis is at the top.
     expect(gen.x).toBeCloseTo(400, -1);
     expect(gen.y).toBeLessThan(300);
-    const r = Math.hypot(gen.x - 400, gen.y - 300);
+    const r = Math.hypot((gen.x - 400) / layout.stretch, gen.y - 300);
     expect(r).toBeCloseTo(layout.hopRadii[1], 0);
     // Revelation is just left of the top (end of the clockwise circle).
     expect(star(REV).x).toBeLessThan(400);
     expect(star(REV).y).toBeLessThan(300);
     // John is the anchor; Romans (hop 2) sits on the outer ring.
-    expect(Math.hypot(star(45005008).x - 400, star(45005008).y - 300)).toBeCloseTo(layout.hopRadii[2], 0);
+    expect(Math.hypot((star(45005008).x - 400) / layout.stretch, star(45005008).y - 300)).toBeCloseTo(layout.hopRadii[2], 0);
   });
 
   it('uses fewer, wider rings for a shallow graph', () => {
@@ -63,10 +63,10 @@ describe('constellationLayout', () => {
       edges: [1, 2, 3, 4].map((v) => ({ from: JOHN, to: 45005000 + v, weight: 0.5, sources: [], direction: 'out' as const })),
     };
     const l = constellationLayout(g, { width: 800, height: 600 });
-    const radii = new Set(l.stars.filter((s) => s.hop === 1).map((s) => Math.round(Math.hypot(s.x - 400, s.y - 300))));
+    const radii = new Set(l.stars.filter((s) => s.hop === 1).map((s) => Math.round(Math.hypot((s.x - 400) / l.stretch, s.y - 300))));
     expect(radii.size).toBeGreaterThan(1);
     for (const s of l.stars.filter((x) => x.hop === 1)) {
-      expect(Math.atan2(s.y - 300, s.x - 400)).toBeCloseTo(Math.atan2(Math.sin(s.angle), Math.cos(s.angle)), 5);
+      expect(Math.atan2(s.y - 300, (s.x - 400) / l.stretch)).toBeCloseTo(Math.atan2(Math.sin(s.angle), Math.cos(s.angle)), 5);
     }
   });
 
