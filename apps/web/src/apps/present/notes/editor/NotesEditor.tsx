@@ -72,7 +72,6 @@ export function NotesEditor(props: NotesEditorProps) {
       v.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The host opened a different document.
@@ -82,7 +81,6 @@ export function NotesEditor(props: NotesEditorProps) {
     lastEmitted.current = props.doc;
     v.updateState(makeState(props.doc));
     setTick((n) => n + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.doc]);
 
   // Row 8 swaps its decoration plugins in and out.
@@ -90,7 +88,6 @@ export function NotesEditor(props: NotesEditorProps) {
     const v = viewRef.current;
     if (!v) return;
     v.updateState(v.state.reconfigure({ plugins: buildPlugins(() => propsRef.current, props.plugins) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.plugins]);
 
   return (

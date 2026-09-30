@@ -64,6 +64,7 @@ export function ControlPane(props: {
         )}
 
         <Transport />
+        {!state?.live && <p class="pz-hint pz-control__nohint">{t('present.control.noPlanHint')}</p>}
         <HighlightChips />
         <AddRow onAddToNotes={props.onAddToNotes} />
       </div>

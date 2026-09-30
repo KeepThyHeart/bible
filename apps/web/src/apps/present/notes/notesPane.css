@@ -4,9 +4,10 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
 }
-.pz-notes__title { flex: 1; border-bottom: 0; }
+.pz-notes__title { flex: 1; border-bottom: 0; background: transparent; }
 .pz-notes__toggle { display: flex; gap: 2px; padding-right: 8px; }
 .pz-notes__tab {
   padding: 4px 10px;
@@ -17,7 +18,7 @@
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-  &.is-active { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border-color); }
+  &.is-active { color: var(--text-primary); background: var(--bg-primary); border-color: var(--border-color); }
 }
 .pz-notes__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 

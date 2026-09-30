@@ -6,6 +6,7 @@ import { API_BASE } from '../../../utils/apiUrl';
 import { buildControlLink, buildViewerLink, typedWatchAddress } from '../../../present/controlLink';
 import { MAX_FONT_STEP, MIN_FONT_STEP } from '../../../present/protocol';
 import { presenterSend, usePresenterState } from '../presenterSink';
+import { HelpTip } from './HelpTip';
 
 /**
  * The settings sections shared by the hamburger menu and the first-run setup
@@ -98,15 +99,20 @@ export function ScreenSection() {
         ))}
       </div>
 
-      <label class="present-panel__toggle">
-        <input
-          type="checkbox"
-          checked={acceptClickerKeys}
-          onChange={event => presentStore.setAcceptClickerKeys((event.target as HTMLInputElement).checked)}
-        />
-        {t('present.acceptClickerKeys')}
-      </label>
-      <p class="present-panel__hint">{t('present.acceptClickerKeysHint')}</p>
+      <div class="present-panel__row pz-keys">
+        <label class="present-panel__toggle pz-keys__toggle">
+          <input
+            type="checkbox"
+            checked={acceptClickerKeys}
+            onChange={event => presentStore.setAcceptClickerKeys((event.target as HTMLInputElement).checked)}
+          />
+          <i class="fa-solid fa-keyboard" aria-hidden="true" />
+          {t('present.acceptClickerKeys')}
+        </label>
+        <HelpTip label={t('present.control.keysHelp')}>
+          <p class="pz-helptip__text">{t('present.acceptClickerKeysHint')}</p>
+        </HelpTip>
+      </div>
     </section>
   );
 }

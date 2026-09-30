@@ -11,7 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { HighlightRange, PresentState, PresentTheme } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
-import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
+import { usePassage, type ChapterVerse, type Passage } from './usePassage';
 import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit, shrinkToFitWidth } from './typography';
@@ -213,7 +213,7 @@ function renderBody(
     return (
       <PassageView
         passage={passage}
-        verses={selectedVerses(passage, state.live)}
+        verses={passage.verses}
         anchor={state.position.index}
         fontStep={fontStep}
         highlights={state.position.highlights}
@@ -538,12 +538,22 @@ function Lobby(props: {
         construction rather than by policy. It leaves the screen the moment
         anything is presented.
       */}
-      <img
-        class="pv-lobby-qr"
-        src={`${API_BASE}/api/present/j/${encodeURIComponent(props.joinCode)}/qr.svg`}
-        alt=""
-      />
-      <p class="pv-lobby-code">{formatCode(props.joinCode)}</p>
+      {props.joinCode ? (
+        <>
+          <img
+            class="pv-lobby-qr"
+            src={`${API_BASE}/api/present/j/${encodeURIComponent(props.joinCode)}/qr.svg`}
+            alt=""
+          />
+          <p class="pv-lobby-code">{formatCode(props.joinCode)}</p>
+        </>
+      ) : (
+        // Pre-live preview: there is no session yet, so no code to draw. A clear
+        // placeholder rather than a broken image.
+        <div class="pv-lobby-qr pv-lobby-qr--pending" role="img" aria-label="Join code appears when you go live">
+          <span>Join code appears when you go live</span>
+        </div>
+      )}
       <p class="pv-lobby-hint">Waiting for the presenter.</p>
       {/*
         For a phone with no working camera, or someone who would rather type

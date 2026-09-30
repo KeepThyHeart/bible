@@ -5,6 +5,7 @@ import { history, redo, undo } from 'prosemirror-history';
 import { InputRule, inputRules, textblockTypeInputRule, wrappingInputRule } from 'prosemirror-inputrules';
 import { keymap } from 'prosemirror-keymap';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
+import type { MarkType } from 'prosemirror-model';
 import type { Plugin } from 'prosemirror-state';
 import { blockIdPlugin } from './blockIds';
 import { toggleBold, toggleItalic } from './commands';
@@ -13,6 +14,25 @@ import { notesSchema as s } from './schema';
 export interface EditorCallbacks {
   /** Ctrl/Cmd+Enter: show the item at the caret (doc position). */
   onShowAtCaret?: (pos: number) => void;
+}
+
+/**
+ * Typing `**word**` (or `*word*`, `_word_`) turns the text into the mark, as in
+ * any markdown-friendly editor. `prefix` keeps `**` from also matching the
+ * single-star italic rule, and the marker characters are deleted.
+ */
+export function markInputRule(pattern: RegExp, markType: MarkType): InputRule {
+  return new InputRule(pattern, (state, match, start, end) => {
+    const [full, prefix, text] = match;
+    const from = start + prefix.length;
+    const tr = state.tr;
+    tr.delete(from, end);
+    tr.insertText(text, from);
+    tr.addMark(from, from + text.length, markType.create());
+    tr.removeStoredMark(markType);
+    void full;
+    return tr;
+  });
 }
 
 export function buildInputRules(): Plugin {
@@ -26,6 +46,9 @@ export function buildInputRules(): Plugin {
       (m, node) => node.childCount + node.attrs.order === +m[1],
     ),
     wrappingInputRule(/^\s*>\s$/, s.nodes.blockquote),
+    markInputRule(/(^|[^*\w])\*\*([^*\s](?:[^*]*[^*\s])?)\*\*$/, s.marks.bold),
+    markInputRule(/(^|[^*\w])\*([^*\s](?:[^*]*[^*\s])?)\*$/, s.marks.italic),
+    markInputRule(/(^|[^_\w])_([^_\s](?:[^_]*[^_\s])?)_$/, s.marks.italic),
   ];
   return inputRules({ rules });
 }

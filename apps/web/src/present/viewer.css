@@ -177,7 +177,7 @@ body {
  * colour rather than Max's fixed red) marks the current verse unambiguously,
  * even from the back of a room where the contrast difference is hard to see.
  */
-.pv-verse { opacity: 0.55; }
+.pv-verse { opacity: 0.68; }
 .pv-verse--anchor {
   opacity: 1;
   border-left-color: var(--pv-anchor-bar);
@@ -370,6 +370,19 @@ body {
   border-radius: 1vh;
 }
 
+.pv-lobby-qr--pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0.4vh dashed var(--pv-muted);
+  background: transparent;
+  color: var(--pv-muted);
+  font-size: 2.4vh;
+  line-height: 1.3;
+  padding: 2vh;
+}
+
 .pv-lobby-code {
   margin: 0;
   font-size: 12vh;
@@ -386,9 +399,8 @@ body {
 
 .pv-lobby-typed {
   margin: 0;
-  font-size: 2.2vh;
+  font-size: 3vh;
   color: var(--pv-muted);
-  opacity: 0.85;
 }
 
 .pv-lobby-button {

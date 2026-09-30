@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, type Transaction } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import { buildInputRules } from './plugins';
 import { docToBlocks } from './docToBlocks';
 import { docFromJSON, emptyDocJSON, notesSchema as s, parseHtml } from './schema';
 
@@ -95,5 +97,34 @@ describe('docToBlocks', () => {
       { from: 2, to: 3, type: 'pin', attrs: 'x' },
       { from: 2, to: 3, type: 'unlink' },
     ]);
+  });
+});
+
+describe('markdown mark input rules', () => {
+  // Types `text` one character at a time through the input-rules plugin, as the view would.
+  function type(text: string): EditorState {
+    const plugin = buildInputRules();
+    let state = EditorState.create({ doc: parseHtml('<p></p>'), plugins: [plugin] });
+    for (const ch of text) {
+      const { from, to } = state.selection;
+      const view = { state, dispatch: (tr: Transaction) => { state = state.apply(tr); } } as unknown as EditorView;
+      const handled = (plugin.props.handleTextInput as (v: EditorView, f: number, t: number, s: string) => boolean)(view, from, to, ch);
+      if (!handled) state = state.apply(state.tr.insertText(ch, from, to));
+    }
+    return state;
+  }
+
+  it('turns **word** into bold and drops the asterisks', () => {
+    const state = type('say **key** now');
+    expect(state.doc.textContent).toBe('say key now');
+    let boldText = '';
+    state.doc.descendants((n) => { if (n.marks.some((m) => m.type.name === 'bold')) boldText += n.text; });
+    expect(boldText).toBe('key');
+  });
+
+  it('turns *word* into italic', () => {
+    const state = type('a *b* c');
+    expect(state.doc.textContent).toBe('a b c');
+    expect(state.doc.rangeHasMark(3, 4, s.marks.italic)).toBe(true);
   });
 });

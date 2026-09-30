@@ -162,14 +162,17 @@ export function PresenterApp() {
           onDeleted={id => void notesStore.onServiceDeleted(id)}
         />
         <span class="pz-appbar__spacer" />
-        <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
-          {session
-            ? <>
-              <span class="pz-status__dot" aria-hidden="true" />
-              {t('present.app.live')} · <i class="fa-solid fa-tv" aria-hidden="true" /> {connected ? view.viewers : '…'}
-            </>
-            : t('present.app.notLive')}
-        </span>
+        {/* On desktop the Control pane shows the live status; the phone has no such row. */}
+        {layout === 'phone' && (
+          <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
+            {session
+              ? <>
+                <span class="pz-status__dot" aria-hidden="true" />
+                {t('present.app.live')} · <i class="fa-solid fa-tv" aria-hidden="true" /> {connected ? view.viewers : '…'}
+              </>
+              : t('present.app.notLive')}
+          </span>
+        )}
         <button
           type="button" class="pz-btn pz-btn--icon" onClick={() => setHelpOpen(true)}
           title={t('present.help')} aria-label={t('present.help')}

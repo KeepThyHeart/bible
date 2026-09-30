@@ -114,15 +114,22 @@
   margin: 0;
   padding: 8px 12px;
   font-size: 12px;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-secondary, var(--text-muted));
+  /* A tinted title bar, so "Notes" reads as a heading and not as an input box. */
+  background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
 }
 .pz-pane__body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* Always-visible scrollbar (not the overlay kind), so it is obvious when there is more below. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-secondary);
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -257,7 +264,21 @@
   flex-direction: column;
   gap: 10px;
 }
-.pz-setup__title { margin: 0; font-size: 15px; }
+.pz-setup__bar { display: flex; align-items: center; gap: 8px; }
+.pz-setup__title { margin: 0; font-size: 14px; flex: 1; }
+.pz-setup:not(.pz-setup--open) { padding: 6px 10px; }
+.pz-control__nohint { text-align: center; }
+
+/* "?" help tips (Popover content) */
+.pz-helptip {
+  border: 0; background: none; padding: 2px 4px; cursor: pointer;
+  color: var(--text-muted); font-size: 15px; line-height: 1;
+}
+.pz-helptip:hover, .pz-helptip--on { color: var(--accent-color); }
+.pz-helptip__pop { padding: 10px 12px; font-size: 13px; line-height: 1.4; }
+.pz-helptip__text { margin: 0; }
+.pz-keys { display: flex; align-items: center; justify-content: space-between; }
+.pz-keys__toggle { display: inline-flex; align-items: center; gap: 6px; }
 .pz-setup__simple {
   display: flex;
   align-items: center;
