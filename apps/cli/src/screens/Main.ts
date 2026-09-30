@@ -139,6 +139,7 @@ import {
   stringWidth,
   tokenizeText,
   truncateLineToWidth,
+  wrapRuns,
   wrapTokens,
 } from '../term/layout';
 import { clampScroll, jumpScroll, layoutReading, type ReadingLine } from '../term/reading';
@@ -2414,7 +2415,10 @@ export class MainScreen implements Screen {
     if (this.shortcutsExpanded) {
       rows.push([{ text: '? for the verse text', style: ctx.theme.muted }]);
     } else {
-      rows.push(...laid.lines.filter((l) => l.verse === cursorNum).map((l) => l.segments));
+      // The lines were wrapped to the main pane's width; re-wrap the verse to this
+      // pane's, or the narrow pane clips them and drops words.
+      const runs = laid.lines.filter((l) => l.verse === cursorNum).flatMap((l) => l.segments);
+      rows.push(...wrapRuns(runs, { width }));
     }
     rows.push([]);
 
@@ -2557,7 +2561,7 @@ export class MainScreen implements Screen {
       return '↑↓ scroll  esc back';
     }
     if (!reading) return '↑↓ scroll  esc back';
-    if (showRightPane) return '↑↓ verse  n p chapter  y copy  / go to or search';
+    if (showRightPane) return '↑↓ verse  n p chapter  y copy';
     return '↑↓ verse  s shortcuts  / go to or search';
   }
 }
