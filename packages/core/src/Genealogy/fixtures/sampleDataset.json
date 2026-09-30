@@ -11,6 +11,18 @@
    "notes": "High Priest living at the time of Egypt and Wilderness. High Priest"
   },
   {
+   "id": "abigail_2sa_17_25",
+   "name": "Abigail",
+   "sex": "female",
+   "kind": "individual",
+   "tribe": "judah",
+   "aliases": [
+    "Abigal"
+   ],
+   "firstRef": 10017025,
+   "notes": "Woman living at the time of United Monarchy. Sister of David"
+  },
+  {
    "id": "abijah",
    "name": "Abijah",
    "sex": "male",
@@ -118,7 +130,7 @@
     "Ahiramite"
    ],
    "firstRef": 4026038,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "amaziah",
@@ -245,7 +257,7 @@
     "Ashbelite"
    ],
    "firstRef": 4026038,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "asher",
@@ -313,7 +325,7 @@
     "Belaite"
    ],
    "firstRef": 4026038,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "benjamin",
@@ -348,7 +360,7 @@
     "Beriite"
    ],
    "firstRef": 4026044,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "bilhah",
@@ -410,7 +422,7 @@
     "Karmite"
    ],
    "firstRef": 4026006,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "cosam",
@@ -536,7 +548,7 @@
     "Elonite"
    ],
    "firstRef": 4026026,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "enoch_gen_5_18",
@@ -609,7 +621,7 @@
     "Erite"
    ],
    "firstRef": 4026016,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "esau",
@@ -696,7 +708,7 @@
     "Gunite"
    ],
    "firstRef": 4026048,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "haggi",
@@ -739,7 +751,7 @@
     "Hanokite"
    ],
    "firstRef": 4026005,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "heli",
@@ -792,7 +804,7 @@
     "Hezronite"
    ],
    "firstRef": 4026006,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "huphamites",
@@ -802,7 +814,7 @@
     "Huphamite"
    ],
    "firstRef": 4026039,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "huppim",
@@ -892,7 +904,7 @@
     "Jachinite"
    ],
    "firstRef": 4026012,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jacob",
@@ -934,7 +946,7 @@
     "Jahleelite"
    ],
    "firstRef": 4026026,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jahzeel",
@@ -956,7 +968,7 @@
     "Jahzeelite"
    ],
    "firstRef": 4026048,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jamin",
@@ -975,7 +987,7 @@
     "Jaminite"
    ],
    "firstRef": 4026012,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "janna",
@@ -1030,7 +1042,7 @@
     "Jashubite"
    ],
    "firstRef": 4026024,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jediael",
@@ -1123,7 +1135,7 @@
     "Ishvite"
    ],
    "firstRef": 4026044,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jesus",
@@ -1171,7 +1183,7 @@
     "Jezerite"
    ],
    "firstRef": 4026049,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "jimna",
@@ -1361,7 +1373,6 @@
    "kind": "individual",
    "tribe": "judah",
    "aliases": [
-    "David",
     "Juda",
     "Judas"
    ],
@@ -1490,7 +1501,7 @@
    "sex": "female",
    "kind": "individual",
    "firstRef": 40001016,
-   "notes": "Mother of Jesus (Mt 1:16). Her tribe is not stated in the KJV; TIPNR's \"Tribe of Levi\" (inferred from Elisabeth her cousin, Lk 1:36, 1:5) is not carried over. See case mary_tribe."
+   "notes": "Mother of Jesus (Mt 1:16). Her tribe is not stated in the KJV (Elisabeth is called her cousin, Lk 1:36, but the text does not say Mary was a Levite). See case mary_tribe."
   },
   {
    "id": "mattatha",
@@ -1620,9 +1631,6 @@
    "sex": "male",
    "kind": "individual",
    "tribe": "levi",
-   "aliases": [
-    "Manasseh"
-   ],
    "firstRef": 2002010,
    "notes": "Levite living at the time of Egypt and Wilderness. Son of Amram"
   },
@@ -1663,6 +1671,14 @@
    ],
    "firstRef": 42003025,
    "notes": "Man living at the time of Exile and Return. Son of Maath"
+  },
+  {
+   "id": "nahash_2sa_17_25",
+   "name": "Nahash",
+   "sex": "male",
+   "kind": "individual",
+   "firstRef": 10017025,
+   "notes": "Father of Abigail (2 Sa 17:25: \"Abigail the daughter of Nahash, sister to Zeruiah Joab's mother\"). The KJV does not say he is the Ammonite king of the same name."
   },
   {
    "id": "nahor_gen_11_22",
@@ -1730,7 +1746,7 @@
     "Nemuelite"
    ],
    "firstRef": 4026012,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "neri",
@@ -1787,7 +1803,7 @@
     "Oznite"
    ],
    "firstRef": 4026016,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "pallu",
@@ -1809,7 +1825,7 @@
     "Palluite"
    ],
    "firstRef": 4026005,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "pedaiah",
@@ -1852,7 +1868,7 @@
     "Perezite"
    ],
    "firstRef": 4026020,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "phinehas",
@@ -1886,7 +1902,7 @@
     "Puite"
    ],
    "firstRef": 4026023,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "rachel",
@@ -1934,7 +1950,7 @@
     "Roboam"
    ],
    "firstRef": 11011043,
-   "notes": "King living at the time of United Monarchyand Divided Monarchy. King of Judah"
+   "notes": "King living at the time of United Monarchy and Divided Monarchy. King of Judah"
   },
   {
    "id": "reu",
@@ -1968,7 +1984,7 @@
     "Reuben"
    ],
    "firstRef": 4026007,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "rhesa",
@@ -2065,7 +2081,7 @@
     "Seredite"
    ],
    "firstRef": 4026026,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "semei",
@@ -2139,7 +2155,7 @@
     "Shaulite"
    ],
    "firstRef": 4026013,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shealtiel",
@@ -2170,7 +2186,7 @@
     "Shelanite"
    ],
    "firstRef": 4026020,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shem",
@@ -2203,7 +2219,7 @@
     "Shillemite"
    ],
    "firstRef": 4026049,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shimron",
@@ -2222,7 +2238,7 @@
     "Shimronite"
    ],
    "firstRef": 4026024,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shuhamites",
@@ -2232,7 +2248,7 @@
     "Shuhamite"
    ],
    "firstRef": 4026042,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shuni",
@@ -2251,7 +2267,7 @@
     "Shunite"
    ],
    "firstRef": 4026015,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "shuphamites",
@@ -2261,7 +2277,7 @@
     "Shuphamite"
    ],
    "firstRef": 4026039,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "simeon",
@@ -2335,7 +2351,7 @@
     "Tolaite"
    ],
    "firstRef": 4026023,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "uzziah",
@@ -2358,7 +2374,7 @@
     "Zerahite"
    ],
    "firstRef": 4026020,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "zarhites_clan",
@@ -2368,7 +2384,7 @@
     "Zerahite"
    ],
    "firstRef": 4026013,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "zebulun",
@@ -2391,7 +2407,7 @@
     "Zebulonite"
    ],
    "firstRef": 4026027,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "zephonites",
@@ -2401,7 +2417,7 @@
     "Zephonite"
    ],
    "firstRef": 4026015,
-   "notes": "Clan or people named after its ancestor (TIPNR group form)."
+   "notes": "Clan or people named after its ancestor."
   },
   {
    "id": "zerah",
@@ -4852,6 +4868,21 @@
     {
      "start": 42003025,
      "end": 42003025
+    }
+   ]
+  },
+  {
+   "id": "father_of:nahash_2sa_17_25:abigail_2sa_17_25",
+   "from": "nahash_2sa_17_25",
+   "to": "abigail_2sa_17_25",
+   "type": "father_of",
+   "confidence": "certain",
+   "source": "curated",
+   "notes": "\"Abigail the daughter of Nahash, sister to Zeruiah Joab's mother\" (2 Sa 17:25).",
+   "verses": [
+    {
+     "start": 10017025,
+     "end": 10017025
     }
    ]
   },
@@ -7738,7 +7769,7 @@
      "note": "The Levites are numbered apart (26:57-62)."
     }
    ],
-   "notes": "Tribes in the order of the census; Joseph counted as Manasseh and Ephraim (26:28); the Levites numbered apart (26:57-62; Levi is named at 26:59). The clans (\"the family of the Hanochites\" ...) are group persons founded_by their ancestor."
+   "notes": "Tribes in the order of the census; Joseph counted as Manasseh and Ephraim (26:28); the Levites numbered apart (26:57-62; Levi is named at 26:59). The clans (\"the family of the Hanochites\" ...) are listed as clans descended from their ancestor."
   },
   {
    "id": "rev_7",
@@ -8735,6 +8766,10 @@
    "tipnr": "Aaron@Exo.4.14-Heb=H0175",
    "bibledata": "Aaron_1"
   },
+  "abigail_2sa_17_25": {
+   "tipnr": "Abigail@2Sa.17.25-1Ch=H0026H",
+   "bibledata": "Abigail_2"
+  },
   "abijah": {
    "tipnr": "Abijah@1Ki.14.31-Mat=H0029I",
    "bibledata": "Abijam_1"
@@ -9336,6 +9371,10 @@
   "nagge": {
    "tipnr": "Naggai@Luk.3.25=G3477",
    "bibledata": "Naggai_1"
+  },
+  "nahash_2sa_17_25": {
+   "tipnr": "Nahash@2Sa.17.25=H5176I",
+   "bibledata": "Nahash_2"
   },
   "nahor_gen_11_22": {
    "tipnr": "Nahor@Gen.11.22-Luk=H5152G",

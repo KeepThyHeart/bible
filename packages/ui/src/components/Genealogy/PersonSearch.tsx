@@ -31,6 +31,12 @@ export interface PersonSearchProps {
   id?: string;
 }
 
+/** Short descriptor from a person's notes ("Son of Israel"): the sentence after the era, if any. */
+function gloss(notes: string | undefined): string | undefined {
+  const last = notes?.split('. ').slice(1).join('. ').trim();
+  return last && last.length <= 40 ? last : undefined;
+}
+
 export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, limit = 8, id: idProp }: PersonSearchProps) {
   const labels = { ...DEFAULT_PERSON_SEARCH_LABELS, ...overrides };
   const auto = useId();
@@ -40,6 +46,12 @@ export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, li
   const [active, setActive] = useState(0);
   const results = useMemo(() => graph.search(text, limit), [graph, text, limit]);
   const showList = open && text.trim() !== '';
+  // People who share a name in this list get a short descriptor, so no two rows read alike.
+  const nameCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of results) m.set(p.name, (m.get(p.name) ?? 0) + 1);
+    return m;
+  }, [results]);
 
   const pick = (personId: string) => {
     onPick(personId);
@@ -81,11 +93,14 @@ export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, li
             onClick={() => pick(p.id)}
           >
             {p.name}
-            {(p.tribe || (formatVerse && p.firstRef !== undefined)) && (
-              <span className="kth-genealogy-search__hint">
-                {' '}{[p.tribe, formatVerse && p.firstRef !== undefined ? formatVerse(p.firstRef) : undefined].filter(Boolean).join(' · ')}
-              </span>
-            )}
+            {(() => {
+              const hint = [
+                (nameCount.get(p.name) ?? 0) > 1 ? gloss(p.notes) : undefined,
+                p.tribe ? p.tribe.charAt(0).toUpperCase() + p.tribe.slice(1) : undefined,
+                formatVerse && p.firstRef !== undefined ? formatVerse(p.firstRef) : undefined,
+              ].filter(Boolean).join(' · ');
+              return hint ? <span className="kth-genealogy-search__hint">{' '}{hint}</span> : null;
+            })()}
           </li>
         ))}
         {showList && results.length === 0 && <li className="kth-genealogy-search__none" role="presentation">{labels.noResults}</li>}

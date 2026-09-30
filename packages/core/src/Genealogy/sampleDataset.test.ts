@@ -68,4 +68,29 @@ describe('sample dataset (KJV-based fixture)', () => {
     const line = layoutLineage(g);
     expect(line.nodes.some(n => n.flags.oneTextOnly && /Cainan/.test(n.label))).toBe(true);
   });
+
+  describe('data corrections (KJV text is exact)', () => {
+    const alias = (id: string) => g.person(id)?.aliases ?? [];
+
+    it('does not call Judah "David" or Moses "Manasseh"', () => {
+      expect(alias('judah')).not.toContain('David');
+      expect(alias('judah')).toEqual(expect.arrayContaining(['Juda', 'Judas']));
+      expect(alias('moses')).not.toContain('Manasseh');
+    });
+
+    it('makes Nahash Abigail\'s father and gives David no named mother (2 Sam 17:25)', () => {
+      const nahash = g.person('nahash_2sa_17_25');
+      expect(nahash?.sex).toBe('male');
+      expect(ds.edges.some(e => e.type === 'father_of' && e.from === 'nahash_2sa_17_25' && e.to === 'abigail_2sa_17_25')).toBe(true);
+      expect(ds.edges.some(e => e.type === 'mother_of' && e.from === 'nahash_2sa_17_25')).toBe(false);
+      expect(ds.edges.some(e => e.type === 'mother_of' && e.to === 'david')).toBe(false);
+    });
+
+    it('has readable notes: no markup, codes, doubled spaces or glued words', () => {
+      for (const p of ds.persons) {
+        expect(p.notes ?? '', p.id).not.toMatch(/@[A-Za-z0-9]+\.\d|\(\?\)|TIPNR|BibleData|_of_|\s{2}|Monarchyand/);
+      }
+      expect(g.person('rehoboam')?.notes).toContain('United Monarchy and Divided Monarchy');
+    });
+  });
 });

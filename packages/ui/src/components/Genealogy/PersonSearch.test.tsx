@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonSearch } from './PersonSearch';
+import { GenealogyGraph } from '@bible/core/browser';
 import { graph } from './testFixtures';
 
 describe('PersonSearch', () => {
@@ -38,5 +39,24 @@ describe('PersonSearch', () => {
     expect(onPick).toHaveBeenCalledWith('jacob_nt');
     await user.type(input, 'zzz');
     expect(screen.getByText('No matching people')).toBeInTheDocument();
+  });
+
+  it('tells namesakes apart with a short descriptor, tribe and verse', async () => {
+    const user = userEvent.setup();
+    const namesakes = GenealogyGraph.from({
+      module: 'test', sources: [], lineages: [], edges: [],
+      persons: [
+        { id: 'judah', name: 'Judah', kind: 'individual', tribe: 'judah', firstRef: 1029035, notes: "Jacob's son living at the time of the Patriarchs. Son of Israel" },
+        { id: 'judah_neh_11_9', name: 'Judah', kind: 'individual', tribe: 'benjamin', firstRef: 16011009, notes: 'Man living at the time of Exile and Return. Returned leader' },
+        { id: 'judah_neh_12_36', name: 'Judah', kind: 'individual', firstRef: 16012036, notes: 'Man living at the time of Exile and Return. Returned priest' },
+      ],
+    });
+    render(<PersonSearch graph={namesakes} onPick={vi.fn()} formatVerse={(v) => `v${v}`} />);
+    await user.type(screen.getByRole('combobox'), 'judah');
+    const rows = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(rows).toHaveLength(3);
+    expect(new Set(rows).size).toBe(3);
+    expect(rows).toContain('Judah Son of Israel · Judah · v1029035');
+    expect(rows).toContain('Judah Returned priest · v16012036');
   });
 });
