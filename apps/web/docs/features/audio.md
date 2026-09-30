@@ -4,7 +4,7 @@
 
 Listening to a chapter: pre-generated recordings where an installation has them, and on-device text-to-speech (Piper) for everything else. Both channels sit behind one player and a set of interfaces, so any part that renders, fetches, caches or times audio can be replaced without touching the rest.
 
-**Off by default.** The feature is switched on with `features.audio: true` in `site-config.json`. Until then the server mounts no `/audio` route, `/api/config` carries no `audio` block, the client never loads any audio code (`main.tsx` imports it dynamically), and the strict Content-Security-Policy is unchanged.
+**Off by default.** The feature is the shared `audio` flag (`isEnabled('audio')`, `FEATURE_FLAGS`): switched on with `features.audio: true` in `site-config.json`, or `BIBLE_FEATURE_FLAGS=audio` in development. Until then the server mounts no `/audio` route, `/api/config` carries no `audio` block, the client never loads the player, providers or engines (`main.tsx` loads them through `lazyFeature`; the small UI shells stay in the bundle and render nothing), and the strict Content-Security-Policy is unchanged.
 
 **With zero recordings it still works.** No translation has recordings yet. With no recordings and no engine, the Listen button is disabled with a tooltip saying why. With an engine configured, on-device speech plays any translation whose language it has a voice for. A recording, when one exists, is preferred automatically.
 
@@ -104,13 +104,13 @@ A second engine (Kokoro, phase 2) would add a `TtsEngineFactory` to the registry
 |---|---|
 | Cache API `audio-manifests-v1`, `audio-chapters-v1` | manifests and recorded chapter files (recently played chapters, size-limited LRU) |
 | Cache API `tts-models-v1` | engine runtimes and voices, never expired automatically |
-| `localStorage` `bible-audio-prefs` | source (global and per translation), voice per engine and language, speed, follow-along, auto-scroll, continue, chapter intro, battery notice seen. Validated on load; independent of the settings store |
+| `localStorage` `bible-audio-prefs` | source (global and per translation), voice per engine and language, speed, follow-along, auto-scroll, continue, chapter intro, battery notice seen. Validated on load. The four "while playing" toggles are declared in the settings registry (`audio/audioSettings.ts`, a port over `audioStore.prefs`) and drawn by `SettingsForm`; the rest of the tab is custom |
 
 The Cache API is used directly from the page (not through the service worker) so recordings and voices are cached whether or not the PWA is enabled; the PWA build adds routes for the same caches so seeking in a cached chapter works offline.
 
 ## Keyboard, accessibility
 
-Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / Right previous / next chapter (registered in `keybindingRegistry`; the arrows act only while audio is active and never while typing, so Alt+Left stays "browser back" otherwise; on macOS Option+P types another character, use the buttons). Listed in the Help dialog when audio is on. Controls have labels and `aria-pressed`; the progress control is a native range input with a "verse N of M" value text; a polite live region announces started, paused, resumed, stopped, chapter changes and errors (never the position); the playing tab has a speaker mark; the phone player is a modal dialog with focus in and out; status lines use `role="alert"` for errors; reduced motion stops spinners.
+Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / Right previous / next chapter (registered with a small keydown registry in `audio/audioShortcuts.ts`, because next/0.2 has no global one; the arrows act only while audio is active and never while typing, so Alt+Left stays "browser back" otherwise; on macOS Option+P types another character, use the buttons). Listed in the Help dialog when audio is on. Controls have labels and `aria-pressed`; the progress control is a native range input with a "verse N of M" value text; a polite live region announces started, paused, resumed, stopped, chapter changes and errors (never the position); the playing tab has a speaker mark; the phone player is a modal dialog with focus in and out; status lines use `role="alert"` for errors; reduced motion stops spinners.
 
 ## File map
 
@@ -146,7 +146,7 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `AssetCache.ts`, `cacheNames.ts`, `audioStorage.ts` | Cache API and in-memory `IAssetCache`, cache names shared with the service worker, storage usage and clearing |
 | `TextPreparer.ts` | Verse markup to speakable text; chapter intro ("John, chapter 3.") per language |
 | `MediaSessionBridge.ts` | Lock-screen and media-key controls |
-| `audioPrefs.ts`, `config.ts`, `registries.ts`, `wav.ts`, `audioShortcuts.ts` | Preferences, client config accessor, registries, WAV encoding, shortcuts |
+| `audioPrefs.ts`, `audioSettings.ts`, `config.ts`, `registries.ts`, `wav.ts`, `audioShortcuts.ts` | Preferences, client config accessor, registries, WAV encoding, shortcuts |
 | `testing.ts`, `uiRig.ts` | Test doubles: fake media element, output, providers, TTS engine, manifest source; a rig wiring the real store and player to them |
 
 ### Client, state and UI
@@ -161,7 +161,7 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `src/components/audio/` | Shared pieces: status line, transport buttons, progress, source panel, controls, gate dialog, live region, source list hook |
 | `src/components/Dialogs/AudioSettingsTab.tsx` | Settings > Audio |
 | `src/styles/_audio.scss` | All audio styles (theme tokens only) |
-| `src/sw.ts`, `src/utils/swCachePatterns.ts` | PWA routes for manifests, chapters and engine runtimes |
+| `src/sw/rules/audio.ts`, `src/utils/swCachePatterns.ts`, `src/audio/cacheNames.ts`, `public/sw-kill.js` | Cache rules for manifests, chapters and engine runtimes (registered in the service-worker cache-rule registry; the page's Cache API names derive from them; the kill switch keeps them on reset) |
 | `scripts/fetch-piper-assets.mjs` | Installs the Piper runtime and voices |
 | `e2e/audioFixture.ts`, `e2e/tests/audio-e2e.spec.ts` | Fixture recording of John 3 (KJV) and the specs |
 
@@ -200,3 +200,5 @@ What this means for the build:
 - **The first synthesis is slow** (runtime and model load), so the player shows a "Preparing" state and starts synthesizing the selected verse before anything else.
 - **Real-time factor 0.62 on a desktop CPU with one thread** leaves little headroom on a phone, so on-device speech pre-buffers verses ahead (look-ahead queue) and warns about battery on phones.
 - **Not checked here** (no device available): Ogg Opus playback on current iOS Safari, real-phone real-time factor and battery use, background playback with the screen locked, Kokoro (phase 2). The MP3 fallback from the recorded manifest format stays in place, and the recorded provider picks the first file whose MIME type passes `canPlayType`, so an Ogg-less Safari simply gets the MP3.
+
+The desktop source panel is the shared `@bible/ui` `Popover`; the phone's download/battery gate is the shared `BottomSheet`.

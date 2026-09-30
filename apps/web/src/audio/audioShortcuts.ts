@@ -1,5 +1,5 @@
 /**
- * Keyboard shortcuts for audio, registered with the app's keybinding registry:
+ * Keyboard shortcuts for audio, registered with the small keydown registry below (the app has no global one):
  *
  *   Alt+P               play / pause (starts reading the selected verse when idle)
  *   Alt+Left / Alt+Right          previous / next verse

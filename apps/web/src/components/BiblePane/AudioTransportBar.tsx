@@ -8,7 +8,7 @@
  * is nothing to report.
  */
 
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Popover } from '@bible/ui';
 import { audioStore } from '../../stores/audioStore';
@@ -35,16 +35,22 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
   const sources = useSources(now.moduleAbbr);
   const [panelOpen, setPanelOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const speedChipRef = useRef<HTMLButtonElement>(null);
+  const sourceChipRef = useRef<HTMLButtonElement>(null);
 
-  // The shared Popover owns outside-press and Escape handling and focus return; the
-  // chips only say where it is anchored.
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  // The shared Popover owns outside-press, Escape and focus return. The chips only say
+  // what it is anchored to (the element, so its rectangle is read fresh on every render).
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const openPanel = (e: MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
-    if (panelOpen) { setPanelOpen(false); return; }
-    setAnchor(el.getBoundingClientRect());
+    if (panelOpen && anchorEl === el) { setPanelOpen(false); return; }
+    setAnchorEl(el);
     setPanelOpen(true);
   };
+  // Stopping, switching layout or the feature going off must not leave the panel armed
+  // for the next play.
+  const inactive = !enabled || layout !== 'desktop' || status === 'idle';
+  useEffect(() => { if (inactive) setPanelOpen(false); }, [inactive]);
 
   if (!enabled || layout !== 'desktop') return null;
   const idle = status === 'idle';
@@ -72,7 +78,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         <button
           type="button"
           class="audio-chip"
-          data-chip
+          ref={speedChipRef}
           aria-haspopup="dialog"
           aria-expanded={panelOpen}
           aria-controls={panelOpen ? panelId : undefined}
@@ -84,6 +90,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         <button
           type="button"
           class="audio-chip audio-chip--source"
+          ref={sourceChipRef}
           aria-haspopup="dialog"
           aria-expanded={panelOpen}
           aria-controls={panelOpen ? panelId : undefined}
@@ -102,16 +109,16 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
       <AudioStatusLine />
       <Popover
         open={panelOpen && !!now.moduleAbbr}
-        anchor={anchor}
+        anchor={panelOpen && anchorEl ? anchorEl.getBoundingClientRect() : null}
         onClose={() => setPanelOpen(false)}
         id={panelId}
-        label={t('audio.transport.source')}
+        labelledBy="audio-panel-source"
         width={340}
         estimatedHeight={260}
         align="end"
         autoFocus
         className="audio-popover"
-        insideRefs={[rootRef]}
+        insideRefs={[speedChipRef, sourceChipRef]}
       >
         {now.moduleAbbr && <AudioSourcePanel moduleAbbr={now.moduleAbbr} onOpenSettings={section => { setPanelOpen(false); onOpenSettings?.(section); }} />}
       </Popover>
