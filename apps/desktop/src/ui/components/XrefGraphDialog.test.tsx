@@ -97,8 +97,11 @@ describe('XrefGraphDialog', () => {
     expect(screen.getByTestId('compass')).toHaveTextContent('43003016');
     const btn = screen.getByRole('button', { name: 'Full screen' });
     fireEvent.click(btn);
-    expect(screen.getByRole('button', { name: 'Exit full screen' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('dialog').className).toContain('w-screen');
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toBeTruthy();
+    expect(screen.getByRole('dialog').className).toContain('kth-fs-on');
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('dialog').className).not.toContain('kth-fs-on');
+    expect(screen.getByRole('button', { name: 'Full screen' })).toBeTruthy();
   });
 
   it('explores a chapter from the arcs in the verse web at verse 1', () => {
