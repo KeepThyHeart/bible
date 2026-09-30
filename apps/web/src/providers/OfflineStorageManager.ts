@@ -2,7 +2,19 @@
  * Manages offline storage using OPFS (Origin Private File System).
  * Handles downloading Bible modules and storing them for offline use.
  */
+import { isAssetError } from '@bible/core/browser';
 import { offlineStore } from '../stores/offlineStore';
+import { opfsAvailable } from '../offline/OpfsModuleStore';
+import {
+  getModuleCatalog,
+  installModuleAsset,
+  moduleAssetId,
+  refreshModuleCatalog,
+  removeModuleAsset,
+} from '../offline/moduleAssets';
+
+/** Asset-store failures after which the legacy `/api/modules/:name/download` path may still work. */
+const FALLBACK_CODES = new Set(['storage', 'not-found', 'http', 'invalid-manifest']);
 
 export class OfflineStorageManager {
   private baseUrl: string;
@@ -68,6 +80,61 @@ export class OfflineStorageManager {
    * back to the live endpoint transparently.
    */
   async downloadModule(abbreviation: string, name: string): Promise<void> {
+    offlineStore.setDownloadProgress(abbreviation, { module: abbreviation, loaded: 0, total: 0, status: 'downloading' });
+    try {
+      const done = await this.tryAssetInstall(abbreviation, true, (loaded, total) => {
+        offlineStore.setDownloadProgress(abbreviation, { module: abbreviation, loaded, total, status: 'downloading' });
+      });
+      if (done) {
+        const size = offlineStore.downloadedModules.find(m => m.abbreviation === abbreviation)?.sizeBytes ?? 0;
+        offlineStore.setDownloadProgress(abbreviation, { module: abbreviation, loaded: size, total: size, status: 'complete' });
+        const info = await this.getStorageInfo();
+        offlineStore.updateStorageInfo(info.used, info.quota);
+        return;
+      }
+    } catch (error) {
+      offlineStore.setDownloadProgress(abbreviation, {
+        module: abbreviation,
+        loaded: 0,
+        total: 0,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Download failed',
+      });
+      throw error;
+    }
+    return this.legacyDownloadModule(abbreviation, name);
+  }
+
+  /**
+   * Install through the versioned, hash-verified, resumable module asset store
+   * (`/api/offline/manifest`). Returns false when that path is unavailable (no OPFS, manifest
+   * missing or without this module, or a failure the legacy path may survive), so the caller
+   * falls back to the legacy download. Other failures (offline, integrity, quota, abort) throw.
+   */
+  private async tryAssetInstall(
+    abbreviation: string,
+    pinned: boolean,
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<boolean> {
+    if (!opfsAvailable()) return false;
+    const id = moduleAssetId(abbreviation);
+    if (!getModuleCatalog().some(a => a.id === id)) {
+      await refreshModuleCatalog();
+      if (!getModuleCatalog().some(a => a.id === id)) return false;
+    }
+    try {
+      await installModuleAsset(abbreviation, { pinned, onProgress });
+      return true;
+    } catch (e) {
+      if (isAssetError(e) && FALLBACK_CODES.has(e.code)) {
+        console.warn(`[OfflineStorage] Asset install of ${abbreviation} failed (${e.code}); using the legacy download`, e);
+        return false;
+      }
+      throw e;
+    }
+  }
+
+  private async legacyDownloadModule(abbreviation: string, name: string): Promise<void> {
     offlineStore.setDownloadProgress(abbreviation, {
       module: abbreviation,
       loaded: 0,
@@ -235,14 +302,26 @@ export class OfflineStorageManager {
    * Remove a downloaded module from OPFS
    */
   async removeModule(abbreviation: string): Promise<void> {
+    if (abbreviation !== 'semantic-index') {
+      try {
+        await removeModuleAsset(abbreviation);
+      } catch (error) {
+        console.warn(`[OfflineStorage] Asset removal of ${abbreviation} failed:`, error);
+      }
+    }
     try {
       const root = await navigator.storage.getDirectory();
 
       if (abbreviation === 'semantic-index') {
         await root.removeEntry('semantic_browser.db');
       } else {
-        const modulesDir = await root.getDirectoryHandle('modules', { create: false });
-        await modulesDir.removeEntry(`${abbreviation}.db`);
+        // The asset store already removed its copy; this clears a legacy (un-versioned) file.
+        try {
+          const modulesDir = await root.getDirectoryHandle('modules', { create: false });
+          await modulesDir.removeEntry(`${abbreviation}.db`);
+        } catch (e) {
+          if ((e as { name?: string })?.name !== 'NotFoundError') throw e;
+        }
       }
 
       offlineStore.removeDownloadedModule(abbreviation);
@@ -268,6 +347,19 @@ export class OfflineStorageManager {
    * `OfflineBibleProvider.withKnownInterlinear()`.
    */
   async downloadModuleLite(abbreviation: string, name: string): Promise<void> {
+    void this.requestPersistence().catch(() => false);
+    if (await this.tryAssetInstall(abbreviation, false).catch((error) => {
+      console.warn(`[OfflineStorage] Lite download failed for ${abbreviation}:`, error);
+      throw error;
+    })) {
+      const info = await this.getStorageInfo();
+      offlineStore.updateStorageInfo(info.used, info.quota);
+      return;
+    }
+    return this.legacyDownloadModuleLite(abbreviation, name);
+  }
+
+  private async legacyDownloadModuleLite(abbreviation: string, name: string): Promise<void> {
     // Don't show progress UI for lite/auto downloads
     try {
       // Ask the browser to stop treating this origin's storage as disposable.
