@@ -5,7 +5,7 @@ import { resolveThemeColor } from '../Annotations/ThemeColorResolver';
 import {
   BUILT_IN_KEYWORD_SETS, KeywordSetService, MemoryKeywordSetStore, StorageKeywordSetStore, exportKeywordSet,
   importKeywordSet, isValidationErrors, matchKeywordMarks, nextFreeColor, normalizeStrongs, occurrencesOf,
-  suggestKeywords, toDecorationLayer, validateKeywordSet, MARK_SYMBOLS, LEGACY_MARK_SYMBOLS, displayKeywordLabel,
+  suggestKeywords, toDecorationLayer, validateKeywordSet, MARK_SYMBOLS, LEGACY_MARK_SYMBOLS, displayKeywordLabel,  labelFromToken,
   type ChapterInput, type KeywordSet,
 } from './index';
 
@@ -216,6 +216,7 @@ describe('mark shapes (round 09)', () => {
     if (!isValidationErrors(ok)) expect(ok.marks[0].style.symbol).toBe('▲');
     for (const [old, now] of Object.entries(LEGACY_MARK_SYMBOLS)) {
       const r = validateKeywordSet(mk(old));
+      expect(isValidationErrors(r)).toBe(false);
       if (!isValidationErrors(r)) expect(r.marks[0].style.symbol).toBe(now);
     }
     expect(isValidationErrors(validateKeywordSet(mk('star')))).toBe(true);
@@ -249,5 +250,29 @@ describe('displayKeywordLabel', () => {
     const set1 = set([wordMark('god', ['god'])]);
     const layer = toDecorationLayer(matchKeywordMarks(input, [set1]), [set1]);
     expect(layer.decorations[0].hoverContent).toEqual({ kind: 'text', text: 'God (3)' });
+  });
+});
+
+describe('displayKeywordLabel edge cases (review round 1)', () => {
+  it('falls back to every table for languages without one, and handles possessives, NFC and inflection', () => {
+    expect(displayKeywordLabel('jesus', 'it')).toBe('Jesus');
+    expect(displayKeywordLabel('gott', 'de')).toBe('Gott');
+    expect(displayKeywordLabel('dieu', 'fr')).toBe('Dieu');
+    expect(displayKeywordLabel("god's", 'en')).toBe("God's");
+    expect(displayKeywordLabel('god’s', 'en')).toBe('God’s');
+    expect(displayKeywordLabel('espíritu santo', 'es')).toBe('Espíritu Santo');
+    expect(displayKeywordLabel('иисуса', 'ru')).toBe('Иисуса');
+    expect(displayKeywordLabel('богатый', 'ru')).toBe('богатый');
+  });
+  it('keeps LORD in capitals when the mark is made from the text', () => {
+    expect(displayKeywordLabel(labelFromToken('LORD,'), 'en')).toBe('LORD');
+    expect(displayKeywordLabel(labelFromToken('Lord'), 'en')).toBe('Lord');
+    const input: ChapterInput = { moduleId: 1, language: 'en', verses: [{ verseId: ROM + 1, words: ['LORD', 'LORD', 'LORD'].map((text) => ({ text })) }] };
+    expect(suggestKeywords(input, { minCount: 3 })[0].label).toBe('LORD');
+  });
+  it('gives time a different line from inference so colour-safe marks differ', () => {
+    const m = BUILT_IN_KEYWORD_SETS[0].marks;
+    const a = m.find((x) => x.id === 'en:inference')!.style, b = m.find((x) => x.id === 'en:time')!.style;
+    expect(a.symbol === b.symbol && a.line === b.line).toBe(false);
   });
 });

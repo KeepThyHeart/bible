@@ -6,7 +6,7 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { KeywordMarkEditor } from '@bible/ui';
-import { isValidationErrors, nextFreeColor, type KeywordMark } from '@bible/core/browser';
+import { isValidationErrors, displayKeywordLabel, nextFreeColor, type KeywordMark } from '@bible/core/browser';
 import { useI18n } from '../../contexts/useI18n';
 import { useDialogShell } from '../PreferencesDialog/useDialogShell';
 import { useKeywordMarkStore } from '../../stores/useKeywordMarkStore';
@@ -110,7 +110,7 @@ export const ManageSetsDialog: React.FC<{ onClose: () => void }> = ({ onClose })
     if (!file) return;
     try {
       const result = await importSet(await file.text());
-      setMessage(isValidationErrors(result) ? t('keywords.sets.importFailed') : t('keywords.sets.imported', { name: result.name }));
+      setMessage(isValidationErrors(result) ? t('keywords.sets.importFailed') : t('keywords.sets.imported', { name: displayKeywordLabel(result.name) }));
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
     }
@@ -122,7 +122,7 @@ export const ManageSetsDialog: React.FC<{ onClose: () => void }> = ({ onClose })
         {sets.map((s) => (
           <li key={s.id} className="flex items-center gap-2 text-sm" data-testid={`keyword-set-${s.id}`}>
             <span className="flex-1 min-w-0 truncate">
-              {s.name}
+              {displayKeywordLabel(s.name)}
               <span className="text-xs text-text-secondary ms-2">
                 {s.builtIn ? t('keywords.sets.builtIn') : t('keywords.sets.markCount', { count: s.marks.length })}
               </span>
@@ -131,7 +131,7 @@ export const ManageSetsDialog: React.FC<{ onClose: () => void }> = ({ onClose })
             <button type="button" className={btn} onClick={() => downloadJson(`${s.name}.keywords.json`, exportSet(s.id))}>{t('keywords.sets.export')}</button>
             {!s.builtIn && (confirmId === s.id ? (
               <button type="button" className={btn} onClick={() => { setConfirmId(null); run(removeSet(s.id)); }}>
-                {t('keywords.sets.confirmDelete', { name: s.name })}
+                {t('keywords.sets.confirmDelete', { name: displayKeywordLabel(s.name) })}
               </button>
             ) : (
               <button type="button" className={btn} onClick={() => setConfirmId(s.id)}>{t('keywords.sets.delete')}</button>

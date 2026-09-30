@@ -1,7 +1,7 @@
 /** "Auto" suggestions: frequent content words in the chapter, grouped by Strong's when rows exist. */
 import { normalizeStrongs, primaryLanguage } from './connectives';
 import { normalizeToken } from './matcher';
-import { displayKeywordLabel } from './displayLabel';
+import { displayKeywordLabel, labelFromToken } from './displayLabel';
 import type { ChapterInput, KeywordSuggestion } from './types';
 
 const STOPWORDS: Record<string, string> = {
@@ -19,7 +19,7 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
   const minCount = opts.minCount ?? 3;
   const max = opts.max ?? 8;
   const stop = stopwordsFor(input.language);
-  const byForm = new Map<string, { label: string; count: number; verses: Set<number> }>();
+  const byForm = new Map<string, { label: string; count: number; caps: number; verses: Set<number> }>();
   const byStrongs = new Map<string, { count: number; verses: Set<number>; forms: Map<string, number> }>();
 
   const rowsByVerse = new Map<number, NonNullable<ChapterInput['interlinear']>>();
@@ -50,7 +50,8 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
       if (covered.has(i)) return;
       const t = normalizeToken(w.text);
       if (t.length < 3 || stop.has(t) || /^\d+$/.test(t)) return;
-      const e = byForm.get(t) ?? { label: t, count: 0, verses: new Set<number>() };
+      const e = byForm.get(t) ?? { label: t, count: 0, caps: 0, verses: new Set<number>() };
+      if (labelFromToken(w.text) !== t) e.caps++;
       e.count++; e.verses.add(verse.verseId);
       byForm.set(t, e);
     });
@@ -64,7 +65,7 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
   }
   for (const e of byForm.values()) {
     if (e.count < minCount) continue;
-    out.push({ label: displayKeywordLabel(e.label, input.language), rule: { kind: 'word', forms: [e.label] }, count: e.count, verses: [...e.verses].sort((a, b) => a - b) });
+    out.push({ label: displayKeywordLabel(e.caps * 2 > e.count ? e.label.toUpperCase() : e.label, input.language), rule: { kind: 'word', forms: [e.label] }, count: e.count, verses: [...e.verses].sort((a, b) => a - b) });
   }
   return out.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)).slice(0, max);
 }

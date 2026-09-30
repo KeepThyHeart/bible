@@ -14,6 +14,7 @@ export const KEYWORD_LAYER_ORDER = 50;
 
 const MAX_TARGETS_PER_DECORATION = 64;
 
+// Eight colour slots, six shapes: slots 7 and 8 repeat a shape, so colour-safe cues there rely on colour or line too.
 const DEFAULT_SYMBOL_FOR_COLOR: Record<MarkColorKey, MarkSymbol> = {
   'mark.1': '▲', 'mark.2': '△', 'mark.3': '■', 'mark.4': '□',
   'mark.5': '●', 'mark.6': '○', 'mark.7': '▲', 'mark.8': '□',

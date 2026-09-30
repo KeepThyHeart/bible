@@ -10,7 +10,8 @@ function connectiveSet(language: 'en' | 'es'): KeywordSet {
       id: `${language}:${category}`,
       label: e.labels[language],
       rule: { kind: 'connective', category },
-      style: { color: e.color, line: category === 'reason' ? 'dashed' : category === 'contrast' ? 'thick' : 'solid', symbol: e.symbol },
+      // Time shares its shape with inference, so it gets its own line: colour-safe marks stay distinguishable.
+      style: { color: e.color, line: category === 'reason' ? 'dashed' : category === 'contrast' ? 'thick' : category === 'time' ? 'dotted' : 'solid', symbol: e.symbol },
       // Condition, comparison and time are noisy; off until the reader turns them on.
       enabled: category === 'inference' || category === 'reason' || category === 'contrast' || category === 'purpose',
     };
