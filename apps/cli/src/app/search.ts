@@ -143,6 +143,14 @@ export async function runSearch(
     return outcome(text, module, { error: message(error) });
   }
 
+  // Core turns a provider that cannot answer into "skipped" and returns no
+  // hits for it, which is indistinguishable from "no matches". With nothing
+  // found and the module skipped, say so instead of reporting an empty result.
+  if (results.length === 0) {
+    const skipped = service.getLastSkippedModules();
+    if (skipped.length > 0) return outcome(text, module, { error: skippedMessage(skipped[0]!.reason) });
+  }
+
   return {
     query: text,
     module,
@@ -151,6 +159,14 @@ export async function runSearch(
     unanswerable: undefined,
     error: undefined,
   };
+}
+
+/** Why core skipped the module, in words for the user. */
+function skippedMessage(reason: { state: string; reason?: string }): string {
+  if (reason.state === 'failed' && reason.reason !== undefined) {
+    return `The search index could not be used: ${reason.reason.split('\n')[0]}`;
+  }
+  return 'This search syntax is not supported here (for example NEAR/3). Try words, "a phrase", (a AND b) or word ~3v.';
 }
 
 /** Returns the reason proximity search cannot be answered, or `undefined`. */
