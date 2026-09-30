@@ -12,6 +12,7 @@
 import {
   UserData,
   UserDataKeywordSetStore,
+  StorageKeywordSetStore,
   KEYWORD_OWNER,
   KEYWORD_COLLECTION,
   isValidationErrors,
@@ -26,25 +27,34 @@ export const LEGACY_KEYWORD_SETS_KEY = 'kth.keywordSets';
 const { migrateLocalStorage } = UserData;
 
 /** The legacy value was a JSON array of sets; anything else is unreadable. Invalid sets are dropped. */
-export function convertLegacyKeywordSets(raw: string) {
+export function convertLegacyKeywordSets(raw: string, onDropped: () => void = () => {}) {
   const parsed: unknown = JSON.parse(raw);
   if (!Array.isArray(parsed)) return null;
-  return parsed
+  const valid = parsed
     .map(validateKeywordSet)
-    .filter((s): s is KeywordSet => !isValidationErrors(s) && !s.builtIn)
-    .map((s) => ({ itemKey: s.id, payload: s }));
+    .filter((s): s is KeywordSet => !isValidationErrors(s));
+  if (valid.length < parsed.length) onDropped();
+  return valid.filter((s) => !s.builtIn).map((s) => ({ itemKey: s.id, payload: s }));
 }
 
 const migrations = new WeakMap<object, Promise<void>>();
 
-async function ready(): Promise<UserDataKeywordSetStore> {
+async function ready(): Promise<IKeywordSetStore> {
   const store = await getUserData();
+  // Memory-only store (IndexedDB blocked, private window): keep the sets where they were, in localStorage.
+  if (!store.persistent) return new StorageKeywordSetStore(localStorage);
   let migration = migrations.get(store);
   if (!migration) {
+    // Sets that fail validation are not copied, so the old key is then kept rather than deleted.
+    let dropped = false;
     migration = migrateLocalStorage(
       store.items,
       localStorage,
-      [{ legacyKey: LEGACY_KEYWORD_SETS_KEY, ownerUuid: KEYWORD_OWNER, collection: KEYWORD_COLLECTION, convert: convertLegacyKeywordSets }],
+      [{
+        legacyKey: LEGACY_KEYWORD_SETS_KEY, ownerUuid: KEYWORD_OWNER, collection: KEYWORD_COLLECTION,
+        convert: (raw: string) => convertLegacyKeywordSets(raw, () => { dropped = true; }),
+        get keepLegacy() { return dropped; },
+      }],
       () => store.flush(),
     ).then(() => undefined, () => undefined);
     migrations.set(store, migration);

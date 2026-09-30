@@ -273,7 +273,6 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
-
 // --- Keyword marks (task 0065) --------------------------------------------------
 // The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
 // validation and the set service. Pure TypeScript; both apps wrap it in a UI.

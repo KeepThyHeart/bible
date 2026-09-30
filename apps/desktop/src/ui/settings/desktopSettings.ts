@@ -37,7 +37,7 @@ export const DESKTOP_SETTINGS = defineSettings([
     type: 'boolean',
     default: true,
     scope: 'device',
-    group: 'keywords',
+    group: 'advanced',
     labelKey: 'keywords.settings.colorSafe',
     label: 'Colour-safe marks (extra underline and symbol cues)',
   },

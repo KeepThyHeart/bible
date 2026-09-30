@@ -29,12 +29,27 @@ describe('WebKeywordSetStore', () => {
     expect(await store.list()).toEqual([]);
   });
 
-  it('migrates the legacy localStorage array once, dropping built-ins and invalid sets', async () => {
-    localStorage.setItem(LEGACY_KEYWORD_SETS_KEY, JSON.stringify([SET, { nope: true }, BUILT_IN_KEYWORD_SETS[0]]));
+  it('migrates the legacy localStorage array once, skipping built-ins, and removes the old key', async () => {
+    localStorage.setItem(LEGACY_KEYWORD_SETS_KEY, JSON.stringify([SET, BUILT_IN_KEYWORD_SETS[0]]));
     await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
     const store = new WebKeywordSetStore();
     expect((await store.list()).map((s) => s.id)).toEqual(['set-1']);
     expect(localStorage.getItem(LEGACY_KEYWORD_SETS_KEY)).toBeNull();
+  });
+
+  it('keeps the old key when some legacy sets fail validation', async () => {
+    localStorage.setItem(LEGACY_KEYWORD_SETS_KEY, JSON.stringify([SET, { nope: true }]));
+    await resetUserDataForTests({ indexedDB: new IDBFactory(), channelName: null });
+    expect((await new WebKeywordSetStore().list()).map((s) => s.id)).toEqual(['set-1']);
+    expect(localStorage.getItem(LEGACY_KEYWORD_SETS_KEY)).not.toBeNull();
+  });
+
+  it('falls back to localStorage when the user-data store is memory-only', async () => {
+    localStorage.setItem(LEGACY_KEYWORD_SETS_KEY, JSON.stringify([SET]));
+    await resetUserDataForTests({ indexedDB: null, channelName: null });
+    const store = new WebKeywordSetStore();
+    expect((await store.list()).map((s) => s.id)).toEqual(['set-1']);
+    expect(localStorage.getItem(LEGACY_KEYWORD_SETS_KEY)).not.toBeNull();
   });
 
   it('leaves a corrupt legacy value in place', async () => {

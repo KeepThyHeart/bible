@@ -7,7 +7,7 @@ function connectiveSet(language: 'en' | 'es'): KeywordSet {
   const marks: KeywordMark[] = CONNECTIVE_CATEGORIES.map((category) => {
     const e = CONNECTIVE_LEXICON[category];
     return {
-      id: `${category}`,
+      id: `${language}:${category}`,
       label: e.labels[language],
       rule: { kind: 'connective', category },
       style: { color: e.color, line: category === 'reason' ? 'dashed' : category === 'contrast' ? 'thick' : 'solid', symbol: e.symbol },

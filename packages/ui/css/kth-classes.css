@@ -476,7 +476,6 @@
   border: 0 !important;
 }
 
-
 /* --- Keyword marks (0065). Colour is passed by the component as the custom property --mark-color
    (rgb(var(--kth-mark-N-rgb))), so no colour function appears here. --------------------------------- */
 .kth-mark-swatch {

@@ -157,7 +157,6 @@ export * as Crypto from './Crypto';
 // Backup format v1 (task 0078): also re-exported from `./browser`.
 export * as Backup from './Backup';
 
-
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';

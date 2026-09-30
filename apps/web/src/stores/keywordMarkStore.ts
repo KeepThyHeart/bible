@@ -115,7 +115,10 @@ export class KeywordMarkStore extends Store {
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
     this.service = new KeywordSetService(opts.setStore ?? new WebKeywordSetStore());
     this.readPersisted();
-    webSettings.subscribe(() => this.notify());
+    let lastColorSafe = this.colorSafe;
+    webSettings.subscribe(() => {
+      if (this.colorSafe !== lastColorSafe) { lastColorSafe = this.colorSafe; this.notify(); }
+    });
     this.service.subscribe((sets) => {
       this.sets = sets;
       this.setsRevision++;

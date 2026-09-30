@@ -102,7 +102,8 @@ export function KeywordLegend({
       </div>
 
       {rows.length === 0 ? (
-        <p className="kth-legend__note">{L.empty}</p>
+        // While marks are off there are no rows to show, which is not the same as "nothing matches".
+        off ? null : <p className="kth-legend__note">{L.empty}</p>
       ) : (
         <ul className="kth-legend__list">
           {rows.map((r) => (

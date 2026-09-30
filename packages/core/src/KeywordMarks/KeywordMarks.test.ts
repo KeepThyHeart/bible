@@ -62,12 +62,19 @@ describe('matchKeywordMarks', () => {
     expect(matchKeywordMarks(KJV, [set([wordMark('f', ['faith'])], { scope: { kind: 'passage', start: ROM + 2, end: ROM + 3 } })]).counts.get('f')!.hits).toBe(1);
   });
 
+  it('gives every built-in mark a unique id, so a second language never shares counts', () => {
+    const ids = BUILT_IN_KEYWORD_SETS.flatMap((s) => s.marks.map((m) => m.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    const r = matchKeywordMarks(KJV, [...BUILT_IN_KEYWORD_SETS]);
+    expect(r.counts.has('es:contrast')).toBe(false); // the Spanish set does not apply to English text
+  });
+
   it('marks connectives loosely without interlinear rows', () => {
     const r = matchKeywordMarks(KJV, [BUILT_IN_KEYWORD_SETS[0]]);
     expect(r.wantsInterlinear).toBe(true);
-    expect(r.counts.get('inference')!.hits).toBe(1);
-    expect(r.counts.get('contrast')!.hits).toBe(1);
-    expect(r.counts.get('reason')!.hits).toBe(1); // "because"
+    expect(r.counts.get('en:inference')!.hits).toBe(1);
+    expect(r.counts.get('en:contrast')!.hits).toBe(1);
+    expect(r.counts.get('en:reason')!.hits).toBe(1); // "because"
     expect(r.byVerse.get(ROM + 1)!.every((h) => h.loose)).toBe(true);
   });
 
@@ -81,7 +88,7 @@ describe('matchKeywordMarks', () => {
       ],
     };
     const r = matchKeywordMarks(input, [BUILT_IN_KEYWORD_SETS[0]]);
-    expect(r.counts.get('reason')!.hits).toBe(1);
+    expect(r.counts.get('en:reason')!.hits).toBe(1);
     expect(r.byVerse.get(ROM + 1)![0]).toMatchObject({ start: 0 });
     expect(r.byVerse.get(ROM + 1)![0].loose).toBeUndefined();
   });
