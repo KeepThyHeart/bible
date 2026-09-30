@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { BottomSheet } from '@bible/ui';
 import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -16,6 +17,7 @@ export function AudioGateDialog() {
   const { t } = useTranslation();
   const gate = useStore(audioStore, () => audioStore.pendingGate);
   const module = useStore(audioStore, () => audioStore.playingModule) ?? '';
+  const layout = useStore(audioStore, () => audioStore.layout);
   const primaryRef = useRef<HTMLButtonElement>(null);
   useEscapeKey(!!gate, () => audioStore.cancelGate());
 
@@ -34,6 +36,39 @@ export function AudioGateDialog() {
   const voice = gate.voiceLabel ?? '';
   const confirmLabel = size ? (isBattery ? t('audio.gate.downloadAndPlay') : t('audio.gate.download')) : t('audio.play');
 
+  const body = (
+    <div id="audio-gate-body" class="audio-gate__body">
+      {isBattery && <p>{t('audio.gate.batteryBody', { module })}</p>}
+      {size && (
+        <>
+          <p class="audio-gate__size">{t('audio.gate.voiceSize', { engine: gate.engineLabel, voice, size })}</p>
+          <p class="audio-gate__hint">{t('audio.gate.downloadHint')}</p>
+        </>
+      )}
+    </div>
+  );
+  const actions = (
+    <div class="audio-gate__actions">
+      <button type="button" class="audio-gate__btn" onClick={() => audioStore.cancelGate()}>{t('audio.action.cancel')}</button>
+      <button type="button" class="audio-gate__btn audio-gate__btn--primary" ref={primaryRef} onClick={() => audioStore.confirmGate()} data-testid="audio-gate-confirm">
+        {confirmLabel}
+      </button>
+    </div>
+  );
+  const title = <><i class="fa-solid fa-headphones" aria-hidden="true" /> {isBattery ? t('audio.gate.batteryTitle') : t('audio.gate.downloadTitle')}</>;
+
+  // On a phone the shared bottom sheet carries the question; on desktop it is a centred dialog.
+  if (layout === 'phone') {
+    return (
+      <BottomSheet open onClose={() => audioStore.cancelGate()} title={title} labels={{ close: t('audio.action.cancel') }} maxHeight="60dvh" className="audio-gate-sheet">
+        <div class="audio-gate audio-gate--sheet" data-testid="audio-gate">
+          {body}
+          {actions}
+        </div>
+      </BottomSheet>
+    );
+  }
+
   return (
     <div class="settings-panel-overlay audio-gate-overlay" onClick={() => audioStore.cancelGate()}>
       <div
@@ -45,24 +80,9 @@ export function AudioGateDialog() {
         data-testid="audio-gate"
         onClick={e => e.stopPropagation()}
       >
-        <h3 id="audio-gate-title" class="audio-gate__title">
-          <i class="fa-solid fa-headphones" aria-hidden="true" /> {isBattery ? t('audio.gate.batteryTitle') : t('audio.gate.downloadTitle')}
-        </h3>
-        <div id="audio-gate-body" class="audio-gate__body">
-          {isBattery && <p>{t('audio.gate.batteryBody', { module })}</p>}
-          {size && (
-            <>
-              <p class="audio-gate__size">{t('audio.gate.voiceSize', { engine: gate.engineLabel, voice, size })}</p>
-              <p class="audio-gate__hint">{t('audio.gate.downloadHint')}</p>
-            </>
-          )}
-        </div>
-        <div class="audio-gate__actions">
-          <button type="button" class="audio-gate__btn" onClick={() => audioStore.cancelGate()}>{t('audio.action.cancel')}</button>
-          <button type="button" class="audio-gate__btn audio-gate__btn--primary" ref={primaryRef} onClick={() => audioStore.confirmGate()} data-testid="audio-gate-confirm">
-            {confirmLabel}
-          </button>
-        </div>
+        <h3 id="audio-gate-title" class="audio-gate__title">{title}</h3>
+        {body}
+        {actions}
       </div>
     </div>
   );

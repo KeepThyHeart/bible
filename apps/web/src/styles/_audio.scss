@@ -295,17 +295,13 @@
 }
 
 .audio-popover {
-  position: absolute;
-  inset-inline-end: 8px;
-  top: 100%;
-  z-index: 60;
-  inline-size: 340px;
-  max-inline-size: calc(100vw - 16px);
+  // Position, size, elevation and dismissal come from the shared `Popover`; only the
+  // surface is set here.
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 6px 20px var(--dropdown-shadow);
   padding: 12px;
+  z-index: 60;
 }
 
 // ---- Source panel (popover, phone player, and settings share these) ----------
@@ -546,10 +542,15 @@
   }
 }
 
-@media (max-width: 600px) {
-  // On a phone the gate is a sheet from the bottom edge.
-  .audio-gate-overlay { align-items: flex-end; }
-  .audio-gate { inline-size: 100%; max-inline-size: 100%; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+// On a phone the gate is the shared `BottomSheet`, which supplies the surface, title
+// and dismissal; the content only lays out its own text and buttons.
+.audio-gate--sheet {
+  inline-size: auto;
+  max-inline-size: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 // ---- Settings tab ----------------------------------------------------------------

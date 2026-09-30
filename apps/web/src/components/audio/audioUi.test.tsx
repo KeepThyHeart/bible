@@ -266,8 +266,9 @@ describe('gate dialog', () => {
     render(<AudioGateDialog />);
     const p = audioStore.play();
     await flush();
-    const dialog = await screen.findByTestId('audio-gate');
-    expect(dialog.textContent).toContain('audio.gate.batteryTitle');
+    await screen.findByTestId('audio-gate');
+    // The shared bottom sheet carries the title.
+    expect(screen.getByRole('dialog').textContent).toContain('audio.gate.batteryTitle');
     expect(screen.getByTestId('audio-gate-confirm').textContent).toBe('audio.gate.downloadAndPlay');
     fireEvent.click(screen.getByTestId('audio-gate-confirm'));
     await p;

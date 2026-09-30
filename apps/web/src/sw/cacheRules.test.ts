@@ -63,7 +63,10 @@ describe('shipped cache rules', () => {
 
   it('keep the large caches on reset, including the external transformers cache', () => {
     expect(preservedOnReset(CACHE_RULES).sort()).toEqual(
-      ['embedding-model-v1', 'semantic-index-v1', 'transformers-cache'].sort(),
+      [
+        'audio-chapters-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
+        'transformers-cache', 'tts-models-v1',
+      ].sort(),
     );
   });
 

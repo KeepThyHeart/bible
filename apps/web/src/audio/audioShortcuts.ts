@@ -12,7 +12,41 @@
  * on Windows and Linux only; the transport bar has the same actions as buttons.)
  */
 
-import type { KeyBinding } from '../plugins/registries/KeybindingRegistry';
+export interface KeyBinding {
+  id: string;
+  /** Key combo such as `alt+p` or `alt+shift+arrowleft` (lower case). */
+  key: string;
+  label: string;
+  handler(): void;
+  /** Only active while this returns true. */
+  when?(): boolean;
+}
+
+/**
+ * A minimal shortcut registry over one `keydown` listener. The app has no global
+ * keybinding registry, so audio owns its five keys; `dispose()` removes the listener.
+ */
+export function createKeybindingRegistry(target: Pick<Document, 'addEventListener' | 'removeEventListener'> = document): ShortcutRegistry & { dispose(): void } {
+  const bindings = new Map<string, KeyBinding>();
+  const onKeyDown = (e: Event) => {
+    const ev = e as KeyboardEvent;
+    for (const b of bindings.values()) {
+      const parts = b.key.split('+');
+      if (ev.key.toLowerCase() !== parts[parts.length - 1]) continue;
+      if (ev.ctrlKey !== parts.includes('ctrl') || ev.metaKey !== (parts.includes('meta') || parts.includes('cmd'))
+        || ev.shiftKey !== parts.includes('shift') || ev.altKey !== parts.includes('alt')) continue;
+      if (b.when && !b.when()) continue;
+      ev.preventDefault();
+      b.handler();
+      return;
+    }
+  };
+  target.addEventListener('keydown', onKeyDown);
+  return {
+    register(binding) { bindings.set(binding.id, binding); return () => { bindings.delete(binding.id); }; },
+    dispose() { target.removeEventListener('keydown', onKeyDown); bindings.clear(); },
+  };
+}
 
 export interface ShortcutRegistry {
   register(binding: KeyBinding): () => void;

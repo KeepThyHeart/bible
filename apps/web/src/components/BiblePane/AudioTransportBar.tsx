@@ -8,8 +8,9 @@
  * is nothing to report.
  */
 
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { Popover } from '@bible/ui';
 import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { useNowPlaying } from '../../hooks/useNowPlaying';
@@ -35,22 +36,15 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
   const [panelOpen, setPanelOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Close the panel on an outside click or Escape. Registered for the component's life, with
-  // the open flag in a ref (effects are deferred a frame, so an open-triggered listener would
-  // miss the panel's first frames), like the toolbar's history menu.
-  const openRef = useRef(false);
-  openRef.current = panelOpen;
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (openRef.current && rootRef.current && !rootRef.current.contains(e.target as Node)) setPanelOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (openRef.current && e.key === 'Escape') { setPanelOpen(false); (rootRef.current?.querySelector('[data-chip]') as HTMLElement | null)?.focus(); }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, []);
+  // The shared Popover owns outside-press and Escape handling and focus return; the
+  // chips only say where it is anchored.
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const openPanel = (e: MouseEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    if (panelOpen) { setPanelOpen(false); return; }
+    setAnchor(el.getBoundingClientRect());
+    setPanelOpen(true);
+  };
 
   if (!enabled || layout !== 'desktop') return null;
   const idle = status === 'idle';
@@ -83,7 +77,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
           aria-expanded={panelOpen}
           aria-controls={panelOpen ? panelId : undefined}
           title={t('audio.transport.speed')}
-          onClick={() => setPanelOpen(v => !v)}
+          onClick={openPanel}
         >
           {formatRate(rate)}
         </button>
@@ -94,7 +88,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
           aria-expanded={panelOpen}
           aria-controls={panelOpen ? panelId : undefined}
           title={t('audio.transport.source')}
-          onClick={() => setPanelOpen(v => !v)}
+          onClick={openPanel}
         >
           {chip}
         </button>
@@ -106,11 +100,21 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         </button>
       </div>
       <AudioStatusLine />
-      {panelOpen && now.moduleAbbr && (
-        <div class="audio-popover" id={panelId} role="dialog" aria-label={t('audio.transport.source')}>
-          <AudioSourcePanel moduleAbbr={now.moduleAbbr} onOpenSettings={section => { setPanelOpen(false); onOpenSettings?.(section); }} />
-        </div>
-      )}
+      <Popover
+        open={panelOpen && !!now.moduleAbbr}
+        anchor={anchor}
+        onClose={() => setPanelOpen(false)}
+        id={panelId}
+        label={t('audio.transport.source')}
+        width={340}
+        estimatedHeight={260}
+        align="end"
+        autoFocus
+        className="audio-popover"
+        insideRefs={[rootRef]}
+      >
+        {now.moduleAbbr && <AudioSourcePanel moduleAbbr={now.moduleAbbr} onOpenSettings={section => { setPanelOpen(false); onOpenSettings?.(section); }} />}
+      </Popover>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { registerAudioShortcuts, type ShortcutTarget } from './audioShortcuts';
-import type { KeyBinding } from '../plugins/registries/KeybindingRegistry';
+import { createKeybindingRegistry, registerAudioShortcuts, type KeyBinding, type ShortcutTarget } from './audioShortcuts';
 
 function setup(state: Partial<ShortcutTarget> = {}) {
   const bindings = new Map<string, KeyBinding>();
@@ -60,5 +59,26 @@ describe('audio shortcuts', () => {
     const { bindings, off } = setup();
     off();
     expect(bindings.size).toBe(0);
+  });
+});
+
+describe('createKeybindingRegistry', () => {
+  it('runs the matching binding on keydown, honours when(), and stops after dispose', () => {
+    const reg = createKeybindingRegistry();
+    const handler = vi.fn();
+    let on = false;
+    reg.register({ id: 'x', key: 'alt+p', label: 'x', when: () => on, handler });
+    const press = (init: KeyboardEventInit) => document.dispatchEvent(new KeyboardEvent('keydown', { cancelable: true, ...init }));
+    press({ key: 'p', altKey: true });
+    expect(handler).not.toHaveBeenCalled();
+    on = true;
+    press({ key: 'P', altKey: true });
+    expect(handler).toHaveBeenCalledTimes(1);
+    press({ key: 'p', altKey: true, shiftKey: true });
+    press({ key: 'p' });
+    expect(handler).toHaveBeenCalledTimes(1);
+    reg.dispose();
+    press({ key: 'p', altKey: true });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });
