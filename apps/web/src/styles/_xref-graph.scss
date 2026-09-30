@@ -24,6 +24,16 @@
 
   &:focus { outline: none; }
 
+  // Full screen: the dialog fills the window (the browser's Fullscreen API is requested as well).
+  &--full {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  &__actions { display: flex; align-items: center; gap: 4px; }
+
   &__header {
     display: flex;
     align-items: center;

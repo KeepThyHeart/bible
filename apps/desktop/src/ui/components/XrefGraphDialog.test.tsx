@@ -17,6 +17,7 @@ vi.mock('@bible/ui', async () => {
     ...actual,
     XrefHopper: (p: any) => { hoisted.hopperProps = p; return <div data-testid="hopper">{p.anchor}</div>; },
     XrefWebView: (p: any) => { hoisted.webProps = p; return <div data-testid="web">{p.anchor}</div>; },
+    XrefConstellationView: (p: any) => <div data-testid="constellation">{p.anchor}</div>,
     XrefArcView: (p: any) => {
       hoisted.arcProps = p;
       return <div data-testid="arcs" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }} />;
@@ -74,7 +75,7 @@ describe('XrefGraphDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Cross-reference graph' });
     expect(dialog).toBeInTheDocument();
     expect(screen.getByRole('tablist', { name: 'Graph views' })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Hopper', 'Verse web', 'Canon arcs']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Hopper', 'Verse web', 'Constellation', 'Canon arcs']);
     expect(screen.getByTestId('web')).toHaveTextContent('43003016');
   });
 
@@ -87,6 +88,17 @@ describe('XrefGraphDialog', () => {
     expect(screen.getByTestId('web')).toHaveTextContent('19023001');
     fireEvent.click(screen.getByRole('tab', { name: 'Canon arcs' }));
     expect(hoisted.arcProps.current).toEqual({ book: 19, chapter: 23 });
+  });
+
+  it('shows the constellation tab and toggles full screen', () => {
+    renderDialog();
+    open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Constellation' }));
+    expect(screen.getByTestId('constellation')).toHaveTextContent('43003016');
+    const btn = screen.getByRole('button', { name: 'Full screen' });
+    fireEvent.click(btn);
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('dialog').className).toContain('w-screen');
   });
 
   it('explores a chapter from the arcs in the verse web at verse 1', () => {

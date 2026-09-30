@@ -157,7 +157,10 @@ describe('XrefHopper', () => {
   it('works without getVerseText', async () => {
     render(<XrefHopper provider={fakeProvider(graph)} anchor={JOHN_3_16} onOpenVerse={() => {}} formatRef={formatRef} />);
     await screen.findByText(`V${ROM_5_8}`, { selector: '.kth-xref-hopper-ref' });
-    expect(document.querySelector('.kth-xref-hopper-text')).toBeNull();
+    // No verse text: a card shows at most its phrase.
+    for (const p of document.querySelectorAll('.kth-xref-hopper-text')) {
+      expect(p.textContent).toBe(p.querySelector('.kth-xref-hopper-phrase')?.textContent);
+    }
   });
 
   it('pages with Show more and follows the anchor prop', async () => {

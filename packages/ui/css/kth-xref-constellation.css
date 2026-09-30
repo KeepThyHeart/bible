@@ -1,0 +1,27 @@
+/* Cross-reference graph: constellation view (task 0068). Builds on the kth-xref-web toolbar, stage and detail classes. */
+.kth-xref-star__svg { background: var(--kth-bg); }
+.kth-xref-star__bg { fill: transparent; cursor: default; }
+.kth-xref-star__book { fill: none; stroke-width: 5; opacity: 0.7; }
+.kth-xref-star__ring { fill: none; stroke: var(--kth-border); stroke-dasharray: 2 5; }
+.kth-xref-star__divide { stroke: var(--kth-border-strong); stroke-dasharray: 2 4; }
+.kth-xref-star__ringlabel { fill: var(--kth-text-muted); font-size: 11px; }
+
+.kth-xref-star__edge { fill: none; stroke: var(--kth-text-muted); stroke-linecap: round; opacity: 0.32; animation: kth-xref-star-fade 500ms ease-out; }
+.kth-xref-star__edge--hi { stroke: var(--kth-accent); opacity: 1; }
+.kth-xref-star__edge--dim { opacity: 0.06; }
+
+.kth-xref-star__star { cursor: pointer; outline: none; transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms; animation: kth-xref-star-fade 500ms ease-out; }
+.kth-xref-star__star--dim { opacity: 0.25; }
+.kth-xref-star__halo { opacity: 0.22; }
+.kth-xref-star__core { stroke: var(--kth-surface); stroke-width: 1.2; }
+.kth-xref-star__label { font-size: 11px; }
+
+.kth-xref-star--still .kth-xref-star__star,
+.kth-xref-star--still .kth-xref-star__edge { transition: none; animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .kth-xref-star__star,
+  .kth-xref-star__edge { transition: none; animation: none; }
+}
+@keyframes kth-xref-star-fade { from { opacity: 0; } }
+
+.kth-xref-star__hint { margin: 0; color: var(--kth-text-muted); font-size: 0.9em; }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderHook } from '@testing-library/react';
-import { DEFAULT_XREF_HOPPER_LABELS, DEFAULT_XREF_WEB_LABELS, DEFAULT_XREF_ARCS_LABELS } from '@bible/ui';
+import { DEFAULT_XREF_HOPPER_LABELS, DEFAULT_XREF_WEB_LABELS, DEFAULT_XREF_ARCS_LABELS, DEFAULT_XREF_CONSTELLATION_LABELS } from '@bible/ui';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { useXrefGraphLabels, translateWithDefault } from './useXrefGraphLabels';
 
@@ -45,6 +45,7 @@ describe('useXrefGraphLabels', () => {
     expect(result.current.hopper).toEqual(DEFAULT_XREF_HOPPER_LABELS);
     expect(result.current.web).toEqual(DEFAULT_XREF_WEB_LABELS);
     expect(result.current.arcs).toEqual(DEFAULT_XREF_ARCS_LABELS);
+    expect(result.current.constellation).toEqual(DEFAULT_XREF_CONSTELLATION_LABELS);
   });
 
   it('looks up xrefGraph.<view>.<label> for every label', () => {
@@ -55,7 +56,8 @@ describe('useXrefGraphLabels', () => {
     expect(result.current.arcs.reset).toBe('T:xrefGraph.arcs.reset');
     const keys = Object.keys(DEFAULT_XREF_HOPPER_LABELS).length
       + Object.keys(DEFAULT_XREF_WEB_LABELS).length
-      + Object.keys(DEFAULT_XREF_ARCS_LABELS).length;
+      + Object.keys(DEFAULT_XREF_ARCS_LABELS).length
+      + Object.keys(DEFAULT_XREF_CONSTELLATION_LABELS).length;
     expect(new Set(t.mock.calls.map((c) => c[0])).size).toBe(keys);
   });
 });

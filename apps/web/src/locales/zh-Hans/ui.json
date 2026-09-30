@@ -718,7 +718,8 @@
     "view": {
       "hopper": "跳转",
       "web": "节经网络",
-      "arcs": "正典弧"
+      "arcs": "正典弧",
+      "constellation": "星座图"
     },
     "showConnections": "显示连接",
     "noVerse": "选择节以探索其连接",
@@ -748,8 +749,7 @@
     "web": {
       "region": "节经网络",
       "toolbar": "节经网络控件",
-      "depth": "深度",
-      "depthOption": "{n}",
+      "depthOption": "跳数：{n}",
       "minWeight": "最小强度",
       "back": "返回",
       "releasePins": "释放固定",
@@ -772,7 +772,18 @@
       "edgeOut": "{from} 引用 {to}",
       "edgeBoth": "{from} 和 {to} 相互引用",
       "strength": "强度 {n} / 5",
-      "pinned": "固定"
+      "pinned": "固定",
+      "depthLabel": "跳数",
+      "depthHint": "从中心节向外查看的范围。1 显示它直接引用的节，2 再加上这些节所引用的节，3 再多延伸一步。",
+      "minStrengthHint": "隐藏较弱的链接。强度（1 到 5）表示两节之间的关联紧密程度：《圣经知识宝库》优先列出最接近的平行经文，双向链接或出现在多个来源中的链接得分更高。1 显示所有链接，5 仅显示最强的链接。",
+      "minStrengthAny": "任意",
+      "minStrengthValue": "{n} / 5 及以上",
+      "help": "这些控件是什么意思？",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fitAll": "全部适应",
+      "focusView": "聚焦",
+      "zoom": "缩放"
     },
     "arcs": {
       "title": "全部圣经交叉引用",
@@ -797,7 +808,44 @@
       "selectedNone": "{chapter} 已选定：无连接。",
       "cleared": "选择已清除",
       "links": "{count} 个链接",
-      "arcsShown": "显示 {count} 个弧"
+      "arcsShown": "显示 {count} 个弧",
+      "minWeightHint": "隐藏仅由少量或较弱链接相连的章节对。一对章节的强度是两章之间所有交叉引用强度的总和，因此向右滑动只会保留连接最多的章节对。"
+    },
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "constellation": {
+      "back": "返回",
+      "depthLabel": "跳数",
+      "depthHint": "从中心节向外查看的范围。1 显示它直接引用的节，2 再加上这些节所引用的节，3 再多延伸一步。",
+      "depthOption": "跳数：{n}",
+      "minWeight": "最小强度",
+      "minStrengthHint": "隐藏较弱的链接。强度（1 到 5）表示两节之间的关联紧密程度：《圣经知识宝库》优先列出最接近的平行经文，双向链接或出现在多个来源中的链接得分更高。1 显示所有链接，5 仅显示最强的链接。",
+      "minStrengthAny": "任意",
+      "minStrengthValue": "{n} / 5 及以上",
+      "help": "这些控件是什么意思？",
+      "region": "星座图",
+      "toolbar": "星座图控件",
+      "summary": "{n} 个相连节",
+      "hint": "每颗星按其在圣经中的位置排布：创世记在顶部，顺时针排列至启示录。圆环表示该节与中心相距几跳。",
+      "ringStart": "创世记",
+      "truncated": "显示最强的 {n} 个连接",
+      "loading": "加载连接中",
+      "empty": "此节无交叉引用",
+      "error": "无法加载连接",
+      "retry": "重试",
+      "graph": "交叉引用星座图",
+      "detail": "所选节",
+      "recentre": "在此重新居中",
+      "openInReader": "在阅读器中打开",
+      "recentreOn": "在 {ref} 处重新居中",
+      "selectOn": "选择 {ref}",
+      "connections": "{n} 个连接",
+      "textLoading": "加载文本中",
+      "list": "相连节，强度最强的优先",
+      "edgeOut": "{from} 引用 {to}",
+      "edgeBoth": "{from} 和 {to} 相互引用",
+      "strength": "强度 {n} / 5",
+      "hopName": "第 {hop} 跳"
     }
   }
 }

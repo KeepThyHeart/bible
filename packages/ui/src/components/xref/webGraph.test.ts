@@ -1,5 +1,5 @@
 import type { XrefEdge, XrefGraph, XrefNode } from '@bible/core/browser';
-import { edgeWidth, mergeGraph, neighbourInDirection, nodeRadius, rankedNeighbours, truncateLabel } from './webGraph';
+import { FOCUS_MAX_ZOOM, MAX_ZOOM, edgeWidth, fitAllView, focusView, labelScale, mergeGraph, zoomAt, neighbourInDirection, nodeRadius, rankedNeighbours, truncateLabel } from './webGraph';
 import type { SimNode } from './webGraph';
 
 const A = 1001001;
@@ -96,5 +96,44 @@ describe('rankedNeighbours', () => {
     expect(r[0].direction).toBe('in');
     expect(r[1].direction).toBe('both');
     expect(r[2].direction).toBe('out');
+  });
+});
+
+describe('web camera', () => {
+  const mk = (id: number, x: number, y: number, hop: number): SimNode => ({ id, x, y, hop, degree: 3, vx: 0, vy: 0 });
+
+  it('focus view centres on the anchor and zooms in on a small graph', () => {
+    const v = focusView([mk(1, 10, 20, 0), mk(2, 60, 20, 1)], 1, 800, 500);
+    expect(v.k).toBeGreaterThan(1);
+    expect(v.tx).toBeCloseTo(-10 * v.k);
+    expect(v.ty).toBeCloseTo(-20 * v.k);
+  });
+
+  it('focus view never shrinks below 1 and never exceeds its ceiling', () => {
+    expect(focusView([mk(1, 0, 0, 0), mk(2, 2000, 0, 1)], 1, 800, 500).k).toBe(1);
+    expect(focusView([mk(1, 0, 0, 0)], 1, 800, 500).k).toBe(FOCUS_MAX_ZOOM);
+  });
+
+  it('fit-all zooms out until every node is inside the stage', () => {
+    const nodes = [mk(1, -1500, 0, 0), mk(2, 1500, 400, 2)];
+    const v = fitAllView(nodes, 800, 500);
+    expect(v.k).toBeLessThan(0.4);
+    for (const n of nodes) {
+      expect(Math.abs(n.x * v.k + v.tx)).toBeLessThan(400);
+      expect(Math.abs(n.y * v.k + v.ty)).toBeLessThan(250);
+    }
+  });
+
+  it('zoomAt keeps the pointer position fixed and clamps', () => {
+    const v = zoomAt({ k: 1, tx: 0, ty: 0 }, 2, 100, 50);
+    expect(v.k).toBe(2);
+    expect(100 * v.k + v.tx).toBeCloseTo(100); // world point 100 stays under the pointer at 100
+    expect(zoomAt({ k: 5, tx: 0, ty: 0 }, 10, 0, 0).k).toBe(MAX_ZOOM);
+  });
+
+  it('label scale keeps labels between 0.6x and 1.6x on screen', () => {
+    expect(labelScale(1)).toBe(1);
+    expect(labelScale(0.2) * 0.2).toBeCloseTo(0.6);
+    expect(labelScale(4) * 4).toBeCloseTo(1.6);
   });
 });

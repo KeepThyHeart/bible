@@ -143,7 +143,11 @@ export function mergeGraph(prev: readonly SimNode[], graph: XrefGraph): { nodes:
  * Arrow-key navigation: the nearest node in the pressed direction (within a broad cone, perpendicular
  * offset counting double), or undefined when there is none.
  */
-export function neighbourInDirection(nodes: readonly SimNode[], fromId: VerseId, dir: ArrowDir): VerseId | undefined {
+export function neighbourInDirection(
+  nodes: readonly { id: VerseId; x: number; y: number }[],
+  fromId: VerseId,
+  dir: ArrowDir,
+): VerseId | undefined {
   const from = nodes.find((n) => n.id === fromId);
   if (!from) return undefined;
   let best: VerseId | undefined;
@@ -188,4 +192,68 @@ export function rankedNeighbours(graph: XrefGraph): RankedNeighbour[] {
     });
   }
   return [...rows.values()].sort((a, b) => b.weight - a.weight || a.verseId - b.verseId);
+}
+
+/** Camera of the verse web: world point (x, y) lands at `(x * k + tx, y * k + ty)` from the stage centre. */
+export interface WebView {
+  k: number;
+  tx: number;
+  ty: number;
+}
+
+export const MIN_ZOOM = 0.15;
+export const MAX_ZOOM = 6;
+/** Default zoom never goes below 1: the graph is read at full size and panned rather than shrunk. */
+export const FOCUS_MAX_ZOOM = 2.2;
+
+export const clampZoom = (k: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k));
+
+/**
+ * The default camera: centred on the anchor, as close as the anchor's direct neighbours still fit, never
+ * smaller than 1 (a busy graph overflows the stage and the user pans) and never larger than {@link FOCUS_MAX_ZOOM}.
+ */
+export function focusView(nodes: readonly SimNode[], anchorId: VerseId, width: number, height: number, pad = 44): WebView {
+  const a = nodes.find((n) => n.id === anchorId);
+  if (!a || width <= 0 || height <= 0) return { k: 1, tx: 0, ty: 0 };
+  let dx = 1;
+  let dy = 1;
+  for (const n of nodes) {
+    if (n.hop > 1) continue;
+    dx = Math.max(dx, Math.abs(n.x - a.x) + nodeRadius(n.degree, n.hop) + 24);
+    dy = Math.max(dy, Math.abs(n.y - a.y) + nodeRadius(n.degree, n.hop) + 18);
+  }
+  const k = Math.min(FOCUS_MAX_ZOOM, Math.max(1, Math.min((width / 2 - pad / 2) / dx, (height / 2 - pad / 2) / dy)));
+  return { k, tx: -a.x * k, ty: -a.y * k };
+}
+
+/** The "see everything" camera: the bounding box of all nodes fits the stage (zoomed out as far as needed). */
+export function fitAllView(nodes: readonly SimNode[], width: number, height: number, pad = 28): WebView {
+  if (!nodes.length || width <= 0 || height <= 0) return { k: 1, tx: 0, ty: 0 };
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  for (const n of nodes) {
+    const r = nodeRadius(n.degree, n.hop);
+    x0 = Math.min(x0, n.x - r - 30);
+    x1 = Math.max(x1, n.x + r + 30);
+    y0 = Math.min(y0, n.y - r);
+    y1 = Math.max(y1, n.y + r + 16);
+  }
+  const bw = Math.max(1, x1 - x0);
+  const bh = Math.max(1, y1 - y0);
+  const k = Math.min(1.5, clampZoom(Math.min((width - pad) / bw, (height - pad) / bh)));
+  return { k, tx: -((x0 + x1) / 2) * k, ty: -((y0 + y1) / 2) * k };
+}
+
+/** Zoom by `factor` keeping the stage point (sx, sy), measured from the stage centre, fixed. */
+export function zoomAt(view: WebView, factor: number, sx: number, sy: number): WebView {
+  const k = clampZoom(view.k * factor);
+  const f = k / view.k;
+  return { k, tx: sx - (sx - view.tx) * f, ty: sy - (sy - view.ty) * f };
+}
+
+/** Label size in screen px stays readable: it follows the zoom, but only between 0.6x and 1.6x of its base size. */
+export function labelScale(k: number): number {
+  return Math.min(1.6, Math.max(0.6, k)) / k;
 }

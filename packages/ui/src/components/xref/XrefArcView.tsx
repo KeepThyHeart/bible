@@ -31,6 +31,8 @@ export interface XrefArcViewLabels {
   book: string;
   allBooks: string;
   minWeight: string;
+  /** Tooltip explaining what the strength floor hides. */
+  minWeightHint: string;
   sections: string;
   reset: string;
   /** `{chapter}` is replaced. */
@@ -64,6 +66,8 @@ export const DEFAULT_XREF_ARCS_LABELS: XrefArcViewLabels = {
   book: 'Book',
   allBooks: 'All books',
   minWeight: 'Minimum strength',
+  minWeightHint:
+    'Hides chapter pairs joined by only a few or weak links. A pair\'s strength adds up the strength of every cross-reference between the two chapters, so sliding right keeps only the most heavily linked pairs.',
   sections: 'Sections',
   reset: 'Reset',
   open: 'Open {chapter}',
@@ -461,7 +465,7 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
                 ))}
               </select>
             </label>
-            <label className="kth-xref-arcs__field">
+            <label className="kth-xref-arcs__field" title={L.minWeightHint}>
               <span>{L.minWeight}</span>
               <input
                 className="kth-xref-arcs__slider"

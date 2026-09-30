@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EgoOptions, VerseId, XrefGraph } from '@bible/core/browser';
 import { XrefWebView } from './XrefWebView';
@@ -91,7 +91,7 @@ describe('XrefWebView', () => {
   it('depth buttons refetch with the new depth', async () => {
     const { user, fn } = setup();
     await screen.findByRole('button', { name: 'John 3:16' });
-    await user.click(screen.getByRole('button', { name: '3' }));
+    await user.click(screen.getByRole('button', { name: 'Hops: 3' }));
     await waitFor(() => expect(fn).toHaveBeenLastCalledWith(A, expect.objectContaining({ depth: 3, maxNodes: 60 })));
   });
 
@@ -153,3 +153,39 @@ describe('XrefWebView', () => {
 });
 
 void node;
+
+describe('XrefWebView controls and camera', () => {
+  it('explains the hop count and strength, and the help button shows the plain-language text', async () => {
+    const { user } = setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    expect(screen.getByText('Hops')).toBeInTheDocument();
+    expect(screen.getByText('Any')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'What do these controls mean?' }));
+    expect(screen.getByRole('note')).toHaveTextContent(/Treasury of Scripture Knowledge/);
+  });
+
+  it('the strength slider is 1 to 5 and asks the provider for the matching weight floor', async () => {
+    const { fn } = setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    const slider = screen.getByRole('slider', { name: /Minimum strength/ });
+    expect(slider).toHaveAttribute('min', '1');
+    expect(slider).toHaveAttribute('max', '5');
+    act(() => { fireEvent.change(slider, { target: { value: '4' } }); });
+    expect(await screen.findByText('4 of 5 and up')).toBeInTheDocument();
+    await waitFor(() => expect(fn).toHaveBeenLastCalledWith(A, expect.objectContaining({ minWeight: expect.closeTo(0.601, 3) })));
+  });
+
+  it('zoom buttons freeze the camera and Fit all / Focus switch it back', async () => {
+    const { user, container } = setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    const layer = () => container.querySelector('svg > g')!.getAttribute('transform')!;
+    const initial = layer();
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+    const zoomed = layer();
+    expect(zoomed).not.toBe(initial);
+    await user.click(screen.getByRole('button', { name: 'Fit all' }));
+    expect(screen.getByRole('button', { name: 'Fit all' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Focus' }));
+    expect(screen.getByRole('button', { name: 'Focus' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});

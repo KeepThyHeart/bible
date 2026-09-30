@@ -153,7 +153,7 @@ function NeighbourCard({ edge, labels, formatRef, getVerseText, cache, onHop, on
       <div className="kth-xref-hopper-card-main">
         <div className="kth-xref-hopper-card-head">
           <span className="kth-xref-hopper-ref">{ref}</span>
-          <span className="kth-xref-hopper-weight" role="img" aria-label={fillTemplate(labels.strength, { n: step })}>
+          <span className="kth-xref-hopper-weight" role="img" aria-label={fillTemplate(labels.strength, { n: step })} title={fillTemplate(labels.strength, { n: step })}>
             {[1, 2, 3, 4, 5].map(i => (
               <span
                 key={i}
@@ -163,32 +163,37 @@ function NeighbourCard({ edge, labels, formatRef, getVerseText, cache, onHop, on
             ))}
           </span>
           <span className="kth-xref-hopper-direction">{direction}</span>
+          {edge.sources.length > 0 ? (
+            <span className="kth-xref-hopper-sources" title={`${labels.sources}: ${edge.sources.join(', ')}`}>
+              {edge.sources.join(', ')}
+            </span>
+          ) : null}
+        <div className="kth-xref-hopper-actions">
+          <button
+            type="button"
+            className="kth-btn kth-btn--sm kth-btn--primary"
+            aria-label={fillTemplate(labels.hopTo, { ref })}
+            onClick={() => onHop(target)}
+          >
+            {labels.hop}
+          </button>
+          <button
+            type="button"
+            className="kth-btn kth-btn--sm"
+            aria-label={fillTemplate(labels.openRef, { ref })}
+            onClick={() => onOpen(target, end)}
+          >
+            {labels.open}
+          </button>
         </div>
-        {edge.phrase ? <p className="kth-xref-hopper-phrase">{edge.phrase}</p> : null}
-        {text ? <p className="kth-xref-hopper-text">{text}</p> : null}
-        {edge.sources.length > 0 ? (
-          <p className="kth-xref-hopper-sources">
-            <span className="kth-xref-hopper-meta">{labels.sources}</span> {edge.sources.join(', ')}
+        </div>
+        {edge.phrase || text ? (
+          <p className="kth-xref-hopper-text">
+            {edge.phrase ? <em className="kth-xref-hopper-phrase">{edge.phrase}</em> : null}
+            {edge.phrase && text ? ' ' : null}
+            {text}
           </p>
         ) : null}
-      </div>
-      <div className="kth-xref-hopper-actions">
-        <button
-          type="button"
-          className="kth-btn kth-btn--sm kth-btn--primary"
-          aria-label={fillTemplate(labels.hopTo, { ref })}
-          onClick={() => onHop(target)}
-        >
-          {labels.hop}
-        </button>
-        <button
-          type="button"
-          className="kth-btn kth-btn--sm"
-          aria-label={fillTemplate(labels.openRef, { ref })}
-          onClick={() => onOpen(target, end)}
-        >
-          {labels.open}
-        </button>
       </div>
     </li>
   );
@@ -294,8 +299,10 @@ export function XrefHopper({
       >
         <span className="kth-xref-hopper-bar" aria-hidden="true" />
         <div className="kth-xref-hopper-card-main">
-          <span className="kth-xref-hopper-meta">{labels.currentVerse}</span>
-          <h3 className="kth-xref-hopper-title" ref={titleRef} tabIndex={-1}>{formatRef(st.current)}</h3>
+          <div className="kth-xref-hopper-card-head">
+            <h3 className="kth-xref-hopper-title" ref={titleRef} tabIndex={-1}>{formatRef(st.current)}</h3>
+            <span className="kth-xref-hopper-meta">{labels.currentVerse}</span>
+          </div>
           {currentText ? <p className="kth-xref-hopper-text">{currentText}</p> : null}
         </div>
         <button type="button" className="kth-btn kth-btn--sm" onClick={() => onOpenVerse(st.current)}>

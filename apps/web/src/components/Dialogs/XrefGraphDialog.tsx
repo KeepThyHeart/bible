@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentType } from 'preact';
 import { useTranslation } from 'react-i18next';
-import { XrefHopper, XrefWebView, XrefArcView } from '@bible/ui';
-import type { XrefHopperProps, XrefWebViewProps, XrefArcViewProps } from '@bible/ui';
+import { XrefHopper, XrefWebView, XrefArcView, XrefConstellationView, useXrefFullscreen } from '@bible/ui';
+import type { XrefHopperProps, XrefWebViewProps, XrefArcViewProps, XrefConstellationViewProps } from '@bible/ui';
 import { xrefGraphStore } from '../../stores/xrefGraphStore';
 import type { XrefGraphView } from '../../stores/xrefGraphStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -19,8 +19,9 @@ import type { IBibleDataProvider } from '../../providers/interfaces';
 const Hopper = XrefHopper as unknown as ComponentType<XrefHopperProps>;
 const WebView = XrefWebView as unknown as ComponentType<XrefWebViewProps>;
 const ArcView = XrefArcView as unknown as ComponentType<XrefArcViewProps>;
+const ConstellationView = XrefConstellationView as unknown as ComponentType<XrefConstellationViewProps>;
 
-const VIEWS: XrefGraphView[] = ['hopper', 'web', 'arcs'];
+const VIEWS: XrefGraphView[] = ['hopper', 'web', 'constellation', 'arcs'];
 const PHONE_WIDTH = 600;
 
 const isPhone = () => window.innerWidth < PHONE_WIDTH;
@@ -39,6 +40,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const anchor = useStore(xrefGraphStore, () => xrefGraphStore.anchor);
   const view = useStore(xrefGraphStore, () => xrefGraphStore.view);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { full, toggle: toggleFull } = useXrefFullscreen(dialogRef);
   // Captured during the first render, before focus moves into the dialog.
   const [opener] = useState<Element | null>(() => document.activeElement);
 
@@ -125,6 +127,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const tabLabel: Record<XrefGraphView, string> = {
     hopper: t('xrefGraph.view.hopper', { defaultValue: 'Hopper' }),
     web: t('xrefGraph.view.web', { defaultValue: 'Verse web' }),
+    constellation: t('xrefGraph.view.constellation', { defaultValue: 'Constellation' }),
     arcs: t('xrefGraph.view.arcs', { defaultValue: 'Canon arcs' }),
   };
 
@@ -136,7 +139,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
     <div class="xref-graph-overlay" onClick={() => xrefGraphStore.close()}>
       <div
         ref={dialogRef}
-        class="xref-graph-dialog"
+        class={`xref-graph-dialog${full ? ' xref-graph-dialog--full' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={t('xrefGraph.title', { defaultValue: 'Cross-reference graph' })}
@@ -150,6 +153,21 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
             {t('xrefGraph.title', { defaultValue: 'Cross-reference graph' })}
             {anchor ? <span class="xref-graph-dialog__anchor"> {formatPassageRef(...refArgs(anchor))}</span> : null}
           </h3>
+          <div class="xref-graph-dialog__actions">
+          <button
+            type="button"
+            class="xref-graph-dialog__close"
+            aria-pressed={full}
+            aria-label={full
+              ? t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' })
+              : t('xrefGraph.fullscreen', { defaultValue: 'Full screen' })}
+            title={full
+              ? t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' })
+              : t('xrefGraph.fullscreen', { defaultValue: 'Full screen' })}
+            onClick={toggleFull}
+          >
+            <i class={full ? 'fa-solid fa-compress' : 'fa-solid fa-expand'} />
+          </button>
           <button
             type="button"
             class="xref-graph-dialog__close"
@@ -158,6 +176,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
           >
             <i class="fa-solid fa-xmark" />
           </button>
+          </div>
         </div>
         <div
           class="xref-graph-dialog__tabs"
@@ -210,6 +229,17 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
               formatRef={formatRef}
               getVerseText={getVerseText}
               labels={labels.web}
+            />
+          ) : view === 'constellation' ? (
+            <ConstellationView
+              provider={xrefGraphProvider}
+              anchor={anchor}
+              onAnchorChange={(id) => xrefGraphStore.setAnchor(id)}
+              onOpenVerse={onOpenVerse}
+              formatRef={formatRef}
+              bookName={getLocalizedBookName}
+              getVerseText={getVerseText}
+              labels={labels.constellation}
             />
           ) : (
             <ArcView

@@ -1,9 +1,9 @@
 import { Store } from './Store';
 
-export type XrefGraphView = 'hopper' | 'web' | 'arcs';
+export type XrefGraphView = 'hopper' | 'web' | 'constellation' | 'arcs';
 
 const VIEW_KEY = 'bible-reader-xref-graph-view';
-const VIEWS: readonly XrefGraphView[] = ['hopper', 'web', 'arcs'];
+const VIEWS: readonly XrefGraphView[] = ['hopper', 'web', 'constellation', 'arcs'];
 
 function isView(v: unknown): v is XrefGraphView {
   return typeof v === 'string' && (VIEWS as readonly string[]).includes(v);

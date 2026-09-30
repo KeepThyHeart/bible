@@ -34,6 +34,7 @@ vi.mock('@bible/ui', async () => {
       </div>
     ),
     XrefWebView: (p: any) => <div data-testid="web" data-anchor={p.anchor} />,
+    XrefConstellationView: (p: any) => <div data-testid="constellation" data-anchor={p.anchor} />,
     XrefArcView: (p: any) => (
       <div data-testid="arcs" data-current={JSON.stringify(p.current)}>
         <button onClick={() => p.onExploreChapter(43, 3)}>explore</button>
@@ -63,12 +64,22 @@ describe('XrefGraphDialog', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('opens on the verse web by default on wide screens with a tablist of three tabs', () => {
+  it('opens on the verse web by default on wide screens with a tablist of four tabs', () => {
     render(<XrefGraphDialog />);
     act(() => xrefGraphStore.open(43003016));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
     expect(screen.getByTestId('web').getAttribute('data-anchor')).toBe('43003016');
+  });
+
+  it('offers the constellation tab and a full screen toggle', () => {
+    render(<XrefGraphDialog />);
+    act(() => xrefGraphStore.open(43003016));
+    fireEvent.click(screen.getByRole('tab', { name: 'Constellation' }));
+    expect(screen.getByTestId('constellation').getAttribute('data-anchor')).toBe('43003016');
+    fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    expect(screen.getByRole('dialog').className).toContain('xref-graph-dialog--full');
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toBeTruthy();
   });
 
   it('keeps a re-centred anchor when switching tabs', () => {

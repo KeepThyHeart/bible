@@ -7,7 +7,13 @@
  * counter. With prefers-reduced-motion the simulation runs to rest synchronously and never animates.
  *
  * Minimum strength is applied by REFETCHING with `EgoOptions.minWeight` (the provider is the source of truth for
- * the "truncated" flag). Pan/zoom is not implemented; the stage always fits the wrapper.
+ * the "truncated" flag).
+ *
+ * Camera: the SVG viewBox is the stage in pixels and one group carries `translate(tx ty) scale(k)`. By default the
+ * camera "focuses": centred on the anchor and zoomed in as far as the anchor's direct neighbours fit (never below 1,
+ * so a busy graph is panned rather than shrunk). Wheel, pinch, the +/- buttons and keys zoom; dragging the background
+ * pans; "Fit all" zooms out until every node is visible; "Focus" returns to the default. Any manual move freezes the
+ * camera until one of those two buttons is used.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
@@ -17,18 +23,26 @@ import { bookOf } from '@bible/core/browser';
 import type { IXrefGraphProvider, VerseId, XrefGraph } from '@bible/core/browser';
 import { defaultFormatRef, sectionVar, usePrefersReducedMotion, useElementSize } from './common';
 import type { FormatRef } from './common';
-import { edgeWidth, mergeGraph, neighbourInDirection, nodeRadius, rankedNeighbours, truncateLabel } from './webGraph';
-import type { ArrowDir, SimLink, SimNode } from './webGraph';
+import { DEFAULT_XREF_CONTROL_LABELS, XrefControlsHelp, XrefDepthControl, XrefStrengthControl, fillTpl as fill, minWeightForStep } from './controls';
+import type { XrefControlLabels } from './controls';
+import {
+  edgeWidth, fitAllView, focusView, labelScale, mergeGraph, neighbourInDirection, nodeRadius, rankedNeighbours,
+  truncateLabel, zoomAt,
+} from './webGraph';
+import type { ArrowDir, SimLink, SimNode, WebView } from './webGraph';
 
-export interface XrefWebViewLabels {
+export interface XrefWebViewLabels extends XrefControlLabels {
   region: string;
   toolbar: string;
-  depth: string;
-  /** `{n}` is the depth. */
-  depthOption: string;
-  minWeight: string;
-  back: string;
   releasePins: string;
+  zoomIn: string;
+  zoomOut: string;
+  /** Zoom out until the whole graph is visible. */
+  fitAll: string;
+  /** Back to the default view: centred on the verse, zoomed in. */
+  focusView: string;
+  /** Accessible group name for the zoom buttons. */
+  zoom: string;
   /** `{n}` is the number of connections shown. */
   truncated: string;
   loading: string;
@@ -56,13 +70,15 @@ export interface XrefWebViewLabels {
 }
 
 export const DEFAULT_XREF_WEB_LABELS: XrefWebViewLabels = {
+  ...DEFAULT_XREF_CONTROL_LABELS,
   region: 'Verse web',
   toolbar: 'Verse web controls',
-  depth: 'Depth',
-  depthOption: '{n}',
-  minWeight: 'Minimum strength',
-  back: 'Back',
   releasePins: 'Release pins',
+  zoomIn: 'Zoom in',
+  zoomOut: 'Zoom out',
+  fitAll: 'Fit all',
+  focusView: 'Focus',
+  zoom: 'Zoom',
   truncated: 'Showing the strongest {n} connections',
   loading: 'Loading connections',
   empty: 'No cross-references for this verse',
@@ -99,9 +115,6 @@ export interface XrefWebViewProps {
   dir?: 'ltr' | 'rtl';
 }
 
-const fill = (tpl: string, vars: Record<string, string | number>) =>
-  tpl.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
-
 const ARROWS: Record<string, ArrowDir> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
 type Load = 'idle' | 'loading' | 'error';
@@ -121,19 +134,28 @@ export function XrefWebView({
   const L = useMemo(() => ({ ...DEFAULT_XREF_WEB_LABELS, ...labelOverrides }), [labelOverrides]);
   const reduced = usePrefersReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const { width, height } = useElementSize(wrapRef);
+  const { width, height } = useElementSize(stageRef);
 
   const [anchor, setAnchor] = useState<VerseId>(anchorProp);
   const [history, setHistory] = useState<VerseId[]>([]);
   const [depth, setDepth] = useState<1 | 2 | 3>(initialDepth);
-  const [minWeight, setMinWeight] = useState(0);
+  const [minStep, setMinStep] = useState(1);
   // The slider moves freely; the request follows it after a pause, so dragging does not fire one per step.
-  const [queryWeight, setQueryWeight] = useState(0);
+  const [queryStep, setQueryStep] = useState(1);
   useEffect(() => {
-    const t = setTimeout(() => setQueryWeight(minWeight), 250);
+    const t = setTimeout(() => setQueryStep(minStep), 250);
     return () => clearTimeout(t);
-  }, [minWeight]);
+  }, [minStep]);
+  const queryWeight = minWeightForStep(queryStep);
+  // Camera: 'focus' and 'all' are derived from the node positions on every render; 'manual' holds a fixed view.
+  const [camera, setCamera] = useState<'focus' | 'all' | 'manual'>('focus');
+  const [manualView, setManualView] = useState<WebView>({ k: 1, tx: 0, ty: 0 });
+  const viewRef = useRef<WebView>({ k: 1, tx: 0, ty: 0 });
+  const panRef = useRef(new Map<number, { x: number; y: number }>());
+  const panMoved = useRef(false);
+  const panStart = useRef<{ view: WebView; x: number; y: number; dist: number } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [graph, setGraph] = useState<XrefGraph | null>(null);
   const [load, setLoad] = useState<Load>('loading');
@@ -187,16 +209,16 @@ export function XrefWebView({
     unmountedRef.current = false;
     const link = forceLink<SimNode, SimLink>([])
       .id((d) => d.id)
-      .distance((l) => (36 + (1 - l.weight) * 90) * spreadRef.current)
+      .distance((l) => (46 + (1 - l.weight) * 110) * spreadRef.current)
       .strength((l) => 0.15 + l.weight * 0.6);
     const sim = forceSimulation<SimNode>([])
       .force('link', link)
-      .force('charge', forceManyBody<SimNode>().strength(-140))
+      .force('charge', forceManyBody<SimNode>().strength(-190))
       .force('center', forceCenter(0, 0))
       // The pane is wide and short: a stronger pull on y keeps the cloud an ellipse inside it.
       .force('x', forceX<SimNode>(0).strength(0.03))
       .force('y', forceY<SimNode>(0).strength(0.14))
-      .force('collide', forceCollide<SimNode>().radius((d) => nodeRadius(d.degree, d.hop) + 4))
+      .force('collide', forceCollide<SimNode>().radius((d) => nodeRadius(d.degree, d.hop) + 7))
       .on('tick', scheduleRender);
     sim.stop();
     if (nodesRef.current.length) {
@@ -237,8 +259,8 @@ export function XrefWebView({
     if (!sim) return;
     // A busy graph needs more room: spread links and repulsion with the node count so labels stay readable.
     const n = merged.nodes.length;
-    spreadRef.current = 1 + Math.min(0.5, n / 120);
-    (sim.force('charge') as ReturnType<typeof forceManyBody<SimNode>>).strength(-(140 + Math.min(n, 100) * 2.5));
+    spreadRef.current = 1 + Math.min(0.6, n / 100);
+    (sim.force('charge') as ReturnType<typeof forceManyBody<SimNode>>).strength(-(190 + Math.min(n, 100) * 3));
     const link = sim.force('link') as ForceLink<SimNode, SimLink>;
     link.links([]);
     sim.nodes(merged.nodes);
@@ -319,11 +341,100 @@ export function XrefWebView({
   const toSvg = (clientX: number, clientY: number) => {
     const rect = svgRef.current?.getBoundingClientRect();
     const scale = rect && rect.width > 0 ? width / rect.width : 1;
+    const v = viewRef.current;
+    return {
+      x: ((clientX - (rect?.left ?? 0) - (rect?.width ?? width) / 2) * scale - v.tx) / v.k,
+      y: ((clientY - (rect?.top ?? 0) - (rect?.height ?? height) / 2) * scale - v.ty) / v.k,
+    };
+  };
+  /** A client position in stage pixels from the stage centre (the camera's own coordinates). */
+  const toStage = (clientX: number, clientY: number) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    const scale = rect && rect.width > 0 ? width / rect.width : 1;
     return {
       x: (clientX - (rect?.left ?? 0) - (rect?.width ?? width) / 2) * scale,
       y: (clientY - (rect?.top ?? 0) - (rect?.height ?? height) / 2) * scale,
     };
   };
+
+  // ---- camera ----
+  const freeze = () => {
+    if (camera !== 'manual') setCamera('manual');
+    return viewRef.current;
+  };
+  const applyManual = (v: WebView) => {
+    viewRef.current = v;
+    setManualView(v);
+    setCamera('manual');
+  };
+  const zoomBy = (factor: number, sx = 0, sy = 0) => applyManual(zoomAt(freeze(), factor, sx, sy));
+  const onBgPointerDown = (e: ReactPointerEvent<SVGElement>) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    panMoved.current = false;
+    panRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); } catch { /* not captured */ }
+    const pts = [...panRef.current.values()];
+    panStart.current = {
+      view: viewRef.current,
+      x: e.clientX,
+      y: e.clientY,
+      dist: pts.length === 2 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0,
+    };
+  };
+  const onBgPointerMove = (e: ReactPointerEvent<SVGElement>) => {
+    const start = panStart.current;
+    if (!start || !panRef.current.has(e.pointerId)) return;
+    panRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...panRef.current.values()];
+    const rect = svgRef.current?.getBoundingClientRect();
+    const scale = rect && rect.width > 0 ? width / rect.width : 1;
+    if (pts.length >= 2 && start.dist > 0) {
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const mid = toStage((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
+      const next = zoomAt(start.view, dist / start.dist, mid.x, mid.y);
+      start.view = next;
+      start.dist = dist;
+      panMoved.current = true;
+      applyManual(next);
+      return;
+    }
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 3 && !panMoved.current) return;
+    panMoved.current = true;
+    applyManual({
+      k: start.view.k,
+      tx: start.view.tx + (e.clientX - start.x) * scale,
+      ty: start.view.ty + (e.clientY - start.y) * scale,
+    });
+  };
+  const onBgPointerUp = (e: ReactPointerEvent<SVGElement>) => {
+    panRef.current.delete(e.pointerId);
+    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
+    panStart.current = null;
+    // A pinch that loses one finger continues as a pan from the remaining one.
+    const rest = [...panRef.current.entries()][0];
+    if (rest) panStart.current = { view: viewRef.current, x: rest[1].x, y: rest[1].y, dist: 0 };
+  };
+  // A background click clears the selection.
+  const onBgClick = () => {
+    if (panMoved.current) { panMoved.current = false; return; }
+    setSelected(null);
+  };
+
+  // Wheel zoom needs a non-passive listener to stop the page from scrolling.
+  const wheelRef = useRef<(e: WheelEvent) => void>(() => undefined);
+  wheelRef.current = (e: WheelEvent) => {
+    e.preventDefault();
+    const p = toStage(e.clientX, e.clientY);
+    const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
+    applyManual(zoomAt(viewRef.current, factor, p.x, p.y));
+  };
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return undefined;
+    const onWheel = (e: WheelEvent) => wheelRef.current(e);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const onNodePointerDown = (e: ReactPointerEvent<SVGGElement>, id: VerseId) => {
     if (e.button !== undefined && e.button !== 0) return;
@@ -390,7 +501,12 @@ export function XrefWebView({
     if (e.key === 'Escape' && selected !== null) {
       e.stopPropagation();
       setSelected(null);
+      return;
     }
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.3); }
+    else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.3); }
+    else if (e.key === '0') { e.preventDefault(); setCamera('focus'); }
   };
 
   // ---- render data ----
@@ -426,6 +542,12 @@ export function XrefWebView({
   };
 
   const half = { w: width / 2, h: height / 2 };
+  const view: WebView = camera === 'manual'
+    ? manualView
+    : camera === 'all' ? fitAllView(nodes, width, height) : focusView(nodes, anchor, width, height);
+  viewRef.current = view;
+  const lScale = labelScale(view.k);
+  const labelPx = 10 * lScale;
 
   return (
     <div
@@ -441,31 +563,14 @@ export function XrefWebView({
         <button type="button" className="kth-xref-web__btn" onClick={goBack} disabled={history.length === 0}>
           {L.back}
         </button>
-        <div className="kth-xref-web__group" role="group" aria-label={L.depth}>
-          {([1, 2, 3] as const).map((n) => (
-            <button
-              key={n}
-              type="button"
-              className="kth-xref-web__btn"
-              aria-pressed={depth === n}
-              onClick={() => setDepth(n)}
-            >
-              {fill(L.depthOption, { n })}
-            </button>
-          ))}
+        <XrefDepthControl labels={L} depth={depth} onChange={setDepth} className="kth-xref-web__btn" />
+        <XrefStrengthControl labels={L} step={minStep} onChange={setMinStep} />
+        <div className="kth-xref-web__group" role="group" aria-label={L.zoom}>
+          <button type="button" className="kth-xref-web__btn" aria-label={L.zoomOut} title={L.zoomOut} onClick={() => zoomBy(1 / 1.3)}>&minus;</button>
+          <button type="button" className="kth-xref-web__btn" aria-label={L.zoomIn} title={L.zoomIn} onClick={() => zoomBy(1.3)}>+</button>
+          <button type="button" className="kth-xref-web__btn" aria-pressed={camera === 'all'} onClick={() => setCamera('all')}>{L.fitAll}</button>
+          <button type="button" className="kth-xref-web__btn" aria-pressed={camera === 'focus'} onClick={() => setCamera('focus')}>{L.focusView}</button>
         </div>
-        <label className="kth-xref-web__field">
-          <span>{L.minWeight}</span>
-          <input
-            type="range"
-            className="kth-xref-web__slider"
-            min={0}
-            max={1}
-            step={0.05}
-            value={minWeight}
-            onChange={(e) => setMinWeight(Number(e.currentTarget.value))}
-          />
-        </label>
         <button type="button" className="kth-xref-web__btn" onClick={releasePins} disabled={pinCount === 0}>
           {L.releasePins}
         </button>
@@ -477,6 +582,7 @@ export function XrefWebView({
         >
           {showList ? L.hideList : L.showList}
         </button>
+        <XrefControlsHelp labels={L} buttonClass="kth-xref-web__btn" />
       </div>
 
       {graph?.truncated && (
@@ -494,7 +600,7 @@ export function XrefWebView({
       {isEmpty && <p className="kth-xref-web__status" role="status">{L.empty}</p>}
 
       <div className="kth-xref-web__body">
-        <div className="kth-xref-web__stage">
+        <div className="kth-xref-web__stage" ref={stageRef}>
           <svg
             ref={svgRef}
             className="kth-xref-web__svg"
@@ -509,7 +615,13 @@ export function XrefWebView({
               y={-half.h}
               width={width}
               height={height}
+              onPointerDown={onBgPointerDown}
+              onPointerMove={onBgPointerMove}
+              onPointerUp={onBgPointerUp}
+              onPointerCancel={onBgPointerUp}
+              onClick={onBgClick}
             />
+            <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
             <g>
               {linksRef.current.map((l) => {
                 const s = nodeById.get(endOf(l.source));
@@ -589,13 +701,21 @@ export function XrefWebView({
                       style={{ fill: sectionVar(bookOf(n.id)) }}
                     />
                     {(n.hop < 2 || isAnchor || near) && (
-                      <text className="kth-xref-web__label" y={r + 12} textAnchor="middle" aria-hidden="true">
+                      <text
+                        className="kth-xref-web__label"
+                        y={r + 2 + labelPx}
+                        fontSize={labelPx}
+                        strokeWidth={3 * lScale}
+                        textAnchor="middle"
+                        aria-hidden="true"
+                      >
                         {truncateLabel(label)}
                       </text>
                     )}
                   </g>
                 );
               })}
+            </g>
             </g>
           </svg>
         </div>

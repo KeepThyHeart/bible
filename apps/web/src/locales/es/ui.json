@@ -718,7 +718,8 @@
     "view": {
       "hopper": "Saltador",
       "web": "Red de versículos",
-      "arcs": "Arcos canónicos"
+      "arcs": "Arcos canónicos",
+      "constellation": "Constelación"
     },
     "showConnections": "Mostrar conexiones",
     "noVerse": "Selecciona un versículo para explorar sus conexiones",
@@ -748,8 +749,7 @@
     "web": {
       "region": "Red de versículos",
       "toolbar": "Controles de red de versículos",
-      "depth": "Profundidad",
-      "depthOption": "{n}",
+      "depthOption": "Saltos: {n}",
       "minWeight": "Fortaleza mínima",
       "back": "Atrás",
       "releasePins": "Soltar fijaciones",
@@ -772,7 +772,18 @@
       "edgeOut": "{from} cita {to}",
       "edgeBoth": "{from} y {to} se citan mutuamente",
       "strength": "Fortaleza {n} de 5",
-      "pinned": "fijado"
+      "pinned": "fijado",
+      "depthLabel": "Saltos",
+      "depthHint": "Hasta dónde mirar desde el versículo central. 1 muestra los versículos que cita directamente, 2 añade los que estos citan, y 3 llega un paso más allá.",
+      "minStrengthHint": "Oculta los enlaces más débiles. La fortaleza (de 1 a 5) indica cuán estrechamente se relacionan dos versículos: el Tesoro del Conocimiento de las Escrituras enumera primero sus paralelos más cercanos, y los enlaces que van en ambos sentidos o aparecen en más de una fuente puntúan más alto. 1 muestra todos los enlaces, 5 solo los más fuertes.",
+      "minStrengthAny": "Cualquiera",
+      "minStrengthValue": "{n} de 5 o más",
+      "help": "¿Qué significan estos controles?",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitAll": "Ajustar todo",
+      "focusView": "Enfocar",
+      "zoom": "Zoom"
     },
     "arcs": {
       "title": "Referencias cruzadas en toda la Biblia",
@@ -797,7 +808,44 @@
       "selectedNone": "{chapter} seleccionado: sin conexiones.",
       "cleared": "Selección borrada",
       "links": "{count} enlaces",
-      "arcsShown": "{count} arcos mostrados"
+      "arcsShown": "{count} arcos mostrados",
+      "minWeightHint": "Oculta los pares de capítulos unidos por pocos enlaces o enlaces débiles. La fortaleza de un par suma la fortaleza de todas las referencias cruzadas entre los dos capítulos, así que al deslizar a la derecha solo quedan los pares más enlazados."
+    },
+    "fullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "constellation": {
+      "back": "Atrás",
+      "depthLabel": "Saltos",
+      "depthHint": "Hasta dónde mirar desde el versículo central. 1 muestra los versículos que cita directamente, 2 añade los que estos citan, y 3 llega un paso más allá.",
+      "depthOption": "Saltos: {n}",
+      "minWeight": "Fortaleza mínima",
+      "minStrengthHint": "Oculta los enlaces más débiles. La fortaleza (de 1 a 5) indica cuán estrechamente se relacionan dos versículos: el Tesoro del Conocimiento de las Escrituras enumera primero sus paralelos más cercanos, y los enlaces que van en ambos sentidos o aparecen en más de una fuente puntúan más alto. 1 muestra todos los enlaces, 5 solo los más fuertes.",
+      "minStrengthAny": "Cualquiera",
+      "minStrengthValue": "{n} de 5 o más",
+      "help": "¿Qué significan estos controles?",
+      "region": "Constelación",
+      "toolbar": "Controles de la constelación",
+      "summary": "{n} versículos conectados",
+      "hint": "Cada estrella se sitúa en la dirección de su lugar en la Biblia: Génesis arriba, en sentido horario hasta Apocalipsis. Los anillos muestran a cuántos saltos del centro está un versículo.",
+      "ringStart": "Génesis",
+      "truncated": "Mostrando las {n} conexiones más fuertes",
+      "loading": "Cargando conexiones",
+      "empty": "No hay referencias cruzadas para este versículo",
+      "error": "No se pudieron cargar las conexiones",
+      "retry": "Reintentar",
+      "graph": "Constelación de referencias cruzadas",
+      "detail": "Versículo seleccionado",
+      "recentre": "Re-centrar aquí",
+      "openInReader": "Abrir en lector",
+      "recentreOn": "Re-centrar en {ref}",
+      "selectOn": "Seleccionar {ref}",
+      "connections": "{n} conexiones",
+      "textLoading": "Cargando texto",
+      "list": "Versículos conectados, los más fuertes primero",
+      "edgeOut": "{from} cita {to}",
+      "edgeBoth": "{from} y {to} se citan mutuamente",
+      "strength": "Fortaleza {n} de 5",
+      "hopName": "salto {hop}"
     }
   }
 }
