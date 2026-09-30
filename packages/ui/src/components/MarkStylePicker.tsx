@@ -143,7 +143,7 @@ export function MarkStylePicker({ id, value, onChange, labels, dir, disabled }: 
     selected: value.color === c,
     className: swatchClass(value),
     style: markColorStyle(c),
-    content: value.symbol ? <span aria-hidden="true">{value.symbol}</span> : null,
+    content: <span aria-hidden="true">{value.symbol ?? '●'}</span>,
     onSelect: () => set({ color: c }),
   }));
   const lineOptions: Option[] = MARK_LINES.map((l) => ({
@@ -158,8 +158,8 @@ export function MarkStylePicker({ id, value, onChange, labels, dir, disabled }: 
     { key: 'none', label: L.noSymbol, selected: value.symbol === undefined, className: 'kth-mark-choice',
       content: <span aria-hidden="true">{'∅'}</span>, onSelect: () => setSymbol(undefined) },
     ...MARK_SYMBOLS.map((s): Option => ({
-      key: s, label: L.symbols[s], selected: value.symbol === s, className: 'kth-mark-choice',
-      content: <span aria-hidden="true">{s}</span>, onSelect: () => setSymbol(s),
+      key: s, label: L.symbols[s], selected: value.symbol === s, className: 'kth-mark-choice kth-mark-choice--shape',
+      style: markColorStyle(value.color), content: <span aria-hidden="true">{s}</span>, onSelect: () => setSymbol(s),
     })),
   ];
 

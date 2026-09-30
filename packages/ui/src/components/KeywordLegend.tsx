@@ -113,7 +113,7 @@ export function KeywordLegend({
           {rows.map((r) => (
             <li key={r.id} className="kth-legend__row">
               <span aria-hidden="true" className={swatchClass(r, 'kth-mark-swatch--static')} style={markColorStyle(r.color)}>
-                {r.symbol ?? ''}
+                {r.symbol ?? '●'}
               </span>
               <button
                 type="button"

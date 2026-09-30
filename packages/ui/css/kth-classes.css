@@ -479,6 +479,7 @@
 /* --- Keyword marks (0065). Colour is passed by the component as the custom property --mark-color
    (rgb(var(--kth-mark-N-rgb))), so no colour function appears here. --------------------------------- */
 .kth-mark-swatch {
+  /* The mark IS the shape: a coloured glyph (filled or outline), never a box or badge around it. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -487,16 +488,17 @@
   min-inline-size: 1.5rem;
   block-size: 1.5rem;
   margin: 0;
-  padding-block: 0;
-  padding-inline: var(--kth-space-1);
-  border: 1px solid var(--kth-border-strong);
-  border-block-end: 3px solid var(--kth-text);
+  padding: 0;
+  border: 0;
   border-radius: var(--kth-radius);
-  background-color: var(--mark-color, transparent);
-  color: var(--kth-bg);
+  background: none;
+  color: var(--mark-color, currentColor);
   font: inherit;
-  font-size: var(--kth-font-size-ui);
+  font-size: 1.35rem;
   line-height: 1;
+  text-decoration-line: none;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 .kth-mark-swatch:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
@@ -507,11 +509,12 @@
 .kth-mark-swatch--static { cursor: default; }
 .kth-mark-swatch--bold { font-weight: 700; }
 .kth-mark-swatch--fill { background-image: linear-gradient(var(--kth-accent-soft), var(--kth-accent-soft)); }
-.kth-mark-swatch--line-solid { border-block-end-style: solid; }
-.kth-mark-swatch--line-dashed { border-block-end-style: dashed; }
-.kth-mark-swatch--line-dotted { border-block-end-style: dotted; }
-.kth-mark-swatch--line-thick { border-block-end-style: solid; border-block-end-width: 5px; }
-.kth-mark-swatch--line-none { border-block-end-style: none; }
+/* The line style shows as an underline under the shape. */
+.kth-mark-swatch--line-solid { text-decoration-line: underline; text-decoration-style: solid; }
+.kth-mark-swatch--line-dashed { text-decoration-line: underline; text-decoration-style: dashed; }
+.kth-mark-swatch--line-dotted { text-decoration-line: underline; text-decoration-style: dotted; }
+.kth-mark-swatch--line-thick { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: 4px; }
+.kth-mark-swatch--line-none { text-decoration-line: none; }
 /* Line and symbol choices: neutral chips (the colour is not what they pick). */
 .kth-mark-choice {
   display: inline-flex;
@@ -535,6 +538,15 @@
 .kth-mark-choice:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
 .kth-mark-choice:where([aria-checked="true"]) { border-color: var(--kth-accent); background: var(--kth-accent-soft); }
 .kth-mark-choice:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+/* Shape choices: just the shape, in the chosen colour; only the selected one gets a ring. */
+.kth-mark-choice--shape {
+  border-color: transparent;
+  background: none;
+  color: var(--mark-color, var(--kth-text));
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.kth-mark-choice--shape:where([aria-checked="true"]) { border-color: transparent; background: none; box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent); }
 .kth-mark-choice__line {
   display: inline-block;
   inline-size: 1.5rem;

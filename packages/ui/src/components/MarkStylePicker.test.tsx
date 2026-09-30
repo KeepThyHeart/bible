@@ -34,7 +34,7 @@ describe('MarkStylePicker', () => {
     expect(screen.getByRole('radio', { name: 'Blue' }).tabIndex).toBe(-1);
   });
 
-  it('shows the symbol inside the colour swatches, never colour alone', () => {
+  it('shows the symbol as the colour swatch itself (no box), never colour alone', () => {
     setup({ color: 'mark.1', line: 'dotted', symbol: '▲' });
     const swatch = screen.getByRole('radio', { name: 'Vermilion' });
     expect(swatch).toHaveTextContent('▲');
