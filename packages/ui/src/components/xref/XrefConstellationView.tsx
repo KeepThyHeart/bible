@@ -229,7 +229,6 @@ export function XrefConstellationView({
     );
     return () => { cancelled = true; };
     // byId changes with every layout; the text only depends on the selection.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, getVerseText]);
 
   const focusStar = (id: VerseId) => {
