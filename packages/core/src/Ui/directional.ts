@@ -61,14 +61,13 @@ function maxScroll(el: HorizontalScroller): number {
  * towards the end, in both directions.
  *
  * Browsers report `scrollLeft` in RTL as `0` at the start and negative towards
- * the end (the CSSOM spec, Chromium 85+, Firefox, Safari). Older Chromium used
- * positive values counting from the far left; that form is detected (a
- * positive value in RTL) and normalized too.
+ * the end (the CSSOM spec; Chromium 85+, Firefox, Safari - every engine both
+ * apps run on). The pre-2020 Chromium "positive from the far left" form is not
+ * supported.
  */
 export function scrollStart(el: HorizontalScroller, dir: LocaleDirection): number {
   if (dir !== 'rtl') return el.scrollLeft;
-  if (el.scrollLeft <= 0) return el.scrollLeft === 0 ? 0 : -el.scrollLeft;
-  return maxScroll(el) - el.scrollLeft;
+  return el.scrollLeft === 0 ? 0 : -el.scrollLeft;
 }
 
 /** Set the scroll position as a distance from the inline-start edge (see {@link scrollStart}). */
@@ -85,6 +84,8 @@ export function setScrollStart(el: HorizontalScroller, offset: number, dir: Loca
  * direction (rightward in LTR, leftward in RTL). When it would not fit on that
  * side it unfolds the other way, and it is always clamped to the viewport.
  *
+ * `edgePadding` keeps the menu that far from either viewport edge (0 = flush).
+ *
  * Use the result as `style={{ insetInlineStart }}`: with `<html dir="rtl">`
  * that is a distance from the right edge, which is exactly what is computed.
  */
@@ -93,11 +94,14 @@ export function anchorAtPointer(
   menuWidth: number,
   viewportWidth: number,
   dir: LocaleDirection,
+  edgePadding = 0,
 ): { insetInlineStart: number } {
   // Work in "inline" coordinates: distance of the pointer from the start edge.
   const pointer = dir === 'rtl' ? viewportWidth - x : x;
   let start = pointer;
-  if (start + menuWidth > viewportWidth) start = pointer - menuWidth;
-  start = Math.min(Math.max(0, start), Math.max(0, viewportWidth - menuWidth));
+  if (start + menuWidth > viewportWidth - edgePadding) start = pointer - menuWidth;
+  const min = edgePadding;
+  const max = Math.max(min, viewportWidth - menuWidth - edgePadding);
+  start = Math.min(Math.max(min, start), max);
   return { insetInlineStart: start };
 }

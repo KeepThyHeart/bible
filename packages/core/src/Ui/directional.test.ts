@@ -33,10 +33,6 @@ describe('scrollStart / setScrollStart', () => {
     expect(scrollStart(el(0), 'rtl')).toBe(0);
     expect(scrollStart(el(-150), 'rtl')).toBe(150);
   });
-  it('normalizes the legacy (positive from far left) RTL form', () => {
-    expect(scrollStart(el(600), 'rtl')).toBe(0);
-    expect(scrollStart(el(450), 'rtl')).toBe(150);
-  });
   it('sets and clamps', () => {
     const e = el(0);
     setScrollStart(e, 150, 'rtl');
@@ -57,6 +53,11 @@ describe('anchorAtPointer', () => {
   it('flips when there is no room', () => {
     expect(anchorAtPointer(950, 200, 1000, 'ltr')).toEqual({ insetInlineStart: 750 });
     expect(anchorAtPointer(50, 200, 1000, 'rtl')).toEqual({ insetInlineStart: 750 });
+  });
+  it('keeps edge padding', () => {
+    expect(anchorAtPointer(5, 200, 1000, 'ltr', 10)).toEqual({ insetInlineStart: 10 });
+    expect(anchorAtPointer(995, 200, 1000, 'ltr', 10)).toEqual({ insetInlineStart: 790 });
+    expect(anchorAtPointer(900, 200, 1000, 'rtl', 10)).toEqual({ insetInlineStart: 100 });
   });
   it('clamps to the viewport', () => {
     expect(anchorAtPointer(100, 300, 250, 'ltr')).toEqual({ insetInlineStart: 0 });
