@@ -46,15 +46,25 @@ const QUIZ_FILE = /^quiz.*\.db$/i;
 const MAX_PASSAGES = 50;
 const MAX_KEYS = 2000;
 const MAX_SESSIONS_LIMIT = 200;
+const MAX_STRING = 200;
+
+const isDateString = (v: unknown): v is string => typeof v === 'string' && v.length <= 64 && !Number.isNaN(Date.parse(v));
+const isShortString = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_STRING;
 
 interface OpenQuiz {
   path: string;
   repo: IQuizRepository;
 }
 
-/** Opened modules, and the merged catalog. Empty results are not cached so a module installed later is found. */
+/**
+ * Opened modules and the merged catalog, valid for one candidate path list
+ * (`openedFor`). Each `quiz:getCatalog` call re-probes the paths; when the
+ * list changed (a module installed or removed) the modules are reopened and the
+ * catalog dropped. Empty results are not cached.
+ */
 let openModules: OpenQuiz[] | null = null;
 let cachedCatalog: QuizCatalog | null = null;
+let openedFor: string | null = null;
 
 function quizFilesIn(dir: string): string[] {
   try {
@@ -85,12 +95,21 @@ export function findQuizModulePaths(): string[] {
   return [...new Set(paths)];
 }
 
-/** Every readable quiz module, opened once. Files that are not quiz modules are skipped. */
-function loadModules(): OpenQuiz[] {
-  if (openModules) return openModules;
+/** Every readable quiz module. Files that are not quiz modules are skipped. */
+function loadModules(refresh = false): OpenQuiz[] {
+  const candidates = findQuizModulePaths();
+  const signature = candidates.join('\n');
+  if (openModules && (!refresh || signature === openedFor)) return openModules;
+  if (openModules) {
+    // The set of files changed: drop what we hold (handles are shared via the registry, so close ours by path).
+    const stillThere = new Set(candidates);
+    for (const m of openModules) if (!stillThere.has(m.path)) getModuleDatabaseRegistry().close(m.path);
+    openModules = null;
+    cachedCatalog = null;
+  }
   const found: OpenQuiz[] = [];
   const seenUuids = new Set<string>();
-  for (const dbPath of findQuizModulePaths()) {
+  for (const dbPath of candidates) {
     const db = getModuleDatabaseRegistry().openByPath(dbPath, { readonly: true });
     if (!db) continue;
     const repo = repositoryFactory.create(wrapSqlConnection(db), 'quiz', codecs) as IQuizRepository | null;
@@ -106,14 +125,17 @@ function loadModules(): OpenQuiz[] {
       log.warn(`[quiz] ${dbPath} is not a readable quiz module:`, error);
     }
   }
-  if (found.length > 0) openModules = found;
+  if (found.length > 0) {
+    openModules = found;
+    openedFor = signature;
+  }
   return found;
 }
 
 function getCatalog(): QuizCatalog {
-  if (cachedCatalog) return cachedCatalog;
-  const modules = loadModules();
+  const modules = loadModules(true);
   if (modules.length === 0) return { modules: [], coverage: [] };
+  if (cachedCatalog) return cachedCatalog;
   cachedCatalog = mergeCatalogs(
     modules.map((m) => ({ modules: [m.repo.getInfo()], coverage: m.repo.getCoverage() })),
   );
@@ -154,7 +176,7 @@ function parseFilter(raw: unknown): QuizFilter | undefined {
 }
 
 function parseKeys(raw: unknown): string[] {
-  if (!Array.isArray(raw) || raw.length > MAX_KEYS || raw.some((k) => typeof k !== 'string' || k.length === 0 || k.length > 200)) {
+  if (!Array.isArray(raw) || raw.length > MAX_KEYS || raw.some((k) => typeof k !== 'string' || !isShortString(k))) {
     throw new IpcKnownError('invalid_input', `keys must be an array of at most ${MAX_KEYS} non-empty strings.`);
   }
   return raw as string[];
@@ -164,9 +186,9 @@ const RESULTS = new Set(['correct', 'partly', 'incorrect', 'ungraded', 'skipped'
 
 function parseAttempt(raw: unknown): QuizAttempt {
   const a = raw as Partial<QuizAttempt> | null;
-  if (!a || typeof a !== 'object' || typeof a.key !== 'string' || a.key.length === 0 || a.key.length > 200
-      || typeof a.result !== 'string' || !RESULTS.has(a.result) || typeof a.at !== 'string' || a.at.length === 0
-      || (a.quizId !== undefined && typeof a.quizId !== 'string')) {
+  if (!a || typeof a !== 'object' || !isShortString(a.key)
+      || typeof a.result !== 'string' || !RESULTS.has(a.result) || !isDateString(a.at)
+      || (a.quizId !== undefined && !isShortString(a.quizId))) {
     throw new IpcKnownError('invalid_input', 'Invalid quiz attempt.');
   }
   return { key: a.key, result: a.result, at: a.at, ...(a.quizId !== undefined ? { quizId: a.quizId } : {}) };
@@ -174,11 +196,11 @@ function parseAttempt(raw: unknown): QuizAttempt {
 
 function parseSession(raw: unknown): QuizSessionSummary {
   const s = raw as Partial<QuizSessionSummary> | null;
-  if (!s || typeof s !== 'object' || typeof s.id !== 'string' || s.id.length === 0 || s.id.length > 200
-      || typeof s.date !== 'string' || !isFiniteNumber(s.total) || !isFiniteNumber(s.graded)
+  if (!s || typeof s !== 'object' || !isShortString(s.id)
+      || !isDateString(s.date) || !isFiniteNumber(s.total) || !isFiniteNumber(s.graded)
       || !isFiniteNumber(s.correct) || !isFiniteNumber(s.partly) || !isFiniteNumber(s.score)
-      || !Array.isArray(s.missedKeys) || s.missedKeys.length > MAX_KEYS || s.missedKeys.some((k) => typeof k !== 'string')
-      || (s.label !== undefined && typeof s.label !== 'string')) {
+      || !Array.isArray(s.missedKeys) || s.missedKeys.length > MAX_KEYS || s.missedKeys.some((k) => !isShortString(k))
+      || (s.label !== undefined && (typeof s.label !== 'string' || s.label.length > MAX_STRING))) {
     throw new IpcKnownError('invalid_input', 'Invalid quiz session summary.');
   }
   return {
@@ -219,7 +241,7 @@ export function registerQuizHandlers(_ipcMain: IpcMain): void {
     const passages = parsePassages(rawPassages);
     const filter = parseFilter(rawFilter);
     const byKey = new Map<string, QuizQuestion>();
-    for (const m of loadModules()) {
+    for (const m of loadModules(true)) {
       for (const q of m.repo.getQuestions(passages, filter)) {
         if (!byKey.has(q.key)) byKey.set(q.key, q);
       }
@@ -258,5 +280,6 @@ export function closeQuizDbs(): void {
   for (const m of openModules ?? []) getModuleDatabaseRegistry().close(m.path);
   openModules = null;
   cachedCatalog = null;
+  openedFor = null;
   storeInit = null;
 }

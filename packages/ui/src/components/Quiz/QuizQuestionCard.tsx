@@ -1,5 +1,5 @@
 /** One quiz question: renders by answer mode, grades through the engine, reports the grade upward. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { effectiveAnswerMode, expectedAnswer } from '@bible/core/browser';
 import type { QuizEngine, QuizGrade, QuizItem } from '@bible/core/browser';
@@ -11,12 +11,14 @@ export interface QuizQuestionCardProps {
   engine: QuizEngine;
   /** The last card shows "See results" instead of "Next". */
   isLast?: boolean;
-  /** Every grade, including a corrected one ("I was right") and skips. Recording is the caller's job. */
+  /** The current grade, including a corrected one ("I was right") and skips. Recording (once, on leaving the card) is the caller's job. */
   onGrade: (grade: QuizGrade) => void;
   /** Move on: after "Next" and after "Skip". */
   onNext: () => void;
   formatReference?: (start: number, end?: number) => string;
   onOpenPassage?: (start: number, end: number) => void;
+  /** The text basis of the question's module; a different `metadata.textBasis` on the question is shown as a note. */
+  moduleTextBasis?: string;
   labels?: Partial<QuizLabels>;
   className?: string;
 }
@@ -31,6 +33,7 @@ export function QuizQuestionCard({
   onNext,
   formatReference,
   onOpenPassage,
+  moduleTextBasis,
   labels,
   className,
 }: QuizQuestionCardProps) {
@@ -46,6 +49,9 @@ export function QuizQuestionCard({
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const cardRef = useRef<HTMLElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const gotItRef = useRef<HTMLButtonElement>(null);
+  const groupName = useId();
 
   // Move focus to the new question, unless the user has already focused something inside the card.
   useEffect(() => {
@@ -53,7 +59,15 @@ export function QuizQuestionCard({
     headingRef.current?.focus();
   }, []);
 
+  // After Check / self-grade focus the Next button; after Show answer the self-grade buttons.
+  useEffect(() => {
+    if (grade) nextRef.current?.focus();
+    else if (revealed) gotItRef.current?.focus();
+  }, [grade, revealed, overridden]);
+
   const primary = q.passages[0];
+  const metaBasis = typeof q.metadata?.textBasis === 'string' ? q.metadata.textBasis : undefined;
+  const basisNote = metaBasis && metaBasis !== moduleTextBasis ? metaBasis : undefined;
   const kindText = l.kinds[q.kind] ?? q.kind.charAt(0).toUpperCase() + q.kind.slice(1);
   const answered = grade !== null;
   const expected = grade?.expected ?? expectedAnswer(q, item.choices);
@@ -69,7 +83,7 @@ export function QuizQuestionCard({
   };
   const checkText = (e?: FormEvent) => {
     e?.preventDefault();
-    if (answered) return;
+    if (answered || !text.trim()) return;
     commit(engine.grade(q, { type: 'text', text }, item.choices));
   };
   const selfGrade = (result: 'correct' | 'partly' | 'incorrect') => {
@@ -96,13 +110,15 @@ export function QuizQuestionCard({
         {primary && onOpenPassage ? (
           <button
             type="button"
-            className="kth-btn kth-btn--ghost kth-btn--sm"
+            className="kth-btn kth-btn--ghost kth-btn--sm kth-quiz__passage-link"
             onClick={() => onOpenPassage(primary.start, primary.end)}
           >
             {fillLabel(l.openPassage, { reference: fmt(primary.start, primary.end) })}
           </button>
         ) : null}
       </div>
+
+      {basisNote ? <p className="kth-quiz__small">{fillLabel(l.textBasis, { translation: basisNote })}</p> : null}
 
       <h3 className="kth-quiz__prompt" tabIndex={-1} ref={headingRef}>
         {q.prompt}
@@ -126,7 +142,7 @@ export function QuizQuestionCard({
                 <input
                   type="radio"
                   className="kth-quiz__choice-input"
-                  name={`quiz-choice-${q.key}`}
+                  name={groupName}
                   checked={chosen}
                   disabled={answered}
                   onChange={() => setChoice(i)}
@@ -180,7 +196,7 @@ export function QuizQuestionCard({
         className={cx('kth-quiz__feedback', feedback && `kth-quiz__feedback--${RESULT_LABEL[feedback]}`)}
       >
         {feedback ? <strong>{feedbackText}</strong> : null}
-        {mode === 'short_answer' && feedback === 'incorrect' && expected ? (
+        {(mode === 'short_answer' || mode === 'multiple_choice') && feedback === 'incorrect' && expected ? (
           <span className="kth-quiz__expected"> {fillLabel(l.correctAnswerIs, { answer: expected })}</span>
         ) : null}
       </div>
@@ -199,7 +215,7 @@ export function QuizQuestionCard({
       {mode === 'free_response' && revealed && !answered ? (
         <div className="kth-quiz__selfgrade" role="group" aria-label={l.selfGradePrompt}>
           <span className="kth-quiz__selfgrade-prompt">{l.selfGradePrompt}</span>
-          <button type="button" className="kth-btn kth-btn--sm" onClick={() => selfGrade('correct')}>
+          <button type="button" className="kth-btn kth-btn--sm" ref={gotItRef} onClick={() => selfGrade('correct')}>
             {l.gotIt}
           </button>
           <button type="button" className="kth-btn kth-btn--sm" onClick={() => selfGrade('partly')}>
@@ -218,7 +234,7 @@ export function QuizQuestionCard({
           </button>
         ) : null}
         {!answered && mode === 'short_answer' ? (
-          <button type="button" className="kth-btn kth-btn--primary" onClick={() => checkText()}>
+          <button type="button" className="kth-btn kth-btn--primary" disabled={!text.trim()} onClick={() => checkText()}>
             {l.check}
           </button>
         ) : null}
@@ -252,7 +268,7 @@ export function QuizQuestionCard({
           </button>
         ) : null}
         {answered ? (
-          <button type="button" className="kth-btn kth-btn--primary" onClick={onNext}>
+          <button type="button" className="kth-btn kth-btn--primary" ref={nextRef} onClick={onNext}>
             {isLast ? l.finish : l.next}
           </button>
         ) : null}

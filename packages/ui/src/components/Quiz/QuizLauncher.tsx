@@ -1,5 +1,5 @@
 /** Choose what to quiz (today's reading, this chapter, or a passage), how many questions and how hard. */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   booksWithQuestions,
   chapterPassage,
@@ -59,6 +59,7 @@ export function QuizLauncher({
   className,
 }: QuizLauncherProps) {
   const l = mergeQuizLabels(labels);
+  const uid = useId();
   const name = bookName ?? getBookName;
   const fmt = formatReference ?? defaultQuizReference(bookName);
 
@@ -117,7 +118,7 @@ export function QuizLauncher({
 
   const scopeOption = (kind: ScopeKind, text: string) => (
     <label className="kth-quiz__option">
-      <input type="radio" name="kth-quiz-scope" checked={scope === kind} onChange={() => setScopeChoice(kind)} />
+      <input type="radio" name={`${uid}-scope`} checked={scope === kind} onChange={() => setScopeChoice(kind)} />
       <span>{text}</span>
     </label>
   );
@@ -207,7 +208,7 @@ export function QuizLauncher({
         <div className="kth-quiz__segments">
           {counts.map((n) => (
             <label key={n} className={cx('kth-quiz__segment', count === n && 'kth-quiz__segment--on')}>
-              <input type="radio" name="kth-quiz-count" className="kth-quiz__segment-input" checked={count === n} onChange={() => setCount(n)} />
+              <input type="radio" name={`${uid}-count`} className="kth-quiz__segment-input" checked={count === n} onChange={() => setCount(n)} />
               <span>{n}</span>
             </label>
           ))}

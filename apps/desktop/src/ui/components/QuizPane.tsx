@@ -93,6 +93,25 @@ const QuizPane: React.FC = () => {
     return () => { cancelled = true; };
   }, [source, attempt]);
 
+  // No module-installed event reaches the renderer, so look again (quietly, without the
+  // loading state) whenever the window regains focus or the pane is shown again.
+  useEffect(() => {
+    let cancelled = false;
+    const refetch = () => {
+      if (document.visibilityState === 'hidden') return;
+      source.getCatalog()
+        .then((catalog) => { if (!cancelled) setState((prev) => (prev.status === 'error' ? prev : { status: 'ready', catalog })); })
+        .catch(() => { /* keep what is showing */ });
+    };
+    window.addEventListener('focus', refetch);
+    document.addEventListener('visibilitychange', refetch);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refetch);
+      document.removeEventListener('visibilitychange', refetch);
+    };
+  }, [source]);
+
   const refreshHistory = useCallback(() => {
     store.listSessions(5).then(setHistory).catch(() => { /* history is a convenience */ });
   }, [store]);

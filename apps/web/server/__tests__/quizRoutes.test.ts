@@ -122,7 +122,7 @@ describe('Quiz routes', () => {
 
   it('rejects bad ranges with 400', async () => {
     const app = appFor([A]);
-    for (const qs of ['', '?range=abc', '?range=1-', '?range=0-5', '?range=-3-4', '?range=1-2-3']) {
+    for (const qs of ['', '?range=abc', '?range=1-', '?range=0-5', '?range=-3-4', '?range=1-2-3', '?range=41001001-42001001', '?range=67001001-67001002', '?range=41151001-41151002', '?range=41000001-41000002']) {
       const res = await request(app).get(`/api/quiz/questions${qs}`);
       expect(res.status, qs).toBe(400);
       expect(res.body.error.code).toBe('INVALID_PARAM');
@@ -138,7 +138,7 @@ describe('Quiz routes', () => {
     const cat = await request(app).get('/api/quiz');
     expect(cat.status).toBe(404);
     expect(cat.body.error.code).toBe('NOT_FOUND');
-    expect((await request(app).get('/api/quiz/questions?range=1-2')).status).toBe(404);
+    expect((await request(app).get('/api/quiz/questions?range=41001001-41001999')).status).toBe(404);
   });
 
   it('answers 404 when the feature is disabled', async () => {

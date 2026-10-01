@@ -20,6 +20,8 @@ export function QuizSources({ modules, labels, className }: QuizSourcesProps) {
           <li key={m.uuid} className="kth-quiz__source">
             <div>
               <strong>{m.name}</strong>
+              {m.draft ? ' ' : null}
+              {m.draft ? <span className="kth-quiz__badge kth-quiz__badge--muted">{l.unreviewed}</span> : null}
               {m.version ? ` ${m.version}` : ''}
               {m.license ? (
                 <>

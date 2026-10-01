@@ -17,6 +17,8 @@ interface QuizPaneProps {
   engine?: QuizEngine;
   /** Start a quiz on the reader's current chapter as soon as the pane opens (phone "Quiz me on this chapter"). */
   startOnCurrentChapter?: boolean;
+  /** Called when a passage link is used (the phone sheet closes itself so the reader shows). */
+  onPassageOpened?: () => void;
 }
 
 type LoadState =
@@ -30,7 +32,7 @@ type LoadState =
  * history prop and nothing saved in the browser; progress lives in memory for
  * the page session only.
  */
-export function QuizPane({ provider, engine, startOnCurrentChapter }: QuizPaneProps) {
+export function QuizPane({ provider, engine, startOnCurrentChapter, onPassageOpened }: QuizPaneProps) {
   const { t } = useTranslation();
   const book = useStore(bibleStore, () => bibleStore.getActiveTab()?.book ?? null);
   const chapter = useStore(bibleStore, () => bibleStore.getActiveTab()?.chapter ?? null);
@@ -93,7 +95,8 @@ export function QuizPane({ provider, engine, startOnCurrentChapter }: QuizPanePr
   const openPassage = useCallback((start: number, end: number) => {
     const s = parseVerseId(start);
     void bibleStore.navigateToPreview(s.bookNumber, s.chapter, s.verse, end !== start ? end : undefined);
-  }, []);
+    onPassageOpened?.();
+  }, [onPassageOpened]);
 
   if (state.status === 'loading') {
     return <div class="quiz-pane quiz-pane--message" role="status">{t('quiz.loading')}</div>;

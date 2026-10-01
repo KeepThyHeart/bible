@@ -132,6 +132,19 @@ describe.skipIf(!nativeSqliteAvailable)('quiz:* channels', () => {
     expect(reply.value.coverage).toEqual([{ book: 41, chapter: 4, count: 1 }]);
   });
 
+  it('picks up a module installed (or removed) after the first catalog call', async () => {
+    buildModule(join(tmpDir, 'quiz_a.db'), '00000000-0000-4000-8000-0000000000a1', [{ id: 1, key: 'a:1', start: 41004001, end: 41004002 }]);
+    expect((await call('quiz:getCatalog')).value.modules).toHaveLength(1);
+    buildModule(join(tmpDir, 'quiz_b.db'), '00000000-0000-4000-8000-0000000000b2', [{ id: 1, key: 'b:1', start: 41004003, end: 41004004 }]);
+    const after = await call('quiz:getCatalog');
+    expect(after.value.modules).toHaveLength(2);
+    expect(after.value.coverage).toEqual([{ book: 41, chapter: 4, count: 2 }]);
+    const qs = await call('quiz:getQuestions', [{ start: 41004001, end: 41004999 }]);
+    expect(qs.value).toHaveLength(2);
+    rmSync(join(tmpDir, 'quiz_b.db'));
+    expect((await call('quiz:getCatalog')).value.modules).toHaveLength(1);
+  });
+
   it('returns questions overlapping the passages', async () => {
     buildModule(join(tmpDir, 'quiz_a.db'), '00000000-0000-4000-8000-0000000000a1', [
       { id: 1, key: 'a:1', start: 41004001, end: 41004002 },
@@ -187,6 +200,11 @@ describe.skipIf(!nativeSqliteAvailable)('quiz:* channels', () => {
     expect(await call('quiz:getStats', Array.from({ length: 2001 }, (_, i) => `k${i}`))).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
     expect(await call('quiz:recordAttempt', { key: 'k', result: 'bogus', at: 'x' })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
     expect(await call('quiz:recordSession', { id: 's' })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect(await call('quiz:recordAttempt', { key: 'k', result: 'correct', at: 'not a date' })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect(await call('quiz:recordAttempt', { key: 'k'.repeat(201), result: 'correct', at: attempt.at })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect(await call('quiz:recordSession', { ...session, missedKeys: Array.from({ length: 2001 }, (_, i) => `k${i}`) })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect(await call('quiz:recordSession', { ...session, label: 'x'.repeat(201) })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect(await call('quiz:recordSession', { ...session, passages: Array.from({ length: 51 }, () => ({ start: 1, end: 2 })) })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
     expect(await call('quiz:listSessions', 0)).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
   });
 });

@@ -94,6 +94,13 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     if (paneMode !== shared.rightPaneMode) commentaryStore.setRightPaneMode(paneMode);
   }, [paneMode, shared.rightPaneMode]);
 
+  // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
+  // so switching tabs does not lose a quiz in progress.
+  const [quizOpened, setQuizOpened] = useState(false);
+  useEffect(() => {
+    if (paneMode === 'quiz') setQuizOpened(true);
+  }, [paneMode]);
+
   const showRightPane = !shared.collapsed;
 
   const bibleStyle = {
@@ -218,7 +225,11 @@ export function DesktopApp({ providers }: DesktopAppProps) {
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
               {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
-              {paneMode === 'quiz' && <QuizPane />}
+              {showQuiz && (quizOpened || paneMode === 'quiz') && (
+                <div class="quiz-pane-host" hidden={paneMode !== 'quiz'}>
+                  <QuizPane />
+                </div>
+              )}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>

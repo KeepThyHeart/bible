@@ -699,6 +699,18 @@
   }
 }
 
+// Kept mounted while another right-pane tab is shown; `hidden` hides it.
+.quiz-pane-host {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+
+  &[hidden] { display: none; }
+}
+
+// The phone sheet gives the quiz the full width.
+.mobile-topics-overlay__body .quiz-pane { padding: 0; }
+
 // Dictionary Pane
 .dictionary-pane {
   display: flex;

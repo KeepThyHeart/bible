@@ -120,7 +120,36 @@ describe('QuizPanel running', () => {
     expect(screen.getByRole('status').textContent).toContain('Correct');
     expect(screen.getByText('Some yielded thirty, sixty or a hundred times.')).toBeTruthy();
     expect((screen.getByRole('radio', { name: 'It was scorched' }) as HTMLInputElement).disabled).toBe(true);
+    await advance();
     await vi.waitFor(async () => expect((await store.getStats(['m4-mc'])).get('m4-mc')?.correct).toBe(1));
+  });
+
+  it('records a corrected short answer once, with its final grade', async () => {
+    const { store } = setup({ startRequest: only('m4-short') });
+    await screen.findByText(/in the boat/);
+    await userEvent.type(screen.getByLabelText('Your answer'), 'walking{Enter}');
+    await userEvent.click(screen.getByRole('button', { name: 'I was right' }));
+    await advance();
+    await screen.findByText('1 of 1 correct');
+    const stat = (await store.getStats(['m4-short'])).get('m4-short');
+    expect(stat).toMatchObject({ seen: 1, correct: 1, missed: 0 });
+  });
+
+  it('wrong multiple choice also announces the answer, and focus moves to Next', async () => {
+    setup({ startRequest: only('m4-mc') });
+    await screen.findByText(/good soil/);
+    await userEvent.click(screen.getByRole('radio', { name: 'It was scorched' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check' }));
+    expect(screen.getByRole('status').textContent).toContain('The answer: It produced a crop');
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'See results' })));
+  });
+
+  it('keeps Check disabled for an empty short answer', async () => {
+    setup({ startRequest: only('m4-short') });
+    await screen.findByText(/in the boat/);
+    expect((screen.getByRole('button', { name: 'Check' }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.type(screen.getByLabelText('Your answer'), 'x');
+    expect((screen.getByRole('button', { name: 'Check' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('grades a wrong multiple-choice answer and marks the right one', async () => {
@@ -195,6 +224,32 @@ describe('QuizPanel running', () => {
     expect(screen.getByRole('heading', { level: 3 }).textContent).toMatch(/good soil/);
     await userEvent.click(screen.getByRole('button', { name: 'Read Mark 4:3-8' }));
     expect(onOpenPassage).toHaveBeenCalledWith(41004003, 41004008);
+  });
+
+  it('End quiz with nothing graded records no session and does not call onFinished', async () => {
+    const onFinished = vi.fn();
+    const { store } = setup({ startRequest: only('m4-mc'), onFinished });
+    await screen.findByText(/good soil/);
+    await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
+    await screen.findByText('Nothing was graded in this quiz.');
+    expect(onFinished).not.toHaveBeenCalled();
+    expect(await store.listSessions()).toEqual([]);
+  });
+
+  it('a new startRequest finishes a running quiz that has graded answers', async () => {
+    const onFinished = vi.fn();
+    const { engine } = makeFixtureEngine();
+    const { rerender } = render(<QuizPanel catalog={QUIZ_FIXTURE_CATALOG} engine={engine} startRequest={only('m4-mc', 'm4-short')} onFinished={onFinished} />);
+    await screen.findByText('Question 1 of 2');
+    if (screen.queryByRole('radiogroup')) {
+      await userEvent.click(screen.getByRole('radio', { name: 'It produced a crop' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Check' }));
+    } else {
+      await userEvent.type(screen.getByLabelText('Your answer'), 'asleep{Enter}');
+    }
+    rerender(<QuizPanel catalog={QUIZ_FIXTURE_CATALOG} engine={engine} startRequest={only('m4-free')} onFinished={onFinished} />);
+    expect(await screen.findByText(/four soils/)).toBeTruthy();
+    expect(onFinished).toHaveBeenCalledTimes(1);
   });
 
   it('End quiz jumps to the summary with what was answered', async () => {

@@ -278,7 +278,7 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
             </span>
           </div>
           <div class="mobile-topics-overlay__body">
-            <QuizPane startOnCurrentChapter />
+            <QuizPane startOnCurrentChapter onPassageOpened={() => setQuizOpen(false)} />
           </div>
         </div>
       )}

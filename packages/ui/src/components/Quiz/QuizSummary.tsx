@@ -1,4 +1,5 @@
 /** The end of a quiz: score, the questions to review, and what to do next. */
+import { useId } from 'react';
 import { expectedAnswer } from '@bible/core/browser';
 import type { Quiz, QuizSessionSummary } from '@bible/core/browser';
 import { defaultQuizReference, fillLabel, mergeQuizLabels } from './labels';
@@ -33,9 +34,10 @@ export function QuizSummary({
   const fmt = formatReference ?? defaultQuizReference();
   const missed = quiz.items.filter((it) => summary.missedKeys.includes(it.question.key));
   const label = quiz.label ?? '';
+  const titleId = useId();
   return (
-    <section className={className ? `kth-quiz__summary ${className}` : 'kth-quiz__summary'} aria-labelledby="kth-quiz-summary-title">
-      <h2 id="kth-quiz-summary-title" className="kth-quiz__title">
+    <section className={className ? `kth-quiz__summary ${className}` : 'kth-quiz__summary'} aria-labelledby={titleId}>
+      <h2 id={titleId} className="kth-quiz__title">
         {l.summaryTitle}
       </h2>
       <p className="kth-quiz__score">
@@ -63,7 +65,7 @@ export function QuizSummary({
                   <div className="kth-quiz__missed-prompt">{it.question.prompt}</div>
                   {answer ? <div className="kth-quiz__small">{fillLabel(l.correctAnswerIs, { answer })}</div> : null}
                   {p && onOpenPassage ? (
-                    <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" onClick={() => onOpenPassage(p.start, p.end)}>
+                    <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm kth-quiz__passage-link" onClick={() => onOpenPassage(p.start, p.end)}>
                       {fillLabel(l.openPassage, { reference: fmt(p.start, p.end) })}
                     </button>
                   ) : null}

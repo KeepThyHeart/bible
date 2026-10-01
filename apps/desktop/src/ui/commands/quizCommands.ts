@@ -2,7 +2,7 @@
  * Quiz commands: open the Quiz pane, or start a quiz on the chapter being read.
  */
 
-import { chapterPassage, getBookName } from '@bible/core/browser';
+import { chapterPassage, formatVerseIdRange, getBookName } from '@bible/core/browser';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
 import { useLayoutStore } from '../stores/useLayoutStore';
@@ -54,11 +54,13 @@ export function registerQuizCommands(registry: ICommandRegistry): IDisposable[] 
         }
         const book = panel.currentBook;
         const chapter = panel.currentChapter;
-        const cached = getBookNameFromCache(book);
-        const name = cached && cached !== 'Unknown' ? cached : getBookName(book);
+        const bookName = (n: number): string => {
+          const cached = getBookNameFromCache(n);
+          return cached && cached !== 'Unknown' ? cached : getBookName(n);
+        };
         useQuizLaunchStore.getState().request({ // allow-getstate: command handler
           passages: [chapterPassage(book, chapter)],
-          label: `${name} ${chapter}`,
+          label: formatVerseIdRange(book * 1_000_000 + chapter * 1_000 + 1, book * 1_000_000 + chapter * 1_000 + 999, bookName),
         });
         openQuizPanel();
       },

@@ -40,6 +40,11 @@ export function QuizPanel({
   const handledStart = useRef<QuizRequest | null>(null);
   // A token so a slow build that was superseded cannot overwrite a newer one.
   const buildToken = useRef(0);
+  const finishing = useRef(false);
+  const recorded = useRef(new Set<string>());
+  // The latest running state, for the startRequest effect.
+  const live = useRef({ phase, quiz, grades });
+  live.current = { phase, quiz, grades };
 
   const begin = useCallback((q: Quiz) => {
     setQuiz(q);
@@ -48,6 +53,8 @@ export function QuizPanel({
     setSummary(null);
     setNotice(null);
     setError(null);
+    finishing.current = false;
+    recorded.current = new Set();
     setPhase('running');
   }, []);
 
@@ -76,37 +83,59 @@ export function QuizPanel({
     [engine, begin, l.noQuestionsHere],
   );
 
-  useEffect(() => {
-    if (startRequest && startRequest !== handledStart.current && catalog) {
-      handledStart.current = startRequest;
-      void build(startRequest);
-    }
-  }, [startRequest, catalog, build]);
+  const isGraded = (g?: QuizGrade) => g?.result === 'correct' || g?.result === 'partly' || g?.result === 'incorrect';
 
-  const onGrade = (grade: QuizGrade) => {
-    setGrades((g) => ({ ...g, [grade.key]: grade }));
-    if (grade.result === 'correct' || grade.result === 'partly' || grade.result === 'incorrect') {
-      void engine.recordGrade(grade, quiz?.id).catch(() => undefined);
-    }
+  // Each question's attempt is recorded once, with its final grade, when the user leaves the card.
+  const recordItem = (current: Quiz, i: number, all: Record<string, QuizGrade>) => {
+    const key = current.items[i]?.question.key;
+    const g = key ? all[key] : undefined;
+    if (!key || !g || !isGraded(g) || recorded.current.has(key)) return;
+    recorded.current.add(key);
+    void engine.recordGrade(g, current.id).catch(() => undefined);
   };
 
+  const onGrade = (grade: QuizGrade) => setGrades((g) => ({ ...g, [grade.key]: grade }));
+
   const finish = async (current: Quiz, all: Record<string, QuizGrade>) => {
+    if (finishing.current) return;
+    finishing.current = true;
+    current.items.forEach((_, i) => recordItem(current, i, all));
     const list = Object.values(all);
-    let result: QuizSessionSummary;
-    try {
-      result = await engine.finish(current, list);
-    } catch {
-      result = summarizeQuiz(current, list, new Date());
+    let result = summarizeQuiz(current, list, new Date());
+    // A quiz with nothing graded is not recorded as a session.
+    if (result.graded > 0) {
+      try {
+        result = await engine.finish(current, list);
+      } catch {
+        // keep the locally computed summary
+      }
     }
     setSummary(result);
     setPhase('summary');
-    onFinished?.(result);
+    if (result.graded > 0) onFinished?.(result);
   };
+
+  useEffect(() => {
+    if (startRequest && startRequest !== handledStart.current && catalog) {
+      handledStart.current = startRequest;
+      const { phase: ph, quiz: q, grades: gr } = live.current;
+      void (async () => {
+        // A running quiz with graded answers is finished (and recorded) before the new one starts.
+        if (ph === 'running' && q && Object.values(gr).some(isGraded)) {
+          await finish(q, gr);
+        }
+        await build(startRequest);
+      })();
+    }
+  }, [startRequest, catalog, build]);
 
   const next = () => {
     if (!quiz) return;
     if (index + 1 >= quiz.items.length) void finish(quiz, grades);
-    else setIndex(index + 1);
+    else {
+      recordItem(quiz, index, grades);
+      setIndex(index + 1);
+    }
   };
 
   const root = cx('kth-quiz', className);
@@ -168,6 +197,7 @@ export function QuizPanel({
           onNext={next}
           formatReference={fmt}
           onOpenPassage={onOpenPassage}
+          moduleTextBasis={catalog.modules.find((m) => m.uuid === item.question.origin)?.textBasis}
           labels={labels}
         />
       </div>
