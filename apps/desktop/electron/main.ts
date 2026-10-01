@@ -23,6 +23,20 @@ import { configureDesktopKeywordSearch } from './services/KeywordIndexService';
 import { registerFeaturePackHandlers, closeFeaturePackHandlers } from './ipc/featurePackHandlers';
 import { registerI18nHandlers } from './ipc/i18nHandlers';
 import { loadMainCatalogs, t } from './services/MainI18n';
+import { registerNotificationHandlers } from './ipc/notificationHandlers';
+import {
+  ElectronReminderHost,
+  NotificationStateFile,
+  TrayController,
+  createVotdSource,
+  setLoginItem,
+  isLoginItemSupported,
+} from './notifications';
+import { resolveAppId } from './notifications/appId';
+import { ensureBibleRepository } from './ipc/bibleHandlers';
+import { UserDataRepository } from '@bible/core';
+import { NotificationSettingsStore } from '@bible/core/browser';
+import { initializeUserSchema } from './schema/userSchema';
 import { registerBackupHandlers } from './ipc/backupHandlers';
 import { registerFileNotesHandlers, initializeFileNotesService } from './ipc/fileNotesHandlers';
 import {
@@ -188,7 +202,21 @@ if (process.env.ELECTRON_USER_DATA) {
   log.info(`[test] userData path overridden to: ${process.env.ELECTRON_USER_DATA}`);
 }
 
+// Windows only shows toast notifications for an app whose AppUserModelID matches
+// its installer shortcut (electron-builder derives that from `appId`).
+if (process.platform === 'win32') {
+  app.setAppUserModelId(resolveAppId());
+}
+
 let mainWindow: BrowserWindow | null = null;
+/**
+ * The notifications engine (task 0083): created in `whenReady`, started once
+ * the user database is open. `remindersBridge` and `setExtensionCallbacks` on it
+ * are how the extension host is connected (see `initializeExtensionHostInBackground`).
+ */
+let reminderHost: ElectronReminderHost | null = null;
+/** Launched by the login item (`--hidden`): start in the tray, no window - only honoured when the tray is on. */
+const launchedHidden = process.argv.includes('--hidden');
 let menuBuilder: MenuBuilder | null = null;
 /**
  * Remembers the main window's size/position/maximized state between launches,
@@ -459,6 +487,66 @@ function registerPrintHandler(): void {
   );
 }
 
+let windowShownOnce = false;
+
+/** Show and focus the main window, restoring or re-creating it as needed. */
+async function showMainWindow(): Promise<BrowserWindow | null> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    await createWindow();
+  }
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return null;
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.show();
+  win.focus();
+  return win;
+}
+
+/** Notifications engine: built before the window, started when the user DB opens. */
+function createReminderHost(): ElectronReminderHost {
+  const iconPath = resolveAppIconPath();
+  const tray = new TrayController({
+    iconPath: () => iconPath,
+    tooltip: () => APP_CONFIG.productName,
+    labels: () => ({
+      open: t('main.notifications.tray.open'),
+      settings: t('main.notifications.tray.settings'),
+      quit: t('main.notifications.tray.quit'),
+    }),
+    showWindow: () => void showMainWindow(),
+    openSettings: () => {
+      void showMainWindow().then((win) =>
+        reminderHost?.sendOpenTarget({ kind: 'route', route: 'settings/notifications' }, win),
+      );
+    },
+    quit: () => app.quit(),
+  });
+  const host = new ElectronReminderHost({
+    getSettingsStore: async () => {
+      const db = await getSharedUserDb();
+      initializeUserSchema(db);
+      return new NotificationSettingsStore(new UserDataRepository(db));
+    },
+    stateFile: new NotificationStateFile(join(app.getPath('userData'), 'notifications.json'), (err, context) =>
+      log.warn(`[notifications] ${context}:`, err),
+    ),
+    getMainWindow: () => mainWindow,
+    showWindow: showMainWindow,
+    tray,
+    loginItem: { isSupported: () => isLoginItemSupported(), set: (on) => setLoginItem(on, { appName: APP_CONFIG.productName }) },
+  });
+  host.registerSource(
+    createVotdSource({
+      getVerseText: async (verseId) => {
+        const repo = await ensureBibleRepository('KJV');
+        const verse = repo?.getVerse(verseId);
+        return verse ? verse.textPlain || verse.text || null : null;
+      },
+    }),
+  );
+  return host;
+}
+
 async function createWindow(): Promise<void> {
   log.info('Creating main window...');
 
@@ -537,6 +625,7 @@ async function createWindow(): Promise<void> {
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerKeywordHandlers();
+  registerNotificationHandlers(() => reminderHost);
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerI18nHandlers(ipcMain);
@@ -659,7 +748,15 @@ async function createWindow(): Promise<void> {
   }
 
   // Show window when ready
+  // Started by the login item with the tray on: stay hidden until the user (or a
+  // notification click) shows the window. With the tray off `--hidden` is ignored.
+  const startHidden = launchedHidden && !windowShownOnce && reminderHost?.trayEnabled === true;
+  windowShownOnce = true;
   mainWindow.once('ready-to-show', () => {
+    if (startHidden) {
+      log.info('Main window ready; staying hidden (launched at login with the tray on)');
+      return;
+    }
     log.info('Main window ready, showing...');
     // Belt and braces: some Linux window managers ignore `maximize()` on a
     // window that has never been mapped. Re-asserting it here is still before
@@ -681,6 +778,13 @@ async function createWindow(): Promise<void> {
   let isClosing = false;
   mainWindow.on('close', async (event) => {
     if (isClosing) return;
+
+    // Tray mode: closing the window keeps the app (and its reminders) running.
+    if (!quitRequested && reminderHost?.trayMode) {
+      event.preventDefault();
+      mainWindow?.hide();
+      return;
+    }
 
     event.preventDefault();
     isClosing = true;
@@ -1016,7 +1120,15 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       extensionDatabaseRegistry,
       taskStatusBridge,
       taskNotifier,
+      // `api.reminders`: extension reminders go through the main-process scheduler.
+      remindersBridge: reminderHost?.remindersBridge,
     });
+    // Notification clicks and missed batches go back to the owning extension.
+    reminderHost?.setExtensionCallbacks({
+      onActivation: (extensionId, activation) => extensionHost?.deliverReminderActivation(extensionId, activation),
+      onMissed: (extensionId, event) => extensionHost?.deliverReminderMissed(extensionId, event),
+    });
+    extensionHost.onDidUninstall((extensionId) => void reminderHost?.forgetExtension(extensionId));
     await extensionHost.loadAll();
 
     // Declarative contributions (task 0024 round 3, P1.5). Registered BEFORE
@@ -1128,9 +1240,14 @@ app.whenReady().then(async () => {
   // off to whichever MenuBuilder is currently active.
   registerMenuRebuildHandler(() => menuBuilder);
 
+  reminderHost = createReminderHost();
+
   // Create window first so the user sees the UI shell immediately;
   // background tasks (module detection, notes DB) load after the window appears.
   await createWindow();
+
+  // Start the notifications engine in the background (needs the user DB, not the window).
+  void reminderHost.start().catch((error) => log.error('[notifications] failed to start:', error));
 
   // Initialize user content in background (notes, highlights)
   // Session is already initialized in createWindow, but notes/highlights can load after
@@ -1188,8 +1305,9 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  // macOS: Keep app running when windows closed
-  if (process.platform !== 'darwin') {
+  // macOS: Keep app running when windows closed. Tray mode: keep running too,
+  // so reminders keep firing (unless a quit is under way).
+  if (process.platform !== 'darwin' && (quitRequested || !reminderHost?.trayMode)) {
     app.quit();
   }
 });
@@ -1216,6 +1334,9 @@ app.on('quit', () => {
   // Stop the diagnostics uploader timer so it doesn't fire during teardown
   // and attempt to touch a torn-down `net` module.
   getDiagnosticsUploader()?.stop();
+
+  // Stop the reminder timers and remove the tray icon.
+  reminderHost?.stop();
 
   // Close all detached windows
   windowManager.closeAllDetachedWindows();
