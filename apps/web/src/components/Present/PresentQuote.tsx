@@ -48,7 +48,6 @@ export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void
   return (
     <div class="present-paste">
       <textarea
-        dir="auto"
         class="present-paste__input"
         autoFocus
         rows={3}
@@ -57,7 +56,6 @@ export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void
         onInput={event => setText((event.target as HTMLTextAreaElement).value)}
       />
       <input
-        dir="auto"
         class="present-paste__input"
         type="text"
         placeholder={t('present.quoteAttributionPlaceholder')}

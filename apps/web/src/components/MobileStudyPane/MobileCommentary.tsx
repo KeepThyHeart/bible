@@ -248,7 +248,6 @@ export function MobileCommentary({ bibleProvider, onOpenSettings, viewingModule,
       <div class="mobile-commentary__filter-bar">
         <i class="fa-solid fa-magnifying-glass mobile-commentary__filter-icon" />
         <input
-          dir="auto"
           ref={filterRef}
           class="mobile-commentary__filter-input"
           type="text"

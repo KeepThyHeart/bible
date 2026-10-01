@@ -5,6 +5,15 @@
   padding: 0;
 }
 
+// Typed text auto-detects its direction while padding and overlaid icons follow the UI direction.
+// (dir="auto" on an empty input resolves to LTR in Chromium, which breaks RTL placeholders.)
+input:not([type]),
+input[type='text'],
+input[type='search'],
+textarea {
+  unicode-bidi: plaintext;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: var(--ui-font-size, 14px);

@@ -104,7 +104,6 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
       <div class="mobile-dictionary__search-bar">
         <i class="fa-solid fa-magnifying-glass mobile-dictionary__search-icon" />
         <input
-          dir="auto"
           ref={inputRef}
           class="mobile-dictionary__search-input"
           type="text"

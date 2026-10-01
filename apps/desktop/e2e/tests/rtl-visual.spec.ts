@@ -22,6 +22,10 @@ import { ensurePaneOpen, waitForAppReady } from '../fixtures/test-utils';
 const LANGS = ['en', 'ar'] as const;
 type Lang = (typeof LANGS)[number];
 
+/** Every RTL UI language the structural assertions run for. */
+const RTL_LANGS = ['ar', 'he-IL', 'fa-IR'] as const;
+type RtlLang = (typeof RTL_LANGS)[number];
+
 const VISUAL_ENABLED = process.env.RTL_VISUAL === '1' && process.platform === 'linux';
 
 /** Fixed size so baselines are comparable run to run (as chrome-bands does). */
@@ -40,14 +44,14 @@ async function fixWindowSize(electronApp: ElectronApplication, window: Page) {
  * for `<html dir>` to flip. `en` is a no-op reload so both locales go through
  * the same path.
  */
-async function setLocale(window: Page, lang: Lang) {
+async function setLocale(window: Page, lang: Lang | RtlLang) {
   await expect(window.locator('[data-testid="app-loaded"]')).toBeAttached({ timeout: 30000 });
   await window.evaluate((value: string) => globalThis.localStorage.setItem('bible.ui.locale', value), lang);
   await window.reload();
   await window.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
   await window.waitForSelector('[data-testid^="verse-"]', { timeout: 30000 });
-  await expect(window.locator('html')).toHaveAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr', { timeout: 15000 });
-  await expect(window.locator('html')).toHaveAttribute('lang', lang);
+  await expect(window.locator('html')).toHaveAttribute('dir', lang === 'en' ? 'ltr' : 'rtl', { timeout: 15000 });
+  await expect(window.locator('html')).toHaveAttribute('lang', new RegExp(`^${lang.split('-')[0]}`));
 }
 
 /** Regions that change between runs and must not fail a pixel comparison. */
@@ -87,16 +91,33 @@ async function openVerseMenu(window: Page) {
 // Structural assertions (always run)
 // ---------------------------------------------------------------------------
 
-test.describe('RTL structure (ar UI)', () => {
+for (const rtlLang of RTL_LANGS) {
+test.describe(`RTL structure (${rtlLang} UI)`, () => {
   test.beforeEach(async ({ electronApp, window }) => {
     await waitForAppReady(window);
     await fixWindowSize(electronApp, window);
-    await setLocale(window, 'ar');
+    await setLocale(window, rtlLang);
   });
 
-  test('html carries dir=rtl and lang=ar', async ({ window }) => {
+  test('html carries dir=rtl and the language', async ({ window }) => {
     await expect(window.locator('html')).toHaveAttribute('dir', 'rtl');
-    await expect(window.locator('html')).toHaveAttribute('lang', 'ar');
+    await expect(window.locator('html')).toHaveAttribute('lang', new RegExp(`^${rtlLang.split('-')[0]}`));
+  });
+
+  test('search box: input has room and the shortcut chip sits at the inline end', async ({ window }) => {
+    const input = window.locator('[data-testid="search-input"]');
+    await expect(input).toBeVisible({ timeout: 15000 });
+    const box = (await input.boundingBox())!;
+    expect(box.width, 'input is wide enough to show its placeholder').toBeGreaterThan(80);
+    const chip = window.locator('[data-testid="search-shortcut-hint"]');
+    if (await chip.count() === 0 || !(await chip.isVisible())) return; // hidden when focused or narrow
+    const c = (await chip.boundingBox())!;
+    const inputRect = { left: box.x, right: box.x + box.width };
+    const overlap = Math.min(inputRect.right, c.x + c.width) - Math.max(inputRect.left, c.x);
+    if (overlap > 0) {
+      // Overlaid chip: it must sit on the inline-end (left, in RTL) half of the input, never over the start.
+      expect(c.x + c.width / 2, 'chip centre is left of the input centre').toBeLessThan(box.x + box.width / 2);
+    }
   });
 
   test('KJV text stays LTR inside the RTL UI', async ({ window }) => {
@@ -155,6 +176,7 @@ test.describe('RTL structure (ar UI)', () => {
     await expect(tabs!.nth(0)).toBeFocused();
   });
 });
+}
 
 // ---------------------------------------------------------------------------
 // Visual baselines (RTL_VISUAL=1, Linux only)

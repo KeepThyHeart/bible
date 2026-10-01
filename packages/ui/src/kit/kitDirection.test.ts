@@ -22,4 +22,12 @@ describe('KthKit document direction', () => {
     expect(document.documentElement.getAttribute('dir')).toBe('ltr');
     expect(document.documentElement.getAttribute('lang')).toBe('en');
   });
+
+  it('subscribes to onLocaleChanged only once across init calls', async () => {
+    const onLocaleChanged = vi.fn();
+    const rpc = { getLocale: () => Promise.resolve({ locale: 'en', direction: 'ltr' as const }), onLocaleChanged };
+    await KthKit.init({ components: [], rpc });
+    await KthKit.init({ components: [], rpc });
+    expect(onLocaleChanged).not.toHaveBeenCalled(); // already subscribed by the earlier test's init
+  });
 });

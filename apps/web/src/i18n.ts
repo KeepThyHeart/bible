@@ -37,10 +37,16 @@ export type LocaleInfo = LocaleMetadata;
  * bundle); excluding it here avoids Vite warning that a statically-imported
  * module cannot also be split out via glob.
  */
-const metaModules = import.meta.glob(['./locales/*/meta.json', '!./locales/en/meta.json'], { eager: true }) as Record<
-  string,
-  { default: Record<string, unknown> }
->;
+const metaModules = import.meta.glob(['./locales/*/meta.json', '!./locales/en/meta.json', '!./locales/xx-*/meta.json'], {
+  eager: true,
+}) as Record<string, { default: Record<string, unknown> }>;
+// Dev-only pseudo-locales (`xx-*`) are bundled only in DEV; the literal glob is tree-shaken from production.
+if (import.meta.env.DEV) {
+  Object.assign(
+    metaModules,
+    import.meta.glob(['./locales/xx-*/meta.json'], { eager: true }) as Record<string, { default: Record<string, unknown> }>,
+  );
+}
 
 const LOCALE_INFOS = new Map<string, LocaleInfo>();
 for (const [path, mod] of Object.entries(metaModules)) {
@@ -102,7 +108,11 @@ type NamespaceModule = { default: Record<string, unknown> };
  * split an eagerly-imported module into its own chunk), and `loadedLocales`
  * already seeds `en` as loaded, so nothing would ever call this for it.
  */
-const namespaceLoaders = import.meta.glob<NamespaceModule>(['./locales/*/*.json', '!./locales/en/*.json']);
+const namespaceLoaders: Record<string, () => Promise<NamespaceModule>> = {
+  ...import.meta.glob<NamespaceModule>(['./locales/*/*.json', '!./locales/en/*.json', '!./locales/xx-*/*.json']),
+  // Dev-only pseudo-locales (`xx-*`) are bundled only in DEV.
+  ...(import.meta.env.DEV ? import.meta.glob<NamespaceModule>(['./locales/xx-*/*.json']) : {}),
+};
 
 const loadedLocales = new Set<string>(['en']);
 

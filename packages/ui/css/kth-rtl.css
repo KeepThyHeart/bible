@@ -13,6 +13,11 @@
    Nothing here styles an element or class an app already uses, so importing it changes no existing pixel
    until an app opts in (`data-kth-shaping` on <html>, or the classes above). */
 
+/* transform does not apply to inline boxes; a component's own display wins over this :where() default. */
+:where(.kth-rtl-mirror) {
+  display: inline-block;
+}
+
 [dir='rtl'] .kth-rtl-mirror,
 .kth-rtl-mirror[dir='rtl'] {
   transform: scaleX(-1);

@@ -463,7 +463,6 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           )}
         </div>
         <input
-          dir="auto"
           ref={inputRef}
           type="text"
           class="header__search-field"

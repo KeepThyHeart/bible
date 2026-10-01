@@ -717,7 +717,6 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
           <label>
             <span>{t('copyDialog.reference')}</span>
             <input
-              dir="auto"
               type="text"
               value={refInput}
               placeholder={`${tabBookName} ${tab.chapter}:1-5`}

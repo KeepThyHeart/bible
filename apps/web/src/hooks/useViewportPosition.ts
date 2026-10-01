@@ -30,7 +30,7 @@ export function useViewportPosition<T extends HTMLElement>(
     const padding = 16;
 
     if (dir) {
-      const { insetInlineStart } = anchorAtPointer(position.left, rect.width, viewportWidth, dir);
+      const { insetInlineStart } = anchorAtPointer(position.left, rect.width, viewportWidth, dir, padding);
       let top = position.top;
       if (top + rect.height > viewportHeight - padding) top = position.top - rect.height - 8;
       el.style.left = '';

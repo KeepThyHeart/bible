@@ -273,7 +273,6 @@ export function ModuleSelectDialog<M extends SelectableModule>({
         <div class="module-dialog__filter">
           <i class="fa-solid fa-magnifying-glass module-dialog__filter-icon" />
           <input
-            dir="auto"
             ref={filterInputRef}
             type="text"
             placeholder={labels.filterPlaceholder}

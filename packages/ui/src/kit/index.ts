@@ -56,6 +56,7 @@ function setLocale(locale: string, direction?: 'ltr' | 'rtl'): void {
 }
 
 let documentSync: (() => void) | undefined;
+let localeSubscribed = false;
 
 /** Keep `<html dir lang>` in step with the kit locale. */
 function syncDocument(): void {
@@ -71,7 +72,8 @@ async function init(opts: KthKitInitOptions = {}): Promise<void> {
     documentSync = subscribeKitLocale(syncDocument);
     syncDocument();
   }
-  if (opts.rpc?.onLocaleChanged) {
+  if (opts.rpc?.onLocaleChanged && !localeSubscribed) {
+    localeSubscribed = true;
     try {
       opts.rpc.onLocaleChanged((l) => setKitLocale(sanitizeLocale(l?.locale, l?.direction)));
     } catch {

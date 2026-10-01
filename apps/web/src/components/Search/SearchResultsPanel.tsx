@@ -198,7 +198,6 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
       <div class="search-panel-inline__mobile-bar">
         <form class="search-panel-inline__mobile-form" onSubmit={handleMobileSearch} action="javascript:void(0)">
           <input
-            dir="auto"
             ref={mobileInputRef}
             type="text"
             class="search-panel-inline__mobile-input"

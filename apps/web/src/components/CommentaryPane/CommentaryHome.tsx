@@ -464,7 +464,6 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         </div>
         <div class="commentary-home__toolbar">
           <input
-            dir="auto"
             ref={filterRef}
             type="text"
             class="commentary-home__filter-input"

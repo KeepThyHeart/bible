@@ -496,7 +496,6 @@ export function TopicsBrowser({
   const renderSearchBar = () => (
     <div class="topics-browser__search">
       <input
-        dir="auto"
         type="text"
         class="topics-browser__search-input"
         placeholder={t('topicsBrowser.searchPlaceholder')}
@@ -800,7 +799,6 @@ export function TopicsBrowser({
                   </div>
                   {entityAssociations.length > 8 && (
                     <input
-                      dir="auto"
                       type="text"
                       class="topics-browser__assoc-filter"
                       placeholder={t('topicsBrowser.filterRelated')}
@@ -986,7 +984,6 @@ export function TopicsBrowser({
                   <div class="topics-browser__subtopics-controls">
                     {topicDetail.children.length > 8 && (
                       <input
-                        dir="auto"
                         type="text"
                         class="topics-browser__subtopics-filter"
                         placeholder={t('topicsBrowser.filterSubTopics')}

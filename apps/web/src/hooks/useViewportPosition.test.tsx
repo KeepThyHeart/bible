@@ -23,6 +23,12 @@ describe('useViewportPosition with a UI direction', () => {
     expect(el.style.left).toBe('');
   });
 
+  it('keeps the old 16px edge padding near the edges', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
+    const { getByTestId } = render(<Probe left={2} dir="ltr" />);
+    expect((getByTestId('probe') as HTMLElement).style.insetInlineStart).toBe('16px');
+  });
+
   it('in LTR the inline offset equals the pointer x', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
     const { getByTestId } = render(<Probe left={300} dir="ltr" />);

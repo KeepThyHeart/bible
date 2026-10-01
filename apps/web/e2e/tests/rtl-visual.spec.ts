@@ -23,6 +23,10 @@ import { navigateTo, waitForVerses } from '../helpers';
 const LANGS = ['en', 'ar'] as const;
 type Lang = (typeof LANGS)[number];
 
+/** Every RTL UI language the structural assertions run for. */
+const RTL_LANGS = ['ar', 'he-IL', 'fa-IR'] as const;
+type RtlLang = (typeof RTL_LANGS)[number];
+
 const VISUAL_PROJECTS = ['desktop-chrome', 'mobile-chrome'];
 const VISUAL_ENABLED = process.env.RTL_VISUAL === '1' && process.platform === 'linux';
 
@@ -35,14 +39,14 @@ const isMobile = (name: string) => name.includes('mobile');
  * `src/i18n.ts`), so the init script sets it before the app boots on every
  * navigation, including reloads.
  */
-async function openApp(page: Page, lng: Lang, mobile: boolean) {
+async function openApp(page: Page, lng: Lang | RtlLang, mobile: boolean) {
   await page.addInitScript((value: string) => {
     try { globalThis.localStorage.setItem('i18nextLng', value); } catch { /* storage blocked */ }
   }, lng);
   await page.goto('/');
   await page.waitForSelector(mobile ? '.app--mobile' : '.app', { timeout: 10000 });
-  await expect(page.locator('html')).toHaveAttribute('lang', lng, { timeout: 10000 });
-  await expect(page.locator('html')).toHaveAttribute('dir', lng === 'ar' ? 'rtl' : 'ltr');
+  await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${lng.split('-')[0]}`), { timeout: 10000 });
+  await expect(page.locator('html')).toHaveAttribute('dir', lng === 'en' ? 'ltr' : 'rtl');
 }
 
 /** Regions that change between runs and must not fail a pixel comparison. */
@@ -74,18 +78,35 @@ function settingsButton(page: Page): Locator {
 // Structural assertions (always run)
 // ---------------------------------------------------------------------------
 
-test.describe('RTL structure (ar UI)', () => {
+for (const rtlLang of RTL_LANGS) {
+test.describe(`RTL structure (${rtlLang} UI)`, () => {
   test.beforeEach(async ({ page }, testInfo) => {
     test.skip(
       !['desktop-chrome', 'mobile-chrome'].includes(testInfo.project.name),
       'RTL structure runs on desktop-chrome and mobile-chrome only',
     );
-    await openApp(page, 'ar', isMobile(testInfo.project.name));
+    await openApp(page, rtlLang, isMobile(testInfo.project.name));
   });
 
-  test('html carries dir=rtl and lang=ar', async ({ page }) => {
+  test('html carries dir=rtl and the language', async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+    await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${rtlLang.split('-')[0]}`));
+  });
+
+  test('header search: input has room and the shortcut chip sits at the inline end', async ({ page }, testInfo) => {
+    test.skip(isMobile(testInfo.project.name), 'The header search field is a desktop control');
+    const input = page.locator('.header__search-field');
+    await expect(input).toBeVisible();
+    const box = (await input.boundingBox())!;
+    expect(box.width, 'input is wide enough to show its placeholder').toBeGreaterThan(80);
+    const chip = page.locator('.header__search-hint');
+    if ((await chip.count()) === 0 || !(await chip.isVisible())) return; // hidden when focused or filled
+    const c = (await chip.boundingBox())!;
+    const overlap = Math.min(box.x + box.width, c.x + c.width) - Math.max(box.x, c.x);
+    if (overlap > 0) {
+      // Overlaid chip: it belongs on the inline-end (left, in RTL) half, never over the start.
+      expect(c.x + c.width / 2, 'chip centre is left of the input centre').toBeLessThan(box.x + box.width / 2);
+    }
   });
 
   test('KJV text stays LTR inside the RTL UI', async ({ page }, testInfo) => {
@@ -148,6 +169,7 @@ test.describe('RTL structure (ar UI)', () => {
     await expect(tabs.nth(0)).toBeFocused();
   });
 });
+}
 
 // ---------------------------------------------------------------------------
 // Visual baselines (RTL_VISUAL=1, Linux only)

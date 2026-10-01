@@ -126,7 +126,6 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
         {/* Full-width search bar */}
         <div class="dictionary-content__search-wrapper">
           <input
-            dir="auto"
             ref={searchRef}
             class="dictionary-content__search"
             type="text"
@@ -306,7 +305,6 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
       {/* Search with dropdown */}
       <div class="dictionary-content__search-wrapper">
         <input
-          dir="auto"
           ref={searchRef}
           class="dictionary-content__search"
           type="text"

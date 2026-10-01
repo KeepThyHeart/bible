@@ -248,7 +248,6 @@ export function BibleContent({
           <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>{t('bibleContent.enterPassage')}</p>
           <form onSubmit={handleRefSubmit} action="javascript:void(0)" class="bible-content__ref-form">
             <input
-              dir="auto"
               ref={refInputRef}
               type="text"
               placeholder={t('bibleContent.refPlaceholder')}
