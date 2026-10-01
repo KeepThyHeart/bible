@@ -297,10 +297,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          className={btnClass(editor.isActive({ textAlign: 'left' }))}
+          className={btnClass(editor.isActive({ textAlign: 'left' }))} /* rtl-physical: content alignment value */
           title={t('editorToolbar.alignLeftTitle')}
           aria-label={t('editorToolbar.alignLeftTitle')}
-          aria-pressed={editor.isActive({ textAlign: 'left' })}
+          aria-pressed={editor.isActive({ textAlign: 'left' })} /* rtl-physical: content alignment value */
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
             <path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/>
@@ -321,10 +321,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          className={btnClass(editor.isActive({ textAlign: 'right' }))}
+          className={btnClass(editor.isActive({ textAlign: 'right' }))} /* rtl-physical: content alignment value */
           title={t('editorToolbar.alignRightTitle')}
           aria-label={t('editorToolbar.alignRightTitle')}
-          aria-pressed={editor.isActive({ textAlign: 'right' })}
+          aria-pressed={editor.isActive({ textAlign: 'right' })} /* rtl-physical: content alignment value */
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
             <path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/>

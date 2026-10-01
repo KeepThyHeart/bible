@@ -383,13 +383,13 @@
    the label, which puts a 4px hole on the wrong side in RTL. */
 .dockview-theme-light.dockview-theme-light[dir='rtl'] .dv-tab .dv-default-tab .dv-default-tab-content,
 [dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-tab .dv-default-tab .dv-default-tab-content {
-  margin-right: 0;
+  margin-right: 0; /* rtl-physical: resets dockview's own physical value */
   margin-inline-end: 4px;
 }
 
 /* Overflow dropdown label spacing (dockview: `padding-left: 0.25rem`). */
 [dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-tabs-overflow-dropdown-default > span {
-  padding-left: 0;
+  padding-left: 0; /* rtl-physical: resets dockview's own physical value */
   padding-inline-start: 0.25rem;
 }
 
@@ -401,7 +401,7 @@
 
 /* Paneview header label indent. */
 [dir='rtl'] .dockview-theme-light.dockview-theme-light .dv-pane-container .dv-view .dv-default-header > span {
-  padding-left: 0;
+  padding-left: 0; /* rtl-physical: resets dockview's own physical value */
   padding-inline-start: 8px;
 }
 

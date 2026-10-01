@@ -119,8 +119,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
         <div data-testid="topic-search-results" style={{
           position: 'absolute',
           top: '100%',
-          left: 0,
-          right: 0,
+          insetInline: 0,
           zIndex: 100,
           maxHeight: '250px',
           overflowY: 'auto',
