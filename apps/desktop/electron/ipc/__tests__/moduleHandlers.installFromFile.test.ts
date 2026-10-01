@@ -87,7 +87,7 @@ vi.mock('../blessedPaths', () => ({
   isPathBlessed: vi.fn(() => true),
 }));
 
-vi.mock('../../services/MainI18n', () => ({ t: (key: string) => key }));
+vi.mock('../../services/MainI18n', () => ({ t: (key: string) => key, isolateForUi: (s: string) => s }));
 
 vi.mock('@bible/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bible/core')>();

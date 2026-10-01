@@ -23,6 +23,8 @@ import CharacterCount from '@tiptap/extension-character-count';
 import EditorToolbar, { type NoteExportActions } from './EditorToolbar';
 import { verseReferencePlugin } from './VerseReferencePlugin';
 import { FontSize } from './FontSizeExtension';
+import { TextDirection } from './TextDirectionExtension';
+import { useDirection } from '../../../contexts/useDirection';
 import { createSlashCommandsExtension } from './SlashCommands';
 import VersePreviewTooltip from '../../VersePreviewTooltip';
 import NoteEditorVerseMenu from './NoteEditorVerseMenu';
@@ -56,6 +58,14 @@ interface NoteEditorProps {
    * content belongs to, which the editor itself knows nothing about.
    */
   exportActions?: NoteExportActions;
+  /**
+   * The note's own default direction. Unset means "follow the UI direction"
+   * (the user's main language). Blocks still auto-detect per paragraph; this
+   * decides alignment of empty paragraphs and where the caret sits in a new
+   * note. There is no persistence route for it yet (no schema change in task
+   * 0076), so hosts normally leave it unset.
+   */
+  defaultDirection?: 'ltr' | 'rtl';
 }
 
 /**
@@ -114,9 +124,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   onChange,
   placeholder,
   readOnly = false,
-  exportActions
+  exportActions,
+  defaultDirection,
 }) => {
   const { t } = useI18n();
+  const uiDir = useDirection();
+  const rootDir = defaultDirection ?? uiDir;
   const resolvedPlaceholder = placeholder ?? t('ui.noteEditor.placeholder');
   const isInternalUpdate = useRef(false);
   // The toolbar button and the slash commands open the same dialog Tab does,
@@ -307,6 +320,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       Color,
       FontFamily,
       FontSize,
+      TextDirection,
       Subscript,
       Superscript,
       TextAlign.configure({
@@ -787,6 +801,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       {/* Editor content */}
       <div
         ref={editorContainerRef}
+        dir={rootDir}
         className="flex-1 overflow-auto p-4"
         onKeyDown={handleEditorContainerKeyDown}
         onContextMenu={handleEditorContextMenu}

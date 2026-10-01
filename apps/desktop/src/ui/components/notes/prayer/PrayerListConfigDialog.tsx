@@ -205,6 +205,7 @@ const PrayerListConfigDialog: React.FC<PrayerListConfigDialogProps> = ({ onClose
             <div className="flex gap-2">
               <input
                 id="prayer-list-config-new-name"
+                dir="auto"
                 type="text"
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
@@ -267,6 +268,7 @@ const PrayerListConfigDialog: React.FC<PrayerListConfigDialogProps> = ({ onClose
                                 {editingId === list.userCommentaryId ? (
                                   <input
                                     type="text"
+                                    dir="auto"
                                     value={editingName}
                                     aria-label={t('prayerListConfigDialog.editNameLabel')}
                                     onChange={(e) => setEditingName(e.target.value)}

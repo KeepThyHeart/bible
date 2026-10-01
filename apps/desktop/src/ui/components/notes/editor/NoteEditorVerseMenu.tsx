@@ -102,6 +102,7 @@ const NoteEditorVerseMenu: React.FC<NoteEditorVerseMenuProps> = ({
       role="menu"
       aria-label={t('ui.noteEditor.verseMenuLabel')}
       className="bg-surface border border-border-secondary rounded-md shadow-lg min-w-[200px] py-1"
+      // rtl-physical: position is a measured pointer coordinate in viewport pixels
       style={{ position: 'fixed', top: position.y, left: position.x, zIndex: 9999 }}
       onKeyDown={handleMenuKeyDown}
     >

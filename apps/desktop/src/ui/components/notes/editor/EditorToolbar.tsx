@@ -2,6 +2,7 @@ import React from 'react';
 import { Editor } from '@tiptap/react';
 import { useI18n } from '../../../contexts/useI18n';
 import ToolbarMenu from './ToolbarMenu';
+import { currentBlockDirection } from './TextDirectionExtension';
 
 /**
  * The four ways a finished note leaves the app. They are the host's, not the
@@ -341,6 +342,38 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/>
           </svg>
         </button>
+
+        <div className="w-px h-5 bg-border-secondary mx-1" />
+
+        {/* Text direction. Content controls: the labels are not mirrored in an
+            RTL UI, because LTR/RTL name the text's direction, not a side of
+            the toolbar. `dir="ltr"` keeps "LTR"/"RTL" in reading order. */}
+        <div role="group" aria-label={t('editorToolbar.directionGroup')} className="flex items-center">
+          {(() => {
+            const dir = currentBlockDirection(editor);
+            const items = [
+              { id: 'ltr', value: 'ltr' as const, label: t('editorToolbar.directionLtr'), title: t('editorToolbar.directionLtrTitle', { shortcut: 'Ctrl+Alt+L' }) },
+              { id: 'rtl', value: 'rtl' as const, label: t('editorToolbar.directionRtl'), title: t('editorToolbar.directionRtlTitle', { shortcut: 'Ctrl+Alt+R' }) },
+              { id: 'auto', value: null, label: t('editorToolbar.directionAuto'), title: t('editorToolbar.directionAutoTitle') },
+            ];
+            return items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const chain = editor.chain().focus();
+                  (item.value ? chain.setBlockDirection(item.value) : chain.unsetBlockDirection()).run();
+                }}
+                className={`${btnClass(dir === item.value)} text-xs font-medium`}
+                title={item.title}
+                aria-label={item.title}
+                aria-pressed={dir === item.value}
+              >
+                <span aria-hidden="true">{item.label}</span>
+              </button>
+            ));
+          })()}
+        </div>
 
         <div className="w-px h-5 bg-border-secondary mx-1" />
 

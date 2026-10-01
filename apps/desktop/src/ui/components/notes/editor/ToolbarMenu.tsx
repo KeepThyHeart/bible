@@ -64,10 +64,12 @@ function computeStyle(anchor: DOMRect, panel: DOMRect): CSSProperties {
     ? below
     : Math.max(EDGE_PADDING, anchor.top - GAP - panel.height);
 
+  // rtl-physical: `left` is a measured viewport coordinate
   return { position: 'fixed', top, left, maxWidth, visibility: 'visible' };
 }
 
 /** Off-screen-but-measurable starting point, before the panel has been placed. */
+// rtl-physical: left/top are measured viewport rects (getBoundingClientRect), clamped to the physical viewport
 const HIDDEN_STYLE: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden' };
 
 const ToolbarMenu: React.FC<ToolbarMenuProps> = ({

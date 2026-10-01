@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bdi } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import NoteEditor from '../editor/NoteEditor';
 import type { NoteExportActions } from '../editor/EditorToolbar';
@@ -87,11 +88,11 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                   onClick={() => onBreadcrumbNavigate(seg.path)}
                   className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
                 >
-                  {seg.label}
+                  <Bdi>{seg.label}</Bdi>
                 </button>
               ) : (
                 <span className="font-medium text-text-heading truncate flex items-center gap-1" aria-current="true">
-                  {seg.label}
+                  <Bdi>{seg.label}</Bdi>
                   {/* Edit title icon - verse notes derive their title from the
                       verse reference, so no rename affordance is shown at all
                       (not just disabled) to make the read-only-ness visible. */}

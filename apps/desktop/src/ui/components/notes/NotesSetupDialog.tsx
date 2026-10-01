@@ -65,6 +65,7 @@ const NotesSetupDialog: React.FC<NotesSetupDialogProps> = ({ onComplete, onCance
           <div className="flex gap-2">
             <input
               id="notes-setup-location"
+              dir="ltr" // a file-system path: stays LTR in every UI direction
               type="text"
               value={notesDir}
               onChange={(e) => setNotesDir(e.target.value)}

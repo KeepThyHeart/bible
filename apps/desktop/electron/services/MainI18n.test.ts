@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { t, setMainLocale, getMainLocale, resetMainI18nForTests } from './MainI18n';
+import { t, isolateForUi, setMainLocale, getMainLocale, resetMainI18nForTests } from './MainI18n';
 
 describe('MainI18n', () => {
   beforeEach(() => {
@@ -56,5 +56,32 @@ describe('MainI18n', () => {
   it('accepts a region-tagged locale', () => {
     setMainLocale('pt-BR');
     expect(getMainLocale()).toBe('pt-BR');
+  });
+
+  describe('RTL isolation', () => {
+    const FSI = '\u2068';
+    const PDI = '\u2069';
+
+    it('isolates interpolated params when the active locale is RTL', () => {
+      setMainLocale('ar');
+      expect(t('main.window.bible', { translation: 'KJV' })).toContain(`${FSI}KJV${PDI}`);
+    });
+
+    it('leaves params untouched in an LTR locale', () => {
+      setMainLocale('en');
+      expect(t('main.window.bible', { translation: 'KJV' })).toBe('Bible - KJV');
+    });
+
+    it('does not isolate params the message does not interpolate', () => {
+      setMainLocale('he-IL');
+      expect(t('main.dialog.saveBackup', { x: 'y' })).toBe('Save Backup File');
+    });
+
+    it('isolateForUi wraps only in an RTL UI', () => {
+      setMainLocale('fa-IR');
+      expect(isolateForUi('a.kthpack')).toBe(`${FSI}a.kthpack${PDI}`);
+      setMainLocale('en');
+      expect(isolateForUi('a.kthpack')).toBe('a.kthpack');
+    });
   });
 });

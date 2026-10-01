@@ -163,6 +163,7 @@ const NewNoteDialog: React.FC<NewNoteDialogProps> = ({ isOpen, onConfirm, onCanc
             <label htmlFor="new-note-title" className="block text-sm font-semibold text-text-heading mb-xs">{t('newNoteDialog.titleLabel')}</label>
             <input
               id="new-note-title"
+              dir="auto"
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}

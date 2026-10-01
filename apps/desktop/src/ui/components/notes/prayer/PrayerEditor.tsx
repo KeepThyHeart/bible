@@ -198,6 +198,7 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
           <div className="group flex items-center gap-xs -mx-sm px-sm rounded border border-transparent transition-colors hover:border-border hover:bg-background-hover focus-within:border-accent focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent/30">
             <input
               id="prayer-title"
+              dir="auto"
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
