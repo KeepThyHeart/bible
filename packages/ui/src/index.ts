@@ -14,6 +14,8 @@ export { parseReferenceInput, suggestBooks } from './components/referenceInput';
 export type { ReferenceValue, ReferenceInputOptions, ParseReferenceInputResult, BookSuggestion } from './components/referenceInput';
 export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/HighlightSwatch';
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
+export { NotificationPreferences, DEFAULT_NOTIFICATION_PREFERENCES_LABELS } from './components/NotificationPreferences';
+export type { NotificationPreferencesLabels, NotificationPreferencesProps } from './components/NotificationPreferences';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
 

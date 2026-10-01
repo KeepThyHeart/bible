@@ -29,6 +29,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
 | [Keyword marks](features/keyword-marks.md) | Colouring words, phrases, Strong's numbers and connectives in the chapter: matcher, lexicon, decoration layer, sets |
+| [Notifications](features/notifications.md) | The reminder engine: schedule model, DST-safe expansion, missed-reminder collapse, settings, the scheduler and its ports |
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
