@@ -48,7 +48,7 @@ describe('versification', () => {
     expect(formatReading({ start: vid(1, 1, 1), end: vid(1, 50, 26) }, name)).toBe('Genesis');
     expect(formatReading({ start: vid(1, 1, 3), end: vid(1, 1, 5) }, name)).toBe('Genesis 1:3-5');
     expect(formatReading({ start: vid(1, 1, 3), end: vid(1, 2, 5) }, name)).toBe('Genesis 1:3-2:5');
-    expect(formatReading({ start: vid(65, 1, 1), end: vid(65, 1, 8) }, () => 'Jude')).toBe('Jude 1-8');
+    expect(formatReading({ start: vid(65, 1, 1), end: vid(65, 1, 8) }, () => 'Jude')).toBe('Jude 1:1-8');
     expect(formatReading({ start: vid(65, 1, 1), end: vid(65, 1, 25) }, () => 'Jude')).toBe('Jude');
   });
 });
@@ -287,5 +287,26 @@ describe('validation', () => {
     expect(() => validateBuilderSpec(spec({}))).not.toThrow();
     expect(() => validateBuilderSpec({ ...spec({}), pace: { by: 'days', days: -1 } })).toThrow(ReadingPlanDataError);
     expect(() => validatePlanDefinition({ key: 'x', version: 1, name: 'n', source: 'user', days: [] })).toThrow(ReadingPlanDataError);
+  });
+});
+
+describe('review fixes', () => {
+  const plan = tenDayPlan();
+
+  it('rejects fractional chapters or verses a day', () => {
+    expect(() => buildPlanDays(spec({ pace: { by: 'chaptersPerDay', chapters: 1.5 } }))).toThrow(PlanBuildError);
+    expect(() => validateBuilderSpec({ ...spec({}), pace: { by: 'versesPerDay', verses: 2.5 } })).toThrow(ReadingPlanDataError);
+  });
+
+  it('after the scheduled end, every unread day is missed and the first one is shown', () => {
+    const v = todayView(plan, enrollment(), [done(1), done(3)], '2026-11-30');
+    expect(v.day).toBe(2);
+    expect(v.missedDays).toEqual([2, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  it('estimates the finish from today when a fixed plan is behind', () => {
+    const s = planStats(plan, enrollment(), [done(1)], '2026-10-05');
+    expect(s.scheduledFinish).toBe('2026-10-10');
+    expect(s.estimatedFinish).toBe(addDays('2026-10-05', 8));
   });
 });

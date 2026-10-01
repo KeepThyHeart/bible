@@ -5,6 +5,7 @@
 import type { BuilderSpec, Completion, Enrollment, PlanDefinition, Weekday } from './types';
 import { isIsoDate } from './dates';
 import { isValidVerseId } from './versification';
+import { MAX_READINGS_PER_DAY } from './builder';
 
 export class ReadingPlanDataError extends Error {
   constructor(message: string) {
@@ -14,7 +15,6 @@ export class ReadingPlanDataError extends Error {
 }
 
 const MAX_DAYS = 3660;
-const MAX_READINGS_PER_DAY = 64;
 
 function fail(msg: string): never {
   throw new ReadingPlanDataError(msg);
@@ -111,12 +111,12 @@ export function validateBuilderSpec(raw: unknown): BuilderSpec {
       p = { by: 'endDate', startDate: pace.startDate as string, endDate: pace.endDate as string };
       break;
     case 'chaptersPerDay':
-      if (typeof pace.chapters !== 'number' || !(pace.chapters > 0) || pace.chapters > 1189) fail('spec.pace.chapters is invalid');
-      p = { by: 'chaptersPerDay', chapters: pace.chapters };
+      if (!Number.isInteger(pace.chapters) || (pace.chapters as number) < 1 || (pace.chapters as number) > 1189) fail('spec.pace.chapters is invalid');
+      p = { by: 'chaptersPerDay', chapters: pace.chapters as number };
       break;
     case 'versesPerDay':
-      if (typeof pace.verses !== 'number' || !(pace.verses > 0) || pace.verses > 31102) fail('spec.pace.verses is invalid');
-      p = { by: 'versesPerDay', verses: pace.verses };
+      if (!Number.isInteger(pace.verses) || (pace.verses as number) < 1 || (pace.verses as number) > 31102) fail('spec.pace.verses is invalid');
+      p = { by: 'versesPerDay', verses: pace.verses as number };
       break;
     default:
       fail('spec.pace.by is invalid');

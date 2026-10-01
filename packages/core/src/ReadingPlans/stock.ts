@@ -41,7 +41,7 @@ const STOCK: StockEntry[] = [
     id: 'canonical-1y',
     version: 1,
     name: 'The Bible in a year',
-    description: 'Genesis to Revelation in 365 days, whole chapters, about 12 minutes a day.',
+    description: 'Genesis to Revelation in 365 days, whole chapters.',
     build: fromSpec({ name: 'The Bible in a year', scope: [WHOLE_BIBLE], order: 'canonical', pace: { by: 'days', days: 365 }, split: 'chapter' }),
   },
   {

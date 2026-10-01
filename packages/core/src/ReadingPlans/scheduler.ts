@@ -134,20 +134,23 @@ export function todayView(plan: PlanDefinition, e: Enrollment, completions: read
       behindBy: 0, missedDays: [], aheadBy: 0, completed: false, notStarted: false,
     };
   }
-  const scheduled = Math.min(scheduledDay(e, today), dayCount);
+  const rawScheduled = scheduledDay(e, today);
+  const scheduled = Math.min(rawScheduled, dayCount);
   if (scheduled === 0) {
     return {
       ...base, day: null, readings: [], dayDone: false, behindBy: 0, missedDays: [], aheadBy: 0, completed: false,
       notStarted: true,
     };
   }
+  // Past the scheduled end: every unread day is overdue; show the first of them.
+  const pastEnd = rawScheduled > dayCount;
   // On a reading day, today's own day is due today, not missed; on a rest day the last scheduled day is.
-  const dueThrough = restDay ? scheduled : scheduled - 1;
+  const dueThrough = pastEnd || restDay ? scheduled : scheduled - 1;
   const missedDays: number[] = [];
   for (let d = 1; d <= dueThrough; d++) if (!isDayDone(plan, progress, d)) missedDays.push(d);
   let aheadBy = 0;
   for (let d = scheduled + 1; d <= dayCount && isDayDone(plan, progress, d); d++) aheadBy++;
-  const day = restDay ? null : scheduled;
+  const day = pastEnd ? firstUnread : restDay ? null : scheduled;
   return {
     ...base,
     day,
@@ -168,7 +171,7 @@ export interface PlanStats {
   readingsTotal: number;
   /** Share of the plan's verses read, 0..100. */
   percent: number;
-  /** Fixed: the scheduled last day. Flexible: the remaining days laid on reading days from today. */
+  /** The remaining days laid on reading days from today (fixed and on schedule: the scheduled last day). */
   estimatedFinish: IsoDate | null;
   /** Fixed: the date the plan was scheduled to end. */
   scheduledFinish: IsoDate | null;
@@ -202,8 +205,9 @@ export function planStats(
   const remaining = plan.days.length - daysDone;
   const scheduledFinish = e.pacing === 'fixed' && plan.days.length > 0 ? dateForDay(e, plan.days.length) : null;
   let estimatedFinish: IsoDate | null = null;
+  const onSchedule = e.pacing === 'fixed' && todayView(plan, e, mine, today).behindBy === 0;
   if (remaining === 0) estimatedFinish = null;
-  else if (e.pacing === 'fixed') estimatedFinish = scheduledFinish;
+  else if (onSchedule && scheduledFinish && scheduledFinish >= today) estimatedFinish = scheduledFinish;
   else {
     const todayDay = firstUnreadDay(plan, progress);
     const readToday = mine.some((c) => readingDate(new Date(c.at), rolloverHour) === today);

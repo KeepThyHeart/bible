@@ -113,3 +113,27 @@ describe('ReadingPlanService', () => {
     expect(ics).toContain('TRIGGER;RELATED=START:PT7H0M');
   });
 });
+
+describe('ics escaping', () => {
+  it('escapes semicolons and folds by UTF-8 octets', async () => {
+    const { service } = setup();
+    const e = await service.startPlan('stock:mcheyne', { pacing: 'fixed' });
+    const d = await service.detail(e.id);
+    const ics = planToIcs(d.plan, d.enrollment, [], { formatReading: () => 'Бытие 1', today: '2026-10-01', title: 'План чтения Библии на год' });
+    expect(ics).toContain('\; ');
+    for (const line of ics.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+  });
+});
+
+describe('pause and resume', () => {
+  it('resuming a fixed plan restarts the schedule from today', async () => {
+    const { service, setNow } = setup();
+    const e = await service.startPlan('stock:gospels-30', { pacing: 'fixed' });
+    await service.setDayDone(e.id, 1, true);
+    await service.pause(e.id);
+    expect(await service.todayViews()).toEqual([]);
+    setNow(new Date(2026, 9, 20, 12, 0));
+    await service.resume(e.id);
+    expect((await service.todayViews())[0]).toMatchObject({ day: 2, behindBy: 0 });
+  });
+});

@@ -11,8 +11,10 @@ import { ALL_WEEKDAYS } from './types';
 import { countVerses, estimateMinutes, isValidVerseId, nextVerse, splitByBook, splitVid, versesBetween, versesInChapter } from './versification';
 import { addDays, parseIsoDate, weekdayOf } from './dates';
 
+export type PlanBuildErrorCode = 'empty_scope' | 'invalid_range' | 'invalid_pace' | 'too_many_days' | 'too_many_readings';
+
 export class PlanBuildError extends Error {
-  constructor(public readonly code: 'empty_scope' | 'invalid_range' | 'invalid_pace' | 'too_many_days', message: string) {
+  constructor(public readonly code: PlanBuildErrorCode, message: string) {
     super(message);
     this.name = 'PlanBuildError';
   }
@@ -25,6 +27,9 @@ export interface BuildOptions {
 
 /** Upper bound on plan length (ten years of daily reading). */
 export const MAX_PLAN_DAYS = 3660;
+
+/** Upper bound on separate readings in one day (scattered as-listed verses). */
+export const MAX_READINGS_PER_DAY = 500;
 
 /** Cut preferences: a cut after a scope piece's end beats one at a chapter end, which beats one mid-chapter. */
 const PRIORITY_VERSE = 1;
@@ -154,11 +159,11 @@ function resolveDayCount(spec: BuilderSpec, streams: Stream[]): number {
       days = countReadingDays(pace.startDate, pace.endDate, spec.readingDays);
       break;
     case 'chaptersPerDay':
-      if (!(pace.chapters > 0)) throw new PlanBuildError('invalid_pace', 'Chapters per day must be positive');
+      if (!Number.isInteger(pace.chapters) || pace.chapters < 1) throw new PlanBuildError('invalid_pace', 'Chapters per day must be a whole number');
       days = Math.max(...streams.map((s) => Math.ceil(unitEnds(s).length / pace.chapters)));
       break;
     case 'versesPerDay':
-      if (!(pace.verses > 0)) throw new PlanBuildError('invalid_pace', 'Verses per day must be positive');
+      if (!Number.isInteger(pace.verses) || pace.verses < 1) throw new PlanBuildError('invalid_pace', 'Verses per day must be a whole number');
       days = Math.ceil(maxVerses / pace.verses);
       break;
     default:
@@ -285,7 +290,13 @@ export function buildPlanDays(spec: BuilderSpec, options: BuildOptions = {}): Pl
   const days = resolveDayCount(spec, streams);
   const perTrack = streams.map((s, i) => buildTrack(s, days, spec, tracks[i].id));
   const out: PlanDay[] = [];
-  for (let d = 0; d < days; d++) out.push({ readings: perTrack.flatMap((t) => t[d] ?? []) });
+  for (let d = 0; d < days; d++) {
+    const readings = perTrack.flatMap((t) => t[d] ?? []);
+    if (readings.length > MAX_READINGS_PER_DAY) {
+      throw new PlanBuildError('too_many_readings', `A day can have at most ${MAX_READINGS_PER_DAY} separate passages`);
+    }
+    out.push({ readings });
+  }
   return out;
 }
 

@@ -208,6 +208,17 @@ export class ReadingPlanService implements IReadingScopeProvider {
     return this.updateEnrollment(id, { startDate: shiftedStartDate(plan, e, completions, this.today()) });
   }
 
+  /** Pause a plan: it leaves Today and its reminders stop. */
+  async pause(id: string): Promise<Enrollment> {
+    return this.updateEnrollment(id, { status: 'paused' });
+  }
+
+  /** Resume a paused plan. A fixed schedule restarts from today, so the paused days are not counted as missed. */
+  async resume(id: string): Promise<Enrollment> {
+    const e = await this.updateEnrollment(id, { status: 'active' });
+    return e.pacing === 'fixed' ? this.shiftSchedule(id) : e;
+  }
+
   /** Stop tracking a schedule: today becomes the first unread day and nothing is ever overdue. */
   async switchToFlexible(id: string): Promise<Enrollment> {
     return this.updateEnrollment(id, { pacing: 'flexible' });
@@ -258,8 +269,8 @@ export class ReadingPlanService implements IReadingScopeProvider {
       else set.delete(c.completion.reading);
       progress.set(day, set);
     }
-    this.emit({ type: 'changed' });
     if (done) {
+      this.emit({ type: 'changed' });
       for (const c of changes) this.emit({ type: 'readingCompleted', enrollmentId, day, reading: dayDef.readings[c.completion.reading], via });
       if (!wasDayDone && isDayDone(plan, progress, day)) this.emit({ type: 'dayCompleted', enrollmentId, day, readings: dayDef.readings });
       if (firstUnreadDay(plan, progress) === null && e.status !== 'completed') {
@@ -268,12 +279,22 @@ export class ReadingPlanService implements IReadingScopeProvider {
         this.emit({ type: 'changed' });
         await this.syncReminders();
       }
-    } else if (e.status === 'completed') {
-      const next = { ...e, status: 'active' as const };
-      delete next.completedAt;
-      await this.store.putEnrollment(next);
-      await this.syncReminders();
+    } else {
+      // Reopen a completed plan before anyone re-reads it.
+      const reopen = e.status === 'completed';
+      if (reopen) {
+        const next = { ...e, status: 'active' as const };
+        delete next.completedAt;
+        await this.store.putEnrollment(next);
+      }
+      this.emit({ type: 'changed' });
+      if (reopen) await this.syncReminders();
     }
+  }
+
+  /** Every ticked reading of one enrollment (for exports). */
+  async completions(enrollmentId: string): Promise<Completion[]> {
+    return this.store.listCompletions(enrollmentId);
   }
 
   // ---- views -------------------------------------------------------------

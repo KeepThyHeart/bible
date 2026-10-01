@@ -21,18 +21,27 @@ export interface IcsOptions {
 }
 
 function escapeText(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }
 
-/** Fold lines longer than 75 octets (RFC 5545 3.1). */
+const utf8 = new TextEncoder();
+
+/** Fold lines longer than 75 octets (RFC 5545 3.1), never inside a UTF-8 character. */
 function fold(line: string): string {
   const out: string[] = [];
-  let rest = line;
-  while (rest.length > 74) {
-    out.push(rest.slice(0, 74));
-    rest = ' ' + rest.slice(74);
+  let cur = '';
+  let bytes = 0;
+  for (const ch of line) {
+    const n = utf8.encode(ch).length;
+    if (bytes + n > 75) {
+      out.push(cur);
+      cur = ' ';
+      bytes = 1;
+    }
+    cur += ch;
+    bytes += n;
   }
-  out.push(rest);
+  out.push(cur);
   return out.join('\r\n');
 }
 

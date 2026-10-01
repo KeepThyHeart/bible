@@ -102,8 +102,8 @@ export function isWholeChapters(r: { start: VerseIdNumber; end: VerseIdNumber })
 }
 
 /**
- * Format a reading for display: "Genesis 1-3", "Psalms 119:1-24", "Jude 1-8", "John 3:16".
- * `bookName` supplies the (possibly localized) name. Single-chapter books print verses only.
+ * Format a reading for display: "Genesis 1-3", "Psalms 119:1-24", "Jude 1:1-8", "John 3:16".
+ * `bookName` supplies the (possibly localized) name. A whole single-chapter book prints its name only.
  */
 export function formatReading(r: Pick<Reading, 'start' | 'end'>, bookName: (book: number) => string): string {
   const a = splitVid(r.start);
@@ -114,7 +114,8 @@ export function formatReading(r: Pick<Reading, 'start' | 'end'>, bookName: (book
   const endsChapter = z.verse === versesInChapter(z.book, z.chapter);
   if (single) {
     if (startsChapter && endsChapter) return name;
-    return a.verse === z.verse ? `${name} ${a.verse}` : `${name} ${a.verse}-${z.verse}`;
+    // "Jude 1:1-8", not "Jude 1-8" (which reads as chapters).
+    return a.verse === z.verse ? `${name} 1:${a.verse}` : `${name} 1:${a.verse}-${z.verse}`;
   }
   if (startsChapter && endsChapter) {
     if (a.chapter === 1 && z.chapter === chapterCount(a.book) && chapterCount(a.book) > 1) return name;
