@@ -20,7 +20,17 @@ function openQuizPanel(): void {
       return;
     }
   }
-  layout.addPanel('quiz', undefined, genericEnglishTitle('quiz'));
+  // Beside the text, not over it: a tab next to the Study pane when there is one,
+  // else to the right of the Bible pane, else wherever dockview puts it.
+  const api = layout.dockviewApi;
+  const study = layout.getPanelsByType('study').find((p) => api?.getPanel(p.panelId));
+  const bible = layout.getPanelsByType('bible').find((p) => api?.getPanel(p.panelId));
+  const position = study
+    ? { direction: 'within', referencePanel: study.panelId }
+    : bible
+      ? { direction: 'right', referencePanel: bible.panelId }
+      : undefined;
+  layout.addPanel('quiz', undefined, genericEnglishTitle('quiz'), position);
 }
 
 export function registerQuizCommands(registry: ICommandRegistry): IDisposable[] {

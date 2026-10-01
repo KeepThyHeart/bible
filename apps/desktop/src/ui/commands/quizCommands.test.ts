@@ -6,6 +6,8 @@ const h = vi.hoisted(() => ({
     panels: new Map<string, { contentType: string }>(),
     dockviewApi: null as null | { getPanel: (id: string) => { api: { setActive: () => void } } },
     addPanel: vi.fn(),
+    typed: new Map<string, { panelId: string }[]>(),
+    getPanelsByType(type: string) { return this.typed.get(type) ?? []; },
   },
   setActive: vi.fn(),
 }));
@@ -32,6 +34,7 @@ describe('quiz commands', () => {
     h.panels = new Map([['default', { currentBook: 41, currentChapter: 4 }]]);
     h.layout.panels = new Map();
     h.layout.dockviewApi = null;
+    h.layout.typed = new Map();
     h.layout.addPanel.mockReset();
     h.setActive.mockReset();
     useQuizLaunchStore.setState({ pending: null });
@@ -47,7 +50,7 @@ describe('quiz commands', () => {
   it('quiz.open adds a panel, or focuses the existing one', async () => {
     const { 'quiz.open': open } = commands();
     await open.handler({} as never);
-    expect(h.layout.addPanel).toHaveBeenCalledWith('quiz', undefined, expect.any(String));
+    expect(h.layout.addPanel).toHaveBeenCalledWith('quiz', undefined, expect.any(String), undefined);
 
     h.layout.addPanel.mockReset();
     h.layout.panels = new Map([['p9', { contentType: 'quiz' }]]);
@@ -64,6 +67,17 @@ describe('quiz commands', () => {
       passages: [{ start: 41004001, end: 41004999 }],
       label: 'Mark 4',
     });
-    expect(h.layout.addPanel).toHaveBeenCalledWith('quiz', undefined, expect.any(String));
+    expect(h.layout.addPanel).toHaveBeenCalledWith('quiz', undefined, expect.any(String), undefined);
+  });
+
+  it('opens the panel beside the text: next to Study, else right of the Bible', async () => {
+    const { 'quiz.open': open } = commands();
+    h.layout.dockviewApi = { getPanel: () => ({ api: { setActive: h.setActive } }) };
+    h.layout.typed = new Map([['bible', [{ panelId: 'b1' }]], ['study', [{ panelId: 's1' }]]]);
+    await open.handler({} as never);
+    expect(h.layout.addPanel).toHaveBeenLastCalledWith('quiz', undefined, expect.any(String), { direction: 'within', referencePanel: 's1' });
+    h.layout.typed = new Map([['bible', [{ panelId: 'b1' }]]]);
+    await open.handler({} as never);
+    expect(h.layout.addPanel).toHaveBeenLastCalledWith('quiz', undefined, expect.any(String), { direction: 'right', referencePanel: 'b1' });
   });
 });
