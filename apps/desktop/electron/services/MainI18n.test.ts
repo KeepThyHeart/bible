@@ -74,7 +74,9 @@ describe('MainI18n', () => {
 
     it('does not isolate params the message does not interpolate', () => {
       setMainLocale('he-IL');
-      expect(t('main.dialog.saveBackup', { x: 'y' })).toBe('Save Backup File');
+      const out = t('main.dialog.saveBackup', { x: 'y' });
+      expect(out).not.toContain(FSI);
+      expect(out).not.toContain('y');
     });
 
     it('isolateForUi wraps only in an RTL UI', () => {
