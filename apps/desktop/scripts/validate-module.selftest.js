@@ -37,6 +37,7 @@ const {
 const { validateModule, loadCanon } = require('./validate-module.js');
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
+const QUIZ_SCHEMA = path.join(PROJECT_ROOT, 'packages', 'core', 'sql', 'schemas', 'initial', 'Quiz.sql');
 const TIMELINE_SCHEMA = path.join(PROJECT_ROOT, 'packages', 'core', 'sql', 'schemas', 'initial', 'Timeline.sql');
 const BIBLE_SCHEMA = path.join(PROJECT_ROOT, 'packages', 'core', 'sql', 'schemas', 'initial', 'BibleTranslation.sql');
 const COMMENTARY_SCHEMA = path.join(PROJECT_ROOT, 'packages', 'core', 'sql', 'schemas', 'initial', 'Commentary.sql');
@@ -413,6 +414,17 @@ async function main() {
     const codes = errorCodes(result);
     console.log(`  codes: ${JSON.stringify(codes)}`);
     assert(codes.includes('content_sha256_mismatch'), 'content_sha256_mismatch fires for a stored hash of all zeros');
+  });
+
+  await test('a quiz module is detected by quiz_question and passes the content-table check', async () => {
+    const dbPath = tmpDbPath('quiz-ok');
+    const db = new Database(dbPath);
+    db.exec(loadSchemaSql(QUIZ_SCHEMA));
+    db.close();
+    const ok = await validateModule(dbPath, { canon });
+    console.log(`  moduleType: ${ok.moduleType}, codes: ${JSON.stringify(errorCodes(ok))}`);
+    assert(ok.moduleType === 'quiz', 'detected as quiz');
+    assert(!errorCodes(ok).includes('missing_content_table'), 'no missing_content_table for the quiz schema');
   });
 
   await test('a timeline module is detected by its tables and needs all four', async () => {

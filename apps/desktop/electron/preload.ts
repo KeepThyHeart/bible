@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
-import type { TimelineDataset } from '@bible/core/browser';
+import type { TimelineDataset, QuizCatalog, QuizPassage, QuizFilter, QuizQuestion, QuizItemStat, QuizAttempt, QuizSessionSummary } from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -203,6 +203,16 @@ export interface ElectronAPI {
   // Timeline module. `null` when no timeline module is installed.
   timeline: {
     getDataset: () => Promise<Result<TimelineDataset | null>>;
+  };
+
+  // Quiz (task 0074): questions from every installed quiz module; progress in the user database.
+  quiz: {
+    getCatalog: () => Promise<Result<QuizCatalog>>;
+    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => Promise<Result<QuizQuestion[]>>;
+    getStats: (keys: string[]) => Promise<Result<Record<string, QuizItemStat>>>;
+    recordAttempt: (attempt: QuizAttempt) => Promise<Result<void>>;
+    recordSession: (summary: QuizSessionSummary) => Promise<Result<void>>;
+    listSessions: (limit?: number) => Promise<Result<QuizSessionSummary[]>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -812,6 +822,15 @@ const electronAPI: ElectronAPI = {
 
   timeline: {
     getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
+  },
+
+  quiz: {
+    getCatalog: () => ipcRenderer.invoke('quiz:getCatalog'),
+    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => ipcRenderer.invoke('quiz:getQuestions', passages, filter),
+    getStats: (keys: string[]) => ipcRenderer.invoke('quiz:getStats', keys),
+    recordAttempt: (attempt: QuizAttempt) => ipcRenderer.invoke('quiz:recordAttempt', attempt),
+    recordSession: (summary: QuizSessionSummary) => ipcRenderer.invoke('quiz:recordSession', summary),
+    listSessions: (limit?: number) => ipcRenderer.invoke('quiz:listSessions', limit),
   },
 
   crossReference: {
