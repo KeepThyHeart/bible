@@ -217,7 +217,7 @@ export function ReadingPlanBuilderForm({
       <div className="kth-field">
         <label htmlFor={`${uid}-name`}>{L.name}</label>
         <input id={`${uid}-name`} className="kth-input" type="text" value={name} placeholder={L.namePlaceholder}
-          onChange={(e) => setName(e.target.value)} />
+          onChange={(e) => setName(e.currentTarget.value)} />
       </div>
 
       <fieldset className="kth-fieldset">
@@ -278,7 +278,7 @@ export function ReadingPlanBuilderForm({
             <span>{L.paceDays}</span>
           </label>
           <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceDays} value={daysN}
-            disabled={paceKind !== 'days'} onChange={(e) => setDaysN(Number(e.target.value))} />
+            disabled={paceKind !== 'days'} onChange={(e) => setDaysN(Number(e.currentTarget.value))} />
         </div>
         <div className="kth-rp-builder__option">
           <label className="kth-rp-builder__choice">
@@ -286,7 +286,7 @@ export function ReadingPlanBuilderForm({
             <span>{L.paceEndDate}</span>
           </label>
           <input type="date" className="kth-input kth-rp-builder__date" aria-label={L.paceEndDate} value={endDate}
-            disabled={paceKind !== 'endDate'} onChange={(e) => setEndDate(e.target.value)} />
+            disabled={paceKind !== 'endDate'} onChange={(e) => setEndDate(e.currentTarget.value)} />
         </div>
         <div className="kth-rp-builder__option">
           <label className="kth-rp-builder__choice">
@@ -294,7 +294,7 @@ export function ReadingPlanBuilderForm({
             <span>{L.paceChapters}</span>
           </label>
           <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceChapters} value={chapters}
-            disabled={paceKind !== 'chaptersPerDay'} onChange={(e) => setChapters(Number(e.target.value))} />
+            disabled={paceKind !== 'chaptersPerDay'} onChange={(e) => setChapters(Number(e.currentTarget.value))} />
         </div>
         <div className="kth-rp-builder__option">
           <label className="kth-rp-builder__choice">
@@ -302,7 +302,7 @@ export function ReadingPlanBuilderForm({
             <span>{L.paceVerses}</span>
           </label>
           <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceVerses} value={verses}
-            disabled={paceKind !== 'versesPerDay'} onChange={(e) => setVerses(Number(e.target.value))} />
+            disabled={paceKind !== 'versesPerDay'} onChange={(e) => setVerses(Number(e.currentTarget.value))} />
         </div>
       </fieldset>
 
@@ -337,7 +337,7 @@ export function ReadingPlanBuilderForm({
         <div className="kth-field">
           <label htmlFor={`${uid}-start`}>{L.startDate}</label>
           <input id={`${uid}-start`} className="kth-input kth-rp-builder__date" type="date" value={startDate}
-            onChange={(e) => setStartDate(e.target.value)} />
+            onChange={(e) => setStartDate(e.currentTarget.value)} />
         </div>
       </fieldset>
 

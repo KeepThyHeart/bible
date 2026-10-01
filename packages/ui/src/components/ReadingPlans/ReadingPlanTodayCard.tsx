@@ -129,7 +129,7 @@ export function ReadingPlanTodayCard({
               return (
                 <li key={r.index} className="kth-rp-reading">
                   <label className="kth-rp-reading__label">
-                    <input type="checkbox" checked={r.done} onChange={(e) => onToggleReading(r.index, e.target.checked)} />
+                    <input type="checkbox" checked={r.done} onChange={(e) => onToggleReading(r.index, e.currentTarget.checked)} />
                     <span className={r.done ? 'kth-rp-reading__text kth-rp-reading__text--done' : 'kth-rp-reading__text'}>
                       {prefix}{ref}
                     </span>
