@@ -6,6 +6,7 @@ import { BibleNotesFileService, BnFile, NoteConflictError } from '../services/Bi
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
+import { moveNoteDirectionKeys } from './noteDirectionHandlers';
 
 let fileNotesService: BibleNotesFileService | null = null;
 
@@ -144,8 +145,9 @@ export function registerFileNotesHandlers(): void {
     getService().createFolder(relativePath);
   });
 
-  ipcHandler<[string, string], void>('file-notes:rename', (oldPath, newPath) => {
+  ipcHandler<[string, string], void>('file-notes:rename', async (oldPath, newPath) => {
     getService().rename(oldPath, newPath);
+    await moveNoteDirectionKeys(oldPath, newPath);
   });
 
   ipcHandler<[string], void>('file-notes:delete', async (relativePath) => {

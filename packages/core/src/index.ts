@@ -167,6 +167,8 @@ export * as Backup from './Backup';
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+export { UserDataNoteDirectionStore, NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION, isNoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
+export type { NoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
 
 // Web user-data store (task 0084): also re-exported from `./browser`.
 export * as UserData from './UserData';

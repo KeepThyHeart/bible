@@ -62,8 +62,8 @@ interface NoteEditorProps {
    * The note's own default direction. Unset means "follow the UI direction"
    * (the user's main language). Blocks still auto-detect per paragraph; this
    * decides alignment of empty paragraphs and where the caret sits in a new
-   * note. There is no persistence route for it yet (no schema change in task
-   * 0076), so hosts normally leave it unset.
+   * note. The notes pane stores the per-note choice in the user-data store
+   * (`noteDirectionAPI`) and passes it here.
    */
   defaultDirection?: 'ltr' | 'rtl';
 }
