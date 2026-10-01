@@ -308,3 +308,8 @@ export * from './Settings';
 // cache, ...), the recorded-chapter manifest and index validators plus their
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
+
+// --- Weights, measures and money (task 0069) -------------------------------------
+// Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
+// converter, anchor resolver, decoration layer and popup view model. Pure.
+export * from './Measures';
