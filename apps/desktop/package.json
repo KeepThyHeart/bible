@@ -13,6 +13,7 @@
     "dev": "cross-env ELECTRON_DISABLE_SANDBOX=1 electron-vite dev",
     "build": "electron-vite build",
     "postbuild": "pnpm run rebuild-native",
+    "i18n:pseudo": "node scripts/i18n-pseudo.js && node scripts/i18n-pseudo.js --rtl",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "lint": "eslint .",
@@ -36,7 +37,9 @@
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
     "test:e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug",
-    "test:e2e:report": "playwright show-report e2e/playwright-report"
+    "test:e2e:report": "playwright show-report e2e/playwright-report",
+    "test:e2e:rtl-visual": "RTL_VISUAL=1 playwright test --config=e2e/playwright.config.ts rtl-visual",
+    "test:e2e:rtl-visual:update": "RTL_VISUAL=1 playwright test --config=e2e/playwright.config.ts rtl-visual --update-snapshots"
   },
   "keywords": [
     "bible",

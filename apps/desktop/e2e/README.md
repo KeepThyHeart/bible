@@ -256,3 +256,38 @@ The spec's third test is annotated `test.fail()` - it documents a known extensio
 | `study-pane.spec.ts` | Study pane: topics, commentaries, cross-refs, pin/unpin, navigation |
 | `tab-strip-actions.spec.ts` | Alignment of the dockview tab-strip header actions |
 | `topics-pane.spec.ts` | Topics pane: browse, search, hierarchy, tag graph, also-in links |
+
+## RTL visual baselines
+
+`tests/rtl-visual.spec.ts` (task 0076) holds two groups of tests for right-to-left UIs (`ar`):
+
+- **Structural assertions** run with the normal suite: `<html dir="rtl" lang="ar">`, scripture
+  keeping its own (LTR) direction inside the RTL UI, the verse context menu staying inside the
+  viewport at either edge, and arrow-key roving focus following the logical direction.
+- **Visual baselines** (`en` and `ar`, about ten key screens) run only with `RTL_VISUAL=1` on Linux and
+  are skipped otherwise.
+- The locale is set through `localStorage['bible.ui.locale']` plus a reload, as in `chrome-bands.spec.ts`.
+  The window is resized to 1400x900 first.
+- `chrome-bands.spec.ts` also checks the chrome budget for `ar`, `he-IL`, `fa-IR` and the dev `xx-rtl`
+  (a locale without a catalog in `apps/desktop/locales` is skipped).
+
+Generate or refresh the baselines (an explicit action, never automatic):
+
+```bash
+RTL_VISUAL=1 pnpm --filter @bible/desktop exec playwright test --config=e2e/playwright.config.ts rtl-visual --update-snapshots
+```
+
+Compare against them:
+
+```bash
+RTL_VISUAL=1 pnpm --filter @bible/desktop exec playwright test --config=e2e/playwright.config.ts rtl-visual 
+```
+
+Notes:
+
+- Linux only. The apps use system fonts, so baselines are per machine until language-pack fonts
+  are bundled; regenerate them when the font set changes.
+- **Baselines are not committed yet.** They could not be generated in the data-less worktree the
+  specs were written in (the Bible modules are git-ignored). Generate them on a machine with data,
+  review the images by eye, then commit the `*-snapshots/` folder next to the spec.
+- Masked regions (version strings, clocks, offline badge) are blanked before comparison.

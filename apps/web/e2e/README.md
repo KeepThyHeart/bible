@@ -96,3 +96,35 @@ script runs in about a second.
 - Loading a chapter selects its first verse, so a test that wants to prove
   clicking selects a verse must click a different one — clicking the selected
   verse toggles it off.
+
+## RTL visual baselines
+
+`tests/rtl-visual.spec.ts` (task 0076) holds two groups of tests for right-to-left UIs (`ar`):
+
+- **Structural assertions** run with the normal suite: `<html dir="rtl" lang="ar">`, scripture
+  keeping its own (LTR) direction inside the RTL UI, the verse context menu staying inside the
+  viewport at either edge, and arrow-key roving focus following the logical direction.
+- **Visual baselines** (`en` and `ar`, about ten key screens) run only with `RTL_VISUAL=1` on Linux and
+  are skipped otherwise.
+- Projects: `desktop-chrome` and `mobile-chrome` only. The language is set through `localStorage.i18nextLng`.
+
+Generate or refresh the baselines (an explicit action, never automatic):
+
+```bash
+RTL_VISUAL=1 pnpm --filter @bible/web exec playwright test --config=e2e/playwright.config.ts rtl-visual --project=desktop-chrome --project=mobile-chrome --update-snapshots
+```
+
+Compare against them:
+
+```bash
+RTL_VISUAL=1 pnpm --filter @bible/web exec playwright test --config=e2e/playwright.config.ts rtl-visual --project=desktop-chrome --project=mobile-chrome 
+```
+
+Notes:
+
+- Linux only. The apps use system fonts, so baselines are per machine until language-pack fonts
+  are bundled; regenerate them when the font set changes.
+- **Baselines are not committed yet.** They could not be generated in the data-less worktree the
+  specs were written in (the Bible modules are git-ignored). Generate them on a machine with data,
+  review the images by eye, then commit the `*-snapshots/` folder next to the spec.
+- Masked regions (version strings, clocks, offline badge) are blanked before comparison.

@@ -227,22 +227,40 @@ test.describe('Bible pane chrome', () => {
     expect(after.chromeHeight).toBeLessThan(before.chromeHeight);
   });
 
-  test('stays within the same budget in RTL (ar)', async ({ electronApp, window }) => {
-    await expect(window.locator('[data-testid="app-loaded"]')).toBeAttached({ timeout: 30000 });
-    await window.evaluate(() => globalThis.localStorage.setItem('bible.ui.locale', 'ar'));
-    await window.reload();
-    await window.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
-    await window.waitForSelector('[data-testid^="verse-"]', { timeout: 30000 });
-    // The locale actually having switched - measuring the LTR layout would
-    // silently pass the RTL band check.
-    await expect(window.locator('html')).toHaveAttribute('dir', 'rtl', { timeout: 15000 });
+  // Every shipped RTL locale plus the dev-only pseudo-RTL locale. `lang` is the
+  // `<html lang>` value the locale registry is expected to produce.
+  const RTL_LOCALES: ReadonlyArray<{ locale: string; lang: string }> = [
+    { locale: 'ar', lang: 'ar' },
+    { locale: 'he-IL', lang: 'he-IL' },
+    { locale: 'fa-IR', lang: 'fa-IR' },
+    { locale: 'xx-rtl', lang: 'xx-rtl' },
+  ];
 
-    await dismissFirstRun(window);
-    const data = await measure(electronApp, window, 'chrome-ar');
-    assertChrome(data);
+  for (const { locale, lang } of RTL_LOCALES) {
+    test(`stays within the same budget in RTL (${locale})`, async ({ electronApp, window }) => {
+      // The app only switches to a locale it has a catalog for, so a planned
+      // locale whose catalog has not landed yet is skipped, visibly, rather
+      // than measured as English.
+      test.skip(
+        !fs.existsSync(path.resolve(__dirname, '../../locales', locale)),
+        `no ${locale} catalog in apps/desktop/locales yet`,
+      );
+      await expect(window.locator('[data-testid="app-loaded"]')).toBeAttached({ timeout: 30000 });
+      await window.evaluate((value: string) => globalThis.localStorage.setItem('bible.ui.locale', value), locale);
+      await window.reload();
+      await window.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
+      await window.waitForSelector('[data-testid^="verse-"]', { timeout: 30000 });
+      // The locale actually having switched - measuring the LTR layout would
+      // silently pass the RTL band check.
+      await expect(window.locator('html')).toHaveAttribute('dir', 'rtl', { timeout: 15000 });
 
-    // Direction actually flipped - otherwise this is just the en test twice.
-    expect(data.dir).toBe('rtl');
-    expect(data.lang).toBe('ar');
-  });
+      await dismissFirstRun(window);
+      const data = await measure(electronApp, window, `chrome-${locale}`);
+      assertChrome(data);
+
+      // Direction actually flipped - otherwise this is just the en test twice.
+      expect(data.dir).toBe('rtl');
+      expect(data.lang).toBe(lang);
+    });
+  }
 });

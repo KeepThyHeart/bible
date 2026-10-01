@@ -157,7 +157,17 @@ export async function changeLocale(code: string): Promise<void> {
 // globalization roadmap).
 // ---------------------------------------------------------------------------
 
-const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
+/**
+ * Dev-only pseudo-locales (`xx-pseudo`, `xx-rtl`): any `xx-*` folder this
+ * build has. Only ever honoured when `import.meta.env.DEV`; a production
+ * build resolves them like any other unknown tag (to `en`).
+ */
+function devPseudoTags(): string[] {
+  return import.meta.env.DEV ? [...LOCALE_INFOS.keys()].filter((c) => c.toLowerCase().startsWith('xx-')) : [];
+}
+
+const REGISTRY_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
+const SUPPORTED_TAGS = [...REGISTRY_TAGS, ...devPseudoTags()];
 
 /**
  * Reduce a browser- or `localStorage`-reported tag to one this app ships,
@@ -169,6 +179,8 @@ const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
  *    (`es-MX` -> `es`; `pt-PT` -> `pt-BR`, since this wave only ships the
  *    Brazilian catalog; `zh-Hant` -> `zh-Hans` likewise).
  *  - Nothing shipped shares a primary subtag: `en`.
+ *  - DEV builds only: an exact `xx-*` pseudo-locale tag that has a locale
+ *    folder (`xx-rtl`) resolves to itself.
  *
  * Exported for unit testing and wired in as
  * `i18next-browser-languagedetector`'s `convertDetectedLanguage`, so this is
@@ -178,10 +190,16 @@ const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
 export function resolveSupportedLng(detected: string): string {
   if (!detected) return 'en';
   const lower = detected.toLowerCase();
-  const exact = SUPPORTED_TAGS.find((t) => t.toLowerCase() === lower);
+  // DEV builds only: an exact `xx-*` tag with a locale folder is selectable
+  // (`?lng=xx-rtl`, `localStorage.i18nextLng = 'xx-rtl'`). Never in production.
+  if (import.meta.env.DEV && lower.startsWith('xx-')) {
+    const pseudo = devPseudoTags().find((t) => t.toLowerCase() === lower);
+    if (pseudo) return pseudo;
+  }
+  const exact = REGISTRY_TAGS.find((t) => t.toLowerCase() === lower);
   if (exact) return exact;
   const primary = lower.split('-')[0];
-  const byPrimary = SUPPORTED_TAGS.find((t) => t.split('-')[0].toLowerCase() === primary);
+  const byPrimary = REGISTRY_TAGS.find((t) => t.split('-')[0].toLowerCase() === primary);
   return byPrimary ?? 'en';
 }
 
@@ -219,7 +237,9 @@ i18n
     supportedLngs: SUPPORTED_TAGS,
 
     detection: {
-      order: ['localStorage', 'navigator'],
+      // `?lng=xx-rtl` (dev pseudo-locales) works only in DEV builds; the
+      // resolver above maps it to `en` anywhere else.
+      order: import.meta.env.DEV ? ['querystring', 'localStorage', 'navigator'] : ['localStorage', 'navigator'],
       lookupLocalStorage: 'i18nextLng',
       caches: ['localStorage'],
       convertDetectedLanguage: resolveSupportedLng,

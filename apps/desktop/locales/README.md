@@ -63,7 +63,9 @@ locales/
   ru/                  Russian
   zh-Hans/             Chinese (Simplified)
   xx-pseudo/           GENERATED pseudo-locale for finding unlocalized strings.
-                       Never edit by hand; run scripts/i18n-pseudo.js.
+                       Never edit by hand; run `pnpm run i18n:pseudo`.
+  xx-rtl/              GENERATED dev-only RTL pseudo-locale (English text in RLM
+                       marks, direction rtl) for testing the mirrored layout.
 ```
 
 Locale folder names are BCP-47 tags (`es`, `pt-BR`, `zh-Hans`). They must match `^[a-zA-Z0-9_-]+$` - the IPC bridge that reads catalogs rejects anything else as a path-traversal attempt.
@@ -258,7 +260,16 @@ Promoting a built-in locale is exactly one edit: change `locale.status` in its `
 | `node scripts/check-translations.js es` | Same, for one locale. |
 | `node apps/desktop/scripts/i18n-validate.js` | Strict key-set check of `locales/` against `en/`. Reports missing keys (fatal), extra keys, and JSON parse errors. |
 | `node apps/desktop/scripts/i18n-validate.js --json` | Machine-readable output. |
-| `node apps/desktop/scripts/i18n-pseudo.js` | Regenerates `xx-pseudo/` from `en/`. Run after changing `en/`. |
+| `node apps/desktop/scripts/i18n-pseudo.js` | Regenerates `xx-pseudo/` from `en/` (wrapper for the shared `scripts/i18n-pseudo.js`). Run after changing `en/`. |
+| `pnpm run i18n:pseudo` (repo root) | Regenerates `xx-pseudo/` (desktop) and `xx-rtl/` (desktop and web). |
+| `node scripts/i18n-pseudo.js --rtl` | Regenerates only `xx-rtl/` for both apps (`--app=desktop\|web\|all` narrows it). |
+
+### Pseudo-locales (development only)
+
+Both are generated from `en/`, never edited by hand, marked `draft` (so they never appear in the language picker for users) and selectable only in Preferences > General in development builds.
+
+- `xx-pseudo` wraps each string in `⟦ ⟧`, swaps ASCII letters for accented look-alikes and pads about 30 %. Any English text still visible in this locale escaped the i18n migration; the padding exposes layouts that break with longer translations.
+- `xx-rtl` ("Pseudo RTL") keeps the English text readable, wrapped in RLM marks (U+200F), and declares `locale.direction: rtl`, so the whole UI mirrors. Use it to check layout mirroring, icon flips and bidi isolation without a real Arabic, Hebrew or Persian catalog. ICU syntax (`{name}`, plural/select bodies) is never altered.
 
 Neither validator can tell you whether a translation is *good* - only whether it is *complete*. That is what review is for.
 
