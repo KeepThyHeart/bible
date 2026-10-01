@@ -12,7 +12,7 @@
  * fully-qualified strings to avoid typo-prone string concatenation in callers.
  */
 
-import { EXTENSION_API_REGISTRY } from './Declarations/registry';
+import { EXTENSION_API_REGISTRY, type ApiRegistry } from './Declarations/registry';
 
 // --- Bare event identifiers ------------------------------------------------
 
@@ -160,23 +160,58 @@ const HOST_EVENT_PREFIXES: readonly string[] = [
 /** Host-level events the host fires today (the registry adds the namespaces' fired ones). */
 const HOST_FIRED_EVENTS: readonly string[] = [ACT_ON_STARTUP_FINISHED];
 
-const REGISTRY_EVENTS = EXTENSION_API_REGISTRY.activationEvents;
-
 function unique(list: readonly string[]): readonly string[] {
   return [...new Set(list)];
 }
 
+/** The activation-event vocabulary of one registry: host-level events plus the namespaces'. */
+export interface ActivationVocabulary {
+  /** Bare (non-parameterized) events. */
+  readonly bare: readonly string[];
+  /** Parameterized prefixes (ending in `:`). */
+  readonly prefixes: readonly string[];
+  /** Events (bare, or prefixes) the host has a firing site for. */
+  readonly fired: readonly string[];
+  /** True if `event` is bare-known, or a known prefix with a real parameter. */
+  isKnown(event: string): boolean;
+  /** True if the host fires `event`. */
+  isFired(event: string): boolean;
+}
+
+/**
+ * Build the vocabulary for `registry`. The module-level constants below are
+ * this for the shared registry; the manifest validator calls it with
+ * whatever registry it was given, so a test registry with an extra
+ * namespace validates that namespace's events too.
+ */
+export function activationVocabulary(registry: ApiRegistry): ActivationVocabulary {
+  const declared = registry.activationEvents;
+  const bare = unique([
+    ...HOST_BARE_EVENTS,
+    ...declared.filter((e) => !e.event.endsWith(':')).map((e) => e.event),
+  ]);
+  const prefixes = unique([
+    ...HOST_EVENT_PREFIXES,
+    ...declared.filter((e) => e.event.endsWith(':')).map((e) => e.event),
+  ]);
+  const fired = unique([...HOST_FIRED_EVENTS, ...declared.filter((e) => e.fired).map((e) => e.event)]);
+  return {
+    bare,
+    prefixes,
+    fired,
+    isKnown: (event) =>
+      bare.includes(event) || prefixes.some((p) => event.startsWith(p) && event.length > p.length),
+    isFired: (event) => fired.some((e) => e === event || (e.endsWith(':') && event.startsWith(e))),
+  };
+}
+
+const DEFAULT_VOCABULARY = activationVocabulary(EXTENSION_API_REGISTRY);
+
 /** Bare (non-parameterized) events the vocabulary accepts: host-level + registry-declared. */
-export const BARE_ACTIVATION_EVENTS: readonly string[] = unique([
-  ...HOST_BARE_EVENTS,
-  ...REGISTRY_EVENTS.filter((e) => !e.event.endsWith(':')).map((e) => e.event),
-]);
+export const BARE_ACTIVATION_EVENTS: readonly string[] = DEFAULT_VOCABULARY.bare;
 
 /** Every parameterized prefix the vocabulary accepts: host-level + registry-declared. */
-export const ACTIVATION_EVENT_PREFIXES: readonly string[] = unique([
-  ...HOST_EVENT_PREFIXES,
-  ...REGISTRY_EVENTS.filter((e) => e.event.endsWith(':')).map((e) => e.event),
-]);
+export const ACTIVATION_EVENT_PREFIXES: readonly string[] = DEFAULT_VOCABULARY.prefixes;
 
 /**
  * The events the host actually fires (`onStartupFinished` at boot,
@@ -187,18 +222,14 @@ export const ACTIVATION_EVENT_PREFIXES: readonly string[] = unique([
  * (`ExtensionHost.warnOnUnfiredActivationEvents` via `DeclaredContributions`).
  * Namespace events are fired per their declaration's `fired` flag.
  */
-export const FIRED_ACTIVATION_EVENTS: readonly string[] = unique([
-  ...HOST_FIRED_EVENTS,
-  ...REGISTRY_EVENTS.filter((e) => e.fired).map((e) => e.event),
-]);
+export const FIRED_ACTIVATION_EVENTS: readonly string[] = DEFAULT_VOCABULARY.fired;
 
 /** True if `event` is a syntactically valid activation event (bare or prefixed with a real parameter). */
 export function isKnownActivationEvent(event: string): boolean {
-  if (BARE_ACTIVATION_EVENTS.includes(event)) return true;
-  return ACTIVATION_EVENT_PREFIXES.some((p) => event.startsWith(p) && event.length > p.length);
+  return DEFAULT_VOCABULARY.isKnown(event);
 }
 
 /** True if the host has a firing site for `event` today (see `FIRED_ACTIVATION_EVENTS`). */
 export function isFiredActivationEvent(event: string): boolean {
-  return FIRED_ACTIVATION_EVENTS.some((e) => e === event || (e.endsWith(':') && event.startsWith(e)));
+  return DEFAULT_VOCABULARY.isFired(event);
 }

@@ -117,11 +117,29 @@ import type {
  *
  * The strict-semver / 12-month-dual-support policy above is retired along
  * with the number; it can be reinstated verbatim once a real beta or public
- * release makes versioning promises meaningful. Until then, treat every
- * change - additive or breaking - as pre-release churn: bump the middle
- * segment (`0.2.0`, `0.3.0`, ...) for any surface change worth noting in an
- * extension's `engines.bibleApp` range, and do not read more into the number
- * than that.
+ * release makes versioning promises meaningful.
+ *
+ * **Bump rule (task 0086).** The declared surface - every namespace, method,
+ * permission, activation event, `contributes` key and event channel in
+ * `Declarations/` - is recorded with this version in
+ * `Declarations/apiSurface.lock.json`, and `Declarations/registrySync.test.ts`
+ * fails when the surface changes but this number does not. On `0.x`, a caret
+ * range (`^0.1.0`, which the word-count example and every scaffold use)
+ * admits only `0.1.*`, so:
+ *
+ *   - **Additive** change (new namespace, method, permission, event, key):
+ *     bump the PATCH segment (`0.1.0` -> `0.1.1`). Existing extensions keep
+ *     loading. Set the new declaration's `since` to the new version. An
+ *     extension that cannot work without the addition declares
+ *     `engines.bibleApp: "^0.1.1"`; one that merely uses it when present
+ *     keeps its old range and feature-detects (`if (api.speech)`).
+ *   - **Breaking** change (removal, renamed method, narrowed type, a method
+ *     newly gated by a permission): bump the MIDDLE segment (`0.2.0`). Every
+ *     `^0.1.x` extension is refused at activation until it is updated - which
+ *     is the point.
+ *
+ * Then refresh the lock: `UPDATE_EXTENSION_API=1 pnpm --filter @bible/core
+ * exec vitest run src/Extensions/Declarations/registrySync.test.ts`.
  *
  * This round's breaking changes (the `onDid*` -> `api.events.subscribe`
  * unification below) ship under this same `0.1.0` - there is no

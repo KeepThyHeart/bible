@@ -1,0 +1,417 @@
+{
+  "version": "0.1.0",
+  "surface": {
+    "namespaces": [
+      {
+        "name": "ai",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "isAvailable": "open"
+        },
+        "wire": {}
+      },
+      {
+        "name": "auth",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": "network",
+        "methods": {
+          "openExternal": "network:oauth",
+          "refreshOAuth": "network",
+          "startOAuth": "network"
+        },
+        "wire": {}
+      },
+      {
+        "name": "bible",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "getRange": "bible:read",
+          "getTokensForRange": "bible:read",
+          "getVerse": "bible:read",
+          "getVerseTokens": "bible:read",
+          "iterateVerses": "bible:read",
+          "listBooks": "bible:read",
+          "listChapters": "bible:read",
+          "listModules": "bible:read",
+          "navigateToVerse": "bible:read",
+          "parseReference": "bible:read",
+          "registerProvider": "bible:provide"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "book",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "getSection": "book:read",
+          "iterateSections": "book:read",
+          "listModules": "book:read",
+          "listSections": "book:read",
+          "registerProvider": "book:provide"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "bookmarks",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "add": "bookmarks:write",
+          "createCollection": "bookmarks:write",
+          "list": "bookmarks:read",
+          "listCollections": "bookmarks:read",
+          "remove": "bookmarks:write"
+        },
+        "wire": {}
+      },
+      {
+        "name": "collections",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "addPassage": "bookmarks:write",
+          "create": "bookmarks:write",
+          "delete": "bookmarks:write",
+          "list": "bookmarks:read",
+          "listPassages": "bookmarks:read",
+          "move": "bookmarks:write",
+          "removePassage": "bookmarks:write",
+          "rename": "bookmarks:write",
+          "reorder": "bookmarks:write"
+        },
+        "wire": {}
+      },
+      {
+        "name": "commands",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "execute": "impl",
+          "register": "commands:register"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "commentary",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "getEntriesForRange": "commentary:read",
+          "getEntry": "commentary:read",
+          "iterateEntries": "commentary:read",
+          "listModules": "commentary:read",
+          "registerProvider": "commentary:provide"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "context",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "get": "open",
+          "set": "open"
+        },
+        "wire": {}
+      },
+      {
+        "name": "dictionary",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "iterateEntries": "dictionary:read",
+          "listModules": "dictionary:read",
+          "lookup": "dictionary:read",
+          "registerProvider": "dictionary:provide",
+          "search": "dictionary:read"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "events",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "publish": "open",
+          "subscribe": "open (local)"
+        },
+        "wire": {}
+      },
+      {
+        "name": "extensions",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "call": "extensions:call",
+          "isActive": "open",
+          "listProviders": "open"
+        },
+        "wire": {}
+      },
+      {
+        "name": "highlights",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "create": "highlights:write",
+          "delete": "highlights:write",
+          "list": "highlights:read",
+          "listStyles": "highlights:read",
+          "registerStyle": "highlights:write",
+          "update": "highlights:write"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "l10n",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "currentLocale": "open",
+          "t": "open"
+        },
+        "wire": {}
+      },
+      {
+        "name": "network",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": "network",
+        "methods": {
+          "fetch": "network",
+          "isHostAllowed": "network"
+        },
+        "wire": {}
+      },
+      {
+        "name": "notes",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "create": "notes:write",
+          "delete": "notes:write",
+          "get": "notes:read",
+          "list": "notes:read",
+          "update": "notes:write"
+        },
+        "wire": {}
+      },
+      {
+        "name": "panels",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "onMessage": "open (local)",
+          "postMessage": "open"
+        },
+        "wire": {
+          "setMessageHandler": "open"
+        }
+      },
+      {
+        "name": "runtime",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "expose": "open (local)",
+          "listExposed": "open (local)",
+          "unexpose": "open (local)"
+        },
+        "wire": {}
+      },
+      {
+        "name": "storage",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "delete": "storage",
+          "deleteFile": "fs:managed-folder",
+          "deleteSecret": "storage:secrets",
+          "diskUsage": "open",
+          "get": "storage",
+          "getFolderGrant": "fs:managed-folder",
+          "getFolderUsage": "fs:managed-folder",
+          "getSecret": "storage:secrets",
+          "getSetting": "open",
+          "keys": "storage",
+          "listFiles": "fs:managed-folder",
+          "openDatabase": "storage:database",
+          "readFile": "fs:managed-folder",
+          "requestFolder": "fs:managed-folder",
+          "revokeFolderGrant": "fs:managed-folder",
+          "set": "storage",
+          "setSecret": "storage:secrets",
+          "setSetting": "open",
+          "statFile": "fs:managed-folder",
+          "writeFile": "fs:managed-folder"
+        },
+        "wire": {
+          "dbBeginTransaction": "storage:database",
+          "dbClose": "storage:database",
+          "dbCommit": "storage:database",
+          "dbExec": "storage:database",
+          "dbQuery": "storage:database",
+          "dbQueryOne": "storage:database",
+          "dbRollback": "storage:database",
+          "dbRun": "storage:database"
+        }
+      },
+      {
+        "name": "tasks",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": "tasks",
+        "methods": {
+          "cancel": "tasks",
+          "isCancellationRequested": "tasks",
+          "list": "tasks",
+          "reportProgress": "tasks",
+          "run": "tasks"
+        },
+        "wire": {}
+      },
+      {
+        "name": "ui",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "invalidateVerseDecorations": "ui:verse-decorator",
+          "listThemeColorKeys": "open",
+          "openSettings": "open",
+          "pickFile": "fs:read-user",
+          "registerContextMenu": "ui:context-menu",
+          "registerPanelType": "ui:contribute-pane",
+          "registerStatusBarItem": "ui:status-bar",
+          "registerVerseDecorator": "ui:verse-decorator",
+          "registerVerseHover": "ui:verse-hover",
+          "saveFile": "fs:write-user",
+          "showConfirm": "open",
+          "showInputBox": "open",
+          "showNotification": "ui:notification",
+          "showQuickPick": "open",
+          "updateStatusBarItem": "ui:status-bar",
+          "updateVerseDecorations": "ui:verse-decorator"
+        },
+        "wire": {
+          "dispose": "open"
+        }
+      },
+      {
+        "name": "workspace",
+        "since": "0.1.0",
+        "optional": false,
+        "whenGranted": null,
+        "methods": {
+          "closePanel": "open",
+          "getActivePanel": "open",
+          "getOpenPanels": "open",
+          "openPanel": "open",
+          "revealPanel": "open",
+          "setPanelBadge": "open",
+          "setPanelTitle": "open"
+        },
+        "wire": {}
+      }
+    ],
+    "permissions": [
+      "bible:provide prompt 0.1.0",
+      "bible:read default 0.1.0",
+      "book:provide prompt 0.1.0",
+      "book:read prompt 0.1.0",
+      "bookmarks:read prompt 0.1.0",
+      "bookmarks:write prompt 0.1.0",
+      "commands:execute-builtin prompt 0.1.0",
+      "commands:register default 0.1.0",
+      "commentary:provide prompt 0.1.0",
+      "commentary:read prompt 0.1.0",
+      "dictionary:provide prompt 0.1.0",
+      "dictionary:read prompt 0.1.0",
+      "extensions:call prompt 0.1.0",
+      "fs:managed-folder separate 0.1.0",
+      "fs:read-user prompt 0.1.0",
+      "fs:write-user prompt 0.1.0",
+      "highlights:read prompt 0.1.0",
+      "highlights:write prompt 0.1.0",
+      "network separate 0.1.0",
+      "network:oauth separate 0.1.0",
+      "notes:read prompt 0.1.0",
+      "notes:write prompt 0.1.0",
+      "storage prompt 0.1.0",
+      "storage:database separate 0.1.0",
+      "storage:secrets separate 0.1.0",
+      "tasks prompt 0.1.0",
+      "ui:context-menu prompt 0.1.0",
+      "ui:contribute-pane prompt 0.1.0",
+      "ui:media prompt 0.1.0",
+      "ui:notification prompt 0.1.0",
+      "ui:status-bar prompt 0.1.0",
+      "ui:verse-decorator prompt 0.1.0",
+      "ui:verse-hover prompt 0.1.0"
+    ],
+    "activationEvents": [
+      "onCommand: fired 0.1.0",
+      "onContext: 0.1.0",
+      "onExtensionApi: 0.1.0",
+      "onProviderRoleSelected: 0.1.0",
+      "onTask: 0.1.0",
+      "onView: fired 0.1.0"
+    ],
+    "contributes": [
+      "apiExports 0.1.0",
+      "bibleProviders 0.1.0",
+      "commands 0.1.0",
+      "configuration 0.1.0",
+      "panelTypes 0.1.0"
+    ],
+    "events": [
+      "crossReferences.requested provider open 0.1.0",
+      "extension.activated event open 0.1.0",
+      "extension.deactivated event open 0.1.0",
+      "highlights.afterChange event highlights:read 0.1.0",
+      "locale.changed event open 0.1.0",
+      "notes.beforeDelete filter notes:read 0.1.0",
+      "notes.changed event notes:read 0.1.0",
+      "panel.closed event open 0.1.0",
+      "panel.focused event open 0.1.0",
+      "panel.opened event open 0.1.0",
+      "search.beforeQuery filter open 0.1.0",
+      "settings.changed event open 0.1.0",
+      "verse.activeChanged event open 0.1.0",
+      "verse.wordSelected event open 0.1.0"
+    ]
+  }
+}

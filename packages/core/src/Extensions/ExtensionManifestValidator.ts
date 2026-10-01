@@ -49,7 +49,7 @@ import type {
   PricingTier,
 } from './ExtensionManifest';
 import type { ExtensionPermission } from './Permissions';
-import { EXTENSION_API_REGISTRY } from './Declarations/registry';
+import { EXTENSION_API_REGISTRY, type ApiRegistry } from './Declarations/registry';
 import type { ContributesValidationContext } from './Declarations/defineApiNamespace';
 import {
   UI_KIT_REQUIRED_PERMISSION,
@@ -66,7 +66,8 @@ import {
   ACT_PREFIX_ON_COMMAND,
   ACT_PREFIX_ON_VIEW,
   isBuiltinOnlyEvent,
-  isKnownActivationEvent,
+  activationVocabulary,
+  type ActivationVocabulary,
 } from './ActivationEvents';
 
 // --- Result shape ----------------------------------------------------------
@@ -161,10 +162,19 @@ const BUILTIN_CONTRIBUTES_KEYS: ReadonlySet<string> = new Set([
   'bibleProviders',
 ]);
 
+const DEFAULT_ACTIVATION_VOCABULARY = activationVocabulary(EXTENSION_API_REGISTRY);
+
 // --- Validator core --------------------------------------------------------
 
 class Validator {
   readonly errors: ManifestValidationError[] = [];
+  readonly vocabulary: ActivationVocabulary;
+
+  constructor(readonly registry: ApiRegistry) {
+    this.vocabulary =
+      registry === EXTENSION_API_REGISTRY ? DEFAULT_ACTIVATION_VOCABULARY : activationVocabulary(registry);
+  }
+
   readonly warnings: ManifestValidationError[] = [];
 
   warn(path: string, code: string, message: string): void {
@@ -393,7 +403,7 @@ function validatePermissions(v: Validator, value: unknown): ExtensionPermission[
       v.add(path, 'type', `expected string, got ${typeName(perm)}`);
       return;
     }
-    if (!(ALLOWED_PERMISSIONS as readonly string[]).includes(perm)) {
+    if (!v.registry.permission(perm)) {
       v.warn(
         path,
         'permission.unknown',
@@ -597,7 +607,7 @@ function validateActivationEvents(
       );
       return;
     }
-    if (!isKnownActivationEvent(entry)) {
+    if (!v.vocabulary.isKnown(entry)) {
       const message = `unknown activation event "${entry}" (see packages/core/src/Extensions/ActivationEvents.ts)`;
       if (entry !== 'onStartup' && FUTURE_EVENT_PATTERN.test(entry)) {
         v.warn(path, 'activation.unknown', `${message}; ignored because this host does not know it`);
@@ -787,7 +797,7 @@ function validateContributes(
 ): ExtensionContributes | undefined {
   if (!v.requireRecord('/contributes', value)) return undefined;
   const out: ExtensionContributes = {};
-  const declared = new Map(EXTENSION_API_REGISTRY.contributesKeys.map((k) => [k.key, k]));
+  const declared = new Map(v.registry.contributesKeys.map((k) => [k.key, k]));
   for (const key of Object.keys(value)) {
     if (!declared.has(key)) {
       v.warn(
@@ -828,7 +838,7 @@ function validateContributes(
       qualifyId: (p, id) => normalizeId(v, p, id, ctx),
     };
     const result = decl.validate(value[key], path, vctx);
-    if (result !== undefined) (out as Record<string, unknown>)[key] = result;
+    if (result !== undefined) out[key] = result;
   }
 
   return out;
@@ -1196,8 +1206,21 @@ function validateBibleProviders(
  * to `ext.<id>.`. On failure, returns the full list of errors so the caller
  * can render them in one go rather than fixing them one by one.
  */
-export function validateManifest(json: unknown): ManifestValidationResult {
-  const v = new Validator();
+export interface ValidateManifestOptions {
+  /**
+   * The API declarations to validate against - which permissions,
+   * `contributes` keys and activation events this host knows. Defaults to
+   * `EXTENSION_API_REGISTRY`; a host or test with a different set passes its
+   * own (`createApiRegistry`).
+   */
+  registry?: ApiRegistry;
+}
+
+export function validateManifest(
+  json: unknown,
+  options: ValidateManifestOptions = {},
+): ManifestValidationResult {
+  const v = new Validator(options.registry ?? EXTENSION_API_REGISTRY);
 
   if (!v.requireRecord('', json)) {
     return { ok: false, errors: v.errors };
@@ -1296,7 +1319,7 @@ export function validateManifest(json: unknown): ManifestValidationResult {
     );
   }
 
-  for (const decl of EXTENSION_API_REGISTRY.contributesKeys) {
+  for (const decl of v.registry.contributesKeys) {
     if (
       decl.requiresPermission &&
       contributes &&

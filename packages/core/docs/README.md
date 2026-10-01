@@ -34,6 +34,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
 | [Cross-reference graph](features/xref-graph.md) | Ego graphs, edge weights, whole-canon arc index |
 | [Extensions & plugins](features/extensions-plugins.md) | The third-party extension contract and the in-process hook system |
+| [Extension API namespaces](features/extension-api-namespaces.md) | Declaring an `api.*` namespace: permissions, consent text, activation events, typings, fakes, version bumps |
 | [USFM export](features/usfm-export.md) | `src/Export/` - USFM read and write |
 | [Browser subset](features/browser-subset.md) | `@bible/core/browser`, what belongs in it and why |
 | [Getting started](getting-started.md) | End-to-end walkthrough: provider -> repositories -> controllers -> search |
