@@ -173,3 +173,6 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Reading plans (task 0073). Namespaced like in `./browser`.
+export * as ReadingPlans from './ReadingPlans';

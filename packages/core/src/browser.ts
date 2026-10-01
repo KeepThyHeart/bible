@@ -308,3 +308,8 @@ export * from './Settings';
 // cache, ...), the recorded-chapter manifest and index validators plus their
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
+
+// --- Reading plans (task 0073) --------------------------------------------------
+// Plan engine (builder, scheduler, stock library, store over user_data_item, service).
+// Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
+export * as ReadingPlans from './ReadingPlans';
