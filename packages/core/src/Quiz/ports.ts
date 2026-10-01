@@ -97,9 +97,10 @@ export interface QuizAdjudication {
 
 /**
  * Judges a free-text answer, e.g. by sending question, response, expected
- * answer and passage to an LLM. Optional and off by default; an app that
- * implements it passes it to `QuizEngine` and the shared UI offers a
- * "Check my answer" action on free-response and short-answer questions.
+ * answer and passage to an LLM. Optional and off by default; nothing
+ * implements it yet. An app that does passes it to `QuizEngine`; a future UI
+ * then offers "Check my answer" on free-response and short-answer questions
+ * and grades with the `{ type: 'adjudicated' }` response.
  * Implementations must respect `signal` and must never be called without the
  * user's consent to send their answer off the device.
  */

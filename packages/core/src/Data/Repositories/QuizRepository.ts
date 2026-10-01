@@ -116,6 +116,7 @@ export class QuizRepository implements IQuizRepository {
     if (info?.description) out.description = info.description;
     if (info?.language_code) out.languageCode = info.language_code;
     if (typeof meta?.textBasis === 'string') out.textBasis = meta.textBasis;
+    if (meta?.draft === true) out.draft = true;
     this.uuid = out.uuid;
     return out;
   }

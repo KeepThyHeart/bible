@@ -380,3 +380,23 @@ describe('scope helpers', () => {
     expect(await NO_READING_PLAN.getTodaysReading('2026-10-01')).toBeNull();
   });
 });
+
+describe('review fixes', () => {
+  it('grades an adjudicated response with its clamped score', () => {
+    const f = q('f', 1, 1);
+    expect(gradeResponse(f, { type: 'adjudicated', result: 'partly', score: 0.7, adjudicator: 'x' })).toMatchObject({ result: 'partly', score: 0.7 });
+    expect(gradeResponse(f, { type: 'adjudicated', result: 'correct', score: 9, adjudicator: 'x' }).score).toBe(1);
+  });
+
+  it('orders tier-2 questions oldest first, a missing date first', () => {
+    const qs = [mc('a', 1, 1, 1), mc('b', 1, 2, 1), mc('c', 1, 3, 1)];
+    const old = (key: string, lastSeen?: string): [string, QuizItemStat] =>
+      [key, { key, seen: 1, correct: 0, partly: 0, missed: 1, lastResult: 'incorrect', ...(lastSeen ? { lastSeen } : {}) }];
+    const stats = new Map([old('a', daysAgo(40)), old('b', daysAgo(60)), old('c')]);
+    const got = selectQuestions({
+      candidates: qs, stats, rand: seededRandom(1), now: NOW,
+      request: { passages: [chapterPassage(MARK, 1)], count: 2, difficulty: 1 },
+    });
+    expect(got.map((x) => x.key)).toEqual(['b', 'c']);
+  });
+});

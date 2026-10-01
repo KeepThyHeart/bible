@@ -67,6 +67,10 @@ stable across releases, never reused. Row ids are not stable.
 This is a light rotation, not spaced repetition; memorisation belongs to the Bible Memory
 extension.
 
+Coverage (`getCoverage`) counts each question once, in the chapter of its primary
+passage, while `getQuestions` also matches secondary passages; a quiz over a chapter may
+therefore include a question chiefly about another chapter that also cites it.
+
 ### Grading
 
 - Multiple choice: the chosen choice's `correct` flag (choices are tracked by object, so
@@ -77,6 +81,10 @@ extension.
   overridden by the user ("I was right").
 - Free response: the user reveals the model answer and picks Got it, Partly or Missed.
 - Reflection: ungraded.
+- Adjudicated (seam): the adjudicator's result and 0..1 score.
+
+A question's progress is recorded once, when the user leaves it (Next, or End quiz), with
+its final grade, so an "I was right" correction does not count twice.
 
 ## Progress
 
@@ -94,8 +102,11 @@ extension.
 - `IQuizAdjudicator` (seam only, not implemented): judges a free-text answer, e.g. by
   sending the question, the user's answer, the expected answer and the passage text to an
   LLM, returning correct/partly/incorrect and a 0..1 score. `QuizEngine.canAdjudicate()` /
-  `adjudicate()` delegate to it when one is configured. An implementation must ask the
-  user's consent before sending their answer off the device.
+  `adjudicate()` delegate to it when one is configured, and the verdict is graded with the
+  `{ type: 'adjudicated', result, score, adjudicator }` response. The shared UI has no
+  "Check my answer" button yet: the future change adds it to `QuizQuestionCard` when
+  `engine.canAdjudicate(question)` is true. An implementation must ask the user's consent
+  before sending their answer off the device.
 
 ## Dynamic question types (future)
 

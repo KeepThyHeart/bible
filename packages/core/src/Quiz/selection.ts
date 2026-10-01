@@ -130,7 +130,9 @@ export function selectQuestions({ candidates, stats, request, rand, now }: Selec
   const ranked: Ranked[] = graded.map((q) => {
     const stat = stats.get(q.key);
     const tier = priorityTier(stat, now);
-    const order = tier === 2 && stat?.lastSeen ? Date.parse(stat.lastSeen) : tieBreak.get(q.key)!;
+    // Tier 2 is oldest-seen first; a missing or bad date counts as oldest. Other tiers: random.
+    const seenAt = stat?.lastSeen ? Date.parse(stat.lastSeen) : NaN;
+    const order = tier === 2 ? (Number.isFinite(seenAt) ? seenAt : -Infinity) : tieBreak.get(q.key)!;
     return { q, tier, order, chapter: quizChapterOf(quizPrimaryPassage(q).start) };
   });
   ranked.sort((a, b) => a.tier - b.tier || a.order - b.order || (a.q.key < b.q.key ? -1 : 1));

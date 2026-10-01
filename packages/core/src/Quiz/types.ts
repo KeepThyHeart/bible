@@ -95,8 +95,13 @@ export interface QuizModuleInfo {
   licenseUrl?: string;
   description?: string;
   languageCode?: string;
-  /** The translation whose wording the questions follow (module_info.metadata.textBasis). */
+  /**
+   * The translation whose wording the questions follow (module_info.metadata.textBasis).
+   * A question may override it in `metadata.textBasis` (e.g. imported questions in ULT wording).
+   */
   textBasis?: string;
+  /** module_info.metadata.draft: the questions have not been reviewed yet. */
+  draft?: boolean;
   sources: QuizDataSource[];
 }
 
@@ -168,6 +173,8 @@ export type QuizResponse =
   | { type: 'text'; text: string }
   | { type: 'self'; result: 'correct' | 'partly' | 'incorrect' }
   | { type: 'reflection'; text?: string }
+  /** The verdict of an IQuizAdjudicator on a free-text answer (seam; nothing produces it yet). */
+  | { type: 'adjudicated'; result: 'correct' | 'partly' | 'incorrect'; score: number; adjudicator: string }
   | { type: 'skip' };
 
 export interface QuizGrade {

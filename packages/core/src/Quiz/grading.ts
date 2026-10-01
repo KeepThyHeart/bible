@@ -142,6 +142,10 @@ export function gradeResponse(q: QuizQuestion, response: QuizResponse, choices?:
       // user compares with the model answer.
       return grade('ungraded', { needsSelfGrade: true });
     }
+    case 'adjudicated': {
+      const score = Math.min(1, Math.max(0, Number.isFinite(response.score) ? response.score : SCORE[response.result]));
+      return { ...grade(response.result), score };
+    }
     case 'reflection':
       return grade('ungraded');
   }
