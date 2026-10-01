@@ -7,10 +7,10 @@
 
 // Typed text auto-detects its direction while padding and overlaid icons follow the UI direction.
 // (dir="auto" on an empty input resolves to LTR in Chromium, which breaks RTL placeholders.)
-input:not([type]),
-input[type='text'],
-input[type='search'],
-textarea {
+input:not([type]):not([dir]),
+input[type='text']:not([dir]),
+input[type='search']:not([dir]),
+textarea:not([dir]) {
   unicode-bidi: plaintext;
 }
 

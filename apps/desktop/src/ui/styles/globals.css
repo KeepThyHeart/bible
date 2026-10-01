@@ -910,10 +910,10 @@ textarea:focus-visible {
 /* Typed text in plain inputs auto-detects its own direction, while padding and
    icons keep following the inherited UI direction (an empty `dir="auto"` input
    would resolve to LTR in Chromium, which is why the attribute is not used). */
-input:not([type]),
-input[type='text'],
-input[type='search'],
-textarea {
+input:not([type]):not([dir]),
+input[type='text']:not([dir]),
+input[type='search']:not([dir]),
+textarea:not([dir]) {
   unicode-bidi: plaintext;
 }
 
