@@ -175,7 +175,7 @@ export class ReferenceEngine {
       alternatives?: RefBook[],
     ): ReferenceParseResult | undefined => {
       const ranges = resolveRanges(book, raw);
-      const bad = checkRanges(ranges, opts.checkChapters === true);
+      const bad = opts.validateNumbers === false ? undefined : checkRanges(ranges, opts.checkChapters === true);
       if (bad) {
         partial = book;
         failure = bad;
@@ -406,6 +406,7 @@ export class ReferenceEngine {
           if (isLetter(prev) || isDigit(prev)) continue;
         }
         for (const cand of this.candidatesAt(loc, s, i, folds)) {
+          if (cand.t.inputOnly) continue;
           if (requireCapital) {
             const firstLetter = [...s.slice(i, cand.end)].find((c) => isLetter(c));
             if (firstLetter && hasCase(firstLetter) && firstLetter !== firstLetter.toUpperCase()) continue;

@@ -4,7 +4,7 @@
  * changes. The locale picks the book-name tables and collation (via the core Localizer); it does NOT translate
  * UI strings: labels are element attributes with English defaults, and authors localize them themselves.
  */
-import { directionForTag } from '@bible/core/browser';
+import { directionForTag, loadReferenceLocales } from '@bible/core/browser';
 
 export interface KitLocale {
   locale: string;
@@ -30,6 +30,15 @@ export function setKitLocale(next: KitLocale): void {
   if (next.locale === current.locale && next.direction === current.direction) return;
   current = next;
   subs.forEach((f) => f());
+  // Reference data (book names) for the language loads on demand (task 0077); re-render once it is in.
+  void ensureKitReferenceData().then((loaded) => {
+    if (loaded.length && current === next) subs.forEach((f) => f());
+  });
+}
+
+/** Load the reference-engine data for the kit's locale; resolves to the data tags loaded. */
+export function ensureKitReferenceData(): Promise<string[]> {
+  return loadReferenceLocales([current.locale]);
 }
 
 export function subscribeKitLocale(f: () => void): () => void {

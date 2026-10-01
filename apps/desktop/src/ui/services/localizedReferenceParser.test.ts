@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getLocalizedReferenceParser } from './localizedReferenceParser';
+import { ensureReferenceLocales, getLocalizedReferenceParser } from './localizedReferenceParser';
 
 describe('getLocalizedReferenceParser', () => {
   it('returns a working parser for en that parses "John 3:16"', () => {
@@ -29,5 +29,14 @@ describe('getLocalizedReferenceParser', () => {
     const first = getLocalizedReferenceParser('en');
     const second = getLocalizedReferenceParser('en');
     expect(first).toBe(second);
+  });
+
+  it('parses the UI language once its data has loaded, and still accepts English', async () => {
+    await ensureReferenceLocales(['zh-Hans', 'es']);
+    const zh = getLocalizedReferenceParser('zh-Hans');
+    expect(zh.parse('约翰福音3:16').book).toBe(43);
+    expect(zh.parse('John 3:16').book).toBe(43);
+    expect(zh.format(zh.parse('John 3:16'))).toBe('约翰福音3:16');
+    expect(getLocalizedReferenceParser('es').parse('Génesis 1:1').book).toBe(1);
   });
 });

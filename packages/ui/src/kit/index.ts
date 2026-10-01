@@ -8,7 +8,7 @@
  */
 import { defineKthElement } from './defineKthElement';
 import { KIT_ELEMENTS } from './elements';
-import { sanitizeLocale, setKitLocale } from './kitLocale';
+import { ensureKitReferenceData, sanitizeLocale, setKitLocale } from './kitLocale';
 
 /** Structurally satisfied by `BibleExtUI` from `@bible/extension-ui`. */
 export interface KthRpcLike {
@@ -52,6 +52,7 @@ async function init(opts: KthKitInitOptions = {}): Promise<void> {
   define(opts.components ?? TAGS);
   if (opts.locale !== undefined) {
     setLocale(opts.locale, opts.direction);
+    await ensureKitReferenceData();
     return;
   }
   if (opts.rpc) {
@@ -62,6 +63,7 @@ async function init(opts: KthKitInitOptions = {}): Promise<void> {
       // keep the current locale (English by default)
     }
   }
+  await ensureKitReferenceData();
 }
 
 const api: KthKitApi = { version: '1', tags: TAGS, init, define, setLocale };

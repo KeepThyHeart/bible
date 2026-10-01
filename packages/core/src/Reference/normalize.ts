@@ -61,6 +61,8 @@ export function normalizeText(input: string): NormalizedText {
     if (STRIP.test(ch)) rep = '';
     else if (SPACE.test(ch)) rep = text.endsWith(' ') ? '' : ' ';
     else if (DASH.test(ch)) rep = '-';
+    else if (ch === '\u05F3' || ch === '\u2019') rep = "'"; // Hebrew geresh, right single quote
+    else if (ch === '\u05F4') rep = '"'; // Hebrew gershayim
     else if (ch >= '0' && ch <= '9') rep = ch;
     else if (DIGIT.test(ch)) {
       const cp = ch.codePointAt(0)!;
@@ -111,11 +113,11 @@ export function foldChar(ch: string, mode: FoldMode): string {
   }
   const hit = cache.get(ch);
   if (hit !== undefined) return hit;
-  let s: string;
+  let s: string = ARABIC_FOLD[ch] ?? ch;
   try {
-    s = mode.caseLocale ? ch.toLocaleLowerCase(mode.caseLocale) : ch.toLowerCase();
+    s = mode.caseLocale ? s.toLocaleLowerCase(mode.caseLocale) : s.toLowerCase();
   } catch {
-    s = ch.toLowerCase();
+    s = s.toLowerCase();
   }
   s = s.normalize('NFD');
   if (mode.foldMarks) s = s.replace(MARKS, '');

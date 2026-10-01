@@ -35,6 +35,8 @@ export interface Terminal {
   explicit: boolean;
   /** Short form: in prose it needs a full chapter and verse after it. */
   short: boolean;
+  /** Typed input only, never matched in prose: word ordinals ("First John", "Primera de Corintios") read as ordinary words there. */
+  inputOnly?: boolean;
   alternatives?: RefBook[];
 }
 
@@ -124,7 +126,7 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
   const ambiguous = new Map<string, { prefer: RefBook; also: RefBook[] }>();
   for (const [k, v] of Object.entries(data.ambiguous ?? {})) ambiguous.set(foldName(k, fold), v);
 
-  const add = (raw: string, book: RefBook, explicit: boolean, short: boolean) => {
+  const add = (raw: string, book: RefBook, explicit: boolean, short: boolean, inputOnly = false) => {
     const key = foldName(raw, fold);
     if (!key || dropped.has(key)) return;
     const lv = explicit ? 0 : 1;
@@ -155,7 +157,7 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
       }
       return;
     }
-    names.set(key, { book, explicit, short });
+    names.set(key, inputOnly ? { book, explicit, short, inputOnly } : { book, explicit, short });
     level.set(key, lv);
     if (explicit) fuzzyKeys.push([key, book]);
   };
@@ -180,7 +182,7 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
         const [, d, stem] = m;
         add(`${d}${stem}`, n, false, short);
         add(`${d} ${stem}`, n, false, short);
-        for (const w of ordinals[d] ?? []) add(`${w} ${stem}`, n, false, short);
+        for (const w of ordinals[d] ?? []) add(`${w} ${stem}`, n, false, short, !/^(?:\d+|[ivxIVX]+)$/.test(w));
       }
     }
   }

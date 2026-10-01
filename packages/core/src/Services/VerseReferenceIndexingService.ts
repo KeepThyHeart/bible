@@ -101,7 +101,9 @@ export class VerseReferenceIndexingService implements IVerseReferenceIndexingSer
     const references: DetectedVerseReference[] = [];
 
     // Pattern 1: Standard references (e.g., "John 3:16", "Romans 8:28-39")
-    const standardPattern = /\b([123]?\s*[a-zA-Z]+)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?\b/g;
+    // Any script ("Génesis 1:1", "يوحنا 3:16"); CJK without spaces is picked
+    // up by the parser's own scan below.
+    const standardPattern = /(?<![\p{L}\p{M}\d])([123]?\s*[\p{L}\p{M}]+)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?(?!\d)/gu;
 
     let match: RegExpExecArray | null;
 
@@ -145,6 +147,34 @@ export class VerseReferenceIndexingService implements IVerseReferenceIndexingSer
 
         references.push(verseRef);
       }
+    }
+
+    // Pattern 1b: what the parser's prose scan finds that the pattern above
+    // cannot see - references written without a space ("约翰福音3:16"),
+    // full-width or non-Latin digits. Exact names only, never overlapping.
+    for (const m of this.referenceParser.scanText(content)) {
+      if (!m.book || !m.chapter || m.verse === undefined) continue;
+      if (references.some((r) => m.start < r.position + r.length && r.position < m.end)) continue;
+      const verseIdStart = VerseIdHelper.calculate(m.book, m.chapter, m.verse);
+      let verseIdEnd: VerseId | undefined;
+      if (m.endVerse !== undefined) {
+        verseIdEnd = VerseIdHelper.calculate(m.book, m.endChapter ?? m.chapter, m.endVerse);
+      }
+      const referenceText = content.slice(m.start, m.end);
+      const verseRef: DetectedVerseReference = {
+        verseIdStart,
+        verseIdEnd,
+        position: m.start,
+        length: m.end - m.start,
+        referenceText,
+      };
+      if (includeContext) {
+        const contextInfo = this.extractContext(content, m.start, m.end - m.start, contextLength);
+        verseRef.context = contextInfo.context;
+        verseRef.contextBefore = contextInfo.contextBefore;
+        verseRef.contextAfter = contextInfo.contextAfter;
+      }
+      references.push(verseRef);
     }
 
     // Pattern 2: Continuation references (e.g., "verse 16", "v. 16", "vs. 16-17")

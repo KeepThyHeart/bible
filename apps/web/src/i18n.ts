@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import ICU from 'i18next-icu';
-import { directionForTag, LOCALE_REGISTRY, parseLocaleMeta } from '@bible/core/browser';
+import { directionForTag, loadReferenceLocales, LOCALE_REGISTRY, parseLocaleMeta } from '@bible/core/browser';
 import type { LocaleMetadata } from '@bible/core/browser';
 
 import ui from './locales/en/ui.json';
@@ -114,7 +114,13 @@ const loadedLocales = new Set<string>(['en']);
  * above, exactly as it was before this module supported lazy locales.
  */
 export async function ensureLocaleLoaded(code: string): Promise<void> {
-  if (loadedLocales.has(code)) return;
+  // Reference-parsing data (book names, separators, digits) for the language,
+  // loaded on demand like the catalogs (task 0077); a no-op once loaded.
+  const referenceData = loadReferenceLocales([code]);
+  if (loadedLocales.has(code)) {
+    await referenceData;
+    return;
+  }
   loadedLocales.add(code); // Claim it first so concurrent callers don't double-fetch.
   const results = await Promise.all(
     NAMESPACES.map(async (ns) => {
@@ -131,11 +137,13 @@ export async function ensureLocaleLoaded(code: string): Promise<void> {
     // (the desktop model of a user-supplied `<userData>/locales/` catalog
     // has no web equivalent yet, but this keeps the door open).
     loadedLocales.delete(code);
+    await referenceData;
     return;
   }
   for (const entry of results) {
     if (entry) i18n.addResourceBundle(code, entry[0], entry[1], true, true);
   }
+  await referenceData;
 }
 
 /**

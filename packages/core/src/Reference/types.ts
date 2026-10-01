@@ -135,6 +135,12 @@ export interface EngineParseOptions {
   lists?: boolean;
   /** Reject chapters beyond the book's last chapter (KJV versification). Default false. */
   checkChapters?: boolean;
+  /**
+   * Reject zero chapters/verses and reversed ranges ("John 3:16-10"). Default
+   * true; the legacy `ReferenceParser.parse()` passes false and leaves that to
+   * its `validate()`.
+   */
+  validateNumbers?: boolean;
 }
 
 export type ReferenceParseFailure = 'empty' | 'no-book' | 'bad-numbers' | 'out-of-range';

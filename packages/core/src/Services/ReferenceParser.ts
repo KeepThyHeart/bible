@@ -192,6 +192,7 @@ export class ReferenceParser implements IReferenceParser {
       allowWholeBook: options?.allowWholeBook === true,
       fuzzy: true,
       lists: false,
+      validateNumbers: false,
     });
     if (!r.ok) return { isValid: false, originalText };
     const range = r.ranges[0];
