@@ -97,7 +97,12 @@ await scheduler.start();
 
 Every `wake()` (timer, resume from sleep, clock or zone change, settings change, an hourly guard) does the same:
 
-- For each rule source, the fires in `(checkpoint, now]`; for each item source, its items at or before `now`.
+- For each rule source, the fires in `(checkpoint, now]` (never further back than the collapse window); for each
+  item source, its items in `(checkpoint, now]`. `replaceItems` also drops items at or before the checkpoint, so an
+  extension that re-sends its whole list after a reminder fired does not fire it again, and a list replaced before
+  `start()` is kept. More than three items of one source due at the same wake are collapsed too.
+- An item source can be vetoed with `isItemSourceAllowed(id)` (desktop: the extension is installed, enabled and
+  still holds `notifications:schedule`); a vetoed source consumes its items silently.
 - `reconcileMissed` sorts them: late by at most `lateToleranceMs` (5 minutes) is on time and shown as is; late by at
   most `collapseWithinMs` (12 hours) is collapsed into **one** notification per source (a rule source renders its
   latest fire with `missed: true` and `count`; an item source uses `collapse()` or `strings.collapsed`); older is
@@ -149,6 +154,8 @@ and `actions` (notification buttons are not relied on anywhere).
 
 - Content of rule sources is rendered at fire time; content of item sources is fixed when scheduled. An extension
   should call `replaceAll` again after any change, and check the item again on activation (it may be stale).
+- On a click, an extension gets `{ key, keys, data, firedAt }`: `firedAt` is when the reminder was due, and for a
+  collapsed notification `key` is `keys[0]` and `data` is absent.
 - `activate(id)` works for the last 100 notifications of the current run only; after a restart an old OS
   notification just focuses the app.
 - `expandPlan` walks at most 400 days; `nextFireAt` looks 8 days ahead by default, enough for weekly plans. Use a

@@ -41,7 +41,7 @@ import type { JsonValue as ReminderJsonValue } from '../Reminders/types';
  * `key` is the clicked item; `keys` is every item the notification stood for
  * (more than one when several came due together and were collapsed into one
  * notification); `data` is the clicked item's `data`; `firedAt` is the epoch
- * ms the notification was shown.
+ * ms the reminder was due (the latest one for a collapsed notification).
  */
 export interface ReminderActivationEvent {
   key: string;

@@ -561,7 +561,7 @@ describe('item sources', () => {
   });
 
   it('several missed items collapse into one notification; onMissed gets summarized and dropped keys', async () => {
-    const h = harness();
+    const h = harness({ now: T0 - 14 * HOUR });
     const onMissed = vi.fn();
     const s = h.build();
     s.registerSource(itemSource({ onMissed }));
@@ -573,6 +573,8 @@ describe('item sources', () => {
       item('now', T0 - MIN),
       item('later', T0 + HOUR),
     ]);
+    h.now = T0;
+    await s.wake();
     expect(h.shows.map((n) => [n.keys, n.missed, n.count])).toEqual([
       [['now'], false, 1],
       [['m1', 'm2'], true, 2],
@@ -588,33 +590,92 @@ describe('item sources', () => {
   });
 
   it('a single missed item is shown as itself, marked missed', async () => {
-    const h = harness();
+    const h = harness({ now: T0 - 14 * HOUR });
     const s = h.build();
     s.registerSource(itemSource());
     await s.start();
     await s.replaceItems('ext:mem', [item('m1', T0 - 2 * HOUR, { data: 1 })]);
+    h.now = T0;
+    await s.wake();
     expect(h.shows).toHaveLength(1);
     expect(h.shows[0]).toMatchObject({ title: 'T m1', missed: true, count: 1, data: 1 });
   });
 
   it('the source may supply its own collapsed content', async () => {
-    const h = harness();
+    const h = harness({ now: T0 - 14 * HOUR });
     const s = h.build();
     s.registerSource(itemSource({ collapse: (items) => ({ title: 'Cards', body: items.map((i) => i.key).join('+') }) }));
     await s.start();
     await s.replaceItems('ext:mem', [item('m1', T0 - 2 * HOUR), item('m2', T0 - HOUR)]);
+    h.now = T0;
+    await s.wake();
     expect(h.shows[0]).toMatchObject({
       title: 'Cards', body: 'm1+m2', count: 2, target: { kind: 'extension', extensionId: 'mem' },
     });
   });
 
   it('falls back to the default collapsed text when no strings are given', async () => {
-    const h = harness();
+    const h = harness({ now: T0 - 14 * HOUR });
     const s = h.build({ strings: undefined });
     s.registerSource(itemSource());
     await s.start();
     await s.replaceItems('ext:mem', [item('m1', T0 - 2 * HOUR), item('m2', T0 - HOUR)]);
+    h.now = T0;
+    await s.wake();
     expect(h.shows[0]).toMatchObject({ title: 'Memory', body: '2 reminders waiting' });
+  });
+
+  it('re-sending items that already fired does not fire them again (idempotent replaceAll)', async () => {
+    const h = harness();
+    const s = h.build();
+    s.registerSource(itemSource());
+    await s.start();
+    await s.replaceItems('ext:mem', [item('a', T0 + HOUR), item('b', T0 + 2 * HOUR)]);
+    h.now = T0 + HOUR;
+    await h.fire();
+    expect(h.shows.map((n) => n.keys)).toEqual([['a']]);
+    await s.replaceItems('ext:mem', [item('a', T0 + HOUR), item('b', T0 + 2 * HOUR)]);
+    expect(h.shows).toHaveLength(1);
+    expect(s.listItems('ext:mem').map((i) => i.key)).toEqual(['b']);
+  });
+
+  it('keeps items replaced before start() and merges them over the saved state', async () => {
+    const state = createMemoryStatePort({ version: 1, checkpoints: { 'ext:old': T0 - HOUR }, items: { 'ext:old': [item('o', T0 + 3 * HOUR)] }, labels: {} });
+    const h = harness({ state });
+    const s = h.build();
+    expect((await s.replaceItems('ext:mem', [item('a', T0 + HOUR)])).accepted).toBe(1);
+    await s.start();
+    expect(s.listItems('ext:mem').map((i) => i.key)).toEqual(['a']);
+    expect(s.listItems('ext:old').map((i) => i.key)).toEqual(['o']);
+  });
+
+  it('collapses a burst of more than three on-time items from one source', async () => {
+    const h = harness();
+    const s = h.build();
+    s.registerSource(itemSource());
+    await s.start();
+    await s.replaceItems('ext:mem', ['a', 'b', 'c', 'd'].map((k) => item(k, T0 + HOUR)));
+    h.now = T0 + HOUR;
+    await h.fire();
+    expect(h.shows).toHaveLength(1);
+    expect(h.shows[0].count).toBe(4);
+  });
+
+  it('an item source that is not allowed (extension disabled or permission revoked) never fires', async () => {
+    const h = harness();
+    let allowed = false;
+    const s = h.build({ isItemSourceAllowed: () => allowed });
+    await s.start();
+    await s.replaceItems('ext:mem', [item('a', T0 + HOUR)], 'Memory');
+    expect(s.listSources().find((x) => x.id === 'ext:mem')?.enabled).toBe(false);
+    h.now = T0 + HOUR;
+    await s.wake();
+    expect(h.shows).toHaveLength(0);
+    allowed = true;
+    await s.replaceItems('ext:mem', [item('b', T0 + 2 * HOUR)]);
+    h.now = T0 + 2 * HOUR;
+    await s.wake();
+    expect(h.shows.map((n) => n.keys)).toEqual([['b']]);
   });
 
   it('items persist across a restart and fire without the source being registered', async () => {

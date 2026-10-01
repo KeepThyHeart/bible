@@ -42,6 +42,8 @@ import {
 } from './types';
 
 const HOUR = 3_600_000;
+/** More on-time reminders than this from one source in one wake are collapsed. */
+const MAX_ON_TIME_BURST = 3;
 const DAY = 86_400_000;
 
 // ---------------------------------------------------------------------------
@@ -191,6 +193,11 @@ export interface ReminderSchedulerOptions {
   policy?: Partial<MissedPolicy>;
   /** Longest single timer wait; the engine re-checks at least this often. Default 1 h. */
   guardMs?: number;
+  /**
+   * Whether an item source may fire at all (desktop: the extension is installed,
+   * enabled and still holds `notifications:schedule`). Default: always.
+   */
+  isItemSourceAllowed?: (sourceId: string) => boolean;
   /** Called after any change to sources, items or schedule (settings pages refresh on it). */
   onChange?: () => void;
   /** Errors from sources and ports (the engine itself carries on). */
@@ -266,6 +273,7 @@ export class ReminderScheduler {
   /** Load saved state, then handle anything due while the app was not running. */
   async start(): Promise<void> {
     if (this.started) return;
+    const preStartItems = { ...this.state.items };
     try {
       const loaded = await this.opts.state?.load();
       if (loaded && loaded.version === 1) {
@@ -280,6 +288,9 @@ export class ReminderScheduler {
           const clean = sanitizeReminderItems(list, this.clock.now());
           if (clean.length) this.state.items[id] = clean;
         }
+        // Lists replaced before start (an extension that was quicker than the
+        // state file) are newer than the saved ones.
+        Object.assign(this.state.items, preStartItems);
       }
     } catch (err) {
       this.report(err, 'state.load');
@@ -320,7 +331,11 @@ export class ReminderScheduler {
    * registered (an extension that is not running keeps its reminders).
    */
   async replaceItems(sourceId: string, items: unknown, label?: string): Promise<{ accepted: number }> {
-    const clean = sanitizeReminderItems(items, this.clock.now());
+    // Items at or before the source's checkpoint were already handled: an
+    // extension that re-sends its whole list after a reminder fired must not
+    // fire it again.
+    const cp = this.state.checkpoints[sourceId];
+    const clean = sanitizeReminderItems(items, this.clock.now()).filter((i) => cp === undefined || i.fireAt > cp);
     if (clean.length) this.state.items[sourceId] = clean;
     else delete this.state.items[sourceId];
     if (label) this.state.labels[sourceId] = label;
@@ -355,6 +370,15 @@ export class ReminderScheduler {
    * sources (app features are opt-in) and on for item sources (an extension
    * was granted `notifications:schedule` at install and has its own switch).
    */
+  private itemSourceAllowed(sourceId: string): boolean {
+    try {
+      return this.opts.isItemSourceAllowed?.(sourceId) ?? true;
+    } catch (err) {
+      this.report(err, `allowed:${sourceId}`);
+      return true;
+    }
+  }
+
   defaultEnabled(sourceId: string): boolean {
     const s = this.sources.get(sourceId);
     return s?.defaultEnabled ?? (s?.kind !== 'rules');
@@ -399,7 +423,7 @@ export class ReminderScheduler {
     for (const id of ids) {
       const s = this.sources.get(id);
       const def = this.defaultEnabled(id);
-      const enabled = isSourceEnabled(settings, id, def);
+      const enabled = isSourceEnabled(settings, id, def) && (s?.kind === 'rules' || this.itemSourceAllowed(id));
       if (s?.kind === 'rules') {
         const plan = this.effectivePlan(s, settings);
         const next = plan ? expandPlan(plan, now + 1, 8 * DAY, tz, { seed: id })[0] : undefined;
@@ -436,7 +460,7 @@ export class ReminderScheduler {
       if (f) consider(s.id, f.at);
     }
     for (const [id, items] of Object.entries(this.state.items)) {
-      if (!isSourceEnabled(settings, id, this.defaultEnabled(id))) continue;
+      if (!isSourceEnabled(settings, id, this.defaultEnabled(id)) || !this.itemSourceAllowed(id)) continue;
       const i = items.find((x) => x.fireAt > now);
       if (i) consider(id, i.fireAt);
     }
@@ -518,7 +542,9 @@ export class ReminderScheduler {
   }
 
   private async runRuleSource(s: RuleSource, now: number, tz: string, settings: NotificationSettings): Promise<void> {
-    const since = this.state.checkpoints[s.id] ?? now;
+    // Nothing older than the collapse window can be shown, so a long absence
+    // never expands months of fires.
+    const since = Math.max(this.state.checkpoints[s.id] ?? now, now - this.policy.collapseWithinMs - 1);
     this.state.checkpoints[s.id] = Math.max(since, now);
     if (!isSourceEnabled(settings, s.id, s.defaultEnabled ?? false)) return;
     const plan = this.effectivePlan(s, settings);
@@ -548,8 +574,16 @@ export class ReminderScheduler {
 
   private async runItemSource(id: string, now: number, settings: NotificationSettings): Promise<void> {
     const items = this.state.items[id] ?? [];
-    const due = items.filter((i) => i.fireAt <= now);
-    if (!due.length) return;
+    const cp = this.state.checkpoints[id];
+    const due = items.filter((i) => i.fireAt <= now && (cp === undefined || i.fireAt > cp));
+    if (!due.length) {
+      const rest = items.filter((i) => i.fireAt > now);
+      if (rest.length !== items.length) {
+        if (rest.length) this.state.items[id] = rest;
+        else delete this.state.items[id];
+      }
+      return;
+    }
     const rest = items.filter((i) => i.fireAt > now);
     if (rest.length) this.state.items[id] = rest;
     else delete this.state.items[id];
@@ -557,9 +591,15 @@ export class ReminderScheduler {
 
     const s = this.sources.get(id);
     const source = s?.kind === 'items' ? s : undefined;
-    if (!isSourceEnabled(settings, id, this.defaultEnabled(id))) return;
+    if (!isSourceEnabled(settings, id, this.defaultEnabled(id)) || !this.itemSourceAllowed(id)) return;
 
     const r = reconcileMissed(due, now, this.policy);
+    // A burst (an extension scheduling many reminders at one instant) collapses too.
+    if (r.onTime.length > MAX_ON_TIME_BURST) {
+      r.summarize.push(...r.onTime);
+      r.onTime = [];
+      r.summarize.sort((a, b) => a.fireAt - b.fireAt);
+    }
     const target = source?.target ?? (id.startsWith('ext:') ? { kind: 'extension' as const, extensionId: id.slice(4) } : undefined);
     for (const i of r.onTime) {
       await this.present({
