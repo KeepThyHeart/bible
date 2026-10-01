@@ -239,6 +239,7 @@ describe('rule sources', () => {
     await s.start();
     expect(s.listSources()).toEqual([
       {
+        allowed: true,
         id: 'app:votd', kind: 'rules', label: 'Verse of the day', description: 'desc', enabled: false, defaultEnabled: false,
         registered: true, plan: daily('08:00'), userEditable: true, nextAt: null, pending: 0,
       },
@@ -639,6 +640,27 @@ describe('item sources', () => {
     expect(s.listItems('ext:mem').map((i) => i.key)).toEqual(['b']);
   });
 
+  it('an empty list replaced before start() cancels the saved items', async () => {
+    const state = createMemoryStatePort({ version: 1, checkpoints: { 'ext:mem': T0 - HOUR }, items: { 'ext:mem': [item('o', T0 + HOUR)] }, labels: {} });
+    const h = harness({ state });
+    const s = h.build();
+    await s.replaceItems('ext:mem', []);
+    await s.start();
+    expect(s.listItems('ext:mem')).toEqual([]);
+    h.now = T0 + HOUR;
+    await s.wake();
+    expect(h.shows).toHaveLength(0);
+  });
+
+  it('an item due exactly now on a first replaceAll fires; an overdue one is not accepted', async () => {
+    const h = harness();
+    const s = h.build();
+    await s.start();
+    const r = await s.replaceItems('ext:new', [item('now', T0), item('late', T0 - HOUR)]);
+    expect(r.accepted).toBe(1);
+    expect(h.shows.map((n) => n.keys)).toEqual([['now']]);
+  });
+
   it('keeps items replaced before start() and merges them over the saved state', async () => {
     const state = createMemoryStatePort({ version: 1, checkpoints: { 'ext:old': T0 - HOUR }, items: { 'ext:old': [item('o', T0 + 3 * HOUR)] }, labels: {} });
     const h = harness({ state });
@@ -721,6 +743,7 @@ describe('item sources', () => {
     await b.start();
     expect(b.listSources()).toEqual([
       {
+        allowed: true,
         id: 'ext:mem', kind: 'items', label: 'Memory', description: undefined, enabled: true, defaultEnabled: true,
         registered: false, plan: null, userEditable: false, nextAt: T0 + HOUR, pending: 2,
       },

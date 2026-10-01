@@ -170,6 +170,12 @@ export interface ReminderSourceInfo {
   description?: string;
   enabled: boolean;
   defaultEnabled: boolean;
+  /**
+   * False when the host vetoes an item source (`isItemSourceAllowed`: the
+   * extension is disabled or lost its permission). The user's switch cannot
+   * turn it on then.
+   */
+  allowed: boolean;
   /** Registered in this run (an item source may be known only from saved state). */
   registered: boolean;
   /** The plan in effect (rule sources). */
@@ -260,6 +266,7 @@ export class ReminderScheduler {
   private wakeAgain = false;
   private presented = new Map<string, PresentedNotification>();
   private seq = 0;
+  private readonly replacedBeforeStart = new Set<string>();
 
   constructor(private readonly opts: ReminderSchedulerOptions) {
     this.clock = opts.clock ?? { now: () => Date.now() };
@@ -273,9 +280,10 @@ export class ReminderScheduler {
   /** Load saved state, then handle anything due while the app was not running. */
   async start(): Promise<void> {
     if (this.started) return;
-    const preStartItems = { ...this.state.items };
     try {
       const loaded = await this.opts.state?.load();
+      // Read after the await: a replaceItems during the load counts too.
+      const inMemory = this.state;
       if (loaded && loaded.version === 1) {
         // Sources registered before start keep their labels; saved checkpoints win.
         this.state = {
@@ -290,7 +298,14 @@ export class ReminderScheduler {
         }
         // Lists replaced before start (an extension that was quicker than the
         // state file) are newer than the saved ones.
-        Object.assign(this.state.items, preStartItems);
+        // (including an empty list: the extension cancelled what was saved).
+        for (const id of this.replacedBeforeStart) {
+          if (inMemory.items[id]) this.state.items[id] = inMemory.items[id];
+          else delete this.state.items[id];
+          if (inMemory.checkpoints[id] !== undefined && loaded.checkpoints?.[id] === undefined) {
+            this.state.checkpoints[id] = inMemory.checkpoints[id];
+          }
+        }
       }
     } catch (err) {
       this.report(err, 'state.load');
@@ -334,12 +349,15 @@ export class ReminderScheduler {
     // Items at or before the source's checkpoint were already handled: an
     // extension that re-sends its whole list after a reminder fired must not
     // fire it again.
+    // A new source starts just before now, so an item due right now still fires;
+    // anything older is not accepted (it would never be shown).
+    if (this.state.checkpoints[sourceId] === undefined) this.state.checkpoints[sourceId] = this.clock.now() - 1;
     const cp = this.state.checkpoints[sourceId];
-    const clean = sanitizeReminderItems(items, this.clock.now()).filter((i) => cp === undefined || i.fireAt > cp);
+    const clean = sanitizeReminderItems(items, this.clock.now()).filter((i) => i.fireAt > cp);
     if (clean.length) this.state.items[sourceId] = clean;
     else delete this.state.items[sourceId];
+    if (!this.started) this.replacedBeforeStart.add(sourceId);
     if (label) this.state.labels[sourceId] = label;
-    if (this.state.checkpoints[sourceId] === undefined) this.state.checkpoints[sourceId] = this.clock.now();
     await this.wake();
     return { accepted: clean.length };
   }
@@ -423,19 +441,20 @@ export class ReminderScheduler {
     for (const id of ids) {
       const s = this.sources.get(id);
       const def = this.defaultEnabled(id);
-      const enabled = isSourceEnabled(settings, id, def) && (s?.kind === 'rules' || this.itemSourceAllowed(id));
+      const allowed = s?.kind === 'rules' || this.itemSourceAllowed(id);
+      const enabled = isSourceEnabled(settings, id, def) && allowed;
       if (s?.kind === 'rules') {
         const plan = this.effectivePlan(s, settings);
         const next = plan ? expandPlan(plan, now + 1, 8 * DAY, tz, { seed: id })[0] : undefined;
         out.push({
-          id, kind: 'rules', label: s.label, description: s.description, enabled, defaultEnabled: def,
+          id, kind: 'rules', label: s.label, description: s.description, enabled, allowed, defaultEnabled: def,
           registered: true, plan, userEditable: s.userEditable !== false, nextAt: enabled && next ? next.at : null, pending: 0,
         });
       } else {
         const items = this.state.items[id] ?? [];
         const next = items.find((i) => i.fireAt > now);
         out.push({
-          id, kind: 'items', label: s?.label ?? this.state.labels[id] ?? id, description: s?.description, enabled,
+          id, kind: 'items', label: s?.label ?? this.state.labels[id] ?? id, description: s?.description, enabled, allowed,
           defaultEnabled: def, registered: !!s, plan: null, userEditable: false,
           nextAt: enabled && next ? next.fireAt : null, pending: items.length,
         });
