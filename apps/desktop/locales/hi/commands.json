@@ -70,5 +70,10 @@
   "xrefGraph.open": "क्रॉस-रेफरेंस कनेक्शन दिखाएँ",
   "xrefGraph.open.category": "अध्ययन",
   "xrefGraph.open.alias.0": "क्रॉस-रेफरेंस",
-  "xrefGraph.open.alias.1": "कनेक्शन"
+  "xrefGraph.open.alias.1": "कनेक्शन",
+  "readingPlans.open": "पठन योजनाएँ खोलें",
+  "readingPlans.open.category": "पठन योजनाएँ",
+  "readingPlans.open.alias.0": "पठन योजना",
+  "readingPlans.open.alias.1": "आज का पाठ",
+  "readingPlans.open.alias.2": "एक वर्ष में बाइबल पढ़ें"
 }

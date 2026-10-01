@@ -70,5 +70,10 @@
   "xrefGraph.open": "Показать связи перекрёстных ссылок",
   "xrefGraph.open.category": "Изучение",
   "xrefGraph.open.alias.0": "перекрёстные ссылки",
-  "xrefGraph.open.alias.1": "связи"
+  "xrefGraph.open.alias.1": "связи",
+  "readingPlans.open": "Открыть планы чтения",
+  "readingPlans.open.category": "Планы чтения",
+  "readingPlans.open.alias.0": "план чтения",
+  "readingPlans.open.alias.1": "чтение на сегодня",
+  "readingPlans.open.alias.2": "прочитать Библию за год"
 }

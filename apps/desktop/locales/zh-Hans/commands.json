@@ -70,5 +70,10 @@
   "xrefGraph.open": "显示交叉引用连接",
   "xrefGraph.open.category": "学习",
   "xrefGraph.open.alias.0": "交叉引用",
-  "xrefGraph.open.alias.1": "连接"
+  "xrefGraph.open.alias.1": "连接",
+  "readingPlans.open": "打开读经计划",
+  "readingPlans.open.category": "读经计划",
+  "readingPlans.open.alias.0": "读经计划",
+  "readingPlans.open.alias.1": "今日读经",
+  "readingPlans.open.alias.2": "一年读完圣经"
 }
