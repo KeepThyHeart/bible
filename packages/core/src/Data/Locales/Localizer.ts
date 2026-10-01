@@ -35,6 +35,9 @@
  */
 
 import type { ReferenceParserConfig } from '../../Services/ReferenceParser';
+import { ReferenceEngine } from '../../Reference/engine';
+import { loadedReferenceLocaleFor, referenceLocalesVersion } from '../../Reference/registry';
+import { isSingleChapter } from '../../Reference/canon';
 import {
   ENGLISH_BOOK_NAMES,
   ENGLISH_DISPLAY_NAMES,
@@ -81,10 +84,13 @@ export interface Localizer {
 
   /**
    * This language's book-name / reference-parsing table, ready to pass as
-   * {@link ReferenceParserConfig}. `undefined` when nobody has drafted one
-   * yet - `ReferenceParser` and any book-name display should fall back to
-   * the English table in that case (English is always an accepted parse
-   * input, per the globalization roadmap), never throw or blank the UI.
+   * {@link ReferenceParserConfig}. Built from the reference engine's locale
+   * data (`Reference/locales/<tag>.json`) once that is loaded - see
+   * `loadReferenceLocales()`; locale data is loaded on demand, so this is
+   * `undefined` until then, and for a language nobody has drafted data for.
+   * `ReferenceParser` and any book-name display fall back to English in that
+   * case (English is always an accepted parse input), never throw or blank
+   * the UI. Read it fresh: it changes when data loads.
    */
   readonly referenceParserConfig?: ReferenceParserConfig;
 }
@@ -137,8 +143,35 @@ export function createIntlLocalizer(
       return value.toLocaleLowerCase(tag);
     },
 
-    referenceParserConfig: overrides.referenceParserConfig,
+    get referenceParserConfig() {
+      return overrides.referenceParserConfig ?? referenceParserConfigFor(tag);
+    },
   };
+}
+
+const configCache = new Map<string, { version: number; config: ReferenceParserConfig | undefined }>();
+
+/**
+ * A `ReferenceParserConfig` for a tag from the loaded reference-engine data,
+ * or `undefined` when no data for it is loaded. English has its own fixed
+ * config ({@link EnglishLocalizer}).
+ */
+export function referenceParserConfigFor(tag: string): ReferenceParserConfig | undefined {
+  const version = referenceLocalesVersion();
+  const hit = configCache.get(tag);
+  if (hit && hit.version === version) return hit.config;
+  const dataTag = loadedReferenceLocaleFor(tag);
+  let config: ReferenceParserConfig | undefined;
+  if (dataTag && dataTag !== 'en') {
+    const engine = ReferenceEngine.create({ locales: [dataTag] });
+    const bookNames = new Map<string, number>();
+    for (const [name, t] of engine.namesOf(dataTag)) bookNames.set(name, t);
+    const displayNames = Array.from({ length: 66 }, (_, i) => engine.bookName(i + 1));
+    const singleChapterBooks = new Set(Array.from({ length: 66 }, (_, i) => i + 1).filter(isSingleChapter));
+    config = { bookNames, displayNames, singleChapterBooks, locale: dataTag };
+  }
+  configCache.set(tag, { version, config });
+  return config;
 }
 
 /**

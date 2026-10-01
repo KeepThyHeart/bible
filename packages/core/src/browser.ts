@@ -81,15 +81,11 @@ export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
 export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
 export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
 // Side-effect import: registers every built-in Localizer beyond `en` (see the
-// module doc). Both books/*.ts files are pure data - no platform deps - so
-// this belongs in the browser barrel too.
+// module doc). Pure data, no platform deps, so it belongs in the browser barrel too.
 export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
-export {
-  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/es';
-export {
-  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/zhHans';
+// Multilingual reference engine (task 0077): parse, scan, suggest and format
+// references in any language with locale data; languages load on demand.
+export * from './Reference';
 
 export { collapseReferences, collapseReferencesStructured } from './Services/ReferenceCollapser';
 export type { CollapseOptions, CollapsedSegment } from './Services/ReferenceCollapser';

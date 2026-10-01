@@ -1,0 +1,676 @@
+{
+  "tag": "en",
+  "name": "English",
+  "status": "complete",
+  "direction": "ltr",
+  "source": "Converted from packages/core/src/Data/Core/BookNames.ts (task 0077).",
+  "books": {
+    "1": {
+      "long": "Genesis",
+      "medium": "Gen",
+      "short": "Ge",
+      "aliases": [
+        "gn"
+      ]
+    },
+    "2": {
+      "long": "Exodus",
+      "medium": "Exod",
+      "short": "Ex",
+      "aliases": [
+        "exo"
+      ]
+    },
+    "3": {
+      "long": "Leviticus",
+      "medium": "Lev",
+      "short": "Le",
+      "aliases": [
+        "lv"
+      ]
+    },
+    "4": {
+      "long": "Numbers",
+      "medium": "Num",
+      "short": "Nu",
+      "aliases": [
+        "nm",
+        "nb"
+      ]
+    },
+    "5": {
+      "long": "Deuteronomy",
+      "medium": "Deut",
+      "short": "De",
+      "aliases": [
+        "deu",
+        "dt"
+      ]
+    },
+    "6": {
+      "long": "Joshua",
+      "medium": "Josh",
+      "short": "Jos",
+      "aliases": [
+        "jsh"
+      ]
+    },
+    "7": {
+      "long": "Judges",
+      "medium": "Judg",
+      "short": "Jdg",
+      "aliases": [
+        "jg",
+        "jdgs"
+      ]
+    },
+    "8": {
+      "long": "Ruth",
+      "short": "Ru",
+      "aliases": [
+        "rut",
+        "rth"
+      ]
+    },
+    "9": {
+      "long": "1 Samuel",
+      "medium": "1 Sam",
+      "short": "1Sa",
+      "aliases": [
+        "1samuel",
+        "1sam",
+        "1s",
+        "i samuel",
+        "1 sm",
+        "i sam",
+        "isam",
+        "i sa",
+        "1sm",
+        "isamuel"
+      ]
+    },
+    "10": {
+      "long": "2 Samuel",
+      "medium": "2 Sam",
+      "short": "2Sa",
+      "aliases": [
+        "2samuel",
+        "2sam",
+        "2s",
+        "ii samuel",
+        "2 sm",
+        "ii sam",
+        "iisam",
+        "ii sa",
+        "2sm",
+        "iisamuel"
+      ]
+    },
+    "11": {
+      "long": "1 Kings",
+      "medium": "1 Kgs",
+      "short": "1Ki",
+      "aliases": [
+        "1kings",
+        "1kgs",
+        "1k",
+        "i kings",
+        "i kgs",
+        "ikgs",
+        "i ki",
+        "ikings"
+      ]
+    },
+    "12": {
+      "long": "2 Kings",
+      "medium": "2 Kgs",
+      "short": "2Ki",
+      "aliases": [
+        "2kings",
+        "2kgs",
+        "2k",
+        "ii kings",
+        "ii kgs",
+        "iikgs",
+        "ii ki",
+        "iikings"
+      ]
+    },
+    "13": {
+      "long": "1 Chronicles",
+      "medium": "1 Chr",
+      "short": "1Ch",
+      "aliases": [
+        "1chronicles",
+        "1chr",
+        "i chronicles",
+        "1 chron",
+        "i chr",
+        "ichr",
+        "i ch",
+        "ichronicles"
+      ]
+    },
+    "14": {
+      "long": "2 Chronicles",
+      "medium": "2 Chr",
+      "short": "2Ch",
+      "aliases": [
+        "2chronicles",
+        "2chr",
+        "ii chronicles",
+        "2 chron",
+        "ii chr",
+        "iichr",
+        "ii ch",
+        "iichronicles"
+      ]
+    },
+    "15": {
+      "long": "Ezra",
+      "short": "Ezr",
+      "aliases": [
+        "ez"
+      ]
+    },
+    "16": {
+      "long": "Nehemiah",
+      "medium": "Neh",
+      "short": "Ne"
+    },
+    "17": {
+      "long": "Esther",
+      "medium": "Esth",
+      "short": "Es",
+      "aliases": [
+        "est"
+      ]
+    },
+    "18": {
+      "long": "Job",
+      "aliases": [
+        "jb"
+      ]
+    },
+    "19": {
+      "long": "Psalms",
+      "medium": "Ps",
+      "aliases": [
+        "psalm",
+        "psa",
+        "psm",
+        "pss"
+      ]
+    },
+    "20": {
+      "long": "Proverbs",
+      "medium": "Prov",
+      "short": "Pr",
+      "aliases": [
+        "pro",
+        "prv"
+      ]
+    },
+    "21": {
+      "long": "Ecclesiastes",
+      "medium": "Eccl",
+      "short": "Ec",
+      "aliases": [
+        "eccles",
+        "ecc",
+        "qoh"
+      ]
+    },
+    "22": {
+      "long": "Song of Solomon",
+      "medium": "Song",
+      "short": "So",
+      "aliases": [
+        "song of songs",
+        "sos",
+        "canticle of canticles",
+        "canticles",
+        "cant"
+      ]
+    },
+    "23": {
+      "long": "Isaiah",
+      "medium": "Isa",
+      "aliases": [
+        "is"
+      ]
+    },
+    "24": {
+      "long": "Jeremiah",
+      "medium": "Jer",
+      "aliases": [
+        "je",
+        "jr"
+      ]
+    },
+    "25": {
+      "long": "Lamentations",
+      "medium": "Lam",
+      "short": "La"
+    },
+    "26": {
+      "long": "Ezekiel",
+      "medium": "Ezek",
+      "short": "Eze",
+      "aliases": [
+        "ezk"
+      ]
+    },
+    "27": {
+      "long": "Daniel",
+      "medium": "Dan",
+      "short": "Da",
+      "aliases": [
+        "dn"
+      ]
+    },
+    "28": {
+      "long": "Hosea",
+      "medium": "Hos",
+      "short": "Ho"
+    },
+    "29": {
+      "long": "Joel",
+      "short": "Joe",
+      "aliases": [
+        "jl"
+      ]
+    },
+    "30": {
+      "long": "Amos",
+      "short": "Am",
+      "aliases": [
+        "amo"
+      ]
+    },
+    "31": {
+      "long": "Obadiah",
+      "medium": "Obad",
+      "short": "Ob",
+      "aliases": [
+        "oba"
+      ]
+    },
+    "32": {
+      "long": "Jonah",
+      "short": "Jon",
+      "aliases": [
+        "jnh"
+      ]
+    },
+    "33": {
+      "long": "Micah",
+      "medium": "Mic",
+      "aliases": [
+        "mc"
+      ]
+    },
+    "34": {
+      "long": "Nahum",
+      "medium": "Nah",
+      "short": "Na"
+    },
+    "35": {
+      "long": "Habakkuk",
+      "medium": "Hab",
+      "aliases": [
+        "hb"
+      ]
+    },
+    "36": {
+      "long": "Zephaniah",
+      "medium": "Zeph",
+      "short": "Zep",
+      "aliases": [
+        "zp"
+      ]
+    },
+    "37": {
+      "long": "Haggai",
+      "medium": "Hag",
+      "aliases": [
+        "hg"
+      ]
+    },
+    "38": {
+      "long": "Zechariah",
+      "medium": "Zech",
+      "short": "Zec",
+      "aliases": [
+        "zc"
+      ]
+    },
+    "39": {
+      "long": "Malachi",
+      "medium": "Mal",
+      "aliases": [
+        "ml"
+      ]
+    },
+    "40": {
+      "long": "Matthew",
+      "medium": "Matt",
+      "short": "Mt",
+      "aliases": [
+        "mat"
+      ]
+    },
+    "41": {
+      "long": "Mark",
+      "short": "Mk",
+      "aliases": [
+        "mar",
+        "mrk",
+        "mr"
+      ]
+    },
+    "42": {
+      "long": "Luke",
+      "short": "Lk",
+      "aliases": [
+        "luk",
+        "lu"
+      ]
+    },
+    "43": {
+      "long": "John",
+      "short": "Jn",
+      "aliases": [
+        "joh",
+        "jhn"
+      ]
+    },
+    "44": {
+      "long": "Acts",
+      "short": "Ac",
+      "aliases": [
+        "act"
+      ]
+    },
+    "45": {
+      "long": "Romans",
+      "medium": "Rom",
+      "short": "Ro",
+      "aliases": [
+        "rm"
+      ]
+    },
+    "46": {
+      "long": "1 Corinthians",
+      "medium": "1 Cor",
+      "short": "1Co",
+      "aliases": [
+        "1corinthians",
+        "1cor",
+        "i corinthians",
+        "1 co",
+        "i cor",
+        "icor",
+        "i co",
+        "icorinthians"
+      ]
+    },
+    "47": {
+      "long": "2 Corinthians",
+      "medium": "2 Cor",
+      "short": "2Co",
+      "aliases": [
+        "2corinthians",
+        "2cor",
+        "ii corinthians",
+        "2 co",
+        "ii cor",
+        "iicor",
+        "ii co",
+        "iicorinthians"
+      ]
+    },
+    "48": {
+      "long": "Galatians",
+      "medium": "Gal",
+      "short": "Ga"
+    },
+    "49": {
+      "long": "Ephesians",
+      "medium": "Eph",
+      "aliases": [
+        "ephes"
+      ]
+    },
+    "50": {
+      "long": "Philippians",
+      "medium": "Phil",
+      "short": "Php",
+      "aliases": [
+        "pp"
+      ]
+    },
+    "51": {
+      "long": "Colossians",
+      "medium": "Col",
+      "aliases": [
+        "co"
+      ]
+    },
+    "52": {
+      "long": "1 Thessalonians",
+      "medium": "1 Thess",
+      "short": "1Th",
+      "aliases": [
+        "1thessalonians",
+        "1thess",
+        "1 thes",
+        "i thessalonians",
+        "i thess",
+        "ithess",
+        "i th",
+        "ithessalonians"
+      ]
+    },
+    "53": {
+      "long": "2 Thessalonians",
+      "medium": "2 Thess",
+      "short": "2Th",
+      "aliases": [
+        "2thessalonians",
+        "2thess",
+        "2 thes",
+        "ii thessalonians",
+        "ii thess",
+        "iithess",
+        "ii th",
+        "iithessalonians"
+      ]
+    },
+    "54": {
+      "long": "1 Timothy",
+      "medium": "1 Tim",
+      "short": "1Ti",
+      "aliases": [
+        "1timothy",
+        "1tim",
+        "i timothy",
+        "i tim",
+        "itim",
+        "i ti",
+        "itimothy"
+      ]
+    },
+    "55": {
+      "long": "2 Timothy",
+      "medium": "2 Tim",
+      "short": "2Ti",
+      "aliases": [
+        "2timothy",
+        "2tim",
+        "ii timothy",
+        "ii tim",
+        "iitim",
+        "ii ti",
+        "iitimothy"
+      ]
+    },
+    "56": {
+      "long": "Titus",
+      "short": "Tit",
+      "aliases": [
+        "ti"
+      ]
+    },
+    "57": {
+      "long": "Philemon",
+      "medium": "Phlm",
+      "short": "Phm",
+      "aliases": [
+        "philem",
+        "pm"
+      ]
+    },
+    "58": {
+      "long": "Hebrews",
+      "medium": "Heb",
+      "short": "He"
+    },
+    "59": {
+      "long": "James",
+      "medium": "Jas",
+      "aliases": [
+        "jam",
+        "jm"
+      ]
+    },
+    "60": {
+      "long": "1 Peter",
+      "medium": "1 Pet",
+      "short": "1Pe",
+      "aliases": [
+        "1peter",
+        "1pet",
+        "1pt",
+        "1 pe",
+        "i peter",
+        "1p",
+        "i pet",
+        "ipet",
+        "i pe",
+        "ipeter"
+      ]
+    },
+    "61": {
+      "long": "2 Peter",
+      "medium": "2 Pet",
+      "short": "2Pe",
+      "aliases": [
+        "2peter",
+        "2pet",
+        "2pt",
+        "2 pe",
+        "ii peter",
+        "2p",
+        "ii pet",
+        "iipet",
+        "ii pe",
+        "iipeter"
+      ]
+    },
+    "62": {
+      "long": "1 John",
+      "short": "1Jn",
+      "aliases": [
+        "1john",
+        "1jo",
+        "1joh",
+        "1 jn",
+        "i john",
+        "1j",
+        "i jn",
+        "ijn",
+        "i jo",
+        "ijohn"
+      ]
+    },
+    "63": {
+      "long": "2 John",
+      "short": "2Jn",
+      "aliases": [
+        "2john",
+        "2jo",
+        "2joh",
+        "2 jn",
+        "ii john",
+        "2j",
+        "ii jn",
+        "iijn",
+        "ii jo",
+        "iijohn"
+      ]
+    },
+    "64": {
+      "long": "3 John",
+      "short": "3Jn",
+      "aliases": [
+        "3john",
+        "3jo",
+        "3joh",
+        "3 jn",
+        "iii john",
+        "3j",
+        "iii jn",
+        "iiijn",
+        "iii jo",
+        "iiijohn"
+      ]
+    },
+    "65": {
+      "long": "Jude",
+      "short": "Jud",
+      "aliases": [
+        "jd"
+      ]
+    },
+    "66": {
+      "long": "Revelation",
+      "medium": "Rev",
+      "short": "Re",
+      "aliases": [
+        "the revelation",
+        "revelations",
+        "revelation of john",
+        "rv"
+      ]
+    }
+  },
+  "ordinals": {
+    "1": [
+      "I",
+      "First",
+      "1st"
+    ],
+    "2": [
+      "II",
+      "Second",
+      "2nd"
+    ],
+    "3": [
+      "III",
+      "Third",
+      "3rd"
+    ]
+  },
+  "ambiguous": {
+    "jo": {
+      "prefer": 43,
+      "also": [
+        6,
+        18,
+        29,
+        32
+      ]
+    }
+  }
+}
