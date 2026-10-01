@@ -4,28 +4,12 @@
  *
  * Display names and verse-id parsing come from @bible/core.
  */
-import { VerseIdHelper, getBookName as coreGetBookName, getLocalizer, type Localizer } from '@bible/core';
+import { MEDIUM_NAMES, VerseIdHelper, getBookName as coreGetBookName, getLocalizer, type Localizer } from '@bible/core';
 
 
-// Book abbreviations.
-//
-// Deliberately NOT core's MEDIUM_NAMES. The two tables agree on 64 of 66
-// entries but differ on Exodus ('Exod' here vs 'Exo' in core) and Psalms
-// ('Ps' vs 'Psa'). Both spellings are in common use, so picking one is a
-// product decision about visible UI text rather than a refactor - unifying
-// them would silently restyle every abbreviated reference in one app or the
-// other. Left local until that call is made.
-const BOOK_ABBREVIATIONS = [
-  'Gen', 'Exod', 'Lev', 'Num', 'Deut', 'Josh', 'Judg', 'Ruth',
-  '1 Sam', '2 Sam', '1 Kgs', '2 Kgs', '1 Chr', '2 Chr', 'Ezra',
-  'Neh', 'Esth', 'Job', 'Ps', 'Prov', 'Eccl', 'Song',
-  'Isa', 'Jer', 'Lam', 'Ezek', 'Dan', 'Hos', 'Joel', 'Amos',
-  'Obad', 'Jonah', 'Mic', 'Nah', 'Hab', 'Zeph', 'Hag', 'Zech',
-  'Mal', 'Matt', 'Mark', 'Luke', 'John', 'Acts', 'Rom', '1 Cor',
-  '2 Cor', 'Gal', 'Eph', 'Phil', 'Col', '1 Thess',
-  '2 Thess', '1 Tim', '2 Tim', 'Titus', 'Phlm', 'Heb', 'Jas',
-  '1 Pet', '2 Pet', '1 John', '2 John', '3 John', 'Jude', 'Rev'
-];
+// Book abbreviations: core's English medium names (SBL style, "Exod", "Ps"),
+// the single source since task 0077 (Q9 adopted this app's spellings).
+const BOOK_ABBREVIATIONS: readonly string[] = Array.from({ length: 66 }, (_, i) => MEDIUM_NAMES[i + 1]);
 
 /**
  * Parse verse ID into components

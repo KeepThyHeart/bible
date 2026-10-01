@@ -177,14 +177,21 @@ export class ReferenceParser implements IReferenceParser {
   /**
    * Check if the given text looks like a Bible reference: the loose
    * "<word> <number>[:<number>]" shape (any script), or anything the engine
-   * parses ("约翰福音3:16"). Does not validate that the book exists -- use
+   * parses with an exact book name ("约翰福音3:16", "约３：１６"). Does not validate that the book exists -- use
    * {@link parse} followed by {@link validate} for that.
    */
   isReference(text: string, options?: ReferenceParseOptions): boolean {
     const trimmed = text.trim();
     if (!trimmed) return false;
     if (LOOSE_REFERENCE.test(trimmed)) return true;
-    return this.parse(trimmed, options).isValid;
+    // Exact names only here: with prefixes or typo correction, "web3" or
+    // "hope3" typed into a search box would turn into a passage.
+    return this.engine.parse(trimmed, {
+      allowWholeBook: options?.allowWholeBook === true,
+      prefix: false,
+      lists: false,
+      validateNumbers: false,
+    }).ok;
   }
 
   /**

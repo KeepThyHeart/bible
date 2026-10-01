@@ -400,7 +400,7 @@ export class SearchQueryParser {
     // Simple heuristic: a word (any script) then a number. Scripts written
     // without spaces (CJK) may run the book straight into the number:
     // "约翰福音3:16".
-    const referencePattern = /^[123]?\s*[\p{L}\p{M}]+(?:\s+|(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]))\d+/u;
+    const referencePattern = /^[123]?\s*[\p{L}\p{M}]+(?:\s+|(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]))\p{Nd}+/u;
     return referencePattern.test(query.trim());
   }
 

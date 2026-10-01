@@ -39,6 +39,8 @@ export interface TailOptions {
   bookless?: boolean;
   /** Bookless input with a known chapter: a bare number is a verse of it. */
   contextChapter?: number;
+  /** True when a book name starts at this index ("1 Cor"), so a list must stop before it. */
+  bookAt?: (index: number) => boolean;
 }
 
 class Cursor {
@@ -176,6 +178,11 @@ export function parseTail(
       const save = c.i;
       const sepUsed = c.sep(listSeps);
       if (!sepUsed) break;
+      // "Rom 8:28; 1 Cor 13:4": the number starts a numbered book's name, not a list item.
+      if (opts.bookAt?.(c.i)) {
+        c.i = save;
+        break;
+      }
       const n = c.num();
       if (n === undefined) {
         c.i = save;
@@ -186,9 +193,6 @@ export function parseTail(
       let item: RawRange | undefined;
       const v = readVerseAfterCv();
       if (v !== undefined) {
-        if (opts.scan && sepUsed === ',') {
-          // In prose "3:16, 4:1" is unusual; still accept it as a new chapter:verse.
-        }
         item = { chapter: n, verse: v, start: itemStart, end: c.i };
         c.sep(syntax.verseSuffix, false);
       } else if (c.sep(syntax.chapterSuffix, false)) {

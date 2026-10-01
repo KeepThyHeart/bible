@@ -148,7 +148,8 @@ export class ReferenceEngine {
       this.fallbackLocs = loadedReferenceLocales()
         .filter((t) => !have.has(t))
         .map((t) => compiledFor(t))
-        .filter((c): c is CompiledLocale => !!c);
+        // Draft data is only used when asked for by name (UI locale, an installed Bible's language).
+        .filter((c): c is CompiledLocale => !!c && c.data.status !== 'draft');
     }
     return this.fallbackLocs;
   }
@@ -186,8 +187,9 @@ export class ReferenceEngine {
       return r;
     };
 
+    const bookAt = (i: number) => this.locs.some((l) => this.candidatesAt(l, s, i, folds).length > 0);
     const tryTail = (loc: CompiledLocale, from: number) => {
-      const tail = parseTail(s, from, loc.syntax, { lists });
+      const tail = parseTail(s, from, loc.syntax, { lists, bookAt });
       if (!tail) return undefined;
       return s.slice(tail.end, b).trim() === '' ? tail : undefined;
     };
@@ -416,7 +418,11 @@ export class ReferenceEngine {
           if (s[j] === '.') j++;
           if (s[j] === ' ') j++;
           if (!isDigit(s[j])) continue;
-          const tail = parseTail(s, cand.end, loc.syntax, { lists: true, scan: true });
+          const tail = parseTail(s, cand.end, loc.syntax, {
+            lists: true,
+            scan: true,
+            bookAt: (k) => this.locs.some((l) => this.candidatesAt(l, s, k, folds).some((x) => !x.t.inputOnly)),
+          });
           if (!tail) continue;
           if (cand.t.short && tail.ranges[0].verse === undefined) continue;
           const ranges = resolveRanges(cand.t.book, tail.ranges);

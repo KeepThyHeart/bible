@@ -36,7 +36,7 @@
 
 import type { ReferenceParserConfig } from '../../Services/ReferenceParser';
 import { ReferenceEngine } from '../../Reference/engine';
-import { loadedReferenceLocaleFor, referenceLocalesVersion } from '../../Reference/registry';
+import { getMergedReferenceLocale, loadedReferenceLocaleFor, referenceLocalesVersion } from '../../Reference/registry';
 import { isSingleChapter } from '../../Reference/canon';
 import {
   ENGLISH_BOOK_NAMES,
@@ -166,6 +166,16 @@ export function referenceParserConfigFor(tag: string): ReferenceParserConfig | u
     const engine = ReferenceEngine.create({ locales: [dataTag] });
     const bookNames = new Map<string, number>();
     for (const [name, t] of engine.namesOf(dataTag)) bookNames.set(name, t);
+    // Also the names as written (lower case, accents kept), for callers that
+    // only lower-case their input before a lookup ("éx", "génesis").
+    const data = getMergedReferenceLocale(dataTag);
+    for (const [n, b] of Object.entries(data?.books ?? {})) {
+      for (const name of [b.long, b.medium, b.short, ...(b.aliases ?? [])]) {
+        if (!name) continue;
+        const key = name.toLocaleLowerCase(dataTag).replace(/\.$/, '');
+        if (!bookNames.has(key)) bookNames.set(key, Number(n));
+      }
+    }
     const displayNames = Array.from({ length: 66 }, (_, i) => engine.bookName(i + 1));
     const singleChapterBooks = new Set(Array.from({ length: 66 }, (_, i) => i + 1).filter(isSingleChapter));
     config = { bookNames, displayNames, singleChapterBooks, locale: dataTag };

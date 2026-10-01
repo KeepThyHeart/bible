@@ -113,6 +113,9 @@ export class VerseReferenceIndexingService implements IVerseReferenceIndexingSer
 
       // Parse the reference using ReferenceParser
       const parsed = this.referenceParser.parse(fullMatch);
+      // Typo correction stays an English-prose convenience: a non-ASCII word
+      // ("después 10:30") must name a book exactly.
+      if (parsed.fuzzyMatch && /[^\x00-\x7F]/.test(match[1])) continue;
 
       if (parsed.isValid && parsed.book && parsed.chapter) {
         // Calculate verse IDs

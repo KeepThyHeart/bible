@@ -51,15 +51,16 @@ export function digitValue(cp: number): number {
 const digitCache = new Map<number, string>();
 
 export function normalizeText(input: string): NormalizedText {
-  let text = '';
+  const out: string[] = [];
   const start: number[] = [];
   const end: number[] = [];
+  let lastSpace = false;
   let i = 0;
   for (const ch of input) {
     const len = ch.length;
     let rep: string;
     if (STRIP.test(ch)) rep = '';
-    else if (SPACE.test(ch)) rep = text.endsWith(' ') ? '' : ' ';
+    else if (SPACE.test(ch)) rep = lastSpace ? '' : ' ';
     else if (DASH.test(ch)) rep = '-';
     else if (ch === '\u05F3' || ch === '\u2019') rep = "'"; // Hebrew geresh, right single quote
     else if (ch === '\u05F4') rep = '"'; // Hebrew gershayim
@@ -74,16 +75,19 @@ export function normalizeText(input: string): NormalizedText {
       rep = d;
     } else {
       rep = ch.normalize('NFKC');
-      if (rep === ' ' || SPACE.test(rep)) rep = text.endsWith(' ') ? '' : ' ';
+      if (SPACE.test(rep)) rep = lastSpace ? '' : ' ';
     }
-    for (let k = 0; k < rep.length; k++) {
-      start.push(i);
-      end.push(i + len);
+    if (rep) {
+      for (let k = 0; k < rep.length; k++) {
+        start.push(i);
+        end.push(i + len);
+      }
+      out.push(rep);
+      lastSpace = rep.endsWith(' ');
     }
-    text += rep;
     i += len;
   }
-  return { text, start, end };
+  return { text: out.join(''), start, end };
 }
 
 /** Plain normalised string, for callers that need no offsets. */

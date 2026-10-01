@@ -37,6 +37,8 @@ export interface Terminal {
   short: boolean;
   /** Typed input only, never matched in prose: word ordinals ("First John", "Primera de Corintios") read as ordinary words there. */
   inputOnly?: boolean;
+  /** A unique prefix of this name is accepted ("Deuter"). Long and medium names only, not aliases or ordinal words. */
+  prefixable?: boolean;
   alternatives?: RefBook[];
 }
 
@@ -97,7 +99,7 @@ function insert(root: TrieNode, key: string, t: Terminal): void {
 export function booksBelow(node: TrieNode): Set<RefBook> {
   if (node.books) return node.books;
   const s = new Set<RefBook>();
-  if (node.terminal) {
+  if (node.terminal?.prefixable) {
     s.add(node.terminal.book);
   }
   for (const n of node.next.values()) for (const b of booksBelow(n)) s.add(b);
@@ -126,9 +128,13 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
   const ambiguous = new Map<string, { prefer: RefBook; also: RefBook[] }>();
   for (const [k, v] of Object.entries(data.ambiguous ?? {})) ambiguous.set(foldName(k, fold), v);
 
-  const add = (raw: string, book: RefBook, explicit: boolean, short: boolean, inputOnly = false) => {
+  const add = (raw: string, book: RefBook, explicit: boolean, short: boolean, inputOnly = false, prefixable = false) => {
     const key = foldName(raw, fold);
-    if (!key || dropped.has(key)) return;
+    if (!key) return;
+    if (dropped.has(key)) {
+      if (!explicit) return;
+      dropped.delete(key);
+    }
     const lv = explicit ? 0 : 1;
     const amb = ambiguous.get(key);
     if (amb) {
@@ -140,13 +146,14 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
     if (prev) {
       if (prev.book === book) {
         if (explicit && !prev.explicit) prev.explicit = true;
+        if (prefixable) prev.prefixable = true;
         if (!short) prev.short = false;
         level.set(key, Math.min(level.get(key)!, lv));
         return;
       }
       const prevLv = level.get(key)!;
       if (lv < prevLv) {
-        names.set(key, { book, explicit, short });
+        names.set(key, { book, explicit, short, ...(prefixable ? { prefixable } : {}) });
         level.set(key, lv);
       } else if (lv === prevLv) {
         if (lv === 0) clashes.push({ name: key, books: [prev.book, book] });
@@ -157,7 +164,10 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
       }
       return;
     }
-    names.set(key, inputOnly ? { book, explicit, short, inputOnly } : { book, explicit, short });
+    const t: Terminal = { book, explicit, short };
+    if (inputOnly) t.inputOnly = true;
+    if (prefixable) t.prefixable = true;
+    names.set(key, t);
     level.set(key, lv);
     if (explicit) fuzzyKeys.push([key, book]);
   };
@@ -168,20 +178,20 @@ export function compileLocale(data: ReferenceLocaleData): CompiledLocale {
   for (let n = 1; n <= 66; n++) {
     const b = books[String(n)];
     if (!b) continue;
-    const explicit: Array<[string, boolean]> = [];
-    if (b.long) explicit.push([b.long, isShort(b.long)]);
-    if (b.medium) explicit.push([b.medium, isShort(b.medium)]);
-    if (b.short) explicit.push([b.short, b.scanShort === false || isShort(b.short)]);
-    for (const a of b.aliases ?? []) explicit.push([a, isShort(a)]);
-    for (const [name, short] of explicit) add(name, n, true, short);
+    const explicit: Array<[string, boolean, boolean]> = [];
+    if (b.long) explicit.push([b.long, isShort(b.long), true]);
+    if (b.medium) explicit.push([b.medium, isShort(b.medium), true]);
+    if (b.short) explicit.push([b.short, b.scanShort === false || isShort(b.short), false]);
+    for (const a of b.aliases ?? []) explicit.push([a, isShort(a), false]);
+    for (const [name, short, pfx] of explicit) add(name, n, true, short, false, pfx);
     // Generated variants: ordinal words for a leading 1/2/3, and "1Cor" for "1 Cor".
     if (!spaceless) {
-      for (const [name, short] of explicit) {
+      for (const [name, short, pfx] of explicit) {
         const m = /^([1-3])\s*(\S.*)$/u.exec(name.trim());
         if (!m) continue;
         const [, d, stem] = m;
-        add(`${d}${stem}`, n, false, short);
-        add(`${d} ${stem}`, n, false, short);
+        add(`${d}${stem}`, n, false, short, false, pfx);
+        add(`${d} ${stem}`, n, false, short, false, pfx);
         for (const w of ordinals[d] ?? []) add(`${w} ${stem}`, n, false, short, !/^(?:\d+|[ivxIVX]+)$/.test(w));
       }
     }
