@@ -30,6 +30,8 @@ export interface NotificationPreferencesLabels {
   quietHelp: string;
   sources: string;
   noSources: string;
+  /** Hint under a source the host has blocked (extension disabled or permission revoked). */
+  blocked: string;
   /** `{source}` is replaced by the source label. */
   dailyTime: string;
   /** `{time}` is replaced by the formatted next fire. */
@@ -59,6 +61,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES_LABELS: NotificationPreferencesLab
   quietHelp: 'Notifications due in quiet hours wait until they end.',
   sources: 'Reminders',
   noSources: 'No features use notifications yet.',
+  blocked: 'Turned off because the extension is disabled or lacks permission.',
   dailyTime: 'Time for {source}',
   next: 'Next: {time}',
   scheduled: '{count} scheduled',
@@ -159,7 +162,7 @@ export function NotificationPreferences({
     <div className="kth-notify-prefs">
       <fieldset className="kth-fieldset">
         <legend>{l.general}</legend>
-        <p className="kth-notify-prefs__status" role="status">{status}</p>
+        <p className={unsupported ? 'kth-notify-prefs__status kth-notify-prefs__hint' : 'kth-notify-prefs__status'} role="status">{status}</p>
         {capabilities.permission === 'prompt' && onRequestPermission && (
           <button type="button" className="kth-btn kth-notify-prefs__hint" onClick={() => onRequestPermission()}>
             {l.allow}
@@ -167,7 +170,7 @@ export function NotificationPreferences({
         )}
         {!unsupported && <p className="kth-field__hint kth-notify-prefs__hint">{whenClosed}</p>}
         <div className="kth-field">
-          {sw(`${idPrefix}-enabled`, l.enabled, settings.enabled, unsupported, (v) => onSettingsChange({ ...settings, enabled: v }))}
+          {sw(`${idPrefix}-enabled`, l.enabled, settings.enabled && !unsupported, unsupported, (v) => onSettingsChange({ ...settings, enabled: v }))}
         </div>
         <div className="kth-field">
           {sw(`${idPrefix}-quiet`, l.quietHours, quiet !== null, off, (v) => setQuiet(v ? { ...DEFAULT_QUIET } : null))}
@@ -201,22 +204,27 @@ export function NotificationPreferences({
         <legend>{l.sources}</legend>
         {state.sources.length === 0 && <p className="kth-field__hint">{l.noSources}</p>}
         {state.sources.map((source) => {
+          const blocked = source.allowed === false;
+          const rowOff = off || blocked;
           const base = `${idPrefix}-src-${source.id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
           return (
             <div key={source.id} className="kth-field" data-source-id={source.id}>
-              {sw(base, source.label, source.enabled, off, (v) => setSource(source.id, { enabled: v }))}
+              {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }))}
               {source.description && (
                 <p id={`${base}-description`} className="kth-field__hint">{source.description}</p>
               )}
+              {blocked && (
+                <p id={`${base}-blocked`} className="kth-field__hint">{l.blocked}</p>
+              )}
               {source.enabled && source.kind === 'rules' && source.userEditable && (
                 <div className="kth-notify-prefs__times">
-                  <label htmlFor={`${base}-time`}>{l.dailyTime.replace('{source}', source.label)}</label>
+                  <label htmlFor={`${base}-time`}>{l.dailyTime.replace('{source}', () => source.label)}</label>
                   <input
                     id={`${base}-time`}
                     className="kth-input"
                     type="time"
                     value={firstFixedTime(source.plan)}
-                    disabled={off}
+                    disabled={rowOff}
                     onChange={(e) => {
                       const time = e.currentTarget.value;
                       if (time) setSource(source.id, { plan: dailyPlan(source.plan, time) });
@@ -225,11 +233,11 @@ export function NotificationPreferences({
                 </div>
               )}
               {source.nextAt !== null && (
-                <p className="kth-field__hint">{l.next.replace('{time}', formatTime(source.nextAt))}</p>
+                <p className="kth-field__hint">{l.next.replace('{time}', () => formatTime(source.nextAt as number))}</p>
               )}
               {source.kind === 'items' && (
                 <p className="kth-field__hint">
-                  {formatScheduled ? formatScheduled(source.pending) : l.scheduled.replace('{count}', String(source.pending))}
+                  {formatScheduled ? formatScheduled(source.pending) : l.scheduled.replace('{count}', () => String(source.pending))}
                 </p>
               )}
             </div>

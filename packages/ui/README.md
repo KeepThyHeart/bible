@@ -169,7 +169,7 @@ button. Controlled and store-free: it takes a `NotificationsViewState` (from `@b
 | `onRequestPermission`, `onSendTest` | Show the "Allow notifications" button (permission `prompt`) and the test button. |
 | `formatTime(epochMs)` | "Next: ..." text (default `toLocaleString`). |
 | `formatScheduled(count)` | Plural-aware "{count} scheduled" text; falls back to the `scheduled` label. |
-| `labels`, `idPrefix` | `NotificationPreferencesLabels` (English defaults in `DEFAULT_NOTIFICATION_PREFERENCES_LABELS`; `{time}`, `{count}`, `{source}` placeholders); control id prefix (`notify`). |
+| `labels`, `idPrefix` | `NotificationPreferencesLabels` (English defaults in `DEFAULT_NOTIFICATION_PREFERENCES_LABELS`; `{time}`, `{count}`, `{source}` placeholders, substituted literally; `blocked` hint for a source whose `allowed` is false, which also disables its switch); control id prefix (`notify`). |
 
 Everything under the master switch is disabled when it is off. With permission `unsupported` every control is disabled and the when-closed hint is hidden. The From/To inputs show only while quiet hours are on. "Start when I log in" is disabled while the tray is off (unless already on, so it can be turned off). Turning quiet hours on writes 21:30 to 07:00. Switches are
 `<input type="checkbox" role="switch">`. Classes: `kth-notify-prefs`, `__status`, `__switch`, `__times`, plus `kth-fieldset`, `kth-field`,

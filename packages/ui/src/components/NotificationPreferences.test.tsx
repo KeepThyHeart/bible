@@ -5,11 +5,11 @@ import { NotificationPreferences } from './NotificationPreferences';
 
 const votd: ReminderSourceInfo = {
   id: 'app:votd', kind: 'rules', label: 'Verse of the day', description: 'A verse each morning.', enabled: true,
-  defaultEnabled: false, registered: true, userEditable: true, nextAt: 1_700_000_000_000, pending: 0,
+  defaultEnabled: false, registered: true, allowed: true, userEditable: true, nextAt: 1_700_000_000_000, pending: 0,
   plan: { slots: [{ id: 'daily', kind: 'fixed', time: '08:00', days: [1, 2, 3] }] },
 };
 const ext: ReminderSourceInfo = {
-  id: 'ext:memory', kind: 'items', label: 'Memory cards', enabled: true, defaultEnabled: true, registered: true,
+  id: 'ext:memory', kind: 'items', label: 'Memory cards', enabled: true, defaultEnabled: true, registered: true, allowed: true,
   userEditable: false, nextAt: null, pending: 3, plan: null,
 };
 
@@ -229,5 +229,32 @@ describe('NotificationPreferences', () => {
     setup(makeState({ sources: [] }), { labels: { enabled: 'Benachrichtigungen', noSources: 'Nichts' } });
     expect(screen.getByRole('switch', { name: 'Benachrichtigungen' })).toBeInTheDocument();
     expect(screen.getByText('Nichts')).toBeInTheDocument();
+  });
+
+  it('disables a blocked source and shows the hint', () => {
+    setup(makeState({ sources: [votd, { ...ext, allowed: false }] }));
+    expect(screen.getByRole('switch', { name: 'Memory cards' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Verse of the day' })).toBeEnabled();
+    expect(screen.getAllByText('Turned off because the extension is disabled or lacks permission.')).toHaveLength(1);
+  });
+
+  it('master switch is unchecked when unsupported', () => {
+    setup(makeState({ capabilities: { permission: 'unsupported', whenClosed: 'never', actions: false } }));
+    expect(screen.getByRole('switch', { name: 'Show notifications' })).not.toBeChecked();
+  });
+
+  it('keeps spacing under the status line when unsupported', () => {
+    setup(makeState({ capabilities: { permission: 'unsupported', whenClosed: 'never', actions: false } }));
+    expect(screen.getByRole('status')).toHaveClass('kth-notify-prefs__hint');
+  });
+
+  it('does not mangle replacement patterns in labels', () => {
+    const tricky = { ...votd, label: "A $& B $' $1", pending: 0 };
+    setup(makeState({ sources: [tricky, { ...ext, label: '$&' }] }), {
+      formatTime: () => '$&-t',
+      labels: { scheduled: '{count} x', next: 'Next: {time}' },
+    });
+    expect(screen.getByLabelText("Time for A $& B $' $1")).toBeInTheDocument();
+    expect(screen.getByText('Next: $&-t')).toBeInTheDocument();
   });
 });
