@@ -12,7 +12,7 @@ import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
 import { useVerseText } from '../../hooks/useVerseText';
 import type { IBibleDataProvider } from '../../providers/interfaces';
-import { contentSwipeStep } from '../../utils/contentDirection';
+import { contentSwipeStep, moduleContentAttrs } from '../../utils/contentDirection';
 
 interface CommentaryPaneProps {
   bibleProvider?: IBibleDataProvider;
@@ -247,7 +247,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
           </div>
         </div>
         {verseText && (
-          <div class="commentary-verse-text">{verseText}</div>
+          <div class="commentary-verse-text" {...moduleContentAttrs(bibleStore.getActiveModule())}>{verseText}</div>
         )}
         {syncInfo.status === 'pinned-mismatch' && (
           <div class="commentary-pinned-banner">
