@@ -216,7 +216,8 @@ export class ReadingPlanService implements IReadingScopeProvider {
   /** Resume a paused plan. A fixed schedule restarts from today, so the paused days are not counted as missed. */
   async resume(id: string): Promise<Enrollment> {
     const e = await this.updateEnrollment(id, { status: 'active' });
-    return e.pacing === 'fixed' ? this.shiftSchedule(id) : e;
+    // A plan paused before its start date keeps that start date.
+    return e.pacing === 'fixed' && e.startDate < this.today() ? this.shiftSchedule(id) : e;
   }
 
   /** Stop tracking a schedule: today becomes the first unread day and nothing is ever overdue. */

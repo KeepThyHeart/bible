@@ -120,7 +120,7 @@ describe('ics escaping', () => {
     const e = await service.startPlan('stock:mcheyne', { pacing: 'fixed' });
     const d = await service.detail(e.id);
     const ics = planToIcs(d.plan, d.enrollment, [], { formatReading: () => 'Бытие 1', today: '2026-10-01', title: 'План чтения Библии на год' });
-    expect(ics).toContain('\; ');
+    expect(ics).toContain('\\; ');
     for (const line of ics.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
   });
 });

@@ -194,26 +194,26 @@ export function ReadingPlanBuilderForm({
     };
   }, [name, books, passages, order, paceKind, daysN, startDate, endDate, chapters, verses, split, readingDays, L.namePlaceholder]);
 
-  const buildErrorText = (e: unknown): string => {
-    if (!(e instanceof ReadingPlans.PlanBuildError)) return L.chooseSomething;
-    switch (e.code) {
-      case 'empty_scope': return L.errorEmptyScope;
+  // Built only when the spec changes; error text is mapped at render so labels never rebuild the preview.
+  const built = useMemo(() => {
+    if (spec.scope.length === 0) return { kind: 'error', code: 'empty_scope' } as const;
+    try {
+      return { kind: 'ok', ok: ReadingPlans.previewPlan(spec) } as const;
+    } catch (e) {
+      return { kind: 'error', code: e instanceof ReadingPlans.PlanBuildError ? e.code : null } as const;
+    }
+  }, [spec]);
+  const errorText = (code: ReadingPlans.PlanBuildError['code'] | null): string => {
+    switch (code) {
+      case 'empty_scope': return spec.scope.length === 0 ? L.chooseSomething : L.errorEmptyScope;
       case 'invalid_range': return L.errorInvalidRange;
       case 'invalid_pace': return L.errorInvalidPace;
       case 'too_many_days': return L.errorTooManyDays;
       case 'too_many_readings': return L.errorTooManyReadings;
-      default: return (e as Error).message;
+      default: return L.chooseSomething;
     }
   };
-
-  const preview = useMemo(() => {
-    if (spec.scope.length === 0) return { kind: 'error', error: L.chooseSomething } as const;
-    try {
-      return { kind: 'ok', ok: ReadingPlans.previewPlan(spec) } as const;
-    } catch (e) {
-      return { kind: 'error', error: buildErrorText(e) } as const;
-    }
-  }, [spec, L]);
+  const preview = built.kind === 'ok' ? built : ({ kind: 'error', error: errorText(built.code) } as const);
 
   const setBookSet = (list: number[]) => setBooks(new Set(list));
   const toggleBook = (b: number) => {
