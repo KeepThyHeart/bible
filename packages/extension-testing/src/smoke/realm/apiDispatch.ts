@@ -47,6 +47,7 @@ const NAMESPACES: ReadonlySet<string> = new Set([
   'auth',
   'tasks',
   'extensions',
+  'reminders',
   'ai',
 ]);
 

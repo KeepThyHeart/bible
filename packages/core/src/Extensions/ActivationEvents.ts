@@ -54,6 +54,14 @@ export const ACT_PREFIX_ON_EXTENSION_API = 'onExtensionApi:' as const;
 export const ACT_PREFIX_ON_AUTH_REQUIRED = 'onAuthRequired:' as const;
 export const ACT_PREFIX_ON_TASK = 'onTask:' as const;
 
+/**
+ * The user clicked one of this extension's reminders (`api.reminders`, needs
+ * `notifications:schedule`). Bare event. Unlike the others it is fired at ONE
+ * extension (the reminder's owner), never fanned out to every subscriber -
+ * see `ExtensionHost.deliverReminderActivation`.
+ */
+export const ACT_ON_REMINDER = 'onReminder' as const;
+
 /** Search runs and the provider hasn't activated yet. Bare event, no parameter. */
 export const ACT_ON_SEARCH_PROVIDER = 'onSearchProvider' as const;
 
@@ -138,6 +146,7 @@ export const BARE_ACTIVATION_EVENTS: readonly string[] = [
   ACT_STAR,
   ACT_ON_SESSION_LOADED,
   ACT_ON_SEARCH_PROVIDER,
+  ACT_ON_REMINDER,
 ];
 
 /** Every parameterized prefix the vocabulary accepts. */
@@ -170,6 +179,7 @@ export const FIRED_ACTIVATION_EVENTS: readonly string[] = [
   ACT_ON_STARTUP_FINISHED,
   ACT_PREFIX_ON_COMMAND,
   ACT_PREFIX_ON_VIEW,
+  ACT_ON_REMINDER,
 ];
 
 /** True if `event` is a syntactically valid activation event (bare or prefixed with a real parameter). */

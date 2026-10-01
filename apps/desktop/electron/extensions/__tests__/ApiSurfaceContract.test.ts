@@ -4,7 +4,7 @@
  * Task 0024 round 3 (P0.3) replaced two independently-hand-maintained event
  * surfaces - the `onDid*` properties scattered across eleven namespaces, and
  * the 40-member `ExtensionPointId` union with zero call sites - with one
- * channel vocabulary (`ExtensionPointId`, now 14 members) and one dispatcher
+ * channel vocabulary (`ExtensionPointId`, now 16 members) and one dispatcher
  * (`dispatchExtensionPoint`). This file is the drift test for *that* surface:
  * it reads `ExtensionPointTypes.ts` (kinds, payload/return maps,
  * cancelable/replay tables) and `ExtensionApiTypes.ts` (the `ExtensionPointId`
@@ -196,7 +196,7 @@ describe('API surface contract', () => {
     expect(namespaces.get('bible')).toBe('IBibleApi');
 
     const pointIds = declaredPointIds();
-    expect(pointIds.length).toBe(14);
+    expect(pointIds.length).toBe(16);
   });
 
   it('declares only methods (never a bare data property)', () => {
@@ -217,7 +217,7 @@ describe('API surface contract', () => {
     // the missing handle it replaced: it fails at teardown, asynchronously,
     // usually unobserved.
     //
-    // Three namespaces are legitimate exceptions, and they are all the same
+    // Four namespaces are legitimate exceptions, and they are all the same
     // exception: the proxy special-cases them to worker-local state, so they
     // hand back a real `DisposableHandle` built in the worker and never issue
     // a request the host could answer with a `disposalId`.
@@ -234,7 +234,10 @@ describe('API surface contract', () => {
     //                name. Its `dispose()` unbinds locally *and* sends
     //                `panels.setMessageHandler(false)`, but that is a state
     //                update, not a disposal call.
-    const WORKER_LOCAL_DISPOSABLES = new Set(['events', 'runtime', 'panels']);
+    //   `reminders` - `onActivated` / `onMissed` are `events.subscribe` on the
+    //                host-emitted `reminder.activated` / `reminder.missed`
+    //                channels, built worker-side in `apiProxy.ts`.
+    const WORKER_LOCAL_DISPOSABLES = new Set(['events', 'runtime', 'panels', 'reminders']);
     const registered = registeredMethods();
     const missing = [...namespacesReturningDisposables()]
       .filter((ns) => !WORKER_LOCAL_DISPOSABLES.has(ns))
