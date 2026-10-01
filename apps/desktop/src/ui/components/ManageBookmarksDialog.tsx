@@ -243,7 +243,7 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
                         </button>
 
                         {isEditing ? (
-                          <input dir="auto"
+                          <input
                             autoFocus
                             className="flex-1 min-w-0 px-2 py-1 text-sm rounded border border-border bg-background-input"
                             value={draftTitle}

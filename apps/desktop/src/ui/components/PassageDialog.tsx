@@ -688,7 +688,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <input dir="auto"
+                <input
                   id={REFERENCE_INPUT_ID}
                   ref={referenceInputRef}
                   data-testid="passage-reference-input"
@@ -947,7 +947,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
                           id="passage-dialog-template-save"
                           className="mb-2 flex items-center gap-2"
                         >
-                          <input dir="auto"
+                          <input
                             id={TEMPLATE_SAVE_INPUT_ID}
                             type="text"
                             value={saveName}
@@ -983,7 +983,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
                         </div>
                       )}
 
-                      <textarea dir="auto"
+                      <textarea
                         id="passage-dialog-template-text"
                         value={templateText}
                         onChange={e => changeTemplateText(e.target.value)}

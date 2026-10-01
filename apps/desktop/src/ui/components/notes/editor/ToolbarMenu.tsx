@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useDirection } from '../../../contexts/useDirection';
 
 /**
  * A toolbar dropdown (highlight swatches, text colours, list styles, table
@@ -49,14 +50,16 @@ export interface ToolbarMenuProps {
   children: React.ReactNode;
 }
 
-function computeStyle(anchor: DOMRect, panel: DOMRect): CSSProperties {
+function computeStyle(anchor: DOMRect, panel: DOMRect, dir: 'ltr' | 'rtl'): CSSProperties {
   const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
   const viewportWidth = vv ? vv.width : window.innerWidth;
   const viewportHeight = vv ? vv.height : window.innerHeight;
 
   const maxWidth = Math.max(0, viewportWidth - EDGE_PADDING * 2);
   const width = Math.min(panel.width, maxWidth);
-  const left = Math.max(EDGE_PADDING, Math.min(anchor.left, viewportWidth - width - EDGE_PADDING));
+  // Inline-start inset: the panel's leading edge lines up with the trigger's.
+  const anchorStart = dir === 'rtl' ? viewportWidth - anchor.right : anchor.left;
+  const insetInlineStart = Math.max(EDGE_PADDING, Math.min(anchorStart, viewportWidth - width - EDGE_PADDING));
 
   const below = anchor.bottom + GAP;
   const fitsBelow = below + panel.height + EDGE_PADDING <= viewportHeight;
@@ -64,13 +67,11 @@ function computeStyle(anchor: DOMRect, panel: DOMRect): CSSProperties {
     ? below
     : Math.max(EDGE_PADDING, anchor.top - GAP - panel.height);
 
-  // rtl-physical: `left` is a measured viewport coordinate
-  return { position: 'fixed', top, left, maxWidth, visibility: 'visible' };
+  return { position: 'fixed', top, insetInlineStart, maxWidth, visibility: 'visible' };
 }
 
 /** Off-screen-but-measurable starting point, before the panel has been placed. */
-// rtl-physical: left/top are measured viewport rects (getBoundingClientRect), clamped to the physical viewport
-const HIDDEN_STYLE: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden' };
+const HIDDEN_STYLE: CSSProperties = { position: 'fixed', top: 0, insetInlineStart: 0, visibility: 'hidden' };
 
 const ToolbarMenu: React.FC<ToolbarMenuProps> = ({
   open,
@@ -82,6 +83,7 @@ const ToolbarMenu: React.FC<ToolbarMenuProps> = ({
 }) => {
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const uiDir = useDirection();
   const [style, setStyle] = useState<CSSProperties>(HIDDEN_STYLE);
 
   useLayoutEffect(() => {
@@ -99,11 +101,11 @@ const ToolbarMenu: React.FC<ToolbarMenuProps> = ({
     // the panel a row-height below the button that spawned it - the reported
     // "the menu is too low, it's not beside the button".
     const triggerRect = anchor.firstElementChild?.getBoundingClientRect() ?? anchor.getBoundingClientRect();
-    setStyle(computeStyle(triggerRect, panel.getBoundingClientRect()));
+    setStyle(computeStyle(triggerRect, panel.getBoundingClientRect(), uiDir));
     // Placement depends only on the open transition: the panel's contents are
     // static for as long as it is open, and re-running on every render would
     // loop through its own setState.
-  }, [open]);
+  }, [open, uiDir]);
 
   return (
     <div className="relative" ref={anchorRef}>

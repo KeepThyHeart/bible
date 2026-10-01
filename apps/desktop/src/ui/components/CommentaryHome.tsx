@@ -202,7 +202,7 @@ const CommentaryHome: React.FC<CommentaryHomeProps> = ({ panelId, currentVerseId
               said nothing about which of the several lists on screen it acts
               on. It also had no label of any kind, so a screen reader
               announced an unnamed text field. */}
-          <input dir="auto"
+          <input
             type="text"
             placeholder={t('commentaryHome.filterPlaceholder')}
             aria-label={t('commentaryHome.filterLabel')}

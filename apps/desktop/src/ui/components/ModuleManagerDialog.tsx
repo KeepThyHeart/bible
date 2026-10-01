@@ -744,7 +744,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           <div className="flex items-center gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <input dir="auto"
+              <input
                 type="text"
                 value={searchInput}
                 onChange={handleSearchChange}

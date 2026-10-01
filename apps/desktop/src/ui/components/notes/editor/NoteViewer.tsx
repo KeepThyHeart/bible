@@ -141,7 +141,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection }) =>
       <div
         ref={contentRef}
         dir={defaultDirection ?? uiDir}
-        className="flex-1 overflow-auto p-4 prose prose-sm max-w-none"
+        className="note-viewer-content flex-1 overflow-auto p-4 prose prose-sm max-w-none"
         style={{
           fontFamily: 'Georgia, serif',
           // Follows the Typography section's "Study text" size and the

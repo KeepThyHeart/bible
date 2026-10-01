@@ -413,7 +413,6 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
               </svg>
               <input
                 id="notes-folder-filter"
-                dir="auto"
                 type="text"
                 value={filterQuery}
                 onChange={(e) => handleFilterChange(e.target.value)}
@@ -516,7 +515,6 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
               <div className="px-3 py-2 border-b border-border flex-shrink-0">
                 <input
                   id="notes-recent-filter"
-                  dir="auto"
                   type="text"
                   placeholder={t('notesFolderBrowser.filterRecentPlaceholder')}
                   aria-label={t('notesFolderBrowser.filterRecentPlaceholder')}

@@ -825,7 +825,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                   runBrowseSearch(browseQuery);
                 }}
               >
-                <input dir="auto"
+                <input
                   type="search"
                   autoFocus
                   value={browseQuery}

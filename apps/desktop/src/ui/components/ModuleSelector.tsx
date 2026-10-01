@@ -143,7 +143,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
     <>
         {/* Search Input */}
         <div className={embedded ? "px-xl py-md" : "px-xl py-md border-b border-border"}>
-          <input dir="auto"
+          <input
             ref={searchInputRef}
             type="text"
             placeholder={t('ui.moduleSelector.filterPlaceholder')}

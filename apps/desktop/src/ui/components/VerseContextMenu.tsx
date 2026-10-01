@@ -366,7 +366,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
     top: position.y,
-    insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir).insetInlineStart,
+    insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 10).insetInlineStart,
     zIndex: 9999
   };
 
@@ -378,7 +378,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
       const viewportHeight = window.innerHeight;
 
       let adjustedTop = position.y;
-      const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir);
+      const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, 10);
 
       // Adjust if menu overflows bottom edge
       if (rect.bottom > viewportHeight) {

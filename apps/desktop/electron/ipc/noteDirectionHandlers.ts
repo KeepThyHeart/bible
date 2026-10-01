@@ -6,7 +6,7 @@
  * Replies use the `Result<T>` envelope; the renderer side is
  * `src/ui/services/noteDirectionAPI.ts`.
  */
-import { UserDataRepository, UserDataNoteDirectionStore, isNoteDirection } from '@bible/core';
+import { UserDataRepository, UserDataNoteDirectionStore, isNoteDirection, NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION } from '@bible/core';
 import type { NoteDirection } from '@bible/core';
 import log from 'electron-log';
 import { getSharedUserDb } from '../services/sharedUserDb';
@@ -43,7 +43,26 @@ export async function moveNoteDirectionKeys(oldPath: string, newPath: string): P
   }
 }
 
+/** Best effort: drop a deleted note's direction row (exact key), or a deleted folder's rows (key prefix). */
+export async function clearNoteDirectionKeys(deletedPath: string): Promise<void> {
+  try {
+    await getStore(); // makes sure the schema exists
+    const repo = new UserDataRepository(await getSharedUserDb());
+    const prefix = deletedPath.endsWith('/') ? deletedPath : `${deletedPath}/`;
+    for (const item of repo.list(NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION)) {
+      if (item.itemKey === deletedPath || item.itemKey.startsWith(prefix)) {
+        repo.remove(NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION, item.itemKey);
+      }
+    }
+  } catch (err) {
+    log.warn('note-direction: could not clear rows of a deleted note', err);
+  }
+}
+
+const MAX_PATH_LENGTH = 1024;
+
 function requirePath(p: unknown): string {
+  if (typeof p === 'string' && p.length > MAX_PATH_LENGTH) throw new IpcKnownError('invalid_input', 'The note path is too long.');
   if (typeof p !== 'string' || p.length === 0) throw new IpcKnownError('invalid_input', 'A note path is required.');
   return p;
 }

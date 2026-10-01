@@ -346,6 +346,7 @@ export function formatVersesWithOptions(
 export async function copyToClipboard(inputText: string, html?: string): Promise<boolean> {
   // Isolation marks added for display (e.g. around interpolated names) must not leak into pasted text.
   const text = stripBidiControls(inputText);
+  if (html) html = stripBidiControls(html);
   try {
     // Modern clipboard API with rich-text support
     if (html && navigator.clipboard && typeof ClipboardItem !== 'undefined') {

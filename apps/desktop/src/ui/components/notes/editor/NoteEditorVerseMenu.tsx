@@ -16,6 +16,8 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { useI18n } from '../../../contexts/useI18n';
+import { useDirection } from '../../../contexts/useDirection';
+import { anchorAtPointer } from '@bible/core/browser';
 
 export interface NoteEditorVerseMenuProps {
   /** The reference text that was right-clicked, e.g. "John 3:16". */
@@ -41,6 +43,7 @@ const NoteEditorVerseMenu: React.FC<NoteEditorVerseMenuProps> = ({
   onOpenInNewPanel,
   onReformat,
 }) => {
+  const uiDir = useDirection();
   const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -102,8 +105,7 @@ const NoteEditorVerseMenu: React.FC<NoteEditorVerseMenuProps> = ({
       role="menu"
       aria-label={t('ui.noteEditor.verseMenuLabel')}
       className="bg-surface border border-border-secondary rounded-md shadow-lg min-w-[200px] py-1"
-      // rtl-physical: position is a measured pointer coordinate in viewport pixels
-      style={{ position: 'fixed', top: position.y, left: position.x, zIndex: 9999 }}
+      style={{ position: 'fixed', top: position.y, insetInlineStart: anchorAtPointer(position.x, 200, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 8).insetInlineStart, zIndex: 9999 }}
       onKeyDown={handleMenuKeyDown}
     >
       <div className="px-4 py-1 text-xs text-text-secondary bidi-isolate">{referenceText}</div>

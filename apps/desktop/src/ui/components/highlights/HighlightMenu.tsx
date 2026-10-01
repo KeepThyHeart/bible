@@ -61,7 +61,7 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
       const newX = Math.max(
         Math.min(padding, viewportWidth),
         Math.min(
-          anchorAtPointer(position.x, rect.width, viewportWidth, uiDir).insetInlineStart,
+          anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, padding).insetInlineStart,
           viewportWidth - rect.width - padding,
         ),
       );

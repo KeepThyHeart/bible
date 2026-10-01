@@ -87,6 +87,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   const accessRef = useRef<PanelAccess>(NO_ACCESS);
   const getAccess = React.useCallback(() => accessRef.current, []);
   const getLocale = React.useCallback(() => i18n.currentLocale, [i18n]);
+  const getDirection = React.useCallback(() => i18n.currentDirection, [i18n]);
   // Locale/direction switches are pushed to the open panel (`locale.changed`).
   const subscribeLocale = React.useCallback(
     (onChange: () => void) => {
@@ -102,6 +103,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
     panelTypeId,
     getAccess,
     getLocale,
+    getDirection,
     subscribeLocale,
   });
 

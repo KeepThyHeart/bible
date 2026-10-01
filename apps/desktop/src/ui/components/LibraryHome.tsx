@@ -179,7 +179,7 @@ const LibraryHome: React.FC<LibraryHomeProps> = ({
           shelf's problem is that nothing is installed, and a search box implies
           the opposite. */}
       {totalInstalled > 0 && (
-        <input dir="auto"
+        <input
           type="text"
           value={filter}
           onChange={e => setFilter(e.target.value)}

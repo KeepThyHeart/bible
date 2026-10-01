@@ -37,21 +37,23 @@ afterEach(() => {
 });
 
 describe('TextDirection extension', () => {
-  it('renders dir="auto" on every block without an explicit direction', () => {
+  it('serializes no dir attribute for blocks without an explicit direction', () => {
     const html = makeEditor('<p>one</p><h2>two</h2><blockquote><p>q</p></blockquote><ul><li><p>x</p></li></ul>').getHTML();
-    expect(html).toContain('<p dir="auto">one</p>');
-    expect(html).toContain('<h2 dir="auto">two</h2>');
-    expect(html).toContain('<blockquote dir="auto">');
-    expect(html).toContain('<ul dir="auto">');
-    expect(html).toContain('<li dir="auto">');
+    expect(html).toContain('<p>one</p>');
+    expect(html).not.toContain('dir=');
+    expect(html).toContain('<h2>two</h2>');
+    expect(html).toContain('<blockquote>');
+    expect(html).toContain('<ul>');
+    expect(html).toContain('<li>');
   });
 
   it('preserves an explicit ltr/rtl through an HTML round trip', () => {
     const first = makeEditor('<p dir="rtl">a</p><p dir="ltr">b</p><p dir="auto">c</p><p dir="bogus">d</p>').getHTML();
     expect(first).toContain('<p dir="rtl">a</p>');
     expect(first).toContain('<p dir="ltr">b</p>');
-    expect(first).toContain('<p dir="auto">c</p>');
-    expect(first).toContain('<p dir="auto">d</p>');
+    expect(first).toContain('<p>c</p>');
+    expect(first).toContain('<p>d</p>');
+    expect(first).not.toContain('dir="auto"');
     const second = makeEditor(first).getHTML();
     expect(second).toBe(first);
   });
@@ -63,14 +65,14 @@ describe('TextDirection extension', () => {
     expect(editor.getHTML()).toBe('<p dir="rtl">one</p><p dir="rtl">two</p><p dir="rtl">three</p>');
 
     editor.commands.unsetBlockDirection();
-    expect(editor.getHTML()).toBe('<p dir="auto">one</p><p dir="auto">two</p><p dir="auto">three</p>');
+    expect(editor.getHTML()).toBe('<p>one</p><p>two</p><p>three</p>');
   });
 
   it('only touches the blocks the selection spans', () => {
     const editor = makeEditor('<p>one</p><p>two</p><p>three</p>');
     editor.commands.setTextSelection(2); // inside "one"
     editor.commands.setBlockDirection('ltr');
-    expect(editor.getHTML()).toBe('<p dir="ltr">one</p><p dir="auto">two</p><p dir="auto">three</p>');
+    expect(editor.getHTML()).toBe('<p dir="ltr">one</p><p>two</p><p>three</p>');
   });
 
   it('reports the current block direction', () => {

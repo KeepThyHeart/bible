@@ -95,7 +95,7 @@ export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = (
       >
         {/* Search filter */}
         <div className="px-xl py-md border-b border-border">
-          <input dir="auto"
+          <input
             type="text"
             placeholder={t('bookPane.filterPlaceholder')}
             className="w-full px-md py-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"

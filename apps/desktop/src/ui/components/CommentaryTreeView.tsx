@@ -184,7 +184,7 @@ const CommentaryTreeView: React.FC<CommentaryTreeViewProps> = ({
           </div>
 
           {/* Search */}
-          <input dir="auto"
+          <input
             type="text"
             placeholder={t('commentaryTreeView.searchPlaceholder')}
             aria-label={t('commentaryTreeView.searchPlaceholder')}

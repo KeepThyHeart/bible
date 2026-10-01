@@ -126,7 +126,7 @@ const BookHome: React.FC<BookHomeProps> = ({
         </p>
 
         <div className="flex items-center gap-sm mb-lg">
-          <input dir="auto"
+          <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}

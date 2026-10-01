@@ -3,12 +3,12 @@ import { Extension } from '@tiptap/core';
 /**
  * Per-block text direction for the notes editor (task 0076).
  *
- * Every block renders a `dir` attribute: the author's explicit choice
- * (`ltr` / `rtl`) when there is one, otherwise `auto`, which makes the browser
- * pick the direction from the block's first strong character - so an Arabic
- * paragraph in an English note (or the reverse) lines up correctly without the
- * author doing anything. Only an explicit choice is stored in the document; an
- * `auto` block carries `dir: null` and re-renders as `dir="auto"`.
+ * A block renders a `dir` attribute only for the author's explicit choice
+ * (`ltr` / `rtl`); nothing else is serialized into the stored HTML. Blocks
+ * without one are auto-detected by CSS (`unicode-bidi: plaintext` on
+ * `:not([dir])` blocks, see globals.css), so an Arabic paragraph in an English
+ * note (or the reverse) lines up without the author doing anything, and an
+ * empty paragraph follows the root direction.
  *
  * Content direction, not chrome: the toolbar's LTR/RTL buttons do not mirror.
  */
@@ -58,7 +58,7 @@ export const TextDirection = Extension.create<{ types: readonly string[] }>({
           dir: {
             default: null,
             parseHTML: (element) => parseBlockDirection(element.getAttribute('dir')),
-            renderHTML: (attributes) => ({ dir: attributes.dir ?? 'auto' }),
+            renderHTML: (attributes) => (attributes.dir === 'ltr' || attributes.dir === 'rtl' ? { dir: attributes.dir } : {}),
           },
         },
       },

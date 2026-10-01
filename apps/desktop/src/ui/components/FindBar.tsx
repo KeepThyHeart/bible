@@ -62,7 +62,7 @@ const FindBar: React.FC<FindBarProps> = ({ onClose }) => {
       role="search"
       aria-label={t('ui.findBar.placeholder')}
     >
-      <input dir="auto"
+      <input
         ref={inputRef}
         type="text"
         value={query}

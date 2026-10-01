@@ -11,7 +11,7 @@ vi.mock('electron-log', () => ({ default: { info: vi.fn(), warn: vi.fn(), error:
 const db = new Database(':memory:');
 vi.mock('../../services/sharedUserDb', () => ({ getSharedUserDb: async () => makeSql(db) }));
 
-import { registerNoteDirectionHandlers, moveNoteDirectionKeys } from '../noteDirectionHandlers';
+import { registerNoteDirectionHandlers, moveNoteDirectionKeys, clearNoteDirectionKeys } from '../noteDirectionHandlers';
 
 const call = (channel: string, ...args: unknown[]) => handlers.get(channel)!(...args) as Promise<{ ok: boolean; value?: unknown; error?: { code: string } }>;
 const rows = () => db.prepare('SELECT owner_uuid, collection, item_key, value FROM user_data_item ORDER BY item_key').all();
@@ -43,5 +43,22 @@ describe('note-direction IPC handlers', () => {
     expect(rows().map((r) => (r as { item_key: string }).item_key)).toEqual(['dir2/one.bn', 'moved/new.bn']);
     expect((await call('note-direction:get', 'moved/new.bn')).value).toBe('rtl');
     expect((await call('note-direction:get', 'dir2/one.bn')).value).toBe('ltr');
+  });
+
+  it('clears the row of a deleted note and the rows under a deleted folder', async () => {
+    db.prepare('DELETE FROM user_data_item').run();
+    await call('note-direction:set', 'keep.bn', 'rtl');
+    await call('note-direction:set', 'gone.bn', 'rtl');
+    await call('note-direction:set', 'folder/a.bn', 'ltr');
+    await call('note-direction:set', 'folder/sub/b.bn', 'rtl');
+    await call('note-direction:set', 'folder2/c.bn', 'rtl');
+    await clearNoteDirectionKeys('gone.bn');
+    await clearNoteDirectionKeys('folder');
+    expect(rows().map((r) => (r as { item_key: string }).item_key)).toEqual(['folder2/c.bn', 'keep.bn']);
+  });
+
+  it('rejects an over-long path', async () => {
+    expect(await call('note-direction:get', 'a'.repeat(1025))).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    expect((await call('note-direction:get', 'a'.repeat(1024))).ok).toBe(true);
   });
 });

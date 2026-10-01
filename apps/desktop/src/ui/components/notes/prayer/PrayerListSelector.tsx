@@ -61,7 +61,6 @@ const PrayerListSelector: React.FC = () => {
           </label>
           <input
             id="prayer-list-name"
-            dir="auto"
             type="text"
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}

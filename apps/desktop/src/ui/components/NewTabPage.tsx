@@ -220,7 +220,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
           <label htmlFor={inputId} className="sr-only">
             {t('newTabPage.inputLabel')}
           </label>
-          <input dir="auto"
+          <input
             id={inputId}
             ref={inputRef}
             type="text"

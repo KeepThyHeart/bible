@@ -906,3 +906,20 @@ textarea:focus-visible {
   outline: 2px solid var(--theme-border-focus);
   outline-offset: 1px;
 }
+
+/* Typed text in plain inputs auto-detects its own direction, while padding and
+   icons keep following the inherited UI direction (an empty `dir="auto"` input
+   would resolve to LTR in Chromium, which is why the attribute is not used). */
+input:not([type]),
+input[type='text'],
+input[type='search'],
+textarea {
+  unicode-bidi: plaintext;
+}
+
+/* Notes: blocks without an explicit (stored) direction auto-detect per
+   paragraph via CSS, so nothing is serialized for them. */
+.ProseMirror :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]),
+.note-viewer-content :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]) {
+  unicode-bidi: plaintext;
+}
