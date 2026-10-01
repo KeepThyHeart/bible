@@ -587,7 +587,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           the tinted background still say "busy"; `aria-busy` says it to
           assistive tech.
         */}
-        <input
+        <input dir="auto"
           ref={inputRef}
           type="text"
           value={query}

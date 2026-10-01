@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { activateFocusTrap } from '../utils/focusTrap';
 import { useI18n } from '../contexts/useI18n';
@@ -242,7 +243,7 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
                         </button>
 
                         {isEditing ? (
-                          <input
+                          <input dir="auto"
                             autoFocus
                             className="flex-1 min-w-0 px-2 py-1 text-sm rounded border border-border bg-background-input"
                             value={draftTitle}
@@ -262,12 +263,12 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
                             title={t('ui.bookmarks.goToTitle', { reference: item.referenceText ?? '' })}
                             data-testid={`bookmark-goto-${pinId}`}
                           >
-                            <span className="block truncate text-sm text-text-primary">{label}</span>
+                            <span className="block truncate text-sm text-text-primary" dir="auto">{label}</span>
                             {/* Only worth a second line when the name isn't
                                 already the reference. */}
                             {item.title?.trim() && (
                               <span className="block truncate text-xs text-text-secondary">
-                                {item.referenceText}
+                                <Bdi>{item.referenceText}</Bdi>
                               </span>
                             )}
                           </button>

@@ -295,5 +295,10 @@ export function syncDocumentLang(): void {
 }
 
 i18n.on('languageChanged', syncDocumentLang);
+// i18next resolves the detected language synchronously inside init() (the
+// `en` resources are inline), so the initial 'languageChanged' fired before
+// the listener above existed: apply the detected language's dir/lang now, or
+// a reload in Arabic/Hebrew/Persian would render LTR chrome (task 0076).
+if (typeof document !== 'undefined') syncDocumentLang();
 
 export default i18n;

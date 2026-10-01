@@ -10,10 +10,19 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import ExtensionPanelHost, { computeSandboxAttr } from './ExtensionPanelHost';
 import { publishActiveVerseBroadcast } from '../../extensions/activeVerseBroadcast';
 
+// A stable i18n mock (one object): the host's subscribe callback depends on it.
+const localeListeners = new Set<() => void>();
+const mockI18n = {
+  currentLocale: 'es',
+  onDidChangeLocale: (cb: () => void) => {
+    localeListeners.add(cb);
+    return { dispose: () => localeListeners.delete(cb) };
+  },
+};
 vi.mock('../../contexts/useI18n', () => ({
   useI18n: () => ({
     t: (key: string) => (key === 'extensionPanelHost.loading' ? 'Loading panel...' : key),
-    i18n: { currentLocale: 'es' },
+    i18n: mockI18n,
   }),
 }));
 
@@ -139,5 +148,20 @@ describe('ExtensionPanelHost (desktop wrapper)', () => {
     unmount();
     act(() => publishActiveVerseBroadcast({ verseId: 43003017, module: 'KJV' }));
     expect(posted).toHaveLength(1);
+  });
+
+  it('pushes locale.changed with the new direction when the UI locale switches (task 0076)', async () => {
+    getPanelTypeUiEntry.mockResolvedValue({ uiEntry: 'index.html' });
+    const { container, unmount } = mount();
+    await waitFor(() => expect(container.querySelector('iframe')).not.toBeNull());
+    const { posted } = fakeWindow(container.querySelector('iframe')!);
+
+    mockI18n.currentLocale = 'ar';
+    act(() => localeListeners.forEach((f) => f()));
+    expect(posted).toEqual([{ kind: 'event', channel: 'locale.changed', payload: { locale: 'ar', direction: 'rtl' } }]);
+
+    unmount();
+    expect(localeListeners.size).toBe(0);
+    mockI18n.currentLocale = 'es';
   });
 });

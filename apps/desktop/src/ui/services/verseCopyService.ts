@@ -7,6 +7,7 @@
 // Re-export format system types and functions
 export * from './copyFormats';
 
+import { stripBidiControls } from '@bible/core/browser';
 import {
   BibleVerse as FormatBibleVerse,
   VerseContext as FormatVerseContext,
@@ -342,7 +343,9 @@ export function formatVersesWithOptions(
  * @param html  - Optional HTML string (e.g. with inline red-letter styles)
  * @returns Promise<boolean> - true if successful, false if failed
  */
-export async function copyToClipboard(text: string, html?: string): Promise<boolean> {
+export async function copyToClipboard(inputText: string, html?: string): Promise<boolean> {
+  // Isolation marks added for display (e.g. around interpolated names) must not leak into pasted text.
+  const text = stripBidiControls(inputText);
   try {
     // Modern clipboard API with rich-text support
     if (html && navigator.clipboard && typeof ClipboardItem !== 'undefined') {

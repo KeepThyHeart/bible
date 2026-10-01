@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, useXrefFullscreen } from '@bible/ui';
+import { logicalArrow } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useDirection } from '../contexts/useDirection';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -260,9 +261,10 @@ const XrefGraphDialog: React.FC = () => {
                 onClick={() => setView(id)}
                 onKeyDown={(e) => {
                   const i = VIEW_ORDER.indexOf(id);
+                  const step = logicalArrow(e.key, direction);
                   const next =
-                    e.key === 'ArrowRight' ? VIEW_ORDER[(i + 1) % VIEW_ORDER.length]
-                    : e.key === 'ArrowLeft' ? VIEW_ORDER[(i + VIEW_ORDER.length - 1) % VIEW_ORDER.length]
+                    step === 'next' ? VIEW_ORDER[(i + 1) % VIEW_ORDER.length]
+                    : step === 'prev' ? VIEW_ORDER[(i + VIEW_ORDER.length - 1) % VIEW_ORDER.length]
                     : null;
                   if (next) {
                     e.preventDefault();

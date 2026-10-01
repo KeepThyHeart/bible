@@ -87,6 +87,14 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   const accessRef = useRef<PanelAccess>(NO_ACCESS);
   const getAccess = React.useCallback(() => accessRef.current, []);
   const getLocale = React.useCallback(() => i18n.currentLocale, [i18n]);
+  // Locale/direction switches are pushed to the open panel (`locale.changed`).
+  const subscribeLocale = React.useCallback(
+    (onChange: () => void) => {
+      const sub = i18n.onDidChangeLocale(onChange);
+      return () => sub.dispose();
+    },
+    [i18n],
+  );
   const { context, handlers, onBridge } = useDesktopBridgeParts({
     extensionId,
     iframeRef,
@@ -94,6 +102,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
     panelTypeId,
     getAccess,
     getLocale,
+    subscribeLocale,
   });
 
   React.useEffect(() => {

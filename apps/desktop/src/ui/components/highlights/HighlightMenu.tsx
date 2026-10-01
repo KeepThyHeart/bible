@@ -1,6 +1,8 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HighlightColor, UnderlineStyle, MarkupType } from '@bible/core';
+import { anchorAtPointer } from '@bible/core/browser';
+import { useDirection } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { UnderlineSwatch } from './UnderlineSwatch';
@@ -25,7 +27,12 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   const [selectedMarkupType, setSelectedMarkupType] = useState<MarkupType>('highlight');
   const [selectedUnderlineStyle, setSelectedUnderlineStyle] = useState<UnderlineStyle>('solid');
   const [selectedUnderlineColor, setSelectedUnderlineColor] = useState<HighlightColor>('yellow');
-  const [adjustedPosition, setAdjustedPosition] = useState(position);
+  const uiDir = useDirection();
+  // `x` is the menu's inline-start inset (see anchorAtPointer), not a physical left.
+  const [adjustedPosition, setAdjustedPosition] = useState(() => ({
+    x: anchorAtPointer(position.x, 280, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir).insetInlineStart,
+    y: position.y,
+  }));
   const menuRef = useRef<HTMLDivElement>(null);
   // The menu needs the node for viewport clamping *and* for the focus trap, so
   // one callback ref feeds both.
@@ -50,13 +57,15 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
       const viewportHeight = window.innerHeight;
       const padding = 16;
 
-      let newX = position.x;
+      // Unfold away from the pointer in the reading direction; flip/clamp to fit.
+      const newX = Math.max(
+        Math.min(padding, viewportWidth),
+        Math.min(
+          anchorAtPointer(position.x, rect.width, viewportWidth, uiDir).insetInlineStart,
+          viewportWidth - rect.width - padding,
+        ),
+      );
       let newY = position.y;
-
-      // Adjust horizontal position if menu goes off right edge
-      if (position.x + rect.width > viewportWidth - padding) {
-        newX = Math.max(padding, viewportWidth - rect.width - padding);
-      }
 
       // Adjust vertical position if menu goes off bottom edge
       if (position.y + rect.height > viewportHeight - padding) {
@@ -68,11 +77,9 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
         }
       }
 
-      if (newX !== position.x || newY !== position.y) {
-        setAdjustedPosition({ x: newX, y: newY });
-      }
+      setAdjustedPosition((prev) => (prev.x === newX && prev.y === newY ? prev : { x: newX, y: newY }));
     }
-  }, [position, selectedMarkupType]); // Re-check when markup type changes since menu height varies
+  }, [position, selectedMarkupType, uiDir]); // Re-check when markup type changes since menu height varies
 
   const handleColorSelect = (color: HighlightColor) => {
     onSelectHighlight(
@@ -118,7 +125,7 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
         aria-label={t('highlightMenu.label')}
         className="fixed z-50 bg-surface-elevated rounded-lg shadow-lg p-4 border border-border-secondary"
         style={{
-          left: `${adjustedPosition.x}px`,
+          insetInlineStart: `${adjustedPosition.x}px`,
           top: `${adjustedPosition.y}px`,
           maxHeight: 'calc(100vh - 32px)',
           overflowY: 'auto'

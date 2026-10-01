@@ -57,6 +57,13 @@ interface UseIframeBridgeOpts {
   getAccess?: () => PanelAccess;
   /** Current UI locale tag for `ui.getLocale`. Defaults to `'en'` when absent. */
   getLocale?: () => string;
+  /**
+   * Subscribe to UI-locale changes; returns an unsubscribe. When present, the
+   * host pushes `locale.changed` (`{ locale, direction }`, the `ui.getLocale`
+   * shape) to the panel so an RTL/LTR switch reaches an open iframe without a
+   * reload (task 0076).
+   */
+  subscribeLocale?: (onChange: () => void) => () => void;
 }
 
 const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
@@ -84,6 +91,7 @@ export function useDesktopBridgeParts({
   panelTypeId,
   getAccess,
   getLocale,
+  subscribeLocale,
 }: UseIframeBridgeOpts): DesktopBridgeParts {
   // Latest-callback refs: the parts are created once, not per render.
   const identityRef = useRef({ extensionId, panelId, panelTypeId });
@@ -92,6 +100,8 @@ export function useDesktopBridgeParts({
   getAccessRef.current = getAccess;
   const getLocaleRef = useRef(getLocale);
   getLocaleRef.current = getLocale;
+  const subscribeLocaleRef = useRef(subscribeLocale);
+  subscribeLocaleRef.current = subscribeLocale;
   const teardownRef = useRef<(() => void) | null>(null);
 
   const context = useCallback((): BridgeContext => {
@@ -146,8 +156,15 @@ export function useDesktopBridgeParts({
       bridge.emit('verse.activeChanged', { verseId, source: 'host' });
     });
 
+    // UI-locale changes: the panel's `<html dir lang>` and kit locale follow the host.
+    const unsubLocale = subscribeLocaleRef.current?.(() => {
+      const locale = getLocaleRef.current?.() ?? 'en';
+      bridge.emit('locale.changed', { locale, direction: directionForTag(locale) });
+    });
+
     teardownRef.current = () => {
       unsubPanelMessages();
+      unsubLocale?.();
       unsubTheme();
       unsubActiveVerse();
     };

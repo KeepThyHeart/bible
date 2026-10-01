@@ -146,7 +146,7 @@ const DictionaryLiveSearch: React.FC<DictionaryLiveSearchProps> = ({
     // the list on the same press that starts a click on one of its rows.
     <div className="relative flex-1" onMouseDown={(e) => e.stopPropagation()}>
       <form onSubmit={handleSubmit} className="flex items-center gap-sm">
-        <input
+        <input dir="auto"
           type="search"
           value={value}
           onChange={handleChange}

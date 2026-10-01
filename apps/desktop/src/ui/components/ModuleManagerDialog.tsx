@@ -653,7 +653,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           }}
         />
 
-        {/* Drop result notification */}
+        {/* Drop result notification. rtl-physical: left-1/2 + -translate-x-1/2 is symmetric horizontal centring */}
         {dropResult && (
           <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
             dropResult.isError
@@ -744,7 +744,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           <div className="flex items-center gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <input
+              <input dir="auto"
                 type="text"
                 value={searchInput}
                 onChange={handleSearchChange}

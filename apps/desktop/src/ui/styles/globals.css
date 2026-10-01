@@ -63,6 +63,13 @@
   #root {
     @apply w-full h-screen overflow-hidden;
   }
+
+  /* RTL chrome: keep the user's UI font first, then fall back to the per-script
+     system stack (--kth-font-script, set by :lang(ar|fa|he...) in kth-rtl.css).
+     LTR is unchanged. */
+  :root[dir='rtl'] body {
+    font-family: var(--ui-font-family), var(--kth-font-script);
+  }
 }
 
 /* Bible text styling */

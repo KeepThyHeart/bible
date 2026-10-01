@@ -1,3 +1,5 @@
+import { Bdi } from '@bible/ui';
+import { contentDirAttrs } from '../utils/contentDirection';
 import React, { useRef, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
@@ -210,6 +212,9 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
   const versionNames = new Map<string, string>();
   availableBibles.forEach(b => versionNames.set(b.abbreviation, b.name));
 
+  // One content direction per column: each translation follows its own language.
+  const langFor = (abbr: string) => availableBibles.find(b => b.abbreviation === abbr)?.language_code;
+
   // Create verse maps for each version
   const verseMaps = parallelVersions.map(abbr => {
     const verses = versesByVersion.get(abbr) || [];
@@ -242,7 +247,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                 >
                   <div>
                     <div className="font-bold text-text-heading">
-                      {abbr}
+                      <Bdi>{abbr}</Bdi>
                     </div>
                     <div className="text-xs text-text-secondary truncate">
                       {versionNames.get(abbr) || abbr}
@@ -335,6 +340,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                       <td
                         key={abbr}
                         className="px-md py-sm text-text-secondary text-sm italic"
+                        {...contentDirAttrs(langFor(abbr))}
                       >
                         <span className="font-bold">{verseNum}</span> —
                       </td>
@@ -363,6 +369,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                     <td
                       key={abbr}
                       className={`px-md py-sm ${isParagraphStart ? 'pt-lg' : ''}`}
+                      {...contentDirAttrs(langFor(abbr))}
                     >
                       {sectionHeading && (
                         <SectionHeadingBlock text={sectionHeading} className="mb-1" />

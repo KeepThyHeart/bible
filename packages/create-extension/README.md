@@ -108,6 +108,10 @@ The fast loop is Developer Mode, which runs the extension in place from your bui
 
 To test the real install path instead, run `npm run package` and install the resulting `.zip`. The app identifies an extension by the `id` in `extension.json`, never by the folder name.
 
+## Right-to-left support in generated projects
+
+The generated project's README includes a "Right-to-left languages" section: set `<html dir lang>` from the host's `ui.getLocale` (`{ locale, direction }`) and its `locale.changed` push, write CSS with logical properties (`margin-inline-start`, `text-align: start`), mirror directional icons with `kth-rtl-mirror`, isolate module abbreviations and references with `<bdi>`/`kth-bdi`, and put the module's `dir`/`lang` on elements that hold Bible text. The UI direction and the content direction are independent.
+
 ## Related packages
 
 - [`@bible/extension-ui`](../extension-ui) -- client-side SDK for extensions that render a panel in an iframe

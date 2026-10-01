@@ -254,7 +254,7 @@ const AdvancedSearchDialog: React.FC = () => {
               <label htmlFor="adv-search-query" className={labelClass}>
                 {t('advancedSearchDialog.queryLabel')}
               </label>
-              <input
+              <input dir="auto"
                 id="adv-search-query"
                 aria-describedby="adv-search-query-hint"
                 type="text"
@@ -509,7 +509,7 @@ const AdvancedSearchDialog: React.FC = () => {
                 <label htmlFor="adv-search-proximity" className={labelClass}>
                   {t('advancedSearchDialog.proximityDistanceLabel')}
                 </label>
-                <input
+                <input dir="auto"
                   id="adv-search-proximity"
                   aria-describedby="adv-search-proximity-hint"
                   type="text"

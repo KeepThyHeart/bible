@@ -231,6 +231,7 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
       style={{
         position: 'fixed',
         top: `${position.top}px`,
+        // rtl-physical: viewport coordinates measured from the selection rect
         left: `${position.left}px`,
         zIndex: 10000,
         opacity: visible ? 1 : 0,

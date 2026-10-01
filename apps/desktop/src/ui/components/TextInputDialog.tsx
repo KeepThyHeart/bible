@@ -89,7 +89,7 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
             <label className="block text-sm font-semibold text-text-heading mb-xs">
               {label}
             </label>
-            <input
+            <input dir="auto"
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}

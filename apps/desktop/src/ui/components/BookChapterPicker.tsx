@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 // (added for the QuickJS guest bundle for the same reason) - importing only
 // the one standalone, dependency-free file keeps the renderer bundle safe.
 import type { SearchResult } from '@bible/core/types/search';
-import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
+import { BookChapterPicker as SharedBookChapterPicker, Bdi } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
@@ -59,7 +59,7 @@ const SearchResults: React.FC<{ query: string; onPick: (result: SearchResult) =>
               className="text-start px-2 py-2 text-sm rounded border border-border hover:bg-background-hover transition-colors"
               onClick={() => onPick(result)}
             >
-              <div className="font-semibold text-text-primary">{result.reference}</div>
+              <div className="font-semibold text-text-primary"><Bdi>{result.reference}</Bdi></div>
               <div
                 className="text-text-secondary text-xs mt-0.5"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet || result.text) }}
