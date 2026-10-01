@@ -371,6 +371,35 @@ describe('gate/impl agreement', () => {
     }
     expect(wrong).toEqual([]);
   });
+
+  // The baseline above grants the default permissions, so their methods
+  // (bible:read, commands:register) were not probed. Attach without them -
+  // they do not decide attachment - and probe those too. Methods gated by an
+  // attach-deciding permission (network, tasks, fs:managed-folder) cannot be
+  // probed this way: without the grant they are not registered at all.
+  it('impl checks agree for default-granted gates too (guard removed, defaults withheld)', async () => {
+    const attachOnly = baseline.filter((p) => !Extensions.DEFAULT_GRANTED_PERMISSIONS.includes(p as never));
+    const unguarded = attach(attachOnly);
+    unguarded.setMethodGuard(undefined);
+    const reg = new Set(unguarded.listMethods());
+    const defaultProbes = REGISTRY.methods.filter(
+      (m) =>
+        m.typed &&
+        !m.local &&
+        typeof m.gate === 'string' &&
+        Extensions.DEFAULT_GRANTED_PERMISSIONS.includes(m.gate as never) &&
+        reg.has(`${m.namespace}.${m.method}`),
+    );
+    expect(defaultProbes.length).toBeGreaterThan(5);
+    const wrong: string[] = [];
+    for (const m of defaultProbes) {
+      const res = await workerCall(unguarded.pair, `${m.namespace}.${m.method}`, []);
+      if (res.error?.code !== 'PermissionDeniedError') {
+        wrong.push(`${m.namespace}.${m.method} -> ${res.error?.code ?? 'no error'}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
 });
 
 // --- 6. consent catalog ----------------------------------------------------
