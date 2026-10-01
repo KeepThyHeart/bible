@@ -16,12 +16,13 @@ import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import {
   SqliteModuleRepositoryFactory,
+  UserDataQuizProgressStore,
   UserDataRepository,
+  mergeCatalogs,
   nodeCodecRegistry,
   wrapSqlConnection,
 } from '@bible/core';
 import type { ICodecRegistry, IModuleRepositoryFactory, IQuizRepository } from '@bible/core';
-import { mergeCatalogs, UserDataQuizProgressStore } from '@bible/core/browser';
 import type {
   QuizAttempt,
   QuizCatalog,
