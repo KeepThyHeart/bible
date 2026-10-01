@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Popover, BottomSheet, MeasurePopup } from '@bible/ui';
 import type { ChapterMeasures } from '@bible/core/browser';
 import { wordAddress } from '../measures/chapterMeasures';
+import { isInterlinearOriginalTarget, isMeasureHit } from '../measures/badgeHit';
 import { isMobileLayout } from '../utils/isMobileLayout';
 
 /** Hover must rest on a word this long before the popup opens. */
@@ -21,6 +22,7 @@ export interface MeasurePopupBinding {
   /** Spread onto the element that wraps the verses (event delegation). */
   handlers: {
     onPointerOver: (e: PointerEvent) => void;
+    onPointerMove: (e: PointerEvent) => void;
     onPointerOut: (e: PointerEvent) => void;
     onClickCapture: (e: MouseEvent) => void;
   };
@@ -52,12 +54,14 @@ export function useMeasurePopup(
   // A new chapter or new settings invalidate whatever was open.
   useEffect(() => { clearTimers(); setOpen(null); }, [measures, clearTimers]);
 
-  const lookup = (e: EventTarget | null) => {
+  const lookup = (target: EventTarget | null, pointer?: { x: number; y: number }) => {
     if (!measures) return null;
-    const addr = wordAddress(e);
+    const addr = wordAddress(target);
     if (!addr) return null;
     const occIds = measures.index.at(addr.verseId, addr.wordIndex).filter((id) => measures.models.has(id));
     if (occIds.length === 0) return null;
+    // A verse-level fallback sits on the verse's last word: only its badge, not its text, is a hit.
+    if (pointer && !isMeasureHit(addr.el, measures.index, occIds, pointer.x, pointer.y)) return null;
     const r = addr.el.getBoundingClientRect();
     const rect = { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     return { addr, occIds, rect };
@@ -68,10 +72,9 @@ export function useMeasurePopup(
     closeTimer.current = setTimeout(() => setOpen((cur) => (cur && !cur.pinned ? null : cur)), CLOSE_DELAY_MS);
   };
 
-  const handlers: MeasurePopupBinding['handlers'] = {
-    onPointerOver: (e) => {
+  const hoverIn = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse' || isMobileLayout()) return;
-      const hit = lookup(e.target);
+      const hit = lookup(e.target, { x: e.clientX, y: e.clientY });
       if (!hit) return;
       if (hoverEl.current === hit.addr.el) return;
       hoverEl.current = hit.addr.el;
@@ -79,7 +82,12 @@ export function useMeasurePopup(
       hoverTimer.current = setTimeout(() => {
         setOpen((cur) => (cur?.pinned ? cur : { occIds: hit.occIds, rect: hit.rect, pinned: false }));
       }, MEASURE_HOVER_DELAY_MS);
-    },
+  };
+
+  const handlers: MeasurePopupBinding['handlers'] = {
+    onPointerOver: hoverIn,
+    // Also on move: the badge of a verse-fallback word shares its element with the text.
+    onPointerMove: hoverIn,
     onPointerOut: (e) => {
       if (e.pointerType !== 'mouse') return;
       const addr = wordAddress(e.target);
@@ -93,7 +101,8 @@ export function useMeasurePopup(
     onClickCapture: (e) => {
       const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
       if (sel && !sel.isCollapsed) return; // finishing a text selection, not a tap
-      const hit = lookup(e.target);
+      if (isInterlinearOriginalTarget(e.target)) return; // original-language and Strong's elements keep their own clicks
+      const hit = lookup(e.target, { x: e.clientX, y: e.clientY });
       if (!hit) return;
       e.stopPropagation();
       clearTimers();
@@ -122,12 +131,14 @@ export function useMeasurePopup(
   let popup: ComponentChildren = null;
   if (open && models.length > 0) {
     const phone = isMobileLayout();
+    const dir: 'ltr' | 'rtl' = typeof document !== 'undefined' && document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr';
     const body = models.map((model, i) => (
       <MeasurePopup
-        key={open.occIds[i]}
+        key={model.occurrenceId}
         model={model}
         labels={labels}
         compact={phone}
+        dir={dir}
         onOpenSettings={i === models.length - 1 ? openSettings : undefined}
       />
     ));
@@ -139,6 +150,7 @@ export function useMeasurePopup(
         anchor={open.rect}
         onClose={close}
         width={340}
+        autoFocus={open.pinned}
         label={models[0].title}
         onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); }}
         onMouseLeave={() => { if (!open.pinned) scheduleClose(); }}

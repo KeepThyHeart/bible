@@ -12,13 +12,15 @@
  * Keyboard: verse words are not focusable on desktop, so there is no keyboard
  * trigger yet; the popup itself is keyboard-operable once pinned (it takes focus).
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, MeasurePopup, useHoverIntent } from '@bible/ui';
 import type { MeasurePopupProps } from '@bible/ui';
 import type { MeasurePopupModel } from '@bible/core/browser';
 import { useI18n } from '../../contexts/useI18n';
 import { useMeasureStore } from '../../stores/useMeasureStore';
 import { isTextSelectionActive } from '../../utils/selectionUtils';
+import { isInterlinearOriginalTarget } from './badgeHit';
+import { useDirection } from '../../contexts/useDirection';
 import { measureWordAt, type MeasureWordHit } from './measureWordTarget';
 
 interface OpenPopup {
@@ -46,6 +48,7 @@ export function openMeasureSettings(): void {
 export interface MeasureWordPopupApi {
   containerProps: {
     onMouseOver: (e: React.MouseEvent) => void;
+    onMouseMove: (e: React.MouseEvent) => void;
     onMouseOut: (e: React.MouseEvent) => void;
     onClickCapture: (e: React.MouseEvent) => void;
   };
@@ -69,11 +72,14 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
   );
 
   const onMouseOver = useCallback((e: React.MouseEvent) => {
-    const hit = measureWordAt(e.target, chapterOf());
+    const hit = measureWordAt(e.target, chapterOf(), { x: e.clientX, y: e.clientY });
     if (!hit) return;
     if (openRef.current?.key === hitKey(hit)) { intent.cancelHide(); return; }
     intent.scheduleShow(openFrom(hit, false));
   }, [chapterOf, intent]);
+
+  // Also on move: the badge of a verse-fallback word shares its element with the text.
+  const onMouseMove = onMouseOver;
 
   const onMouseOut = useCallback((e: React.MouseEvent) => {
     const hit = measureWordAt(e.target, chapterOf());
@@ -86,12 +92,19 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
   const onClickCapture = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
     if (isTextSelectionActive()) return; // the end of a drag-select keeps its ordinary behaviour
-    const hit = measureWordAt(e.target, chapterOf());
+    if (isInterlinearOriginalTarget(e.target)) return; // original-language and Strong's elements keep their own clicks
+    const hit = measureWordAt(e.target, chapterOf(), { x: e.clientX, y: e.clientY });
     if (!hit) return;
     e.stopPropagation(); // pins the popup instead of selecting the verse
     intent.cancelHide();
     setOpen(openFrom(hit, true));
   }, [chapterOf, intent]);
+
+  // A new chapter (or recomputed marks) for this tab invalidates a pinned popup.
+  const chapterData = useMeasureStore((st) => (tabId ? st.chapters[tabId] : undefined));
+  useEffect(() => { intent.hideNow(); setOpen(null); }, [chapterData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dir = useDirection();
 
   const close = useCallback(() => { intent.hideNow(); setOpen(null); }, [intent]);
 
@@ -124,6 +137,7 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
             key={model.occurrenceId}
             model={model}
             labels={labels}
+            dir={dir}
             onOpenSettings={i === 0 ? () => { close(); openMeasureSettings(); } : undefined}
           />
         ))}
@@ -131,5 +145,5 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
     </Popover>
   ) : null;
 
-  return { containerProps: { onMouseOver, onMouseOut, onClickCapture }, popup };
+  return { containerProps: { onMouseOver, onMouseMove, onMouseOut, onClickCapture }, popup };
 }

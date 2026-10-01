@@ -1,5 +1,6 @@
 /** DOM glue for the weights-and-measures popups (task 0069): which measure word, if any, an event is on. */
 import type { MeasurePopupModel } from '@bible/core/browser';
+import { isMeasureHit } from './badgeHit';
 import { measureModelsAt, type MeasureChapter } from '../../extensions/measureLayer';
 
 export interface MeasureWordHit {
@@ -21,10 +22,17 @@ export function wordOf(target: EventTarget | null): { element: Element; verseId:
 }
 
 /** The measure word under an event target: a word whose (verse, index) the chapter's index holds occurrences for. */
-export function measureWordAt(target: EventTarget | null, chapter: MeasureChapter | undefined): MeasureWordHit | null {
+export function measureWordAt(
+  target: EventTarget | null,
+  chapter: MeasureChapter | undefined,
+  /** Pointer position: a verse-fallback word is a hit only on its badge, not on its text. */
+  pointer?: { x: number; y: number },
+): MeasureWordHit | null {
   if (!chapter) return null;
   const word = wordOf(target);
   if (!word) return null;
   const models = measureModelsAt(chapter, word.verseId, word.wordIndex);
-  return models.length > 0 ? { ...word, models } : null;
+  if (models.length === 0) return null;
+  if (pointer && !isMeasureHit(word.element, chapter.index, chapter.index.at(word.verseId, word.wordIndex), pointer.x, pointer.y)) return null;
+  return { ...word, models };
 }
