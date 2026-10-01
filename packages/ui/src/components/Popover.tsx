@@ -115,6 +115,8 @@ export function Popover(props: PopoverProps) {
       data-placement={position.placement}
       style={{
         position: 'fixed',
+        // computePopupPosition() returns a physical viewport rect (it already mirrors for RTL itself).
+        // eslint-disable-next-line no-restricted-syntax -- rtl-physical: anchored to a measured rect
         left: position.left,
         top: position.top,
         width: position.width,

@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import ICU from 'i18next-icu';
-import { directionForTag, LOCALE_REGISTRY, parseLocaleMeta } from '@bible/core/browser';
+import { isolateMessageParams, LOCALE_REGISTRY, parseLocaleMeta, uiDirection } from '@bible/core/browser';
 import type { LocaleMetadata } from '@bible/core/browser';
 
 import ui from './locales/en/ui.json';
@@ -185,8 +185,23 @@ export function resolveSupportedLng(detected: string): string {
   return byPrimary ?? 'en';
 }
 
+/**
+ * i18next-icu with bidi isolation (task 0076): in an RTL UI, every string
+ * param interpolated as `{name}` (module abbreviations, book names, search
+ * terms, note titles) is wrapped in FSI...PDI so it cannot reorder the
+ * sentence around it. `select`/`plural` args and i18next's own options are
+ * left raw. LTR output is unchanged.
+ */
+class BidiIcu extends ICU {
+  parse(res: string, options: Record<string, unknown>, lng: string, ns: string, key: string, info?: unknown): unknown {
+    const params = options && typeof res === 'string' ? isolateMessageParams(res, options, uiDirectionFor(lng)) : options;
+    // @ts-expect-error - i18next-icu's typings omit `parse`, which is its i18nFormat entry point.
+    return super.parse(res, params, lng, ns, key, info);
+  }
+}
+
 i18n
-  .use(ICU)
+  .use(BidiIcu)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -240,23 +255,23 @@ if (i18n.language && i18n.language !== 'en') {
 }
 
 /**
- * Languages this app has no planned locale for (see `@bible/core`'s
- * `LOCALE_REGISTRY`) but that a browser can still report via
- * `navigator.language`, and that are genuinely RTL - kept as a fallback so
- * the document direction is still correct even with no catalog to match.
+ * UI direction for a locale tag: the shared registry (`uiDirection`) is the
+ * sole source for every planned locale, including region variants (`ar-EG`,
+ * `fa-AF`) and bare tags (`he` -> `he-IL`). Only a tag the registry does not
+ * know (the dev-only `xx-rtl` pseudo-locale) falls back to its own
+ * `meta.json` `locale.direction`.
  */
-const OTHER_RTL_LANGUAGES = ['he', 'fa'];
+export function uiDirectionFor(lng: string): 'ltr' | 'rtl' {
+  return uiDirection(lng, LOCALE_INFOS.get(lng)?.direction ?? 'ltr');
+}
 
 /** Update the document's lang and dir attributes to match the current language */
 export function syncDocumentLang(): void {
   const lng = i18n.language || 'en';
   document.documentElement.lang = lng;
-  // RTL support: resolved through the shared locale registry, which matches
-  // on the primary subtag - so a region variant like `ar-EG` still resolves
-  // to Arabic's `rtl` direction instead of silently falling through to ltr.
-  const primary = lng.split('-')[0];
-  const isRtl = directionForTag(lng) === 'rtl' || OTHER_RTL_LANGUAGES.includes(primary);
-  document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+  document.documentElement.dir = uiDirectionFor(lng);
+  // Opt in to the KTH shaping rules (no letter-spacing / upper-casing of Arabic script).
+  document.documentElement.setAttribute('data-kth-shaping', '');
 }
 
 i18n.on('languageChanged', syncDocumentLang);

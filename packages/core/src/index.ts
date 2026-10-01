@@ -31,6 +31,8 @@ export {
   LOCALE_REGISTRY,
   resolveLocaleDescriptor,
   directionForTag,
+  uiDirection,
+  isKnownUiLocale,
 } from './Data/Locales/LocaleRegistry';
 export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
 export {
@@ -173,3 +175,22 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Bidi text and direction-aware geometry (task 0076): also re-exported from
+// `./browser`. The Electron main process uses `isolate()` for window titles
+// and native menus.
+export {
+  FSI,
+  LRI,
+  RLI,
+  PDI,
+  isolate,
+  isolateParams,
+  isolateMessageParams,
+  simpleMessageArgs,
+  isolateReference,
+  stripBidiControls,
+  hasBidiControls,
+} from './Ui/bidi';
+export { logicalArrow, logicalSwipe, scrollStart, setScrollStart, anchorAtPointer } from './Ui/directional';
+export type { LogicalStep, HorizontalScroller } from './Ui/directional';

@@ -5,6 +5,9 @@ import { FollowBanner } from './components/Present/FollowBanner';
 import { PresenterApp } from './apps/present/PresenterApp';
 import { presenterOpen as isPresenterOpen, PRESENTER_ROUTE_EVENT } from './apps/present/route';
 import type { IDataProviders } from './providers/interfaces';
+import { useTranslation } from 'react-i18next';
+import { DirectionProvider } from '@bible/ui';
+import { uiDirectionFor } from './i18n';
 
 const MOBILE_BREAKPOINT = 768;
 const MOBILE_TOUCH_BREAKPOINT = 1024;
@@ -50,8 +53,12 @@ export function App({ providers }: AppProps) {
     };
   }, []);
 
+  // UI direction for shared `@bible/ui` components (task 0076); re-renders on language change.
+  const { i18n } = useTranslation();
+  const locale = i18n.language || 'en';
+
   return (
-    <>
+    <DirectionProvider value={{ ui: uiDirectionFor(locale), locale }}>
       <FollowBanner />
       <div class="app-host__study" style={presenterOpen ? { display: 'none' } : { display: 'contents' }}>
         {isMobile
@@ -59,6 +66,6 @@ export function App({ providers }: AppProps) {
           : <DesktopApp providers={providers} />}
       </div>
       {presenterOpen && <PresenterApp />}
-    </>
+    </DirectionProvider>
   );
 }

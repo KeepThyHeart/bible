@@ -78,3 +78,21 @@ export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
 
+
+// Direction primitives (task 0076): UI direction provider + hooks, isolated runs, content containers.
+export {
+  DirectionProvider,
+  useDirection,
+  useIsRtl,
+  useUiLocale,
+  Bdi,
+  ContentDir,
+  resolveContentDir,
+} from './components/Direction';
+export type {
+  DirectionContextValue,
+  DirectionProviderProps,
+  BdiProps,
+  ContentDirProps,
+  ContentDirOverride,
+} from './components/Direction';

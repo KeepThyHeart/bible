@@ -99,8 +99,14 @@ describe('resolveSupportedLng', () => {
     expect(resolveSupportedLng('zh-Hant')).toBe('zh-Hans');
   });
 
-  it('falls back to English for a language with no shipped catalog at all, and for empty input', () => {
-    expect(resolveSupportedLng('he')).toBe('en');
+  it('resolves bare Hebrew and Persian to their regional tags (task 0076)', () => {
+    expect(resolveSupportedLng('he')).toBe('he-IL');
+    expect(resolveSupportedLng('fa')).toBe('fa-IR');
+    expect(resolveSupportedLng('fa-AF')).toBe('fa-IR');
+  });
+
+  it('falls back to English for a language with no planned locale at all, and for empty input', () => {
+    expect(resolveSupportedLng('sw')).toBe('en');
     expect(resolveSupportedLng('')).toBe('en');
   });
 });
@@ -150,5 +156,14 @@ describe('changeLocale', () => {
     } finally {
       await i18n.changeLanguage(original);
     }
+  });
+});
+
+describe('bidi isolation of interpolated params (task 0076)', () => {
+  it('isolates {name} params only when the UI is RTL', async () => {
+    i18n.addResourceBundle('ar', 'ui', { __bidiProbe: 'افتح {name}' }, true, true);
+    i18n.addResourceBundle('en', 'ui', { __bidiProbe: 'Open {name}' }, true, true);
+    expect(i18n.t('__bidiProbe', { name: 'KJV', lng: 'en' })).toBe('Open KJV');
+    expect(i18n.t('__bidiProbe', { name: 'KJV', lng: 'ar' })).toBe('افتح ⁨KJV⁩');
   });
 });
