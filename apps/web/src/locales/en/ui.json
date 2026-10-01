@@ -328,6 +328,44 @@
     "keywords": {
       "colorSafe": "Colour-safe keyword marks (extra underline and symbol cues)",
       "colorSafeHint": "Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone."
+    },
+    "measures": {
+      "title": "Weights and measures",
+      "enabled": "Weights, measures and money notes",
+      "enabled.description": "Mark ancient units in the text and show their modern equivalents.",
+      "display": "How to show them",
+      "display.description": "A dotted underline, an underline with the value after the word, or nothing.",
+      "display.marker": "Dotted underline",
+      "display.inline": "Underline and value",
+      "display.off": "Off",
+      "showInReading": "Show in Reading mode",
+      "showInReading.description": "Reading mode stays clean text unless you turn this on.",
+      "system": "Unit system",
+      "system.description": "Auto follows your language and region.",
+      "system.auto": "Auto",
+      "system.metric": "Metric",
+      "system.us": "US customary",
+      "system.imperial": "Imperial",
+      "secondary": "Second unit system",
+      "secondary.description": "Also show the value in another system (imperial: length and weight only).",
+      "secondary.none": "None",
+      "money": "Money",
+      "money.description": "Days' wages (default), the weight of metal, or both.",
+      "money.wages": "Days' wages",
+      "money.metal": "Weight of metal",
+      "money.both": "Both",
+      "dailyWage": "Your daily wage",
+      "dailyWage.description": "Optional: shows a modern estimate of a sum from days' wages. 0 = off.",
+      "wageCurrency": "Currency of your daily wage",
+      "wageCurrency.description": "A currency code such as USD, EUR or GBP.",
+      "clock": "Clock times",
+      "clock.description": "Auto follows your language and region.",
+      "clock.h12": "12-hour",
+      "clock.h23": "24-hour",
+      "ranges": "Ranges",
+      "ranges.description": "Show the uncertainty range of a value: when it is wide (auto), always, or never.",
+      "ranges.always": "Always",
+      "ranges.never": "Never"
     }
   },
   "copyDialog": {
@@ -1366,6 +1404,20 @@
       "edgeBoth": "{from} and {to} cite each other",
       "strength": "Strength {n} of 5",
       "hopName": "hop {hop}"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "Range",
+      "rangeHint": "depending on the value used",
+      "verseNote": "In this verse",
+      "usageIllustrative": "Illustrative",
+      "usageFigurative": "Figurative",
+      "usageHintIllustrative": "An example amount; the exact figure is not the point",
+      "usageHintFigurative": "Used figuratively; the figure is not meant literally",
+      "draft": "Draft – not yet reviewed",
+      "sources": "Sources",
+      "units": "Units…"
     }
   }
 }

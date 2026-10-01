@@ -328,6 +328,44 @@
     "keywords": {
       "colorSafe": "Marcas de palabras clave seguras para el color (subrayado y símbolo adicionales)",
       "colorSafeHint": "Añade un estilo de subrayado y un símbolo a cada marca para no depender solo del color."
+    },
+    "measures": {
+      "title": "Pesos y medidas",
+      "enabled": "Notas de pesos, medidas y dinero",
+      "enabled.description": "Marca las unidades antiguas en el texto y muestra sus equivalentes modernos.",
+      "display": "Cómo mostrarlas",
+      "display.description": "Un subrayado punteado, un subrayado con el valor después de la palabra, o nada.",
+      "display.marker": "Subrayado punteado",
+      "display.inline": "Subrayado y valor",
+      "display.off": "Desactivado",
+      "showInReading": "Mostrar en el modo Lectura",
+      "showInReading.description": "El modo Lectura muestra texto limpio salvo que lo actives.",
+      "system": "Sistema de unidades",
+      "system.description": "Automático sigue tu idioma y región.",
+      "system.auto": "Automático",
+      "system.metric": "Métrico",
+      "system.us": "Estadounidense",
+      "system.imperial": "Imperial",
+      "secondary": "Segundo sistema de unidades",
+      "secondary.description": "Muestra también el valor en otro sistema (imperial: solo longitud y peso).",
+      "secondary.none": "Ninguno",
+      "money": "Dinero",
+      "money.description": "Jornales (por defecto), el peso del metal, o ambos.",
+      "money.wages": "Jornales",
+      "money.metal": "Peso del metal",
+      "money.both": "Ambos",
+      "dailyWage": "Tu jornal diario",
+      "dailyWage.description": "Opcional: muestra una estimación moderna de una suma a partir de jornales. 0 = desactivado.",
+      "wageCurrency": "Moneda de tu jornal diario",
+      "wageCurrency.description": "Un código de moneda como USD, EUR o GBP.",
+      "clock": "Horas del reloj",
+      "clock.description": "Automático sigue tu idioma y región.",
+      "clock.h12": "12 horas",
+      "clock.h23": "24 horas",
+      "ranges": "Rangos",
+      "ranges.description": "Muestra el rango de incertidumbre de un valor: cuando es amplio (automático), siempre o nunca.",
+      "ranges.always": "Siempre",
+      "ranges.never": "Nunca"
     }
   },
   "copyDialog": {
@@ -1366,6 +1404,20 @@
       "edgeBoth": "{from} y {to} se citan mutuamente",
       "strength": "Fortaleza {n} de 5",
       "hopName": "salto {hop}"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "Rango",
+      "rangeHint": "según el valor usado",
+      "verseNote": "En este versículo",
+      "usageIllustrative": "Ilustrativo",
+      "usageFigurative": "Figurado",
+      "usageHintIllustrative": "Una cantidad de ejemplo; la cifra exacta no es lo importante",
+      "usageHintFigurative": "Uso figurado; la cifra no se debe tomar literalmente",
+      "draft": "Borrador – aún sin revisar",
+      "sources": "Fuentes",
+      "units": "Unidades…"
     }
   }
 }

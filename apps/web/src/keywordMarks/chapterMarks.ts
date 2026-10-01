@@ -122,33 +122,47 @@ export function computeChapterMarks(
 }
 
 /**
- * Resolve the layer into per-word paint for every verse that has any. Verses
+ * Resolve the layers into per-word paint for every verse that has any. Verses
  * with nothing to paint are absent from the map, which is what lets the
- * renderer keep its plain markup for them.
+ * renderer keep its plain markup for them. Several layers (keyword marks and
+ * weights-and-measures notes) resolve together, per verse, so a verse that has
+ * both still hands the renderer one `ResolvedVerse`.
  */
-export function resolveChapterDecorations(
+export function resolveChapterLayers(
   verses: readonly VerseData[],
-  layer: LayerDecorations,
+  layers: readonly (LayerDecorations | null | undefined)[],
   surface: KeywordSurface,
 ): Map<number, ResolvedVerse> {
   const out = new Map<number, ResolvedVerse>();
-  if (layer.decorations.length === 0) return out;
+  const active = layers.filter((l): l is LayerDecorations => !!l && l.decorations.length > 0);
+  if (active.length === 0) return out;
   const painted = new Set<number>();
-  for (const d of layer.decorations) {
-    for (const t of Array.isArray(d.target) ? d.target : [d.target]) {
-      if (t.kind === 'tokens') painted.add(t.verseId);
+  for (const layer of active) {
+    for (const d of layer.decorations) {
+      for (const t of Array.isArray(d.target) ? d.target : [d.target]) {
+        if (t.kind === 'tokens') painted.add(t.verseId);
+      }
     }
   }
   for (const verse of verses) {
     if (!painted.has(verse.verse_id)) continue;
     const words = verseWordTexts(verse);
     const resolved = resolveVerseDecorations({
-      verseId: verse.verse_id, wordCount: words.length, words, layers: [layer], surface,
+      verseId: verse.verse_id, wordCount: words.length, words, layers: active, surface,
       resolveColor: resolveThemeColor,
     });
     if (resolved.words.size > 0) out.set(verse.verse_id, resolved);
   }
   return out;
+}
+
+/** The keyword layer on its own (the original single-layer entry point). */
+export function resolveChapterDecorations(
+  verses: readonly VerseData[],
+  layer: LayerDecorations,
+  surface: KeywordSurface,
+): Map<number, ResolvedVerse> {
+  return resolveChapterLayers(verses, [layer], surface);
 }
 
 export { occurrencesOf };

@@ -13,14 +13,18 @@
 import {
   createSettingsStore,
   defineSettings,
+  mergeSettings,
+  measureSettingsRegistry,
+  MEASURE_SETTINGS,
   type SettingChange,
   type SettingsStore,
   type SettingsStoragePort,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useMeasureStore } from '../stores/useMeasureStore';
 
-export const DESKTOP_SETTINGS = defineSettings([
+const DESKTOP_OWN_SETTINGS = defineSettings([
   {
     key: 'advancedPaneManagerEnabled',
     type: 'boolean',
@@ -43,17 +47,24 @@ export const DESKTOP_SETTINGS = defineSettings([
   },
 ]);
 
+/** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
+export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry);
+
+const MEASURE_KEYS: ReadonlySet<string> = new Set(MEASURE_SETTINGS.map((d) => d.key));
+
 /** Port over `usePreferencesStore` (session-persisted, per device). */
 export const preferencesStoragePort: SettingsStoragePort = {
   read: () => ({
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
     keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
+    ...useMeasureStore.getState().values,
   }),
   write: (changes: readonly SettingChange[]) => {
     for (const change of changes) {
       if (change.key === 'keywordColorSafe' && useKeywordMarkStore.getState().colorSafe !== change.value) {
         useKeywordMarkStore.getState().setColorSafe(change.value as boolean);
       }
+      if (MEASURE_KEYS.has(change.key)) useMeasureStore.getState().setValue(change.key, change.value);
       if (
         change.key === 'advancedPaneManagerEnabled' &&
         usePreferencesStore.getState().advancedPaneManagerEnabled !== change.value
@@ -77,6 +88,11 @@ export function getDesktopSettingsStore(): SettingsStore {
     });
     useKeywordMarkStore.subscribe((state) => {
       store!.set('keywordColorSafe', state.colorSafe);
+    });
+    // Session restore fills the measures values after the store exists.
+    useMeasureStore.subscribe((state, prev) => {
+      if (state.values === prev.values) return;
+      for (const [key, value] of Object.entries(state.values)) store!.set(key, value);
     });
   }
   return store;
