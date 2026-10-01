@@ -620,7 +620,7 @@
     "topicsForVerse": "Topics for {verse}",
     "relatedEntities": "Related Entities",
     "searching": "Searching...",
-    "searchResultsFor": "Search results for '{query}'",
+    "searchResultsFor": "Search results for “{query}”",
     "noTopicsSearch": "No topics found for \"{query}\"",
     "entities": "Entities",
     "loadingEntity": "Loading entity...",
