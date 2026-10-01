@@ -285,6 +285,9 @@ export * from './Genealogy';
 // --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
 export * from './Timeline';
 
+// --- Quiz (types, pure engine, grading, progress stores; no DOM, no database) ---
+export * from './Quiz';
+
 // --- Cross-reference graph (task 0068) -----------------------------------------
 // Types, the edge-weight formula, canon geometry, chapter-pair packing and the
 // budgeted ego-graph walk. Pure; the repository-backed service and index builder
