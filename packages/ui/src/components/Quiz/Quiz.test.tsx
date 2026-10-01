@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { QuizRequest } from '@bible/core/browser';
 import { QuizPanel } from './QuizPanel';
@@ -133,6 +133,15 @@ describe('QuizPanel running', () => {
     await screen.findByText('1 of 1 correct');
     const stat = (await store.getStats(['m4-short'])).get('m4-short');
     expect(stat).toMatchObject({ seen: 1, correct: 1, missed: 0 });
+  });
+
+  it('records an answered card when the panel closes before Next', async () => {
+    const { store } = setup({ startRequest: only('m4-mc') });
+    await screen.findByText(/good soil/);
+    await userEvent.click(screen.getByRole('radio', { name: 'It produced a crop' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check' }));
+    cleanup();
+    await vi.waitFor(async () => expect((await store.getStats(['m4-mc'])).get('m4-mc')).toMatchObject({ seen: 1, correct: 1 }));
   });
 
   it('wrong multiple choice also announces the answer, and focus moves to Next', async () => {

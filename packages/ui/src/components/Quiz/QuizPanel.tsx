@@ -96,6 +96,14 @@ export function QuizPanel({
 
   const onGrade = (grade: QuizGrade) => setGrades((g) => ({ ...g, [grade.key]: grade }));
 
+  // Closing the pane mid-quiz keeps what was answered: record graded answers not yet recorded.
+  const recordOnUnmount = useRef<() => void>(() => undefined);
+  recordOnUnmount.current = () => {
+    const { phase: p, quiz: q, grades: all } = live.current;
+    if (p === 'running' && q) q.items.forEach((_, i) => recordItem(q, i, all));
+  };
+  useEffect(() => () => recordOnUnmount.current(), []);
+
   const finish = async (current: Quiz, all: Record<string, QuizGrade>) => {
     if (finishing.current) return;
     finishing.current = true;

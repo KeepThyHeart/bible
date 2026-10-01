@@ -133,5 +133,10 @@ ships in core or as an extension.
 
 The pilot module (`quiz_mark.db`, built out of repo) holds KJV-worded questions for
 Mark 1-4 (multiple choice, short answer, free response, reflection; draft, unreviewed)
-and unfoldingWord® Translation Questions for all of Mark (free response, CC BY-SA 4.0,
-answers in ULT wording). The module is CC BY-SA 4.0 because of the latter.
+and unfoldingWord® Translation Questions for Mark 5-16 (free response, CC BY-SA 4.0,
+answers in ULT wording, marked `metadata.textBasis: 'ULT'` so the card says so;
+questions that only make sense after the previous one are left out). The module is
+CC BY-SA 4.0 because of the latter.
+
+The web route caps one response at 2000 questions; a scope that large (a whole long book
+once a whole-Bible module ships) is truncated.

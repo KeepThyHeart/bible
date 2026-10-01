@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QuizPanel } from '@bible/ui';
 import type { QuizLabels } from '@bible/ui';
 import { QuizEngine, formatVerseIdRange, getBookName } from '@bible/core/browser';
@@ -6,6 +6,7 @@ import type { QuizCatalog, QuizRequest, QuizSessionSummary } from '@bible/core/b
 import { useI18n } from '../contexts/useI18n';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { useQuizLaunchStore } from '../stores/useQuizLaunchStore';
+import { useModuleStore } from '../stores/useModuleStore';
 import { navigateToVerseInPrimary } from '../stores/crossStoreBridge';
 import { openModuleManager } from '../utils/openModuleManager';
 import { bibleAPI } from '../services/electronAPI';
@@ -86,31 +87,52 @@ const QuizPane: React.FC = () => {
     let cancelled = false;
     setState({ status: 'loading' });
     source.getCatalog()
-      .then((catalog) => { if (!cancelled) setState({ status: 'ready', catalog }); })
+      .then((catalog) => {
+        if (cancelled) return;
+        lastCatalogJson.current = JSON.stringify(catalog);
+        setState({ status: 'ready', catalog });
+      })
       .catch((err: unknown) => {
         if (!cancelled) setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
   }, [source, attempt]);
 
-  // No module-installed event reaches the renderer, so look again (quietly, without the
-  // loading state) whenever the window regains focus or the pane is shown again.
+  // Look again (quietly, without the loading state) when the installed modules change
+  // (Module Manager) or the window regains focus. Only a changed catalog re-renders.
+  const installedModules = useModuleStore((s) => s.installedModules);
+  const lastCatalogJson = useRef<string>('');
+  const refetchCatalog = useCallback((isCancelled: () => boolean) => {
+    if (document.visibilityState === 'hidden') return;
+    source.getCatalog()
+      .then((catalog) => {
+        if (isCancelled()) return;
+        const json = JSON.stringify(catalog);
+        if (json === lastCatalogJson.current) return;
+        lastCatalogJson.current = json;
+        setState((prev) => (prev.status === 'error' ? prev : { status: 'ready', catalog }));
+      })
+      .catch(() => { /* keep what is showing */ });
+  }, [source]);
+  const seenModules = useRef(installedModules);
+  useEffect(() => {
+    if (seenModules.current === installedModules) return; // the mount load covers the first render
+    seenModules.current = installedModules;
+    let cancelled = false;
+    refetchCatalog(() => cancelled);
+    return () => { cancelled = true; };
+  }, [refetchCatalog, installedModules]);
   useEffect(() => {
     let cancelled = false;
-    const refetch = () => {
-      if (document.visibilityState === 'hidden') return;
-      source.getCatalog()
-        .then((catalog) => { if (!cancelled) setState((prev) => (prev.status === 'error' ? prev : { status: 'ready', catalog })); })
-        .catch(() => { /* keep what is showing */ });
-    };
-    window.addEventListener('focus', refetch);
-    document.addEventListener('visibilitychange', refetch);
+    const onFocus = () => refetchCatalog(() => cancelled);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
     return () => {
       cancelled = true;
-      window.removeEventListener('focus', refetch);
-      document.removeEventListener('visibilitychange', refetch);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [source]);
+  }, [refetchCatalog]);
 
   const refreshHistory = useCallback(() => {
     store.listSessions(5).then(setHistory).catch(() => { /* history is a convenience */ });
@@ -155,7 +177,7 @@ const QuizPane: React.FC = () => {
   }, []);
 
   const emptyAction = useMemo(
-    () => ({ label: t('quizPane.openModuleManager'), onClick: () => openModuleManager() }),
+    () => ({ label: t('quizPane.openModuleManager'), onClick: () => openModuleManager('quiz') }),
     [t],
   );
 
