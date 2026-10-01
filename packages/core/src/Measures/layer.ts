@@ -46,7 +46,11 @@ export class MeasureIndex {
     this.words.set(key, list);
   }
 
-  /** Occurrence ids at a word (including the verse-fallback badge word). Empty when none. */
+  /**
+   * Occurrence ids at a word (including the verse-fallback badge word: every fallback occurrence of the
+   * verse is listed at the verse's last word; `occurrence(id).anchor.target.kind === 'verse'` tells them
+   * apart, and `isFallbackOnly` tests a whole word). Empty when none.
+   */
   at(verseId: number, wordIndex: number): string[] {
     return this.words.get(`${verseId}:${wordIndex}`) ?? [];
   }
@@ -63,6 +67,16 @@ export class MeasureIndex {
   get size(): number {
     return this.entries.size;
   }
+}
+
+/**
+ * True when every occurrence at this word is a verse-fallback one (it has no words of its own and sits on
+ * the verse's ⚖ badge). Apps open a fallback popup only when the pointer is on the badge itself, so a
+ * click on the verse's last word, which may merely be the badge's anchor, does not pop up.
+ */
+export function isFallbackOnly(index: MeasureIndex, verseId: number, wordIndex: number): boolean {
+  const ids = index.at(verseId, wordIndex);
+  return ids.length > 0 && ids.every((id) => index.occurrence(id)?.anchor.target.kind === 'verse');
 }
 
 function chunk<T>(list: T[], n: number): T[][] {
@@ -94,6 +108,7 @@ export function buildMeasureLayer(
   const lastWord = new Map<number, number>();
   for (const v of verses) if (v.words.length) lastWord.set(v.verseId, v.words.length - 1);
 
+  const badged = new Set<number>();
   const underlined: DecorationTarget[] = [];
   const decorations: DecorationDto[] = [];
   for (const anchor of anchors) {
@@ -117,6 +132,9 @@ export function buildMeasureLayer(
       if (last === undefined) continue;
       index.addEntry(entry);
       index.addWord(anchor.verseId, last, anchor.occId);
+      // One badge per verse, however many of its measures could not be pinned to words.
+      if (badged.has(anchor.verseId)) continue;
+      badged.add(anchor.verseId);
       decorations.push({
         target: { kind: 'tokens', verseId: anchor.verseId, startTokenIndex: last },
         appearance: { kind: 'badge', label: MEASURE_VERSE_BADGE, color: 'text-muted' },

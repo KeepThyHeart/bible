@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMeasureAnchors } from './anchor';
 import { computeChapterMeasures } from './chapter';
-import { buildMeasureLayer, MEASURE_LAYER_KEY } from './layer';
+import { buildMeasureLayer, isFallbackOnly, MEASURE_LAYER_KEY } from './layer';
+import { formatModernWage, formatTitleQuantity } from './convert';
 import { createLocalePack, getMeasureLocalePack, measurePackLanguage, phrase } from './locale';
 import { buildMeasurePopup } from './popup';
 import { defaultMeasureSystems, MEASURE_SETTINGS, resolveMeasurePreferences } from './prefs';
 import { loadChapterOccurrences, type IMeasureDataSource } from './data';
-import { MeasureRegistry } from './registry';
+import { getMeasureRegistry, MeasureRegistry } from './registry';
 import { FIXTURE_EN_PACK, FIXTURE_ES_PACK, FIXTURE_UNITS, fixtureRegistry, occ, prefs, words } from '../__tests__/measuresFixtures';
 import { FEATURE_FLAGS } from '../Settings/FeatureFlags';
 import type { MeasureOccurrence } from './types';
@@ -134,7 +135,15 @@ describe('popup model and conversion', () => {
   });
 
   it('fractions are exact in the title', () => {
-    expect(m([{ unit: 'cubit', quantity: { value: 2.5 } }]).title).toBe('2.5 cubits');
+    expect(m([{ unit: 'cubit', quantity: { value: 2.5 } }]).title).toBe('2½ cubits');
+    expect(m([{ unit: 'shekel', quantity: { value: 0.5 } }]).title).toBe('½ shekel');
+    expect(m([{ unit: 'shekel', quantity: { value: 1 / 3 } }]).title).toBe('⅓ shekel');
+    expect(m([{ unit: 'cubit', quantity: { value: 1.75 } }]).title).toBe('1¾ cubits');
+    expect(m([{ unit: 'cubit', quantity: { value: 1.125 } }]).title).toBe('1.125 cubits');
+    expect(m([{ unit: 'cubit', quantity: { value: 5000 } }]).title).toBe('5,000 cubits');
+    expect(formatTitleQuantity(1 / 6, 'en')).toBe('⅙');
+    expect(formatTitleQuantity(0.1, 'en')).toBe('⅒');
+    expect(formatTitleQuantity(2 / 3, 'en')).toBe('⅔');
     expect(m([{ unit: 'cubit', quantity: { value: 1 } }]).title).toBe('1 cubit');
     expect(m([{ unit: 'cubit' }]).title).toBe('cubit');
   });
@@ -155,7 +164,10 @@ describe('popup model and conversion', () => {
   it('rate adds the per phrase', () => {
     const r = m([{ unit: 'denarius' }], prefs(), { per: 'day' });
     expect(r.title).toBe('denarius a day');
-    expect(r.primary).toBe("≈ 1 day's wages a day");
+    // the rate is on the title and on metal lines, not on wages ("≈ 1 day's wages a day" would read wrongly)
+    expect(r.primary).toBe("≈ 1 day's wages");
+    expect(m([{ unit: 'denarius' }], prefs({ money: 'metal' }), { per: 'day' }).primary).toBe('≈ 3.9 g of silver a day');
+    expect(m([{ unit: 'denarius' }], prefs({ money: 'both' }), { per: 'day' }).extra).toContain('3.9 g of silver a day');
   });
 
   it('money: days, minutes and years', () => {
@@ -175,7 +187,8 @@ describe('popup model and conversion', () => {
     expect(both.primary).toBe("≈ 1 day's wages");
     expect(both.extra).toContain('3.9 g of silver');
     const wage = m([{ unit: 'denarius', quantity: { value: 2 } }], prefs({ modernDailyWage: { amount: 100, currency: 'USD' } }));
-    expect(wage.extra.join(' ')).toContain('$200');
+    expect(wage.extra.join(' ')).toContain('$200.00');
+    expect(formatModernWage(2, { amount: 10000, currency: 'JPY' }, { locale: 'en-US', pack: FIXTURE_EN_PACK })).toContain('¥20,000');
   });
 
   it('clock: h12 and h23, point and range', () => {
@@ -200,6 +213,75 @@ describe('popup model and conversion', () => {
   it('verse note from the pack; unknown unit yields nothing', () => {
     expect(m([{ unit: 'cubit' }], prefs(), { noteKey: 'v.1' }).verseNote).toBe('A verse note.');
     expect(buildMeasurePopup(occ('1001001.1', [{ unit: 'nope' }]), popupCtx())).toBeUndefined();
+  });
+
+  it('"or": a pair of counts titles as "25 or 30 furlongs" and converts to a range', () => {
+    const r = m([{ unit: 'furlong', quantity: { value: 25 }, or: 30 }]);
+    expect(r.title).toBe('25 or 30 furlongs');
+    expect(r.primary).toBe('≈ 4.6 km'); // 25 furlongs, not a midpoint
+    expect(r.range).toBe('4.4–5.8 km'); // 25 x 177 m .. 30 x 192 m
+  });
+
+  it('titles in the text\'s words, with the scholarly name as the subtitle', () => {
+    // The word each occurrence is anchored on in a KJV-like text.
+    const WORD: Record<string, string> = { lepton: 'mites', denarius: 'penny', cubit: 'cubits', span: 'span' };
+    const text = (parts: MeasureOccurrence['parts'], extra: Partial<MeasureOccurrence> = {}, lang = 'en', textWord = WORD[parts[0].unit]) =>
+      buildMeasurePopup(occ('1001001.1', parts, extra), { ...popupCtx(), textLanguage: lang, textWord })!;
+    const lepton = text([{ unit: 'lepton', quantity: { value: 2 } }]);
+    expect(lepton.title).toBe('2 mites');
+    expect(lepton.subtitle).toBe('Greek lepton (pl. lepta)');
+    expect(text([{ unit: 'denarius' }], { per: 'day' }).title).toBe('penny a day');
+    expect(text([{ unit: 'denarius' }]).subtitle).toBe('Roman denarius (pl. denarii)');
+    // same word: no subtitle; no text names for the unit: scholarly title
+    expect(text([{ unit: 'cubit', quantity: { value: 2 } }]).subtitle).toBeUndefined();
+    expect(text([{ unit: 'span' }]).title).toBe('span');
+    // a different text language, or none: the scholarly names
+    expect(text([{ unit: 'lepton' }], {}, 'es').title).toBe('lepton');
+    expect(text([{ unit: 'lepton' }], {}, 'es').subtitle).toBeUndefined();
+    expect(m([{ unit: 'lepton' }]).title).toBe('lepton');
+    // an English translation that says "denarius" (or a verse fallback, no word) keeps the scholarly title
+    expect(text([{ unit: 'denarius' }], {}, 'en', 'denarius').title).toBe('denarius');
+    expect(text([{ unit: 'lepton' }], {}, 'en', '').title).toBe('lepton');
+    // the Spanish pack never borrows English text names
+    const es = buildMeasurePopup(occ('1001001.1', [{ unit: 'lepton' }]), { ...popupCtx(), pack: FIXTURE_ES_PACK, textLanguage: 'es' })!;
+    expect(es.title).toBe('lepton');
+    expect(buildMeasurePopup(occ('1001001.1', [{ unit: 'lepton' }]), { ...popupCtx(), pack: FIXTURE_ES_PACK, textLanguage: 'en' })!.title).toBe('lepton');
+  });
+
+  it('shipped packs: the text\'s words for coins in English; Spanish names are already the RV words', () => {
+    const registry2 = getMeasureRegistry();
+    const en = getMeasureLocalePack('en');
+    const row = (unit: string, q?: number) => occ('1001001.1', [{ unit, ...(q ? { quantity: { value: q } } : {}) }]);
+    const WORD: Record<string, string> = { lepton: 'mites', 'mina.money': 'pound', metretes: 'firkins' };
+    const popup = (o: MeasureOccurrence, pack = en, locale = 'en-US', textLanguage = 'en') =>
+      buildMeasurePopup(o, {
+        registry: registry2, pack, locale, prefs: prefs({ includeDrafts: true }), textLanguage, textWord: WORD[o.parts[0].unit],
+      })!;
+    expect(popup(row('lepton', 2)).title).toBe('2 mites');
+    expect(popup(row('mina.money')).subtitle).toBe('Greek mina');
+    expect(popup(row('metretes', 2)).title).toBe('2 firkins');
+    const es = popup(row('lepton', 2), getMeasureLocalePack('es'), 'es', 'es');
+    expect(es.title).toBe('2 blancas');
+    // the Spanish unit names already are the Reina-Valera words, so there are no text names and no subtitle
+    expect(es.subtitle).toBeUndefined();
+    expect(getMeasureLocalePack('es').textNames).toBeUndefined();
+    expect(popup(row('mina.money'), getMeasureLocalePack('es'), 'es', 'es').title).toBe('mina');
+  });
+
+  it('jewish-night reckoning for Old Testament watches', () => {
+    const r = m([{ unit: 'watch.hebrew.2' }]);
+    expect(r.primary).toBe('about 10 PM–2 AM');
+    expect(r.extra).toContain('Jewish reckoning, hours of darkness from sunset');
+    expect(getMeasureLocalePack('en').phrases['reckoning.jewish-night']).toMatch(/darkness counted from sunset/);
+    expect(getMeasureLocalePack('es').phrases['reckoning.jewish-night']).toMatch(/oscuridad/);
+    expect(getMeasureLocalePack('zh-Hans').phrases['reckoning.jewish-night']).toMatch(/日落/);
+  });
+
+  it('zh joins have no stray spaces', () => {
+    const zh = getMeasureLocalePack('zh-Hans');
+    const r = buildMeasurePopup(occ('1001001.1', [{ unit: 'cubit', quantity: { value: 300 } }, { unit: 'span', quantity: { value: 1 } }], { per: 'day' }), { registry: getMeasureRegistry(), pack: zh, locale: 'zh-Hans-CN', prefs: prefs({ includeDrafts: true }) })!;
+    expect(r.title).toBe('300肘零1虎口每天');
+    expect(buildMeasurePopup(occ('1001001.1', [{ unit: 'furlong', quantity: { value: 25 }, or: 30 }]), { registry: getMeasureRegistry(), pack: zh, locale: 'zh-Hans-CN', prefs: prefs({ includeDrafts: true }) })!.title).toMatch(/^25或30/);
   });
 
   it('uses the UI language pack with English fallback', () => {
@@ -242,6 +324,34 @@ describe('layer and index', () => {
     expect(r.index.forVerse(1001002)).toEqual([o2.id]);
     expect(r.index.occurrence(o1.id)?.model.title).toBe('300 cubits');
     expect(r.models.size).toBe(2);
+  });
+
+  it('one fallback badge per verse, however many unanchored measures it has', () => {
+    const rows = [occ('1001002.1', [{ unit: 'cubit' }]), occ('1001002.2', [{ unit: 'span' }])];
+    const r = computeChapterMeasures({
+      occurrences: rows, verses, moduleLanguage: 'en', uiLocale: 'en-US', prefs: prefs(), surface: 'standard',
+      registry, modulePack: FIXTURE_EN_PACK, uiPack: FIXTURE_EN_PACK,
+    });
+    expect(r.layer.decorations.filter((d) => d.appearance.kind === 'badge')).toHaveLength(1);
+    expect(r.index.at(1001002, 5)).toEqual(['1001002.1', '1001002.2']);
+    expect(r.index.occurrence('1001002.2')?.anchor.target.kind).toBe('verse');
+  });
+
+  it('isFallbackOnly: true only when every occurrence at the word is a verse fallback', () => {
+    const lastWord = words(GEN_6_15).length - 1;
+    const verses2 = [{ verseId: GEN_ID, words: words(GEN_6_15) }];
+    // one measure marked on a word ('thirty') plus an unanchored one, which sits on the last word's badge
+    const rows = [occ(`${GEN_ID}.1`, [{ unit: 'cubit' }], { anchor: { terms: { en: ['thirty'] } } }), occ(`${GEN_ID}.2`, [{ unit: 'ephah' }])];
+    const r = computeChapterMeasures({
+      occurrences: rows, verses: verses2, moduleLanguage: 'en', uiLocale: 'en-US', prefs: prefs(), surface: 'standard',
+      registry, modulePack: FIXTURE_EN_PACK, uiPack: FIXTURE_EN_PACK,
+    });
+    expect(isFallbackOnly(r.index, GEN_ID, lastWord)).toBe(true); // only the badge sits here
+    expect(isFallbackOnly(r.index, GEN_ID, 20)).toBe(false); // a marked word
+    expect(isFallbackOnly(r.index, GEN_ID, 3)).toBe(false); // nothing here
+    const mixed = run();
+    expect(isFallbackOnly(mixed.index, 1001002, 5)).toBe(true);
+    expect(isFallbackOnly(mixed.index, GEN_ID, 20)).toBe(false);
   });
 
   it('inline display adds a value badge after the word', () => {

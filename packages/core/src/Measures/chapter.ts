@@ -60,11 +60,18 @@ export function computeChapterMeasures(input: ComputeChapterMeasuresInput): Chap
     const occs = byVerse.get(verse.verseId);
     if (!occs?.length) continue;
     const interlinear = input.interlinear?.filter((s) => s.verseId === verse.verseId);
-    anchors.push(...resolveMeasureAnchors(occs, verse, {
+    const verseAnchors = resolveMeasureAnchors(occs, verse, {
       language: input.moduleLanguage, ...(interlinear ? { interlinear } : {}), pack: modulePack, registry,
-    }));
+    });
+    anchors.push(...verseAnchors);
     for (const occ of occs) {
-      const model = buildMeasurePopup(occ, { registry, pack: uiPack, locale: input.uiLocale, prefs });
+      // The anchored word on screen ("mites"): titles use the text's own unit words only when it is one of them.
+      const target = verseAnchors.find((a) => a.occId === occ.id)?.target;
+      const textWord = target?.kind === 'tokens' ? verse.words[target.end]?.text : undefined;
+      const model = buildMeasurePopup(occ, {
+        registry, pack: uiPack, locale: input.uiLocale, prefs, textLanguage: input.moduleLanguage,
+        ...(textWord ? { textWord } : {}),
+      });
       if (model) models.set(occ.id, model);
     }
   }

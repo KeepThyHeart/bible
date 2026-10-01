@@ -17,6 +17,8 @@ export const FIXTURE_UNITS: MeasureUnitDef[] = [
   { id: 'denarius', dimension: 'money', system: 'roman', money: { wages: { value: 1 }, metal: { metal: 'silver', grams: { value: 3.9 } } }, strongs: ['G1220'], sources: src },
   { id: 'talent.money', dimension: 'money', system: 'greek', money: { wages: { value: 6000 } }, strongs: ['G5007'], sources: src },
   { id: 'lepton', dimension: 'money', system: 'greek', money: { wages: { value: 1 / 128 } }, strongs: ['G3016'], sources: src },
+  { id: 'furlong', dimension: 'length', system: 'greek', base: { value: 185, low: 177, high: 192 }, strongs: ['G4712'], sources: src },
+  { id: 'watch.hebrew.2', dimension: 'time', system: 'hebrew', clock: { reckoning: 'jewish-night', start: '22:00', end: '02:00' }, strongs: ['H821'], sources: src },
   { id: 'hour.9', dimension: 'time', system: 'roman', clock: { reckoning: 'jewish', start: '15:00', end: '15:00' }, strongs: ['G5610'], sources: src },
   { id: 'watch.roman.4', dimension: 'time', system: 'roman', clock: { reckoning: 'roman', start: '03:00', end: '06:00' }, strongs: ['G5438'], sources: src },
 ];
@@ -36,8 +38,15 @@ export const FIXTURE_EN_PACK: MeasureLocalePack = createLocalePack({
     denarius: { one: 'denarius', other: 'denarii' },
     'talent.money': { one: 'talent', other: 'talents' },
     lepton: { one: 'lepton', other: 'lepta' },
+    furlong: { one: 'furlong', other: 'furlongs' },
+    'watch.hebrew.2': { one: 'the middle watch', other: 'the middle watch' },
     'hour.9': { one: 'the ninth hour', other: 'the ninth hour' },
     'watch.roman.4': { one: 'the fourth watch', other: 'the fourth watch' },
+  },
+  textNames: {
+    lepton: { one: 'mite', other: 'mites' },
+    denarius: { one: 'penny', other: 'pence' },
+    cubit: { one: 'cubit', other: 'cubits' },
   },
   terms: {
     cubit: ['cubit', 'cubits'],

@@ -43,6 +43,19 @@ describe('MeasurePopup', () => {
     expect(screen.getByText(/The ark\./)).toBeInTheDocument();
   });
 
+  it('shows the scholarly name under the title when the model has one', () => {
+    setup({ title: '2 mites', subtitle: 'Greek lepton (pl. lepta)' });
+    const sub = screen.getByText('Greek lepton (pl. lepta)');
+    expect(sub).toHaveClass('kth-measure__subtitle');
+    const heading = screen.getByRole('heading', { name: '2 mites' });
+    expect(heading.nextElementSibling).toBe(sub);
+  });
+
+  it('has no subtitle element without one', () => {
+    const { container } = render(<MeasurePopup model={model} />);
+    expect(container.querySelector('.kth-measure__subtitle')).toBeNull();
+  });
+
   it('compact drops the header', () => {
     setup({}, { compact: true });
     expect(screen.queryByRole('heading')).toBeNull();

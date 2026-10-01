@@ -5,10 +5,11 @@
  */
 import {
   convertToSystem, formatClock, formatConverted, formatConvertedRange, formatMetal, formatModernWage,
-  formatQuantity, formatSig2, formatWages, isPhysicalDimension, reckoningLine, secondaryApplies,
+  formatSig2, formatTitleQuantity, formatWages, isPhysicalDimension, reckoningLine, secondaryApplies,
   shouldShowRange, sumApprox, type FormatContext,
 } from './convert';
-import { noteFor, phrase, pluralPhrase, unitName } from './locale';
+import { normalizeToken, tokenizePhrase } from '../KeywordMarks/matcher';
+import { measurePackLanguage, noteFor, phrase, pluralPhrase, textUnitName, unitName } from './locale';
 import type { MeasureRegistry } from './registry';
 import type {
   Approx, MeasureLocalePack, MeasureOccurrence, MeasurePopupModel, MeasurePreferences, MeasureUnitDef,
@@ -21,31 +22,87 @@ export interface PopupContext {
   /** UI locale for `Intl`. */
   locale: string;
   prefs: MeasurePreferences;
+  /**
+   * Language of the Bible text the reader is on (BCP 47). When it is the pack's language, units are titled
+   * with the text's own words (`pack.textNames`: "mite", "penny") and the scholarly name goes to the subtitle.
+   */
+  textLanguage?: string;
+  /**
+   * The word the occurrence is anchored on in that text ("mites"). Text names are used only when it is one
+   * of them, so a translation that says "denarius" or "small copper coins" keeps the scholarly title.
+   */
+  textWord?: string;
 }
 
 interface ResolvedPart {
   unit: MeasureUnitDef;
   quantity?: Approx;
+  or?: number;
 }
 
 function resolveParts(occ: MeasureOccurrence, registry: MeasureRegistry): ResolvedPart[] {
   const out: ResolvedPart[] = [];
   occ.parts.forEach((p, i) => {
     const unit = registry.effectiveUnit(p.unit, i === 0 ? occ.unitOverride : undefined);
-    if (unit) out.push({ unit, ...(p.quantity ? { quantity: p.quantity } : {}) });
+    if (!unit) return;
+    let quantity = p.quantity;
+    if (quantity && p.or !== undefined) {
+      // "five and twenty or thirty furlongs": the value is the first count, the range runs to the second.
+      quantity = { value: quantity.value, low: quantity.low ?? quantity.value, high: Math.max(quantity.high ?? quantity.value, p.or) };
+    }
+    out.push({ unit, ...(quantity ? { quantity } : {}), ...(p.or !== undefined ? { or: p.or } : {}) });
   });
   return out;
 }
 
-function buildTitle(parts: ResolvedPart[], occ: MeasureOccurrence, ctx: PopupContext): string {
+function usesTextNames(ctx: PopupContext, unitId: string | undefined): boolean {
+  if (!ctx.textLanguage || !ctx.pack.textNames || !unitId || !ctx.textWord) return false;
+  if (measurePackLanguage(ctx.textLanguage) !== measurePackLanguage(ctx.pack.language)) return false;
+  const forms = ctx.pack.textNames[unitId];
+  if (!forms) return false;
+  const word = normalizeToken(ctx.textWord);
+  return Object.values(forms).some((f) => typeof f === 'string' && tokenizePhrase(f).includes(word));
+}
+
+/** A small count picks the singular ("½ shekel"); a pair of counts the larger one. */
+function pluralCount(p: ResolvedPart): number | undefined {
+  if (!p.quantity) return undefined;
+  const v = p.or ?? p.quantity.value;
+  return v > 0 && v < 1 ? 1 : v;
+}
+
+/** "Greek lepton (pl. lepta)": the unit's own name, with its plural when that is irregular. Qualifiers in parentheses are left to the note. */
+function scholarlyName(unit: MeasureUnitDef, ctx: PopupContext): string {
+  const bare = (t: string): string => t.replace(/\s*\([^)]*\)\s*$/, '');
+  const forms = ctx.pack.names[unit.id];
+  const one = bare(unitName(ctx.pack, unit.id, undefined, ctx.locale));
+  const other = forms?.other ? bare(forms.other) : one;
+  const regular = other === one || other === `${one}s` || other === `${one}es`;
+  const name = regular ? one : phrase(ctx.pack, 'pluralNote', { name: one, plural: other });
+  return phrase(ctx.pack, 'scholarlyName', { system: phrase(ctx.pack, `system.${unit.system}`), name });
+}
+
+function buildTitle(parts: ResolvedPart[], occ: MeasureOccurrence, ctx: PopupContext): { title: string; subtitle?: string } {
+  const textMode = usesTextNames(ctx, parts[0]?.unit.id);
+  const subtitles: string[] = [];
   const pieces = parts.map((p) => {
-    if (p.unit.dimension === 'time' || !p.quantity) return unitName(ctx.pack, p.unit.id, undefined, ctx.locale);
-    return `${formatQuantity(p.quantity.value, ctx.locale)} ${unitName(ctx.pack, p.unit.id, p.quantity.value, ctx.locale)}`;
+    const count = pluralCount(p);
+    const own = textMode ? textUnitName(ctx.pack, p.unit.id, count, ctx.locale) : undefined;
+    const name = own ?? unitName(ctx.pack, p.unit.id, count, ctx.locale);
+    if (own !== undefined) {
+      const scholar = unitName(ctx.pack, p.unit.id, count, ctx.locale);
+      if (own.toLowerCase() !== scholar.toLowerCase()) subtitles.push(scholarlyName(p.unit, ctx));
+    }
+    if (p.unit.dimension === 'time' || !p.quantity) return name;
+    const n = p.or !== undefined
+      ? phrase(ctx.pack, 'quantityOr', { a: formatTitleQuantity(p.quantity.value, ctx.locale), b: formatTitleQuantity(p.or, ctx.locale) })
+      : formatTitleQuantity(p.quantity.value, ctx.locale);
+    return phrase(ctx.pack, 'quantityName', { n, name });
   });
   let title = pieces.join(phrase(ctx.pack, 'and'));
   const per = occ.per ? phrase(ctx.pack, `per.${occ.per}`) : '';
-  if (per) title += ` ${per}`;
-  return title;
+  if (per) title = phrase(ctx.pack, 'withPer', { text: title, per });
+  return { title, ...(subtitles.length ? { subtitle: subtitles.join(', ') } : {}) };
 }
 
 function buildRelation(first: MeasureUnitDef, ctx: PopupContext): string | undefined {
@@ -57,7 +114,9 @@ function buildRelation(first: MeasureUnitDef, ctx: PopupContext): string | undef
     const next = ctx.registry.unit(cur.relation.unit);
     if (!next) break;
     factor *= cur.relation.factor;
-    items.push(`${formatQuantity(factor, ctx.locale)} ${unitName(ctx.pack, next.id, factor, ctx.locale)}`);
+    items.push(phrase(ctx.pack, 'quantityName', {
+      n: formatTitleQuantity(factor, ctx.locale), name: unitName(ctx.pack, next.id, factor, ctx.locale),
+    }));
     cur = next;
   }
   if (!items.length) return undefined;
@@ -71,7 +130,8 @@ export function buildMeasurePopup(occ: MeasureOccurrence, ctx: PopupContext): Me
   const fmt: FormatContext = { locale: ctx.locale, pack: ctx.pack };
   const { prefs } = ctx;
   const per = occ.per ? phrase(ctx.pack, `per.${occ.per}`) : '';
-  const withPer = (s: string): string => (per ? `${s} ${per}` : s);
+  /** The rate goes on lengths, metal weights and the like; wages lines are already per unit of time. */
+  const withPer = (s: string): string => (per ? phrase(ctx.pack, 'withPer', { text: s, per }) : s);
 
   let valueText: string | undefined; // primary without the approx sign
   let approximate = true;
@@ -113,8 +173,8 @@ export function buildMeasurePopup(occ: MeasureOccurrence, ctx: PopupContext): Me
       valueText = withPer(metalLine);
       if (wagesLine) extra.push(wagesLine.text);
     } else if (wagesLine) {
-      valueText = withPer(wagesLine.text);
-      if (prefs.money === 'both' && metalLine) extra.push(metalLine);
+      valueText = wagesLine.text; // "a penny a day" is 1 day's wages, not "1 day's wages a day"
+      if (prefs.money === 'both' && metalLine) extra.push(withPer(metalLine));
     } else if (metalLine) {
       valueText = withPer(metalLine);
     } else {
@@ -140,10 +200,11 @@ export function buildMeasurePopup(occ: MeasureOccurrence, ctx: PopupContext): Me
   const sourceIds: string[] = [];
   for (const p of parts) for (const s of p.unit.sources) if (!seen.has(s)) { seen.add(s); sourceIds.push(s); }
 
+  const { title, subtitle } = buildTitle(parts, occ, ctx);
   const model: MeasurePopupModel = {
     occurrenceId: occ.id,
     verseId: occ.verseId,
-    title: buildTitle(parts, occ, ctx),
+    title,
     primary: approximate ? phrase(ctx.pack, 'approx', { value: valueText }) : valueText,
     badge: valueText,
     extra,
@@ -152,6 +213,7 @@ export function buildMeasurePopup(occ: MeasureOccurrence, ctx: PopupContext): Me
     sources: ctx.registry.sources(sourceIds),
     parts: occ.parts.length,
   };
+  if (subtitle) model.subtitle = subtitle;
   if (secondary) model.secondary = secondary;
   if (range) model.range = range;
   const relation = buildRelation(first, ctx);

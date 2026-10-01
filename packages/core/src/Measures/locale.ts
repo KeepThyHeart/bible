@@ -39,12 +39,22 @@ export const BUILTIN_PHRASES: Record<string, string> = {
   clockPoint: 'about {time}',
   'reckoning.jewish': 'Jewish reckoning, from sunrise',
   'reckoning.roman': 'Roman reckoning, from midnight',
+  'reckoning.jewish-night': 'Jewish reckoning, hours of darkness from sunset',
   modernWage: '≈ {amount} at {wage} a day',
   relation: '1 {unit} = {list}',
   'per.day': 'a day',
   'per.week': 'a week',
   'per.month': 'a month',
   'per.year': 'a year',
+  withPer: '{text} {per}',
+  quantityName: '{n} {name}',
+  quantityOr: '{a} or {b}',
+  scholarlyName: '{system} {name}',
+  pluralNote: '{name} (pl. {plural})',
+  'system.hebrew': 'Hebrew',
+  'system.greek': 'Greek',
+  'system.roman': 'Roman',
+  'system.persian': 'Persian',
 };
 
 /** English names of modern units that `Intl.NumberFormat` cannot format. */
@@ -64,7 +74,7 @@ export function emptyLocalePack(language = 'en'): MeasureLocalePack {
 /**
  * Build a pack. Names, notes, modern names and phrases fall back per key to
  * `fallback`; `terms` never do (English words must not match in other
- * languages' text). `verses.notes` (a `<lang>.verses.json`) are merged into
+ * languages' text), nor do `textNames` (a text's own words). `verses.notes` (a `<lang>.verses.json`) are merged into
  * the notes and win over the fallback's but not over the pack's own.
  */
 export function createLocalePack(
@@ -76,6 +86,7 @@ export function createLocalePack(
     language: base.language ?? fb?.language ?? 'en',
     names: { ...fb?.names, ...base.names },
     terms: { ...base.terms },
+    ...(base.textNames ? { textNames: { ...base.textNames } } : {}),
     notes: { ...fb?.notes, ...opts.verses?.notes, ...base.notes },
     modernNames: { ...fb?.modernNames, ...base.modernNames },
     phrases: { ...fb?.phrases, ...base.phrases },
@@ -155,6 +166,14 @@ function humanizeId(id: string): string {
 export function unitName(pack: MeasureLocalePack, unitId: string, count: number | undefined, locale: string): string {
   const forms = pack.names[unitId];
   if (!forms) return humanizeId(unitId);
+  if (count === undefined) return forms.one ?? forms.other;
+  return pickPlural(forms, count, locale);
+}
+
+/** The text's own word for a unit (`pack.textNames`), or undefined. */
+export function textUnitName(pack: MeasureLocalePack, unitId: string, count: number | undefined, locale: string): string | undefined {
+  const forms = pack.textNames?.[unitId];
+  if (!forms) return undefined;
   if (count === undefined) return forms.one ?? forms.other;
   return pickPlural(forms, count, locale);
 }

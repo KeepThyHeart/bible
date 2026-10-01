@@ -109,7 +109,7 @@ export function resolveMeasureAnchors(
     const unitTerms = unitId ? termsFor(unitId, occ, ctx) : [];
 
     // 1. Strong's
-    const target = normalizeStrongs(occ.anchor?.strongs ?? unit?.strongs?.[0])[0];
+    const target = occ.anchor?.textOnly ? undefined : normalizeStrongs(occ.anchor?.strongs ?? unit?.strongs?.[0])[0];
     if (spans.length && target) {
       const seen = new Set<string>();
       const cands: Range[] = [];

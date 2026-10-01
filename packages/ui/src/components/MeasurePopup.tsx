@@ -63,6 +63,7 @@ export function MeasurePopup({ model, labels, onOpenSettings, onShowSources, com
   return (
     <div className="kth-measure" dir={dir}>
       {compact ? null : <h3 className="kth-measure__title">{model.title}</h3>}
+      {model.subtitle ? <p className="kth-measure__subtitle">{model.subtitle}</p> : null}
       <p className="kth-measure__primary">{model.primary}</p>
       {model.secondary ? <p className="kth-measure__secondary">{model.secondary}</p> : null}
       {model.range ? (

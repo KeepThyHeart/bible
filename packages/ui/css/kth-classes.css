@@ -960,6 +960,7 @@
 .kth-measure { display: flex; flex-direction: column; gap: var(--kth-space-2); color: var(--kth-text); font-size: var(--kth-font-size-ui); }
 .kth-measure > * { margin: 0; }
 .kth-measure__title { font-size: 1em; font-weight: 600; }
+.kth-measure__subtitle { color: var(--kth-text-muted); font-size: 0.9em; margin-top: calc(var(--kth-space-1) * -1); }
 .kth-measure__primary { font-size: 1.5em; font-weight: 600; line-height: 1.2; }
 .kth-measure__secondary { color: var(--kth-text-muted); }
 .kth-measure__range, .kth-measure__relation, .kth-measure__note { font-size: 0.9em; }

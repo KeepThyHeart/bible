@@ -43,6 +43,24 @@ export function formatQuantity(value: number, locale: string): string {
   return nf(locale, { maximumFractionDigits: 3 }).format(value);
 }
 
+const TITLE_FRACTIONS: [number, string][] = [
+  [1 / 2, '½'], [1 / 3, '⅓'], [2 / 3, '⅔'], [1 / 4, '¼'], [3 / 4, '¾'], [1 / 6, '⅙'], [1 / 10, '⅒'],
+];
+
+/**
+ * A quantity for a title: integers with locale grouping, common fractions as
+ * vulgar fractions, mixed numbers joined ("2½"), anything else as a decimal.
+ */
+export function formatTitleQuantity(value: number, locale: string): string {
+  const whole = Math.floor(value + 1e-6);
+  const frac = value - whole;
+  const wholeText = nf(locale, { maximumFractionDigits: 0 }).format(whole);
+  if (Math.abs(frac) < 1e-6) return wholeText;
+  const glyph = TITLE_FRACTIONS.find(([f]) => Math.abs(frac - f) < 1e-6)?.[1];
+  if (glyph) return whole > 0 ? `${wholeText}${glyph}` : glyph;
+  return formatQuantity(value, locale);
+}
+
 // --- length, area, volume, mass ----------------------------------------------------
 
 interface Step { unit: string; perUnit: number }
@@ -204,10 +222,11 @@ export function formatMetal(kg: Approx, metal: string, system: MeasureSystem, ct
 
 export function formatModernWage(days: number, wage: { amount: number; currency: string }, ctx: FormatContext): string | undefined {
   try {
-    const money = nf(ctx.locale, { style: 'currency', currency: wage.currency, maximumSignificantDigits: 2 });
+    // The currency's own fraction digits (Intl defaults): "$200.00", "¥20,000".
+    const money = nf(ctx.locale, { style: 'currency', currency: wage.currency });
     return phrase(ctx.pack, 'modernWage', {
       amount: money.format(days * wage.amount),
-      wage: nf(ctx.locale, { style: 'currency', currency: wage.currency }).format(wage.amount),
+      wage: money.format(wage.amount),
     });
   } catch {
     return undefined;

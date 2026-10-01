@@ -47,7 +47,12 @@ export interface MeasureUnitDef {
   };
   /** Time-of-day units (an hour of the day, a watch of the night). */
   clock?: {
-    reckoning: 'jewish' | 'roman';
+    /**
+     * 'jewish': hours of the day counted from sunrise (about 06:00).
+     * 'roman': the four Roman night watches (from about 18:00).
+     * 'jewish-night': hours or watches of darkness counted from sunset (about 18:00).
+     */
+    reckoning: 'jewish' | 'roman' | 'jewish-night';
     /** 'HH:MM' 24-hour, sunrise assumed 06:00 for Jewish hours. */
     start: string;
     end: string;
@@ -85,6 +90,11 @@ export interface MeasurePart {
   unit: string;
   /** As the KJV states it ("three hundred" = 300, "two and a half" = 2.5). Omitted when the text gives none ("a cubit" = 1 is stated). */
   quantity?: Approx;
+  /**
+   * An alternative count the text offers: "five and twenty or thirty furlongs" is `quantity` 25, `or` 30.
+   * The title reads "25 or 30 furlongs"; the conversion spans the two.
+   */
+  or?: number;
 }
 
 export interface MeasureOccurrence {
@@ -101,6 +111,11 @@ export interface MeasureOccurrence {
     strongs?: string;
     /** 1-based nth match of the unit (Strong's or terms) in this verse. Default 1. */
     n?: number;
+    /**
+     * No interlinear word underlies this unit word (the KJV supplies it: "an hundred cubits long"): skip the
+     * Strong's step and anchor by the unit's words ("terms") alone. `n` is then not used.
+     */
+    textOnly?: boolean;
     /** Per-language extra match terms, rare. Keyed by primary language ('en'). */
     terms?: Record<string, string[]>;
   };
@@ -127,6 +142,12 @@ export interface MeasureLocalePack {
    * may have converted to ("feet").
    */
   terms: Record<string, string[]>;
+  /**
+   * The words the Bible text itself uses for a unit, by unit id ("mite", "penny", "firkin"). Never fall back
+   * to English. Used for the popup title only when the pack's language is the module's language; the
+   * scholarly name then moves to the subtitle.
+   */
+  textNames?: Record<string, PluralForms>;
   /** General unit notes (by noteKey / unit id) and verse notes (by occurrence noteKey). */
   notes: Record<string, string>;
   /** Names of modern units that `Intl.NumberFormat` cannot format ('quart', 'bushel', ...). */
@@ -137,7 +158,9 @@ export interface MeasureLocalePack {
    * (PluralForms-style via `wages.day.one` etc.), 'metal' "{mass} of {metal}", 'metal.silver',
    * 'clock' "about {start}–{end}", 'clockPoint' "about {time}", 'reckoning.jewish',
    * 'reckoning.roman', 'modernWage' "≈ {amount} at {wage} a day", 'relation' "1 {unit} = {list}",
-   * 'per.day' "a day".
+   * 'per.day' "a day", 'withPer' "{text} {per}", 'quantityName' "{n} {name}", 'quantityOr' "{a} or {b}",
+   * 'scholarlyName' "{system} {name}" (+ 'system.hebrew' etc.), 'pluralNote' "{name} (pl. {plural})",
+   * 'reckoning.jewish-night'.
    */
   phrases: Record<string, string>;
   /** Words for small numbers ("three", "hundred") so the modern-term matcher can accept "three feet". Optional. */
@@ -210,6 +233,8 @@ export interface MeasurePopupModel {
   range?: string;
   /** Further lines: metal weight, a modern-wage estimate, the reckoning used. */
   extra: string[];
+  /** The scholarly name when the title uses the text's own word: "Greek lepton (pl. lepta)". */
+  subtitle?: string;
   /** "1 cubit = 2 spans = 6 handbreadths". */
   relation?: string;
   /** The unit's general note. */
