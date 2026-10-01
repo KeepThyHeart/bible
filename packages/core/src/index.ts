@@ -173,3 +173,7 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Notifications and reminders engine (task 0083). Namespaced here (the Node
+// entry already exports generic names such as `JsonValue`); flat in `./browser`.
+export * as Reminders from './Reminders';
