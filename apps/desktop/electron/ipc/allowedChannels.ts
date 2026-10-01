@@ -33,6 +33,17 @@ export const ALLOWED_IPC_CHANNELS = [
   'keywords:list',
   'keywords:put',
   'keywords:remove',
+  // Reading plans (task 0073)
+  'reading-plans:list-plans',
+  'reading-plans:get-plan',
+  'reading-plans:put-plan',
+  'reading-plans:remove-plan',
+  'reading-plans:put-snapshot',
+  'reading-plans:list-enrollments',
+  'reading-plans:put-enrollment',
+  'reading-plans:remove-enrollment',
+  'reading-plans:list-completions',
+  'reading-plans:set-completions',
   // Notes
   'notes:get-by-id',
   'notes:get-all',
