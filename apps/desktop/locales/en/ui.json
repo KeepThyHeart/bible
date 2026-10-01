@@ -2419,5 +2419,6 @@
   "notifications.tray": "Keep running in the tray",
   "notifications.openAtLogin": "Start when I log in (in the tray)",
   "notifications.sendTest": "Send a test notification",
+  "notifications.blocked": "Turned off because the extension is disabled or lacks permission.",
   "notifications.general": "General"
 }

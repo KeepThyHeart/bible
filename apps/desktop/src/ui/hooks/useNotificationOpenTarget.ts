@@ -3,7 +3,7 @@
  * showing and focusing the window) to the right place in the renderer.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReminderTarget } from '@bible/core/browser';
 
 export interface NotificationOpenTargetHandlers {
@@ -24,20 +24,24 @@ export function routeNotificationTarget(
 }
 
 export function useNotificationOpenTarget(handlers: NotificationOpenTargetHandlers): void {
-  const { navigateToVerse, openNotificationPreferences } = handlers;
+  // Handlers are read through a ref so a changed identity neither resubscribes nor re-takes.
+  const ref = useRef(handlers);
+  ref.current = handlers;
+
   useEffect(() => {
     const api = window.electron?.notifications;
     if (!api?.onOpenTarget) return;
-    const route = (target: ReminderTarget): void =>
-      routeNotificationTarget(target, { navigateToVerse, openNotificationPreferences });
-    const off = api.onOpenTarget(route);
-    // A click that arrived while the page was loading is waiting in main: pick it up once.
+    return api.onOpenTarget((target: ReminderTarget) => routeNotificationTarget(target, ref.current));
+  }, []);
+
+  // A click that arrived while the page was loading is waiting in main: pick it up exactly once.
+  useEffect(() => {
+    const api = window.electron?.notifications;
     void api
-      .takeOpenTarget?.()
+      ?.takeOpenTarget?.()
       .then((target) => {
-        if (target) route(target);
+        if (target) routeNotificationTarget(target, ref.current);
       })
       .catch(() => undefined);
-    return off;
-  }, [navigateToVerse, openNotificationPreferences]);
+  }, []);
 }

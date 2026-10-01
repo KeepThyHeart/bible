@@ -2434,5 +2434,6 @@
   "notifications.tray": "ट्रे में चलते रहें",
   "notifications.openAtLogin": "लॉग इन करने पर शुरू करें (ट्रे में)",
   "notifications.sendTest": "एक परीक्षण सूचना भेजें",
+  "notifications.blocked": "बंद है क्योंकि एक्सटेंशन अक्षम है या उसके पास अनुमति नहीं है।",
   "notifications.general": "सामान्य"
 }

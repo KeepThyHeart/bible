@@ -158,6 +158,9 @@ export class ElectronReminderHost {
   }
 
   private async doStart(): Promise<void> {
+    // The device settings come from notifications.json, not the user DB: create the tray now so a
+    // hidden launch is reachable even while the user database is still opening.
+    this.applyDevice(this.device, true);
     try {
       this.store = await this.opts.getSettingsStore();
       this.settings = this.store.get();
@@ -169,7 +172,7 @@ export class ElectronReminderHost {
     for (const id of Object.keys(this.opts.stateFile.read().scheduler?.labels ?? {})) {
       if (id.startsWith('ext:')) this.ensureExtensionSource(id.slice(4), this.opts.stateFile.read().scheduler!.labels[id]);
     }
-    this.applyDevice(this.device, true);
+    this.applyDevice(this.device, true); // idempotent: the tray exists, the login item is only re-asserted
     await this.scheduler.start();
 
     powerMonitor.on('resume', this.onResume);
@@ -259,6 +262,16 @@ export class ElectronReminderHost {
     return this.scheduler.replaceItems(`ext:${extensionId}`, items, label);
   }
 
+  /** Ids of the extensions whose reminder sources are remembered (restored from state or registered). */
+  knownExtensionIds(): string[] {
+    const ids = new Set<string>();
+    for (const id of this.extSources.keys()) ids.add(id.slice(4));
+    for (const id of Object.keys(this.opts.stateFile.read().scheduler?.labels ?? {})) {
+      if (id.startsWith('ext:')) ids.add(id.slice(4));
+    }
+    return [...ids];
+  }
+
   /** An extension was uninstalled: forget its reminders and source. */
   async forgetExtension(extensionId: string): Promise<void> {
     const id = `ext:${extensionId}`;
@@ -330,6 +343,10 @@ export class ElectronReminderHost {
     if (!win || win.isDestroyed()) return;
     const wc = win.webContents;
     this.pendingOpenTarget = { target, at: Date.now() };
+    const sendNow = (): void => {
+      this.pendingOpenTarget = null; // delivered by event: a later take must not route it again
+      wc.send('notifications:open-target', target);
+    };
     if (wc.isLoading()) {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, LOAD_WAIT_MS);
@@ -339,12 +356,11 @@ export class ElectronReminderHost {
         });
       });
       await new Promise<void>((resolve) => setTimeout(resolve, this.opts.rendererSettleMs ?? 1000));
-      // Still pending: the renderer has not taken it. Send the event too, but keep it for a late subscriber.
-      if (this.pendingOpenTarget?.target === target && !win.isDestroyed()) wc.send('notifications:open-target', target);
+      // Still pending: the renderer has not taken it, so send the event (which clears the pending target).
+      if (this.pendingOpenTarget?.target === target && !win.isDestroyed()) sendNow();
       return;
     }
-    this.pendingOpenTarget = null;
-    wc.send('notifications:open-target', target);
+    sendNow();
   }
 
   /** The renderer's one-shot pickup of a click-through that arrived before it subscribed. */

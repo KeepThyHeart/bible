@@ -2436,5 +2436,6 @@
   "notifications.tray": "Seguir ejecutándose en la bandeja",
   "notifications.openAtLogin": "Iniciar al iniciar sesión (en la bandeja)",
   "notifications.sendTest": "Enviar una notificación de prueba",
+  "notifications.blocked": "Desactivada porque la extensión está deshabilitada o no tiene permiso.",
   "notifications.general": "General"
 }

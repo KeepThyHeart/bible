@@ -49,4 +49,17 @@ describe('useNotificationOpenTarget', () => {
     unmount();
     expect(off).toHaveBeenCalled();
   });
+
+  it('takes the pending target once even when the handlers change identity', async () => {
+    const takeOpenTarget = vi.fn().mockResolvedValue(null);
+    const onOpenTarget = vi.fn(() => vi.fn());
+    (window as { electron?: unknown }).electron = { notifications: { onOpenTarget, takeOpenTarget } };
+    const { rerender } = renderHook(() =>
+      useNotificationOpenTarget({ navigateToVerse: vi.fn(), openNotificationPreferences: vi.fn() })
+    );
+    rerender();
+    rerender();
+    await waitFor(() => expect(takeOpenTarget).toHaveBeenCalledTimes(1));
+    expect(onOpenTarget).toHaveBeenCalledTimes(1);
+  });
 });

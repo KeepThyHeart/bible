@@ -537,8 +537,15 @@ async function showMainWindow(): Promise<BrowserWindow | null> {
   return win;
 }
 
+/** Set once `extensionHost.loadAll()` has populated the registry; before that nothing can be vetoed. */
+let extensionRegistryLoaded = false;
+
 function isExtensionNotifyAllowed(extensionId: string): boolean {
-  return isExtensionNotifyAllowedFor(extensionHost ? extensionHost.listEntries() : null, extensionId);
+  // Until the registry is loaded it is empty, which would wrongly veto (and consume) due reminders.
+  return isExtensionNotifyAllowedFor(
+    extensionRegistryLoaded && extensionHost ? extensionHost.listEntries() : null,
+    extensionId,
+  );
 }
 
 /** Notifications engine: built before the window, started when the user DB opens. */
@@ -1189,9 +1196,18 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     extensionHost.onDidUninstall((extensionId) => void reminderHost?.forgetExtension(extensionId));
     // Enabling, disabling or changing permissions changes what may notify.
     extensionHost.onDidChangeAvailability(() => void reminderHost?.refresh());
-    // The host is now ready to answer `isExtensionNotifyAllowed`; re-check what may fire.
-    void reminderHost?.refresh();
     await extensionHost.loadAll();
+    // The registry is now populated, so `isExtensionNotifyAllowed` can answer for real
+    // (until now it allowed everything). Forget remembered sources of uninstalled
+    // extensions, then re-check what may fire.
+    extensionRegistryLoaded = true;
+    {
+      const installedIds = new Set(extensionHost.listEntries().map((e) => e.id));
+      for (const id of reminderHost?.knownExtensionIds() ?? []) {
+        if (!installedIds.has(id)) await reminderHost?.forgetExtension(id);
+      }
+    }
+    void reminderHost?.refresh();
 
     // Declarative contributions (task 0024 round 3, P1.5). Registered BEFORE
     // any activation event fires, so a lazily-activated extension's declared
@@ -1278,6 +1294,8 @@ registerExtUiSchemePrivileged();
 
 // App lifecycle
 app.whenReady().then(async () => {
+  // Lost the single-instance lock: nothing to start (the quit is already under way).
+  if (!gotSingleInstanceLock) return;
   // A second instance quits at once; it must not open databases or schedulers.
   if (!gotSingleInstanceLock) return;
   log.info('Application starting...');
@@ -1363,10 +1381,9 @@ app.whenReady().then(async () => {
   });
 
   app.on('activate', async () => {
-    // macOS: Re-create window when dock icon clicked
-    if (BrowserWindow.getAllWindows().length === 0) {
-      await showMainWindow();
-    }
+    // macOS: dock icon clicked. In tray mode the window is hidden rather than
+    // closed, so show it whether or not a window exists.
+    await showMainWindow();
   });
 });
 
@@ -1377,9 +1394,11 @@ app.whenReady().then(async () => {
 // gone. Elsewhere window-all-closed would quit anyway, but on macOS it does
 // not, and without this Cmd+Q only closed the window.
 let quitRequested = false;
-app.on('second-instance', () => {
+app.on('second-instance', (_event, argv) => {
   // Before startup has built the host there is nothing to show yet; the window appears on its own.
   if (!app.isReady() || !reminderHost) return;
+  // A login-item style `--hidden` launch must not pop the window of the running instance.
+  if (argv.includes('--hidden')) return;
   void showMainWindow();
 });
 app.on('before-quit', () => {
@@ -1401,6 +1420,7 @@ app.on('window-all-closed', () => {
 // belt-and-braces parity with pre-registry behavior; they're idempotent because
 // the registry's `closeAll()` already closed the underlying providers.
 app.on('will-quit', () => {
+  if (!gotSingleInstanceLock) return;
   try {
     log.info('[will-quit] Closing all module databases via registry...');
     getModuleDatabaseRegistry().closeAll();
@@ -1411,6 +1431,8 @@ app.on('will-quit', () => {
 
 // Clean up on quit
 app.on('quit', () => {
+  // The instance that lost the single-instance lock opened nothing; leave the winner's files alone.
+  if (!gotSingleInstanceLock) return;
   log.info('Application shutting down...');
 
   // Stop the diagnostics uploader timer so it doesn't fire during teardown

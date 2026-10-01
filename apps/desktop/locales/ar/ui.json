@@ -2434,5 +2434,6 @@
   "notifications.tray": "الاستمرار في العمل في علبة النظام",
   "notifications.openAtLogin": "التشغيل عند تسجيل الدخول (في علبة النظام)",
   "notifications.sendTest": "إرسال إشعار تجريبي",
+  "notifications.blocked": "تم إيقافه لأن الإضافة معطّلة أو تفتقر إلى الإذن.",
   "notifications.general": "عام"
 }

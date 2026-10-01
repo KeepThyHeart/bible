@@ -2436,5 +2436,6 @@
   "notifications.tray": "在托盘中保持运行",
   "notifications.openAtLogin": "登录时启动（在托盘中）",
   "notifications.sendTest": "发送测试通知",
+  "notifications.blocked": "已关闭，因为扩展已被停用或缺少权限。",
   "notifications.general": "常规"
 }

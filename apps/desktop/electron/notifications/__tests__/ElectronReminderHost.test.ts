@@ -289,6 +289,43 @@ describe('ElectronReminderHost', () => {
     expect(host.getViewState().settings.sources[VOTD_SOURCE_ID]?.enabled).toBe(true);
   });
 
+  it('creates the tray before the settings store resolves', async () => {
+    fs.writeFileSync(path.join(dir, 'notifications.json'), JSON.stringify({ version: 1, device: { tray: true, openAtLogin: false } }));
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const db = new Database(':memory:');
+    const sql = makeSql(db);
+    initializeUserSchema(sql);
+    const store = new NotificationSettingsStore(new UserDataRepository(sql));
+    host = new ElectronReminderHost({
+      getSettingsStore: async () => {
+        await gate;
+        return store;
+      },
+      stateFile: new NotificationStateFile(path.join(dir, 'notifications.json')),
+      getMainWindow: () => win as never,
+      showWindow: showWindow as never,
+      tray: tray as never,
+      loginItem: loginItem as never,
+      platform: 'linux',
+      rendererSettleMs: 0,
+    });
+    const starting = host.start();
+    await Promise.resolve();
+    expect(tray.enable).toHaveBeenCalledTimes(1);
+    release();
+    await starting;
+  });
+
+  it('lists remembered extension sources and forgets them', async () => {
+    host = build();
+    await host.start();
+    await host.remindersBridge.replaceAll('a.b', 'A', []);
+    expect(host.knownExtensionIds()).toContain('a.b');
+    await host.forgetExtension('a.b');
+    expect(host.knownExtensionIds()).not.toContain('a.b');
+  });
+
   describe('take-open-target', () => {
     it('keeps a click made while the page loads until the renderer takes it', async () => {
       host = build();
@@ -306,6 +343,23 @@ describe('ElectronReminderHost', () => {
       await vi.advanceTimersByTimeAsync(10);
       await sending;
       expect(win.webContents.send).not.toHaveBeenCalled(); // already taken
+    });
+
+    it('clears the pending target once the event was sent after the page loaded', async () => {
+      host = build();
+      await host.start();
+      let loaded: () => void = () => undefined;
+      win.webContents.isLoading = () => true;
+      win.webContents.once.mockImplementation((_e: string, cb: () => void) => {
+        loaded = cb;
+      });
+      const target = { kind: 'verse', verseId: 5 } as const;
+      const sending = host.sendOpenTarget(target, win as never);
+      loaded();
+      await vi.advanceTimersByTimeAsync(10);
+      await sending;
+      expect(win.webContents.send).toHaveBeenCalledWith('notifications:open-target', target);
+      expect(host.takeOpenTarget()).toBeNull();
     });
 
     it('sends the event and clears the pending target when the renderer is ready', async () => {

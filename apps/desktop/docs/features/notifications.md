@@ -23,7 +23,7 @@ Both are opt-in, off by default and stored per device in `notifications.json` (n
 
 ## Single instance
 
-`app.requestSingleInstanceLock()` (per user-data directory, so E2E workers with their own `ELECTRON_USER_DATA` do not clash). A second launch quits at once and the running instance shows and focuses its window (`second-instance`). Two schedulers would otherwise double-fire and share `notifications.json` and the user DB.
+`app.requestSingleInstanceLock()` (per user-data directory, so E2E workers with their own `ELECTRON_USER_DATA` do not clash). A second launch quits at once and the running instance shows and focuses its window (`second-instance`), unless the second launch passed `--hidden`. The losing instance skips startup and the quit teardown. On macOS the dock icon always shows the window (it is hidden, not closed, in tray mode). Two schedulers would otherwise double-fire and share `notifications.json` and the user DB.
 
 ## Notification click routing
 
@@ -40,3 +40,5 @@ Main shows and focuses the window, then sends `notifications:open-target` with a
 ## Tests
 
 `electron/notifications/__tests__` (host: firing, click routing, take-open-target, escaping, allowed-extension gating, setSettings before start, power/guard re-arm, state file, login item), `electron/ipc/__tests__/notificationHandlers.test.ts`, `electron/utils/__tests__/runOnce.test.ts` (IPC handlers register once), `NotificationsSection.test.tsx` (fake `window.electron.notifications`), `useNotificationOpenTarget.test.ts`; `vitest.setup.ts` stubs `window.electron.notifications`.
+
+Startup order: the tray is created from `notifications.json` before the user DB opens, so a hidden launch is reachable early. Extension reminders are not vetoed until the extension registry has loaded (`extensionRegistryLoaded`); afterwards remembered `ext:` sources of uninstalled extensions are forgotten. A click target is sent to the renderer once (the pending copy is cleared when sent), and the renderer's hook takes any pending target exactly once on mount.

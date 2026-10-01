@@ -2434,5 +2434,6 @@
   "notifications.tray": "Продолжать работу в трее",
   "notifications.openAtLogin": "Запускать при входе в систему (в трее)",
   "notifications.sendTest": "Отправить тестовое уведомление",
+  "notifications.blocked": "Отключено, потому что расширение выключено или у него нет разрешения.",
   "notifications.general": "Общие"
 }
