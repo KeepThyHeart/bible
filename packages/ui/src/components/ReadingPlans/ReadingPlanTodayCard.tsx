@@ -20,6 +20,8 @@ export interface ReadingPlanTodayCardLabels {
   behind: (n: number) => string;
   catchUp: (extraPerDay: number, days: number) => string;
   missed: (days: number[]) => string;
+  /** "and 5 more": shown when the missed-days list is truncated. */
+  missedMore: (n: number) => string;
   reschedule: string;
   switchToFlexible: string;
   switchConfirmText: string;
@@ -42,8 +44,9 @@ export const DEFAULT_READING_PLAN_TODAY_CARD_LABELS: ReadingPlanTodayCardLabels 
   notStarted: 'This plan has not started yet.',
   restDay: 'Rest day',
   behind: (n) => (n === 1 ? 'You are 1 day behind' : `You are ${n} days behind`),
-  catchUp: (e, d) => `Read ${e} extra ${e === 1 ? 'day' : 'days'} each day for ${d} ${d === 1 ? 'day' : 'days'} to catch up`,
+  catchUp: (e, d) => `To catch up, read ${e} extra ${e === 1 ? "day's" : "days'"} readings on each of the next ${d} ${d === 1 ? 'day' : 'days'}`,
   missed: (days) => `Missed: day ${days.join(', ')}`,
+  missedMore: (n) => `and ${n} more`,
   reschedule: 'Reschedule from today',
   switchToFlexible: 'Switch to flexible',
   switchConfirmText:
@@ -53,6 +56,8 @@ export const DEFAULT_READING_PLAN_TODAY_CARD_LABELS: ReadingPlanTodayCardLabels 
   openReading: (r) => `Open ${r}`,
   readings: 'Readings',
 };
+
+const MAX_MISSED_SHOWN = 10;
 
 export interface ReadingPlanTodayCardProps {
   view: ReadingPlans.TodayView;
@@ -99,7 +104,7 @@ export function ReadingPlanTodayCard({
         <div className="kth-rp-behind">
           <p className="kth-rp-behind__text" role="status">{L.behind(view.behindBy)}</p>
           {catchUp ? <p className="kth-rp-behind__hint">{L.catchUp(catchUp.extraPerDay, catchUp.days)}</p> : null}
-          {view.missedDays.length > 0 ? <p className="kth-rp-behind__missed">{L.missed(view.missedDays)}</p> : null}
+          {view.missedDays.length > 0 ? <p className="kth-rp-behind__missed">{L.missed(view.missedDays.slice(0, MAX_MISSED_SHOWN))}{view.missedDays.length > MAX_MISSED_SHOWN ? ` ${L.missedMore(view.missedDays.length - MAX_MISSED_SHOWN)}` : ''}</p> : null}
           {confirming ? (
             <div className="kth-rp-behind__confirm" role="group" aria-label={L.switchToFlexible}>
               <p className="kth-rp-behind__hint">{L.switchConfirmText}</p>

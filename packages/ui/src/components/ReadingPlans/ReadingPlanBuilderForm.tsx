@@ -52,6 +52,11 @@ export interface ReadingPlanBuilderFormLabels {
   startDate: string;
   preview: string;
   chooseSomething: string;
+  errorEmptyScope: string;
+  errorInvalidRange: string;
+  errorInvalidPace: string;
+  errorTooManyDays: string;
+  errorTooManyReadings: string;
   /** "365 days · about 12 min a day". */
   previewSummary: (days: number, minutes: number) => string;
   previewDay: (day: number, readings: string) => string;
@@ -93,6 +98,11 @@ export const DEFAULT_READING_PLAN_BUILDER_FORM_LABELS: ReadingPlanBuilderFormLab
   startDate: 'Start date',
   preview: 'Preview',
   chooseSomething: 'Choose something to read',
+  errorEmptyScope: 'Choose something to read',
+  errorInvalidRange: 'The passage range is not valid',
+  errorInvalidPace: 'The pace is not valid',
+  errorTooManyDays: 'That would take too many days',
+  errorTooManyReadings: 'That would make too many readings in a day',
   previewSummary: (d, m) => `${d} ${d === 1 ? 'day' : 'days'} · about ${m} min a day`,
   previewDay: (d, r) => `Day ${d}: ${r}`,
   create: 'Create plan',
@@ -116,6 +126,12 @@ const OT = Array.from({ length: 39 }, (_, i) => i + 1);
 const NT = Array.from({ length: 27 }, (_, i) => i + 40);
 const ALL_DAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
 const defaultBookName = (b: number) => getBookName(b);
+
+/** A whole number of at least 1 (blank or invalid input becomes 1). */
+function wholeAtLeast1(raw: string): number {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
 
 /** Consecutive selected books folded into `booksRange(from, to)` scope ranges. */
 function booksToRanges(books: ReadonlySet<number>): ReadingPlans.ScopeRange[] {
@@ -154,10 +170,10 @@ export function ReadingPlanBuilderForm({
   const [passageText, setPassageText] = useState('');
   const [order, setOrder] = useState<ReadingPlans.BuilderOrder>('canonical');
   const [paceKind, setPaceKind] = useState<PaceKind>('days');
-  const [daysN, setDaysN] = useState(365);
+  const [daysN, setDaysN] = useState('365');
   const [endDate, setEndDate] = useState('');
-  const [chapters, setChapters] = useState(1);
-  const [verses, setVerses] = useState(20);
+  const [chapters, setChapters] = useState('1');
+  const [verses, setVerses] = useState('20');
   const [split, setSplit] = useState<ReadingPlans.BuilderSplit>('chapter');
   const [readingDays, setReadingDays] = useState<Weekday[]>(ALL_DAYS);
   const [pacing, setPacing] = useState<'flexible' | 'fixed'>('flexible');
@@ -166,10 +182,10 @@ export function ReadingPlanBuilderForm({
   const spec = useMemo<ReadingPlans.BuilderSpec>(() => {
     let pace: ReadingPlans.BuilderPace;
     switch (paceKind) {
-      case 'days': pace = { by: 'days', days: daysN }; break;
+      case 'days': pace = { by: 'days', days: wholeAtLeast1(daysN) }; break;
       case 'endDate': pace = { by: 'endDate', startDate, endDate }; break;
-      case 'chaptersPerDay': pace = { by: 'chaptersPerDay', chapters }; break;
-      default: pace = { by: 'versesPerDay', verses };
+      case 'chaptersPerDay': pace = { by: 'chaptersPerDay', chapters: wholeAtLeast1(chapters) }; break;
+      default: pace = { by: 'versesPerDay', verses: wholeAtLeast1(verses) };
     }
     return {
       name: name.trim() || L.namePlaceholder,
@@ -178,14 +194,26 @@ export function ReadingPlanBuilderForm({
     };
   }, [name, books, passages, order, paceKind, daysN, startDate, endDate, chapters, verses, split, readingDays, L.namePlaceholder]);
 
+  const buildErrorText = (e: unknown): string => {
+    if (!(e instanceof ReadingPlans.PlanBuildError)) return L.chooseSomething;
+    switch (e.code) {
+      case 'empty_scope': return L.errorEmptyScope;
+      case 'invalid_range': return L.errorInvalidRange;
+      case 'invalid_pace': return L.errorInvalidPace;
+      case 'too_many_days': return L.errorTooManyDays;
+      case 'too_many_readings': return L.errorTooManyReadings;
+      default: return (e as Error).message;
+    }
+  };
+
   const preview = useMemo(() => {
     if (spec.scope.length === 0) return { kind: 'error', error: L.chooseSomething } as const;
     try {
       return { kind: 'ok', ok: ReadingPlans.previewPlan(spec) } as const;
     } catch (e) {
-      return { kind: 'error', error: e instanceof ReadingPlans.PlanBuildError ? e.message : L.chooseSomething } as const;
+      return { kind: 'error', error: buildErrorText(e) } as const;
     }
-  }, [spec, L.chooseSomething]);
+  }, [spec, L]);
 
   const setBookSet = (list: number[]) => setBooks(new Set(list));
   const toggleBook = (b: number) => {
@@ -277,8 +305,8 @@ export function ReadingPlanBuilderForm({
             <input type="radio" name={radio('pace')} checked={paceKind === 'days'} onChange={() => setPaceKind('days')} />
             <span>{L.paceDays}</span>
           </label>
-          <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceDays} value={daysN}
-            disabled={paceKind !== 'days'} onChange={(e) => setDaysN(Number(e.currentTarget.value))} />
+          <input type="number" min={1} step={1} className="kth-input kth-rp-builder__number" aria-label={L.paceDays} value={daysN}
+            disabled={paceKind !== 'days'} onChange={(e) => setDaysN(e.currentTarget.value)} />
         </div>
         <div className="kth-rp-builder__option">
           <label className="kth-rp-builder__choice">
@@ -293,16 +321,16 @@ export function ReadingPlanBuilderForm({
             <input type="radio" name={radio('pace')} checked={paceKind === 'chaptersPerDay'} onChange={() => setPaceKind('chaptersPerDay')} />
             <span>{L.paceChapters}</span>
           </label>
-          <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceChapters} value={chapters}
-            disabled={paceKind !== 'chaptersPerDay'} onChange={(e) => setChapters(Number(e.currentTarget.value))} />
+          <input type="number" min={1} step={1} className="kth-input kth-rp-builder__number" aria-label={L.paceChapters} value={chapters}
+            disabled={paceKind !== 'chaptersPerDay'} onChange={(e) => setChapters(e.currentTarget.value)} />
         </div>
         <div className="kth-rp-builder__option">
           <label className="kth-rp-builder__choice">
             <input type="radio" name={radio('pace')} checked={paceKind === 'versesPerDay'} onChange={() => setPaceKind('versesPerDay')} />
             <span>{L.paceVerses}</span>
           </label>
-          <input type="number" min={1} className="kth-input kth-rp-builder__number" aria-label={L.paceVerses} value={verses}
-            disabled={paceKind !== 'versesPerDay'} onChange={(e) => setVerses(Number(e.currentTarget.value))} />
+          <input type="number" min={1} step={1} className="kth-input kth-rp-builder__number" aria-label={L.paceVerses} value={verses}
+            disabled={paceKind !== 'versesPerDay'} onChange={(e) => setVerses(e.currentTarget.value)} />
         </div>
       </fieldset>
 

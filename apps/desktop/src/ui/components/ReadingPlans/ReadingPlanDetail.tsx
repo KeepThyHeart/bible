@@ -25,21 +25,6 @@ interface Props {
 
 const field = 'px-sm py-xs rounded border border-border bg-transparent';
 
-/** Completions implied by the day statuses: a done day has every reading ticked. */
-export function completionsFromStatuses(
-  enrollmentId: string,
-  plan: ReadingPlans.PlanDefinition,
-  statuses: readonly ReadingPlans.DayStatus[],
-  at: string,
-): ReadingPlans.Completion[] {
-  const out: ReadingPlans.Completion[] = [];
-  statuses.forEach((s, i) => {
-    if (s !== 'done') return;
-    plan.days[i]?.readings.forEach((_, reading) => out.push({ enrollmentId, day: i + 1, reading, at, via: 'manual' }));
-  });
-  return out;
-}
-
 const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName, onBack, onRemoved, onError }) => {
   const { t } = useI18n();
   const showStreak = usePreferencesStore((s) => s.readingPlanShowStreak);
@@ -91,8 +76,8 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
     return `${prefix}${labels.formatReading(r)}`;
   };
 
-  const exportIcs = () => {
-    const completions = completionsFromStatuses(e.id, plan, statuses, new Date().toISOString());
+  const exportIcs = async () => {
+    const completions = await service.completions(e.id);
     const ics = ReadingPlans.planToIcs(plan, e, completions, {
       formatReading: labels.formatReading,
       today: service.today(),
@@ -133,7 +118,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
         <li>{t('readingPlans.detail.daysRead', { done: stats.daysDone, total: stats.dayCount })}</li>
         <li>{t('readingPlans.detail.percent', { percent: stats.percent })}</li>
         {stats.estimatedFinish ? <li>{t('readingPlans.detail.estimatedFinish', { date: labels.formatDate(stats.estimatedFinish) })}</li> : null}
-        {e.pacing === 'fixed' && stats.scheduledFinish ? (
+        {e.pacing === 'fixed' && stats.scheduledFinish && stats.scheduledFinish !== stats.estimatedFinish ? (
           <li>{t('readingPlans.detail.scheduledFinish', { date: labels.formatDate(stats.scheduledFinish) })}</li>
         ) : null}
         {showStreak ? <li>{t('readingPlans.detail.streak', { count: stats.streak })}</li> : null}
@@ -207,10 +192,10 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
           {t('readingPlans.detail.alarmTime')}
           <input type="time" className={field} value={alarm} onChange={(ev) => setAlarm(ev.target.value)} />
         </label>
-        <button type="button" className="kth-btn kth-btn--sm" onClick={exportIcs}>{t('readingPlans.detail.exportIcs')}</button>
+        <button type="button" className="kth-btn kth-btn--sm" onClick={() => void run(exportIcs)}>{t('readingPlans.detail.exportIcs')}</button>
         {e.status !== 'completed' ? (
           <button type="button" className="kth-btn kth-btn--sm"
-            onClick={() => void run(() => service.updateEnrollment(e.id, { status: e.status === 'paused' ? 'active' : 'paused' }))}>
+            onClick={() => void run(() => (e.status === 'paused' ? service.resume(e.id) : service.pause(e.id)))}>
             {e.status === 'paused' ? t('readingPlans.action.resume') : t('readingPlans.action.pause')}
           </button>
         ) : null}

@@ -4,7 +4,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReadingPlans } from '@bible/core/browser';
-import { getReadingPlanService } from '../../services/readingPlansAPI';
+import { currentRolloverHour, getReadingPlanService } from '../../services/readingPlansAPI';
+import { watchReadingDay } from '../../services/readingDayWatcher';
 
 export interface ReadingPlanData {
   enrollments: ReadingPlans.Enrollment[];
@@ -46,9 +47,11 @@ export function useReadingPlanData(): { data: ReadingPlanData; loaded: boolean; 
     const unsubscribe = getReadingPlanService().subscribe((event) => {
       if (event.type === 'changed') void reload();
     });
+    const stopWatching = watchReadingDay(() => { void reload(); }, currentRolloverHour);
     return () => {
       alive.current = false;
       unsubscribe();
+      stopWatching();
     };
   }, [reload]);
 

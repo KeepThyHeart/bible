@@ -5,6 +5,7 @@
  */
 import { ReadingPlans } from '@bible/core/browser';
 import { unwrap, type Result } from './ipcResult';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
 
 type PlanDefinition = ReadingPlans.PlanDefinition;
 type Enrollment = ReadingPlans.Enrollment;
@@ -48,11 +49,11 @@ export class IpcReadingPlanStore implements ReadingPlans.IReadingPlanStore {
 }
 
 let service: ReadingPlans.ReadingPlanService | null = null;
-let rolloverHour = ReadingPlans.DEFAULT_ROLLOVER_HOUR;
 
-/** Set from the "New reading day starts at" preference. */
-export function setReadingPlanRolloverHour(hour: number): void {
-  rolloverHour = hour;
+/** The "New reading day starts at" preference, read on every call so it is right from the first load. */
+export function currentRolloverHour(): number {
+  const hour = usePreferencesStore.getState().readingPlanRolloverHour;
+  return typeof hour === 'number' && Number.isFinite(hour) ? hour : ReadingPlans.DEFAULT_ROLLOVER_HOUR;
 }
 
 /**
@@ -62,7 +63,7 @@ export function setReadingPlanRolloverHour(hour: number): void {
  */
 export function getReadingPlanService(): ReadingPlans.ReadingPlanService {
   if (!service) {
-    service = new ReadingPlans.ReadingPlanService(new IpcReadingPlanStore(), { rolloverHour: () => rolloverHour });
+    service = new ReadingPlans.ReadingPlanService(new IpcReadingPlanStore(), { rolloverHour: currentRolloverHour });
   }
   return service;
 }

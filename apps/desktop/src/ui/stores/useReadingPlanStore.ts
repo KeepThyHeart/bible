@@ -6,7 +6,8 @@
  */
 import { create } from 'zustand';
 import type { ReadingPlans } from '@bible/core/browser';
-import { getReadingPlanService, setReadingPlanRolloverHour } from '../services/readingPlansAPI';
+import { currentRolloverHour, getReadingPlanService } from '../services/readingPlansAPI';
+import { watchReadingDay } from '../services/readingDayWatcher';
 import { usePreferencesStore } from './usePreferencesStore';
 
 interface ReadingPlanState {
@@ -23,6 +24,7 @@ interface ReadingPlanState {
 let unsubscribeService: (() => void) | null = null;
 let subscribedService: ReadingPlans.ReadingPlanService | null = null;
 let prefsSubscribed = false;
+let stopWatching: (() => void) | null = null;
 
 function subscribeOnce(refresh: () => Promise<void>): void {
   const service = getReadingPlanService();
@@ -35,15 +37,15 @@ function subscribeOnce(refresh: () => Promise<void>): void {
   }
   if (!prefsSubscribed) {
     prefsSubscribed = true;
-    setReadingPlanRolloverHour(usePreferencesStore.getState().readingPlanRolloverHour);
     let last = usePreferencesStore.getState().readingPlanRolloverHour;
     usePreferencesStore.subscribe((state) => {
       if (state.readingPlanRolloverHour === last) return;
       last = state.readingPlanRolloverHour;
-      setReadingPlanRolloverHour(last);
       void refresh();
     });
   }
+  // Keeps "today" fresh: refresh at the day rollover and when the window regains focus.
+  stopWatching ??= watchReadingDay(() => { void refresh(); }, currentRolloverHour);
 }
 
 export const useReadingPlanStore = create<ReadingPlanState>((set, get) => ({
@@ -72,5 +74,7 @@ export function resetReadingPlanStoreForTests(): void {
   unsubscribeService?.();
   unsubscribeService = null;
   subscribedService = null;
+  stopWatching?.();
+  stopWatching = null;
   useReadingPlanStore.setState({ todays: [], loading: false, loaded: false, error: null });
 }

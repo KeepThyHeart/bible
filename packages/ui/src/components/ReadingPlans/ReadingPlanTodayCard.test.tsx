@@ -55,10 +55,16 @@ describe('ReadingPlanTodayCard', () => {
     expect(view.behindBy).toBe(3);
     const { user, onShift } = setup(view, { catchUp: ReadingPlans.catchUpSuggestion(3, 3) });
     expect(screen.getByRole('status')).toHaveTextContent('You are 3 days behind');
-    expect(screen.getByText('Read 1 extra day each day for 3 days to catch up')).toBeInTheDocument();
+    expect(screen.getByText("To catch up, read 1 extra day's readings on each of the next 3 days")).toBeInTheDocument();
     expect(screen.getByText('Missed: day 1, 2, 3')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reschedule from today' }));
     expect(onShift).toHaveBeenCalled();
+  });
+
+  it('truncates a long missed-days list', () => {
+    const base = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08');
+    setup({ ...base, missedDays: Array.from({ length: 14 }, (_, i) => i + 1) });
+    expect(screen.getByText('Missed: day 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 and 4 more')).toBeInTheDocument();
   });
 
   it('switch to flexible needs confirmation; Cancel does nothing', async () => {

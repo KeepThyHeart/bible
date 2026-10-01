@@ -26,7 +26,7 @@ describe('ReadingPlanBuilderForm', () => {
     await user.click(screen.getByRole('radio', { name: /Balanced by verses/ }));
     await user.type(screen.getByLabelText('Plan name'), 'Jude plan');
     expect(screen.getByText('3 days · about 1 min a day')).toBeInTheDocument();
-    expect(screen.getByText(/^Day 1: Jude 1-/)).toBeInTheDocument();
+    expect(screen.getByText(/^Day 1: Jude 1:1-/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create plan' }));
     expect(onCreate).toHaveBeenCalledTimes(1);
     const [spec, start] = onCreate.mock.calls[0] as [ReadingPlans.BuilderSpec, { startDate: string; pacing: string; readingDays: number[] }];

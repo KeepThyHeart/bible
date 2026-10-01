@@ -24,6 +24,11 @@ const BUILDER_KEYS = [
   'flexible', 'flexibleHint', 'fixed', 'fixedHint', 'startDate', 'preview', 'chooseSomething', 'create', 'cancel',
 ] as const;
 
+const BUILDER_ERROR_KEYS = {
+  errorEmptyScope: 'emptyScope', errorInvalidRange: 'invalidRange', errorInvalidPace: 'invalidPace',
+  errorTooManyDays: 'tooManyDays', errorTooManyReadings: 'tooManyReadings',
+} as const;
+
 export interface ReadingPlanLabelSet {
   todayCard: ReadingPlanTodayCardLabels;
   dayGrid: ReadingPlanDayGridLabels;
@@ -115,6 +120,7 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
     behind: (n) => t('readingPlans.card.behind', { n }),
     catchUp: (extra, days) => t('readingPlans.card.catchUp', { extra, days }),
     missed: (days) => t('readingPlans.card.missed', { days: days.join(', ') }),
+    missedMore: (n) => t('readingPlans.card.missedMore', { n }),
     reschedule: t('readingPlans.card.reschedule'),
     switchToFlexible: t('readingPlans.card.switchToFlexible'),
     switchConfirmText: t('readingPlans.card.switchConfirmText'),
@@ -151,8 +157,12 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
 
   const builder = useMemo<ReadingPlanBuilderFormLabels>(() => {
     const simple = Object.fromEntries(BUILDER_KEYS.map((k) => [k, t(`readingPlans.builder.${k}`)]));
+    const errors = Object.fromEntries(
+      Object.entries(BUILDER_ERROR_KEYS).map(([label, key]) => [label, t(`readingPlans.builder.error.${key}`)]),
+    );
     return {
       ...simple,
+      ...errors,
       removePassage: (label: string) => t('readingPlans.builder.removePassage', { label }),
       previewSummary: (days: number, minutes: number) => t('readingPlans.builder.previewSummary', { days, minutes }),
       previewDay: (day: number, readings: string) => t('readingPlans.builder.previewDay', { day, readings }),

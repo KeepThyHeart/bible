@@ -149,7 +149,7 @@ const ReadingPlansPane: React.FC = () => {
           onClick={() => go({ kind: 'detail', id: e.id, from: 'plans' })}>{t('readingPlans.action.openDetail')}</button>
         {e.status !== 'completed' ? (
           <button type="button" className="kth-btn kth-btn--sm" aria-label={t(e.status === 'paused' ? 'readingPlans.action.resumeNamed' : 'readingPlans.action.pauseNamed', { name })}
-            onClick={() => void run(() => service.updateEnrollment(e.id, { status: e.status === 'paused' ? 'active' : 'paused' }))}>
+            onClick={() => void run(() => (e.status === 'paused' ? service.resume(e.id) : service.pause(e.id)))}>
             {e.status === 'paused' ? t('readingPlans.action.resume') : t('readingPlans.action.pause')}
           </button>
         ) : null}
@@ -193,7 +193,7 @@ const ReadingPlansPane: React.FC = () => {
         </fieldset>
         <WeekdayPicker value={readingDays} onChange={setReadingDays} weekdayNames={labels.weekdayNames} labels={{ group: labels.weekdayGroup }} />
         <div className="flex gap-sm">
-          <button type="button" className="kth-btn kth-btn--primary" onClick={() => void confirmStart()}>{t('readingPlans.start.begin')}</button>
+          <button type="button" className="kth-btn kth-btn--primary" disabled={!ReadingPlans.isIsoDate(startDate)} onClick={() => void confirmStart()}>{t('readingPlans.start.begin')}</button>
           <button type="button" className="kth-btn" onClick={() => setStartKey(null)}>{labels.todayCard.cancel}</button>
         </div>
       </section>
@@ -257,7 +257,13 @@ const ReadingPlansPane: React.FC = () => {
           void (async () => {
             const ok = await run(async () => {
               const plan = await service.createPlan(spec);
-              await service.startPlan(plan.key, start);
+              try {
+                await service.startPlan(plan.key, start);
+              } catch (err) {
+                // Do not leave a plan behind that the reader never got to start.
+                await service.deletePlan(plan.key).catch(() => {});
+                throw err;
+              }
             });
             if (ok) go({ kind: 'today' });
           })();
