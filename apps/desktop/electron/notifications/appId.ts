@@ -1,9 +1,9 @@
 /**
  * The application id used as the Windows AppUserModelID, which must match the
  * one electron-builder gives the installer's shortcut or toasts do not show.
- * `__BIBLE_APP_ID__` is meant to be injected by electron-vite's `define` from
- * the same `BIBLE_APP_ID` the builder reads; until it is, the env var (set when
- * running unpackaged) and then the builder's default are used.
+ * `__BIBLE_APP_ID__` is injected by electron-vite's `define` (electron.vite.config.ts)
+ * from the same `BIBLE_APP_ID` the builder reads; if it is absent the env var and
+ * then the builder's default are used. main.ts only sets the id when packaged.
  */
 declare const __BIBLE_APP_ID__: string | undefined;
 

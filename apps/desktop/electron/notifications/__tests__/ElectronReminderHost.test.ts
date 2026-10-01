@@ -52,7 +52,14 @@ let showWindow: ReturnType<typeof vi.fn>;
 let tray: { enable: ReturnType<typeof vi.fn>; disable: ReturnType<typeof vi.fn>; active: boolean };
 let loginItem: { isSupported: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
 
-function build(opts: { stateFile?: NotificationStateFile; withVotd?: boolean } = {}): ElectronReminderHost {
+function build(
+  opts: {
+    stateFile?: NotificationStateFile;
+    withVotd?: boolean;
+    platform?: NodeJS.Platform;
+    isExtensionAllowed?: (id: string) => boolean;
+  } = {},
+): ElectronReminderHost {
   const db = new Database(':memory:');
   const sql = makeSql(db);
   initializeUserSchema(sql);
@@ -64,7 +71,8 @@ function build(opts: { stateFile?: NotificationStateFile; withVotd?: boolean } =
     showWindow: showWindow as never,
     tray: tray as never,
     loginItem: loginItem as never,
-    platform: 'linux',
+    platform: opts.platform ?? 'linux',
+    isExtensionAllowed: opts.isExtensionAllowed,
     rendererSettleMs: 0,
   });
   if (opts.withVotd !== false) {
@@ -236,5 +244,87 @@ describe('ElectronReminderHost', () => {
     shown()[1].emit('click');
     await vi.advanceTimersByTimeAsync(0);
     expect(showWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it('escapes markup characters in the title and body on linux only', async () => {
+    host = build({ withVotd: false, platform: 'linux' });
+    await host.start();
+    await host.remindersBridge.replaceAll('a.b', 'A & B', [{ key: 'k', fireAt: Date.now() + 1000, title: 'A <b> & C', body: '1 > 0' }]);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(shown()[0].opts).toMatchObject({ title: 'A &lt;b&gt; &amp; C', body: '1 &gt; 0' });
+    host.stop();
+    h.shown.length = 0;
+    host = build({ withVotd: false, platform: 'win32' });
+    await host.start();
+    await host.remindersBridge.replaceAll('a.b', 'A & B', [{ key: 'k', fireAt: Date.now() + 1000, title: 'A <b> & C', body: '1 > 0' }]);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(shown()[0].opts).toMatchObject({ title: 'A <b> & C', body: '1 > 0' });
+  });
+
+  it('reports whenClosed fires on macOS without the tray', async () => {
+    host = build({ platform: 'darwin' });
+    await host.start();
+    expect(host.capabilities().whenClosed).toBe('fires');
+  });
+
+  it('does not notify for an extension that is not allowed, and resumes after refresh()', async () => {
+    let allowed = false;
+    host = build({ withVotd: false, isExtensionAllowed: () => allowed });
+    await host.start();
+    await host.remindersBridge.replaceAll('acme.mem', 'Cards', [{ key: 'k1', fireAt: Date.now() + 1000, title: 'Card', body: 'x' }]);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(shown()).toHaveLength(0);
+    allowed = true;
+    await host.refresh();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(shown()).toHaveLength(1);
+  });
+
+  it('applies a setSettings call made before start() resolves', async () => {
+    host = build();
+    const starting = host.start();
+    const state = await host.setSettings({ ...DEFAULT_NOTIFICATION_SETTINGS, sources: { [VOTD_SOURCE_ID]: { enabled: true } } });
+    await starting;
+    expect(state.settings.sources[VOTD_SOURCE_ID]?.enabled).toBe(true);
+    expect(host.getViewState().settings.sources[VOTD_SOURCE_ID]?.enabled).toBe(true);
+  });
+
+  describe('take-open-target', () => {
+    it('keeps a click made while the page loads until the renderer takes it', async () => {
+      host = build();
+      await host.start();
+      let loaded: () => void = () => undefined;
+      win.webContents.isLoading = () => true;
+      win.webContents.once.mockImplementation((_e: string, cb: () => void) => {
+        loaded = cb;
+      });
+      const target = { kind: 'route', route: 'settings/notifications' } as const;
+      const sending = host.sendOpenTarget(target, win as never);
+      expect(host.takeOpenTarget()).toEqual(target);
+      expect(host.takeOpenTarget()).toBeNull();
+      loaded();
+      await vi.advanceTimersByTimeAsync(10);
+      await sending;
+      expect(win.webContents.send).not.toHaveBeenCalled(); // already taken
+    });
+
+    it('sends the event and clears the pending target when the renderer is ready', async () => {
+      host = build();
+      await host.start();
+      const target = { kind: 'verse', verseId: 1001001 } as const;
+      await host.sendOpenTarget(target, win as never);
+      expect(win.webContents.send).toHaveBeenCalledWith('notifications:open-target', target);
+      expect(host.takeOpenTarget()).toBeNull();
+    });
+
+    it('does not hang forever when the page never finishes loading', async () => {
+      host = build();
+      await host.start();
+      win.webContents.isLoading = () => true;
+      const sending = host.sendOpenTarget({ kind: 'verse', verseId: 1 }, win as never);
+      await vi.advanceTimersByTimeAsync(20_000);
+      await sending;
+      expect(win.webContents.send).toHaveBeenCalled();
+    });
   });
 });

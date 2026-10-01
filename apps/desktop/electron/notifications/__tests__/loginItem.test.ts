@@ -48,11 +48,11 @@ describe('login item', () => {
     expect(text).toContain('Exec="/home/u/Apps/Bible \\"Reader\\".AppImage" --hidden');
   });
 
-  it('uses the login-item API with --hidden on Windows and macOS', () => {
-    for (const platform of ['win32', 'darwin'] as const) {
-      setLoginItem(true, { platform });
-      expect(setLoginItemSettings).toHaveBeenLastCalledWith({ openAtLogin: true, args: ['--hidden'], openAsHidden: true });
-    }
+  it('uses the login-item API: --hidden on Windows, no arguments on macOS', () => {
+    setLoginItem(true, { platform: 'win32' });
+    expect(setLoginItemSettings).toHaveBeenLastCalledWith({ openAtLogin: true, args: ['--hidden'] });
+    setLoginItem(true, { platform: 'darwin' });
+    expect(setLoginItemSettings).toHaveBeenLastCalledWith({ openAtLogin: true });
     expect(isLoginItemSupported('win32')).toBe(true);
     expect(isLoginItemSupported('darwin')).toBe(true);
   });

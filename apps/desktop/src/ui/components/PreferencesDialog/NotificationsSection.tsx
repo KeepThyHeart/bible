@@ -2,8 +2,8 @@
  * NotificationsSection.tsx
  *
  * Preferences > Notifications. A thin host for the shared `NotificationPreferences`
- * component: state lives in the main process (`notifications.json` in user data
- * plus the engine's own schedule), reached over `window.electron.notifications`.
+ * component: state lives in the main process (the settings document in the user
+ * database, the device options and engine schedule in `notifications.json`), reached over `window.electron.notifications`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -53,9 +53,9 @@ export function NotificationsSection() {
   const labels = useMemo(() => {
     const out = {} as NotificationPreferencesLabels;
     for (const key of LABEL_KEYS) {
-      // `next` and `scheduled` carry `{time}` / `{count}` placeholders that the shared
-      // component fills in itself; hand them back verbatim instead of ICU-formatting them.
-      out[key] = t(`notifications.${key}`, { time: '{time}', count: '{count}' });
+      // `next`, `scheduled` and `dailyTime` carry `{time}` / `{count}` / `{source}` placeholders
+      // that the shared component fills in itself; hand them back verbatim.
+      out[key] = t(`notifications.${key}`, { time: '{time}', count: '{count}', source: '{source}' });
     }
     return out;
     // `t` re-binds when the locale changes.
@@ -71,6 +71,9 @@ export function NotificationsSection() {
     },
     [locale]
   );
+
+  // Plural-aware "N scheduled" (ICU plural per locale).
+  const formatScheduled = useCallback((count: number) => t('notifications.scheduledCount', { count }), [t]);
 
   if (failed) {
     return <p data-testid="notifications-error">{t('notifications.loadError')}</p>;
@@ -91,6 +94,7 @@ export function NotificationsSection() {
       state={state}
       labels={labels}
       formatTime={formatTime}
+      formatScheduled={formatScheduled}
       idPrefix="desktop-notify"
       onSettingsChange={onSettingsChange}
       onDeviceChange={(patch) => {

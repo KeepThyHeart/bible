@@ -365,12 +365,32 @@ export class ExtensionHost implements IExtensionHost {
     return () => this.uninstallListeners.delete(cb);
   }
 
-  enable(extensionId: string): Promise<void> {
-    return installerEnable(this.ctx, extensionId);
+  private readonly availabilityListeners = new Set<(extensionId: string) => void>();
+
+  /** Called after an extension is enabled or disabled, or its granted permissions change. */
+  onDidChangeAvailability(cb: (extensionId: string) => void): () => void {
+    this.availabilityListeners.add(cb);
+    return () => this.availabilityListeners.delete(cb);
   }
 
-  disable(extensionId: string): Promise<void> {
-    return installerDisable(this.ctx, extensionId);
+  private emitAvailabilityChanged(extensionId: string): void {
+    for (const cb of this.availabilityListeners) {
+      try {
+        cb(extensionId);
+      } catch {
+        /* a listener must not break enable/disable */
+      }
+    }
+  }
+
+  async enable(extensionId: string): Promise<void> {
+    await installerEnable(this.ctx, extensionId);
+    this.emitAvailabilityChanged(extensionId);
+  }
+
+  async disable(extensionId: string): Promise<void> {
+    await installerDisable(this.ctx, extensionId);
+    this.emitAvailabilityChanged(extensionId);
   }
 
   resetCrashState(extensionId: string): Promise<void> {
@@ -505,11 +525,12 @@ export class ExtensionHost implements IExtensionHost {
 
   // --- Permissions / settings ---------------------------------------------
 
-  updatePermissions(
+  async updatePermissions(
     extensionId: string,
     grantedPermissions: ExtensionPermission[],
   ): Promise<void> {
-    return permissionsUpdate(this.ctx, extensionId, grantedPermissions);
+    await permissionsUpdate(this.ctx, extensionId, grantedPermissions);
+    this.emitAvailabilityChanged(extensionId);
   }
 
   getSettings(extensionId: string): Promise<Record<string, unknown>> {

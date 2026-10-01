@@ -51,7 +51,7 @@
   "main.notifications.votd.label": "Versículo do dia",
   "main.notifications.votd.description": "Um versículo da Bíblia a cada dia.",
   "main.notifications.votd.title": "Versículo do dia",
-  "main.notifications.collapsed": "{count} lembretes pendentes",
+  "main.notifications.collapsed": "Lembretes pendentes: {count}",
   "main.notifications.tray.open": "Abrir",
   "main.notifications.tray.settings": "Configurações de notificações…",
   "main.notifications.tray.quit": "Sair",

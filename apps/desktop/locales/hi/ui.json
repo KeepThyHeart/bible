@@ -2414,7 +2414,7 @@
   "notifications.statusGranted": "सूचनाएँ अनुमत हैं।",
   "notifications.statusDenied": "सूचनाएँ अवरुद्ध हैं। उन्हें अपने सिस्टम या ब्राउज़र की सेटिंग में अनुमति दें।",
   "notifications.statusPrompt": "सूचनाओं की अभी अनुमति नहीं है।",
-  "notifications.statusUnsupported": "यहाँ सूचनाएँ समर्थित नहीं हैं।",
+  "notifications.statusUnsupported": "यह डिवाइस सूचनाएँ नहीं दिखा सकता।",
   "notifications.allow": "सूचनाओं की अनुमति दें",
   "notifications.whenClosedFires": "ऐप के ट्रे में चलते रहने पर भी अनुस्मारक आते रहते हैं।",
   "notifications.whenClosedNever": "अनुस्मारक केवल ऐप खुला होने पर आते हैं।",
@@ -2426,12 +2426,13 @@
   "notifications.quietHelp": "शांत घंटों में आने वाली सूचनाएँ उनके समाप्त होने तक रुकी रहती हैं।",
   "notifications.sources": "अनुस्मारक",
   "notifications.noSources": "अभी कोई सुविधा सूचनाओं का उपयोग नहीं करती।",
-  "notifications.dailyTime": "समय",
+  "notifications.dailyTime": "{source} के लिए समय",
   "notifications.next": "अगला: {time}",
   "notifications.scheduled": "{count} निर्धारित",
+  "notifications.scheduledCount": "{count, plural, one {# निर्धारित} other {# निर्धारित}}",
   "notifications.device": "जब विंडो बंद हो",
   "notifications.tray": "ट्रे में चलते रहें",
   "notifications.openAtLogin": "लॉग इन करने पर शुरू करें (ट्रे में)",
   "notifications.sendTest": "एक परीक्षण सूचना भेजें",
-  "notifications.general": "सूचनाएँ"
+  "notifications.general": "सामान्य"
 }

@@ -51,7 +51,7 @@
   "main.notifications.votd.label": "⟦Ṽéŕšé øƒ ţĥé ðåý ····⟧",
   "main.notifications.votd.description": "⟦Å ṽéŕšé ƒŕøɱ ţĥé Ɓîƀļé éåçĥ ðåý. ·········⟧",
   "main.notifications.votd.title": "⟦Ṽéŕšé øƒ ţĥé ðåý ····⟧",
-  "main.notifications.collapsed": "⟦{count} ŕéɱîñðéŕš ŵåîţîñĝ ·····⟧",
+  "main.notifications.collapsed": "⟦Ŕéɱîñðéŕš ŵåîţîñĝ: {count} ·····⟧",
   "main.notifications.tray.open": "⟦Øþéñ ··⟧",
   "main.notifications.tray.settings": "⟦Ñøţîƒîçåţîøñš šéţţîñĝš… ······⟧",
   "main.notifications.tray.quit": "⟦Ǫüîţ ··⟧",

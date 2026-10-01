@@ -2414,7 +2414,7 @@
   "notifications.statusGranted": "Уведомления разрешены.",
   "notifications.statusDenied": "Уведомления заблокированы. Разрешите их в настройках системы или браузера.",
   "notifications.statusPrompt": "Уведомления ещё не разрешены.",
-  "notifications.statusUnsupported": "Уведомления здесь не поддерживаются.",
+  "notifications.statusUnsupported": "Это устройство не может показывать уведомления.",
   "notifications.allow": "Разрешить уведомления",
   "notifications.whenClosedFires": "Напоминания продолжают приходить, пока приложение работает в трее.",
   "notifications.whenClosedNever": "Напоминания приходят только пока приложение открыто.",
@@ -2426,12 +2426,13 @@
   "notifications.quietHelp": "Уведомления, пришедшие в тихие часы, ждут их окончания.",
   "notifications.sources": "Напоминания",
   "notifications.noSources": "Пока ни одна функция не использует уведомления.",
-  "notifications.dailyTime": "Время",
+  "notifications.dailyTime": "Время для {source}",
   "notifications.next": "Следующее: {time}",
   "notifications.scheduled": "Запланировано: {count}",
+  "notifications.scheduledCount": "{count, plural, one {Запланирован #} few {Запланировано #} many {Запланировано #} other {Запланировано #}}",
   "notifications.device": "Когда окно закрыто",
   "notifications.tray": "Продолжать работу в трее",
   "notifications.openAtLogin": "Запускать при входе в систему (в трее)",
   "notifications.sendTest": "Отправить тестовое уведомление",
-  "notifications.general": "Уведомления"
+  "notifications.general": "Общие"
 }

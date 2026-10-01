@@ -51,7 +51,7 @@
   "main.notifications.votd.label": "आज का वचन",
   "main.notifications.votd.description": "हर दिन बाइबल का एक वचन।",
   "main.notifications.votd.title": "आज का वचन",
-  "main.notifications.collapsed": "{count} अनुस्मारक प्रतीक्षा में",
+  "main.notifications.collapsed": "प्रतीक्षा में अनुस्मारक: {count}",
   "main.notifications.tray.open": "खोलें",
   "main.notifications.tray.settings": "सूचना सेटिंग्स…",
   "main.notifications.tray.quit": "बाहर निकलें",

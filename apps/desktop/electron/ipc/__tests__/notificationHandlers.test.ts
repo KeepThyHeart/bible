@@ -19,6 +19,7 @@ const host = {
   setDevice: vi.fn((p: unknown) => ({ marker: 'device', p })),
   sendTest: vi.fn(async () => {}),
   requestPermission: vi.fn(async () => 'granted'),
+  takeOpenTarget: vi.fn(() => ({ kind: 'route', route: 'settings/notifications' })),
 };
 let current: ElectronReminderHost | null = null;
 beforeAll(() => registerNotificationHandlers(() => current));
@@ -37,6 +38,12 @@ describe('notification IPC handlers', () => {
     expect((await call('notifications:send-test')).ok).toBe(true);
     expect(host.sendTest).toHaveBeenCalled();
     expect(await call('notifications:request-permission')).toEqual({ ok: true, value: 'granted' });
+  });
+
+  it('hands the pending open target to the renderer', async () => {
+    expect(await call('notifications:take-open-target')).toEqual({ ok: true, value: { kind: 'route', route: 'settings/notifications' } });
+    host.takeOpenTarget.mockReturnValueOnce(null as never);
+    expect(await call('notifications:take-open-target')).toEqual({ ok: true, value: null });
   });
 
   it('validates argument shapes', async () => {

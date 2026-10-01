@@ -28,8 +28,16 @@ export function useNotificationOpenTarget(handlers: NotificationOpenTargetHandle
   useEffect(() => {
     const api = window.electron?.notifications;
     if (!api?.onOpenTarget) return;
-    return api.onOpenTarget((target) =>
-      routeNotificationTarget(target, { navigateToVerse, openNotificationPreferences })
-    );
+    const route = (target: ReminderTarget): void =>
+      routeNotificationTarget(target, { navigateToVerse, openNotificationPreferences });
+    const off = api.onOpenTarget(route);
+    // A click that arrived while the page was loading is waiting in main: pick it up once.
+    void api
+      .takeOpenTarget?.()
+      .then((target) => {
+        if (target) route(target);
+      })
+      .catch(() => undefined);
+    return off;
   }, [navigateToVerse, openNotificationPreferences]);
 }

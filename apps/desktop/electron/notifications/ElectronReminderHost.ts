@@ -70,10 +70,19 @@ export interface ElectronReminderHostOptions {
   platform?: NodeJS.Platform;
   /** Whether the tray works on this machine (default true on win32, darwin, linux). */
   traySupported?: boolean;
+  /** Whether an extension's reminder source may notify (installed, enabled, holds `notifications:schedule`). Default: always. */
+  isExtensionAllowed?: (extensionId: string) => boolean;
   /** Delay after the page finishes loading before a routed target is sent (default 1000 ms). */
   rendererSettleMs?: number;
 }
 
+/** Escape `&`, `<` and `>` (the characters markup-aware notification servers interpret). */
+export function escapeMarkup(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const OPEN_TARGET_TTL_MS = 60_000;
+const LOAD_WAIT_MS = 15_000;
 const STATE_DEBOUNCE_MS = 100;
 const GUARD_INTERVAL_MS = 60_000;
 const DRIFT_LIMIT_MS = 2 * 60_000;
@@ -94,7 +103,10 @@ export class ElectronReminderHost {
   private lastTz = systemTimeZone();
   private lastWall = Date.now();
   private lastMono = globalThis.performance.now();
-  private started = false;
+  /** Resolves when {@link start} has loaded the settings and started the scheduler. */
+  private starting: Promise<void> | null = null;
+  /** A click-through target the renderer has not taken yet (see {@link takeOpenTarget}). */
+  private pendingOpenTarget: { target: ReminderTarget; at: number } | null = null;
   private readonly platform: NodeJS.Platform;
   private readonly onResume = () => void this.wake();
 
@@ -106,6 +118,9 @@ export class ElectronReminderHost {
       presenter: { show: (n) => this.present(n) },
       state: opts.stateFile.statePort(),
       settings: () => this.settings,
+      // `ext:<id>` sources only notify while the extension is allowed (disabled or revoked ones go quiet).
+      isItemSourceAllowed: (sourceId) =>
+        sourceId.startsWith('ext:') ? (opts.isExtensionAllowed?.(sourceId.slice(4)) ?? true) : true,
       strings: {
         collapsed: (label, count) => ({
           title: label,
@@ -131,9 +146,18 @@ export class ElectronReminderHost {
   }
 
   /** Load settings, apply the device settings, and start the engine. */
-  async start(): Promise<void> {
-    if (this.started) return;
-    this.started = true;
+  start(): Promise<void> {
+    if (this.starting) return this.starting;
+    this.starting = this.doStart();
+    return this.starting;
+  }
+
+  /** Re-evaluate what may fire (an extension was enabled, disabled or had its permissions changed). */
+  refresh(): Promise<void> {
+    return this.scheduler.refresh();
+  }
+
+  private async doStart(): Promise<void> {
     try {
       this.store = await this.opts.getSettingsStore();
       this.settings = this.store.get();
@@ -157,7 +181,7 @@ export class ElectronReminderHost {
   }
 
   stop(): void {
-    this.started = false;
+    this.starting = null;
     this.scheduler.stop();
     powerMonitor.removeListener('resume', this.onResume);
     powerMonitor.removeListener('unlock-screen', this.onResume);
@@ -184,7 +208,12 @@ export class ElectronReminderHost {
     return this.scheduler.wake();
   }
 
-  /** The 60 s guard: wall clock vs the monotonic clock, and the time zone. */
+  /**
+   * The 60 s guard: wall clock vs the monotonic clock, and the time zone.
+   * Note: in Electron's main process `Intl` may keep the zone it saw at startup, so a
+   * runtime OS zone change is not always visible to `systemTimeZone()`; a restart
+   * picks it up.
+   */
   private guardTick(): void {
     const wall = Date.now();
     const mono = globalThis.performance.now();
@@ -242,7 +271,9 @@ export class ElectronReminderHost {
 
   private present(n: PresentedNotification): void {
     if (!Notification.isSupported()) return;
-    const notification = new Notification({ title: n.title, body: n.body, silent: n.silent ?? false });
+    // Some Linux notification servers interpret markup in the title and body.
+    const text = (v: string): string => (this.platform === 'linux' ? escapeMarkup(v) : v);
+    const notification = new Notification({ title: text(n.title), body: text(n.body), silent: n.silent ?? false });
     // Hold a reference until it is closed or clicked, or it may be garbage-collected and never fire 'click'.
     this.shown.set(n.id, notification);
     const release = () => {
@@ -289,15 +320,39 @@ export class ElectronReminderHost {
     await this.sendOpenTarget(target, win);
   }
 
-  /** Send `notifications:open-target`, waiting for a window that is still loading. */
+  /**
+   * Route a click to the renderer. The target is also kept as pending until the renderer
+   * takes it (`notifications:take-open-target`, called once when its hook subscribes), so
+   * a click that lands while the page is loading is not lost. A renderer that is already
+   * loaded gets the event right away and the pending target is cleared.
+   */
   async sendOpenTarget(target: ReminderTarget, win: BrowserWindow | null = this.opts.getMainWindow()): Promise<void> {
     if (!win || win.isDestroyed()) return;
     const wc = win.webContents;
+    this.pendingOpenTarget = { target, at: Date.now() };
     if (wc.isLoading()) {
-      await new Promise<void>((resolve) => wc.once('did-finish-load', () => resolve()));
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, LOAD_WAIT_MS);
+        wc.once('did-finish-load', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
       await new Promise<void>((resolve) => setTimeout(resolve, this.opts.rendererSettleMs ?? 1000));
+      // Still pending: the renderer has not taken it. Send the event too, but keep it for a late subscriber.
+      if (this.pendingOpenTarget?.target === target && !win.isDestroyed()) wc.send('notifications:open-target', target);
+      return;
     }
-    if (!win.isDestroyed()) wc.send('notifications:open-target', target);
+    this.pendingOpenTarget = null;
+    wc.send('notifications:open-target', target);
+  }
+
+  /** The renderer's one-shot pickup of a click-through that arrived before it subscribed. */
+  takeOpenTarget(): ReminderTarget | null {
+    const pending = this.pendingOpenTarget;
+    this.pendingOpenTarget = null;
+    if (!pending || Date.now() - pending.at > OPEN_TARGET_TTL_MS) return null;
+    return pending.target;
   }
 
   // --- renderer-facing -------------------------------------------------------
@@ -319,7 +374,8 @@ export class ElectronReminderHost {
   capabilities(): ReminderCapabilities {
     return {
       permission: Notification.isSupported() ? 'granted' : 'unsupported',
-      whenClosed: this.device.tray ? 'fires' : 'never',
+      // macOS keeps running after the last window closes, so reminders still fire there.
+      whenClosed: this.platform === 'darwin' || this.device.tray ? 'fires' : 'never',
       actions: false,
     };
   }
@@ -348,6 +404,8 @@ export class ElectronReminderHost {
 
   /** Normalize, persist and apply new settings; returns the new view state. */
   async setSettings(next: unknown): Promise<NotificationsViewState> {
+    // Wait for start() to load the stored settings, or this write would be overwritten by them.
+    if (this.starting) await this.starting.catch(() => undefined);
     const clean = normalizeNotificationSettings(next);
     this.settings = this.store ? this.store.put(clean) : clean;
     await this.scheduler.refresh();

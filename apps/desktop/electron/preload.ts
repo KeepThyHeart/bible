@@ -541,6 +541,8 @@ export interface ElectronAPI {
     setDevice(patch: Partial<NotificationDeviceSettings>): Promise<NotificationsViewState>;
     sendTest(): Promise<void>;
     requestPermission(): Promise<ReminderPermission>;
+    /** A click-through that arrived before the renderer subscribed (null when none). */
+    takeOpenTarget(): Promise<ReminderTarget | null>;
     onStateChanged(cb: (state: NotificationsViewState) => void): () => void;
     onOpenTarget(cb: (target: ReminderTarget) => void): () => void;
   };
@@ -1186,6 +1188,7 @@ const electronAPI: ElectronAPI = {
       unwrapResult<NotificationsViewState>(typedInvoke('notifications:set-device', patch)),
     sendTest: () => unwrapResult<void>(typedInvoke('notifications:send-test')),
     requestPermission: () => unwrapResult<ReminderPermission>(typedInvoke('notifications:request-permission')),
+    takeOpenTarget: () => unwrapResult<ReminderTarget | null>(typedInvoke('notifications:take-open-target')),
     onStateChanged: (cb: (state: NotificationsViewState) => void) => {
       const wrapped = (_event: unknown, state: NotificationsViewState): void => cb(state);
       ipcRenderer.on('notifications:state-changed', wrapped);

@@ -1,9 +1,10 @@
 /**
  * Start at login, per OS.
  *
- * Windows and macOS use Electron's login-item API; the app is launched with
+ * Windows and macOS use Electron's login-item API. On Windows the app is launched with
  * `--hidden` so it starts in the tray with no window (main.ts honours the flag
- * only when the tray is on). Linux has no such API: an XDG autostart
+ * only when the tray is on); macOS passes no arguments, so main.ts uses
+ * `wasOpenedAtLogin` instead. Linux has no such API: an XDG autostart
  * `.desktop` file is written to (or removed from) `$XDG_CONFIG_HOME/autostart`
  * (default `~/.config/autostart`).
  */
@@ -84,8 +85,11 @@ export function setLoginItem(
   try {
     if (platform === 'win32' || platform === 'darwin') {
       if (!app.isPackaged) log.info('[notifications] setting the login item in an unpackaged build');
-      // `openAsHidden` (macOS) is deprecated and missing from newer typings; `--hidden` is what we honour.
-      app.setLoginItemSettings({ openAtLogin: enabled, args: [HIDDEN_ARG], openAsHidden: true } as Electron.Settings);
+      // `args` are Windows-only and `openAsHidden` (macOS) is deprecated, so on macOS the login item
+      // just launches the app; main.ts reads `wasOpenedAtLogin` there to start in the tray.
+      app.setLoginItemSettings(
+        platform === 'win32' ? { openAtLogin: enabled, args: [HIDDEN_ARG] } : { openAtLogin: enabled },
+      );
       return enabled;
     }
     if (platform === 'linux') {

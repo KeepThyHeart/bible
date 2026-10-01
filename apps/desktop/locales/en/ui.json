@@ -2399,7 +2399,7 @@
   "notifications.statusGranted": "Notifications are allowed.",
   "notifications.statusDenied": "Notifications are blocked. Allow them in your system or browser settings.",
   "notifications.statusPrompt": "Notifications are not allowed yet.",
-  "notifications.statusUnsupported": "Notifications are not supported here.",
+  "notifications.statusUnsupported": "This device cannot show notifications.",
   "notifications.allow": "Allow notifications",
   "notifications.whenClosedFires": "Reminders keep arriving while the app runs in the tray.",
   "notifications.whenClosedNever": "Reminders arrive only while the app is open.",
@@ -2411,12 +2411,13 @@
   "notifications.quietHelp": "Notifications due in quiet hours wait until they end.",
   "notifications.sources": "Reminders",
   "notifications.noSources": "No features use notifications yet.",
-  "notifications.dailyTime": "Time",
+  "notifications.dailyTime": "Time for {source}",
   "notifications.next": "Next: {time}",
   "notifications.scheduled": "{count} scheduled",
+  "notifications.scheduledCount": "{count, plural, one {# scheduled} other {# scheduled}}",
   "notifications.device": "When the window is closed",
   "notifications.tray": "Keep running in the tray",
   "notifications.openAtLogin": "Start when I log in (in the tray)",
   "notifications.sendTest": "Send a test notification",
-  "notifications.general": "Notifications"
+  "notifications.general": "General"
 }

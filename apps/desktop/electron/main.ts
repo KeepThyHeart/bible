@@ -33,6 +33,8 @@ import {
   isLoginItemSupported,
 } from './notifications';
 import { resolveAppId } from './notifications/appId';
+import { isExtensionNotifyAllowed as isExtensionNotifyAllowedFor } from './notifications/extensionAllowed';
+import { runOnce } from './utils/runOnce';
 import { ensureBibleRepository } from './ipc/bibleHandlers';
 import { UserDataRepository } from '@bible/core';
 import { NotificationSettingsStore } from '@bible/core/browser';
@@ -204,8 +206,19 @@ if (process.env.ELECTRON_USER_DATA) {
 
 // Windows only shows toast notifications for an app whose AppUserModelID matches
 // its installer shortcut (electron-builder derives that from `appId`).
-if (process.platform === 'win32') {
+// Unpackaged dev builds have no matching shortcut, so the id is only set when packaged.
+if (process.platform === 'win32' && app.isPackaged) {
   app.setAppUserModelId(resolveAppId());
+}
+
+// One instance per user-data directory: the tray and `--hidden` make a second
+// launch routine, and two reminder schedulers would double-fire and share
+// notifications.json and the user database. The lock is per userData, so E2E
+// workers that each set ELECTRON_USER_DATA do not contend.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  log.info('Another instance is already running; quitting this one.');
+  app.quit();
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -215,8 +228,25 @@ let mainWindow: BrowserWindow | null = null;
  * are how the extension host is connected (see `initializeExtensionHostInBackground`).
  */
 let reminderHost: ElectronReminderHost | null = null;
-/** Launched by the login item (`--hidden`): start in the tray, no window - only honoured when the tray is on. */
-const launchedHidden = process.argv.includes('--hidden');
+/**
+ * Launched by the login item: start in the tray, no window - only honoured when the tray is on.
+ * Windows and Linux pass `--hidden`; macOS login items get no arguments (and `openAsHidden` is
+ * deprecated), so there `wasOpenedAtLogin` stands in.
+ */
+function wasLaunchedHidden(): boolean {
+  if (process.argv.includes('--hidden')) return true;
+  if (process.platform !== 'darwin') return false;
+  try {
+    return app.getLoginItemSettings().wasOpenedAtLogin === true;
+  } catch {
+    return false;
+  }
+}
+const launchedHidden = wasLaunchedHidden();
+/** The window was created hidden for a `--hidden` launch and nobody has shown it yet. */
+let startedHidden = false;
+/** The saved maximized state, applied when a hidden-start window is first shown. */
+let pendingMaximize = false;
 let menuBuilder: MenuBuilder | null = null;
 /**
  * Remembers the main window's size/position/maximized state between launches,
@@ -497,9 +527,18 @@ async function showMainWindow(): Promise<BrowserWindow | null> {
   const win = mainWindow;
   if (!win || win.isDestroyed()) return null;
   if (win.isMinimized()) win.restore();
-  if (!win.isVisible()) win.show();
+  if (!win.isVisible()) {
+    if (pendingMaximize && !win.isMaximized()) win.maximize();
+    win.show();
+  }
+  pendingMaximize = false;
+  startedHidden = false;
   win.focus();
   return win;
+}
+
+function isExtensionNotifyAllowed(extensionId: string): boolean {
+  return isExtensionNotifyAllowedFor(extensionHost ? extensionHost.listEntries() : null, extensionId);
 }
 
 /** Notifications engine: built before the window, started when the user DB opens. */
@@ -532,6 +571,7 @@ function createReminderHost(): ElectronReminderHost {
     ),
     getMainWindow: () => mainWindow,
     showWindow: showMainWindow,
+    isExtensionAllowed: isExtensionNotifyAllowed,
     tray,
     loginItem: { isSupported: () => isLoginItemSupported(), set: (on) => setLoginItem(on, { appName: APP_CONFIG.productName }) },
   });
@@ -547,60 +587,13 @@ function createReminderHost(): ElectronReminderHost {
   return host;
 }
 
-async function createWindow(): Promise<void> {
-  log.info('Creating main window...');
-
-  // Restore the geometry the user left the app in. A first run - and any run
-  // where the state file is missing, unreadable, or points at a monitor that is
-  // no longer plugged in - lands on 1400x900, maximized. See
-  // services/WindowStateService.ts.
-  windowStateService = new WindowStateService();
-  const windowState = windowStateService.read();
-  log.info(
-    `Restoring window geometry: ${windowState.width}x${windowState.height}` +
-      `${windowState.x !== undefined ? ` at ${windowState.x},${windowState.y}` : ' (centred)'}` +
-      `${windowState.isMaximized ? ', maximized' : ''}${windowState.isFullScreen ? ', full screen' : ''}`
-  );
-
-  mainWindow = new BrowserWindow({
-    width: windowState.width,
-    height: windowState.height,
-    // Omitted rather than passed as undefined when there is no usable saved
-    // position, so Electron applies its own centred placement.
-    ...(windowState.x !== undefined && windowState.y !== undefined
-      ? { x: windowState.x, y: windowState.y }
-      : {}),
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      devTools: true,
-      // Renderer process sandbox is enabled. The preload script only imports
-      // `electron` (contextBridge/ipcRenderer) and `electron-log/renderer`,
-      // both of which are sandbox-compatible. better-sqlite3 and SQLCipher
-      // run in the main process via IPC handlers, so the renderer never needs
-      // direct native-module access.
-      sandbox: true
-    },
-    title: APP_CONFIG.productName,
-    icon: resolveAppIconPath(),
-    backgroundColor: '#FFFFFF',
-    show: false // Show when ready
-  });
-
-  // Block renderer-initiated navigation away from the app and deny child
-  // windows (which would otherwise inherit the preload bridge). See
-  // utils/windowSecurity.ts. Installed before the first load so nothing in the
-  // initial page can slip past.
-  applyWindowSecurity(mainWindow.webContents, 'main window');
-
-  // Maximize (or go full screen) NOW, while the window is still hidden, and
-  // start persisting every later geometry change. Doing it after `show()` would
-  // paint the window small and then visibly snap it to full size.
-  windowStateService.applyAndTrack(mainWindow, windowState);
-
+/**
+ * Register every IPC handler exactly once. `ipcMain.handle` throws on a duplicate
+ * channel, and the window can be re-created (tray, notification click, macOS
+ * `activate`), so this must not live in `createWindow()`. Handlers that need the
+ * window read the module-level `mainWindow` when they run.
+ */
+const registerAllHandlersOnce = runOnce(() => {
   // Register IPC handlers (synchronous - handlers must be ready before UI loads)
   registerBibleHandlers(ipcMain);
   registerCommentaryHandlers(ipcMain);
@@ -662,13 +655,6 @@ async function createWindow(): Promise<void> {
 
   // Register print handler
   registerPrintHandler();
-
-  // The application menu is built by the renderer (which owns the command
-  // registry, i18n catalogs, and keybinding service) and shipped to main via
-  // the `menu:rebuild` IPC channel. Until the renderer dispatches its first
-  // spec the window has no application menu, which Electron handles
-  // gracefully on all platforms.
-  menuBuilder = new MenuBuilder();
 
   // Register menu state update handlers.
   //
@@ -737,6 +723,70 @@ async function createWindow(): Promise<void> {
   ipcMain.handle('app:open-external', async (_event, url: unknown) => {
     return openExternalUrl(url, 'app:open-external');
   });
+});
+
+async function createWindow(): Promise<void> {
+  log.info('Creating main window...');
+
+  // Restore the geometry the user left the app in. A first run - and any run
+  // where the state file is missing, unreadable, or points at a monitor that is
+  // no longer plugged in - lands on 1400x900, maximized. See
+  // services/WindowStateService.ts.
+  windowStateService = new WindowStateService();
+  const windowState = windowStateService.read();
+  log.info(
+    `Restoring window geometry: ${windowState.width}x${windowState.height}` +
+      `${windowState.x !== undefined ? ` at ${windowState.x},${windowState.y}` : ' (centred)'}` +
+      `${windowState.isMaximized ? ', maximized' : ''}${windowState.isFullScreen ? ', full screen' : ''}`
+  );
+
+  mainWindow = new BrowserWindow({
+    width: windowState.width,
+    height: windowState.height,
+    // Omitted rather than passed as undefined when there is no usable saved
+    // position, so Electron applies its own centred placement.
+    ...(windowState.x !== undefined && windowState.y !== undefined
+      ? { x: windowState.x, y: windowState.y }
+      : {}),
+    minWidth: 800,
+    minHeight: 600,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      devTools: true,
+      // Renderer process sandbox is enabled. The preload script only imports
+      // `electron` (contextBridge/ipcRenderer) and `electron-log/renderer`,
+      // both of which are sandbox-compatible. better-sqlite3 and SQLCipher
+      // run in the main process via IPC handlers, so the renderer never needs
+      // direct native-module access.
+      sandbox: true
+    },
+    title: APP_CONFIG.productName,
+    icon: resolveAppIconPath(),
+    backgroundColor: '#FFFFFF',
+    show: false // Show when ready
+  });
+
+  // Block renderer-initiated navigation away from the app and deny child
+  // windows (which would otherwise inherit the preload bridge). See
+  // utils/windowSecurity.ts. Installed before the first load so nothing in the
+  // initial page can slip past.
+  applyWindowSecurity(mainWindow.webContents, 'main window');
+
+  // Maximize (or go full screen) NOW, while the window is still hidden, and
+  // start persisting every later geometry change. Doing it after `show()` would
+  // paint the window small and then visibly snap it to full size.
+  windowStateService.applyAndTrack(mainWindow, windowState);
+
+  registerAllHandlersOnce();
+
+  // The application menu is built by the renderer (which owns the command
+  // registry, i18n catalogs, and keybinding service) and shipped to main via
+  // the `menu:rebuild` IPC channel. Until the renderer dispatches its first
+  // spec the window has no application menu, which Electron handles
+  // gracefully on all platforms.
+  menuBuilder = new MenuBuilder();
 
   // Load the app
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -752,8 +802,11 @@ async function createWindow(): Promise<void> {
   // notification click) shows the window. With the tray off `--hidden` is ignored.
   const startHidden = launchedHidden && !windowShownOnce && reminderHost?.trayEnabled === true;
   windowShownOnce = true;
+  startedHidden = startHidden;
+  pendingMaximize = startHidden && windowState.isMaximized && !windowState.isFullScreen;
   mainWindow.once('ready-to-show', () => {
-    if (startHidden) {
+    // Still hidden: stay so (showMainWindow may already have shown it before the page was ready).
+    if (startHidden && !mainWindow?.isVisible()) {
       log.info('Main window ready; staying hidden (launched at login with the tray on)');
       return;
     }
@@ -825,6 +878,11 @@ async function createWindow(): Promise<void> {
       // Preventing the close cancelled any quit in progress; resume it.
       if (quitRequested) app.quit();
     }
+  });
+
+  // Windows shutdown or logoff: let the close through instead of hiding to the tray.
+  mainWindow.on('session-end', () => {
+    quitRequested = true;
   });
 
   mainWindow.on('closed', () => {
@@ -1129,6 +1187,10 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       onMissed: (extensionId, event) => extensionHost?.deliverReminderMissed(extensionId, event),
     });
     extensionHost.onDidUninstall((extensionId) => void reminderHost?.forgetExtension(extensionId));
+    // Enabling, disabling or changing permissions changes what may notify.
+    extensionHost.onDidChangeAvailability(() => void reminderHost?.refresh());
+    // The host is now ready to answer `isExtensionNotifyAllowed`; re-check what may fire.
+    void reminderHost?.refresh();
     await extensionHost.loadAll();
 
     // Declarative contributions (task 0024 round 3, P1.5). Registered BEFORE
@@ -1216,6 +1278,8 @@ registerExtUiSchemePrivileged();
 
 // App lifecycle
 app.whenReady().then(async () => {
+  // A second instance quits at once; it must not open databases or schedulers.
+  if (!gotSingleInstanceLock) return;
   log.info('Application starting...');
 
   // Read the locale catalogs before anything builds a window title, a menu
@@ -1247,7 +1311,20 @@ app.whenReady().then(async () => {
   await createWindow();
 
   // Start the notifications engine in the background (needs the user DB, not the window).
-  void reminderHost.start().catch((error) => log.error('[notifications] failed to start:', error));
+  // A `--hidden` launch must not end with neither a window nor a tray icon.
+  const ensureReachable = (): void => {
+    if (startedHidden && !reminderHost?.trayMode) {
+      log.warn('[notifications] hidden launch without an active tray; showing the window');
+      void showMainWindow();
+    }
+  };
+  void reminderHost
+    .start()
+    .then(ensureReachable)
+    .catch((error) => {
+      log.error('[notifications] failed to start:', error);
+      ensureReachable();
+    });
 
   // Initialize user content in background (notes, highlights)
   // Session is already initialized in createWindow, but notes/highlights can load after
@@ -1288,7 +1365,7 @@ app.whenReady().then(async () => {
   app.on('activate', async () => {
     // macOS: Re-create window when dock icon clicked
     if (BrowserWindow.getAllWindows().length === 0) {
-      await createWindow();
+      await showMainWindow();
     }
   });
 });
@@ -1300,6 +1377,11 @@ app.whenReady().then(async () => {
 // gone. Elsewhere window-all-closed would quit anyway, but on macOS it does
 // not, and without this Cmd+Q only closed the window.
 let quitRequested = false;
+app.on('second-instance', () => {
+  // Before startup has built the host there is nothing to show yet; the window appears on its own.
+  if (!app.isReady() || !reminderHost) return;
+  void showMainWindow();
+});
 app.on('before-quit', () => {
   quitRequested = true;
 });

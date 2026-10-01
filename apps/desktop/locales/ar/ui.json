@@ -2414,7 +2414,7 @@
   "notifications.statusGranted": "الإشعارات مسموح بها.",
   "notifications.statusDenied": "الإشعارات محظورة. اسمح بها من إعدادات النظام أو المتصفح.",
   "notifications.statusPrompt": "الإشعارات غير مسموح بها بعد.",
-  "notifications.statusUnsupported": "الإشعارات غير مدعومة هنا.",
+  "notifications.statusUnsupported": "لا يمكن لهذا الجهاز عرض الإشعارات.",
   "notifications.allow": "السماح بالإشعارات",
   "notifications.whenClosedFires": "تستمر التذكيرات بالوصول بينما يعمل التطبيق في علبة النظام.",
   "notifications.whenClosedNever": "تصل التذكيرات فقط أثناء فتح التطبيق.",
@@ -2426,12 +2426,13 @@
   "notifications.quietHelp": "الإشعارات المستحقة خلال ساعات الهدوء تنتظر حتى تنتهي.",
   "notifications.sources": "التذكيرات",
   "notifications.noSources": "لا توجد ميزات تستخدم الإشعارات بعد.",
-  "notifications.dailyTime": "الوقت",
+  "notifications.dailyTime": "وقت {source}",
   "notifications.next": "التالي: {time}",
   "notifications.scheduled": "{count} مجدولة",
+  "notifications.scheduledCount": "{count, plural, zero {# مجدولة} one {مجدول واحد} two {اثنان مجدولان} few {# مجدولة} many {# مجدولة} other {# مجدولة}}",
   "notifications.device": "عند إغلاق النافذة",
   "notifications.tray": "الاستمرار في العمل في علبة النظام",
   "notifications.openAtLogin": "التشغيل عند تسجيل الدخول (في علبة النظام)",
   "notifications.sendTest": "إرسال إشعار تجريبي",
-  "notifications.general": "الإشعارات"
+  "notifications.general": "عام"
 }

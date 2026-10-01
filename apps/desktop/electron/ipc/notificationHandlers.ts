@@ -7,7 +7,12 @@
  * Events to the renderer (sent by the host): `notifications:state-changed`,
  * `notifications:open-target`.
  */
-import type { NotificationDeviceSettings, NotificationsViewState, ReminderPermission } from '@bible/core/browser';
+import type {
+  NotificationDeviceSettings,
+  NotificationsViewState,
+  ReminderPermission,
+  ReminderTarget,
+} from '@bible/core/browser';
 import type { ElectronReminderHost } from '../notifications/ElectronReminderHost';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 
@@ -45,4 +50,6 @@ export function registerNotificationHandlers(getHost: () => ElectronReminderHost
   });
 
   ipcHandler<[], ReminderPermission>('notifications:request-permission', () => host().requestPermission());
+
+  ipcHandler<[], ReminderTarget | null>('notifications:take-open-target', () => getHost()?.takeOpenTarget() ?? null);
 }

@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { routeNotificationTarget } from './useNotificationOpenTarget';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { routeNotificationTarget, useNotificationOpenTarget } from './useNotificationOpenTarget';
 
 describe('routeNotificationTarget', () => {
   const make = () => ({ navigateToVerse: vi.fn(), openNotificationPreferences: vi.fn() });
@@ -28,5 +29,24 @@ describe('routeNotificationTarget', () => {
     routeNotificationTarget({ kind: 'extension', extensionId: 'x' }, h);
     expect(h.navigateToVerse).not.toHaveBeenCalled();
     expect(h.openNotificationPreferences).not.toHaveBeenCalled();
+  });
+});
+
+describe('useNotificationOpenTarget', () => {
+  const original = (window as { electron?: unknown }).electron;
+  afterEach(() => {
+    (window as { electron?: unknown }).electron = original;
+  });
+
+  it('picks up a click-through that arrived before it subscribed', async () => {
+    const takeOpenTarget = vi.fn().mockResolvedValue({ kind: 'verse', verseId: 42 });
+    const off = vi.fn();
+    (window as { electron?: unknown }).electron = { notifications: { onOpenTarget: vi.fn(() => off), takeOpenTarget } };
+    const handlers = { navigateToVerse: vi.fn(), openNotificationPreferences: vi.fn() };
+    const { unmount } = renderHook(() => useNotificationOpenTarget(handlers));
+    await waitFor(() => expect(handlers.navigateToVerse).toHaveBeenCalledWith(42, undefined));
+    expect(takeOpenTarget).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(off).toHaveBeenCalled();
   });
 });

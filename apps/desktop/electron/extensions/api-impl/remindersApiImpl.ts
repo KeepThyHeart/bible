@@ -28,6 +28,9 @@ import type { IRemindersBridge } from './IExtensionDataBridges';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 
+/** The scheduler caps what it keeps at 64; anything over this is a bug or abuse. */
+const MAX_REPLACE_ITEMS = 1000;
+
 const PERM = Extensions.PERM_NOTIFICATIONS_SCHEDULE;
 
 export interface RemindersApiImplOptions {
@@ -85,6 +88,10 @@ export class RemindersApiImpl {
     const items = args[0];
     if (!Array.isArray(items)) {
       throw new RpcProtocolError('reminders.replaceAll: items must be an array');
+    }
+    // Refuse absurd payloads before the scheduler spends time sanitizing them.
+    if (items.length > MAX_REPLACE_ITEMS) {
+      throw new RpcProtocolError(`reminders.replaceAll: at most ${MAX_REPLACE_ITEMS} items per call`);
     }
     return this.bridge.replaceAll(this.extensionId, this.label, items);
   }

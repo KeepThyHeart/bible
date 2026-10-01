@@ -2414,7 +2414,7 @@
   "notifications.statusGranted": "As notificações estão permitidas.",
   "notifications.statusDenied": "As notificações estão bloqueadas. Permita-as nas configurações do sistema ou do navegador.",
   "notifications.statusPrompt": "As notificações ainda não estão permitidas.",
-  "notifications.statusUnsupported": "As notificações não são compatíveis aqui.",
+  "notifications.statusUnsupported": "Este dispositivo não pode exibir notificações.",
   "notifications.allow": "Permitir notificações",
   "notifications.whenClosedFires": "Os lembretes continuam chegando enquanto o aplicativo roda na bandeja.",
   "notifications.whenClosedNever": "Os lembretes chegam apenas enquanto o aplicativo está aberto.",
@@ -2426,12 +2426,13 @@
   "notifications.quietHelp": "As notificações devidas no horário de silêncio aguardam até ele terminar.",
   "notifications.sources": "Lembretes",
   "notifications.noSources": "Nenhum recurso usa notificações ainda.",
-  "notifications.dailyTime": "Horário",
+  "notifications.dailyTime": "Horário para {source}",
   "notifications.next": "Próxima: {time}",
   "notifications.scheduled": "{count} agendados",
+  "notifications.scheduledCount": "{count, plural, one {# agendado} other {# agendados}}",
   "notifications.device": "Quando a janela está fechada",
   "notifications.tray": "Continuar em execução na bandeja",
   "notifications.openAtLogin": "Iniciar ao fazer login (na bandeja)",
   "notifications.sendTest": "Enviar uma notificação de teste",
-  "notifications.general": "Notificações"
+  "notifications.general": "Geral"
 }

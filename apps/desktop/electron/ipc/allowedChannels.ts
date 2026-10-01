@@ -408,6 +408,7 @@ export const TYPED_IPC_CHANNELS = [
   'notifications:set-device',
   'notifications:send-test',
   'notifications:request-permission',
+  'notifications:take-open-target',
 ] as const;
 
 export type TypedIpcChannel = typeof TYPED_IPC_CHANNELS[number];

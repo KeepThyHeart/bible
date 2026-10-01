@@ -51,7 +51,7 @@
   "main.notifications.votd.label": "Verse of the day",
   "main.notifications.votd.description": "A verse from the Bible each day.",
   "main.notifications.votd.title": "Verse of the day",
-  "main.notifications.collapsed": "{count} reminders waiting",
+  "main.notifications.collapsed": "Reminders waiting: {count}",
   "main.notifications.tray.open": "Open",
   "main.notifications.tray.settings": "Notifications settings…",
   "main.notifications.tray.quit": "Quit",
