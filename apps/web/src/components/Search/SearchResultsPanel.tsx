@@ -9,7 +9,7 @@ import { SearchResultItem } from './SearchResultItem';
 import { SearchDistributionChart, type SearchDistributionMode } from './SearchDistributionChart';
 import { parseVerseId } from '../../utils/verseId';
 import { sanitizeHtml } from '../../utils/sanitize';
-import { truncateAtWordBoundary } from '@bible/core/browser';
+import { stripBidiControls, truncateAtWordBoundary } from '@bible/core/browser';
 import type { SearchResultData } from '../../types';
 
 /**
@@ -153,7 +153,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
 
   const handleMobileSearch = (e: Event) => {
     e.preventDefault();
-    const trimmed = mobileQuery.trim();
+    const trimmed = stripBidiControls(mobileQuery).trim();
     if (!trimmed) return;
     // Both modes want the reader's translation: keyword searches its text,
     // semantic renders its matches in it. Left undefined when no translation is
@@ -198,6 +198,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
       <div class="search-panel-inline__mobile-bar">
         <form class="search-panel-inline__mobile-form" onSubmit={handleMobileSearch} action="javascript:void(0)">
           <input
+            dir="auto"
             ref={mobileInputRef}
             type="text"
             class="search-panel-inline__mobile-input"

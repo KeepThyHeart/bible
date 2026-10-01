@@ -166,7 +166,7 @@
     "topics": "主题",
     "dictionary": "词典",
     "search": "搜索",
-    "collapseRight": "折叠右侧窗格",
+    "collapseRight": "折叠侧边窗格",
     "timeline": "时间线"
   },
   "timeline": {
@@ -1329,7 +1329,7 @@
       "cleared": "选择已清除",
       "links": "{count} 个链接",
       "arcsShown": "显示 {count} 个弧",
-      "minWeightHint": "隐藏仅由少量或较弱链接相连的章节对。一对章节的强度是两章之间所有交叉引用强度的总和，因此向右滑动只会保留连接最多的章节对。"
+      "minWeightHint": "隐藏仅由少量或较弱链接相连的章节对。一对章节的强度是两章之间所有交叉引用强度的总和，因此调高滑块只会保留连接最多的章节对。"
     },
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",

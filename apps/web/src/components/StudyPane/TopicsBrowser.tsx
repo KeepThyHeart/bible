@@ -461,7 +461,7 @@ export function TopicsBrowser({
         return (
           <div class="topics-browser__mobile-nav">
             <button class="topics-browser__mobile-back" onClick={goBack} disabled={!canGoBack}>
-              <i class="fa-solid fa-chevron-left" /> {t('topicsBrowser.back')}
+              <i class="fa-solid fa-chevron-left kth-rtl-mirror" /> {t('topicsBrowser.back')}
             </button>
           </div>
         );
@@ -474,10 +474,10 @@ export function TopicsBrowser({
           <i class="fa-solid fa-house" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoBack} onClick={goBack}>
-          <i class="fa-solid fa-arrow-left" />
+          <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward}>
-          <i class="fa-solid fa-arrow-right" />
+          <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (
           <span class="topics-browser__title">
@@ -496,6 +496,7 @@ export function TopicsBrowser({
   const renderSearchBar = () => (
     <div class="topics-browser__search">
       <input
+        dir="auto"
         type="text"
         class="topics-browser__search-input"
         placeholder={t('topicsBrowser.searchPlaceholder')}
@@ -799,6 +800,7 @@ export function TopicsBrowser({
                   </div>
                   {entityAssociations.length > 8 && (
                     <input
+                      dir="auto"
                       type="text"
                       class="topics-browser__assoc-filter"
                       placeholder={t('topicsBrowser.filterRelated')}
@@ -984,6 +986,7 @@ export function TopicsBrowser({
                   <div class="topics-browser__subtopics-controls">
                     {topicDetail.children.length > 8 && (
                       <input
+                        dir="auto"
                         type="text"
                         class="topics-browser__subtopics-filter"
                         placeholder={t('topicsBrowser.filterSubTopics')}

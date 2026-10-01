@@ -41,6 +41,12 @@ body {
 // RTL conventions, matching desktop's (apps/desktop/src/ui/styles/globals.css)
 // ---------------------------------------------------------------------------
 
+// Chrome text in an RTL UI uses the script font stack set by `:lang()` in
+// kth-rtl.css (system fonts only for now). LTR keeps the body rule above.
+:root[dir='rtl'] body {
+  font-family: var(--kth-font-script);
+}
+
 // Mirror a directional glyph (an arrow/chevron icon or bare-text arrow span)
 // under an RTL UI. Apply only to leaf glyph elements - not to a flex
 // container, whose `display: flex` this would otherwise replace.

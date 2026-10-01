@@ -125,6 +125,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
             <label class="feedback-dialog__field">
               <span class="feedback-dialog__label">{t('feedbackDialog.messageLabel')}</span>
               <textarea
+                dir="auto"
                 class="feedback-dialog__textarea"
                 rows={6}
                 required
@@ -143,6 +144,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
                 <small> ({t('feedbackDialog.contactOptional')})</small>
               </span>
               <input
+                dir="auto"
                 type="text"
                 class="feedback-dialog__input"
                 maxLength={200}

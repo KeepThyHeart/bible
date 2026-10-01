@@ -12,6 +12,7 @@ import { presentStore } from '../stores/presentStore';
 import { openPresenter } from '../apps/present/route';
 import { localizedBookAliases } from '../constants';
 import type { Localizer } from '@bible/core/browser';
+import { stripBidiControls } from '@bible/core/browser';
 
 
 /**
@@ -354,7 +355,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    const trimmed = value.trim();
+    const trimmed = stripBidiControls(value).trim();
     if (!trimmed) return;
 
     const ref = parseReference(trimmed, bookAliases);
@@ -462,6 +463,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           )}
         </div>
         <input
+          dir="auto"
           ref={inputRef}
           type="text"
           class="header__search-field"

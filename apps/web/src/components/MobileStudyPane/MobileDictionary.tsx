@@ -9,6 +9,7 @@ import { linkStrongsRefs } from '../../utils/strongsLinks';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { newlinesToLineBreaks, resolveNewlineHandling } from '@bible/core/browser';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { moduleContentAttrs } from '../../utils/contentDirection';
 
 interface MobileDictionaryProps {
   bibleProvider?: IBibleDataProvider;
@@ -103,6 +104,7 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
       <div class="mobile-dictionary__search-bar">
         <i class="fa-solid fa-magnifying-glass mobile-dictionary__search-icon" />
         <input
+          dir="auto"
           ref={inputRef}
           class="mobile-dictionary__search-input"
           type="text"
@@ -187,6 +189,7 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
             return (
               <div
                 class="dictionary-pane__entry-definition"
+                {...moduleContentAttrs(currentModule)}
                 {...versePopupProps}
                 onClick={(e: Event) => {
                   const target = e.target as HTMLElement;

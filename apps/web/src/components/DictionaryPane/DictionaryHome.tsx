@@ -52,6 +52,7 @@ export function DictionaryHome() {
   return (
     <div class="dictionary-home">
       <input
+        dir="auto"
         class="dictionary-home__search"
         type="text"
         placeholder={t('dictionaryHome.searchAll')}

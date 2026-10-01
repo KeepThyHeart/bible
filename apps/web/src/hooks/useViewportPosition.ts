@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
+import { anchorAtPointer } from '@bible/core/browser';
+import type { LocaleDirection } from '@bible/core/browser';
 
 /**
  * Hook that adjusts a fixed-position element to stay within the viewport.
@@ -6,11 +8,15 @@ import { useEffect, useRef } from 'preact/hooks';
  *
  * @param position - Initial desired position (top/left from trigger element)
  * @param deps - Additional dependencies to trigger recalculation
+ * @param dir - UI direction. When given, the element is anchored with
+ *   `inset-inline-start` (opens away from the pointer in reading direction)
+ *   instead of a physical `left`.
  * @returns A ref to attach to the positioned element
  */
 export function useViewportPosition<T extends HTMLElement>(
   position: { top: number; left: number } | null,
   deps: unknown[] = [],
+  dir?: LocaleDirection,
 ) {
   const ref = useRef<T>(null);
 
@@ -22,6 +28,16 @@ export function useViewportPosition<T extends HTMLElement>(
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const padding = 16;
+
+    if (dir) {
+      const { insetInlineStart } = anchorAtPointer(position.left, rect.width, viewportWidth, dir);
+      let top = position.top;
+      if (top + rect.height > viewportHeight - padding) top = position.top - rect.height - 8;
+      el.style.left = '';
+      el.style.top = `${Math.max(padding, top)}px`;
+      el.style.insetInlineStart = `${insetInlineStart}px`;
+      return;
+    }
 
     let adjustedLeft = position.left;
     let adjustedTop = position.top;
@@ -44,7 +60,7 @@ export function useViewportPosition<T extends HTMLElement>(
 
     el.style.top = `${adjustedTop}px`;
     el.style.left = `${adjustedLeft}px`;
-  }, [position, ...deps]);
+  }, [position, dir, ...deps]);
 
   return ref;
 }

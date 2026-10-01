@@ -283,30 +283,15 @@
 
 // Chapter preludes (verse 0) — psalm superscriptions, etc.
 //
-// This file's verse/word-level rules (this one, `&__number-left`,
-// `&__number`, `&__strongs`, `&__footnote-letter`) stay physical rather than
-// converting to logical properties: they render a Bible module's own content,
-// which is now direction-isolated from UI chrome (`BibleContent.tsx` sets
-// `dir`/`lang`/`data-content-dir` on the verse-list wrapper from the active
-// module's `language_code` - see `utils/textDirection.ts`), but these
-// specific decoration rules (verse-number gutter, Strong's/footnote marker
-// spacing) were not also re-expressed as content-direction-aware. Left
-// physical, they lay out correctly for every LTR-language module regardless
-// of UI direction - which is every module this app ships today - but would
-// need the equivalent of desktop's per-content-direction Tailwind classes to
-// also mirror correctly for a right-to-left module (Arabic, Hebrew, Syriac
-// Scripture text). That is real remaining RTL work, not a `dir`/`lang`
-// omission - flagged here rather than half-converted, the same way desktop's
-// own audit flags its unmirrored dockview grid and un-set `data-content-dir`
-// on its commentary/dictionary panes as accepted gaps for this pass rather
-// than guessed at. `&__votd` / `&__votd-ref` above ARE converted - that's the
-// home-screen promo card's own layout, not the reading pane's content
-// rendering.
+// Verse/word-level rules use logical properties: the verse-list wrapper sets
+// `dir`/`lang`/`data-content-dir` from the module language (task 0076), so the
+// number gutter and marker spacing follow the CONTENT direction. Verse numbers,
+// Strong's tags and footnote markers are `unicode-bidi: isolate`.
 .verse--preface {
   font-style: italic;
   font-size: 0.85em;
   color: var(--text-secondary);
-  padding-left: 8px !important;
+  padding-inline-start: 8px !important;
   text-indent: 0 !important;
 }
 
@@ -341,7 +326,7 @@
   // uses for its own current verse (see `.pv-verse--anchor` in `viewer.css`),
   // so the two look like the same idea rather than two different ones.
   &--follow-live {
-    border-left: 3px solid var(--accent-color);
+    border-inline-start: 3px solid var(--accent-color);
   }
 
   // The verse being read aloud (Audio Bible follow-along). Marked by a rule on
@@ -363,7 +348,8 @@
   &--block {
     display: flex;
     align-items: flex-start;
-    padding: 3px 8px 3px 0;
+    padding-block: 3px;
+    padding-inline: 0 8px;
     gap: 0;
 
     @media (hover: hover) {
@@ -410,9 +396,10 @@
 
   &__number-left {
     flex-shrink: 0;
+    unicode-bidi: isolate;
     width: 36px;
-    text-align: right;
-    padding-right: 10px;
+    text-align: end;
+    padding-inline-end: 10px;
     font-size: 0.75em;
     font-weight: 700;
     color: var(--accent-color);
@@ -481,13 +468,15 @@
   &__number {
     font-size: 0.7em;
     color: var(--accent-color);
-    margin-right: 2px;
+    margin-inline-end: 2px;
     font-weight: 600;
     user-select: none;
+    unicode-bidi: isolate;
   }
 
   &__strongs {
-    margin-left: 2px;
+    margin-inline-start: 2px;
+    unicode-bidi: isolate;
   }
 
   &__strongs-link {
@@ -511,7 +500,8 @@
   }
 
   &__footnotes {
-    padding: 4px 0 4px 28px;
+    padding-block: 4px;
+    padding-inline: 28px 0;
   }
 
   &__footnote {
@@ -523,7 +513,8 @@
   &__footnote-letter {
     color: var(--accent-color);
     font-size: 0.85em;
-    margin-right: 2px;
+    margin-inline-end: 2px;
+    unicode-bidi: isolate;
   }
 
   .christ-words {
@@ -621,7 +612,8 @@
   flex: none;
   width: 30px;
   height: 30px;
-  margin: 1px 8px 0 4px;
+  margin-block: 1px 0;
+  margin-inline: 4px 8px;
   padding: 0;
   display: inline-flex;
   align-items: center;

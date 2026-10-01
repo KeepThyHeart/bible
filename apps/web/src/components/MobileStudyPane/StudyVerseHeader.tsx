@@ -117,10 +117,10 @@ export function StudyVerseHeader({
 
       <div class="study-verse-header__nav-group">
         <button class="study-verse-header__nav" onClick={onPrev} title={t('studyVerseHeader.prevVerse')}>
-          <i class="fa-solid fa-chevron-left" />
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
         </button>
         <button class="study-verse-header__nav" onClick={onNext} title={t('studyVerseHeader.nextVerse')}>
-          <i class="fa-solid fa-chevron-right" />
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
         </button>
       </div>
     </div>

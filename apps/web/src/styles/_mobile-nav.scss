@@ -11,9 +11,9 @@
 .mobile-nav-tooltip {
   position: fixed;
   bottom: 56px;
-  // Horizontal-centering idiom, not a directional offset - stays physical
+  // rtl-physical: horizontal-centering idiom, not a directional offset
   // (see the note in _semantic-loading.scss).
-  left: 50%;
+  left: 50%; // rtl-physical: centering with translateX(-50%)
   transform: translateX(-50%);
   background: var(--tooltip-bg, #333);
   color: var(--tooltip-color, #fff);
@@ -65,8 +65,8 @@
         content: '';
         position: absolute;
         top: 0;
-        // Centering idiom - stays physical, see _semantic-loading.scss.
-        left: 50%;
+        // rtl-physical: centering idiom; see _semantic-loading.scss.
+        left: 50%; // rtl-physical: centering with translateX(-50%)
         transform: translateX(-50%);
         width: 48px;
         height: 3px;

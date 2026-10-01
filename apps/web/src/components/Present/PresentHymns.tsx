@@ -52,6 +52,7 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
   return (
     <div class="present-hymns">
       <input
+        dir="auto"
         class="present-hymns__search"
         type="search"
         value={query}

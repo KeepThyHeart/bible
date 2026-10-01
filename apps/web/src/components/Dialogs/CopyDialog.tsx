@@ -30,6 +30,7 @@ import {
   type VerseContext,
   type VerseNumberStyle,
   type VerseTextFormat,
+  stripBidiControls,
 } from '@bible/core/browser';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -532,7 +533,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   const handleRefChange = (value: string) => {
     setRefInput(value);
-    const parsed = parseReferenceRange(value, bookAliases);
+    const parsed = parseReferenceRange(stripBidiControls(value), bookAliases);
     if (parsed) {
       setStartVerse(parsed.startVerse);
       setEndVerse(parsed.endVerse);
@@ -621,14 +622,15 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   // Stripped with core's DOM-free helpers rather than a detached div's
   // `textContent`: unlike the whitespace-collapsing `stripHtml`, these leave the
   // line structure the passage was written into intact.
-  const plainText = useRichCopy ? decodeHtmlEntities(stripHtmlTags(sourceText)) : sourceText;
+  // Clipboard text never carries bidi isolates (they are display-only; task 0076).
+  const plainText = stripBidiControls(useRichCopy ? decodeHtmlEntities(stripHtmlTags(sourceText)) : sourceText);
 
   const handleCopy = async () => {
     if (useRichCopy) {
       // A markup shape knows its own structure, so its rich flavour *is* that
       // structure: pasting "Verse headings" into a document gives real headings
       // and a real block quote rather than a run of quote markers.
-      const html = `<div style="font-family: serif; font-size: 14px; line-height: 1.6;">${passageMarkupToHtml(markup)}</div>`;
+      const html = `<div style="font-family: serif; font-size: 14px; line-height: 1.6;">${stripBidiControls(passageMarkupToHtml(markup))}</div>`;
       try {
         await navigator.clipboard.write([
           new ClipboardItem({
@@ -715,6 +717,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
           <label>
             <span>{t('copyDialog.reference')}</span>
             <input
+              dir="auto"
               type="text"
               value={refInput}
               placeholder={`${tabBookName} ${tab.chapter}:1-5`}

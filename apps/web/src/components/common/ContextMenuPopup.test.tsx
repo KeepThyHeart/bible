@@ -42,7 +42,7 @@ describe('ContextMenuPopup', () => {
     const menu = container.querySelector('.verse-context-menu') as HTMLElement;
     expect(menu).toBeTruthy();
     expect(menu.style.top).toBe('80px');
-    expect(menu.style.left).toBe('50px');
+    expect(menu.style.insetInlineStart).toBe('50px');
   });
 
   it('renders the copy and study actions', () => {

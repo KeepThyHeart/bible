@@ -178,4 +178,28 @@ describe('ResizeHandle', () => {
 
     expect(onResize).toHaveBeenCalledWith(0);
   });
+
+  describe('RTL', () => {
+    afterEach(() => {
+      document.documentElement.removeAttribute('dir');
+    });
+
+    it('inverts the drag delta so dragging toward inline-end still grows the same pane', () => {
+      document.documentElement.dir = 'rtl';
+      const onResize = vi.fn();
+      const { container } = render(<ResizeHandle onResize={onResize} />);
+      fireEvent.mouseDown(container.querySelector('.resize-handle')!, { clientX: 100 });
+      fireEvent.mouseMove(document, { clientX: 85 }); // physical drag left = toward inline-end
+      expect(onResize).toHaveBeenCalledWith(15);
+    });
+
+    it('keeps the physical delta in LTR', () => {
+      document.documentElement.dir = 'ltr';
+      const onResize = vi.fn();
+      const { container } = render(<ResizeHandle onResize={onResize} />);
+      fireEvent.mouseDown(container.querySelector('.resize-handle')!, { clientX: 100 });
+      fireEvent.mouseMove(document, { clientX: 85 });
+      expect(onResize).toHaveBeenCalledWith(-15);
+    });
+  });
 });

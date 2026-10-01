@@ -268,6 +268,7 @@ export function CommandBox(props: CommandBoxProps) {
     <div class={`present-cmd present-cmd--${variant}${error ? ' present-cmd--error' : ''}`}>
       <span class="present-cmd__prompt" aria-hidden="true">/</span>
       <input
+        dir="auto"
         ref={inputRef}
         class="present-cmd__input"
         type="text"
