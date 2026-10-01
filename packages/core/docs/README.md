@@ -28,6 +28,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Backup format](features/backup-format.md) | The encrypted `.bbk` container, the ZIP payload and unencrypted export, the user-table registry, restore and merge, the crypto primitives |
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
+| [Reading plans](features/reading-plans.md) | Plan engine: builder, scheduler, stock plans (M'Cheyne, chronological), store over `user_data_item`, service |
 | [Keyword marks](features/keyword-marks.md) | Colouring words, phrases, Strong's numbers and connectives in the chapter: matcher, lexicon, decoration layer, sets |
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
