@@ -21,8 +21,10 @@
 
 // Values come from deep paths, types from the barrel: this file is bundled
 // into the QuickJS guest realm, and `@bible/core`'s barrel re-exports the
-// whole Data layer. `import type` is erased, so only these two small modules
-// reach the guest bundle.
+// whole Data layer. `import type` is erased, so only these modules (and the
+// pure-data declaration registry they reach) end up in the guest bundle -
+// which is why namespace declarations, including `contributes` validators,
+// must stay free of Node, DOM and Data-layer imports.
 import { EXTENSION_API_VERSION } from '@bible/core/Extensions/ExtensionApiTypes';
 import { reviveExtensionApiError } from '@bible/core/Extensions/ExtensionApiErrors';
 import { EXTENSION_API_REGISTRY } from '@bible/core/Extensions/Declarations/registry';

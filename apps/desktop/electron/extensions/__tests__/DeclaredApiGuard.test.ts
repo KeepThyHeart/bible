@@ -15,7 +15,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Extensions } from '@bible/core';
 
-import { createDeclaredMethodGuard, desktopApiNamespaces } from '../DeclaredApiGuard';
+import {
+  DESKTOP_API_NAMESPACES,
+  createDeclaredMethodGuard,
+  desktopApiNamespaces,
+} from '../DeclaredApiGuard';
 import { ExtensionRpcRouter, type IRpcTransport } from '../ExtensionRpcRouter';
 import { buildGrant } from '../ExtensionPermissionGuard';
 import { attachApiImpls } from '../ExtensionHostRpc';
@@ -301,7 +305,8 @@ describe('declaration drift (real attachApiImpls, every bridge wired, all permis
 
   it('(b) every declared non-local method is registered', () => {
     const missing = REGISTRY.methods
-      .filter((m) => !m.local)
+      // A namespace desktop does not serve (`false` in DESKTOP_API_NAMESPACES) has nothing registered.
+      .filter((m) => !m.local && (DESKTOP_API_NAMESPACES as Readonly<Record<string, boolean>>)[m.namespace] === true)
       .map((m) => `${m.namespace}.${m.method}`)
       .filter((m) => !registered.has(m) && !(m in NOT_REGISTERED_ALLOW_LIST));
     expect(missing, `declared but not registered: ${missing.join(', ')}`).toEqual([]);
@@ -349,6 +354,23 @@ describe('gate/impl agreement', () => {
     }
     expect(wrong).toEqual([]);
   });
+
+  // The guarded probe above only shows the guard reads the declarations. This
+  // one removes the guard, so each api-impl's own `requirePermission` answers:
+  // a declaration stricter than its impl (a silent behaviour change for
+  // existing extensions) or an impl that lost its check shows up here.
+  it("each api-impl's own check agrees with the declared gate (guard removed)", async () => {
+    const unguarded = attach(baseline);
+    unguarded.setMethodGuard(undefined);
+    const wrong: string[] = [];
+    for (const m of probes) {
+      const res = await workerCall(unguarded.pair, `${m.namespace}.${m.method}`, []);
+      if (res.error?.code !== 'PermissionDeniedError') {
+        wrong.push(`${m.namespace}.${m.method} -> ${res.error?.code ?? 'no error'}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
 });
 
 // --- 6. consent catalog ----------------------------------------------------
@@ -357,12 +379,14 @@ describe('consent catalog', () => {
   const catalogPath = resolve(__dirname, '../../../locales/en/ui.json');
   const catalog = JSON.parse(readFileSync(catalogPath, 'utf8')) as Record<string, unknown>;
 
-  it('every declared permission has its consent text in locales/en/ui.json', () => {
+  // A missing key is allowed: the consent dialog falls back to the declared
+  // English text, so a new namespace needs no catalog edit. A present key
+  // must say exactly what the declaration says.
+  it('every consent key present in locales/en/ui.json matches its declared text', () => {
     const problems: string[] = [];
     for (const p of REGISTRY.permissions) {
       const value = catalog[p.consent.key];
-      if (value === undefined) problems.push(`${p.id}: missing key ${p.consent.key}`);
-      else if (value !== p.consent.text) {
+      if (value !== undefined && value !== p.consent.text) {
         problems.push(`${p.id}: ${p.consent.key} = ${JSON.stringify(value)} != ${JSON.stringify(p.consent.text)}`);
       }
     }
@@ -373,7 +397,8 @@ describe('consent catalog', () => {
 // --- 7. served namespaces --------------------------------------------------
 
 describe('desktopApiNamespaces', () => {
-  it('equals the registry namespace list', () => {
-    expect(desktopApiNamespaces()).toEqual([...REGISTRY.namespaceNames]);
+  it('is the registry namespace list minus those marked false', () => {
+    const served = DESKTOP_API_NAMESPACES as Readonly<Record<string, boolean>>;
+    expect(desktopApiNamespaces()).toEqual(REGISTRY.namespaceNames.filter((n) => served[n] === true));
   });
 });

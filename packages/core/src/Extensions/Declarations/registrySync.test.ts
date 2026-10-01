@@ -18,7 +18,10 @@
  *       src/Extensions/Declarations/registrySync.test.ts
  *
  * The update refuses to record a changed surface under an unchanged version,
- * so it cannot be used to skip the bump.
+ * a lower version, or over a missing lock (unless `UPDATE_EXTENSION_API_INIT=1`
+ * is also set), so it cannot be used to skip the bump. The lock records
+ * method names and gates, not signatures: a narrowed parameter or return type
+ * is breaking too, but only review catches it.
  */
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -192,6 +195,11 @@ describe('declaration registry sync', () => {
     }
     const same = lock !== undefined && JSON.stringify(lock.surface) === JSON.stringify(surface);
 
+    if (lock && compareVersions(EXTENSION_API_VERSION, lock.version) < 0) {
+      throw new Error(
+        `EXTENSION_API_VERSION ${EXTENSION_API_VERSION} is lower than the recorded ${lock.version}; versions only go up.`,
+      );
+    }
     if (lock && !same && lock.version === EXTENSION_API_VERSION) {
       throw new Error(
         `The declared extension API surface changed but EXTENSION_API_VERSION is still ${EXTENSION_API_VERSION}. ` +
@@ -200,6 +208,14 @@ describe('declaration registry sync', () => {
       );
     }
     if (UPDATE) {
+      // A missing or unreadable lock is only (re)created on purpose - deleting
+      // it must not be a way to record a changed surface without a bump.
+      if (!lock && process.env.UPDATE_EXTENSION_API_INIT !== '1') {
+        throw new Error(
+          'apiSurface.lock.json is missing or unreadable. Restore it from git; to create it from scratch, ' +
+            'also set UPDATE_EXTENSION_API_INIT=1.',
+        );
+      }
       if (!same || lock?.version !== EXTENSION_API_VERSION) {
         writeFileSync(LOCK_PATH, `${JSON.stringify({ version: EXTENSION_API_VERSION, surface }, null, 2)}\n`);
       }

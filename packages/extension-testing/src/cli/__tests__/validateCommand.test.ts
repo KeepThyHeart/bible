@@ -149,14 +149,16 @@ describe('runValidateCommand', () => {
     expect(ctx.err.join('')).toContain('path.escape');
   });
 
-  it('rejects a manifest declaring the deleted contributes.styles field', () => {
+  it('warns about (and ignores) the deleted contributes.styles field', () => {
     // `themes` / `icons` / `styles` / `fonts` were removed as dead manifest
     // code in task 0024 round 3 (P2.13): validated, but zero production
     // readers. `checkManifestAssets` no longer checks their paths for
     // existence - `panelTypes[].uiEntry` is the only package-relative path
     // it still checks (see the two tests above) - so a manifest declaring
-    // `styles` now fails at the *validator* stage instead, as an unknown
-    // `contributes` property.
+    // `styles` is caught at the *validator* stage instead, as an unknown
+    // `contributes` key. Since task 0086 an unknown key is a warning, not an
+    // error (an extension built for a newer host must still load), so the
+    // command passes and reports it.
     const manifest = {
       id: 'ext.test.validate',
       name: { key: 'ext.test.validate' },
@@ -172,9 +174,9 @@ describe('runValidateCommand', () => {
     writeReferencedFiles(workDir);
     const ctx = makeCtx(workDir);
 
-    expect(runValidateCommand([workDir], ctx)).toBe(1);
-    expect(ctx.err.join('')).toContain('/contributes/styles');
-    expect(ctx.err.join('')).toContain('additionalProperty');
+    expect(runValidateCommand([workDir], ctx)).toBe(0);
+    expect(ctx.out.join('')).toContain('/contributes/styles');
+    expect(ctx.out.join('')).toContain('contributes.unknown');
   });
 
   it('passes the manifest but skips file checks under --skip-assets', () => {

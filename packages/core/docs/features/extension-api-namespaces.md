@@ -33,7 +33,11 @@ in `DeclaredApiGuard.ts`), so a web host can plug into the same declarations.
    with the interface and the declaration. Import only `import type`s and
    values from `../defineApiNamespace` - `@bible/core` builds to CommonJS, and
    `Permissions.ts`, `ActivationEvents.ts` and the validator all read the
-   registry, so any other value import risks an import cycle.
+   registry, so any other value import risks an import cycle. A
+   `contributes` validator that needs a core schema check may call pure core
+   code that imports nothing from the Extensions folder. The registry is also
+   bundled into the extension worker's QuickJS guest, so nothing reachable from
+   a declaration may touch Node, the DOM or the Data layer.
 2. **Register it.** Append it to `API_NAMESPACES` in
    `src/Extensions/Declarations/registry.ts`.
 3. **Bump the version.** An addition bumps the patch segment of
@@ -48,12 +52,15 @@ in `DeclaredApiGuard.ts`), so a web host can plug into the same declarations.
 
    This rewrites `src/Extensions/Declarations/apiSurface.lock.json` and the
    affected blocks of `src/Extensions/ExtensionManifestSchema.json`. It refuses
-   to record a changed surface under an unchanged version.
+   to record a changed surface under an unchanged or lower version, or over a
+   deleted lock. Two namespaces landing in parallel each bump the patch
+   segment; whoever merges second re-bumps and re-runs this.
 4. **Implement it on desktop.** Write the api-impl under
    `apps/desktop/electron/extensions/api-impl/`, attach it in `attachApiImpls`
    (`apps/desktop/electron/extensions/ExtensionHostRpc.ts`), and set the
-   namespace to `true` in `DESKTOP_API_NAMESPACES`. The type requires an entry,
-   so `false` (not on desktop yet) is an explicit choice too. Every RPC method the impl
+   namespace to `true` in `DESKTOP_API_NAMESPACES`. The type requires an entry;
+   `false` (not on desktop yet) is an explicit choice too, and the drift
+   tests then skip it. Every RPC method the impl
    registers must be declared (as a typed method or under `wire`); the router
    refuses undeclared ones, and `DeclaredApiGuard.test.ts` checks both
    directions.
@@ -64,8 +71,8 @@ Optional follow-ups:
 - **Translations.** The consent dialog shows `consent.text` until the
   catalog has `consent.key`; add the key to `apps/desktop/locales/en/ui.json`
   (same text) and the other locales when ready.
-  `DeclaredApiGuard.test.ts` checks that every key in the English catalog matches
-  its declaration.
+  `DeclaredApiGuard.test.ts` checks that every key present in the English
+  catalog matches its declaration.
 - **A typed `contributes` member.** A declared key's validated value is
   stored on `ExtensionContributes` under its index signature; add a typed member
   to `ExtensionContributes` in `src/Extensions/ExtensionManifest.ts` if host code reads it.

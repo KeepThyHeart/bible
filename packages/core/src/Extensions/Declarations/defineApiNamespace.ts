@@ -94,8 +94,9 @@ export type MethodGate =
 
 /**
  * What the generated test fake (`@bible/extension-testing`'s
- * `createMockApi`) resolves a method with. JSON data only - a declaration
- * cannot depend on a test framework. Omitted: resolves `undefined`.
+ * `createMockApi`) resolves a method with. Plain data only (JSON values, or
+ * an `ArrayBuffer`) - it is `structuredClone`d, and a declaration cannot
+ * depend on a test framework. Omitted: resolves `undefined`.
  */
 export type FakeReturn =
   | { readonly kind: 'value'; readonly value: unknown }
@@ -185,7 +186,10 @@ export interface ContributesKeyDeclaration<T = unknown> {
   readonly requiresPermission?: string;
   /**
    * Validate and normalise the raw value. Report problems through `ctx` and
-   * return undefined; the manifest is then rejected. Omitted only for the
+   * return undefined; the manifest is then rejected. Keep it pure: it is
+   * bundled wherever the registry is, including the extension worker's
+   * QuickJS guest, so it may use other pure core code but nothing that
+   * touches Node, the DOM or the Data layer. Omitted only for the
    * keys the manifest validator has always validated itself (`commands`,
    * `panelTypes`, `configuration`, `apiExports`, `bibleProviders`) - a
    * contract test holds every other key to having one.
@@ -244,9 +248,10 @@ export interface ApiNamespaceDeclaration<
    */
   readonly optional: O;
   /**
-   * Host-neutral attach policy. `whenGranted`: the host attaches the
-   * namespace only for an extension holding that permission (and answers
-   * `Unknown RPC method` otherwise). Omitted: attached whenever the host
+   * Host-neutral attach policy. `whenGranted`: the host registers the
+   * namespace's methods only for an extension holding that permission (and
+   * answers `Unknown RPC method` otherwise; the `api.<name>` object still
+   * exists in the worker). Omitted: attached whenever the host
    * implements it, with every call gated per method.
    */
   readonly availability?: { readonly whenGranted?: string };

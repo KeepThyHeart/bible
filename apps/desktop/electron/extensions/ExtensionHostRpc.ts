@@ -188,9 +188,10 @@ export function attachApiImpls(
   }
   // Network + auth. Network is gated on the gateway
   // factory being wired *and* the namespace's declared availability (the
-  // `network` permission) (the api-impl re-checks at every call, but skipping the
-  // attach when the permission is missing keeps the namespace cleanly
-  // absent so an extension can feature-detect via `typeof api.network`).
+  // `network` permission). Without it the namespace's methods are not
+  // registered and answer `Unknown RPC method`; the worker's `api.network`
+  // object itself still exists (`apiNamespaces` lists what the host serves,
+  // not what each extension was granted).
   if (
     ctx.networkGatewayFactory &&
     isAvailable('network')

@@ -35,8 +35,11 @@ describe('Extensions contract', () => {
   // constant used to follow (1.1.0, then 1.2.0) was premature. See the doc
   // comment on EXTENSION_API_VERSION for the full reasoning, including why
   // 0.1.0 rather than the bare "0.1" the human suggested.
-  it('exports EXTENSION_API_VERSION 0.1.0 at the package root', () => {
-    expect(EXTENSION_API_VERSION).toBe('0.1.0');
+  // Pinned to the 0.1 line rather than to '0.1.0': additive changes bump the
+  // patch segment (task 0086's bump rule), which must not need this test
+  // edited. A breaking (0.2.0) bump should fail here and be looked at.
+  it('exports a 0.1.x EXTENSION_API_VERSION at the package root', () => {
+    expect(EXTENSION_API_VERSION).toMatch(/^0\.1\.\d+$/);
   });
 
   it('exports the same version through the Extensions namespace alias', () => {

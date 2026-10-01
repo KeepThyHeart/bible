@@ -118,10 +118,13 @@ describe('@bible/core/browser barrel', () => {
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
     // Settings registry and the web UserData store, the audio contracts, then
     // for the pure Timeline engine (calendar, layout, scale, store), then for
-    // the genealogy explorer (task 0067), then for the keyword-mark set store.
+    // the genealogy explorer (task 0067), then for the keyword-mark set store,
+    // then for the extension API declarations (task 0086: `Permissions.ts`,
+    // reached here by `import type` only, now derives from 24 small pure-data
+    // declaration files; the walker counts type-only edges too).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(150);
+    expect(files.size).toBeLessThan(175);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

@@ -96,7 +96,7 @@ export const PERM_FS_MANAGED_FOLDER = 'fs:managed-folder' as const;
  *
  * The `PERM_*` constants above are kept for existing call sites; a new
  * permission is declared in its namespace's declaration file and needs no
- * constant here. `Declarations.test.ts` checks the two agree.
+ * constant here. `Declarations/registry.test.ts` checks the two agree.
  */
 export type ExtensionPermission = DeclaredPermission;
 
