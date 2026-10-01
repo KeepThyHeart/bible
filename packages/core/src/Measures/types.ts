@@ -140,6 +140,8 @@ export interface MeasureLocalePack {
    * 'per.day' "a day".
    */
   phrases: Record<string, string>;
+  /** Words for small numbers ("three", "hundred") so the modern-term matcher can accept "three feet". Optional. */
+  numberWords?: string[];
 }
 
 /** Modern display systems. */
@@ -217,6 +219,8 @@ export interface MeasurePopupModel {
   usage: MeasureUsage;
   review: MeasureReviewStatus;
   sources: MeasureSource[];
+  /** Short value for the inline badge ("140 m", "1 day's wages", "9 a.m."): the primary without the approx sign. */
+  badge?: string;
   /** One row per part when the occurrence has several ("six cubits and a span"): already included in `primary`. */
   parts: number;
 }

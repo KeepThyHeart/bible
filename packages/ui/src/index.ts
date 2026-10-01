@@ -78,3 +78,6 @@ export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
 
+
+export { MeasurePopup, DEFAULT_MEASURE_POPUP_LABELS } from './components/MeasurePopup';
+export type { MeasurePopupProps, MeasurePopupLabels } from './components/MeasurePopup';

@@ -955,3 +955,20 @@
   flex-direction: column;
   padding: var(--kth-space-4);
 }
+
+/* --- MeasurePopup (weights, measures and money popups) ---------------------- */
+.kth-measure { display: flex; flex-direction: column; gap: var(--kth-space-2); color: var(--kth-text); font-size: var(--kth-font-size-ui); }
+.kth-measure > * { margin: 0; }
+.kth-measure__title { font-size: 1em; font-weight: 600; }
+.kth-measure__primary { font-size: 1.5em; font-weight: 600; line-height: 1.2; }
+.kth-measure__secondary { color: var(--kth-text-muted); }
+.kth-measure__range, .kth-measure__relation, .kth-measure__note { font-size: 0.9em; }
+.kth-measure__hint { color: var(--kth-text-muted); }
+.kth-measure__extra { margin: 0; padding-inline-start: var(--kth-space-4); }
+.kth-measure__verse-note { padding-inline-start: var(--kth-space-2); border-inline-start: 3px solid var(--kth-accent); font-size: 0.9em; }
+.kth-measure__verse-label { color: var(--kth-text-muted); font-size: 0.85em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.kth-measure__chips { display: flex; flex-wrap: wrap; gap: var(--kth-space-1); }
+.kth-measure__chip { padding-inline: var(--kth-space-2); border: 1px solid var(--kth-border-strong); border-radius: 999px; background: var(--kth-bg-subtle); color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-measure__chip--draft { border-color: var(--kth-warning); color: var(--kth-text); }
+.kth-measure__footer { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); }
+.kth-measure__sources { margin: 0; padding-inline-start: var(--kth-space-4); font-size: 0.85em; color: var(--kth-text-muted); }
