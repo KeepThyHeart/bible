@@ -104,6 +104,12 @@ export interface ReferenceParserConfig {
    * language; `bookNames` is then informational only.
    */
   locale?: string;
+  /**
+   * More input languages accepted after `locale` and before English, e.g. the
+   * languages of the installed Bibles (data tags or BCP 47 tags; ones with no
+   * loaded data are skipped). Display stays in `locale`.
+   */
+  extraLocales?: readonly string[];
 }
 
 // ============================================================================
@@ -149,12 +155,14 @@ export class ReferenceParser implements IReferenceParser {
   private readonly displayNames: string[];
   private readonly locale?: string;
   private readonly customDisplay: boolean;
+  private readonly extraLocales: readonly string[];
   private inlineEngine?: ReferenceEngine;
 
   constructor(config?: ReferenceParserConfig) {
     this.bookNames = config?.bookNames ?? ENGLISH_BOOK_NAMES;
     this.displayNames = config?.displayNames ?? ENGLISH_DISPLAY_NAMES;
     this.customDisplay = !config?.locale && this.displayNames !== ENGLISH_DISPLAY_NAMES;
+    this.extraLocales = config?.extraLocales ?? [];
     if (config?.locale) this.locale = config.locale;
     else if (this.bookNames === ENGLISH_BOOK_NAMES) this.locale = 'en';
     else this.inlineEngine = ReferenceEngine.create({ locales: [], inline: [inlineLocale(config!)] });
@@ -163,7 +171,7 @@ export class ReferenceParser implements IReferenceParser {
   /** The engine behind this parser (rebuilt by the engine cache when locale data loads). */
   get engine(): ReferenceEngine {
     if (this.inlineEngine) return this.inlineEngine;
-    return ReferenceEngine.create({ locales: this.locale === 'en' ? ['en'] : [this.locale!, 'en'] });
+    return ReferenceEngine.create({ locales: [this.locale!, ...this.extraLocales, 'en'] });
   }
 
   /**

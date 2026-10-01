@@ -3,6 +3,19 @@ import { i18nService } from './I18nService';
 import type { LocaleCode } from './II18nService';
 
 const cache = new Map<string, { version: number; parser: ReferenceParser }>();
+let extraLocales: string[] = [];
+
+/**
+ * Also accept references in these languages (the installed Bibles'), after
+ * the UI language and before English. Loads their data on demand.
+ */
+export function setExtraReferenceLocales(tags: readonly string[]): void {
+  const next = [...new Set(tags.filter(Boolean))].sort();
+  if (next.join() === extraLocales.join()) return;
+  extraLocales = next;
+  cache.clear();
+  void ensureReferenceLocales(next);
+}
 
 /**
  * Load the reference-engine data (book names, separators, digits) for the UI
@@ -31,7 +44,8 @@ export function getLocalizedReferenceParser(tag: LocaleCode = i18nService.curren
   const version = referenceLocalesVersion();
   const hit = cache.get(tag);
   if (hit && hit.version === version) return hit.parser;
-  const parser = new ReferenceParser(getLocalizer(tag).referenceParserConfig);
+  const config = getLocalizer(tag).referenceParserConfig;
+  const parser = new ReferenceParser(extraLocales.length ? { ...config, extraLocales } : config);
   cache.set(tag, { version, parser });
   return parser;
 }
