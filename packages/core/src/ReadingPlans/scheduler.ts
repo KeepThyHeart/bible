@@ -85,6 +85,8 @@ export interface TodayReading {
 
 export interface TodayView {
   enrollmentId: string;
+  /** The stored plan key (`stock:<id>@<version>` for stock plans), for localizing the name. */
+  planKey: string;
   planName: string;
   pacing: Enrollment['pacing'];
   /** The day to read now, or null when the plan is finished (or, fixed, a rest day with nothing due). */
@@ -122,7 +124,7 @@ export function todayView(plan: PlanDefinition, e: Enrollment, completions: read
   const dayCount = plan.days.length;
   const firstUnread = firstUnreadDay(plan, progress);
   const restDay = !isReadingDay(e, today);
-  const base = { enrollmentId: e.id, planName: e.planName, pacing: e.pacing, dayCount, restDay };
+  const base = { enrollmentId: e.id, planKey: e.planKey, planName: e.planName, pacing: e.pacing, dayCount, restDay };
   if (firstUnread === null || e.status === 'completed') {
     return { ...base, day: null, readings: [], dayDone: true, behindBy: 0, missedDays: [], aheadBy: 0, completed: true, notStarted: false };
   }

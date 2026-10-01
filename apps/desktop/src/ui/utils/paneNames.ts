@@ -39,6 +39,7 @@ export const PANE_NAME_KEYS: Record<NamedPaneType, string> = {
   topics: 'paneName.topics',
   genealogy: 'paneName.genealogy',
   timeline: 'paneName.timeline',
+  'reading-plans': 'paneName.readingPlans',
   newtab: 'paneName.newTab',
 };
 
@@ -67,6 +68,7 @@ const GENERIC_ENGLISH_TITLES: Record<NamedPaneType, readonly string[]> = {
   topics: ['Topics', 'Topic', 'topics'],
   genealogy: ['Family Tree', 'Genealogy', 'genealogy'],
   timeline: ['Timeline', 'timeline'],
+  'reading-plans': ['Reading plans', 'Reading plan', 'Plans', 'reading-plans'],
   newtab: ['New Tab', 'newtab'],
 };
 
