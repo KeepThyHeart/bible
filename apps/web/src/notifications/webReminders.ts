@@ -66,9 +66,26 @@ export function isWebNotificationsSupported(): boolean {
   return webCapabilities().permission !== 'unsupported';
 }
 
+/**
+ * The one place the default verse-of-the-day fetcher lives, read at fire time. `main.tsx` installs
+ * the offline-first provider with `setVerseOfTheDayFetcher`; a host created earlier (by the settings
+ * tab) still gets it, because it is looked up per fire, not captured at creation.
+ */
+let votdFetcher: () => Promise<VotdData | null> = () => bibleStore.getVerseOfTheDay();
+
+export function setVerseOfTheDayFetcher(fn: () => Promise<VotdData | null>): void {
+  votdFetcher = fn;
+}
+
+/** The Web Locks name of the tab that runs the scheduler. */
+export const REMINDER_LOCK_NAME = 'bible-reminders';
+
 export interface WebReminderHost {
   readonly store: ReadableStore<NotificationsViewState>;
-  /** Registers the sources, starts the scheduler and installs the wake listeners. Idempotent. */
+  /**
+   * Registers the sources and installs the listeners, then runs the scheduler in one leader tab only
+   * (a Web Lock; without `navigator.locks` every tab runs it). Idempotent.
+   */
   start(): Promise<void>;
   stop(): void;
   setSettings(next: NotificationSettings): Promise<void>;
@@ -139,14 +156,19 @@ export function createWebReminderHost(opts: WebReminderHostOptions = {}): WebRem
 
   let started: Promise<void> | null = null;
   let removeListeners: (() => void) | null = null;
+  /** True while this tab runs the scheduler. */
+  let leader = false;
+  let releaseLock: (() => void) | null = null;
+  let abortLock: AbortController | null = null;
 
   const install = (): (() => void) => {
-    const wake = (): void => { void scheduler.wake().then(publish); };
+    const wake = (): void => { if (leader) void scheduler.wake().then(publish); };
     const onVisible = (): void => { if (document.visibilityState === 'visible') wake(); };
     const onStorage = (e: StorageEvent): void => {
       if (e.key !== NOTIFICATION_SETTINGS_KEY) return;
       settings = loadNotificationSettings();
-      wake();
+      publish();
+      wake(); // only the leader plans; the others just show the new state
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', wake);
@@ -167,18 +189,43 @@ export function createWebReminderHost(opts: WebReminderHostOptions = {}): WebRem
       started ??= (async () => {
         scheduler.registerSource(
           createVotdSource({
-            getVerseOfTheDay: opts.getVerseOfTheDay ?? (() => bibleStore.getVerseOfTheDay()),
+            getVerseOfTheDay: opts.getVerseOfTheDay ?? (() => votdFetcher()),
             bookName: (book) => String(i18n.t(String(book), { ns: 'books' })),
-            t: (key) => t(key),
+            t: (key, params) => t(key, params),
           }),
         );
         removeListeners = install();
-        await scheduler.start();
-        publish();
+        const begin = async (): Promise<void> => {
+          leader = true;
+          await scheduler.start();
+          publish();
+        };
+        const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+        if (!locks || typeof locks.request !== 'function') {
+          await begin();
+        } else {
+          abortLock = new AbortController();
+          // The holder is the leader; the request stays queued in the other tabs until the leader goes.
+          locks
+            .request(REMINDER_LOCK_NAME, { mode: 'exclusive', signal: abortLock.signal }, () => {
+              if (!started) return undefined; // stopped while queued
+              return new Promise<void>((resolve) => {
+                releaseLock = resolve;
+                void begin().catch((err) => console.warn('[Notifications] start failed', err));
+              });
+            })
+            .catch(() => { /* aborted by stop() */ });
+          publish();
+        }
       })();
       return started;
     },
     stop() {
+      abortLock?.abort();
+      abortLock = null;
+      releaseLock?.();
+      releaseLock = null;
+      leader = false;
       scheduler.stop();
       removeListeners?.();
       removeListeners = null;
@@ -188,7 +235,7 @@ export function createWebReminderHost(opts: WebReminderHostOptions = {}): WebRem
       settings = normalizeNotificationSettings(next);
       saveNotificationSettings(settings);
       publish();
-      await scheduler.refresh();
+      if (leader) await scheduler.refresh(); // other tabs pick the change up through the `storage` event
       publish();
     },
     async requestPermission() {
@@ -200,7 +247,7 @@ export function createWebReminderHost(opts: WebReminderHostOptions = {}): WebRem
       }
       const caps = webCapabilities();
       publish();
-      if (caps.permission === 'granted') void scheduler.wake().then(publish);
+      if (caps.permission === 'granted' && leader) void scheduler.wake().then(publish);
       return caps.permission;
     },
     async sendTest() {

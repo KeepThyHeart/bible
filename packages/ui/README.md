@@ -168,9 +168,10 @@ button. Controlled and store-free: it takes a `NotificationsViewState` (from `@b
 | `onDeviceChange(patch)` | `Partial<NotificationDeviceSettings>`; the "When the window is closed" section shows only when `state.device` is set, each switch disabled when `state.deviceSupport` says it is unsupported. |
 | `onRequestPermission`, `onSendTest` | Show the "Allow notifications" button (permission `prompt`) and the test button. |
 | `formatTime(epochMs)` | "Next: ..." text (default `toLocaleString`). |
-| `labels`, `idPrefix` | `NotificationPreferencesLabels` (English defaults in `DEFAULT_NOTIFICATION_PREFERENCES_LABELS`; `{time}`, `{count}` placeholders); control id prefix (`notify`). |
+| `formatScheduled(count)` | Plural-aware "{count} scheduled" text; falls back to the `scheduled` label. |
+| `labels`, `idPrefix` | `NotificationPreferencesLabels` (English defaults in `DEFAULT_NOTIFICATION_PREFERENCES_LABELS`; `{time}`, `{count}`, `{source}` placeholders); control id prefix (`notify`). |
 
-Everything under the master switch is disabled when it is off. Turning quiet hours on writes 21:30 to 07:00. Switches are
+Everything under the master switch is disabled when it is off. With permission `unsupported` every control is disabled and the when-closed hint is hidden. The From/To inputs show only while quiet hours are on. "Start when I log in" is disabled while the tray is off (unless already on, so it can be turned off). Turning quiet hours on writes 21:30 to 07:00. Switches are
 `<input type="checkbox" role="switch">`. Classes: `kth-notify-prefs`, `__status`, `__switch`, `__times`, plus `kth-fieldset`, `kth-field`,
 `kth-field__hint`, `kth-input`, `kth-btn`.
 

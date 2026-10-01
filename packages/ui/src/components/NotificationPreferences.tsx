@@ -30,6 +30,7 @@ export interface NotificationPreferencesLabels {
   quietHelp: string;
   sources: string;
   noSources: string;
+  /** `{source}` is replaced by the source label. */
   dailyTime: string;
   /** `{time}` is replaced by the formatted next fire. */
   next: string;
@@ -46,7 +47,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES_LABELS: NotificationPreferencesLab
   statusGranted: 'Notifications are allowed.',
   statusDenied: 'Notifications are blocked. Allow them in your system or browser settings.',
   statusPrompt: 'Notifications are not allowed yet.',
-  statusUnsupported: 'Notifications are not supported here.',
+  statusUnsupported: 'This browser or device cannot show notifications.',
   allow: 'Allow notifications',
   whenClosedFires: 'Reminders keep arriving while the app runs in the tray.',
   whenClosedNever: 'Reminders arrive only while the app is open.',
@@ -58,14 +59,14 @@ export const DEFAULT_NOTIFICATION_PREFERENCES_LABELS: NotificationPreferencesLab
   quietHelp: 'Notifications due in quiet hours wait until they end.',
   sources: 'Reminders',
   noSources: 'No features use notifications yet.',
-  dailyTime: 'Time',
+  dailyTime: 'Time for {source}',
   next: 'Next: {time}',
   scheduled: '{count} scheduled',
   device: 'When the window is closed',
   tray: 'Keep running in the tray',
   openAtLogin: 'Start when I log in (in the tray)',
   sendTest: 'Send a test notification',
-  general: 'Notifications',
+  general: 'General',
 };
 
 export interface NotificationPreferencesProps {
@@ -76,6 +77,8 @@ export interface NotificationPreferencesProps {
   onRequestPermission?(): void;
   onSendTest?(): void;
   formatTime?(epochMs: number): string;
+  /** Plural-aware "{count} scheduled"; falls back to the `scheduled` label. */
+  formatScheduled?(count: number): string;
   labels?: Partial<NotificationPreferencesLabels>;
   idPrefix?: string;
 }
@@ -105,12 +108,14 @@ export function NotificationPreferences({
   onRequestPermission,
   onSendTest,
   formatTime = defaultFormatTime,
+  formatScheduled,
   labels,
   idPrefix = 'notify',
 }: NotificationPreferencesProps) {
   const l: NotificationPreferencesLabels = { ...DEFAULT_NOTIFICATION_PREFERENCES_LABELS, ...labels };
   const { settings, capabilities } = state;
-  const off = !settings.enabled;
+  const unsupported = capabilities.permission === 'unsupported';
+  const off = !settings.enabled || unsupported;
   const quiet = settings.quiet;
 
   const setSource = (id: string, patch: { enabled?: boolean; plan?: ReminderPlan }): void => {
@@ -156,36 +161,38 @@ export function NotificationPreferences({
         <legend>{l.general}</legend>
         <p className="kth-notify-prefs__status" role="status">{status}</p>
         {capabilities.permission === 'prompt' && onRequestPermission && (
-          <button type="button" className="kth-btn" onClick={() => onRequestPermission()}>
+          <button type="button" className="kth-btn kth-notify-prefs__hint" onClick={() => onRequestPermission()}>
             {l.allow}
           </button>
         )}
-        <p className="kth-field__hint">{whenClosed}</p>
+        {!unsupported && <p className="kth-field__hint kth-notify-prefs__hint">{whenClosed}</p>}
         <div className="kth-field">
-          {sw(`${idPrefix}-enabled`, l.enabled, settings.enabled, false, (v) => onSettingsChange({ ...settings, enabled: v }))}
+          {sw(`${idPrefix}-enabled`, l.enabled, settings.enabled, unsupported, (v) => onSettingsChange({ ...settings, enabled: v }))}
         </div>
         <div className="kth-field">
           {sw(`${idPrefix}-quiet`, l.quietHours, quiet !== null, off, (v) => setQuiet(v ? { ...DEFAULT_QUIET } : null))}
-          <div className="kth-notify-prefs__times">
-            <label htmlFor={`${idPrefix}-quiet-start`}>{l.quietFrom}</label>
-            <input
-              id={`${idPrefix}-quiet-start`}
-              className="kth-input"
-              type="time"
-              value={quiet?.start ?? ''}
-              disabled={off || quiet === null}
-              onChange={(e) => quiet && setQuiet({ ...quiet, start: e.currentTarget.value })}
-            />
-            <label htmlFor={`${idPrefix}-quiet-end`}>{l.quietTo}</label>
-            <input
-              id={`${idPrefix}-quiet-end`}
-              className="kth-input"
-              type="time"
-              value={quiet?.end ?? ''}
-              disabled={off || quiet === null}
-              onChange={(e) => quiet && setQuiet({ ...quiet, end: e.currentTarget.value })}
-            />
-          </div>
+          {quiet !== null && (
+            <div className="kth-notify-prefs__times">
+              <label htmlFor={`${idPrefix}-quiet-start`}>{l.quietFrom}</label>
+              <input
+                id={`${idPrefix}-quiet-start`}
+                className="kth-input"
+                type="time"
+                value={quiet.start}
+                disabled={off}
+                onChange={(e) => setQuiet({ ...quiet, start: e.currentTarget.value })}
+              />
+              <label htmlFor={`${idPrefix}-quiet-end`}>{l.quietTo}</label>
+              <input
+                id={`${idPrefix}-quiet-end`}
+                className="kth-input"
+                type="time"
+                value={quiet.end}
+                disabled={off}
+                onChange={(e) => setQuiet({ ...quiet, end: e.currentTarget.value })}
+              />
+            </div>
+          )}
           <p className="kth-field__hint">{l.quietHelp}</p>
         </div>
       </fieldset>
@@ -203,7 +210,7 @@ export function NotificationPreferences({
               )}
               {source.enabled && source.kind === 'rules' && source.userEditable && (
                 <div className="kth-notify-prefs__times">
-                  <label htmlFor={`${base}-time`}>{`${source.label}: ${l.dailyTime}`}</label>
+                  <label htmlFor={`${base}-time`}>{l.dailyTime.replace('{source}', source.label)}</label>
                   <input
                     id={`${base}-time`}
                     className="kth-input"
@@ -221,7 +228,9 @@ export function NotificationPreferences({
                 <p className="kth-field__hint">{l.next.replace('{time}', formatTime(source.nextAt))}</p>
               )}
               {source.kind === 'items' && (
-                <p className="kth-field__hint">{l.scheduled.replace('{count}', String(source.pending))}</p>
+                <p className="kth-field__hint">
+                  {formatScheduled ? formatScheduled(source.pending) : l.scheduled.replace('{count}', String(source.pending))}
+                </p>
               )}
             </div>
           );
@@ -232,12 +241,13 @@ export function NotificationPreferences({
         <fieldset className="kth-fieldset">
           <legend>{l.device}</legend>
           <div className="kth-field">
-            {sw(`${idPrefix}-tray`, l.tray, state.device.tray, state.deviceSupport?.tray === false, (v) =>
+            {sw(`${idPrefix}-tray`, l.tray, state.device.tray, unsupported || state.deviceSupport?.tray === false, (v) =>
               onDeviceChange?.({ tray: v }),
             )}
           </div>
           <div className="kth-field">
-            {sw(`${idPrefix}-login`, l.openAtLogin, state.device.openAtLogin, state.deviceSupport?.openAtLogin === false, (v) =>
+            {sw(`${idPrefix}-login`, l.openAtLogin, state.device.openAtLogin,
+              unsupported || state.deviceSupport?.openAtLogin === false || (!state.device.tray && !state.device.openAtLogin), (v) =>
               onDeviceChange?.({ openAtLogin: v }),
             )}
           </div>
@@ -245,7 +255,7 @@ export function NotificationPreferences({
       )}
 
       {onSendTest && (
-        <button type="button" className="kth-btn" onClick={() => onSendTest()}>
+        <button type="button" className="kth-btn" disabled={unsupported} onClick={() => onSendTest()}>
           {l.sendTest}
         </button>
       )}

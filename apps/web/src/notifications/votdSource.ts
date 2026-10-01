@@ -11,7 +11,7 @@ export interface VotdSourceDeps {
   getVerseOfTheDay(): Promise<VotdData | null>;
   /** Localized book name for a book number. */
   bookName(book: number): string;
-  t(key: string): string;
+  t(key: string, params?: Record<string, unknown>): string;
 }
 
 /** HTML to plain text: tags dropped, the few entities a verse uses decoded, whitespace folded. */
@@ -44,7 +44,9 @@ export function createVotdSource(deps: VotdSourceDeps): RuleSource {
       if (!v) return null;
       const ref = `${deps.bookName(v.book)} ${v.chapter}:${v.verse}`;
       const text = plainText(v.text || v.text_html || '');
-      const body = text ? `${ref} — ${truncateAtWordBoundary(text, BODY_MAX).text}` : ref;
+      const body = text
+        ? deps.t('notifications.votd.body', { reference: ref, text: truncateAtWordBoundary(text, BODY_MAX).text })
+        : ref;
       return {
         title: deps.t('notifications.votd.title'),
         body,

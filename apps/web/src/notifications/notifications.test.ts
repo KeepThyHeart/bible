@@ -8,7 +8,7 @@ vi.mock('../i18n', () => ({
   default: { t: (key: string, o?: { count?: number }) => (o?.count !== undefined ? `${key}:${o.count}` : key), language: 'en' },
 }));
 
-import { webCapabilities, createWebReminderHost } from './webReminders';
+import { webCapabilities, createWebReminderHost, setVerseOfTheDayFetcher, REMINDER_LOCK_NAME } from './webReminders';
 import { loadNotificationSettings, saveNotificationSettings, NOTIFICATION_SETTINGS_KEY } from './notificationSettings';
 import { createVotdSource, plainText } from './votdSource';
 
@@ -82,7 +82,7 @@ describe('verse of the day source', () => {
   const deps = {
     getVerseOfTheDay: async () => ({ book: 43, chapter: 3, verse: 16, text: 'For God so loved', text_html: '<p>For God so <i>loved</i> &amp; more</p>' }),
     bookName: () => 'John',
-    t: (k: string) => k,
+    t: (k: string, p?: Record<string, unknown>) => (p ? `${p.reference} — ${p.text}` : k),
   };
 
   it('is opt-in, editable, daily 08:00', () => {
@@ -156,5 +156,61 @@ describe('web reminder host', () => {
     expect(host.store.getSnapshot().capabilities.permission).toBe('prompt');
     expect(await host.requestPermission()).toBe('granted');
     expect(host.store.getSnapshot().capabilities.permission).toBe('granted');
+  });
+});
+
+describe('leader election (Web Locks)', () => {
+  const setLocks = (locks: unknown) => Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+  afterEach(() => { setLocks(undefined); });
+
+  it('runs the scheduler only after the lock is granted, and releases it on stop', async () => {
+    let grant: (() => Promise<void>) | null = null;
+    let resolved = false;
+    const request = vi.fn((_name: string, _o: unknown, cb: () => Promise<void>) => {
+      grant = async () => { await cb().then(() => { resolved = true; }); };
+      return new Promise<void>(() => {});
+    });
+    setLocks({ request });
+    const host = createWebReminderHost();
+    const start = vi.spyOn(host.scheduler, 'start');
+    await host.start();
+    expect(request).toHaveBeenCalledWith(REMINDER_LOCK_NAME, expect.objectContaining({ mode: 'exclusive' }), expect.any(Function));
+    expect(start).not.toHaveBeenCalled(); // a follower only shows state
+    void grant!();
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    host.stop();
+    await vi.waitFor(() => expect(resolved).toBe(true));
+  });
+
+  it('a follower still shows settings changed in another tab', async () => {
+    setLocks({ request: () => new Promise<void>(() => {}) });
+    const host = createWebReminderHost();
+    await host.start();
+    const next = { ...loadNotificationSettings(), enabled: false };
+    saveNotificationSettings(next);
+    window.dispatchEvent(new StorageEvent('storage', { key: NOTIFICATION_SETTINGS_KEY }));
+    expect(host.store.getSnapshot().settings.enabled).toBe(false);
+    host.stop();
+  });
+
+  it('falls back to running without navigator.locks', async () => {
+    setLocks(undefined);
+    const host = createWebReminderHost();
+    const start = vi.spyOn(host.scheduler, 'start');
+    await host.start();
+    expect(start).toHaveBeenCalledTimes(1);
+    host.stop();
+  });
+});
+
+describe('verse of the day fetcher', () => {
+  it('a host created before the fetcher is set registers the source and starts', async () => {
+    const host = createWebReminderHost();
+    const fetcher = vi.fn(async () => ({ book: 43, chapter: 3, verse: 16, text: 'x', text_html: '' }));
+    setVerseOfTheDayFetcher(fetcher);
+    await host.start();
+    const [src] = host.scheduler.listSources().filter((x) => x.id === 'app:verse-of-the-day');
+    expect(src).toBeTruthy();
+    host.stop();
   });
 });

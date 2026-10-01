@@ -4,7 +4,7 @@
  * notifications the tab still renders and explains why.
  */
 import { useSyncExternalStore } from 'preact/compat';
-import { useMemo } from 'preact/hooks';
+import { useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { NotificationPreferences } from '@bible/ui';
 import type { NotificationPreferencesLabels } from '@bible/ui';
@@ -23,12 +23,14 @@ export function NotificationsSettingsTab({ host }: { host?: WebReminderHost }) {
   const { t } = useTranslation();
   const h = useMemo(() => host ?? getWebReminders(), [host]);
   // Starting is idempotent; it matters only when boot skipped it (unsupported browsers never get here).
-  useMemo(() => { void h.start().catch(() => {}); }, [h]);
+  useEffect(() => { void h.start().catch(() => {}); }, [h]);
   const state: NotificationsViewState = useSyncExternalStore(h.store.subscribe, h.store.getSnapshot);
 
   const labels = useMemo(() => {
     const out = {} as NotificationPreferencesLabels;
-    for (const k of LABEL_KEYS) out[k] = t(`notifications.labels.${k}`);
+    // The component fills these placeholders itself: hand them back untouched.
+    const keep = { time: '{time}', count: '{count}', source: '{source}' };
+    for (const k of LABEL_KEYS) out[k] = t(`notifications.labels.${k}`, keep);
     return out;
   }, [t]);
 
@@ -38,6 +40,7 @@ export function NotificationsSettingsTab({ host }: { host?: WebReminderHost }) {
         state={state}
         labels={labels}
         idPrefix="settings-notifications"
+        formatScheduled={(count) => t('notifications.scheduledCount', { count })}
         onSettingsChange={(next) => { void h.setSettings(next); }}
         onRequestPermission={() => { void h.requestPermission(); }}
         onSendTest={() => { void h.sendTest(); }}

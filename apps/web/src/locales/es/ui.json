@@ -1373,18 +1373,20 @@
     "votd": {
       "label": "Versículo del día",
       "description": "Un versículo cada día a la hora que elija.",
-      "title": "Versículo del día"
+      "title": "Versículo del día",
+      "body": "{reference} — {text}"
     },
     "test": {
       "title": "Notificación de prueba",
       "body": "Las notificaciones funcionan."
     },
     "collapsed": "{count, plural, one {# recordatorio en espera} other {# recordatorios en espera}}",
+    "scheduledCount": "{count, plural, one {# programado} other {# programados}}",
     "labels": {
       "statusGranted": "Las notificaciones están permitidas.",
       "statusDenied": "Las notificaciones están bloqueadas. Permítalas en los ajustes del navegador para este sitio.",
       "statusPrompt": "Las notificaciones aún no están permitidas.",
-      "statusUnsupported": "Este navegador no puede mostrar notificaciones. En iPhone y iPad, añada primero la aplicación a la pantalla de inicio y ábrala desde allí.",
+      "statusUnsupported": "Este navegador o dispositivo no puede mostrar notificaciones.",
       "allow": "Permitir notificaciones",
       "whenClosedFires": "Los recordatorios siguen llegando mientras la aplicación se ejecuta en segundo plano.",
       "whenClosedNever": "Los recordatorios solo llegan mientras la aplicación está abierta.",
@@ -1396,14 +1398,14 @@
       "quietHelp": "Las notificaciones que lleguen en las horas de silencio esperan a que terminen.",
       "sources": "Recordatorios",
       "noSources": "Ninguna función usa notificaciones todavía.",
-      "dailyTime": "Hora",
+      "dailyTime": "Hora para {source}",
       "next": "Siguiente: {time}",
       "scheduled": "{count} programados",
       "device": "Cuando la ventana está cerrada",
       "tray": "Seguir ejecutándose en la bandeja",
       "openAtLogin": "Iniciar al iniciar sesión (en la bandeja)",
       "sendTest": "Enviar una notificación de prueba",
-      "general": "Notificaciones"
+      "general": "General"
     }
   }
 }

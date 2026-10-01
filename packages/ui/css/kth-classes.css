@@ -133,6 +133,7 @@
   font-size: var(--kth-font-size-ui);
 }
 .kth-notify-prefs__status { margin: 0 0 var(--kth-space-2); }
+.kth-notify-prefs__hint { margin-block-end: var(--kth-space-3); }
 .kth-notify-prefs__switch {
   display: flex;
   align-items: center;

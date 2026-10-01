@@ -55,8 +55,8 @@ describe('NotificationPreferences', () => {
     render(
       <NotificationPreferences state={makeState({ capabilities: { permission: 'unsupported', whenClosed: 'never', actions: false } })} onSettingsChange={() => undefined} />,
     );
-    expect(screen.getByText('Notifications are not supported here.')).toBeInTheDocument();
-    expect(screen.getByText('Reminders arrive only while the app is open.')).toBeInTheDocument();
+    expect(screen.getByText('This browser or device cannot show notifications.')).toBeInTheDocument();
+    expect(screen.queryByText('Reminders arrive only while the app is open.')).toBeNull();
   });
 
   it('calls onRequestPermission', async () => {
@@ -85,7 +85,7 @@ describe('NotificationPreferences', () => {
     expect(screen.getByRole('switch', { name: 'Quiet hours' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Verse of the day' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Memory cards' })).toBeDisabled();
-    expect(screen.getByLabelText('Verse of the day: Time')).toBeDisabled();
+    expect(screen.getByLabelText('Time for Verse of the day')).toBeDisabled();
   });
 
   it('toggles a source', async () => {
@@ -101,12 +101,12 @@ describe('NotificationPreferences', () => {
     expect(screen.getByText('A verse each morning.')).toBeInTheDocument();
     expect(screen.getByText('Next: T')).toBeInTheDocument();
     expect(screen.getByText('3 scheduled')).toBeInTheDocument();
-    expect(screen.getByLabelText('Verse of the day: Time')).toHaveValue('08:00');
+    expect(screen.getByLabelText('Time for Verse of the day')).toHaveValue('08:00');
   });
 
   it('editing the daily time writes the plan and keeps the days of a single fixed slot', () => {
     const { onSettingsChange } = setup(makeState());
-    const input = screen.getByLabelText('Verse of the day: Time');
+    const input = screen.getByLabelText('Time for Verse of the day');
     fireEvent.input(input, { target: { value: '09:15' } });
     const last = onSettingsChange.mock.calls.at(-1)?.[0];
     expect(last.sources['app:votd'].plan).toEqual({
@@ -117,18 +117,19 @@ describe('NotificationPreferences', () => {
   it('uses all days when there is no single fixed slot', () => {
     const source = { ...votd, plan: null };
     const { onSettingsChange } = setup(makeState({ sources: [source] }));
-    fireEvent.input(screen.getByLabelText('Verse of the day: Time'), { target: { value: '10:00' } });
+    fireEvent.input(screen.getByLabelText('Time for Verse of the day'), { target: { value: '10:00' } });
     expect(onSettingsChange.mock.calls.at(-1)?.[0].sources['app:votd'].plan.slots[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 
   it('does not offer a time for item sources or disabled rule sources', () => {
     setup(makeState({ sources: [{ ...votd, enabled: false, nextAt: null }, ext] }));
-    expect(screen.queryByLabelText(/: Time/)).toBeNull();
+    expect(screen.queryByLabelText(/^Time for /)).toBeNull();
   });
 
   it('quiet hours: on uses defaults, off clears, edit writes', async () => {
     const first = setup(makeState());
-    expect(screen.getByLabelText('From')).toBeDisabled();
+    expect(screen.queryByLabelText('From')).toBeNull();
+    expect(screen.queryByLabelText('To')).toBeNull();
     await first.user.click(screen.getByRole('switch', { name: 'Quiet hours' }));
     expect(first.onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ quiet: { start: '21:30', end: '07:00' } }));
     expect(screen.getByText('Notifications due in quiet hours wait until they end.')).toBeInTheDocument();
@@ -145,6 +146,51 @@ describe('NotificationPreferences', () => {
     expect(onSettingsChange.mock.calls.at(-1)?.[0].quiet).toEqual({ start: '21:30', end: '06:30' });
     await user.click(screen.getByRole('switch', { name: 'Quiet hours' }));
     expect(onSettingsChange.mock.calls.at(-1)?.[0].quiet).toBeNull();
+  });
+
+  it('unsupported disables every control', () => {
+    setup(
+      makeState({
+        capabilities: { permission: 'unsupported', whenClosed: 'fires', actions: false },
+        device: { tray: true, openAtLogin: false },
+        deviceSupport: { tray: true, openAtLogin: true },
+      }),
+      { onSendTest: vi.fn() },
+    );
+    expect(screen.queryByText('Reminders keep arriving while the app runs in the tray.')).toBeNull();
+    for (const name of ['Show notifications', 'Quiet hours', 'Verse of the day', 'Memory cards', 'Keep running in the tray', 'Start when I log in (in the tray)']) {
+      expect(screen.getByRole('switch', { name })).toBeDisabled();
+    }
+    expect(screen.getByLabelText('Time for Verse of the day')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send a test notification' })).toBeDisabled();
+  });
+
+  it('replaces {source} in the dailyTime label', () => {
+    setup(makeState(), { labels: { dailyTime: '{source} um' } });
+    expect(screen.getByLabelText('Verse of the day um')).toBeInTheDocument();
+  });
+
+  it('uses formatScheduled when given', () => {
+    setup(makeState(), { formatScheduled: (n: number) => `${n} cards pending` });
+    expect(screen.getByText('3 cards pending')).toBeInTheDocument();
+    expect(screen.queryByText('3 scheduled')).toBeNull();
+  });
+
+  it('login switch is disabled while the tray is off unless already on', () => {
+    const first = render(
+      <NotificationPreferences state={makeState({ device: { tray: false, openAtLogin: false }, deviceSupport: { tray: true, openAtLogin: true } })} onSettingsChange={() => undefined} />,
+    );
+    expect(screen.getByRole('switch', { name: 'Start when I log in (in the tray)' })).toBeDisabled();
+    first.unmount();
+    const second = render(
+      <NotificationPreferences state={makeState({ device: { tray: false, openAtLogin: true }, deviceSupport: { tray: true, openAtLogin: true } })} onSettingsChange={() => undefined} />,
+    );
+    expect(screen.getByRole('switch', { name: 'Start when I log in (in the tray)' })).toBeEnabled();
+    second.unmount();
+    render(
+      <NotificationPreferences state={makeState({ device: { tray: true, openAtLogin: false }, deviceSupport: { tray: true, openAtLogin: true } })} onSettingsChange={() => undefined} />,
+    );
+    expect(screen.getByRole('switch', { name: 'Start when I log in (in the tray)' })).toBeEnabled();
   });
 
   it('hides the device section without state.device', () => {

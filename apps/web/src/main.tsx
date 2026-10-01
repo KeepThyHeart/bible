@@ -235,7 +235,10 @@ async function init() {
   // browser can show notifications, so it adds nothing to the critical path elsewhere.
   if (typeof window !== 'undefined' && 'Notification' in window) {
     void import('./notifications/webReminders')
-      .then(m => m.startWebReminders({ getVerseOfTheDay: () => offlineBible.getVerseOfTheDay() }))
+      .then(m => {
+        m.setVerseOfTheDayFetcher(() => offlineBible.getVerseOfTheDay());
+        return m.startWebReminders();
+      })
       .catch(err => console.warn('[Notifications] Reminders failed to start:', err));
   }
 
