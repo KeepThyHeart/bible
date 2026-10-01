@@ -17,6 +17,7 @@ type PopupPosition = PopupRect;
 
 function anchorOf(el: HTMLElement): PopupPosition {
   const r = el.getBoundingClientRect();
+  // rtl-physical: viewport rect from getBoundingClientRect (positioning owned by task 0088)
   return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
 }
 

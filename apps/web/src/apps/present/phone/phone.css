@@ -43,7 +43,7 @@
 .pzp-rowwrap { position: relative; border-radius: 8px; overflow: hidden; }
 .pzp-swipehint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
-  padding-right: 20px; background: #b3261e; color: #fff;
+  padding-inline-end: 20px; background: #b3261e; color: #fff;
 }
 .pzp-row {
   position: relative;
@@ -68,7 +68,7 @@
   flex: 1; min-width: 0; min-height: 44px;
   display: flex; align-items: center; gap: 8px;
   padding: 0 4px; border: 0; background: transparent;
-  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  color: inherit; font: inherit; text-align: start; cursor: pointer;
 }
 .pzp-row__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pzp-row__warn { color: #b26a00; }
@@ -76,14 +76,14 @@
 
 .pzp-menuwrap { position: relative; flex: none; }
 .pzp-menu {
-  position: absolute; right: 0; top: 100%; z-index: 15; min-width: 170px;
+  position: absolute; inset-inline-end: 0; top: 100%; z-index: 15; min-width: 170px;
   display: flex; flex-direction: column;
   border: 1px solid var(--border-color); border-radius: 8px;
   background: var(--bg-primary); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 .pzp-menu button {
   display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px;
-  border: 0; background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer;
+  border: 0; background: transparent; color: var(--text-primary); font: inherit; text-align: start; cursor: pointer;
 }
 .pzp-menu button:disabled { opacity: 0.4; cursor: default; }
 .pzp-menu__danger { color: #b3261e !important; }
@@ -100,7 +100,7 @@
 .pzp-chip:disabled { opacity: 0.5; text-decoration: none; cursor: default; }
 
 .pzp-snack {
-  position: absolute; left: 10px; right: 10px; bottom: 64px; z-index: 30;
+  position: absolute; inset-inline: 10px; bottom: 64px; z-index: 30;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 6px 6px 6px 14px; border-radius: 8px;
   background: #2b2b2b; color: #fff; font-size: 14px;
@@ -114,7 +114,7 @@
   background: var(--bg-primary);
 }
 .pzp-results {
-  position: absolute; left: 0; right: 0; bottom: 100%;
+  position: absolute; inset-inline: 0; bottom: 100%;
   max-height: 55vh; overflow-y: auto;
   border-top: 1px solid var(--border-color); border-radius: 12px 12px 0 0;
   background: var(--bg-primary); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.2);
@@ -143,7 +143,7 @@
 .pzp-existing .pz-btn { min-height: 44px; }
 .pzp-verses { display: flex; flex-direction: column; gap: 10px; }
 .pzp-verse { margin: 0; line-height: 1.9; font-size: 16px; }
-.pzp-verse sup { color: var(--text-muted); margin-right: 4px; }
+.pzp-verse sup { color: var(--text-muted); margin-inline-end: 4px; }
 .pzp-word {
   display: inline-block; padding: 4px 3px; margin: 0 1px;
   border: 0; border-radius: 4px; background: transparent;

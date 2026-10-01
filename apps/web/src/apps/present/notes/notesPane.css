@@ -8,7 +8,7 @@
   border-bottom: 1px solid var(--border-color);
 }
 .pz-notes__title { flex: 1; border-bottom: 0; background: transparent; }
-.pz-notes__toggle { display: flex; gap: 2px; padding-right: 8px; }
+.pz-notes__toggle { display: flex; gap: 2px; padding-inline-end: 8px; }
 .pz-notes__tab {
   padding: 4px 10px;
   border: 1px solid transparent;
@@ -62,7 +62,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   &:hover { background: var(--bg-tertiary); }
   &.is-chosen { border-color: var(--accent-color); background: var(--bg-tertiary); }
@@ -142,7 +142,7 @@
   background: transparent;
   color: var(--text-primary);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   &:disabled { cursor: default; }
 }
@@ -162,7 +162,7 @@
 }
 .pn-plan__menu {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: 100%;
   z-index: 20;
   min-width: 140px;
@@ -181,7 +181,7 @@
     color: var(--text-primary);
     font: inherit;
     font-size: 13px;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
     &:hover:not(:disabled) { background: var(--bg-tertiary); }
     &:disabled { color: var(--text-muted); cursor: default; }
