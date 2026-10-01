@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { mergeCatalogs } from '@bible/core/browser';
+import { mergeCatalogs } from '../core.js';
 import type { QuizCatalog, QuizFilter, QuizPassage, QuizQuestion } from '@bible/core/browser';
 import type { DatabaseManager } from '../DatabaseManager.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';

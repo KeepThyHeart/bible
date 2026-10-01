@@ -43,7 +43,7 @@ import type {
   XrefGraphService as XrefGraphServiceType,
   XrefGraphIndexBuilder as XrefGraphIndexBuilderType,
 } from '@bible/core';
-import type { encodeChapterArcs as encodeChapterArcsType } from '@bible/core/browser';
+import type { encodeChapterArcs as encodeChapterArcsType, mergeCatalogs as mergeCatalogsType } from '@bible/core/browser';
 import type {
   createFeatureFlags as createFeatureFlagsType,
   parseFlagOverrides as parseFlagOverridesType,
@@ -98,6 +98,7 @@ export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewl
 export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
 export const XrefGraphIndexBuilder: typeof XrefGraphIndexBuilderType = core.XrefGraphIndexBuilder;
 export const encodeChapterArcs: typeof encodeChapterArcsType = coreBrowser.encodeChapterArcs;
+export const mergeCatalogs: typeof mergeCatalogsType = coreBrowser.mergeCatalogs;
 
 // Feature flags (task 0087) come from the platform-free browser barrel: it is pure logic
 // shared with both apps, and requiring it avoids loading the Data layer for config code.
