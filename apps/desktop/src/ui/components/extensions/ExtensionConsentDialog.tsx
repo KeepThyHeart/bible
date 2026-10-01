@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import type { Extensions } from '@bible/core';
+import { Extensions } from '@bible/core';
 import { useExtensionConsentStore } from '../../extensions/extensionConsentStore';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -25,47 +25,26 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 type ExtensionPermission = Extensions.ExtensionPermission;
 
 /**
- * Catalog key per permission.
+ * The sentence a user reads before granting a permission.
  *
- * The sentence a user reads before granting an extension access to their
- * notes is as consequential as any string in the app, so it belongs where
- * the wording can be reviewed and translated rather than inline here.
+ * Read from the permission's declaration (`Declarations/namespaces/*.ts` in
+ * `@bible/core`): its catalog key, so the wording can be reviewed and
+ * translated, and its English text, used when the catalog has no entry yet -
+ * a newly declared permission shows real consent text without a catalog
+ * edit. A permission no declaration knows (granted by an older or newer
+ * host) falls back to the generic "no description" string.
  */
-const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> = {
-  'bible:read': 'extensionConsent.permission.bibleRead',
-  'commentary:read': 'extensionConsent.permission.commentaryRead',
-  'dictionary:read': 'extensionConsent.permission.dictionaryRead',
-  'book:read': 'extensionConsent.permission.bookRead',
-  'notes:read': 'extensionConsent.permission.notesRead',
-  'notes:write': 'extensionConsent.permission.notesWrite',
-  'highlights:read': 'extensionConsent.permission.highlightsRead',
-  'highlights:write': 'extensionConsent.permission.highlightsWrite',
-  'bookmarks:read': 'extensionConsent.permission.bookmarksRead',
-  'bookmarks:write': 'extensionConsent.permission.bookmarksWrite',
-  network: 'extensionConsent.permission.network',
-  'network:oauth': 'extensionConsent.permission.networkOauth',
-  storage: 'extensionConsent.permission.storage',
-  'storage:secrets': 'extensionConsent.permission.storageSecrets',
-  'storage:database': 'extensionConsent.permission.storageDatabase',
-  'fs:read-user': 'extensionConsent.permission.fsReadUser',
-  'fs:write-user': 'extensionConsent.permission.fsWriteUser',
-  'fs:managed-folder': 'extensionConsent.permission.fsManagedFolder',
-  'bible:provide': 'extensionConsent.permission.bibleProvide',
-  'commentary:provide': 'extensionConsent.permission.commentaryProvide',
-  'dictionary:provide': 'extensionConsent.permission.dictionaryProvide',
-  'book:provide': 'extensionConsent.permission.bookProvide',
-  'ui:contribute-pane': 'extensionConsent.permission.uiContributePane',
-  'ui:verse-decorator': 'extensionConsent.permission.uiVerseDecorator',
-  'ui:verse-hover': 'extensionConsent.permission.uiVerseHover',
-  'ui:context-menu': 'extensionConsent.permission.uiContextMenu',
-  'ui:notification': 'extensionConsent.permission.uiNotification',
-  'ui:status-bar': 'extensionConsent.permission.uiStatusBar',
-  'ui:media': 'extensionConsent.permission.uiMedia',
-  'commands:register': 'extensionConsent.permission.commandsRegister',
-  'commands:execute-builtin': 'extensionConsent.permission.commandsExecuteBuiltin',
-  tasks: 'extensionConsent.permission.tasks',
-  'extensions:call': 'extensionConsent.permission.extensionsCall',
-};
+function permissionDescription(
+  t: (key: string, params?: Record<string, unknown>) => string,
+  permission: string,
+): string {
+  const declared = Extensions.EXTENSION_API_REGISTRY.permission(permission);
+  if (!declared) return t('extensionConsent.permission.unknown');
+  const { key, text } = declared.consent;
+  const translated = t(key);
+  // `I18nService.t` answers a missing key with `[key]`.
+  return translated === `[${key}]` ? text : translated;
+}
 
 /**
  * Provenance banner shown above the permission list.
@@ -286,9 +265,7 @@ const ExtensionConsentDialog: React.FC = () => {
                         )}
                       </div>
                       <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>
-                        {PERMISSION_DESCRIPTION_KEYS[p]
-                          ? t(PERMISSION_DESCRIPTION_KEYS[p])
-                          : t('extensionConsent.permission.unknown')}
+                        {permissionDescription(t, p)}
                       </div>
                     </div>
                   </label>

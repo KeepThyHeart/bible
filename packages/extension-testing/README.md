@@ -17,6 +17,16 @@ await host.activate(extension);
 
 `createMockApi(overrides)` returns a full host API with everything stubbed, so a test only overrides the handful of calls it cares about. `createTestHost` runs the same `activate` / `deactivate` sequence the real host does, which is what catches an extension that registers during activation but never cleans up.
 
+### Defaults come from the namespace declarations
+
+`createMockApi` builds its fake from the extension API declaration registry in `@bible/core`: each method resolves the `fake` its namespace declaration names, so a namespace declared in core is faked here with no edit to this package. `createDeclaredNamespaceFake(decl)` builds the fake for one declaration, and the `extraNamespaces` option fakes namespaces outside the registry (for example a sample one a test declares itself):
+
+```ts
+const api = createMockApi({}, { extraNamespaces: [sampleNamespace] });
+```
+
+Only `storage`, `bible.listChapters`, `runtime` and `panels` are hand-written behavioural fakes, overlaid on top. The smoke harness's permission guards are derived from the same registry.
+
 ### `api.storage` is real, not stubbed
 
 Most namespaces resolve a fixed default. Storage does not, because persistence is usually the thing being tested and a `set` the next `get` cannot see makes such a test pass no matter what the extension does.

@@ -12,7 +12,9 @@
  */
 
 export {
+  createDeclaredNamespaceFake,
   createMockApi,
+  type CreateMockApiOptions,
   getMockPanelChannel,
   getMockRuntimeEndpoints,
   type MockApiOverrides,

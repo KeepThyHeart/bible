@@ -5,13 +5,13 @@
  * permissions — it's a fixture, not the real host. The smoke assertion engine
  * needs enforcement so it can flag extensions that touch namespaces they did
  * not declare. This module overlays a thin guard on the harness's api object
- * that mirrors `ExtensionPermissionGuard` (desktop) for the handful of
- * namespaces extensions use at runtime.
- *
- * The guard is intentionally conservative — only methods where a real
- * PermissionDeniedError would clearly surface are wrapped. Read methods on
- * DEFAULT_GRANTED_PERMISSIONS namespaces (e.g. `bible.getVerse`) are left
- * alone because they cannot fail a permission check by construction.
+ * that mirrors the host's declared guard exactly: the guarded-method table is
+ * derived from `Extensions.EXTENSION_API_REGISTRY`, and the check is the same
+ * `Extensions.checkMethodGate` the desktop RPC guard calls. Every non-local
+ * method whose declaration names a permission (a string or `{ anyOf }`) is
+ * wrapped when the manifest (plus the default-granted permissions the real
+ * host merges in, e.g. `bible:read`) does not satisfy it. Impl-checked gates
+ * (`commands.execute`) pass through, as they do in the host's generic guard.
  */
 
 import { Extensions } from '@bible/core';
@@ -41,65 +41,37 @@ export interface InstalledInterceptor {
 }
 
 interface GuardedMethod {
-  namespace: keyof BibleExtensionAPI;
+  namespace: string;
   method: string;
-  permission: ExtensionPermission;
+  gate: Extensions.MethodGate;
 }
 
 /**
- * Namespace methods that should surface `PermissionDeniedError` when the
- * manifest hasn't declared the matching permission. Mirrors call sites in
- * `apps/desktop/electron/extensions/api-impl/*`.
+ * Every typed, non-local method whose declared gate names a permission
+ * (a string or `{ anyOf }`), derived from the declaration registry so it
+ * cannot drift from the host's guard. `network.fetch` is excluded: it has its
+ * own richer wrapper below. Impl-checked and open gates are left alone.
  */
-const GUARDED_METHODS: readonly GuardedMethod[] = [
-  { namespace: 'notes', method: 'list', permission: 'notes:read' },
-  { namespace: 'notes', method: 'get', permission: 'notes:read' },
-  { namespace: 'notes', method: 'create', permission: 'notes:write' },
-  { namespace: 'notes', method: 'update', permission: 'notes:write' },
-  { namespace: 'notes', method: 'delete', permission: 'notes:write' },
-  { namespace: 'highlights', method: 'list', permission: 'highlights:read' },
-  { namespace: 'highlights', method: 'create', permission: 'highlights:write' },
-  { namespace: 'highlights', method: 'update', permission: 'highlights:write' },
-  { namespace: 'highlights', method: 'delete', permission: 'highlights:write' },
-  { namespace: 'bookmarks', method: 'list', permission: 'bookmarks:read' },
-  { namespace: 'bookmarks', method: 'add', permission: 'bookmarks:write' },
-  { namespace: 'bookmarks', method: 'remove', permission: 'bookmarks:write' },
-  // Ordered passage collections reuse the bookmark grants - same rows, so a
-  // separate permission would be a second door into the same table.
-  { namespace: 'collections', method: 'list', permission: 'bookmarks:read' },
-  { namespace: 'collections', method: 'listPassages', permission: 'bookmarks:read' },
-  { namespace: 'collections', method: 'create', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'rename', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'delete', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'addPassage', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'removePassage', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'move', permission: 'bookmarks:write' },
-  { namespace: 'collections', method: 'reorder', permission: 'bookmarks:write' },
-  { namespace: 'storage', method: 'get', permission: 'storage' },
-  { namespace: 'storage', method: 'set', permission: 'storage' },
-  { namespace: 'storage', method: 'delete', permission: 'storage' },
-  { namespace: 'storage', method: 'keys', permission: 'storage' },
-  { namespace: 'storage', method: 'getSecret', permission: 'storage:secrets' },
-  { namespace: 'storage', method: 'setSecret', permission: 'storage:secrets' },
-  { namespace: 'storage', method: 'deleteSecret', permission: 'storage:secrets' },
-  { namespace: 'storage', method: 'openDatabase', permission: 'storage:database' },
-  { namespace: 'commentary', method: 'getEntry', permission: 'commentary:read' },
-  { namespace: 'commentary', method: 'getEntriesForRange', permission: 'commentary:read' },
-  { namespace: 'dictionary', method: 'lookup', permission: 'dictionary:read' },
-  { namespace: 'dictionary', method: 'search', permission: 'dictionary:read' },
-  { namespace: 'book', method: 'getSection', permission: 'book:read' },
-  { namespace: 'book', method: 'listSections', permission: 'book:read' },
-  { namespace: 'tasks', method: 'run', permission: 'tasks' },
-  { namespace: 'extensions', method: 'call', permission: 'extensions:call' },
-];
+const GUARDED_METHODS: readonly GuardedMethod[] = Extensions.EXTENSION_API_REGISTRY.methods
+  .filter(
+    (m) =>
+      m.typed &&
+      !m.local &&
+      Extensions.gatePermissions(m.gate).length > 0 &&
+      !(m.namespace === 'network' && m.method === 'fetch'),
+  )
+  .map((m) => ({ namespace: m.namespace, method: m.method, gate: m.gate }));
 
 export function installPermissionAndNetworkInterceptors(
   api: BibleExtensionAPI,
   manifest: ExtensionManifest,
 ): InstalledInterceptor {
-  const declared = new Set<ExtensionPermission>(
-    (manifest.permissions ?? []) as ExtensionPermission[],
-  );
+  // The real host merges DEFAULT_GRANTED_PERMISSIONS into every extension's
+  // grant, so the harness does too.
+  const declared = new Set<string>([
+    ...((manifest.permissions ?? []) as string[]),
+    ...Extensions.DEFAULT_GRANTED_PERMISSIONS,
+  ]);
   const allowedHosts = (manifest.network?.allowedHosts ?? []).map((h) => h.host);
 
   const permissionDenials: string[] = [];
@@ -107,17 +79,22 @@ export function installPermissionAndNetworkInterceptors(
   const restorers: Array<() => void> = [];
 
   for (const g of GUARDED_METHODS) {
-    const ns = api[g.namespace] as unknown as Record<string, unknown>;
+    const ns = (api as unknown as Record<string, Record<string, unknown> | undefined>)[g.namespace];
+    if (!ns) continue;
     const original = ns[g.method];
     if (typeof original !== 'function') continue;
-    if (declared.has(g.permission)) continue;
+    const check = Extensions.checkMethodGate(g.gate, declared);
+    if (check.ok) continue;
+    const missing = check.anyOf
+      ? `one of ${check.required.map((p) => `'${p}'`).join(', ')}`
+      : `'${check.required[0]}'`;
     const wrapped = (..._args: unknown[]): Promise<unknown> => {
-      const msg = `PermissionDeniedError: extension '${manifest.id}' is missing '${g.permission}' (called ${String(g.namespace)}.${g.method})`;
+      const msg = `PermissionDeniedError: extension '${manifest.id}' is missing ${missing} (called ${g.namespace}.${g.method})`;
       permissionDenials.push(msg);
       return Promise.reject(
         new Extensions.PermissionDeniedError(msg, {
           extensionId: manifest.id,
-          permission: g.permission,
+          permission: check.required[0] as ExtensionPermission,
         }),
       );
     };

@@ -12,6 +12,8 @@
  * fully-qualified strings to avoid typo-prone string concatenation in callers.
  */
 
+import { EXTENSION_API_REGISTRY } from './Declarations/registry';
+
 // --- Bare event identifiers ------------------------------------------------
 
 /**
@@ -132,45 +134,63 @@ export function isBuiltinOnlyEvent(event: string): boolean {
 // (`isKnownActivationEvent`) and let the host log a one-time warning for a
 // syntactically valid event it has no firing site for (`isFiredActivationEvent`).
 
-/** Bare (non-parameterized) events the vocabulary accepts. */
-export const BARE_ACTIVATION_EVENTS: readonly string[] = [
+/**
+ * Host-level bare events (not owned by any API namespace). Namespace-owned
+ * events (`onCommand:`, `onView:`, `onContext:`, `onTask:`,
+ * `onExtensionApi:`, `onProviderRoleSelected:`) come from the declaration
+ * registry and are merged in below.
+ */
+const HOST_BARE_EVENTS: readonly string[] = [
   ACT_ON_STARTUP_FINISHED,
   ACT_STAR,
   ACT_ON_SESSION_LOADED,
   ACT_ON_SEARCH_PROVIDER,
 ];
 
-/** Every parameterized prefix the vocabulary accepts. */
-export const ACTIVATION_EVENT_PREFIXES: readonly string[] = [
-  ACT_PREFIX_ON_VIEW,
-  ACT_PREFIX_ON_COMMAND,
+/** Host-level parameterized prefixes no namespace declares. */
+const HOST_EVENT_PREFIXES: readonly string[] = [
   ACT_PREFIX_ON_LANGUAGE,
   ACT_PREFIX_ON_FILE_TYPE,
   ACT_PREFIX_ON_URI,
-  ACT_PREFIX_ON_CONTEXT,
   ACT_PREFIX_ON_MODULE_INSTALLED,
   ACT_PREFIX_ON_MODULE_UPDATED,
-  ACT_PREFIX_ON_PROVIDER_ROLE_SELECTED,
-  ACT_PREFIX_ON_EXTENSION_API,
   ACT_PREFIX_ON_AUTH_REQUIRED,
-  ACT_PREFIX_ON_TASK,
 ];
 
+/** Host-level events the host fires today (the registry adds the namespaces' fired ones). */
+const HOST_FIRED_EVENTS: readonly string[] = [ACT_ON_STARTUP_FINISHED];
+
+const REGISTRY_EVENTS = EXTENSION_API_REGISTRY.activationEvents;
+
+function unique(list: readonly string[]): readonly string[] {
+  return [...new Set(list)];
+}
+
+/** Bare (non-parameterized) events the vocabulary accepts: host-level + registry-declared. */
+export const BARE_ACTIVATION_EVENTS: readonly string[] = unique([
+  ...HOST_BARE_EVENTS,
+  ...REGISTRY_EVENTS.filter((e) => !e.event.endsWith(':')).map((e) => e.event),
+]);
+
+/** Every parameterized prefix the vocabulary accepts: host-level + registry-declared. */
+export const ACTIVATION_EVENT_PREFIXES: readonly string[] = unique([
+  ...HOST_EVENT_PREFIXES,
+  ...REGISTRY_EVENTS.filter((e) => e.event.endsWith(':')).map((e) => e.event),
+]);
+
 /**
- * The events the host actually fires as of P1.5 (`onStartupFinished` at boot,
+ * The events the host actually fires (`onStartupFinished` at boot,
  * `onCommand:`/`onView:` on demand - see `DeclaredContributions.ts` and
  * `extensionHandlers.ts`'s `getPanelTypeUiEntry`). Anything else in the
- * vocabulary above validates but never activates anything; declaring one is
+ * vocabulary validates but never activates anything; declaring one is
  * not an error, but the host logs a warning per extension at load time
  * (`ExtensionHost.warnOnUnfiredActivationEvents` via `DeclaredContributions`).
- * Kept as its own list so adding a real firing site later is a one-line change
- * here, not a hunt through the validator.
+ * Namespace events are fired per their declaration's `fired` flag.
  */
-export const FIRED_ACTIVATION_EVENTS: readonly string[] = [
-  ACT_ON_STARTUP_FINISHED,
-  ACT_PREFIX_ON_COMMAND,
-  ACT_PREFIX_ON_VIEW,
-];
+export const FIRED_ACTIVATION_EVENTS: readonly string[] = unique([
+  ...HOST_FIRED_EVENTS,
+  ...REGISTRY_EVENTS.filter((e) => e.fired).map((e) => e.event),
+]);
 
 /** True if `event` is a syntactically valid activation event (bare or prefixed with a real parameter). */
 export function isKnownActivationEvent(event: string): boolean {

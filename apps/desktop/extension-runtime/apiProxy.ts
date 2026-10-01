@@ -25,6 +25,7 @@
 // reach the guest bundle.
 import { EXTENSION_API_VERSION } from '@bible/core/Extensions/ExtensionApiTypes';
 import { reviveExtensionApiError } from '@bible/core/Extensions/ExtensionApiErrors';
+import { EXTENSION_API_REGISTRY } from '@bible/core/Extensions/Declarations/registry';
 import type { Extensions } from '@bible/core';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
@@ -100,6 +101,13 @@ export function createApiProxy(opts: {
   endpoints?: IReverseEndpointTable;
 }): {
   api: BibleExtensionAPI;
+  /**
+   * Drop every namespace not in `names` (the host's
+   * `ExtensionInitPayload.apiNamespaces`), so `api.<name>` is `undefined` for
+   * a namespace this host does not implement and the extension can
+   * feature-detect it. Names the runtime does not know are ignored.
+   */
+  restrictNamespaces(names: readonly string[]): void;
   /** Routes incoming responses to pending forward requests. */
   handleResponse(res: RpcResponse): void;
   /** True iff a request with that id is awaiting a response. */
@@ -233,41 +241,23 @@ export function createApiProxy(opts: {
   }
 
   // --- Build the API root ----------------------------------------------
-  // We list the namespaces explicitly so a typo in a call site surfaces at
-  // runtime as the host's `Unknown RPC method` error, rather than silently
-  // reaching an undefined namespace proxy.
-  const namespaces = [
-    'bible',
-    'commentary',
-    'book',
-    'dictionary',
-    'notes',
-    'highlights',
-    'bookmarks',
-    'collections',
-    'commands',
-    'ui',
-    'workspace',
-    'context',
-    'storage',
-    'l10n',
-    'events',
-    'runtime',
-    'panels',
-    'network',
-    'auth',
-    'tasks',
-    'extensions',
-    'ai',
-  ] as const;
-
+  // One proxy per declared namespace (`EXTENSION_API_REGISTRY`), so a typo in
+  // a call site surfaces at runtime as the host's `Unknown RPC method` error,
+  // rather than silently reaching an undefined namespace proxy. The host
+  // narrows the set at init (`restrictNamespaces`) to what it implements.
   const root: Record<string, unknown> = {};
-  for (const ns of namespaces) {
+  for (const ns of EXTENSION_API_REGISTRY.namespaceNames) {
     root[ns] = makeNamespaceProxy(ns);
   }
 
   return {
     api: root as unknown as BibleExtensionAPI,
+    restrictNamespaces(names: readonly string[]): void {
+      const keep = new Set(names);
+      for (const ns of Object.keys(root)) {
+        if (!keep.has(ns)) delete root[ns];
+      }
+    },
     handleResponse(res: RpcResponse): void {
       const p = pending.get(res.id);
       if (!p) return;

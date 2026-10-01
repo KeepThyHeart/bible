@@ -151,6 +151,8 @@ export class ExtensionRuntime implements IExtensionRuntime {
       throw new Error('ExtensionRuntime.init called twice');
     }
     this.initPayload = payload;
+    // Before the extension sees `api`: expose only what this host serves.
+    if (payload.apiNamespaces) this.proxy.restrictNamespaces(payload.apiNamespaces);
 
     if (!payload.manifest.main) {
       const err = new Error(

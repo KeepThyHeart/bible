@@ -54,6 +54,15 @@ export interface IRpcTransport {
 export type RpcMethodHandler = (args: unknown[]) => unknown | Promise<unknown>;
 
 /**
+ * Runs before every registered method handler; throws to refuse the call
+ * (the error is serialized back like a handler's). `ExtensionHostRpc`
+ * installs the declared-permission guard (`DeclaredApiGuard.ts`) here, so the
+ * permission a method needs is read from its namespace declaration rather
+ * than from each api-impl.
+ */
+export type RpcMethodGuard = (method: string) => void;
+
+/**
  * Reasons the router emits a structured protocol error. The corresponding
  * error code is logged so the desktop UI can surface it under the extension's
  * crash panel.
@@ -115,6 +124,7 @@ export class ExtensionRpcRouter {
   private readonly pending = new Map<RpcRequestId, PendingReverseRequest>();
   private nextReverseId = 1;
   private closed = false;
+  private methodGuard: RpcMethodGuard | undefined;
 
   constructor(
     private readonly transport: IRpcTransport,
@@ -130,6 +140,20 @@ export class ExtensionRpcRouter {
   /** Register a method handler the worker may call via `RpcRequest`. */
   registerMethod(method: string, handler: RpcMethodHandler): void {
     this.methods.set(method, handler);
+  }
+
+  /**
+   * Install the guard every request passes before its handler runs. It runs
+   * only for registered methods, so an unregistered one still answers
+   * `Unknown RPC method`.
+   */
+  setMethodGuard(guard: RpcMethodGuard | undefined): void {
+    this.methodGuard = guard;
+  }
+
+  /** Every registered method name - for drift tests against the declarations. */
+  listMethods(): string[] {
+    return [...this.methods.keys()];
   }
 
   /** Bulk-register a namespace's worth of methods at once. */
@@ -317,6 +341,7 @@ export class ExtensionRpcRouter {
     }
     this.callbacks.onRequestDispatch?.(req.method);
     try {
+      this.methodGuard?.(req.method);
       const result = await handler(req.args);
       this.sendResponse({ kind: 'response', id: req.id, result });
     } catch (err) {

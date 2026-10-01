@@ -12,6 +12,12 @@
  *     offending field via a JSON-pointer-like `path` so the loader can render
  *     a useful error toast.
  *
+ * Tolerance rule: things a NEWER host may know about degrade instead of
+ * failing the load. An unknown permission, unknown `contributes` key or an
+ * unknown (well-formed) activation event becomes a `warnings` entry and is
+ * dropped from the output manifest. Structural problems, duplicates, the
+ * retired `onStartup`, and invalid values for KNOWN things stay errors.
+ *
  * Rules enforced beyond pure schema:
  *   - `permissions` containing `network` requires `network.allowedHosts`
  *     non-empty.
@@ -43,6 +49,8 @@ import type {
   PricingTier,
 } from './ExtensionManifest';
 import type { ExtensionPermission } from './Permissions';
+import { EXTENSION_API_REGISTRY } from './Declarations/registry';
+import type { ContributesValidationContext } from './Declarations/defineApiNamespace';
 import {
   UI_KIT_REQUIRED_PERMISSION,
   validateUiKitDeclaration,
@@ -73,7 +81,7 @@ export interface ManifestValidationError {
 }
 
 export type ManifestValidationResult =
-  | { ok: true; manifest: ExtensionManifest }
+  | { ok: true; manifest: ExtensionManifest; warnings?: ManifestValidationError[] }
   | { ok: false; errors: ManifestValidationError[] };
 
 // --- Constants mirrored from the JSON Schema -------------------------------
@@ -90,52 +98,8 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
  * what produced the pre-round-3 `bibleProviders` bug (task 0024 §3): the
  * schema promised a field the validator rejected.
  */
-export const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
-  'bible:read',
-  'commentary:read',
-  'dictionary:read',
-  'book:read',
-  'notes:read',
-  'notes:write',
-  'highlights:read',
-  'highlights:write',
-  'bookmarks:read',
-  'bookmarks:write',
-  'bible:provide',
-  'commentary:provide',
-  'dictionary:provide',
-  'book:provide',
-  'storage',
-  'storage:secrets',
-  'storage:database',
-  'ui:contribute-pane',
-  'ui:verse-decorator',
-  'ui:verse-hover',
-  'ui:context-menu',
-  'ui:notification',
-  'ui:status-bar',
-  /**
-   * Found missing here by the schema/validator parity test added in task
-   * 0024 round 3 (P2.13, Q4): `ui:media` was declared in the JSON Schema's
-   * `Permission` enum, in `Permissions.ts`'s `ExtensionPermission` union, and
-   * consumed live (`extensionHandlers.ts`'s autoplay gate,
-   * `ExtensionPanelHost.tsx`), but never added here - so a manifest
-   * declaring `permissions: ['ui:media']` was rejected at load as an
-   * "unknown permission". The exact same class of bug as the pre-fix
-   * `bibleProviders` mismatch (§3), just on the permission enum instead of
-   * `contributes`.
-   */
-  'ui:media',
-  'commands:register',
-  'commands:execute-builtin',
-  'tasks',
-  'network',
-  'network:oauth',
-  'extensions:call',
-  'fs:read-user',
-  'fs:write-user',
-  'fs:managed-folder',
-];
+export const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] =
+  EXTENSION_API_REGISTRY.permissionIds as readonly ExtensionPermission[];
 
 const ALLOWED_HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] as const;
 const ALLOWED_PRICING: readonly PricingTier[] = ['free', 'freemium', 'paid'];
@@ -184,7 +148,12 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
 ]);
 
 /** Exported for the same reason as `ALLOWED_PERMISSIONS` above. */
-export const ALLOWED_CONTRIBUTES_KEYS = new Set([
+export const ALLOWED_CONTRIBUTES_KEYS: ReadonlySet<string> = new Set(
+  EXTENSION_API_REGISTRY.contributesKeys.map((k) => k.key),
+);
+
+/** The `contributes` keys this file validates itself (no declaration `validate`). */
+const BUILTIN_CONTRIBUTES_KEYS: ReadonlySet<string> = new Set([
   'commands',
   'panelTypes',
   'configuration',
@@ -196,6 +165,11 @@ export const ALLOWED_CONTRIBUTES_KEYS = new Set([
 
 class Validator {
   readonly errors: ManifestValidationError[] = [];
+  readonly warnings: ManifestValidationError[] = [];
+
+  warn(path: string, code: string, message: string): void {
+    this.warnings.push({ path, code, message });
+  }
 
   add(path: string, code: string, message: string): void {
     this.errors.push({ path, code, message });
@@ -420,7 +394,11 @@ function validatePermissions(v: Validator, value: unknown): ExtensionPermission[
       return;
     }
     if (!(ALLOWED_PERMISSIONS as readonly string[]).includes(perm)) {
-      v.add(path, 'enum', `unknown permission "${perm}"`);
+      v.warn(
+        path,
+        'permission.unknown',
+        `unknown permission "${perm}" ignored: this host does not know it`,
+      );
       return;
     }
     if (seen.has(perm)) {
@@ -591,6 +569,8 @@ function hostMatches(candidate: string, allowedPattern: string): boolean {
  * `normalizeActivationArgument`'s own doc comment for the short-vs-long-id
  * rule this mirrors from `normalizeId`.
  */
+const FUTURE_EVENT_PATTERN = /^on[A-Z][A-Za-z0-9]*(:.+)?$/;
+
 function validateActivationEvents(
   v: Validator,
   value: unknown,
@@ -618,11 +598,12 @@ function validateActivationEvents(
       return;
     }
     if (!isKnownActivationEvent(entry)) {
-      v.add(
-        path,
-        'activation.unknown',
-        `unknown activation event "${entry}" (see packages/core/src/Extensions/ActivationEvents.ts)`,
-      );
+      const message = `unknown activation event "${entry}" (see packages/core/src/Extensions/ActivationEvents.ts)`;
+      if (entry !== 'onStartup' && FUTURE_EVENT_PATTERN.test(entry)) {
+        v.warn(path, 'activation.unknown', `${message}; ignored because this host does not know it`);
+      } else {
+        v.add(path, 'activation.unknown', message);
+      }
       return;
     }
     seen.add(entry);
@@ -805,8 +786,17 @@ function validateContributes(
   ctx: ContributionContext,
 ): ExtensionContributes | undefined {
   if (!v.requireRecord('/contributes', value)) return undefined;
-  v.noAdditionalProperties('/contributes', value, ALLOWED_CONTRIBUTES_KEYS);
   const out: ExtensionContributes = {};
+  const declared = new Map(EXTENSION_API_REGISTRY.contributesKeys.map((k) => [k.key, k]));
+  for (const key of Object.keys(value)) {
+    if (!declared.has(key)) {
+      v.warn(
+        `/contributes/${key}`,
+        'contributes.unknown',
+        `unknown contributes key "${key}" ignored: this host does not know it`,
+      );
+    }
+  }
 
   if ('commands' in value) {
     out.commands = validateContributedCommands(v, value.commands, ctx);
@@ -822,6 +812,23 @@ function validateContributes(
   }
   if ('bibleProviders' in value) {
     out.bibleProviders = validateBibleProviders(v, value.bibleProviders, ctx);
+  }
+
+  for (const [key, decl] of declared) {
+    if (BUILTIN_CONTRIBUTES_KEYS.has(key) || !(key in value)) continue;
+    const path = `/contributes/${key}`;
+    if (!decl.validate) {
+      v.add(path, 'contributes.no-validator', `contributes key "${key}" is declared without a validator`);
+      continue;
+    }
+    const vctx: ContributesValidationContext = {
+      extensionId: ctx.extId,
+      error: (p, code, message) => v.add(p, code, message),
+      warn: (p, code, message) => v.warn(p, code, message),
+      qualifyId: (p, id) => normalizeId(v, p, id, ctx),
+    };
+    const result = decl.validate(value[key], path, vctx);
+    if (result !== undefined) (out as Record<string, unknown>)[key] = result;
   }
 
   return out;
@@ -1289,6 +1296,21 @@ export function validateManifest(json: unknown): ManifestValidationResult {
     );
   }
 
+  for (const decl of EXTENSION_API_REGISTRY.contributesKeys) {
+    if (
+      decl.requiresPermission &&
+      contributes &&
+      decl.key in contributes &&
+      !(permissions ?? []).includes(decl.requiresPermission as ExtensionPermission)
+    ) {
+      v.add(
+        `/contributes/${decl.key}`,
+        'permissions.contributes-requires-permission',
+        `\`contributes.${decl.key}\` requires permission \`${decl.requiresPermission}\``,
+      );
+    }
+  }
+
   if (v.errors.length > 0) {
     return { ok: false, errors: v.errors };
   }
@@ -1338,5 +1360,5 @@ export function validateManifest(json: unknown): ManifestValidationResult {
   if (userData !== undefined) manifest.userData = userData;
   if (uiKit !== undefined) manifest.uiKit = uiKit;
 
-  return { ok: true, manifest };
+  return v.warnings.length > 0 ? { ok: true, manifest, warnings: v.warnings } : { ok: true, manifest };
 }

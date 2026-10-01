@@ -33,3 +33,4 @@ export * from './IExtensionHost';
 export * from './IExtensionRuntime';
 export * from './UiKit';
 export * from './IframeRpcBridge';
+export * from './Declarations';

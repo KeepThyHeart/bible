@@ -54,6 +54,15 @@ export interface ExtensionInitPayload {
    * Example: `['ai.providerUi', 'webview.csp.relaxed']`.
    */
   hostFeatures: string[];
+  /**
+   * The `api.*` namespaces this host implements. The worker's API proxy
+   * exposes exactly these, so an extension feature-detects a namespace the
+   * host lacks with `if (api.speech)` instead of taking an RPC error -
+   * which is how an extension built for a newer host (or for desktop, when
+   * it runs on a web host) degrades instead of failing. Absent: every
+   * namespace the runtime's own registry declares (`EXTENSION_API_REGISTRY`).
+   */
+  apiNamespaces?: string[];
 }
 
 /**
