@@ -40,6 +40,7 @@ export const FEATURE_FLAGS = {
   audio: { default: false, description: 'Audio Bible playback and Settings > Audio.' },
   timeline: { default: false, description: 'Timeline view.' },
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
+  quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 
 export type FeatureFlagName = keyof typeof FEATURE_FLAGS;

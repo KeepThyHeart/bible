@@ -78,3 +78,8 @@ export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
 
+
+// Quiz (task 0074): QuizPanel drives a core QuizEngine the app builds.
+export { QuizPanel } from './components/Quiz/QuizPanel';
+export { DEFAULT_QUIZ_LABELS } from './components/Quiz/labels';
+export type { QuizPanelProps, QuizLabels } from './components/Quiz/types';
