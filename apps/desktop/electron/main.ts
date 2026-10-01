@@ -1202,6 +1202,8 @@ async function initializeExtensionHostInBackground(): Promise<void> {
     // extensions, then re-check what may fire.
     extensionRegistryLoaded = true;
     {
+      // After the scheduler has loaded its saved state, or that load would restore what we forget.
+      await reminderHost?.start().catch(() => undefined);
       const installedIds = new Set(extensionHost.listEntries().map((e) => e.id));
       for (const id of reminderHost?.knownExtensionIds() ?? []) {
         if (!installedIds.has(id)) await reminderHost?.forgetExtension(id);
@@ -1294,8 +1296,6 @@ registerExtUiSchemePrivileged();
 
 // App lifecycle
 app.whenReady().then(async () => {
-  // Lost the single-instance lock: nothing to start (the quit is already under way).
-  if (!gotSingleInstanceLock) return;
   // A second instance quits at once; it must not open databases or schedulers.
   if (!gotSingleInstanceLock) return;
   log.info('Application starting...');
