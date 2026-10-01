@@ -240,7 +240,8 @@
       "gestures": "Gestos",
       "audio": "Audio",
       "offline": "Sin conexión",
-      "about": "Acerca de"
+      "about": "Acerca de",
+      "notifications": "Notificaciones"
     },
     "textSize": {
       "decreaseAll": "Reducir todos los tamaños de fuente",
@@ -1366,6 +1367,43 @@
       "edgeBoth": "{from} y {to} se citan mutuamente",
       "strength": "Fortaleza {n} de 5",
       "hopName": "salto {hop}"
+    }
+  },
+  "notifications": {
+    "votd": {
+      "label": "Versículo del día",
+      "description": "Un versículo cada día a la hora que elija.",
+      "title": "Versículo del día"
+    },
+    "test": {
+      "title": "Notificación de prueba",
+      "body": "Las notificaciones funcionan."
+    },
+    "collapsed": "{count, plural, one {# recordatorio en espera} other {# recordatorios en espera}}",
+    "labels": {
+      "statusGranted": "Las notificaciones están permitidas.",
+      "statusDenied": "Las notificaciones están bloqueadas. Permítalas en los ajustes del navegador para este sitio.",
+      "statusPrompt": "Las notificaciones aún no están permitidas.",
+      "statusUnsupported": "Este navegador no puede mostrar notificaciones. En iPhone y iPad, añada primero la aplicación a la pantalla de inicio y ábrala desde allí.",
+      "allow": "Permitir notificaciones",
+      "whenClosedFires": "Los recordatorios siguen llegando mientras la aplicación se ejecuta en segundo plano.",
+      "whenClosedNever": "Los recordatorios solo llegan mientras la aplicación está abierta.",
+      "whenClosedBackgroundOnly": "Los recordatorios solo llegan mientras la aplicación está abierta en una pestaña del navegador, aunque la pestaña esté en segundo plano.",
+      "enabled": "Mostrar notificaciones",
+      "quietHours": "Horas de silencio",
+      "quietFrom": "Desde",
+      "quietTo": "Hasta",
+      "quietHelp": "Las notificaciones que lleguen en las horas de silencio esperan a que terminen.",
+      "sources": "Recordatorios",
+      "noSources": "Ninguna función usa notificaciones todavía.",
+      "dailyTime": "Hora",
+      "next": "Siguiente: {time}",
+      "scheduled": "{count} programados",
+      "device": "Cuando la ventana está cerrada",
+      "tray": "Seguir ejecutándose en la bandeja",
+      "openAtLogin": "Iniciar al iniciar sesión (en la bandeja)",
+      "sendTest": "Enviar una notificación de prueba",
+      "general": "Notificaciones"
     }
   }
 }

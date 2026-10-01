@@ -231,6 +231,14 @@ async function init() {
       .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
   }
 
+  // Reminders (tier 1: notifications while a tab is open). The code loads lazily and only where the
+  // browser can show notifications, so it adds nothing to the critical path elsewhere.
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    void import('./notifications/webReminders')
+      .then(m => m.startWebReminders({ getVerseOfTheDay: () => offlineBible.getVerseOfTheDay() }))
+      .catch(err => console.warn('[Notifications] Reminders failed to start:', err));
+  }
+
   // Load module manifest — in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.
   try {

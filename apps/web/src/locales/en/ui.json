@@ -240,7 +240,8 @@
       "gestures": "Gestures",
       "audio": "Audio",
       "offline": "Offline",
-      "about": "About"
+      "about": "About",
+      "notifications": "Notifications"
     },
     "textSize": {
       "decreaseAll": "Decrease all font sizes",
@@ -1366,6 +1367,43 @@
       "edgeBoth": "{from} and {to} cite each other",
       "strength": "Strength {n} of 5",
       "hopName": "hop {hop}"
+    }
+  },
+  "notifications": {
+    "votd": {
+      "label": "Verse of the day",
+      "description": "A verse each day at the time you choose.",
+      "title": "Verse of the day"
+    },
+    "test": {
+      "title": "Test notification",
+      "body": "Notifications are working."
+    },
+    "collapsed": "{count, plural, one {# reminder is waiting} other {# reminders are waiting}}",
+    "labels": {
+      "statusGranted": "Notifications are allowed.",
+      "statusDenied": "Notifications are blocked. Allow them in your browser settings for this site.",
+      "statusPrompt": "Notifications are not allowed yet.",
+      "statusUnsupported": "This browser cannot show notifications. On iPhone and iPad, add the app to your Home Screen first, then open it from there.",
+      "allow": "Allow notifications",
+      "whenClosedFires": "Reminders keep arriving while the app runs in the background.",
+      "whenClosedNever": "Reminders arrive only while the app is open.",
+      "whenClosedBackgroundOnly": "Reminders arrive only while the app is open in a browser tab, even if the tab is in the background.",
+      "enabled": "Show notifications",
+      "quietHours": "Quiet hours",
+      "quietFrom": "From",
+      "quietTo": "To",
+      "quietHelp": "Notifications due in quiet hours wait until they end.",
+      "sources": "Reminders",
+      "noSources": "No features use notifications yet.",
+      "dailyTime": "Time",
+      "next": "Next: {time}",
+      "scheduled": "{count} scheduled",
+      "device": "When the window is closed",
+      "tray": "Keep running in the tray",
+      "openAtLogin": "Start when I log in (in the tray)",
+      "sendTest": "Send a test notification",
+      "general": "Notifications"
     }
   }
 }
