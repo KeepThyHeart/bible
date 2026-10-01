@@ -71,10 +71,16 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
     [tabId],
   );
 
+  // The word whose show is pending, so mouse moves inside it do not restart the 300 ms timer.
+  const pendingKey = useRef<string | null>(null);
+
   const onMouseOver = useCallback((e: React.MouseEvent) => {
     const hit = measureWordAt(e.target, chapterOf(), { x: e.clientX, y: e.clientY });
-    if (!hit) return;
-    if (openRef.current?.key === hitKey(hit)) { intent.cancelHide(); return; }
+    if (!hit) { pendingKey.current = null; return; }
+    const key = hitKey(hit);
+    if (openRef.current?.key === key) { intent.cancelHide(); return; }
+    if (pendingKey.current === key) return;
+    pendingKey.current = key;
     intent.scheduleShow(openFrom(hit, false));
   }, [chapterOf, intent]);
 
@@ -86,6 +92,7 @@ export function useMeasureWordPopup(tabId: string | undefined): MeasureWordPopup
     if (!hit) return;
     const related = measureWordAt(e.relatedTarget, chapterOf());
     if (related && hitKey(related) === hitKey(hit)) return; // still inside the same word
+    pendingKey.current = null;
     intent.scheduleHide();
   }, [chapterOf, intent]);
 
