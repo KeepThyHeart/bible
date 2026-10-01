@@ -23,6 +23,7 @@ import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
 import './routes/timelineRoutes.js';
+import './routes/quizRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
@@ -384,6 +385,7 @@ const routeDeps = {
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
+    showQuiz: siteConfig.isEnabled('quiz'),
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,

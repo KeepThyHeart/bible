@@ -12,6 +12,7 @@ The service worker (`src/sw.ts`) has no route list of its own. What it caches at
 | `src/sw/rules/index.ts` | `CACHE_RULES`, the ordered list. First match wins |
 | `src/sw/rules/network.ts` | Explicit `network-only` rules (`/api/sync`, auth). Listed first so they cannot be overridden |
 | `src/sw/rules/content.ts`, `data.ts` | The built-in rules (chapter content under `/api/`, models and indexes under `/data/`) |
+| `src/sw/rules/quiz.ts` | `/api/quiz` (the quiz catalog), cache-first, 7 days; `/api/quiz/questions?range=...` (questions for a passage), cache-first, 7 days, up to 100 entries |
 | `src/sw/rules/timeline.ts` | `/api/timeline` (the installed timeline module as one JSON document), cache-first, 7 days |
 | `src/sw/cacheRules.test.ts` | Validates the whole registry; add your rule's cases here |
 

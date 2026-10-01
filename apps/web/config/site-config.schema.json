@@ -47,6 +47,11 @@
           "description": "Show the Timeline explorer tab. Without an installed timeline module the tab shows an install hint.",
           "default": false
         },
+        "quiz": {
+          "type": "boolean",
+          "description": "Show the Quiz tab (questions on a passage). Without an installed quiz module the tab says none is installed. The web app saves no quiz progress.",
+          "default": false
+        },
         "semanticSearch": {
           "type": "boolean",
           "description": "Enable semantic (Ideas) search. Requires a search pipeline config.",

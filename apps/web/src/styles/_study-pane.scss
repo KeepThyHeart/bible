@@ -682,6 +682,23 @@
   }
 }
 
+// Quiz Pane (right-pane tab and phone full-screen sheet)
+.quiz-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  padding: 12px;
+
+  &--message {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    color: var(--text-secondary, #666);
+  }
+}
+
 // Dictionary Pane
 .dictionary-pane {
   display: flex;

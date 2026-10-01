@@ -35,6 +35,12 @@ describe('shipped cache rules', () => {
     expect(cacheRuleFor(CACHE_RULES, u('/data/models/foo/onnx/model.onnx'))?.id).toBe('embedding-model');
   });
 
+  it('cache the quiz catalog and questions only', () => {
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz'))?.id).toBe('quiz-catalog');
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz/questions?range=41001001-41001999'))?.id).toBe('quiz-questions');
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz/other'))).toBeUndefined();
+  });
+
   it('never cache an API route that has no rule (allow-list only)', () => {
     for (const path of [
       '/api/bible/KJV/43/3',
