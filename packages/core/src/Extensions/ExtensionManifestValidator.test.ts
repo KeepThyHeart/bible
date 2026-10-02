@@ -148,12 +148,34 @@ describe('validateManifest - schema-level failures', () => {
     expect(SEPARATELY_PROMPTED_PERMISSIONS).not.toContain('speech:speak');
   });
 
-  it('rejects an unknown permission', () => {
+  it('drops an unknown permission with a warning', () => {
     const m = baseManifest();
     (m as { permissions: unknown[] }).permissions = ['bible:read', 'not-a-real-perm'];
     const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.permissions).toEqual(['bible:read']);
+      expect(
+        r.warnings?.some((w) => w.path === '/permissions/1' && w.code === 'permission.unknown'),
+      ).toBe(true);
+    }
+  });
+
+  it('still rejects non-string and duplicate permissions', () => {
+    const m = baseManifest();
+    (m as { permissions: unknown[] }).permissions = ['bible:read', 'bible:read', 5];
+    const r = validateManifest(m);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.some((e) => e.path === '/permissions/1')).toBe(true);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'unique')).toBe(true);
+      expect(r.errors.some((e) => e.code === 'type')).toBe(true);
+    }
+  });
+
+  it('omits `warnings` when there are none', () => {
+    const r = validateManifest(baseManifest());
+    expect(r.ok).toBe(true);
+    if (r.ok) expect('warnings' in r).toBe(false);
   });
 });
 
@@ -190,10 +212,15 @@ describe('validateManifest - beyond-schema rules', () => {
     }
   });
 
-  it('rejects a parameterised `onReminder:` (the event is bare)', () => {
+  it('drops a parameterised `onReminder:` (the event is bare) with a warning', () => {
     const m = baseManifest();
     (m as Record<string, unknown>).activationEvents = ['onReminder:daily'];
-    expect(validateManifest(m).ok).toBe(false);
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents ?? []).not.toContain('onReminder:daily');
+      expect(r.warnings?.some((w) => w.code === 'activation.unknown')).toBe(true);
+    }
   });
 
   it('rejects `network:oauth` without a network block', () => {
@@ -457,30 +484,30 @@ describe('validateManifest - deleted contributes fields are rejected (task 0024 
     'bookProviders',
   ];
 
-  it.each(deletedFields)('rejects contributes.%s as an unknown property', (field) => {
+  it.each(deletedFields)('drops contributes.%s with a warning', (field) => {
     const m = baseManifest();
     (m as Record<string, unknown>).contributes = { [field]: [] };
     const r = validateManifest(m);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.contributes).toEqual({});
       expect(
-        r.errors.some(
-          (e) => e.path === `/contributes/${field}` && e.code === 'additionalProperty',
-        ),
+        r.warnings?.some((w) => w.path === `/contributes/${field}` && w.code === 'contributes.unknown'),
       ).toBe(true);
     }
   });
 });
 
 describe('validateManifest - display-mode:provide is rejected (task 0024 round 3, P2.13)', () => {
-  it('rejects a manifest declaring the removed display-mode:provide permission', () => {
+  it('drops the removed display-mode:provide permission with a warning', () => {
     const m = baseManifest();
     (m as { permissions: string[] }).permissions = ['bible:read', 'display-mode:provide'];
     const r = validateManifest(m);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.permissions).toEqual(['bible:read']);
       expect(
-        r.errors.some((e) => e.path === '/permissions/1' && e.code === 'enum'),
+        r.warnings?.some((w) => w.path === '/permissions/1' && w.code === 'permission.unknown'),
       ).toBe(true);
     }
   });
@@ -585,14 +612,28 @@ describe('validateManifest - activation event vocabulary (task 0024 round 3, P1.
     expect(r.ok).toBe(true);
   });
 
-  it('rejects an unknown prefix', () => {
+  it('drops unknown well-formed events (future host) with a warning', () => {
     const m = baseManifest();
-    (m as Record<string, unknown>).activationEvents = ['onSomethingMadeUp:x'];
+    (m as Record<string, unknown>).activationEvents = [
+      'onStartupFinished',
+      'onSomethingMadeUp:x',
+      'onSyncCompleted',
+      'onApp:memorize',
+    ];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.activationEvents).toEqual(['onStartupFinished']);
+      expect(r.warnings?.filter((w) => w.code === 'activation.unknown')).toHaveLength(3);
+    }
+  });
+
+  it('still rejects malformed events', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['not an event'];
     const r = validateManifest(m);
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.errors.some((e) => e.code === 'activation.unknown')).toBe(true);
-    }
+    if (!r.ok) expect(r.errors.some((e) => e.code === 'activation.unknown')).toBe(true);
   });
 });
 

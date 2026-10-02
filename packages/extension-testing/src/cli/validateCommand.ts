@@ -41,6 +41,8 @@ interface ValidateReport {
   version?: string;
   manifestErrors: { path: string; code: string; message: string }[];
   assetIssues: AssetIssue[];
+  /** Non-fatal manifest warnings; they never change `ok`. */
+  warnings?: { path: string; code: string; message: string }[];
 }
 
 function emit(ctx: SmokeCommandContext, report: ValidateReport, asJson: boolean): void {
@@ -52,10 +54,16 @@ function emit(ctx: SmokeCommandContext, report: ValidateReport, asJson: boolean)
   if (report.ok) {
     ctx.stdout(`OK  ${report.id}@${report.version}\n`);
     ctx.stdout(`    ${report.extensionRoot}\n`);
+    for (const w of report.warnings ?? []) {
+      ctx.stdout(`    warning: ${w.path || '/'}  ${w.message}  [${w.code}]\n`);
+    }
     return;
   }
 
   ctx.stderr(`FAIL  ${report.extensionRoot}\n`);
+  for (const w of report.warnings ?? []) {
+    ctx.stderr(`  warning: ${w.path || '/'}  ${w.message}  [${w.code}]\n`);
+  }
   if (report.manifestErrors.length > 0) {
     ctx.stderr(`\nManifest (${report.manifestErrors.length}):\n`);
     for (const e of report.manifestErrors) {
@@ -127,6 +135,7 @@ export function runValidateCommand(
     version: loaded.manifest.version,
     manifestErrors: [],
     assetIssues,
+    ...(loaded.warnings && loaded.warnings.length > 0 ? { warnings: loaded.warnings } : {}),
   };
   emit(ctx, report, asJson);
   return report.ok ? 0 : 1;

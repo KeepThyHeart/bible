@@ -8,10 +8,13 @@
  * Each api-impl is gated behind:
  *   - The corresponding bridge/factory being wired on the host (so test
  *     harnesses that omit a bridge get a smaller attack surface), and/or
- *   - The extension having been granted the matching permission.
+ *   - The namespace's declared `availability.whenGranted` permission
+ *     (`EXTENSION_API_REGISTRY.isNamespaceAvailable`).
  *
  * The rules are mechanical: the gate is the only thing that decides whether a
- * namespace is attached.
+ * namespace is attached. Per-call permissions are enforced by the router's
+ * declared-permission guard (`DeclaredApiGuard.ts`), installed first below,
+ * which reads each method's gate from its namespace declaration.
  */
 
 import log from 'electron-log';
@@ -44,6 +47,7 @@ import {
 import { SpeechApiImpl } from './api-impl/speechApiImpl';
 import type { ExtensionRpcRouter } from './ExtensionRpcRouter';
 import { buildGrant } from './ExtensionPermissionGuard';
+import { createDeclaredMethodGuard } from './DeclaredApiGuard';
 import type { ActiveWorker, ExtensionHostContext } from './ExtensionHostTypes';
 
 const { RpcProtocolError } = Extensions;
@@ -67,6 +71,12 @@ export function attachApiImpls(
   // Build the per-extension permission grant. The grant is a snapshot at
   // activation time - `updatePermissions` rebuilds it on the next call.
   const grant = buildGrant(extensionId, entry.grantedPermissions);
+  const isAvailable = (namespace: string): boolean =>
+    Extensions.EXTENSION_API_REGISTRY.isNamespaceAvailable(namespace, entry.grantedPermissions);
+
+  // Every request is checked against its namespace declaration's gate before
+  // any api-impl sees it (and an undeclared method is refused).
+  router.setMethodGuard(createDeclaredMethodGuard(grant));
 
   // Wire renderer integration: commands + context. Both api-impls register
   // their RPC namespaces on the router *before* the init handshake so an
@@ -179,13 +189,14 @@ export function attachApiImpls(
     active.folderStorageApi = folderApi;
   }
   // Network + auth. Network is gated on the gateway
-  // factory being wired *and* the extension having declared `network`
-  // permission (the api-impl re-checks at every call, but skipping the
-  // attach when the permission is missing keeps the namespace cleanly
-  // absent so an extension can feature-detect via `typeof api.network`).
+  // factory being wired *and* the namespace's declared availability (the
+  // `network` permission). Without it the namespace's methods are not
+  // registered and answer `Unknown RPC method`; the worker's `api.network`
+  // object itself still exists (`apiNamespaces` lists what the host serves,
+  // not what each extension was granted).
   if (
     ctx.networkGatewayFactory &&
-    entry.grantedPermissions.includes('network')
+    isAvailable('network')
   ) {
     const gateway = ctx.networkGatewayFactory(extensionId);
     const networkApi = new NetworkApiImpl({
@@ -208,7 +219,7 @@ export function attachApiImpls(
     // through the same throttle + allowlist). Only attach if the
     // auth broker + opener are both wired - otherwise auth methods
     // would silently appear and then fail at first call.
-    if (ctx.authBrokerFactory && ctx.externalUrlOpener) {
+    if (ctx.authBrokerFactory && ctx.externalUrlOpener && isAvailable('auth')) {
       const broker = ctx.authBrokerFactory(extensionId);
       const authApi = new AuthApiImpl({
         extensionId,
@@ -239,13 +250,17 @@ export function attachApiImpls(
   }
 
   // Speech. A stub in this build: `speech.status` is ungated and reports
-  // `unavailable`; the rest check their permission, then reject. Registered
-  // unconditionally so the generic proxy never answers `Unknown RPC method`.
-  new SpeechApiImpl({ extensionId, router, grant }).attach();
+  // `unavailable`; the rest check their permission, then reject. Attached
+  // whenever desktop serves the namespace, so the proxy never answers
+  // `Unknown RPC method`.
+  if (isAvailable('speech')) {
+    new SpeechApiImpl({ extensionId, router, grant }).attach();
+  }
 
-  // Background tasks. Gated on the `tasks` permission so
-  // an extension that doesn't ask for it never sees the namespace.
-  if (entry.grantedPermissions.includes('tasks')) {
+  // Background tasks. Gated on the declared availability (the `tasks`
+  // permission) so an extension that doesn't ask for it never sees the
+  // namespace.
+  if (isAvailable('tasks')) {
     const tasksApi = new TasksApiImpl({
       extensionId,
       router,
@@ -260,10 +275,11 @@ export function attachApiImpls(
     active.tasksApi = tasksApi;
   }
 
-  // Reminders. Gated on the `notifications:schedule` permission AND on the
-  // host having a reminders bridge, so an extension without the permission
-  // never sees the namespace (feature-detect with `typeof api.reminders`).
-  if (ctx.remindersBridge && entry.grantedPermissions.includes('notifications:schedule')) {
+  // Reminders. Gated on the declared availability (the `notifications:schedule`
+  // permission) AND on the host having a reminders bridge, so an extension
+  // without the permission never sees the namespace (feature-detect with
+  // `typeof api.reminders`).
+  if (ctx.remindersBridge && isAvailable('reminders')) {
     const api = new RemindersApiImpl({
       extensionId,
       router,

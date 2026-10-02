@@ -15,7 +15,8 @@ README is the navigation aid.
 | File | Purpose |
 |---|---|
 | `RpcEnvelope.ts` | Request / response / event / subscribe / heartbeat envelope shapes shared by host, worker, and iframe. |
-| `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. Includes `speech:listen` (separately prompted; microphone, transcripts only) and `speech:speak`. |
+| `Declarations/` | **Start here to add an API namespace.** One declaration per `api.*` namespace (`namespaces/*.ts`), registered in `registry.ts`; see `packages/core/docs/features/extension-api-namespaces.md`. |
+| `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set (derived from the declarations), and the `ORDER_*` render-order constants. |
 | `ActivationEvents.ts` | Activation event identifiers and string-composition helpers. |
 | `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. `api.speech` (`ISpeechApi`, methods only) is defined in `../speech/apiTypes.ts` and re-exported here. |
 | `ExtensionPointTypes.ts` | Kinds, payload and return types for the 16 host-emitted extension points (pruned from a speculative 40-member union with zero call sites - task 0024 round 3), plus the cancelable/replay/permission/timeout tables the dispatcher reads. |

@@ -35,6 +35,7 @@
  */
 
 import type { ExtensionPointId } from './ExtensionApiTypes';
+import { EXTENSION_API_REGISTRY } from './Declarations/registry';
 import type { ExtensionPermission } from './Permissions';
 import type {
   CrossReferenceDto,
@@ -129,13 +130,14 @@ export const EXTENSION_POINT_CANCELABLE: ReadonlySet<ExtensionPointId> = new Set
  */
 export const EXTENSION_POINT_PERMISSIONS: Partial<
   Record<ExtensionPointId, ExtensionPermission>
-> = {
-  'notes.changed': 'notes:read',
-  'notes.beforeDelete': 'notes:read',
-  'highlights.afterChange': 'highlights:read',
-  'reminder.activated': 'notifications:schedule',
-  'reminder.missed': 'notifications:schedule',
-};
+> = Object.fromEntries(
+  // Derived from the namespace declarations (`Declarations/namespaces/*.ts`,
+  // each channel's `events` entry), so a channel's gate is declared once,
+  // next to the methods that gate the same data.
+  EXTENSION_API_REGISTRY.eventChannels
+    .filter((c) => c.permission !== null && c.channel in EXTENSION_POINT_KINDS)
+    .map((c) => [c.channel, c.permission]),
+) as Partial<Record<ExtensionPointId, ExtensionPermission>>;
 
 // --- Timing constants --------------------------------------------------
 

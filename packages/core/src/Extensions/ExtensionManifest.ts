@@ -148,6 +148,12 @@ export interface ExtensionWebviewsConfig {
  * before the worker spawns.
  */
 export interface ExtensionContributes {
+  /**
+   * Keys declared by an API namespace's `contributes` (beyond the ones
+   * typed below) hold whatever that key's `validate` returned. A consumer
+   * that wants a typed member adds it here alongside its declaration.
+   */
+  [key: string]: unknown;
   commands?: ContributedCommand[];
   panelTypes?: ExtensionPanelTypeDef[];
   /**

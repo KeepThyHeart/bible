@@ -32,6 +32,7 @@ import {
   type ExtensionHostContext,
 } from './ExtensionHostTypes';
 import { attachApiImpls, disposeApiImpls } from './ExtensionHostRpc';
+import { desktopApiNamespaces } from './DeclaredApiGuard';
 import { installReplayHooks } from './ExtensionPointWiring';
 
 export { dispatchExtensionPoint } from './ExtensionPointWiring';
@@ -239,6 +240,9 @@ async function activateInner(
       hostMinSupportedApiVersion: Extensions.EXTENSION_API_VERSION,
       locale: 'en',
       hostFeatures: [] as string[],
+      // The namespaces this host serves, from the declaration registry - the
+      // worker's proxy exposes exactly these (see `DeclaredApiGuard.ts`).
+      apiNamespaces: desktopApiNamespaces(),
     };
     await router.request('runtime.init', [initPayload], { timeoutMs: 10_000 });
   } catch (err) {

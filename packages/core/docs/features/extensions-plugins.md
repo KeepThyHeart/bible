@@ -16,7 +16,7 @@ concepts. Read the table below before touching either.
 | Security | Declared permissions, install-time consent, `ExtensionPermissionGuard` at every API boundary, signature verification, blocklist | None |
 | Contents of core | **Types and validators only.** No runtime. | The actual runtime (`HookRegistry`, `PluginLoader`) |
 | Runtime lives in | The consuming app - an extension host process plus a per-extension worker | The consuming app - a plugin manager on each side it runs |
-| Versioning | `EXTENSION_API_VERSION` (`'0.2.0'` - pre-1.0 until a stable release ships; it moved from `0.1.0` when `api.reminders` was added, task 0083), additive-only until then | Unversioned |
+| Versioning | `EXTENSION_API_VERSION` (`'0.2.0'` - pre-1.0 until a stable release ships; retrograded to `0.1.0` in task 0024 round 3, then moved to `0.2.0` when `api.reminders` was added, task 0083); additive change bumps the patch segment, breaking the middle one, enforced by `Declarations/apiSurface.lock.json` (task 0086) | Unversioned |
 
 Neither system is the other's successor. If you are asked to "add a hook", work
 out first whether the caller is a sandboxed third-party extension (Extensions)
@@ -34,7 +34,8 @@ or first-party code in the app itself (Plugin).
 | `src/Extensions/ExtensionManifestSchema.json` | JSON Schema (draft-07) for `extension.json` - the canonical authoring schema. |
 | `src/Extensions/ExtensionManifestValidator.ts` | Hand-written validator mirroring the schema (avoids an AJV runtime dependency). Auto-prefixes contribution IDs to `ext.<id>.`, enforces the beyond-schema rules, returns `ManifestValidationError`s with a JSON-pointer-ish `path`. |
 | `src/Extensions/ExtensionCatalog.ts` | Marketplace wire formats: `ExtensionCatalog`, `CatalogExtensionEntry`, `ExtensionBlocklist`, `BlocklistEntry`, and their validators. Untrusted network input. |
-| `src/Extensions/Permissions.ts` | Every `PERM_*` identifier, the `ExtensionPermission` union, `DEFAULT_GRANTED_PERMISSIONS`, `SEPARATELY_PROMPTED_PERMISSIONS`, and the `ORDER_*` render-order constants. |
+| `src/Extensions/Declarations/` | The declaration layer: one file per `api.*` namespace under `namespaces/`, registered in `registry.ts`. Permissions, consent text, method gates, activation events, `contributes` keys, event gates and test-fake defaults all derive from it - see [Extension API namespaces](extension-api-namespaces.md). |
+| `src/Extensions/Permissions.ts` | Every `PERM_*` identifier, plus `ExtensionPermission`, `DEFAULT_GRANTED_PERMISSIONS` and `SEPARATELY_PROMPTED_PERMISSIONS` derived from the declarations, and the `ORDER_*` render-order constants. |
 | `src/Extensions/ActivationEvents.ts` | `ACT_*` event identifiers/prefixes and helpers that compose the parameterized forms (`onView:bible`, `onCommand:ext.foo.bar`). |
 | `src/Extensions/RpcEnvelope.ts` | `RpcRequest` / `RpcResponse` / `RpcEvent` / `RpcSubscribe` / `RpcUnsubscribe` / `RpcHeartbeat`, the `RpcEnvelope` union, and the `isRpcEnvelope` guard. |
 | `src/Extensions/IExtensionHost.ts` | Host-side orchestrator contract: `loadAll`, `listExtensions`, `installExtension`, `uninstallExtension`, `enable`/`disable`, `activate`/`deactivate`, `fireActivationEvent`, `updatePermissions`, settings, crash log, log. |

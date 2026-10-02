@@ -5,6 +5,14 @@
  * function when Vitest is not available. Callers can override individual
  * methods via the `overrides` parameter.
  *
+ * **Defaults come from the declarations.** The fake for each namespace is
+ * generated from `Extensions.EXTENSION_API_REGISTRY`: each method resolves the
+ * `fake` its namespace declaration names (`createDeclaredNamespaceFake`), so a
+ * namespace declared in core is faked here with no edit to this file. Only the
+ * behavioural fakes below are hand-written and overlaid on top: the whole
+ * `storage` namespace (in-memory KV/secrets/database), `bible.listChapters`
+ * (John extents), `runtime` and `panels` (working implementations).
+ *
  * **`api.storage` is the deliberate exception.** Its KV and secrets tiers are
  * backed by real in-memory maps and round-trip, and `openDatabase` returns a
  * `MockExtensionDatabase` whose `transaction()` actually invokes the work
@@ -23,7 +31,7 @@
  * ```
  */
 
-import { Reminders, type Extensions } from '@bible/core';
+import { Extensions, Reminders } from '@bible/core';
 
 import { Speech } from '@bible/core';
 import { CHAPTERS_JOHN } from './fixtures';
@@ -98,192 +106,6 @@ function recordingImpl<A extends unknown[], R>(
 /** Create a mock DisposableHandle. */
 function mockDisposable(): DisposableHandle {
   return { dispose: asyncMock<void>(undefined) };
-}
-
-// ─── Namespace mock builders ──────────────────────────────────────────────────
-
-function createMockBibleApi(): Extensions.IBibleApi {
-  return {
-    getVerse: asyncMock({ verseId: 0, text: '' } as Extensions.BibleVerseDto),
-    getRange: asyncMock([] as Extensions.BibleVerseDto[]),
-    listModules: asyncMock([] as Extensions.BibleModuleInfoDto[]),
-    listBooks: asyncMock([] as Extensions.BibleBookDto[]),
-    /**
-     * Answers for John, empty for every other book, and rejects an id outside
-     * the canon.
-     *
-     * The empty default the rest of this namespace uses would be actively
-     * misleading here. `listChapters` is how a passage range is resolved —
-     * `collections.addPassage` needs the `lastVerseId` only this call can give
-     * — so an extension that gets `[]` back does not fail, it silently adds
-     * nothing, and the test passes. One book with real extents is enough to
-     * make that logic testable, and John is the book every other fixture in
-     * this package already anchors to. Override the method for anything else.
-     *
-     * The out-of-canon rejection mirrors `bibleApiImpl.handleListChapters`,
-     * which distinguishes a caller bug from a book the host has no
-     * versification for. A mock that resolved `[]` for book 99 would hide it.
-     */
-    listChapters: recordingImpl(
-      async (bookNumber: number, _moduleId?: string): Promise<Extensions.BibleChapterDto[]> => {
-        if (!Number.isInteger(bookNumber) || bookNumber < 1 || bookNumber > 66) {
-          throw new TypeError(
-            `bible.listChapters: bookNumber must be an integer 1-66, got ${String(bookNumber)}`,
-          );
-        }
-        return bookNumber === 43 ? CHAPTERS_JOHN.map((c) => ({ ...c })) : [];
-      },
-    ),
-    iterateVerses: asyncMock({ verses: [], hasMore: false } as Extensions.VerseIterationResult),
-    parseReference: asyncMock(null),
-    getVerseTokens: asyncMock(null),
-    getTokensForRange: asyncMock({} as Record<number, Extensions.VerseTokenDto[]>),
-    navigateToVerse: asyncMock<void>(undefined),
-    registerProvider: asyncMock(mockDisposable()),
-  };
-}
-
-function createMockCommentaryApi(): Extensions.ICommentaryApi {
-  return {
-    listModules: asyncMock([] as Extensions.CommentaryModuleInfoDto[]),
-    getEntry: asyncMock(null),
-    getEntriesForRange: asyncMock([] as Extensions.CommentaryEntryDto[]),
-    iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.CommentaryIterationResult),
-    registerProvider: asyncMock(mockDisposable()),
-  };
-}
-
-function createMockDictionaryApi(): Extensions.IDictionaryApi {
-  return {
-    listModules: asyncMock([] as Extensions.DictionaryModuleInfoDto[]),
-    lookup: asyncMock(null),
-    search: asyncMock([] as Extensions.DictionaryEntryDto[]),
-    iterateEntries: asyncMock({ entries: [], hasMore: false } as Extensions.DictionaryIterationResult),
-    registerProvider: asyncMock(mockDisposable()),
-  };
-}
-
-function createMockBookApi(): Extensions.IBookApi {
-  return {
-    listModules: asyncMock([] as Extensions.BookModuleInfoDto[]),
-    getSection: asyncMock(null),
-    listSections: asyncMock([] as Extensions.BookSectionSummaryDto[]),
-    iterateSections: asyncMock({ sections: [], hasMore: false } as Extensions.BookIterationResult),
-    registerProvider: asyncMock(mockDisposable()),
-  };
-}
-
-function createMockNotesApi(): Extensions.INotesApi {
-  return {
-    list: asyncMock([] as Extensions.UserNoteDto[]),
-    get: asyncMock(null),
-    create: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
-    update: asyncMock({ id: 'mock-note', content: '', createdAt: 0, updatedAt: 0 } as Extensions.UserNoteDto),
-    delete: asyncMock<void>(undefined),
-  };
-}
-
-function createMockHighlightsApi(): Extensions.IHighlightsApi {
-  return {
-    list: asyncMock([] as Extensions.UserHighlightDto[]),
-    create: asyncMock({ id: 'mock-hl', range: { verseId: 0 }, styleId: '', createdAt: 0, updatedAt: 0 } as Extensions.UserHighlightDto),
-    update: asyncMock({ id: 'mock-hl', range: { verseId: 0 }, styleId: '', createdAt: 0, updatedAt: 0 } as Extensions.UserHighlightDto),
-    delete: asyncMock<void>(undefined),
-    registerStyle: asyncMock(mockDisposable()),
-    listStyles: asyncMock([] as Extensions.HighlightStyleDescriptor[]),
-  };
-}
-
-function createMockBookmarksApi(): Extensions.IBookmarksApi {
-  return {
-    list: asyncMock([] as Extensions.BookmarkDto[]),
-    add: asyncMock({ id: 'mock-bm', verseId: 0, createdAt: 0 } as Extensions.BookmarkDto),
-    remove: asyncMock<void>(undefined),
-    listCollections: asyncMock([] as Extensions.CollectionDto[]),
-    createCollection: asyncMock({ id: 'mock-col', name: '', count: 0, createdAt: 0 } as Extensions.CollectionDto),
-  };
-}
-
-/**
- * Ordered passage collections. `list` and `listPassages` resolve empty so a
- * test that only walks the surface sees a consistent "no collections yet"
- * rather than a mixture of empty arrays and undefined.
- */
-function createMockCollectionsApi(): Extensions.ICollectionsApi {
-  const collection: Extensions.PassageCollectionDto = {
-    id: 'mock-col',
-    name: '',
-    entryCount: 0,
-    createdAt: 0,
-  };
-  const entry: Extensions.PassageEntryDto = {
-    id: 'mock-entry',
-    collectionId: 'mock-col',
-    verseIdStart: 0,
-    verseIdEnd: 0,
-    position: 0,
-    createdAt: 0,
-  };
-  return {
-    list: asyncMock([] as Extensions.PassageCollectionDto[]),
-    create: asyncMock(collection),
-    rename: asyncMock(collection),
-    delete: asyncMock<void>(undefined),
-    listPassages: asyncMock([] as Extensions.PassageEntryDto[]),
-    addPassage: asyncMock(entry),
-    removePassage: asyncMock<void>(undefined),
-    move: asyncMock([] as Extensions.PassageEntryDto[]),
-    reorder: asyncMock([] as Extensions.PassageEntryDto[]),
-  };
-}
-
-function createMockCommandsApi(): Extensions.ICommandsApi {
-  return {
-    register: asyncMock(mockDisposable()),
-    execute: asyncMock(undefined as unknown),
-  };
-}
-
-function createMockUiApi(): Extensions.IUiApi {
-  return {
-    registerPanelType: asyncMock(mockDisposable()),
-    registerVerseDecorator: asyncMock(mockDisposable()),
-    updateVerseDecorations: asyncMock<void>(undefined),
-    invalidateVerseDecorations: asyncMock<void>(undefined),
-    registerVerseHover: asyncMock(mockDisposable()),
-    listThemeColorKeys: asyncMock<string[]>([]),
-    registerContextMenu: asyncMock(mockDisposable()),
-    registerStatusBarItem: asyncMock(mockDisposable()),
-    updateStatusBarItem: asyncMock<void>(undefined),
-    // Resolves undefined by default (as if dismissed with no action clicked).
-    // Override with `overrides.ui.showNotification` to simulate an action click.
-    showNotification: asyncMock(undefined as string | undefined),
-    showQuickPick: asyncMock(undefined),
-    showInputBox: asyncMock(undefined),
-    showConfirm: asyncMock(false),
-    pickFile: asyncMock(undefined),
-    saveFile: asyncMock(false),
-    openSettings: asyncMock<void>(undefined),
-  };
-}
-
-function createMockWorkspaceApi(): Extensions.IWorkspaceApi {
-  return {
-    getActivePanel: asyncMock(null),
-    getOpenPanels: asyncMock([] as Extensions.PanelInfoDto[]),
-    openPanel: asyncMock('mock-panel-id'),
-    closePanel: asyncMock<void>(undefined),
-    setPanelTitle: asyncMock<void>(undefined),
-    setPanelBadge: asyncMock<void>(undefined),
-    revealPanel: asyncMock(true),
-  };
-}
-
-function createMockContextApi(): Extensions.IContextApi {
-  return {
-    get: asyncMock(undefined),
-    set: asyncMock<void>(undefined),
-  };
 }
 
 /** One statement an extension asked a `MockExtensionDatabase` to run. */
@@ -437,7 +259,31 @@ function createMockDatabase(name: string): MockExtensionDatabase {
   };
 }
 
-function createMockStorageApi(): Extensions.IStorageApi {
+/**
+ * `bible.listChapters`: answers for John, empty for every other book, and
+ * rejects an id outside the canon.
+ *
+ * An empty default would be actively misleading here. `listChapters` is how a
+ * passage range is resolved (`collections.addPassage` needs the `lastVerseId`
+ * only this call can give), so an extension that gets `[]` back does not fail,
+ * it silently adds nothing, and the test passes. John is the book every other
+ * fixture in this package anchors to. The out-of-canon rejection mirrors
+ * `bibleApiImpl.handleListChapters`. Override the method for anything else.
+ */
+function createMockListChapters() {
+  return recordingImpl(
+    async (bookNumber: number, _moduleId?: string): Promise<Extensions.BibleChapterDto[]> => {
+      if (!Number.isInteger(bookNumber) || bookNumber < 1 || bookNumber > 66) {
+        throw new TypeError(
+          `bible.listChapters: bookNumber must be an integer 1-66, got ${String(bookNumber)}`,
+        );
+      }
+      return bookNumber === 43 ? CHAPTERS_JOHN.map((c) => ({ ...c })) : [];
+    },
+  );
+}
+
+function createMockStorageOverlay(): Partial<Extensions.IStorageApi> {
   // Real backing stores. The KV tier round-trips through `kv`, so an
   // extension that writes a value and reads it back on the next activation
   // sees what it wrote - the behaviour its own tests are trying to pin.
@@ -486,8 +332,6 @@ function createMockStorageApi(): Extensions.IStorageApi {
     deleteSecret: recordingImpl(async (key: string): Promise<void> => {
       secrets.delete(key);
     }),
-    getSetting: asyncMock(undefined),
-    setSetting: asyncMock<void>(undefined),
     // Keyed by name, so a test can re-open the same database to inspect what
     // the extension did to it. A closed handle is replaced rather than
     // resurrected, which is what a second `openDatabase` gets on the host.
@@ -505,30 +349,6 @@ function createMockStorageApi(): Extensions.IStorageApi {
       for (const [key, value] of kv) bytes += key.length + value.length;
       return { kv: bytes, databases: 0, secretsCount: secrets.size };
     }),
-    // Managed folder methods
-    requestFolder: asyncMock(null),
-    getFolderGrant: asyncMock(null),
-    revokeFolderGrant: asyncMock<void>(undefined),
-    readFile: asyncMock(new ArrayBuffer(0)),
-    writeFile: asyncMock<void>(undefined),
-    deleteFile: asyncMock<void>(undefined),
-    listFiles: asyncMock([] as Extensions.FileInfo[]),
-    statFile: asyncMock(null),
-    getFolderUsage: asyncMock({ path: '', fileCount: 0, totalBytes: 0 } as Extensions.FolderUsageInfo),
-  };
-}
-
-function createMockL10nApi(): Extensions.IL10nApi {
-  return {
-    t: asyncMock(''),
-    currentLocale: asyncMock('en'),
-  };
-}
-
-function createMockEventsApi(): Extensions.IEventsApi {
-  return {
-    subscribe: asyncMock(mockDisposable()) as Extensions.IEventsApi['subscribe'],
-    publish: asyncMock<void>(undefined),
   };
 }
 
@@ -545,63 +365,6 @@ export function createFakeSpeechApi(opts: Speech.FakeSpeechApiOptions = {}): Spe
     ...opts,
     status: { listen: 'unavailable', speak: 'unavailable', ...opts.status },
   });
-}
-
-function createMockNetworkApi(): Extensions.INetworkApi {
-  return {
-    fetch: asyncMock({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      url: '',
-      body: '',
-    } as Extensions.NetworkFetchResponse),
-    isHostAllowed: asyncMock(false),
-  };
-}
-
-function createMockAuthApi(): Extensions.IAuthApi {
-  return {
-    startOAuth: asyncMock({
-      accessToken: '',
-      tokenType: 'Bearer',
-      raw: {},
-    } as Extensions.OAuthResult),
-    refreshOAuth: asyncMock({
-      accessToken: '',
-      tokenType: 'Bearer',
-      raw: {},
-    } as Extensions.OAuthResult),
-    openExternal: asyncMock<void>(undefined),
-  };
-}
-
-function createMockTasksApi(): Extensions.ITasksApi {
-  return {
-    // `run` is generic (`<T = void>(...) => Promise<T>`); a concrete mock cannot satisfy an
-    // arbitrary caller-chosen `T`, so the cast is required rather than incidental.
-    run: asyncMock<void>(undefined) as Extensions.ITasksApi['run'],
-    reportProgress: asyncMock<void>(undefined),
-    isCancellationRequested: asyncMock(false),
-    cancel: asyncMock<void>(undefined),
-    list: asyncMock([] as Extensions.BackgroundTaskInfo[]),
-  };
-}
-
-function createMockExtensionsApi(): Extensions.IExtensionsApi {
-  return {
-    // Generic (`<T = unknown>(...) => Promise<T>`) — same reason as ITasksApi.run above.
-    call: asyncMock(undefined as unknown) as Extensions.IExtensionsApi['call'],
-    isActive: asyncMock(false),
-    listProviders: asyncMock([] as Extensions.ExtensionProviderInfo[]),
-  };
-}
-
-function createMockAiApi(): Extensions.IAiApi {
-  return {
-    isAvailable: asyncMock(false),
-  };
 }
 
 // ─── Runtime + panels: real behaviour, not stubs ──────────────────────────────
@@ -889,13 +652,45 @@ function createMockRemindersApi(): { api: Extensions.IRemindersApi; driver: Mock
  * Deep-partial type for overriding individual methods on any namespace.
  */
 export type MockApiOverrides = {
-  [K in keyof BibleExtensionAPI]?: Partial<BibleExtensionAPI[K]>;
+  [K in keyof BibleExtensionAPI]?: Partial<NonNullable<BibleExtensionAPI[K]>>;
 };
 
+export interface CreateMockApiOptions {
+  /**
+   * Namespaces beyond the registry's (e.g. a sample one a test declares with
+   * `Extensions.defineApiNamespace`). They are faked from their declarations
+   * exactly like the built-in ones.
+   */
+  extraNamespaces?: readonly Extensions.AnyApiNamespaceDeclaration[];
+}
+
 /**
- * Create a fully-mocked `BibleExtensionAPI`. Every method returns a sensible
- * default (empty arrays, null, undefined, false, etc.). Pass `overrides` to
- * replace specific methods with your own mocks or implementations.
+ * Build the fake of one declared namespace: an async recording mock per
+ * declared method, resolving that method's declared `fake` (a deep copy of
+ * the value made once, here; a mock `DisposableHandle`; or `undefined`).
+ */
+export function createDeclaredNamespaceFake(
+  decl: Extensions.AnyApiNamespaceDeclaration,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [method, m] of Object.entries(decl.methods as Record<string, Extensions.MethodDeclaration>)) {
+    const fake = m.fake;
+    if (fake === undefined) {
+      out[method] = asyncMock<unknown>(undefined);
+    } else if (fake.kind === 'disposable') {
+      out[method] = asyncMock<unknown>(mockDisposable());
+    } else {
+      out[method] = asyncMock<unknown>(structuredClone(fake.value));
+    }
+  }
+  return out;
+}
+
+/**
+ * Create a fully-mocked `BibleExtensionAPI`. Every method returns the default
+ * its namespace declaration's `fake` names (empty arrays, null, undefined,
+ * false, etc.). Pass `overrides` to replace specific methods with your own
+ * mocks or implementations.
  *
  * ```ts
  * const api = createMockApi({
@@ -905,54 +700,48 @@ export type MockApiOverrides = {
  * });
  * ```
  */
-export function createMockApi(overrides?: MockApiOverrides): BibleExtensionAPI {
+export function createMockApi(
+  overrides?: MockApiOverrides,
+  options?: CreateMockApiOptions,
+): BibleExtensionAPI {
   const runtime = createMockRuntimeApi();
   const panels = createMockPanelsApi();
+
+  const namespaces = [
+    ...Extensions.EXTENSION_API_REGISTRY.namespaces,
+    ...(options?.extraNamespaces ?? []),
+  ];
+  const base: Record<string, Record<string, unknown>> = {};
+  for (const decl of namespaces) base[decl.name] = createDeclaredNamespaceFake(decl);
+
+  // Behavioural overlays: these replace (or extend) the declared fakes.
+  Object.assign(base.bible, { listChapters: createMockListChapters() });
+  Object.assign(base.storage, createMockStorageOverlay());
+  base.runtime = runtime.api as unknown as Record<string, unknown>;
+  base.panels = panels.api as unknown as Record<string, unknown>;
+  // Reminders keep a real store and a driver (`getMockReminders`); speech is the core fake.
   const reminders = createMockRemindersApi();
-  const base: BibleExtensionAPI = {
-    bible: createMockBibleApi(),
-    commentary: createMockCommentaryApi(),
-    dictionary: createMockDictionaryApi(),
-    book: createMockBookApi(),
-    notes: createMockNotesApi(),
-    highlights: createMockHighlightsApi(),
-    bookmarks: createMockBookmarksApi(),
-    collections: createMockCollectionsApi(),
-    commands: createMockCommandsApi(),
-    ui: createMockUiApi(),
-    workspace: createMockWorkspaceApi(),
-    context: createMockContextApi(),
-    storage: createMockStorageApi(),
-    l10n: createMockL10nApi(),
-    events: createMockEventsApi(),
-    runtime: runtime.api,
-    panels: panels.api,
-    network: createMockNetworkApi(),
-    auth: createMockAuthApi(),
-    tasks: createMockTasksApi(),
-    extensions: createMockExtensionsApi(),
-    reminders: reminders.api,
-    ai: createMockAiApi(),
-    speech: createFakeSpeechApi(),
-  };
+  base.reminders = reminders.api as unknown as Record<string, unknown>;
+  base.speech = createFakeSpeechApi() as unknown as Record<string, unknown>;
 
   if (overrides) {
-    for (const ns of Object.keys(overrides) as (keyof BibleExtensionAPI)[]) {
-      const nsOverrides = overrides[ns];
+    for (const [ns, nsOverrides] of Object.entries(overrides as Record<string, unknown>)) {
       if (nsOverrides) {
+        base[ns] ??= {};
         Object.assign(base[ns], nsOverrides);
       }
     }
   }
 
+  const api = base as unknown as BibleExtensionAPI;
   // Register the drivers *after* overrides, keyed by the api object the caller
   // will hold, so `getMockPanelChannel(api)` works on exactly what they got.
   // Note an override of `panels.onMessage` replaces the recording
   // implementation, and the driver then has nothing to deliver to - which is
   // the correct behaviour: the caller took over the channel.
-  panelChannels.set(base as unknown as object, panels.driver);
-  runtimeEndpoints.set(base as unknown as object, runtime.driver);
-  mockReminders.set(base as unknown as object, reminders.driver);
+  panelChannels.set(api as unknown as object, panels.driver);
+  runtimeEndpoints.set(api as unknown as object, runtime.driver);
+  mockReminders.set(api as unknown as object, reminders.driver);
 
-  return base;
+  return api;
 }

@@ -5,7 +5,13 @@
  * install time. The host enforces them at every API boundary call via
  * `ExtensionPermissionGuard`. On failure, the host throws
  * `PermissionDeniedError` over RPC.
+ *
+ * Every permission is declared - with its consent text and grant policy - by
+ * the API namespace that owns it (`Declarations/namespaces/*.ts`); the lists
+ * here are derived from that registry.
  */
+
+import { EXTENSION_API_REGISTRY, type DeclaredPermission } from './Declarations/registry';
 
 // --- Permission identifiers ------------------------------------------------
 
@@ -35,9 +41,8 @@ export const PERM_BOOKMARKS_WRITE = 'bookmarks:write' as const;
  * keeping the permission went with it. Asking a user to grant a capability
  * the host cannot deliver, silently, forever, is worse than not asking - so
  * all five were removed outright rather than kept as dead weight. Re-add a
- * permission here (and to `ALLOWED_PERMISSIONS` in
- * `ExtensionManifestValidator.ts` and the schema's `Permission` enum) only
- * once there is a real API namespace to gate.
+ * permission (in the owning namespace's declaration) only once there is a
+ * real API namespace to gate.
  */
 export const PERM_BIBLE_PROVIDE = 'bible:provide' as const;
 export const PERM_COMMENTARY_PROVIDE = 'commentary:provide' as const;
@@ -106,71 +111,32 @@ export const PERM_FS_WRITE_USER = 'fs:write-user' as const;
 export const PERM_FS_MANAGED_FOLDER = 'fs:managed-folder' as const;
 
 /**
- * Union of every permission identifier the host knows about. Useful for
+ * Union of every permission identifier the host knows about, derived from
+ * the namespace declarations (`Declarations/registry.ts`). Useful for
  * exhaustive switches in the permission guard and the install consent UI.
+ *
+ * The `PERM_*` constants above are kept for existing call sites; a new
+ * permission is declared in its namespace's declaration file and needs no
+ * constant here. `Declarations/registry.test.ts` checks the two agree.
  */
-export type ExtensionPermission =
-  | typeof PERM_BIBLE_READ
-  | typeof PERM_COMMENTARY_READ
-  | typeof PERM_DICTIONARY_READ
-  | typeof PERM_BOOK_READ
-  | typeof PERM_NOTES_READ
-  | typeof PERM_NOTES_WRITE
-  | typeof PERM_HIGHLIGHTS_READ
-  | typeof PERM_HIGHLIGHTS_WRITE
-  | typeof PERM_BOOKMARKS_READ
-  | typeof PERM_BOOKMARKS_WRITE
-  | typeof PERM_BIBLE_PROVIDE
-  | typeof PERM_COMMENTARY_PROVIDE
-  | typeof PERM_DICTIONARY_PROVIDE
-  | typeof PERM_BOOK_PROVIDE
-  | typeof PERM_STORAGE
-  | typeof PERM_STORAGE_SECRETS
-  | typeof PERM_STORAGE_DATABASE
-  | typeof PERM_UI_CONTRIBUTE_PANE
-  | typeof PERM_UI_VERSE_DECORATOR
-  | typeof PERM_UI_VERSE_HOVER
-  | typeof PERM_UI_CONTEXT_MENU
-  | typeof PERM_UI_NOTIFICATION
-  | typeof PERM_UI_STATUS_BAR
-  | typeof PERM_UI_MEDIA
-  | typeof PERM_COMMANDS_REGISTER
-  | typeof PERM_COMMANDS_EXECUTE_BUILTIN
-  | typeof PERM_TASKS
-  | typeof PERM_NOTIFICATIONS_SCHEDULE
-  | typeof PERM_NETWORK
-  | typeof PERM_NETWORK_OAUTH
-  | typeof PERM_SPEECH_LISTEN
-  | typeof PERM_SPEECH_SPEAK
-  | typeof PERM_EXTENSIONS_CALL
-  | typeof PERM_FS_READ_USER
-  | typeof PERM_FS_WRITE_USER
-  | typeof PERM_FS_MANAGED_FOLDER;
+export type ExtensionPermission = DeclaredPermission;
 
 /**
  * Permissions that are auto-granted when an extension is installed. These do
  * not appear in the consent dialog (the user implicitly grants them by
- * installing the extension at all).
+ * installing the extension at all). Declared with `grant: 'default'`.
  */
-export const DEFAULT_GRANTED_PERMISSIONS: readonly ExtensionPermission[] = [
-  PERM_BIBLE_READ,
-  PERM_COMMANDS_REGISTER,
-] as const;
+export const DEFAULT_GRANTED_PERMISSIONS: readonly ExtensionPermission[] =
+  EXTENSION_API_REGISTRY.defaultGranted as readonly ExtensionPermission[];
 
 /**
  * Permissions that show a SEPARATE detail dialog at install time, in addition
  * to the omnibus consent. These touch sensitive subsystems (network, OS
  * keychain, persistent on-disk databases, the microphone) and the user deserves a focused
- * decision rather than a buried checkbox.
+ * decision rather than a buried checkbox. Declared with `grant: 'separate'`.
  */
-export const SEPARATELY_PROMPTED_PERMISSIONS: readonly ExtensionPermission[] = [
-  PERM_NETWORK,
-  PERM_NETWORK_OAUTH,
-  PERM_STORAGE_SECRETS,
-  PERM_STORAGE_DATABASE,
-  PERM_FS_MANAGED_FOLDER,
-  PERM_SPEECH_LISTEN,
-] as const;
+export const SEPARATELY_PROMPTED_PERMISSIONS: readonly ExtensionPermission[] =
+  EXTENSION_API_REGISTRY.separatelyPrompted as readonly ExtensionPermission[];
 
 // --- `order` hint constants ------------------------------------------------
 

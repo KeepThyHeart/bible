@@ -15,6 +15,8 @@ export interface LoadedManifest {
   extensionRoot: string;
   /** Absolute path to the manifest file itself. */
   manifestPath: string;
+  /** Non-fatal manifest warnings, when the core validator reports any. */
+  warnings?: Extensions.ManifestValidationError[];
 }
 
 export class ManifestLoadError extends Error {
@@ -55,5 +57,12 @@ export function loadManifest(extensionRoot: string): LoadedManifest {
       result.errors,
     );
   }
-  return { manifest: result.manifest, extensionRoot: root, manifestPath };
+  const warnings =
+    'warnings' in result ? (result.warnings as Extensions.ManifestValidationError[] | undefined) : undefined;
+  return {
+    manifest: result.manifest,
+    extensionRoot: root,
+    manifestPath,
+    ...(warnings && warnings.length > 0 ? { warnings } : {}),
+  };
 }

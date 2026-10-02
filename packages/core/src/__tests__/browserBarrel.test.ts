@@ -118,12 +118,17 @@ describe('@bible/core/browser barrel', () => {
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
     // Settings registry and the web UserData store, the audio contracts, then
     // for the pure Timeline engine (calendar, layout, scale, store), then for
-    // the genealogy explorer (task 0067), then for the keyword-mark set store, then for the asset store (task 0090).
+    // the genealogy explorer (task 0067), then for the keyword-mark set store,
+    // then for the asset store (task 0090), then for the extension API
+    // declarations (task 0086: `Permissions.ts`, reached here by `import type`
+    // only, now derives from small pure-data declaration files; the walker
+    // counts type-only edges too).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
     // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075, then quiz 0074,
     // then reading plans 0073. Raised by 25: speech and recitation 0071. Raised by 15: word study.
-    expect(files.size).toBeLessThan(255);
+    // Raised by 30: the extension API declaration files (task 0086).
+    expect(files.size).toBeLessThan(285);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

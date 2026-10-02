@@ -27,6 +27,8 @@ export interface ManifestLoadSuccess {
   installPath: string;
   /** Absolute path to `extension.json` itself. */
   manifestPath: string;
+  /** Non-fatal findings (unknown permission / contributes key / activation event); present only when non-empty. */
+  warnings?: ManifestValidationError[];
 }
 
 export interface ManifestLoadFailure {
@@ -91,6 +93,14 @@ export function loadManifest(installPath: string): ManifestLoadResult {
       `[extensions] ${result.manifest.id}: contributes.bibleProviders is validated but not yet ` +
         'registered at activation; use api.bible.registerProvider until lazy activation lands.',
     );
+  }
+
+  const warnings = result.warnings;
+  if (warnings && warnings.length > 0) {
+    for (const w of warnings) {
+      console.warn(`[extensions] ${result.manifest.id}: ${w.path} (${w.code}): ${w.message}`);
+    }
+    return { ok: true, manifest: result.manifest, installPath, manifestPath, warnings };
   }
 
   return { ok: true, manifest: result.manifest, installPath, manifestPath };

@@ -12,8 +12,10 @@
  */
 
 export {
+  createDeclaredNamespaceFake,
   createFakeSpeechApi,
   createMockApi,
+  type CreateMockApiOptions,
   FakeSpeechApi,
   getMockPanelChannel,
   getMockReminders,

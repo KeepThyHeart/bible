@@ -53,12 +53,19 @@ function decomment(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 }
 
-/** `namespace -> interface name`, read from `BibleExtensionAPI`. */
+/**
+ * `namespace -> interface name`. `BibleExtensionAPI` is derived from the
+ * declaration registry, so the interface each namespace is declared against
+ * is read from its declaration file (`defineApiNamespace<IXxxApi>()`).
+ */
 function namespaceMap(): Map<string, string> {
-  const body = apiTypesSrc.match(/export interface BibleExtensionAPI \{([\s\S]*?)\n\}/)?.[1];
-  if (!body) throw new Error('Could not locate BibleExtensionAPI in ExtensionApiTypes.ts');
   const map = new Map<string, string>();
-  for (const m of body.matchAll(/^\s*(\w+):\s*(I\w+);/gm)) map.set(m[1]!, m[2]!);
+  for (const ns of Extensions.EXTENSION_API_REGISTRY.namespaceNames) {
+    const src = readSource(join(CORE_EXTENSIONS_DIR, 'Declarations', 'namespaces', `${ns}.ts`));
+    const iface = src.match(/defineApiNamespace<(I\w+)>\(\)/)?.[1];
+    if (!iface) throw new Error(`Could not find the interface of namespace "${ns}"`);
+    map.set(ns, iface);
+  }
   return map;
 }
 
