@@ -81,5 +81,10 @@
   "readingPlans.open.category": "读经计划",
   "readingPlans.open.alias.0": "读经计划",
   "readingPlans.open.alias.1": "今日读经",
-  "readingPlans.open.alias.2": "一年读完圣经"
+  "readingPlans.open.alias.2": "一年读完圣经",
+  "wordStudy.open": "打开词语研究",
+  "wordStudy.open.category": "研究",
+  "wordStudy.open.alias.0": "词语研究",
+  "wordStudy.open.alias.1": "斯特朗研究",
+  "wordStudy.open.alias.2": "串珠"
 }

@@ -56,6 +56,7 @@ import {
   getDiagnosticsUploader,
 } from './ipc/diagnosticsHandlers';
 import { registerStudyHandlers } from './ipc/studyHandlers';
+import { registerWordStudyHandlers } from './ipc/wordStudyHandlers';
 import { registerNetworkHandlers, initializeNetworkService } from './ipc/networkHandlers';
 import { registerUpdateHandlers, setBlocklistRefresher } from './ipc/updateHandlers';
 import { MenuBuilder, registerMenuRebuildHandler } from './menu/menuBuilder';
@@ -646,6 +647,7 @@ const registerAllHandlersOnce = runOnce(() => {
   registerTimelineHandlers(ipcMain);
   registerQuizHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
+  registerWordStudyHandlers(ipcMain);
   registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
   registerFileNotesHandlers();

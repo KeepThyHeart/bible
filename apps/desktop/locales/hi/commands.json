@@ -81,5 +81,10 @@
   "readingPlans.open.category": "पठन योजनाएँ",
   "readingPlans.open.alias.0": "पठन योजना",
   "readingPlans.open.alias.1": "आज का पाठ",
-  "readingPlans.open.alias.2": "एक वर्ष में बाइबल पढ़ें"
+  "readingPlans.open.alias.2": "एक वर्ष में बाइबल पढ़ें",
+  "wordStudy.open": "Open Word Study",
+  "wordStudy.open.category": "Study",
+  "wordStudy.open.alias.0": "word study",
+  "wordStudy.open.alias.1": "strongs study",
+  "wordStudy.open.alias.2": "concordance"
 }

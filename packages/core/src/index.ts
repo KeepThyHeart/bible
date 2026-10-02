@@ -85,6 +85,11 @@ export * from './Services/DictionaryDefinitionFormatter';
 export * from './Services/TextTruncation';
 export * from './Services/VerseOfTheDayService';
 export * from './Services/WordFamilyService';
+export * from './Services/WordStudyService';
+export * from './Services/WordGroupStore';
+export * from './WordStudy';
+// WordStudy and KeywordMarks (via Text) both export the same primaryLanguage; naming it settles the ambiguity.
+export { primaryLanguage } from './Text';
 export * from './Services/VerseFormatter';
 export * from './Services/ModuleLoader';
 export * from './Services/BibleViewService';

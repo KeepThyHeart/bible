@@ -66,6 +66,25 @@ export { XrefCompassView, DEFAULT_XREF_COMPASS_LABELS } from './components/xref/
 export type { XrefCompassViewProps, XrefCompassLabels } from './components/xref/XrefCompassView';
 export { XrefArcView, DEFAULT_XREF_ARCS_LABELS } from './components/xref/XrefArcView';
 export type { XrefArcViewProps, XrefArcViewLabels } from './components/xref/XrefArcView';
+
+export { DEFAULT_WORD_STUDY_LABELS, fillTemplate } from './components/wordStudyLabels';
+export type { WordStudyLabels } from './components/wordStudyLabels';
+export { WordStudyHeader } from './components/WordStudyHeader';
+export type { WordStudyHeaderProps } from './components/WordStudyHeader';
+export { RenderingChart } from './components/RenderingChart';
+export type { RenderingChartProps } from './components/RenderingChart';
+export { BookDistributionStrip } from './components/BookDistributionStrip';
+export type { BookDistributionStripProps } from './components/BookDistributionStrip';
+export { WordFamilyList } from './components/WordFamilyList';
+export type { WordFamilyListProps } from './components/WordFamilyList';
+export { SemanticRangeSummary } from './components/SemanticRangeSummary';
+export type { SemanticRangeSummaryProps } from './components/SemanticRangeSummary';
+export { OccurrenceRow, highlightWords } from './components/OccurrenceRow';
+export type { OccurrenceRowProps } from './components/OccurrenceRow';
+export { WordGroupEditor } from './components/WordGroupEditor';
+export type { WordGroupEditorProps } from './components/WordGroupEditor';
+export { WordStudyView } from './components/WordStudyView';
+export type { WordStudyViewProps, WordStudyFilters } from './components/WordStudyView';
 export { Popover } from './components/Popover';
 export type { PopoverProps } from './components/Popover';
 export { HoverCard } from './components/HoverCard';

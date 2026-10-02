@@ -9,6 +9,18 @@ import { ISql } from '../Core/ISql';
  * Interface for Bible translation repository
  * Defines all operations for working with Bible translation databases
  */
+/** One tagged occurrence of a Strong's number. Word positions are 0-based, inclusive. */
+export interface StrongsHit {
+  verseId: number;
+  start: number;
+  end: number;
+  /** Extra word ranges for a discontiguous alignment, e.g. "12-14,18". */
+  extra?: string;
+  gloss?: string;
+  morph?: string;
+  original?: string;
+}
+
 export interface IBibleRepository {
   /**
    * This repository's own open connection (F7, task 0027 revision 2). See
@@ -98,6 +110,28 @@ export interface IBibleRepository {
    * Useful for highlighting matched words in search results.
    */
   getGlossesForStrongs(strongsVariants: string[]): string[];
+
+  // Word study: aggregate queries over one Strong's number (pass
+  // `StrongsNumberHelper.toInterlinearVariants()`). All return empty / zero
+  // results when the module has no interlinear data.
+
+  /** Tagged word count and distinct verse count. */
+  countStrongs(strongsVariants: string[]): { occurrences: number; verses: number };
+
+  /** Occurrences per book number (verse_id / 1,000,000). */
+  countStrongsByBook(strongsVariants: string[]): Record<number, number>;
+
+  /** How this translation renders the number: each distinct gloss with its count, most frequent first. */
+  getStrongsGlossCounts(strongsVariants: string[]): Array<{ gloss: string; count: number }>;
+
+  /** Morphology codes with counts, most frequent first. */
+  getStrongsMorphCounts(strongsVariants: string[]): Array<{ code: string; count: number }>;
+
+  /** Every tagged occurrence in verse order, paged. */
+  getStrongsHits(
+    strongsVariants: string[],
+    options?: { range?: { startVerseId: number; endVerseId: number }; offset?: number; limit?: number }
+  ): StrongsHit[];
 
   /**
    * The keyword-index source for this module's content (M5, task 0026

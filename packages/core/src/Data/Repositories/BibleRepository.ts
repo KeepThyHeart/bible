@@ -3,7 +3,7 @@ import { BibleVerse, InterlinearWord, parseWordPositionList } from '../Models/Bi
 import { BibleModuleInfo } from '../Models/Bible/BibleModuleInfo';
 import { VerseId, BookNumber } from '../Core/Types';
 import { BibleSearchVersePosition } from '../Models/Main/BibleSearchVersePosition';
-import { IBibleRepository } from './IBibleRepository';
+import { IBibleRepository, StrongsHit } from './IBibleRepository';
 import { BaseModuleRepository, mapModuleIdentity, buildIdentityAssignments } from './BaseModuleRepository';
 import { ModuleInfoRow, BibleVerseRow, InterlinearWordRow } from '../Core/RowTypes';
 import { IIndexSource } from '../Access/KeywordTypes';
@@ -1000,6 +1000,91 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     return rows.map(row => row.gloss);
   }
 
+  // ------------------------------------------------------------------------
+  // Word study queries
+  // ------------------------------------------------------------------------
+
+  countStrongs(strongsVariants: string[]): { occurrences: number; verses: number } {
+    if (strongsVariants.length === 0 || !this.hasInterlinearData()) return { occurrences: 0, verses: 0 };
+    const ph = strongsVariants.map(() => '?').join(', ');
+    const row = this.sql.queryOne<{ occ: number; verses: number }>(
+      `SELECT COUNT(*) AS occ, COUNT(DISTINCT verse_id) AS verses FROM interlinear_word
+       WHERE strongs_number IN (${ph})`,
+      [...strongsVariants]
+    );
+    return { occurrences: row?.occ ?? 0, verses: row?.verses ?? 0 };
+  }
+
+  countStrongsByBook(strongsVariants: string[]): Record<number, number> {
+    if (strongsVariants.length === 0 || !this.hasInterlinearData()) return {};
+    const ph = strongsVariants.map(() => '?').join(', ');
+    const rows = this.sql.queryAll<{ book: number; cnt: number }>(
+      `SELECT verse_id / 1000000 AS book, COUNT(*) AS cnt FROM interlinear_word
+       WHERE strongs_number IN (${ph}) GROUP BY book ORDER BY book`,
+      [...strongsVariants]
+    );
+    const out: Record<number, number> = {};
+    for (const r of rows) out[r.book] = r.cnt;
+    return out;
+  }
+
+  getStrongsGlossCounts(strongsVariants: string[]): Array<{ gloss: string; count: number }> {
+    if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
+    const ph = strongsVariants.map(() => '?').join(', ');
+    return this.sql.queryAll<{ gloss: string; cnt: number }>(
+      `SELECT gloss, COUNT(*) AS cnt FROM interlinear_word
+       WHERE strongs_number IN (${ph}) AND gloss IS NOT NULL AND gloss != ''
+       GROUP BY gloss ORDER BY cnt DESC, gloss`,
+      [...strongsVariants]
+    ).map(r => ({ gloss: r.gloss, count: r.cnt }));
+  }
+
+  getStrongsMorphCounts(strongsVariants: string[]): Array<{ code: string; count: number }> {
+    if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
+    const ph = strongsVariants.map(() => '?').join(', ');
+    return this.sql.queryAll<{ code: string; cnt: number }>(
+      `SELECT morphology AS code, COUNT(*) AS cnt FROM interlinear_word
+       WHERE strongs_number IN (${ph}) AND morphology IS NOT NULL AND morphology != ''
+       GROUP BY morphology ORDER BY cnt DESC, morphology`,
+      [...strongsVariants]
+    ).map(r => ({ code: r.code, count: r.cnt }));
+  }
+
+  getStrongsHits(
+    strongsVariants: string[],
+    options: { range?: { startVerseId: number; endVerseId: number }; offset?: number; limit?: number } = {}
+  ): StrongsHit[] {
+    if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
+    const ph = strongsVariants.map(() => '?').join(', ');
+    const params: (string | number)[] = [...strongsVariants];
+    // Modules built before `extra_word_positions` existed still work: single-span hits only.
+    const extraCol = this.hasInterlinearExtraColumn() ? 'extra_word_positions' : 'NULL AS extra_word_positions';
+    let sql = `SELECT verse_id, word_position_start, word_position_end, ${extraCol},
+                      gloss, morphology, original_word
+               FROM interlinear_word WHERE strongs_number IN (${ph})`;
+    if (options.range) {
+      sql += ' AND verse_id BETWEEN ? AND ?';
+      params.push(options.range.startVerseId, options.range.endVerseId);
+    }
+    sql += ' ORDER BY verse_id, word_position_start, interlinear_id';
+    if (options.limit !== undefined) {
+      sql += ' LIMIT ? OFFSET ?';
+      params.push(options.limit, options.offset ?? 0);
+    }
+    return this.sql.queryAll<{
+      verse_id: number; word_position_start: number; word_position_end: number;
+      extra_word_positions: string | null; gloss: string | null; morphology: string | null; original_word: string | null;
+    }>(sql, params).map(r => ({
+      verseId: r.verse_id,
+      start: r.word_position_start,
+      end: r.word_position_end,
+      ...(r.extra_word_positions ? { extra: r.extra_word_positions } : {}),
+      ...(r.gloss ? { gloss: r.gloss } : {}),
+      ...(r.morphology ? { morph: r.morphology } : {}),
+      ...(r.original_word ? { original: r.original_word } : {}),
+    }));
+  }
+
   // ========================================================================
   // Keyword-Index Support (M5, task 0026 revision 2)
   // ========================================================================
@@ -1046,6 +1131,21 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
       wordCount: row.word_count,
       metadata: parseJsonField(row.metadata)
     });
+  }
+
+  private interlinearExtraColumn: boolean | undefined;
+
+  private hasInterlinearExtraColumn(): boolean {
+    if (this.interlinearExtraColumn === undefined) {
+      try {
+        this.interlinearExtraColumn = this.sql
+          .queryAll<{ name: string }>('PRAGMA table_info(interlinear_word)')
+          .some(c => c.name === 'extra_word_positions');
+      } catch {
+        this.interlinearExtraColumn = false;
+      }
+    }
+    return this.interlinearExtraColumn;
   }
 
   private mapRowToInterlinearWord(row: InterlinearWordRow): InterlinearWord {

@@ -22,6 +22,7 @@ export const PANEL_CONTENT_ICONS: Partial<Record<PanelContentType, string>> = {
   search: '\u{1F50E}',     // right-pointing magnifying glass
   study: '\u{1F4D1}',      // bookmark tabs
   topics: '\u{1F3F7}\uFE0F', // label
+  wordStudy: '\u{1F524}',   // input latin letters
   genealogy: '\u{1F333}',  // deciduous tree
   timeline: '\u{1F4C5}',   // calendar
   'reading-plans': '\u{1F5D3}\uFE0F', // spiral calendar
@@ -56,6 +57,7 @@ export const ICONLESS_TAB_CONTENT_TYPES: readonly PanelContentType[] = [
   'commentary',
   'topics',
   'dictionary',
+  'wordStudy',
 ];
 
 /**

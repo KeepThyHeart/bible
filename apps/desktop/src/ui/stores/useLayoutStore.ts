@@ -24,6 +24,7 @@ export type PanelContentType =
   | 'prayer'
   | 'study'
   | 'topics'
+  | 'wordStudy'
   | 'genealogy'
   | 'timeline'
   | 'reading-plans'

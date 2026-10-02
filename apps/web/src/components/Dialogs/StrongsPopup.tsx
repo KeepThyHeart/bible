@@ -3,6 +3,7 @@ import { Popover } from '@bible/ui';
 import type { StrongsEntryData } from '../../types';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
+import { openWordStudy } from '../../utils/openWordStudy';
 
 interface StrongsPopupProps {
   entry: StrongsEntryData | null;
@@ -116,6 +117,19 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
       >
         <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
         {t('strongsPopup.searchOccurrences')}
+      </button>
+      <button
+        type="button"
+        class="strongs-popup__search-btn"
+        data-testid="strongs-popup-word-study"
+        onClick={(e) => {
+          e.stopPropagation();
+          openWordStudy({ strongs: entry.strongsNumber });
+          onClose();
+        }}
+      >
+        <i class="fa-solid fa-language" style={{ marginInlineEnd: '4px' }} />
+        {t('wordStudy.open')}
       </button>
     </Popover>
   );

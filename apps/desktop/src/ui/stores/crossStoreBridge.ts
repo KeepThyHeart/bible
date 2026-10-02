@@ -60,6 +60,13 @@ export type ResolveInstalledModuleId = (abbreviation: string) => number | undefi
  */
 export type ShowSearchResultsPanel = () => void;
 
+/**
+ * The abbreviation of the translation the reader is looking at in the primary
+ * Bible panel, or undefined when there is none. Used as the default module of
+ * a word study.
+ */
+export type ResolveActiveBibleModule = () => string | undefined;
+
 /** What changed in the installed-module library. */
 export interface LibraryChange {
   /**
@@ -85,6 +92,7 @@ interface CrossStoreBridges {
   resolveOpenModuleAbbreviations: ResolveOpenModuleAbbreviations | null;
   resolveInstalledModuleId: ResolveInstalledModuleId | null;
   showSearchResultsPanel: ShowSearchResultsPanel | null;
+  resolveActiveBibleModule: ResolveActiveBibleModule | null;
 }
 
 const bridges: CrossStoreBridges = {
@@ -95,6 +103,7 @@ const bridges: CrossStoreBridges = {
   resolveOpenModuleAbbreviations: null,
   resolveInstalledModuleId: null,
   showSearchResultsPanel: null,
+  resolveActiveBibleModule: null,
 };
 
 export function setNavigateToVerseInPrimary(fn: NavigateToVerseInPrimary | null): void {
@@ -111,6 +120,14 @@ export function setResolveOpenModuleAbbreviations(fn: ResolveOpenModuleAbbreviat
 
 export function setPreviewVerseInPrimary(fn: PreviewVerseInPrimary | null): void {
   bridges.previewVerseInPrimary = fn;
+}
+
+export function setResolveActiveBibleModule(fn: ResolveActiveBibleModule | null): void {
+  bridges.resolveActiveBibleModule = fn;
+}
+
+export function resolveActiveBibleModule(): string | undefined {
+  return bridges.resolveActiveBibleModule?.();
 }
 
 export function navigateToVerseInPrimary(verseId: number): void {

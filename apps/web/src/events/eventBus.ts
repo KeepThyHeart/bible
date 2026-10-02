@@ -29,6 +29,9 @@ export interface EventMap {
   /** Open a Strong's entry in Dictionary */
   'strongs:open': { strongsNumber: string };
 
+  /** Show the Word study pane (desktop right pane / mobile sheet). Emitted by `openWordStudy`. */
+  'wordstudy:open': void;
+
   /** Load commentary for a chapter */
   'commentary:load-chapter': { book: number; chapter: number };
 

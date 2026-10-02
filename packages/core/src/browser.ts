@@ -288,6 +288,12 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
+// --- Word study (pure: tokenising, stemming, word groups, rendering grouping, DTOs) ---
+export * from './WordStudy';
+export * from './Services/WordGroupStore';
+// WordStudy and KeywordMarks (via Text) both export the same primaryLanguage; naming it settles the ambiguity.
+export { primaryLanguage } from './Text';
+
 // --- Shared text tools (task 0089) ------------------------------------------------
 // Tokenising, normalising, stemming, stop words, word/phrase matching. KeywordMarks
 // re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are

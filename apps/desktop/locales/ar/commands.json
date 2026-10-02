@@ -81,5 +81,10 @@
   "readingPlans.open.category": "خطط القراءة",
   "readingPlans.open.alias.0": "خطة قراءة",
   "readingPlans.open.alias.1": "قراءة اليوم",
-  "readingPlans.open.alias.2": "قراءة الكتاب المقدس في سنة"
+  "readingPlans.open.alias.2": "قراءة الكتاب المقدس في سنة",
+  "wordStudy.open": "Open Word Study",
+  "wordStudy.open.category": "Study",
+  "wordStudy.open.alias.0": "word study",
+  "wordStudy.open.alias.1": "strongs study",
+  "wordStudy.open.alias.2": "concordance"
 }

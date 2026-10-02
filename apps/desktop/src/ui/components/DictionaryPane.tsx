@@ -7,6 +7,7 @@ import {
   type DictionaryEntrySummary,
   type RecentLookup,
 } from '../stores/useDictionaryStore';
+import { revealWordStudyPanel } from './wordStudy/revealWordStudyPanel';
 import { useDictionaryPanel } from '../stores/hooks/useDictionaryPanel';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import { useTextSettingsStore, getFontFamilyCSS } from '../stores/useTextSettingsStore';
@@ -680,6 +681,16 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                   </svg>
                   {t('dictionaryPane.searchOccurrences')
                     .replace('{number}', strongsSearchNumber)}
+                </button>
+              )}
+              {strongsSearchNumber && (
+                <button
+                  type="button"
+                  onClick={() => { revealWordStudyPanel({ kind: 'strongs', strongs: strongsSearchNumber }); }}
+                  className="mt-sm w-full flex items-center justify-center gap-xs px-sm py-xs rounded border border-border text-sm text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+                  data-testid="dictionary-word-study"
+                >
+                  {t('wordStudy.dictionaryButton')}
                 </button>
               )}
             </div>

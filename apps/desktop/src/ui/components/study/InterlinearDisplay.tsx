@@ -1,3 +1,4 @@
+import { revealWordStudyPanel } from '../wordStudy/revealWordStudyPanel';
 import React, { useState, useEffect, useMemo } from 'react';
 import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/core';
 import { dictionaryAPI } from '../../services/electronAPI';
@@ -315,13 +316,14 @@ const StrongsPreviewTooltip: React.FC<{
           index and does not need the dictionary that just came up empty.
           Mirrors the web app's StrongsPopup action. */}
       {!loading && (
+        <div className="mt-2 flex gap-2">
         <button
           type="button"
           onClick={() => {
             void searchStrongsNumber(strongsNumber);
             onClose();
           }}
-          className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
           data-testid="strongs-search-occurrences"
         >
           <svg className="w-3 h-3 rtl-mirror" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,6 +331,18 @@ const StrongsPreviewTooltip: React.FC<{
           </svg>
           {t('ui.interlinear.searchOccurrences')}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            revealWordStudyPanel({ kind: 'strongs', strongs: strongsNumber });
+            onClose();
+          }}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          data-testid="strongs-word-study"
+        >
+          {t('wordStudy.tooltipButton')}
+        </button>
+        </div>
       )}
       {!loading && keywordTabId && (
         <button

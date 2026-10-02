@@ -181,7 +181,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         ...(serializers.has('keywordMarks') ? { keywordMarks: get_('keywordMarks') } : {}),
         // Task 0069: weights-and-measures preferences (per device).
         ...(serializers.has('measures') ? { measures: get_('measures') } : {}),
-        ...get_('fileNotes')
+        ...get_('fileNotes'),
+        // `wordStudyPanels`: per-pane subject/options/filters (see useWordStudyStore).
+        ...get_('wordStudy')
       }
     };
   },

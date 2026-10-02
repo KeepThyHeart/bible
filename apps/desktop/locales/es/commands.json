@@ -81,5 +81,10 @@
   "readingPlans.open.category": "Planes de lectura",
   "readingPlans.open.alias.0": "plan de lectura",
   "readingPlans.open.alias.1": "lectura de hoy",
-  "readingPlans.open.alias.2": "leer la Biblia en un año"
+  "readingPlans.open.alias.2": "leer la Biblia en un año",
+  "wordStudy.open": "Abrir Estudio de palabras",
+  "wordStudy.open.category": "Estudio",
+  "wordStudy.open.alias.0": "estudio de palabras",
+  "wordStudy.open.alias.1": "estudio strong",
+  "wordStudy.open.alias.2": "concordancia"
 }
