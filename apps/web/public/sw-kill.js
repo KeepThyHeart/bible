@@ -18,7 +18,7 @@ self.addEventListener('install', function () {
 
 self.addEventListener('activate', function (event) {
   event.waitUntil((async function () {
-    var KEEP_CACHES = ['transformers-cache', 'embedding-model-v1', 'semantic-index-v1', 'audio-manifests-v1', 'audio-chapters-v1', 'tts-models-v1'];
+    var KEEP_CACHES = ['transformers-cache', 'embedding-model-v1', 'semantic-index-v1', 'audio-manifests-v1', 'audio-chapters-v1', 'tts-models-v1', 'assets-v1'];
     try {
       var names = await caches.keys();
       await Promise.all(names.map(function (n) {

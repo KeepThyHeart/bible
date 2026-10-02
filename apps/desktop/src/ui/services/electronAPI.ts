@@ -4,7 +4,11 @@
  */
 
 import type { ElectronAPI } from '../../../electron/preload';
-import { unwrap, IpcResultError } from './ipcResult';
+import type { AssetListSnapshot } from '@bible/core/browser';
+import { unwrap, IpcResultError, type Result } from './ipcResult';
+import type {
+  PassageRange, SimilarOptions,
+} from '../../../electron/ipc/similarTypes';
 
 // Check if running in Electron
 const isElectron = typeof window !== 'undefined' && window.electron !== undefined;
@@ -403,6 +407,63 @@ export const featurePackAPI = {
   async uninstall() {
     const api = requireElectronAPI();
     return unwrap(api.featurePacks.uninstall());
+  },
+};
+
+/**
+ * Asset store (task 0090): downloadable voices, runtimes and packs managed by
+ * the main-process `AssetManager`. The renderer passes ids only. `install`
+ * resolves when the download *starts*; progress and failures are read by polling
+ * `list`. Typed loosely until the preload `assets` bridge is in `ElectronAPI`.
+ */
+interface AssetsBridge {
+  list(): Promise<unknown>;
+  install(id: string): Promise<unknown>;
+  cancel(id: string): Promise<unknown>;
+  remove(id: string): Promise<unknown>;
+  refresh(): Promise<unknown>;
+}
+
+function assetsBridge(): AssetsBridge {
+  const api = requireElectronAPI() as unknown as { assets?: AssetsBridge };
+  if (!api.assets) throw new Error('Asset store is not available in this build.');
+  return api.assets;
+}
+
+export const assetsAPI = {
+  async list() {
+    return unwrap(assetsBridge().list() as Promise<Result<AssetListSnapshot>>);
+  },
+  async install(id: string) {
+    return unwrap(assetsBridge().install(id) as Promise<Result<{ started: true }>>);
+  },
+  async cancel(id: string) {
+    return unwrap(assetsBridge().cancel(id) as Promise<Result<{ cancelled: boolean }>>);
+  },
+  async remove(id: string) {
+    return unwrap(assetsBridge().remove(id) as Promise<Result<{ removed: boolean }>>);
+  },
+  async refresh() {
+    return unwrap(assetsBridge().refresh() as Promise<Result<AssetListSnapshot>>);
+  },
+};
+
+/** Similar passages (task 0070); payload shapes come from the main process. */
+const similarBridge = () => requireElectronAPI().similar;
+
+export const similarAPI = {
+  async find(range: PassageRange, opts?: SimilarOptions, module?: string) {
+    return unwrap(similarBridge().find(range, opts, module));
+  },
+  async explain(a: PassageRange, b: PassageRange, module?: string) {
+    return unwrap(similarBridge().explain(a, b, module));
+  },
+  async status() {
+    return unwrap(similarBridge().status());
+  },
+  /** Drop the main process's cached similar results (after the user's cross-references change). */
+  async reset() {
+    return unwrap(similarBridge().reset());
   },
 };
 

@@ -162,6 +162,16 @@ export * as Crypto from './Crypto';
 // Backup format v1 (task 0078): also re-exported from `./browser`.
 export * as Backup from './Backup';
 
+// Shared text tools (task 0089): also re-exported from `./browser`.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
@@ -173,3 +183,7 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
+export * from './Services/Similar';
+export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';

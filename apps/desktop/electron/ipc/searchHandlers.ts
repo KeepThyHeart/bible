@@ -33,6 +33,7 @@ import {
   applySearchHighlighting as applyHighlighting,
   formatSemanticReference,
 } from './searchHelpers';
+import { resetSimilarPassages } from './similarHandlers';
 import type { ExtensionHost } from '../extensions/ExtensionHost';
 
 /**
@@ -530,6 +531,15 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
 // Semantic Search Helpers
 // ===========================================================================
 
+/**
+ * The semantic search service for in-process consumers (similar passages, task 0070), or null
+ * when no pack is installed. Embeddings load only when the pack exists, as for search itself.
+ */
+export function getSemanticSearchService(): SemanticSearchService | null {
+  initializeSemanticSearch();
+  return semanticSearchService;
+}
+
 function initializeSemanticSearch(): void {
   if (semanticSearchService) return;
 
@@ -584,6 +594,7 @@ function initializeSemanticSearch(): void {
  * the main process.
  */
 export function resetSemanticSearch(): void {
+  resetSimilarPassages();
   if (semanticSearchService) {
     semanticSearchService.unloadEmbeddings();
     semanticSearchService = null;

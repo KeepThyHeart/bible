@@ -273,6 +273,19 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
+// --- Shared text tools (task 0089) ------------------------------------------------
+// Tokenising, normalising, stemming, stop words, word/phrase matching. KeywordMarks
+// re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
+// left out of this list to avoid duplicate `export *` names.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // --- Keyword marks (task 0065) --------------------------------------------------
 // The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
 // validation and the set service. Pure TypeScript; both apps wrap it in a UI.
@@ -313,3 +326,14 @@ export * from './audio';
 // Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
 // converter, anchor resolver, decoration layer and popup view model. Pure.
 export * from './Measures';
+
+// --- Asset store (task 0090) -------------------------------------------------
+// Download/cache manager for large optional assets: manifest, ports (transport,
+// store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
+export * from './assets';
+
+// --- Similar passages (task 0070) --------------------------------------------
+// Types, ranking weights/policy, match explanations, the SNB1 neighbour table
+// reader and the service that picks table or live source. Pure TypeScript; the
+// Node-only vector source is on the main entry.
+export * from './Services/Similar';
