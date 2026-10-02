@@ -179,7 +179,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         preferences: get_('preferences'),
         // Task 0065: keyword-mark switches per Bible tab (not yet in core's SessionData.ui type).
         ...(serializers.has('keywordMarks') ? { keywordMarks: get_('keywordMarks') } : {}),
-        ...get_('fileNotes')
+        // Task 0069: weights-and-measures preferences (per device).
+        ...(serializers.has('measures') ? { measures: get_('measures') } : {}),
+        ...get_('fileNotes'),
+        // `wordStudyPanels`: per-pane subject/options/filters (see useWordStudyStore).
+        ...get_('wordStudy')
       }
     };
   },

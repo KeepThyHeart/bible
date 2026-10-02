@@ -151,8 +151,9 @@ export class BibleBridge implements IExtensionBibleBridge {
     }));
   }
 
-  parseReference(input: string, _locale?: string): ParsedReferenceDto | null {
-    const parsed = getLocalizedReferenceParser().parse(input);
+  parseReference(input: string, locale?: string): ParsedReferenceDto | null {
+    // The extension's locale wins; English is always accepted as well.
+    const parsed = getLocalizedReferenceParser(locale || undefined).parse(input);
     if (!parsed.isValid || parsed.book === undefined) return null;
     const dto: ParsedReferenceDto = {
       bookNumber: parsed.book,

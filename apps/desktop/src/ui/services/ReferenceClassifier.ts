@@ -10,7 +10,7 @@ import { getLocalizedReferenceParser } from './localizedReferenceParser';
  */
 export class ReferenceClassifier {
   looksLikeReference(input: string): boolean {
-    if (!/\d/.test(input)) return false;
+    if (!/\p{Nd}/u.test(input)) return false; // any script's digits: "يوحنا ٣:١٦"
     return getLocalizedReferenceParser().isReference(input);
   }
 }

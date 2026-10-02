@@ -78,7 +78,7 @@ describe('XrefGraphDialog', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Compass' }));
     expect(screen.getByTestId('compass').getAttribute('data-anchor')).toBe('43003016');
     fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
-    expect(screen.getByRole('dialog').className).toContain('xref-graph-dialog--full');
+    expect(screen.getByRole('dialog').className).toContain('kth-fs-on');
     expect(screen.getByRole('button', { name: 'Exit full screen' })).toBeTruthy();
   });
 

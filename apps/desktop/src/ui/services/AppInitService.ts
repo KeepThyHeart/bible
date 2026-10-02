@@ -18,6 +18,7 @@ import { useBibleStore } from '../stores/useBibleStore';
 import { biblePanelIdsFromLayout } from '../stores/bible/sessionMigration';
 import { useCommentaryStore, type CommentaryModule } from '../stores/useCommentaryStore';
 import { useDictionaryStore } from '../stores/useDictionaryStore';
+import { useWordStudyStore } from '../stores/useWordStudyStore';
 import { useNotesStore } from '../stores/useNotesStore';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { useBookStore } from '../stores/useBookStore';
@@ -26,6 +27,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useMeasureStore } from '../stores/useMeasureStore';
 import { useFileNotesStore, type RecentFile } from '../stores/useFileNotesStore';
 import { sessionAPI } from './electronAPI';
 import { flushActiveNote } from './activeNoteFlush';
@@ -263,9 +265,22 @@ export async function initializeApp(
       // Keyword-mark switches per Bible tab (task 0065). Absent in older sessions.
       useKeywordMarkStore.getState().loadFromSession((sessionData.ui as { keywordMarks?: unknown } | undefined)?.keywordMarks);
 
+      // Weights-and-measures preferences (task 0069). Absent in older sessions.
+      useMeasureStore.getState().loadFromSession((sessionData.ui as { measures?: unknown } | undefined)?.measures);
+
       // Restore file notes settings (notes directory, recent files) and the
       // per-panel notes navigation state.
       restoreFileNotesFromSession(sessionData.ui, sessionData.dockviewState);
+
+      // Word Study panes: the subject each one was on. The data is fetched
+      // again when the pane mounts.
+      const wordStudyPanelIds = panelIdsFromLayout(sessionData.dockviewState, ['wordStudy']);
+      if (wordStudyPanelIds.length > 0) {
+        useWordStudyStore.getState().restoreFromSession(
+          (sessionData.ui as { wordStudyPanels?: unknown } | undefined)?.wordStudyPanels,
+          wordStudyPanelIds
+        );
+      }
 
       // Restore dockview layout if saved.
       if (sessionData.dockviewState) {

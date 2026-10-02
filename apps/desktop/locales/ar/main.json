@@ -47,5 +47,14 @@
   "main.window.studyFallback": "الدراسة",
   "main.window.topics": "المواضيع - {name}",
   "main.window.topicsFallback": "المواضيع",
-  "main.window.extensionFallback": "امتداد"
+  "main.window.extensionFallback": "امتداد",
+  "main.notifications.votd.label": "آية اليوم",
+  "main.notifications.votd.description": "آية من الكتاب المقدس كل يوم.",
+  "main.notifications.votd.title": "آية اليوم",
+  "main.notifications.collapsed": "تذكيرات في الانتظار: {count}",
+  "main.notifications.tray.open": "فتح",
+  "main.notifications.tray.settings": "إعدادات الإشعارات…",
+  "main.notifications.tray.quit": "خروج",
+  "main.notifications.test.title": "إشعار تجريبي",
+  "main.notifications.test.body": "الإشعارات تعمل بشكل صحيح."
 }

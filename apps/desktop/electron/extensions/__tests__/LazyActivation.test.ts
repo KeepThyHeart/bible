@@ -125,7 +125,7 @@ function writeFixture(root: string, opts: FixtureOpts): void {
     name: { key: 'extension.name' },
     version: '1.0.0',
     publisher: 'test',
-    engines: { bibleApp: '^0.1.0' },
+    engines: { bibleApp: '^0.2.0' },
     main: './main.js',
     permissions: ['bible:read'],
   };

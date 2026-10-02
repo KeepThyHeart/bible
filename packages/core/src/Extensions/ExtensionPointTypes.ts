@@ -40,6 +40,8 @@ import type { ExtensionPermission } from './Permissions';
 import type {
   CrossReferenceDto,
   PanelInfoDto,
+  ReminderActivationEvent,
+  ReminderMissedEvent,
   SearchQueryDto,
   VerseWordSelection,
 } from './ExtensionApiDtos';
@@ -79,6 +81,10 @@ export const EXTENSION_POINT_KINDS: Record<ExtensionPointId, ExtensionPointKind>
   'locale.changed': 'event',
   'extension.activated': 'event',
   'extension.deactivated': 'event',
+
+  // Reminders (delivered to the owning extension only - see `deliverReminderActivation`)
+  'reminder.activated': 'event',
+  'reminder.missed': 'event',
 };
 
 /**
@@ -230,6 +236,12 @@ export interface ExtensionPointPayloadMap {
   'locale.changed': { locale: string };
   'extension.activated': { extensionId: string };
   'extension.deactivated': { extensionId: string };
+
+  // Reminders
+  /** The user clicked one of this extension's reminders. */
+  'reminder.activated': ReminderActivationEvent;
+  /** Reminders that were due while the app was closed or asleep. */
+  'reminder.missed': ReminderMissedEvent;
 }
 
 // --- Return types ----------------------------------------------------------
@@ -271,6 +283,10 @@ export interface ExtensionPointReturnMap {
   'locale.changed': void;
   'extension.activated': void;
   'extension.deactivated': void;
+
+  // Reminders
+  'reminder.activated': void;
+  'reminder.missed': void;
 }
 
 // --- Helper types for typed subscribe() ------------------------------------

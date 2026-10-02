@@ -47,5 +47,14 @@
   "main.window.studyFallback": "Study",
   "main.window.topics": "Topics - {name}",
   "main.window.topicsFallback": "Topics",
-  "main.window.extensionFallback": "Extension"
+  "main.window.extensionFallback": "Extension",
+  "main.notifications.votd.label": "Verse of the day",
+  "main.notifications.votd.description": "A verse from the Bible each day.",
+  "main.notifications.votd.title": "Verse of the day",
+  "main.notifications.collapsed": "Reminders waiting: {count}",
+  "main.notifications.tray.open": "Open",
+  "main.notifications.tray.settings": "Notifications settings…",
+  "main.notifications.tray.quit": "Quit",
+  "main.notifications.test.title": "Test notification",
+  "main.notifications.test.body": "Notifications are working."
 }

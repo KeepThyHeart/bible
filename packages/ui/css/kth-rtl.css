@@ -1,0 +1,62 @@
+/* KTH RTL primitives (task 0076). Shared by both apps and extension iframes.
+
+   - Mirroring: `.kth-rtl-mirror` flips a directional icon (chevrons, back/forward, reply, undo/redo,
+     disclosure triangles) in an RTL context. Never put it on media play/seek, clocks, refresh, check, plus,
+     close, magnifier or brand marks.
+   - Isolation: `.kth-bidi-isolate` and `<Bdi>` (`.kth-bdi`) keep a run (module abbreviation, reference, verse
+     number, footnote marker) from reordering the sentence around it.
+   - Content: `.kth-content` (from `<ContentDir>`) carries `dir`/`lang`/`data-content-dir` from the module.
+   - Fonts: system fonts first (Q9: language packs may later register better fonts under the reserved
+     "KTH <Script>" family names, which are skipped while no such @font-face exists).
+   - Shaping: Arabic-script text must never be letter-spaced, upper-cased or synthetically italicised.
+
+   Nothing here styles an element or class an app already uses, so importing it changes no existing pixel
+   until an app opts in (`data-kth-shaping` on <html>, or the classes above). */
+
+/* transform does not apply to inline boxes; a component's own display wins over this :where() default. */
+:where(.kth-rtl-mirror) {
+  display: inline-block;
+}
+
+[dir='rtl'] .kth-rtl-mirror,
+.kth-rtl-mirror[dir='rtl'] {
+  transform: scaleX(-1);
+}
+
+.kth-bidi-isolate,
+.kth-bdi {
+  unicode-bidi: isolate;
+}
+
+/* Per-script font stacks. The custom property inherits, so anything inside a lang="ar" subtree gets it. */
+:where(:lang(ar), :lang(ur), :lang(ckb), :lang(ps)) {
+  --kth-font-script: "KTH Arabic", "Segoe UI", "SF Arabic", "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, var(--kth-font-ui);
+}
+
+:where(:lang(fa)) {
+  --kth-font-script: "KTH Persian", Vazirmatn, "Segoe UI", "SF Arabic", "Noto Sans Arabic", Tahoma, var(--kth-font-ui);
+}
+
+:where(:lang(he), :lang(yi)) {
+  --kth-font-script: "KTH Hebrew", "Segoe UI", "Arial Hebrew", "SF Hebrew", "Noto Sans Hebrew", David, Arial, var(--kth-font-ui);
+}
+
+.kth-script-font {
+  font-family: var(--kth-font-script);
+}
+
+/* Shaping rules, opt-in per document. !important: they must beat any app rule that letter-spaces or
+   upper-cases a label, whatever its specificity. */
+:where([data-kth-shaping]) :is(:lang(ar), :lang(fa), :lang(ur), :lang(ckb), :lang(ps)) {
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  font-synthesis-style: none;
+}
+
+:where([data-kth-shaping]) :is(:lang(he), :lang(yi)) {
+  text-transform: none !important;
+}
+
+.kth-content:is(:lang(ar), :lang(fa), :lang(ur)) {
+  line-height: 1.7;
+}

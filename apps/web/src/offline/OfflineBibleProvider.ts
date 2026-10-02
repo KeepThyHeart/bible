@@ -11,6 +11,7 @@ import type { IBibleDataProvider, BatchVerseTexts, VotdData } from '../providers
 import type { ChapterData, VerseData, BookTopicsData } from '../types';
 import type { BibleWorkerProxy } from './BibleWorkerProxy';
 import { offlineStore } from '../stores/offlineStore';
+import { setModuleDbCloser } from './moduleAssets';
 
 export class OfflineBibleProvider implements IBibleDataProvider {
   private loadingModules = new Set<string>();
@@ -28,7 +29,10 @@ export class OfflineBibleProvider implements IBibleDataProvider {
   constructor(
     private server: IBibleDataProvider,
     private workerProxy: BibleWorkerProxy,
-  ) {}
+  ) {
+    // Module updates/removals must release the worker's OPFS handle before replacing the file.
+    setModuleDbCloser((abbr) => this.workerProxy.closeDb(abbr));
+  }
 
   /**
    * True once the module's database is open in the worker — the same condition
@@ -149,7 +153,8 @@ export class OfflineBibleProvider implements IBibleDataProvider {
    * getVerse remains the safety net if this is never called or fails.
    */
   preload(): Promise<void> {
-    const modules = offlineStore.downloadedModules.map(m => m.abbreviation);
+    // Only Bible DBs are opened by the worker; other module types are served by the server API.
+    const modules = offlineStore.downloadedModules.filter(m => m.type === 'bible').map(m => m.abbreviation);
     for (const module of modules) {
       this.openDbInBackground(module);
     }

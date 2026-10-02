@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useI18n } from '../contexts/useI18n';
-import { CommentaryHomeModuleData, CommentaryEntry } from '../stores/useCommentaryStore';
+import { CommentaryHomeModuleData, CommentaryEntry, useCommentaryStore } from '../stores/useCommentaryStore';
+import { contentDirAttrs } from '../utils/contentDirection';
 import { useCommentaryPanel } from '../stores/hooks/useCommentaryPanel';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { previewVerseInPrimary } from '../stores/crossStoreBridge';
@@ -306,6 +307,9 @@ const CommentaryHomeModule: React.FC<{
   // The Overview grid is where readers choose what to trust, so machine-generated
   // modules are labelled in the collapsed row too - not only once expanded.
   const provenanceKind = useModuleProvenance(module.abbreviation);
+  const moduleLanguage = useCommentaryStore(
+    s => s.availableCommentaries.find(c => c.abbreviation === module.abbreviation)?.language_code,
+  );
   const disclaimerId = `commentary-home-disclaimer-${module.abbreviation}`;
   // Muting hides a commentary from the list, so it asks for confirmation first;
   // unmuting (reversing that) does not.
@@ -449,6 +453,7 @@ const CommentaryHomeModule: React.FC<{
                 key={entry.entry_id || index}
                 entry={entry}
                 contextBookNumber={contextBookNumber}
+                language={moduleLanguage}
               />
             ))}
           </div>
@@ -464,7 +469,9 @@ const CommentaryHomeModule: React.FC<{
 const HomeEntryPreview: React.FC<{
   entry: CommentaryEntry;
   contextBookNumber?: number;
-}> = ({ entry, contextBookNumber }) => {
+  /** The module's language: the preview text follows it, not the UI. */
+  language?: string | null;
+}> = ({ entry, contextBookNumber, language }) => {
   const { t } = useI18n();
   const contentRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -573,6 +580,7 @@ const HomeEntryPreview: React.FC<{
       <div
         ref={contentRef}
         data-testid="commentary-home-module-preview"
+        {...contentDirAttrs(language)}
         className="prose prose-sm max-w-none text-sm"
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(processedContent) }}
       />

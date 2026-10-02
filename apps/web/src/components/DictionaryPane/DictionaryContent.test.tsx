@@ -21,6 +21,11 @@ vi.mock('react-i18next', () => ({
 }));
 
 // ---- useStore: call selector immediately --------------------------------
+// contentDirection pulls in moduleStore (and through it i18n); the pane test only needs plain attrs.
+vi.mock('../../utils/contentDirection', () => ({
+  moduleContentAttrs: () => ({ dir: 'ltr', lang: 'en', 'data-content-dir': 'ltr' }),
+}));
+
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
@@ -116,6 +121,11 @@ vi.mock('../../stores/commentaryStore', () => ({
     setRightPaneMode: (m: string) => mockSetRightPaneMode(m),
     expand: () => mockExpand(),
   },
+}));
+
+const mockOpenWordStudy = vi.fn();
+vi.mock('../../utils/openWordStudy', () => ({
+  openWordStudy: (t: unknown) => mockOpenWordStudy(t),
 }));
 
 import { DictionaryContent } from './DictionaryContent';
@@ -492,6 +502,21 @@ describe('DictionaryContent', () => {
   // ------------------------------------------------------------------
   const searchBtn = (container: Element) =>
     container.querySelector<HTMLButtonElement>('[data-testid="dictionary-search-occurrences"]');
+
+  it("offers a Word study button on a Strong's entry that opens the study for that number", () => {
+    mockTab = makeTab({ moduleAbbr: 'strongsgreek' });
+    mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: '00025', word: 'agapao' }) };
+    const { container } = render(<DictionaryContent tabId="dtab-1" />);
+    fireEvent.click(container.querySelector('[data-testid="dictionary-word-study"]')!);
+    expect(mockOpenWordStudy).toHaveBeenCalledWith({ strongs: 'G25' });
+  });
+
+  it('has no Word study button on an ordinary dictionary', () => {
+    mockTab = makeTab({ moduleAbbr: 'webster' });
+    mockTabState = { ...emptyTabState(), entry: makeEntry() };
+    const { container } = render(<DictionaryContent tabId="dtab-1" />);
+    expect(container.querySelector('[data-testid="dictionary-word-study"]')).toBeNull();
+  });
 
   it("offers a Strong's occurrence search on a Greek lexicon entry", () => {
     mockTab = makeTab({ moduleAbbr: 'strongsgreek' });

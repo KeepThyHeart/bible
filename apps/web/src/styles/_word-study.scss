@@ -1,0 +1,34 @@
+// Word study pane (desktop right pane / mobile sheet). The panel's own content is styled by @bible/ui's kth.css.
+.word-study-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    flex: 1;
+    margin: 0;
+    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-weight: 600;
+  }
+
+  &__scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px 12px;
+  }
+
+  &__prompt {
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+  }
+}

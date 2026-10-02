@@ -10,6 +10,7 @@
  * this file has no direct dependency on Zustand or the user DB.
  */
 
+import { isolateMessageParams, isKnownUiLocale, uiDirection } from '@bible/core/browser';
 import { Emitter } from '../types/Event';
 import type { IEvent } from '../types/Event';
 import type {
@@ -139,7 +140,16 @@ export class I18nService implements II18nService {
       return typeof v === 'string' && v.length > 0 ? v : undefined;
     };
     const status = read(META_KEY_STATUS);
-    const direction = read(META_KEY_DIRECTION);
+    const metaDirection = read(META_KEY_DIRECTION);
+    // The shared locale registry is the sole source of UI direction for every
+    // planned locale (task 0076); meta.json only answers for tags it does not
+    // know (dev pseudo-locales such as xx-rtl, user-dropped catalogs).
+    const fallbackDirection: LocaleDirection =
+      metaDirection === 'ltr' || metaDirection === 'rtl' ? metaDirection : DEFAULT_LOCALE_DIRECTION;
+    const direction = uiDirection(locale, fallbackDirection);
+    if (isDev && metaDirection && isKnownUiLocale(locale) && metaDirection !== direction) {
+      this.warnDirectionMismatch(locale, metaDirection, direction);
+    }
     return {
       code: locale,
       name: read(META_KEY_NAME) ?? locale,
@@ -148,7 +158,7 @@ export class I18nService implements II18nService {
         status === 'complete' || status === 'beta' || status === 'draft'
           ? status
           : DEFAULT_LOCALE_STATUS,
-      direction: direction === 'ltr' || direction === 'rtl' ? direction : DEFAULT_LOCALE_DIRECTION,
+      direction,
     };
   }
 
@@ -181,7 +191,9 @@ export class I18nService implements II18nService {
       return `[${key}]`;
     }
     if (!params) return message;
-    return this.formatWithIcu(message, this.resolveParams(params));
+    // In an RTL UI, isolate interpolated `{name}` strings (module abbreviations,
+    // book names, titles) so they cannot reorder the sentence (task 0076).
+    return this.formatWithIcu(message, isolateMessageParams(message, this.resolveParams(params), this.currentDirection));
   }
 
   /**
@@ -259,6 +271,15 @@ export class I18nService implements II18nService {
       }
     }
     return undefined;
+  }
+
+  private readonly directionWarned = new Set<string>();
+
+  private warnDirectionMismatch(locale: string, meta: string, registry: LocaleDirection): void {
+    if (this.directionWarned.has(locale)) return;
+    this.directionWarned.add(locale);
+    // eslint-disable-next-line no-console
+    console.warn(`[i18n] ${locale}/meta.json says locale.direction=${meta}, the locale registry says ${registry}; using ${registry}`);
   }
 
   private warnMissing(key: string): void {

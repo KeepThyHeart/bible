@@ -76,9 +76,30 @@ export const PERM_COMMANDS_REGISTER = 'commands:register' as const;
 export const PERM_COMMANDS_EXECUTE_BUILTIN = 'commands:execute-builtin' as const;
 export const PERM_TASKS = 'tasks' as const;
 
+/**
+ * Schedule reminders (`api.reminders`): the host shows the extension's
+ * reminders as OS notifications at times the extension chooses, even while
+ * the app is in the background, and wakes the extension (`onReminder`) when
+ * the user clicks one. It interrupts the user outside the app, so it is NOT
+ * default-granted: it appears in the ordinary install consent dialog. It is
+ * deliberately not in `SEPARATELY_PROMPTED_PERMISSIONS` - that list is for
+ * data-exfiltration and persistent-storage surfaces (network, keychain,
+ * databases, folders); a notification is bounded (64 plain-text items, no
+ * data leaves the machine) and the user can silence a single extension or all
+ * of them in Preferences > Notifications. One omnibus line is the right weight.
+ */
+export const PERM_NOTIFICATIONS_SCHEDULE = 'notifications:schedule' as const;
+
 /** Network */
 export const PERM_NETWORK = 'network' as const;
 export const PERM_NETWORK_OAUTH = 'network:oauth' as const;
+
+/**
+ * Speech. `speech:listen` opens the microphone (transcripts only, never audio)
+ * and is separately prompted; `speech:speak` plays synthesized speech and earcons.
+ */
+export const PERM_SPEECH_LISTEN = 'speech:listen' as const;
+export const PERM_SPEECH_SPEAK = 'speech:speak' as const;
 
 /** Inter-extension */
 export const PERM_EXTENSIONS_CALL = 'extensions:call' as const;
@@ -111,7 +132,7 @@ export const DEFAULT_GRANTED_PERMISSIONS: readonly ExtensionPermission[] =
 /**
  * Permissions that show a SEPARATE detail dialog at install time, in addition
  * to the omnibus consent. These touch sensitive subsystems (network, OS
- * keychain, persistent on-disk databases) and the user deserves a focused
+ * keychain, persistent on-disk databases, the microphone) and the user deserves a focused
  * decision rather than a buried checkbox. Declared with `grant: 'separate'`.
  */
 export const SEPARATELY_PROMPTED_PERMISSIONS: readonly ExtensionPermission[] =

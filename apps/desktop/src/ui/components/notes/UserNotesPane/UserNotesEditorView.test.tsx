@@ -7,11 +7,17 @@
  */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import UserNotesEditorView from './UserNotesEditorView';
 import { ContextProvider, type AppServices } from '../../../contexts/ContextProvider';
 
-vi.mock('../editor/NoteEditor', () => ({ default: () => <div data-testid="note-editor" /> }));
+const dirApi = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn() }));
+vi.mock('../../../services/noteDirectionAPI', () => ({ noteDirectionAPI: dirApi }));
+vi.mock('../editor/NoteEditor', () => ({
+  default: ({ defaultDirection }: { defaultDirection?: string }) => (
+    <div data-testid="note-editor" dir={defaultDirection ?? 'ltr-ui'} />
+  ),
+}));
 
 function createMockServices(): AppServices {
   return {
@@ -89,5 +95,30 @@ describe('UserNotesEditorView - title editability', () => {
     renderView({ onPopOut });
     screen.getByTitle('userNotesPane.popOutTitle').click();
     expect(onPopOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('UserNotesEditorView - note direction', () => {
+  it('loads the stored direction, applies it as the editor root dir and saves changes', async () => {
+    dirApi.get.mockResolvedValue('rtl');
+    dirApi.set.mockResolvedValue(undefined);
+    renderView({ notePath: 'Docs/a.bn' });
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('dir', 'rtl'));
+    expect(dirApi.get).toHaveBeenCalledWith('Docs/a.bn');
+    const select = screen.getByLabelText('editorToolbar.noteDirectionLabel') as HTMLSelectElement;
+    expect(select.value).toBe('rtl');
+
+    fireEvent.change(select, { target: { value: 'ltr' } });
+    expect(dirApi.set).toHaveBeenLastCalledWith('Docs/a.bn', 'ltr');
+    expect(screen.getByTestId('note-editor')).toHaveAttribute('dir', 'ltr');
+
+    fireEvent.change(select, { target: { value: 'default' } });
+    expect(dirApi.set).toHaveBeenLastCalledWith('Docs/a.bn', null);
+    expect(screen.getByTestId('note-editor')).toHaveAttribute('dir', 'ltr-ui');
+  });
+
+  it('shows no control without a note path', () => {
+    renderView();
+    expect(screen.queryByLabelText('editorToolbar.noteDirectionLabel')).not.toBeInTheDocument();
   });
 });

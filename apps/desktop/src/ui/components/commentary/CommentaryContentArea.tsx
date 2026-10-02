@@ -17,6 +17,8 @@ interface CommentaryContentAreaProps {
    * so every call site must pass it.
    */
   moduleAbbreviation?: string;
+  /** The module's language code; drives the entry text's `dir`/`lang`. */
+  moduleLanguage?: string | null;
   currentVerseId: number | null;
   isLoading: boolean;
   error: string | null;
@@ -44,6 +46,7 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
   entries,
   moduleName,
   moduleAbbreviation,
+  moduleLanguage,
   currentVerseId,
   isLoading,
   error,
@@ -152,6 +155,7 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
             showDivider={index < entries.length - 1}
             contextBookNumber={contextBookNumber}
             showLevelBadge={entries.length > 1}
+            language={moduleLanguage}
           />
         ))}
         </div>

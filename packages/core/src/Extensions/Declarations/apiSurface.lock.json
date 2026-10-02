@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "surface": {
     "namespaces": [
       {
@@ -240,6 +240,22 @@
         }
       },
       {
+        "name": "reminders",
+        "since": "0.2.0",
+        "optional": true,
+        "whenGranted": "notifications:schedule",
+        "methods": {
+          "capabilities": "notifications:schedule",
+          "list": "notifications:schedule",
+          "onActivated": "notifications:schedule (local)",
+          "onMissed": "notifications:schedule (local)",
+          "replaceAll": "notifications:schedule",
+          "requestPermission": "notifications:schedule",
+          "takeActivations": "notifications:schedule"
+        },
+        "wire": {}
+      },
+      {
         "name": "runtime",
         "since": "0.1.0",
         "optional": false,
@@ -248,6 +264,22 @@
           "expose": "open (local)",
           "listExposed": "open (local)",
           "unexpose": "open (local)"
+        },
+        "wire": {}
+      },
+      {
+        "name": "speech",
+        "since": "0.2.0",
+        "optional": true,
+        "whenGranted": null,
+        "methods": {
+          "cancel": "open",
+          "earcon": "speech:speak",
+          "nextUtterance": "speech:listen",
+          "speak": "speech:speak",
+          "startListening": "speech:listen",
+          "status": "open",
+          "stopListening": "speech:listen"
         },
         "wire": {}
       },
@@ -370,6 +402,9 @@
       "network:oauth separate 0.1.0",
       "notes:read prompt 0.1.0",
       "notes:write prompt 0.1.0",
+      "notifications:schedule prompt 0.2.0",
+      "speech:listen separate 0.2.0",
+      "speech:speak prompt 0.2.0",
       "storage prompt 0.1.0",
       "storage:database separate 0.1.0",
       "storage:secrets separate 0.1.0",
@@ -387,6 +422,7 @@
       "onContext: 0.1.0",
       "onExtensionApi: 0.1.0",
       "onProviderRoleSelected: 0.1.0",
+      "onReminder fired 0.2.0",
       "onTask: 0.1.0",
       "onView: fired 0.1.0"
     ],
@@ -408,6 +444,8 @@
       "panel.closed event open 0.1.0",
       "panel.focused event open 0.1.0",
       "panel.opened event open 0.1.0",
+      "reminder.activated event notifications:schedule 0.2.0",
+      "reminder.missed event notifications:schedule 0.2.0",
       "search.beforeQuery filter open 0.1.0",
       "settings.changed event open 0.1.0",
       "verse.activeChanged event open 0.1.0",

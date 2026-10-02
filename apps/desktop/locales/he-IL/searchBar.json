@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "חיפוש במקרא, הזנת הפניה, או הקלדת / לפקודות",
+  "searchBar.commandMode.label": "פקודות",
+  "searchBar.commandMode.empty": "אין פקודות תואמות",
+  "searchBar.referenceMode.label": "מעבר להפניה",
+  "searchBar.referenceMode.goTo": "עבור אל {reference}",
+  "searchBar.emptyState.recentSearches": "חיפושים אחרונים",
+  "searchBar.emptyState.recentCommands": "פקודות אחרונות",
+  "searchBar.emptyState.noRecents": "אין פריטים אחרונים"
+}

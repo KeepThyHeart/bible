@@ -80,6 +80,7 @@ export function ItemChooser({ target }: { target: ChooserTarget }) {
 
   // Below the clicked text, kept inside the viewport.
   const style = {
+    // rtl-physical: anchored to a measured viewport rect (getBoundingClientRect)
     left: `${Math.max(8, Math.min(target.anchor.left, window.innerWidth - 340))}px`,
     top: `${Math.min(target.anchor.bottom + 6, window.innerHeight - 120)}px`,
   };

@@ -14,6 +14,7 @@ import {
   VerseIdHelper,
   getLocalizer,
   isSingleChapterBook,
+  referenceLocalesVersion,
 } from '@bible/core/browser';
 import type { Localizer, ParsedReference } from '@bible/core/browser';
 
@@ -57,10 +58,16 @@ interface PickerParsers {
 }
 
 const parserCache = new Map<string, PickerParsers>();
+let parserCacheVersion = -1;
 const EN = new ReferenceParser();
 
 /** Locale parser plus English (memoized per tag). A locale without a book-name table uses English only. */
 export function getPickerParsers(locale: string): PickerParsers {
+  // Locale data loads on demand (task 0077): rebuild once more of it is in memory.
+  if (parserCacheVersion !== referenceLocalesVersion()) {
+    parserCache.clear();
+    parserCacheVersion = referenceLocalesVersion();
+  }
   const hit = parserCache.get(locale);
   if (hit) return hit;
   const localizer = getLocalizer(locale);

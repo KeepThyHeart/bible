@@ -838,6 +838,34 @@ Your \`activate(api)\` function receives a \`BibleExtensionAPI\` object with
 | extensions  | Inter-extension calls                |
 | ai          | AI provider (reserved, v1 stub)      |
 
+## Right-to-left languages
+
+The host can run in Arabic, Hebrew or Persian, so the panel's text direction
+follows the UI language, and the Bible text it shows follows the *module's*
+language. They are independent: an Arabic UI showing the KJV is left-to-right
+text inside right-to-left chrome.
+
+- **Direction.** \`ui.getLocale\` returns \`{ locale, direction }\` (the kit reads
+  it for you when you call \`bible.loadKit(...)\`). Set \`dir\` and \`lang\` on
+  \`<html>\` from it, and listen for the host's \`locale.changed\` push so a
+  language switch made while the panel is open is picked up without a reload.
+- **Logical CSS.** Use \`margin-inline-start\`, \`padding-inline-end\`,
+  \`inset-inline-start\`, \`border-inline-start\`, \`text-align: start\` and
+  \`float: inline-start\` instead of \`left\`/\`right\`. Flex and grid rows then
+  reverse by themselves. Keep a physical value only where it must stay (a
+  media seek bar, a measured rectangle) and say why in a comment.
+- **Mirror directional icons.** Add \`kth-rtl-mirror\` (from
+  \`ext-ui://host/kit/1/kth.css\`) to chevrons, back/forward and disclosure
+  arrows. Do not mirror play/pause, check, plus, close, a magnifier, clocks or
+  a logo.
+- **Isolate mixed runs.** Wrap a module abbreviation, a verse reference or a
+  user-typed title in \`<bdi>\` (or add \`kth-bdi\`) so it cannot reorder the
+  sentence around it. Give free-text inputs \`dir="auto"\`. Put \`dir\` and
+  \`lang\` of the *module* on the element that holds Bible text.
+- **Keys.** Arrow keys in your own toolbars and tab strips should mean
+  "previous" and "next" in reading order: swap Left and Right when the
+  direction is \`rtl\`.
+
 ## Panel UI and the UI kit
 
 \`ui/index.html\` links the host's theme (\`ext-ui://host/theme.css\`) and the

@@ -7,6 +7,9 @@ import { BibleToolbar } from './components/BiblePane/BibleToolbar';
 import { SearchResultsPanel } from './components/Search/SearchResultsPanel';
 import { MobileStudyPane } from './components/MobileStudyPane/MobileStudyPane';
 import { MobileCommentaryView } from './components/MobileStudyPane/MobileCommentaryView';
+import { WordStudyPane } from './components/WordStudy/WordStudyPane';
+import { eventBus } from './events/eventBus';
+import { openWordStudy } from './utils/openWordStudy';
 import { Header } from './components/Header';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -19,6 +22,7 @@ import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
+import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -41,7 +45,7 @@ export function MobileApp({ providers }: MobileAppProps) {
   // The audio UI is laid out per form factor: full-screen player and mini-player here.
   useEffect(() => { audioStore.setLayout('phone'); }, []);
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
-  const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary'>('home');
+  const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary' | 'wordStudy'>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
   const searchIsOpen = useStore(searchStore, () => searchStore.isOpen);
   const searchSeq = useStore(searchStore, () => searchStore.searchSeq);
@@ -149,6 +153,9 @@ export function MobileApp({ providers }: MobileAppProps) {
     }
   }, [mobileView]);
 
+  // Word study opens as a full-screen sheet from any entry point (Strong's popup, dictionary entry, header).
+  useEffect(() => eventBus.on('wordstudy:open', () => switchMobileView('wordStudy')), [mobileView]);
+
   // Listen for navigate-to-bible events from commentary pane
   useEffect(() => {
     const handler = () => switchMobileView('bible');
@@ -200,7 +207,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       }
 
       // Priority 3: Non-bible view → back to bible
-      if (mobileView === 'search' || mobileView === 'study' || mobileView === 'commentary') {
+      if (mobileView === 'search' || mobileView === 'study' || mobileView === 'commentary' || mobileView === 'wordStudy') {
         switchMobileView('bible');
         return;
       }
@@ -249,8 +256,11 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Stepping verse by verse is paging, not jumping: each swipe modifies the
       // current history entry instead of leaving a breadcrumb behind it.
       const PAGE = { replace: true } as const;
-      if (dx < 0) {
-        // Swipe left = next verse
+      // Follows the commentary module's CONTENT direction (task 0076): in RTL text a
+      // rightward swipe is "next".
+      const commentaryAbbr = commentaryStore.mobileSelectedCommentary?.abbr ?? bibleStore.getActiveModule();
+      if (contentSwipeStep(dx, commentaryAbbr) === 'next') {
+        // Swipe toward the end of the line = next verse
         const maxVerse = bibleStore.getActiveTab()?.verses?.length || 999;
         if (sv && sv < maxVerse) bibleStore.navigateTo(sb, sc, sv + 1, PAGE);
         else {
@@ -259,7 +269,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           else if (sb < 66) bibleStore.navigateTo(sb + 1, 1, 1, PAGE);
         }
       } else {
-        // Swipe right = previous verse
+        // Swipe toward the start of the line = previous verse
         if (sv && sv > 1) bibleStore.navigateTo(sb, sc, sv - 1, PAGE);
         else if (sc > 1) bibleStore.navigateTo(sb, sc - 1, undefined, PAGE);
         else if (sb > 1) bibleStore.navigateTo(sb - 1, MAX_CHAPTERS[sb - 1] || 1, undefined, PAGE);
@@ -389,6 +399,13 @@ export function MobileApp({ providers }: MobileAppProps) {
               </button>
               <button
                 class="mobile-landscape-sidebar__action-btn"
+                onClick={() => openWordStudy()}
+                title={t('wordStudy.open')}
+              >
+                <i class="fa-solid fa-language" />
+              </button>
+              <button
+                class="mobile-landscape-sidebar__action-btn"
                 onClick={() => shared.setHelpOpen(true)}
                 title={t('header.help')}
               >
@@ -418,6 +435,11 @@ export function MobileApp({ providers }: MobileAppProps) {
             {mobileView === 'study' && (
               <div class="main-layout__right-pane" style={commentaryStyle}>
                 <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
+              </div>
+            )}
+            {mobileView === 'wordStudy' && (
+              <div class="main-layout__right-pane" style={commentaryStyle}>
+                <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
               </div>
             )}
             {mobileView === 'commentary' && (
@@ -451,6 +473,11 @@ export function MobileApp({ providers }: MobileAppProps) {
           {mobileView === 'study' && (
             <div class="main-layout__right-pane" style={commentaryStyle}>
               <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
+            </div>
+          )}
+          {mobileView === 'wordStudy' && (
+            <div class="main-layout__right-pane" style={commentaryStyle}>
+              <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
             </div>
           )}
           {mobileView === 'commentary' && (
@@ -509,6 +536,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          showSimilar={false}
         />
       )}
     </div>

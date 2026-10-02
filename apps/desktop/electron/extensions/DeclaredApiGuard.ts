@@ -89,6 +89,8 @@ export const DESKTOP_API_NAMESPACES: Readonly<Record<Extensions.ApiNamespaceName
   runtime: true,
   panels: true,
   ai: true,
+  reminders: true,
+  speech: true,
 };
 
 /** `ExtensionInitPayload.apiNamespaces` for the desktop host, in registry order. */

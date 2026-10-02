@@ -2,6 +2,8 @@ import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { VerseHistory } from './VerseHistory';
 import { useVerseText } from '../../hooks/useVerseText';
+import { bibleStore } from '../../stores/bibleStore';
+import { moduleContentAttrs } from '../../utils/contentDirection';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 
 const EXPAND_PREF_KEY = 'bible-reader-study-verse-expanded';
@@ -106,7 +108,8 @@ export function StudyVerseHeader({
         </div>
         {verseText && (
           <div class="study-verse-header__text">
-            {verseText}{' '}
+            {/* Verse text follows the Bible module's direction; the toggle stays UI chrome (task 0076). */}
+            <span {...moduleContentAttrs(bibleStore.getActiveModule())}>{verseText}</span>{' '}
             <button class="study-verse-header__toggle" onClick={toggleExpanded}>{t('studyVerseHeader.collapse')}</button>
           </div>
         )}
@@ -117,10 +120,10 @@ export function StudyVerseHeader({
 
       <div class="study-verse-header__nav-group">
         <button class="study-verse-header__nav" onClick={onPrev} title={t('studyVerseHeader.prevVerse')}>
-          <i class="fa-solid fa-chevron-left" />
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
         </button>
         <button class="study-verse-header__nav" onClick={onNext} title={t('studyVerseHeader.nextVerse')}>
-          <i class="fa-solid fa-chevron-right" />
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
         </button>
       </div>
     </div>

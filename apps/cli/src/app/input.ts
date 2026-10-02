@@ -15,28 +15,7 @@
  * core's `ReferenceParser` — correctly — has no notion of that. Anything that
  * names a book is handed to core.
  */
-import { ENGLISH_BOOK_NAMES, type ParsedReference, ReferenceParser } from '@bible/core';
-
-/**
- * Two-letter forms the CLI resolves that core does not.
- *
- * Core's table already carries 65 two-character abbreviations — `jn`, `mt`,
- * `mk`, `lk`, `ps`, `rm` and the rest all resolve exactly. `jo` is the notable
- * gap, and leaving it out is worse than it sounds: with no exact entry it
- * *fuzzy*-matches to **Joshua**, so `jo 3:16` silently navigates to Joshua 3:16
- * instead of John 3:16. Being sent to the wrong book without a word is the one
- * outcome the one-line design cannot afford.
- *
- * Kept here rather than in core deliberately: changing core's
- * alias map would change desktop and web behaviour too.
- */
-export const CLI_BOOK_ALIASES: ReadonlyMap<string, number> = new Map([['jo', 43]]);
-
-function cliBookNames(): Map<string, number> {
-  const names = new Map(ENGLISH_BOOK_NAMES);
-  for (const [alias, book] of CLI_BOOK_ALIASES) names.set(alias, book);
-  return names;
-}
+import { type ParsedReference, ReferenceParser } from '@bible/core';
 
 /** A reference resolved to absolute coordinates. */
 export interface ResolvedReference {
@@ -80,7 +59,10 @@ export interface ClassifyOptions {
   readonly parser?: ReferenceParser;
 }
 
-const defaultParser = new ReferenceParser({ bookNames: cliBookNames() });
+// Core's English data resolves "jo" to John itself since task 0077 (an
+// explicit ambiguity entry), so the CLI's own alias table is gone: without it
+// "jo" used to fuzzy-match Joshua silently.
+const defaultParser = new ReferenceParser();
 
 export function classifyInput(
   input: string,

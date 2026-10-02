@@ -33,6 +33,27 @@ export class ModuleController {
     this.setupDownloadCallbacks();
   }
 
+  /** Module identity per in-flight queue entry, so progress can name its module. */
+  private readonly queueModules = new Map<number, { moduleId: string; moduleName: string }>();
+
+  /**
+   * Fill in the moduleId/moduleName the download service leaves blank. Uses the
+   * identity recorded at install time, else the queue row. Mutates in place so
+   * every progress listener sharing the object sees the real values.
+   */
+  private withModuleInfo(progress: DownloadProgress): DownloadProgress {
+    let info = this.queueModules.get(progress.queueId);
+    if (!info) {
+      const row = this.downloadQueueRepo.getById(progress.queueId);
+      if (row) info = { moduleId: row.moduleId, moduleName: row.moduleName };
+    }
+    if (info) {
+      progress.moduleId = info.moduleId;
+      progress.moduleName = info.moduleName;
+    }
+    return progress;
+  }
+
   /**
    * Search available modules
    */
@@ -117,6 +138,10 @@ export class ModuleController {
       });
 
       const queueEntry = this.downloadQueueRepo.create(downloadQueue);
+      this.queueModules.set(queueEntry.queueId!, {
+        moduleId: moduleInfo.module_id,
+        moduleName: moduleInfo.name
+      });
 
       // Determine temp file path. The extension follows what download_url
       // actually names, rather than assuming `.db.gz`: InstallationService's
@@ -138,11 +163,16 @@ export class ModuleController {
 
       // Start download. The catalog's checksum covers the unpacked module, so
       // the installation service checks it after unpacking, not the download.
-      const downloadedPath = await this.downloadService.startDownload(
-        queueEntry.queueId!,
-        moduleInfo.download_url,
-        tempFilePath
-      );
+      let downloadedPath: string;
+      try {
+        downloadedPath = await this.downloadService.startDownload(
+          queueEntry.queueId!,
+          moduleInfo.download_url,
+          tempFilePath
+        );
+      } finally {
+        this.queueModules.delete(queueEntry.queueId!);
+      }
 
       // Mark download as completed in queue
       this.downloadQueueRepo.updateStatus(queueEntry.queueId!, 'completed');
@@ -271,14 +301,15 @@ export class ModuleController {
    * Get download progress
    */
   getDownloadProgress(queueId: number): DownloadProgress | undefined {
-    return this.downloadService.getProgress(queueId);
+    const progress = this.downloadService.getProgress(queueId);
+    return progress ? this.withModuleInfo(progress) : undefined;
   }
 
   /**
    * Get all active downloads
    */
   getActiveDownloads(): DownloadProgress[] {
-    return this.downloadService.getActiveDownloads();
+    return this.downloadService.getActiveDownloads().map((p) => this.withModuleInfo(p));
   }
 
   /**
@@ -311,6 +342,7 @@ export class ModuleController {
   private setupDownloadCallbacks(): void {
     // Progress callback
     this.downloadService.onProgress((progress) => {
+      this.withModuleInfo(progress);
       this.downloadQueueRepo.updateProgress(
         progress.queueId,
         progress.progressBytes,

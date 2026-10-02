@@ -145,4 +145,6 @@ export const CONTENT_MAP: Record<ModuleType, readonly ContentShape[]> = {
   tag_graph: [],
   // Timeline carries dated data, not prose; nothing is indexed or compressed.
   timeline: [],
+  // Quiz questions are short structured rows read whole; nothing is indexed or compressed.
+  quiz: [],
 };

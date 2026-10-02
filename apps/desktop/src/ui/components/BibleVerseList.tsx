@@ -10,6 +10,8 @@ import { isTextSelectionActive } from '../utils/selectionUtils';
 import { HighlightSelector } from './highlights/HighlightSelector';
 import { HighlightedVerse } from './highlights/HighlightRenderer';
 import { useKeywordChapterSync } from '../extensions/useKeywordChapterSync';
+import { useMeasureChapterSync } from '../extensions/useMeasureChapterSync';
+import { useMeasureWordPopup } from './measures/useMeasureWordPopup';
 import BibleHeader from './BibleHeader';
 import { directionForLanguage, resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
@@ -34,7 +36,7 @@ import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
  * and have that stick.
  */
 const BibleVerseList: React.FC = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const ctx = useBiblePaneContext();
   // Marked in the text so a reader can see what they saved without opening
   // anything. A passage is marked at its opening verse - see `markedVerses`.
@@ -108,6 +110,21 @@ const BibleVerseList: React.FC = () => {
     verses: currentVerses,
     active: !isParallelViewMode,
   });
+  // Task 0069: weights, measures and money marks for the chapter on screen (Reading stays clean
+  // unless the reader opted in - the core layer builder decides) and their hover/click popup.
+  useMeasureChapterSync({
+    tabId: activeTab?.tabId,
+    moduleId,
+    abbreviation: moduleAbbrev,
+    language: availableBibles.find((b) => b.abbreviation === moduleAbbrev)?.language_code,
+    bookNumber: currentBook,
+    chapter: currentChapter,
+    verses: currentVerses,
+    surface: displayMode === 'study' ? 'study' : displayMode === 'reading' ? 'reading' : 'standard',
+    uiLocale: locale,
+    active: !isParallelViewMode,
+  });
+  const measurePopup = useMeasureWordPopup(activeTab?.tabId);
   const hasGutterLane = useHasEnabledDecoratorLayers();
 
   // Task 0036 (P0.1c): word/verse hover popups. `surface` matches whichever
@@ -281,6 +298,7 @@ const BibleVerseList: React.FC = () => {
               '--pane-line-height-bible': textSettings.lineHeight
             } as React.CSSProperties}
             onMouseUp={handleMouseUpWithToolbar}
+            {...measurePopup.containerProps}
           >
             {isParallelViewMode ? (
               <ParallelBibleView panelId={panelId} />
@@ -587,6 +605,7 @@ const BibleVerseList: React.FC = () => {
         </Panel>
 
       </PanelGroup>
+      {measurePopup.popup}
     </div>
   );
 };

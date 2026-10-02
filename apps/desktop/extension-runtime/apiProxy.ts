@@ -226,6 +226,27 @@ export function createApiProxy(opts: {
             cache.set(prop, fn);
             return fn;
           }
+          // `reminders.onActivated(handler)` / `reminders.onMissed(handler)` are
+          // worker-side sugar over the host-emitted `reminder.activated` /
+          // `reminder.missed` channels, the same way `events.subscribe` is
+          // handled: the handler is a function, so there is no RPC to make.
+          // The host delivers these channels to the owning extension only
+          // (`deliverReminderActivation` / `deliverReminderMissed`), gated on
+          // `notifications:schedule` at dispatch time.
+          if (namespace === 'reminders' && (prop === 'onActivated' || prop === 'onMissed')) {
+            const channelName = prop === 'onActivated' ? 'reminder.activated' : 'reminder.missed';
+            const fn = (handler: unknown) => {
+              if (typeof handler !== 'function') {
+                return Promise.reject(new TypeError(`reminders.${prop}: handler must be a function`));
+              }
+              return opts.emitter.subscribe(
+                channelName,
+                handler as (payload: unknown) => unknown | Promise<unknown>,
+              );
+            };
+            cache.set(prop, fn);
+            return fn;
+          }
           // `events.publish(channel, payload)` (P1.8) IS a genuine RPC call -
           // unlike `subscribe`, there is no local worker-side state to route
           // to, only the host's fan-out to *other* workers. It falls through

@@ -209,7 +209,7 @@ describe('notes editor verse expansion', () => {
 
     await waitFor(() => {
       const html = onChange.mock.calls.at(-1)?.[0] as string | undefined;
-      expect(html).toContain('<blockquote>');
+      expect(html).toContain('<blockquote');
     });
     const finalHtml = onChange.mock.calls.at(-1)?.[0] as string;
     expect(finalHtml).toContain('(16) For God so loved the world');

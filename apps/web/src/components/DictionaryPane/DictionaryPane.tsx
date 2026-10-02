@@ -34,7 +34,7 @@ export function DictionaryPane({ bibleProvider }: DictionaryPaneProps) {
               }
             }}
           >
-            <i class="fa-solid fa-chevron-left fa-xs" /> {t('dictionaryPane.back')}
+            <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" /> {t('dictionaryPane.back')}
           </button>
           {isTemp && (
             <button

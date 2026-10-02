@@ -35,6 +35,12 @@ describe('shipped cache rules', () => {
     expect(cacheRuleFor(CACHE_RULES, u('/data/models/foo/onnx/model.onnx'))?.id).toBe('embedding-model');
   });
 
+  it('cache the quiz catalog and questions only', () => {
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz'))?.id).toBe('quiz-catalog');
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz/questions?range=41001001-41001999'))?.id).toBe('quiz-questions');
+    expect(cacheRuleFor(CACHE_RULES, u('/api/quiz/other'))).toBeUndefined();
+  });
+
   it('never cache an API route that has no rule (allow-list only)', () => {
     for (const path of [
       '/api/bible/KJV/43/3',
@@ -64,7 +70,7 @@ describe('shipped cache rules', () => {
   it('keep the large caches on reset, including the external transformers cache', () => {
     expect(preservedOnReset(CACHE_RULES).sort()).toEqual(
       [
-        'audio-chapters-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
+        'assets-v1', 'audio-chapters-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
         'transformers-cache', 'tts-models-v1',
       ].sort(),
     );
@@ -136,5 +142,27 @@ describe('audio rules', () => {
     const file = cacheRuleFor(CACHE_RULES, new URL('https://x.test/audio/v1/KJV/narr/r1/43/003.ogg'));
     expect(file?.strategy).toBe('cache-first-range');
     expect(cacheRuleFor(CACHE_RULES, new URL('https://x.test/audio/v1/KJV/index.json'))).toBeUndefined();
+  });
+});
+
+describe('asset rules', () => {
+  it('asset-store rule resolves to the correct cache name', async () => {
+    const { ASSET_CACHE_NAMES } = await import('../assets/assetCacheNames');
+    const rule = CACHE_RULES.find(r => r.id === 'asset-store');
+    expect(rule).toBeDefined();
+    expect(resolveCacheName(rule!)).toBe(ASSET_CACHE_NAMES.assets);
+  });
+
+  it('cache asset files with range support and never the mutable index or download requests', () => {
+    const file = cacheRuleFor(CACHE_RULES, new URL('https://x.test/assets/v1/data/x/1/t.bin'));
+    expect(file?.id).toBe('asset-store');
+    expect(file?.strategy).toBe('cache-first-range');
+
+    expect(cacheRuleFor(CACHE_RULES, new URL('https://x.test/assets/v1/index.json'))).toBeUndefined();
+    expect(cacheRuleFor(CACHE_RULES, new URL('https://x.test/assets/v1/data/x/1/t.bin?download=1'))).toBeUndefined();
+  });
+
+  it('intercept TTS downloads to let the asset manager handle caching and resume', () => {
+    expect(cacheRuleFor(CACHE_RULES, new URL('https://x.test/audio/tts/piper/runtime/x.wasm?download=1'))).toBeUndefined();
   });
 });

@@ -6,6 +6,7 @@ import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { TranslationDialog } from './TranslationDialog';
 import { KeywordMarksButton } from './KeywordMarksButton';
+import { Bdi } from '@bible/ui';
 
 interface BibleToolbarProps {
   onOpenSettings?: (section?: string) => void;
@@ -111,7 +112,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             title={t('bibleToolbar.goBack')}
             aria-label={t('bibleToolbar.goBack')}
           >
-            <i class="fa-solid fa-reply" />
+            <i class="fa-solid fa-reply kth-rtl-mirror" />
           </button>
           {/* No forward button: Back plus the Recent Passages menu covers it,
               and the menu says where it is going by name. */}
@@ -156,9 +157,9 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
                       >
                         <span class="bible-toolbar__history-dot" aria-hidden="true" />
                         <span class="bible-toolbar__history-label">
-                          {bookName} {entry.chapter}{entry.verse ? `:${entry.verse}` : ''}
+                          <Bdi>{bookName} {entry.chapter}{entry.verse ? `:${entry.verse}` : ''}</Bdi>
                         </span>
-                        <span class="bible-toolbar__history-module">{entry.moduleAbbr}</span>
+                        <span class="bible-toolbar__history-module"><Bdi>{entry.moduleAbbr}</Bdi></span>
                       </button>
                     );
                   })
@@ -183,7 +184,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           onClick={() => setShowTranslationDialog(true)}
           title={t('bibleToolbar.changeTranslation')}
         >
-          {tab.moduleAbbr} <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
+          <Bdi>{tab.moduleAbbr}</Bdi> <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
         </button>
       </div>
 
@@ -220,7 +221,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             onClick={goToPrevChapter}
             title={t('bibleToolbar.prevChapter')}
           >
-            <i class="fa-solid fa-chevron-left" />
+            <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
           </button>
           <button
             class="bible-toolbar__nav-btn"
@@ -228,7 +229,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             onClick={goToNextChapter}
             title={t('bibleToolbar.nextChapter')}
           >
-            <i class="fa-solid fa-chevron-right" />
+            <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
           </button>
         </div>
       </div>

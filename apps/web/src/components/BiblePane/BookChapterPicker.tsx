@@ -154,9 +154,9 @@ function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAb
           bookAliases={bookAliases}
           labels={labels}
           icons={{
-            back: <i class="fa-solid fa-chevron-left" />,
+            back: <i class="fa-solid fa-chevron-left kth-rtl-mirror" />,
             close: <i class="fa-solid fa-xmark" />,
-            go: <i class="fa-solid fa-arrow-right" />,
+            go: <i class="fa-solid fa-arrow-right kth-rtl-mirror" />,
           }}
           // Web keeps ranges/single-chapter references, the filled current book, and phone-sized short names.
           referenceSyntax="extended"

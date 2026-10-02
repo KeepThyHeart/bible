@@ -383,6 +383,93 @@ export async function fireActivationEvent(
   }
 }
 
+/**
+ * Targeted variant of `fireActivationEvent`: activate exactly `extensionId`
+ * if it is enabled, not auto-disabled and declares `eventId`. Returns true
+ * when the extension is active afterwards (it already was, or it just
+ * activated), false when it was skipped or its activation failed. Used for
+ * events that are about one extension, never a broadcast (`onReminder`).
+ */
+export async function activateForEvent(
+  ctx: ExtensionHostContext,
+  extensionId: string,
+  eventId: string,
+): Promise<boolean> {
+  const entry = ctx.registry.getEntry(extensionId);
+  if (!entry || !entry.enabled || entry.status === 'auto-disabled') return false;
+  if (ctx.activeWorkers.has(extensionId)) return true;
+  const events = entry.manifest.activationEvents ?? [];
+  if (!events.includes(eventId)) return false;
+  try {
+    await ctx.activate(extensionId);
+  } catch (err) {
+    log.warn(
+      `[ExtensionHost] activate(${extensionId}) failed for event ${eventId}:`,
+      err instanceof Error ? err.message : err,
+    );
+    return false;
+  }
+  return ctx.activeWorkers.has(extensionId);
+}
+
+/** Most reminder clicks held for one extension before `takeActivations()`; oldest dropped. */
+export const MAX_QUEUED_REMINDER_ACTIVATIONS = 20;
+
+/**
+ * The user clicked a reminder owned by `extensionId`. Activates exactly that
+ * extension (only if it is already active or declares `onReminder`), then
+ * hands it the click: emitted to its `onActivated` handlers when it has any,
+ * otherwise queued for `api.reminders.takeActivations()`. Never reaches any
+ * other extension, and an extension without the `notifications:schedule`
+ * grant gets nothing.
+ */
+export async function deliverReminderActivation(
+  ctx: ExtensionHostContext,
+  extensionId: string,
+  activation: Extensions.ReminderActivationEvent,
+): Promise<void> {
+  const entry = ctx.registry.getEntry(extensionId);
+  if (!entry || !entry.grantedPermissions.includes('notifications:schedule')) return;
+  if (!(await activateForEvent(ctx, extensionId, Extensions.ACT_ON_REMINDER))) return;
+  const active = ctx.activeWorkers.get(extensionId);
+  if (!active) return;
+  if (active.router.hasSubscription('reminder.activated')) {
+    try {
+      active.router.emitEvent('reminder.activated', activation);
+    } catch (err) {
+      log.warn(`[ExtensionHost] reminder.activated emit failed for ${extensionId}:`, err);
+    }
+    return;
+  }
+  const queue = ctx.reminderActivationQueues.get(extensionId) ?? [];
+  queue.push(activation);
+  while (queue.length > MAX_QUEUED_REMINDER_ACTIVATIONS) queue.shift();
+  ctx.reminderActivationQueues.set(extensionId, queue);
+}
+
+/**
+ * Reminders owned by `extensionId` came due while the app was closed or
+ * asleep. Delivered only if the extension is already active and listening;
+ * never wakes an extension (the user already saw the collapsed notification,
+ * and a wake-up here would only run code for a message nobody is waiting on).
+ */
+export function deliverReminderMissed(
+  ctx: ExtensionHostContext,
+  extensionId: string,
+  event: Extensions.ReminderMissedEvent,
+): void {
+  const active = ctx.activeWorkers.get(extensionId);
+  if (!active) return;
+  const granted = ctx.registry.getEntry(extensionId)?.grantedPermissions ?? [];
+  if (!granted.includes('notifications:schedule')) return;
+  if (!active.router.hasSubscription('reminder.missed')) return;
+  try {
+    active.router.emitEvent('reminder.missed', event);
+  } catch (err) {
+    log.warn(`[ExtensionHost] reminder.missed emit failed for ${extensionId}:`, err);
+  }
+}
+
 export function handleWorkerExit(
   ctx: ExtensionHostContext,
   extensionId: string,

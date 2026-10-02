@@ -1,3 +1,4 @@
+import { revealWordStudyPanel } from '../wordStudy/revealWordStudyPanel';
 import React, { useState, useEffect, useMemo } from 'react';
 import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/core';
 import { dictionaryAPI } from '../../services/electronAPI';
@@ -315,13 +316,14 @@ const StrongsPreviewTooltip: React.FC<{
           index and does not need the dictionary that just came up empty.
           Mirrors the web app's StrongsPopup action. */}
       {!loading && (
+        <div className="mt-2 flex gap-2">
         <button
           type="button"
           onClick={() => {
             void searchStrongsNumber(strongsNumber);
             onClose();
           }}
-          className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
           data-testid="strongs-search-occurrences"
         >
           <svg className="w-3 h-3 rtl-mirror" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,6 +331,18 @@ const StrongsPreviewTooltip: React.FC<{
           </svg>
           {t('ui.interlinear.searchOccurrences')}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            revealWordStudyPanel({ kind: 'strongs', strongs: strongsNumber });
+            onClose();
+          }}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
+          data-testid="strongs-word-study"
+        >
+          {t('wordStudy.tooltipButton')}
+        </button>
+        </div>
       )}
       {!loading && keywordTabId && (
         <button
@@ -653,6 +667,18 @@ function cellStrongsNumbers(cell: InterlinearCell): string[] {
   return numbers;
 }
 
+/**
+ * `dir`/`lang` for a cell's original-language word. The interlinear original
+ * follows its OWN script, not the module's language or the UI: Hebrew is RTL,
+ * Greek LTR, whatever the surrounding text. Strong's numbers (H/G prefix) are
+ * the reliable signal; the Hebrew block is the fallback.
+ */
+function originalWordAttrs(cell: InterlinearCell, strongs: string[]): { dir: 'ltr' | 'rtl'; lang: string } {
+  const hebrew = strongs[0]?.toUpperCase().startsWith('H')
+    || /[\u0590-\u05FF]/.test(cell.source?.originalWord ?? '');
+  return hebrew ? { dir: 'rtl', lang: 'he' } : { dir: 'ltr', lang: 'grc' };
+}
+
 interface LayoutProps {
   cells: InterlinearCell[];
   verseId: number;
@@ -734,6 +760,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
               <div
                 className="text-center text-base font-greek text-text-primary cursor-default"
                 data-testid="interlinear-original"
+                {...originalWordAttrs(cell, strongs)}
               >
                 {cell.source.originalWord}
               </div>
@@ -741,7 +768,7 @@ const StackedLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onSt
 
             {/* Transliteration */}
             {cell.source?.transliteration && (
-              <div className="text-center text-xs italic text-text-secondary" data-testid="interlinear-transliteration">
+              <div className="text-center text-xs italic text-text-secondary kth-bidi-isolate" data-testid="interlinear-transliteration">
                 {cell.source.transliteration}
               </div>
             )}
@@ -836,12 +863,12 @@ const InlineLayout: React.FC<LayoutProps> = ({ cells, verseId, highlights, onStr
                 >
                   (
                   {cell.source?.originalWord && (
-                    <span className="font-greek" data-testid="interlinear-original">{cell.source.originalWord}</span>
+                    <span className="font-greek" data-testid="interlinear-original" {...originalWordAttrs(cell, strongs)}>{cell.source.originalWord}</span>
                   )}
                   {cell.source?.transliteration && (
                     <>
                       {' '}
-                      <span className="italic" data-testid="interlinear-transliteration">{cell.source.transliteration}</span>
+                      <span className="italic kth-bidi-isolate" data-testid="interlinear-transliteration">{cell.source.transliteration}</span>
                     </>
                   )}
                   {strongs.map((number, i) => (

@@ -16,7 +16,7 @@ concepts. Read the table below before touching either.
 | Security | Declared permissions, install-time consent, `ExtensionPermissionGuard` at every API boundary, signature verification, blocklist | None |
 | Contents of core | **Types and validators only.** No runtime. | The actual runtime (`HookRegistry`, `PluginLoader`) |
 | Runtime lives in | The consuming app - an extension host process plus a per-extension worker | The consuming app - a plugin manager on each side it runs |
-| Versioning | `EXTENSION_API_VERSION` (`'0.1.0'` - retrograded pre-1.0 until a stable release ships, task 0024 round 3); additive change bumps the patch segment, breaking the middle one, enforced by `Declarations/apiSurface.lock.json` (task 0086) | Unversioned |
+| Versioning | `EXTENSION_API_VERSION` (`'0.2.0'` - pre-1.0 until a stable release ships; retrograded to `0.1.0` in task 0024 round 3, then moved to `0.2.0` when `api.reminders` was added, task 0083); additive change bumps the patch segment, breaking the middle one, enforced by `Declarations/apiSurface.lock.json` (task 0086) | Unversioned |
 
 Neither system is the other's successor. If you are asked to "add a hook", work
 out first whether the caller is a sandboxed third-party extension (Extensions)
@@ -26,7 +26,7 @@ or first-party code in the app itself (Plugin).
 
 | File | Purpose |
 |---|---|
-| `src/Extensions/ExtensionApiTypes.ts` | `BibleExtensionAPI` (the root object injected into each worker) plus every namespace interface: `IBibleApi`, `ICommentaryApi`, `IDictionaryApi`, `IBookApi`, `INotesApi`, `IHighlightsApi`, `IBookmarksApi`, `ICollectionsApi`, `ICommandsApi`, `IUiApi`, `IWorkspaceApi`, `IContextApi`, `IStorageApi`, `IL10nApi`, `IEventsApi`, `INetworkApi`, `IAuthApi`, `ITasksApi`, `IExtensionsApi`, `IAiApi`. Also `ExtensionPointId` and `EXTENSION_API_VERSION`. |
+| `src/Extensions/ExtensionApiTypes.ts` | `BibleExtensionAPI` (the root object injected into each worker) plus every namespace interface: `IBibleApi`, `ICommentaryApi`, `IDictionaryApi`, `IBookApi`, `INotesApi`, `IHighlightsApi`, `IBookmarksApi`, `ICollectionsApi`, `ICommandsApi`, `IUiApi`, `IWorkspaceApi`, `IContextApi`, `IStorageApi`, `IL10nApi`, `IEventsApi`, `INetworkApi`, `IAuthApi`, `ITasksApi`, `IExtensionsApi`, `IAiApi`, `IRemindersApi` (permission `notifications:schedule`, activation event `onReminder`; see `apps/desktop/docs/features/extensions.md`). Also `ExtensionPointId` and `EXTENSION_API_VERSION`. |
 | `src/Extensions/ExtensionApiDtos.ts` | Every plain-JSON DTO crossing the boundary (`BibleVerseDto`, `CommentaryEntryDto`, `DecorationDto`, `KeybindingDescriptor`, `LocalizedString`, ...) plus `EXTENSION_API_ERROR_CODES`. Separated from the methods so the shapes can be locked independently. |
 | `src/Extensions/ExtensionApiErrors.ts` | Error class hierarchy (`ExtensionApiError` base, `PermissionDeniedError`, ...) and `reviveExtensionApiError`. `error.code` is the wire-stable identifier. |
 | `src/Extensions/ExtensionPointTypes.ts` | `ExtensionPointKind` (`event` \| `filter` \| `provider`), the `EXTENSION_POINT_KINDS` map, and the payload/return type maps for every host-emitted extension point. |

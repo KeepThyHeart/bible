@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { useBiblePaneContext } from '../BiblePaneContext';
@@ -135,14 +136,14 @@ const BookmarkMenu: React.FC = () => {
                 className="w-full text-start px-3 py-2 text-sm hover:bg-background-hover"
                 data-testid={`bookmark-jump-${item.pinId}`}
               >
-                <span className="block truncate">
+                <span className="block truncate" dir="auto">
                   {item.title?.trim() || item.referenceText}
                 </span>
                 {/* The reference only earns a second line when the name has
                     replaced it in the first. */}
                 {item.title?.trim() && (
                   <span className="block truncate text-xs text-text-secondary">
-                    {item.referenceText}
+                    <Bdi>{item.referenceText}</Bdi>
                   </span>
                 )}
               </button>

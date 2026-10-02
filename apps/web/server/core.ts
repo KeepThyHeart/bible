@@ -20,6 +20,7 @@ import type {
   TagGraphRepository as TagGraphRepositoryType,
   EnrichmentRepository as EnrichmentRepositoryType,
   WordFamilyService as WordFamilyServiceType,
+  WordStudyService as WordStudyServiceType,
   StrongsNumberHelper as StrongsNumberHelperType,
   applyMainFacetPreference as applyMainFacetPreferenceType,
   resolveScoringConfig as resolveScoringConfigType,
@@ -43,7 +44,7 @@ import type {
   XrefGraphService as XrefGraphServiceType,
   XrefGraphIndexBuilder as XrefGraphIndexBuilderType,
 } from '@bible/core';
-import type { encodeChapterArcs as encodeChapterArcsType } from '@bible/core/browser';
+import type { encodeChapterArcs as encodeChapterArcsType, mergeCatalogs as mergeCatalogsType } from '@bible/core/browser';
 import type {
   createFeatureFlags as createFeatureFlagsType,
   parseFlagOverrides as parseFlagOverridesType,
@@ -74,6 +75,7 @@ export const TopicalIndexRepository: typeof TopicalIndexRepositoryType = core.To
 export const TagGraphRepository: typeof TagGraphRepositoryType = core.TagGraphRepository;
 export const EnrichmentRepository: typeof EnrichmentRepositoryType = core.EnrichmentRepository;
 export const WordFamilyService: typeof WordFamilyServiceType = core.WordFamilyService;
+export const WordStudyService: typeof WordStudyServiceType = core.WordStudyService;
 export const StrongsNumberHelper: typeof StrongsNumberHelperType = core.StrongsNumberHelper;
 export const applyMainFacetPreference: typeof applyMainFacetPreferenceType = core.applyMainFacetPreference;
 export const resolveScoringConfig: typeof resolveScoringConfigType = core.resolveScoringConfig;
@@ -98,6 +100,7 @@ export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewl
 export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
 export const XrefGraphIndexBuilder: typeof XrefGraphIndexBuilderType = core.XrefGraphIndexBuilder;
 export const encodeChapterArcs: typeof encodeChapterArcsType = coreBrowser.encodeChapterArcs;
+export const mergeCatalogs: typeof mergeCatalogsType = coreBrowser.mergeCatalogs;
 
 // Feature flags (task 0087) come from the platform-free browser barrel: it is pure logic
 // shared with both apps, and requiring it avoids loading the Data layer for config code.

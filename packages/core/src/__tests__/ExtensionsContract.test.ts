@@ -32,14 +32,14 @@ import {
 describe('Extensions contract', () => {
   // Retrograded to 0.1.0 in task 0024 round 3: no beta or public release has
   // shipped, so the strict-semver / 12-month-dual-support policy this
-  // constant used to follow (1.1.0, then 1.2.0) was premature. See the doc
-  // comment on EXTENSION_API_VERSION for the full reasoning, including why
-  // 0.1.0 rather than the bare "0.1" the human suggested.
-  // Pinned to the 0.1 line rather than to '0.1.0': additive changes bump the
+  // constant used to follow (1.1.0, then 1.2.0) was premature. Moved to 0.2.0
+  // by task 0083 for `api.reminders`. See the doc comment on
+  // EXTENSION_API_VERSION.
+  // Pinned to the 0.2 line rather than to '0.2.0': additive changes bump the
   // patch segment (task 0086's bump rule), which must not need this test
-  // edited. A breaking (0.2.0) bump should fail here and be looked at.
-  it('exports a 0.1.x EXTENSION_API_VERSION at the package root', () => {
-    expect(EXTENSION_API_VERSION).toMatch(/^0\.1\.\d+$/);
+  // edited. A breaking (0.3.0) bump should fail here and be looked at.
+  it('exports a 0.2.x EXTENSION_API_VERSION at the package root', () => {
+    expect(EXTENSION_API_VERSION).toMatch(/^0\.2\.\d+$/);
   });
 
   it('exports the same version through the Extensions namespace alias', () => {

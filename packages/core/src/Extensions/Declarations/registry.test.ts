@@ -20,10 +20,12 @@ import {
   type DeclaredPermission,
 } from './registry';
 
+// The hand-written tables as they stood when task 0086 replaced them, including
+// `api.reminders` (task 0083) and `api.speech` (task 0071), which landed by hand first.
 const LEGACY_NAMESPACES = [
   'bible', 'commentary', 'book', 'dictionary', 'notes', 'highlights', 'bookmarks', 'collections',
   'commands', 'ui', 'workspace', 'context', 'storage', 'l10n', 'events', 'runtime', 'panels',
-  'network', 'auth', 'tasks', 'extensions', 'ai',
+  'network', 'auth', 'tasks', 'extensions', 'ai', 'reminders', 'speech',
 ];
 
 /** `ALLOWED_PERMISSIONS` as it was hand-written before task 0086. */
@@ -33,8 +35,9 @@ const LEGACY_PERMISSIONS = [
   'commentary:provide', 'dictionary:provide', 'book:provide', 'storage', 'storage:secrets',
   'storage:database', 'ui:contribute-pane', 'ui:verse-decorator', 'ui:verse-hover',
   'ui:context-menu', 'ui:notification', 'ui:status-bar', 'ui:media', 'commands:register',
-  'commands:execute-builtin', 'tasks', 'network', 'network:oauth', 'extensions:call',
-  'fs:read-user', 'fs:write-user', 'fs:managed-folder',
+  'commands:execute-builtin', 'tasks', 'notifications:schedule', 'network', 'network:oauth',
+  'speech:listen', 'speech:speak', 'extensions:call', 'fs:read-user', 'fs:write-user',
+  'fs:managed-folder',
 ];
 
 const sorted = (xs: readonly string[]): string[] => [...xs].sort();
@@ -59,13 +62,13 @@ describe('extension API registry - parity with the pre-0086 tables', () => {
   it('keeps the default-granted and separately-prompted sets', () => {
     expect(sorted(Permissions.DEFAULT_GRANTED_PERMISSIONS)).toEqual(['bible:read', 'commands:register']);
     expect(sorted(Permissions.SEPARATELY_PROMPTED_PERMISSIONS)).toEqual(
-      sorted(['network', 'network:oauth', 'storage:secrets', 'storage:database', 'fs:managed-folder']),
+      sorted(['network', 'network:oauth', 'storage:secrets', 'storage:database', 'fs:managed-folder', 'speech:listen']),
     );
   });
 
   it('keeps the activation-event vocabulary and firing set', () => {
     expect(sorted(Activation.BARE_ACTIVATION_EVENTS)).toEqual(
-      sorted(['onStartupFinished', '*', 'onSession:loaded', 'onSearchProvider']),
+      sorted(['onStartupFinished', '*', 'onSession:loaded', 'onSearchProvider', 'onReminder']),
     );
     expect(sorted(Activation.ACTIVATION_EVENT_PREFIXES)).toEqual(
       sorted([
@@ -74,7 +77,9 @@ describe('extension API registry - parity with the pre-0086 tables', () => {
         'onAuthRequired:', 'onTask:',
       ]),
     );
-    expect(sorted(Activation.FIRED_ACTIVATION_EVENTS)).toEqual(sorted(['onStartupFinished', 'onCommand:', 'onView:']));
+    expect(sorted(Activation.FIRED_ACTIVATION_EVENTS)).toEqual(
+      sorted(['onStartupFinished', 'onCommand:', 'onView:', 'onReminder']),
+    );
   });
 
   it('declares every extension point exactly once, with its kind', () => {
@@ -91,6 +96,8 @@ describe('extension API registry - parity with the pre-0086 tables', () => {
       'notes.changed': 'notes:read',
       'notes.beforeDelete': 'notes:read',
       'highlights.afterChange': 'highlights:read',
+      'reminder.activated': 'notifications:schedule',
+      'reminder.missed': 'notifications:schedule',
     });
   });
 

@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
@@ -179,7 +180,7 @@ const BibleToolbar: React.FC = () => {
           aria-label={t('biblePane.changeVersionLabel', { version: activeTab.abbreviation, })}
           aria-haspopup="dialog"
         >
-          {activeTab.abbreviation}
+          <Bdi>{activeTab.abbreviation}</Bdi>
           <svg className="w-3 h-3" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>

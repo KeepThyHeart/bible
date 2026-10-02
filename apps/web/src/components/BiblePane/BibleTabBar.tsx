@@ -22,6 +22,8 @@ import { useStore } from '../../hooks/useStore';
 import { BookChapterPicker } from './BookChapterPicker';
 import { formatPassageRef } from '../../constants';
 import { useTranslation } from 'react-i18next';
+import { scrollStart, setScrollStart } from '@bible/core/browser';
+import { useDirection, Bdi } from '@bible/ui';
 
 /** Restrict dragging to horizontal axis only (no vertical movement) */
 const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
@@ -38,6 +40,7 @@ interface BibleTabBarProps {
 
 export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
   const { t } = useTranslation();
+  const uiDir = useDirection();
   const tabs = useStore(bibleStore, () => bibleStore.tabs);
   const activeTabId = useStore(bibleStore, () => bibleStore.activeTabId);
   const [showNewTabPicker, setShowNewTabPicker] = useState(false);
@@ -72,14 +75,14 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
     if (!bar) return;
     let startX = 0;
     let startY = 0;
-    let startScrollLeft = 0;
+    let startScrollOffset = 0; // distance from the inline-start edge (scrollStart)
     let startScrollTop = 0;
 
     const onTouchStart = (e: TouchEvent) => {
       if (isDndActive.current) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      startScrollLeft = bar.scrollLeft;
+      startScrollOffset = scrollStart(bar, uiDir);
       startScrollTop = bar.scrollTop;
     };
 
@@ -93,7 +96,10 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
         }
       } else {
         if (Math.abs(dx) > 5) {
-          bar.scrollLeft = startScrollLeft - dx;
+          // Dragging content toward inline-start scrolls toward inline-end, so the
+          // physical finger delta flips sign in RTL.
+          // rtl-physical: dx is a physical pointer delta
+          setScrollStart(bar, startScrollOffset - (uiDir === 'rtl' ? -dx : dx), uiDir);
         }
       }
     };
@@ -104,7 +110,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
       bar.removeEventListener('touchstart', onTouchStart);
       bar.removeEventListener('touchmove', onTouchMove);
     };
-  }, [vertical]);
+  }, [vertical, uiDir]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -180,9 +186,9 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
                 <div class="bible-tab-bar__tab-content">
                   <span class="bible-tab-bar__tab-title">
                     {audioTabId === tab.id && <i class="fa-solid fa-volume-high bible-tab-bar__audio" role="img" aria-label={t('audio.playingTab')} />}
-                    {title}
+                    <Bdi>{title}</Bdi>
                   </span>
-                  <span class="bible-tab-bar__tab-subtitle">{subtitle}</span>
+                  <span class="bible-tab-bar__tab-subtitle"><Bdi>{subtitle}</Bdi></span>
                 </div>
                 {tabs.length > 1 && (
                   <button

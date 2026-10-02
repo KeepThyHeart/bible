@@ -31,8 +31,9 @@
  * ```
  */
 
-import { Extensions } from '@bible/core';
+import { Extensions, Reminders } from '@bible/core';
 
+import { Speech } from '@bible/core';
 import { CHAPTERS_JOHN } from './fixtures';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
@@ -351,6 +352,21 @@ function createMockStorageOverlay(): Partial<Extensions.IStorageApi> {
   };
 }
 
+/**
+ * A `FakeSpeechApi` for tests. The default (what `createMockApi` installs) reports speech
+ * as unavailable and nothing granted; pass options to script utterances or grant access.
+ */
+export const FakeSpeechApi = Speech.FakeSpeechApi;
+export type FakeSpeechApi = Speech.FakeSpeechApi;
+
+export function createFakeSpeechApi(opts: Speech.FakeSpeechApiOptions = {}): Speech.FakeSpeechApi {
+  return new Speech.FakeSpeechApi({
+    granted: { listen: false, speak: false },
+    ...opts,
+    status: { listen: 'unavailable', speak: 'unavailable', ...opts.status },
+  });
+}
+
 // ─── Runtime + panels: real behaviour, not stubs ──────────────────────────────
 
 /**
@@ -510,6 +526,126 @@ function createMockPanelsApi(): {
   };
 }
 
+// ─── Reminders: real in-memory behaviour ──────────────────────────────────────
+
+/**
+ * Driver for a mock api's `reminders` namespace: simulates the host side of a
+ * notification click or a missed batch.
+ *
+ * ```ts
+ * const api = createMockApi();
+ * await extension.activate(api);
+ * await getMockReminders(api).fireActivation({ key: 'card-1', keys: ['card-1'], firedAt: Date.now() });
+ * ```
+ */
+export interface MockReminders {
+  /**
+   * Simulate the user clicking a reminder. Calls the `onActivated` handlers
+   * when there are any; otherwise queues it for `takeActivations()` (max 20,
+   * oldest dropped) - exactly one of the two, as the host does.
+   */
+  fireActivation(event: Extensions.ReminderActivationEvent): Promise<void>;
+  /** Simulate a missed batch. Delivered only to `onMissed` handlers; dropped when there are none. */
+  fireMissed(event: Extensions.ReminderMissedEvent): Promise<void>;
+  /** Change what `capabilities()` reports (merged over the current value). */
+  setCapabilities(patch: Partial<Extensions.ReminderCapabilities>): void;
+  /** What `requestPermission()` resolves (and then records in `capabilities().permission`). Default: `'granted'`. */
+  setPermissionResult(result: Extensions.ReminderPermission): void;
+  /** Activations currently queued for `takeActivations()`. */
+  queuedActivations(): Extensions.ReminderActivationEvent[];
+}
+
+const MAX_MOCK_QUEUED_ACTIVATIONS = 20;
+const mockReminders = new WeakMap<object, MockReminders>();
+
+/** The driver for a mock api's `reminders` namespace. */
+export function getMockReminders(api: BibleExtensionAPI): MockReminders {
+  const driver = mockReminders.get(api as unknown as object);
+  if (!driver) {
+    throw new Error('getMockReminders: this api was not built by createMockApi()');
+  }
+  return driver;
+}
+
+/**
+ * `reminders` with real behaviour. `replaceAll` runs the same sanitiser the
+ * host's scheduler uses (invalid items dropped, unique keys, earliest first,
+ * capped at 64), so a test that schedules a malformed item sees it vanish
+ * rather than pass. There is no clock: nothing fires by itself - use
+ * `getMockReminders(api).fireActivation(...)`.
+ */
+function createMockRemindersApi(): { api: Extensions.IRemindersApi; driver: MockReminders } {
+  let items: Extensions.ReminderItem[] = [];
+  let capabilities: Extensions.ReminderCapabilities = {
+    permission: 'granted',
+    whenClosed: 'never',
+    actions: false,
+  };
+  let permissionResult: Extensions.ReminderPermission = 'granted';
+  let queue: Extensions.ReminderActivationEvent[] = [];
+  const activated = new Set<(e: Extensions.ReminderActivationEvent) => void>();
+  const missed = new Set<(e: Extensions.ReminderMissedEvent) => void>();
+
+  const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+  return {
+    api: {
+      replaceAll: async (next) => {
+        if (!Array.isArray(next)) {
+          throw new TypeError('reminders.replaceAll: items must be an array');
+        }
+        items = Reminders.sanitizeReminderItems(next, Date.now());
+        return { accepted: items.length };
+      },
+      list: async () => copy(items),
+      capabilities: async () => ({ ...capabilities }),
+      requestPermission: async () => {
+        capabilities = { ...capabilities, permission: permissionResult };
+        return permissionResult;
+      },
+      takeActivations: async () => {
+        const drained = queue;
+        queue = [];
+        return drained;
+      },
+      onActivated: async (handler) => {
+        if (typeof handler !== 'function') {
+          throw new TypeError('reminders.onActivated: handler must be a function');
+        }
+        activated.add(handler);
+        return { dispose: async () => void activated.delete(handler) };
+      },
+      onMissed: async (handler) => {
+        if (typeof handler !== 'function') {
+          throw new TypeError('reminders.onMissed: handler must be a function');
+        }
+        missed.add(handler);
+        return { dispose: async () => void missed.delete(handler) };
+      },
+    },
+    driver: {
+      fireActivation: async (event) => {
+        if (activated.size === 0) {
+          queue.push(copy(event));
+          while (queue.length > MAX_MOCK_QUEUED_ACTIVATIONS) queue.shift();
+          return;
+        }
+        for (const h of [...activated]) await h(copy(event));
+      },
+      fireMissed: async (event) => {
+        for (const h of [...missed]) await h(copy(event));
+      },
+      setCapabilities: (patch) => {
+        capabilities = { ...capabilities, ...patch };
+      },
+      setPermissionResult: (result) => {
+        permissionResult = result;
+      },
+      queuedActivations: () => copy(queue),
+    },
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -583,6 +719,10 @@ export function createMockApi(
   Object.assign(base.storage, createMockStorageOverlay());
   base.runtime = runtime.api as unknown as Record<string, unknown>;
   base.panels = panels.api as unknown as Record<string, unknown>;
+  // Reminders keep a real store and a driver (`getMockReminders`); speech is the core fake.
+  const reminders = createMockRemindersApi();
+  base.reminders = reminders.api as unknown as Record<string, unknown>;
+  base.speech = createFakeSpeechApi() as unknown as Record<string, unknown>;
 
   if (overrides) {
     for (const [ns, nsOverrides] of Object.entries(overrides as Record<string, unknown>)) {
@@ -601,6 +741,7 @@ export function createMockApi(
   // the correct behaviour: the caller took over the channel.
   panelChannels.set(api as unknown as object, panels.driver);
   runtimeEndpoints.set(api as unknown as object, runtime.driver);
+  mockReminders.set(api as unknown as object, reminders.driver);
 
   return api;
 }

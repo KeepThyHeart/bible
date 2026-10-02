@@ -1,0 +1,10 @@
+{
+  "searchBar.unifiedPlaceholder": "جستجو در کتاب مقدس، وارد کردن ارجاع، یا تایپ / برای فرمان‌ها",
+  "searchBar.commandMode.label": "فرمان‌ها",
+  "searchBar.commandMode.empty": "فرمان منطبقی یافت نشد",
+  "searchBar.referenceMode.label": "رفتن به ارجاع",
+  "searchBar.referenceMode.goTo": "رفتن به {reference}",
+  "searchBar.emptyState.recentSearches": "جستجوهای اخیر",
+  "searchBar.emptyState.recentCommands": "فرمان‌های اخیر",
+  "searchBar.emptyState.noRecents": "مورد اخیری وجود ندارد"
+}

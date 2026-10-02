@@ -36,7 +36,7 @@ export function BackBar() {
   return (
     <div class={`bible-back-bar${fading ? ' bible-back-bar--fading' : ''}`}>
       <button class="bible-back-bar__btn" onClick={handleBack}>
-        <i class="fa-solid fa-arrow-left" /> Back to {backLabel}
+        <i class="fa-solid fa-arrow-left kth-rtl-mirror" /> Back to {backLabel}
       </button>
       <button class="kth-btn kth-btn--ghost kth-btn--sm bible-back-bar__dismiss" onClick={handleDismiss} title={t('backBar.dismiss')}>
         <i class="fa-solid fa-xmark" />

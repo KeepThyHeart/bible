@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { IDockviewHeaderActionsProps } from 'dockview-react';
 import { isLeftRightTwoPaneLayout, useLayoutStore } from '../stores/useLayoutStore';
+import { scrollStart, setScrollStart } from '@bible/core/browser';
+import { useDirection } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 
 /**
@@ -16,13 +18,15 @@ import { useI18n } from '../contexts/useI18n';
  * controls stretch to the row explicitly instead.
  */
 const ChevronButton: React.FC<{
-  direction: 'left' | 'right';
+  /** Logical side: `start` scrolls towards the inline-start edge (left in LTR, right in RTL). */
+  direction: 'start' | 'end';
   enabled: boolean;
   onClick: () => void;
-}> = ({ direction, enabled, onClick }) => (
+  rtl?: boolean;
+}> = ({ direction, enabled, onClick, rtl = false }) => (
   <button
     onClick={enabled ? onClick : undefined}
-    title={enabled ? `Scroll tabs ${direction}` : undefined}
+    title={enabled ? `Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}` : undefined}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -58,7 +62,7 @@ const ChevronButton: React.FC<{
         ? 'var(--theme-bg-primary, #fff)' : 'transparent';
     }}
   >
-    {direction === 'left' ? '\u2039' : '\u203A'}
+    <span aria-hidden="true" className="kth-rtl-mirror">{direction === 'start' ? '\u2039' : '\u203A'}</span>
   </button>
 );
 
@@ -68,12 +72,13 @@ const ChevronButton: React.FC<{
  */
 const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containerApi, group }) => {
   const { t } = useI18n();
+  const uiDir = useDirection();
   const collapsedGroups = useLayoutStore(s => s.collapsedGroups);
   const expandCollapsedGroups = useLayoutStore(s => s.expandCollapsedGroups);
   const actionsRef = useRef<HTMLDivElement>(null);
   const tabsContainerRef = useRef<HTMLElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollStart, setCanScrollStart] = useState(false);
+  const [canScrollEnd, setCanScrollEnd] = useState(false);
   const [leftPortalContainer, setLeftPortalContainer] = useState<HTMLElement | null>(null);
   const [collapsePortalContainer, setCollapsePortalContainer] = useState<HTMLElement | null>(null);
   /** Host inside the scrollable tab list that the "+" button renders into. */
@@ -159,9 +164,12 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
     setCollapsePortalContainer(collapseHost);
 
     const updateScrollState = () => {
-      const { scrollLeft, scrollWidth, clientWidth } = tabsContainer;
-      setCanScrollLeft(scrollLeft > 1);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+      // Normalized from the inline-start edge: Chromium reports negative
+      // scrollLeft in RTL.
+      const { scrollWidth, clientWidth } = tabsContainer;
+      const offset = scrollStart(tabsContainer, uiDir);
+      setCanScrollStart(offset > 1);
+      setCanScrollEnd(offset + clientWidth < scrollWidth - 1);
     };
 
     // Initial check
@@ -198,7 +206,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
       addHost.remove();
       setAddPortalContainer(null);
     };
-  }, [group]);
+  }, [group, uiDir]);
 
   const getScrollAmount = useCallback(() => {
     const el = tabsContainerRef.current;
@@ -210,20 +218,20 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
     return Math.max(visibleWidth * 0.8, 200);
   }, []);
 
-  const scrollLeft = useCallback(() => {
+  const scrollTowardStart = useCallback(() => {
     const el = tabsContainerRef.current;
     if (!el) return;
     const amount = getScrollAmount();
     // Direct assignment - avoids smooth-scroll being cancelled by dockview
-    el.scrollLeft = Math.max(0, el.scrollLeft - amount);
-  }, [getScrollAmount]);
+    setScrollStart(el, scrollStart(el, uiDir) - amount, uiDir);
+  }, [getScrollAmount, uiDir]);
 
-  const scrollRight = useCallback(() => {
+  const scrollTowardEnd = useCallback(() => {
     const el = tabsContainerRef.current;
     if (!el) return;
     const amount = getScrollAmount();
-    el.scrollLeft = el.scrollLeft + amount;
-  }, [getScrollAmount]);
+    setScrollStart(el, scrollStart(el, uiDir) + amount, uiDir);
+  }, [getScrollAmount, uiDir]);
 
   const handleAddTab = useCallback(() => {
     const panelId = useLayoutStore.getState().addPanel( // allow-getstate: event handler - imperative panel creation
@@ -260,7 +268,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
     useLayoutStore.getState().collapseGroup(group.id); // allow-getstate: event handler - imperative layout mutation
   }, [group]);
 
-  const hasOverflow = canScrollLeft || canScrollRight;
+  const hasOverflow = canScrollStart || canScrollEnd;
 
   const isCollapsed = collapsedGroups.some(c => c.groupId === group.id);
 
@@ -401,6 +409,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
             (e.currentTarget as HTMLElement).style.color = 'var(--theme-text-secondary)';
           }}
         >
+          {/* rtl-physical: points at the collapsed panes' physical (right) edge; dockview's grid does not mirror */}
           <span aria-hidden="true">{'«'}</span>
           <span>{t('layout.expandCollapsed.label')}</span>
         </button>
@@ -416,13 +425,13 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
 
       {/* Left chevron - portaled to far left of tab row */}
       {hasOverflow && leftPortalContainer && createPortal(
-        <ChevronButton direction="left" enabled={canScrollLeft} onClick={scrollLeft} />,
+        <ChevronButton direction="start" enabled={canScrollStart} onClick={scrollTowardStart} rtl={uiDir === 'rtl'} />,
         leftPortalContainer,
       )}
 
       {/* Right chevron - stays in right actions area */}
       {hasOverflow && (
-        <ChevronButton direction="right" enabled={canScrollRight} onClick={scrollRight} />
+        <ChevronButton direction="end" enabled={canScrollEnd} onClick={scrollTowardEnd} rtl={uiDir === 'rtl'} />
       )}
 
       {/* Add tab button - portaled into the scrollable tab list so it sits after

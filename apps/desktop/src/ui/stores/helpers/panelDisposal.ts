@@ -2,6 +2,7 @@ import type { PanelContentType } from '../useLayoutStore';
 import { useBookStore } from '../useBookStore';
 import { useDictionaryStore } from '../useDictionaryStore';
 import { useSearchStore } from '../useSearchStore';
+import { useWordStudyStore } from '../useWordStudyStore';
 
 /**
  * Discard the per-panel state belonging to a pane that has actually been closed.
@@ -35,6 +36,12 @@ export function destroyPanelState(
   if (contentType === 'search') {
     // allow-getstate: dockview event callback - runs outside React render
     useSearchStore.getState().clearResults();
+    return;
+  }
+
+  if (contentType === 'wordStudy') {
+    // allow-getstate: dockview event callback - runs outside React render
+    useWordStudyStore.getState().destroyPanel(panelId);
     return;
   }
 

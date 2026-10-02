@@ -56,6 +56,14 @@ export const ACT_PREFIX_ON_EXTENSION_API = 'onExtensionApi:' as const;
 export const ACT_PREFIX_ON_AUTH_REQUIRED = 'onAuthRequired:' as const;
 export const ACT_PREFIX_ON_TASK = 'onTask:' as const;
 
+/**
+ * The user clicked one of this extension's reminders (`api.reminders`, needs
+ * `notifications:schedule`). Bare event. Unlike the others it is fired at ONE
+ * extension (the reminder's owner), never fanned out to every subscriber -
+ * see `ExtensionHost.deliverReminderActivation`.
+ */
+export const ACT_ON_REMINDER = 'onReminder' as const;
+
 /** Search runs and the provider hasn't activated yet. Bare event, no parameter. */
 export const ACT_ON_SEARCH_PROVIDER = 'onSearchProvider' as const;
 

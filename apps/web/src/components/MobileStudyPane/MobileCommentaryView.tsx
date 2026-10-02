@@ -125,7 +125,7 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
   const backBar = commentaryDetail ? (
     <div class="mobile-study-pane__sticky-back mobile-study-pane__sticky-back--commentary-detail">
       <button class="mobile-commentary-detail__back-title" onClick={handleBackToList}>
-        <i class="fa-solid fa-arrow-left fa-xs" />
+        <i class="fa-solid fa-arrow-left fa-xs kth-rtl-mirror" />
         <span class="mobile-commentary-detail__back-title-text">{commentaryDetail.name}</span>
       </button>
     </div>
@@ -157,7 +157,7 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
             href="#"
             onClick={(e) => { e.preventDefault(); handleBackToList(); }}
           >
-            <i class="fa-solid fa-arrow-left fa-xs" /> {t('commentaryPane.seeAllCommentaries')}
+            <i class="fa-solid fa-arrow-left fa-xs kth-rtl-mirror" /> {t('commentaryPane.seeAllCommentaries')}
           </a>
         )}
         {backBar}
