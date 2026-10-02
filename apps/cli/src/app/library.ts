@@ -23,6 +23,7 @@ import {
   DictionaryRepository,
   TopicalIndexRepository,
   VerseIdHelper,
+  isReadableFormatVersion,
   type BibleVerse,
   type IBibleBookRepository,
   type Testament,
@@ -532,21 +533,32 @@ function preferOnePerAbbreviation(modules: readonly DiscoveredModule[]): Discove
     const key = module.abbreviation.toLowerCase();
     const held = best.get(key);
     // First one wins on a tie, which preserves root order.
-    if (held === undefined || schemaMajor(module) > schemaMajor(held)) best.set(key, module);
+    if (held === undefined || schemaRank(module) > schemaRank(held)) best.set(key, module);
   }
 
   return modules.filter((module) => best.get(module.abbreviation.toLowerCase()) === module);
 }
 
 /**
- * The major part of a module's declared `schema_version`.
+ * How new a module's declared format is, for choosing between two modules of one
+ * translation. Higher wins.
  *
- * Absent means an early module, which is the oldest thing there is — `0`, so
- * anything declaring a version beats it. Unparseable is treated the same way
- * rather than thrown on: a module with a malformed version is still readable,
- * and refusing to rank it would make it win by accident.
+ * Absent (or unparseable) means an early module, the oldest thing there is: `0`.
+ * Formats numbered `0.N` are the current scheme, in which every minor is its own
+ * format and a higher minor is newer; they rank above every pre-scheme `1.0.0` /
+ * `2.0.0` module, which a build reading `0.x` treats as older ones. Unparseable is
+ * ranked lowest rather than thrown on: a module with a malformed version is still
+ * readable, and refusing to rank it would make it win by accident.
  */
-function schemaMajor(module: DiscoveredModule): number {
-  const major = Number.parseInt(module.schemaVersion?.split('.')[0] ?? '', 10);
-  return Number.isNaN(major) ? 0 : major;
+function schemaRank(module: DiscoveredModule): number {
+  const [majorText, minorText] = module.schemaVersion?.split('.') ?? [];
+  const major = Number.parseInt(majorText ?? '', 10);
+  if (Number.isNaN(major)) return 0;
+  if (major === 0) {
+    // A 0.N this build refuses (say a 0.3) must not win a tie only to be rejected after.
+    if (!isReadableFormatVersion(module.schemaVersion ?? '')) return 0;
+    const minor = Number.parseInt(minorText ?? '', 10);
+    return 1000 + (Number.isNaN(minor) ? 0 : minor);
+  }
+  return major;
 }

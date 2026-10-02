@@ -282,6 +282,21 @@ describe.skipIf(!hasKjv)('the main screen — the two-pane layout', () => {
     expect(text).toContain('Cross-References'); // right pane: the shortcut legend
   });
 
+  test('with the right pane shown the screen hints leave "/ go to or search" to the frame, which always adds it', () => {
+    const screen = new MainScreen();
+    const view = screen.view(context(at(JOHN, 3, 16), 30, 140));
+    expect(view.hints).not.toContain('/ go to or search');
+  });
+
+  test('the right pane re-wraps the verse to its own width instead of clipping main-pane lines', () => {
+    const screen = new MainScreen();
+    const view = screen.view(context(at(JOHN, 3, 16), 30, 100));
+    const rows = textOf(view).split('\n').map((row) => row.split('│').pop() ?? '');
+    const pane = rows.join(' ');
+    // Every word of the verse's first half is in the pane: none dropped between two clipped lines.
+    for (const word of ['loved', 'world', 'gave', 'only', 'begotten']) expect(pane).toContain(word);
+  });
+
   test('the right pane disappears below the breakpoint; the footer hint carries the shortcuts instead', () => {
     const screen = new MainScreen();
     const view = screen.view(context(at(JOHN, 3, 16), 30, 80));
@@ -939,7 +954,7 @@ describe.skipIf(!hasKjv)('the main screen — `/` search', () => {
     await screen.submit(classifyInput('zzzzqqq', { book: JOHN, chapter: 3 }), ctx);
     expect(textOf(screen.view(ctx))).toContain('No verse in KJV matches');
 
-    await screen.submit(classifyInput('faith NEAR/3 works', { book: JOHN, chapter: 3 }), ctx);
+    await screen.submit(classifyInput('(faith', { book: JOHN, chapter: 3 }), ctx);
     expect(textOf(screen.view(ctx))).toContain('could not be run');
   });
 

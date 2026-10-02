@@ -29,7 +29,8 @@ const ALLOWED_ROOTS = new Set(['v1', 'tts']);
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 const INDEX_CACHE = 'public, max-age=300';
-const ENGINE_FILES_CACHE = 'public, max-age=604800';
+const ENGINE_FILES_CACHE = 'public, max-age=604800, no-transform';
+const ENGINE_INDEX_CACHE = 'no-cache';
 
 export function createAudioRouter(dir: string): Router {
   const router = Router();
@@ -69,6 +70,9 @@ export function createAudioRouter(dir: string): Router {
       const p = filePath.replace(/\\/g, '/');
       if (/\/v1\/[^/]+\/index\.json$/.test(p)) {
         res.set('Cache-Control', INDEX_CACHE);
+      } else if (/\/tts\/[^/]+\/index\.json$/.test(p)) {
+        // Asset index of a TTS engine (written by fetch-piper-assets): always revalidate.
+        res.set('Cache-Control', ENGINE_INDEX_CACHE);
       } else if (/\/v1\//.test(p)) {
         // The revision is in the path, so these bytes never change.
         res.set('Cache-Control', IMMUTABLE);
@@ -76,6 +80,7 @@ export function createAudioRouter(dir: string): Router {
         res.set('Cache-Control', ENGINE_FILES_CACHE);
       }
       if (p.endsWith('.onnx') || p.endsWith('.data')) res.set('Content-Type', 'application/octet-stream');
+      if (p.endsWith('.sha256')) res.set('Content-Type', 'text/plain; charset=utf-8');
       if (p.endsWith('.opus')) res.set('Content-Type', 'audio/ogg; codecs=opus');
     },
   }));

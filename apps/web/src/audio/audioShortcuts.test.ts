@@ -13,6 +13,17 @@ function setup(state: Partial<ShortcutTarget> = {}) {
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('audio shortcuts', () => {
+  it('leaves Alt+arrows to the Presenter while it is running, and keeps Alt+P', () => {
+    const bindings = new Map<string, KeyBinding>();
+    let presenting = true;
+    const audio: ShortcutTarget = { enabled: true, status: 'playing', togglePlay: vi.fn(), seekVerse: vi.fn(), seekChapter: vi.fn() };
+    registerAudioShortcuts({ register: b => { bindings.set(b.id, b); return () => bindings.delete(b.id); } }, audio, () => presenting);
+    for (const id of ['audio.prevVerse', 'audio.nextVerse', 'audio.prevChapter', 'audio.nextChapter']) expect(bindings.get(id)!.when!()).toBe(false);
+    expect(bindings.get('audio.toggle')!.when!()).toBe(true);
+    presenting = false;
+    expect(bindings.get('audio.prevVerse')!.when!()).toBe(true);
+  });
+
   it('registers the six documented keys', () => {
     const { bindings } = setup();
     expect([...bindings.values()].map(b => b.key)).toEqual(['alt+p', 'alt+arrowleft', 'alt+arrowright', 'alt+shift+arrowleft', 'alt+shift+arrowright', 'alt+shift+p']);

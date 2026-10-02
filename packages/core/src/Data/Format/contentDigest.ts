@@ -22,13 +22,17 @@ import { ContentCodecUnavailableError, ResolvedModuleCodec } from '../Access/Cod
 const BATCH_SIZE = 500;
 
 /** ASCII Record Separator - written once after each fully-hashed table/shape. */
-const TABLE_SEPARATOR = Buffer.from([0x1e]);
+// `Uint8Array`, not `Buffer`: these are built when the module is imported, and this
+// file is reachable from the core barrel that the desktop renderer bundles, where
+// `Buffer` does not exist (a blank window: "Buffer is not defined"). `hash.update`
+// takes either, and the bytes are the same.
+const TABLE_SEPARATOR = new Uint8Array([0x1e]);
 
 /** NULL marker byte, per the digest's cell layout. */
-const NULL_MARKER = Buffer.from([0x00]);
+const NULL_MARKER = new Uint8Array([0x00]);
 
 /** "present" marker byte, per the digest's cell layout. */
-const PRESENT_MARKER = Buffer.from([0x01]);
+const PRESENT_MARKER = new Uint8Array([0x01]);
 
 /**
  * An 8-byte little-endian unsigned integer, per the digest's cell layout.

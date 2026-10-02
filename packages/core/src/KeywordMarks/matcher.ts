@@ -3,24 +3,13 @@
  * Pure TypeScript; no DOM, no store. Indices are the English word-index space
  * (`extractWordsWithFormatting`) that interlinear rows and decorations address.
  */
+import { normalizeToken, tokenizePhrase, findPhraseMatches } from '../Text';
 import { connectiveForms, normalizeStrongs, CONNECTIVE_LEXICON, primaryLanguage } from './connectives';
 import type {
   ChapterInput, InterlinearSpan, KeywordMark, KeywordSet, MarkHit, MatchResult,
 } from './types';
 
-const EDGE_PUNCT = /^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu;
-
-/** Matching form of a token: NFC, edge punctuation stripped, curly apostrophes folded, case-folded. */
-export function normalizeToken(text: string, matchCase = false): string {
-  let s = text.normalize('NFC').replace(/[‘’]/g, "'").replace(EDGE_PUNCT, '');
-  if (!matchCase) s = s.toLowerCase();
-  return s;
-}
-
-/** Split a phrase / multi-word form into matching tokens. */
-export function tokenizePhrase(text: string, matchCase = false): string[] {
-  return text.split(/\s+/).map((w) => normalizeToken(w, matchCase)).filter((w) => w.length > 0);
-}
+export { normalizeToken, tokenizePhrase };
 
 /** True when a set is active for this chapter (language, scope). */
 export function setAppliesTo(set: KeywordSet, input: ChapterInput): boolean {
@@ -37,32 +26,7 @@ function verseInScope(set: KeywordSet, verseId: number): boolean {
   }
 }
 
-function findSequences(tokens: string[], seq: string[]): [number, number][] {
-  const out: [number, number][] = [];
-  if (seq.length === 0) return out;
-  for (let i = 0; i + seq.length <= tokens.length; i++) {
-    let ok = true;
-    for (let j = 0; j < seq.length; j++) {
-      if (tokens[i + j] !== seq[j]) { ok = false; break; }
-    }
-    if (ok) out.push([i, i + seq.length - 1]);
-  }
-  return out;
-}
-
-/** Match surface forms (single words and phrases) in one verse. */
-function matchForms(rawTokens: string[], forms: string[], matchCase: boolean): [number, number][] {
-  const tokens = rawTokens.map((t) => normalizeToken(t, matchCase));
-  const seen = new Set<string>();
-  const out: [number, number][] = [];
-  for (const form of forms) {
-    for (const [s, e] of findSequences(tokens, tokenizePhrase(form, matchCase))) {
-      const key = `${s}-${e}`;
-      if (!seen.has(key)) { seen.add(key); out.push([s, e]); }
-    }
-  }
-  return out.sort((a, b) => a[0] - b[0]);
-}
+const matchForms = findPhraseMatches;
 
 function isAnchoredMark(mark: KeywordMark): boolean {
   return mark.rule.kind === 'connective';

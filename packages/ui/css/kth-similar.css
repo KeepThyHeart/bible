@@ -1,0 +1,17 @@
+/* Similar passages list (task 0070). kth-similar__* classes over --kth-* tokens only (light/dark via tokens). */
+.kth-similar { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; color: var(--kth-text); font-family: var(--kth-font-ui); font-size: var(--kth-font-size-ui); }
+.kth-similar__row { display: flex; flex-direction: column; gap: var(--kth-space-1); padding: var(--kth-space-2) 0; border-block-end: 1px solid var(--kth-border); }
+.kth-similar__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-2); }
+.kth-similar__ref { padding: 0; border: 0; background: none; color: var(--kth-accent); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.kth-similar__ref:hover { color: var(--kth-accent-hover); }
+.kth-similar__ref:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-similar__bar { display: inline-flex; gap: 2px; align-items: center; }
+.kth-similar__seg { inline-size: 10px; block-size: 6px; border-radius: 2px; background: var(--kth-border); }
+.kth-similar__seg--on { background: var(--kth-accent); }
+.kth-similar__badge { padding: 0 var(--kth-space-2); border: 1px solid var(--kth-border-strong); border-radius: 999px; color: var(--kth-text-muted); font-size: 0.75em; line-height: 1.6; white-space: nowrap; }
+.kth-similar__text { margin: 0; line-height: 1.45; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.kth-similar__chips { display: flex; flex-wrap: wrap; gap: var(--kth-space-1); margin: 0; padding: 0; list-style: none; }
+.kth-similar__chip { padding: 0 var(--kth-space-2); border-radius: var(--kth-radius); background: var(--kth-accent-soft); color: var(--kth-text); font-size: 0.8em; line-height: 1.6; }
+.kth-similar__chip--fallback { background: var(--kth-bg-hover); color: var(--kth-text-muted); }
+.kth-similar__actions { display: flex; gap: var(--kth-space-2); align-items: center; }
+.kth-similar__empty { margin: 0; padding: var(--kth-space-3); color: var(--kth-text-muted); font-size: var(--kth-font-size-ui); text-align: center; }

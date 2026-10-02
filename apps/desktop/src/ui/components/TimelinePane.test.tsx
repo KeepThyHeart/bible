@@ -17,7 +17,13 @@ vi.mock('../stores/useBibleStore', () => ({
 
 vi.mock('../stores/crossStoreBridge', () => ({ navigateToVerseInPrimary: vi.fn() }));
 vi.mock('../services/electronAPI', () => ({ bibleAPI: { getAllBooks: vi.fn().mockResolvedValue([]) } }));
-vi.mock('@bible/ui', () => ({ TimelinePanel: () => <div data-testid="timeline-panel" /> }));
+const panelProps: { formatReference?: (verseId: number, endVerseId?: number) => string } = {};
+vi.mock('@bible/ui', () => ({
+  TimelinePanel: (props: { formatReference: (verseId: number, endVerseId?: number) => string }) => {
+    panelProps.formatReference = props.formatReference;
+    return <div data-testid="timeline-panel" />;
+  },
+}));
 
 describe('TimelinePane', () => {
   beforeEach(() => {
@@ -39,5 +45,15 @@ describe('TimelinePane', () => {
     };
     render(<TimelinePane />);
     await waitFor(() => expect(screen.getByTestId('timeline-panel')).toBeInTheDocument());
+  });
+
+  it('names the book of a passage (core passes a book number to the name callback)', async () => {
+    (window as any).electron = {
+      timeline: { getDataset: vi.fn().mockResolvedValue({ ok: true, value: { items: [], chronologies: [] } }) },
+    };
+    render(<TimelinePane />);
+    await waitFor(() => expect(screen.getByTestId('timeline-panel')).toBeInTheDocument());
+    // Genesis 7:1 - 8:19 (verse id = book * 1_000_000 + chapter * 1000 + verse)
+    expect(panelProps.formatReference!(1007001, 1008019)).toMatch(/^Genesis 7:1-8:19$/);
   });
 });

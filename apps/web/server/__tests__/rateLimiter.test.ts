@@ -948,6 +948,7 @@ describe('rateLimiter middleware', () => {
         '/xref/TSK/43003016/groups',
         '/topical/verse/43003016',
         '/study/overview/43/3',
+        '/hymns/search',
         '/books',
         '/modules',
       ]) {

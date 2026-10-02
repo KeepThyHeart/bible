@@ -158,7 +158,8 @@
     "topics": "Temas",
     "commentary": "Comentario",
     "dictionary": "Diccionario",
-    "study": "Estudio"
+    "study": "Estudio",
+    "similar": "Buscar pasajes similares"
   },
   "rightPane": {
     "study": "Estudio",
@@ -167,7 +168,8 @@
     "dictionary": "Diccionario",
     "search": "Búsqueda",
     "collapseRight": "Contraer el panel derecho",
-    "timeline": "Cronología"
+    "timeline": "Cronología",
+    "similar": "Similares"
   },
   "timeline": {
     "title": "Cronología",
@@ -303,6 +305,24 @@
       "remove": "Eliminar",
       "download": "Descargar",
       "failed": "Ha fallado"
+    },
+    "downloads": {
+      "title": "Descargas y almacenamiento",
+      "download": "Descargar",
+      "update": "Actualizar",
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "remove": "Quitar",
+      "queued": "En cola",
+      "downloading": "{percent}%",
+      "installed": "Instalado",
+      "total": "En este dispositivo: {size}",
+      "empty": "No hay nada que descargar.",
+      "unverified": "sin verificar",
+      "kind": {
+        "ttsRuntime": "Motor de voz",
+        "ttsVoice": "Voz"
+      }
     },
     "about": {
       "title": "Acerca de",
@@ -1367,5 +1387,49 @@
       "strength": "Fortaleza {n} de 5",
       "hopName": "salto {hop}"
     }
+  },
+  "assets": {
+    "error": {
+      "offline": "No tienes conexión (o el acceso a la web está desactivado).",
+      "network": "La descarga se interrumpió. Inténtalo de nuevo.",
+      "http": "El servidor rechazó la descarga.",
+      "not-found": "Esta descarga ya no está disponible.",
+      "integrity": "La descarga estaba dañada y se descartó.",
+      "size-mismatch": "La descarga estaba dañada y se descartó.",
+      "unverifiable": "No se puede verificar este archivo.",
+      "quota": "No hay suficiente espacio de almacenamiento.",
+      "storage": "No se pudo guardar el archivo.",
+      "invalid-manifest": "Esta entrada no es válida.",
+      "busy": "Se está descargando otra versión."
+    }
+  },
+  "similar": {
+    "moreLikeThis": "Más como este",
+    "crossRef": "Referencia cruzada",
+    "otNtBadge": "AT ↔ NT",
+    "similarInMeaning": "Similar en significado",
+    "barLabel": "Similitud {step} de {max}",
+    "menu": "Más acciones",
+    "empty": "No se encontraron pasajes similares.",
+    "filters": "Filtros de pasajes similares",
+    "back": "Atrás",
+    "hideKnown": "Ocultar referencias cruzadas conocidas",
+    "testament": {
+      "label": "Testamento",
+      "any": "Todos",
+      "ot": "Antiguo Testamento",
+      "nt": "Nuevo Testamento",
+      "other": "Otro testamento"
+    },
+    "similarTo": "Similar a {reference}",
+    "approximate": "Basado en los versículos individuales de su selección.",
+    "selectVerse": "Seleccione un versículo para buscar pasajes similares.",
+    "loading": "Cargando pasajes similares...",
+    "downloading": "Descargando datos de pasajes similares...",
+    "unavailable": "Los datos de pasajes similares no están disponibles en este servidor.",
+    "error": "No se pudieron cargar los pasajes similares.",
+    "retry": "Reintentar",
+    "showMore": "Mostrar 10 más",
+    "rangeNeedsLive": "Este pasaje no tiene coincidencias precalculadas aquí; seleccione un solo versículo."
   }
 }
