@@ -349,6 +349,44 @@
     "keywords": {
       "colorSafe": "色觉友好的关键词标记（额外的下划线和符号提示）",
       "colorSafeHint": "为每个关键词标记添加下划线样式和符号，不再仅靠颜色区分。"
+    },
+    "measures": {
+      "title": "度量衡",
+      "enabled": "度量衡与货币注释",
+      "enabled.description": "在经文中标出古代单位，并显示其现代换算。",
+      "display": "在经文中显示",
+      "display.description": "关闭时经文保持简洁（换算见“研读”面板）。否则：虚线下划线加弹出窗口，或下划线并在短语后以[方括号]显示换算。",
+      "display.marker": "虚线下划线和弹出窗口",
+      "display.inline": "下划线、弹出窗口和[换算]",
+      "display.off": "不在经文中显示（仅限研读面板）",
+      "showInReading": "在阅读模式中显示",
+      "showInReading.description": "除非开启，阅读模式保持纯文本。",
+      "system": "单位制",
+      "system.description": "自动：跟随你的语言和地区。",
+      "system.auto": "自动",
+      "system.metric": "公制",
+      "system.us": "美制",
+      "system.imperial": "英制",
+      "secondary": "第二单位制",
+      "secondary.description": "同时以另一种单位制显示（英制仅限长度和重量）。",
+      "secondary.none": "无",
+      "money": "货币",
+      "money.description": "工价（默认）、金属重量，或两者。",
+      "money.wages": "工价",
+      "money.metal": "金属重量",
+      "money.both": "两者",
+      "dailyWage": "你的日薪",
+      "dailyWage.description": "可选：根据工价显示金额的现代估算。0 = 关闭。",
+      "wageCurrency": "日薪的币种",
+      "wageCurrency.description": "货币代码，如 USD、EUR 或 GBP。",
+      "clock": "时钟时间",
+      "clock.description": "自动：跟随你的语言和地区。",
+      "clock.h12": "12 小时制",
+      "clock.h23": "24 小时制",
+      "ranges": "范围",
+      "ranges.description": "显示数值的不确定范围：范围较大时（自动）、总是或从不。",
+      "ranges.always": "总是",
+      "ranges.never": "从不"
     }
   },
   "copyDialog": {
@@ -1426,6 +1464,24 @@
       "openAtLogin": "登录时启动（在托盘中）",
       "sendTest": "发送测试通知",
       "general": "常规"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "范围",
+      "rangeHint": "取决于所用数值",
+      "verseNote": "本节经文",
+      "usageIllustrative": "举例",
+      "usageFigurative": "比喻",
+      "usageHintIllustrative": "举例的数量；确切数字并非重点",
+      "usageHintFigurative": "比喻用法；数字不应按字面理解",
+      "draft": "草稿 – 尚未审核",
+      "sources": "来源",
+      "units": "单位…"
+    },
+    "study": {
+      "title": "重量、度量衡与货币",
+      "listLabel": "本节经文中的重量、度量衡与货币:{{count}}"
     }
   },
   "assets": {

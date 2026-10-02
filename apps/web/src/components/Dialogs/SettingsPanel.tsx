@@ -39,7 +39,7 @@ const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
 
 function sectionToTab(section?: string): SettingsTab {
   if (section === 'bible-font' || section === 'commentary-font' || section === 'study-font' || section === 'text-size') return 'text-size';
-  if (section === 'theme' || section === 'appearance') return 'theme';
+  if (section === 'theme' || section === 'appearance' || section === 'measures') return 'theme';
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'audio') return 'audio';
@@ -167,6 +167,11 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     values: registryValues,
   });
   const keywordFields = WEB_SETTINGS.toFields('keywords', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
+  const measureFields = WEB_SETTINGS.toFields('measures', {
     translate: (key, fallback) => t(key, fallback),
     isEnabled,
     values: registryValues,
@@ -581,6 +586,15 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   fields={keywordFields}
                   values={registryValues}
                   idPrefix="settings-keywords"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
+                <div class="settings-panel__section-header">
+                  <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.measures.title')}</h4>
+                </div>
+                <SettingsForm
+                  fields={measureFields}
+                  values={registryValues}
+                  idPrefix="settings-measures"
                   onChange={(key, value) => { webSettings.set(key, value); }}
                 />
               </div>

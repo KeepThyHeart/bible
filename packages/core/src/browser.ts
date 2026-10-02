@@ -328,6 +328,11 @@ export * from './audio';
 // Pure TypeScript; apps supply timer, presenter and state ports.
 export * from './Reminders';
 
+// --- Weights, measures and money (task 0069) -------------------------------------
+// Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
+// converter, anchor resolver, decoration layer and popup view model. Pure.
+export * from './Measures';
+
 // --- Asset store (task 0090) -------------------------------------------------
 // Download/cache manager for large optional assets: manifest, ports (transport,
 // store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.

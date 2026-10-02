@@ -67,6 +67,22 @@ const TOKEN_ORDER = [
   'accent-secondary', 'scrollbar-track', 'scrollbar-thumb', 'scrollbar-thumb-hover',
 ];
 
+/** Web palette tokens re-emitted as `R G B` triples for the decoration colour keys. */
+const RGB_TOKENS = [
+  ['accent-color', '--theme-accent-primary-rgb'],
+  ['text-primary', '--theme-text-primary-rgb'],
+  ['text-secondary', '--theme-text-secondary-rgb'],
+  ['text-muted', '--theme-text-muted-rgb'],
+];
+
+/** '#2563eb' or '#abc' -> '37 99 235'; anything else -> null. */
+function hexToRgbTriple(hex) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).join(' ');
+}
+
 /** Resolve a palette entry for one app. */
 function resolve(value, app) {
   if (value && typeof value === 'object') return value[app];
@@ -82,6 +98,15 @@ function renderVars(themeId, theme) {
     const value = resolve(raw, 'web');
     if (value === undefined) continue;
     lines.push(`  --${token}: ${value};`);
+  }
+  // Decoration colour keys (`accent`, `text*`) resolve to `--theme-*-rgb` triples
+  // (core ThemeColorResolver). The web palette is hex, so derive the triples from
+  // it; without them an `accent` underline (weights and measures, task 0069, or an
+  // extension decoration) resolves to an invalid colour and is not drawn.
+  for (const [token, cssVar] of RGB_TOKENS) {
+    const value = resolve(theme.colors[token], 'web');
+    const rgb = typeof value === 'string' ? hexToRgbTriple(value) : null;
+    if (rgb) lines.push(`  ${cssVar}: ${rgb};`);
   }
   const marks = MARK_COLORS[themeId];
   if (marks) marks.forEach((v, i) => lines.push(`  --theme-mark-${i + 1}-rgb: ${v};`));

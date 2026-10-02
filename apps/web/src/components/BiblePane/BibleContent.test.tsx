@@ -320,18 +320,21 @@ describe('BibleContent', () => {
     mockStudyShowInterlinear = false;
     const { container } = render(<BibleContent />);
     const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-    // First checkbox is interlinear
-    fireEvent.change(checkboxes[0], { target: { checked: true } });
+    // First checkbox is interlinear. A click (not a synthetic change event): once
+    // preact/compat is loaded (@bible/ui, e.g. the measures popup) it binds a checkbox's
+    // onChange to the click, as a real browser click does both.
+    fireEvent.click(checkboxes[0]);
     expect(mockSetStudyShowInterlinear).toHaveBeenCalledWith(true);
   });
 
   it('calls setStudyShowNotes on notes toggle change', () => {
-    mockActiveTab = makeTab({ displayMode: 'study', verses: [makeVerse()] });
+    // A verse with a footnote, so the notes toggle is enabled (a disabled one takes no click).
+    mockActiveTab = makeTab({ displayMode: 'study', verses: [makeVerse({ footnotes: [{ text: 'n' }] } as Partial<VerseData>)] });
     mockStudyShowNotes = true;
     const { container } = render(<BibleContent />);
     const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-    // Second checkbox is notes
-    fireEvent.change(checkboxes[1], { target: { checked: false } });
+    // Second checkbox is notes (click: see the interlinear toggle test)
+    fireEvent.click(checkboxes[1]);
     expect(mockSetStudyShowNotes).toHaveBeenCalledWith(false);
   });
 

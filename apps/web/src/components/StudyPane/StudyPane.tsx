@@ -4,6 +4,7 @@ import { StudyCrossRefs } from './StudyCrossRefs';
 import { StudySynthesis } from './StudySynthesis';
 import { StudyTopics } from './StudyTopics';
 import { StudyHome } from './StudyHome';
+import { StudyMeasures } from './StudyMeasures';
 import { GenealogyPane } from './GenealogyPane';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -22,13 +23,15 @@ interface StudyPaneProps {
   bibleProvider?: IBibleDataProvider;
   /** Source of the Family tree mode; the mode is only offered when the genealogy flag is on. */
   genealogyProvider?: IGenealogyDataProvider;
+  /** Opens the settings dialog (the measures section's "Units..." button). */
+  onOpenSettings?: (section?: string) => void;
 }
 
 /**
  * Unified Study pane — scrollable view with collapsible sections.
  * Synced to the active Bible verse (with optional pin-to-verse).
  */
-export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider, genealogyProvider }: StudyPaneProps) {
+export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider, genealogyProvider, onOpenSettings }: StudyPaneProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
   const book = useStore(studyStore, () => studyStore.book);
@@ -157,6 +160,8 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
         <StudySection id="topics" label={t('studyPane.topics')}>
           <StudyTopics onTopicClick={(topicId, module, name, sourceName) => commentaryStore.navigateToTopic(topicId, module, name, sourceName)} />
         </StudySection>
+
+        <StudyMeasures verseId={verseId} onOpenSettings={onOpenSettings} />
 
         <StudySynthesis bibleProvider={bibleProvider} />
 

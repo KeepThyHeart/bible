@@ -1,5 +1,5 @@
 /** TimelinePanel: toolbar (chronology, kinds, search, lanes, zoom), the timeline and the selected item's card. */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createTimelineStore, spanYearsToDays } from '@bible/core/browser';
 import type { TimelineDataset } from '@bible/core/browser';
 import { TimelineView } from './TimelineView';
@@ -7,7 +7,8 @@ import { TimelineItemCard } from './TimelineItemCard';
 import { TimelineSearch } from './TimelineSearch';
 import { TimelineSettingsMenu } from './TimelineSettingsMenu';
 import { TimelineZoomControls } from './TimelineZoomControls';
-import { FullscreenPanel } from '../FullscreenPanel';
+import { FullscreenButton } from '../fullscreen/FullscreenButton';
+import { FULLSCREEN_CLASS, useFullscreen } from '../fullscreen/useFullscreen';
 import { useTimelineStore } from './useTimelineStore';
 import { DEFAULT_TIMELINE_PANEL_LABELS, defaultFormatReference } from './labels';
 import type { TimelinePanelLabels } from './labels';
@@ -54,36 +55,26 @@ export function TimelinePanel({
 
   const chronology = dataset.chronologies.find((c) => c.id === state.chronologyId);
   const selected = state.selectedId === null ? undefined : dataset.items.find((i) => i.id === state.selectedId);
-  const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const isFullscreen = allowFullscreen && fullscreen;
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const wasFullscreen = useRef(false);
-  // Leaving full screen: the dialog unmounts, so put focus back on the inline toggle.
-  useLayoutEffect(() => {
-    if (wasFullscreen.current && !isFullscreen) toggleRef.current?.focus();
-    wasFullscreen.current = isFullscreen;
-  }, [isFullscreen]);
-  const rootClass = ['kth-timeline', isFullscreen && 'kth-timeline--fs', isFullscreen && selected && 'kth-timeline--fs-card', className]
+  const rootRef = useRef<HTMLDivElement>(null);
+  // The settings popup owns Escape while it is open.
+  const fs = useFullscreen(rootRef, { escape: !settingsOpen });
+  const isFullscreen = allowFullscreen && fs.full;
+  const rootClass = ['kth-timeline', isFullscreen && 'kth-timeline--fs', isFullscreen && selected && 'kth-timeline--fs-card', isFullscreen && FULLSCREEN_CLASS, className]
     .filter(Boolean).join(' ');
 
-  const body = (
-    <div className={rootClass}>
+  return (
+    <div ref={rootRef} className={rootClass}>
       <div className="kth-timeline__toolbar">
         <TimelineSearch store={store} labels={labels} />
         <TimelineZoomControls store={store} labels={labels} />
         <TimelineSettingsMenu store={store} dataset={dataset} labels={labels} onOpenChange={setSettingsOpen} />
         {allowFullscreen && (
-          <button
-            ref={toggleRef}
-            type="button"
-            className="kth-btn kth-btn--sm kth-timeline__fullscreen-btn"
-            aria-label={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
-            title={isFullscreen ? labels.exitFullscreen : labels.fullscreen}
-            onClick={() => { setSettingsOpen(false); setFullscreen(!isFullscreen); }}
-          >
-            <span aria-hidden="true">{isFullscreen ? '\u21F2' : '\u26F6'}</span>
-          </button>
+          <FullscreenButton
+            full={isFullscreen}
+            onToggle={() => { setSettingsOpen(false); fs.toggle(); }}
+            labels={{ enter: labels.fullscreen, exit: labels.exitFullscreen }}
+          />
         )}
       </div>
       {chronology?.description && <p className="kth-timeline__note">{chronology.description}</p>}
@@ -100,19 +91,5 @@ export function TimelinePanel({
         />
       )}
     </div>
-  );
-
-  if (!isFullscreen) return body;
-  return (
-    <FullscreenPanel
-      open
-      onClose={() => { setSettingsOpen(false); setFullscreen(false); }}
-      label={labels.fullscreen}
-      hideHeader
-      closeOnEscape={!settingsOpen}
-      className="kth-timeline--fullscreen"
-    >
-      {body}
-    </FullscreenPanel>
   );
 }
