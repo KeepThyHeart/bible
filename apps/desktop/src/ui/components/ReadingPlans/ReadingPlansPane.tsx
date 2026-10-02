@@ -9,6 +9,7 @@ import { navigateToVerseInPrimary } from '../../stores/crossStoreBridge';
 import { useReadingPlanStore } from '../../stores/useReadingPlanStore';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../settings/desktopSettings';
 import { isEnabled } from '../../settings/featureFlags';
+import { ensureReferenceLocales } from '../../services/localizedReferenceParser';
 import { useReadingPlanLabels } from './useReadingPlanLabels';
 import { useReadingPlanData } from './readingPlanData';
 import ReadingPlanDetail from './ReadingPlanDetail';
@@ -43,8 +44,16 @@ const ReadingPlanSettings: React.FC = () => {
  * "my plans", a plan detail view, and the plan builder. Simple in-pane navigation, no router.
  */
 const ReadingPlansPane: React.FC = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const labels = useReadingPlanLabels();
+  // The builder's passage picker parses in the UI language: make sure that language's reference data is
+  // loaded, and re-render the picker once it is (it caches nothing, so a version bump is enough).
+  const [, setRefLocaleReady] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve(ensureReferenceLocales([locale])).catch(() => {}).then(() => { if (!cancelled) setRefLocaleReady((n) => n + 1); });
+    return () => { cancelled = true; };
+  }, [locale]);
   const service = getReadingPlanService();
   const todays = useReadingPlanStore((s) => s.todays);
   const storeLoaded = useReadingPlanStore((s) => s.loaded);
@@ -249,6 +258,7 @@ const ReadingPlansPane: React.FC = () => {
     <div className="p-md">
       <ReadingPlanBuilderForm
         today={service.today()}
+        locale={locale}
         bookName={labels.bookName}
         weekdayNames={labels.weekdayNames}
         labels={labels.builder}

@@ -62,6 +62,11 @@ export interface ReadingPlanBuilderFormLabels {
   previewDay: (day: number, readings: string) => string;
   create: string;
   cancel: string;
+  /** Passage picker: input placeholder, suggestion list name, invalid message, count (`{count}` replaced). */
+  addPassagePlaceholder: string;
+  addPassageSuggestions: string;
+  addPassageInvalid: string;
+  addPassageCount: string;
 }
 
 export const DEFAULT_READING_PLAN_BUILDER_FORM_LABELS: ReadingPlanBuilderFormLabels = {
@@ -107,6 +112,10 @@ export const DEFAULT_READING_PLAN_BUILDER_FORM_LABELS: ReadingPlanBuilderFormLab
   previewDay: (d, r) => `Day ${d}: ${r}`,
   create: 'Create plan',
   cancel: 'Cancel',
+  addPassagePlaceholder: 'e.g. John 3:16',
+  addPassageSuggestions: 'Suggestions',
+  addPassageInvalid: 'Not a valid reference',
+  addPassageCount: '{count} suggestions',
 };
 
 export interface ReadingPlanBuilderFormProps {
@@ -263,9 +272,13 @@ export function ReadingPlanBuilderForm({
           <ReferencePicker
             id={`${uid}-ref`}
             locale={locale}
+            dir={dir}
             value={passageText}
             onInputChange={setPassageText}
-            labels={{ label: L.addPassage }}
+            labels={{
+              label: L.addPassage, placeholder: L.addPassagePlaceholder, suggestions: L.addPassageSuggestions,
+              invalid: L.addPassageInvalid, count: L.addPassageCount,
+            }}
             showLabel
             onChange={(v) => {
               setPassages((p) => [...p, passageRange(v)]);

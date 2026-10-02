@@ -1,7 +1,8 @@
 /**
- * Seam for daily plan reminders. The notifications/reminders engine (task 0083, `api.reminders`)
- * is not merged yet, so the service talks to this small port; the app plugs 0083's engine in
- * behind it later. Until then `NO_REMINDERS` is used and the UI hides the reminder setting.
+ * Seam for daily plan reminders. The service talks to this small port; an app plugs the
+ * notifications/reminders engine (task 0083, `Reminders` in core) in behind it. No app does yet
+ * (the engine is merged, the adapter is not built): `NO_REMINDERS` is used and the UI hides the
+ * reminder setting.
  */
 import type { Weekday } from './types';
 

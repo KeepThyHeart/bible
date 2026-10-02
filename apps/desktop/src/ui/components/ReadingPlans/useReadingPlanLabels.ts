@@ -22,6 +22,7 @@ const BUILDER_KEYS = [
   'addPassage', 'passages', 'order', 'orderCanonical', 'orderAsListed', 'orderChronological', 'pace', 'paceDays',
   'paceEndDate', 'paceChapters', 'paceVerses', 'split', 'splitChapter', 'splitVerse', 'readingDays', 'schedule',
   'flexible', 'flexibleHint', 'fixed', 'fixedHint', 'startDate', 'preview', 'chooseSomething', 'create', 'cancel',
+  'addPassagePlaceholder', 'addPassageSuggestions', 'addPassageInvalid', 'addPassageCount',
 ] as const;
 
 const BUILDER_ERROR_KEYS = {
