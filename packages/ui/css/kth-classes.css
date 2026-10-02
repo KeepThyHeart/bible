@@ -124,6 +124,28 @@
   border-radius: var(--kth-radius);
 }
 
+/* --- Notification preferences (NotificationPreferences) ------------------------ */
+.kth-notify-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-notify-prefs__status { margin: 0 0 var(--kth-space-2); }
+.kth-notify-prefs__hint { margin-block-end: var(--kth-space-3); }
+.kth-notify-prefs__switch {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+}
+.kth-notify-prefs__times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kth-space-2);
+}
+
 /* --- Card -------------------------------------------------------------------- */
 .kth-card {
   padding: var(--kth-space-3);

@@ -15,6 +15,7 @@ import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { audioStore } from '../../stores/audioStore';
 import { AudioSettingsTab } from './AudioSettingsTab';
+import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
 import { DownloadsSection } from './DownloadsSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
@@ -23,7 +24,7 @@ import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
 import type { Localizer } from '@bible/core/browser';
 
-type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'offline' | 'about';
+type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'about';
 
 const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'text-size', label: 'settings.tabs.textSize', icon: 'fa-text-height' },
@@ -31,6 +32,7 @@ const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'modules', label: 'settings.tabs.modules', icon: 'fa-book' },
   { key: 'gestures', label: 'settings.tabs.gestures', icon: 'fa-hand-pointer' },
   { key: 'audio', label: 'settings.tabs.audio', icon: 'fa-headphones' },
+  { key: 'notifications', label: 'settings.tabs.notifications', icon: 'fa-bell' },
   { key: 'offline', label: 'settings.tabs.offline', icon: 'fa-cloud-arrow-down' },
   { key: 'about', label: 'settings.tabs.about', icon: 'fa-circle-info' },
 ];
@@ -41,6 +43,7 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'audio') return 'audio';
+  if (section === 'notifications') return 'notifications';
   if (section === 'offline') return 'offline';
   if (section === 'about') return 'about';
   return 'text-size';
@@ -648,6 +651,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
             )}
 
             {activeTab === 'audio' && audioEnabled && <AudioSettingsTab />}
+
+            {activeTab === 'notifications' && <NotificationsSettingsTab />}
 
             {activeTab === 'about' && (
               <div class="settings-panel__section" data-section="about">

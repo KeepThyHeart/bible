@@ -322,6 +322,12 @@ export * from './Settings';
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
 
+// --- Notifications and reminders engine (task 0083) -------------------------------
+// Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,
+// missed-run collapse, the settings document and the scheduler both apps run.
+// Pure TypeScript; apps supply timer, presenter and state ports.
+export * from './Reminders';
+
 // --- Weights, measures and money (task 0069) -------------------------------------
 // Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
 // converter, anchor resolver, decoration layer and popup view model. Pure.

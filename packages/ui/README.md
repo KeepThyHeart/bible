@@ -154,6 +154,27 @@ extension settings share it. Controlled and store-free: `fields`, `values`, `onC
 fields; `labels` covers the two fixed strings (`select`, `learnMore`). `idPrefix` sets control ids (`ext-setting` for extensions).
 Classes: `kth-field`, `kth-field__hint`, `kth-fieldset`, plus `kth-input`/`kth-select`. Design and API: `packages/core/docs/features/settings-registry.md`.
 
+### `NotificationPreferences`
+
+The Notifications settings page body (task 0083): permission status, master switch, quiet hours, one row per reminder source
+(switch, description, daily time for editable rule sources, next fire, pending count), the desktop-only device section and a test
+button. Controlled and store-free: it takes a `NotificationsViewState` (from `@bible/core/browser`) and reports the next
+`NotificationSettings` or a device patch. Plain text only.
+
+| Prop | Purpose |
+|---|---|
+| `state` | `NotificationsViewState` snapshot. |
+| `onSettingsChange(next)` | The full next `NotificationSettings` (master, quiet hours, `sources[id].enabled`, `sources[id].plan`). A time edit writes `plan = { slots: [{ id: 'daily', kind: 'fixed', time, days }] }`, keeping the days of an existing single fixed slot (else all seven). |
+| `onDeviceChange(patch)` | `Partial<NotificationDeviceSettings>`; the "When the window is closed" section shows only when `state.device` is set, each switch disabled when `state.deviceSupport` says it is unsupported. |
+| `onRequestPermission`, `onSendTest` | Show the "Allow notifications" button (permission `prompt`) and the test button. |
+| `formatTime(epochMs)` | "Next: ..." text (default `toLocaleString`). |
+| `formatScheduled(count)` | Plural-aware "{count} scheduled" text; falls back to the `scheduled` label. |
+| `labels`, `idPrefix` | `NotificationPreferencesLabels` (English defaults in `DEFAULT_NOTIFICATION_PREFERENCES_LABELS`; `{time}`, `{count}`, `{source}` placeholders, substituted literally; `blocked` hint for a source whose `allowed` is false, which also disables its switch); control id prefix (`notify`). |
+
+Everything under the master switch is disabled when it is off. With permission `unsupported` every control is disabled and the when-closed hint is hidden. The From/To inputs show only while quiet hours are on. "Start when I log in" is disabled while the tray is off (unless already on, so it can be turned off). Turning quiet hours on writes 21:30 to 07:00. Switches are
+`<input type="checkbox" role="switch">`. Classes: `kth-notify-prefs`, `__status`, `__switch`, `__times`, plus `kth-fieldset`, `kth-field`,
+`kth-field__hint`, `kth-input`, `kth-btn`.
+
 ### `AssetList`
 
 A fully controlled list of downloadable assets (voices, modules, packs) for the Downloads settings of both apps (task 0090). No state,

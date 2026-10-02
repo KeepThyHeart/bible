@@ -184,6 +184,10 @@ export * as UserData from './UserData';
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
 
+// Notifications and reminders engine (task 0083). Namespaced here (the Node
+// entry already exports generic names such as `JsonValue`); flat in `./browser`.
+export * as Reminders from './Reminders';
+
 // Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
 export * from './Services/Similar';
 export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';

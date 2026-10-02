@@ -24,6 +24,40 @@
  */
 export type LocalizedString = string | { key: string; params?: Record<string, unknown> };
 
+// --- Reminders (api.reminders) ----------------------------------------------
+
+// The reminder DTOs are owned by the engine (`../Reminders/types`); the
+// extension contract re-exports them rather than duplicating them.
+export type {
+  JsonValue,
+  ReminderItem,
+  ReminderCapabilities,
+  ReminderPermission,
+} from '../Reminders/types';
+import type { JsonValue as ReminderJsonValue } from '../Reminders/types';
+
+/**
+ * Delivered when the user clicks a reminder this extension scheduled.
+ * `key` is the clicked item; `keys` is every item the notification stood for
+ * (more than one when several came due together and were collapsed into one
+ * notification); `data` is the clicked item's `data`; `firedAt` is the epoch
+ * ms the reminder was due (the latest one for a collapsed notification).
+ */
+export interface ReminderActivationEvent {
+  key: string;
+  keys: string[];
+  data?: ReminderJsonValue;
+  firedAt: number;
+}
+
+/** Reminders that were due while the app was closed or asleep. */
+export interface ReminderMissedEvent {
+  /** Items shown late (collapsed into one notification). */
+  keys: string[];
+  /** Items too old to show; dropped. */
+  dropped: string[];
+}
+
 /**
  * Single keybinding attached to a command. `key` uses cross-platform tokens
  * (e.g. `Ctrl+J`, `Cmd+Shift+P`). When `mac` is provided it overrides `key`
