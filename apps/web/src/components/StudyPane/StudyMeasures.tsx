@@ -42,7 +42,7 @@ export function StudyMeasures({ verseId, onOpenSettings, variant = 'section', co
   const dir: 'ltr' | 'rtl' = typeof document !== 'undefined' && document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr';
   const openSettings = onOpenSettings ? () => onOpenSettings('measures') : undefined;
   const list = (
-    <div class="study-measures" role="list" aria-label={t('measures.study.listLabel', { count: models.length })}>
+    <div class="study-measures kth-measure-list" role="list" aria-label={t('measures.study.listLabel', { count: models.length })}>
       {models.map((model, i) => (
         <div role="listitem" key={model.occurrenceId}>
           <MeasurePopup

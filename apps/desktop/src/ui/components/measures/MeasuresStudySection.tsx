@@ -37,7 +37,7 @@ const MeasuresStudySection: React.FC<MeasuresStudySectionProps> = ({ verseId, co
   if (models.length === 0) return null;
   return (
     <StudySection title={t('measures.study.title')} count={models.length} collapsed={collapsed} onToggle={onToggle}>
-      <div className="flex flex-col gap-3">
+      <div className="kth-measure-list">
         {models.map((model, i) => (
           <MeasurePopup
             key={model.occurrenceId}
