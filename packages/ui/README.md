@@ -175,6 +175,22 @@ Everything under the master switch is disabled when it is off. With permission `
 `<input type="checkbox" role="switch">`. Classes: `kth-notify-prefs`, `__status`, `__switch`, `__times`, plus `kth-fieldset`, `kth-field`,
 `kth-field__hint`, `kth-input`, `kth-btn`.
 
+### `AssetList`
+
+A fully controlled list of downloadable assets (voices, modules, packs) for the Downloads settings of both apps (task 0090). No state,
+no fetching: the app maps its asset manager to rows and handles the callbacks.
+
+| Prop | Purpose |
+|---|---|
+| `rows` | `AssetListRow[]`: `id`, `title`, `detail?` (plain text), `status` (`available`, `queued`, `downloading`, `installed`, `update-available`, `error`), `sizeBytes`, `storedBytes`, `progress?` (`{ loaded, total }`; total 0 is indeterminate), `error?` (already localized), `canInstall?`, `canRemove?`. |
+| `onInstall(id)`, `onCancel(id)`, `onRemove(id)` | Buttons: Download / Update / Retry (by status, hidden while queued or downloading), Cancel (queued, downloading), Remove (danger style). Button names are `"<label>: <title>"`. |
+| `storedBytes`, `formatBytes` | Footer total (default: sum of rows) and the size formatter (default B/KB/MB/GB, 1 decimal). |
+| `labels` | Partial `AssetListLabels`; `{percent}` and `{size}` are replaced; English defaults in `DEFAULT_ASSET_LIST_LABELS`. |
+
+Defaults: `canInstall` is true for available, update-available and error; `canRemove` for installed and update-available. Downloading rows render a
+`<progress>` labelled with the title. Classes: `kth-asset-list-wrap`, `kth-asset-list` (`__row`, `__info`, `__title`, `__detail`, `__meta`, `__status`,
+`__progress`, `__error`, `__actions`, `__total`, `__empty`), plus `kth-btn`.
+
 ### `ExtensionPanelHost`
 
 Renders one sandboxed extension-panel iframe and owns its `IframeRpcBridge` (`@bible/core/browser`): one bridge per mounted host,
@@ -208,6 +224,24 @@ map + `kth-base.css` + `kth.css`); the host serves both from `ext-ui://host/kit/
 | `kitLocale.ts` | The locale and direction the host reported (`ui.getLocale`); connected elements re-render when it changes. |
 | `index.ts` | Entry: assigns the frozen global `KthKit`. Loading the script defines no elements. |
 | `kit.css` | CSS entry (imports the map, base and `kth.css`; esbuild inlines them). |
+
+### `SimilarList`
+
+A fully controlled list of passages similar to a source passage (task 0070). No state, no fetching: the app hydrates `reference` and `text`
+and handles the callbacks.
+
+| Prop | Meaning |
+|---|---|
+| `rows` | `SimilarListRow[]`: a core `SimilarPassage` plus `key`, `reference`, `text`. |
+| `floor` | Lower end of the 5-step bar scale (default 0); the top of the scale is the best row's similarity. `similarityStep(similarity, floor, top1)` is exported. |
+| `onOpen(row, { newTab })` | Reference click; Ctrl/Cmd or middle click gives `newTab: true`. |
+| `onMoreLike(row)` | "More like this" button. |
+| `onMenu?(row, anchor)` | Optional menu button (hidden when omitted). |
+| `reasonsFor?(row)` | `MatchReason[]` for chips (Strong's + lemma + gloss, topic, words); `[]` shows "Similar in meaning"; `undefined` shows none. |
+| `onVisible?(row)` | Once per row when first visible (immediately without `IntersectionObserver`), e.g. to fetch explanations lazily. |
+| `labels` | Partial `SimilarListLabels` (`{step}`, `{max}` replaced in `barLabel`); English defaults in `DEFAULT_SIMILAR_LIST_LABELS`. |
+
+Classes `kth-similar` (`__row`, `__head`, `__ref`, `__bar`, `__seg`, `__badge`, `__text`, `__chips`, `__chip`, `__actions`, `__empty`) in `css/kth-similar.css`.
 
 ### Contract (kit major 1: attributes, events and `hostMethods` are additive only)
 

@@ -31,6 +31,7 @@ import { FontsSection } from './PreferencesDialog/FontsSection';
 import { ThemesSection } from './PreferencesDialog/ThemesSection';
 import { PrivacySection } from './PreferencesDialog/PrivacySection';
 import { NotificationsSection } from './PreferencesDialog/NotificationsSection';
+import { DownloadsSection } from './PreferencesDialog/DownloadsSection';
 import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
 
@@ -178,6 +179,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'themes' && <ThemesSection />}
             {activeSection === 'privacy' && <PrivacySection />}
             {activeSection === 'notifications' && <NotificationsSection />}
+            {activeSection === 'downloads' && <DownloadsSection />}
             {activeSection === 'extensions' && (
               <ExtensionsSection initialExpand={initialExtensionTarget} />
             )}

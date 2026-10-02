@@ -977,3 +977,18 @@
   flex-direction: column;
   padding: var(--kth-space-4);
 }
+
+/* AssetList (0090) */
+.kth-asset-list-wrap { display: flex; flex-direction: column; gap: var(--kth-space-2); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-asset-list { display: flex; flex-direction: column; gap: var(--kth-space-2); margin: 0; padding: 0; list-style: none; }
+.kth-asset-list__row { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-3); padding: var(--kth-space-2) 0; border-block-end: 1px solid var(--kth-border); }
+.kth-asset-list__info { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--kth-space-1) var(--kth-space-2); flex: 1 1 auto; min-inline-size: 0; }
+.kth-asset-list__title { font-weight: 600; color: var(--kth-text-heading); overflow-wrap: anywhere; }
+.kth-asset-list__detail { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-asset-list__meta { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kth-asset-list__status { color: var(--kth-success); font-size: calc(var(--kth-font-size-ui) * 0.85); white-space: nowrap; }
+.kth-asset-list__progress { flex: 1 1 100%; inline-size: 100%; block-size: 6px; accent-color: var(--kth-accent); }
+.kth-asset-list__error { flex: 1 1 100%; color: var(--kth-danger); font-size: calc(var(--kth-font-size-ui) * 0.9); overflow-wrap: anywhere; }
+.kth-asset-list__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); flex: 0 0 auto; }
+.kth-asset-list__total { margin: 0; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-asset-list__empty { margin: 0; color: var(--kth-text-muted); font-size: var(--kth-font-size-ui); }

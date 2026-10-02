@@ -158,7 +158,8 @@
     "topics": "Topics",
     "commentary": "Commentary",
     "dictionary": "Dictionary",
-    "study": "Study"
+    "study": "Study",
+    "similar": "Find similar passages"
   },
   "rightPane": {
     "study": "Study",
@@ -167,7 +168,8 @@
     "dictionary": "Dictionary",
     "search": "Search",
     "collapseRight": "Collapse right pane",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "similar": "Similar"
   },
   "timeline": {
     "title": "Timeline",
@@ -304,6 +306,24 @@
       "remove": "Remove",
       "download": "Download",
       "failed": "Failed"
+    },
+    "downloads": {
+      "title": "Downloads & storage",
+      "download": "Download",
+      "update": "Update",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "remove": "Remove",
+      "queued": "Queued",
+      "downloading": "{percent}%",
+      "installed": "Installed",
+      "total": "On this device: {size}",
+      "empty": "Nothing to download.",
+      "unverified": "unverified",
+      "kind": {
+        "ttsRuntime": "Speech engine",
+        "ttsVoice": "Voice"
+      }
     },
     "about": {
       "title": "About",
@@ -1407,5 +1427,49 @@
       "sendTest": "Send a test notification",
       "general": "General"
     }
+  },
+  "assets": {
+    "error": {
+      "offline": "You are offline (or web access is off).",
+      "network": "The download was interrupted. Try again.",
+      "http": "The server refused the download.",
+      "not-found": "This download is no longer available.",
+      "integrity": "The download was damaged and was discarded.",
+      "size-mismatch": "The download was damaged and was discarded.",
+      "unverifiable": "This file cannot be verified.",
+      "quota": "Not enough storage space.",
+      "storage": "Could not save the file.",
+      "invalid-manifest": "This entry is invalid.",
+      "busy": "Another version is downloading."
+    }
+  },
+  "similar": {
+    "moreLikeThis": "More like this",
+    "crossRef": "Cross-reference",
+    "otNtBadge": "OT ↔ NT",
+    "similarInMeaning": "Similar in meaning",
+    "barLabel": "Similarity {step} of {max}",
+    "menu": "More actions",
+    "empty": "No similar passages found.",
+    "filters": "Similar passage filters",
+    "back": "Back",
+    "hideKnown": "Hide known cross-references",
+    "testament": {
+      "label": "Testament",
+      "any": "All",
+      "ot": "Old Testament",
+      "nt": "New Testament",
+      "other": "Opposite testament"
+    },
+    "similarTo": "Similar to {reference}",
+    "approximate": "Based on the individual verses of your selection.",
+    "selectVerse": "Select a verse to find similar passages.",
+    "loading": "Loading similar passages...",
+    "downloading": "Downloading similar passages data...",
+    "unavailable": "Similar passages data is not available on this server.",
+    "error": "Could not load similar passages.",
+    "retry": "Try again",
+    "showMore": "Show 10 more",
+    "rangeNeedsLive": "This passage has no precomputed matches here; select a single verse instead."
   }
 }

@@ -117,7 +117,25 @@ interface IndexLayout {
   /** Present when the stored vectors were centred before normalising. */
   meanVector: Float32Array | null;
   minSimilarity: number;
+  /** Score floor for neighbour lists (task 0070); falls back to `minSimilarity`. */
+  neighbourMinSimilarity: number;
   queryModel: SemanticQueryModel;
+}
+
+/** A row that passed a scan: its index and raw cosine to the query. */
+interface ScanHit {
+  row: number;
+  similarity: number;
+}
+
+/** A stored row exposed as a query vector (task 0070). */
+export interface PassageRow {
+  id: string;
+  level: SemanticLevel;
+  startVerseId: VerseId;
+  endVerseId: VerseId;
+  /** Unit length, in index space (truncated / centred as stored). */
+  vector: Float32Array;
 }
 
 /** Everything `search()` scans, in flat typed arrays rather than per-row objects. */
@@ -141,6 +159,8 @@ interface LoadedEmbeddings {
 export class SemanticSearchService {
   private readonly layout: IndexLayout;
   private embeddings: LoadedEmbeddings | null = null;
+  /** Lazily built: start verse id -> row indices starting there (index order). */
+  private rowsByStart: Map<number, number[]> | null = null;
 
   constructor(
     private semanticDb: ISql
@@ -279,6 +299,7 @@ export class SemanticSearchService {
    */
   unloadEmbeddings(): void {
     this.embeddings = null;
+    this.rowsByStart = null;
   }
 
   /**
@@ -305,29 +326,9 @@ export class SemanticSearchService {
     }
 
     const query = this.prepareQuery(queryEmbedding);
-    const { dims } = this.layout;
-    const wantedLevels = new Uint8Array(LEVELS.length);
-    for (const level of levels) wantedLevels[LEVELS.indexOf(level)] = 1;
-
-    const hits: Array<{ row: number; similarity: number }> = [];
-    const { vectors, inverseNorms } = loaded;
-
-    for (let row = 0; row < loaded.count; row++) {
-      if (!wantedLevels[loaded.levels[row]]) continue;
-
-      const offset = row * dims;
-      let dot = 0;
-      for (let i = 0; i < dims; i++) {
-        dot += query[i] * vectors[offset + i];
-      }
-      const similarity = dot * inverseNorms[row];
-
-      if (similarity >= minSimilarity) {
-        hits.push({ row, similarity });
-      }
-    }
-
-    hits.sort((a, b) => b.similarity - a.similarity);
+    // Collapsing needs more rows than maxResults (several rows share a passage).
+    const topK = options.collapsePassages ? Infinity : maxResults;
+    const hits = this.scanRows([query], levels, topK, minSimilarity)[0];
 
     const results: SemanticSearchResult[] = [];
     const seenPassages = new Set<string>();
@@ -352,6 +353,163 @@ export class SemanticSearchService {
     }
 
     return results;
+  }
+
+  /**
+   * One pass over the index for any number of (already prepared, unit) queries.
+   * Per query, keeps the best `topK` rows with similarity >= `minSimilarity`,
+   * sorted by similarity descending (ties: earlier row first, as a stable sort
+   * of the full scan would give).
+   */
+  private scanRows(
+    queries: Float32Array[],
+    levels: SemanticLevel[],
+    topK: number,
+    minSimilarity: number
+  ): ScanHit[][] {
+    const results: ScanHit[][] = queries.map(() => []);
+    if (!this.embeddings) this.loadEmbeddings();
+    const loaded = this.embeddings;
+    if (!loaded || loaded.count === 0 || topK <= 0) return results;
+
+    const { dims } = this.layout;
+    const wantedLevels = new Uint8Array(LEVELS.length);
+    for (const level of levels) {
+      const index = LEVELS.indexOf(level);
+      if (index >= 0) wantedLevels[index] = 1;
+    }
+    const { vectors, inverseNorms } = loaded;
+    const bounded = Number.isFinite(topK);
+
+    for (let row = 0; row < loaded.count; row++) {
+      if (!wantedLevels[loaded.levels[row]]) continue;
+
+      const offset = row * dims;
+      const inverse = inverseNorms[row];
+      for (let q = 0; q < queries.length; q++) {
+        const query = queries[q];
+        let dot = 0;
+        for (let i = 0; i < dims; i++) {
+          dot += query[i] * vectors[offset + i];
+        }
+        const similarity = dot * inverse;
+        if (similarity < minSimilarity) continue;
+
+        const hits = results[q];
+        if (!bounded) {
+          hits.push({ row, similarity });
+        } else if (hits.length < topK) {
+          hits.push({ row, similarity });
+          siftUp(hits, hits.length - 1);
+        } else if (similarity > hits[0].similarity) {
+          // Rows arrive in ascending order, so an equal score is always worse than the root.
+          hits[0] = { row, similarity };
+          siftDown(hits, 0);
+        }
+      }
+    }
+
+    for (const hits of results) {
+      hits.sort((a, b) => b.similarity - a.similarity || a.row - b.row);
+    }
+    return results;
+  }
+
+  /**
+   * Stored rows (verse, paragraph, chapter) at the given levels whose range lies
+   * inside `[startVerseId, endVerseId]`, as unit query vectors in index space.
+   * Needs no embedding model: the rows already are embeddings.
+   */
+  getPassageRows(startVerseId: VerseId, endVerseId: VerseId, levels: SemanticLevel[]): PassageRow[] {
+    if (!this.embeddings) this.loadEmbeddings();
+    const loaded = this.embeddings;
+    if (!loaded || loaded.count === 0) return [];
+
+    if (!this.rowsByStart) {
+      const map = new Map<number, number[]>();
+      for (let row = 0; row < loaded.count; row++) {
+        const start = loaded.startVerseIds[row];
+        const list = map.get(start);
+        if (list) list.push(row);
+        else map.set(start, [row]);
+      }
+      this.rowsByStart = map;
+    }
+
+    const { dims } = this.layout;
+    const wanted = new Set<number>();
+    for (const level of levels) {
+      const index = LEVELS.indexOf(level);
+      if (index >= 0) wanted.add(index);
+    }
+
+    // Verse ids are dense enough to walk when the span is small; otherwise scan the keys.
+    const rowIndices: number[] = [];
+    const span = endVerseId - startVerseId + 1;
+    if (span > 0 && span <= this.rowsByStart.size) {
+      for (let id = startVerseId; id <= endVerseId; id++) {
+        const list = this.rowsByStart.get(id);
+        if (list) rowIndices.push(...list);
+      }
+    } else {
+      for (const [start, list] of this.rowsByStart) {
+        if (start >= startVerseId && start <= endVerseId) rowIndices.push(...list);
+      }
+      rowIndices.sort((a, b) => a - b);
+    }
+
+    const out: PassageRow[] = [];
+    for (const row of rowIndices) {
+      if (!wanted.has(loaded.levels[row])) continue;
+      if (loaded.endVerseIds[row] > endVerseId) continue;
+      const offset = row * dims;
+      const inverse = loaded.inverseNorms[row];
+      const vector = new Float32Array(dims);
+      for (let i = 0; i < dims; i++) vector[i] = loaded.vectors[offset + i] * inverse;
+      out.push({
+        id: loaded.ids[row],
+        level: LEVELS[loaded.levels[row]],
+        startVerseId: loaded.startVerseIds[row],
+        endVerseId: loaded.endVerseIds[row],
+        vector,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Search with vectors that already are in index space (e.g. from
+   * `getPassageRows`): no query preparation and no similarity floor. Per query
+   * the top `topK` rows, best first.
+   */
+  searchByVectors(
+    vectors: Float32Array[],
+    options: { levels: SemanticLevel[]; topK: number }
+  ): SemanticSearchResult[][] {
+    const { dims } = this.layout;
+    for (const vector of vectors) {
+      if (vector.length !== dims) {
+        throw new Error(`Query vector has ${vector.length} dimensions; this index uses ${dims}.`);
+      }
+    }
+    const scanned = this.scanRows(vectors, options.levels, options.topK, -Infinity);
+    const loaded = this.embeddings;
+    return scanned.map(hits =>
+      hits.map(({ row, similarity }) => ({
+        id: loaded!.ids[row],
+        level: LEVELS[loaded!.levels[row]],
+        startVerseId: loaded!.startVerseIds[row],
+        endVerseId: loaded!.endVerseIds[row],
+        textPreview: loaded!.previews[row],
+        similarity,
+        reference: '',
+      }))
+    );
+  }
+
+  /** Score below which a neighbour is noise: `neighbour_min_similarity` metadata, else the search floor. */
+  neighbourMinSimilarity(): number {
+    return this.layout.neighbourMinSimilarity;
   }
 
   /**
@@ -426,6 +584,11 @@ function readIndexLayout(db: ISql): IndexLayout {
     throw new Error(`Semantic index declares an invalid embedding_dim "${metadata.get('embedding_dim')}".`);
   }
 
+  const neighbourRaw = metadata.get('neighbour_min_similarity');
+  const neighbourParsed = neighbourRaw === undefined ? NaN : Number(neighbourRaw);
+  const neighbourOr = (fallback: number): number =>
+    Number.isFinite(neighbourParsed) ? neighbourParsed : fallback;
+
   const format = metadata.get('index_format') ?? '1';
   if (format === '1') {
     return {
@@ -433,6 +596,7 @@ function readIndexLayout(db: ISql): IndexLayout {
       encoding: 'float32',
       meanVector: null,
       minSimilarity: LEGACY_MIN_SIMILARITY,
+      neighbourMinSimilarity: neighbourOr(LEGACY_MIN_SIMILARITY),
       queryModel: LEGACY_QUERY_MODEL,
     };
   }
@@ -458,6 +622,7 @@ function readIndexLayout(db: ISql): IndexLayout {
     encoding,
     meanVector,
     minSimilarity: Number.isFinite(minSimilarity) ? minSimilarity : LEGACY_MIN_SIMILARITY,
+    neighbourMinSimilarity: neighbourOr(Number.isFinite(minSimilarity) ? minSimilarity : LEGACY_MIN_SIMILARITY),
     queryModel: {
       modelId: metadata.get('query_model') ?? metadata.get('embedding_model') ?? LEGACY_QUERY_MODEL.modelId,
       dtype: metadata.get('query_model_dtype') ?? 'fp32',
@@ -479,6 +644,35 @@ function normalize(vector: Float32Array): Float32Array {
     for (let i = 0; i < vector.length; i++) vector[i] /= norm;
   }
   return vector;
+}
+
+/** True when `a` ranks below `b`: lower similarity, or equal similarity and a later row. */
+function ranksBelow(a: ScanHit, b: ScanHit): boolean {
+  return a.similarity < b.similarity || (a.similarity === b.similarity && a.row > b.row);
+}
+
+/** Min-heap (worst hit at the root) maintenance for the bounded selection. */
+function siftUp(heap: ScanHit[], index: number): void {
+  while (index > 0) {
+    const parent = (index - 1) >> 1;
+    if (!ranksBelow(heap[index], heap[parent])) break;
+    [heap[index], heap[parent]] = [heap[parent], heap[index]];
+    index = parent;
+  }
+}
+
+function siftDown(heap: ScanHit[], index: number): void {
+  const n = heap.length;
+  for (;;) {
+    const left = 2 * index + 1;
+    const right = left + 1;
+    let worst = index;
+    if (left < n && ranksBelow(heap[left], heap[worst])) worst = left;
+    if (right < n && ranksBelow(heap[right], heap[worst])) worst = right;
+    if (worst === index) break;
+    [heap[index], heap[worst]] = [heap[worst], heap[index]];
+    index = worst;
+  }
 }
 
 function inverseNorm(vectors: Float32Array | Int8Array, offset: number, dims: number): number {

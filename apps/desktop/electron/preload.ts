@@ -65,6 +65,9 @@ import type {
 // Type-only, so nothing from the main-process service or @bible/core is pulled
 // into the preload bundle - the imports are erased at compile time.
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
+import type { AssetListSnapshot } from '@bible/core/browser';
+import type { SimilarOptions, MatchReason } from '@bible/core/browser';
+import type { SimilarFindResponse, SimilarStatus } from './ipc/similarTypes';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -239,6 +242,14 @@ export interface ElectronAPI {
     getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
     getBookMatrix: () => Promise<Result<number[][]>>;
     getChapterArcs: () => Promise<Result<any>>;
+  };
+
+  // Similar passages (task 0070). Payload types: `ipc/similarTypes.ts`.
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) => Promise<Result<SimilarFindResponse>>;
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) => Promise<Result<MatchReason[]>>;
+    status: () => Promise<Result<SimilarStatus>>;
+    reset: () => Promise<Result<true>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -504,6 +515,16 @@ export interface ElectronAPI {
     removeRepository: (repositoryId: number) => Promise<Result<boolean>>;
     updateRepositoryUrl: (repositoryId: number, newUrl: string) => Promise<Result<any>>;
     setRepositoryEnabled: (repositoryId: number, enabled: boolean) => Promise<Result<void>>;
+  };
+
+  // Asset store (task 0090). The renderer sends ids only; `install` returns once the download
+  // has been queued and the renderer polls `list` while `active > 0`.
+  assets: {
+    list: () => Promise<Result<AssetListSnapshot>>;
+    install: (id: string) => Promise<Result<{ started: true }>>;
+    cancel: (id: string) => Promise<Result<{ cancelled: boolean }>>;
+    remove: (id: string) => Promise<Result<{ removed: boolean }>>;
+    refresh: () => Promise<Result<AssetListSnapshot>>;
   };
 
   // Optional feature packs (semantic search). A pack is a downloadable
@@ -864,6 +885,15 @@ const electronAPI: ElectronAPI = {
     getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
   },
 
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) =>
+      typedInvoke('similar:find', range, opts, module),
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) =>
+      typedInvoke('similar:explain', a, b, module),
+    status: () => typedInvoke('similar:status'),
+    reset: () => typedInvoke('similar:reset'),
+  },
+
   search: {
     performSearch: (query: string, options: any) =>
       ipcRenderer.invoke('search:performSearch', query, options),
@@ -1146,6 +1176,14 @@ const electronAPI: ElectronAPI = {
     setRepositoryEnabled: (repositoryId: number, enabled: boolean) =>
       typedInvoke('repository:set-enabled', repositoryId, enabled)
 
+  },
+
+  assets: {
+    list: () => typedInvoke('assets:list'),
+    install: (id: string) => typedInvoke('assets:install', id),
+    cancel: (id: string) => typedInvoke('assets:cancel', id),
+    remove: (id: string) => typedInvoke('assets:remove', id),
+    refresh: () => typedInvoke('assets:refresh'),
   },
 
   featurePacks: {

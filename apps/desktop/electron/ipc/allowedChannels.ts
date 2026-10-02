@@ -285,6 +285,11 @@ export const TYPED_IPC_CHANNELS = [
   'xrefGraph:getNeighbours',
   'xrefGraph:getBookMatrix',
   'xrefGraph:getChapterArcs',
+  // Similar passages (task 0070)
+  'similar:find',
+  'similar:explain',
+  'similar:status',
+  'similar:reset',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',
@@ -349,6 +354,12 @@ export const TYPED_IPC_CHANNELS = [
   'featurePack:install-from-file',
   'featurePack:cancel',
   'featurePack:uninstall',
+  // Asset store (task 0090): downloadable voices/models/data; ids only
+  'assets:list',
+  'assets:install',
+  'assets:cancel',
+  'assets:remove',
+  'assets:refresh',
   // Download management
   'download:get-progress',
   'download:get-active',

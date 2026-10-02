@@ -19,6 +19,7 @@ import {
   selectStarterPacksForLanguage,
 } from '@bible/core';
 import type { IModuleCatalogService } from '@bible/core';
+import { parseAssetManifest, type AssetManifest } from '@bible/core/browser';
 import {
   CATALOG_INDEX_MAX_RESPONSE_BYTES,
   CATALOG_MAX_RESPONSE_BYTES,
@@ -728,6 +729,33 @@ export class ModuleCatalogService implements IModuleCatalogService {
     }
 
     return packs;
+  }
+
+  /**
+   * Downloadable assets (task 0090) offered by the enabled catalogs. Same
+   * discipline as feature packs: every entry goes through `parseAssetManifest`
+   * with `requireAbsolute` (a catalog entry must be self-describing), invalid
+   * ones are dropped with a log line, and the first catalog to offer an id wins.
+   */
+  getAvailableAssets(): AssetManifest[] {
+    const out: AssetManifest[] = [];
+    const seen = new Set<string>();
+    for (const entry of this.catalogRepo.getEnabled()) {
+      const catalog = entry.getParsedCatalog();
+      const raw = catalog?.assets;
+      if (!Array.isArray(raw)) continue;
+      raw.forEach((item, index) => {
+        const result = parseAssetManifest(item, { requireAbsolute: true });
+        if (!result.ok) {
+          log.warn(`[ModuleCatalog] Ignoring asset #${index} from ${entry.name}: ${result.errors.join('; ')}`);
+          return;
+        }
+        if (seen.has(result.manifest.id)) return;
+        seen.add(result.manifest.id);
+        out.push(result.manifest);
+      });
+    }
+    return out;
   }
 
   /**
