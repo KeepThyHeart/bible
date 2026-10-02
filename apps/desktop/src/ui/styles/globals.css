@@ -63,6 +63,13 @@
   #root {
     @apply w-full h-screen overflow-hidden;
   }
+
+  /* RTL chrome: keep the user's UI font first, then fall back to the per-script
+     system stack (--kth-font-script, set by :lang(ar|fa|he...) in kth-rtl.css).
+     LTR is unchanged. */
+  :root[dir='rtl'] body {
+    font-family: var(--ui-font-family), var(--kth-font-script);
+  }
 }
 
 /* Bible text styling */
@@ -898,4 +905,21 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--theme-border-focus);
   outline-offset: 1px;
+}
+
+/* Typed text in plain inputs auto-detects its own direction, while padding and
+   icons keep following the inherited UI direction (an empty `dir="auto"` input
+   would resolve to LTR in Chromium, which is why the attribute is not used). */
+input:not([type]):not([dir]),
+input[type='text']:not([dir]),
+input[type='search']:not([dir]),
+textarea:not([dir]) {
+  unicode-bidi: plaintext;
+}
+
+/* Notes: blocks without an explicit (stored) direction auto-detect per
+   paragraph via CSS, so nothing is serialized for them. */
+.ProseMirror :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]),
+.note-viewer-content :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]) {
+  unicode-bidi: plaintext;
 }

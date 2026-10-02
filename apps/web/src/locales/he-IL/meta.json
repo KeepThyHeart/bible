@@ -1,0 +1,8 @@
+{
+  "$schema": "../schemas/meta.schema.json",
+  "locale.name": "Hebrew",
+  "locale.nativeName": "עברית",
+  "locale.status": "draft",
+  "locale.direction": "rtl",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. The web catalog contains no Scripture sample text, so no Hebrew Scripture edition is quoted; any future sample must use the Westminster Leningrad Codex for the Old Testament and the Delitzsch Hebrew New Testament (1877) for the New Testament, never a copyrighted modern translation. Book names follow the standard Hebrew forms used in Protestant/Delitzsch-tradition Bibles (e.g. מתי, מרקוס, אל הרומים, חזון יוחנן); booksShort uses conventional Hebrew abbreviations with gershayim (שמ״א, מל״ב, קור״א). Terminology a reviewer may revisit: ספר (book), פרק (chapter), פסוק (verse), הברית הישנה / הברית החדשה (Old / New Testament, rather than תנ״ך), פירוש (commentary), בין-שורתי (interlinear), חיפוש רעיונות (Ideas Search), מציג (Presenter), המנון (hymn), שקילות צורנית/דינמית (formal/dynamic equivalence); buttons use the masculine singular imperative or a noun, help prose uses impersonal infinitives where practical. Command examples typed into the Presenter command box (john 3:16, hymn 460) stay in Latin because the parser expects them; physical directions (left gutter in the Presenter help) are translated literally and must be revisited if pane geometry is mirrored. Reviewer checks: plural forms (one/two/other), the abbreviated labels פרש׳ (Commentary tab) and הפ״צ (X-Refs) in the narrow study tab bar, and the Hebrew possessive prefixes (ב-, ל-, ו-) before Latin names."
+}

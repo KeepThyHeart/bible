@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React from 'react';
 import {
   DndContext,
@@ -125,7 +126,7 @@ const EndDropZone: React.FC<{ id: string }> = ({ id }) => {
       style={{
         minWidth: '24px',
         // A rule at the insertion point says *where* the drop will land.
-        borderLeft: isOver ? '2px solid var(--theme-accent-primary)' : '2px solid transparent',
+        borderInlineStart: isOver ? '2px solid var(--theme-accent-primary)' : '2px solid transparent',
       }}
     />
   );
@@ -277,7 +278,7 @@ const DraggableTabBar: React.FC<DraggableTabBarProps> = ({
                     renderTab(tab, index, isActive)
                   ) : (
                     <>
-                      <span className="whitespace-nowrap">{tab.label}</span>
+                      <span className="whitespace-nowrap"><Bdi>{tab.label}</Bdi></span>
                       <button
                         className="text-sm leading-none p-0.5 rounded hover:text-danger hover:bg-danger-soft text-text-muted transition-colors"
                         onClick={(e) => {

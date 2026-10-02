@@ -227,7 +227,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   onClick={() => commentaryStore.toggleCollapsed()}
                   title={t('rightPane.collapseRight')}
                 >
-                  <i class="fa-solid fa-chevron-right" />
+                  <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                 </button>
               </div>
               {paneMode === 'study' && (

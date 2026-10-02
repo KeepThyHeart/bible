@@ -85,7 +85,7 @@ export function PresentBar(props: { compact?: boolean }) {
             title={t('present.previous')}
             aria-label={t('present.previous')}
           >
-            <i class="fa-solid fa-chevron-left" aria-hidden="true" />
+            <i class="fa-solid fa-chevron-left kth-rtl-mirror" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -95,7 +95,7 @@ export function PresentBar(props: { compact?: boolean }) {
             title={t('present.next')}
             aria-label={t('present.next')}
           >
-            <i class="fa-solid fa-chevron-right" aria-hidden="true" />
+            <i class="fa-solid fa-chevron-right kth-rtl-mirror" aria-hidden="true" />
           </button>
           <button
             type="button"

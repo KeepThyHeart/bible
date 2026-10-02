@@ -15,7 +15,8 @@ import { formatVerseReference } from '../utils/verseReference';
 import type { PaneType } from '../../../electron/config/paneConfig';
 import { useI18n } from '../contexts/useI18n';
 import { localizePaneLabel } from '../utils/paneNames';
-import { anchorAtPointerX } from '../utils/overlayPosition';
+import { anchorAtPointer } from '@bible/core/browser';
+import { useDirection, Bdi } from '@bible/ui';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 import { cleanModuleName } from '../utils/verseFormatting';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
@@ -150,6 +151,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   // `paneType === 'extension'` guard is needed here.
   const badge = useExtensionUiStore(s => s.panelBadges[api.id]);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const uiDir = useDirection();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to title changes so the tab re-renders when setTitle() is called
@@ -447,11 +449,11 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         {icon && <span style={{ fontSize: controlScaled(12), alignSelf: subtitle ? 'flex-start' : undefined }}>{icon}</span>}
         {subtitle ? (
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-            <span style={{ fontWeight: 600 }}>{title}</span>
-            <span style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}>{subtitle}</span>
+            <span style={{ fontWeight: 600 }}><Bdi>{title}</Bdi></span>
+            <span style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}><Bdi>{subtitle}</Bdi></span>
           </div>
         ) : (
-          <span>{title}</span>
+          <span><Bdi>{title}</Bdi></span>
         )}
         {badge !== undefined && (
           <span
@@ -510,7 +512,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           data-testid="dockview-tab-context-menu"
           style={{
             position: 'fixed',
-            ...anchorAtPointerX(contextMenu.x),
+            ...anchorAtPointer(contextMenu.x, 180, window.innerWidth, uiDir),
             top: contextMenu.y,
             zIndex: 10000,
             minWidth: '180px',

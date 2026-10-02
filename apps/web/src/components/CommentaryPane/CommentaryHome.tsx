@@ -14,6 +14,7 @@ import { isDigestModule, getDigestDisplayName, getDigestDisclaimer } from '../..
 import { DigestDisclaimer } from './DigestDisclaimer';
 import type { CommentaryHomeModule, CommentaryEntryData } from '../../types';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { Bdi } from '@bible/ui';
 
 type SortMode = 'alpha' | 'default' | 'words-desc' | 'words-asc' | 'random';
 
@@ -359,7 +360,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
           onClick={(e: MouseEvent) => handleToggleExpand(mod, e)}
         >
           <div class="commentary-home__item-row">
-            <i class={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} fa-xs commentary-home__item-chevron`} />
+            <i class={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs commentary-home__item-chevron`} />
             <span class="commentary-home__item-module">{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</span>
             {showBar && <div class="commentary-home__item-bar-track"><div class="commentary-home__item-bar" style={{ width: `${barPct}%` }} /></div>}
             <i
@@ -429,7 +430,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
                   return (
                     <div key={entry.entry_id} class="commentary-entry">
                       <div class="commentary-entry__ref">
-                        {formatVerseRange(entry.verse_id_start, entry.verse_id_end)}
+                        <Bdi>{formatVerseRange(entry.verse_id_start, entry.verse_id_end)}</Bdi>
                       </div>
                       <div
                         class="commentary-entry__text"
@@ -531,7 +532,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
       {filteredMuted.length > 0 && (
         <div class="commentary-home__section commentary-home__section--muted">
           <div class="commentary-home__section-title commentary-home__section-title--muted" onClick={() => setShowMuted(!showMuted)}>
-            <i class={`fa-solid ${showMuted ? 'fa-chevron-down' : 'fa-chevron-right'} fa-xs`} />
+            <i class={`fa-solid ${showMuted ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs`} />
             <i class="fa-solid fa-eye-slash" />
             Muted ({filteredMuted.length})
           </div>

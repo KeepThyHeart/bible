@@ -167,7 +167,7 @@
     "topics": "Topics",
     "dictionary": "Dictionary",
     "search": "Search",
-    "collapseRight": "Collapse right pane",
+    "collapseRight": "Collapse side pane",
     "timeline": "Timeline",
     "quiz": "Quiz",
     "similar": "Similar"
@@ -831,7 +831,7 @@
     "topicsForVerse": "Topics for {verse}",
     "relatedEntities": "Related Entities",
     "searching": "Searching...",
-    "searchResultsFor": "Search results for '{query}'",
+    "searchResultsFor": "Search results for “{query}”",
     "noTopicsSearch": "No topics found for \"{query}\"",
     "entities": "Entities",
     "loadingEntity": "Loading entity...",
@@ -1540,7 +1540,7 @@
       "cleared": "Selection cleared",
       "links": "{count} links",
       "arcsShown": "{count} arcs shown",
-      "minWeightHint": "Hides chapter pairs joined by only a few or weak links. A pair's strength adds up the strength of every cross-reference between the two chapters, so sliding right keeps only the most heavily linked pairs."
+      "minWeightHint": "Hides chapter pairs joined by only a few or weak links. A pair's strength adds up the strength of every cross-reference between the two chapters, so raising the slider keeps only the most heavily linked pairs."
     },
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",

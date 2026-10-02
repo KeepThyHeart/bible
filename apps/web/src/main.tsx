@@ -28,6 +28,7 @@ import { lazyFeature } from '@bible/core/browser';
 import { featureFlags } from './utils/featureFlags';
 import { getAudioConfig } from './audio/config';
 import i18n, { ensureLocaleLoaded } from './i18n';
+import { installBidiCopy } from './utils/bidiCopy';
 
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -82,6 +83,7 @@ async function init() {
   // flashing English (or worse, painting a non-English `lang` attribute over
   // English text).
   const localeReadyPromise = ensureLocaleLoaded(i18n.language);
+  installBidiCopy();
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.

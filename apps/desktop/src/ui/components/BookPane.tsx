@@ -26,7 +26,9 @@ import { mergeTabOrder, moveTab, sameTabOrder, indexWithinType } from './BookPan
 import { useNavSectionInfo } from './BookPane/hooks/useNavSectionInfo';
 import { useDetachedInit } from './BookPane/hooks/useDetachedInit';
 import { useDictionaryDetachedInit } from './BookPane/hooks/useDictionaryDetachedInit';
-import { anchorAtPointerX } from '../utils/overlayPosition';
+import { anchorAtPointer } from '@bible/core/browser';
+import { useDirection } from '@bible/ui';
+import { contentDirAttrs } from '../utils/contentDirection';
 import {
   SHOW_DICTIONARY_PANE_EVENT,
   type ShowDictionaryPaneDetail,
@@ -182,6 +184,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
 
   // Context menu for internal tabs (right-click -> "Pop Out to Window")
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabType: 'book' | 'dictionary'; abbreviation: string } | null>(null);
+  const uiDir = useDirection();
 
   const dismissTabContextMenu = useCallback(() => setTabContextMenu(null), []);
   useOverlayDismissal(!!tabContextMenu, dismissTabContextMenu);
@@ -650,6 +653,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
       */}
       {!overviewActive && effectivePane === 'book' && allTabs.length > 0 && <div
         className="flex-1 overflow-auto pane-content-book"
+        {...contentDirAttrs(availableBooks.find(b => b.abbreviation === activeTab?.abbreviation)?.language_code)}
         id={`${tabIdPrefix}-panel-${combinedActiveIndex}`}
         role="tabpanel"
         aria-labelledby={`${tabIdPrefix}-tab-${combinedActiveIndex}`}
@@ -792,7 +796,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
           onKeyDown={(e) => { if (e.key === 'Escape') dismissTabContextMenu(); }}
           style={{
             position: 'fixed',
-            ...anchorAtPointerX(tabContextMenu.x),
+            ...anchorAtPointer(tabContextMenu.x, 180, window.innerWidth, uiDir),
             top: tabContextMenu.y,
             zIndex: 10000,
             minWidth: '180px',

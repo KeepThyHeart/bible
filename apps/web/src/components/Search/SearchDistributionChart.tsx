@@ -140,6 +140,8 @@ export function SearchDistributionChart({ results, bookCounts, mode, truncated, 
     if (plotWidth <= 0 || tipWidth <= 0) return;
     const centre = cell.offsetLeft + cell.offsetWidth / 2;
     const left = Math.min(Math.max(centre - tipWidth / 2, 0), Math.max(0, plotWidth - tipWidth));
+    // rtl-physical: offsetLeft is a physical measurement, so the tip offset stays physical too;
+    // the bars themselves are a flex row, so Genesis sits at inline-start in both directions.
     tip.style.left = `${left}px`;
   }, [active]);
 

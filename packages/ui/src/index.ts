@@ -124,3 +124,21 @@ export { WeekdayPicker, DEFAULT_WEEKDAY_PICKER_LABELS, DEFAULT_WEEKDAY_NAMES } f
 export type { WeekdayPickerProps, WeekdayPickerLabels } from './components/ReadingPlans/WeekdayPicker';
 export { ReadingPlanBuilderForm, DEFAULT_READING_PLAN_BUILDER_FORM_LABELS } from './components/ReadingPlans/ReadingPlanBuilderForm';
 export type { ReadingPlanBuilderFormProps, ReadingPlanBuilderFormLabels, ReadingPlanBuilderStart } from './components/ReadingPlans/ReadingPlanBuilderForm';
+
+// Direction primitives (task 0076): UI direction provider + hooks, isolated runs, content containers.
+export {
+  DirectionProvider,
+  useDirection,
+  useIsRtl,
+  useUiLocale,
+  Bdi,
+  ContentDir,
+  resolveContentDir,
+} from './components/Direction';
+export type {
+  DirectionContextValue,
+  DirectionProviderProps,
+  BdiProps,
+  ContentDirProps,
+  ContentDirOverride,
+} from './components/Direction';

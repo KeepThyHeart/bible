@@ -45,6 +45,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
   const [pinned, setPinned] = React.useState(false);
   const [pinnedVerseId, setPinnedVerseId] = React.useState<number | null>(null);
   const [moduleName, setModuleName] = React.useState(abbreviation);
+  const [moduleLanguage, setModuleLanguage] = React.useState<string | undefined>(undefined);
   // Task #10: entry summaries for the empty-verse fallback grid.
   const [entrySummaries, setEntrySummaries] = React.useState<CommentaryEntrySummary[]>([]);
   const summariesLoadedRef = useRef(false);
@@ -83,6 +84,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
     const mod = availableCommentaries.find(c => c.abbreviation === abbreviation);
     if (mod) {
       setModuleName(mod.name);
+      setModuleLanguage(mod.language_code);
     }
   }, [abbreviation]);
 
@@ -237,6 +239,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
           entries={entries}
           moduleName={moduleName}
           moduleAbbreviation={abbreviation}
+          moduleLanguage={moduleLanguage}
           currentVerseId={currentVerseId}
           isLoading={isLoading}
           error={error}

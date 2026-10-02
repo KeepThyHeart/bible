@@ -33,6 +33,9 @@ export const ALLOWED_IPC_CHANNELS = [
   'keywords:list',
   'keywords:put',
   'keywords:remove',
+  // Per-note default text direction (task 0076)
+  'note-direction:get',
+  'note-direction:set',
   // Reading plans (task 0073)
   'reading-plans:list-plans',
   'reading-plans:get-plan',

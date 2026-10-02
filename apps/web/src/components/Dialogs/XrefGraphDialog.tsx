@@ -10,6 +10,7 @@ import { useStore } from '../../hooks/useStore';
 import { useXrefGraphLabels } from '../../hooks/useXrefGraphLabels';
 import { xrefGraphProvider } from '../../providers/XrefGraphProvider';
 import { getLocalizedBookName } from '../../utils/bookNames';
+import { logicalArrow } from '@bible/core/browser';
 import { formatVerseRange, parseVerseId } from '../../utils/verseId';
 import { formatPassageRef } from '../../constants';
 import type { IBibleDataProvider } from '../../providers/interfaces';
@@ -117,8 +118,10 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
 
   const onTabKey = (e: KeyboardEvent, index: number) => {
     let next = -1;
-    if (e.key === 'ArrowRight') next = (index + 1) % VIEWS.length;
-    else if (e.key === 'ArrowLeft') next = (index + VIEWS.length - 1) % VIEWS.length;
+    // Roving focus follows the UI direction: ArrowRight is "previous" in an RTL tab strip.
+    const step = logicalArrow(e.key, document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr');
+    if (step === 'next') next = (index + 1) % VIEWS.length;
+    else if (step === 'prev') next = (index + VIEWS.length - 1) % VIEWS.length;
     if (next < 0) return;
     e.preventDefault();
     xrefGraphStore.setView(VIEWS[next]);

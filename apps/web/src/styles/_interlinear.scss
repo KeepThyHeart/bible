@@ -1,10 +1,8 @@
 // ============================================================
 // Interlinear original word display
 //
-// Word-level Bible content (glosses, transliteration, Strong's links) - kept
-// physical (not converted to logical properties) for the same reason as
-// `_bible-content.scss`'s verse/word rules: content direction is not yet
-// separated from UI direction. See that file's `.verse--preface` comment.
+// Word-level Bible content (glosses, transliteration, Strong's links) - logical
+// properties; the interlinear block follows the content direction.
 // ============================================================
 .verse__interlinear-original {
   font-size: 0.75em;
@@ -43,7 +41,7 @@
 }
 
 .verse__interlinear-annotation {
-  margin-left: 3px;
+  margin-inline-start: 3px;
   font-size: 0.75em;
   color: var(--text-muted);
   white-space: nowrap;
@@ -55,7 +53,7 @@
 
   .verse__interlinear-translit,
   .verse__strongs-link {
-    margin-left: 3px;
+    margin-inline-start: 3px;
   }
 }
 

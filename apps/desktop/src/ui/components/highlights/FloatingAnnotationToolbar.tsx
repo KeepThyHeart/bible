@@ -100,6 +100,7 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
   const clearRecentStyles = useHighlightStore(state => state.clearRecentMarkupStyles);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  // rtl-physical: positioned from a measured selection rect
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [visible, setVisible] = useState(false);
 
@@ -231,6 +232,7 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
       style={{
         position: 'fixed',
         top: `${position.top}px`,
+        // rtl-physical: viewport coordinates measured from the selection rect
         left: `${position.left}px`,
         zIndex: 10000,
         opacity: visible ? 1 : 0,

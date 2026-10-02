@@ -1,11 +1,14 @@
 import { useCallback, useRef } from 'react';
+import { useDirection } from '@bible/ui';
+import { logicalArrow } from '@bible/core/browser';
 
 /**
  * Keyboard navigation hook for ARIA tab bars (role="tablist").
  *
  * Returns a ref for the tablist container and a key handler that implements
  * the WAI-ARIA authoring practices for tabs:
- *   - ArrowLeft / ArrowRight move focus between tabs (wrapping).
+ *   - ArrowLeft / ArrowRight move focus between tabs (wrapping). They are
+ *     mapped through the UI direction: in an RTL UI ArrowLeft is "next".
  *   - Home / End jump to the first / last tab.
  *   - Focus moves to the targeted tab button; the caller decides whether to
  *     also activate that tab (automatic vs. manual activation).
@@ -35,6 +38,7 @@ export function useTabKeyboardNav(options: UseTabKeyboardNavOptions): {
 } {
   const { tabCount, activeIndex, onActivate, manualActivation } = options;
   const tablistRef = useRef<HTMLDivElement>(null);
+  const uiDir = useDirection();
 
   const focusTabAt = useCallback((index: number) => {
     const container = tablistRef.current;
@@ -48,11 +52,12 @@ export function useTabKeyboardNav(options: UseTabKeyboardNavOptions): {
     (event: React.KeyboardEvent<HTMLElement>) => {
       if (tabCount === 0) return;
       let nextIndex: number | null = null;
-      switch (event.key) {
-        case 'ArrowRight':
+      const step = logicalArrow(event.key, uiDir);
+      switch (step ?? event.key) {
+        case 'next':
           nextIndex = (activeIndex + 1) % tabCount;
           break;
-        case 'ArrowLeft':
+        case 'prev':
           nextIndex = (activeIndex - 1 + tabCount) % tabCount;
           break;
         case 'Home':
@@ -71,7 +76,7 @@ export function useTabKeyboardNav(options: UseTabKeyboardNavOptions): {
       }
       focusTabAt(nextIndex);
     },
-    [activeIndex, tabCount, onActivate, manualActivation, focusTabAt],
+    [activeIndex, tabCount, onActivate, manualActivation, focusTabAt, uiDir],
   );
 
   return { tablistRef, onKeyDown };

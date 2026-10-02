@@ -12,7 +12,8 @@
  * singletons.
  */
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
+import { DirectionProvider } from '@bible/ui';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IWhenContextService } from '../services/IWhenContextService';
 import type { IKeybindingService } from '../services/IKeybindingService';
@@ -52,7 +53,28 @@ interface ContextProviderProps {
 }
 
 export function ContextProvider({ services, children }: ContextProviderProps) {
-  return <AppServicesContext.Provider value={services}>{children}</AppServicesContext.Provider>;
+  return (
+    <AppServicesContext.Provider value={services}>
+      <UiDirectionBridge i18n={services.i18n}>{children}</UiDirectionBridge>
+    </AppServicesContext.Provider>
+  );
+}
+
+/**
+ * Feeds the active UI direction into `@bible/ui`'s `<DirectionProvider>` so
+ * shared components (`useDirection()`, pickers, swatches) follow the app's
+ * locale, in the main window and in every detached window (task 0076).
+ */
+function UiDirectionBridge({ i18n, children }: { i18n: II18nService; children: ReactNode }) {
+  const locale = useSyncExternalStore(
+    (cb) => {
+      const sub = i18n.onDidChangeLocale(cb);
+      return () => sub.dispose();
+    },
+    () => i18n.currentLocale,
+    () => i18n.currentLocale,
+  );
+  return <DirectionProvider value={{ ui: i18n.currentDirection, locale }}>{children}</DirectionProvider>;
 }
 
 /**

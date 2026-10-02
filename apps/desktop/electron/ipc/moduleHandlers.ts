@@ -23,7 +23,7 @@ import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../service
 import { FileApprovedCatalogKeyStore } from '../services/ApprovedCatalogKeys';
 import { getOfficialPublicKeys, OFFICIAL_CATALOG_URL_PREFIXES } from '../services/trustedCatalogKeys';
 import { blessPath, isPathBlessed } from './blessedPaths';
-import { t } from '../services/MainI18n';
+import { t, isolateForUi } from '../services/MainI18n';
 import {
   installModulePack,
   inspectModulePack,
@@ -412,7 +412,7 @@ type PackFileTrustDecision =
  */
 async function resolvePackFileTrust(filePath: string): Promise<PackFileTrustDecision> {
   const inspection = await inspectModulePack(filePath, getPackTrustedKeys());
-  const fileName = basename(filePath);
+  const fileName = isolateForUi(basename(filePath));
 
   if (inspection.status === 'invalid') {
     dialog.showErrorBox(

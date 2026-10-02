@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StrongsNumberHelper, dictionaryDefinitionToHtml } from '@bible/core';
 import { useI18n } from '../contexts/useI18n';
@@ -33,6 +34,7 @@ import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useSearchStore } from '../stores/useSearchStore';
 import { useDeferredLoading } from '../hooks/useDeferredLoading';
+import { contentDirAttrs } from '../utils/contentDirection';
 
 interface DictionaryPaneProps {
   /** When true, hides the tab bar (for embedding inside BookPane) */
@@ -631,7 +633,11 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
           />
         ) : (
           // Display dictionary entry
-          <div className="px-xl py-lg max-w-4xl mx-auto" data-testid="dictionary-entry">
+          <div
+            className="px-xl py-lg max-w-4xl mx-auto"
+            data-testid="dictionary-entry"
+            {...contentDirAttrs(availableDictionaries.find(d => d.abbreviation === activeTab.abbreviation)?.language_code)}
+          >
             {/* Entry Header */}
             <div className="mb-lg">
               <h2 className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
@@ -747,7 +753,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                   {currentEntry.example_verses.map((verse, index) => (
                     <div key={index} className="p-md bg-background rounded">
                       <div className="text-sm font-semibold text-accent mb-xs">
-                        {formatVerseReference(verse.verse_id)}
+                        <Bdi>{formatVerseReference(verse.verse_id)}</Bdi>
                       </div>
                       {verse.text && (
                         <div className="text-sm text-text-secondary">{verse.text}</div>

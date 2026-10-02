@@ -16,6 +16,8 @@ import { DigestDisclaimer } from './DigestDisclaimer';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import type { CommentaryModuleInfoData } from '../../types';
 import { CommentaryHome } from './CommentaryHome';
+import { moduleContentAttrs } from '../../utils/contentDirection';
+import { Bdi } from '@bible/ui';
 
 interface CommentaryContentProps {
   bibleProvider?: IBibleDataProvider;
@@ -163,10 +165,11 @@ export function CommentaryContent({ bibleProvider }: CommentaryContentProps) {
         return (
           <div key={entry.entry_id} class="commentary-entry">
             <div class="commentary-entry__ref">
-              {formatVerseRange(entry.verse_id_start, entry.verse_id_end)}
+              <Bdi>{formatVerseRange(entry.verse_id_start, entry.verse_id_end)}</Bdi>
             </div>
             <div
               class="commentary-entry__text"
+              {...moduleContentAttrs(activeTab?.moduleAbbr)}
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(linkedContent) }}
             />
           </div>
@@ -190,10 +193,11 @@ export function CommentaryContent({ bibleProvider }: CommentaryContentProps) {
             return (
               <div key={entry.entry_id} class="commentary-entry">
                 <div class="commentary-entry__ref">
-                  {formatVerseRange(entry.verse_id_start, entry.verse_id_end)}
+                  <Bdi>{formatVerseRange(entry.verse_id_start, entry.verse_id_end)}</Bdi>
                 </div>
                 <div
                   class="commentary-entry__text"
+                  {...moduleContentAttrs(activeTab?.moduleAbbr)}
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(linkedContent) }}
                 />
               </div>
@@ -362,12 +366,12 @@ function CommentaryVerseNav({ highlightedVerse, syncedBook, syncedChapter, chapt
     <div class="commentary-empty-verse__nav">
       {prevVerse ? (
         <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToVerse(prevVerse!)}>
-          <i class="fa-solid fa-chevron-left fa-xs" /> {t('commentaryContent.prevComment')} {prevVerse})
+          <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" /> {t('commentaryContent.prevComment')} {prevVerse})
         </button>
       ) : <span />}
       {nextVerse ? (
         <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToVerse(nextVerse!)}>
-          {t('commentaryContent.nextComment')} {nextVerse}) <i class="fa-solid fa-chevron-right fa-xs" />
+          {t('commentaryContent.nextComment')} {nextVerse}) <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
         </button>
       ) : <span />}
     </div>

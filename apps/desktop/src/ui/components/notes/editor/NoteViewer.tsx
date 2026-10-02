@@ -4,13 +4,17 @@ import { previewVerseInPrimary } from '../../../stores/crossStoreBridge';
 import VersePreviewTooltip from '../../VersePreviewTooltip';
 import { reprocessCommentaryLinks } from '../../../utils/commentaryLinkProcessor';
 import { useI18n } from '../../../contexts/useI18n';
+import { useDirection } from '../../../contexts/useDirection';
 
 interface NoteViewerProps {
   content: string;
   onEdit?: () => void;  // Optional - not currently used but kept for future use
+  /** The note's own default direction; unset follows the UI direction. */
+  defaultDirection?: 'ltr' | 'rtl';
 }
 
-const NoteViewer: React.FC<NoteViewerProps> = ({ content }) => {
+const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection }) => {
+  const uiDir = useDirection();
   const contentRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
   // A reference in a note is a citation the reader is checking, so it
@@ -36,7 +40,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content }) => {
     // Then sanitize the HTML
     return DOMPurify.sanitize(linkedContent, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'mark', 'a', 'ul', 'ol', 'li', 'span'],
-      ALLOWED_ATTR: ['class', 'data-verse-id', 'href', 'style', 'data-color'],
+      ALLOWED_ATTR: ['class', 'data-verse-id', 'href', 'style', 'data-color', 'dir'],
     });
   }, [content]);
 
@@ -136,7 +140,8 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content }) => {
       {/* Content area */}
       <div
         ref={contentRef}
-        className="flex-1 overflow-auto p-4 prose prose-sm max-w-none"
+        dir={defaultDirection ?? uiDir}
+        className="note-viewer-content flex-1 overflow-auto p-4 prose prose-sm max-w-none"
         style={{
           fontFamily: 'Georgia, serif',
           // Follows the Typography section's "Study text" size and the
@@ -174,12 +179,12 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content }) => {
           /* List formatting */
           ul {
             list-style-type: disc;
-            padding-left: 1.5em;
+            padding-inline-start: 1.5em;
             margin: 0.5em 0;
           }
           ol {
             list-style-type: decimal;
-            padding-left: 1.5em;
+            padding-inline-start: 1.5em;
             margin: 0.5em 0;
           }
           li {

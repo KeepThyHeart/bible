@@ -45,7 +45,7 @@ describe('NotesBreadcrumb', () => {
 
     render(<NotesBreadcrumb segments={segments} onNavigate={onNavigate} />);
 
-    const lastSegment = screen.getByText('Document');
+    const lastSegment = screen.getByText('Document').closest('[aria-current]') as HTMLElement;
     expect(lastSegment.closest('button')).not.toBeInTheDocument();
     expect(lastSegment).toHaveClass('font-medium', 'text-text-heading');
   });
@@ -105,7 +105,7 @@ describe('NotesBreadcrumb', () => {
 
     render(<NotesBreadcrumb segments={segments} onNavigate={onNavigate} />);
 
-    const segment = screen.getByText('Standalone');
+    const segment = screen.getByText('Standalone').closest('[aria-current]') as HTMLElement;
     expect(segment).toHaveClass('font-medium');
   });
 

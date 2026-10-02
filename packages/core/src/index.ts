@@ -31,6 +31,8 @@ export {
   LOCALE_REGISTRY,
   resolveLocaleDescriptor,
   directionForTag,
+  uiDirection,
+  isKnownUiLocale,
 } from './Data/Locales/LocaleRegistry';
 export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
 export {
@@ -172,6 +174,8 @@ export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } fr
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+export { UserDataNoteDirectionStore, NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION, isNoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
+export type { NoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
 export { UserDataQuizProgressStore, QUIZ_OWNER, QUIZ_STATS_COLLECTION, QUIZ_SESSIONS_COLLECTION } from './Quiz/progress';
 export { mergeCatalogs } from './Quiz/scope';
 
@@ -182,6 +186,25 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Bidi text and direction-aware geometry (task 0076): also re-exported from
+// `./browser`. The Electron main process uses `isolate()` for window titles
+// and native menus.
+export {
+  FSI,
+  LRI,
+  RLI,
+  PDI,
+  isolate,
+  isolateParams,
+  isolateMessageParams,
+  simpleMessageArgs,
+  isolateReference,
+  stripBidiControls,
+  hasBidiControls,
+} from './Ui/bidi';
+export { logicalArrow, logicalSwipe, scrollStart, setScrollStart, anchorAtPointer } from './Ui/directional';
+export type { LogicalStep, HorizontalScroller } from './Ui/directional';
 
 // Speech recognition contracts and fakes, and the recitation library (task 0071).
 // Namespaced; also re-exported from `./browser`. `@bible/core/recite` is the

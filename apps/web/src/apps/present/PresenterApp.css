@@ -48,7 +48,7 @@
 .pz-appbar__menu-wrap { position: relative; }
 .pz-appbar__menu {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: 100%;
   z-index: 30;
   min-width: 180px;
@@ -61,7 +61,7 @@
 .pz-appbar__menu-item {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: 0;
   background: none;
   color: inherit;
@@ -180,7 +180,7 @@
 .pz-status__spacer { flex: 1; }
 .pz-status__state { font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
 .pz-status__state--live { color: var(--pz-live); }
-.pz-status__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pz-live); display: inline-block; margin-right: 4px; }
+.pz-status__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pz-live); display: inline-block; margin-inline-end: 4px; }
 .pz-status__viewers { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary, var(--text-muted)); }
 .pz-status__viewers--offline { opacity: 0.5; }
 .pz-status__confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
@@ -188,7 +188,7 @@
 .pz-menu {
   /* Fixed, not absolute: the pane clips its children, which cut the menu (and the handoff QR) short. */
   position: fixed;
-  right: 12px;
+  inset-inline-end: 12px;
   top: 96px;
   z-index: 50;
   width: min(380px, calc(100vw - 24px));
@@ -311,7 +311,7 @@
 .pz-chip--next { border-color: var(--accent-color); }
 .pz-chip--shown { background: rgba(255, 213, 0, 0.35); border-color: rgba(200, 160, 0, 0.8); }
 .pz-chip--amber { border-color: #d98e04; background: rgba(217, 142, 4, 0.12); }
-.pz-chip__reason { margin-left: 6px; font-size: 0.85em; opacity: 0.8; }
+.pz-chip__reason { margin-inline-start: 6px; font-size: 0.85em; opacity: 0.8; }
 .pz-chip--clear { background: transparent; }
 
 /* `.present-panel` (styles/_present.scss) caps its height at 45vh for the old floating panel; these two are not that. */

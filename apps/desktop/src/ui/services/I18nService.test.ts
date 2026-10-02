@@ -301,3 +301,27 @@ describe('I18nService', () => {
     });
   });
 });
+
+describe('I18nService RTL (task 0076)', () => {
+  it('takes UI direction from the locale registry, meta.json only for unknown tags', () => {
+    const svc = new I18nService();
+    // he-IL with no meta.json direction at all is still rtl.
+    svc.loadCatalog('he-IL', 'meta', { 'locale.name': 'Hebrew' });
+    expect(svc.getLocaleMetadata('he-IL').direction).toBe('rtl');
+    // A registry locale whose meta.json disagrees: the registry wins.
+    svc.loadCatalog('fa-IR', 'meta', { 'locale.direction': 'ltr' });
+    expect(svc.getLocaleMetadata('fa-IR').direction).toBe('rtl');
+    // An unknown dev pseudo-locale: meta.json decides.
+    svc.loadCatalog('xx-rtl', 'meta', { 'locale.direction': 'rtl' });
+    expect(svc.getLocaleMetadata('xx-rtl').direction).toBe('rtl');
+  });
+
+  it('isolates interpolated {name} strings only in an RTL UI', async () => {
+    const svc = new I18nService();
+    svc.loadCatalog('en', 'ui', { open: 'Open {name}' });
+    svc.loadCatalog('ar', 'ui', { open: 'افتح {name}' });
+    expect(svc.t('open', { name: 'KJV' })).toBe('Open KJV');
+    await svc.setLocale('ar');
+    expect(svc.t('open', { name: 'KJV' })).toBe('افتح ⁨KJV⁩');
+  });
+});

@@ -104,6 +104,13 @@ export const LOCALE_REGISTRY: readonly LocaleDescriptor[] = [
   { tag: 'ja', englishName: 'Japanese', nativeName: '日本語', direction: 'ltr', script: 'Jpan', defaultDigitSystem: 'latin' },
   { tag: 'vi', englishName: 'Vietnamese', nativeName: 'Tiếng Việt', direction: 'ltr', script: 'Latn', defaultDigitSystem: 'latin' },
   { tag: 'tr', englishName: 'Turkish', nativeName: 'Türkçe', direction: 'ltr', script: 'Latn', defaultDigitSystem: 'latin' },
+  // Right-to-left wave (task 0076). Tags carry the region where the variant
+  // matters (BCP 47), so a later variant - Dari `fa-AF`, say - can get its own
+  // entry without renaming these. Arabic stays a bare `ar`: the catalog is
+  // Modern Standard Arabic, which is not tied to one country. A bare or
+  // other-region tag still resolves to these (see resolveLocaleDescriptor).
+  { tag: 'he-IL', englishName: 'Hebrew', nativeName: 'עברית', direction: 'rtl', script: 'Hebr', defaultDigitSystem: 'latin' },
+  { tag: 'fa-IR', englishName: 'Persian', nativeName: 'فارسی', direction: 'rtl', script: 'Arab', defaultDigitSystem: 'native', nativeNumberingSystem: 'arabext' },
 ];
 
 const BY_TAG: ReadonlyMap<string, LocaleDescriptor> = new Map(
@@ -127,11 +134,14 @@ function primarySubtag(tag: string): string {
  * instead of an exact-match list.
  */
 export function resolveLocaleDescriptor(tag: string): LocaleDescriptor | undefined {
-  const exact = BY_TAG.get(tag);
+  if (!tag) return undefined;
+  const exact = BY_TAG.get(tag) ?? LOCALE_REGISTRY.find((d) => d.tag.toLowerCase() === tag.toLowerCase());
   if (exact) return exact;
-  const primary = primarySubtag(tag);
-  if (primary === tag) return undefined;
-  return LOCALE_REGISTRY.find((d) => primarySubtag(d.tag) === primary);
+  // A bare primary subtag (`he`, `fa`) or another region (`ar-EG`, `fa-AF`)
+  // resolves to the first registry entry with the same language: entries
+  // such as `he-IL` carry a region, and a bare `he` must still find them.
+  const primary = primarySubtag(tag).toLowerCase();
+  return LOCALE_REGISTRY.find((d) => primarySubtag(d.tag).toLowerCase() === primary);
 }
 
 /**
@@ -141,4 +151,23 @@ export function resolveLocaleDescriptor(tag: string): LocaleDescriptor | undefin
  */
 export function directionForTag(tag: string): LocaleDirection {
   return resolveLocaleDescriptor(tag)?.direction ?? 'ltr';
+}
+
+/**
+ * The UI (chrome) direction for a UI locale tag: the single source both apps
+ * use for `<html dir>`. A registry locale's direction always comes from this
+ * table; a catalog's own `meta.json` `locale.direction` is only consulted for
+ * tags the registry does not know (dev pseudo-locales such as `xx-rtl`, or a
+ * user-dropped catalog), passed in as `fallback`.
+ *
+ * Use {@link isKnownUiLocale} to tell whether the registry answered, e.g. to
+ * warn when a shipped `meta.json` disagrees with it.
+ */
+export function uiDirection(tag: string, fallback: LocaleDirection = 'ltr'): LocaleDirection {
+  return resolveLocaleDescriptor(tag)?.direction ?? fallback;
+}
+
+/** True when `tag` is (a variant of) a registry locale. */
+export function isKnownUiLocale(tag: string): boolean {
+  return resolveLocaleDescriptor(tag) !== undefined;
 }

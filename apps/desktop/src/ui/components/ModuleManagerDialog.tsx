@@ -659,9 +659,9 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           }}
         />
 
-        {/* Drop result notification */}
+        {/* Drop result notification. rtl-physical: left-1/2 + -translate-x-1/2 is symmetric horizontal centring */}
         {dropResult && (
-          <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          <div /* rtl-physical: symmetric centring */ className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
             dropResult.isError
               ? 'bg-danger-soft text-danger-text border border-danger-border'
               : 'bg-success-soft text-success-text border border-success-border'

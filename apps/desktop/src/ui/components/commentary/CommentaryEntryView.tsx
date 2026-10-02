@@ -9,6 +9,7 @@ import { previewVerseInPrimary } from '../../stores/crossStoreBridge';
 import { VerseIdHelper } from '@bible/core';
 import { looksLikeMarkdown, markdownToHtml } from '../study/markdown';
 import { useI18n } from '../../contexts/useI18n';
+import { contentDirAttrs } from '../../utils/contentDirection';
 
 /**
  * Props for a single commentary entry display.
@@ -18,6 +19,8 @@ interface CommentaryEntryViewProps {
   showDivider: boolean;
   contextBookNumber?: number;
   showLevelBadge?: boolean;
+  /** The commentary module's language: the entry text follows it, not the UI. */
+  language?: string | null;
 }
 
 /**
@@ -26,7 +29,7 @@ interface CommentaryEntryViewProps {
  *
  * Shared between CommentaryPane (multi-tab) and CommentarySinglePanel (standalone).
  */
-const CommentaryEntryView: React.FC<CommentaryEntryViewProps> = ({ entry, showDivider, contextBookNumber, showLevelBadge = false }) => {
+const CommentaryEntryView: React.FC<CommentaryEntryViewProps> = ({ entry, showDivider, contextBookNumber, showLevelBadge = false, language }) => {
   const { t } = useI18n();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +94,7 @@ const CommentaryEntryView: React.FC<CommentaryEntryViewProps> = ({ entry, showDi
       <div
         ref={contentRef}
         className="prose prose-lg max-w-none"
+        {...contentDirAttrs(language)}
         data-testid="commentary-entry-content"
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(processedContent) }}
       />

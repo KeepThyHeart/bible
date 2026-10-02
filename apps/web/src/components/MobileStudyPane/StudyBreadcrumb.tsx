@@ -14,7 +14,7 @@ export function StudyBreadcrumb({ crumbs }: StudyBreadcrumbProps) {
         const isLast = i === crumbs.length - 1;
         return (
           <span key={i}>
-            {i > 0 && <span class="study-breadcrumb__separator"><i class="fa-solid fa-chevron-right" /></span>}
+            {i > 0 && <span class="study-breadcrumb__separator"><i class="fa-solid fa-chevron-right kth-rtl-mirror" /></span>}
             {isLast || !crumb.onClick ? (
               <span class="study-breadcrumb__current">{crumb.label}</span>
             ) : (

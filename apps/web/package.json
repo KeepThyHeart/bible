@@ -12,6 +12,7 @@
     "build": "pnpm run build:server && pnpm run build:client",
     "build:server": "tsc -p tsconfig.server.json && node -e \"require('fs').cpSync('src/locales','dist/src/locales',{recursive:true})\"",
     "build:client": "vite build",
+    "i18n:pseudo:rtl": "node ../../scripts/i18n-pseudo.js --rtl --app=web",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
@@ -33,7 +34,9 @@
     "lint:fix": "eslint . --fix",
     "rebuild-sqlite": "pnpm rebuild better-sqlite3-web",
     "ensure-sqlite": "node -e \"try{new (require('better-sqlite3-web'))(':memory:').close()}catch{process.exit(1)}\" || pnpm rebuild better-sqlite3-web",
-    "postinstall": "pnpm run ensure-sqlite"
+    "postinstall": "pnpm run ensure-sqlite",
+    "test:e2e:rtl-visual": "pnpm run build:client && RTL_VISUAL=1 playwright test --config=e2e/playwright.config.ts rtl-visual --project=desktop-chrome --project=mobile-chrome",
+    "test:e2e:rtl-visual:update": "pnpm run build:client && RTL_VISUAL=1 playwright test --config=e2e/playwright.config.ts rtl-visual --project=desktop-chrome --project=mobile-chrome --update-snapshots"
   },
   "dependencies": {
     "@bible/core": "workspace:*",

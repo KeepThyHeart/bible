@@ -1,0 +1,133 @@
+{
+  "$schema": "../schemas/help.schema.json",
+  "title": "‏Help‏",
+  "docs": {
+    "cta": "‏Open the User Guide‏",
+    "desc": "‏Documentation with screenshots and step-by-step walkthroughs‏"
+  },
+  "feedback": {
+    "cta": "‏Send feedback‏",
+    "desc": "‏Report a problem or share an idea‏"
+  },
+  "gettingStarted": {
+    "title": "‏Getting Started‏",
+    "intro": "‏Keep Thy Heart is a Bible study tool. Use the search bar to navigate to any passage or search for words and phrases.‏",
+    "introContext": {
+      "desktop": "‏web-based ‏",
+      "mobile": "‏‏"
+    },
+    "referenceHint": "‏Type a reference like <strong>John 3:16</strong> or <strong>Gen 1</strong> to jump to a passage.‏",
+    "searchHint": "‏Type any word or phrase to search across active translations.‏",
+    "searchTypeHint": "‏Use the dropdown on the search bar to switch between <strong>Standard Search</strong> (keyword matching) and <strong>Ideas Search</strong> (matches the concepts in your query to the concepts in Bible verses).‏",
+    "searchTypeHintMobile": "‏Switch between <strong>Standard</strong> and <strong>Ideas Search</strong> via the search bar dropdown.‏"
+  },
+  "biblePaneDesktop": {
+    "title": "‏Bible Pane‏",
+    "compareTabs": "‏Open multiple tabs to compare passages side by side.‏",
+    "translationSelector": "‏Use the <strong>translation selector</strong> to switch Bible versions.‏",
+    "displayModes": "‏Switch display modes: <strong>Reading</strong> (no verse numbers), <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).‏",
+    "strongsClick": "‏Click a <strong>Strong's number</strong> in Study mode to view its dictionary entry.‏",
+    "copyDialog": "‏Right-click any verse to access the <strong>Copy Passage</strong> dialog.‏"
+  },
+  "readingMobile": {
+    "title": "‏Reading‏",
+    "compareTabs": "‏Open multiple tabs to compare passages.‏",
+    "translationSelector": "‏Use the <strong>translation selector</strong> to switch Bible versions.‏",
+    "displayModes": "‏Switch display modes: <strong>Reading</strong>, <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).‏",
+    "longPress": "‏Tap and hold a verse to access options like <strong>Copy</strong>.‏"
+  },
+  "navigation": {
+    "title": "‏Navigation‏",
+    "bottomTabs": "‏Use the <strong>bottom tabs</strong> to switch between Read, Search, Study, and Commentary.‏",
+    "studyTab": "‏The <strong>Study</strong> tab shows cross-references, topics, and interlinear data.‏",
+    "commentaryTab": "‏The <strong>Commentary</strong> tab shows commentaries for the current verse.‏"
+  },
+  "commentaryAndSearch": {
+    "title": "‏Commentary & Search‏",
+    "rightPane": "‏The right pane shows <strong>commentary</strong> for the current passage, updating as you navigate.‏",
+    "switchPanes": "‏Switch between Commentary and Search results using the tabs at the top of the right pane.‏",
+    "ctrlClick": "‏Click <strong>Ctrl+Click</strong> on a search result to open it in a new tab.‏"
+  },
+  "shortcuts": {
+    "title": "‏Keyboard Shortcuts‏",
+    "focusSearch": "‏Focus search bar‏",
+    "focusSearchAlt": "‏Focus search bar (when not typing)‏",
+    "copyDialog": "‏Open copy dialog (when no text selected)‏",
+    "closeDialog": "‏Close any open dialog or popup‏",
+    "audioToggle": "‏Play or pause the Audio Bible‏",
+    "audioVerse": "‏Previous / next verse while listening‏",
+    "audioChapter": "‏Previous / next chapter while listening‏",
+    "audioFocus": "‏Go to the audio player‏"
+  },
+  "settings": {
+    "title": "‏Settings‏",
+    "descMobile": "‏Tap the gear icon to customize theme, font, and offline settings.‏",
+    "descDesktop": "‏Click the gear icon to customize theme, font family, font size, line height, and offline mode settings.‏"
+  },
+  "present": {
+    "title": "‏Presenter help‏",
+    "close": "‏Close‏",
+    "joining": {
+      "title": "‏Joining‏",
+      "share": "‏After going live, share the join code, link or QR so a television or phone can watch along.‏",
+      "handoff": "‏<strong>Move control to another device</strong> hands the presenter role to a phone. It is a one-way door until the session ends, so keep it to people you trust.‏",
+      "lock": "‏<strong>Lock joins</strong> stops new screens joining without disturbing the ones already watching.‏"
+    },
+    "tab": {
+      "notes": "‏Notes‏",
+      "control": "‏Control‏",
+      "preview": "‏Preview‏",
+      "command": "‏Command box‏",
+      "simple": "‏Simple viewer‏",
+      "joining": "‏Joining‏",
+      "study": "‏From Study‏"
+    },
+    "notes": {
+      "title": "‏Notes‏",
+      "references": "‏Type verse references anywhere in your notes (<strong>John 3:16</strong>, <strong>Rom 8:28-30</strong>): each one becomes a plan item.‏",
+      "hymns": "‏Type a hymn as <strong>hymn 460</strong> or <strong>hymn Amazing Grace</strong>, optionally with verses (<strong>hymn 460 1,3,R</strong>).‏",
+      "quotes": "‏Put a quote in a block quote. It shows as its own item, set apart from your text.‏",
+      "highlight": "‏Make text <strong>bold</strong> under a verse to mark words to highlight. A matching bold phrase gets a subtle yellow underline; it does not appear on the screen until you reveal it.‏",
+      "play": "‏The green <strong>&#9654;</strong> in the left gutter marks what is on screen, and follows your last click. Click a plan item to show it.‏",
+      "ctrlEnter": "‏<strong>Ctrl+Enter</strong> with the cursor in a reference, hymn or quote shows it.‏",
+      "amber": "‏An amber item needs a choice (an unknown hymn, an ambiguous reference). Hover it to see why; click it to choose.‏"
+    },
+    "control": {
+      "title": "‏Control‏",
+      "transport": "‏The three buttons are <strong>previous</strong>, <strong>show / hide</strong> (the eye blanks the screen without losing your place) and <strong>next</strong>. Arrow keys, Page Up/Down and a clicker do the same; <strong>.</strong> or <strong>B</strong> blanks.‏",
+      "pickers": "‏<strong>Verse</strong>, <strong>Hymn</strong> and <strong>Quote</strong> open a picker: <em>Show now</em> puts it on the screen, <em>Add to notes</em> writes it into your notes.‏",
+      "chips": "‏When the verse on screen has highlights from your notes, they appear as chips. <strong>Click a chip</strong>, or press <strong>H</strong>, to reveal the next one; <strong>X</strong> clears them.‏",
+      "keys": "‏<strong>N</strong> / <strong>Shift+N</strong> shows the next / previous plan item. <strong>?</strong> opens this help; <strong>/</strong> or <strong>Ctrl+K</strong> jumps to the command box. None of these act while you are typing in your notes or a field.‏",
+      "prepare": "‏You can prepare before going live: the preview runs on an offline copy. <strong>Go live</strong> starts the real session from exactly where you are.‏"
+    },
+    "preview": {
+      "title": "‏Preview‏",
+      "what": "‏The preview is the real screen, scaled down. What you see is what the room sees.‏",
+      "dblclick": "‏<strong>Double-click</strong> a word (or drag across words) to highlight it; click a highlight to remove it.‏",
+      "clickVerse": "‏Click a neighbouring verse to move the screen there.‏",
+      "presenterOnly": "‏These gestures work in the Presenter's preview only, never on the screens in the room.‏"
+    },
+    "command": {
+      "title": "‏Command box‏",
+      "verse": "‏<strong>18</strong>, <strong>v18</strong> or <strong>18-20</strong> goes to a verse in the current chapter.‏",
+      "passage": "‏<strong>john 3:16</strong>, <strong>ps 23 esv</strong>, <strong>rom 8</strong>: a book, chapter and verse, with an optional translation.‏",
+      "hymn": "‏<strong>hymn 460</strong>, <strong>hymn amazing grace</strong>, <strong>hymn 460 1-3</strong>.‏",
+      "blank": "‏<strong>blank</strong> hides the screen; <strong>.</strong> or <strong>clear</strong> clears highlights; <strong>?</strong> opens help.‏",
+      "search": "‏Anything else is a search. Results appear in the Control pane; add one to your notes or show it.‏",
+      "open": "‏Press <strong>/</strong> or <strong>Ctrl+K</strong> to focus it. Up and Down recall earlier commands.‏"
+    },
+    "simple": {
+      "title": "‏Simple viewer‏",
+      "what": "‏A screen you drive yourself, with no session, join code or notes: open it on a projector or a second window.‏",
+      "open": "‏Open it from the Control menu (<strong>Open simple viewer</strong>) or at <strong>/present/solo</strong>.‏",
+      "prompt": "‏Press <strong>/</strong>, or click the small <strong>/</strong> at the bottom, to go to a verse. Arrow keys and <strong>.</strong> work as in the Presenter.‏",
+      "noSearch": "‏Search is not available in the simple viewer.‏"
+    },
+    "study": {
+      "title": "‏Presenting from Study‏",
+      "send": "‏In the Bible pane, the round button at the left of each verse <strong>sends</strong> it to the screen. A green check (and a green row) marks the verse on screen now. <strong>Alt+Enter</strong> sends the selected verse.‏",
+      "highlight": "‏To highlight a phrase, <strong>press and hold</strong> a word for about half a second, then <strong>tap the last word</strong> of the phrase. <strong>Send highlight</strong> puts it on the screen; <strong>Clear</strong> or <strong>Esc</strong> removes it.‏",
+      "companion": "‏The strip at the bottom shows what is on screen, with previous, next and blank buttons. <strong>Open Presenter</strong> takes you to the full Presenter (notes, plan and preview); the Presenter keeps running when you come back.‏"
+    }
+  }
+}

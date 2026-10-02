@@ -10,6 +10,7 @@ import { formatPassageRef } from '../../constants';
 import { collapseReferencesStructured } from '../../utils/collapseReferences';
 import { parseVerseId } from '../../utils/verseId';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { Bdi } from '@bible/ui';
 
 const TABLE_STORAGE_KEY = 'bible-reader-crossrefs-show-table';
 
@@ -288,7 +289,7 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
                           href="#"
                           onClick={(e) => handleVerseRefClick(entry.target_verse_id, e as any, entry.target_verse_end_id ?? undefined)}
                         >
-                          {shortRange(entry.target_verse_id, entry.target_verse_end_id)}
+                          <Bdi>{shortRange(entry.target_verse_id, entry.target_verse_end_id)}</Bdi>
                         </a>
                         <span class="study-crossrefs__vl-text">
                           {text !== undefined ? (text || '(no text)') : ''}

@@ -8,11 +8,13 @@
  */
 import { defineKthElement } from './defineKthElement';
 import { KIT_ELEMENTS } from './elements';
-import { ensureKitReferenceData, sanitizeLocale, setKitLocale } from './kitLocale';
+import { ensureKitReferenceData, getKitLocale, sanitizeLocale, setKitLocale, subscribeKitLocale } from './kitLocale';
 
 /** Structurally satisfied by `BibleExtUI` from `@bible/extension-ui`. */
 export interface KthRpcLike {
   getLocale(): Promise<{ locale: string; direction: 'ltr' | 'rtl' }>;
+  /** Optional (task 0076): host pushes `locale.changed` when the user switches UI language. */
+  onLocaleChanged?(callback: (l: { locale: string; direction: 'ltr' | 'rtl' }) => void): unknown;
 }
 export interface KthKitInitOptions {
   rpc?: KthRpcLike;
@@ -21,6 +23,11 @@ export interface KthKitInitOptions {
   /** Skip the RPC and use this locale. */
   locale?: string;
   direction?: 'ltr' | 'rtl';
+  /**
+   * Mirror the locale onto `<html dir lang>` (default true). An extension panel is its own document, so the
+   * host cannot set its direction from outside the sandbox; the kit does it here (task 0076).
+   */
+  applyToDocument?: boolean;
 }
 export interface KthKitApi {
   readonly version: '1';
@@ -48,8 +55,31 @@ function setLocale(locale: string, direction?: 'ltr' | 'rtl'): void {
   setKitLocale(sanitizeLocale(locale, direction));
 }
 
+let documentSync: (() => void) | undefined;
+let localeSubscribed = false;
+
+/** Keep `<html dir lang>` in step with the kit locale. */
+function syncDocument(): void {
+  if (typeof document === 'undefined') return;
+  const { locale, direction } = getKitLocale();
+  document.documentElement.setAttribute('dir', direction);
+  document.documentElement.setAttribute('lang', locale);
+}
+
 async function init(opts: KthKitInitOptions = {}): Promise<void> {
   define(opts.components ?? TAGS);
+  if (opts.applyToDocument !== false && !documentSync) {
+    documentSync = subscribeKitLocale(syncDocument);
+    syncDocument();
+  }
+  if (opts.rpc?.onLocaleChanged && !localeSubscribed) {
+    localeSubscribed = true;
+    try {
+      opts.rpc.onLocaleChanged((l) => setKitLocale(sanitizeLocale(l?.locale, l?.direction)));
+    } catch {
+      // an older host without the event: the locale stays as read once below
+    }
+  }
   if (opts.locale !== undefined) {
     setLocale(opts.locale, opts.direction);
     await ensureKitReferenceData();

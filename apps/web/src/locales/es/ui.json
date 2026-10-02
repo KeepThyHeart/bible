@@ -167,7 +167,7 @@
     "topics": "Temas",
     "dictionary": "Diccionario",
     "search": "Búsqueda",
-    "collapseRight": "Contraer el panel derecho",
+    "collapseRight": "Contraer el panel lateral",
     "timeline": "Cronología",
     "quiz": "Cuestionario",
     "similar": "Similares"
@@ -831,7 +831,7 @@
     "topicsForVerse": "Temas de {verse}",
     "relatedEntities": "Entidades relacionadas",
     "searching": "Buscando...",
-    "searchResultsFor": "Resultados de la búsqueda de '{query}'",
+    "searchResultsFor": "Resultados de la búsqueda de «{query}»",
     "noTopicsSearch": "Ningún tema encontrado para \"{query}\"",
     "entities": "Entidades",
     "loadingEntity": "Cargando la entidad...",
@@ -1540,7 +1540,7 @@
       "cleared": "Selección borrada",
       "links": "{count} enlaces",
       "arcsShown": "{count} arcos mostrados",
-      "minWeightHint": "Oculta los pares de capítulos unidos por pocos enlaces o enlaces débiles. La fortaleza de un par suma la fortaleza de todas las referencias cruzadas entre los dos capítulos, así que al deslizar a la derecha solo quedan los pares más enlazados."
+      "minWeightHint": "Oculta los pares de capítulos unidos por pocos enlaces o enlaces débiles. La fortaleza de un par suma la fortaleza de todas las referencias cruzadas entre los dos capítulos, así que al subir el control deslizante solo quedan los pares más enlazados."
     },
     "fullscreen": "Pantalla completa",
     "exitFullscreen": "Salir de pantalla completa",

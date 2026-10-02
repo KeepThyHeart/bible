@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import ICU from 'i18next-icu';
-import { directionForTag, loadReferenceLocales, LOCALE_REGISTRY, parseLocaleMeta } from '@bible/core/browser';
+import { isolateMessageParams, loadReferenceLocales, LOCALE_REGISTRY, parseLocaleMeta, uiDirection } from '@bible/core/browser';
 import type { LocaleMetadata } from '@bible/core/browser';
 
 import ui from './locales/en/ui.json';
@@ -37,10 +37,16 @@ export type LocaleInfo = LocaleMetadata;
  * bundle); excluding it here avoids Vite warning that a statically-imported
  * module cannot also be split out via glob.
  */
-const metaModules = import.meta.glob(['./locales/*/meta.json', '!./locales/en/meta.json'], { eager: true }) as Record<
-  string,
-  { default: Record<string, unknown> }
->;
+const metaModules = import.meta.glob(['./locales/*/meta.json', '!./locales/en/meta.json', '!./locales/xx-*/meta.json'], {
+  eager: true,
+}) as Record<string, { default: Record<string, unknown> }>;
+// Dev-only pseudo-locales (`xx-*`) are bundled only in DEV; the literal glob is tree-shaken from production.
+if (import.meta.env.DEV) {
+  Object.assign(
+    metaModules,
+    import.meta.glob(['./locales/xx-*/meta.json'], { eager: true }) as Record<string, { default: Record<string, unknown> }>,
+  );
+}
 
 const LOCALE_INFOS = new Map<string, LocaleInfo>();
 for (const [path, mod] of Object.entries(metaModules)) {
@@ -102,7 +108,11 @@ type NamespaceModule = { default: Record<string, unknown> };
  * split an eagerly-imported module into its own chunk), and `loadedLocales`
  * already seeds `en` as loaded, so nothing would ever call this for it.
  */
-const namespaceLoaders = import.meta.glob<NamespaceModule>(['./locales/*/*.json', '!./locales/en/*.json']);
+const namespaceLoaders: Record<string, () => Promise<NamespaceModule>> = {
+  ...import.meta.glob<NamespaceModule>(['./locales/*/*.json', '!./locales/en/*.json', '!./locales/xx-*/*.json']),
+  // Dev-only pseudo-locales (`xx-*`) are bundled only in DEV.
+  ...(import.meta.env.DEV ? import.meta.glob<NamespaceModule>(['./locales/xx-*/*.json']) : {}),
+};
 
 const loadedLocales = new Set<string>(['en']);
 
@@ -165,7 +175,17 @@ export async function changeLocale(code: string): Promise<void> {
 // globalization roadmap).
 // ---------------------------------------------------------------------------
 
-const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
+/**
+ * Dev-only pseudo-locales (`xx-pseudo`, `xx-rtl`): any `xx-*` folder this
+ * build has. Only ever honoured when `import.meta.env.DEV`; a production
+ * build resolves them like any other unknown tag (to `en`).
+ */
+function devPseudoTags(): string[] {
+  return import.meta.env.DEV ? [...LOCALE_INFOS.keys()].filter((c) => c.toLowerCase().startsWith('xx-')) : [];
+}
+
+const REGISTRY_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
+const SUPPORTED_TAGS = [...REGISTRY_TAGS, ...devPseudoTags()];
 
 /**
  * Reduce a browser- or `localStorage`-reported tag to one this app ships,
@@ -177,6 +197,8 @@ const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
  *    (`es-MX` -> `es`; `pt-PT` -> `pt-BR`, since this wave only ships the
  *    Brazilian catalog; `zh-Hant` -> `zh-Hans` likewise).
  *  - Nothing shipped shares a primary subtag: `en`.
+ *  - DEV builds only: an exact `xx-*` pseudo-locale tag that has a locale
+ *    folder (`xx-rtl`) resolves to itself.
  *
  * Exported for unit testing and wired in as
  * `i18next-browser-languagedetector`'s `convertDetectedLanguage`, so this is
@@ -186,15 +208,36 @@ const SUPPORTED_TAGS = LOCALE_REGISTRY.map((d) => d.tag);
 export function resolveSupportedLng(detected: string): string {
   if (!detected) return 'en';
   const lower = detected.toLowerCase();
-  const exact = SUPPORTED_TAGS.find((t) => t.toLowerCase() === lower);
+  // DEV builds only: an exact `xx-*` tag with a locale folder is selectable
+  // (`?lng=xx-rtl`, `localStorage.i18nextLng = 'xx-rtl'`). Never in production.
+  if (import.meta.env.DEV && lower.startsWith('xx-')) {
+    const pseudo = devPseudoTags().find((t) => t.toLowerCase() === lower);
+    if (pseudo) return pseudo;
+  }
+  const exact = REGISTRY_TAGS.find((t) => t.toLowerCase() === lower);
   if (exact) return exact;
   const primary = lower.split('-')[0];
-  const byPrimary = SUPPORTED_TAGS.find((t) => t.split('-')[0].toLowerCase() === primary);
+  const byPrimary = REGISTRY_TAGS.find((t) => t.split('-')[0].toLowerCase() === primary);
   return byPrimary ?? 'en';
 }
 
+/**
+ * i18next-icu with bidi isolation (task 0076): in an RTL UI, every string
+ * param interpolated as `{name}` (module abbreviations, book names, search
+ * terms, note titles) is wrapped in FSI...PDI so it cannot reorder the
+ * sentence around it. `select`/`plural` args and i18next's own options are
+ * left raw. LTR output is unchanged.
+ */
+class BidiIcu extends ICU {
+  parse(res: string, options: Record<string, unknown>, lng: string, ns: string, key: string, info?: unknown): unknown {
+    const params = options && typeof res === 'string' ? isolateMessageParams(res, options, uiDirectionFor(lng)) : options;
+    // @ts-expect-error - i18next-icu's typings omit `parse`, which is its i18nFormat entry point.
+    return super.parse(res, params, lng, ns, key, info);
+  }
+}
+
 i18n
-  .use(ICU)
+  .use(BidiIcu)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -212,7 +255,9 @@ i18n
     supportedLngs: SUPPORTED_TAGS,
 
     detection: {
-      order: ['localStorage', 'navigator'],
+      // `?lng=xx-rtl` (dev pseudo-locales) works only in DEV builds; the
+      // resolver above maps it to `en` anywhere else.
+      order: import.meta.env.DEV ? ['querystring', 'localStorage', 'navigator'] : ['localStorage', 'navigator'],
       lookupLocalStorage: 'i18nextLng',
       caches: ['localStorage'],
       convertDetectedLanguage: resolveSupportedLng,
@@ -248,25 +293,30 @@ if (i18n.language && i18n.language !== 'en') {
 }
 
 /**
- * Languages this app has no planned locale for (see `@bible/core`'s
- * `LOCALE_REGISTRY`) but that a browser can still report via
- * `navigator.language`, and that are genuinely RTL - kept as a fallback so
- * the document direction is still correct even with no catalog to match.
+ * UI direction for a locale tag: the shared registry (`uiDirection`) is the
+ * sole source for every planned locale, including region variants (`ar-EG`,
+ * `fa-AF`) and bare tags (`he` -> `he-IL`). Only a tag the registry does not
+ * know (the dev-only `xx-rtl` pseudo-locale) falls back to its own
+ * `meta.json` `locale.direction`.
  */
-const OTHER_RTL_LANGUAGES = ['he', 'fa'];
+export function uiDirectionFor(lng: string): 'ltr' | 'rtl' {
+  return uiDirection(lng, LOCALE_INFOS.get(lng)?.direction ?? 'ltr');
+}
 
 /** Update the document's lang and dir attributes to match the current language */
 export function syncDocumentLang(): void {
   const lng = i18n.language || 'en';
   document.documentElement.lang = lng;
-  // RTL support: resolved through the shared locale registry, which matches
-  // on the primary subtag - so a region variant like `ar-EG` still resolves
-  // to Arabic's `rtl` direction instead of silently falling through to ltr.
-  const primary = lng.split('-')[0];
-  const isRtl = directionForTag(lng) === 'rtl' || OTHER_RTL_LANGUAGES.includes(primary);
-  document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+  document.documentElement.dir = uiDirectionFor(lng);
+  // Opt in to the KTH shaping rules (no letter-spacing / upper-casing of Arabic script).
+  document.documentElement.setAttribute('data-kth-shaping', '');
 }
 
 i18n.on('languageChanged', syncDocumentLang);
+// i18next resolves the detected language synchronously inside init() (the
+// `en` resources are inline), so the initial 'languageChanged' fired before
+// the listener above existed: apply the detected language's dir/lang now, or
+// a reload in Arabic/Hebrew/Persian would render LTR chrome (task 0076).
+if (typeof document !== 'undefined') syncDocumentLang();
 
 export default i18n;

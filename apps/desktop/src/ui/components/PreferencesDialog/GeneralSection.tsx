@@ -45,7 +45,7 @@ function isRealLocale(code: string): boolean {
  * installed themselves.
  */
 const BUILT_IN_LOCALES: readonly string[] = [
-  'ar', 'en', 'es', 'hi', 'pt-BR', 'ru', 'xx-pseudo', 'zh-Hans',
+  'ar', 'en', 'es', 'fa-IR', 'he-IL', 'hi', 'pt-BR', 'ru', 'xx-pseudo', 'xx-rtl', 'zh-Hans',
 ];
 
 /**

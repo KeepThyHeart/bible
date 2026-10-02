@@ -1,0 +1,8 @@
+{
+  "$schema": "../schemas/meta.schema.json",
+  "locale.name": "Arabic",
+  "locale.nativeName": "العربية",
+  "locale.status": "draft",
+  "locale.direction": "rtl",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. The web catalog contains no Scripture sample text; book names follow the Smith-Van Dyck Arabic Bible (1865, public domain) and any future sample must use that edition, never copyrighted modern editions (Kitab al-Hayat/NAV, Good News Arabic, Sharif). Terminology follows the Van Dyck tradition and the desktop Arabic glossary: سفر (book), أصحاح (chapter), عدد (verse; not آية). Reviewer checks: Ideas Search rendered as البحث بالأفكار; Presenter/Present vocabulary (المقدِّم, ترتيب العرض, الترانيم); short book abbreviations (booksShort) are conventional two- to three-letter forms, with تيط for Titus to avoid clashing with تي for Timothy; physical directions (left/right gutter and buttons in the help text) are translated literally and must be revisited if pane geometry is mirrored. Command examples typed into the Presenter command box (john 3:16, hymn 460) stay in Latin because the parser expects them."
+}

@@ -18,7 +18,7 @@
 .service-menu__panel {
   position: absolute;
   top: 100%;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 50;
   min-width: 300px;
   max-width: 90vw;
@@ -45,7 +45,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .service-menu__row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -68,7 +68,7 @@
   background: transparent;
   color: var(--accent-color);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .service-menu__warn { margin: 6px 8px 2px; font-size: 12px; color: var(--text-secondary); }

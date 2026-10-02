@@ -108,7 +108,7 @@ export function AudioQuickSettings({ moduleAbbr, variant, onOpenSettings }: Audi
 
       {onOpenSettings && (
         <button type="button" class="audio-panel__more" onClick={() => onOpenSettings('audio')}>
-          {t('audio.quick.all')} <i class="fa-solid fa-chevron-right" aria-hidden="true" />
+          {t('audio.quick.all')} <i class="fa-solid fa-chevron-right kth-rtl-mirror" aria-hidden="true" />
         </button>
       )}
     </div>

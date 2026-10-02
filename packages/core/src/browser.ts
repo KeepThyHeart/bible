@@ -69,6 +69,8 @@ export {
   LOCALE_REGISTRY,
   resolveLocaleDescriptor,
   directionForTag,
+  uiDirection,
+  isKnownUiLocale,
 } from './Data/Locales/LocaleRegistry';
 export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
 export {
@@ -216,6 +218,23 @@ export type { HoverIntent, HoverIntentOptions } from './Ui/hoverIntent';
 // --- Content text direction ---------------------------------------------------
 // Direction of a *module's* text (by its language), independent of UI locale.
 export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
+
+// --- Bidi text and direction-aware geometry (task 0076) -------------------------
+export {
+  FSI,
+  LRI,
+  RLI,
+  PDI,
+  isolate,
+  isolateParams,
+  isolateMessageParams,
+  simpleMessageArgs,
+  isolateReference,
+  stripBidiControls,
+  hasBidiControls,
+} from './Ui/bidi';
+export { logicalArrow, logicalSwipe, scrollStart, setScrollStart, anchorAtPointer } from './Ui/directional';
+export type { LogicalStep, HorizontalScroller } from './Ui/directional';
 
 // --- Module catalog metadata ----------------------------------------------------
 // Language-free module facts: which module is the AI digest, recommended

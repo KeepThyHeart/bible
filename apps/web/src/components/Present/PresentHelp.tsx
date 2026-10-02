@@ -40,7 +40,7 @@ export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
       <div class="help-dialog" onClick={event => event.stopPropagation()}>
         <div class="help-dialog__header">
           <h3>
-            <i class="fa-solid fa-circle-question" style={{ marginRight: '8px', opacity: 0.5 }} aria-hidden="true" />
+            <i class="fa-solid fa-circle-question" style={{ marginInlineEnd: '8px', opacity: 0.5 }} aria-hidden="true" />
             {t('present.title')}
           </h3>
           <button type="button" class="help-dialog__close" onClick={props.onClose} aria-label={t('present.close')}>

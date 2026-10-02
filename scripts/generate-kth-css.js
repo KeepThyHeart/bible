@@ -123,6 +123,8 @@ const CONTRACT_CONSTANTS = [
   '--kth-radius', '--kth-space-1', '--kth-space-2', '--kth-space-3', '--kth-space-4', '--kth-color-scheme',
   '--kth-section-0', '--kth-section-1', '--kth-section-2', '--kth-section-3', '--kth-section-4',
   '--kth-section-5', '--kth-section-6', '--kth-section-7', '--kth-section-8', '--kth-section-9',
+  // Per-script font stack (task 0076): set by :lang() in kth-rtl.css, defaults to the UI font.
+  '--kth-font-script',
 ];
 
 /** Web custom properties set at runtime (settingsStore.ts), always written with a fallback. */

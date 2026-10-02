@@ -18,7 +18,7 @@ import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { draftIsOnWall } from '../../present/wordHighlight';
-import { directionForLanguage } from '@bible/core/browser';
+import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
 import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
 import { useMeasureDecorations } from '../../hooks/useMeasureDecorations';
 import { useMeasurePopup } from '../../hooks/useMeasurePopup';
@@ -256,7 +256,7 @@ export function BibleContent({
   if (!tab.book || !tab.chapter) {
     const handleRefSubmit = (e: Event) => {
       e.preventDefault();
-      const ref = parseReference(refValue, bookAliases);
+      const ref = parseReference(stripBidiControls(refValue), bookAliases);
       if (ref) {
         setRefError('');
         bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { endVerse: ref.endVerse });
@@ -281,7 +281,7 @@ export function BibleContent({
               class="bible-content__ref-input"
             />
             <button type="submit" class="bible-content__ref-btn">
-              <i class="fa-solid fa-arrow-right rtl-mirror" /> {t('bibleContent.go')}
+              <i class="fa-solid fa-arrow-right kth-rtl-mirror" /> {t('bibleContent.go')}
             </button>
           </form>
           {refError && <p style={{ color: 'var(--text-muted)', fontSize: '0.85em', marginTop: '8px' }}>{refError}</p>}
@@ -406,17 +406,17 @@ export function BibleContent({
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
         <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left rtl-mirror" />
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
           onClick={() => bibleStore.openBookPicker()}
           title={t('bibleContent.goToBookChapter')}
         >
-          {isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`} <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
+          <bdi class="kth-bdi">{isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`}</bdi> <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
         <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right rtl-mirror" />
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
         </button>
       </div>
       {isLoading ? (

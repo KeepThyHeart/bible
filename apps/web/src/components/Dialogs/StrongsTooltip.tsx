@@ -93,7 +93,7 @@ export function StrongsTooltip({ entry, position }: StrongsTooltipProps) {
   }
 
   return (
-    <div ref={tooltipRef} class="strongs-tooltip" style={{ top: `${position.top}px`, left: `${position.left}px` }}>
+    <div ref={tooltipRef} class="strongs-tooltip" style={{ top: `${position.top}px`, left: `${position.left}px` /* rtl-physical: measured viewport position (task 0088) */ }}>
       <div class="strongs-tooltip__header">
         <span class="strongs-tooltip__number">{entry.strongsNumber}</span>
         <span class="strongs-tooltip__word">{entry.word}</span>

@@ -74,4 +74,6 @@
   /* Typography (mapped per app to the live UI font setting) */
   --kth-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --kth-font-size-ui: 14px;
+  /* Per-script UI font stack (task 0076): kth-rtl.css sets it under :lang(ar|fa|ur|he); elsewhere the UI font. */
+  --kth-font-script: var(--kth-font-ui);
 }

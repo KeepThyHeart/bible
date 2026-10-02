@@ -425,7 +425,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   class={`settings-panel__advanced-toggle ${advancedOpen ? 'settings-panel__advanced-toggle--open' : ''}`}
                   onClick={() => setAdvancedOpen(!advancedOpen)}
                 >
-                  <i class="fa-solid fa-chevron-right" />
+                  <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                   {t('settings.textSize.advanced')}
                 </button>
 

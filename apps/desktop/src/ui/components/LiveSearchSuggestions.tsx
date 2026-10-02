@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React, { useEffect, useRef } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { SearchResult } from '@bible/core';
@@ -168,7 +169,7 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({ result, isSelected, onC
       {/* Reference */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-semibold text-accent-strong group-hover:text-accent-strong">
-          {result.reference}
+          <Bdi>{result.reference}</Bdi>
         </span>
         {result.type === 'fuzzy' && (
           <span className="text-xs bg-warning-soft text-warning-text px-1.5 py-0.5 rounded">

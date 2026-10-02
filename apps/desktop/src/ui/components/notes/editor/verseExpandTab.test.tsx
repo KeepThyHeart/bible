@@ -226,7 +226,7 @@ describe('Tab expands silently once "always use this format" is ticked', () => {
     // The sentence survives verbatim - replacing over it would have destroyed it.
     expect(html).toContain('As Paul says in Romans 8:28, we know');
     // And the passage is a separate paragraph after it.
-    expect((html.match(/<p>/g) ?? []).length).toBeGreaterThan(1);
+    expect((html.match(/<p[ >]/g) ?? []).length).toBeGreaterThan(1);
     expect(html.indexOf('All things work together')).toBeGreaterThan(html.indexOf('we know'));
     editor.destroy();
   });
