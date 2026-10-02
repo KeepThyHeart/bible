@@ -47,5 +47,14 @@
   "main.window.studyFallback": "अध्ययन",
   "main.window.topics": "विषय - {name}",
   "main.window.topicsFallback": "विषय",
-  "main.window.extensionFallback": "एक्सटेंशन"
+  "main.window.extensionFallback": "एक्सटेंशन",
+  "main.notifications.votd.label": "आज का वचन",
+  "main.notifications.votd.description": "हर दिन बाइबल का एक वचन।",
+  "main.notifications.votd.title": "आज का वचन",
+  "main.notifications.collapsed": "प्रतीक्षा में अनुस्मारक: {count}",
+  "main.notifications.tray.open": "खोलें",
+  "main.notifications.tray.settings": "सूचना सेटिंग्स…",
+  "main.notifications.tray.quit": "बाहर निकलें",
+  "main.notifications.test.title": "परीक्षण सूचना",
+  "main.notifications.test.body": "सूचनाएँ काम कर रही हैं।"
 }

@@ -158,7 +158,8 @@
     "topics": "主题",
     "commentary": "注释",
     "dictionary": "词典",
-    "study": "研经"
+    "study": "研经",
+    "similar": "查找相似经文"
   },
   "rightPane": {
     "study": "研经",
@@ -167,7 +168,8 @@
     "dictionary": "词典",
     "search": "搜索",
     "collapseRight": "折叠右侧窗格",
-    "timeline": "时间线"
+    "timeline": "时间线",
+    "similar": "相似经文"
   },
   "timeline": {
     "title": "时间线",
@@ -240,7 +242,8 @@
       "gestures": "手势",
       "audio": "音频",
       "offline": "离线",
-      "about": "关于"
+      "about": "关于",
+      "notifications": "通知"
     },
     "textSize": {
       "decreaseAll": "减小所有字号",
@@ -383,6 +386,24 @@
         "ttsVoice": "语音"
       }
     },
+    "downloads": {
+      "title": "下载与存储",
+      "download": "下载",
+      "update": "更新",
+      "retry": "重试",
+      "cancel": "取消",
+      "remove": "移除",
+      "queued": "排队中",
+      "downloading": "{percent}%",
+      "installed": "已安装",
+      "total": "此设备上：{size}",
+      "empty": "没有可下载的内容。",
+      "unverified": "未验证",
+      "kind": {
+        "ttsRuntime": "语音引擎",
+        "ttsVoice": "语音"
+      }
+    },
     "about": {
       "title": "关于",
       "refreshApp": "刷新应用",
@@ -407,6 +428,44 @@
     "keywords": {
       "colorSafe": "色觉友好的关键词标记（额外的下划线和符号提示）",
       "colorSafeHint": "为每个关键词标记添加下划线样式和符号，不再仅靠颜色区分。"
+    },
+    "measures": {
+      "title": "度量衡",
+      "enabled": "度量衡与货币注释",
+      "enabled.description": "在经文中标出古代单位，并显示其现代换算。",
+      "display": "在经文中显示",
+      "display.description": "关闭时经文保持简洁（换算见“研读”面板）。否则：虚线下划线加弹出窗口，或下划线并在短语后以[方括号]显示换算。",
+      "display.marker": "虚线下划线和弹出窗口",
+      "display.inline": "下划线、弹出窗口和[换算]",
+      "display.off": "不在经文中显示（仅限研读面板）",
+      "showInReading": "在阅读模式中显示",
+      "showInReading.description": "除非开启，阅读模式保持纯文本。",
+      "system": "单位制",
+      "system.description": "自动：跟随你的语言和地区。",
+      "system.auto": "自动",
+      "system.metric": "公制",
+      "system.us": "美制",
+      "system.imperial": "英制",
+      "secondary": "第二单位制",
+      "secondary.description": "同时以另一种单位制显示（英制仅限长度和重量）。",
+      "secondary.none": "无",
+      "money": "货币",
+      "money.description": "工价（默认）、金属重量，或两者。",
+      "money.wages": "工价",
+      "money.metal": "金属重量",
+      "money.both": "两者",
+      "dailyWage": "你的日薪",
+      "dailyWage.description": "可选：根据工价显示金额的现代估算。0 = 关闭。",
+      "wageCurrency": "日薪的币种",
+      "wageCurrency.description": "货币代码，如 USD、EUR 或 GBP。",
+      "clock": "时钟时间",
+      "clock.description": "自动：跟随你的语言和地区。",
+      "clock.h12": "12 小时制",
+      "clock.h23": "24 小时制",
+      "ranges": "范围",
+      "ranges.description": "显示数值的不确定范围：范围较大时（自动）、总是或从不。",
+      "ranges.always": "总是",
+      "ranges.never": "从不"
     }
   },
   "copyDialog": {
@@ -1447,6 +1506,63 @@
       "hopName": "第 {hop} 跳"
     }
   },
+  "notifications": {
+    "votd": {
+      "label": "每日经文",
+      "description": "每天在您选定的时间送上一节经文。",
+      "title": "每日经文",
+      "body": "{reference}——{text}"
+    },
+    "test": {
+      "title": "测试通知",
+      "body": "通知运行正常。"
+    },
+    "collapsed": "{count, plural, other {有 # 条提醒待查看}}",
+    "scheduledCount": "{count, plural, other {已安排 # 条}}",
+    "labels": {
+      "statusGranted": "已允许通知。",
+      "statusDenied": "通知已被阻止。请在浏览器设置中为此网站允许通知。",
+      "statusPrompt": "尚未允许通知。",
+      "statusUnsupported": "此浏览器或设备无法显示通知。",
+      "allow": "允许通知",
+      "whenClosedFires": "应用在后台运行时，提醒仍会送达。",
+      "whenClosedNever": "仅在应用打开时才会收到提醒。",
+      "whenClosedBackgroundOnly": "仅在应用在浏览器标签页中打开时才会收到提醒，标签页在后台也可以。",
+      "enabled": "显示通知",
+      "quietHours": "免打扰时段",
+      "quietFrom": "从",
+      "quietTo": "到",
+      "quietHelp": "在免打扰时段内到期的通知会等到时段结束后再显示。",
+      "sources": "提醒",
+      "noSources": "目前没有功能使用通知。",
+      "dailyTime": "{source}的时间",
+      "next": "下一次：{time}",
+      "scheduled": "已安排 {count} 条",
+      "device": "窗口关闭时",
+      "tray": "在托盘中继续运行",
+      "openAtLogin": "登录时启动（在托盘中）",
+      "sendTest": "发送测试通知",
+      "general": "常规"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "范围",
+      "rangeHint": "取决于所用数值",
+      "verseNote": "本节经文",
+      "usageIllustrative": "举例",
+      "usageFigurative": "比喻",
+      "usageHintIllustrative": "举例的数量；确切数字并非重点",
+      "usageHintFigurative": "比喻用法；数字不应按字面理解",
+      "draft": "草稿 – 尚未审核",
+      "sources": "来源",
+      "units": "单位…"
+    },
+    "study": {
+      "title": "重量、度量衡与货币",
+      "listLabel": "本节经文中的重量、度量衡与货币:{{count}}"
+    }
+  },
   "assets": {
     "error": {
       "offline": "您处于离线状态（或网络访问已关闭）。",
@@ -1461,5 +1577,34 @@
       "invalid-manifest": "此条目无效。",
       "busy": "另一个版本正在下载。"
     }
+  },
+  "similar": {
+    "moreLikeThis": "更多类似经文",
+    "crossRef": "串珠",
+    "otNtBadge": "旧约 ↔ 新约",
+    "similarInMeaning": "意义相近",
+    "barLabel": "相似度 {step}/{max}",
+    "menu": "更多操作",
+    "empty": "未找到相似经文。",
+    "filters": "相似经文筛选",
+    "back": "返回",
+    "hideKnown": "隐藏已知串珠",
+    "testament": {
+      "label": "约",
+      "any": "全部",
+      "ot": "旧约",
+      "nt": "新约",
+      "other": "另一约"
+    },
+    "similarTo": "与 {reference} 相似",
+    "approximate": "基于所选经文的各节。",
+    "selectVerse": "请选择一节经文以查找相似经文。",
+    "loading": "正在加载相似经文...",
+    "downloading": "正在下载相似经文数据...",
+    "unavailable": "此服务器上没有相似经文数据。",
+    "error": "无法加载相似经文。",
+    "retry": "重试",
+    "showMore": "再显示 10 条",
+    "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
   }
 }

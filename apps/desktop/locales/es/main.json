@@ -47,5 +47,14 @@
   "main.window.studyFallback": "Estudio",
   "main.window.topics": "Temas - {name}",
   "main.window.topicsFallback": "Temas",
-  "main.window.extensionFallback": "Extensión"
+  "main.window.extensionFallback": "Extensión",
+  "main.notifications.votd.label": "Versículo del día",
+  "main.notifications.votd.description": "Un versículo de la Biblia cada día.",
+  "main.notifications.votd.title": "Versículo del día",
+  "main.notifications.collapsed": "Recordatorios pendientes: {count}",
+  "main.notifications.tray.open": "Abrir",
+  "main.notifications.tray.settings": "Ajustes de notificaciones…",
+  "main.notifications.tray.quit": "Salir",
+  "main.notifications.test.title": "Notificación de prueba",
+  "main.notifications.test.body": "Las notificaciones funcionan."
 }

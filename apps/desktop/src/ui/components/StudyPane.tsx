@@ -17,6 +17,7 @@ import VersePreviewTooltip from './VersePreviewTooltip';
 import DigestDisclaimer from './commentary/DigestDisclaimer';
 import { useModuleProvenance } from './commentary/useModuleProvenance';
 import StudySection from './study/StudySection';
+import MeasuresStudySection from './measures/MeasuresStudySection';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import StudyRichText from './study/StudyRichText';
@@ -539,6 +540,13 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
                   : <EmptyNote>{t('studyPane.noTopics')}</EmptyNote>}
               />
             </StudySection>
+
+            {/* Weights, measures and money - hides itself when off or none in the verse */}
+            <MeasuresStudySection
+              verseId={currentVerseId}
+              collapsed={!!sectionsCollapsed['measures']}
+              onToggle={() => toggleSection('measures')}
+            />
 
             {/* Combined Summary - the auto-generated digest, rendered in full */}
             {digestEntries.length > 0 && currentVerseId && (

@@ -15,6 +15,7 @@ import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { audioStore } from '../../stores/audioStore';
 import { AudioSettingsTab } from './AudioSettingsTab';
+import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
 import { DownloadsSection } from './DownloadsSection';
 import { OfflinePackSection } from './OfflinePackSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
@@ -24,7 +25,7 @@ import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
 import type { Localizer } from '@bible/core/browser';
 
-type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'offline' | 'about';
+type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'about';
 
 const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'text-size', label: 'settings.tabs.textSize', icon: 'fa-text-height' },
@@ -32,16 +33,18 @@ const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'modules', label: 'settings.tabs.modules', icon: 'fa-book' },
   { key: 'gestures', label: 'settings.tabs.gestures', icon: 'fa-hand-pointer' },
   { key: 'audio', label: 'settings.tabs.audio', icon: 'fa-headphones' },
+  { key: 'notifications', label: 'settings.tabs.notifications', icon: 'fa-bell' },
   { key: 'offline', label: 'settings.tabs.offline', icon: 'fa-cloud-arrow-down' },
   { key: 'about', label: 'settings.tabs.about', icon: 'fa-circle-info' },
 ];
 
 function sectionToTab(section?: string): SettingsTab {
   if (section === 'bible-font' || section === 'commentary-font' || section === 'study-font' || section === 'text-size') return 'text-size';
-  if (section === 'theme' || section === 'appearance') return 'theme';
+  if (section === 'theme' || section === 'appearance' || section === 'measures') return 'theme';
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'audio') return 'audio';
+  if (section === 'notifications') return 'notifications';
   if (section === 'offline') return 'offline';
   if (section === 'about') return 'about';
   return 'text-size';
@@ -165,6 +168,11 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     values: registryValues,
   });
   const keywordFields = WEB_SETTINGS.toFields('keywords', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
+  const measureFields = WEB_SETTINGS.toFields('measures', {
     translate: (key, fallback) => t(key, fallback),
     isEnabled,
     values: registryValues,
@@ -562,6 +570,15 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   idPrefix="settings-keywords"
                   onChange={(key, value) => { webSettings.set(key, value); }}
                 />
+                <div class="settings-panel__section-header">
+                  <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.measures.title')}</h4>
+                </div>
+                <SettingsForm
+                  fields={measureFields}
+                  values={registryValues}
+                  idPrefix="settings-measures"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
               </div>
             )}
 
@@ -616,6 +633,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
             )}
 
             {activeTab === 'audio' && audioEnabled && <AudioSettingsTab />}
+
+            {activeTab === 'notifications' && <NotificationsSettingsTab />}
 
             {activeTab === 'about' && (
               <div class="settings-panel__section" data-section="about">

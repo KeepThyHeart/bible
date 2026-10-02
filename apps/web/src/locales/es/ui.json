@@ -158,7 +158,8 @@
     "topics": "Temas",
     "commentary": "Comentario",
     "dictionary": "Diccionario",
-    "study": "Estudio"
+    "study": "Estudio",
+    "similar": "Buscar pasajes similares"
   },
   "rightPane": {
     "study": "Estudio",
@@ -167,7 +168,8 @@
     "dictionary": "Diccionario",
     "search": "Búsqueda",
     "collapseRight": "Contraer el panel derecho",
-    "timeline": "Cronología"
+    "timeline": "Cronología",
+    "similar": "Similares"
   },
   "timeline": {
     "title": "Cronología",
@@ -240,7 +242,8 @@
       "gestures": "Gestos",
       "audio": "Audio",
       "offline": "Sin conexión",
-      "about": "Acerca de"
+      "about": "Acerca de",
+      "notifications": "Notificaciones"
     },
     "textSize": {
       "decreaseAll": "Reducir todos los tamaños de fuente",
@@ -383,6 +386,24 @@
         "ttsVoice": "Voz"
       }
     },
+    "downloads": {
+      "title": "Descargas y almacenamiento",
+      "download": "Descargar",
+      "update": "Actualizar",
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "remove": "Quitar",
+      "queued": "En cola",
+      "downloading": "{percent}%",
+      "installed": "Instalado",
+      "total": "En este dispositivo: {size}",
+      "empty": "No hay nada que descargar.",
+      "unverified": "sin verificar",
+      "kind": {
+        "ttsRuntime": "Motor de voz",
+        "ttsVoice": "Voz"
+      }
+    },
     "about": {
       "title": "Acerca de",
       "refreshApp": "Actualizar la aplicación",
@@ -407,6 +428,44 @@
     "keywords": {
       "colorSafe": "Marcas de palabras clave seguras para el color (subrayado y símbolo adicionales)",
       "colorSafeHint": "Añade un estilo de subrayado y un símbolo a cada marca para no depender solo del color."
+    },
+    "measures": {
+      "title": "Pesos y medidas",
+      "enabled": "Notas de pesos, medidas y dinero",
+      "enabled.description": "Marca las unidades antiguas en el texto y muestra sus equivalentes modernos.",
+      "display": "Mostrar en el texto",
+      "display.description": "Desactivado mantiene el texto limpio (las conversiones están en el panel de Estudio). Si no: un subrayado punteado con ventana emergente, o un subrayado con la conversión entre [corchetes] tras la expresión.",
+      "display.marker": "Subrayado punteado y ventana emergente",
+      "display.inline": "Subrayado, ventana emergente y [conversión]",
+      "display.off": "No en el texto (solo panel de Estudio)",
+      "showInReading": "Mostrar en el modo Lectura",
+      "showInReading.description": "El modo Lectura muestra texto limpio salvo que lo actives.",
+      "system": "Sistema de unidades",
+      "system.description": "Automático sigue tu idioma y región.",
+      "system.auto": "Automático",
+      "system.metric": "Métrico",
+      "system.us": "Estadounidense",
+      "system.imperial": "Imperial",
+      "secondary": "Segundo sistema de unidades",
+      "secondary.description": "Muestra también el valor en otro sistema (imperial: solo longitud y peso).",
+      "secondary.none": "Ninguno",
+      "money": "Dinero",
+      "money.description": "Jornales (por defecto), el peso del metal, o ambos.",
+      "money.wages": "Jornales",
+      "money.metal": "Peso del metal",
+      "money.both": "Ambos",
+      "dailyWage": "Tu jornal diario",
+      "dailyWage.description": "Opcional: muestra una estimación moderna de una suma a partir de jornales. 0 = desactivado.",
+      "wageCurrency": "Moneda de tu jornal diario",
+      "wageCurrency.description": "Un código de moneda como USD, EUR o GBP.",
+      "clock": "Horas del reloj",
+      "clock.description": "Automático sigue tu idioma y región.",
+      "clock.h12": "12 horas",
+      "clock.h23": "24 horas",
+      "ranges": "Rangos",
+      "ranges.description": "Muestra el rango de incertidumbre de un valor: cuando es amplio (automático), siempre o nunca.",
+      "ranges.always": "Siempre",
+      "ranges.never": "Nunca"
     }
   },
   "copyDialog": {
@@ -1447,6 +1506,63 @@
       "hopName": "salto {hop}"
     }
   },
+  "notifications": {
+    "votd": {
+      "label": "Versículo del día",
+      "description": "Un versículo cada día a la hora que elija.",
+      "title": "Versículo del día",
+      "body": "{reference} — {text}"
+    },
+    "test": {
+      "title": "Notificación de prueba",
+      "body": "Las notificaciones funcionan."
+    },
+    "collapsed": "{count, plural, one {# recordatorio en espera} other {# recordatorios en espera}}",
+    "scheduledCount": "{count, plural, one {# programado} other {# programados}}",
+    "labels": {
+      "statusGranted": "Las notificaciones están permitidas.",
+      "statusDenied": "Las notificaciones están bloqueadas. Permítalas en los ajustes del navegador para este sitio.",
+      "statusPrompt": "Las notificaciones aún no están permitidas.",
+      "statusUnsupported": "Este navegador o dispositivo no puede mostrar notificaciones.",
+      "allow": "Permitir notificaciones",
+      "whenClosedFires": "Los recordatorios siguen llegando mientras la aplicación se ejecuta en segundo plano.",
+      "whenClosedNever": "Los recordatorios solo llegan mientras la aplicación está abierta.",
+      "whenClosedBackgroundOnly": "Los recordatorios solo llegan mientras la aplicación está abierta en una pestaña del navegador, aunque la pestaña esté en segundo plano.",
+      "enabled": "Mostrar notificaciones",
+      "quietHours": "Horas de silencio",
+      "quietFrom": "Desde",
+      "quietTo": "Hasta",
+      "quietHelp": "Las notificaciones que lleguen en las horas de silencio esperan a que terminen.",
+      "sources": "Recordatorios",
+      "noSources": "Ninguna función usa notificaciones todavía.",
+      "dailyTime": "Hora para {source}",
+      "next": "Siguiente: {time}",
+      "scheduled": "{count} programados",
+      "device": "Cuando la ventana está cerrada",
+      "tray": "Seguir ejecutándose en la bandeja",
+      "openAtLogin": "Iniciar al iniciar sesión (en la bandeja)",
+      "sendTest": "Enviar una notificación de prueba",
+      "general": "General"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "Rango",
+      "rangeHint": "según el valor usado",
+      "verseNote": "En este versículo",
+      "usageIllustrative": "Ilustrativo",
+      "usageFigurative": "Figurado",
+      "usageHintIllustrative": "Una cantidad de ejemplo; la cifra exacta no es lo importante",
+      "usageHintFigurative": "Uso figurado; la cifra no se debe tomar literalmente",
+      "draft": "Borrador – aún sin revisar",
+      "sources": "Fuentes",
+      "units": "Unidades…"
+    },
+    "study": {
+      "title": "Pesos, medidas y dinero",
+      "listLabel": "Pesos, medidas y dinero en este versículo: {{count}}"
+    }
+  },
   "assets": {
     "error": {
       "offline": "No tienes conexión (o el acceso a la web está desactivado).",
@@ -1461,5 +1577,34 @@
       "invalid-manifest": "Esta entrada no es válida.",
       "busy": "Se está descargando otra versión."
     }
+  },
+  "similar": {
+    "moreLikeThis": "Más como este",
+    "crossRef": "Referencia cruzada",
+    "otNtBadge": "AT ↔ NT",
+    "similarInMeaning": "Similar en significado",
+    "barLabel": "Similitud {step} de {max}",
+    "menu": "Más acciones",
+    "empty": "No se encontraron pasajes similares.",
+    "filters": "Filtros de pasajes similares",
+    "back": "Atrás",
+    "hideKnown": "Ocultar referencias cruzadas conocidas",
+    "testament": {
+      "label": "Testamento",
+      "any": "Todos",
+      "ot": "Antiguo Testamento",
+      "nt": "Nuevo Testamento",
+      "other": "Otro testamento"
+    },
+    "similarTo": "Similar a {reference}",
+    "approximate": "Basado en los versículos individuales de su selección.",
+    "selectVerse": "Seleccione un versículo para buscar pasajes similares.",
+    "loading": "Cargando pasajes similares...",
+    "downloading": "Descargando datos de pasajes similares...",
+    "unavailable": "Los datos de pasajes similares no están disponibles en este servidor.",
+    "error": "No se pudieron cargar los pasajes similares.",
+    "retry": "Reintentar",
+    "showMore": "Mostrar 10 más",
+    "rangeNeedsLive": "Este pasaje no tiene coincidencias precalculadas aquí; seleccione un solo versículo."
   }
 }

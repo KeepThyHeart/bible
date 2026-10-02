@@ -158,7 +158,8 @@
     "topics": "Topics",
     "commentary": "Commentary",
     "dictionary": "Dictionary",
-    "study": "Study"
+    "study": "Study",
+    "similar": "Find similar passages"
   },
   "rightPane": {
     "study": "Study",
@@ -167,7 +168,8 @@
     "dictionary": "Dictionary",
     "search": "Search",
     "collapseRight": "Collapse right pane",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "similar": "Similar"
   },
   "timeline": {
     "title": "Timeline",
@@ -240,7 +242,8 @@
       "gestures": "Gestures",
       "audio": "Audio",
       "offline": "Offline",
-      "about": "About"
+      "about": "About",
+      "notifications": "Notifications"
     },
     "textSize": {
       "decreaseAll": "Decrease all font sizes",
@@ -383,6 +386,24 @@
         "ttsVoice": "Voice"
       }
     },
+    "downloads": {
+      "title": "Downloads & storage",
+      "download": "Download",
+      "update": "Update",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "remove": "Remove",
+      "queued": "Queued",
+      "downloading": "{percent}%",
+      "installed": "Installed",
+      "total": "On this device: {size}",
+      "empty": "Nothing to download.",
+      "unverified": "unverified",
+      "kind": {
+        "ttsRuntime": "Speech engine",
+        "ttsVoice": "Voice"
+      }
+    },
     "about": {
       "title": "About",
       "refreshApp": "Refresh App",
@@ -407,6 +428,44 @@
     "keywords": {
       "colorSafe": "Colour-safe keyword marks (extra underline and symbol cues)",
       "colorSafeHint": "Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone."
+    },
+    "measures": {
+      "title": "Weights and measures",
+      "enabled": "Weights, measures and money notes",
+      "enabled.description": "Mark ancient units in the text and show their modern equivalents.",
+      "display": "Show in the text",
+      "display.description": "Off keeps the text clean (the conversions are in the Study panel). Otherwise: a dotted underline with a popup, or an underline with the conversion in [brackets] after the phrase.",
+      "display.marker": "Dotted underline and popup",
+      "display.inline": "Underline, popup and [conversion]",
+      "display.off": "Not in the text (Study panel only)",
+      "showInReading": "Show in Reading mode",
+      "showInReading.description": "Reading mode stays clean text unless you turn this on.",
+      "system": "Unit system",
+      "system.description": "Auto follows your language and region.",
+      "system.auto": "Auto",
+      "system.metric": "Metric",
+      "system.us": "US customary",
+      "system.imperial": "Imperial",
+      "secondary": "Second unit system",
+      "secondary.description": "Also show the value in another system (imperial: length and weight only).",
+      "secondary.none": "None",
+      "money": "Money",
+      "money.description": "Days' wages (default), the weight of metal, or both.",
+      "money.wages": "Days' wages",
+      "money.metal": "Weight of metal",
+      "money.both": "Both",
+      "dailyWage": "Your daily wage",
+      "dailyWage.description": "Optional: shows a modern estimate of a sum from days' wages. 0 = off.",
+      "wageCurrency": "Currency of your daily wage",
+      "wageCurrency.description": "A currency code such as USD, EUR or GBP.",
+      "clock": "Clock times",
+      "clock.description": "Auto follows your language and region.",
+      "clock.h12": "12-hour",
+      "clock.h23": "24-hour",
+      "ranges": "Ranges",
+      "ranges.description": "Show the uncertainty range of a value: when it is wide (auto), always, or never.",
+      "ranges.always": "Always",
+      "ranges.never": "Never"
     }
   },
   "copyDialog": {
@@ -1447,6 +1506,63 @@
       "hopName": "hop {hop}"
     }
   },
+  "notifications": {
+    "votd": {
+      "label": "Verse of the day",
+      "description": "A verse each day at the time you choose.",
+      "title": "Verse of the day",
+      "body": "{reference} — {text}"
+    },
+    "test": {
+      "title": "Test notification",
+      "body": "Notifications are working."
+    },
+    "collapsed": "{count, plural, one {# reminder is waiting} other {# reminders are waiting}}",
+    "scheduledCount": "{count, plural, one {# scheduled} other {# scheduled}}",
+    "labels": {
+      "statusGranted": "Notifications are allowed.",
+      "statusDenied": "Notifications are blocked. Allow them in your browser settings for this site.",
+      "statusPrompt": "Notifications are not allowed yet.",
+      "statusUnsupported": "This browser or device cannot show notifications.",
+      "allow": "Allow notifications",
+      "whenClosedFires": "Reminders keep arriving while the app runs in the background.",
+      "whenClosedNever": "Reminders arrive only while the app is open.",
+      "whenClosedBackgroundOnly": "Reminders arrive only while the app is open in a browser tab, even if the tab is in the background.",
+      "enabled": "Show notifications",
+      "quietHours": "Quiet hours",
+      "quietFrom": "From",
+      "quietTo": "To",
+      "quietHelp": "Notifications due in quiet hours wait until they end.",
+      "sources": "Reminders",
+      "noSources": "No features use notifications yet.",
+      "dailyTime": "Time for {source}",
+      "next": "Next: {time}",
+      "scheduled": "{count} scheduled",
+      "device": "When the window is closed",
+      "tray": "Keep running in the tray",
+      "openAtLogin": "Start when I log in (in the tray)",
+      "sendTest": "Send a test notification",
+      "general": "General"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "Range",
+      "rangeHint": "depending on the value used",
+      "verseNote": "In this verse",
+      "usageIllustrative": "Illustrative",
+      "usageFigurative": "Figurative",
+      "usageHintIllustrative": "An example amount; the exact figure is not the point",
+      "usageHintFigurative": "Used figuratively; the figure is not meant literally",
+      "draft": "Draft – not yet reviewed",
+      "sources": "Sources",
+      "units": "Units…"
+    },
+    "study": {
+      "title": "Weights, measures and money",
+      "listLabel": "Weights, measures and money in this verse: {{count}}"
+    }
+  },
   "assets": {
     "error": {
       "offline": "You are offline (or web access is off).",
@@ -1461,5 +1577,34 @@
       "invalid-manifest": "This entry is invalid.",
       "busy": "Another version is downloading."
     }
+  },
+  "similar": {
+    "moreLikeThis": "More like this",
+    "crossRef": "Cross-reference",
+    "otNtBadge": "OT ↔ NT",
+    "similarInMeaning": "Similar in meaning",
+    "barLabel": "Similarity {step} of {max}",
+    "menu": "More actions",
+    "empty": "No similar passages found.",
+    "filters": "Similar passage filters",
+    "back": "Back",
+    "hideKnown": "Hide known cross-references",
+    "testament": {
+      "label": "Testament",
+      "any": "All",
+      "ot": "Old Testament",
+      "nt": "New Testament",
+      "other": "Opposite testament"
+    },
+    "similarTo": "Similar to {reference}",
+    "approximate": "Based on the individual verses of your selection.",
+    "selectVerse": "Select a verse to find similar passages.",
+    "loading": "Loading similar passages...",
+    "downloading": "Downloading similar passages data...",
+    "unavailable": "Similar passages data is not available on this server.",
+    "error": "Could not load similar passages.",
+    "retry": "Try again",
+    "showMore": "Show 10 more",
+    "rangeNeedsLive": "This passage has no precomputed matches here; select a single verse instead."
   }
 }

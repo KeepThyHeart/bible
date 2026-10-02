@@ -1,0 +1,189 @@
+{
+ "_comment": "Golden set for evaluate-neighbours.mjs (task 0070 design section 8). Verse ids are book*1000000+chapter*1000+verse. A source is a hit when an expected range overlaps a top-10 neighbour.",
+ "sources": [
+  {
+   "kind": "OT-NT theme",
+   "source": {
+    "label": "Psalm 23:1",
+    "start": 19023001,
+    "end": 19023001
+   },
+   "expected": [
+    {
+     "label": "John 10:11",
+     "start": 43010011,
+     "end": 43010011
+    },
+    {
+     "label": "Ezekiel 34:11-16",
+     "start": 26034011,
+     "end": 26034016
+    }
+   ]
+  },
+  {
+   "kind": "quotation",
+   "source": {
+    "label": "Isaiah 53:5",
+    "start": 23053005,
+    "end": 23053005
+   },
+   "expected": [
+    {
+     "label": "1 Peter 2:24",
+     "start": 60002024,
+     "end": 60002024
+    }
+   ]
+  },
+  {
+   "kind": "typology",
+   "source": {
+    "label": "Genesis 22:8",
+    "start": 1022008,
+    "end": 1022008
+   },
+   "expected": [
+    {
+     "label": "John 1:29",
+     "start": 43001029,
+     "end": 43001029
+    }
+   ]
+  },
+  {
+   "kind": "quotation",
+   "source": {
+    "label": "Habakkuk 2:4",
+    "start": 35002004,
+    "end": 35002004
+   },
+   "expected": [
+    {
+     "label": "Romans 1:17",
+     "start": 45001017,
+     "end": 45001017
+    },
+    {
+     "label": "Galatians 3:11",
+     "start": 48003011,
+     "end": 48003011
+    },
+    {
+     "label": "Hebrews 10:38",
+     "start": 58010038,
+     "end": 58010038
+    }
+   ]
+  },
+  {
+   "kind": "quotation",
+   "source": {
+    "label": "Deuteronomy 6:5",
+    "start": 5006005,
+    "end": 5006005
+   },
+   "expected": [
+    {
+     "label": "Matthew 22:37",
+     "start": 40022037,
+     "end": 40022037
+    },
+    {
+     "label": "Mark 12:30",
+     "start": 41012030,
+     "end": 41012030
+    }
+   ]
+  },
+  {
+   "kind": "quotation",
+   "source": {
+    "label": "Genesis 15:6",
+    "start": 1015006,
+    "end": 1015006
+   },
+   "expected": [
+    {
+     "label": "Romans 4:3",
+     "start": 45004003,
+     "end": 45004003
+    },
+    {
+     "label": "James 2:23",
+     "start": 59002023,
+     "end": 59002023
+    }
+   ]
+  },
+  {
+   "kind": "quotation",
+   "source": {
+    "label": "Proverbs 3:34",
+    "start": 20003034,
+    "end": 20003034
+   },
+   "expected": [
+    {
+     "label": "James 4:6",
+     "start": 59004006,
+     "end": 59004006
+    },
+    {
+     "label": "1 Peter 5:5",
+     "start": 60005005,
+     "end": 60005005
+    }
+   ]
+  },
+  {
+   "kind": "theme, no shared words",
+   "source": {
+    "label": "Ecclesiastes 1:2",
+    "start": 21001002,
+    "end": 21001002
+   },
+   "expected": [
+    {
+     "label": "Romans 8:20",
+     "start": 45008020,
+     "end": 45008020
+    },
+    {
+     "label": "Psalm 39:5",
+     "start": 19039005,
+     "end": 19039005
+    }
+   ]
+  },
+  {
+   "kind": "synoptic + OT",
+   "source": {
+    "label": "Luke 15:4",
+    "start": 42015004,
+    "end": 42015004
+   },
+   "expected": [
+    {
+     "label": "Matthew 18:12",
+     "start": 40018012,
+     "end": 40018012
+    },
+    {
+     "label": "Ezekiel 34:12",
+     "start": 26034012,
+     "end": 26034012
+    }
+   ]
+  },
+  {
+   "kind": "narrative control",
+   "source": {
+    "label": "Ruth 1:16",
+    "start": 8001016,
+    "end": 8001016
+   },
+   "expected": []
+  }
+ ]
+}

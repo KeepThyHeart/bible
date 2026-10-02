@@ -90,6 +90,11 @@ const GUARDED_METHODS: readonly GuardedMethod[] = [
   { namespace: 'book', method: 'getSection', permission: 'book:read' },
   { namespace: 'book', method: 'listSections', permission: 'book:read' },
   { namespace: 'tasks', method: 'run', permission: 'tasks' },
+  { namespace: 'reminders', method: 'replaceAll', permission: 'notifications:schedule' },
+  { namespace: 'reminders', method: 'list', permission: 'notifications:schedule' },
+  { namespace: 'reminders', method: 'capabilities', permission: 'notifications:schedule' },
+  { namespace: 'reminders', method: 'requestPermission', permission: 'notifications:schedule' },
+  { namespace: 'reminders', method: 'takeActivations', permission: 'notifications:schedule' },
   { namespace: 'extensions', method: 'call', permission: 'extensions:call' },
 ];
 

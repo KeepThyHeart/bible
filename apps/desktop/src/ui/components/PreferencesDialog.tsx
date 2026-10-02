@@ -30,8 +30,10 @@ import { TypographySection } from './PreferencesDialog/TypographySection';
 import { FontsSection } from './PreferencesDialog/FontsSection';
 import { ThemesSection } from './PreferencesDialog/ThemesSection';
 import { PrivacySection } from './PreferencesDialog/PrivacySection';
+import { NotificationsSection } from './PreferencesDialog/NotificationsSection';
 import { DownloadsSection } from './PreferencesDialog/DownloadsSection';
 import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
+import { MeasuresSection } from './PreferencesDialog/MeasuresSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
 
 interface PreferencesDialogProps {
@@ -177,10 +179,12 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'fonts' && <FontsSection initialPane={initialFontPane} />}
             {activeSection === 'themes' && <ThemesSection />}
             {activeSection === 'privacy' && <PrivacySection />}
+            {activeSection === 'notifications' && <NotificationsSection />}
             {activeSection === 'downloads' && <DownloadsSection />}
             {activeSection === 'extensions' && (
               <ExtensionsSection initialExpand={initialExtensionTarget} />
             )}
+            {activeSection === 'measures' && <MeasuresSection />}
             {activeSection === 'advanced' && <AdvancedSection />}
             {activeSection === 'diagnostics' && <DiagnosticsSettings />}
           </div>
