@@ -1,8 +1,11 @@
 import React from 'react';
+import { Bdi } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import NoteEditor from '../editor/NoteEditor';
 import type { NoteExportActions } from '../editor/EditorToolbar';
 import { BreadcrumbSegment } from '../NotesBreadcrumb';
+import NoteDirectionControl from './NoteDirectionControl';
+import { useNoteDirection } from './hooks/useNoteDirection';
 interface UserNotesEditorViewProps {
   editorContent: string;
   setEditorContent: (content: string) => void;
@@ -19,6 +22,8 @@ interface UserNotesEditorViewProps {
   onPopOut: () => void;
   /** Print / PDF / Word / Markdown, surfaced in the editor toolbar. */
   exportActions: NoteExportActions;
+  /** Path of the open note relative to the notes root; keys its stored direction. */
+  notePath?: string;
 }
 
 /**
@@ -38,8 +43,10 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   titleEditable,
   onPopOut,
   exportActions,
+  notePath,
 }) => {
   const { t, localizer } = useI18n();
+  const [noteDirection, setNoteDirection] = useNoteDirection(notePath);
 
   const sidebarToggleLabel = showEditorSidebar
     ? t('userNotesPane.hideSidebar')
@@ -87,11 +94,11 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                   onClick={() => onBreadcrumbNavigate(seg.path)}
                   className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
                 >
-                  {seg.label}
+                  <Bdi>{seg.label}</Bdi>
                 </button>
               ) : (
                 <span className="font-medium text-text-heading truncate flex items-center gap-1" aria-current="true">
-                  {seg.label}
+                  <Bdi>{seg.label}</Bdi>
                   {/* Edit title icon - verse notes derive their title from the
                       verse reference, so no rename affordance is shown at all
                       (not just disabled) to make the read-only-ness visible. */}
@@ -127,6 +134,10 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           </span>
         )}
 
+        {notePath && (
+          <NoteDirectionControl value={noteDirection} onChange={setNoteDirection} />
+        )}
+
         {/* Pop-out - a window-level action, not a title action. It must not sit
             immediately beside the breadcrumb's Edit Title pencil, where the two
             3.5px icons would be a millimetre apart and easily misclicked for
@@ -136,7 +147,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         <button
           type="button"
           onClick={onPopOut}
-          className="ms-auto flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover transition-colors"
+          className={`${notePath ? '' : 'ms-auto '}flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover transition-colors`}
           title={t('userNotesPane.popOutTitle')}
           aria-label={t('userNotesPane.popOutTitle')}
         >
@@ -153,6 +164,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           onChange={setEditorContent}
           placeholder={t('userNotesPane.startWritingPlaceholder')}
           exportActions={exportActions}
+          defaultDirection={noteDirection ?? undefined}
         />
       </div>
 

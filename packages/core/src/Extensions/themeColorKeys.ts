@@ -43,6 +43,15 @@ export const THEME_COLOR_KEYS = [
   'morph.noun',
   'morph.adjective',
   'morph.pronoun',
+  // Keyword marks (task 0065): eight colour-blind-tuned slots.
+  'mark.1',
+  'mark.2',
+  'mark.3',
+  'mark.4',
+  'mark.5',
+  'mark.6',
+  'mark.7',
+  'mark.8',
 ] as const;
 
 export type ThemeColorKey = (typeof THEME_COLOR_KEYS)[number];
@@ -78,6 +87,14 @@ export const THEME_COLOR_CSS_VAR: Record<ThemeColorKey, string> = {
   'morph.noun': '--theme-morph-noun-rgb',
   'morph.adjective': '--theme-morph-adjective-rgb',
   'morph.pronoun': '--theme-morph-pronoun-rgb',
+  'mark.1': '--theme-mark-1-rgb',
+  'mark.2': '--theme-mark-2-rgb',
+  'mark.3': '--theme-mark-3-rgb',
+  'mark.4': '--theme-mark-4-rgb',
+  'mark.5': '--theme-mark-5-rgb',
+  'mark.6': '--theme-mark-6-rgb',
+  'mark.7': '--theme-mark-7-rgb',
+  'mark.8': '--theme-mark-8-rgb',
 };
 
 /** The default colour used when a decoration's `color` key is unknown (§12). */

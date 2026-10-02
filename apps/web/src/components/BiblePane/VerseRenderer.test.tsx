@@ -10,7 +10,7 @@
  * the wordsOfChristInRed flag without needing a live store. useStore is mocked to
  * call the selector immediately (no subscription overhead).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { VerseData, InterlinearWordData } from '../../types';
 
@@ -53,7 +53,15 @@ vi.mock('../../stores/commentaryStore', () => ({
   },
 }));
 
-import { VerseRenderer } from './VerseRenderer';
+import { VerseRenderer, HIGHLIGHT_HOLD_MS } from './VerseRenderer';
+import {
+  extractWordsWithFormatting,
+  matchKeywordMarks,
+  toDecorationLayer,
+  type KeywordSet,
+  type ResolvedVerse,
+} from '@bible/core/browser';
+import { resolveChapterDecorations, verseWordTexts } from '../../keywordMarks/chapterMarks';
 import { resetInterlinearWarnings } from '../../utils/interlinearRows';
 
 // ---- helpers -------------------------------------------------------------
@@ -113,6 +121,19 @@ describe('VerseRenderer', () => {
     const verse = makeVerse();
     const { container } = render(<VerseRenderer verse={verse} {...defaultProps} isHighlighted />);
     expect(container.querySelector('.verse--study')).toBeTruthy();
+  });
+
+  it('marks the verse being read aloud with verse--playing, independently of the selection', () => {
+    const verse = makeVerse({});
+    const { container, rerender } = render(<VerseRenderer verse={verse} {...defaultProps} isPlaying />);
+    const el = container.querySelector('.verse')!;
+    expect(el.classList.contains('verse--playing')).toBe(true);
+    expect(el.classList.contains('verse--study')).toBe(false);
+    rerender(<VerseRenderer verse={verse} {...defaultProps} isPlaying isHighlighted />);
+    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(true);
+    expect(container.querySelector('.verse')!.classList.contains('verse--study')).toBe(true);
+    rerender(<VerseRenderer verse={verse} {...defaultProps} />);
+    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(false);
   });
 
   it('applies verse--preview class when isSelected and not highlighted', () => {
@@ -493,5 +514,279 @@ describe('VerseRenderer', () => {
     fireEvent.click(container.querySelector('.verse__interlinear-gloss--clickable')!);
     expect(mockPerformSearch).toHaveBeenCalledWith('G2316');
     expect(mockSetRightPaneMode).toHaveBeenCalledWith('search');
+  });
+
+  // ------------------------------------------------------------------
+  // Following along (`isFollowLive` / `followHighlight`)
+  // ------------------------------------------------------------------
+  describe('following along', () => {
+    it('marks the followed verse without changing how it renders', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} isFollowLive />);
+      expect(container.querySelector('.verse--follow-live')).toBeTruthy();
+      expect(container.innerHTML).toContain('For God so loved the world');
+    });
+
+    it('does not mark a verse the presenter is not on', () => {
+      const verse = makeVerse();
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} />);
+      expect(container.querySelector('.verse--follow-live')).toBeNull();
+    });
+
+    it('renders the presenter\'s highlighted words on the followed verse', () => {
+      const verse = makeVerse({ verse_id: 43003016, text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlights={[{ verseIdStart: 43003016, textStart: 1, textEnd: 2 }]}
+        />,
+      );
+      const words = container.querySelectorAll('.verse__follow-word');
+      expect(words.length).toBe(6); // "For God so loved the world"
+      expect(words[1].className).toContain('verse__follow-word--hl');
+      expect(words[2].className).toContain('verse__follow-word--hl');
+      expect(words[0].className).not.toContain('verse__follow-word--hl');
+      expect(container.textContent).toContain('For God so loved the world');
+    });
+
+    it('lights more than one highlighted phrase in the same verse', () => {
+      const verse = makeVerse({ verse_id: 43003016, text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlights={[
+            { verseIdStart: 43003016, textStart: 0, textEnd: 0 },
+            { verseIdStart: 43003016, textStart: 4, textEnd: 5 },
+          ]}
+        />,
+      );
+      const words = container.querySelectorAll('.verse__follow-word');
+      expect(words[0].className).toContain('verse__follow-word--hl');
+      expect(words[4].className).toContain('verse__follow-word--hl');
+      expect(words[5].className).toContain('verse__follow-word--hl');
+      expect(words[2].className).not.toContain('verse__follow-word--hl');
+    });
+
+    it('falls back to the plain render when there is no highlight, even while followed', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(
+        <VerseRenderer verse={verse} {...defaultProps} isFollowLive followHighlights={[]} />,
+      );
+      expect(container.querySelector('.verse__follow-word')).toBeNull();
+      expect(container.innerHTML).toContain('For God so loved the world');
+    });
+
+    it('respects the red-letter setting for the followed verse the same as everywhere else', () => {
+      mockWordsOfChristInRed = true;
+      const verse = makeVerse({
+        verse_id: 43003016,
+        text_html: '<span class="christ-words">It is finished</span>',
+      });
+      const { container } = render(
+        <VerseRenderer
+          verse={verse}
+          {...defaultProps}
+          isFollowLive
+          followHighlights={[{ verseIdStart: 43003016, textStart: 0, textEnd: 0 }]}
+        />,
+      );
+      expect(container.querySelector('.verse__follow-word--christ')).toBeTruthy();
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Present mode: the send rail and the word highlight
+  // ------------------------------------------------------------------
+  describe('presenting', () => {
+    it('draws no send button outside a session', () => {
+      const { container } = render(<VerseRenderer verse={makeVerse()} {...defaultProps} />);
+      expect(container.querySelector('.verse__send')).toBeNull();
+    });
+
+    it('sends the verse from the left-rail button without selecting it', () => {
+      const onSend = vi.fn();
+      const { container } = render(
+        <VerseRenderer verse={makeVerse()} {...defaultProps}
+          sendRail={{ sent: false, onSend, label: 'Send verse 16' }} />,
+      );
+      fireEvent.click(container.querySelector('.verse__send')!);
+      expect(onSend).toHaveBeenCalledTimes(1);
+      expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+    });
+
+    it('marks the sent verse, and its button no longer sends', () => {
+      const onSend = vi.fn();
+      const { container } = render(
+        <VerseRenderer verse={makeVerse()} {...defaultProps} isHighlighted
+          sendRail={{ sent: true, onSend, label: 'Verse 16 is on screen' }} />,
+      );
+      // Sent and selected at once: both classes present, and the stylesheet
+      // makes the sent one win.
+      const row = container.querySelector('.verse')!;
+      expect(row.className).toContain('verse--sent');
+      expect(row.className).toContain('verse--study');
+      const button = container.querySelector('.verse__send--sent') as HTMLElement;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      fireEvent.click(button);
+      expect(onSend).not.toHaveBeenCalled();
+    });
+
+    describe('word highlight', () => {
+      beforeEach(() => { vi.useFakeTimers(); });
+      afterEach(() => { vi.useRealTimers(); });
+
+      const words = (container: Element) => container.querySelectorAll<HTMLElement>('[data-w]');
+
+      function setup(draft: { verseId: number; start: number; end: number } | null, isHighlighted = true) {
+        const onHold = vi.fn();
+        const onTap = vi.fn();
+        const utils = render(
+          <VerseRenderer verse={makeVerse()} {...defaultProps} isHighlighted={isHighlighted}
+            wordHighlight={{ draft, sent: false, onHold, onTap }} />,
+        );
+        return { ...utils, onHold, onTap };
+      }
+
+      it('makes words addressable only in the active verse', () => {
+        expect(words(setup(null, true).container).length).toBe(6);
+      });
+
+      it('leaves other verses exactly as they were', () => {
+        const { container } = setup(null, false);
+        expect(words(container).length).toBe(0);
+        expect(container.innerHTML).toContain('For God so loved the world');
+      });
+
+      it('starts a highlight on a press-and-hold, not on a plain tap', () => {
+        const { container, onHold } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        fireEvent.pointerUp(word);
+        vi.advanceTimersByTime(1000);
+        expect(onHold).not.toHaveBeenCalled();
+
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        vi.advanceTimersByTime(HIGHLIGHT_HOLD_MS + 10);
+        expect(onHold).toHaveBeenCalledWith(2);
+      });
+
+      it('does not start a highlight when the pointer drifts (a scroll)', () => {
+        const { container, onHold } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        fireEvent.pointerMove(word, { clientX: 5, clientY: 60 });
+        vi.advanceTimersByTime(1000);
+        expect(onHold).not.toHaveBeenCalled();
+      });
+
+      it('swallows the click that ends a hold so the verse is not deselected', () => {
+        const { container } = setup(null);
+        const word = words(container)[2];
+        fireEvent.pointerDown(word, { button: 0, isPrimary: true, clientX: 5, clientY: 5 });
+        vi.advanceTimersByTime(HIGHLIGHT_HOLD_MS + 10);
+        fireEvent.pointerUp(word);
+        fireEvent.click(word);
+        expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+      });
+
+      it('lets an ordinary tap select the verse as usual while no highlight exists', () => {
+        const { container, onTap } = setup(null);
+        fireEvent.click(words(container)[2]);
+        expect(defaultProps.onVerseClick).toHaveBeenCalledTimes(1);
+        expect(onTap).not.toHaveBeenCalled();
+      });
+
+      it('routes a tap to the highlight once one exists, and shows the lit words', () => {
+        const { container, onTap } = setup({ verseId: 43003016, start: 1, end: 2 });
+        const lit = container.querySelectorAll('.verse__pword--draft');
+        expect(lit.length).toBe(2);
+        fireEvent.click(words(container)[4]);
+        expect(onTap).toHaveBeenCalledWith(4);
+        expect(defaultProps.onVerseClick).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Keyword-mark word spans (task 0065)
+  // ------------------------------------------------------------------
+  describe('keyword mark paint', () => {
+    const SET: KeywordSet = {
+      schema: 1, id: 'set-x', name: 'X', scope: { kind: 'everywhere' }, updatedAt: '2026-01-01T00:00:00Z',
+      marks: [{
+        id: 'm-loved', label: 'loved', rule: { kind: 'word', forms: ['loved'] },
+        style: { color: 'mark.1', line: 'solid' }, enabled: true,
+      }],
+    };
+
+    function paintFor(verse: VerseData, surface: 'standard' | 'reading' | 'study'): ResolvedVerse | undefined {
+      const result = matchKeywordMarks(
+        { moduleId: 1, language: 'en', verses: [{ verseId: verse.verse_id, words: verseWordTexts(verse) }] },
+        [SET],
+      );
+      const layer = toDecorationLayer(result, [SET], { colorSafe: true });
+      return resolveChapterDecorations([verse], layer, surface).get(verse.verse_id);
+    }
+
+    for (const mode of ['standard', 'reading'] as const) {
+      it(`paints only the marked word in ${mode} mode and keeps the text identical`, () => {
+        mockWordsOfChristInRed = true;
+        const verse = makeVerse({ text_html: 'For God so <span class="christ-words">loved</span> the world' });
+        const plain = render(<VerseRenderer verse={verse} {...defaultProps} displayMode={mode} />);
+        const plainText = plain.container.querySelector('.verse')!.textContent;
+        plain.unmount();
+
+        const { container } = render(
+          <VerseRenderer verse={verse} {...defaultProps} displayMode={mode} resolved={paintFor(verse, mode)} />,
+        );
+        const words = container.querySelectorAll('.word');
+        expect(words.length).toBe(6);
+        const painted = container.querySelectorAll('.word.ext-deco');
+        expect(painted.length).toBe(1);
+        expect(painted[0].textContent).toContain('loved');
+        expect(painted[0].getAttribute('data-word-index')).toBe('3');
+        expect(painted[0].classList.contains('christ-words')).toBe(true);
+        expect(painted[0].getAttribute('style')).toContain('--ext-bg-image');
+        expect(container.querySelector('.verse')!.textContent).toBe(plainText);
+      });
+    }
+
+    it('keeps the verse markup untouched when nothing is painted', () => {
+      const verse = makeVerse({ text_html: 'For God so <i>loved</i> the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} resolved={null} />);
+      expect(container.querySelector('.word')).toBeNull();
+      expect(container.innerHTML).toContain('<i>loved</i>');
+      const { container: c2 } = render(
+        <VerseRenderer verse={verse} {...defaultProps} resolved={{ words: new Map(), gutter: [], gutterOverflow: 0, verseHovers: [] }} />,
+      );
+      expect(c2.querySelector('.word')).toBeNull();
+    });
+
+    it('rebuilds the verse from the same words the marks were matched against', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const { container } = render(<VerseRenderer verse={verse} {...defaultProps} resolved={paintFor(verse, 'standard')} />);
+      const texts = [...container.querySelectorAll('.word')].map((w) => w.textContent?.trim());
+      expect(texts).toEqual(extractWordsWithFormatting(verse.text_html).map((w) => w.displayText.trim()));
+    });
+
+    it('paints the English cell of an interlinear verse and leaves other cells alone', () => {
+      const verse = makeVerse({ text_html: 'For God so loved the world' });
+      const rows: InterlinearWordData[] = [
+        { verseId: verse.verse_id, position: 0, positionEnd: 1, originalWord: 'Houtos', transliteration: 'h', strongsNumber: 'G3779', morphology: '', language: 'greek', gloss: 'so' },
+        { verseId: verse.verse_id, position: 2, positionEnd: 3, originalWord: 'egapesen', transliteration: 'e', strongsNumber: 'G25', morphology: '', language: 'greek', gloss: 'loved' },
+        { verseId: verse.verse_id, position: 4, positionEnd: 5, originalWord: 'kosmon', transliteration: 'k', strongsNumber: 'G2889', morphology: '', language: 'greek', gloss: 'world' },
+      ];
+      const { container } = render(
+        <VerseRenderer verse={verse} {...defaultProps} displayMode="study" interlinearWords={rows} resolved={paintFor(verse, 'study')} />,
+      );
+      const painted = container.querySelectorAll('.word.ext-deco');
+      expect(painted.length).toBe(1);
+      expect(painted[0].textContent).toBe('loved');
+      expect(container.querySelectorAll('.verse__interlinear-inline-word').length).toBe(3);
+    });
   });
 });

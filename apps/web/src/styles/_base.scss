@@ -5,6 +5,15 @@
   padding: 0;
 }
 
+// Typed text auto-detects its direction while padding and overlaid icons follow the UI direction.
+// (dir="auto" on an empty input resolves to LTR in Chromium, which breaks RTL placeholders.)
+input:not([type]):not([dir]),
+input[type='text']:not([dir]),
+input[type='search']:not([dir]),
+textarea:not([dir]) {
+  unicode-bidi: plaintext;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: var(--ui-font-size, 14px);
@@ -40,6 +49,12 @@ body {
 // ---------------------------------------------------------------------------
 // RTL conventions, matching desktop's (apps/desktop/src/ui/styles/globals.css)
 // ---------------------------------------------------------------------------
+
+// Chrome text in an RTL UI uses the script font stack set by `:lang()` in
+// kth-rtl.css (system fonts only for now). LTR keeps the body rule above.
+:root[dir='rtl'] body {
+  font-family: var(--kth-font-script);
+}
 
 // Mirror a directional glyph (an arrow/chevron icon or bare-text arrow span)
 // under an RTL UI. Apply only to leaf glyph elements - not to a flex

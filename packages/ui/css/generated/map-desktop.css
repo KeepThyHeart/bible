@@ -28,6 +28,14 @@
   --kth-warning: var(--theme-warning);
   --kth-info: var(--theme-info);
   --kth-overlay: var(--theme-bg-overlay);
+  --kth-mark-1-rgb: var(--theme-mark-1-rgb);
+  --kth-mark-2-rgb: var(--theme-mark-2-rgb);
+  --kth-mark-3-rgb: var(--theme-mark-3-rgb);
+  --kth-mark-4-rgb: var(--theme-mark-4-rgb);
+  --kth-mark-5-rgb: var(--theme-mark-5-rgb);
+  --kth-mark-6-rgb: var(--theme-mark-6-rgb);
+  --kth-mark-7-rgb: var(--theme-mark-7-rgb);
+  --kth-mark-8-rgb: var(--theme-mark-8-rgb);
   --kth-font-ui: var(--ui-font-family);
   --kth-font-size-ui: calc(var(--ui-font-size) * var(--global-font-scale, 1));
 }

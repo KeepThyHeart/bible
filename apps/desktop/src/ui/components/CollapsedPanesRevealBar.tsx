@@ -90,6 +90,7 @@ const CollapsedPanesRevealBar: React.FC<CollapsedPanesRevealBarProps> = ({
         // --theme-accent-primary-rgb in themes.css) while resolving to a solid
         // colour, with a solid accent rule facing the workbench.
         backgroundColor: 'color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-bg-primary))',
+        // rtl-physical: the bar stays on the physical right (dockview geometry does not mirror)
         borderLeft: '2px solid var(--theme-accent-primary)',
         color: 'var(--theme-accent-primary)',
         cursor: 'pointer',

@@ -77,6 +77,11 @@ import type {
   PickedFileDto,
   QuickPickItemDescriptor,
   QuickPickOpts,
+  ReminderActivationEvent,
+  ReminderCapabilities,
+  ReminderItem,
+  ReminderMissedEvent,
+  ReminderPermission,
   RefreshOAuthOpts,
   SaveFileOpts,
   StartOAuthOpts,
@@ -94,6 +99,16 @@ import type {
   ExtensionPointPayloadMap,
   ExtensionPointReturnMap,
 } from './ExtensionPointTypes';
+
+import type { ISpeechApi } from '../speech/apiTypes';
+
+export type {
+  EarconKind,
+  ISpeechApi,
+  SpeechStatusDto,
+  StartListeningDto,
+  UtteranceOutcomeDto,
+} from '../speech/apiTypes';
 
 /**
  * The current extension API version. Used by the host and worker to negotiate
@@ -122,12 +137,17 @@ import type {
  * extension's `engines.bibleApp` range, and do not read more into the number
  * than that.
  *
+ * `0.2.0` (task 0083): added `api.reminders`, the `notifications:schedule`
+ * permission, the `onReminder` activation event and the `reminder.activated` /
+ * `reminder.missed` channels. An `engines.bibleApp` of `^0.1.0` no longer
+ * matches (caret on a 0.x version pins the minor).
+ *
  * This round's breaking changes (the `onDid*` -> `api.events.subscribe`
  * unification below) ship under this same `0.1.0` - there is no
  * dual-support window to honor, and `bible-memory` is updated in lockstep in
  * its own task.
  */
-export const EXTENSION_API_VERSION = '0.1.0' as const;
+export const EXTENSION_API_VERSION = '0.2.0' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker
@@ -171,8 +191,18 @@ export interface BibleExtensionAPI {
   tasks: ITasksApi;
   /** T2 - inter-extension method calls. */
   extensions: IExtensionsApi;
+  /** Notifications the host shows for this extension (needs `notifications:schedule`). */
+  reminders: IRemindersApi;
   /** RESERVED - provider-role plumbing only in v1. */
   ai: IAiApi;
+  /**
+   * Speech: listen and speak. Methods only (no events). `status()` is ungated and reports
+   * what is granted; `speak`/`earcon` need `speech:speak`; `startListening`/`nextUtterance`
+   * need `speech:listen`, which is prompted separately. Consent copy for `speech:listen`:
+   * "Listen to your microphone while you recite. Audio stays on this device." Transcripts
+   * only, never audio; the host never logs them.
+   */
+  speech: ISpeechApi;
 }
 
 // --- IBibleApi *(T1 - read methods are foundation; iterate/tokens are T2)* -
@@ -1130,7 +1160,10 @@ export type ExtensionPointId =
   | 'settings.changed'
   | 'locale.changed'
   | 'extension.activated'
-  | 'extension.deactivated';
+  | 'extension.deactivated'
+  // Reminders (need `notifications:schedule`, delivered only to the owner)
+  | 'reminder.activated'
+  | 'reminder.missed';
 
 // --- INetworkApi *(T2)* ----------------------------------------------------
 
@@ -1201,6 +1234,45 @@ export interface ITasksApi {
 
   /** List tasks owned by this extension. */
   list(): Promise<BackgroundTaskInfo[]>;
+}
+
+// --- IRemindersApi *(T2)* --------------------------------------------------
+
+/**
+ * Reminders the host shows as OS notifications (desktop) or Notifications API
+ * notifications while a tab is open (web). The extension owns a *list of
+ * pending items* and replaces it wholesale; the host does the timing, quiet
+ * hours, missed-while-asleep handling and the user's on/off switch. Every
+ * method needs `notifications:schedule`.
+ *
+ * `onActivated` and `onMissed` are worker-side sugar over the host-emitted
+ * channels `reminder.activated` / `reminder.missed` (see `IEventsApi`); the
+ * host delivers them only to the extension that owns the reminder.
+ * Activation can arrive before the handler exists (the click is what woke
+ * the extension), so `takeActivations()` drains the clicks queued until then;
+ * an activation is queued only when no `onActivated` handler is registered,
+ * so a handler and `takeActivations()` never both see the same click.
+ */
+export interface IRemindersApi {
+  /**
+   * Replace this extension's pending reminders. Idempotent: call it with the
+   * full current list whenever the plan changes. Invalid items are dropped,
+   * the list is sorted and capped at 64 (earliest kept); `accepted` is how
+   * many survived.
+   */
+  replaceAll(items: ReminderItem[]): Promise<{ accepted: number }>;
+  /** This extension's pending reminders, as the host currently holds them. */
+  list(): Promise<ReminderItem[]>;
+  /** What notifications can do on this device right now. */
+  capabilities(): Promise<ReminderCapabilities>;
+  /** Ask the OS/browser for notification permission (a no-op when already decided). */
+  requestPermission(): Promise<ReminderPermission>;
+  /** Drain the clicks queued before an `onActivated` handler existed. */
+  takeActivations(): Promise<ReminderActivationEvent[]>;
+  /** The user clicked one of this extension's reminders. */
+  onActivated(handler: (e: ReminderActivationEvent) => void): Promise<DisposableHandle>;
+  /** Reminders that came due while the app was closed or asleep. */
+  onMissed(handler: (e: ReminderMissedEvent) => void): Promise<DisposableHandle>;
 }
 
 // --- IExtensionsApi *(T2)* -------------------------------------------------

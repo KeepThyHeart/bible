@@ -18,6 +18,8 @@ import { DigestDisclaimer } from '../CommentaryPane/DigestDisclaimer';
 import { CommentaryAbout } from '../CommentaryPane/CommentaryContent';
 import type { CommentaryHomeModule, CommentaryEntryData } from '../../types';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { moduleContentAttrs } from '../../utils/contentDirection';
+import { Bdi } from '@bible/ui';
 
 /** Hardcoded popularity ranking (lower = more popular). */
 const POPULARITY: Record<string, number> = {
@@ -413,12 +415,12 @@ export function MobileCommentaryDetail({ moduleAbbr, bibleProvider }: DetailProp
             <div class="commentary-empty-verse__nav" style={{ marginTop: '12px' }}>
               {prevVerse ? (
                 <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToCommentaryVerse(prevVerse!)}>
-                  <i class="fa-solid fa-chevron-left fa-xs" /> {t('mobileCommentary.prevVerse', { verse: prevVerse })}
+                  <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" /> {t('mobileCommentary.prevVerse', { verse: prevVerse })}
                 </button>
               ) : <span />}
               {nextVerse ? (
                 <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToCommentaryVerse(nextVerse!)}>
-                  {t('mobileCommentary.nextVerse', { verse: nextVerse })} <i class="fa-solid fa-chevron-right fa-xs" />
+                  {t('mobileCommentary.nextVerse', { verse: nextVerse })} <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
                 </button>
               ) : <span />}
             </div>
@@ -439,10 +441,10 @@ export function MobileCommentaryDetail({ moduleAbbr, bibleProvider }: DetailProp
               <div key={i} class="mobile-commentary-detail__entry">
                 {isPassage && (
                   <div class="mobile-commentary-detail__ref">
-                    {formatVerseRange(entry.verse_id_start, entry.verse_id_end)}
+                    <Bdi>{formatVerseRange(entry.verse_id_start, entry.verse_id_end)}</Bdi>
                   </div>
                 )}
-                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
+                <div {...moduleContentAttrs(moduleAbbr)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
               </div>
             );
           })}
@@ -450,12 +452,12 @@ export function MobileCommentaryDetail({ moduleAbbr, bibleProvider }: DetailProp
             <div class="commentary-empty-verse__nav">
               {prevVerse ? (
                 <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToCommentaryVerse(prevVerse!)}>
-                  <i class="fa-solid fa-chevron-left fa-xs" /> {t('mobileCommentary.prevVerse', { verse: prevVerse })}
+                  <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" /> {t('mobileCommentary.prevVerse', { verse: prevVerse })}
                 </button>
               ) : <span />}
               {nextVerse ? (
                 <button class="commentary-empty-verse__nav-btn" onClick={() => navigateToCommentaryVerse(nextVerse!)}>
-                  {t('mobileCommentary.nextVerse', { verse: nextVerse })} <i class="fa-solid fa-chevron-right fa-xs" />
+                  {t('mobileCommentary.nextVerse', { verse: nextVerse })} <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
                 </button>
               ) : <span />}
             </div>

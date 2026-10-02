@@ -3,7 +3,10 @@ import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, sema
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
+import { Bdi } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
+import { useBibleModuleLanguage } from '../hooks/useBibleModuleLanguage';
+import { contentDirAttrs } from '../utils/contentDirection';
 import { sanitizeHtml } from '../utils/sanitize';
 import { openStrongsInDictionary } from './bible/openStrongsInDictionary';
 import SearchDistributionGraph from './SearchDistributionGraph';
@@ -729,6 +732,8 @@ interface SearchResultItemProps {
 
 const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, currentModule, lastClicked, approximate }) => {
   const { t } = useI18n();
+  // The verse text follows its module's language, not the UI's.
+  const resultLanguage = useBibleModuleLanguage(result?.module ?? currentModule);
   const isMultiVerse = result.verseIds && result.verseIds.length > 1;
 
   // Safety check for result data
@@ -795,13 +800,13 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, cu
                 approximate ? 'text-text-secondary' : 'text-accent-strong'
               }`}
             >
-              {result.reference}
+              <Bdi>{result.reference}</Bdi>
             </span>
 
             {/* Module Badge (if not current module) */}
             {result.module && result.module !== currentModule && (
               <span className="text-xs bg-background-tertiary text-text-secondary px-1.5 py-0.5 rounded" data-testid="search-result-module">
-                {result.module}
+                <Bdi>{result.module}</Bdi>
               </span>
             )}
 
@@ -826,6 +831,7 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({ result, onClick, cu
             className={`text-sm leading-relaxed ${
               isMultiVerse ? 'text-text-secondary' : 'text-text-body'
             }`}
+            {...contentDirAttrs(resultLanguage)}
             dangerouslySetInnerHTML={{
               __html: sanitizeHtml(displayText)
             }}
@@ -896,7 +902,7 @@ const SemanticResultItem: React.FC<SemanticResultItemProps> = ({ result, onClick
             )}
             {lastClicked && <span className="sr-only">{t('searchResultsPane.lastClickedSrLabel')}</span>}
             <span className="text-sm font-bold text-accent-strong group-hover:text-accent-strong">
-              {result.reference}
+              <Bdi>{result.reference}</Bdi>
             </span>
 
             {/* Level Badge */}
@@ -915,6 +921,7 @@ const SemanticResultItem: React.FC<SemanticResultItemProps> = ({ result, onClick
           {/* Text (no highlighting for semantic results) */}
           <div
             className="text-sm leading-relaxed text-text-body"
+            dir="auto"
             dangerouslySetInnerHTML={{
               __html: sanitizeHtml(result.text || result.textPreview)
             }}

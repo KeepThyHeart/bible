@@ -4,26 +4,34 @@ import { StudyCrossRefs } from './StudyCrossRefs';
 import { StudySynthesis } from './StudySynthesis';
 import { StudyTopics } from './StudyTopics';
 import { StudyHome } from './StudyHome';
+import { StudyMeasures } from './StudyMeasures';
+import { GenealogyPane } from './GenealogyPane';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
+import { isGenealogyEnabled } from '../../utils/featureFlags';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import type { IGenealogyDataProvider } from '@bible/core/browser';
 
 interface StudyPaneProps {
   onStrongsClick?: (strongsNumber: string) => void;
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
   onStrongsLeave?: () => void;
   bibleProvider?: IBibleDataProvider;
+  /** Source of the Family tree mode; the mode is only offered when the genealogy flag is on. */
+  genealogyProvider?: IGenealogyDataProvider;
+  /** Opens the settings dialog (the measures section's "Units..." button). */
+  onOpenSettings?: (section?: string) => void;
 }
 
 /**
  * Unified Study pane — scrollable view with collapsible sections.
  * Synced to the active Bible verse (with optional pin-to-verse).
  */
-export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider }: StudyPaneProps) {
+export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider, genealogyProvider, onOpenSettings }: StudyPaneProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
   const book = useStore(studyStore, () => studyStore.book);
@@ -33,6 +41,10 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
   const pinnedBook = useStore(studyStore, () => studyStore.pinnedBook);
   const pinnedChapter = useStore(studyStore, () => studyStore.pinnedChapter);
   const pinnedVerse = useStore(studyStore, () => studyStore.pinnedVerse);
+  const familyTreeOpen = useStore(studyStore, () => studyStore.familyTreeOpen);
+  const familyTreeFocus = useStore(studyStore, () => studyStore.familyTreeFocus);
+  const genealogyEnabled = isGenealogyEnabled();
+  const showFamilyTree = genealogyEnabled && familyTreeOpen;
 
   // Passage labels
   const displayBook = pinned ? pinnedBook : book;
@@ -72,9 +84,46 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
     bibleStore.adoptPreviewAsStudy(syncInfo.syncVerseId);
   };
 
+  const handleOpenVerse = (targetVerseId: number) => {
+    const { bookNumber, chapter, verse } = parseVerseId(targetVerseId);
+    bibleStore.navigateToPreview(bookNumber, chapter, verse);
+  };
+
+  const modeTabs = genealogyEnabled && (
+    <div class="study-pane__modes" role="tablist" aria-label={t('genealogyPane.modes')}>
+      <button
+        role="tab"
+        aria-selected={!showFamilyTree}
+        class={`study-pane__mode${!showFamilyTree ? ' study-pane__mode--active' : ''}`}
+        onClick={() => studyStore.closeFamilyTree()}
+      >
+        {t('genealogyPane.study')}
+      </button>
+      <button
+        role="tab"
+        aria-selected={showFamilyTree}
+        class={`study-pane__mode${showFamilyTree ? ' study-pane__mode--active' : ''}`}
+        onClick={() => studyStore.openFamilyTree()}
+      >
+        {t('genealogyPane.title')}
+      </button>
+    </div>
+  );
+
+  if (showFamilyTree) {
+    return (
+      <div class="study-pane study-pane--family-tree">
+        <h2 class="study-pane__title">{t('studyPane.study')}</h2>
+        {modeTabs}
+        <GenealogyPane provider={genealogyProvider} focus={familyTreeFocus} onOpenVerse={handleOpenVerse} />
+      </div>
+    );
+  }
+
   return (
     <div class="study-pane">
       <h2 class="study-pane__title">{t('studyPane.study')}</h2>
+      {modeTabs}
       <div class="study-pane__header">
         {passageLabel && <span class="study-pane__passage">{passageLabel}</span>}
         <button
@@ -111,6 +160,8 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
         <StudySection id="topics" label={t('studyPane.topics')}>
           <StudyTopics onTopicClick={(topicId, module, name, sourceName) => commentaryStore.navigateToTopic(topicId, module, name, sourceName)} />
         </StudySection>
+
+        <StudyMeasures verseId={verseId} onOpenSettings={onOpenSettings} />
 
         <StudySynthesis bibleProvider={bibleProvider} />
 

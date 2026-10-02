@@ -208,7 +208,7 @@ describe('ReferenceRun', () => {
     expect(screen.queryByRole('button', { name: /more/ })).toBeNull();
     // The 20th reference - the one the default budget dropped - is present.
     const labels = screen.getAllByRole('button').map(b => b.textContent);
-    expect(labels[0]).toBe('Psa 119:1');
+    expect(labels[0]).toBe('Ps 119:1');
     expect(labels[19]).toBe('39');
   });
 

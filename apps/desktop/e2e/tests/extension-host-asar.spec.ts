@@ -134,13 +134,13 @@ function inlineManifest(): Record<string, unknown> {
     publisher: 'bible-app',
     description:
       'E2E fixture with a self-contained data: URL entry point, used to reach a live extension worker in a packaged asar build.',
-    // Matches the other e2e fixtures' `^0.1.0` (task 0024 round 3, P0.3's
+    // Matches the other e2e fixtures' `^0.2.0` (task 0024 round 3, P0.3's
     // EXTENSION_API_VERSION retrograde) - this inline manifest was missed in
     // that sweep since it isn't a static fixture file to grep for; found
     // while touching this file for the `onStartup` -> `onStartupFinished`
     // rename (P1.5). `^1.0.0` never actually satisfied `0.1.0`, so this
     // probe's activation would have failed the engines gate outright.
-    engines: { bibleApp: '^0.1.0' },
+    engines: { bibleApp: '^0.2.0' },
     main: 'data:text/javascript,' + encodeURIComponent(INLINE_ENTRY_SOURCE),
     permissions: [],
     activationEvents: ['onStartupFinished'],

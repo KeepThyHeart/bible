@@ -4,6 +4,8 @@ import { useI18n } from '../../contexts/useI18n';
 import { tskPhraseAside, tskPhraseKeyword } from '../../utils/tskPhrase';
 import { crossReferenceModuleLabel } from '../../utils/moduleNaming';
 import VersePreviewTooltip from '../VersePreviewTooltip';
+import { Bdi } from '@bible/ui';
+import { contentDirAttrs } from '../../utils/contentDirection';
 
 /**
  * One phrase group inside a cross-reference module's row.
@@ -46,6 +48,8 @@ export interface ModuleCrossReferences {
   abbreviation: string;
   /** Full module name, used as the row's tooltip. */
   moduleName: string;
+  /** The module's language; its phrases follow it, not the UI. Absent means LTR. */
+  language?: string;
   /** Phrase groups, whole-verse group first. */
   groups: CrossReferencePhraseGroup[];
 }
@@ -265,7 +269,7 @@ const ModuleRefRow: React.FC<{
       data-testid={`cross-reference-row-${moduleRefs.abbreviation}`}
     >
       <span className="flex-shrink-0 font-semibold text-text-secondary" title={moduleRefs.moduleName}>
-        {crossReferenceModuleLabel(moduleRefs.abbreviation)}:
+        <Bdi>{crossReferenceModuleLabel(moduleRefs.abbreviation)}</Bdi>:
       </span>
       <span className="text-text-secondary">
         {moduleRefs.groups.map((group, index) => {
@@ -282,6 +286,7 @@ const ModuleRefRow: React.FC<{
                 className="font-semibold text-text-primary"
                 title={aside ?? undefined}
                 data-testid="cross-reference-phrase"
+                {...contentDirAttrs(moduleRefs.language)}
               >
                 {keyword ?? t('crossReferenceDisplay.overall')}.
               </strong>{' '}

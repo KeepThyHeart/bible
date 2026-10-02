@@ -49,8 +49,8 @@ function buildNoteDocumentHtml(title: string, bodyHtml: string): string {
       h2 { font-size: 20px; } h3 { font-size: 18px; }
       table { border-collapse: collapse; width: 100%; margin: 1em 0; }
       td, th { border: 1px solid #ccc; padding: 6px 10px; }
-      blockquote { border-left: 3px solid #ccc; margin-left: 0; padding-left: 16px; color: #555; }
-      ul { list-style: disc; padding-left: 2em; } ol { list-style: decimal; padding-left: 2em; }
+      blockquote { border-inline-start: 3px solid #ccc; margin-inline-start: 0; padding-inline-start: 16px; color: #555; }
+      ul { list-style: disc; padding-inline-start: 2em; } ol { list-style: decimal; padding-inline-start: 2em; }
     </style></head><body><h1>${safeTitle}</h1>${safeBody}</body></html>`;
 }
 

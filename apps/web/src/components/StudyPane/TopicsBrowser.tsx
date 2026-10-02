@@ -24,6 +24,11 @@ interface TopicsBrowserProps {
   verseEntities: TagGraphEntityData[];
   loading: boolean;
   onNavigateBible?: (verseId: number) => void;
+  /**
+   * Shows a "Show family tree" action on a person's detail view. Absent when the
+   * genealogy feature is off, in which case no action is rendered.
+   */
+  onShowFamilyTree?: (personId: string, name: string) => void;
   onOpenInTab?: (topicId: number, module: string) => void;
   topicalProvider?: ITopicalDataProvider;
   tagGraphProvider?: ITagGraphDataProvider;
@@ -91,6 +96,7 @@ export function TopicsBrowser({
   verseEntities,
   loading,
   onNavigateBible,
+  onShowFamilyTree,
   topicalProvider,
   tagGraphProvider,
   bibleProvider,
@@ -455,7 +461,7 @@ export function TopicsBrowser({
         return (
           <div class="topics-browser__mobile-nav">
             <button class="topics-browser__mobile-back" onClick={goBack} disabled={!canGoBack}>
-              <i class="fa-solid fa-chevron-left" /> {t('topicsBrowser.back')}
+              <i class="fa-solid fa-chevron-left kth-rtl-mirror" /> {t('topicsBrowser.back')}
             </button>
           </div>
         );
@@ -468,10 +474,10 @@ export function TopicsBrowser({
           <i class="fa-solid fa-house" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoBack} onClick={goBack}>
-          <i class="fa-solid fa-arrow-left" />
+          <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward}>
-          <i class="fa-solid fa-arrow-right" />
+          <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (
           <span class="topics-browser__title">
@@ -718,6 +724,14 @@ export function TopicsBrowser({
 
         {!detailLoading && entityDetail && (
           <div class="topics-browser__detail">
+            {onShowFamilyTree && currentEntry.entityCategory === 'people' && currentEntry.entityId && (
+              <button
+                class="topics-browser__family-tree"
+                onClick={() => onShowFamilyTree(currentEntry.entityId!, currentEntry.entityName ?? '')}
+              >
+                <i class="fa-solid fa-sitemap" /> {t('genealogyPane.showFamilyTree')}
+              </button>
+            )}
             {entityDetail.notes && (
               <div class="topics-browser__entity-notes">{entityDetail.notes as string}</div>
             )}

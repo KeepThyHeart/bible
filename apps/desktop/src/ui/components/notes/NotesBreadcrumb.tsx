@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bdi } from '@bible/ui';
 
 export interface BreadcrumbSegment {
   label: string;
@@ -24,14 +25,14 @@ const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({ segments, onNavigate 
               </svg>
             )}
             {isLast ? (
-              <span className="font-medium text-text-heading" aria-current="true">{segment.label}</span>
+              <span className="font-medium text-text-heading" aria-current="true"><Bdi>{segment.label}</Bdi></span>
             ) : (
               <button
                 type="button"
                 onClick={() => onNavigate(segment.path)}
                 className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
               >
-                {segment.label}
+                <Bdi>{segment.label}</Bdi>
               </button>
             )}
           </React.Fragment>

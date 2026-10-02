@@ -10,6 +10,8 @@ import type { CollapsedSegment } from '../../utils/collapseReferences';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { parseVerseId } from '../../utils/verseId';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { moduleContentAttrs } from '../../utils/contentDirection';
+import { Bdi } from '@bible/ui';
 
 export interface VerseRef {
   startVerseId: number;
@@ -228,10 +230,11 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
                   onMouseEnter={(e) => handleHover(v.startVerseId, e as any)}
                   onMouseLeave={handleLeave}
                 >
-                  {shortRange(v.startVerseId, v.endVerseId)}
+                  <Bdi>{shortRange(v.startVerseId, v.endVerseId)}</Bdi>
                 </a>
                 <span
                   class="verse-ref-list__expanded-text"
+                  {...moduleContentAttrs(bibleStore.getActiveTab()?.moduleAbbr)}
                   dangerouslySetInnerHTML={
                     text !== undefined
                       ? { __html: sanitizeHtml(text || '(no text)') }

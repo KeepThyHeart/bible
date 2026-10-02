@@ -42,7 +42,7 @@ describe('ContextMenuPopup', () => {
     const menu = container.querySelector('.verse-context-menu') as HTMLElement;
     expect(menu).toBeTruthy();
     expect(menu.style.top).toBe('80px');
-    expect(menu.style.left).toBe('50px');
+    expect(menu.style.insetInlineStart).toBe('50px');
   });
 
   it('renders the copy and study actions', () => {
@@ -78,4 +78,28 @@ describe('ContextMenuPopup', () => {
     const dividers = container.querySelectorAll('.verse-context-menu__divider');
     expect(dividers.length).toBe(1);
   });
+
+  it('calls onAction with "similar" when Find similar passages is clicked', () => {
+    const { onAction } = renderMenu();
+    fireEvent.click(screen.getByText('contextMenu.similar'));
+    expect(onAction).toHaveBeenCalledWith('similar');
+  });
+
+  it('calls onAction with "connections" when Show connections is clicked', () => {
+    const { onAction } = renderMenu();
+    fireEvent.click(screen.getByText('xrefGraph.showConnections'));
+    expect(onAction).toHaveBeenCalledWith('connections');
+  });
+
+  it('hides the similar-passages entry when showSimilar is false (mobile)', () => {
+    renderMenu({ showSimilar: false });
+    expect(screen.queryByText('contextMenu.similar')).toBeNull();
+    cleanupAndCheckDefault();
+  });
 });
+
+function cleanupAndCheckDefault() {
+  document.body.innerHTML = '';
+  renderMenu();
+  expect(screen.getByText('contextMenu.similar')).toBeTruthy();
+}

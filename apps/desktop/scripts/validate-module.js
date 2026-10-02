@@ -49,7 +49,7 @@
  *   --all               Validate every .db module in the modules directory.
  *   --type=<type>       With --all, restrict to one type (bible, commentary,
  *                       dictionary, lexicon, book, devotional, topical, xref,
- *                       tag_graph).
+ *                       tag_graph, timeline, quiz).
  *   --json              Emit machine-readable JSON instead of a text report.
  *   --quiet             Only print failures (text mode).
  *   --modules-dir=PATH  Override the modules directory.
@@ -107,7 +107,16 @@ const CONTENT_TABLES = {
   topical: ['topic', 'topics'],
   xref: ['cross_reference_group', 'cross_reference'],
   tag_graph: ['tag_association', 'person', 'place', 'object', 'theme'],
+  timeline: ['timeline_item', 'timeline_date', 'timeline_chronology', 'timeline_lane'],
+  quiz: ['quiz_question'],
 };
+
+/**
+ * Types whose content is spread over several tables that must ALL exist (the
+ * other types accept any one of their `CONTENT_TABLES`). A timeline is items,
+ * their dates per chronology, the chronologies themselves and the lanes.
+ */
+const REQUIRE_ALL_CONTENT_TABLES = new Set(['timeline']);
 
 /** Info tables accepted in place of the canonical `module_info`. */
 const INFO_TABLE_ALIASES = ['module_info', 'topical_index_module_info'];
@@ -320,7 +329,7 @@ function resolveModule(identifier, modulesDir = DEFAULT_MODULES_DIR) {
   const directPath = path.join(modulesDir, withExt);
   if (fs.existsSync(directPath)) return directPath;
 
-  const prefixes = ['bible_', 'commentary_', 'dictionary_', 'lexicon_', 'topical_', 'book_', 'devotional_', 'xref_', 'tag_graph'];
+  const prefixes = ['bible_', 'commentary_', 'dictionary_', 'lexicon_', 'topical_', 'book_', 'devotional_', 'xref_', 'tag_graph', 'timeline_', 'quiz_'];
   for (const prefix of prefixes) {
     const prefixed = path.join(modulesDir, `${prefix}${withExt}`);
     if (fs.existsSync(prefixed)) return prefixed;
@@ -351,6 +360,8 @@ function detectModuleType(tableNames) {
   if (tableNames.has('devotional_entry')) return 'devotional';
   if (tableNames.has('topic') || tableNames.has('topics')) return 'topical';
   if (tableNames.has('cross_reference_group') || tableNames.has('cross_reference')) return 'xref';
+  if (tableNames.has('timeline_item') || tableNames.has('timeline_chronology')) return 'timeline';
+  if (tableNames.has('quiz_question')) return 'quiz';
   if (tableNames.has('tag_association') || tableNames.has('entity_verse_link')
       || (tableNames.has('person') && tableNames.has('place'))) return 'tag_graph';
   return 'unknown';
@@ -361,6 +372,8 @@ function typeFromFilename(file) {
   const base = path.basename(file);
   if (base.startsWith('xref_')) return 'xref';
   if (base.startsWith('tag_graph')) return 'tag_graph';
+  if (base.startsWith('timeline')) return 'timeline';
+  if (base.startsWith('quiz')) return 'quiz';
   const prefix = base.split('_')[0];
   return Object.prototype.hasOwnProperty.call(CONTENT_TABLES, prefix) ? prefix : null;
 }
@@ -931,6 +944,16 @@ function checkContentTable(tableNames, moduleType, result) {
     result.errors.push(err('unknown_module_type', `Cannot determine module type — no recognised content table found.`));
     return;
   }
+  if (REQUIRE_ALL_CONTENT_TABLES.has(moduleType)) {
+    const missing = expected.filter(t => !tableNames.has(t));
+    if (missing.length > 0) {
+      result.errors.push(err(
+        'missing_content_table',
+        `Missing content table(s): ${missing.join(', ')} (a ${moduleType} module needs all of: ${expected.join(', ')}).`
+      ));
+    }
+    return;
+  }
   if (!expected.some(t => tableNames.has(t))) {
     result.errors.push(err(
       'missing_content_table',
@@ -1414,7 +1437,7 @@ Usage:
 
 Options:
   --all                Validate every .db in the modules directory
-  --type=<type>        With --all: bible | commentary | dictionary | lexicon | book | devotional | topical | xref | tag_graph
+  --type=<type>        With --all: bible | commentary | dictionary | lexicon | book | devotional | topical | xref | tag_graph | timeline | quiz
   --json               Machine-readable JSON output
   --quiet              Print failures only
   --modules-dir=PATH   Override modules directory (default: apps/desktop/data/modules)

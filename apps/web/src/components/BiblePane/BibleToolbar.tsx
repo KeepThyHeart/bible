@@ -2,8 +2,11 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
+import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { TranslationDialog } from './TranslationDialog';
+import { KeywordMarksButton } from './KeywordMarksButton';
+import { Bdi } from '@bible/ui';
 
 interface BibleToolbarProps {
   onOpenSettings?: (section?: string) => void;
@@ -21,8 +24,26 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
   const [showHistory, setShowHistory] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
   const [showTranslationDialog, setShowTranslationDialog] = useState(false);
+  // Audio. `canPlay` asks whether any source can speak this translation (and starts that
+  // check the first time), so the button is enabled only when pressing it can work.
+  const audioEnabled = useStore(audioStore, () => audioStore.enabled);
+  const audioLayout = useStore(audioStore, () => audioStore.layout);
+  const audioActive = useStore(audioStore, () => audioStore.isPlayingTab(tab?.id));
+  const audioStatus = useStore(audioStore, () => audioStore.status);
+  const audioCanPlay = useStore(audioStore, () => audioStore.canPlay(tab));
 
   if (!tab) return null;
+
+  const audioPlaying = audioActive && (audioStatus === 'playing' || audioStatus === 'preparing' || audioStatus === 'buffering' || audioStatus === 'resolving');
+  const onListen = () => {
+    if (audioLayout === 'phone') {
+      // The full-screen player; Play starts it, and it stays open over playback already going.
+      audioStore.openPlayer();
+      if (!audioActive) void audioStore.play();
+      return;
+    }
+    audioStore.togglePlay();
+  };
 
   const handleTranslationSelect = (abbr: string) => {
     bibleStore.setTabTranslation(tab.id, abbr);
@@ -91,7 +112,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             title={t('bibleToolbar.goBack')}
             aria-label={t('bibleToolbar.goBack')}
           >
-            <i class="fa-solid fa-reply" />
+            <i class="fa-solid fa-reply kth-rtl-mirror" />
           </button>
           {/* No forward button: Back plus the Recent Passages menu covers it,
               and the menu says where it is going by name. */}
@@ -136,9 +157,9 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
                       >
                         <span class="bible-toolbar__history-dot" aria-hidden="true" />
                         <span class="bible-toolbar__history-label">
-                          {bookName} {entry.chapter}{entry.verse ? `:${entry.verse}` : ''}
+                          <Bdi>{bookName} {entry.chapter}{entry.verse ? `:${entry.verse}` : ''}</Bdi>
                         </span>
-                        <span class="bible-toolbar__history-module">{entry.moduleAbbr}</span>
+                        <span class="bible-toolbar__history-module"><Bdi>{entry.moduleAbbr}</Bdi></span>
                       </button>
                     );
                   })
@@ -163,11 +184,27 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           onClick={() => setShowTranslationDialog(true)}
           title={t('bibleToolbar.changeTranslation')}
         >
-          {tab.moduleAbbr} <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
+          <Bdi>{tab.moduleAbbr}</Bdi> <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
         </button>
       </div>
 
       <div class="bible-toolbar__right">
+        <KeywordMarksButton />
+
+        {audioEnabled && (
+          <button
+            class="bible-toolbar__btn bible-toolbar__listen"
+            onClick={onListen}
+            disabled={!audioActive && !audioCanPlay}
+            title={!audioActive && !audioCanPlay ? t('audio.notice.noAudio') : audioPlaying && audioLayout === 'desktop' ? t('audio.pause') : t('audio.listenTooltip')}
+            aria-label={audioPlaying && audioLayout === 'desktop' ? t('audio.pause') : t('audio.listen')}
+            aria-pressed={audioLayout === 'desktop' && audioActive ? audioPlaying : undefined}
+            data-testid="audio-listen"
+          >
+            <i class={`fa-solid ${audioPlaying && audioLayout === 'desktop' ? 'fa-pause' : 'fa-play'}`} aria-hidden="true" />
+            <span class="bible-toolbar__btn-label">{audioPlaying && audioLayout === 'desktop' ? t('audio.pause') : t('audio.listen')}</span>
+          </button>
+        )}
         <button
           class="bible-toolbar__btn"
           onClick={() => onOpenSettings?.('bible-font')}
@@ -184,7 +221,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             onClick={goToPrevChapter}
             title={t('bibleToolbar.prevChapter')}
           >
-            <i class="fa-solid fa-chevron-left" />
+            <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
           </button>
           <button
             class="bible-toolbar__nav-btn"
@@ -192,7 +229,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             onClick={goToNextChapter}
             title={t('bibleToolbar.nextChapter')}
           >
-            <i class="fa-solid fa-chevron-right" />
+            <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
           </button>
         </div>
       </div>

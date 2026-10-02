@@ -281,7 +281,8 @@
   display: flex;
   align-items: flex-start;
   flex-shrink: 0;
-  padding: 6px 6px 6px 24px;
+  padding-block: 6px;
+  padding-inline: 24px 6px;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.2s, border-color 0.2s;
 
@@ -357,7 +358,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px 6px 24px;
+    padding-block: 6px;
+    padding-inline: 24px 12px;
   }
 
   &__summary {
@@ -1104,10 +1106,10 @@
     a { color: var(--accent-color); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    // Renders a module's own dictionary/commentary prose - content, kept
-    // physical. See the `.verse--preface` comment in _bible-content.scss.
+    // Renders a module's own dictionary/commentary prose - content; logical so it
+    // follows the pane's content direction (task 0076).
     ul, ol {
-      padding-left: 1.5em;
+      padding-inline-start: 1.5em;
       margin: 0.5em 0;
       list-style-position: outside;
     }
@@ -1252,4 +1254,12 @@
     background: var(--bg-tertiary);
     border-color: var(--accent-color);
   }
+}
+
+// Family tree sheet: the explorer scrolls/pans itself, so the body must not.
+.mobile-family-tree-overlay .mobile-topics-overlay__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
 }

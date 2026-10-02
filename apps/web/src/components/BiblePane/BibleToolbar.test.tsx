@@ -6,6 +6,9 @@
  * control exactly what the toolbar sees. useStore is mocked to call the
  * selector immediately (no subscription).
  */
+// The toolbar now pulls in @bible/ui (through the keyword button), which loads preact/compat. Loading
+// compat first keeps its patched event handling in place from the first render, as in the real app.
+import 'preact/compat';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { BibleTab } from '../../stores/bibleStore';
@@ -158,6 +161,14 @@ describe('BibleToolbar', () => {
     const select = container.querySelector<HTMLSelectElement>('.bible-toolbar__mode-select');
     expect(select).toBeTruthy();
     expect(select!.value).toBe('standard');
+  });
+
+  it('renders the Keywords toggle before the text-settings button', () => {
+    const { container } = render(<BibleToolbar />);
+    const toggle = screen.getByTestId('keyword-marks-toggle');
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    const right = container.querySelector('.bible-toolbar__right')!;
+    expect(right.firstElementChild!.contains(toggle)).toBe(true);
   });
 
   it('renders the "Aa" text-settings button', () => {

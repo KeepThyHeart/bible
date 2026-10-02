@@ -29,7 +29,8 @@ const SHARED_TABLES = [
   'schema_version',
   'schema_migration',
   'setting',
-  'module_feature'
+  'module_feature',
+  'data_source'
 ] as const;
 
 /** The eight module-type schemas (excludes `MainDatabase.sql` and `UserDatabase.sql`). */
@@ -57,7 +58,7 @@ function readSchema(name: string): string {
 
 describe('shared schema fragments', () => {
   it('has schemas to check', () => {
-    expect(SCHEMA_FILES.length).toBe(10);
+    expect(SCHEMA_FILES.length).toBe(12);
   });
 
   it.each(SHARED_TABLES)('no schema declares %s inline', table => {

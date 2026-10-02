@@ -73,6 +73,15 @@ describe('KTH CSS tokens', () => {
     expect(undeclared).toEqual([]);
   });
 
+  it('declares --kth-mark-1..8-rgb as RGB triplets, each with a dark default, mapped from --theme-mark-N-rgb on desktop', () => {
+    for (let n = 1; n <= 8; n++) {
+      const token = `--kth-mark-${n}-rgb`;
+      expect(contractCss.match(new RegExp(`${token}:\\s*(\\d+ \\d+ \\d+);`)), `${token} triplet`).not.toBeNull();
+      expect(gen.DARK_DEFAULTS[token], `${token} dark`).toMatch(/^\d+ \d+ \d+$/);
+      expect(gen.KTH_MAP[token]).toEqual({ web: null, desktop: `var(--theme-mark-${n}-rgb)` });
+    }
+  });
+
   it('KTH_MAP keys plus CONTRACT_CONSTANTS equal the contract set', () => {
     expect([...Object.keys(gen.KTH_MAP), ...gen.CONTRACT_CONSTANTS].sort()).toEqual([...declared].sort());
   });
@@ -257,8 +266,10 @@ describe('component class coverage', () => {
   // Structural hooks: rendered for app CSS and e2e selectors, deliberately without rules of their own.
   const HOOKS = ['kth-picker__books', 'kth-picker__chapters'];
   const defined = new Set<string>(HOOKS);
-  for (const { selector } of parseRules(read(join(CSS_DIR, 'kth-classes.css')))) {
-    for (const m of selector.matchAll(/\.(kth-[\w-]+)/g)) defined.add(m[1]);
+  for (const file of ['kth-classes.css', 'kth-rtl.css']) {
+    for (const { selector } of parseRules(read(join(CSS_DIR, file)))) {
+      for (const m of selector.matchAll(/\.(kth-[\w-]+)/g)) defined.add(m[1]);
+    }
   }
   const componentsDir = join(CSS_DIR, '..', 'src', 'components');
   const sources = readdirSync(componentsDir).filter((f) => /\.tsx$/.test(f) && !/\.test\./.test(f));
@@ -281,5 +292,23 @@ describe('component class coverage', () => {
     for (const cls of ['kth-picker__cell--book', 'kth-picker__cell--chapter', 'kth-picker__cell--compact', 'kth-picker__cell--active', 'kth-picker__cell--current', 'kth-picker__grid--compact']) {
       expect(defined.has(cls), cls).toBe(true);
     }
+  });
+});
+
+describe('kth-rtl.css (task 0076)', () => {
+  const css = stripComments(read(join(CSS_DIR, 'kth-rtl.css')));
+  it('is imported by kth.css', () => {
+    expect(read(join(CSS_DIR, 'kth.css'))).toMatch(/@import '\.\/kth-rtl\.css';/);
+  });
+  it('defines the mirror, isolate and per-script font primitives', () => {
+    expect(css).toMatch(/\[dir='rtl'\] \.kth-rtl-mirror/);
+    expect(css).toMatch(/\.kth-bidi-isolate,\s*\.kth-bdi\s*\{\s*unicode-bidi: isolate;/);
+    for (const lang of ['ar', 'fa', 'he']) expect(css).toContain(`:lang(${lang})`);
+  });
+  it('uses no physical properties', () => {
+    const physical = /^(margin|padding|border)-(left|right)|^(left|right)$/;
+    const offenders = parseRules(css).flatMap(({ selector, decls }) =>
+      Object.keys(decls).filter((p) => physical.test(p)).map((p) => `${selector} { ${p} }`));
+    expect(offenders).toEqual([]);
   });
 });

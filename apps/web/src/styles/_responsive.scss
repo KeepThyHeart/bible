@@ -110,13 +110,20 @@
   .bible-content--standard .verse--block {
     display: block;
 
-    // Bible verse-content rendering, kept physical - see the
-    // `.verse--preface` comment in _bible-content.scss.
+    // Bible verse-content rendering: follows the content direction.
     .verse__number-left {
-      float: left;
+      float: inline-start;
       width: auto;
-      padding-right: 4px;
-      text-align: left;
+      padding-inline-end: 4px;
+      text-align: start;
+    }
+
+    // Present mode's send button floats with the number so wrapped lines
+    // still do not indent.
+    .verse__send {
+      float: inline-start;
+      margin-block: 0;
+      margin-inline: 2px 6px;
     }
 
     .verse__body {

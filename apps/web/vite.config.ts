@@ -261,6 +261,56 @@ const basePath = process.env.BASE_PATH || '/';
  * prefetching URLs the app never asks for -- so the value comes from the same
  * constant Vite is configured with rather than being guessed at runtime.
  */
+/**
+ * Serve the projection viewer's HTML for its pretty URL during development.
+ *
+ * In a build, `present/viewer.html` becomes a real file and Express answers
+ * `/present/v/<code>` with it (see `server/index.ts`). The dev server has no
+ * such route and would 404, so this rewrites the same shape before Vite's
+ * static handling sees it. Without it, the viewer can only be opened in dev at
+ * a URL that does not match the one people are actually given.
+ */
+function presentViewerDevPlugin(): Plugin {
+  return {
+    name: 'present-viewer-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && /^\/present\/v\/[^/?#]+/.test(req.url)) {
+          req.url = '/present/viewer.html';
+        } else if (req.url && /^\/present\/solo(?:[/?#]|$)/.test(req.url)) {
+          // The solo viewer (`present/solo.html`): a local session, no join code.
+          req.url = '/present/solo.html';
+        }
+        next();
+      });
+    },
+  };
+}
+
+/**
+ * Same trick as `presentViewerDevPlugin`, for `/watch` (see `present/watch.html`).
+ *
+ * `/watch?...` has to keep its query string (a prefilled code), unlike
+ * `/present/v/<code>` where the code is a path segment -- a plain prefix test
+ * would also rewrite `/watch-something-else`, so this matches the whole path
+ * component exactly.
+ */
+function presentWatchDevPlugin(): Plugin {
+  return {
+    name: 'present-watch-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && /^\/watch(?:[/?#]|$)/.test(req.url)) {
+          req.url = req.url.replace(/^\/watch/, '/present/watch.html');
+        }
+        next();
+      });
+    },
+  };
+}
+
 function basePathPlugin(): Plugin {
   return {
     name: 'bible-base-path',
@@ -275,6 +325,8 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    // Timeline minimum framing span in years (empty = built-in 200); see README "Build options".
+    __TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(process.env.BIBLE_TIMELINE_MIN_SPAN_YEARS?.trim() ?? ''),
   },
   resolve: {
     alias: {
@@ -294,6 +346,8 @@ export default defineConfig({
   plugins: [
     brandingPlugin(),
     basePathPlugin(),
+    presentViewerDevPlugin(),
+    presentWatchDevPlugin(),
     wasmPlugin(),
     ortWasmPlugin(),
     buildIdPlugin(),
@@ -389,6 +443,24 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
+    rollupOptions: {
+      /*
+       * Two entry points, not one.
+       *
+       * The projection viewer is a separate page rather than a route inside the
+       * reading app because it must not load the reading app at all: no stores,
+       * no plugin host, no service worker, no icon font. It runs on whatever
+       * machine is plugged into the television and has to be on screen before a
+       * service starts. Naming `index.html` explicitly is required -- adding an
+       * `input` map replaces Vite's implicit default rather than adding to it.
+       */
+      input: {
+        index: resolve(__dirname, 'index.html'),
+        presentViewer: resolve(__dirname, 'present/viewer.html'),
+        presentWatch: resolve(__dirname, 'present/watch.html'),
+        presentSolo: resolve(__dirname, 'present/solo.html'),
+      },
+    },
   },
   worker: {
     format: 'es',
@@ -397,6 +469,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       [`${basePath.replace(/\/$/, '')}/api`]: {
+        target: 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
+      },
+      // Audio Bible recordings and TTS engine files (server route, when enabled).
+      [`${basePath.replace(/\/$/, '')}/audio`]: {
         target: 'http://localhost:3100',
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),

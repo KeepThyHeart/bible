@@ -116,10 +116,14 @@ describe('@bible/core/browser barrel', () => {
     // when the passage-format engine (a dozen files) moved in from the desktop
     // renderer; core has ~400 source files, so this is still a bound, not a
     // rubber stamp. Raised again for the Crypto and Backup modules, then for the
-    // Settings registry and the web UserData store.
+    // Settings registry and the web UserData store, the audio contracts, then
+    // for the pure Timeline engine (calendar, layout, scale, store), then for
+    // the genealogy explorer (task 0067), then for the keyword-mark set store, then for the asset store (task 0090).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    expect(files.size).toBeLessThan(100);
+    // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075, then quiz 0074,
+    // then reading plans 0073. Raised by 25: speech and recitation 0071. Raised by 15: word study.
+    expect(files.size).toBeLessThan(255);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

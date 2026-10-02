@@ -1,0 +1,686 @@
+/*
+ * Projection viewer styling.
+ *
+ * Plain CSS, and self-contained: this page does not load the reading app's
+ * stylesheet, its theme variables or its icon font, so nothing here may depend
+ * on them. It is a few hundred bytes on a machine that has to be ready before
+ * a service starts.
+ *
+ * The palette is deliberately not the app's. A screen in a dim room wants a
+ * near-black ground and slightly warm off-white text; pure #000 on #fff is
+ * harsh at projector brightness and pure white text on pure black smears on
+ * cheaper panels.
+ */
+
+:root {
+  --pv-bg: #12100e;
+  --pv-fg: #f2ece1;
+  --pv-muted: #9a8f7f;
+  --pv-accent: #d8c9a8;
+  /* Warm and low-contrast: a highlight has to read as emphasis at the back of
+     a room without turning the words under it into a silhouette. */
+  --pv-highlight: rgba(226, 178, 74, 0.42);
+  --pv-christ: #e2705f;
+  /* Set by the app from the session's font step; see typography.ts. */
+  --present-font-vh: 5.2;
+  --present-overscan: 0%;
+  /* Per-verse shrink, written directly onto a verse that would not fit. */
+  --verse-shrink: 1;
+  /* Heading shrink, written directly onto the heading when it would
+     otherwise wrap to a second line; see `shrinkToFitWidth` in typography.ts. */
+  --heading-shrink: 1;
+}
+
+:root[data-present-theme='light'] {
+  --pv-bg: #faf7f0;
+  --pv-fg: #1b1814;
+  --pv-muted: #6d6558;
+  --pv-accent: #7a6a48;
+  --pv-highlight: rgba(240, 200, 90, 0.62);
+  --pv-christ: #a83220;
+  --pv-anchor-bar: #7a6a48;
+}
+
+/*
+ * Dark keeps its own anchor bar colour (the warm accent already used for the
+ * heading and verse numbers), separately from Light's, so the marker reads
+ * clearly against either ground.
+ */
+:root:not([data-present-theme]),
+:root[data-present-theme='dark'] {
+  --pv-anchor-bar: #d8c9a8;
+}
+
+/*
+ * Max visibility: reproduces the old LiveScreen viewer -- the option a
+ * presenter reaches for when readability matters more than looking modern
+ * (a nursing home, say). Plain black on white, a bold top bar instead of a
+ * centred heading, and every verse at full contrast; see `.pv-passage--max`
+ * below for the layout differences that go with this palette.
+ */
+:root[data-present-theme='max'] {
+  /*
+   * A faint grey ground, not pure white -- so the anchor verse's translucent
+   * white band (below) actually reads as brighter than its surroundings
+   * instead of disappearing into them.
+   */
+  --pv-bg: #f0efec;
+  --pv-fg: #111111;
+  --pv-muted: #555555;
+  --pv-accent: #222222;
+  --pv-highlight: rgba(216, 216, 216, 0.9);
+  --pv-christ: #900;
+  --pv-max-rule: #999999;
+  --pv-max-anchor-bg: rgba(255, 255, 255, 0.82);
+  --pv-max-anchor-border: #900;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--pv-bg);
+  color: var(--pv-fg);
+}
+
+/*
+ * Georgia first. The reading app's self-hosted families are available (the page
+ * loads fonts.css), but a serif with generous x-height and old-style figures is
+ * what carries Scripture at distance, and Georgia is present on essentially
+ * every machine that will ever be plugged into a television.
+ */
+body {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pv-root {
+  position: fixed;
+  inset: 0;
+  background: var(--pv-bg);
+}
+
+/*
+ * Overscan margin: older televisions crop a few percent off every edge of the
+ * signal, taking the first and last line with them. Adjusted from the keyboard
+ * on this machine only -- it is a property of one panel, not of the session.
+ */
+.pv-safe {
+  position: absolute;
+  inset: var(--present-overscan);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Passage                                                                    */
+/* ------------------------------------------------------------------------- */
+
+.pv-passage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * At least as large as the body text (matching what Max visibility's own
+ * verses read at, since every theme shares the same body font-size formula),
+ * and bold, per the requirement -- `--heading-shrink` (see `typography.ts`'s
+ * `shrinkToFitWidth`, run from `PassageView`) is the one thing allowed to
+ * bring it below that, and only far enough to keep it on one line.
+ */
+.pv-heading {
+  flex: none;
+  margin: 0;
+  padding: 0.6rem 4vw 0.4rem;
+  font-size: calc(var(--present-font-vh) * 1vh * var(--heading-shrink, 1));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--pv-accent);
+  text-align: center;
+  white-space: nowrap;
+  text-wrap: pretty;
+}
+
+.pv-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 6vw;
+  overflow: hidden;
+  /*
+   * `overflow: hidden`, not `auto`: the wall is scrolled by the presenter, not
+   * by anyone standing at the machine. `scrollTo` still works on a hidden
+   * overflow container, and there is no scrollbar to appear on screen.
+   */
+}
+
+.pv-verse {
+  margin: 0 0 0.55em;
+  padding-inline-start: 0.5em;
+  border-inline-start: 0.25em solid transparent;
+  font-size: calc(var(--present-font-vh) * 1vh * var(--verse-shrink));
+  line-height: 1.42;
+  text-wrap: pretty;
+  transition: opacity 220ms ease, border-color 220ms ease;
+}
+
+/*
+ * Verses around the anchor stay legible but recede, so the eye lands in the
+ * right place without the rest of the passage disappearing. Opacity alone was
+ * not a strong enough cue at a glance -- a left bar (the same device Max
+ * visibility already uses for its own anchor, in the theme's own accent
+ * colour rather than Max's fixed red) marks the current verse unambiguously,
+ * even from the back of a room where the contrast difference is hard to see.
+ */
+.pv-verse { opacity: 0.68; }
+.pv-verse--anchor {
+  opacity: 1;
+  border-inline-start-color: var(--pv-anchor-bar);
+}
+
+.pv-versenum {
+  font-size: 0.52em;
+  vertical-align: 0.5em;
+  margin-inline-end: 0.35em;
+  color: var(--pv-accent);
+  font-feature-settings: 'lnum';
+}
+
+/* ------------------------------------------------------------------------- */
+/* Max visibility layout                                                     */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * A fixed top bar (book + chapter, left-aligned, bold, ruled underneath)
+ * rather than a centred heading, and every verse at full contrast rather than
+ * dimmed -- the current one is called out by its own band and bar instead.
+ * This is the layout the old LiveScreen viewer used; see `PassageView` for the
+ * matching change to where the current verse scrolls to.
+ */
+.pv-passage--max .pv-heading {
+  padding: 0.5em 4vw;
+  letter-spacing: normal;
+  text-align: start;
+  color: var(--pv-fg);
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 5px solid var(--pv-max-rule);
+}
+
+.pv-passage--max .pv-verse {
+  opacity: 1;
+  border-inline-start: 0.4em solid transparent;
+  padding: 0.15em 0;
+  padding-inline-start: 0.5em;
+  margin-inline-start: -0.9em;
+  border-radius: 0.15em;
+}
+
+.pv-passage--max .pv-verse--anchor {
+  background: var(--pv-max-anchor-bg);
+  border-inline-start-color: var(--pv-max-anchor-border);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Words                                                                       */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Every word is its own inline element so a highlight can address it by index.
+ * These rules must add nothing to layout: a word that shifts when it lights up
+ * moves the whole line under it, and on a wall that reads as a glitch.
+ */
+.pv-w {
+  /* Paint behind the text, sized from nothing so the sweep below can grow it. */
+  background-image: linear-gradient(var(--pv-highlight), var(--pv-highlight));
+  background-repeat: no-repeat;
+  background-position: 0 0.1em;
+  background-size: 0 0.92em;
+}
+
+.pv-w--supplied {
+  font-style: italic;
+  opacity: 0.82;
+}
+
+.pv-w--christ { color: var(--pv-christ); }
+
+.pv-w--divine {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The highlight sweeps left to right across the phrase, one word after the
+ * next, like a pen drawn over the line. `--pv-sweep` is the word's position
+ * within the highlight, capped by the renderer so a whole-verse highlight
+ * still finishes promptly.
+ */
+.pv-w--hl {
+  animation: pv-sweep 260ms ease-out forwards;
+  animation-delay: calc(var(--pv-sweep, 0) * 45ms);
+}
+
+@keyframes pv-sweep {
+  from { background-size: 0 0.92em; }
+  to   { background-size: 100% 0.92em; }
+}
+
+.pv-attribution {
+  margin-top: 1.2em;
+  font-size: calc(var(--present-font-vh) * 0.45vh);
+  color: var(--pv-muted);
+  font-style: italic;
+  text-wrap: pretty;
+}
+
+/* Lets the final verse be scrolled to the top of the screen. */
+.pv-tail { height: 82%; }
+
+/* ------------------------------------------------------------------------- */
+/* Interactive layer (presenter preview, solo viewer)                         */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Only ever under `.pv-root--interactive`, so a wall renders exactly as it
+ * did. None of these rules change layout: cursors, a selection colour and an
+ * outline, nothing that moves a word.
+ */
+.pv-root--interactive .pv-scroll {
+  cursor: text;
+  /* No double-tap zoom, so a double-tap reaches the page as two taps. */
+  touch-action: manipulation;
+}
+
+/* A neighbouring verse is a link to itself (single click moves there). */
+.pv-root--interactive .pv-verse:not(.pv-verse--anchor),
+.pv-root--interactive .pv-w--hl {
+  cursor: pointer;
+}
+
+/* The drag selection, in highlight colours so it previews what it will become. */
+.pv-root--interactive .pv-scroll ::selection {
+  background: var(--pv-highlight);
+  color: inherit;
+}
+
+/*
+ * The first word of a touch phrase, waiting for the tap on its last word.
+ * An outline rather than a fill: it is not on the wall yet.
+ */
+.pv-w--draft {
+  outline: 0.08em dashed var(--pv-accent);
+  outline-offset: 0.06em;
+  border-radius: 0.1em;
+}
+
+/*
+ * Touch screens: the long-press is ours (it starts a phrase), so no native
+ * text selection or callout menu may open over it. A mouse keeps selection,
+ * because dragging across words is how a mouse picks a phrase.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .pv-root--interactive .pv-scroll {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Lobby and endings                                                          */
+/* ------------------------------------------------------------------------- */
+
+.pv-lobby {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.pv-lobby-label {
+  margin: 0;
+  font-size: 2.4vh;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--pv-muted);
+}
+
+/*
+ * The join code as something a camera can read, on the screen everyone in the
+ * room is already looking at.
+ *
+ * White ground regardless of theme, and the quiet zone is baked into the SVG's
+ * own viewBox: a dark-on-dark code, or one whose edge touches its container,
+ * does not scan. Sized in `vh` like everything else here, so it stays readable
+ * from the back of a hall on a television and shrinks sensibly in the
+ * controller's preview.
+ */
+.pv-lobby-qr {
+  width: 26vh;
+  height: 26vh;
+  padding: 1.2vh;
+  background: #fff;
+  border-radius: 1vh;
+}
+
+.pv-lobby-qr--pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0.4vh dashed var(--pv-muted);
+  background: transparent;
+  color: var(--pv-muted);
+  font-size: 3.4vh;
+  line-height: 1.25;
+  padding: 1.6vh;
+}
+
+.pv-lobby-code {
+  margin: 0;
+  font-size: 12vh;
+  letter-spacing: 0.12em;
+  color: var(--pv-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-lobby-hint {
+  margin: 0;
+  font-size: 3vh;
+  color: var(--pv-muted);
+}
+
+.pv-lobby-typed {
+  margin: 0;
+  font-size: 3vh;
+  color: var(--pv-muted);
+}
+
+.pv-lobby-button {
+  margin-top: 1.4rem;
+  padding: 0.7em 1.6em;
+  font: inherit;
+  font-size: 2.4vh;
+  color: var(--pv-bg);
+  background: var(--pv-accent);
+  border: none;
+  border-radius: 0.4em;
+  cursor: pointer;
+}
+
+.pv-lobby-keys {
+  position: absolute;
+  bottom: 3vh;
+  margin: 0;
+  font-size: 1.8vh;
+  color: var(--pv-muted);
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Blanking                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * A curtain over the content rather than a swap for it, so unblanking restores
+ * the screen exactly -- scroll position included -- with no re-render and no
+ * flash of re-laid-out text.
+ *
+ * It fades to the *current theme's* background, not a fixed black: Max
+ * visibility and Light are meant to be blanked to white, the way the old
+ * LiveScreen viewer did, while Dark still fades to near-black. One rule
+ * ("fade to `--pv-bg`") covers both without the viewer having to know which
+ * theme wants which colour.
+ */
+.pv-curtain {
+  position: absolute;
+  inset: 0;
+  background: var(--pv-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+.pv-curtain--on { opacity: 1; }
+
+/*
+ * The automatic cross-fade between passages ("fade to white between
+ * passages" in the old viewer). A sibling overlay, keyed by transition
+ * number so React remounts it on every genuine item change and the browser
+ * restarts the animation from a clean node -- no JS timer decides when it
+ * ends, so there is no state that can leave a curtain stuck partway.
+ */
+@keyframes pv-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.pv-curtain-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--pv-bg);
+  opacity: 0;
+  pointer-events: none;
+  /* `forwards` is what stops this sitting at opacity 1 forever: without it,
+     the element's base `opacity` (the property's initial value, 1, since
+     nothing here sets it outside the keyframes) is what "no animation
+     applied" resolves to once the animation ends. */
+  animation: pv-flash 480ms ease-in-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-curtain,
+  .pv-curtain-flash,
+  .pv-verse {
+    transition: none;
+    animation: none;
+  }
+
+  /* Arrive at the highlighted state instead of drawing it. The highlight still
+     has to be there -- it is information, not decoration. */
+  .pv-w--hl {
+    animation: none;
+    background-size: 100% 0.92em;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Hymns
+ *
+ * Barer than the passage view on purpose. A congregation singing is reading
+ * ahead of the words rather than studying them, so there is no verse
+ * numbering, no reference and nothing to draw the eye off the line being sung.
+ * The attribution is small, fixed to the foot, and comes from the library's
+ * own metadata -- which is what keeps the credit correct without a presenter
+ * having to type it.
+ * ------------------------------------------------------------------------ */
+
+.pv-hymn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  text-align: center;
+}
+
+.pv-hymn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  font-size: calc(var(--present-font-vh, 5.2) * 1vh * var(--verse-shrink, 1));
+  line-height: 1.28;
+  color: var(--pv-fg);
+}
+
+.pv-hymn-line {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.pv-hymn-footer {
+  position: absolute;
+  bottom: 2.4vh;
+  inset-inline: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vh;
+  font-size: 1.9vh;
+  color: var(--pv-muted);
+}
+
+.pv-hymn-title {
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------------------
+ * Quotes
+ *
+ * Someone else's words, set apart from a presenter's own text slide: centred,
+ * in quotation marks, with the attribution set off below rather than run into
+ * the sentence -- the old viewer's own quote template.
+ * ------------------------------------------------------------------------ */
+
+.pv-quote {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4vh;
+  min-height: 0;
+  text-align: center;
+  padding: 0 6vw;
+}
+
+.pv-quote-text {
+  margin: 0;
+  max-width: 46ch;
+  font-style: italic;
+  font-size: calc(var(--present-font-vh, 5.2) * 1vh * var(--verse-shrink, 1));
+  line-height: 1.32;
+  color: var(--pv-fg);
+  text-wrap: pretty;
+}
+
+.pv-quote-attribution {
+  margin: 0;
+  font-style: normal;
+  font-size: 2.4vh;
+  color: var(--pv-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * The hover menu
+ *
+ * Fixed to the bottom of the screen, in its own palette rather than the
+ * theme's -- a dark menu on the Max visibility theme's white ground, or a
+ * light one on Dark, would be unreadable against itself. It appears on mouse
+ * movement and hides again after a few seconds of stillness (`useHoverMenu`),
+ * so a television with no mouse attached never shows it.
+ * ------------------------------------------------------------------------ */
+
+.pv-menu {
+  position: absolute;
+  inset-inline: 3vw;
+  bottom: 3vh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 0.8em 1em;
+  border-radius: 0.6em;
+  background: rgba(20, 18, 16, 0.86);
+  color: #f2ece1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 1.9vh;
+  box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.35);
+}
+
+.pv-menu-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.pv-menu-row--status {
+  opacity: 0.85;
+  font-size: 0.92em;
+}
+
+.pv-menu-label {
+  color: #b8ada0;
+  margin-inline-end: 0.2em;
+}
+
+.pv-menu-label--gap {
+  margin-inline-start: 0.8em;
+}
+
+.pv-menu-status {
+  margin-inline-end: 0.4em;
+}
+
+.pv-menu-choice,
+.pv-menu-btn {
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.4em;
+  padding: 0.25em 0.7em;
+  cursor: pointer;
+}
+
+.pv-menu-btn--wide {
+  margin-inline-start: 0.6em;
+  padding-inline-start: 1em;
+  padding-inline-end: 1em;
+}
+
+.pv-menu-choice:hover,
+.pv-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.pv-menu-choice--active {
+  background: #d8c9a8;
+  color: #12100e;
+  border-color: #d8c9a8;
+}
+
+.pv-menu-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pv-menu-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pv-menu-value {
+  min-width: 1.4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-hymn-credit {
+  opacity: 0.75;
+}
+
+/* Chapter context outside the item's verse range: visible, but clearly not part of it and not clickable. */
+.pv-verse.pv-verse--outside,
+.pv-passage--max .pv-verse.pv-verse--outside { opacity: 0.4; pointer-events: none; }

@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaneOverlay } from './shared/PaneOverlay';
 import { useI18n } from '../contexts/useI18n';
@@ -227,7 +228,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
                         )}
                       </span>
                       <span className="block text-sm text-text-secondary">
-                        {module.abbreviation}
+                        <Bdi>{module.abbreviation}</Bdi>
                         {module.languageCode && ` • ${module.languageCode.toUpperCase()}`}
                         {module.version && ` • v${module.version}`}
                       </span>

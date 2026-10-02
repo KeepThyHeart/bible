@@ -21,6 +21,11 @@ vi.mock('react-i18next', () => ({
 }));
 
 // ---- useStore: call selector immediately --------------------------------
+// contentDirection pulls in moduleStore (and through it i18n); the pane test only needs plain attrs.
+vi.mock('../../utils/contentDirection', () => ({
+  moduleContentAttrs: () => ({ dir: 'ltr', lang: 'en', 'data-content-dir': 'ltr' }),
+}));
+
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));

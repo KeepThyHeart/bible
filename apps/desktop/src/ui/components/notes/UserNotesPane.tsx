@@ -339,6 +339,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   // documents/journal/prayer notes keep the free-text title.
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
+                  notePath={currentNotePath}
                   // The same four actions the sidebar offers, also in the
                   // editor toolbar - the sidebar is collapsed by default in
                   // the editor, so until now "print this note" was behind a

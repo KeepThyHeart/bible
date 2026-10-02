@@ -69,6 +69,8 @@ export {
   LOCALE_REGISTRY,
   resolveLocaleDescriptor,
   directionForTag,
+  uiDirection,
+  isKnownUiLocale,
 } from './Data/Locales/LocaleRegistry';
 export type { LocaleDescriptor, LocaleDirection, DigitSystem } from './Data/Locales/LocaleRegistry';
 export {
@@ -81,15 +83,11 @@ export type { Localizer, DigitFormatOptions } from './Data/Locales/Localizer';
 export { parseLocaleMeta } from './Data/Locales/LocaleMetadata';
 export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata';
 // Side-effect import: registers every built-in Localizer beyond `en` (see the
-// module doc). Both books/*.ts files are pure data - no platform deps - so
-// this belongs in the browser barrel too.
+// module doc). Pure data, no platform deps, so it belongs in the browser barrel too.
 export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
-export {
-  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/es';
-export {
-  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/zhHans';
+// Multilingual reference engine (task 0077): parse, scan, suggest and format
+// references in any language with locale data; languages load on demand.
+export * from './Reference';
 
 export { collapseReferences, collapseReferencesStructured } from './Services/ReferenceCollapser';
 export type { CollapseOptions, CollapsedSegment } from './Services/ReferenceCollapser';
@@ -221,6 +219,23 @@ export type { HoverIntent, HoverIntentOptions } from './Ui/hoverIntent';
 // Direction of a *module's* text (by its language), independent of UI locale.
 export { directionForLanguage, isRtlLanguage } from './Data/Locales/TextDirection';
 
+// --- Bidi text and direction-aware geometry (task 0076) -------------------------
+export {
+  FSI,
+  LRI,
+  RLI,
+  PDI,
+  isolate,
+  isolateParams,
+  isolateMessageParams,
+  simpleMessageArgs,
+  isolateReference,
+  stripBidiControls,
+  hasBidiControls,
+} from './Ui/bidi';
+export { logicalArrow, logicalSwipe, scrollStart, setScrollStart, anchorAtPointer } from './Ui/directional';
+export type { LogicalStep, HorizontalScroller } from './Ui/directional';
+
 // --- Module catalog metadata ----------------------------------------------------
 // Language-free module facts: which module is the AI digest, recommended
 // translations, commentary sort order, machine-authorship detection. The prose
@@ -276,6 +291,43 @@ export * as Backup from './Backup';
 // --- Word study (pure: tokenising, stemming, word groups, rendering grouping, DTOs) ---
 export * from './WordStudy';
 export * from './Services/WordGroupStore';
+// WordStudy and KeywordMarks (via Text) both export the same primaryLanguage; naming it settles the ambiguity.
+export { primaryLanguage } from './Text';
+
+// --- Shared text tools (task 0089) ------------------------------------------------
+// Tokenising, normalising, stemming, stop words, word/phrase matching. KeywordMarks
+// re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
+// left out of this list to avoid duplicate `export *` names.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
+// --- Keyword marks (task 0065) --------------------------------------------------
+// The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
+// validation and the set service. Pure TypeScript; both apps wrap it in a UI.
+export * from './KeywordMarks';
+export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+
+// --- Genealogy explorer (task 0067): DTOs, graph queries, layouts, pan/zoom ---
+export * from './Genealogy';
+
+// --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
+export * from './Timeline';
+
+// --- Quiz (types, pure engine, grading, progress stores; no DOM, no database) ---
+export * from './Quiz';
+
+// --- Cross-reference graph (task 0068) -----------------------------------------
+// Types, the edge-weight formula, canon geometry, chapter-pair packing and the
+// budgeted ego-graph walk. Pure; the repository-backed service and index builder
+// live in the Node entry point.
+export * from './Services/XrefGraph';
+
 // --- Web user-data store (task 0084) ------------------------------------------
 // In-memory `IUserDataRepository` / `IVerseLinkRepository`, backup v1 export and
 // import for them, and the localStorage migration helper. Namespaced: it re-exports
@@ -287,3 +339,45 @@ export * as UserData from './UserData';
 // storage port, the flat field model shared with extension settings, and the
 // feature-flag resolver. Pure TypeScript.
 export * from './Settings';
+
+// --- Audio Bible (task 0059) -----------------------------------------------
+// The contracts (provider, TTS engine, player, manifest source, locator,
+// cache, ...), the recorded-chapter manifest and index validators plus their
+// JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
+export * from './audio';
+
+// --- Speech recognition and recitation (task 0071) ---------------------------
+export * as Speech from './speech';
+export * as Recite from './recite';
+
+// --- Reading plans (task 0073) --------------------------------------------------
+// Plan engine (builder, scheduler, stock library, store over user_data_item, service).
+// Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
+export * as ReadingPlans from './ReadingPlans';
+
+// --- Notifications and reminders engine (task 0083) -------------------------------
+// Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,
+// missed-run collapse, the settings document and the scheduler both apps run.
+// Pure TypeScript; apps supply timer, presenter and state ports.
+export * from './Reminders';
+
+// --- Weights, measures and money (task 0069) -------------------------------------
+// Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
+// converter, anchor resolver, decoration layer and popup view model. Pure.
+export * from './Measures';
+
+// --- Asset store (task 0090) -------------------------------------------------
+// Download/cache manager for large optional assets: manifest, ports (transport,
+// store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
+export * from './assets';
+
+// --- Offline packs (task 0075) -----------------------------------------------
+// Pack types, planner (dependencies, sizes, fit), presets from starter packs and
+// the pack runner over per-kind installers. Pure TypeScript.
+export * from './offline';
+
+// --- Similar passages (task 0070) --------------------------------------------
+// Types, ranking weights/policy, match explanations, the SNB1 neighbour table
+// reader and the service that picks table or live source. Pure TypeScript; the
+// Node-only vector source is on the main entry.
+export * from './Services/Similar';

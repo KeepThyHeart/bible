@@ -143,6 +143,8 @@ a public deployment:
 }
 ```
 
+`features.timeline` and `features.quiz` (both off by default) show the Timeline and Quiz tabs. The Quiz tab needs an installed `quiz` module; the web app keeps quiz progress in memory only and saves nothing in the browser.
+
 `docsUrl` is the documentation website the Help dialog links to. It reaches the
 browser through `/api/config`, so **the server picks up a change on restart, not
 a rebuild** — there is no build-time equivalent of the desktop app's
@@ -171,6 +173,18 @@ Deployments that predate `site-config.json` still read `server-config.json` from
 | `BIBLE_MODULES_DIR` | `data` (repo root) | Parent of `modules/` directory containing module .db files |
 | `NO_AUTH` | — | Set to `1` to disable password gate |
 | `SITE_PASSWORD` | — | Override password (alternative to server-config.json) |
+
+### Build options
+
+Build-time values are read by `vite.config.ts` from environment variables and baked into the client, so changing one needs a rebuild.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events still get 1.5x their length, coarse-dated items (century or millennium precision) may be framed wider, the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. The desktop app takes the same variable (see its README, Build Configuration). |
+
+```bash
+BIBLE_TIMELINE_MIN_SPAN_YEARS=100 pnpm run build:client
+```
 
 ### Branding
 

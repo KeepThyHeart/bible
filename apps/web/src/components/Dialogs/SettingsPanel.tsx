@@ -13,6 +13,11 @@ import { moduleStore } from '../../stores/moduleStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { audioStore } from '../../stores/audioStore';
+import { AudioSettingsTab } from './AudioSettingsTab';
+import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
+import { DownloadsSection } from './DownloadsSection';
+import { OfflinePackSection } from './OfflinePackSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
@@ -20,22 +25,26 @@ import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
 import type { Localizer } from '@bible/core/browser';
 
-type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'offline' | 'about';
+type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'about';
 
 const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'text-size', label: 'settings.tabs.textSize', icon: 'fa-text-height' },
   { key: 'theme', label: 'settings.tabs.theme', icon: 'fa-palette' },
   { key: 'modules', label: 'settings.tabs.modules', icon: 'fa-book' },
   { key: 'gestures', label: 'settings.tabs.gestures', icon: 'fa-hand-pointer' },
+  { key: 'audio', label: 'settings.tabs.audio', icon: 'fa-headphones' },
+  { key: 'notifications', label: 'settings.tabs.notifications', icon: 'fa-bell' },
   { key: 'offline', label: 'settings.tabs.offline', icon: 'fa-cloud-arrow-down' },
   { key: 'about', label: 'settings.tabs.about', icon: 'fa-circle-info' },
 ];
 
 function sectionToTab(section?: string): SettingsTab {
   if (section === 'bible-font' || section === 'commentary-font' || section === 'study-font' || section === 'text-size') return 'text-size';
-  if (section === 'theme' || section === 'appearance') return 'theme';
+  if (section === 'theme' || section === 'appearance' || section === 'measures') return 'theme';
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
+  if (section === 'audio') return 'audio';
+  if (section === 'notifications') return 'notifications';
   if (section === 'offline') return 'offline';
   if (section === 'about') return 'about';
   return 'text-size';
@@ -158,8 +167,19 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     isEnabled,
     values: registryValues,
   });
+  const keywordFields = WEB_SETTINGS.toFields('keywords', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
+  const measureFields = WEB_SETTINGS.toFields('measures', {
+    translate: (key, fallback) => t(key, fallback),
+    isEnabled,
+    values: registryValues,
+  });
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
+  const audioEnabled = useStore(audioStore, () => audioStore.enabled);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [resettingCache, setResettingCache] = useState(false);
   // Offered whenever the PWA might be in play: on, or unknown (offline boot).
@@ -201,7 +221,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   const activeBibleTabs = useStore(bibleStore, () =>
     bibleStore.tabs.map(t => t.moduleAbbr)
   );
-  const activeAbbrSet = new Set(activeBibleTabs);
 
   // Set active tab based on scrollToSection
   useEffect(() => {
@@ -262,24 +281,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   }, [offlineEnabled]);
 
   if (!isOpen) return null;
-
-  // Sort bible modules: currently selected first, then rest
-  const bibleModules = availableModules
-    .filter(m => m.type === 'bible')
-    .sort((a, b) => {
-      const aActive = activeAbbrSet.has(a.abbreviation) ? 0 : 1;
-      const bActive = activeAbbrSet.has(b.abbreviation) ? 0 : 1;
-      if (aActive !== bActive) return aActive - bActive;
-      return a.abbreviation.localeCompare(b.abbreviation);
-    });
-
-  const handleDownload = async (abbreviation: string, name: string) => {
-    try {
-      await storageManager.downloadModule(abbreviation, name);
-    } catch (err) {
-      console.error('Download failed:', err);
-    }
-  };
 
   const handleRemove = async (abbreviation: string) => {
     await storageManager.removeModule(abbreviation);
@@ -352,7 +353,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
         <div class="settings-panel__layout">
           {/* Left tab navigation */}
           <div class="settings-panel__sidebar">
-            {TAB_ITEMS.filter(item => item.key !== 'offline' || serverOfflineDownloads).map(item => (
+            {TAB_ITEMS.filter(item => (item.key !== 'offline' || serverOfflineDownloads) && (item.key !== 'audio' || audioEnabled)).map(item => (
               <button
                 key={item.key}
                 class={`settings-panel__tab ${activeTab === item.key ? 'settings-panel__tab--active' : ''}`}
@@ -424,7 +425,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   class={`settings-panel__advanced-toggle ${advancedOpen ? 'settings-panel__advanced-toggle--open' : ''}`}
                   onClick={() => setAdvancedOpen(!advancedOpen)}
                 >
-                  <i class="fa-solid fa-chevron-right" />
+                  <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                   {t('settings.textSize.advanced')}
                 </button>
 
@@ -563,6 +564,21 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   </label>
                   <div class="settings-panel__field-hint">{t('settings.theme.leftHandedHint')}</div>
                 </div>
+                <SettingsForm
+                  fields={keywordFields}
+                  values={registryValues}
+                  idPrefix="settings-keywords"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
+                <div class="settings-panel__section-header">
+                  <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.measures.title')}</h4>
+                </div>
+                <SettingsForm
+                  fields={measureFields}
+                  values={registryValues}
+                  idPrefix="settings-measures"
+                  onChange={(key, value) => { webSettings.set(key, value); }}
+                />
               </div>
             )}
 
@@ -615,6 +631,10 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 />
               </div>
             )}
+
+            {activeTab === 'audio' && audioEnabled && <AudioSettingsTab />}
+
+            {activeTab === 'notifications' && <NotificationsSettingsTab />}
 
             {activeTab === 'about' && (
               <div class="settings-panel__section" data-section="about">
@@ -742,31 +762,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
                 {offlineEnabled && (
                   <>
-                    <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.offline.bibleTranslations')}</h4>
-                    <div class="offline-modules-list">
-                      {bibleModules.map(mod => {
-                        const abbr = mod.abbreviation;
-                        const downloaded = downloadedModules.find(d => d.abbreviation === abbr);
-                        const progress = activeDownloads.get(abbr);
-                        const isInUse = activeAbbrSet.has(abbr);
-                        return (
-                          <OfflineModuleCard
-                            key={abbr}
-                            abbreviation={abbr}
-                            name={mod.name}
-                            sizeBytes={downloaded?.sizeBytes}
-                            isDownloaded={!!downloaded}
-                            progress={progress}
-                            onDownload={() => handleDownload(abbr, mod.name)}
-                            onRemove={() => handleRemove(abbr)}
-                            badge={isInUse ? t('settings.offline.currentlyOpen') : undefined}
-                          />
-                        );
-                      })}
-                      {bibleModules.length === 0 && (
-                        <div class="offline-modules-list__empty">{t('settings.offline.noModules')}</div>
-                      )}
-                    </div>
+                    <OfflinePackSection />
 
                     <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.offline.semanticSearch')}</h4>
                     <div class="offline-modules-list">
@@ -788,6 +784,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     </div>
                   </>
                 )}
+
+                <DownloadsSection />
               </div>
             )}
           </div>

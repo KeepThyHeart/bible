@@ -1,8 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
+import { followStore } from '../../stores/followStore';
+import { presentStore } from '../../stores/presentStore';
+import { PresentHighlightBar, useHighlightDraftLifecycle } from '../Present/PresentHighlightBar';
+import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { VerseRenderer } from './VerseRenderer';
@@ -12,9 +17,18 @@ import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
-import { directionForLanguage } from '@bible/core/browser';
+import { draftIsOnWall } from '../../present/wordHighlight';
+import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
+import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
+import { useMeasureDecorations } from '../../hooks/useMeasureDecorations';
+import { useMeasurePopup } from '../../hooks/useMeasurePopup';
+import { mergeChapterDecorations } from '../../measures/chapterMeasures';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
-import type { VotdData } from '../../providers/interfaces';
+import type { VotdData, IInterlinearDataProvider } from '../../providers/interfaces';
+
+import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
+
+export { KEYWORD_PANE_ID };
 
 function VerseOfTheDay() {
   const { t } = useTranslation();
@@ -43,6 +57,8 @@ function VerseOfTheDay() {
     </div>
   );
 }
+
+const NO_VERSES: never[] = [];
 
 // Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
 const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude
@@ -147,11 +163,15 @@ interface BibleContentProps {
   strongsEntries?: Record<string, StrongsEntryData>;
   interlinearLoading?: boolean;
   interlinearUnavailable?: boolean;
+  /** Server interlinear source, used to fetch rows for Strong's keyword rules outside Study. */
+  interlinearProvider?: IInterlinearDataProvider;
   onStrongsClick?: (strongsNumber: string) => void;
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
   onStrongsLeave?: () => void;
   onCopyVerse?: (verseId: number) => void;
   onCommentaryVerse?: (verseId: number) => void;
+  /** Opens the Settings panel (optionally on a section); the measures popup's Units button uses it. */
+  onOpenSettings?: (section?: string) => void;
 }
 
 export function BibleContent({
@@ -159,11 +179,13 @@ export function BibleContent({
   strongsEntries,
   interlinearLoading,
   interlinearUnavailable,
+  interlinearProvider,
   onStrongsClick,
   onStrongsHover,
   onStrongsLeave,
   onCopyVerse,
   onCommentaryVerse,
+  onOpenSettings,
 }: BibleContentProps) {
   const { t } = useTranslation();
   const localizer = useLocalizer();
@@ -175,17 +197,66 @@ export function BibleContent({
   // Whether this chapter carries any publisher footnotes at all. Modules that
   // ship none leave the Notes toggle with nothing to reveal.
   const hasNotes = tab?.verses.some(v => v.footnotes && v.footnotes.length > 0) ?? false;
+  // Only read for a follow-along session (`/present/f/<code>`) -- null on
+  // every ordinary tab, since `followStore` is never `active` there.
+  const followLive = useStore(followStore, () => followStore.liveVerse);
+  const followBookChapterMatches = Boolean(
+    followLive && tab?.book === followLive.book && tab.chapter === followLive.chapter,
+  );
+  // Present mode: what the wall is showing (for the sent-verse colour and each
+  // verse's send button) and the presenter's word-highlight draft. All null /
+  // false outside a session, when none of this renders.
+  const presenting = useStore(presentStore, () => presentStore.session !== null);
+  const wall = useStore(presentStore, () => presentStore.wall);
+  const highlightDraft = useStore(presentStore, () => presentStore.highlightDraft);
+  useHighlightDraftLifecycle();
   const [refValue, setRefValue] = useState('');
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
   const showBookPicker = useStore(bibleStore, () => bibleStore.showBookPicker);
+  // The verse being read aloud: a highlight only, drawn on this tab's verses.
+  // Its own store, so a verse change re-renders this once and a position tick not at all.
+  const followVerseId = useStore(audioStore.follow, () => audioStore.follow.verseId);
+  const followTabId = useStore(audioStore.follow, () => audioStore.follow.tabId);
+  const followAlong = useStore(audioStore, () => audioStore.prefs.followAlong);
+
+  const bibleModule = moduleStore.getBibleModules().find(m => m.abbreviation === tab?.moduleAbbr);
+  const keywordDecorations = useKeywordDecorations(KEYWORD_PANE_ID, {
+    moduleAbbr: tab?.moduleAbbr ?? '',
+    moduleId: bibleModule?.module_id,
+    language: bibleModule?.language_code,
+    book: tab?.book ?? null,
+    chapter: tab?.chapter ?? null,
+    verses: tab?.verses ?? NO_VERSES,
+    surface: displayMode,
+    studyRows: displayMode === 'study' ? interlinearWords : undefined,
+    interlinearProvider,
+  });
+  // Weights, measures and money notes (task 0069): a second paint layer, merged
+  // with the keyword layer per verse so the renderer still gets one `resolved`.
+  const measures = useMeasureDecorations({
+    book: tab?.book ?? null,
+    chapter: tab?.chapter ?? null,
+    verses: tab?.verses ?? NO_VERSES,
+    moduleLanguage: bibleModule?.language_code,
+    surface: displayMode,
+    studyRows: displayMode === 'study' ? interlinearWords : undefined,
+    uiLocale: i18n.language || 'en',
+  });
+  const mergedResolved = useMemo(
+    () => mergeChapterDecorations(
+      tab?.verses ?? NO_VERSES, keywordDecorations.marks?.layer, keywordDecorations.resolved, measures?.layer, displayMode,
+    ),
+    [tab?.verses, keywordDecorations.marks, keywordDecorations.resolved, measures, displayMode],
+  );
+  const measurePopup = useMeasurePopup(measures, onOpenSettings);
 
   if (!tab) return <div class="bible-content bible-content--empty">{t('bibleContent.noTabSelected')}</div>;
 
   if (!tab.book || !tab.chapter) {
     const handleRefSubmit = (e: Event) => {
       e.preventDefault();
-      const ref = parseReference(refValue, bookAliases);
+      const ref = parseReference(stripBidiControls(refValue), bookAliases);
       if (ref) {
         setRefError('');
         bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { endVerse: ref.endVerse });
@@ -210,7 +281,7 @@ export function BibleContent({
               class="bible-content__ref-input"
             />
             <button type="submit" class="bible-content__ref-btn">
-              <i class="fa-solid fa-arrow-right rtl-mirror" /> {t('bibleContent.go')}
+              <i class="fa-solid fa-arrow-right kth-rtl-mirror" /> {t('bibleContent.go')}
             </button>
           </form>
           {refError && <p style={{ color: 'var(--text-muted)', fontSize: '0.85em', marginTop: '8px' }}>{refError}</p>}
@@ -243,6 +314,33 @@ export function BibleContent({
         start: Math.min(tab.studyVerse, tab.selectionEndVerse),
         end: Math.max(tab.studyVerse, tab.selectionEndVerse),
       }
+    : null;
+
+  // Present mode. A verse is "sent" when it is the very verse the wall shows,
+  // of this passage in this translation; the send button on every other verse
+  // sends it (and moves the study focus there, so the next arrow key continues
+  // from what was just sent).
+  const live = presenting ? wall?.live : null;
+  const wallVerse = live?.kind === 'passage'
+    && live.module === tab.moduleAbbr && live.book === tab.book && live.chapter === tab.chapter
+    ? wall!.position.index
+    : null;
+  const sendVerse = (verseNumber: number) => {
+    if (!tab.book || !tab.chapter) return;
+    bibleStore.focusVerseNumber(verseNumber);
+    void presentStore.show(
+      { kind: 'passage', module: tab.moduleAbbr, book: tab.book, chapter: tab.chapter },
+      verseNumber,
+    );
+  };
+  const draftOnWall = draftIsOnWall(highlightDraft, wall?.position.highlights ?? []);
+  const wordHighlight = presenting
+    ? {
+      draft: highlightDraft,
+      sent: draftOnWall,
+      onHold: (verseId: number, index: number) => presentStore.beginHighlight(verseId, index),
+      onTap: (verseId: number, index: number) => presentStore.tapHighlightWord(verseId, index),
+    }
     : null;
 
   // Scripture follows the MODULE's writing direction, not the UI's. Someone
@@ -308,17 +406,17 @@ export function BibleContent({
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
         <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left rtl-mirror" />
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
           onClick={() => bibleStore.openBookPicker()}
           title={t('bibleContent.goToBookChapter')}
         >
-          {isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`} <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
+          <bdi class="kth-bdi">{isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`}</bdi> <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
         <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right rtl-mirror" />
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
         </button>
       </div>
       {isLoading ? (
@@ -381,7 +479,7 @@ export function BibleContent({
               <i class="fa-solid fa-spinner fa-spin" /> {t('bibleContent.interlinearLoading')}
             </div>
           ) : (
-            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir}>
+            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir} {...measurePopup.handlers}>
             {interlinearUnavailable && studyShowInterlinear && (
               <div class="bible-content__interlinear-status bible-content__interlinear-status--unavailable">
                 <i class="fa-solid fa-circle-info" /> {t('bibleContent.interlinearUnavailable')}
@@ -392,6 +490,7 @@ export function BibleContent({
                 key={verse.verse_id}
                 verse={verse}
                 isHighlighted={tab.studyVerse === verse.verse_id}
+                isPlaying={followAlong && followTabId === tab.id && followVerseId === verse.verse_id}
                 isSelected={tab.previewVerse != null && (
                   tab.previewVerseEnd
                     ? verse.verse_id >= tab.previewVerse && verse.verse_id <= tab.previewVerseEnd
@@ -405,16 +504,36 @@ export function BibleContent({
                 interlinearWords={studyShowInterlinear ? wordsByVerse.get(verse.verse_id) : undefined}
                 strongsEntries={strongsEntries}
                 showNotes={studyShowNotes}
+                resolved={mergedResolved?.get(verse.verse_id)}
                 onVerseClick={handleVerseClick}
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}
                 onStrongsLeave={onStrongsLeave}
+                isFollowLive={followBookChapterMatches && verse.verse === followLive!.verse}
+                followHighlights={
+                  followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlights : undefined
+                }
+                sendRail={presenting ? {
+                  sent: wallVerse === verse.verse,
+                  onSend: () => sendVerse(verse.verse),
+                  label: wallVerse === verse.verse
+                    ? t('present.verseOnScreen', { verse: verse.verse })
+                    : t('present.sendVerse', { verse: verse.verse }),
+                } : undefined}
+                wordHighlight={wordHighlight ? {
+                  draft: wordHighlight.draft,
+                  sent: wordHighlight.sent,
+                  onHold: index => wordHighlight.onHold(verse.verse_id, index),
+                  onTap: index => wordHighlight.onTap(verse.verse_id, index),
+                } : undefined}
               />
             ))}
             </div>
           )}
         </>
       )}
+      {measurePopup.popup}
+      <PresentHighlightBar />
       {/* Mobile-only action bar — currently disabled; use context menu instead */}
       <BookChapterPicker
         isOpen={showBookPicker}

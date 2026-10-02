@@ -240,14 +240,13 @@ function copyContentTable(sourceDb: BetterSqlite3.Database, liteDb: BetterSqlite
  * (which table(s) count as "content") now comes from `CONTENT_MAP` instead
  * of a hard-coded `'bible_verse'` string.
  */
-function sendLiteBibleModule(
-  res: Response,
-  req: Request,
-  moduleType: ModuleType,
-  filename: string,
-  dbPath: string,
-  litePath: string
-): void {
+/**
+ * Ensure the lite copy of a Bible module exists at `litePath` and is fresh
+ * (newer than the source DB), building it (and its `.gz` sibling) if not.
+ * Shared by the download routes and the offline manifest
+ * (`offline/offlineFiles.ts`). Synchronous: the caller decides where to run it.
+ */
+export function buildLiteBibleFile(dbPath: string, litePath: string): void {
   // Check for cached lite copy (valid if newer than source DB)
   if (existsSync(litePath)) {
     const sourceMtime = statSync(dbPath).mtimeMs;
@@ -258,8 +257,6 @@ function sendLiteBibleModule(
       // ~230 ms to build it; every request after this is served from disk
       // with no compression work at all.
       if (!freshGzSibling(litePath)) writeGzSibling(litePath);
-
-      sendDbFile(res, litePath, filename, req, { compressible: true });
       return;
     }
   }
@@ -275,7 +272,7 @@ function sendLiteBibleModule(
     // `module_info` and `schema_version` are identity/version metadata, not
     // content, so they stay hard-coded above and below -- only the content
     // table name(s) come from the registry.
-    const [shape] = CONTENT_MAP[moduleType];
+    const [shape] = CONTENT_MAP.bible;
     if (shape) {
       copyContentTable(sourceDb, liteDb, shape.table, shape.rowid);
     }
@@ -288,12 +285,40 @@ function sendLiteBibleModule(
     // Compress once, here, so no request ever pays for it. See writeGzSibling.
     writeGzSibling(litePath);
     console.log(`[LiteCache] Generated ${litePath} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
-
-    sendDbFile(res, litePath, filename, req, { compressible: true });
   } finally {
     liteDb.close();
     sourceDb.close();
   }
+}
+
+function sendLiteBibleModule(
+  res: Response,
+  req: Request,
+  _moduleType: ModuleType,
+  filename: string,
+  dbPath: string,
+  litePath: string
+): void {
+  buildLiteBibleFile(dbPath, litePath);
+  sendDbFile(res, litePath, filename, req, { compressible: true });
+}
+
+/**
+ * Whether a module passes the settings.json visibility filter that
+ * `GET /api/modules` applies: types managed by settings (bible, commentary,
+ * dictionary) must be active; other types pass through. `settings` null means
+ * no filter is configured (callers decide what that implies).
+ */
+export function isModuleVisible(
+  settings: SiteSettings,
+  mod: { moduleType: ModuleType; abbreviation?: string; getAbbreviation(): string }
+): boolean {
+  const abbr = mod.abbreviation || mod.getAbbreviation();
+  if (!abbr) return false;
+  const settingsKey = getSettingsKey(mod.moduleType);
+  // Module types not managed by settings (topical, xref, book, etc.) pass through
+  if (!settingsKey) return true;
+  return isModuleActive(settings[settingsKey], abbr);
 }
 
 export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettings | null): Router {
@@ -319,14 +344,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
       const repo = db.getModuleMetadataRepo();
       const modules = type ? repo.getByType(type) : repo.getAll();
 
-      const filtered = modules.filter((m) => {
-        const abbr = m.abbreviation || m.getAbbreviation();
-        if (!abbr) return false;
-        const settingsKey = getSettingsKey(m.moduleType);
-        // Module types not managed by settings (topical, xref, book, etc.) pass through
-        if (!settingsKey) return true;
-        return isModuleActive(siteSettings[settingsKey], abbr);
-      });
+      const filtered = modules.filter((m) => isModuleVisible(siteSettings, m));
 
       res.json(filtered.map((m) => {
         const abbr = m.abbreviation || m.getAbbreviation();
@@ -414,7 +432,9 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         return abbr?.toLowerCase() === name.toLowerCase();
       });
 
-      if (!mod) {
+      // Hidden in settings.json: indistinguishable from absent. (With no
+      // settings loaded the filter is off, as it always was for downloads.)
+      if (!mod || (siteSettings && !isModuleVisible(siteSettings, mod))) {
         res.status(404).json({ error: 'Module not found' });
         return;
       }
@@ -459,7 +479,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         return abbr?.toLowerCase() === name.toLowerCase();
       });
 
-      if (!mod || mod.moduleType !== 'bible') {
+      if (!mod || mod.moduleType !== 'bible' || (siteSettings && !isModuleVisible(siteSettings, mod))) {
         sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, 'Bible module not found');
         return;
       }

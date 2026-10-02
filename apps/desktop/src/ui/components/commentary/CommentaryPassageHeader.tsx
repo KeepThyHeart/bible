@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React from 'react';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { formatVerseReference } from '../../utils/verseReference';
@@ -43,7 +44,7 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
             title={t('ui.commentaryPassageHeader.goToVerse')}
             data-testid="commentary-verse-ref"
           >
-            {formatVerseReference(currentVerseId)}
+            <Bdi>{formatVerseReference(currentVerseId)}</Bdi>
           </span>
         )}
         <PinButton

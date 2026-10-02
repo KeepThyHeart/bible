@@ -21,6 +21,7 @@
 
 import type { IpcMain } from 'electron';
 import { setMainLocale } from '../services/MainI18n';
+import { ensureReferenceLocales } from '../services/localizedReferenceParser';
 import { app } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -98,5 +99,7 @@ export function registerI18nHandlers(ipcMain: IpcMain): void {
   // menus, native dialogs and window titles are built here.
   ipcMain.handle('i18n:setLocale', (_event, locale: string) => {
     setMainLocale(locale);
+    // Reference parsing data for the new UI language (task 0077: on demand).
+    void ensureReferenceLocales([locale]);
   });
 }

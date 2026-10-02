@@ -2,10 +2,16 @@ import { Store } from './Store';
 
 const OFFLINE_SETTINGS_KEY = 'bible-reader-offline';
 
+/**
+ * 'semantic' is the search index; everything else is a real module type ('bible', 'commentary',
+ * 'dictionary', ...). Older persisted entries only ever hold 'bible' | 'semantic'.
+ */
+export type DownloadedModuleType = 'bible' | 'semantic' | (string & {});
+
 export interface DownloadedModule {
   abbreviation: string;
   name: string;
-  type: 'bible' | 'semantic';
+  type: DownloadedModuleType;
   sizeBytes: number;
   downloadedAt: string;
   /** ISO timestamp of last use (chapter/verse read). Updated on every local read. */

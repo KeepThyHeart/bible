@@ -187,7 +187,7 @@ export const USER_TABLES: readonly TableSpec[] = [
     fks: [], identity: contentAll(),
   },
   {
-    name: 'user_data_item', pk: ['item_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'user_data_item', pk: ['item_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['item_id', 'owner_uuid', 'collection', 'item_key', 'value', 'value_type', 'sort_order', 'created_date', 'modified_date', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['owner_uuid', 'collection', 'item_key'], conflict: 'newerWins', stamp: 'modified_date' },
   },

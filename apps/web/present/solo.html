@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- `viewport-fit=cover` so the page owns the whole panel; the overscan margin
+       below is what keeps text off the bezel, not the browser's safe area. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <title>Projection (solo)</title>
+  <!--
+    Solo viewer: the projection viewer driven by a local session on this machine,
+    with a command box for going to a verse. Unlike `viewer.html` it loads the
+    reading app's i18n and book tables (see `src/present/solo/solo.tsx`), so it
+    is its own page and the bare viewer stays bare.
+  -->
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <script>
+    /*
+     * Paint the background before the bundle runs.
+     *
+     * The session's theme arrives over the network, so it cannot be known here.
+     * What can be known is that a white flash on a projector between page load
+     * and first state is far more noticeable than a dark one, and that a viewer
+     * usually re-opens into the theme it last used.
+     */
+    (function applyLastTheme() {
+      var theme = 'dark';
+      try { theme = localStorage.getItem('present-viewer-theme') || 'dark'; } catch (e) { /* private mode */ }
+      document.documentElement.setAttribute('data-present-theme', theme === 'light' ? 'light' : 'dark');
+    })();
+  </script>
+</head>
+<body>
+  <div id="present-viewer"></div>
+  <script type="module" src="/src/present/solo/solo.tsx"></script>
+</body>
+</html>

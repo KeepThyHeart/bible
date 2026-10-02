@@ -17,6 +17,7 @@ type PopupPosition = PopupRect;
 
 function anchorOf(el: HTMLElement): PopupPosition {
   const r = el.getBoundingClientRect();
+  // rtl-physical: viewport rect from getBoundingClientRect (positioning owned by task 0088)
   return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
 }
 
@@ -291,7 +292,7 @@ export function useVersePopup(bibleProvider?: IBibleDataProvider): UseVersePopup
                 window.dispatchEvent(new CustomEvent('navigate-to-bible'));
               }}
             >
-              Go <i class="fa-solid fa-arrow-right fa-xs" />
+              Go <i class="fa-solid fa-arrow-right fa-xs kth-rtl-mirror" />
             </button>
           </div>
           {popup.loading

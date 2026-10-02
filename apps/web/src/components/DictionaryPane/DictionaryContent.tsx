@@ -11,6 +11,7 @@ import { linkStrongsRefs } from '../../utils/strongsLinks';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { newlinesToLineBreaks, resolveNewlineHandling } from '@bible/core/browser';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { moduleContentAttrs } from '../../utils/contentDirection';
 
 /**
  * The Strong's number this entry represents, or null for an ordinary dictionary.
@@ -183,7 +184,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 onClick={() => dictionaryStore.navigatePrev(tabId)}
                 title={adjacentPrev ? `${t('dictionaryContent.prevEntry')} ${adjacentPrev.word || adjacentPrev.entry_key}` : t('dictionaryContent.noPrevEntry')}
               >
-                <i class="fa-solid fa-chevron-left fa-xs" />
+                <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" />
               </button>
               <button
                 class="dictionary-content__toolbar-btn"
@@ -191,7 +192,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 onClick={() => dictionaryStore.navigateNext(tabId)}
                 title={adjacentNext ? `${t('dictionaryContent.nextEntry')} ${adjacentNext.word || adjacentNext.entry_key}` : t('dictionaryContent.noNextEntry')}
               >
-                <i class="fa-solid fa-chevron-right fa-xs" />
+                <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
               </button>
               <button
                 class="dictionary-content__toolbar-btn"
@@ -246,6 +247,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
             return (
               <div
                 class="dictionary-pane__entry-definition"
+                {...moduleContentAttrs(tab.moduleAbbr)}
                 {...versePopupProps}
                 onClick={(e: Event) => {
                   const target = e.target as HTMLElement;

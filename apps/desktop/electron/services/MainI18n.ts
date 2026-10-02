@@ -28,6 +28,7 @@
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { isolate, isolateMessageParams, uiDirection } from '@bible/core';
 
 const FALLBACK_LOCALE = 'en';
 
@@ -147,9 +148,20 @@ export function t(key: string, params?: Record<string, unknown>): string {
   loadMainCatalogs();
   const message = lookup(key) ?? key;
   if (!params) return message;
+  // In an RTL UI, wrap each interpolated string value (module name, file name,
+  // product name) in FSI..PDI so it cannot reorder the OS-chrome text around it.
+  const safe = isolateMessageParams(message, params, uiDirection(activeLocale));
   return message.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : whole,
+    Object.prototype.hasOwnProperty.call(safe, name) ? String(safe[name]) : whole,
   );
+}
+
+/**
+ * Isolate a value that is concatenated into native-dialog text outside `t()`
+ * (a file name in a hard-coded sentence). A no-op in an LTR UI.
+ */
+export function isolateForUi(text: string): string {
+  return uiDirection(activeLocale) === 'rtl' ? isolate(text, 'auto') : text;
 }
 
 /** Test seam: drop everything loaded so a test can start from a known state. */

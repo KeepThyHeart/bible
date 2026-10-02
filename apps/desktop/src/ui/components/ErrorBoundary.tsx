@@ -95,6 +95,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <details
               style={{
                 marginBottom: '24px',
+                // rtl-physical: technical error details/stack traces are LTR code
                 textAlign: 'left',
                 padding: '12px',
                 borderRadius: '6px',

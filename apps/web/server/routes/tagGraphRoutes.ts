@@ -36,6 +36,23 @@ export function createTagGraphRoutes(db: DatabaseManager, options?: { enabled?: 
   const router = Router();
   const enabled = options?.enabled ?? false;
 
+  // Genealogy explorer dataset (task 0067): one whole JSON, fetched once by the client.
+  // Registered before the disabled-middleware so a disabled tag graph answers with a
+  // DTO-shaped empty dataset instead of `[]`. Express adds a weak ETag to res.json().
+  router.get('/genealogy', (_req, res): void => {
+    const empty = { module: '', persons: [], edges: [], lineages: [], sources: [] };
+    try {
+      if (!enabled) { res.json(empty); return; }
+      const repo = db.getTagGraphRepo();
+      if (!repo) { res.json(empty); return; }
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.json(repo.getGenealogyDataset('genealogy'));
+    } catch (error) {
+      console.error('Error getting genealogy dataset:', error);
+      sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Failed to get genealogy dataset');
+    }
+  });
+
   // When tag graph is disabled via server config, all endpoints return empty results
   router.use((_req, res, next) => {
     if (!enabled) {

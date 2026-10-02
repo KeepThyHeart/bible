@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { sanitizeHtml } from '../../utils/sanitize';
 import type { SearchResultData } from '../../types';
+import { moduleContentAttrs } from '../../utils/contentDirection';
+import { Bdi } from '@bible/ui';
 
 interface SearchResultItemProps {
   result: SearchResultData;
@@ -39,8 +41,8 @@ export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, re
       onClick={handleClick}
     >
       <div class="search-result-item__ref">
-        <span class="search-result-item__reference">{result.reference}</span>
-        <span class="search-result-item__module">{result.module}</span>
+        <span class="search-result-item__reference"><Bdi>{result.reference}</Bdi></span>
+        <span class="search-result-item__module"><Bdi>{result.module}</Bdi></span>
         {isFuzzy && (
           <span class="search-result-item__match-type" data-testid="search-result-fuzzy-badge">
             <span aria-hidden="true">~</span> {t('search.approximateBadge')}
@@ -50,6 +52,7 @@ export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, re
       {result.title && <div class="search-result-item__title">{result.title}</div>}
       <div
         class="search-result-item__text"
+        {...moduleContentAttrs(result.module)}
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet || result.text) }}
       />
     </div>

@@ -21,6 +21,7 @@
  * label.
  */
 
+import { Bdi } from '@bible/ui';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useModuleStore } from '../../stores/useModuleStore';
 import { moduleAPI } from '../../stores/module/moduleAPI';
@@ -282,7 +283,7 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
     <aside
       data-testid="module-details-panel"
       aria-labelledby={headingId}
-      className="flex flex-col h-full min-h-0 w-full bg-surface border-l border-border"
+      className="flex flex-col h-full min-h-0 w-full bg-surface border-s border-border"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           // Close the panel only - the dialog's own Escape handler must not fire.
@@ -304,7 +305,7 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
           </h3>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <span className="text-sm text-text-secondary font-mono" data-testid="module-details-abbreviation">
-              {row.abbreviation}
+              <Bdi>{row.abbreviation}</Bdi>
             </span>
             {catalog?.recommended && (
               <span className="text-xs px-2 py-0.5 bg-success-soft text-success-text rounded">

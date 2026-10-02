@@ -1,0 +1,7 @@
+{
+  "locale.name": "Pseudo RTL",
+  "locale.nativeName": "Pseudo RTL",
+  "locale.status": "draft",
+  "locale.direction": "rtl",
+  "locale.notes": "Development only. English text wrapped in RLM marks, with the UI direction forced to rtl, to test the mirrored layout without a real translation. Never promote this locale."
+}

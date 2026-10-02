@@ -59,6 +59,19 @@ describe('sanitizeHtml', () => {
     expect(sanitizeHtml(html)).toBe(html);
   });
 
+  it('keeps the word-paint classes, word index and --ext-* custom properties of a painted word', () => {
+    const html = '<span class="word ext-deco ext-badge" data-word-index="3" '
+      + 'style="--ext-bg-image:linear-gradient(rgb(var(--theme-mark-1-rgb)), rgb(var(--theme-mark-1-rgb)));'
+      + '--ext-bg-size:100% 2px;--ext-badge:&quot;\\271A&quot;;--ext-badge-color:rgb(var(--theme-mark-1-rgb))">loved</span>';
+    const clean = sanitizeHtml(html);
+    expect(clean).toContain('class="word ext-deco ext-badge"');
+    expect(clean).toContain('data-word-index="3"');
+    expect(clean).toContain('--ext-bg-image:linear-gradient(rgb(var(--theme-mark-1-rgb))');
+    expect(clean).toContain('--ext-bg-size:100% 2px');
+    expect(clean).toContain('--ext-badge-color:rgb(var(--theme-mark-1-rgb))');
+    expect(clean).toContain('--ext-badge:');
+  });
+
   it('passes plain text through unchanged', () => {
     expect(sanitizeHtml('In the beginning God created')).toBe('In the beginning God created');
   });

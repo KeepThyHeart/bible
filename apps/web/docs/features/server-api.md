@@ -37,7 +37,10 @@ is the `path` the file passes to `registerRoute`.
 | `server/routes/strongsRoutes.ts` (`/api/strongs`) | `/:number` |
 | `server/routes/crossRefRoutes.ts` (`/api/xref`) | `/:module/:verseId/groups`, `/:module/:verseId/count` |
 | `server/routes/topicalRoutes.ts` (`/api/topical`) | `/modules`, `/verse/:verseId`, `/:module/topic/:topicId`, `/:module/topic/:topicId/children`, `/:module/topic/:topicId/verses`, `/search` — see [Topics](topics.md) |
-| `server/routes/tagGraphRoutes.ts` (`/api/taggraph`) | `/verse/:verseId`, `/entity/:category/:entityId`, plus `/associations`, `/verses`, `/facets`, `/topic-links` under that entity path; `/search`, `/topic-link/:sourceModule/:topicId`. Gated by the `showTagGraph` feature flag — see [Topics](topics.md) |
+| `server/routes/audioRoutes.ts` (`/audio`) | Only mounted when `features.audio` is on. `GET/HEAD` files under `v1/` (recordings: per-translation index, chapter manifests, chapter audio with Range) and `tts/` (an on-device engine's runtime and voices) of the audio directory (`<data dir>/audio`, or `audio.dir`); anything else, dotfiles and `..` are 404; a miss is a real 404, never the SPA shell. Manifests and audio are immutable (`max-age` one year), `index.json` is cached five minutes. See [Audio Bible](audio.md) |
+| `server/routes/tagGraphRoutes.ts` (`/api/taggraph`) | `/verse/:verseId`, `/entity/:category/:entityId`, plus `/associations`, `/verses`, `/facets`, `/topic-links` under that entity path; `/search`, `/topic-link/:sourceModule/:topicId`, and `/genealogy` (the whole genealogy dataset, fetched once by the client; needs `features.genealogy` as well — see [Genealogy](genealogy.md)). Gated by the `showTagGraph` feature flag — see [Topics](topics.md) |
+| `server/routes/quizRoutes.ts` (`/api/quiz`) | `GET /` returns the merged `QuizCatalog` (installed `quiz` modules plus per-chapter question counts; ETag, `private, max-age=3600, stale-while-revalidate=86400`); `GET /questions?range=START-END&range=...&kind=&mode=` returns `{ questions }` overlapping 1 to 50 verse-id ranges (400 on a bad range; the first module wins a duplicate key; `private, max-age=3600`). 404 JSON error when no quiz module is installed or the `quiz` feature flag is off (the default; set `features.quiz: true`). Questions carry no answers of the user's; quiz progress is not stored on the server |
+| `server/routes/timelineRoutes.ts` (`/api/timeline`) | `GET /` returns the whole installed `timeline` module as one JSON `TimelineDataset` (ETag, `private, max-age=3600, stale-while-revalidate=86400`); 404 JSON error when no timeline module is installed or the `timeline` feature flag is off (the default; set `features.timeline: true`) |
 | `server/routes/moduleRoutes.ts` (`/api`, **not** `/api/modules`) | `/modules`, `/books`, `/module-sections` (client UI grouping from `site-config.json`), `/modules/:name/download` (full module `.db` for offline; `:name` may be `semantic-index`), `/modules/:name/download-lite` (trimmed copy, cached under `<dataDir>/lite-cache`), `/modules/:name/info` |
 | `server/routes/studyOverviewRoutes.ts` (`/api/study/overview`) | `/:book/:chapter` — bundled pre-generated study data (commentary overview, topics, cross-refs, entities) served from static cache |
 | `server/routes/feedbackRoutes.ts` (`/api/feedback`) | `POST /` — see "User feedback" below |
@@ -90,6 +93,8 @@ WebAssembly module" — which breaks the `wa-sqlite` worker behind offline modul
 storage and the in-browser search index. It is the narrow directive for wasm
 only and does **not** re-enable `eval()` for JavaScript, unlike `'unsafe-eval'`.
 
+When `features.audio` is on, `server/cspDirectives.ts` adds `media-src 'self' blob:` (synthesized speech and cached recordings play from blob URLs created by our own page script) and the origins named in the `audio` block (`base`, an engine's `assetBase`) to `media-src` and `connect-src`. With the feature off the policy is unchanged. Worker and script sources stay `'self'`: an on-device engine's files are served from `/audio/tts`, not a CDN.
+
 ## Rate limiting
 
 `server/middleware/rateLimiter.ts`. Per-IP fixed windows of one minute, plus a
@@ -105,7 +110,7 @@ overlapping path.
 
 | Tier | Limit/min | Covers |
 |---|---:|---|
-| `content` | 600 | bible, commentary, dictionary, interlinear, strongs, xref, topical, taggraph, study, books, modules, module-sections |
+| `content` | 600 | bible, commentary, dictionary, interlinear, strongs, xref, topical, taggraph, timeline, quiz, study, books, modules, module-sections |
 | `search` | 60 | search |
 | `default` | 120 | everything else — health, config, version, plugins |
 | `global` | 10,000 | process-wide overload valve, mounted on `/api` only |

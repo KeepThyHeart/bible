@@ -42,6 +42,8 @@ interface HighlightedVerseProps {
   verseId: number;
   verseHTML: string;
   moduleId: number;
+  /** Bible tab whose keyword marks apply to this verse (task 0065). */
+  keywordTabId?: string;
   /** Optional React node to render inline at the end of the verse text */
   suffix?: React.ReactNode;
   /**
@@ -85,6 +87,7 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
   verseId,
   verseHTML,
   moduleId,
+  keywordTabId,
   suffix,
   surface,
   onWordMouseDown,
@@ -107,7 +110,7 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
   // Extracted once and shared with the decoration resolver (amendment A1).
   const words = useMemo(() => extractWordsWithFormatting(verseHTML), [verseHTML]);
 
-  const resolved = useResolvedVerseDecorations(verseId, moduleId, surface, words);
+  const resolved = useResolvedVerseDecorations(verseId, moduleId, surface, words, keywordTabId);
   const find = useVerseFindState(verseId);
 
   // Apply highlights to HTML (memoized)

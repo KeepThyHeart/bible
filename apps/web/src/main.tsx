@@ -19,7 +19,17 @@ import { isBootLoopTripped, navigateToLoginOnce, showBootError } from './utils/b
 import { bootFetch, releaseBootPrefetch } from './utils/bootPrefetch';
 import { isTagGraphEnabled, pwaFlag, pwaUpdateMode, setClientConfig } from './utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from './utils/appUpdate';
+import { presentStore } from './stores/presentStore';
+import { followStore } from './stores/followStore';
+import { isPresenterHash, PRESENTER_HASH, rememberReaderHash } from './apps/present/route';
+import { setVerseSearchProvider } from './present/command';
+import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from './present/controlLink';
+import { lazyFeature } from '@bible/core/browser';
+import { featureFlags } from './utils/featureFlags';
+import { getAudioConfig } from './audio/config';
 import i18n, { ensureLocaleLoaded } from './i18n';
+import { installBidiCopy } from './utils/bidiCopy';
+
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
 // icons for offline/PWA use. Only the core + solid + regular styles are imported; the
@@ -44,8 +54,27 @@ function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
   return Promise.race([p, new Promise<void>(resolve => setTimeout(resolve, ms))]);
 }
 
+// The Audio Bible's code loads once, and only while the `audio` flag is on.
+const loadAudio = lazyFeature(featureFlags, 'audio', () => import('./audio/initAudio'));
+
 async function init() {
   const baseUrl = API_BASE;
+
+  // Session mode. A handoff link carries the control token in its fragment, and
+  // it has to come out of the URL before anything else looks at the hash --
+  // `navigateFromHash` below reads the same slot, and a token sitting in a
+  // visible address bar on a laptop that may itself be plugged into a projector
+  // is not where it belongs. Reading it is cheap and returns null on every
+  // ordinary page load.
+  const adoptedSession = takeControlLinkFromUrl();
+
+  // Follow-along mode (`/present/f/<code>`): unlike the control link, the
+  // join code is not a secret -- it is exactly what the QR code and the
+  // viewer link already hand out -- so it stays in the path rather than
+  // being read and scrubbed. `followStore.start` is called after the first
+  // paint, alongside `presentStore.restore` below, for the same reason: the
+  // reading app has to work whether or not this is a follow-along session.
+  const followCode = takeFollowLinkFromUrl();
 
   // Kicked off now, awaited just before the first render (below): `en`'s
   // catalogs are already bundled eagerly (see `i18n.ts`), so this resolves
@@ -54,6 +83,7 @@ async function init() {
   // flashing English (or worse, painting a non-English `lang` attribute over
   // English text).
   const localeReadyPromise = ensureLocaleLoaded(i18n.language);
+  installBidiCopy();
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.
@@ -187,10 +217,32 @@ async function init() {
       `${baseUrl}/ort/`,        // self-hosted ONNX Runtime wasm (CSP blocks the jsDelivr default)
     );
     searchStore.init(browserSearch);
+    setVerseSearchProvider(browserSearch);
   } else {
     searchStore.init(providers.search);
+    setVerseSearchProvider(providers.search);
   }
   settingsStore.applyTheme();
+
+  // The Audio Bible. Its code is loaded only when the site turned it on
+  // (the shared `audio` flag): a site that has not never downloads any of it.
+  const audioConfig = getAudioConfig();
+  if (audioConfig) {
+    void loadAudio()
+      .then(m => m?.initAudio(audioConfig, offlineBible))
+      .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
+  }
+
+  // Reminders (tier 1: notifications while a tab is open). The code loads lazily and only where the
+  // browser can show notifications, so it adds nothing to the critical path elsewhere.
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    void import('./notifications/webReminders')
+      .then(m => {
+        m.setVerseOfTheDayFetcher(() => offlineBible.getVerseOfTheDay());
+        return m.startWebReminders();
+      })
+      .catch(err => console.warn('[Notifications] Reminders failed to start:', err));
+  }
 
   // Load module manifest — in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.
@@ -219,6 +271,11 @@ async function init() {
   // If the active tab already has cached verses from the session, render them
   // immediately without re-fetching — this makes repeat visits near-instant.
   const restoredTab = bibleStore.getActiveTab();
+  // A cold load at `#/@present` boots the reader as if there were no hash, so
+  // Back lands on the last position rather than Home; the presenter hash is put
+  // back just before the first render.
+  const coldPresenter = isPresenterHash();
+  if (coldPresenter) history.replaceState(null, '', window.location.pathname + window.location.search);
   if (window.location.hash) {
     await withBootTimeout(bibleStore.navigateFromHash(window.location.hash));
   } else if (restoredTab && restoredTab.verses.length > 0) {
@@ -239,6 +296,11 @@ async function init() {
     await withBootTimeout(bibleStore.navigateTo(restoredTab.book, restoredTab.chapter));
   }
 
+  if (coldPresenter) {
+    rememberReaderHash(window.location.hash);
+    history.replaceState(null, '', PRESENTER_HASH);
+  }
+
   // Render the app (ErrorBoundary catches component crashes)
   await localeReadyPromise;
   render(<ErrorBoundary><App providers={providers} /></ErrorBoundary>, document.getElementById('app')!);
@@ -249,6 +311,17 @@ async function init() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     (window as unknown as { hideAppLoading?: () => void }).hideAppLoading?.();
   }));
+
+  // Reconnect to a session this device is driving: one adopted from a handoff
+  // link, or one it created before a reload. After the first paint, because the
+  // reading app has to work whether or not a screen is attached.
+  presentStore.restore(adoptedSession);
+
+  // Start following, if this load was `/present/f/<code>`. Also after the
+  // first paint: the reader underneath renders exactly as it would for any
+  // other chapter, and `followStore` then nudges it to the presenter's live
+  // reference the moment the stream answers.
+  if (followCode) followStore.start(followCode);
 
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();

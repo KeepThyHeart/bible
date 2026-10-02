@@ -65,6 +65,25 @@ const NAVIGATION_TIMEOUT_MS = 3000;
 const SHELL_URL = new URL('index.html', self.location.href).href;
 
 /**
+ * The Presenter's viewer pages are separate HTML entries (see `present/*.html`
+ * and the `input` map in vite.config.ts); the `html` glob in `injectManifest`
+ * precaches them as `present/viewer.html` and `present/solo.html`. Offline, the
+ * pre-live preview iframe (`/present/v/<code>`) and `/present/solo` and `/watch` must get
+ * those, not the reading app's shell.
+ */
+const VIEWER_URL = new URL('present/viewer.html', self.location.href).href;
+const SOLO_URL = new URL('present/solo.html', self.location.href).href;
+const WATCH_URL = new URL('present/watch.html', self.location.href).href;
+
+/** The precache key of the page a navigation to `pathname` should get offline, else the app shell. */
+export function offlinePageFor(pathname: string): string {
+  if (/(^|\/)present\/v\/[^/]+\/?$/.test(pathname)) return VIEWER_URL;
+  if (/(^|\/)present\/solo\/?$/.test(pathname)) return SOLO_URL;
+  if (/(^|\/)watch\/?$/.test(pathname)) return WATCH_URL;
+  return SHELL_URL;
+}
+
+/**
  * Reject after `ms` so a reachable-but-dead server (captive portal, LAN box down,
  * half-open TCP) falls back to the cached shell instead of hanging the boot until
  * the browser's own multi-minute timeout.
@@ -85,6 +104,8 @@ async function handleNavigation({ request }: { request: Request }): Promise<Resp
     // 503. Only a transport failure is grounds for reaching into the cache.
     return await withTimeout(fetch(request), NAVIGATION_TIMEOUT_MS);
   } catch {
+    const page = await matchPrecache(offlinePageFor(new URL(request.url).pathname));
+    if (page) return page;
     const shell = await matchPrecache(SHELL_URL);
     if (shell) return shell;
     return new Response(

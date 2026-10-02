@@ -105,6 +105,7 @@
 
   &__actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-top: 24px;
     max-width: 480px;
@@ -112,7 +113,10 @@
   }
 
   &__action-btn {
-    flex: 1;
+    // A basis, not just a grow factor, now that a third button can share the
+    // row: without it `flex: 1` shrinks to nothing before wrapping, rather
+    // than wrapping once there isn't room to stay readable.
+    flex: 1 1 140px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -125,6 +129,9 @@
     font-family: inherit;
     font-size: calc(15px * var(--ui-font-scale, 1));
     font-weight: 600;
+    // Also used on the `/watch` link (a plain anchor, not a store action),
+    // which otherwise renders underlined text where the other two show none.
+    text-decoration: none;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 

@@ -14,6 +14,7 @@ import { TabStrip } from './shared/TabStrip';
 import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
+import { OfflinePacksPanel } from './moduleManager/OfflinePacksPanel';
 import ConfirmDialog from './shared/ConfirmDialog';
 import { activateFocusTrap } from '../utils/focusTrap';
 import type { ModulePackInstallSummary } from '../../../electron/services/ModulePackService';
@@ -142,8 +143,8 @@ const INSTALL_FILTERS: Array<{ id: ModuleInstallFilter; key: string; fallback: s
   { id: 'updates', key: 'moduleManager.filterUpdates', fallback: 'Updates' },
 ];
 
-const isPanelTab = (tab: ModuleManagerTab): tab is 'features' | 'repositories' =>
-  tab === 'features' || tab === 'repositories';
+const isPanelTab = (tab: ModuleManagerTab): tab is 'features' | 'repositories' | 'packs' =>
+  tab === 'features' || tab === 'repositories' || tab === 'packs';
 
 const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, initialModuleType }) => {
   const { t, localizer } = useI18n();
@@ -599,6 +600,11 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
       testId: 'module-manager-features-tab',
     },
     {
+      id: 'packs',
+      label: td('moduleManager.packs.tab', 'Offline packs'),
+      testId: 'module-manager-packs-tab',
+    },
+    {
       id: 'repositories',
       label: td('moduleManager.tabSources', 'Sources'),
       testId: 'module-manager-repositories-tab',
@@ -653,9 +659,9 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           }}
         />
 
-        {/* Drop result notification */}
+        {/* Drop result notification. rtl-physical: left-1/2 + -translate-x-1/2 is symmetric horizontal centring */}
         {dropResult && (
-          <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          <div /* rtl-physical: symmetric centring */ className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-medium ${
             dropResult.isError
               ? 'bg-danger-soft text-danger-text border border-danger-border'
               : 'bg-success-soft text-success-text border border-success-border'
@@ -899,6 +905,8 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
               <RepositorySettings />
             ) : activeTypeTab === 'features' ? (
               <FeaturePackPanel />
+            ) : activeTypeTab === 'packs' ? (
+              <OfflinePacksPanel />
             ) : (
               <ModuleTable
                 type={activeTypeTab}

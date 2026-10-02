@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useDirection } from '@bible/ui';
 import { useViewportPosition } from './useViewportPosition';
 import { bibleStore } from '../stores/bibleStore';
+import { xrefGraphStore } from '../stores/xrefGraphStore';
 import { eventBus } from '../events/eventBus';
 import { parseVerseId } from '../utils/verseId';
 
@@ -37,6 +39,7 @@ interface ContextMenuTarget {
  */
 export const CONTEXT_MENU_TARGETS: Record<string, ContextMenuTarget> = {
   study: { paneId: 'study', mobileView: 'study', load: 'verse' },
+  similar: { paneId: 'similar', mobileView: 'study', load: 'none' },
 };
 
 export function useContextMenu(
@@ -45,9 +48,12 @@ export function useContextMenu(
   setMobileView?: (view: MobileView) => void,
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const dir = useDirection();
   const contextMenuRef = useViewportPosition<HTMLDivElement>(
+    // rtl-physical: x is the physical pointer position; the hook converts it to inset-inline-start
     contextMenu ? { top: contextMenu.y, left: contextMenu.x } : null,
     [contextMenu?.verseId],
+    dir,
   );
 
   useEffect(() => {
@@ -81,6 +87,12 @@ export function useContextMenu(
     if (action === 'copy') {
       bibleStore.adoptPreviewAsStudy(verseId);
       setCopyOpen(true);
+      return;
+    }
+
+    if (action === 'connections') {
+      bibleStore.adoptPreviewAsStudy(verseId);
+      xrefGraphStore.open(verseId);
       return;
     }
 

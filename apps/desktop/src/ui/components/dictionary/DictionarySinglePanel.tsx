@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { useDictionaryStore, type DictionaryEntry, type DictionaryEntrySummary } from '../../stores/useDictionaryStore';
@@ -398,7 +399,7 @@ const DictionarySinglePanel: React.FC<DictionarySinglePanelProps> = ({
                   {currentEntry.example_verses.map((verse, index) => (
                     <div key={index} className="p-md bg-background rounded">
                       <div className="text-sm font-semibold text-accent mb-xs">
-                        {formatVerseReference(verse.verse_id)}
+                        <Bdi>{formatVerseReference(verse.verse_id)}</Bdi>
                       </div>
                       {verse.text && <div className="text-sm text-text-secondary">{verse.text}</div>}
                     </div>

@@ -26,6 +26,8 @@ import { useSearchStore } from '../stores/useSearchStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useTextSettingsStore } from '../stores/useTextSettingsStore';
+import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useMeasureStore } from '../stores/useMeasureStore';
 import { useFileNotesStore, type RecentFile } from '../stores/useFileNotesStore';
 import { sessionAPI } from './electronAPI';
 import { flushActiveNote } from './activeNoteFlush';
@@ -259,6 +261,12 @@ export async function initializeApp(
           sessionData.ui.textSettingsCustomized
         );
       }
+
+      // Keyword-mark switches per Bible tab (task 0065). Absent in older sessions.
+      useKeywordMarkStore.getState().loadFromSession((sessionData.ui as { keywordMarks?: unknown } | undefined)?.keywordMarks);
+
+      // Weights-and-measures preferences (task 0069). Absent in older sessions.
+      useMeasureStore.getState().loadFromSession((sessionData.ui as { measures?: unknown } | undefined)?.measures);
 
       // Restore file notes settings (notes directory, recent files) and the
       // per-panel notes navigation state.

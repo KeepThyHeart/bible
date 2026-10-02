@@ -55,6 +55,8 @@ const MAX_RANGE_EXPANSION = 20;
 interface XrefModuleSummary {
   abbreviation: string;
   name: string;
+  /** The module's language, when the registry reports one. */
+  language_code?: string;
 }
 
 /** Everything one chapter of Study mode needs, keyed by verse id. */
@@ -128,13 +130,13 @@ function toPhraseGroups(groups: XrefGroupWithEntries[]): CrossReferencePhraseGro
 function addModuleGroups(
   target: Map<number, ModuleCrossReferences[]>,
   verseId: number,
-  module: { abbreviation: string; name: string },
+  module: { abbreviation: string; name: string; language_code?: string },
   groups: XrefGroupWithEntries[]
 ): void {
   const phraseGroups = toPhraseGroups(groups);
   if (phraseGroups.length === 0) return;
   const existing = target.get(verseId) ?? [];
-  existing.push({ abbreviation: module.abbreviation, moduleName: module.name, groups: phraseGroups });
+  existing.push({ abbreviation: module.abbreviation, moduleName: module.name, language: module.language_code, groups: phraseGroups });
   target.set(verseId, existing);
 }
 

@@ -1,3 +1,4 @@
+import { Bdi } from '@bible/ui';
 import React from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
@@ -7,6 +8,7 @@ import BookmarkMenu from './bible/BookmarkMenu';
 import ToolbarPopover from './bible/ToolbarPopover';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { openModuleManager } from '../utils/openModuleManager';
+import KeywordsButton from './keywords/KeywordsButton';
 
 /**
  * The Bible pane's single control band.
@@ -178,7 +180,7 @@ const BibleToolbar: React.FC = () => {
           aria-label={t('biblePane.changeVersionLabel', { version: activeTab.abbreviation, })}
           aria-haspopup="dialog"
         >
-          {activeTab.abbreviation}
+          <Bdi>{activeTab.abbreviation}</Bdi>
           <svg className="w-3 h-3" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -255,6 +257,9 @@ const BibleToolbar: React.FC = () => {
             </button>
           );
         })()}
+
+        {/* Keyword marks (task 0065): toggle + legend popover. */}
+        <KeywordsButton tabId={activeTab.tabId} />
       </div>
 
       {/* Right: settings + chapter navigation */}

@@ -287,10 +287,10 @@
     line-height: inherit;
     color: var(--text-primary);
 
-    // Renders a module's own commentary prose - content, kept physical. See
-    // the `.verse--preface` comment in _bible-content.scss.
+    // Renders a module's own commentary prose - content; logical so it follows the
+    // pane's content direction (task 0076).
     ul, ol {
-      padding-left: 1.5em;
+      padding-inline-start: 1.5em;
       margin: 0.4em 0;
     }
 

@@ -13,13 +13,18 @@
 import {
   createSettingsStore,
   defineSettings,
+  mergeSettings,
+  measureSettingsRegistry,
+  MEASURE_SETTINGS,
   type SettingChange,
   type SettingsStore,
   type SettingsStoragePort,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useMeasureStore } from '../stores/useMeasureStore';
 
-export const DESKTOP_SETTINGS = defineSettings([
+const DESKTOP_OWN_SETTINGS = defineSettings([
   {
     key: 'advancedPaneManagerEnabled',
     type: 'boolean',
@@ -31,20 +36,77 @@ export const DESKTOP_SETTINGS = defineSettings([
     descriptionKey: 'preferencesDialog.advancedPaneManagerDescription',
     description: 'When off, dragging a pane asks for confirmation before it moves.',
   },
+  {
+    key: 'keywordColorSafe',
+    type: 'boolean',
+    default: true,
+    scope: 'device',
+    group: 'advanced',
+    labelKey: 'keywords.settings.colorSafe',
+    label: 'Colour-safe marks (extra underline and symbol cues)',
+  },
+  {
+    key: 'readingPlanRolloverHour',
+    type: 'integer',
+    default: 3,
+    min: 0,
+    max: 12,
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.rolloverHour',
+    label: 'New reading day starts at (hour)',
+    descriptionKey: 'readingPlans.settings.rolloverHourDescription',
+    description:
+      'Reading after midnight but before this hour counts for the previous day. Change it if you work nights.',
+  },
+  {
+    key: 'readingPlanShowStreak',
+    type: 'boolean',
+    default: false,
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.showStreak',
+    label: 'Show reading streaks',
+  },
 ]);
+
+/** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
+export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry);
+
+const MEASURE_KEYS: ReadonlySet<string> = new Set(MEASURE_SETTINGS.map((d) => d.key));
 
 /** Port over `usePreferencesStore` (session-persisted, per device). */
 export const preferencesStoragePort: SettingsStoragePort = {
   read: () => ({
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
+    keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
+    readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
+    readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
+    ...useMeasureStore.getState().values,
   }),
   write: (changes: readonly SettingChange[]) => {
     for (const change of changes) {
+      if (change.key === 'keywordColorSafe' && useKeywordMarkStore.getState().colorSafe !== change.value) {
+        useKeywordMarkStore.getState().setColorSafe(change.value as boolean);
+      }
+      if (MEASURE_KEYS.has(change.key)) useMeasureStore.getState().setValue(change.key, change.value);
       if (
         change.key === 'advancedPaneManagerEnabled' &&
         usePreferencesStore.getState().advancedPaneManagerEnabled !== change.value
       ) {
         usePreferencesStore.getState().setAdvancedPaneManagerEnabled(change.value as boolean);
+      }
+      if (
+        change.key === 'readingPlanRolloverHour' &&
+        usePreferencesStore.getState().readingPlanRolloverHour !== change.value
+      ) {
+        usePreferencesStore.getState().setReadingPlanRolloverHour(change.value as number);
+      }
+      if (
+        change.key === 'readingPlanShowStreak' &&
+        usePreferencesStore.getState().readingPlanShowStreak !== change.value
+      ) {
+        usePreferencesStore.getState().setReadingPlanShowStreak(change.value as boolean);
       }
     }
   },
@@ -60,6 +122,16 @@ export function getDesktopSettingsStore(): SettingsStore {
     // dialog; mirror those in so the settings view never shows a stale value.
     usePreferencesStore.subscribe((state) => {
       store!.set('advancedPaneManagerEnabled', state.advancedPaneManagerEnabled);
+      store!.set('readingPlanRolloverHour', state.readingPlanRolloverHour);
+      store!.set('readingPlanShowStreak', state.readingPlanShowStreak);
+    });
+    useKeywordMarkStore.subscribe((state) => {
+      store!.set('keywordColorSafe', state.colorSafe);
+    });
+    // Session restore fills the measures values after the store exists.
+    useMeasureStore.subscribe((state, prev) => {
+      if (state.values === prev.values) return;
+      for (const [key, value] of Object.entries(state.values)) store!.set(key, value);
     });
   }
   return store;

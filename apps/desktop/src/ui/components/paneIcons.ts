@@ -23,6 +23,11 @@ export const PANEL_CONTENT_ICONS: Partial<Record<PanelContentType, string>> = {
   study: '\u{1F4D1}',      // bookmark tabs
   topics: '\u{1F3F7}\uFE0F', // label
   wordStudy: '\u{1F524}',   // input latin letters
+  genealogy: '\u{1F333}',  // deciduous tree
+  timeline: '\u{1F4C5}',   // calendar
+  'reading-plans': '\u{1F5D3}\uFE0F', // spiral calendar
+  quiz: '\u2753',          // question mark
+  similar: '\u{1F517}',    // link
   newtab: '+',              // plus sign
 };
 

@@ -124,6 +124,28 @@
   border-radius: var(--kth-radius);
 }
 
+/* --- Notification preferences (NotificationPreferences) ------------------------ */
+.kth-notify-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-3);
+  color: var(--kth-text);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-notify-prefs__status { margin: 0 0 var(--kth-space-2); }
+.kth-notify-prefs__hint { margin-block-end: var(--kth-space-3); }
+.kth-notify-prefs__switch {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+}
+.kth-notify-prefs__times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kth-space-2);
+}
+
 /* --- Card -------------------------------------------------------------------- */
 .kth-card {
   padding: var(--kth-space-3);
@@ -563,6 +585,341 @@
 
 .kth-ws-chart__item, .kth-ws-family__item, .kth-ws-semantic__label { min-inline-size: 0; }
 .kth-ws-family__word { font-size: 1.1em; }
+
+/* --- Keyword marks (0065). Colour is passed by the component as the custom property --mark-color
+   (rgb(var(--kth-mark-N-rgb))), so no colour function appears here. --------------------------------- */
+.kth-mark-swatch {
+  /* The mark IS the shape: a coloured glyph (filled or outline), never a box or badge around it. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--kth-radius);
+  background: none;
+  color: var(--mark-color, currentColor);
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  text-decoration-line: none;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.kth-mark-swatch:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
+.kth-mark-swatch:where([aria-checked="true"]) {
+  box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent);
+}
+.kth-mark-swatch:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+.kth-mark-swatch--static { cursor: default; }
+.kth-mark-swatch--bold { font-weight: 700; }
+/* Background tint: shown in the text only; the legend shape stays a bare glyph (no box). */
+.kth-mark-swatch--fill { background-image: none; }
+/* The line style shows as an underline under the shape. */
+.kth-mark-swatch--line-solid { text-decoration-line: underline; text-decoration-style: solid; }
+.kth-mark-swatch--line-dashed { text-decoration-line: underline; text-decoration-style: dashed; }
+.kth-mark-swatch--line-dotted { text-decoration-line: underline; text-decoration-style: dotted; }
+.kth-mark-swatch--line-thick { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: 4px; }
+.kth-mark-swatch--line-none { text-decoration-line: none; }
+/* Line and symbol choices: neutral chips (the colour is not what they pick). */
+.kth-mark-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-inline-size: 2rem;
+  min-block-size: 1.75rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: var(--kth-space-2);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--kth-font-size-ui);
+  cursor: pointer;
+}
+.kth-mark-choice:where(:hover:not(:disabled)) { background: var(--kth-bg-hover); }
+.kth-mark-choice:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-mark-choice:where([aria-checked="true"]) { border-color: var(--kth-accent); background: var(--kth-accent-soft); }
+.kth-mark-choice:where(:disabled) { opacity: 0.5; cursor: not-allowed; }
+/* Shape choices: just the shape, in the chosen colour; only the selected one gets a ring. */
+.kth-mark-choice--shape {
+  border-color: transparent;
+  background: none;
+  color: var(--mark-color, var(--kth-text));
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.kth-mark-choice--shape:where(:focus-visible) { outline: 2px dashed var(--kth-focus); outline-offset: 6px; }
+@media (forced-colors: active) {
+  .kth-mark-choice--shape:where([aria-checked="true"]), .kth-mark-swatch:where([aria-checked="true"]) { outline: 2px solid Highlight; }
+}
+.kth-mark-choice--shape:where([aria-checked="true"]) { border-color: transparent; background: none; box-shadow: 0 0 0 2px var(--kth-bg), 0 0 0 4px var(--kth-accent); }
+.kth-mark-choice__line {
+  display: inline-block;
+  inline-size: 1.5rem;
+  block-size: 0;
+  border-block-end: 2px solid var(--kth-text);
+}
+.kth-mark-choice__line--dashed { border-block-end-style: dashed; }
+.kth-mark-choice__line--dotted { border-block-end-style: dotted; }
+.kth-mark-choice__line--thick { border-block-end-width: 5px; }
+.kth-mark-choice__line--none { border-block-end-style: none; }
+
+.kth-mark-picker { display: flex; flex-direction: column; gap: var(--kth-space-2); }
+.kth-mark-picker__group { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); align-items: center; padding: var(--kth-space-1); }
+.kth-mark-picker__caption { font-size: calc(var(--kth-font-size-ui) * 0.9); color: var(--kth-text-muted); }
+.kth-mark-picker__toggles { display: flex; flex-wrap: wrap; gap: var(--kth-space-3); }
+
+.kth-legend { display: flex; flex-direction: column; gap: var(--kth-space-2); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-legend__head { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-2); }
+.kth-legend__list { display: flex; flex-direction: column; gap: var(--kth-space-1); margin: 0; padding: 0; list-style: none; }
+.kth-legend__row { display: flex; align-items: center; gap: var(--kth-space-2); }
+.kth-legend__label--hidden { text-decoration: line-through; opacity: 0.6; }
+.kth-legend__label { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; text-align: start; justify-content: flex-start; }
+.kth-legend__set { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-legend__count { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kth-legend__approx { color: var(--kth-warning); font-size: calc(var(--kth-font-size-ui) * 0.85); white-space: nowrap; }
+.kth-legend__note { margin: 0; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-legend__heading { margin: 0; font-size: var(--kth-font-size-ui); font-weight: 600; color: var(--kth-text-heading); }
+.kth-legend__footer { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); }
+
+.kth-mark-editor { display: flex; flex-direction: column; gap: var(--kth-space-3); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-mark-editor__field { display: flex; flex-direction: column; gap: var(--kth-space-1); }
+.kth-mark-editor__label { font-weight: 600; }
+.kth-mark-editor__hint { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-mark-editor__error { margin: 0; color: var(--kth-danger); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-mark-editor__check { display: inline-flex; align-items: center; gap: var(--kth-space-2); }
+.kth-mark-editor__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); justify-content: flex-end; }
+
+/* --- Genealogy explorer (task 0067) ------------------------------------------- */
+/* Colour keys: a node's colorKey adds kth-genealogy-color-<key>; unknown keys fall back to muted text. */
+.kth-genealogy-color-leah { --_kth-gen-fill: var(--_kth-gen-leah); }
+.kth-genealogy-color-rachel { --_kth-gen-fill: var(--_kth-gen-rachel); }
+.kth-genealogy-color-bilhah { --_kth-gen-fill: var(--_kth-gen-bilhah); }
+.kth-genealogy-color-zilpah { --_kth-gen-fill: var(--_kth-gen-zilpah); }
+
+.kth-genealogy-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 16rem;
+  overflow: hidden;
+  background: var(--kth-bg-subtle);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+}
+.kth-genealogy-view__svg {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.kth-genealogy-view__svg:where(:active) { cursor: grabbing; }
+.kth-genealogy-view__svg:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-genealogy-view__toolbar {
+  position: absolute;
+  inset-block-start: var(--kth-space-2);
+  inset-inline-end: var(--kth-space-2);
+  z-index: 1;
+  display: flex;
+  gap: var(--kth-space-1);
+}
+.kth-genealogy-view__empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  color: var(--kth-text-muted);
+}
+
+.kth-genealogy-node { cursor: pointer; outline: none; }
+/* State modifiers set private custom properties on the node group; the shape reads them (later rules win). */
+.kth-genealogy-node__shape {
+  fill: color-mix(in srgb, var(--_kth-gen-fill, var(--kth-text-muted)) 18%, var(--kth-surface));
+  stroke: var(--_kth-gen-stroke, var(--_kth-gen-fill, var(--kth-border-strong)));
+  stroke-width: var(--_kth-gen-sw, 1.5);
+  stroke-dasharray: var(--_kth-gen-dash, none);
+  stroke-linecap: round;
+}
+.kth-genealogy-node__dot {
+  fill: var(--_kth-gen-fill, var(--kth-text-muted));
+  stroke: var(--_kth-gen-stroke, none);
+  stroke-width: var(--_kth-gen-sw, 1.5);
+}
+.kth-genealogy-node__label {
+  fill: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: 12px;
+  pointer-events: none;
+}
+.kth-genealogy-node:where(:hover) { --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--one-text { --_kth-gen-dash: 5 3; }
+.kth-genealogy-node--disputed { --_kth-gen-dash: 1.5 3; }
+.kth-genealogy-node--christ { --_kth-gen-stroke: var(--_kth-gen-gold); --_kth-gen-sw: 2.5; }
+.kth-genealogy-node--selected { --_kth-gen-stroke: var(--kth-accent); --_kth-gen-sw: 3; }
+.kth-genealogy-node--focus { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3; --_kth-gen-dash: none; }
+.kth-genealogy-node:where(:focus-visible) { --_kth-gen-stroke: var(--kth-focus); --_kth-gen-sw: 3.5; }
+.kth-genealogy-node--dim { opacity: 0.35; }
+.kth-genealogy-node__christ-mark { fill: var(--_kth-gen-gold); stroke: var(--kth-surface); stroke-width: 1; }
+.kth-genealogy-node__badge rect { fill: var(--kth-accent); }
+.kth-genealogy-node__badge text { fill: var(--kth-accent-text); font-size: 10px; font-family: var(--kth-font-ui); }
+.kth-genealogy-node__gap line { stroke: var(--kth-warning); stroke-width: 2; }
+.kth-genealogy-node__gap text { fill: var(--kth-text-muted); font-size: 9px; font-family: var(--kth-font-ui); }
+
+/* Edge modifiers set private custom properties; the group and its (double-edge) child paths both read them. */
+.kth-genealogy-edge, .kth-genealogy-edge path {
+  fill: none;
+  stroke: var(--_kth-gen-edge, var(--kth-border-strong));
+  stroke-width: var(--_kth-gen-ew, 1.5);
+  stroke-dasharray: var(--_kth-gen-edash, none);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.kth-genealogy-edge--dashed { --_kth-gen-edash: 6 4; }
+.kth-genealogy-edge--dotted { --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--spouse { --_kth-gen-edge: var(--kth-text-muted); }
+.kth-genealogy-edge--cross { --_kth-gen-edge: var(--kth-info); }
+.kth-genealogy-edge--gap { --_kth-gen-edge: var(--kth-warning); --_kth-gen-edash: 2 3; }
+.kth-genealogy-edge--same_as { --_kth-gen-edge: var(--kth-info); --_kth-gen-edash: 1 4; }
+.kth-genealogy-edge--christ { --_kth-gen-edge: var(--_kth-gen-gold); --_kth-gen-ew: 3; }
+.kth-genealogy-edge__label { fill: var(--kth-text-muted); font-size: 10px; font-family: var(--kth-font-ui); stroke: none; }
+.kth-genealogy-edge--dim { opacity: 0.4; }
+
+.kth-genealogy-swatch {
+  display: inline-block;
+  inline-size: 0.9em;
+  block-size: 0.9em;
+  margin-inline-end: var(--kth-space-1);
+  border-radius: 2px;
+  border: 1px solid var(--_kth-gen-fill, var(--kth-border-strong));
+  background: var(--_kth-gen-fill, var(--kth-text-muted));
+  vertical-align: middle;
+}
+.kth-genealogy-swatch--christ { --_kth-gen-fill: var(--_kth-gen-gold); }
+.kth-genealogy-legend { margin-block-start: var(--kth-space-2); font-size: 0.9em; }
+.kth-genealogy-legend__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-2) var(--kth-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-genealogy-legend__item { display: inline-flex; align-items: center; }
+
+.kth-genealogy-search { position: relative; min-inline-size: 12rem; }
+.kth-genealogy-search__input { inline-size: 100%; }
+.kth-genealogy-search__list {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  max-block-size: 14rem;
+  overflow: auto;
+  list-style: none;
+  background: var(--kth-surface-raised);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-search__option { padding: var(--kth-space-1) var(--kth-space-2); cursor: pointer; }
+.kth-genealogy-search__option:where([aria-selected="true"], :hover) { background: var(--kth-accent-soft); }
+.kth-genealogy-search__hint, .kth-genealogy-search__none { color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-genealogy-search__none { padding: var(--kth-space-1) var(--kth-space-2); }
+
+.kth-genealogy-card {
+  box-sizing: border-box;
+  inline-size: 22rem;
+  max-inline-size: 100%;
+  overflow: auto;
+  padding: var(--kth-space-3);
+  background: var(--kth-surface-raised);
+  color: var(--kth-text);
+  border: 1px solid var(--kth-border);
+  border-radius: var(--kth-radius);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-card--sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  inline-size: auto;
+  max-block-size: 60%;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  box-shadow: var(--kth-shadow);
+}
+.kth-genealogy-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-2); }
+.kth-genealogy-card__title { margin: 0; font-size: 1.25em; }
+.kth-genealogy-card__heading { margin-block: var(--kth-space-3) var(--kth-space-1); font-size: 1em; }
+.kth-genealogy-card__facts, .kth-genealogy-card__empty, .kth-genealogy-card__ref { color: var(--kth-text-muted); }
+.kth-genealogy-card__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); margin-block: var(--kth-space-2); }
+.kth-genealogy-card__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-card__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-card__relation { color: var(--kth-text-muted); }
+.kth-genealogy-card__qualifier { color: var(--kth-text-muted); font-style: italic; }
+.kth-genealogy-card__confidence--disputed { background: var(--kth-danger); }
+.kth-genealogy-card__confidence--probable, .kth-genealogy-card__confidence--possible { background: var(--kth-warning); }
+.kth-genealogy-card__confidence--certain { background: var(--kth-success); }
+.kth-genealogy-card__readings { margin-block: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius); }
+.kth-genealogy-card__reading { display: block; padding-block: var(--kth-space-1); }
+.kth-genealogy-card__case { margin-block-end: var(--kth-space-3); }
+.kth-genealogy-card__case-title { margin-block: var(--kth-space-2) var(--kth-space-1); }
+.kth-genealogy-card__kjv {
+  margin-inline: 0;
+  padding-inline-start: var(--kth-space-3);
+  border-inline-start: 3px solid var(--kth-border-strong);
+  font-style: italic;
+}
+.kth-genealogy-card__verse { color: var(--kth-accent); }
+
+.kth-genealogy-compare { display: flex; flex-wrap: wrap; gap: var(--kth-space-4); }
+.kth-genealogy-compare__column { flex: 1 1 14rem; min-inline-size: 0; }
+.kth-genealogy-compare__list { margin: 0; padding: 0; list-style: none; }
+.kth-genealogy-compare__step { padding-block: 2px; }
+.kth-genealogy-compare__gap { margin: 0; color: var(--kth-warning); font-size: 0.85em; }
+.kth-genealogy-compare__marker { background: var(--kth-info); }
+
+.kth-genealogy-explorer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 24rem;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-genealogy-explorer__bar { padding-inline: var(--kth-space-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
+.kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__fullscreen { margin-inline-start: auto; }
+.kth-genealogy-explorer--fs { padding-block: var(--kth-space-2); }
+.kth-genealogy-explorer__hint { margin: 0; padding-inline: var(--kth-space-3); color: var(--kth-text-muted); font-size: 0.9em; }
+.kth-genealogy-key { margin-inline: var(--kth-space-3); margin-block: 0; }
+.kth-genealogy-key__swatch { margin-inline-end: var(--kth-space-1); flex: none; }
+.kth-genealogy-card__link { color: var(--kth-accent); text-decoration: underline; }
+.kth-genealogy-explorer__toggle { display: inline-flex; align-items: center; gap: var(--kth-space-1); }
+.kth-genealogy-explorer__body { position: relative; display: flex; flex: 1 1 auto; gap: var(--kth-space-2); min-block-size: 0; }
+.kth-genealogy-legend--tribes { padding-inline: var(--kth-space-3); margin-block-start: 0; }
+.kth-genealogy-key { max-block-size: 30vh; overflow: auto; }
+.kth-genealogy-explorer__main { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; }
+.kth-genealogy-explorer__body--compact { flex-direction: column; }
 /* --- Popover / hover card / bottom sheet ---------------------------------------
    Placement (position, inset, width, max-height) is set inline by the component (viewport-relative numbers,
    RTL-aware). Visual defaults are zero-specificity (:where) so an app class on the same element can adjust them.
@@ -654,3 +1011,112 @@
   padding-block: 0 var(--kth-space-4);
   padding-inline: var(--kth-space-4);
 }
+
+/* Full screen (useFullscreen): the element covers the window. Hosts drop their own sizing while it is on. */
+.kth-fs-on {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  box-sizing: border-box;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  border-radius: 0;
+  background: var(--kth-bg);
+  color: var(--kth-text);
+}
+.kth-fullscreen-toggle { flex: none; inline-size: 2rem; padding-inline: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+/* --- MeasurePopup (weights, measures and money popups) ---------------------- */
+.kth-measure { display: flex; flex-direction: column; gap: var(--kth-space-2); color: var(--kth-text); font-size: var(--kth-font-size-ui); }
+.kth-measure > * { margin: 0; }
+.kth-measure-list { display: flex; flex-direction: column; gap: var(--kth-space-4); padding-block: var(--kth-space-2); }
+.kth-measure-list > * + * { border-block-start: 1px solid var(--kth-border-strong); padding-block-start: var(--kth-space-4); }
+.kth-measure__title { font-size: 1em; font-weight: 600; }
+.kth-measure__subtitle { color: var(--kth-text-muted); font-size: 0.9em; margin-block-start: calc(var(--kth-space-1) * -1); }
+.kth-measure__primary { font-size: 1.5em; font-weight: 600; line-height: 1.2; }
+.kth-measure__secondary { color: var(--kth-text-muted); }
+.kth-measure__range, .kth-measure__relation, .kth-measure__note { font-size: 0.9em; }
+.kth-measure__hint { color: var(--kth-text-muted); }
+.kth-measure__extra { margin: 0; padding-inline-start: var(--kth-space-4); }
+.kth-measure__verse-note { padding-inline-start: var(--kth-space-2); border-inline-start: 3px solid var(--kth-accent); font-size: 0.9em; }
+.kth-measure__verse-label { color: var(--kth-text-muted); font-size: 0.85em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.kth-measure__chips { display: flex; flex-wrap: wrap; gap: var(--kth-space-1); }
+.kth-measure__chip { padding-inline: var(--kth-space-2); border: 1px solid var(--kth-border-strong); border-radius: 999px; background: var(--kth-bg-subtle); color: var(--kth-text-muted); font-size: 0.85em; }
+.kth-measure__chip--draft { border-color: var(--kth-warning); color: var(--kth-text); }
+.kth-measure__footer { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); }
+.kth-measure__sources { margin: 0; padding-inline-start: var(--kth-space-4); font-size: 0.85em; color: var(--kth-text-muted); }
+
+/* AssetList (0090) */
+.kth-asset-list-wrap { display: flex; flex-direction: column; gap: var(--kth-space-2); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-asset-list { display: flex; flex-direction: column; gap: var(--kth-space-2); margin: 0; padding: 0; list-style: none; }
+.kth-asset-list__row { display: flex; align-items: center; justify-content: space-between; gap: var(--kth-space-3); padding: var(--kth-space-2) 0; border-block-end: 1px solid var(--kth-border); }
+.kth-asset-list__info { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--kth-space-1) var(--kth-space-2); flex: 1 1 auto; min-inline-size: 0; }
+.kth-asset-list__title { font-weight: 600; color: var(--kth-text-heading); overflow-wrap: anywhere; }
+.kth-asset-list__detail { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-asset-list__meta { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kth-asset-list__status { color: var(--kth-success); font-size: calc(var(--kth-font-size-ui) * 0.85); white-space: nowrap; }
+.kth-asset-list__progress { flex: 1 1 100%; inline-size: 100%; block-size: 6px; accent-color: var(--kth-accent); }
+.kth-asset-list__error { flex: 1 1 100%; color: var(--kth-danger); font-size: calc(var(--kth-font-size-ui) * 0.9); overflow-wrap: anywhere; }
+.kth-asset-list__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); flex: 0 0 auto; }
+.kth-asset-list__total { margin: 0; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-asset-list__empty { margin: 0; color: var(--kth-text-muted); font-size: var(--kth-font-size-ui); }
+
+/* PackBuilder (task 0075) */
+.kth-pack-builder { display: flex; flex-direction: column; gap: var(--kth-space-3); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
+.kth-pack-builder__title { margin: 0; font-size: 1.15em; color: var(--kth-text-heading); }
+.kth-pack-builder__heading { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.9); }
+.kth-pack-builder__presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-pack-builder__empty { margin: 0; color: var(--kth-text-muted); }
+.kth-pack-chip { padding: var(--kth-space-1) var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: 999px; background: transparent; color: var(--kth-text); font: inherit; cursor: pointer; }
+.kth-pack-chip:hover:not(:disabled) { border-color: var(--kth-accent); }
+.kth-pack-chip:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-pack-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.kth-pack-group { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.kth-pack-group__label { padding: 0; font-weight: 600; color: var(--kth-text-heading); margin-block-end: var(--kth-space-1); }
+.kth-pack-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.kth-pack-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-2); padding: var(--kth-space-2) 0; border-block-end: 1px solid var(--kth-border); }
+.kth-pack-row__check { flex: 0 0 auto; inline-size: 1.1em; block-size: 1.1em; accent-color: var(--kth-accent); }
+.kth-pack-row__check:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-pack-row__info { display: flex; flex-direction: column; flex: 1 1 10rem; min-inline-size: 0; cursor: pointer; }
+.kth-pack-row__title { font-weight: 600; color: var(--kth-text-heading); overflow-wrap: anywhere; }
+.kth-pack-row__detail { color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-pack-row__size { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kth-pack-row__reason { flex: 1 1 100%; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.85); }
+.kth-pack-row__error { flex: 1 1 100%; color: var(--kth-danger); font-size: calc(var(--kth-font-size-ui) * 0.9); overflow-wrap: anywhere; }
+.kth-pack-badge { padding: 0 var(--kth-space-2); border: 1px solid var(--kth-border); border-radius: 999px; color: var(--kth-text-muted); font-size: calc(var(--kth-font-size-ui) * 0.8); white-space: nowrap; }
+.kth-pack-badge--installed { color: var(--kth-success); border-color: var(--kth-success); }
+.kth-pack-badge--update-available { color: var(--kth-warning); border-color: var(--kth-warning); }
+.kth-pack-badge--installing { color: var(--kth-accent); border-color: var(--kth-accent); }
+.kth-pack-badge--error { color: var(--kth-danger); border-color: var(--kth-danger); }
+.kth-pack-bar { flex: 1 1 100%; inline-size: 100%; block-size: 6px; border-radius: 3px; background: var(--kth-border); overflow: hidden; }
+.kth-pack-bar__fill { block-size: 100%; background: var(--_kth-pack-bar-color, var(--kth-accent)); transition: inline-size 0.2s ease; }
+.kth-pack-bar--fits { --_kth-pack-bar-color: var(--kth-success); }
+.kth-pack-bar--tight { --_kth-pack-bar-color: var(--kth-warning); }
+.kth-pack-bar--no { --_kth-pack-bar-color: var(--kth-danger); }
+.kth-pack-bar--indeterminate { background: linear-gradient(90deg, var(--kth-border), var(--kth-accent), var(--kth-border)); }
+@media (prefers-reduced-motion: reduce) { .kth-pack-bar__fill { transition: none; } }
+.kth-pack-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-3); padding: var(--kth-space-2) var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius, 6px); }
+.kth-pack-summary__item { font-variant-numeric: tabular-nums; }
+.kth-pack-summary__fit { font-weight: 600; flex: 1 1 100%; }
+.kth-pack-summary__fit--fits { color: var(--kth-success); }
+.kth-pack-summary__fit--tight { color: var(--kth-warning); }
+.kth-pack-summary__fit--no { color: var(--kth-danger); }
+.kth-pack-summary__fit--unknown { color: var(--kth-text-muted); }
+.kth-pack-warnings { margin: 0; padding: var(--kth-space-2) var(--kth-space-3) var(--kth-space-2) var(--kth-space-4); border-inline-start: 3px solid var(--kth-warning); color: var(--kth-text); }
+.kth-pack-warnings__item { margin: var(--kth-space-1) 0; }
+.kth-pack-actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-2); }
+.kth-pack-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-3); }
+.kth-pack-run__text, .kth-pack-run__count, .kth-pack-run__bytes { color: var(--kth-text-muted); font-variant-numeric: tabular-nums; }
+.kth-pack-run__result { font-weight: 600; }
+.kth-pack-run__result--done { color: var(--kth-success); }
+.kth-pack-run__result--partial { color: var(--kth-warning); }
+.kth-pack-run__result--failed { color: var(--kth-danger); }
+.kth-pack-run__result--cancelled { color: var(--kth-text-muted); }
+.kth-pack-builder__notice { margin: 0 0 0.5rem; font-size: 0.85em; opacity: 0.75; }
+.kth-pack-row__remove { padding: 0 var(--kth-space-2); border: 1px solid var(--kth-border); border-radius: 999px; background: transparent; color: var(--kth-text); font: inherit; font-size: calc(var(--kth-font-size-ui) * 0.8); cursor: pointer; }
+.kth-pack-row__remove:hover:not(:disabled) { border-color: var(--kth-danger); color: var(--kth-danger); }
+.kth-pack-row__remove:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-pack-row__remove:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -12,6 +12,7 @@ import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
 import { useVerseText } from '../../hooks/useVerseText';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { contentSwipeStep, moduleContentAttrs } from '../../utils/contentDirection';
 
 interface CommentaryPaneProps {
   bibleProvider?: IBibleDataProvider;
@@ -30,6 +31,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   const previewVerse = useStore(bibleStore, () => bibleStore.getActiveTab()?.previewVerse);
   const tabs = useStore(commentaryStore, () => commentaryStore.tabs);
   const activeTabId = useStore(commentaryStore, () => commentaryStore.activeTabId);
+  const activeTabAbbr = tabs.find(tb => tb.id === activeTabId)?.moduleAbbr;
 
   // Only one right-hand pane is mounted at a time, so this is the store's
   // signal that a chapter change is worth spending requests on. Collapsed
@@ -180,11 +182,10 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
       if (adx <= ady * DIRECTION_LOCK_RATIO) return;
       // And require a minimum swipe distance to actually navigate
       if (adx < swipeCommentaryVerseThresholdPx) return;
-      if (dx > 0) {
-        navigateCommentaryVerse(-1); // swipe right → previous verse
-      } else {
-        navigateCommentaryVerse(1); // swipe left → next verse
-      }
+      // LTR: swipe right = previous verse, swipe left = next. RTL commentary text reverses that.
+      const step = contentSwipeStep(dx, activeTabAbbr);
+      if (step === 'prev') navigateCommentaryVerse(-1);
+      else if (step === 'next') navigateCommentaryVerse(1);
     };
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -192,7 +193,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [navigateCommentaryVerse, swipeCommentaryVerseThresholdPx]);
+  }, [navigateCommentaryVerse, swipeCommentaryVerseThresholdPx, activeTabAbbr]);
 
   return (
     <div class="commentary-pane">
@@ -223,14 +224,14 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
                   disabled={verseNum <= 1 && (effectiveChapter ?? 0) <= 1 && (effectiveBook ?? 0) <= 1}
                   title={t('commentaryPane.prevVerse')}
                 >
-                  <i class="fa-solid fa-chevron-left fa-xs" />
+                  <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" />
                 </button>
                 <button
                   class="commentary-passage-header__nav"
                   onClick={() => navigateCommentaryVerse(1)}
                   title={t('commentaryPane.nextVerse')}
                 >
-                  <i class="fa-solid fa-chevron-right fa-xs" />
+                  <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
                 </button>
               </>
             )}
@@ -246,7 +247,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
           </div>
         </div>
         {verseText && (
-          <div class="commentary-verse-text">{verseText}</div>
+          <div class="commentary-verse-text" {...moduleContentAttrs(bibleStore.getActiveModule())}>{verseText}</div>
         )}
         {syncInfo.status === 'pinned-mismatch' && (
           <div class="commentary-pinned-banner">

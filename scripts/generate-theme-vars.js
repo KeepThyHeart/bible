@@ -33,6 +33,29 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const PALETTE = path.join(ROOT, 'admin', 'brand', 'theme-palettes.json');
 const THEME_DIR = path.join(ROOT, 'apps', 'web', 'src', 'themes');
+const DESKTOP_THEMES = path.join(ROOT, 'apps', 'desktop', 'src', 'ui', 'styles', 'themes.css');
+
+/**
+ * Keyword-mark colours (`--theme-mark-N-rgb`, task 0065) are contrast-checked per
+ * theme on the desktop, so the web copies them from the desktop stylesheet
+ * instead of keeping a second palette. Returns { themeId: [ 'R G B' x8 ] }.
+ */
+function readDesktopMarkColors() {
+  const css = fs.readFileSync(DESKTOP_THEMES, 'utf8');
+  const out = {};
+  const blockRe = /(?::root,\s*)?\[data-theme="([a-z0-9-]+)"\]\s*\{([\s\S]*?)\n\}/g;
+  let m;
+  while ((m = blockRe.exec(css)) !== null) {
+    const vals = [];
+    for (let i = 1; i <= 8; i++) {
+      const v = new RegExp(`--theme-mark-${i}-rgb:\\s*([0-9 ]+);`).exec(m[2]);
+      if (v) vals.push(v[1].trim());
+    }
+    if (vals.length === 8) out[m[1]] = vals;
+  }
+  return out;
+}
+const MARK_COLORS = readDesktopMarkColors();
 
 /** Token order in the generated file — matches the hand-written originals. */
 const TOKEN_ORDER = [
@@ -43,6 +66,22 @@ const TOKEN_ORDER = [
   'header-bg', 'shadow', 'dropdown-shadow', 'overlay-bg',
   'accent-secondary', 'scrollbar-track', 'scrollbar-thumb', 'scrollbar-thumb-hover',
 ];
+
+/** Web palette tokens re-emitted as `R G B` triples for the decoration colour keys. */
+const RGB_TOKENS = [
+  ['accent-color', '--theme-accent-primary-rgb'],
+  ['text-primary', '--theme-text-primary-rgb'],
+  ['text-secondary', '--theme-text-secondary-rgb'],
+  ['text-muted', '--theme-text-muted-rgb'],
+];
+
+/** '#2563eb' or '#abc' -> '37 99 235'; anything else -> null. */
+function hexToRgbTriple(hex) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).join(' ');
+}
 
 /** Resolve a palette entry for one app. */
 function resolve(value, app) {
@@ -60,6 +99,17 @@ function renderVars(themeId, theme) {
     if (value === undefined) continue;
     lines.push(`  --${token}: ${value};`);
   }
+  // Decoration colour keys (`accent`, `text*`) resolve to `--theme-*-rgb` triples
+  // (core ThemeColorResolver). The web palette is hex, so derive the triples from
+  // it; without them an `accent` underline (weights and measures, task 0069, or an
+  // extension decoration) resolves to an invalid colour and is not drawn.
+  for (const [token, cssVar] of RGB_TOKENS) {
+    const value = resolve(theme.colors[token], 'web');
+    const rgb = typeof value === 'string' ? hexToRgbTriple(value) : null;
+    if (rgb) lines.push(`  ${cssVar}: ${rgb};`);
+  }
+  const marks = MARK_COLORS[themeId];
+  if (marks) marks.forEach((v, i) => lines.push(`  --theme-mark-${i + 1}-rgb: ${v};`));
   lines.push('}');
   return lines.join('\n') + '\n';
 }

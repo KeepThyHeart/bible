@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import TopicSearchBar from '../shared/TopicSearchBar';
 import TopicCard from '../shared/TopicCard';
+import { openFamilyTree } from '../../utils/openFamilyTree';
 import {
   TagGraphAssociation,
   TagGraphEntityDetail,
@@ -95,6 +96,27 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
             {CATEGORY_LABELS[entity.category] ?? entity.category}
           </span>
         </div>
+
+        {/* People are also nodes in the genealogy dataset (same slug ids). */}
+        {entity.category === 'people' && (
+          <button
+            type="button"
+            data-testid="show-family-tree"
+            onClick={() => openFamilyTree(entity.id)}
+            style={{
+              fontSize: '11px',
+              color: 'var(--theme-accent-primary)',
+              backgroundColor: 'var(--theme-bg-tertiary)',
+              border: '1px solid var(--theme-border-secondary)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              padding: '2px 8px',
+              marginBottom: '4px',
+            }}
+          >
+            {t('entityDetailView.showFamilyTree')}
+          </button>
+        )}
 
         {/* Aliases */}
         {aliases.length > 0 && (

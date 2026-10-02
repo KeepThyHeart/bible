@@ -9,8 +9,12 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
+import { contentSecurityPolicyDirectives } from './cspDirectives.js';
+import { createAudioRouter } from './routes/audioRoutes.js';
+import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
+import './routes/offlineRoutes.js';
 import './routes/bibleRoutes.js';
 import './routes/commentaryRoutes.js';
 import './routes/interlinearRoutes.js';
@@ -18,12 +22,17 @@ import './routes/searchRoutes.js';
 import './routes/strongsRoutes.js';
 import './routes/wordStudyRoutes.js';
 import './routes/crossRefRoutes.js';
+import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
+import './routes/timelineRoutes.js';
+import './routes/quizRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
+import './routes/presentRoutes.js';
+import './routes/hymnRoutes.js';
 import { getRegisteredRoutes } from './routes/routeRegistry.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
@@ -65,6 +74,20 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
 const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
 const appStateDir = resolve(packageRoot, 'data');
+
+/**
+ * Where the public-domain hymn library is read from, in order of preference.
+ *
+ * The layout matches what a standalone hymn repository would have, so pointing
+ * `BIBLE_HYMNS_DIR` at a checkout of one is the whole integration -- no
+ * submodule, no build step, no compiled index. The repo-root `hymns/` is the
+ * seed library, and `dataDir/hymns` lets an install add its own without
+ * touching the checkout. Both are read; ids must not collide.
+ */
+const hymnDirs = [
+  process.env.BIBLE_HYMNS_DIR || resolve(packageRoot, '../../hymns'),
+  resolve(dataDir, 'hymns'),
+];
 
 // Initialize file logging before any other output
 logger.init(appStateDir);
@@ -189,32 +212,14 @@ if (authConfig.passwordHash) {
   siteConfig.persistAuth(sitePasswordHash);
 }
 
-// Security headers via Helmet
+// Security headers via Helmet. The directives live in cspDirectives.ts; they
+// are unchanged unless the Audio Bible is enabled (see the comment there).
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      // 'unsafe-inline' is required for the error-fallback inline script in index.html.
-      // The hash alternative would require rebuilding the client on every change.
-      // 'wasm-unsafe-eval' lets WebAssembly compile. Without it the browser
-      // refuses to instantiate any wasm module, which kills the wa-sqlite
-      // worker behind offline module storage and the in-browser search index
-      // ("Refused to compile or instantiate WebAssembly module"). It is the
-      // narrow directive for exactly this — it does NOT re-enable eval() for
-      // JavaScript, unlike 'unsafe-eval'.
-      scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'"],
-      // No external origins: reading fonts are self-hosted under /fonts (see
-      // scripts/fetch-fonts.mjs) and Font Awesome is bundled from node_modules
-      // (see the comment in src/main.tsx). The Google Fonts and cdnjs
-      // allowances these directives used to carry are both dead.
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      fontSrc: ["'self'"],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
-      // Do NOT include upgrade-insecure-requests: it causes browsers to upgrade HTTP
-      // requests to HTTPS, breaking local dev servers that serve over plain HTTP.
-      upgradeInsecureRequests: null,
-    }
+    directives: contentSecurityPolicyDirectives({
+      enabled: siteConfig.audio.enabled,
+      externalOrigins: siteConfig.audio.externalOrigins,
+    }),
   },
   // HSTS is only meaningful for production HTTPS deployments. In local/test
   // environments the server runs over HTTP, so HSTS would cause browsers to
@@ -224,6 +229,9 @@ app.use(helmet({
 }));
 
 // Body size limits (item #5)
+// The presenter notes route carries a document up to 256 KB (the route enforces
+// the cap itself), so it gets its own parser ahead of the general 100 KB one.
+app.use('/api/present/s/:sessionId/notes', express.json({ limit: '300kb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
@@ -379,6 +387,10 @@ const routeDeps = {
     hybridDefault: searchHybridDefault,
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
+    showTimeline: siteConfig.isEnabled('timeline'),
+    showQuiz: siteConfig.isEnabled('quiz'),
+    // /api/offline (pack builder manifest and files): on with either offline feature flag.
+    offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,
@@ -386,6 +398,11 @@ const routeDeps = {
     // directory from here rather than reaching into DatabaseManager's private
     // field, and the privacy posture so they can honor 'strict'.
     dataDir,
+    // Presentation sessions are state this instance owns and must not share:
+    // two installs pointed at one content store must not see each other's live
+    // sessions. See the dataDir/appStateDir note at the top of this file.
+    appStateDir,
+    hymnDirs,
     privacyMode,
     // Shared token the desktop uploader must present. Empty accepts any build.
     desktopReportToken: siteConfig.desktopReports.token,
@@ -394,6 +411,25 @@ const routeDeps = {
 for (const reg of getRegisteredRoutes()) {
   app.use(reg.path, reg.createRoutes(routeDeps));
 }
+
+/**
+ * Audio Bible files (recordings, TTS engine files) at `/audio`, when enabled.
+ * After the password gate above, so they are as private as the rest of the app.
+ * Not under `/api`, so the API rate limiter (which counts requests, not bytes)
+ * does not apply to bulk media.
+ */
+if (siteConfig.audio.enabled) {
+  app.use('/audio', createAudioRouter(siteConfig.audio.dir));
+  logger.info(`Audio Bible enabled; serving ${siteConfig.audio.dir} at /audio`);
+}
+
+/**
+ * Downloadable assets (speech models, data files) at `/assets/v1`. Same position as
+ * `/audio`: after the password gate, outside `/api`. Always mounted (an empty directory
+ * just 404s). Only `/assets/v1/...` is claimed; other `/assets/*` paths are the client
+ * build's hashed bundles and fall through to the static handler below.
+ */
+app.use('/assets', createAssetRouter(siteConfig.assets.dir));
 
 /**
  * Serve the browser-side search assets -- and nothing else in the data directory.
@@ -501,13 +537,72 @@ if (existsSync(clientDir)) {
       }
     },
   }));
+  /**
+   * The projection viewer, at the URL people are actually handed.
+   *
+   * It is a second HTML entry point (see `build.rollupOptions.input` in
+   * vite.config.ts), not a route inside the reading app, because the machine
+   * plugged into the television must not download the reader to show a verse.
+   *
+   * This must stay above the SPA catch-all below. If it is lost, the catch-all
+   * answers the same URL with the reading app's shell -- a 200 with HTML, which
+   * looks like success to anything that only checks a status code.
+   *
+   * The join code in the path is not validated here. Serving the shell for an
+   * unknown code is harmless, the code is checked when the page opens its
+   * stream, and answering differently for a real code than for a made-up one
+   * would leak which codes exist.
+   */
+  const presentViewerHtml = join(clientDir, 'present', 'viewer.html');
+  app.get('/present/v/:joinCode', (_req, res) => {
+    if (!existsSync(presentViewerHtml)) {
+      res.status(404).json({ error: 'Projection viewer is not built' });
+      return;
+    }
+    // Same reasoning as the SPA shell: it names hashed asset files, so a stale
+    // copy pins this screen to a stale build.
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentViewerHtml);
+  });
+
+  /**
+   * `/present/solo`: the solo viewer (`present/solo.html`), a projection page
+   * driven by a local session with no join code. Same placement reasons as above.
+   */
+  const presentSoloHtml = join(clientDir, 'present', 'solo.html');
+  app.get('/present/solo', (_req, res) => {
+    if (!existsSync(presentSoloHtml)) {
+      res.status(404).json({ error: 'The solo viewer is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentSoloHtml);
+  });
+
+  /**
+   * `/watch`: the short, typeable join address (see `present/watch.html`).
+   *
+   * Above the SPA catch-all for the same reason `/present/v/:joinCode` is:
+   * this is a second, bare entry point, not a route inside the reading app,
+   * and must not fall through to `index.html`.
+   */
+  const presentWatchHtml = join(clientDir, 'present', 'watch.html');
+  app.get('/watch', (_req, res) => {
+    if (!existsSync(presentWatchHtml)) {
+      res.status(404).json({ error: 'The join page is not built' });
+      return;
+    }
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(presentWatchHtml);
+  });
+
   app.get('*', (req, res) => {
     // The SPA shell is ONLY a valid answer for genuine browser navigations.
     // Anything else — /api/*, /data/*, or any fetch/XHR that expects JSON/binary —
     // must 404 loudly instead of silently receiving index.html. Serving HTML where
     // JSON is expected is how a routing/auth bug masquerades as "working" while the
     // client chokes on JSON.parse(<!DOCTYPE html>...).
-    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/');
+    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/') || req.path.startsWith('/assets/v1/');
     const wantsHtml = req.accepts(['html', 'json']) === 'html';
     if (isApiOrData || !wantsHtml) {
       res.status(404).json({ error: 'Not found', path: req.path });

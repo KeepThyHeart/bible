@@ -167,6 +167,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 213 94 0;
+  --theme-mark-3-rgb: 0 158 115;
+  --theme-mark-4-rgb: 191 113 156;
+  --theme-mark-5-rgb: 172 125 9;
+  --theme-mark-6-rgb: 54 145 199;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #D97706;
   --theme-crossref-color: #2563EB;
@@ -297,6 +307,16 @@
   --theme-morph-pronoun: #FB923C;
   --theme-morph-pronoun-rgb: 251 146 60;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 86 180 233;
+  --theme-mark-2-rgb: 255 138 61;
+  --theme-mark-3-rgb: 47 211 160;
+  --theme-mark-4-rgb: 231 155 194;
+  --theme-mark-5-rgb: 240 192 74;
+  --theme-mark-6-rgb: 124 196 240;
+  --theme-mark-7-rgb: 184 154 224;
+  --theme-mark-8-rgb: 176 176 176;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #FBBF24;
   --theme-crossref-color: #60A5FA;
@@ -424,6 +444,16 @@
   --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 150 109 6;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: #B45309;
@@ -555,6 +585,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 213 94 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 179 105 146;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 50 135 186;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -684,6 +724,16 @@
   --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -815,6 +865,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -944,6 +1004,16 @@
   --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1075,6 +1145,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 179 105 146;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 50 135 186;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -1204,6 +1284,16 @@
   --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
   --theme-morph-pronoun-rgb: 251 146 60;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 86 180 233;
+  --theme-mark-2-rgb: 255 138 61;
+  --theme-mark-3-rgb: 47 211 160;
+  --theme-mark-4-rgb: 231 155 194;
+  --theme-mark-5-rgb: 240 192 74;
+  --theme-mark-6-rgb: 124 196 240;
+  --theme-mark-7-rgb: 184 154 224;
+  --theme-mark-8-rgb: 176 176 176;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);
@@ -1335,6 +1425,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 150 109 6;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -1464,6 +1564,16 @@
   --theme-morph-adjective-rgb: 126 34 206;
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 186 81 0;
+  --theme-mark-3-rgb: 0 129 93;
+  --theme-mark-4-rgb: 156 91 127;
+  --theme-mark-5-rgb: 150 109 6;
+  --theme-mark-6-rgb: 42 117 163;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
@@ -1595,6 +1705,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 199 87 0;
+  --theme-mark-3-rgb: 0 138 100;
+  --theme-mark-4-rgb: 167 98 136;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 46 126 174;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -1724,6 +1844,16 @@
   --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
   --theme-morph-pronoun-rgb: 251 146 60;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 86 180 233;
+  --theme-mark-2-rgb: 255 138 61;
+  --theme-mark-3-rgb: 47 211 160;
+  --theme-mark-4-rgb: 231 155 194;
+  --theme-mark-5-rgb: 240 192 74;
+  --theme-mark-6-rgb: 124 196 240;
+  --theme-mark-7-rgb: 184 154 224;
+  --theme-mark-8-rgb: 176 176 176;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);
@@ -1855,6 +1985,16 @@
   --theme-morph-pronoun: #C2410C;
   --theme-morph-pronoun-rgb: 194 65 12;
 
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 0 114 178;
+  --theme-mark-2-rgb: 213 94 0;
+  --theme-mark-3-rgb: 0 148 107;
+  --theme-mark-4-rgb: 179 105 146;
+  --theme-mark-5-rgb: 161 117 7;
+  --theme-mark-6-rgb: 50 135 186;
+  --theme-mark-7-rgb: 123 78 163;
+  --theme-mark-8-rgb: 102 102 102;
+
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(217 119 6);
   --theme-crossref-color: rgb(37 99 235);
@@ -1984,6 +2124,16 @@
   --theme-morph-adjective-rgb: 192 132 252;
   --theme-morph-pronoun: #FB923C;
   --theme-morph-pronoun-rgb: 251 146 60;
+
+  /* Keyword mark colours (Okabe-Ito based; >= 3:1 on the page and surface backgrounds) */
+  --theme-mark-1-rgb: 86 180 233;
+  --theme-mark-2-rgb: 255 138 61;
+  --theme-mark-3-rgb: 47 211 160;
+  --theme-mark-4-rgb: 231 155 194;
+  --theme-mark-5-rgb: 240 192 74;
+  --theme-mark-6-rgb: 124 196 240;
+  --theme-mark-7-rgb: 184 154 224;
+  --theme-mark-8-rgb: 176 176 176;
 
   /* Footnote / cross-reference markers */
   --theme-footnote-color: rgb(245 158 11);

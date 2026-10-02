@@ -1,0 +1,22 @@
+{
+  "extends": "../../packages/tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["bun"],
+    "noEmit": true,
+    "rootDir": "./src",
+    "sourceMap": true,
+    "isolatedModules": true
+    // Deliberately no `paths` mapping to `../../packages/core/src`. Bun honours
+    // tsconfig `paths` at *runtime*, so mapping to source would make the CLI
+    // consume core's ESM source rather than its CommonJS `dist/`, and core's
+    // source is not ESM-clean. Resolving through node_modules types the CLI
+    // against the same build it runs. Consequence: `pnpm run build:core` is a
+    // prerequisite for typechecking, testing and building the CLI.
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"]
+}

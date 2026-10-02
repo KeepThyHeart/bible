@@ -8,6 +8,13 @@
  *
  * Each command-typed menu item dispatches `commands:execute` back to the
  * focused window, which routes it through the renderer's command registry.
+ *
+ * RTL (task 0076): nothing to do here. Electron has no API to mirror the
+ * Windows/Linux menu bar or submenu arrows (macOS mirrors natively for RTL
+ * system languages), and accelerators are physical key chords that must not
+ * change. Labels arrive already translated by the renderer's `t()`, which
+ * isolates interpolated values in an RTL UI; any label embedding a module,
+ * file or reference name must come through those params, not concatenation.
  */
 
 import { Menu, BrowserWindow, MenuItem, ipcMain, type MenuItemConstructorOptions } from 'electron';

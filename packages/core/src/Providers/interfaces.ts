@@ -32,6 +32,7 @@
  * directly.
  */
 
+import type { IGenealogyDataProvider } from '../Genealogy/types';
 import type {
   ChapterData,
   VerseData,
@@ -214,4 +215,6 @@ export interface IDataProviders {
   topical: ITopicalDataProvider;
   tagGraph: ITagGraphDataProvider;
   studyOverview: IStudyOverviewProvider;
+  /** Genealogy explorer dataset (task 0067). Optional so existing implementers and mocks stay valid. */
+  genealogy?: IGenealogyDataProvider;
 }

@@ -73,7 +73,8 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px 10px 4px 12px;
+    padding-block: 4px;
+    padding-inline: 12px 10px;
     color: var(--text-muted);
     font-size: calc(14px * var(--ui-font-scale, 1));
     display: flex;
@@ -220,7 +221,8 @@
   }
 
   &__search-icon {
-    padding: 0 0 0 12px;
+    padding: 0;
+    padding-inline-start: 12px;
     color: var(--text-muted);
     font-size: calc(13px * var(--ui-font-scale, 1));
     flex-shrink: 0;

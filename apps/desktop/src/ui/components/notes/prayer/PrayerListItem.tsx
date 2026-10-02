@@ -76,7 +76,7 @@ const PrayerListItem: React.FC<PrayerListItemProps> = ({ prayer, index, isSelect
       )}
 
       {/* Prayer title only - no description */}
-      <div className="flex-1 min-w-0 text-sm truncate">
+      <div dir="auto" className="flex-1 min-w-0 text-sm truncate">
         {prayer.title || t('prayerListItem.untitledPrayer')}
       </div>
 

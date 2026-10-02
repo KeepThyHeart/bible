@@ -2,9 +2,7 @@
 // Strong's popup (click-to-open full detail)
 //
 // Displays original-language word content (the Strong's number, the Greek/
-// Hebrew word, transliteration, pronunciation) - kept physical for the same
-// reason as `_bible-content.scss`'s verse/word rules; see that file's
-// `.verse--preface` comment.
+// Hebrew word, transliteration, pronunciation) - logical properties.
 // ============================================================
 .strongs-popup-overlay {
   position: fixed;
@@ -50,7 +48,7 @@
     font-size: calc(14px * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--accent-color);
-    margin-right: 8px;
+    margin-inline-end: 8px;
   }
 
   &__word {
@@ -81,7 +79,7 @@
     font-style: normal;
     color: var(--text-muted);
     font-size: calc(12px * var(--ui-font-scale, 1));
-    margin-left: 4px;
+    margin-inline-start: 4px;
   }
 
   &__pos {

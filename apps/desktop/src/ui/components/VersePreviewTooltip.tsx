@@ -7,7 +7,9 @@ import { VerseIdHelper } from '@bible/core';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
 import { useBibleStore } from '../stores/useBibleStore';
 import { sanitizeHtml } from '../utils/sanitize';
-import { Popover } from '@bible/ui';
+import { Popover, Bdi } from '@bible/ui';
+import { isolate } from '@bible/core/browser';
+import { contentDirAttrs } from '../utils/contentDirection';
 import { getVersesCached, primeVerseCache, type CachedVerse } from '../services/verseFetchCache';
 import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 
@@ -84,6 +86,8 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
   const { openTabs, activeTabIndex } = useBiblePanel();
   const defaultBible = useBibleStore(s => s.getDefaultBible());
   const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? defaultBible;
+  // The previewed text follows the active Bible's language, not the UI's.
+  const activeLanguage = useBibleStore(s => s.availableBibles?.find(b => b.abbreviation === activeVersion)?.language_code);
   /**
    * Words of Christ in red, read from the same Bible-pane text settings the
    * reader sets in Preferences. The popup shows the *same* verse text as the
@@ -228,7 +232,7 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
       width={TOOLTIP_WIDTH}
       estimatedHeight={isRange ? ESTIMATED_HEIGHT_RANGE : ESTIMATED_HEIGHT_SINGLE}
       offset={offsetY}
-      label={getReference()}
+      label={isolate(getReference(), 'auto')}
       className={`z-50 rounded-lg shadow-xl p-4${showRedLetter === false ? ' no-red-letter' : ''}`}
       style={{
         backgroundColor: 'var(--theme-bg-primary)',
@@ -243,7 +247,7 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
         className="flex items-center justify-between gap-2 font-semibold text-accent mb-2 pb-2"
         style={{ borderBottom: '1px solid var(--theme-border-primary)' }}
       >
-        <span>{getReference()}</span>
+        <Bdi>{getReference()}</Bdi>
         {onGoToVerse && (
           <button
             type="button"
@@ -262,7 +266,7 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
       ) : error ? (
         <div className="text-danger text-sm">{error}</div>
       ) : (
-        <div ref={scrollContainerRef} className="relative text-sm space-y-1 max-h-64 overflow-y-auto">
+        <div ref={scrollContainerRef} className="relative text-sm space-y-1 max-h-64 overflow-y-auto" {...contentDirAttrs(activeLanguage)}>
           {verses.map((verse) => {
             // KAN-34: For ranges, highlight all verses in the range; for single, highlight just the target
             const isTargetVerse = isRange
