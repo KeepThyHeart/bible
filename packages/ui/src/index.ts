@@ -89,3 +89,14 @@ export type { AssetListProps, AssetListLabels, AssetListRow, AssetListStatus } f
 
 export { SimilarList, DEFAULT_SIMILAR_LIST_LABELS, similarityStep } from './components/Similar/SimilarList';
 export type { SimilarListProps, SimilarListLabels, SimilarListRow } from './components/Similar/SimilarList';
+
+export { PackBuilder } from './components/PackBuilder';
+export type {
+  PackBuilderProps,
+  PackBuilderRow,
+  PackBuilderLabels,
+  PackBuilderSummary,
+  PackBuilderRun,
+  PackBuilderRunState,
+  PackBuilderStatus,
+} from './components/PackBuilder';

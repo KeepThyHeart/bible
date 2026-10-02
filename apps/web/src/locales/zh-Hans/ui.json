@@ -305,7 +305,86 @@
       "semanticNotAvailable": "服务器上没有可用的语义搜索索引",
       "remove": "移除",
       "download": "下载",
-      "failed": "失败"
+      "failed": "失败",
+      "pack": {
+        "title": "离线包",
+        "presets": "入门包",
+        "groups": "内容",
+        "empty": "没有可下载的内容。",
+        "loadFailed": "无法加载离线包列表。",
+        "notReadable": "网页版暂不支持离线阅读此类型。",
+        "shellNotice": "在离线应用外壳推出之前，已下载的离线包仅在本站已有标签页打开时有用。",
+        "start": "下载所选",
+        "cancel": "取消",
+        "storageBar": "存储用量",
+        "runProgress": "下载进度",
+        "status": {
+          "absent": "未下载",
+          "installed": "已在此设备上",
+          "update": "有可用更新",
+          "installing": "下载中",
+          "error": "失败"
+        },
+        "summary": {
+          "download": "下载：{size}",
+          "stored": "占用：{size}",
+          "free": "可用：{size}",
+          "freeUnknown": "可用空间未知"
+        },
+        "fit": {
+          "fits": "可放入此设备",
+          "tight": "可放入，但存储空间几乎已满",
+          "no": "空间不足：还差 {size}",
+          "unknown": "无法判断是否放得下"
+        },
+        "run": {
+          "count": "{done} / {total} 项",
+          "bytes": "{loaded} / {total}",
+          "running": "正在下载...",
+          "done": "完成。所有内容都已在此设备上。",
+          "partial": "部分项目未能下载。",
+          "failed": "下载失败。",
+          "cancelled": "已取消。未完成的下载会保留，下次继续。"
+        },
+        "group": {
+          "bible": "圣经",
+          "commentary": "注释",
+          "dictionary": "词典",
+          "crossref": "串珠",
+          "topical": "主题",
+          "other": "其他模块",
+          "speech": "语音",
+          "data": "数据文件"
+        },
+        "warn": {
+          "unavailable": "{name} 已不再提供。",
+          "notReadable": "网页版暂不支持离线阅读 {name}。",
+          "dependencyAdded": "因 {for} 需要，已添加 {name}。",
+          "missingDependency": "{name} 需要 {requires}，但其不可用。",
+          "cycle": "部分项目互相依赖，将按固定顺序安装。",
+          "overQuota": "还需要约 {size} 空间。"
+        },
+        "remove": "移除",
+        "keepHint": "选中已在此设备上的项目会将其保留在此处，不会被自动清理。"
+      }
+    },
+    "downloads": {
+      "title": "下载与存储",
+      "download": "下载",
+      "update": "更新",
+      "retry": "重试",
+      "cancel": "取消",
+      "remove": "移除",
+      "queued": "排队中",
+      "downloading": "{percent}%",
+      "installed": "已安装",
+      "total": "此设备上：{size}",
+      "empty": "没有可下载的内容。",
+      "unverified": "未验证",
+      "kind": {
+        "ttsRuntime": "语音引擎",
+        "ttsVoice": "语音"
+      }
     },
     "downloads": {
       "title": "下载与存储",

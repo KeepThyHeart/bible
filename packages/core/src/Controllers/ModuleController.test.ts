@@ -213,6 +213,56 @@ describe('ModuleController', () => {
   });
 
   // ==========================================================================
+  // download progress carries the real module identity
+  // ==========================================================================
+
+  describe('download progress module identity', () => {
+    const blank = (queueId: number) => ({
+      queueId,
+      moduleId: '',
+      moduleName: '',
+      status: 'downloading' as const,
+      progressBytes: 10,
+      progressPercentage: 1,
+      speedBps: 1,
+      speedMBps: 0,
+    });
+
+    it('fills moduleId/moduleName from the queue row for progress events and getters', () => {
+      (downloadQueueRepo.getById as ReturnType<typeof vi.fn>).mockReturnValue({
+        queueId: 7,
+        moduleId: 'kjv',
+        moduleName: 'King James Version',
+      });
+      const listener = (downloadService.onProgress as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const event = blank(7);
+      listener(event);
+      expect(event.moduleId).toBe('kjv');
+      expect(event.moduleName).toBe('King James Version');
+
+      (downloadService.getProgress as ReturnType<typeof vi.fn>).mockReturnValue(blank(7));
+      expect(controller.getDownloadProgress(7)?.moduleId).toBe('kjv');
+      (downloadService.getActiveDownloads as ReturnType<typeof vi.fn>).mockReturnValue([blank(7)]);
+      expect(controller.getActiveDownloads()[0]!.moduleName).toBe('King James Version');
+    });
+
+    it('uses the catalog identity during an install', async () => {
+      (catalogService.getModuleInfo as ReturnType<typeof vi.fn>).mockReturnValue(makeCatalogModule());
+      const listener = (downloadService.onProgress as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const event = blank(1);
+      (downloadService.startDownload as ReturnType<typeof vi.fn>).mockImplementation(
+        async (_q: number, _u: string, dest: string) => {
+          listener(event);
+          return dest;
+        }
+      );
+      await controller.installModule('kjv');
+      expect(event.moduleId).toBe('kjv');
+      expect(event.moduleName).toBe('King James Version');
+    });
+  });
+
+  // ==========================================================================
   // installModule - temp filename extension
   // ==========================================================================
 

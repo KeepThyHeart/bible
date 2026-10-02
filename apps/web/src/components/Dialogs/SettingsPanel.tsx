@@ -17,6 +17,7 @@ import { audioStore } from '../../stores/audioStore';
 import { AudioSettingsTab } from './AudioSettingsTab';
 import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
 import { DownloadsSection } from './DownloadsSection';
+import { OfflinePackSection } from './OfflinePackSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
@@ -220,7 +221,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   const activeBibleTabs = useStore(bibleStore, () =>
     bibleStore.tabs.map(t => t.moduleAbbr)
   );
-  const activeAbbrSet = new Set(activeBibleTabs);
 
   // Set active tab based on scrollToSection
   useEffect(() => {
@@ -281,24 +281,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   }, [offlineEnabled]);
 
   if (!isOpen) return null;
-
-  // Sort bible modules: currently selected first, then rest
-  const bibleModules = availableModules
-    .filter(m => m.type === 'bible')
-    .sort((a, b) => {
-      const aActive = activeAbbrSet.has(a.abbreviation) ? 0 : 1;
-      const bActive = activeAbbrSet.has(b.abbreviation) ? 0 : 1;
-      if (aActive !== bActive) return aActive - bActive;
-      return a.abbreviation.localeCompare(b.abbreviation);
-    });
-
-  const handleDownload = async (abbreviation: string, name: string) => {
-    try {
-      await storageManager.downloadModule(abbreviation, name);
-    } catch (err) {
-      console.error('Download failed:', err);
-    }
-  };
 
   const handleRemove = async (abbreviation: string) => {
     await storageManager.removeModule(abbreviation);
@@ -780,31 +762,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
                 {offlineEnabled && (
                   <>
-                    <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.offline.bibleTranslations')}</h4>
-                    <div class="offline-modules-list">
-                      {bibleModules.map(mod => {
-                        const abbr = mod.abbreviation;
-                        const downloaded = downloadedModules.find(d => d.abbreviation === abbr);
-                        const progress = activeDownloads.get(abbr);
-                        const isInUse = activeAbbrSet.has(abbr);
-                        return (
-                          <OfflineModuleCard
-                            key={abbr}
-                            abbreviation={abbr}
-                            name={mod.name}
-                            sizeBytes={downloaded?.sizeBytes}
-                            isDownloaded={!!downloaded}
-                            progress={progress}
-                            onDownload={() => handleDownload(abbr, mod.name)}
-                            onRemove={() => handleRemove(abbr)}
-                            badge={isInUse ? t('settings.offline.currentlyOpen') : undefined}
-                          />
-                        );
-                      })}
-                      {bibleModules.length === 0 && (
-                        <div class="offline-modules-list__empty">{t('settings.offline.noModules')}</div>
-                      )}
-                    </div>
+                    <OfflinePackSection />
 
                     <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.offline.semanticSearch')}</h4>
                     <div class="offline-modules-list">

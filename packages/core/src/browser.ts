@@ -338,6 +338,11 @@ export * from './Measures';
 // store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
 export * from './assets';
 
+// --- Offline packs (task 0075) -----------------------------------------------
+// Pack types, planner (dependencies, sizes, fit), presets from starter packs and
+// the pack runner over per-kind installers. Pure TypeScript.
+export * from './offline';
+
 // --- Similar passages (task 0070) --------------------------------------------
 // Types, ranking weights/policy, match explanations, the SNB1 neighbour table
 // reader and the service that picks table or live source. Pure TypeScript; the
