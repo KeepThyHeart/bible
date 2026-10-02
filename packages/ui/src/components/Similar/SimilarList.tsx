@@ -134,7 +134,8 @@ function SimilarRow({
             }
           }}
         >
-          {row.reference}
+          {/* Isolated, so in an RTL UI a leading book number stays with its book ("1 John 4:10"). */}
+          <bdi>{row.reference}</bdi>
         </button>
         <span
           className="kth-similar__bar"

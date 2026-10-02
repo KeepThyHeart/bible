@@ -48,6 +48,11 @@ describe('SimilarList', () => {
     expect(screen.getByLabelText('Similarity 1 of 5')).toBeInTheDocument();
   });
 
+  it('isolates the reference text so a leading book number keeps its place in an RTL UI', () => {
+    setup([row({ key: 'a', reference: '1 John 4:10' })]);
+    expect(screen.getByText('1 John 4:10').tagName).toBe('BDI');
+  });
+
   it('shows cross-reference and testament badges only when flagged', () => {
     setup([row({ key: 'a', isCrossReference: true, crossesTestament: true }), row({ key: 'b' })]);
     expect(screen.getAllByText(DEFAULT_SIMILAR_LIST_LABELS.crossRef)).toHaveLength(1);

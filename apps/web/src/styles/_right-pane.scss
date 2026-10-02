@@ -7,8 +7,16 @@
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  // With Quiz, Word study, Similar and Timeline the tabs no longer fit a narrow pane. The strip
+  // scrolls on its own; otherwise focusing an overflowing tab scrolls the whole (overflow: hidden)
+  // pane sideways and clips its content.
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 
   &__tab {
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 6px 14px;
     cursor: pointer;
     font-size: calc(12px * var(--ui-font-scale, 1));
@@ -61,6 +69,11 @@
     padding: 6px 8px;
     font-size: calc(11px * var(--ui-font-scale, 1));
     margin-inline-start: auto;
+    // Stays reachable at the end of the strip when the tabs scroll.
+    position: sticky;
+    inset-inline-end: 0;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
 
     &:hover {
       color: var(--text-primary);
