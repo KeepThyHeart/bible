@@ -18,7 +18,7 @@ vi.mock('electron-log', () => ({
 }));
 
 import { BibleVerse, encodeNeighbourTable } from '@bible/core';
-import type { NeighbourHit } from '@bible/core';
+import type { NeighbourHit, SemanticSearchService } from '@bible/core';
 import {
   createSimilarApi,
   sanitizeOptions,
