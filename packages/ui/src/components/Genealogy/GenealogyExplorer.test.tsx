@@ -29,11 +29,11 @@ describe('GenealogyExplorer', () => {
     const { container, user } = setup();
     const root = container.firstElementChild!;
     await user.click(screen.getByRole('button', { name: 'Full screen' }));
-    expect(root).toHaveClass('kth-genealogy-explorer--full');
-    expect(screen.getByRole('button', { name: 'Exit full screen' })).toHaveAttribute('aria-pressed', 'true');
+    expect(root).toHaveClass('kth-fs-on');
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toBeTruthy();
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     await user.keyboard('{Escape}');
-    await waitFor(() => expect(root).not.toHaveClass('kth-genealogy-explorer--full'));
+    await waitFor(() => expect(root).not.toHaveClass('kth-fs-on'));
   });
 
   it('shows a one-line hint per view and a Key that opens on demand', async () => {

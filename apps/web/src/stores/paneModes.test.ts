@@ -41,14 +41,15 @@ describe('context menu targets', () => {
     }
   });
 
-  it('offers exactly one navigating action, to the study pane', () => {
+  it('offers the study and similar-passages navigating actions', () => {
     // The menu used to carry an entry per study target — Cross-References,
     // Topics, Commentary, Dictionary — and each of them opened a pane still
     // showing the previously selected verse. They collapsed into 'study',
     // which selects the right-clicked verse first. The other panes stay
     // reachable from the tab strip; they are no longer right-click targets.
-    expect(Object.keys(CONTEXT_MENU_TARGETS)).toEqual(['study']);
+    expect(Object.keys(CONTEXT_MENU_TARGETS)).toEqual(['study', 'similar']);
     expect(CONTEXT_MENU_TARGETS.study?.paneId).toBe('study');
+    expect(CONTEXT_MENU_TARGETS.similar?.paneId).toBe('similar');
   });
 
   it('only ever asks for a mobile view that exists', () => {

@@ -71,6 +71,20 @@ export const PERM_COMMANDS_REGISTER = 'commands:register' as const;
 export const PERM_COMMANDS_EXECUTE_BUILTIN = 'commands:execute-builtin' as const;
 export const PERM_TASKS = 'tasks' as const;
 
+/**
+ * Schedule reminders (`api.reminders`): the host shows the extension's
+ * reminders as OS notifications at times the extension chooses, even while
+ * the app is in the background, and wakes the extension (`onReminder`) when
+ * the user clicks one. It interrupts the user outside the app, so it is NOT
+ * default-granted: it appears in the ordinary install consent dialog. It is
+ * deliberately not in `SEPARATELY_PROMPTED_PERMISSIONS` - that list is for
+ * data-exfiltration and persistent-storage surfaces (network, keychain,
+ * databases, folders); a notification is bounded (64 plain-text items, no
+ * data leaves the machine) and the user can silence a single extension or all
+ * of them in Preferences > Notifications. One omnibus line is the right weight.
+ */
+export const PERM_NOTIFICATIONS_SCHEDULE = 'notifications:schedule' as const;
+
 /** Network */
 export const PERM_NETWORK = 'network' as const;
 export const PERM_NETWORK_OAUTH = 'network:oauth' as const;
@@ -116,6 +130,7 @@ export type ExtensionPermission =
   | typeof PERM_COMMANDS_REGISTER
   | typeof PERM_COMMANDS_EXECUTE_BUILTIN
   | typeof PERM_TASKS
+  | typeof PERM_NOTIFICATIONS_SCHEDULE
   | typeof PERM_NETWORK
   | typeof PERM_NETWORK_OAUTH
   | typeof PERM_EXTENSIONS_CALL

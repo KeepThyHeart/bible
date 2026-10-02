@@ -60,6 +60,8 @@ import {
   activate as lifecycleActivate,
   deactivate as lifecycleDeactivate,
   fireActivationEvent as lifecycleFireActivationEvent,
+  deliverReminderActivation as lifecycleDeliverReminderActivation,
+  deliverReminderMissed as lifecycleDeliverReminderMissed,
   dispatchExtensionPoint as lifecycleDispatchExtensionPoint,
 } from './ExtensionHostLifecycle';
 import { wireExtensionPoints } from './ExtensionPointWiring';
@@ -116,6 +118,8 @@ export class ExtensionHost implements IExtensionHost {
       bookmarksBridge: opts.bookmarksBridge,
       collectionsBridge: opts.collectionsBridge,
       folderBridge: opts.folderBridge,
+      remindersBridge: opts.remindersBridge,
+      reminderActivationQueues: new Map(),
       storageQuotaBytes: opts.storageQuotaBytes,
       secretsKeychain: opts.secretsKeychain,
       extensionDatabaseRegistry: opts.extensionDatabaseRegistry,
@@ -339,19 +343,54 @@ export class ExtensionHost implements IExtensionHost {
     return devReloadUnpacked(this.ctx, extensionId);
   }
 
-  uninstallExtension(extensionId: string): Promise<void> {
+  async uninstallExtension(extensionId: string): Promise<void> {
     // Drop the watch before the row goes: a debounced reload that fires after
     // removal would otherwise re-register the extension from disk.
     this.ctx.devWatcher?.unwatchExtension(extensionId);
-    return installerUninstall(this.ctx, extensionId);
+    await installerUninstall(this.ctx, extensionId);
+    for (const cb of this.uninstallListeners) {
+      try {
+        cb(extensionId);
+      } catch {
+        /* a listener must not break uninstall */
+      }
+    }
   }
 
-  enable(extensionId: string): Promise<void> {
-    return installerEnable(this.ctx, extensionId);
+  private readonly uninstallListeners = new Set<(extensionId: string) => void>();
+
+  /** Called after an extension is uninstalled (e.g. to forget its pending reminders). */
+  onDidUninstall(cb: (extensionId: string) => void): () => void {
+    this.uninstallListeners.add(cb);
+    return () => this.uninstallListeners.delete(cb);
   }
 
-  disable(extensionId: string): Promise<void> {
-    return installerDisable(this.ctx, extensionId);
+  private readonly availabilityListeners = new Set<(extensionId: string) => void>();
+
+  /** Called after an extension is enabled or disabled, or its granted permissions change. */
+  onDidChangeAvailability(cb: (extensionId: string) => void): () => void {
+    this.availabilityListeners.add(cb);
+    return () => this.availabilityListeners.delete(cb);
+  }
+
+  private emitAvailabilityChanged(extensionId: string): void {
+    for (const cb of this.availabilityListeners) {
+      try {
+        cb(extensionId);
+      } catch {
+        /* a listener must not break enable/disable */
+      }
+    }
+  }
+
+  async enable(extensionId: string): Promise<void> {
+    await installerEnable(this.ctx, extensionId);
+    this.emitAvailabilityChanged(extensionId);
+  }
+
+  async disable(extensionId: string): Promise<void> {
+    await installerDisable(this.ctx, extensionId);
+    this.emitAvailabilityChanged(extensionId);
   }
 
   resetCrashState(extensionId: string): Promise<void> {
@@ -370,6 +409,24 @@ export class ExtensionHost implements IExtensionHost {
 
   fireActivationEvent(eventId: string): Promise<void> {
     return lifecycleFireActivationEvent(this.ctx, eventId);
+  }
+
+  /**
+   * The user clicked a reminder owned by `extensionId` (notification source
+   * `ext:<extensionId>`). Activates that one extension if it is active or
+   * declares `onReminder`, then delivers the click to its `onActivated`
+   * handlers or queues it for `takeActivations()`.
+   */
+  deliverReminderActivation(
+    extensionId: string,
+    activation: Extensions.ReminderActivationEvent,
+  ): Promise<void> {
+    return lifecycleDeliverReminderActivation(this.ctx, extensionId, activation);
+  }
+
+  /** Reminders of `extensionId` that came due while closed/asleep; delivered only if it is active. */
+  deliverReminderMissed(extensionId: string, event: Extensions.ReminderMissedEvent): void {
+    lifecycleDeliverReminderMissed(this.ctx, extensionId, event);
   }
 
   /** True iff the worker for `extensionId` is currently active. Used by tests. */
@@ -468,11 +525,12 @@ export class ExtensionHost implements IExtensionHost {
 
   // --- Permissions / settings ---------------------------------------------
 
-  updatePermissions(
+  async updatePermissions(
     extensionId: string,
     grantedPermissions: ExtensionPermission[],
   ): Promise<void> {
-    return permissionsUpdate(this.ctx, extensionId, grantedPermissions);
+    await permissionsUpdate(this.ctx, extensionId, grantedPermissions);
+    this.emitAvailabilityChanged(extensionId);
   }
 
   getSettings(extensionId: string): Promise<Record<string, unknown>> {

@@ -70,6 +70,8 @@ const BUILTIN_CONTENT_TYPES: Record<Exclude<PanelContentType, `ext:${string}`>, 
   genealogy: true,
   timeline: true,
   'reading-plans': true,
+  quiz: true,
+  similar: true,
   search: true,
   newtab: true,
 };

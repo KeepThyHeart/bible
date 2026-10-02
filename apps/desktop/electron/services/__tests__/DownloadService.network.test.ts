@@ -60,9 +60,99 @@ describe('DownloadService via NetworkGateway', () => {
 
   it('sends a Range header when a partial file already exists', async () => {
     fs.writeFileSync(destination, 'partial');
-    gateway.downloadStreamImpl = async () => downloadResult({ status: 206, chunks: ['rest'] });
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 206, headers: { 'content-range': 'bytes 7-10/11' }, chunks: ['rest'] });
     await service.startDownload(2, 'https://cdn.example/module.db', destination);
     expect(gateway.downloadCalls[0]!.headers).toEqual({ Range: `bytes=${'partial'.length}-` });
+  });
+
+  it('restarts from zero when the server answers 200 to a Range request', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 200, chunks: ['whole-file'] });
+    await service.startDownload(3, 'https://cdn.example/module.db', destination);
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('whole-file');
+  });
+
+  it('appends a 206 body to the partial', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 206, headers: { 'content-range': 'bytes 7-11/12' }, chunks: ['-rest'] });
+    await service.startDownload(4, 'https://cdn.example/module.db', destination);
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('partial-rest');
+  });
+
+  it('fails retryably and deletes the partial when a 206 starts at the wrong offset', async () => {
+    fs.writeFileSync(destination, 'partial');
+    fs.writeFileSync(`${destination}.etag`, '"v1"');
+    gateway.downloadStreamImpl = async () =>
+      downloadResult({ status: 206, headers: { 'content-range': 'bytes 0-11/12' }, chunks: ['whole-file!!'] });
+    await expect(service.startDownload(10, 'https://cdn.example/module.db', destination)).rejects.toThrow(
+      /resume mismatch/
+    );
+    expect(fs.existsSync(destination)).toBe(false);
+    expect(fs.existsSync(`${destination}.etag`)).toBe(false);
+    expect(service.getActiveDownloads()).toHaveLength(0);
+
+    // The retry starts clean from zero.
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 200, chunks: ['whole-file!!'] });
+    await service.startDownload(10, 'https://cdn.example/module.db', destination);
+    expect(gateway.downloadCalls[1]!.headers).toBeUndefined();
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('whole-file!!');
+  });
+
+  it('treats a 206 with no parseable Content-Range as a mismatch', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 206, chunks: ['rest'] });
+    await expect(service.startDownload(11, 'https://cdn.example/module.db', destination)).rejects.toThrow(
+      /resume mismatch/
+    );
+    expect(fs.existsSync(destination)).toBe(false);
+  });
+
+  it('stores the ETag beside the file and removes it on completion', async () => {
+    let sidecarDuring: string | undefined;
+    gateway.downloadStreamImpl = async () => {
+      const r = downloadResult({ status: 200, headers: { etag: '"abc"' }, chunks: ['data'] });
+      (r.response as unknown as NodeJS.EventEmitter).once('data', () => {
+        sidecarDuring = fs.readFileSync(`${destination}.etag`, 'utf-8');
+      });
+      return r;
+    };
+    await service.startDownload(12, 'https://cdn.example/module.db', destination);
+    expect(sidecarDuring).toBe('"abc"');
+    expect(fs.existsSync(`${destination}.etag`)).toBe(false);
+  });
+
+  it('sends If-Range with the stored strong ETag on resume', async () => {
+    fs.writeFileSync(destination, 'partial');
+    fs.writeFileSync(`${destination}.etag`, '"abc"');
+    gateway.downloadStreamImpl = async () =>
+      downloadResult({ status: 206, headers: { 'content-range': 'bytes 7-11/12' }, chunks: ['-rest'] });
+    await service.startDownload(13, 'https://cdn.example/module.db', destination);
+    expect(gateway.downloadCalls[0]!.headers).toEqual({ Range: 'bytes=7-', 'If-Range': '"abc"' });
+    expect(fs.existsSync(`${destination}.etag`)).toBe(false);
+  });
+
+  it('removes the ETag sidecar when a 200 restarts the download or on cancel', async () => {
+    fs.writeFileSync(destination, 'partial');
+    fs.writeFileSync(`${destination}.etag`, '"old"');
+    gateway.downloadStreamImpl = async () =>
+      downloadResult({ status: 200, headers: { etag: '"new"' }, chunks: ['whole'] });
+    await service.startDownload(14, 'https://cdn.example/module.db', destination);
+    expect(fs.readFileSync(destination, 'utf-8')).toBe('whole');
+    expect(fs.existsSync(`${destination}.etag`)).toBe(false);
+
+    fs.writeFileSync(destination, 'p');
+    fs.writeFileSync(`${destination}.etag`, '"x"');
+    gateway.downloadStreamImpl = () => new Promise(() => {});
+    void service.startDownload(15, 'https://cdn.example/module.db', destination);
+    service.cancelDownload(15);
+    expect(fs.existsSync(`${destination}.etag`)).toBe(false);
+  });
+
+  it('drops the partial on 416 so a retry starts clean', async () => {
+    fs.writeFileSync(destination, 'partial');
+    gateway.downloadStreamImpl = async () => downloadResult({ status: 416, chunks: [] });
+    await expect(service.startDownload(5, 'https://cdn.example/module.db', destination)).rejects.toThrow(/416/);
+    expect(fs.existsSync(destination)).toBe(false);
   });
 
   it('creates the destination folder when a fresh profile has none', async () => {

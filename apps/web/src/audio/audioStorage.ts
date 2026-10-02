@@ -6,7 +6,8 @@
  * The caches are taken as a parameter so a test can hand in in-memory ones.
  */
 
-import type { IAssetCache } from '@bible/core/browser';
+import type { IAssetCache, IAssetManager } from '@bible/core/browser';
+import { getReadyAssetManager } from '../assets/webAssets';
 import { AUDIO_CACHE_NAMES, createAssetCache } from './AssetCache';
 
 export interface AudioCaches {
@@ -32,17 +33,31 @@ export interface AudioStorageUsage {
   chapterCount: number;
 }
 
-export async function audioStorageUsage(caches: AudioCaches = openAudioCaches()): Promise<AudioStorageUsage> {
-  const [modelBytes, chapterBytes, chapterKeys] = await Promise.all([
-    caches.models.usage(''),
+const isTtsEntry = (e: { kind: string }) => e.kind.startsWith('tts-');
+
+/** Bytes the asset manager holds for speech runtimes and voices; falls back to the cache when it knows none (legacy downloads). */
+export async function audioStorageUsage(
+  caches: AudioCaches = openAudioCaches(),
+  assets?: IAssetManager,
+): Promise<AudioStorageUsage> {
+  const manager = assets ?? await getReadyAssetManager();
+  const managed = manager.getSnapshot().entries.filter(isTtsEntry).reduce((sum, e) => sum + e.storedBytes, 0);
+  const [cached, chapterBytes, chapterKeys] = await Promise.all([
+    managed > 0 ? Promise.resolve(0) : caches.models.usage(''),
     caches.chapters.usage(''),
     caches.chapters.keys(''),
   ]);
-  return { modelBytes, chapterBytes, chapterCount: chapterKeys.length };
+  return { modelBytes: managed > 0 ? managed : cached, chapterBytes, chapterCount: chapterKeys.length };
 }
 
 /** Delete every downloaded engine runtime and voice. Voices are downloaded again on next use. */
-export async function clearModels(caches: AudioCaches = openAudioCaches()): Promise<void> {
+export async function clearModels(caches: AudioCaches = openAudioCaches(), assets?: IAssetManager): Promise<void> {
+  const manager = assets ?? await getReadyAssetManager();
+  for (const e of manager.getSnapshot().entries.filter(isTtsEntry)) {
+    // remove() cancels a queued/downloading job first and also deletes partial files.
+    await manager.remove(e.id);
+  }
+  // Anything downloaded before the manager existed.
   await caches.models.delete('');
 }
 

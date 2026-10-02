@@ -18,13 +18,15 @@
 import {
   createSettingsStore,
   defineSettings,
+  mergeSettings,
+  measureSettingsRegistry,
   type SettingChange,
   type SettingsStoragePort,
 } from '@bible/core/browser';
 
 export const STORAGE_KEY = 'bible-reader-settings';
 
-export const WEB_SETTINGS = defineSettings([
+const WEB_OWN_SETTINGS = defineSettings([
   {
     key: 'swipeChaptersEnabled',
     type: 'boolean',
@@ -84,6 +86,9 @@ export const WEB_SETTINGS = defineSettings([
     description: 'Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone.',
   },
 ]);
+
+/** The web's own settings plus the weights-and-measures group core declares (task 0069). */
+export const WEB_SETTINGS = mergeSettings(WEB_OWN_SETTINGS, measureSettingsRegistry);
 
 function readBlob(): Record<string, unknown> {
   try {

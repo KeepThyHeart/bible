@@ -21,6 +21,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Repositories](features/repositories.md) | Every repository mapped to its database file and tables |
 | [Verse identity](features/verse-identity.md) | Verse IDs, the `Book` enum, book names, reference parsing and collapsing, Strong's numbers |
 | [Module format](features/module-format.md) | The module `.db` format, its schemas, discovery, registration, catalogs |
+| [Quiz](features/quiz.md) | Quiz module format, the pure quiz engine (selection, grading), progress stores, reading-scope and LLM-adjudicator seams, future dynamic question types |
 | [Genealogy explorer](features/genealogy.md) | Family trees from the tag graph: schema, DTOs, graph queries, layouts, data provenance |
 | [Migrations](features/migrations.md) | The `NNN_name.sql` sequence, `MigrationRunner`, the `schema_migration` ledger, user-schema repair |
 | [User data](features/user-data.md) | Notes, markup, collections, sessions, the unified `verse_link` table |
@@ -30,6 +31,8 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
 | [Reading plans](features/reading-plans.md) | Plan engine: builder, scheduler, stock plans (M'Cheyne, chronological), store over `user_data_item`, service |
 | [Keyword marks](features/keyword-marks.md) | Colouring words, phrases, Strong's numbers and connectives in the chapter: matcher, lexicon, decoration layer, sets |
+| [Notifications](features/notifications.md) | The reminder engine: schedule model, DST-safe expansion, missed-reminder collapse, settings, the scheduler and its ports |
+| [Weights, measures and money](features/measures.md) | Unit registry, verse-keyed KJV occurrences, conversions, anchoring, decoration layer and popup model |
 | [Controllers](features/controllers.md) | The stateful layer between UI and repositories/services |
 | [API contracts](features/api-contracts.md) | `src/Api/` - the interfaces a first-party client implements |
 | [Study overview](features/study-overview.md) | Cross-module per-chapter aggregation |
