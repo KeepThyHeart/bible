@@ -1418,6 +1418,10 @@
       "draft": "Draft – not yet reviewed",
       "sources": "Sources",
       "units": "Units…"
+    },
+    "study": {
+      "title": "Weights, measures and money",
+      "listLabel": "Weights, measures and money in this verse: {{count}}"
     }
   }
 }

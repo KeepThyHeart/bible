@@ -24,10 +24,11 @@ const GOD: KeywordSet = {
   marks: [{ id: 'm1', label: 'ark', rule: { kind: 'word', forms: ['ark'] }, style: { color: 'mark.1', line: 'solid' }, enabled: true }],
 };
 
-const prefs = webMeasurePreferences({}, 'en-US', false);
+const prefs = webMeasurePreferences({ measuresDisplay: 'marker' }, 'en-US', false);
 
 describe('webMeasurePreferences', () => {
   it('fills defaults and takes drafts from the flag argument', () => {
+    expect(webMeasurePreferences({}, 'en-US', false)).toMatchObject({ enabled: true, display: 'off', showInReading: false, includeDrafts: false });
     expect(prefs).toMatchObject({ enabled: true, display: 'marker', showInReading: false, includeDrafts: false });
     expect(webMeasurePreferences({ measuresDisplay: 'inline' }, 'en', true)).toMatchObject({ display: 'inline', includeDrafts: true });
   });
@@ -52,7 +53,7 @@ describe('computeWebChapterMeasures', () => {
   it('paints nothing in Reading mode unless opted in', () => {
     const base = { occurrences: [OCC], verses: VERSES, moduleLanguage: 'en', uiLocale: 'en-US', surface: 'reading' as const };
     expect(computeWebChapterMeasures({ ...base, prefs }).layer.decorations).toHaveLength(0);
-    const optIn = webMeasurePreferences({ measuresShowInReading: true }, 'en-US', false);
+    const optIn = webMeasurePreferences({ measuresDisplay: 'marker', measuresShowInReading: true }, 'en-US', false);
     expect(computeWebChapterMeasures({ ...base, prefs: optIn }).layer.decorations.length).toBeGreaterThan(0);
   });
 });

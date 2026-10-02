@@ -24,6 +24,7 @@ const words = text.split(' ').map((t) => ({ text: t }));
 
 describe('useResolvedVerseDecorations + measures', () => {
   it('underlines the unit word for its tab and surface, never without a surface', async () => {
+    useMeasureStore.getState().setValue('measuresDisplay', 'marker'); // the default is 'off' (Study panel only)
     useMeasureStore.getState().syncChapter({
       tabId: 'm-tab', moduleId: 5, abbreviation: 'KJV', language: 'en', bookNumber: 1, chapter: 6,
       verses: [{ verse_id: V, text }], surface: 'standard', uiLocale: 'en-US',

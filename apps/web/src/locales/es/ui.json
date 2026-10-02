@@ -1418,6 +1418,10 @@
       "draft": "Borrador – aún sin revisar",
       "sources": "Fuentes",
       "units": "Unidades…"
+    },
+    "study": {
+      "title": "Pesos, medidas y dinero",
+      "listLabel": "Pesos, medidas y dinero en este versículo: {{count}}"
     }
   }
 }

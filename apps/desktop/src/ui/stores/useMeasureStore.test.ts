@@ -17,10 +17,12 @@ const params = (tabId = 'tab-1', surface: 'standard' | 'reading' | 'study' = 'st
   tabId, moduleId: 1, abbreviation: 'KJV', language: 'en', bookNumber: 1, chapter: 6, verses, surface, uiLocale: 'en-US',
 });
 
-function setup(occurrences: MeasureOccurrence[] = [occ('reviewed')], includeDrafts = false) {
+function setup(occurrences: MeasureOccurrence[] = [occ('reviewed')], includeDrafts = false, display: 'off' | 'marker' = 'marker') {
   const loadOccurrences = vi.fn().mockResolvedValue(occurrences);
   const fetchInterlinear = vi.fn().mockResolvedValue({});
   const useStore = createMeasureStore({ loadOccurrences, fetchInterlinear, includeDrafts: () => includeDrafts });
+  // The shipped default is 'off' (Study panel only); most tests exercise the in-text marks.
+  if (display !== 'off') useStore.setState({ values: { measuresDisplay: display } });
   return { useStore, loadOccurrences, fetchInterlinear };
 }
 
@@ -38,6 +40,14 @@ describe('useMeasureStore', () => {
     expect(measureModelsAt(chapter, V, cubitsIndex)[0]?.title).toBe('300 cubits');
     expect(measureModelsAt(chapter, V, 0)).toEqual([]);
     expect(measureModelsAt(undefined, V, cubitsIndex)).toEqual([]);
+  });
+
+  it('computes no in-text layer and loads nothing with the default display (off)', async () => {
+    const { useStore, loadOccurrences } = setup([occ('reviewed')], false, 'off');
+    useStore.getState().syncChapter(params());
+    await Promise.resolve();
+    expect(useStore.getState().chapters['tab-1']).toBeUndefined();
+    expect(loadOccurrences).not.toHaveBeenCalled();
   });
 
   it('drops draft rows unless drafts are included', async () => {
@@ -72,10 +82,10 @@ describe('useMeasureStore', () => {
   });
 
   it('clears a tab and round-trips only measures* values through the session', () => {
-    const { useStore } = setup();
+    const { useStore } = setup([occ('reviewed')], false, 'off');
     useStore.getState().setValue('measuresSystem', 'us');
     const saved = useStore.getState().getSessionData();
-    const other = setup().useStore;
+    const other = setup([occ('reviewed')], false, 'off').useStore;
     other.getState().loadFromSession({ ...saved, values: { ...saved.values, evil: 1 } });
     expect(other.getState().values).toEqual({ measuresSystem: 'us' });
     expect(other.getState().resolvedPrefs('en-GB').system).toBe('us');

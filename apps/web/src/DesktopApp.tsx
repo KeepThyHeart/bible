@@ -203,6 +203,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   onStrongsLeave={shared.handleStrongsLeave}
                   bibleProvider={providers.bible}
                   genealogyProvider={providers.genealogy}
+                  onOpenSettings={shared.openSettings}
                 />
               )}
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
