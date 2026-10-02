@@ -25,6 +25,8 @@ import { useStudyStore } from './useStudyStore';
 import { useTopicsStore } from './useTopicsStore';
 import { DEFAULT_PANEL_ID } from './helpers/panelStateHelpers';
 import { syncPanesWithVerse } from './syncPanesWithVerse';
+import { setSimilarModuleResolver } from './useSimilarStore';
+import { useSimilarAvailability } from './useSimilarAvailability';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
 import { useSessionStore } from './useSessionStore';
@@ -95,6 +97,7 @@ export function wireStoreSync(): void {
   // when the very first Bible was just installed, the reading pane's seeding);
   // commentaries, dictionaries and books reach their own stores.
   setNotifyLibraryChanged(async (change) => {
+    void useSimilarAvailability.getState().refresh(); // a semantic pack may have arrived or left
     const changed = new Set(change.moduleTypes);
     const refreshes: Promise<unknown>[] = [];
 
@@ -172,6 +175,18 @@ export function wireStoreSync(): void {
   window.electron?.window?.onVerseChanged?.((verseId: number) => {
     detachedBibleVerseId = verseId;
     syncPanesWithVerse(verseId);
+  });
+
+  // Similar passages: offered only when the main process has data for it.
+  void useSimilarAvailability.getState().refresh();
+
+  // Similar passages: which translation to show the rows in (the Bible pane
+  // the reader was last in).
+  setSimilarModuleResolver(() => {
+    const bibleState = useBibleStore.getState();
+    const lastId = useLayoutStore.getState().lastActiveBiblePanelId;
+    const panel = (lastId ? bibleState.panels.get(lastId) : undefined) ?? bibleState.panels.values().next().value;
+    return panel?.openTabs[panel.activeTabIndex]?.abbreviation;
   });
 
   // Search store uses this to gather the full set of open module

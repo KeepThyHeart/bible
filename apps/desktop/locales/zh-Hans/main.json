@@ -47,5 +47,14 @@
   "main.window.studyFallback": "研经",
   "main.window.topics": "主题 - {name}",
   "main.window.topicsFallback": "主题",
-  "main.window.extensionFallback": "扩展程序"
+  "main.window.extensionFallback": "扩展程序",
+  "main.notifications.votd.label": "每日经文",
+  "main.notifications.votd.description": "每天一节圣经经文。",
+  "main.notifications.votd.title": "每日经文",
+  "main.notifications.collapsed": "有 {count} 条提醒待查看",
+  "main.notifications.tray.open": "打开",
+  "main.notifications.tray.settings": "通知设置…",
+  "main.notifications.tray.quit": "退出",
+  "main.notifications.test.title": "测试通知",
+  "main.notifications.test.body": "通知工作正常。"
 }

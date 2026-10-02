@@ -544,3 +544,29 @@ export interface IExtensionFolderBridge {
    */
   revokeFolderGrant(extensionId: string): Promise<void>;
 }
+
+// --- Reminders bridge ----------------------------------------------------
+
+/**
+ * Bridge into the main process's reminder scheduler (`ReminderScheduler` in
+ * `@bible/core`, source id `ext:<extensionId>`). Implemented next to
+ * `main.ts`; the api-impl only depends on this narrow interface.
+ *
+ * Delivery in the other direction (a notification click, a missed batch) does
+ * not go through here: main calls `ExtensionHost.deliverReminderActivation` /
+ * `deliverReminderMissed`.
+ */
+export interface IRemindersBridge {
+  /**
+   * Replace the extension's pending items. `items` is untrusted (it came off
+   * the RPC wire); the scheduler sanitizes and caps it. `label` is the
+   * extension's display name, used as the notification group label.
+   */
+  replaceAll(extensionId: string, label: string, items: unknown): Promise<{ accepted: number }>;
+  /** The extension's pending items as the scheduler holds them. */
+  list(extensionId: string): Promise<Extensions.ReminderItem[]>;
+  /** What notifications can do on this device right now. */
+  capabilities(): Promise<Extensions.ReminderCapabilities>;
+  /** Ask the OS for notification permission. */
+  requestPermission(): Promise<Extensions.ReminderPermission>;
+}

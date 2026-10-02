@@ -33,7 +33,7 @@ Built once per set of installed modules (fingerprint = module abbreviations, ver
 |---|---|
 | core (`@bible/core`) | Service, index builder, repository stream. |
 | core browser (`@bible/core/browser`) | Types, weight, canon, packing, ego walk. |
-| `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force, zoom and pan), `XrefCompassView` (SVG, pure layout in `compass.ts`), `XrefArcView` (canvas), shared hop/strength controls (`controls.tsx`), `useXrefFullscreen`, section colours `--kth-section-0..9`. |
+| `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force, zoom and pan), `XrefCompassView` (SVG, pure layout in `compass.ts`), `XrefArcView` (canvas), shared hop/strength controls (`controls.tsx`), `useFullscreen` and `FullscreenButton` (shared with the timeline and genealogy views), section colours `--kth-section-0..9`. |
 | web | `/api/xref-graph/*` routes, `XrefGraphProvider` (fetch), dialog opened from the verse context menu and the study pane. |
 | desktop | `xrefGraph:*` IPC, `XrefGraphIpcProvider`, dialog opened from the verse context menu, the study pane and the command palette (`xrefGraph.open`, for the selected verse). |
 
@@ -50,4 +50,4 @@ The 1/2/3 buttons are the hop count (`EgoOptions.depth`): 1 = the verses the cen
 
 Notches around the outer ring mark each book start, longer where the section changes and longest at Genesis and Matthew (`compassTicks()`).
 
-The compass puts each star at the angle of its `canonPosition` (Genesis at the top, clockwise); hop rings are radial, stars sharing an angle are staggered along the radius, and a wide stage stretches the circle into an ellipse. The verse web's camera focuses on the anchor by default (zoomed in, never below 1), pans by dragging the background, zooms by wheel, pinch, buttons or `+`/`-`, and "Fit all" zooms out to everything. Full screen: `useXrefFullscreen(ref)` (in `@bible/ui`) gives `{ full, toggle }`; each app stretches its dialog when `full` is set and the element also requests the browser's Fullscreen API.
+The compass puts each star at the angle of its `canonPosition` (Genesis at the top, clockwise); hop rings are radial, stars sharing an angle are staggered along the radius, and a wide stage stretches the circle into an ellipse. The verse web's camera focuses on the anchor by default (zoomed in, never below 1), pans by dragging the background, zooms by wheel, pinch, buttons or `+`/`-`, and "Fit all" zooms out to everything. Full screen: `useFullscreen(ref)` (in `@bible/ui`, shared with the timeline and genealogy views) gives `{ full, toggle, exit }`; each app adds `FULLSCREEN_CLASS` (`kth-fs-on`) to its dialog while `full` is set and shows a `FullscreenButton`. The element also requests the browser's Fullscreen API (not in Electron, where the overlay fills the app window). Escape leaves, Tab stays inside, and focus returns to the button.

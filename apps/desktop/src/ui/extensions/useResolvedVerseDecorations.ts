@@ -22,6 +22,7 @@ import {
 } from '@bible/core/browser';
 import { useVerseDecorationStore } from './verseDecorationStore';
 import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { useMeasureStore } from '../stores/useMeasureStore';
 import { appendKeywordLayers } from './keywordMarkLayer';
 
 const EMPTY_LAYERS: LayerDecorations[] = [];
@@ -44,7 +45,16 @@ export function useResolvedVerseDecorations(
     const chapter = s.chapters[keywordTabId];
     return chapter && chapter.input.moduleId === moduleId ? chapter.verseLayers.get(verseId) : undefined;
   });
-  const layers = useMemo(() => appendKeywordLayers(extLayers, keywordLayers), [extLayers, keywordLayers]);
+  // Weights, measures and money (task 0069): same tab-keyed slice, below the keyword layers.
+  const measureLayers = useMeasureStore((s) => {
+    if (!surface || !keywordTabId) return undefined;
+    const chapter = s.chapters[keywordTabId];
+    return chapter && chapter.moduleId === moduleId ? chapter.verseLayers.get(verseId) : undefined;
+  });
+  const layers = useMemo(
+    () => appendKeywordLayers(appendKeywordLayers(extLayers, measureLayers), keywordLayers),
+    [extLayers, measureLayers, keywordLayers],
+  );
 
   // Registers this verse's rendered words for any sibling verse's cumulative
   // `occurrence` count (P0.1b - see `VerseWordTextCache.ts` (core)). Cheap and

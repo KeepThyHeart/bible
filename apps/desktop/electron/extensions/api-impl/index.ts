@@ -105,6 +105,10 @@ export type { L10nApiImplOptions } from './l10nApiImpl';
 export { EventsApiImpl } from './eventsApiImpl';
 export type { EventsApiImplOptions } from './eventsApiImpl';
 
+// --- Reminders ------------------------------------------------------------
+export { RemindersApiImpl } from './remindersApiImpl';
+export type { RemindersApiImplOptions } from './remindersApiImpl';
+
 // --- Notes / highlights / bookmarks ---------------------------------------
 export { NotesApiImpl } from './notesApiImpl';
 export type { NotesApiImplOptions } from './notesApiImpl';
@@ -130,6 +134,7 @@ export type {
   IExtensionBookmarksBridge,
   IExtensionCollectionsBridge,
   IExtensionFolderBridge,
+  IRemindersBridge,
 } from './IExtensionDataBridges';
 export {
   InMemoryBibleBridge,

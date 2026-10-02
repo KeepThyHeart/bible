@@ -58,8 +58,10 @@ let provider: SidecarFts5Provider | undefined;
  * sidecar provider (once per index directory) and build this module's index if
  * it is missing or stale. Cheap when the index is current. Never throws: a
  * failure leaves search returning no results for that module, which core logs.
+ * Resolves to whether the index is usable (nothing failed), so a caller can tell
+ * an index problem from a query the index cannot answer.
  */
-export async function ensureKeywordIndex(module: Pick<DiscoveredModule, 'path'> & { readonly root: Pick<DiscoveredModule['root'], 'kind'> }): Promise<void> {
+export async function ensureKeywordIndex(module: Pick<DiscoveredModule, 'path'> & { readonly root: Pick<DiscoveredModule['root'], 'kind'> }): Promise<boolean> {
   const modulePath = module.path;
   try {
     const dir = keywordIndexDirFor(module);
@@ -73,12 +75,14 @@ export async function ensureKeywordIndex(module: Pick<DiscoveredModule, 'path'> 
       configuredDir = dir;
       configureModuleKeywordIndex(provider);
     }
-    await ensureModuleKeywordIndexes({
+    const result = await ensureModuleKeywordIndexes({
       provider,
       modulePaths: [modulePath],
       openModule: (path) => new BunSql(path, { readonly: true }),
     });
+    return result.failed.length === 0;
   } catch {
     // See above: search degrades, it does not crash the reader.
+    return false;
   }
 }
