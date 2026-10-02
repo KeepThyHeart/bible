@@ -93,6 +93,7 @@ const TIER_BY_PREFIX: Record<string, RateLimitTier> = {
   taggraph: 'content',
   timeline: 'content',
   quiz: 'content',
+  offline: 'content',
   study: 'content',
   books: 'content',
   modules: 'content',
