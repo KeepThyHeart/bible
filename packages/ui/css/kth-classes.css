@@ -799,15 +799,7 @@
 .kth-genealogy-explorer__bar { padding-inline: var(--kth-space-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2) var(--kth-space-3); }
 .kth-genealogy-explorer__tabs { display: inline-flex; gap: var(--kth-space-1); }
 .kth-genealogy-explorer__fullscreen { margin-inline-start: auto; }
-.kth-genealogy-explorer--full {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  inline-size: auto;
-  block-size: auto;
-  padding-block: var(--kth-space-2);
-  background: var(--kth-bg);
-}
+.kth-genealogy-explorer--fs { padding-block: var(--kth-space-2); }
 .kth-genealogy-explorer__hint { margin: 0; padding-inline: var(--kth-space-3); color: var(--kth-text-muted); font-size: 0.9em; }
 .kth-genealogy-key { margin-inline: var(--kth-space-3); margin-block: 0; }
 .kth-genealogy-key__swatch { margin-inline-end: var(--kth-space-1); flex: none; }
@@ -910,51 +902,22 @@
   padding-inline: var(--kth-space-4);
 }
 
-.kth-fullscreen-root {
+/* Full screen (useFullscreen): the element covers the window. Hosts drop their own sizing while it is on. */
+.kth-fs-on {
   position: fixed;
   inset: 0;
   z-index: 900;
-}
-.kth-fullscreen {
-  display: flex;
-  flex-direction: column;
   box-sizing: border-box;
-  inline-size: 100%;
-  block-size: 100dvh;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  border-radius: 0;
   background: var(--kth-bg);
   color: var(--kth-text);
-  font-family: var(--kth-font-ui);
-  font-size: var(--kth-font-size-ui);
-  line-height: 1.5;
-  padding-block: env(safe-area-inset-top, 0) env(safe-area-inset-bottom, 0);
-  padding-inline: env(safe-area-inset-left, 0) env(safe-area-inset-right, 0);
 }
-.kth-fullscreen:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
-.kth-fullscreen__header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--kth-space-2);
-  padding-block: var(--kth-space-2);
-  padding-inline: var(--kth-space-4);
-  border-block-end: 1px solid var(--kth-border);
-}
-.kth-fullscreen__title {
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  font-weight: 600;
-  color: var(--kth-text-heading);
-}
-.kth-fullscreen__body {
-  flex: 1 1 auto;
-  min-block-size: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  display: flex;
-  flex-direction: column;
-  padding: var(--kth-space-4);
-}
+.kth-fullscreen-toggle { flex: none; inline-size: 2rem; padding-inline: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 /* AssetList (0090) */
 .kth-asset-list-wrap { display: flex; flex-direction: column; gap: var(--kth-space-2); font-size: var(--kth-font-size-ui); color: var(--kth-text); }
