@@ -166,7 +166,8 @@ export function QuizQuestionCard({
             <input
               type="text"
               className="kth-input"
-              dir="auto"
+              // Empty: follow the UI (placeholder at the start); typed: the answer's own direction.
+              dir={text ? 'auto' : undefined}
               value={text}
               placeholder={l.answerPlaceholder}
               disabled={answered}
@@ -182,7 +183,7 @@ export function QuizQuestionCard({
           <span>{mode === 'reflection' ? l.reflectionHint : l.yourAnswer}</span>
           <textarea
             className="kth-input kth-quiz__textarea"
-            dir="auto"
+            dir={text ? 'auto' : undefined}
             rows={3}
             value={text}
             placeholder={mode === 'reflection' ? l.reflectionPlaceholder : l.answerPlaceholder}

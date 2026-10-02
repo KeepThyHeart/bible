@@ -349,19 +349,24 @@ describe('quiz content direction (UI may be RTL, question text follows its own s
     expect(screen.getByText('Some yielded thirty, sixty or a hundred times.').getAttribute('dir')).toBe('auto');
   });
 
-  it('short answer: the input is dir=auto and a miss shows the expected answer as dir=auto', async () => {
+  it('short answer: the typed input is dir=auto (empty: UI direction) and a miss shows the expected answer as dir=auto', async () => {
     setup({ startRequest: only('m4-short') });
     await screen.findByText(/in the boat/);
     const input = screen.getByLabelText('Your answer');
+    expect(input.getAttribute('dir')).toBeNull(); // the placeholder follows the UI
+    await userEvent.type(input, 'walking');
     expect(input.getAttribute('dir')).toBe('auto');
-    await userEvent.type(input, 'walking{Enter}');
+    await userEvent.type(input, '{Enter}');
     expect(document.querySelector('.kth-quiz__expected')?.getAttribute('dir')).toBe('auto');
   });
 
-  it('free response: textarea and model answer are dir=auto', async () => {
+  it('free response: typed textarea and model answer are dir=auto', async () => {
     setup({ startRequest: only('m4-free') });
     await screen.findByText(/four soils/);
-    expect(screen.getByLabelText('Your answer').getAttribute('dir')).toBe('auto');
+    const area = screen.getByLabelText('Your answer');
+    expect(area.getAttribute('dir')).toBeNull();
+    await userEvent.type(area, 'soils');
+    expect(area.getAttribute('dir')).toBe('auto');
     await userEvent.click(screen.getByRole('button', { name: 'Show answer' }));
     expect(screen.getByText('Four responses to the word: hard, shallow, choked and fruitful.').getAttribute('dir')).toBe('auto');
   });
