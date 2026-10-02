@@ -22,12 +22,6 @@ export interface AnchorContext {
 
 interface Range { start: number; end: number }
 
-const ENGLISH_NUMBER_WORDS = [
-  'a', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
-  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'thirty',
-  'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand', 'half',
-];
-// 'a' alone ("a foot") is not a number for our purposes; handled below.
 const NUMBER_RE = /^\d[\d,]*(\.\d+)?$/;
 
 function ordinalOf(id: string): number {
@@ -81,6 +75,54 @@ function pickNth(cands: Range[], n: number, claimed: Set<number>): Range | undef
   return cands.slice(n).find((c) => !overlaps(c, claimed));
 }
 
+/** Longest term (token sequence) that starts exactly at `at`; its length, or 0. */
+function termLengthAt(tokens: string[], at: number, terms: string[][]): number {
+  let best = 0;
+  for (const t of terms) {
+    if (t.length <= best || at + t.length > tokens.length) continue;
+    if (t.every((w, k) => tokens[at + k] === w)) best = t.length;
+  }
+  return best;
+}
+
+/**
+ * The last token of the whole measurement phrase that ends in the unit word at `end`: the other parts of
+ * "a cubit and a span" and a closing fraction ("two cubits and a half"). Driven by the module language's
+ * `pack.grammar`; undefined (the conversion then follows the unit word) when the pack has none, the
+ * phrase does not run past the unit word, or the following words do not match the occurrence's parts.
+ */
+function findPhraseEnd(
+  occ: MeasureOccurrence, end: number, tokens: string[], ctx: AnchorContext, numberWords: Set<string>,
+): number | undefined {
+  const g = ctx.pack.grammar;
+  if (!g) return undefined;
+  const norm = (list: string[]): Set<string> => new Set(list.map((w) => normalizeToken(w)));
+  const connectors = norm(g.connectors);
+  const articles = norm(g.articles);
+  const fractions = norm(g.fractions);
+  const filler = (t: string): boolean => connectors.has(t) || articles.has(t) || fractions.has(t) || numberWords.has(t) || NUMBER_RE.test(t);
+  const MAX_GAP = 6;
+
+  let last = end;
+  for (let pi = 1; pi < occ.parts.length; pi++) {
+    const terms = termsFor(occ.parts[pi].unit, undefined, ctx);
+    let i = last + 1;
+    const from = i;
+    while (i < tokens.length && i - from < MAX_GAP && filler(tokens[i]) && !termLengthAt(tokens, i, terms)) i++;
+    const len = termLengthAt(tokens, i, terms);
+    if (!len) return undefined; // the second unit is not where the data says: not confident
+    last = i + len - 1;
+  }
+
+  const lastQty = occ.parts[occ.parts.length - 1]?.quantity?.value;
+  if (lastQty !== undefined && !Number.isInteger(lastQty)) {
+    let i = last + 1;
+    while (i < tokens.length && i - last <= 2 && (connectors.has(tokens[i]) || articles.has(tokens[i]))) i++;
+    if (i < tokens.length && fractions.has(tokens[i]) && i > last) last = i;
+  }
+  return last > end ? last : undefined;
+}
+
 export function resolveMeasureAnchors(
   occs: readonly MeasureOccurrence[],
   verse: MeasureVerseInput,
@@ -90,9 +132,8 @@ export function resolveMeasureAnchors(
   const ordered = [...occs].sort((a, b) => ordinalOf(a.id) - ordinalOf(b.id));
   const claimed = new Set<number>();
   const spans = (ctx.interlinear ?? []).filter((s) => s.verseId === verse.verseId);
-  const numberWords = new Set<string>(
-    (ctx.pack.numberWords ?? (primaryLanguage(ctx.language) === 'en' ? ENGLISH_NUMBER_WORDS.filter((w) => w !== 'a') : [])).map((w) => normalizeToken(w)),
-  );
+  // Number words come from the module-language pack (an article such as "a" is not one: "a foot" is no count).
+  const numberWords = new Set<string>((ctx.pack.numberWords ?? []).map((w) => normalizeToken(w)));
   const rankByUnit = new Map<string, number>();
   const results: ResolvedMeasureAnchor[] = [];
 
@@ -103,7 +144,11 @@ export function resolveMeasureAnchors(
     rankByUnit.set(unitId ?? '', rank);
     const make = (r: Range, via: 'strongs' | 'terms' | 'modern'): ResolvedMeasureAnchor => {
       claim(r, claimed);
-      return { occId: occ.id, verseId: verse.verseId, target: { kind: 'tokens', start: r.start, end: r.end }, via };
+      const phraseEnd = findPhraseEnd(occ, r.end, tokens, ctx, numberWords);
+      return {
+        occId: occ.id, verseId: verse.verseId, target: { kind: 'tokens', start: r.start, end: r.end }, via,
+        ...(phraseEnd !== undefined ? { phraseEnd } : {}),
+      };
     };
 
     const unitTerms = unitId ? termsFor(unitId, occ, ctx) : [];

@@ -237,6 +237,13 @@
     "reckoning.roman": "Cómputo romano: vigilias de la noche desde las 6 de la tarde",
     "modernWage": "≈ {amount} con un salario de {wage} al día",
     "relation": "1 {unit} = {list}",
-    "per.day": "al día"
+    "per.day": "al día",
+    "inline": "[{value}]",
+    "inlineApprox": "[aprox. {value}]"
+  },
+  "grammar": {
+    "connectors": ["y"],
+    "articles": ["un", "una"],
+    "fractions": ["medio", "media"]
   }
 }

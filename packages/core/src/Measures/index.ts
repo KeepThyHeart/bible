@@ -24,5 +24,5 @@ export { buildMeasurePopup } from './popup';
 export type { PopupContext } from './popup';
 export { bundledMeasureDataSource, loadChapterOccurrences } from './data';
 export type { IMeasureDataSource, LoadChapterOptions } from './data';
-export { computeChapterMeasures } from './chapter';
-export type { ComputeChapterMeasuresInput, ChapterMeasures } from './chapter';
+export { computeChapterMeasures, computeVerseMeasures } from './chapter';
+export type { ComputeChapterMeasuresInput, ChapterMeasures, ComputeVerseMeasuresInput } from './chapter';

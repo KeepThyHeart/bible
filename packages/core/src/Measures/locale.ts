@@ -15,57 +15,15 @@ export interface MeasureVerseNotes {
   notes: Record<string, string>;
 }
 
-/** English phrase templates used when a pack lacks a key. Plural families use `<key>.<category>`. */
-export const BUILTIN_PHRASES: Record<string, string> = {
-  approx: '≈ {value}',
-  range: '{low}–{high}',
-  and: ' and ',
-  'wages.minute.one': "{n} minute's wages",
-  'wages.minute.other': "{n} minutes' wages",
-  'wages.hour.one': "{n} hour's wages",
-  'wages.hour.other': "{n} hours' wages",
-  'wages.day.one': "{n} day's wages",
-  'wages.day.other': "{n} days' wages",
-  'wages.month.one': "{n} month's wages",
-  'wages.month.other': "{n} months' wages",
-  'wages.year.one': "{n} year's wages",
-  'wages.year.other': "{n} years' wages",
-  metal: '{mass} of {metal}',
-  'metal.silver': 'silver',
-  'metal.gold': 'gold',
-  'metal.bronze': 'bronze',
-  'metal.copper': 'copper',
-  clock: 'about {start}–{end}',
-  clockPoint: 'about {time}',
-  'reckoning.jewish': 'Jewish reckoning, from sunrise',
-  'reckoning.roman': 'Roman reckoning, from midnight',
-  'reckoning.jewish-night': 'Jewish reckoning, hours of darkness from sunset',
-  modernWage: '≈ {amount} at {wage} a day',
-  relation: '1 {unit} = {list}',
-  'per.day': 'a day',
-  'per.week': 'a week',
-  'per.month': 'a month',
-  'per.year': 'a year',
-  withPer: '{text} {per}',
-  quantityName: '{n} {name}',
-  quantityOr: '{a} or {b}',
-  scholarlyName: '{system} {name}',
-  pluralNote: '{name} (pl. {plural})',
-  'system.hebrew': 'Hebrew',
-  'system.greek': 'Greek',
-  'system.roman': 'Roman',
-  'system.persian': 'Persian',
-};
+/**
+ * The English pack's phrase templates and modern-unit names, used when a pack lacks a key. They live in
+ * `data/locales/en.json` (like every other language's), not in code. Plural families use `<key>.<category>`.
+ */
+const ENGLISH_PACK = enJson as unknown as Partial<MeasureLocalePack>;
+export const BUILTIN_PHRASES: Record<string, string> = { ...ENGLISH_PACK.phrases };
 
-/** English names of modern units that `Intl.NumberFormat` cannot format. */
-export const BUILTIN_MODERN_NAMES: Record<string, PluralForms> = {
-  quart: { one: 'quart', other: 'quarts' },
-  'dry-quart': { one: 'dry quart', other: 'dry quarts' },
-  peck: { one: 'peck', other: 'pecks' },
-  bushel: { one: 'bushel', other: 'bushels' },
-  pint: { one: 'pint', other: 'pints' },
-  'imperial-gallon': { one: 'imperial gallon', other: 'imperial gallons' },
-};
+/** Names of modern units that `Intl.NumberFormat` cannot format (the English pack's). */
+export const BUILTIN_MODERN_NAMES: Record<string, PluralForms> = { ...ENGLISH_PACK.modernNames };
 
 export function emptyLocalePack(language = 'en'): MeasureLocalePack {
   return { language, names: {}, terms: {}, notes: {}, modernNames: {}, phrases: {} };
@@ -91,6 +49,7 @@ export function createLocalePack(
     modernNames: { ...fb?.modernNames, ...base.modernNames },
     phrases: { ...fb?.phrases, ...base.phrases },
     ...(base.numberWords ? { numberWords: base.numberWords } : {}),
+    ...(base.grammar ? { grammar: base.grammar } : {}),
   };
 }
 

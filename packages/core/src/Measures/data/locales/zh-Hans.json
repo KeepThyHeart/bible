@@ -85,6 +85,8 @@
     "reckoning.jewish-night": "犹太计时法：夜间的时辰从日落（约傍晚6点）起算", "quantityName": "{n}{name}", "quantityOr": "{a}或{b}", "withPer": "{text}{per}", "scholarlyName": "{system}{name}", "system.hebrew": "希伯来", "system.greek": "希腊", "system.roman": "罗马", "system.persian": "波斯", "reckoning.roman": "罗马计时法：夜间的更次从傍晚6点起算",
     "modernWage": "≈ {amount}（按每日工资{wage}计）",
     "relation": "1{unit} = {list}",
-    "per.day": "每天"
+    "per.day": "每天",
+    "inline": "[{value}]",
+    "inlineApprox": "[约 {value}]"
   }
 }

@@ -273,6 +273,26 @@
     "reckoning.jewish-night": "Jewish reckoning, hours of darkness counted from sunset (about 6 p.m.)",
     "modernWage": "≈ {amount} at {wage} a day",
     "relation": "1 {unit} = {list}",
-    "per.day": "a day"
+    "per.day": "a day",
+    "per.week": "a week",
+    "per.month": "a month",
+    "per.year": "a year",
+    "withPer": "{text} {per}",
+    "quantityName": "{n} {name}",
+    "quantityOr": "{a} or {b}",
+    "scholarlyName": "{system} {name}",
+    "pluralNote": "{name} (pl. {plural})",
+    "system.hebrew": "Hebrew",
+    "system.greek": "Greek",
+    "system.roman": "Roman",
+    "system.persian": "Persian",
+    "inline": "[{value}]",
+    "inlineApprox": "[about {value}]"
+  },
+  "numberWords": ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "half"],
+  "grammar": {
+    "connectors": ["and"],
+    "articles": ["a", "an"],
+    "fractions": ["half"]
   }
 }

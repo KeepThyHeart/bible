@@ -165,6 +165,21 @@ export interface MeasureLocalePack {
   phrases: Record<string, string>;
   /** Words for small numbers ("three", "hundred") so the modern-term matcher can accept "three feet". Optional. */
   numberWords?: string[];
+  /**
+   * How this language builds a measurement phrase ("two cubits and a half", "a cubit and a span"), used to
+   * place an inline conversion after the whole phrase. Without it the conversion follows the unit word.
+   * All words are matched case-insensitively against verse tokens.
+   */
+  grammar?: MeasurePhraseGrammar;
+}
+
+export interface MeasurePhraseGrammar {
+  /** Words joining the parts of a phrase ("and"). */
+  connectors: string[];
+  /** Article-like words that stand for "one" ("a", "an"). */
+  articles: string[];
+  /** Fraction words that can close a phrase ("half"). */
+  fractions: string[];
 }
 
 /** Modern display systems. */
@@ -174,7 +189,11 @@ export type MeasureSystem = 'metric' | 'us' | 'imperial';
 export interface MeasurePreferences {
   /** Master switch. Default true. */
   enabled: boolean;
-  /** 'marker' = dotted underline only (default); 'inline' adds a value badge after the word; 'off' = no marks (popups unreachable). */
+  /**
+   * How measures show in the Bible text. 'off' (default): not at all, the conversions live in the Study panel;
+   * 'marker': dotted underline with a popup; 'inline': underline plus the conversion in square brackets after
+   * the whole measurement phrase.
+   */
   display: 'marker' | 'inline' | 'off';
   /** Show marks in Reading mode too. Default false: Reading mode stays clean text unless opted in (task 0069, 03-me Q14). */
   showInReading: boolean;
@@ -211,6 +230,12 @@ export interface ResolvedMeasureAnchor {
   target: MeasureAnchorTarget;
   /** How it was found. */
   via: 'strongs' | 'terms' | 'modern' | 'verse';
+  /**
+   * Last token of the whole measurement phrase ("two cubits and a half" ends at "half"), when the phrase
+   * could be resolved with confidence and runs past the unit word `target.end`. An inline conversion goes
+   * after it; absent = after the unit word.
+   */
+  phraseEnd?: number;
 }
 
 /** Input words of one verse in the shared word-index space (`extractWordsWithFormatting`). */
@@ -244,8 +269,10 @@ export interface MeasurePopupModel {
   usage: MeasureUsage;
   review: MeasureReviewStatus;
   sources: MeasureSource[];
-  /** Short value for the inline badge ("140 m", "1 day's wages", "9 a.m."): the primary without the approx sign. */
+  /** Short value ("140 m", "1 day's wages", "9 a.m."): the primary without the approx sign. */
   badge?: string;
+  /** The inline conversion text with its brackets, in the UI language: "[about 140 m]", "[9 a.m.]". */
+  inline?: string;
   /** One row per part when the occurrence has several ("six cubits and a span"): already included in `primary`. */
   parts: number;
 }

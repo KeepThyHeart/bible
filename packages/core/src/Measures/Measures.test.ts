@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMeasureAnchors } from './anchor';
-import { computeChapterMeasures } from './chapter';
+import { computeChapterMeasures, computeVerseMeasures } from './chapter';
 import { buildMeasureLayer, isFallbackOnly, MEASURE_LAYER_KEY } from './layer';
 import { formatModernWage, formatTitleQuantity } from './convert';
 import { createLocalePack, getMeasureLocalePack, measurePackLanguage, phrase } from './locale';
@@ -165,13 +165,13 @@ describe('popup model and conversion', () => {
     const r = m([{ unit: 'denarius' }], prefs(), { per: 'day' });
     expect(r.title).toBe('denarius a day');
     // the rate is on the title and on metal lines, not on wages ("≈ 1 day's wages a day" would read wrongly)
-    expect(r.primary).toBe("≈ 1 day's wages");
+    expect(r.primary).toBe("≈ 1 day's wage");
     expect(m([{ unit: 'denarius' }], prefs({ money: 'metal' }), { per: 'day' }).primary).toBe('≈ 3.9 g of silver a day');
     expect(m([{ unit: 'denarius' }], prefs({ money: 'both' }), { per: 'day' }).extra).toContain('3.9 g of silver a day');
   });
 
   it('money: days, minutes and years', () => {
-    expect(m([{ unit: 'denarius' }]).primary).toBe("≈ 1 day's wages");
+    expect(m([{ unit: 'denarius' }]).primary).toBe("≈ 1 day's wage");
     expect(m([{ unit: 'denarius', quantity: { value: 200 } }]).primary).toBe("≈ 8 months' wages");
     expect(m([{ unit: 'denarius', quantity: { value: 200 } }]).extra).toContain("200 days' wages");
     const big = m([{ unit: 'talent.money', quantity: { value: 10000 } }]);
@@ -184,7 +184,7 @@ describe('popup model and conversion', () => {
   it('money: metal and modern wage', () => {
     expect(m([{ unit: 'denarius' }], prefs({ money: 'metal' })).primary).toBe('≈ 3.9 g of silver');
     const both = m([{ unit: 'denarius' }], prefs({ money: 'both' }));
-    expect(both.primary).toBe("≈ 1 day's wages");
+    expect(both.primary).toBe("≈ 1 day's wage");
     expect(both.extra).toContain('3.9 g of silver');
     const wage = m([{ unit: 'denarius', quantity: { value: 2 } }], prefs({ modernDailyWage: { amount: 100, currency: 'USD' } }));
     expect(wage.extra.join(' ')).toContain('$200.00');
@@ -195,11 +195,11 @@ describe('popup model and conversion', () => {
     const watch = m([{ unit: 'watch.roman.4' }]);
     expect(watch.primary).toBe('about 3–6 AM');
     expect(watch.title).toBe('the fourth watch');
-    expect(watch.extra).toContain('Roman reckoning, from midnight');
+    expect(watch.extra).toContain('Roman reckoning, watches of the night from 6 p.m.');
     expect(m([{ unit: 'watch.roman.4' }], prefs({ clock: 'h23' })).primary).toBe('about 03:00–06:00');
     expect(m([{ unit: 'hour.9' }]).primary).toBe('about 3 PM');
     expect(m([{ unit: 'hour.9' }], prefs({ clock: 'h23' })).primary).toBe('about 15:00');
-    expect(m([{ unit: 'hour.9' }]).extra).toContain('Jewish reckoning, from sunrise');
+    expect(m([{ unit: 'hour.9' }]).extra).toContain('Jewish reckoning, hours counted from sunrise (about 6 a.m.)');
   });
 
   it('usage and review pass through; unit override applies', () => {
@@ -271,7 +271,7 @@ describe('popup model and conversion', () => {
   it('jewish-night reckoning for Old Testament watches', () => {
     const r = m([{ unit: 'watch.hebrew.2' }]);
     expect(r.primary).toBe('about 10 PM–2 AM');
-    expect(r.extra).toContain('Jewish reckoning, hours of darkness from sunset');
+    expect(r.extra).toContain('Jewish reckoning, hours of darkness counted from sunset (about 6 p.m.)');
     expect(getMeasureLocalePack('en').phrases['reckoning.jewish-night']).toMatch(/darkness counted from sunset/);
     expect(getMeasureLocalePack('es').phrases['reckoning.jewish-night']).toMatch(/oscuridad/);
     expect(getMeasureLocalePack('zh-Hans').phrases['reckoning.jewish-night']).toMatch(/日落/);
@@ -292,7 +292,7 @@ describe('popup model and conversion', () => {
 
   it('works with an empty pack (English built-ins)', () => {
     const r = buildMeasurePopup(occ('1001001.1', [{ unit: 'denarius' }]), { ...popupCtx(), pack: createLocalePack({}) })!;
-    expect(r.primary).toBe("≈ 1 day's wages");
+    expect(r.primary).toBe("≈ 1 day's wage");
     expect(phrase(createLocalePack({ phrases: { approx: '~ {value}' } }), 'approx', { value: 1 })).toBe('~ 1');
   });
 });
@@ -357,7 +357,44 @@ describe('layer and index', () => {
   it('inline display adds a value badge after the word', () => {
     const r = run(prefs({ display: 'inline' }));
     const labels = r.layer.decorations.filter((d) => d.appearance.kind === 'badge').map((d) => (d.appearance as { label: string }).label);
-    expect(labels).toContain('140 m');
+    expect(labels).toContain('[about 140 m]');
+  });
+
+  it('inline conversion goes after the whole phrase in brackets', () => {
+    const v = { verseId: 1002001, words: words('The ark was two cubits and a half long.') };
+    const o = occ('1002001.1', [{ unit: 'cubit', quantity: { value: 2.5 } }]);
+    const [a] = resolveMeasureAnchors([o], v, ctx());
+    expect(a.phraseEnd).toBe(7);
+    const model = buildMeasurePopup(o, popupCtx())!;
+    expect(model.inline).toMatch(/^\[about .+\]$/);
+    const { layer } = buildMeasureLayer([a], new Map([[o.id, model]]), prefs({ display: 'inline' }), 'standard', [v]);
+    const badge = layer.decorations.find((d) => d.appearance.kind === 'badge')!;
+    expect(badge.target).toMatchObject({ startTokenIndex: 7 });
+    expect((badge.appearance as { label: string }).label).toBe(model.inline);
+  });
+
+  it('a phrase that does not match its parts falls back to the unit word', () => {
+    const v = { verseId: 1002001, words: words('it was six cubits and the span') };
+    const [a] = resolveMeasureAnchors([occ('1002001.1', [{ unit: 'cubit', quantity: { value: 6 } }, { unit: 'span' }])], v, ctx({ pack: createLocalePack({ ...FIXTURE_EN_PACK }) }));
+    expect(a.phraseEnd).toBeUndefined();
+    const noGrammar = resolveMeasureAnchors([occ('1002001.1', [{ unit: 'cubit', quantity: { value: 2.5 } }])],
+      { verseId: 1002001, words: words('two cubits and a half') }, ctx({ pack: { ...FIXTURE_EN_PACK, grammar: undefined } }));
+    expect(noGrammar[0].phraseEnd).toBeUndefined();
+  });
+
+  it('display off (default) paints nothing but still yields the per-verse models for the Study panel', () => {
+    const r = run(prefs({ display: 'off' }));
+    expect(r.layer.decorations).toEqual([]);
+    expect(r.index.size).toBe(0);
+    expect(r.byVerse.get(GEN_ID)?.length).toBeGreaterThan(0);
+  });
+
+  it('computeVerseMeasures lists one verse in the reader\'s unit system', () => {
+    const us = computeVerseMeasures({ occurrences: [o1], verseId: o1.verseId, uiLocale: 'en-US', prefs: prefs({ system: 'us', secondary: 'none' }), registry, uiPack: FIXTURE_EN_PACK });
+    const metric = computeVerseMeasures({ occurrences: [o1], verseId: o1.verseId, uiLocale: 'en-US', prefs: prefs({ system: 'metric', secondary: 'none' }), registry, uiPack: FIXTURE_EN_PACK });
+    expect(us[0].primary).toMatch(/ft/);
+    expect(metric[0].primary).toMatch(/ m/);
+    expect(computeVerseMeasures({ occurrences: [o1], verseId: 999, uiLocale: 'en', prefs: prefs(), registry, uiPack: FIXTURE_EN_PACK })).toEqual([]);
   });
 
   it('study keeps the fallback badge; reading is clean unless opted in, and has no fallback badge', () => {
@@ -431,7 +468,7 @@ describe('preferences and locale', () => {
 
   it('resolves defaults and auto values', () => {
     const p = resolveMeasurePreferences({}, 'en-US');
-    expect(p).toMatchObject({ enabled: true, display: 'marker', showInReading: false, system: 'us', secondary: 'metric', money: 'wages', ranges: 'auto', clock: 'h12', includeDrafts: false });
+    expect(p).toMatchObject({ enabled: true, display: 'off', showInReading: false, system: 'us', secondary: 'metric', money: 'wages', ranges: 'auto', clock: 'h12', includeDrafts: false });
     expect(p.modernDailyWage).toBeUndefined();
     expect(resolveMeasurePreferences({}, 'de-DE').clock).toBe('h23');
     expect(resolveMeasurePreferences({ measuresSystem: 'metric' }, 'en-US')).toMatchObject({ system: 'metric', secondary: 'us' });
@@ -439,7 +476,7 @@ describe('preferences and locale', () => {
     expect(resolveMeasurePreferences({ measuresSystem: 'us', measuresSecondary: 'us' }, 'en-US').secondary).toBe('none');
     const w = resolveMeasurePreferences({ measuresDailyWage: 120, measuresWageCurrency: 'eur', measuresDisplay: 'bogus' }, 'en', { includeDrafts: true });
     expect(w.modernDailyWage).toEqual({ amount: 120, currency: 'EUR' });
-    expect(w.display).toBe('marker');
+    expect(w.display).toBe('off');
     expect(w.includeDrafts).toBe(true);
   });
 

@@ -12,9 +12,9 @@ export const MEASURE_SETTINGS: SettingDef[] = [
   { ...g, key: 'measuresEnabled', type: 'boolean', default: true, order: 10,
     labelKey: 'settings.measures.enabled', label: 'Weights, measures and money notes',
     descriptionKey: 'settings.measures.enabled.description', description: 'Mark ancient units in the text and show their modern equivalents.' },
-  { ...g, key: 'measuresDisplay', type: 'enum', values: ['marker', 'inline', 'off'], default: 'marker', order: 20,
-    labelKey: 'settings.measures.display', label: 'How to show them',
-    descriptionKey: 'settings.measures.display.description', description: 'A dotted underline, an underline with the value after the word, or nothing.',
+  { ...g, key: 'measuresDisplay', type: 'enum', values: ['marker', 'inline', 'off'], default: 'off', order: 20,
+    labelKey: 'settings.measures.display', label: 'Show in the text',
+    descriptionKey: 'settings.measures.display.description', description: 'Off keeps the text clean (the conversions are in the Study panel). Otherwise: a dotted underline with a popup, or an underline with the conversion in [brackets] after the phrase.',
     valueLabelKeys: { marker: 'settings.measures.display.marker', inline: 'settings.measures.display.inline', off: 'settings.measures.display.off' },
     dependsOn: { measuresEnabled: true } },
   { ...g, key: 'measuresShowInReading', type: 'boolean', default: false, order: 30,
@@ -115,7 +115,7 @@ export function resolveMeasurePreferences(
 
   return {
     enabled: typeof v.measuresEnabled === 'boolean' ? v.measuresEnabled : true,
-    display: oneOf(v.measuresDisplay, ['marker', 'inline', 'off'] as const) ?? 'marker',
+    display: oneOf(v.measuresDisplay, ['marker', 'inline', 'off'] as const) ?? 'off',
     showInReading: typeof v.measuresShowInReading === 'boolean' ? v.measuresShowInReading : false,
     system,
     secondary,

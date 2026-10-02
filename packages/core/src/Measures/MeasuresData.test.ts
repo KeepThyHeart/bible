@@ -155,4 +155,25 @@ describe('measures data', () => {
     }
     expect(over).toEqual([]);
   });
+  it('phrase ends: the whole measurement phrase, or nothing when it cannot be resolved', () => {
+    const fixture = fixtureJson as unknown as { v: number; t: string; s: [number, number, string][] }[];
+    const registry = getMeasureRegistry();
+    const endOf = (id: string): string | undefined => {
+      const row = ROWS.find((r) => r.id === id)!;
+      const f = fixture.find((x) => x.v === row.verseId)!;
+      const words = extractWordsWithFormatting(f.t);
+      const occs = ROWS.filter((r) => r.verseId === row.verseId);
+      const interlinear = f.s.map(([start, end, strongs]) => ({ verseId: f.v, start, end, strongs }));
+      const a = resolveMeasureAnchors(occs, { verseId: f.v, words }, { language: 'en', pack: en, registry, interlinear }).find((x) => x.occId === id)!;
+      return a.phraseEnd === undefined ? undefined : words[a.phraseEnd].text;
+    };
+    expect(endOf('2025010.1')).toBe('half'); // two cubits and a half
+    expect(endOf('2025010.2')).toBe('half'); // a cubit and a half
+    expect(endOf('9017004.1')).toBe('span'); // six cubits and a span
+    expect(endOf('26040005.3')).toBe('breadth'); // a cubit and an hand breadth
+    expect(endOf('26040042.1')).toBe('half');
+    expect(endOf('4015009.2')).toBeUndefined(); // "half an hin": the unit word closes it
+    expect(endOf('1024022.1')).toBeUndefined(); // "half a shekel"
+  });
+
 });

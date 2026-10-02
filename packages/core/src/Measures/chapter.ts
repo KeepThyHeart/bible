@@ -36,11 +36,13 @@ export interface ChapterMeasures {
   /** Popup model per occurrence id (also for occurrences that are not marked on this surface). */
   models: Map<string, MeasurePopupModel>;
   anchors: ResolvedMeasureAnchor[];
+  /** Popup models per verse, in text order, whether or not the display marks them in the text. */
+  byVerse: Map<number, MeasurePopupModel[]>;
 }
 
 export function computeChapterMeasures(input: ComputeChapterMeasuresInput): ChapterMeasures {
   const { prefs } = input;
-  if (!prefs.enabled) return { layer: emptyMeasureLayer(), index: new MeasureIndex(), models: new Map(), anchors: [] };
+  if (!prefs.enabled) return { layer: emptyMeasureLayer(), index: new MeasureIndex(), models: new Map(), anchors: [], byVerse: new Map() };
 
   const registry = input.registry ?? getMeasureRegistry();
   const modulePack = input.modulePack ?? getMeasureLocalePack(input.moduleLanguage);
@@ -76,5 +78,45 @@ export function computeChapterMeasures(input: ComputeChapterMeasuresInput): Chap
     }
   }
   const { layer, index } = buildMeasureLayer(anchors, models, prefs, input.surface, input.verses);
-  return { layer, index, models, anchors };
+  return { layer, index, models, anchors, byVerse: groupModelsByVerse(models) };
+}
+
+function groupModelsByVerse(models: ReadonlyMap<string, MeasurePopupModel>): Map<number, MeasurePopupModel[]> {
+  const byVerse = new Map<number, MeasurePopupModel[]>();
+  for (const m of models.values()) {
+    const list = byVerse.get(m.verseId) ?? [];
+    list.push(m);
+    byVerse.set(m.verseId, list);
+  }
+  return byVerse;
+}
+
+export interface ComputeVerseMeasuresInput {
+  /** Occurrences of the verse (or of a chapter: other verses are ignored). */
+  occurrences: readonly MeasureOccurrence[];
+  verseId: number;
+  uiLocale: string;
+  prefs: MeasurePreferences;
+  registry?: MeasureRegistry;
+  uiPack?: MeasureLocalePack;
+}
+
+/**
+ * The Study panel's list: popup models of one verse's occurrences, in text order, in the reader's unit
+ * system. Needs no verse text (nothing is anchored), so titles use the scholarly unit names. Empty when
+ * measures are off.
+ */
+export function computeVerseMeasures(input: ComputeVerseMeasuresInput): MeasurePopupModel[] {
+  const { prefs } = input;
+  if (!prefs.enabled) return [];
+  const registry = input.registry ?? getMeasureRegistry();
+  const pack = input.uiPack ?? getMeasureLocalePack(input.uiLocale);
+  const out: MeasurePopupModel[] = [];
+  for (const occ of input.occurrences) {
+    if (occ.verseId !== input.verseId) continue;
+    if (!prefs.includeDrafts && occ.review.status === 'draft') continue;
+    const model = buildMeasurePopup(occ, { registry, pack, locale: input.uiLocale, prefs });
+    if (model) out.push(model);
+  }
+  return out;
 }

@@ -207,6 +207,7 @@ export function buildMeasurePopup(occ: MeasureOccurrence, ctx: PopupContext): Me
     title,
     primary: approximate ? phrase(ctx.pack, 'approx', { value: valueText }) : valueText,
     badge: valueText,
+    inline: phrase(ctx.pack, approximate ? 'inlineApprox' : 'inline', { value: valueText }),
     extra,
     usage: occ.usage,
     review: occ.review.status,

@@ -59,6 +59,8 @@ export const FIXTURE_EN_PACK: MeasureLocalePack = createLocalePack({
     ephah: ['ephah'],
     talent: ['talent', 'talents'],
   },
+  numberWords: ['one', 'two', 'three', 'hundred', 'thousand', 'half'],
+  grammar: { connectors: ['and'], articles: ['a', 'an'], fractions: ['half'] },
   notes: { cubit: 'A cubit is the forearm.', 'v.1': 'A verse note.' },
 });
 

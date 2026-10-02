@@ -92,7 +92,7 @@ export function emptyMeasureLayer(): LayerDecorations {
 /**
  * Build the layer and index. Anchors whose occurrence has no popup model are
  * skipped. The layer is empty (and the index too) when measures are off,
- * display is 'off', or the surface is Reading without `showInReading`.
+ * display is 'off' (the default: conversions then live in the Study panel only), or the surface is Reading without `showInReading`.
  */
 export function buildMeasureLayer(
   anchors: readonly ResolvedMeasureAnchor[],
@@ -120,10 +120,11 @@ export function buildMeasureLayer(
       index.addEntry(entry);
       for (let i = start; i <= end; i++) index.addWord(anchor.verseId, i, anchor.occId);
       underlined.push({ kind: 'tokens', verseId: anchor.verseId, startTokenIndex: start, endTokenIndex: end });
-      if (prefs.display === 'inline' && model.badge) {
+      if (prefs.display === 'inline' && (model.inline || model.badge)) {
         decorations.push({
-          target: { kind: 'tokens', verseId: anchor.verseId, startTokenIndex: end },
-          appearance: { kind: 'badge', label: model.badge, color: 'accent' },
+          // After the whole phrase ("two cubits and a half"), not after the unit word, when it was resolved.
+          target: { kind: 'tokens', verseId: anchor.verseId, startTokenIndex: anchor.phraseEnd ?? end },
+          appearance: { kind: 'badge', label: (model.inline ?? model.badge) as string, color: 'accent' },
           order: MEASURE_LAYER_ORDER, data: { occId: anchor.occId },
         });
       }
