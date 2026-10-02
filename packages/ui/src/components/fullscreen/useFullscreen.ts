@@ -125,6 +125,8 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>, options: UseFu
       const last = items[items.length - 1];
       const active = doc.activeElement;
       const inside = active instanceof Node && el.contains(active);
+      // A popover opened from inside (e.g. timeline settings) portals to <body> when no native full screen element exists (Electron): let Tab move within it.
+      if (!inside && active instanceof Element && active.closest('.kth-popover')) return;
       if (!inside) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
       else if (e.shiftKey && (active === first || active === el)) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
