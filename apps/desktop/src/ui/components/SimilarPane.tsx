@@ -11,6 +11,7 @@ import {
 import { bibleAPI, similarAPI } from '../services/electronAPI';
 import { localizedBookNames } from '../constants/bibleBooks';
 import { openModuleManager } from '../utils/openModuleManager';
+import { anchorAtPointerX, isDocumentRtl } from '../utils/overlayPosition';
 
 /** The user database the "Add as my cross-reference" action writes to. */
 const USER_XREF_DB = 'default';
@@ -98,7 +99,8 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
   );
   const onMenu = useCallback((row: SimilarListRow, anchor: HTMLElement) => {
     const r = anchor.getBoundingClientRect();
-    setMenu({ row, x: r.left, y: r.bottom });
+    // The menu unfolds from the anchor's leading edge: its left edge in LTR, its right edge in RTL.
+    setMenu({ row, x: isDocumentRtl() ? r.right : r.left, y: r.bottom });
   }, []);
 
   const copyReference = (row: SimilarListRow) => {
@@ -193,7 +195,7 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
           onClick={() => store().goBack(panelId)}
           data-testid="similar-back"
         >
-          {'←'}
+          <span aria-hidden="true" className="rtl-mirror">{'←'}</span>
         </button>
         <h2 className="text-sm font-semibold flex-1 truncate" data-testid="similar-header">
           {source ? t('similar.header', { reference: format(source) }) : t('paneName.similar')}
@@ -243,7 +245,7 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
         <div
           role="menu"
           className="fixed z-50 border rounded shadow text-sm"
-          style={{ left: menu.x, top: menu.y, backgroundColor: 'var(--theme-bg-primary)', borderColor: 'var(--theme-border-primary)' }}
+          style={{ ...anchorAtPointerX(menu.x), top: menu.y, backgroundColor: 'var(--theme-bg-primary)', borderColor: 'var(--theme-border-primary)' }}
           onMouseDown={e => e.stopPropagation()}
         >
           <button type="button" role="menuitem" className="block w-full text-start px-3 py-1.5 hover:bg-background-hover" onClick={() => copyReference(menu.row)}>
