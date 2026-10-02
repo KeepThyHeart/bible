@@ -164,6 +164,10 @@ describe('FullscreenButton + useFullscreen in a host', () => {
     screen.getByRole('button', { name: 'pop a' }).focus();
     await userEvent.tab();
     expect(screen.getByRole('button', { name: 'pop b' })).toHaveFocus();
+    await userEvent.tab(); // wraps inside the popover instead of leaving the overlay
+    expect(screen.getByRole('button', { name: 'pop a' })).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'pop b' })).toHaveFocus();
   });
 
   it('takes custom labels', () => {

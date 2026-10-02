@@ -96,9 +96,10 @@ its final grade, so an "I was right" correction does not count twice.
 ## Ports and seams
 
 - `IQuizQuestionSource` / `IQuizCatalogSource`: modules over IPC (desktop) or HTTP (web).
-- `IReadingScopeProvider`: what "today's reading" is. `NO_READING_PLAN` answers null
-  until reading plans ship; the launcher then hides the option. A reading-plan provider
-  plugs in without engine changes.
+- `IReadingScopeProvider`: what "today's reading" is. Desktop's quiz pane builds it from the
+  active reading plans (`ReadingPlanService.getTodayScope()`); web has no plans and answers
+  null (`NO_READING_PLAN`). The launcher offers the option only when the module has questions
+  for those passages.
 - `IQuizAdjudicator` (seam only, not implemented): judges a free-text answer, e.g. by
   sending the question, the user's answer, the expected answer and the passage text to an
   LLM, returning correct/partly/incorrect and a 0..1 score. `QuizEngine.canAdjudicate()` /

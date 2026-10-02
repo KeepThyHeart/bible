@@ -2,7 +2,7 @@ import { Store } from './Store';
 import { bibleStore } from './bibleStore';
 import { parseReference, headerBookAliases } from '../components/Header';
 import { formatPassageRef } from '../constants';
-import { getLocalizer } from '@bible/core/browser';
+import { getLocalizer, stripBidiControls } from '@bible/core/browser';
 import i18n from '../i18n';
 import type { ISearchProvider } from '../providers/interfaces';
 import type { SearchResultData, SearchResultSet, WordFamilyMemberData } from '../types';
@@ -266,7 +266,8 @@ class SearchStore extends Store {
     // hook context (this is a plain store), so the locale-aware alias table
     // is built directly from i18next's current language rather than
     // useLocalizer().
-    const ref = parseReference(query, headerBookAliases(getLocalizer(i18n.language)));
+    // A pasted RTL reference can carry RLM/LRM marks; the header strips them too.
+    const ref = parseReference(stripBidiControls(query), headerBookAliases(getLocalizer(i18n.language)));
     this.detectedRefVerseId = ref ? refToVerseId(ref.book, ref.chapter, ref.verse) : null;
 
     this.notify();

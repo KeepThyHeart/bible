@@ -39,6 +39,15 @@ describe('QuizPanel launcher', () => {
     expect(screen.getByText('2 questions')).toBeTruthy();
   });
 
+  it("leaves today's reading out when the module has no questions for it", () => {
+    setup({
+      currentChapter: { book: 41, chapter: 4 },
+      todaysReading: { label: 'Genesis 1', passages: [{ start: 1001001, end: 1001999 }] },
+    });
+    expect(screen.queryByRole('radio', { name: /Today's reading/ })).toBeNull();
+    expect(screen.getByRole('radio', { name: /This chapter/ })).toHaveProperty('checked', true);
+  });
+
   it('lists only covered books and chapters in the passage selects', async () => {
     setup();
     const book = screen.getByLabelText('Book') as HTMLSelectElement;

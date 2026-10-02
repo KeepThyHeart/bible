@@ -158,7 +158,11 @@ const QuizPane: React.FC = () => {
   // Today's reading comes from the reading-plan service: every reading due today in any active
   // plan, labelled with its references. null when no plan is active, nothing is due, or it fails.
   const [todaysReading, setTodaysReading] = useState<QuizScope | null>(null);
-  const refreshTodaysReading = useCallback((isCancelled: () => boolean) => {
+  const todaySeq = useRef(0);
+  const refreshTodaysReading = useCallback((isCancelledOuter: () => boolean) => {
+    // focus, visibilitychange and a plan event can fire together: only the latest answer counts.
+    const seq = ++todaySeq.current;
+    const isCancelled = () => isCancelledOuter() || seq !== todaySeq.current;
     let scopes: Promise<ReadingPlans.ReadingScope[]>;
     try {
       scopes = getReadingPlanService().getTodayScope();
@@ -169,7 +173,14 @@ const QuizPane: React.FC = () => {
     scopes
       .then((list) => {
         if (isCancelled()) return;
-        const readings = list.flatMap((s) => s.readings);
+        // Two plans may share a reading: list each passage once.
+        const seen = new Set<string>();
+        const readings = list.flatMap((s) => s.readings).filter((r) => {
+          const k = `${r.start}-${r.end}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
         const label = readings.map((r) => ReadingPlans.formatReading(r, bookName)).join('; ');
         setTodaysReading(
           readings.length === 0

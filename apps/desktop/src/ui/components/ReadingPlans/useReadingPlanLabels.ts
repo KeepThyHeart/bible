@@ -157,7 +157,9 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
   }), [t]);
 
   const builder = useMemo<ReadingPlanBuilderFormLabels>(() => {
-    const simple = Object.fromEntries(BUILDER_KEYS.map((k) => [k, t(`readingPlans.builder.${k}`)]));
+    const simple: Record<string, string> = Object.fromEntries(BUILDER_KEYS.map((k) => [k, t(`readingPlans.builder.${k}`)]));
+    // The picker fills {count} itself: hand the placeholder through the formatter unchanged.
+    simple.addPassageCount = t('readingPlans.builder.addPassageCount', { count: '{count}' });
     const errors = Object.fromEntries(
       Object.entries(BUILDER_ERROR_KEYS).map(([label, key]) => [label, t(`readingPlans.builder.error.${key}`)]),
     );
