@@ -58,7 +58,7 @@ function readSchema(name: string): string {
 
 describe('shared schema fragments', () => {
   it('has schemas to check', () => {
-    expect(SCHEMA_FILES.length).toBe(11);
+    expect(SCHEMA_FILES.length).toBe(12);
   });
 
   it.each(SHARED_TABLES)('no schema declares %s inline', table => {

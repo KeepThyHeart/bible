@@ -38,6 +38,7 @@ interface ContextMenuTarget {
  */
 export const CONTEXT_MENU_TARGETS: Record<string, ContextMenuTarget> = {
   study: { paneId: 'study', mobileView: 'study', load: 'verse' },
+  similar: { paneId: 'similar', mobileView: 'study', load: 'none' },
 };
 
 export function useContextMenu(

@@ -18,6 +18,9 @@ const StudyPane = React.lazy(() => import('./StudyPane'));
 const TopicsPane = React.lazy(() => import('./TopicsPane'));
 const GenealogyPane = React.lazy(() => import('./GenealogyPane'));
 const TimelinePane = React.lazy(() => import('./TimelinePane'));
+const ReadingPlansPane = React.lazy(() => import('./ReadingPlans/ReadingPlansPane'));
+const QuizPane = React.lazy(() => import('./QuizPane'));
+const SimilarPane = React.lazy(() => import('./SimilarPane'));
 const SearchResultsPane = React.lazy(() => import('./SearchResultsPane'));
 const CommentarySinglePanel = React.lazy(() => import('./commentary/CommentarySinglePanel'));
 const BookSinglePanel = React.lazy(() => import('./book/BookSinglePanel'));
@@ -52,6 +55,9 @@ const CONTENT_COMPONENTS: Record<BuiltinPanelContentType, React.ComponentType<an
   topics: TopicsPane,
   genealogy: GenealogyPane,
   timeline: TimelinePane,
+  'reading-plans': ReadingPlansPane,
+  quiz: QuizPane,
+  similar: SimilarPane,
   newtab: NewTabPage,
 };
 

@@ -38,4 +38,5 @@ export const MODULE_TYPE_LABELS: Record<ModuleType, { key: string; fallback: str
   cross_reference: { key: 'moduleManagerDialog.typeCrossReferences', fallback: 'Cross-References' },
   tag_graph: { key: 'moduleManagerDialog.typeTagGraphs', fallback: 'Tag Graphs' },
   timeline: { key: 'moduleManagerDialog.typeTimelines', fallback: 'Timelines' },
+  quiz: { key: 'moduleManagerDialog.typeQuizzes', fallback: 'Quizzes' },
 };

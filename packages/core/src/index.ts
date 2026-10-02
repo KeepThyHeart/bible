@@ -159,9 +159,21 @@ export * as Crypto from './Crypto';
 // Backup format v1 (task 0078): also re-exported from `./browser`.
 export * as Backup from './Backup';
 
+// Shared text tools (task 0089): also re-exported from `./browser`.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+export { UserDataQuizProgressStore, QUIZ_OWNER, QUIZ_STATS_COLLECTION, QUIZ_SESSIONS_COLLECTION } from './Quiz/progress';
+export { mergeCatalogs } from './Quiz/scope';
 
 // Web user-data store (task 0084): also re-exported from `./browser`.
 export * as UserData from './UserData';
@@ -170,3 +182,20 @@ export * as UserData from './UserData';
 // Namespaced because `VerseRef` collides with the root export of
 // `Services/VerseOfTheDayService`. Also re-exported flat from `./browser`.
 export * as AudioBible from './audio';
+
+// Speech recognition contracts and fakes, and the recitation library (task 0071).
+// Namespaced; also re-exported from `./browser`. `@bible/core/recite` is the
+// QuickJS-safe subpath the Scripture Memory extension bundles.
+export * as Speech from './speech';
+export * as Recite from './recite';
+
+// Reading plans (task 0073). Namespaced like in `./browser`.
+export * as ReadingPlans from './ReadingPlans';
+
+// Notifications and reminders engine (task 0083). Namespaced here (the Node
+// entry already exports generic names such as `JsonValue`); flat in `./browser`.
+export * as Reminders from './Reminders';
+
+// Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
+export * from './Services/Similar';
+export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';

@@ -143,6 +143,8 @@ a public deployment:
 }
 ```
 
+`features.timeline` and `features.quiz` (both off by default) show the Timeline and Quiz tabs. The Quiz tab needs an installed `quiz` module; the web app keeps quiz progress in memory only and saves nothing in the browser.
+
 `docsUrl` is the documentation website the Help dialog links to. It reaches the
 browser through `/api/config`, so **the server picks up a change on restart, not
 a rebuild** — there is no build-time equivalent of the desktop app's

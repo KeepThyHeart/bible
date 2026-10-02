@@ -682,6 +682,35 @@
   }
 }
 
+// Quiz Pane (right-pane tab and phone full-screen sheet)
+.quiz-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  padding: 12px;
+
+  &--message {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    color: var(--text-secondary, #666);
+  }
+}
+
+// Kept mounted while another right-pane tab is shown; `hidden` hides it.
+.quiz-pane-host {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+
+  &[hidden] { display: none; }
+}
+
+// The phone sheet gives the quiz the full width.
+.mobile-topics-overlay__body .quiz-pane { padding: 0; }
+
 // Dictionary Pane
 .dictionary-pane {
   display: flex;

@@ -24,13 +24,8 @@
 
   &:focus { outline: none; }
 
-  // Full screen: the dialog fills the window (the browser's Fullscreen API is requested as well).
-  &--full {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    border-radius: 0;
-  }
+  // Full screen (useFullscreen adds .kth-fs-on): drop the dialog's own size.
+  &.kth-fs-on { width: auto; height: auto; max-width: none; max-height: none; }
 
   &__actions { display: flex; align-items: center; gap: 4px; }
   &__fullscreen { @media (max-width: 599px) { display: none; } }

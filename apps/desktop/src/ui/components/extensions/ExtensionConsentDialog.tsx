@@ -44,6 +44,8 @@ const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> 
   'bookmarks:write': 'extensionConsent.permission.bookmarksWrite',
   network: 'extensionConsent.permission.network',
   'network:oauth': 'extensionConsent.permission.networkOauth',
+  'speech:listen': 'extensionConsent.permission.speechListen',
+  'speech:speak': 'extensionConsent.permission.speechSpeak',
   storage: 'extensionConsent.permission.storage',
   'storage:secrets': 'extensionConsent.permission.storageSecrets',
   'storage:database': 'extensionConsent.permission.storageDatabase',
@@ -64,6 +66,7 @@ const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> 
   'commands:register': 'extensionConsent.permission.commandsRegister',
   'commands:execute-builtin': 'extensionConsent.permission.commandsExecuteBuiltin',
   tasks: 'extensionConsent.permission.tasks',
+  'notifications:schedule': 'extensionConsent.permission.notificationsSchedule',
   'extensions:call': 'extensionConsent.permission.extensionsCall',
 };
 

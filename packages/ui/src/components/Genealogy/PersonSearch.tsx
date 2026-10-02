@@ -65,7 +65,7 @@ export function PersonSearch({ graph, onPick, labels: overrides, formatVerse, li
     if (e.key === 'ArrowDown') { setOpen(true); setActive((a) => Math.min(a + 1, results.length - 1)); e.preventDefault(); }
     else if (e.key === 'ArrowUp') { setActive((a) => Math.max(a - 1, 0)); e.preventDefault(); }
     else if (e.key === 'Enter' && showList && results[active]) { pick(results[active].id); e.preventDefault(); }
-    else if (e.key === 'Escape') { setOpen(false); }
+    else if (e.key === 'Escape') { if (showList) e.preventDefault(); setOpen(false); }
   };
 
   return (

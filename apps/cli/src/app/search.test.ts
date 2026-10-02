@@ -20,6 +20,7 @@ import {
   distributionGraph,
   GRAPH_WIDTH,
   runSearch,
+  skippedMessage,
   stripHighlightMarkers,
   type RunSearchTarget,
   type SearchHit,
@@ -99,6 +100,13 @@ describe.skipIf(!hasKjv)('running a search', () => {
     expect(outcome.error).not.toContain('\n');
   });
 
+  test('unsupported syntax such as NEAR/3 is an error, not an empty result', async () => {
+    const outcome = await runSearch('faith NEAR/3 works', target());
+    expect(outcome.hits).toHaveLength(0);
+    expect(outcome.error).toContain('Unsupported syntax');
+    expect(outcome.error).not.toContain('\n');
+  });
+
   test('an unmatched quote is refused before it reaches SQLite', async () => {
     const outcome = await runSearch('"still small', target());
     expect(outcome.error).toContain('Unmatched quote');
@@ -107,6 +115,20 @@ describe.skipIf(!hasKjv)('running a search', () => {
   test('a result count can be capped, for a picker with a fixed number of digits', async () => {
     const outcome = await runSearch('love', target(), { maxResults: 5 });
     expect(outcome.hits.length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe('skippedMessage', () => {
+  test('names syntax when the index is usable but the query was skipped', () => {
+    expect(skippedMessage({ state: 'unbuilt' }, true)).toContain('Unsupported syntax');
+  });
+
+  test('uses neutral wording for index problems', () => {
+    for (const state of ['unbuilt', 'building', 'stale', 'unavailable', 'failed']) {
+      const text = skippedMessage({ state }, false);
+      expect(text).not.toContain('syntax');
+      expect(text).not.toContain('\n');
+    }
   });
 });
 

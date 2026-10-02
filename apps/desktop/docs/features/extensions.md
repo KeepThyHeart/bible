@@ -185,8 +185,9 @@ Every installed, enabled extension used to activate (spawn its worker) unconditi
 
 | Event | Fires | Notes |
 |---|---|---|
-| `onStartupFinished` | Once, after the window is shown (`main.ts`'s boot sequence) | The one bare "activate at boot" event. Replaces the inert pre-round-3 `'onStartup'`, which is now rejected outright - there is no compatibility alias (`EXTENSION_API_VERSION` is `0.1.0`, pre-release; one first-party extension exists and was updated in the same round) |
+| `onStartupFinished` | Once, after the window is shown (`main.ts`'s boot sequence) | The one bare "activate at boot" event. Replaces the inert pre-round-3 `'onStartup'`, which is now rejected outright - there is no compatibility alias (`EXTENSION_API_VERSION` was `0.1.0` then, now `0.2.0`; pre-release; one first-party extension exists and was updated in the same round) |
 | `onCommand:<fully-qualified command id>` | When a declared command's placeholder is invoked (palette, Tools menu, or its `shortcut`'s accelerator) and the extension is not already active | `RendererCommandBridge.invokeDeclared` |
+| `onReminder` | When the user clicks a reminder the extension scheduled (`api.reminders`, permission `notifications:schedule`) and the extension is not already active | `ExtensionHost.deliverReminderActivation`. Targeted: it activates exactly the reminder's owner, never every extension declaring the event. An extension that is neither active nor declaring `onReminder` is not woken |
 | `onView:<short panel type id>` | When a declared panel type's content is about to mount and the extension is not already active | `extensionHandlers.ts`'s `extensions:getPanelTypeUiEntry` - every way a panel opens (palette, new-tab page, restored layout, pop-out) passes through this one handler |
 
 The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`, etc.) remain in the accepted vocabulary - declaring one is not an error - but the host has no firing site for them yet; `DeclaredContributions.warnOnUnfiredEvents()` logs a one-time note per extension to that effect. `'*'` (built-ins only) is now enforced by the validator and rejected unconditionally - there is no built-in-extension concept in this codebase, so nothing may legally declare it.
@@ -202,6 +203,16 @@ The other prefixes in `ActivationEvents.ts` (`onLanguage:`, `onModuleInstalled:`
 ## Notifications that resolve with an action
 
 `ui.showNotification`'s `opts.actions` was validated and sent to the renderer, and nothing rendered it - a toast was a message and a dismiss button, and the promise resolved the instant the toast was queued rather than when the user did anything. It now resolves with the clicked action's `id`, or `undefined` if dismissed, replaced, or auto-dismissed - the same "wait for the user" shape `showConfirm`/`showQuickPick`/`showInputBox` already have. `extensionUiStore.ts` tracks one resolver per notification (settled exactly once, by whichever of action-click / manual dismiss / timeout happens first); `ExtensionUiHost.tsx` renders `opts.actions` as buttons.
+
+## Reminders (`api.reminders`, task 0083)
+
+An extension schedules notifications by handing the host its full list of pending items (`api.reminders.replaceAll(items)`, idempotent, capped at 64, plain text only); the host's reminder engine does the timing, global quiet hours, missed-while-asleep handling and the user's on/off switch (Preferences > Notifications, source `ext:<extensionId>`, on by default once the permission is held). The extension never runs on a timer.
+
+- **Permission `notifications:schedule`** gates every method. It is not default-granted (it interrupts the user outside the app), so it shows in the ordinary install consent dialog; it is not in `SEPARATELY_PROMPTED_PERMISSIONS`, since it touches no data or storage surface. The `reminders` namespace is attached only when the permission is granted and `remindersBridge` was supplied to `ExtensionHost`.
+- **Enabled and permitted only.** The main-process host passes the scheduler `isItemSourceAllowed`, backed by the extension registry: an `ext:<id>` source only notifies while the extension is installed, enabled and holds `notifications:schedule`. `ExtensionHost.onDidChangeAvailability` (enable, disable, permission change) triggers `reminderHost.refresh()`; `onDidUninstall` forgets the extension's reminders. `replaceAll` rejects arrays over 1000 items before sanitizing (the scheduler keeps 64).
+- **Click handling.** `ExtensionHost.deliverReminderActivation(extensionId, activation)` activates that one extension (when active or declaring `onReminder`), then either emits `reminder.activated` to its `api.reminders.onActivated` handlers or, if none is registered yet, queues the click (max 20, oldest dropped) for `api.reminders.takeActivations()`. A click is delivered one way or the other, never both. `onActivated`/`onMissed` are worker-side sugar over the `reminder.activated`/`reminder.missed` channels (`apiProxy.ts`), fired directly at the owner like `settings.changed`, not through the broadcasting dispatcher.
+- **Missed.** `deliverReminderMissed(extensionId, event)` reaches the extension only if it is already active and subscribed; it never wakes one.
+- `EXTENSION_API_VERSION` moved to `0.2.0` for this surface.
 
 ## Task progress in the status bar
 

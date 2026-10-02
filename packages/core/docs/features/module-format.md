@@ -37,6 +37,7 @@ codec (`'none'`, `'deflate'` or `'zstd'`; open set, no CHECK), and
 | `sql/schemas/initial/CrossReference.sql` | `cross_reference_group` + `verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/TopicalIndex.sql` | `topic` + `verse_link`, `module_feature`, `compression_dictionary`. |
 | `sql/schemas/initial/TagGraph.sql` | People / places / objects / themes (genealogy tables: see [genealogy.md](genealogy.md)), `tag_association`, `entity_facet`, `verse_link`, `entity_verse_link`, `module_feature`, `compression_dictionary`. |
+| `sql/schemas/initial/Quiz.sql` | `quiz_question` + `verse_link`, `data_source`, `module_feature`, `compression_dictionary` (see [quiz.md](quiz.md)). |
 | `sql/schemas/initial/MainDatabase.sql` | `main.db`: `bible_book`, `chapter_info`, `module_metadata`, `module_repository`, `module_download_queue`, `module_update`, search tables, `setting`, `schema_migration`. |
 | `sql/schemas/initial/UserDatabase.sql` | `user_*.db` - see [User data](user-data.md). |
 

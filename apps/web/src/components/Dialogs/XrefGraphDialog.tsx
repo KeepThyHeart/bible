@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentType } from 'preact';
 import { useTranslation } from 'react-i18next';
-import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, useXrefFullscreen } from '@bible/ui';
+import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, FullscreenButton, FULLSCREEN_CLASS, useFullscreen } from '@bible/ui';
 import type { XrefHopperProps, XrefWebViewProps, XrefArcViewProps, XrefCompassViewProps } from '@bible/ui';
 import { xrefGraphStore } from '../../stores/xrefGraphStore';
 import type { XrefGraphView } from '../../stores/xrefGraphStore';
@@ -40,11 +40,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const anchor = useStore(xrefGraphStore, () => xrefGraphStore.anchor);
   const view = useStore(xrefGraphStore, () => xrefGraphStore.view);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { full, toggle: toggleFull } = useXrefFullscreen(dialogRef);
-  const fullRef = useRef(full);
-  fullRef.current = full;
-  const toggleRef = useRef(toggleFull);
-  toggleRef.current = toggleFull;
+  const { full, toggle: toggleFull } = useFullscreen(dialogRef);
   // Captured during the first render, before focus moves into the dialog.
   const [opener] = useState<Element | null>(() => document.activeElement);
 
@@ -60,9 +56,8 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       e.preventDefault();
-      // In full screen the first Escape leaves it (the browser handles native full screen itself).
-      if (fullRef.current) toggleRef.current();
-      else xrefGraphStore.close();
+      // In full screen the first Escape leaves it: useFullscreen handles it first and marks the event handled.
+      xrefGraphStore.close();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -145,7 +140,7 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
     <div class="xref-graph-overlay" onClick={() => xrefGraphStore.close()}>
       <div
         ref={dialogRef}
-        class={`xref-graph-dialog${full ? ' xref-graph-dialog--full' : ''}`}
+        class={`xref-graph-dialog${full ? ` ${FULLSCREEN_CLASS}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={t('xrefGraph.title', { defaultValue: 'Cross-reference graph' })}
@@ -160,20 +155,15 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
             {anchor ? <span class="xref-graph-dialog__anchor"> {formatPassageRef(...refArgs(anchor))}</span> : null}
           </h3>
           <div class="xref-graph-dialog__actions">
-          <button
-            type="button"
-            class="xref-graph-dialog__close xref-graph-dialog__fullscreen"
-            aria-pressed={full}
-            aria-label={full
-              ? t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' })
-              : t('xrefGraph.fullscreen', { defaultValue: 'Full screen' })}
-            title={full
-              ? t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' })
-              : t('xrefGraph.fullscreen', { defaultValue: 'Full screen' })}
-            onClick={toggleFull}
-          >
-            <i class={full ? 'fa-solid fa-compress' : 'fa-solid fa-expand'} />
-          </button>
+          <FullscreenButton
+            full={full}
+            onToggle={toggleFull}
+            className="xref-graph-dialog__fullscreen"
+            labels={{
+              enter: t('xrefGraph.fullscreen', { defaultValue: 'Full screen' }),
+              exit: t('xrefGraph.exitFullscreen', { defaultValue: 'Exit full screen' }),
+            }}
+          />
           <button
             type="button"
             class="xref-graph-dialog__close"

@@ -136,37 +136,43 @@ describe('TimelinePanel', () => {
     expect(screen.queryByRole('button', { name: 'Full screen' })).toBeNull();
   });
 
+  const isFull = (root: Element | null) => root?.classList.contains('kth-fs-on') === true;
+  const timelineRoot = () => document.querySelector('.kth-timeline') as HTMLElement;
+
   it('opens full screen; Escape closes only the settings popover first', async () => {
     render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
     await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
-    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    expect(isFull(timelineRoot())).toBe(true);
     await userEvent.click(screen.getByRole('button', { name: 'Timeline settings' }));
     expect(screen.getByRole('dialog', { name: 'Timeline settings' })).toBeTruthy();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Timeline settings' })).toBeNull();
-    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    expect(isFull(timelineRoot())).toBe(true);
     await userEvent.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
+    expect(isFull(timelineRoot())).toBe(false);
   });
-  it('returns focus to the inline full-screen toggle after Escape', async () => {
+
+  it('keeps its state across full screen and returns focus to the toggle after Escape', async () => {
     render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
+    const before = timelineRoot();
+    await userEvent.click(screen.getByRole('button', { name: /^Solomon/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
-    const dialog = screen.getByRole('dialog', { name: 'Full screen' });
-    expect(dialog.contains(document.activeElement)).toBe(true);
-    // No header: the toolbar exit button uses a different glyph than the enter one.
-    expect(dialog.querySelector('.kth-fullscreen__header')).toBeNull();
-    const exit = screen.getByRole('button', { name: 'Exit full screen' });
-    expect(exit.textContent).not.toBe('\u2715');
-    expect(exit.textContent).not.toBe('\u26F6');
+    // Same element (never re-mounted), selection kept, focus still inside.
+    expect(timelineRoot()).toBe(before);
+    expect(before.contains(document.activeElement)).toBe(true);
+    expect(before.classList.contains('kth-timeline--fs-card')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Exit full screen' })).toBeTruthy();
     await userEvent.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
+    expect(isFull(before)).toBe(false);
+    expect(before.classList.contains('kth-timeline--fs-card')).toBe(false);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Full screen' }));
+    expect(screen.getByRole('button', { name: /^Solomon/ })).toBeTruthy();
   });
 
   it('lays out full screen with the card beside the view when an item is selected', async () => {
     render(<TimelinePanel dataset={FIXTURE} allowFullscreen />);
     await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
-    const root = () => screen.getByRole('dialog', { name: 'Full screen' }).querySelector('.kth-timeline') as HTMLElement;
+    const root = timelineRoot;
     expect(root().classList.contains('kth-timeline--fs')).toBe(true);
     expect(root().classList.contains('kth-timeline--fs-card')).toBe(false);
     await userEvent.click(screen.getByRole('button', { name: /^Solomon/ }));
@@ -190,12 +196,12 @@ describe('TimelinePanel', () => {
     const box = screen.getByRole('combobox', { name: 'Search the timeline' }) as HTMLInputElement;
     await userEvent.type(box, 'temple');
     await userEvent.keyboard('{Escape}'); // closes the list
-    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    expect(isFull(timelineRoot())).toBe(true);
     await userEvent.keyboard('{Escape}'); // clears the text
     expect(box.value).toBe('');
-    expect(screen.getByRole('dialog', { name: 'Full screen' })).toBeTruthy();
+    expect(isFull(timelineRoot())).toBe(true);
     await userEvent.keyboard('{Escape}'); // empty: exits
-    expect(screen.queryByRole('dialog', { name: 'Full screen' })).toBeNull();
+    expect(isFull(timelineRoot())).toBe(false);
   });
 
   it('shows no-results as a status outside the listbox', async () => {
