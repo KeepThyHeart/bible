@@ -47,5 +47,14 @@
   "main.window.studyFallback": "לימוד",
   "main.window.topics": "נושאים - {name}",
   "main.window.topicsFallback": "נושאים",
-  "main.window.extensionFallback": "תוסף"
+  "main.window.extensionFallback": "תוסף",
+  "main.notifications.votd.label": "פסוק היום",
+  "main.notifications.votd.description": "פסוק מהמקרא בכל יום.",
+  "main.notifications.votd.title": "פסוק היום",
+  "main.notifications.collapsed": "תזכורות ממתינות: {count}",
+  "main.notifications.tray.open": "פתח",
+  "main.notifications.tray.settings": "הגדרות התראות…",
+  "main.notifications.tray.quit": "יציאה",
+  "main.notifications.test.title": "התראת בדיקה",
+  "main.notifications.test.body": "ההתראות פועלות."
 }

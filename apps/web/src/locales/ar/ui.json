@@ -158,7 +158,8 @@
     "topics": "المواضيع",
     "commentary": "التفسير",
     "dictionary": "القاموس",
-    "study": "دراسة"
+    "study": "دراسة",
+    "similar": "البحث عن مقاطع مشابهة"
   },
   "rightPane": {
     "study": "دراسة",
@@ -167,7 +168,10 @@
     "dictionary": "القاموس",
     "search": "بحث",
     "collapseRight": "طي الجزء الجانبي",
-    "timeline": "الخط الزمني"
+    "timeline": "الخط الزمني",
+    "quiz": "اختبار",
+    "similar": "مشابه",
+    "wordStudy": "دراسة الكلمة"
   },
   "timeline": {
     "title": "الخط الزمني",
@@ -212,6 +216,78 @@
     "reviewed": "تمت المراجعة",
     "unreviewed": "لم تتم المراجعة"
   },
+  "quiz": {
+    "title": "اختبار",
+    "intro": "اختبر ما تتذكره وما تفهمه من مقطع.",
+    "scopeHeading": "موضوع الاختبار",
+    "scopeToday": "قراءة اليوم ({label})",
+    "scopeChapter": "هذا الأصحاح ({label})",
+    "scopePassage": "اختيار مقطع",
+    "book": "السفر",
+    "fromChapter": "من الأصحاح",
+    "toChapter": "إلى الأصحاح",
+    "countHeading": "الأسئلة",
+    "difficultyHeading": "الصعوبة",
+    "difficultyMixed": "متنوعة",
+    "difficultyEasy": "سهلة",
+    "difficultyMedium": "متوسطة",
+    "difficultyHard": "صعبة",
+    "start": "ابدأ الاختبار",
+    "noQuestionsHere": "لا توجد أسئلة لـ {label} بعد.",
+    "questionsAvailable": "{count} أسئلة",
+    "loading": "جارٍ تحميل أسئلة الاختبار...",
+    "progress": "السؤال {n} من {total}",
+    "check": "تحقّق",
+    "next": "التالي",
+    "finish": "عرض النتائج",
+    "skip": "تخطَّ",
+    "quit": "إنهاء الاختبار",
+    "showAnswer": "إظهار الإجابة",
+    "yourAnswer": "إجابتك",
+    "answerPlaceholder": "اكتب إجابتك",
+    "modelAnswer": "الإجابة",
+    "selfGradePrompt": "كيف كان أداؤك؟",
+    "gotIt": "أصبت",
+    "partly": "جزئيًا",
+    "missed": "أخطأت",
+    "correct": "صحيح",
+    "incorrect": "ليس تمامًا",
+    "correctAnswerIs": "الإجابة: {answer}",
+    "countAsCorrect": "كنت على صواب",
+    "reflectionHint": "لا توجد إجابة صحيحة أو خاطئة: تأمّل في الأمر، أو اكتب بضع كلمات.",
+    "reflectionPlaceholder": "اكتب بضع كلمات (اختياري)",
+    "continue": "متابعة",
+    "openPassage": "اقرأ {reference}",
+    "kinds": {
+      "recall": "الحفظ",
+      "comprehension": "الفهم",
+      "application": "التطبيق"
+    },
+    "difficultyBadge": {
+      "1": "سهلة",
+      "2": "متوسطة",
+      "3": "صعبة"
+    },
+    "summaryTitle": "النتائج",
+    "score": "{correct} من {graded} صحيحة",
+    "scorePartly": "{partly} جزئيًا",
+    "noneGraded": "لم يُقيَّم أي شيء في هذا الاختبار.",
+    "missedHeading": "للمراجعة",
+    "retryMissed": "أعد الأسئلة التي أخطأت فيها",
+    "newQuiz": "اختبار جديد",
+    "sameAgain": "اختبار آخر في {label}",
+    "historyHeading": "الاختبارات الأخيرة",
+    "historyEntry": "{label}: {correct}/{graded} ({date})",
+    "sourcesHeading": "مصادر الأسئلة",
+    "unreviewed": "مسودة: لم تتم مراجعتها بعد",
+    "textBasis": "صيغت بحسب {translation}",
+    "error": "تعذّر تحميل الاختبار.",
+    "retry": "حاول مرة أخرى",
+    "noModule": "لا توجد أسئلة اختبار مثبَّتة.",
+    "loadError": "تعذّر تحميل الاختبار.",
+    "quizThisChapter": "اختبرني في هذا الأصحاح",
+    "close": "إغلاق"
+  },
   "mobileNav": {
     "home": "الرئيسية",
     "search": "بحث",
@@ -240,7 +316,8 @@
       "gestures": "الإيماءات",
       "audio": "الصوت",
       "offline": "دون اتصال",
-      "about": "حول"
+      "about": "حول",
+      "notifications": "الإشعارات"
     },
     "textSize": {
       "decreaseAll": "تصغير كل أحجام الخطوط",
@@ -302,7 +379,86 @@
       "semanticNotAvailable": "فهرس البحث الدلالي غير متاح على الخادم",
       "remove": "إزالة",
       "download": "تنزيل",
-      "failed": "فشل"
+      "failed": "فشل",
+      "pack": {
+        "title": "حزم دون اتصال",
+        "presets": "حزم البداية",
+        "groups": "المحتويات",
+        "empty": "لا يوجد شيء متاح للتنزيل.",
+        "loadFailed": "تعذّر تحميل قائمة الحزم.",
+        "notReadable": "لا يوجد قارئ دون اتصال لهذا النوع في تطبيق الويب حتى الآن.",
+        "shellNotice": "إلى أن يتوفر غلاف التطبيق دون اتصال، لا تفيد الحزم المنزَّلة إلا ما دامت علامة تبويب لهذا الموقع مفتوحة بالفعل.",
+        "start": "تنزيل المحدد",
+        "cancel": "إلغاء",
+        "storageBar": "استخدام التخزين",
+        "runProgress": "تقدم التنزيل",
+        "status": {
+          "absent": "غير منزَّلة",
+          "installed": "على هذا الجهاز",
+          "update": "توفر تحديث",
+          "installing": "جارٍ التنزيل",
+          "error": "فشل"
+        },
+        "summary": {
+          "download": "التنزيل: {size}",
+          "stored": "المخزَّن: {size}",
+          "free": "مساحة حرة: {size}",
+          "freeUnknown": "مساحة حرة غير معروفة"
+        },
+        "fit": {
+          "fits": "يناسب هذا الجهاز",
+          "tight": "يناسب، لكن التخزين شبه ممتلئ",
+          "no": "مساحة غير كافية: {size} ناقص",
+          "unknown": "يتعذّر معرفة ما إذا كان يناسب"
+        },
+        "run": {
+          "count": "{done} من {total} عنصرًا",
+          "bytes": "{loaded} من {total}",
+          "running": "جارٍ التنزيل...",
+          "done": "تم. كل شيء موجود على هذا الجهاز.",
+          "partial": "لم يتم تنزيل بعض العناصر.",
+          "failed": "فشل التنزيل.",
+          "cancelled": "أُلغي. تُحفظ التنزيلات الجزئية وتُستأنف في المرة القادمة."
+        },
+        "group": {
+          "bible": "الكتب المقدسة",
+          "commentary": "التفاسير",
+          "dictionary": "القواميس",
+          "crossref": "الشواهد المرجعية",
+          "topical": "موضوعية",
+          "other": "وحدات أخرى",
+          "speech": "أصوات القراءة",
+          "data": "ملفات البيانات"
+        },
+        "warn": {
+          "unavailable": "{name} لم تعد متاحة.",
+          "notReadable": "لا يمكن قراءة {name} دون اتصال في تطبيق الويب حتى الآن.",
+          "dependencyAdded": "تمت إضافة {name} لأن {for} يحتاجها.",
+          "missingDependency": "{name} يحتاج إلى {requires}، وهو غير متاح.",
+          "cycle": "تعتمد بعض العناصر على بعضها؛ وستُثبَّت بترتيب ثابت.",
+          "overQuota": "يلزم نحو {size} من المساحة الإضافية."
+        },
+        "remove": "إزالة",
+        "keepHint": "تحديد عنصر موجود على هذا الجهاز يُبقيه هنا؛ ولا يُحذف تلقائيًا أبدًا."
+      }
+    },
+    "downloads": {
+      "title": "التنزيلات والتخزين",
+      "download": "تنزيل",
+      "update": "تحديث",
+      "retry": "إعادة المحاولة",
+      "cancel": "إلغاء",
+      "remove": "إزالة",
+      "queued": "في الانتظار",
+      "downloading": "{percent}%",
+      "installed": "مثبتة",
+      "total": "على هذا الجهاز: {size}",
+      "empty": "لا يوجد شيء للتنزيل.",
+      "unverified": "غير موثَّق",
+      "kind": {
+        "ttsRuntime": "محرك الكلام",
+        "ttsVoice": "الصوت"
+      }
     },
     "about": {
       "title": "حول",
@@ -328,6 +484,44 @@
     "keywords": {
       "colorSafe": "علامات الكلمات المفتاحية الآمنة للألوان (تسطير إضافي ورموز مساعدة)",
       "colorSafeHint": "يضيف نمط تسطير ورمزًا إلى كل علامة كلمة مفتاحية حتى لا تعتمد على اللون وحده."
+    },
+    "measures": {
+      "title": "الأوزان والمقاييس",
+      "enabled": "ملاحظات الأوزان والمقاييس والنقود",
+      "enabled.description": "تمييز الوحدات القديمة في النص وعرض ما يعادلها اليوم.",
+      "display": "العرض في النص",
+      "display.description": "عند الإيقاف يبقى النص نظيفاً (التحويلات في لوحة الدراسة). وإلا: خط تحتي منقّط مع نافذة منبثقة، أو خط تحتي مع التحويل بين [أقواس] بعد العبارة.",
+      "display.marker": "خط تحتي منقّط ونافذة منبثقة",
+      "display.inline": "خط تحتي ونافذة منبثقة و[التحويل]",
+      "display.off": "ليس في النص (لوحة الدراسة فقط)",
+      "showInReading": "العرض في وضع القراءة",
+      "showInReading.description": "يبقى وضع القراءة نصًّا خالصًا ما لم تفعّل هذا الخيار.",
+      "system": "نظام الوحدات",
+      "system.description": "يتبع الخيار التلقائي لغتك ومنطقتك.",
+      "system.auto": "تلقائي",
+      "system.metric": "النظام المتري",
+      "system.us": "النظام الأمريكي المعتاد",
+      "system.imperial": "النظام الإمبراطوري",
+      "secondary": "نظام وحدات ثانٍ",
+      "secondary.description": "عرض القيمة أيضًا بنظام آخر (الإمبراطوري: الطول والوزن فقط).",
+      "secondary.none": "بلا",
+      "money": "النقود",
+      "money.description": "أجور الأيام (الافتراضي)، أو وزن المعدن، أو كلاهما.",
+      "money.wages": "أجور الأيام",
+      "money.metal": "وزن المعدن",
+      "money.both": "كلاهما",
+      "dailyWage": "أجرك اليومي",
+      "dailyWage.description": "اختياري: يعرض تقديرًا حديثًا لمبلغ محسوب بأجور الأيام. القيمة 0 تعني الإيقاف.",
+      "wageCurrency": "عملة أجرك اليومي",
+      "wageCurrency.description": "رمز عملة مثل USD أو EUR أو GBP.",
+      "clock": "أوقات الساعة",
+      "clock.description": "يتبع الخيار التلقائي لغتك ومنطقتك.",
+      "clock.h12": "نظام 12 ساعة",
+      "clock.h23": "نظام 24 ساعة",
+      "ranges": "النطاقات",
+      "ranges.description": "عرض نطاق عدم اليقين للقيمة: عندما يكون واسعًا (تلقائي)، أو دائمًا، أو أبدًا.",
+      "ranges.always": "دائمًا",
+      "ranges.never": "أبدًا"
     }
   },
   "copyDialog": {
@@ -784,6 +978,63 @@
     "submit": "Enter",
     "incorrectPassword": "كلمة المرور غير صحيحة.",
     "tooManyAttempts": "محاولات كثيرة جدًا. يُرجى المحاولة مرة أخرى لاحقًا."
+  },
+  "wordStudy": {
+    "title": "دراسة الكلمة",
+    "open": "دراسة الكلمة",
+    "back": "رجوع",
+    "forward": "إلى الأمام",
+    "close": "إغلاق",
+    "offline": "دراسة الكلمة متاحة عند الاتصال بالإنترنت.",
+    "retry": "حاول مرة أخرى",
+    "prompt": "ابحث عن رقم Strong's أو عن كلمة، أو أنشئ مجموعة كلمات.",
+    "labels": {
+      "lookupLabel": "الكلمة المراد دراستها",
+      "lookupPlaceholder": "G25 أو agapao أو love, loved, lov*",
+      "lookupSubmit": "دراسة",
+      "candidatesTitle": "هل تقصد",
+      "loading": "جارٍ التحميل...",
+      "totals": "{occurrences} موضعًا في {verses} عددًا",
+      "strongsNumber": "Strong's {strongs}",
+      "moduleLabel": "الترجمة",
+      "searchAll": "بحث في الكل",
+      "openInDictionary": "فتح في القاموس",
+      "noticeNoModule": "لا يوجد كتاب مقدس مناسب مثبَّت لهذه الدراسة.",
+      "noticeNotTagged": "هذه الترجمة بلا وسوم أرقام Strong's. اختر ترجمة أخرى.",
+      "noticeNoOccurrences": "لم يُعثر على مواضع في هذه الترجمة.",
+      "renderingsTitle": "كيف تُترجم",
+      "formsTitle": "الصيغ الموجودة",
+      "other": "أخرى ({count})",
+      "modeGroup": "التجميع حسب",
+      "modeHead": "الكلمة الرئيسية",
+      "modePhrase": "العبارة الكاملة",
+      "clearFilter": "إظهار الكل",
+      "bookDistributionTitle": "مواضع ورودها",
+      "familyTitle": "عائلة الكلمة",
+      "relationSelf": "هذه الكلمة",
+      "relationParent": "الجذر",
+      "relationChild": "مشتقة",
+      "relationRelated": "ذات صلة",
+      "semanticTitle": "نطاق المعنى",
+      "lexiconRenderings": "قوائم Strong's: {list}",
+      "occurrencesTitle": "المواضع",
+      "showing": "عرض {shown} من {total}",
+      "loadMore": "تحميل المزيد",
+      "noOccurrences": "لا توجد مواضع لعرضها.",
+      "groupsTitle": "مجموعات الكلمات",
+      "newGroup": "مجموعة جديدة",
+      "editGroupNamed": "تعديل {label}",
+      "groupLabel": "الاسم",
+      "groupTerms": "الكلمات",
+      "groupTermsHint": "واحدة في كل سطر أو مفصولة بفواصل. lov* تطابق أي كلمة تبدأ بـ \"lov\"؛ =loved تطابق هذه الصيغة بالضبط فقط؛ \"loving kindness\" تطابق عبارة.",
+      "groupExclude": "لا تطابق أبدًا",
+      "groupExcludeHint": "صيغ يُراد تجاهلها، مثل lovely.",
+      "groupStem": "استخدام الجذع اللغوي لهذه اللغة",
+      "groupTermsRequired": "أدخل كلمة واحدة على الأقل.",
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "delete": "حذف"
+    }
   },
   "present": {
     "start": "عرض",
@@ -1367,5 +1618,106 @@
       "strength": "القوة {n} من 5",
       "hopName": "القفزة {hop}"
     }
+  },
+  "notifications": {
+    "votd": {
+      "label": "عدد اليوم",
+      "description": "عدد كل يوم في الوقت الذي تختاره.",
+      "title": "عدد اليوم",
+      "body": "{reference} — {text}"
+    },
+    "test": {
+      "title": "إشعار تجريبي",
+      "body": "الإشعارات تعمل."
+    },
+    "collapsed": "{count, plural, zero {لا توجد تذكيرات منتظرة} one {يوجد تذكير واحد منتظر} two {يوجد تذكيران منتظران} few {# تذكيرات منتظرة} many {# تذكيرًا منتظرًا} other {# تذكير منتظر}}",
+    "scheduledCount": "{count, plural, zero {# مجدولة} one {مجدول واحد} two {اثنان مجدولان} few {# مجدولة} many {# مجدولة} other {# مجدولة}}",
+    "labels": {
+      "statusGranted": "الإشعارات مسموح بها.",
+      "statusDenied": "الإشعارات محظورة. اسمح بها من إعدادات المتصفح لهذا الموقع.",
+      "statusPrompt": "الإشعارات غير مسموح بها بعد.",
+      "statusUnsupported": "لا يمكن لهذا المتصفح أو الجهاز عرض الإشعارات.",
+      "allow": "السماح بالإشعارات",
+      "whenClosedFires": "تستمر التذكيرات في الوصول أثناء تشغيل التطبيق في الخلفية.",
+      "whenClosedNever": "تصل التذكيرات فقط أثناء فتح التطبيق.",
+      "whenClosedBackgroundOnly": "لا تصل التذكيرات إلا والتطبيق مفتوح في علامة تبويب بالمتصفح، حتى لو كانت علامة التبويب في الخلفية.",
+      "enabled": "إظهار الإشعارات",
+      "quietHours": "ساعات الهدوء",
+      "quietFrom": "من",
+      "quietTo": "إلى",
+      "quietHelp": "الإشعارات المستحقة خلال ساعات الهدوء تنتظر حتى تنتهي.",
+      "sources": "التذكيرات",
+      "noSources": "لا توجد ميزات تستخدم الإشعارات بعد.",
+      "dailyTime": "وقت {source}",
+      "next": "التالي: {time}",
+      "scheduled": "{count} مجدولة",
+      "device": "عند إغلاق النافذة",
+      "tray": "الاستمرار في العمل في علبة النظام",
+      "openAtLogin": "التشغيل عند تسجيل الدخول (في علبة النظام)",
+      "sendTest": "إرسال إشعار تجريبي",
+      "general": "عام"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "النطاق",
+      "rangeHint": "بحسب القيمة المعتمدة",
+      "verseNote": "في هذه الآية",
+      "usageIllustrative": "توضيحي",
+      "usageFigurative": "مجازي",
+      "usageHintIllustrative": "مبلغ على سبيل المثال؛ الرقم الدقيق ليس المقصود",
+      "usageHintFigurative": "مستخدم مجازًا؛ الرقم غير مقصود حرفيًّا",
+      "draft": "مسودة – لم تُراجَع بعد",
+      "sources": "المصادر",
+      "units": "الوحدات…"
+    },
+    "study": {
+      "title": "الأوزان والمقاييس والمال",
+      "listLabel": "الأوزان والمقاييس والنقود في هذا العدد: {count}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "أنت غير متصل بالإنترنت (أو أن الوصول إلى الويب متوقف).",
+      "network": "انقطع التنزيل. حاول مرة أخرى.",
+      "http": "رفض الخادم التنزيل.",
+      "not-found": "هذا التنزيل لم يعد متاحًا.",
+      "integrity": "كان التنزيل تالفًا فتم تجاهله.",
+      "size-mismatch": "كان التنزيل تالفًا فتم تجاهله.",
+      "unverifiable": "يتعذّر التحقق من هذا الملف.",
+      "quota": "مساحة التخزين غير كافية.",
+      "storage": "تعذّر حفظ الملف.",
+      "invalid-manifest": "هذا الإدخال غير صالح.",
+      "busy": "هناك إصدار آخر قيد التنزيل."
+    }
+  },
+  "similar": {
+    "moreLikeThis": "المزيد من هذا النوع",
+    "crossRef": "شاهد مرجعي",
+    "otNtBadge": "ع.ق ↔ ع.ج",
+    "similarInMeaning": "مشابه في المعنى",
+    "barLabel": "التشابه {step} من {max}",
+    "menu": "المزيد من الإجراءات",
+    "empty": "لم يُعثر على مقاطع مشابهة.",
+    "filters": "عوامل تصفية المقاطع المشابهة",
+    "back": "رجوع",
+    "hideKnown": "إخفاء الشواهد المرجعية المعروفة",
+    "testament": {
+      "label": "العهد",
+      "any": "الكل",
+      "ot": "العهد القديم",
+      "nt": "العهد الجديد",
+      "other": "العهد المقابل"
+    },
+    "similarTo": "مشابه لـ {reference}",
+    "approximate": "بناءً على الأعداد المفردة في تحديدك.",
+    "selectVerse": "حدِّد عددًا للعثور على مقاطع مشابهة.",
+    "loading": "جارٍ تحميل المقاطع المشابهة...",
+    "downloading": "جارٍ تنزيل بيانات المقاطع المشابهة...",
+    "unavailable": "بيانات المقاطع المشابهة غير متاحة على هذا الخادم.",
+    "error": "تعذّر تحميل المقاطع المشابهة.",
+    "retry": "حاول مرة أخرى",
+    "showMore": "عرض 10 أخرى",
+    "rangeNeedsLive": "ليس لهذا المقطع تطابقات محسوبة مسبقًا هنا؛ حدِّد عددًا واحدًا بدلًا من ذلك."
   }
 }

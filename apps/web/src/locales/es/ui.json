@@ -1691,7 +1691,7 @@
     },
     "study": {
       "title": "Pesos, medidas y dinero",
-      "listLabel": "Pesos, medidas y dinero en este versículo: {{count}}"
+      "listLabel": "Pesos, medidas y dinero en este versículo: {count}"
     }
   },
   "assets": {

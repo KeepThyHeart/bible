@@ -1691,7 +1691,7 @@
     },
     "study": {
       "title": "Weights, measures and money",
-      "listLabel": "Weights, measures and money in this verse: {{count}}"
+      "listLabel": "Weights, measures and money in this verse: {count}"
     }
   },
   "assets": {

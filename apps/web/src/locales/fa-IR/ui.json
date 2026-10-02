@@ -158,7 +158,8 @@
     "topics": "موضوعات",
     "commentary": "تفسیر",
     "dictionary": "فرهنگ لغت",
-    "study": "تحقیق"
+    "study": "تحقیق",
+    "similar": "یافتن قسمت‌های مشابه"
   },
   "rightPane": {
     "study": "تحقیق",
@@ -167,7 +168,10 @@
     "dictionary": "فرهنگ لغت",
     "search": "جستجو",
     "collapseRight": "بستن پنل کناری",
-    "timeline": "خط زمان"
+    "timeline": "خط زمان",
+    "quiz": "آزمون",
+    "similar": "مشابه",
+    "wordStudy": "مطالعه واژه"
   },
   "timeline": {
     "title": "خط زمان",
@@ -212,6 +216,78 @@
     "reviewed": "بررسی‌شده",
     "unreviewed": "بررسی‌نشده"
   },
+  "quiz": {
+    "title": "آزمون",
+    "intro": "آنچه را از یک قسمت به یاد دارید و درک کرده‌اید بسنجید.",
+    "scopeHeading": "موضوع آزمون",
+    "scopeToday": "قرائت امروز ({label})",
+    "scopeChapter": "این باب ({label})",
+    "scopePassage": "انتخاب یک قسمت",
+    "book": "کتاب",
+    "fromChapter": "از باب",
+    "toChapter": "تا باب",
+    "countHeading": "پرسش‌ها",
+    "difficultyHeading": "سطح دشواری",
+    "difficultyMixed": "ترکیبی",
+    "difficultyEasy": "آسان",
+    "difficultyMedium": "متوسط",
+    "difficultyHard": "دشوار",
+    "start": "شروع آزمون",
+    "noQuestionsHere": "هنوز پرسشی برای {label} وجود ندارد.",
+    "questionsAvailable": "{count} پرسش",
+    "loading": "در حال بارگذاری پرسش‌های آزمون...",
+    "progress": "پرسش {n} از {total}",
+    "check": "بررسی",
+    "next": "بعدی",
+    "finish": "مشاهده نتایج",
+    "skip": "رد کردن",
+    "quit": "پایان آزمون",
+    "showAnswer": "نمایش پاسخ",
+    "yourAnswer": "پاسخ شما",
+    "answerPlaceholder": "پاسخ خود را بنویسید",
+    "modelAnswer": "پاسخ",
+    "selfGradePrompt": "چطور بود؟",
+    "gotIt": "درست بود",
+    "partly": "تا حدی",
+    "missed": "نادرست بود",
+    "correct": "درست",
+    "incorrect": "کاملاً درست نیست",
+    "correctAnswerIs": "پاسخ: {answer}",
+    "countAsCorrect": "پاسخ من درست بود",
+    "reflectionHint": "پاسخ درست یا نادرستی وجود ندارد: درباره‌اش فکر کنید یا چند کلمه بنویسید.",
+    "reflectionPlaceholder": "چند کلمه بنویسید (اختیاری)",
+    "continue": "ادامه",
+    "openPassage": "خواندن {reference}",
+    "kinds": {
+      "recall": "یادآوری",
+      "comprehension": "درک مطلب",
+      "application": "کاربرد"
+    },
+    "difficultyBadge": {
+      "1": "آسان",
+      "2": "متوسط",
+      "3": "دشوار"
+    },
+    "summaryTitle": "نتایج",
+    "score": "{correct} از {graded} درست",
+    "scorePartly": "{partly} تا حدی درست",
+    "noneGraded": "در این آزمون چیزی نمره‌گذاری نشد.",
+    "missedHeading": "برای مرور",
+    "retryMissed": "تکرار پرسش‌هایی که نادرست بودند",
+    "newQuiz": "آزمون جدید",
+    "sameAgain": "آزمون دیگری درباره {label}",
+    "historyHeading": "آزمون‌های اخیر",
+    "historyEntry": "{label}: {correct}/{graded} ({date})",
+    "sourcesHeading": "منابع پرسش‌ها",
+    "unreviewed": "پیش‌نویس: هنوز بازبینی نشده",
+    "textBasis": "با الهام از متن {translation} نوشته شده",
+    "error": "بارگذاری آزمون ممکن نبود.",
+    "retry": "تلاش دوباره",
+    "noModule": "هیچ پرسش آزمونی نصب نشده است.",
+    "loadError": "بارگذاری آزمون ممکن نبود.",
+    "quizThisChapter": "از این باب از من آزمون بگیر",
+    "close": "بستن"
+  },
   "mobileNav": {
     "home": "خانه",
     "search": "جستجو",
@@ -240,7 +316,8 @@
       "gestures": "حرکات",
       "audio": "صوت",
       "offline": "آفلاین",
-      "about": "درباره"
+      "about": "درباره",
+      "notifications": "اعلان‌ها"
     },
     "textSize": {
       "decreaseAll": "کاهش اندازهٔ همهٔ قلم‌ها",
@@ -302,7 +379,86 @@
       "semanticNotAvailable": "نمایهٔ جستجوی معنایی روی سرور در دسترس نیست",
       "remove": "حذف",
       "download": "دانلود",
-      "failed": "ناموفق"
+      "failed": "ناموفق",
+      "pack": {
+        "title": "بسته‌های آفلاین",
+        "presets": "بسته‌های شروع",
+        "groups": "محتویات",
+        "empty": "چیزی برای دانلود در دسترس نیست.",
+        "loadFailed": "بارگذاری فهرست بسته‌ها ممکن نبود.",
+        "notReadable": "هنوز خواننده آفلاینی برای این نوع در برنامه وب وجود ندارد.",
+        "shellNotice": "تا زمانی که پوسته آفلاین برنامه در دسترس نباشد، بسته‌های دانلودشده فقط هنگامی کمک می‌کنند که یک زبانه از این سایت از قبل باز باشد.",
+        "start": "دانلود موارد انتخاب‌شده",
+        "cancel": "لغو",
+        "storageBar": "میزان استفاده از فضای ذخیره‌سازی",
+        "runProgress": "پیشرفت دانلود",
+        "status": {
+          "absent": "دانلود نشده",
+          "installed": "روی این دستگاه",
+          "update": "به‌روزرسانی در دسترس است",
+          "installing": "در حال دانلود",
+          "error": "ناموفق"
+        },
+        "summary": {
+          "download": "دانلود: {size}",
+          "stored": "ذخیره‌شده: {size}",
+          "free": "آزاد: {size}",
+          "freeUnknown": "فضای آزاد نامشخص است"
+        },
+        "fit": {
+          "fits": "روی این دستگاه جا می‌شود",
+          "tight": "جا می‌شود، اما فضای ذخیره‌سازی تقریباً پر است",
+          "no": "فضای کافی نیست: {size} کم است",
+          "unknown": "مشخص نیست که جا می‌شود یا نه"
+        },
+        "run": {
+          "count": "{done} از {total} مورد",
+          "bytes": "{loaded} از {total}",
+          "running": "در حال دانلود...",
+          "done": "انجام شد. همه چیز روی این دستگاه است.",
+          "partial": "برخی موارد دانلود نشدند.",
+          "failed": "دانلود ناموفق بود.",
+          "cancelled": "لغو شد. دانلودهای ناقص نگه داشته می‌شوند و دفعه بعد ادامه می‌یابند."
+        },
+        "group": {
+          "bible": "کتاب‌های مقدس",
+          "commentary": "تفسیرها",
+          "dictionary": "فرهنگ‌های لغت",
+          "crossref": "ارجاعات متقابل",
+          "topical": "موضوعی",
+          "other": "ماژول‌های دیگر",
+          "speech": "صداهای گفتار",
+          "data": "پرونده‌های داده"
+        },
+        "warn": {
+          "unavailable": "{name} دیگر ارائه نمی‌شود.",
+          "notReadable": "{name} هنوز در برنامه وب به‌صورت آفلاین قابل خواندن نیست.",
+          "dependencyAdded": "{name} اضافه شد، چون {for} به آن نیاز دارد.",
+          "missingDependency": "{name} به {requires} نیاز دارد که ارائه نمی‌شود.",
+          "cycle": "برخی موارد به یکدیگر وابسته‌اند؛ به ترتیبی ثابت نصب خواهند شد.",
+          "overQuota": "حدود {size} فضای بیشتر لازم است."
+        },
+        "remove": "حذف",
+        "keepHint": "انتخاب یک مورد روی این دستگاه آن را اینجا نگه می‌دارد؛ هرگز به‌طور خودکار پاک نمی‌شود."
+      }
+    },
+    "downloads": {
+      "title": "دانلودها و فضای ذخیره‌سازی",
+      "download": "دانلود",
+      "update": "به‌روزرسانی",
+      "retry": "تلاش دوباره",
+      "cancel": "لغو",
+      "remove": "حذف",
+      "queued": "در صف",
+      "downloading": "{percent}%",
+      "installed": "نصب‌شده",
+      "total": "روی این دستگاه: {size}",
+      "empty": "چیزی برای دانلود وجود ندارد.",
+      "unverified": "تأییدنشده",
+      "kind": {
+        "ttsRuntime": "موتور گفتار",
+        "ttsVoice": "صدا"
+      }
     },
     "about": {
       "title": "درباره",
@@ -328,6 +484,44 @@
     "keywords": {
       "colorSafe": "علامت‌های کلیدواژه سازگار با کوررنگی (زیرخط و نشانه‌های نمادین اضافی)",
       "colorSafeHint": "به هر علامت کلیدواژه یک سبک زیرخط و یک نماد اضافه می‌کند تا فقط به رنگ وابسته نباشد."
+    },
+    "measures": {
+      "title": "وزن‌ها و اندازه‌ها",
+      "enabled": "یادداشت‌های وزن، اندازه و پول",
+      "enabled.description": "واحدهای باستانی را در متن مشخص می‌کند و معادل امروزی آن‌ها را نشان می‌دهد.",
+      "display": "نمایش در متن",
+      "display.description": "«خاموش» متن را تمیز نگه می‌دارد (تبدیل‌ها در پنل تحقیق هستند). در غیر این صورت: زیرخط نقطه‌چین همراه با پنجره بازشو، یا زیرخط با تبدیل در [قلاب] پس از عبارت.",
+      "display.marker": "زیرخط نقطه‌چین و پنجره بازشو",
+      "display.inline": "زیرخط، پنجره بازشو و [تبدیل]",
+      "display.off": "نه در متن (فقط پنل تحقیق)",
+      "showInReading": "نمایش در حالت خواندن",
+      "showInReading.description": "حالت خواندن متنی تمیز می‌ماند، مگر اینکه این گزینه را روشن کنید.",
+      "system": "نظام واحدها",
+      "system.description": "«خودکار» از زبان و منطقه شما پیروی می‌کند.",
+      "system.auto": "خودکار",
+      "system.metric": "متریک",
+      "system.us": "واحدهای رایج آمریکا",
+      "system.imperial": "امپراتوری (بریتانیایی)",
+      "secondary": "نظام واحد دوم",
+      "secondary.description": "مقدار را در نظامی دیگر هم نشان می‌دهد (امپراتوری: فقط طول و وزن).",
+      "secondary.none": "هیچ‌کدام",
+      "money": "پول",
+      "money.description": "دستمزد روزانه (پیش‌فرض)، وزن فلز، یا هر دو.",
+      "money.wages": "دستمزد روزانه",
+      "money.metal": "وزن فلز",
+      "money.both": "هر دو",
+      "dailyWage": "دستمزد روزانه شما",
+      "dailyWage.description": "اختیاری: برآورد امروزیِ یک مبلغ را بر حسب دستمزد روزانه نشان می‌دهد. 0 = خاموش.",
+      "wageCurrency": "واحد پول دستمزد روزانه شما",
+      "wageCurrency.description": "یک کد ارز مانند USD، EUR یا GBP.",
+      "clock": "ساعت‌ها",
+      "clock.description": "«خودکار» از زبان و منطقه شما پیروی می‌کند.",
+      "clock.h12": "12 ساعته",
+      "clock.h23": "24 ساعته",
+      "ranges": "بازه‌ها",
+      "ranges.description": "بازه عدم قطعیت یک مقدار را نشان می‌دهد: وقتی گسترده است (خودکار)، همیشه، یا هرگز.",
+      "ranges.always": "همیشه",
+      "ranges.never": "هرگز"
     }
   },
   "copyDialog": {
@@ -784,6 +978,63 @@
     "submit": "ورود",
     "incorrectPassword": "گذرواژه نادرست است.",
     "tooManyAttempts": "تعداد تلاش‌ها بیش از حد است. لطفاً بعداً دوباره تلاش کنید."
+  },
+  "wordStudy": {
+    "title": "مطالعه واژه",
+    "open": "مطالعه واژه",
+    "back": "بازگشت",
+    "forward": "جلو",
+    "close": "بستن",
+    "offline": "مطالعه واژه هنگام آنلاین بودن در دسترس است.",
+    "retry": "تلاش دوباره",
+    "prompt": "یک شماره Strong یا یک واژه را جستجو کنید، یا یک گروه واژه بسازید.",
+    "labels": {
+      "lookupLabel": "واژه برای مطالعه",
+      "lookupPlaceholder": "G25، agapao، یا love, loved, lov*",
+      "lookupSubmit": "مطالعه",
+      "candidatesTitle": "آیا منظورتان این بود",
+      "loading": "در حال بارگذاری...",
+      "totals": "{occurrences} بار در {verses} آیه",
+      "strongsNumber": "Strong {strongs}",
+      "moduleLabel": "ترجمه",
+      "searchAll": "جستجو در همه",
+      "openInDictionary": "باز کردن در فرهنگ لغت",
+      "noticeNoModule": "هیچ کتاب مقدس مناسبی برای این مطالعه نصب نشده است.",
+      "noticeNotTagged": "این ترجمه برچسب‌گذاری Strong ندارد. ترجمه دیگری انتخاب کنید.",
+      "noticeNoOccurrences": "در این ترجمه موردی یافت نشد.",
+      "renderingsTitle": "چگونه ترجمه شده است",
+      "formsTitle": "شکل‌های یافت‌شده",
+      "other": "سایر ({count})",
+      "modeGroup": "گروه‌بندی بر اساس",
+      "modeHead": "واژه اصلی",
+      "modePhrase": "عبارت کامل",
+      "clearFilter": "نمایش همه",
+      "bookDistributionTitle": "کجا آمده است",
+      "familyTitle": "خانواده واژه",
+      "relationSelf": "این واژه",
+      "relationParent": "ریشه",
+      "relationChild": "مشتق",
+      "relationRelated": "مرتبط",
+      "semanticTitle": "دامنه معنایی",
+      "lexiconRenderings": "فهرست‌های Strong: {list}",
+      "occurrencesTitle": "موارد کاربرد",
+      "showing": "نمایش {shown} از {total}",
+      "loadMore": "بارگذاری بیشتر",
+      "noOccurrences": "موردی برای نمایش نیست.",
+      "groupsTitle": "گروه‌های واژه",
+      "newGroup": "گروه جدید",
+      "editGroupNamed": "ویرایش {label}",
+      "groupLabel": "نام",
+      "groupTerms": "واژه‌ها",
+      "groupTermsHint": "هر مورد در یک خط یا با ویرگول جدا شود. lov* با هر واژه‌ای که با «lov» شروع شود مطابقت دارد؛ =loved فقط با همان شکل دقیق مطابقت دارد؛ «loving kindness» با یک عبارت مطابقت دارد.",
+      "groupExclude": "هرگز مطابقت نده",
+      "groupExcludeHint": "شکل‌هایی که باید نادیده گرفته شوند، مثلاً lovely.",
+      "groupStem": "استفاده از ریشه‌یابی برای این زبان",
+      "groupTermsRequired": "دست‌کم یک واژه وارد کنید.",
+      "save": "ذخیره",
+      "cancel": "لغو",
+      "delete": "حذف"
+    }
   },
   "present": {
     "start": "ارائه",
@@ -1367,5 +1618,106 @@
       "strength": "قدرت {n} از 5",
       "hopName": "پرش {hop}"
     }
+  },
+  "notifications": {
+    "votd": {
+      "label": "آیه روز",
+      "description": "هر روز یک آیه در زمانی که انتخاب می‌کنید.",
+      "title": "آیه روز",
+      "body": "{reference} — {text}"
+    },
+    "test": {
+      "title": "اعلان آزمایشی",
+      "body": "اعلان‌ها کار می‌کنند."
+    },
+    "collapsed": "{count, plural, one {# یادآور در انتظار است} other {# یادآور در انتظار است}}",
+    "scheduledCount": "{count, plural, one {# زمان‌بندی‌شده} other {# زمان‌بندی‌شده}}",
+    "labels": {
+      "statusGranted": "اعلان‌ها مجاز هستند.",
+      "statusDenied": "اعلان‌ها مسدود شده‌اند. در تنظیمات مرورگر خود برای این سایت آن‌ها را مجاز کنید.",
+      "statusPrompt": "اعلان‌ها هنوز مجاز نشده‌اند.",
+      "statusUnsupported": "این مرورگر یا دستگاه نمی‌تواند اعلان نمایش دهد.",
+      "allow": "مجاز کردن اعلان‌ها",
+      "whenClosedFires": "یادآورها تا زمانی که برنامه در پس‌زمینه اجرا می‌شود می‌رسند.",
+      "whenClosedNever": "یادآورها فقط وقتی برنامه باز است می‌رسند.",
+      "whenClosedBackgroundOnly": "یادآورها فقط وقتی برنامه در یک زبانه مرورگر باز است می‌رسند، حتی اگر زبانه در پس‌زمینه باشد.",
+      "enabled": "نمایش اعلان‌ها",
+      "quietHours": "ساعت‌های سکوت",
+      "quietFrom": "از",
+      "quietTo": "تا",
+      "quietHelp": "اعلان‌هایی که در ساعت‌های سکوت موعدشان می‌رسد تا پایان آن‌ها منتظر می‌مانند.",
+      "sources": "یادآورها",
+      "noSources": "هنوز هیچ قابلیتی از اعلان‌ها استفاده نمی‌کند.",
+      "dailyTime": "زمان {source}",
+      "next": "بعدی: {time}",
+      "scheduled": "{count} زمان‌بندی‌شده",
+      "device": "وقتی پنجره بسته است",
+      "tray": "اجرا در سینی سیستم ادامه یابد",
+      "openAtLogin": "هنگام ورود من شروع شود (در سینی سیستم)",
+      "sendTest": "ارسال اعلان آزمایشی",
+      "general": "عمومی"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "بازه",
+      "rangeHint": "بسته به مقدار مورد استفاده",
+      "verseNote": "در این آیه",
+      "usageIllustrative": "تمثیلی",
+      "usageFigurative": "مجازی",
+      "usageHintIllustrative": "مقداری نمونه؛ رقم دقیق مهم نیست",
+      "usageHintFigurative": "به‌طور مجازی به کار رفته؛ رقم به معنای واقعی نیست",
+      "draft": "پیش‌نویس – هنوز بازبینی نشده",
+      "sources": "منابع",
+      "units": "واحدها…"
+    },
+    "study": {
+      "title": "وزن‌ها، اندازه‌ها و پول",
+      "listLabel": "وزن‌ها، اندازه‌ها و پول در این آیه: {count}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "آفلاین هستید (یا دسترسی به وب خاموش است).",
+      "network": "دانلود قطع شد. دوباره تلاش کنید.",
+      "http": "سرور دانلود را نپذیرفت.",
+      "not-found": "این دانلود دیگر در دسترس نیست.",
+      "integrity": "دانلود آسیب دیده بود و کنار گذاشته شد.",
+      "size-mismatch": "دانلود آسیب دیده بود و کنار گذاشته شد.",
+      "unverifiable": "این پرونده قابل تأیید نیست.",
+      "quota": "فضای ذخیره‌سازی کافی نیست.",
+      "storage": "ذخیره پرونده ممکن نبود.",
+      "invalid-manifest": "این مورد نامعتبر است.",
+      "busy": "نسخه دیگری در حال دانلود است."
+    }
+  },
+  "similar": {
+    "moreLikeThis": "موارد مشابه",
+    "crossRef": "ارجاع متقابل",
+    "otNtBadge": "عهد عتیق ↔ عهد جدید",
+    "similarInMeaning": "مشابه در معنا",
+    "barLabel": "شباهت {step} از {max}",
+    "menu": "اقدامات بیشتر",
+    "empty": "قسمت مشابهی یافت نشد.",
+    "filters": "فیلترهای قسمت‌های مشابه",
+    "back": "بازگشت",
+    "hideKnown": "پنهان کردن ارجاعات متقابل شناخته‌شده",
+    "testament": {
+      "label": "عهد",
+      "any": "همه",
+      "ot": "عهد عتیق",
+      "nt": "عهد جدید",
+      "other": "عهد مقابل"
+    },
+    "similarTo": "مشابه {reference}",
+    "approximate": "بر اساس آیه‌های جداگانه انتخاب شما.",
+    "selectVerse": "برای یافتن قسمت‌های مشابه، یک آیه انتخاب کنید.",
+    "loading": "در حال بارگذاری قسمت‌های مشابه...",
+    "downloading": "در حال دانلود داده‌های قسمت‌های مشابه...",
+    "unavailable": "داده‌های قسمت‌های مشابه در این سرور در دسترس نیست.",
+    "error": "بارگذاری قسمت‌های مشابه ممکن نبود.",
+    "retry": "تلاش دوباره",
+    "showMore": "نمایش 10 مورد دیگر",
+    "rangeNeedsLive": "برای این قسمت در اینجا مورد مطابق از پیش محاسبه‌شده‌ای وجود ندارد؛ به‌جای آن یک آیه منفرد انتخاب کنید."
   }
 }
