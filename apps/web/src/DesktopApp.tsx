@@ -24,6 +24,8 @@ import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
 import { audioStore } from './stores/audioStore';
+import { similarAvailability } from './similar/similarAvailability';
+import { useStore } from './hooks/useStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -82,15 +84,21 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
   // than rendering a right pane with nothing highlighted and no content —
   // which is what made a remembered Search pane look broken.
+  // Similar passages exist only when the server offers the neighbour table (feature detection).
+  useEffect(() => { void similarAvailability.probe(); }, []);
+  const similarAvailable = useStore(similarAvailability, () => similarAvailability.available);
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
     : shared.rightPaneMode === 'timeline' && !showTimeline
       ? 'study'
+      : shared.rightPaneMode === 'similar' && !similarAvailable
+        ? 'study'
       : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
 
   // Self-heal the persisted value so a bad id does not survive another reload.
   useEffect(() => {
-    if (paneMode !== shared.rightPaneMode) commentaryStore.setRightPaneMode(paneMode);
+    // A saved 'similar' stays until the availability probe has answered (it shows 'study' meanwhile).
+    if (paneMode !== shared.rightPaneMode && shared.rightPaneMode !== 'similar') commentaryStore.setRightPaneMode(paneMode);
   }, [paneMode, shared.rightPaneMode]);
 
   const showRightPane = !shared.collapsed;
@@ -181,12 +189,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 >
                   {t('rightPane.dictionary')}
                 </button>
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'similar' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('similar')}
-                >
-                  {t('rightPane.similar')}
-                </button>
+                {similarAvailable && (
+                  <button
+                    class={`right-pane-tabs__tab ${paneMode === 'similar' ? 'right-pane-tabs__tab--active' : ''}`}
+                    onClick={() => commentaryStore.setRightPaneMode('similar')}
+                  >
+                    {t('rightPane.similar')}
+                  </button>
+                )}
                 {shared.searchIsOpen && (
                   <button
                     class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
@@ -251,6 +261,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          showSimilar={similarAvailable}
         />
       )}
     </div>

@@ -62,7 +62,8 @@ function reasonChips(reasons: MatchReason[]): Array<{ id: string; kind: string; 
       const text = [r.strongs, r.lemma, r.gloss ? `"${r.gloss}"` : ''].filter(Boolean).join(' ');
       out.push({ id: `lemma-${i}`, kind: 'lemma', text });
     } else if (r.kind === 'topic') {
-      out.push({ id: `topic-${i}`, kind: 'topic', text: r.label });
+      // Topic tags are deliberately not shown: they are often one link of a longer chain and read as confusing.
+      return;
     } else {
       out.push({ id: `words-${i}`, kind: 'words', text: r.words.join(', ') });
     }
@@ -116,7 +117,8 @@ function SimilarRow({
     return () => io.disconnect();
   }, [row.key]);
 
-  const chips = reasons === undefined ? null : reasons.length === 0 ? [{ id: 'fallback', kind: 'fallback', text: l.similarInMeaning }] : reasonChips(reasons);
+  const shown = reasons === undefined ? null : reasonChips(reasons);
+  const chips = shown === null ? null : shown.length === 0 ? [{ id: 'fallback', kind: 'fallback', text: l.similarInMeaning }] : shown;
 
   return (
     <li ref={ref} className="kth-similar__row">

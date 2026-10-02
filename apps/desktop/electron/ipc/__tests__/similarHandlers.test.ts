@@ -212,6 +212,31 @@ describe('availability', () => {
   });
 });
 
+describe('live scan (semantic pack installed, no neighbour table)', () => {
+  const fakeSemantic = () => ({
+    isAvailable: () => true,
+    neighbourMinSimilarity: () => 0.5,
+    getPassageRows: (_s: number, _e: number, levels: string[]) => [
+      { id: `v:${JOHN_3_16}`, level: levels[0], vector: new Float32Array([1, 0]) },
+    ],
+    searchByVectors: (queries: Float32Array[]) =>
+      queries.map(() => [
+        { id: `v:${ROM_5_8}`, level: 'verse', startVerseId: ROM_5_8, endVerseId: ROM_5_8, similarity: 0.92 },
+        { id: `v:${JOHN1_4_9}`, level: 'verse', startVerseId: JOHN1_4_9, endVerseId: JOHN1_4_9, similarity: 0.7 },
+      ]),
+  }) as unknown as SemanticSearchService;
+
+  it('reports live and finds hydrated neighbours from the pack alone', async () => {
+    const { api } = makeEnv(assetFake(), { getSemanticSearchService: fakeSemantic });
+    expect(await api.status()).toEqual({ table: 'missing', live: true });
+    const resp = await api.find(range(JOHN_3_16), { source: 'auto', levels: ['verse'] });
+    expect(resp.status).toBe('ok');
+    const rows = resp.result?.rows ?? [];
+    expect(rows[0]).toMatchObject({ startVerseId: ROM_5_8, reference: expect.stringContaining('Romans'), text: expect.stringContaining('God commendeth') });
+    expect(resp.result?.via).toBe('live');
+  });
+});
+
 describe('table source', () => {
   it('reads a gzipped table from the asset store and hydrates rows', async () => {
     const { api } = makeEnv(assetFake({ path: gzPath }));

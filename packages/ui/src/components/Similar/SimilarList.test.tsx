@@ -69,7 +69,7 @@ describe('SimilarList', () => {
             : undefined,
     });
     expect(screen.getByText('G26 agape "love"')).toBeInTheDocument();
-    expect(screen.getByText('Love')).toBeInTheDocument();
+    expect(screen.queryByText('Love')).toBeNull(); // topic tags are not shown
     expect(screen.getByText('grace, mercy')).toBeInTheDocument();
     expect(screen.getAllByText(DEFAULT_SIMILAR_LIST_LABELS.similarInMeaning)).toHaveLength(1);
   });

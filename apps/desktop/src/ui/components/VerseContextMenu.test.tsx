@@ -6,6 +6,7 @@ import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
 import type { BibleVerse } from '../services/verseCopyService';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 import { useSimilarStore } from '../stores/useSimilarStore';
+import { useSimilarAvailability } from '../stores/useSimilarAvailability';
 
 describe('withVerseMenuContext', () => {
   const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
@@ -121,7 +122,18 @@ describe('VerseContextMenu', () => {
     expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: 43003016 });
   });
 
+  it('hides Similar passages when the main process has no data for it', () => {
+    vi.spyOn(useSimilarAvailability.getState(), 'refresh').mockResolvedValue();
+    useSimilarAvailability.setState({ available: false });
+    renderWithProviders(
+      <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
+    );
+    expect(screen.queryByRole('menuitem', { name: 'ui.verseContextMenu.findSimilar' })).toBeNull();
+  });
+
   it('opens Similar passages for the right-clicked verse', async () => {
+    vi.spyOn(useSimilarAvailability.getState(), 'refresh').mockResolvedValue();
+    useSimilarAvailability.setState({ available: true });
     const openFor = vi.spyOn(useSimilarStore.getState(), 'openFor').mockImplementation(() => {});
     renderWithProviders(
       <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,

@@ -10,6 +10,7 @@ import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 import { useSimilarStore } from '../stores/useSimilarStore';
+import { useSimilarAvailability } from '../stores/useSimilarAvailability';
 import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
@@ -141,6 +142,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     enough to write a condition for.
   */
   const contributedItems = useExtensionUiStore((s) => s.contextMenuItems);
+  const similarAvailable = useSimilarAvailability((s) => s.available);
+  useEffect(() => { void useSimilarAvailability.getState().refresh(); }, []);
   const extensionItems = React.useMemo(
     () =>
       contributedItems
@@ -467,7 +470,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             </svg>
             <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
           </button>
-          <button
+          {similarAvailable && (<button
             onClick={() => {
               const first = versesArray[0].verse_id;
               const last = versesArray[versesArray.length - 1].verse_id;
@@ -485,7 +488,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               <rect x="4" y="3" width="16" height="18" rx="2" strokeWidth={2} />
             </svg>
             <span>{t('ui.verseContextMenu.findSimilar')}</span>
-          </button>
+          </button>)}
         </>
       )}
 

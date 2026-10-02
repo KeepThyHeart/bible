@@ -15,6 +15,7 @@ export function registerSimilarCommands(registry: ICommandRegistry): IDisposable
       id: 'similar.open',
       title: { key: 'similar.open' },
       category: { key: 'similar.open.category' },
+      when: 'similarAvailable',
       shortcut: { key: 'Ctrl+Shift+M', mac: 'Cmd+Shift+M' },
       handler: () => {
         const verseId = whenContextService.get('selectedVerseId');
