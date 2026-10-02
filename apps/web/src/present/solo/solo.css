@@ -6,7 +6,7 @@
 
 .pv-solo-launch {
   position: fixed;
-  left: 14px;
+  inset-inline-start: 14px;
   bottom: 14px;
   z-index: 40;
   width: 28px;

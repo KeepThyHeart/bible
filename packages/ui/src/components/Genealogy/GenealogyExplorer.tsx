@@ -18,6 +18,8 @@ import type { PersonCardLabels } from './PersonCard';
 import { PersonSearch } from './PersonSearch';
 import type { PersonSearchLabels } from './PersonSearch';
 import { KeyLegend } from './KeyLegend';
+import { FullscreenButton } from '../fullscreen/FullscreenButton';
+import { FULLSCREEN_CLASS, useFullscreen } from '../fullscreen/useFullscreen';
 import type { KeyLegendLabels } from './KeyLegend';
 import { TribeLegend } from './TribeLegend';
 import type { TribeLegendLabels } from './TribeLegend';
@@ -111,31 +113,17 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
   }, [compact]);
   const isCompact = compact ?? narrow;
 
-  // Full screen: the explorer covers the viewport (CSS `position: fixed`); Escape leaves it. Self-contained
-  // on purpose (no Fullscreen API, no app hooks) so it is easy to unify with the other full-screen options later.
-  const [full, setFull] = useState(false);
+  // Full screen: the shared mechanism; the explorer is never re-mounted, so its state carries over.
+  const fs = useFullscreen(rootRef);
+  const full = fs.full;
   const [showKey, setShowKey] = useState(false);
-  useEffect(() => {
-    if (!full) return undefined;
-    const doc = rootRef.current?.ownerDocument ?? document;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      setFull(false);
-    };
-    doc.addEventListener('keydown', onKey);
-    // The page behind must not scroll while the explorer covers it.
-    const prevOverflow = doc.documentElement.style.overflow;
-    doc.documentElement.style.overflow = 'hidden';
-    return () => { doc.removeEventListener('keydown', onKey); doc.documentElement.style.overflow = prevOverflow; };
-  }, [full]);
 
   const tabLabel: Record<GenealogyViewKind, string> = { line: labels.line, family: labels.family, tribes: labels.tribes };
   const select = (id: string) => store.setState((s) => ({ ...s, selectedId: id }));
   const selected = state.selectedId && effective.has(state.selectedId) ? state.selectedId : null;
 
   return (
-    <div ref={rootRef} className={cx('kth-genealogy-explorer', isCompact && 'kth-genealogy-explorer--compact', full && 'kth-genealogy-explorer--full')}>
+    <div ref={rootRef} className={cx('kth-genealogy-explorer', isCompact && 'kth-genealogy-explorer--compact', full && `kth-genealogy-explorer--fs ${FULLSCREEN_CLASS}`)}>
       <div className="kth-genealogy-explorer__bar">
         <div role="tablist" aria-label={labels.tabs} className="kth-genealogy-explorer__tabs">
           {TABS.map((t) => (
@@ -169,15 +157,7 @@ export function GenealogyExplorer({ graph, store, computeLayout, formatVerse, on
         />
         <button type="button" className={cx('kth-btn kth-btn--sm kth-genealogy-explorer__key', showKey && 'kth-btn--primary')}
           aria-pressed={showKey} onClick={() => setShowKey((v) => !v)}>{labels.key}</button>
-        <button
-          type="button"
-          className="kth-btn kth-btn--sm kth-genealogy-explorer__fullscreen"
-          aria-pressed={full}
-          title={full ? labels.exitFullscreen : labels.fullscreen}
-          onClick={() => setFull((f) => !f)}
-        >
-          {full ? labels.exitFullscreen : labels.fullscreen}
-        </button>
+        <FullscreenButton full={full} onToggle={fs.toggle} className="kth-genealogy-explorer__fullscreen" labels={{ enter: labels.fullscreen, exit: labels.exitFullscreen }} />
       </div>
       <p className="kth-genealogy-explorer__hint">
         {state.view === 'line' ? labels.hintLine : state.view === 'family' ? labels.hintFamily : labels.hintTribes}

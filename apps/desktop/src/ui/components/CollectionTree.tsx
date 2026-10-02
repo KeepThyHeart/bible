@@ -5,7 +5,8 @@
  */
 import React, { useState } from 'react';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
-import { anchorAtPointerX } from '../utils/overlayPosition';
+import { anchorAtPointer } from '@bible/core/browser';
+import { useDirection, Bdi } from '@bible/ui';
 import { PinIcon } from './shared/icons/PinIcon';
 import { useI18n } from '../contexts/useI18n';
 
@@ -87,7 +88,7 @@ const CollectionNode: React.FC<CollectionNodeProps> = ({
         </span>
 
         {/* Name */}
-        <span className="text-sm font-medium text-text-primary truncate flex-1">
+        <span className="text-sm font-medium text-text-primary truncate flex-1" dir="auto">
           {collection.name}
         </span>
 
@@ -147,6 +148,7 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
   const { t } = useI18n();
   const { removeItem } = useBookmarkStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const uiDir = useDirection();
 
   const handleClick = () => {
     if (item.verseIdStart) {
@@ -214,7 +216,7 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
             isActive ? 'font-medium text-accent-strong' : 'text-text-primary'
           }`}
         >
-          {item.referenceText}
+          <Bdi>{item.referenceText}</Bdi>
         </span>
       </button>
 
@@ -222,7 +224,7 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
       {contextMenu && (
         <div
           className="fixed bg-surface-elevated shadow-lg border border-border-secondary rounded-md py-1 z-50"
-          style={{ ...anchorAtPointerX(contextMenu.x), top: contextMenu.y }}
+          style={{ ...anchorAtPointer(contextMenu.x, 180, window.innerWidth, uiDir), top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button

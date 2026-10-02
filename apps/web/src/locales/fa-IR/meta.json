@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/meta.schema.json",
+  "locale.name": "Persian",
+  "locale.nativeName": "فارسی",
+  "locale.status": "draft",
+  "locale.direction": "rtl"
+}

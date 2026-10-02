@@ -158,7 +158,8 @@
     "topics": "主题",
     "commentary": "注释",
     "dictionary": "词典",
-    "study": "研经"
+    "study": "研经",
+    "similar": "查找相似经文"
   },
   "rightPane": {
     "study": "研经",
@@ -166,8 +167,10 @@
     "topics": "主题",
     "dictionary": "词典",
     "search": "搜索",
-    "collapseRight": "折叠右侧窗格",
-    "timeline": "时间线"
+    "collapseRight": "折叠侧边窗格",
+    "timeline": "时间线",
+    "quiz": "测验",
+    "similar": "相似经文"
   },
   "timeline": {
     "title": "时间线",
@@ -212,6 +215,78 @@
     "reviewed": "已审核",
     "unreviewed": "未审核"
   },
+  "quiz": {
+    "title": "测验",
+    "intro": "检验你对经文段落的记忆与理解。",
+    "scopeHeading": "测验范围",
+    "scopeToday": "今日读经（{label}）",
+    "scopeChapter": "本章（{label}）",
+    "scopePassage": "选择经文段落",
+    "book": "书卷",
+    "fromChapter": "起始章",
+    "toChapter": "结束章",
+    "countHeading": "题数",
+    "difficultyHeading": "难度",
+    "difficultyMixed": "混合",
+    "difficultyEasy": "简单",
+    "difficultyMedium": "中等",
+    "difficultyHard": "困难",
+    "start": "开始测验",
+    "noQuestionsHere": "{label}暂无题目。",
+    "questionsAvailable": "{count} 道题",
+    "loading": "正在加载测验题目...",
+    "progress": "第 {n} 题，共 {total} 题",
+    "check": "核对",
+    "next": "下一题",
+    "finish": "查看结果",
+    "skip": "跳过",
+    "quit": "结束测验",
+    "showAnswer": "显示答案",
+    "yourAnswer": "你的答案",
+    "answerPlaceholder": "输入你的答案",
+    "modelAnswer": "答案",
+    "selfGradePrompt": "你答得怎么样？",
+    "gotIt": "答对了",
+    "partly": "部分正确",
+    "missed": "答错了",
+    "correct": "正确",
+    "incorrect": "不太对",
+    "correctAnswerIs": "答案：{answer}",
+    "countAsCorrect": "我答对了",
+    "reflectionHint": "这里没有对错之分：想一想，或写几句话。",
+    "reflectionPlaceholder": "写几句话（可选）",
+    "continue": "继续",
+    "openPassage": "阅读{reference}",
+    "kinds": {
+      "recall": "记忆",
+      "comprehension": "理解",
+      "application": "应用"
+    },
+    "difficultyBadge": {
+      "1": "简单",
+      "2": "中等",
+      "3": "困难"
+    },
+    "summaryTitle": "结果",
+    "score": "答对 {correct} 题，共 {graded} 题",
+    "scorePartly": "部分正确 {partly} 题",
+    "noneGraded": "本次测验没有评分。",
+    "missedHeading": "待复习",
+    "retryMissed": "重做答错的题",
+    "newQuiz": "新测验",
+    "sameAgain": "再测一次{label}",
+    "historyHeading": "最近的测验",
+    "historyEntry": "{label}：{correct}/{graded}（{date}）",
+    "sourcesHeading": "题目来源",
+    "unreviewed": "草稿：尚未审核",
+    "textBasis": "措辞依据{translation}",
+    "error": "无法加载测验。",
+    "retry": "重试",
+    "noModule": "尚未安装测验题目。",
+    "loadError": "无法加载测验。",
+    "quizThisChapter": "测验本章",
+    "close": "关闭"
+  },
   "mobileNav": {
     "home": "首页",
     "search": "搜索",
@@ -240,7 +315,8 @@
       "gestures": "手势",
       "audio": "音频",
       "offline": "离线",
-      "about": "关于"
+      "about": "关于",
+      "notifications": "通知"
     },
     "textSize": {
       "decreaseAll": "减小所有字号",
@@ -302,7 +378,104 @@
       "semanticNotAvailable": "服务器上没有可用的语义搜索索引",
       "remove": "移除",
       "download": "下载",
-      "failed": "失败"
+      "failed": "失败",
+      "pack": {
+        "title": "离线包",
+        "presets": "入门包",
+        "groups": "内容",
+        "empty": "没有可下载的内容。",
+        "loadFailed": "无法加载离线包列表。",
+        "notReadable": "网页版暂不支持离线阅读此类型。",
+        "shellNotice": "在离线应用外壳推出之前，已下载的离线包仅在本站已有标签页打开时有用。",
+        "start": "下载所选",
+        "cancel": "取消",
+        "storageBar": "存储用量",
+        "runProgress": "下载进度",
+        "status": {
+          "absent": "未下载",
+          "installed": "已在此设备上",
+          "update": "有可用更新",
+          "installing": "下载中",
+          "error": "失败"
+        },
+        "summary": {
+          "download": "下载：{size}",
+          "stored": "占用：{size}",
+          "free": "可用：{size}",
+          "freeUnknown": "可用空间未知"
+        },
+        "fit": {
+          "fits": "可放入此设备",
+          "tight": "可放入，但存储空间几乎已满",
+          "no": "空间不足：还差 {size}",
+          "unknown": "无法判断是否放得下"
+        },
+        "run": {
+          "count": "{done} / {total} 项",
+          "bytes": "{loaded} / {total}",
+          "running": "正在下载...",
+          "done": "完成。所有内容都已在此设备上。",
+          "partial": "部分项目未能下载。",
+          "failed": "下载失败。",
+          "cancelled": "已取消。未完成的下载会保留，下次继续。"
+        },
+        "group": {
+          "bible": "圣经",
+          "commentary": "注释",
+          "dictionary": "词典",
+          "crossref": "串珠",
+          "topical": "主题",
+          "other": "其他模块",
+          "speech": "语音",
+          "data": "数据文件"
+        },
+        "warn": {
+          "unavailable": "{name} 已不再提供。",
+          "notReadable": "网页版暂不支持离线阅读 {name}。",
+          "dependencyAdded": "因 {for} 需要，已添加 {name}。",
+          "missingDependency": "{name} 需要 {requires}，但其不可用。",
+          "cycle": "部分项目互相依赖，将按固定顺序安装。",
+          "overQuota": "还需要约 {size} 空间。"
+        },
+        "remove": "移除",
+        "keepHint": "选中已在此设备上的项目会将其保留在此处，不会被自动清理。"
+      }
+    },
+    "downloads": {
+      "title": "下载与存储",
+      "download": "下载",
+      "update": "更新",
+      "retry": "重试",
+      "cancel": "取消",
+      "remove": "移除",
+      "queued": "排队中",
+      "downloading": "{percent}%",
+      "installed": "已安装",
+      "total": "此设备上：{size}",
+      "empty": "没有可下载的内容。",
+      "unverified": "未验证",
+      "kind": {
+        "ttsRuntime": "语音引擎",
+        "ttsVoice": "语音"
+      }
+    },
+    "downloads": {
+      "title": "下载与存储",
+      "download": "下载",
+      "update": "更新",
+      "retry": "重试",
+      "cancel": "取消",
+      "remove": "移除",
+      "queued": "排队中",
+      "downloading": "{percent}%",
+      "installed": "已安装",
+      "total": "此设备上：{size}",
+      "empty": "没有可下载的内容。",
+      "unverified": "未验证",
+      "kind": {
+        "ttsRuntime": "语音引擎",
+        "ttsVoice": "语音"
+      }
     },
     "about": {
       "title": "关于",
@@ -328,6 +501,44 @@
     "keywords": {
       "colorSafe": "色觉友好的关键词标记（额外的下划线和符号提示）",
       "colorSafeHint": "为每个关键词标记添加下划线样式和符号，不再仅靠颜色区分。"
+    },
+    "measures": {
+      "title": "度量衡",
+      "enabled": "度量衡与货币注释",
+      "enabled.description": "在经文中标出古代单位，并显示其现代换算。",
+      "display": "在经文中显示",
+      "display.description": "关闭时经文保持简洁（换算见“研读”面板）。否则：虚线下划线加弹出窗口，或下划线并在短语后以[方括号]显示换算。",
+      "display.marker": "虚线下划线和弹出窗口",
+      "display.inline": "下划线、弹出窗口和[换算]",
+      "display.off": "不在经文中显示（仅限研读面板）",
+      "showInReading": "在阅读模式中显示",
+      "showInReading.description": "除非开启，阅读模式保持纯文本。",
+      "system": "单位制",
+      "system.description": "自动：跟随你的语言和地区。",
+      "system.auto": "自动",
+      "system.metric": "公制",
+      "system.us": "美制",
+      "system.imperial": "英制",
+      "secondary": "第二单位制",
+      "secondary.description": "同时以另一种单位制显示（英制仅限长度和重量）。",
+      "secondary.none": "无",
+      "money": "货币",
+      "money.description": "工价（默认）、金属重量，或两者。",
+      "money.wages": "工价",
+      "money.metal": "金属重量",
+      "money.both": "两者",
+      "dailyWage": "你的日薪",
+      "dailyWage.description": "可选：根据工价显示金额的现代估算。0 = 关闭。",
+      "wageCurrency": "日薪的币种",
+      "wageCurrency.description": "货币代码，如 USD、EUR 或 GBP。",
+      "clock": "时钟时间",
+      "clock.description": "自动：跟随你的语言和地区。",
+      "clock.h12": "12 小时制",
+      "clock.h23": "24 小时制",
+      "ranges": "范围",
+      "ranges.description": "显示数值的不确定范围：范围较大时（自动）、总是或从不。",
+      "ranges.always": "总是",
+      "ranges.never": "从不"
     }
   },
   "copyDialog": {
@@ -1329,7 +1540,7 @@
       "cleared": "选择已清除",
       "links": "{count} 个链接",
       "arcsShown": "显示 {count} 个弧",
-      "minWeightHint": "隐藏仅由少量或较弱链接相连的章节对。一对章节的强度是两章之间所有交叉引用强度的总和，因此向右滑动只会保留连接最多的章节对。"
+      "minWeightHint": "隐藏仅由少量或较弱链接相连的章节对。一对章节的强度是两章之间所有交叉引用强度的总和，因此调高滑块只会保留连接最多的章节对。"
     },
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",
@@ -1367,5 +1578,106 @@
       "strength": "强度 {n} / 5",
       "hopName": "第 {hop} 跳"
     }
+  },
+  "notifications": {
+    "votd": {
+      "label": "每日经文",
+      "description": "每天在您选定的时间送上一节经文。",
+      "title": "每日经文",
+      "body": "{reference}——{text}"
+    },
+    "test": {
+      "title": "测试通知",
+      "body": "通知运行正常。"
+    },
+    "collapsed": "{count, plural, other {有 # 条提醒待查看}}",
+    "scheduledCount": "{count, plural, other {已安排 # 条}}",
+    "labels": {
+      "statusGranted": "已允许通知。",
+      "statusDenied": "通知已被阻止。请在浏览器设置中为此网站允许通知。",
+      "statusPrompt": "尚未允许通知。",
+      "statusUnsupported": "此浏览器或设备无法显示通知。",
+      "allow": "允许通知",
+      "whenClosedFires": "应用在后台运行时，提醒仍会送达。",
+      "whenClosedNever": "仅在应用打开时才会收到提醒。",
+      "whenClosedBackgroundOnly": "仅在应用在浏览器标签页中打开时才会收到提醒，标签页在后台也可以。",
+      "enabled": "显示通知",
+      "quietHours": "免打扰时段",
+      "quietFrom": "从",
+      "quietTo": "到",
+      "quietHelp": "在免打扰时段内到期的通知会等到时段结束后再显示。",
+      "sources": "提醒",
+      "noSources": "目前没有功能使用通知。",
+      "dailyTime": "{source}的时间",
+      "next": "下一次：{time}",
+      "scheduled": "已安排 {count} 条",
+      "device": "窗口关闭时",
+      "tray": "在托盘中继续运行",
+      "openAtLogin": "登录时启动（在托盘中）",
+      "sendTest": "发送测试通知",
+      "general": "常规"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "范围",
+      "rangeHint": "取决于所用数值",
+      "verseNote": "本节经文",
+      "usageIllustrative": "举例",
+      "usageFigurative": "比喻",
+      "usageHintIllustrative": "举例的数量；确切数字并非重点",
+      "usageHintFigurative": "比喻用法；数字不应按字面理解",
+      "draft": "草稿 – 尚未审核",
+      "sources": "来源",
+      "units": "单位…"
+    },
+    "study": {
+      "title": "重量、度量衡与货币",
+      "listLabel": "本节经文中的重量、度量衡与货币:{{count}}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "您处于离线状态（或网络访问已关闭）。",
+      "network": "下载被中断，请重试。",
+      "http": "服务器拒绝了此下载。",
+      "not-found": "此下载已不可用。",
+      "integrity": "下载已损坏并已被丢弃。",
+      "size-mismatch": "下载已损坏并已被丢弃。",
+      "unverifiable": "无法验证此文件。",
+      "quota": "存储空间不足。",
+      "storage": "无法保存文件。",
+      "invalid-manifest": "此条目无效。",
+      "busy": "另一个版本正在下载。"
+    }
+  },
+  "similar": {
+    "moreLikeThis": "更多类似经文",
+    "crossRef": "串珠",
+    "otNtBadge": "旧约 ↔ 新约",
+    "similarInMeaning": "意义相近",
+    "barLabel": "相似度 {step}/{max}",
+    "menu": "更多操作",
+    "empty": "未找到相似经文。",
+    "filters": "相似经文筛选",
+    "back": "返回",
+    "hideKnown": "隐藏已知串珠",
+    "testament": {
+      "label": "约",
+      "any": "全部",
+      "ot": "旧约",
+      "nt": "新约",
+      "other": "另一约"
+    },
+    "similarTo": "与 {reference} 相似",
+    "approximate": "基于所选经文的各节。",
+    "selectVerse": "请选择一节经文以查找相似经文。",
+    "loading": "正在加载相似经文...",
+    "downloading": "正在下载相似经文数据...",
+    "unavailable": "此服务器上没有相似经文数据。",
+    "error": "无法加载相似经文。",
+    "retry": "重试",
+    "showMore": "再显示 10 条",
+    "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
   }
 }

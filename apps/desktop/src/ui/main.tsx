@@ -14,9 +14,12 @@ import enCommands from '../../locales/en/commands.json';
 import enLayout from '../../locales/en/layout.json';
 import enSearchBar from '../../locales/en/searchBar.json';
 import enMenu from '../../locales/en/menu.json';
+import { installStripBidiOnCopy } from './utils/stripBidiOnCopy';
 import './styles/globals.css';
 import './styles/highlights.css';
 import './styles/extensionDecorations.css';
+
+installStripBidiOnCopy();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

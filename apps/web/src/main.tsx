@@ -28,6 +28,7 @@ import { lazyFeature } from '@bible/core/browser';
 import { featureFlags } from './utils/featureFlags';
 import { getAudioConfig } from './audio/config';
 import i18n, { ensureLocaleLoaded } from './i18n';
+import { installBidiCopy } from './utils/bidiCopy';
 
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -82,6 +83,7 @@ async function init() {
   // flashing English (or worse, painting a non-English `lang` attribute over
   // English text).
   const localeReadyPromise = ensureLocaleLoaded(i18n.language);
+  installBidiCopy();
 
   // Quick auth + config + build check — run in parallel for faster startup.
   // If the server is unreachable, continue in offline mode.
@@ -229,6 +231,17 @@ async function init() {
     void loadAudio()
       .then(m => m?.initAudio(audioConfig, offlineBible))
       .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
+  }
+
+  // Reminders (tier 1: notifications while a tab is open). The code loads lazily and only where the
+  // browser can show notifications, so it adds nothing to the critical path elsewhere.
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    void import('./notifications/webReminders')
+      .then(m => {
+        m.setVerseOfTheDayFetcher(() => offlineBible.getVerseOfTheDay());
+        return m.startWebReminders();
+      })
+      .catch(err => console.warn('[Notifications] Reminders failed to start:', err));
   }
 
   // Load module manifest — in offline mode this may fail, but the app can

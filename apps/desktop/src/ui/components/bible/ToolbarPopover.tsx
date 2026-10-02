@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDirection } from '@bible/ui';
 
 /**
  * A menu anchored to a Bible-toolbar button but rendered into `<body>`.
@@ -31,10 +32,11 @@ export interface ToolbarPopoverProps {
   children: React.ReactNode;
 }
 
+/** Insets are logical: `insetInlineStart` is the right edge's distance in an RTL UI. */
 interface Placement {
   top: number;
-  left?: number;
-  right?: number;
+  insetInlineStart?: number;
+  insetInlineEnd?: number;
 }
 
 const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
@@ -47,6 +49,8 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
   children,
   ...rest
 }) => {
+  const uiDir = useDirection();
+  const rtl = uiDir === 'rtl';
   const [placement, setPlacement] = useState<Placement | null>(null);
 
   const measure = useCallback(() => {
@@ -55,14 +59,20 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
     const rect = anchor.getBoundingClientRect();
     // 4px gap, matching the `mt-1` these menus used when they were inline.
     const top = rect.bottom + 4;
+    // Distances from the viewport's left/right edges to the anchor's edges.
+    const fromLeft = rect.left;
+    const fromRight = Math.max(0, window.innerWidth - rect.right);
+    // The anchor's inline-start / inline-end edge, measured from the matching viewport edge.
+    const anchorStart = rtl ? fromRight : fromLeft;
+    const anchorEnd = rtl ? fromLeft : fromRight;
     setPlacement(
       align === 'end'
-        // Pinning the trailing edge keeps a menu on the right of the toolbar
+        // Pinning the trailing edge keeps a menu at the end of the toolbar
         // from running off the window when its content is wide.
-        ? { top, right: Math.max(0, window.innerWidth - rect.right) }
-        : { top, left: rect.left },
+        ? { top, insetInlineEnd: anchorEnd }
+        : { top, insetInlineStart: anchorStart },
     );
-  }, [anchorRef, align]);
+  }, [anchorRef, align, rtl]);
 
   // The usual case - a menu opened by clicking a button that is already on
   // screen - measures in the layout phase so the menu never paints unplaced.
@@ -85,8 +95,8 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
       className="fixed border border-border rounded shadow-lg z-50 py-1"
       style={{
         top: placement.top,
-        left: placement.left,
-        right: placement.right,
+        insetInlineStart: placement.insetInlineStart,
+        insetInlineEnd: placement.insetInlineEnd,
         minWidth,
         backgroundColor: 'var(--theme-surface-elevated)',
       }}

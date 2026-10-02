@@ -352,7 +352,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
         </svg>
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-text-heading truncate">{entry.name}</div>
+        <div dir="auto" className="text-sm font-medium text-text-heading truncate">{entry.name}</div>
       </div>
       {/* The lock badge above is decorative; state it in words for non-sighted users. */}
       {entry.isDirectory && isProtectedEntry(entry) && (
@@ -554,7 +554,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
                       onClick={() => onOpenNote(rf.path)}
                       className="flex-1 min-w-0 text-start"
                     >
-                      <div className="text-sm font-medium text-text-heading truncate">{rf.title}</div>
+                      <div dir="auto" className="text-sm font-medium text-text-heading truncate">{rf.title}</div>
                       <div className="text-xs text-text-secondary truncate">
                         {rf.openedAt && formatRelativeTime(rf.openedAt)
                           ? <><span>{formatRelativeTime(rf.openedAt)}</span><span className="mx-1">{'\u00B7'}</span></>

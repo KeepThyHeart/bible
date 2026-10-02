@@ -461,7 +461,7 @@ export function TopicsBrowser({
         return (
           <div class="topics-browser__mobile-nav">
             <button class="topics-browser__mobile-back" onClick={goBack} disabled={!canGoBack}>
-              <i class="fa-solid fa-chevron-left" /> {t('topicsBrowser.back')}
+              <i class="fa-solid fa-chevron-left kth-rtl-mirror" /> {t('topicsBrowser.back')}
             </button>
           </div>
         );
@@ -474,10 +474,10 @@ export function TopicsBrowser({
           <i class="fa-solid fa-house" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoBack} onClick={goBack}>
-          <i class="fa-solid fa-arrow-left" />
+          <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
         <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward}>
-          <i class="fa-solid fa-arrow-right" />
+          <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (
           <span class="topics-browser__title">

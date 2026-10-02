@@ -26,6 +26,7 @@ export function HelpTip(props: { label: string; children: ComponentChildren; wid
       </button>
       <Popover
         open={open}
+        /* rtl-physical: viewport rect from getBoundingClientRect (positioning owned by task 0088) */
         anchor={rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } : null}
         onClose={() => setOpen(false)}
         insideRefs={[buttonRef]}

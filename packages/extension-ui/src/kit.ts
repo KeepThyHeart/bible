@@ -13,6 +13,8 @@ export const KIT_MAJOR = '1';
 /** What the kit needs from the bridge. `BibleExtUI` satisfies it. */
 export interface KitRpc {
   getLocale(): Promise<{ locale: string; direction: 'ltr' | 'rtl' }>;
+  /** Optional: lets the kit follow a UI-language switch (`locale.changed`) and keep `<html dir>` right. */
+  onLocaleChanged?(callback: (l: { locale: string; direction: 'ltr' | 'rtl' }) => void): unknown;
 }
 
 /** Structural view of the `KthKit` global (keep in sync with the kit's `KthKitApi`). */

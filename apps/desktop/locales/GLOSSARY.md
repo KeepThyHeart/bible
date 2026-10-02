@@ -14,7 +14,9 @@ Related docs: [`README.md`](README.md) (how to add a locale, ICU rules, tooling)
 |---|---|---|---|
 | `en` | English | source of truth | n/a |
 | `es` | Spanish | **beta (machine-drafted, complete)** | No - review wanted |
-| `ar` | Arabic | **draft (machine-drafted)** | No - review wanted |
+| `ar` | Arabic | **beta (machine-drafted, complete)** | No - review wanted |
+| `he-IL` | Hebrew | **draft (machine-drafted)** | No - review wanted |
+| `fa-IR` | Persian (Iran) | **draft (machine-drafted)** | No - review wanted |
 | `pt-BR` | Portuguese (Brazil) | **draft (machine-drafted)** | No - review wanted |
 | `ru` | Russian | **draft (machine-drafted)** | No - review wanted |
 | `hi` | Hindi | **draft (machine-drafted)** | No - review wanted |
@@ -43,7 +45,34 @@ Every locale also carries a `locale.notes` field in its `meta.json` recording th
 * **آية is avoided for "verse"** for the additional reason that it is the ordinary word for a Qur'anic verse; عدد is unambiguous in a Christian Bible-study context.
 * **Punctuation:** use Arabic comma `،` and Arabic question mark `؟`. Use `« »` for quotes.
 * **Digits:** write Western digits (`14`, `3:16`) in the source strings. ICU renders `#` in plural blocks using the locale's own numbering system.
-* **RTL hazard:** strings naming a physical direction - `layout.*.description`, `*.splitRight`, `*.splitDown`, the "left/right arrows" documentation - are translated literally (يسار = left, يمين = right). If the RTL work mirrors the pane geometry, these become wrong and must be revisited together.
+* **RTL hazard:** strings naming a physical direction - `layout.*.description`, `*.splitRight`, `*.splitDown`, the "left/right arrows" documentation - are translated literally (يسار = left, يمين = right). This stays correct on desktop, because the dockview pane grid is deliberately not mirrored in v1 (task 0076, Q3). If the grid is mirrored later, revisit these strings together. The same rule applies to Hebrew and Persian.
+
+### Hebrew (`he-IL`) - DRAFT (task 0076)
+
+* **Modern Israeli Hebrew.** The tag carries the region (BCP 47, Q11). A bare `he` resolves to it.
+* **Register:**
+  * Commands and buttons use the short conventional form: masculine singular imperative (*שמור*, *פתח*, *חפש*), or a noun where the English is a noun.
+  * Documentation prose stays as gender-neutral as practical, using infinitive or impersonal forms (*יש ללחוץ*, *ניתן ל…*).
+* **Terminology:** ספר (book), פרק (chapter), פסוק (verse).
+* **Scripture samples:**
+  * Old Testament: Westminster Leningrad Codex.
+  * New Testament: Delitzsch Hebrew New Testament (1877).
+  * Both are public domain. Never use the Bible Society of Israel's modern translations.
+* **Digits:** Latin by default. Hebrew-letter numerals are input-only and never used for display.
+
+### Persian (`fa-IR`) - DRAFT (task 0076)
+
+* **Iranian Persian.** Dari (`fa-AF`) resolves to this catalog until it has its own.
+* **Register:**
+  * Labels use short nouns or infinitives (*ذخیره*, *باز کردن*).
+  * Documentation prose uses the polite plural imperative (*کلیک کنید*).
+* **Script:**
+  * Use Persian ی/ک, never Arabic ي/ك.
+  * Use the zero-width non-joiner correctly (*می‌شود*, *کتاب‌ها*).
+  * Punctuation: ، and ؟, with « » for quotes.
+* **Terminology:** کتاب (book), باب (chapter), آیه (verse), عهد عتیق / عهد جدید (Old and New Testament).
+* **Scripture samples:** Persian Old Version (ترجمه قدیم, 1895), which is public domain.
+* **Digits:** native Persian digits (`arabext`) by default.
 
 ### Portuguese (`pt-BR`) - DECIDED
 
@@ -85,21 +114,21 @@ Fill a column only when that language is actually being worked on. `-` means "no
 
 ### Scripture structure
 
-| English | Spanish (`es`) | Portuguese (`pt-BR`) | Russian (`ru`) | Hindi (`hi`) | zh-Hans | Arabic (`ar`) | Notes |
-|---|---|---|---|---|---|---|---|
-| Bible | Biblia | Bíblia | Библия | बाइबल | 圣经 | الكتاب المقدس | |
-| Scripture / the Scriptures | Escritura / las Escrituras | Escritura / as Escrituras | Писание / Священное Писание | पवित्रशास्त्र | 圣经 / 经文 | الكتاب المقدس / الأسفار المقدسة | Capitalized when it means the Bible |
-| verse | **versículo** | **versículo** | стих | **पद** | 节 / 经节 | **عدد** (pl. أعداد) | Warning: ES: NOT *verso*. HI: NOT *आयत*. AR: NOT *آية* - see the Arabic register note. |
-| chapter | capítulo | capítulo | глава | अध्याय | 章 | أصحاح | |
-| passage | pasaje | passagem | отрывок | अंश | 经文 / 段落 | مقطع | Not *paso*, not *porción* |
-| book (of the Bible) | libro | livro | книга | पुस्तक | 书卷 | سفر (pl. أسفار) | |
-| verse range | intervalo de versículos | intervalo de versículos | диапазон стихов | पद सीमा | 经节范围 | نطاق الأعداد | |
-| reference (Scripture) | referencia | referência | ссылка | संदर्भ | 经文出处 | مرجع | |
-| Old Testament | Antiguo Testamento | Antigo Testamento | Ветхий Завет | पुराना नियम | 旧约 | العهد القديم | Abbrev. AT / ВЗ |
-| New Testament | Nuevo Testamento | Novo Testamento | Новый Завет | नया नियम | 新约 | العهد الجديد | Abbrev. NT / НЗ |
-| Gospels | Evangelios | Evangelhos | Евангелия | सुसमाचार | 福音书 | الأناجيل | |
-| translation / version | traducción / versión | tradução / versão | перевод / версия | अनुवाद / संस्करण | 译本 / 版本 | ترجمة / نسخة | Both used; the second for the dropdown, the first in prose |
-| versification | versificación | versificação | нумерация стихов | पद-क्रमांकन | 经节编排 | ترقيم الأعداد | |
+| English | Spanish (`es`) | Portuguese (`pt-BR`) | Russian (`ru`) | Hindi (`hi`) | zh-Hans | Arabic (`ar`) | Hebrew (`he-IL`) | Persian (`fa-IR`) | Notes |
+|---|---|---|---|---|---|---| --- | --- |---|
+| Bible | Biblia | Bíblia | Библия | बाइबल | 圣经 | الكتاب المقدس | כתבי הקודש (Christian usage; התנ״ך = OT only) | کتاب مقدس | |
+| Scripture / the Scriptures | Escritura / las Escrituras | Escritura / as Escrituras | Писание / Священное Писание | पवित्रशास्त्र | 圣经 / 经文 | الكتاب المقدس / الأسفار المقدسة | - | - | Capitalized when it means the Bible |
+| verse | **versículo** | **versículo** | стих | **पद** | 节 / 经节 | **عدد** (pl. أعداد) | **פסוק** | **آیه** | Warning: ES: NOT *verso*. HI: NOT *आयत*. AR: NOT *آية* - see the Arabic register note. |
+| chapter | capítulo | capítulo | глава | अध्याय | 章 | أصحاح | פרק | باب | |
+| passage | pasaje | passagem | отрывок | अंश | 经文 / 段落 | مقطع | - | - | Not *paso*, not *porción* |
+| book (of the Bible) | libro | livro | книга | पुस्तक | 书卷 | سفر (pl. أسفار) | ספר | کتاب | |
+| verse range | intervalo de versículos | intervalo de versículos | диапазон стихов | पद सीमा | 经节范围 | نطاق الأعداد | - | - | |
+| reference (Scripture) | referencia | referência | ссылка | संदर्भ | 经文出处 | مرجع | - | - | |
+| Old Testament | Antiguo Testamento | Antigo Testamento | Ветхий Завет | पुराना नियम | 旧约 | العهد القديم | הברית הישנה | عهد عتیق | Abbrev. AT / ВЗ |
+| New Testament | Nuevo Testamento | Novo Testamento | Новый Завет | नया नियम | 新约 | العهد الجديد | הברית החדשה | عهد جدید | Abbrev. NT / НЗ |
+| Gospels | Evangelios | Evangelhos | Евангелия | सुसमाचार | 福音书 | الأناجيل | - | - | |
+| translation / version | traducción / versión | tradução / versão | перевод / версия | अनुवाद / संस्करण | 译本 / 版本 | ترجمة / نسخة | - | - | Both used; the second for the dropdown, the first in prose |
+| versification | versificación | versificação | нумерация стихов | पद-क्रमांकन | 经节编排 | ترقيم الأعداد | - | - | |
 
 ### Study resources
 

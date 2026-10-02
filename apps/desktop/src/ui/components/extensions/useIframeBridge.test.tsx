@@ -36,6 +36,7 @@ function mountBridge(opts: {
   panelId?: string;
   panelTypeId?: string;
   getLocale?: () => string;
+  getDirection?: () => 'ltr' | 'rtl';
   getAccess?: () => { manifest: { uiKit?: { version: string; components: string[] } } | null; grants: readonly never[] };
 }) {
   const posted: unknown[] = [];
@@ -309,6 +310,13 @@ describe('ui.getLocale', () => {
     const byId = (id: string) => posted.find((p) => (p as { id?: string }).id === id) as { result?: unknown };
     expect(byId('l1').result).toEqual({ locale: 'en', direction: 'ltr' });
     expect(byId('l2').result).toEqual({ locale: 'ar', direction: 'rtl' });
+  });
+
+  it('prefers the host-supplied direction over the tag-derived one', async () => {
+    const { send, posted } = mountBridge({ getLocale: () => 'en', getDirection: () => 'rtl' });
+    send('ui.getLocale', [], 'd1');
+    await flush();
+    expect(posted.find((p) => (p as { id?: string }).id === 'd1')).toMatchObject({ result: { locale: 'en', direction: 'rtl' } });
   });
 
   it('falls back to en/ltr when the host supplied no locale source', async () => {

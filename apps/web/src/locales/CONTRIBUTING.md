@@ -185,4 +185,6 @@ Preserve the HTML tags and translate only the text content.
    ```
    This compares your locale against English and reports missing keys, extra keys, and coverage percentage for each namespace.
 
-3. **Check for RTL issues** if translating to Arabic, Hebrew, Farsi, or Urdu. The app sets `dir="rtl"` automatically for these languages.
+3. **Pseudo RTL locale (development only).** `xx-rtl` shows the English text in a right-to-left UI (RLM-wrapped strings, `locale.direction: rtl`) so you can check mirroring without a real RTL translation. It is generated, never edited by hand: `pnpm run i18n:pseudo` (repo root) regenerates it after `en/` changes. It is selectable only in dev builds (`pnpm --filter @bible/web run dev`, then open the app with `?lng=xx-rtl` or run `localStorage.setItem('i18nextLng', 'xx-rtl')` and reload); production builds ignore it, and it is a `draft` locale so the picker never lists it.
+
+4. **Check for RTL issues** if translating to Arabic, Hebrew, Farsi, or Urdu. The app sets `dir="rtl"` automatically for these languages.

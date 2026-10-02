@@ -51,6 +51,12 @@ export default [
           message: why },
         { selector: "JSXAttribute[name.name=/^(className|class)$/] > Literal[value=/(^|\\s)(?!kth-)\\S/]",
           message: 'packages/ui uses only kth-* classes (no Tailwind or app BEM classes).' },
+        // RTL guard (task 0076): inline styles use logical keys. A pointer- or rect-anchored overlay that
+        // must be physical says why with `// eslint-disable-next-line no-restricted-syntax -- rtl-physical: <reason>`.
+        { selector: "JSXAttribute[name.name='style'] Property[key.name=/^(left|right|marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|borderLeftWidth|borderRightWidth|borderLeftColor|borderRightColor|borderLeftStyle|borderRightStyle|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/]",
+          message: 'Use logical inline-style keys (insetInlineStart, marginInlineEnd, ...) so RTL mirrors (task 0076).' },
+        { selector: "JSXAttribute[name.name='style'] Property[key.name=/^(textAlign|float|clear)$/][value.value=/^(left|right)$/]",
+          message: "Use 'start'/'end' (or inline-start/inline-end), not left/right, so RTL mirrors (task 0076)." },
       ],
       'no-restricted-globals': ['error',
         { name: 'localStorage', message: 'Throws in sandboxed panels (opaque origin); take persistence via props.' },

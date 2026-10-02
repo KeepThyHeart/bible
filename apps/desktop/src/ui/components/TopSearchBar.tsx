@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { stripBidiControls } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
@@ -35,7 +36,7 @@ const classifierInstance = new ReferenceClassifier();
 // ============================================================================
 
 function determineMode(input: string): SearchBarMode {
-  const trimmed = input.trimStart();
+  const trimmed = stripBidiControls(input).trimStart();
   if (trimmed === '') return 'empty';
   if (trimmed.startsWith('/')) return 'command';
   if (trimmed.startsWith('?')) return 'search';
@@ -52,7 +53,7 @@ function determineMode(input: string): SearchBarMode {
  * render memoized from. See `resolveLiveQuery` below.
  */
 function parseReference(input: string): ParsedReference | undefined {
-  const parsed = getLocalizedReferenceParser().parse(input.trim());
+  const parsed = getLocalizedReferenceParser().parse(stripBidiControls(input).trim());
   if (!parsed.isValid || !parsed.book || !parsed.chapter) return undefined;
   return parsed;
 }
@@ -203,7 +204,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
 
   useEffect(() => {
     if (mode === 'search' && query.trim().length >= 3) {
-      const stripped = query.startsWith('?') ? query.slice(1).trim() : query.trim();
+      const clean = stripBidiControls(query);
+      const stripped = clean.startsWith('?') ? clean.slice(1).trim() : clean.trim();
       if (stripped.length >= 3) {
         liveSearchTimerRef.current = setTimeout(() => {
           liveSearchTimerRef.current = null;
@@ -360,7 +362,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // the store would classify a `?`-prefixed query stripped but search it with
   // the `?` still on.
   const handleSearch = useCallback(async (rawQuery?: string) => {
-    const source = rawQuery ?? query;
+    const source = stripBidiControls(rawQuery ?? query);
     const stripped = source.startsWith('?') ? source.slice(1).trim() : source.trim();
     if (!stripped) return;
 
@@ -540,8 +542,9 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Effective search query (strip ? prefix for display purposes)
   // --------------------------------------------------------------------------
   const effectiveSearchQuery = useMemo(() => {
-    if (mode === 'search' && query.startsWith('?')) return query.slice(1).trim();
-    return query.trim();
+    const clean = stripBidiControls(query);
+    if (mode === 'search' && clean.startsWith('?')) return clean.slice(1).trim();
+    return clean.trim();
   }, [mode, query]);
 
   // --------------------------------------------------------------------------

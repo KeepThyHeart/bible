@@ -184,6 +184,16 @@ export class BibleExtUI {
     });
   }
 
+  /**
+   * Subscribe to UI-language changes in the host (`locale.changed`, task 0076): the new locale and its
+   * text direction. Use it to set your document's `dir`/`lang` (the UI kit does this for you).
+   */
+  onLocaleChanged(callback: (locale: LocaleInfo) => void): Disposable {
+    return this.rpc.on('locale.changed', (payload) => {
+      callback(payload as LocaleInfo);
+    });
+  }
+
   // ── Theme ────────────────────────────────────────────────────────────
 
   /**

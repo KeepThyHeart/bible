@@ -49,7 +49,7 @@
 .notes-toolbar__menu {
   position: absolute;
   top: 100%;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 20;
   min-width: 120px;
   margin-top: 4px;
@@ -69,7 +69,7 @@
   background: transparent;
   color: var(--text-primary);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 
   &:hover { background: var(--bg-tertiary); }
@@ -93,12 +93,12 @@
   p { margin: 0 0 0.6em; }
   h1 { font-size: 1.4em; margin: 0.8em 0 0.4em; }
   h2 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
-  ul, ol { margin: 0 0 0.6em; padding-left: 1.6em; }
+  ul, ol { margin: 0 0 0.6em; padding-inline-start: 1.6em; }
   li > p { margin: 0; }
   blockquote {
     margin: 0 0 0.6em;
-    padding-left: 12px;
-    border-left: 3px solid var(--border-color);
+    padding-inline-start: 12px;
+    border-inline-start: 3px solid var(--border-color);
     color: var(--text-secondary);
   }
   a { color: var(--accent-color); }
@@ -160,17 +160,17 @@ strong:has(> .pn-hl:not(.pn-hl--choose)),
 
 .pn-gutter {
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   top: 0;
   width: 28px;
-  border-right: 1px solid var(--border-color);
+  border-inline-end: 1px solid var(--border-color);
   pointer-events: none;
   user-select: none;
 }
 .pn-gutter[hidden] { display: none; }
 .pn-gutter__play {
   position: absolute;
-  left: 3px;
+  inset-inline-start: 3px;
   width: 22px;
   height: 22px;
   margin-top: 6px;

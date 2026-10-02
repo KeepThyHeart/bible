@@ -37,6 +37,8 @@ export function applyDocumentDirection(i18n: II18nService): void {
   const el = document.documentElement;
   el.setAttribute('dir', i18n.currentDirection);
   el.setAttribute('lang', i18n.currentLocale);
+  // Opt in to the KTH CSS shaping rules (no letter-spacing / upper-casing of Arabic script; task 0076).
+  el.setAttribute('data-kth-shaping', '');
 }
 
 /**

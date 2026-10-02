@@ -5,11 +5,11 @@ import React, { useMemo } from 'react';
 // (added for the QuickJS guest bundle for the same reason) - importing only
 // the one standalone, dependency-free file keeps the renderer bundle safe.
 import type { SearchResult } from '@bible/core/types/search';
-import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
+import { BookChapterPicker as SharedBookChapterPicker, Bdi } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
-import { VerseIdHelper } from '@bible/core';
+import { VerseIdHelper, referenceLocalesVersion } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
 import { sanitizeHtml } from '../utils/sanitize';
 // Section colour coding for the book grid lives in `constants/bibleSections`,
@@ -59,7 +59,7 @@ const SearchResults: React.FC<{ query: string; onPick: (result: SearchResult) =>
               className="text-start px-2 py-2 text-sm rounded border border-border hover:bg-background-hover transition-colors"
               onClick={() => onPick(result)}
             >
-              <div className="font-semibold text-text-primary">{result.reference}</div>
+              <div className="font-semibold text-text-primary"><Bdi>{result.reference}</Bdi></div>
               <div
                 className="text-text-secondary text-xs mt-0.5"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet || result.text) }}
@@ -78,8 +78,10 @@ const SearchResults: React.FC<{ query: string; onPick: (result: SearchResult) =>
  */
 const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, onSelect, currentBook, currentChapter }) => {
   const { t, localizer } = useI18n();
-  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
-  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
+  // Locale book data loads on demand (task 0077): recompute once it is in.
+  const refDataVersion = referenceLocalesVersion();
+  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer, refDataVersion]);
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer, refDataVersion]);
   const labels = useMemo<Partial<BookChapterPickerLabels>>(() => ({
     title: t('bookChapterPicker.goToPassage'),
     back: t('bookChapterPicker.back'),

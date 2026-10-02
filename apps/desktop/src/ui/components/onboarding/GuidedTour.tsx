@@ -36,6 +36,7 @@ interface Rect {
 function inflate(rect: DOMRect): Rect {
   return {
     top: rect.top - SPOTLIGHT_PADDING,
+    // rtl-physical: spotlight follows a measured element rect
     left: rect.left - SPOTLIGHT_PADDING,
     width: rect.width + SPOTLIGHT_PADDING * 2,
     height: rect.height + SPOTLIGHT_PADDING * 2,
@@ -152,6 +153,7 @@ const GuidedTour: React.FC = () => {
     if (!rect) {
       return {
         top: '50%',
+        // rtl-physical: left 50% + translateX(-50%) centering
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: `${CARD_WIDTH}px`,
@@ -214,6 +216,7 @@ const GuidedTour: React.FC = () => {
           className="absolute rounded-lg border-2 border-accent"
           style={{
             top: `${rect.top}px`,
+            // rtl-physical: card anchored to a measured element rect
             left: `${rect.left}px`,
             width: `${rect.width}px`,
             height: `${rect.height}px`,

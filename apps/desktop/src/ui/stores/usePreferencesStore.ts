@@ -151,11 +151,18 @@ interface PreferencesState {
   // AdvancedPaneManagerGate.ts for the pure gate logic.
   advancedPaneManagerEnabled: boolean;
 
+  /** Hour (0-12) at which a new reading-plan day begins (task 0073). */
+  readingPlanRolloverHour: number;
+  /** Show reading streaks in reading plans (task 0073). */
+  readingPlanShowStreak: boolean;
+
   // Actions
   setTheme: (theme: ThemeId) => void;
   setGlobalFontScale: (scale: number) => void;
   setUiControlFontSize: (size: number) => void;
   setAdvancedPaneManagerEnabled: (enabled: boolean) => void;
+  setReadingPlanRolloverHour: (hour: number) => void;
+  setReadingPlanShowStreak: (show: boolean) => void;
   setTypography: (prefs: Partial<TypographyPrefs>) => void;
   resetTypography: () => void;
   applyTheme: (theme: ThemeId) => void;
@@ -171,6 +178,8 @@ interface PreferencesState {
     uiControlFontSize?: number;
     typography?: Partial<TypographyPrefs>;
     advancedPaneManagerEnabled?: boolean;
+    readingPlanRolloverHour?: number;
+    readingPlanShowStreak?: boolean;
   }) => void;
   getSessionData: () => {
     theme: ThemeId;
@@ -178,6 +187,8 @@ interface PreferencesState {
     uiControlFontSize: number;
     typography: TypographyPrefs;
     advancedPaneManagerEnabled: boolean;
+    readingPlanRolloverHour: number;
+    readingPlanShowStreak: boolean;
   };
 }
 
@@ -324,6 +335,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   uiControlFontSize: 14,
   typography: { ...DEFAULT_TYPOGRAPHY },
   advancedPaneManagerEnabled: false,
+  readingPlanRolloverHour: 3,
+  readingPlanShowStreak: false,
 
   setTheme: (theme: ThemeId) => {
     set({ theme });
@@ -346,6 +359,17 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setAdvancedPaneManagerEnabled: (enabled: boolean) => {
     set({ advancedPaneManagerEnabled: enabled });
+    markSessionDirty();
+  },
+
+  setReadingPlanRolloverHour: (hour: number) => {
+    const clamped = Math.min(12, Math.max(0, Math.round(hour)));
+    set({ readingPlanRolloverHour: clamped });
+    markSessionDirty();
+  },
+
+  setReadingPlanShowStreak: (show: boolean) => {
+    set({ readingPlanShowStreak: show });
     markSessionDirty();
   },
 
@@ -401,7 +425,15 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       ? data.advancedPaneManagerEnabled
       : false;
 
-    set({ theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled });
+    const readingPlanRolloverHour = isFiniteInRange(data.readingPlanRolloverHour, 0, 12)
+      ? Math.round(data.readingPlanRolloverHour)
+      : 3;
+    const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
+
+    set({
+      theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
+      readingPlanRolloverHour, readingPlanShowStreak,
+    });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
     applyGlobalFontScaleToDOM(globalFontScale);
@@ -410,8 +442,14 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
 
   getSessionData: () => {
-    const { theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled } = get();
-    return { theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled };
+    const {
+      theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
+      readingPlanRolloverHour, readingPlanShowStreak,
+    } = get();
+    return {
+      theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
+      readingPlanRolloverHour, readingPlanShowStreak,
+    };
   }
 }));
 

@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { VerseIdHelper } from '@bible/core';
+import { setExtraReferenceLocales } from '../../../services/localizedReferenceParser';
 import { bibleAPI } from '../../../services/electronAPI';
 import { pickDefaultBible } from '../../../../../electron/ipc/defaultBible';
 import { DEFAULT_PANEL_ID, updatePanelState } from '../../helpers/panelStateHelpers';
@@ -75,6 +76,9 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
     try {
       const bibles = await bibleAPI.getAvailableBibles();
       set({ availableBibles: bibles, loadingBibles: false });
+      // Reference parsing also accepts the installed Bibles' languages; their
+      // locale data loads on demand (task 0077). Unknown languages are skipped.
+      setExtraReferenceLocales(bibles.map((b) => b.language_code ?? ''));
     } catch (error) {
       console.error('Error loading available Bibles:', error);
       set({ loadingBibles: false });

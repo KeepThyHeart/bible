@@ -45,7 +45,7 @@ export interface PopoverProps {
   backdropClassName?: string;
   /** Move focus into the popup on open and back to where it was on close. Default false (hover previews). */
   autoFocus?: boolean;
-  /** Render into `document.body` (default true). Needed to escape `contain: layout` ancestors such as dockview panes. */
+  /** Render into `document.body`, or into the element that is full screen (default true). Needed to escape `contain: layout` ancestors such as dockview panes. */
   portal?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -115,6 +115,8 @@ export function Popover(props: PopoverProps) {
       data-placement={position.placement}
       style={{
         position: 'fixed',
+        // computePopupPosition() returns a physical viewport rect (it already mirrors for RTL itself).
+        // eslint-disable-next-line no-restricted-syntax -- rtl-physical: anchored to a measured rect
         left: position.left,
         top: position.top,
         width: position.width,
@@ -143,6 +145,6 @@ export function Popover(props: PopoverProps) {
     </>
   );
 
-  if (portal && typeof document !== 'undefined') return createPortal(content, document.body);
+  if (portal && typeof document !== 'undefined') return createPortal(content, document.fullscreenElement ?? document.body);
   return content;
 }

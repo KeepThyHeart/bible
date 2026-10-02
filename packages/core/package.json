@@ -13,6 +13,14 @@
       "types": "./dist/browser.d.ts",
       "default": "./dist/browser.js"
     },
+    "./recite": {
+      "types": "./dist/recite/index.d.ts",
+      "default": "./dist/recite/index.js"
+    },
+    "./speech": {
+      "types": "./dist/speech/index.d.ts",
+      "default": "./dist/speech/index.js"
+    },
     "./package.json": "./package.json",
     "./*": {
       "types": "./dist/*.d.ts",

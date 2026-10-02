@@ -42,7 +42,7 @@ export function StudySection({ id, label, subtitle, defaultExpanded = false, chi
         class={`study-pane__section-label${expanded ? ' study-pane__section-label--sticky' : ''}`}
         onClick={toggle}
       >
-        <i class={`fa-solid ${expanded ? 'fa-chevron-down' : 'fa-chevron-right'} study-pane__section-chevron`} />
+        <i class={`fa-solid ${expanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} study-pane__section-chevron`} />
         <span class="study-pane__section-titles">
           {label}
           {subtitle && <span class="study-pane__section-subtitle">{subtitle}</span>}

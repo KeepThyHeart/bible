@@ -57,6 +57,19 @@ interface UseIframeBridgeOpts {
   getAccess?: () => PanelAccess;
   /** Current UI locale tag for `ui.getLocale`. Defaults to `'en'` when absent. */
   getLocale?: () => string;
+  /**
+   * The UI direction for `ui.getLocale` / `locale.changed`: the i18n service's
+   * `currentDirection` (which honours locale metadata). Falls back to the
+   * language tag's own direction when absent.
+   */
+  getDirection?: () => 'ltr' | 'rtl';
+  /**
+   * Subscribe to UI-locale changes; returns an unsubscribe. When present, the
+   * host pushes `locale.changed` (`{ locale, direction }`, the `ui.getLocale`
+   * shape) to the panel so an RTL/LTR switch reaches an open iframe without a
+   * reload (task 0076).
+   */
+  subscribeLocale?: (onChange: () => void) => () => void;
 }
 
 const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
@@ -84,6 +97,8 @@ export function useDesktopBridgeParts({
   panelTypeId,
   getAccess,
   getLocale,
+  getDirection,
+  subscribeLocale,
 }: UseIframeBridgeOpts): DesktopBridgeParts {
   // Latest-callback refs: the parts are created once, not per render.
   const identityRef = useRef({ extensionId, panelId, panelTypeId });
@@ -92,6 +107,10 @@ export function useDesktopBridgeParts({
   getAccessRef.current = getAccess;
   const getLocaleRef = useRef(getLocale);
   getLocaleRef.current = getLocale;
+  const getDirectionRef = useRef(getDirection);
+  getDirectionRef.current = getDirection;
+  const subscribeLocaleRef = useRef(subscribeLocale);
+  subscribeLocaleRef.current = subscribeLocale;
   const teardownRef = useRef<(() => void) | null>(null);
 
   const context = useCallback((): BridgeContext => {
@@ -101,7 +120,7 @@ export function useDesktopBridgeParts({
   }, []);
 
   const handlers = useMemo(
-    () => createHandlers(iframeRef, () => getLocaleRef.current?.() ?? 'en'),
+    () => createHandlers(iframeRef, () => getLocaleRef.current?.() ?? 'en', () => getDirectionRef.current?.()),
     [iframeRef],
   );
 
@@ -146,8 +165,15 @@ export function useDesktopBridgeParts({
       bridge.emit('verse.activeChanged', { verseId, source: 'host' });
     });
 
+    // UI-locale changes: the panel's `<html dir lang>` and kit locale follow the host.
+    const unsubLocale = subscribeLocaleRef.current?.(() => {
+      const locale = getLocaleRef.current?.() ?? 'en';
+      bridge.emit('locale.changed', { locale, direction: getDirectionRef.current?.() ?? directionForTag(locale) });
+    });
+
     teardownRef.current = () => {
       unsubPanelMessages();
+      unsubLocale?.();
       unsubTheme();
       unsubActiveVerse();
     };
@@ -204,6 +230,7 @@ export function useIframeBridge(opts: UseIframeBridgeOpts): void {
 function createHandlers(
   iframeRef: React.RefObject<HTMLIFrameElement | null>,
   currentLocale: () => string,
+  currentDirection: () => 'ltr' | 'rtl' | undefined,
 ): BridgeHandlers {
   return {
     'network.fetch': (args, { extensionId }) => {
@@ -284,7 +311,7 @@ function createHandlers(
     // and panels pick book names / direction without app i18n.
     'ui.getLocale': () => {
       const locale = currentLocale();
-      return { locale, direction: directionForTag(locale) };
+      return { locale, direction: currentDirection() ?? directionForTag(locale) };
     },
 
     'ui.showVersePopup': (args, ctx) => {

@@ -1,9 +1,11 @@
 import React from 'react';
 import { useToastStore } from '../stores/useToastStore';
 import { useI18n } from '../contexts/useI18n';
+import { useDirection } from '../contexts/useDirection';
 
 const ToastContainer: React.FC = () => {
   const { t } = useI18n();
+  const dir = useDirection();
   const { toasts, removeToast } = useToastStore();
   if (toasts.length === 0) return null;
 
@@ -18,7 +20,7 @@ const ToastContainer: React.FC = () => {
           key={toast.id}
           role={toast.type === 'error' ? 'alert' : 'status'}
           aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-          className="rounded-lg shadow-lg px-4 py-3 flex items-start gap-2 text-sm animate-in slide-in-from-right"
+          className={`rounded-lg shadow-lg px-4 py-3 flex items-start gap-2 text-sm animate-in ${dir === 'rtl' ? 'slide-in-from-left' : 'slide-in-from-right'}`}
           style={{
             backgroundColor: toast.type === 'error' ? 'var(--theme-bg-error, #fef2f2)' :
                            toast.type === 'warning' ? 'var(--theme-bg-warning, #fffbeb)' :

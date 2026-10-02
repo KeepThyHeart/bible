@@ -4,11 +4,15 @@ import {
   BibleVerse,
   VerseContext,
 } from '../services/verseCopyService';
+import { anchorAtPointer, logicalArrow } from '@bible/core/browser';
+import { useDirection, Bdi } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { useSimilarStore } from '../stores/useSimilarStore';
+import { useSimilarAvailability } from '../stores/useSimilarAvailability';
 import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 
@@ -121,6 +125,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onMarkLemma,
 }) => {
   const { t, i18n } = useI18n();
+  const uiDir = useDirection();
   const { registry } = useAppServices();
   // Note: _isMultipleVerses is kept in the interface for API compatibility but
   // is not used since we now have a single "Copy Passage" option that opens
@@ -140,6 +145,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     enough to write a condition for.
   */
   const contributedItems = useExtensionUiStore((s) => s.contextMenuItems);
+  const similarAvailable = useSimilarAvailability((s) => s.available);
+  useEffect(() => { void useSimilarAvailability.getState().refresh(); }, []);
   const extensionItems = React.useMemo(
     () =>
       contributedItems
@@ -347,7 +354,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     // Left is "back out one level" in every menu that nests, and so is Escape
     // here. Escape has to be handled on the flyout itself: stopping the event
     // below would keep it from the document listener that otherwise does this.
-    if (event.key === 'ArrowLeft' || event.key === 'Escape') {
+    if (logicalArrow(event.key, uiDir) === 'prev' || event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       closeBookmarks(true);
@@ -357,15 +364,17 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     moveFocusWithin(submenuRef.current, event);
   };
 
-  // Calculate menu position (adjust if near screen edges)
+  // Position by the logical inline-start inset so the menu unfolds away from
+  // the pointer in the reading direction (leftward in an RTL UI). The width is a
+  // guess until the post-mount effect measures it.
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
     top: position.y,
-    left: position.x,
+    insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 10).insetInlineStart,
     zIndex: 9999
   };
 
-  // Adjust position after mount to prevent overflow
+  // Re-anchor with the measured size to prevent overflow
   useEffect(() => {
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
@@ -373,28 +382,18 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
       const viewportHeight = window.innerHeight;
 
       let adjustedTop = position.y;
-      let adjustedLeft = position.x;
-
-      // Adjust if menu overflows right edge
-      if (rect.right > viewportWidth) {
-        adjustedLeft = viewportWidth - rect.width - 10;
-      }
+      const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, 10);
 
       // Adjust if menu overflows bottom edge
       if (rect.bottom > viewportHeight) {
         adjustedTop = viewportHeight - rect.height - 10;
       }
-
-      // Ensure menu doesn't go off left or top edges
-      adjustedLeft = Math.max(10, adjustedLeft);
       adjustedTop = Math.max(10, adjustedTop);
 
-      if (adjustedTop !== position.y || adjustedLeft !== position.x) {
-        menuRef.current.style.top = `${adjustedTop}px`;
-        menuRef.current.style.left = `${adjustedLeft}px`;
-      }
+      menuRef.current.style.top = `${adjustedTop}px`;
+      menuRef.current.style.insetInlineStart = `${insetInlineStart}px`;
     }
-  }, [position]);
+  }, [position, uiDir]);
 
   const menu = (
     <div
@@ -466,6 +465,25 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             </svg>
             <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
           </button>
+          {similarAvailable && (<button
+            onClick={() => {
+              const first = versesArray[0].verse_id;
+              const last = versesArray[versesArray.length - 1].verse_id;
+              onClose();
+              useSimilarStore.getState().openFor({
+                startVerseId: Math.min(first, last),
+                endVerseId: Math.max(first, last),
+              });
+            }}
+            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+            role="menuitem"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 12h8M8 17h5" />
+              <rect x="4" y="3" width="16" height="18" rx="2" strokeWidth={2} />
+            </svg>
+            <span>{t('ui.verseContextMenu.findSimilar')}</span>
+          </button>)}
         </>
       )}
 
@@ -500,7 +518,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               onClick={() => openBookmarks(true)}
               onKeyDown={(e) => {
                 // Right opens a submenu; the ">" on this item is the promise.
-                if (e.key === 'ArrowRight') {
+                if (logicalArrow(e.key, uiDir) === 'next') {
                   e.preventDefault();
                   e.stopPropagation();
                   openBookmarks(true);
@@ -514,7 +532,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             >
               <BookmarkIcon className="w-4 h-4" />
               <span className="flex-1">{t('ui.verseContextMenu.addToBookmarks')}</span>
-              <svg className="w-4 h-4 text-text-muted" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-text-muted kth-rtl-mirror" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -572,12 +590,12 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
                           role="menuitem"
                           data-testid={`verse-replace-bookmark-${bookmark.pinId}`}
                         >
-                          <span className="block truncate">
+                          <span className="block truncate" dir="auto">
                             {bookmark.title?.trim() || bookmark.referenceText}
                           </span>
                           {bookmark.title?.trim() && (
                             <span className="block truncate text-xs text-text-secondary">
-                              {bookmark.referenceText}
+                              <Bdi>{bookmark.referenceText}</Bdi>
                             </span>
                           )}
                         </button>

@@ -24,7 +24,8 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useI18n } from '../contexts/useI18n';
 import { openModuleManager } from '../utils/openModuleManager';
-import { anchorAtPointerX } from '../utils/overlayPosition';
+import { anchorAtPointer } from '@bible/core/browser';
+import { useDirection } from '@bible/ui';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 
 interface CommentaryPaneProps {
@@ -267,6 +268,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
 
   // Context menu for internal commentary tabs (right-click -> "Pop Out to Window")
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; abbreviation: string; tabIndex: number } | null>(null);
+  const uiDir = useDirection();
 
   // Close tab context menu on outside click or Escape
   const dismissTabContextMenu = useCallback(() => setTabContextMenu(null), []);
@@ -682,6 +684,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
             entries={activeEntries}
             moduleName={activeTab?.name || ''}
             moduleAbbreviation={activeTab?.abbreviation}
+            moduleLanguage={availableCommentaries.find(c => c.abbreviation === activeTab?.abbreviation)?.language_code}
             currentVerseId={currentVerseId}
             isLoading={isLoading}
             error={error}
@@ -778,7 +781,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
         <div
           style={{
             position: 'fixed',
-            ...anchorAtPointerX(tabContextMenu.x),
+            ...anchorAtPointer(tabContextMenu.x, 180, window.innerWidth, uiDir),
             top: tabContextMenu.y,
             zIndex: 10000,
             minWidth: '180px',

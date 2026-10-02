@@ -15,10 +15,10 @@ README is the navigation aid.
 | File | Purpose |
 |---|---|
 | `RpcEnvelope.ts` | Request / response / event / subscribe / heartbeat envelope shapes shared by host, worker, and iframe. |
-| `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. |
+| `Permissions.ts` | Permission identifiers, default-grant set, separately-prompted set, and the `ORDER_*` render-order constants. Includes `speech:listen` (separately prompted; microphone, transcripts only) and `speech:speak`. |
 | `ActivationEvents.ts` | Activation event identifiers and string-composition helpers. |
-| `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. |
-| `ExtensionPointTypes.ts` | Kinds, payload and return types for the 14 host-emitted extension points (pruned from a speculative 40-member union with zero call sites - task 0024 round 3), plus the cancelable/replay/permission/timeout tables the dispatcher reads. |
+| `ExtensionApiTypes.ts` | The `BibleExtensionAPI` shape, every namespace interface, every DTO, and the `EXTENSION_API_VERSION` constant. `api.speech` (`ISpeechApi`, methods only) is defined in `../speech/apiTypes.ts` and re-exported here. |
+| `ExtensionPointTypes.ts` | Kinds, payload and return types for the 16 host-emitted extension points (pruned from a speculative 40-member union with zero call sites - task 0024 round 3), plus the cancelable/replay/permission/timeout tables the dispatcher reads. |
 | `ExtensionManifest.ts` | The TypeScript shape of `extension.json`. |
 | `ExtensionManifestSchema.json` | JSON Schema (draft-07), an **authoring aid for editors only** (autocomplete/validation) - it is never loaded at runtime. The sole runtime gate is the hand-written `ExtensionManifestValidator.ts`; the two must be kept in sync by hand, and `ExtensionManifestSchemaParity.test.ts` asserts they agree on the `contributes.*` keys and the `Permission` enum. |
 

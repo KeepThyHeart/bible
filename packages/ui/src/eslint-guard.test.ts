@@ -35,6 +35,8 @@ export const A = () => { const [v] = useState(x); return <div className="kth-car
     ['non-kth class literal', `export const a = <div className="kth-ok flex" />;`, /kth-\*/],
     ['localStorage', `export const a = () => localStorage.getItem('k');`, /localStorage/],
     ['fetch', `export const a = () => fetch('/x');`, /fetch/],
+    ['physical inline style key', `export const a = <div style={{ marginLeft: 4 }} />;`, /logical inline-style/],
+    ['physical text-align', `export const a = <div style={{ textAlign: 'right' }} />;`, /'start'\/'end'/],
   ];
 
   it.each(banned)('rejects %s', async (_name, code, pattern) => {

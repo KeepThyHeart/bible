@@ -66,10 +66,6 @@ vi.mock('../utils/paneNames', () => ({
   localizePaneLabel: (_t: unknown, _type: unknown, label: string) => label,
 }));
 
-vi.mock('../utils/overlayPosition', () => ({
-  anchorAtPointerX: () => ({ left: 0 }),
-}));
-
 vi.mock('../hooks/useOverlayDismissal', () => ({
   useOverlayDismissal: vi.fn(),
 }));

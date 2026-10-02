@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, useXrefFullscreen } from '@bible/ui';
+import { XrefHopper, XrefWebView, XrefArcView, XrefCompassView, FullscreenButton, FULLSCREEN_CLASS, useFullscreen } from '@bible/ui';
+import { logicalArrow } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useDirection } from '../contexts/useDirection';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -50,7 +51,7 @@ const XrefGraphDialog: React.FC = () => {
   const { isOpen, anchor, view, close, setAnchor, setView } = useXrefGraphStore();
   const phone = usePhoneWidth();
   const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
-  const { full, toggle: toggleFull } = useXrefFullscreen(dialogRef);
+  const { full, toggle: toggleFull, exit: exitFull } = useFullscreen(dialogRef);
 
   const { openTabs, activeTabIndex } = useBiblePanel();
   const defaultBible = useBibleStore((s) => s.getDefaultBible());
@@ -117,9 +118,10 @@ const XrefGraphDialog: React.FC = () => {
     [setAnchor, setView],
   );
 
+  // A phone-width dialog is already full window; a closed one is no longer full screen.
   useEffect(() => {
-    if (phone && full) toggleFull();
-  }, [phone, full, toggleFull]);
+    if ((phone || !isOpen) && full) exitFull();
+  }, [phone, isOpen, full, exitFull]);
 
   if (!isOpen) return null;
 
@@ -191,14 +193,16 @@ const XrefGraphDialog: React.FC = () => {
     );
   };
 
-  const frameClass = phone || full
+  const frameClass = phone
     ? 'bg-surface shadow-xl w-screen h-screen flex flex-col'
+    : full
+    ? `bg-surface flex flex-col ${FULLSCREEN_CLASS}`
     : 'bg-surface rounded-lg shadow-xl w-[90vw] h-[85vh] max-w-6xl flex flex-col';
 
   return (
     <>
       <div className="fixed inset-0 bg-background-overlay z-40" aria-hidden="true" onClick={close} />
-      <div className={`fixed inset-0 flex items-center justify-center z-50 ${phone || full ? '' : 'p-lg'}`}>
+      <div className={`fixed inset-0 flex items-center justify-center z-50 ${phone ? '' : 'p-lg'}`}>
         <div
           ref={dialogRef}
           className={frameClass}
@@ -211,10 +215,10 @@ const XrefGraphDialog: React.FC = () => {
             // A view that uses Escape itself (clearing a selection) has
             // already handled the event; only an untouched Escape closes.
             if (e.key === 'Escape' && !e.defaultPrevented) {
+              // In full screen the first Escape leaves it: useFullscreen (on the document) handles it.
+              if (full) return;
               e.stopPropagation();
-              // In full screen the first Escape leaves it.
-              if (full && !phone) toggleFull();
-              else close();
+              close();
             }
           }}
         >
@@ -223,16 +227,16 @@ const XrefGraphDialog: React.FC = () => {
               {title}
             </h2>
             <div className="flex items-center gap-sm">
-              {!phone && <button
-                type="button"
-                onClick={toggleFull}
-                aria-pressed={full}
-                className="px-sm py-xs text-sm rounded border border-border text-text-primary hover:bg-background-hover"
-              >
-                {full
-                  ? translateWithDefault(t, 'xrefGraph.exitFullscreen', 'Exit full screen')
-                  : translateWithDefault(t, 'xrefGraph.fullscreen', 'Full screen')}
-              </button>}
+              {!phone && (
+                <FullscreenButton
+                  full={full}
+                  onToggle={toggleFull}
+                  labels={{
+                    enter: translateWithDefault(t, 'xrefGraph.fullscreen', 'Full screen'),
+                    exit: translateWithDefault(t, 'xrefGraph.exitFullscreen', 'Exit full screen'),
+                  }}
+                />
+              )}
               <button
                 type="button"
                 onClick={close}
@@ -260,9 +264,10 @@ const XrefGraphDialog: React.FC = () => {
                 onClick={() => setView(id)}
                 onKeyDown={(e) => {
                   const i = VIEW_ORDER.indexOf(id);
+                  const step = logicalArrow(e.key, direction);
                   const next =
-                    e.key === 'ArrowRight' ? VIEW_ORDER[(i + 1) % VIEW_ORDER.length]
-                    : e.key === 'ArrowLeft' ? VIEW_ORDER[(i + VIEW_ORDER.length - 1) % VIEW_ORDER.length]
+                    step === 'next' ? VIEW_ORDER[(i + 1) % VIEW_ORDER.length]
+                    : step === 'prev' ? VIEW_ORDER[(i + VIEW_ORDER.length - 1) % VIEW_ORDER.length]
                     : null;
                   if (next) {
                     e.preventDefault();

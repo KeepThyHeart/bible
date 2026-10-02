@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -17,8 +18,11 @@ import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { draftIsOnWall } from '../../present/wordHighlight';
-import { directionForLanguage } from '@bible/core/browser';
+import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
 import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
+import { useMeasureDecorations } from '../../hooks/useMeasureDecorations';
+import { useMeasurePopup } from '../../hooks/useMeasurePopup';
+import { mergeChapterDecorations } from '../../measures/chapterMeasures';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData, IInterlinearDataProvider } from '../../providers/interfaces';
 
@@ -166,6 +170,8 @@ interface BibleContentProps {
   onStrongsLeave?: () => void;
   onCopyVerse?: (verseId: number) => void;
   onCommentaryVerse?: (verseId: number) => void;
+  /** Opens the Settings panel (optionally on a section); the measures popup's Units button uses it. */
+  onOpenSettings?: (section?: string) => void;
 }
 
 export function BibleContent({
@@ -179,6 +185,7 @@ export function BibleContent({
   onStrongsLeave,
   onCopyVerse,
   onCommentaryVerse,
+  onOpenSettings,
 }: BibleContentProps) {
   const { t } = useTranslation();
   const localizer = useLocalizer();
@@ -225,13 +232,31 @@ export function BibleContent({
     studyRows: displayMode === 'study' ? interlinearWords : undefined,
     interlinearProvider,
   });
+  // Weights, measures and money notes (task 0069): a second paint layer, merged
+  // with the keyword layer per verse so the renderer still gets one `resolved`.
+  const measures = useMeasureDecorations({
+    book: tab?.book ?? null,
+    chapter: tab?.chapter ?? null,
+    verses: tab?.verses ?? NO_VERSES,
+    moduleLanguage: bibleModule?.language_code,
+    surface: displayMode,
+    studyRows: displayMode === 'study' ? interlinearWords : undefined,
+    uiLocale: i18n.language || 'en',
+  });
+  const mergedResolved = useMemo(
+    () => mergeChapterDecorations(
+      tab?.verses ?? NO_VERSES, keywordDecorations.marks?.layer, keywordDecorations.resolved, measures?.layer, displayMode,
+    ),
+    [tab?.verses, keywordDecorations.marks, keywordDecorations.resolved, measures, displayMode],
+  );
+  const measurePopup = useMeasurePopup(measures, onOpenSettings);
 
   if (!tab) return <div class="bible-content bible-content--empty">{t('bibleContent.noTabSelected')}</div>;
 
   if (!tab.book || !tab.chapter) {
     const handleRefSubmit = (e: Event) => {
       e.preventDefault();
-      const ref = parseReference(refValue, bookAliases);
+      const ref = parseReference(stripBidiControls(refValue), bookAliases);
       if (ref) {
         setRefError('');
         bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { endVerse: ref.endVerse });
@@ -256,7 +281,7 @@ export function BibleContent({
               class="bible-content__ref-input"
             />
             <button type="submit" class="bible-content__ref-btn">
-              <i class="fa-solid fa-arrow-right rtl-mirror" /> {t('bibleContent.go')}
+              <i class="fa-solid fa-arrow-right kth-rtl-mirror" /> {t('bibleContent.go')}
             </button>
           </form>
           {refError && <p style={{ color: 'var(--text-muted)', fontSize: '0.85em', marginTop: '8px' }}>{refError}</p>}
@@ -381,17 +406,17 @@ export function BibleContent({
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
         <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left rtl-mirror" />
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
           onClick={() => bibleStore.openBookPicker()}
           title={t('bibleContent.goToBookChapter')}
         >
-          {isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`} <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
+          <bdi class="kth-bdi">{isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`}</bdi> <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
         <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right rtl-mirror" />
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
         </button>
       </div>
       {isLoading ? (
@@ -454,7 +479,7 @@ export function BibleContent({
               <i class="fa-solid fa-spinner fa-spin" /> {t('bibleContent.interlinearLoading')}
             </div>
           ) : (
-            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir}>
+            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir} {...measurePopup.handlers}>
             {interlinearUnavailable && studyShowInterlinear && (
               <div class="bible-content__interlinear-status bible-content__interlinear-status--unavailable">
                 <i class="fa-solid fa-circle-info" /> {t('bibleContent.interlinearUnavailable')}
@@ -479,7 +504,7 @@ export function BibleContent({
                 interlinearWords={studyShowInterlinear ? wordsByVerse.get(verse.verse_id) : undefined}
                 strongsEntries={strongsEntries}
                 showNotes={studyShowNotes}
-                resolved={keywordDecorations.resolved?.get(verse.verse_id)}
+                resolved={mergedResolved?.get(verse.verse_id)}
                 onVerseClick={handleVerseClick}
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}
@@ -507,6 +532,7 @@ export function BibleContent({
           )}
         </>
       )}
+      {measurePopup.popup}
       <PresentHighlightBar />
       {/* Mobile-only action bar — currently disabled; use context menu instead */}
       <BookChapterPicker

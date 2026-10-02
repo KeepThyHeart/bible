@@ -1,0 +1,7 @@
+{
+  "locale.name": "Hebrew",
+  "locale.nativeName": "עברית",
+  "locale.status": "draft",
+  "locale.direction": "rtl",
+  "locale.notes": "Machine-drafted; not reviewed by a native speaker. Scripture samples (preferencesDialog.typographyPreviewLine, the Fonts-section Bible sample preferencesDialog.fontSampleBible which is the same clause with a trailing ellipsis, and the theme preview ui.preferences.themePreviewLine1/Line2) quote John 3:16-17 from the Delitzsch Hebrew New Testament (1877, public domain), unpointed and written from memory; a reviewer should verify the wording against the printed edition (3:16 'את בנו את יחידו', 3:17 'לדון'). ui.preferences.themePreviewLink is the phrase חיי עולם taken verbatim from Line1, because it is spliced back into that sentence at render time. Do not replace these with a modern copyrighted translation. Terminology choices a reviewer may revisit: the Bible is rendered מקרא (and Scripture כתבי הקודש); Old/New Testament are הברית הישנה / הברית החדשה; book ספר, chapter פרק, verse פסוק; pane חלונית, tab לשונית, commentary פירוש, interlinear בין-שורתי, cross-reference הפניה צולבת, concordance קונקורדנציה, bookmark סימנייה, highlight הדגשה, module מודול, session הפעלה. Buttons use masculine singular imperatives; documentation prose uses infinitive/impersonal forms. Strings that name physical sides (left/right) are translated literally. Plurals provide one/two/other. The arrow separator is written with the RTL-correct direction (← and ◂)."
+}

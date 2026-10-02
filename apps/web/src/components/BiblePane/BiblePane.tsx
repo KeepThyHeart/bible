@@ -12,6 +12,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
 import { useFollowScroll } from '../../hooks/useFollowScroll';
+import { contentSwipeStep } from '../../utils/contentDirection';
 import type { IInterlinearDataProvider, IStrongsProvider } from '../../providers/interfaces';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 
@@ -348,6 +349,7 @@ export function BiblePane({
   }, [tab?.moduleAbbr, tab?.book, tab?.chapter]);
 
   // Swipe left/right to navigate chapters
+  const tabModuleAbbr = tab?.moduleAbbr;
   const ENABLE_SWIPE_NAVIGATION = true;
   const [swipeOffset, setSwipeOffset] = useState(0);
   const swipeRef = useRef<{ startX: number; startY: number; tracking: boolean; decided: boolean; offset: number }>({ startX: 0, startY: 0, tracking: false, decided: false, offset: 0 });
@@ -432,7 +434,9 @@ export function BiblePane({
       s.offset = 0;
       setSwipeOffset(0);
       if (Math.abs(offset) >= SWIPE_THRESHOLD) {
-        navigateChapter(offset > 0 ? 'prev' : 'next');
+        // Follows the module's CONTENT direction, not the UI's (task 0076).
+        const step = contentSwipeStep(offset, tabModuleAbbr);
+        if (step) navigateChapter(step);
       }
     };
 
@@ -446,9 +450,10 @@ export function BiblePane({
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [navigateChapter, swipeChaptersEnabled, swipeChapterThresholdPx]);
+  }, [navigateChapter, swipeChaptersEnabled, swipeChapterThresholdPx, tabModuleAbbr]);
 
   const swipeStyle = ENABLE_SWIPE_NAVIGATION && swipeOffset !== 0 ? {
+    // rtl-physical: drag feedback tracks the finger, which is a physical delta
     transform: `translateX(${swipeOffset}px)`,
     transition: 'none',
   } : undefined;
@@ -478,6 +483,7 @@ export function BiblePane({
                 onStrongsLeave={onStrongsLeave}
                 onCopyVerse={onCopyVerse}
                 onCommentaryVerse={onCommentaryVerse}
+                onOpenSettings={onOpenSettings}
               />
               <ChapterNav />
             </div>

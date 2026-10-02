@@ -19,6 +19,7 @@ import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
+import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -249,8 +250,11 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Stepping verse by verse is paging, not jumping: each swipe modifies the
       // current history entry instead of leaving a breadcrumb behind it.
       const PAGE = { replace: true } as const;
-      if (dx < 0) {
-        // Swipe left = next verse
+      // Follows the commentary module's CONTENT direction (task 0076): in RTL text a
+      // rightward swipe is "next".
+      const commentaryAbbr = commentaryStore.mobileSelectedCommentary?.abbr ?? bibleStore.getActiveModule();
+      if (contentSwipeStep(dx, commentaryAbbr) === 'next') {
+        // Swipe toward the end of the line = next verse
         const maxVerse = bibleStore.getActiveTab()?.verses?.length || 999;
         if (sv && sv < maxVerse) bibleStore.navigateTo(sb, sc, sv + 1, PAGE);
         else {
@@ -259,7 +263,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           else if (sb < 66) bibleStore.navigateTo(sb + 1, 1, 1, PAGE);
         }
       } else {
-        // Swipe right = previous verse
+        // Swipe toward the start of the line = previous verse
         if (sv && sv > 1) bibleStore.navigateTo(sb, sc, sv - 1, PAGE);
         else if (sc > 1) bibleStore.navigateTo(sb, sc - 1, undefined, PAGE);
         else if (sb > 1) bibleStore.navigateTo(sb - 1, MAX_CHAPTERS[sb - 1] || 1, undefined, PAGE);
@@ -509,6 +513,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          showSimilar={false}
         />
       )}
     </div>
