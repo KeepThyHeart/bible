@@ -31,5 +31,5 @@ Stored as `user_data_item` rows in the shared user database, owner `app:quiz`: c
 
 ## Pane and commands
 
-- `src/ui/components/QuizPane.tsx` - loads the catalog (error state with retry), offers "This chapter" from the primary Bible panel, shows the last five quizzes, links passages into the reader. "Today's reading" is `null` until reading plans exist (seam: `IReadingScopeProvider` / `NO_READING_PLAN`).
+- `src/ui/components/QuizPane.tsx` - loads the catalog (error state with retry), offers "This chapter" from the primary Bible panel, shows the last five quizzes, links passages into the reader. "Today's reading" comes from the reading-plan service (`getReadingPlanService().getTodayScope()`): every reading due today across active plans, labelled by its references; hidden when there is no active plan or nothing is due. It refreshes on plan changes (`subscribe`) and when the window regains focus.
 - `quiz.open` - focus or add the Quiz pane. `quiz.thisChapter` ("Quiz me on this chapter") - leaves a request in `useQuizLaunchStore`, which the pane takes once, and opens the pane.

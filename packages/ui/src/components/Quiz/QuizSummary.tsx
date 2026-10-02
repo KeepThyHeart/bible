@@ -62,8 +62,8 @@ export function QuizSummary({
               const answer = expectedAnswer(it.question, it.choices);
               return (
                 <li key={it.question.key} className="kth-quiz__missed-item">
-                  <div className="kth-quiz__missed-prompt">{it.question.prompt}</div>
-                  {answer ? <div className="kth-quiz__small">{fillLabel(l.correctAnswerIs, { answer })}</div> : null}
+                  <div className="kth-quiz__missed-prompt" dir="auto">{it.question.prompt}</div>
+                  {answer ? <div className="kth-quiz__small" dir="auto">{fillLabel(l.correctAnswerIs, { answer })}</div> : null}
                   {p && onOpenPassage ? (
                     <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm kth-quiz__passage-link" onClick={() => onOpenPassage(p.start, p.end)}>
                       {fillLabel(l.openPassage, { reference: fmt(p.start, p.end) })}
