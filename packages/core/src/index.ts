@@ -47,12 +47,9 @@ export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata
 // enough for `getLocalizer('es')` / `getLocalizer('zh-Hans')` to return the
 // full Localizer - no other call site has to know these exist.
 export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
-export {
-  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/es';
-export {
-  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/zhHans';
+// Multilingual reference engine (task 0077): parse, scan, suggest and format
+// references in any language with locale data; languages load on demand.
+export * from './Reference';
 
 // Re-export Controllers via the barrel, so the root export surface and the
 // TypeDoc entry point (`src/Controllers/index.ts`) cannot drift apart. They did:

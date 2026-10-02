@@ -1,0 +1,562 @@
+{
+  "tag": "es",
+  "name": "Spanish",
+  "status": "beta",
+  "direction": "ltr",
+  "source": "Reina-Valera tradition; converted from packages/core/src/Data/Locales/books/es.ts (task 0077).",
+  "books": {
+    "1": {
+      "long": "Génesis",
+      "short": "Gn",
+      "aliases": [
+        "gen"
+      ]
+    },
+    "2": {
+      "long": "Éxodo",
+      "short": "Éx"
+    },
+    "3": {
+      "long": "Levítico",
+      "short": "Lv",
+      "aliases": [
+        "lev"
+      ]
+    },
+    "4": {
+      "long": "Números",
+      "short": "Nm",
+      "aliases": [
+        "num"
+      ]
+    },
+    "5": {
+      "long": "Deuteronomio",
+      "short": "Dt",
+      "aliases": [
+        "deut"
+      ]
+    },
+    "6": {
+      "long": "Josué",
+      "short": "Jos"
+    },
+    "7": {
+      "long": "Jueces",
+      "short": "Jue",
+      "aliases": [
+        "jc"
+      ]
+    },
+    "8": {
+      "long": "Rut",
+      "short": "Rt"
+    },
+    "9": {
+      "long": "1 Samuel",
+      "short": "1 S",
+      "aliases": [
+        "1samuel",
+        "1s",
+        "1 sam",
+        "i samuel",
+        "i sam",
+        "isamuel"
+      ]
+    },
+    "10": {
+      "long": "2 Samuel",
+      "short": "2 S",
+      "aliases": [
+        "2samuel",
+        "2s",
+        "2 sam",
+        "ii samuel",
+        "ii sam",
+        "iisamuel"
+      ]
+    },
+    "11": {
+      "long": "1 Reyes",
+      "short": "1 R",
+      "aliases": [
+        "1reyes",
+        "1r",
+        "1 re",
+        "i reyes",
+        "ireyes"
+      ]
+    },
+    "12": {
+      "long": "2 Reyes",
+      "short": "2 R",
+      "aliases": [
+        "2reyes",
+        "2r",
+        "2 re",
+        "ii reyes",
+        "iireyes"
+      ]
+    },
+    "13": {
+      "long": "1 Crónicas",
+      "short": "1 Cr",
+      "aliases": [
+        "1cronicas",
+        "1cr",
+        "i cronicas",
+        "icronicas"
+      ]
+    },
+    "14": {
+      "long": "2 Crónicas",
+      "short": "2 Cr",
+      "aliases": [
+        "2cronicas",
+        "2cr",
+        "ii cronicas",
+        "iicronicas"
+      ]
+    },
+    "15": {
+      "long": "Esdras",
+      "short": "Esd",
+      "aliases": [
+        "ed"
+      ]
+    },
+    "16": {
+      "long": "Nehemías",
+      "short": "Neh",
+      "aliases": [
+        "ne"
+      ]
+    },
+    "17": {
+      "long": "Ester",
+      "short": "Est",
+      "aliases": [
+        "es"
+      ]
+    },
+    "18": {
+      "long": "Job",
+      "aliases": [
+        "jb"
+      ]
+    },
+    "19": {
+      "long": "Salmos",
+      "short": "Sal",
+      "aliases": [
+        "salmo",
+        "sl"
+      ]
+    },
+    "20": {
+      "long": "Proverbios",
+      "short": "Pr",
+      "aliases": [
+        "prov"
+      ]
+    },
+    "21": {
+      "long": "Eclesiastés",
+      "short": "Ec",
+      "aliases": [
+        "ecl",
+        "qoh"
+      ]
+    },
+    "22": {
+      "long": "Cantares",
+      "short": "Cnt",
+      "aliases": [
+        "cantar de los cantares",
+        "cantar",
+        "cant",
+        "cc"
+      ]
+    },
+    "23": {
+      "long": "Isaías",
+      "short": "Is",
+      "aliases": [
+        "isa"
+      ]
+    },
+    "24": {
+      "long": "Jeremías",
+      "short": "Jer",
+      "aliases": [
+        "je"
+      ]
+    },
+    "25": {
+      "long": "Lamentaciones",
+      "short": "Lm",
+      "aliases": [
+        "lam"
+      ]
+    },
+    "26": {
+      "long": "Ezequiel",
+      "short": "Ez",
+      "aliases": [
+        "eze",
+        "ezeq"
+      ]
+    },
+    "27": {
+      "long": "Daniel",
+      "short": "Dn",
+      "aliases": [
+        "dan"
+      ]
+    },
+    "28": {
+      "long": "Oseas",
+      "short": "Os",
+      "aliases": [
+        "ose"
+      ]
+    },
+    "29": {
+      "long": "Joel",
+      "short": "Jl",
+      "aliases": [
+        "joe"
+      ]
+    },
+    "30": {
+      "long": "Amós",
+      "short": "Am"
+    },
+    "31": {
+      "long": "Abdías",
+      "short": "Abd",
+      "aliases": [
+        "ab"
+      ]
+    },
+    "32": {
+      "long": "Jonás",
+      "short": "Jon"
+    },
+    "33": {
+      "long": "Miqueas",
+      "short": "Mi",
+      "aliases": [
+        "miq",
+        "mic"
+      ]
+    },
+    "34": {
+      "long": "Nahúm",
+      "short": "Nah",
+      "aliases": [
+        "na"
+      ]
+    },
+    "35": {
+      "long": "Habacuc",
+      "short": "Hab",
+      "aliases": [
+        "ha"
+      ]
+    },
+    "36": {
+      "long": "Sofonías",
+      "short": "Sof",
+      "aliases": [
+        "so"
+      ]
+    },
+    "37": {
+      "long": "Hageo",
+      "short": "Hag",
+      "aliases": []
+    },
+    "38": {
+      "long": "Zacarías",
+      "short": "Zac",
+      "aliases": [
+        "zc"
+      ]
+    },
+    "39": {
+      "long": "Malaquías",
+      "short": "Mal",
+      "aliases": [
+        "ml"
+      ]
+    },
+    "40": {
+      "long": "Mateo",
+      "short": "Mt",
+      "aliases": [
+        "mat"
+      ]
+    },
+    "41": {
+      "long": "Marcos",
+      "short": "Mr",
+      "aliases": [
+        "mc",
+        "mar"
+      ]
+    },
+    "42": {
+      "long": "Lucas",
+      "short": "Lc",
+      "aliases": [
+        "luc"
+      ]
+    },
+    "43": {
+      "long": "Juan",
+      "short": "Jn"
+    },
+    "44": {
+      "long": "Hechos",
+      "short": "Hch",
+      "aliases": [
+        "hec"
+      ]
+    },
+    "45": {
+      "long": "Romanos",
+      "short": "Ro",
+      "aliases": [
+        "rom"
+      ]
+    },
+    "46": {
+      "long": "1 Corintios",
+      "short": "1 Co",
+      "aliases": [
+        "1corintios",
+        "1co",
+        "1 cor",
+        "i corintios",
+        "icorintios"
+      ]
+    },
+    "47": {
+      "long": "2 Corintios",
+      "short": "2 Co",
+      "aliases": [
+        "2corintios",
+        "2co",
+        "2 cor",
+        "ii corintios",
+        "iicorintios"
+      ]
+    },
+    "48": {
+      "long": "Gálatas",
+      "short": "Gá",
+      "aliases": [
+        "gal"
+      ]
+    },
+    "49": {
+      "long": "Efesios",
+      "short": "Ef",
+      "aliases": [
+        "efe"
+      ]
+    },
+    "50": {
+      "long": "Filipenses",
+      "short": "Fil",
+      "aliases": [
+        "flp"
+      ]
+    },
+    "51": {
+      "long": "Colosenses",
+      "short": "Col",
+      "aliases": [
+        "co"
+      ]
+    },
+    "52": {
+      "long": "1 Tesalonicenses",
+      "short": "1 Ts",
+      "aliases": [
+        "1tesalonicenses",
+        "1ts",
+        "1 tes",
+        "i tesalonicenses",
+        "itesalonicenses"
+      ]
+    },
+    "53": {
+      "long": "2 Tesalonicenses",
+      "short": "2 Ts",
+      "aliases": [
+        "2tesalonicenses",
+        "2ts",
+        "2 tes",
+        "ii tesalonicenses",
+        "iitesalonicenses"
+      ]
+    },
+    "54": {
+      "long": "1 Timoteo",
+      "short": "1 Ti",
+      "aliases": [
+        "1timoteo",
+        "1ti",
+        "1 tim",
+        "i timoteo",
+        "itimoteo"
+      ]
+    },
+    "55": {
+      "long": "2 Timoteo",
+      "short": "2 Ti",
+      "aliases": [
+        "2timoteo",
+        "2ti",
+        "2 tim",
+        "ii timoteo",
+        "iitimoteo"
+      ]
+    },
+    "56": {
+      "long": "Tito",
+      "short": "Tit",
+      "aliases": [
+        "ti"
+      ]
+    },
+    "57": {
+      "long": "Filemón",
+      "short": "Flm",
+      "aliases": []
+    },
+    "58": {
+      "long": "Hebreos",
+      "short": "Heb",
+      "aliases": [
+        "he"
+      ]
+    },
+    "59": {
+      "long": "Santiago",
+      "short": "Stg",
+      "aliases": [
+        "sant",
+        "sg"
+      ]
+    },
+    "60": {
+      "long": "1 Pedro",
+      "short": "1 P",
+      "aliases": [
+        "1pedro",
+        "1p",
+        "1 pe",
+        "i pedro",
+        "ipedro"
+      ]
+    },
+    "61": {
+      "long": "2 Pedro",
+      "short": "2 P",
+      "aliases": [
+        "2pedro",
+        "2p",
+        "2 pe",
+        "ii pedro",
+        "iipedro"
+      ]
+    },
+    "62": {
+      "long": "1 Juan",
+      "short": "1 Jn",
+      "aliases": [
+        "1juan",
+        "1jn",
+        "i juan",
+        "ijuan"
+      ]
+    },
+    "63": {
+      "long": "2 Juan",
+      "short": "2 Jn",
+      "aliases": [
+        "2juan",
+        "2jn",
+        "ii juan",
+        "iijuan"
+      ]
+    },
+    "64": {
+      "long": "3 Juan",
+      "short": "3 Jn",
+      "aliases": [
+        "3juan",
+        "3jn",
+        "iii juan",
+        "iiijuan"
+      ]
+    },
+    "65": {
+      "long": "Judas",
+      "short": "Jud",
+      "aliases": [
+        "jds"
+      ]
+    },
+    "66": {
+      "long": "Apocalipsis",
+      "short": "Ap",
+      "aliases": [
+        "apoc",
+        "apo"
+      ]
+    }
+  },
+  "ordinals": {
+    "1": [
+      "I",
+      "Primera",
+      "Primero",
+      "Primer",
+      "Primera de",
+      "Primero de"
+    ],
+    "2": [
+      "II",
+      "Segunda",
+      "Segundo",
+      "Segunda de",
+      "Segundo de"
+    ],
+    "3": [
+      "III",
+      "Tercera",
+      "Tercero",
+      "Tercer",
+      "Tercera de",
+      "Tercero de"
+    ]
+  },
+  "ambiguous": {
+    "ha": {
+      "prefer": 35,
+      "also": [
+        37
+      ]
+    },
+    "fil": {
+      "prefer": 50,
+      "also": [
+        57
+      ]
+    }
+  }
+}

@@ -9,7 +9,7 @@ import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
-import { VerseIdHelper } from '@bible/core';
+import { VerseIdHelper, referenceLocalesVersion } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
 import { sanitizeHtml } from '../utils/sanitize';
 // Section colour coding for the book grid lives in `constants/bibleSections`,
@@ -78,8 +78,10 @@ const SearchResults: React.FC<{ query: string; onPick: (result: SearchResult) =>
  */
 const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, onSelect, currentBook, currentChapter }) => {
   const { t, localizer } = useI18n();
-  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
-  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
+  // Locale book data loads on demand (task 0077): recompute once it is in.
+  const refDataVersion = referenceLocalesVersion();
+  const bookNames = useMemo(() => localizedBookNames(localizer), [localizer, refDataVersion]);
+  const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer, refDataVersion]);
   const labels = useMemo<Partial<BookChapterPickerLabels>>(() => ({
     title: t('bookChapterPicker.goToPassage'),
     back: t('bookChapterPicker.back'),
