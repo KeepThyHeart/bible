@@ -8,6 +8,7 @@
     "tagGraph": false,
     "genealogy": false,
     "timeline": false,
+    "quiz": false,
     "semanticSearch": false,
     "pwa": false,
     "offlineDownloads": false,

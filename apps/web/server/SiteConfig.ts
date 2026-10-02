@@ -28,6 +28,8 @@ interface FeaturesConfig {
   genealogy?: boolean;
   /** Show the Timeline explorer tab (with no timeline module installed it shows an install hint). Default false. */
   timeline?: boolean;
+  /** Show the Quiz tab (questions on a passage; with no quiz module installed it shows a hint). Default false. */
+  quiz?: boolean;
   semanticSearch?: boolean;
   /**
    * Enable the PWA (manifest, install, service worker). Default false.

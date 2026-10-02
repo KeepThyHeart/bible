@@ -18,6 +18,7 @@ import { isEnabled } from '../../utils/featureFlags';
 import { isTagGraphEnabled } from '../../utils/clientConfig';
 import { isGenealogyEnabled } from '../../utils/featureFlags';
 import { TimelinePane } from '../TimelinePane/TimelinePane';
+import { QuizPane } from '../QuizPane/QuizPane';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 
@@ -53,6 +54,8 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
 
   const showTimeline = isEnabled('timeline');
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const showQuiz = isEnabled('quiz');
+  const [quizOpen, setQuizOpen] = useState(false);
 
   // Build verse label
   let verseLabel = '';
@@ -222,6 +225,23 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         )}
 
+        {/* Quiz Section: opens a full-screen sheet that starts a quiz on the current chapter */}
+        {showQuiz && (
+          <div class="mobile-study-section">
+            <div class="mobile-study-section__header">
+              <i class="fa-solid fa-circle-question" /> {t('quiz.title')}
+            </div>
+            <div class="mobile-study-section__content">
+              <button
+                class="mobile-study-section__browse-link"
+                onClick={() => setQuizOpen(true)}
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square" /> {t('quiz.quizThisChapter')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Interlinear Section */}
         <div class="mobile-study-section">
           <div class="mobile-study-section__header">
@@ -246,6 +266,23 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
           <div class="mobile-topics-overlay__body">
             <TimelinePane />
+          </div>
+        </div>
+      )}
+
+      {/* Quiz full-screen sheet (mounted only while open: the catalog loads on first open and the quiz starts on the current chapter) */}
+      {showQuiz && quizOpen && (
+        <div class="mobile-topics-overlay">
+          <div class="mobile-topics-overlay__header">
+            <button class="mobile-topics-overlay__close" onClick={() => setQuizOpen(false)} aria-label={t('quiz.close')}>
+              <i class="fa-solid fa-xmark" />
+            </button>
+            <span class="mobile-topics-overlay__title">
+              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('quiz.title')}
+            </span>
+          </div>
+          <div class="mobile-topics-overlay__body">
+            <QuizPane startOnCurrentChapter onPassageOpened={() => setQuizOpen(false)} />
           </div>
         </div>
       )}

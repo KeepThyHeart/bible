@@ -121,8 +121,8 @@ describe('@bible/core/browser barrel', () => {
     // the genealogy explorer (task 0067), then for the keyword-mark set store, then for the asset store (task 0090).
     const { files } = walk(BARREL);
     expect(files.size).toBeGreaterThan(1);
-    // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075.
-    expect(files.size).toBeLessThan(195);
+    // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075, then quiz 0074.
+    expect(files.size).toBeLessThan(205);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

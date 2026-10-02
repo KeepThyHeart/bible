@@ -5,6 +5,7 @@ import { CONTENT_RULES } from './content';
 import { DATA_RULES } from './data';
 import { NETWORK_ONLY_RULES } from './network';
 import { TIMELINE_RULES } from './timeline';
+import { QUIZ_RULES } from './quiz';
 
 /**
  * Every cache rule, in precedence order (first match wins). Network-only rules
@@ -21,4 +22,5 @@ export const CACHE_RULES: CacheRule[] = [
   ...DATA_RULES,
   ...AUDIO_RULES,
   ...TIMELINE_RULES,
+  ...QUIZ_RULES,
 ];

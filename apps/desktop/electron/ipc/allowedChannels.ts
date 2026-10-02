@@ -273,6 +273,13 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getGenealogyDataset',
   // Timeline
   'timeline:getDataset',
+  // Quiz (task 0074)
+  'quiz:getCatalog',
+  'quiz:getQuestions',
+  'quiz:getStats',
+  'quiz:recordAttempt',
+  'quiz:recordSession',
+  'quiz:listSessions',
   // Cross-references
   'xref:getAvailable',
   'xref:getGroupsForVerse',

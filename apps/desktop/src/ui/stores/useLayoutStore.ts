@@ -26,6 +26,7 @@ export type PanelContentType =
   | 'topics'
   | 'genealogy'
   | 'timeline'
+  | 'quiz'
   | 'similar'
   | 'search'
   | 'newtab'

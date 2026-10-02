@@ -42,6 +42,7 @@ import type { ITopicalIndexRepository } from '../Repositories/ITopicalIndexRepos
 import type { ICrossReferenceRepository } from '../Repositories/ICrossReferenceRepository';
 import type { ITagGraphRepository } from '../Repositories/ITagGraphRepository';
 import type { ITimelineRepository } from '../Repositories/ITimelineRepository';
+import type { IQuizRepository } from '../Repositories/IQuizRepository';
 
 /**
  * Every module type that has both a real content repository AND a public
@@ -64,6 +65,7 @@ export interface ModuleRepositoryByType {
   crossRef: ICrossReferenceRepository;
   tagGraph: ITagGraphRepository;
   timeline: ITimelineRepository;
+  quiz: IQuizRepository;
 }
 
 /**
@@ -121,6 +123,8 @@ export function moduleRepositoryTypeFor(moduleType: ModuleType): keyof ModuleRep
       return 'tagGraph';
     case 'timeline':
       return 'timeline';
+    case 'quiz':
+      return 'quiz';
     case 'devotional':
     default:
       return null;

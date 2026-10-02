@@ -40,6 +40,7 @@ export const FEATURE_FLAGS = {
   audio: { default: false, description: 'Audio Bible playback and Settings > Audio.' },
   timeline: { default: false, description: 'Timeline view.' },
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
+  quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
   measureDrafts: { default: false, description: 'Show unreviewed (draft) weights-and-measures notes (review/dev only).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 

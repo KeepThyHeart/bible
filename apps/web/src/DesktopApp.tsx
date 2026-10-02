@@ -20,6 +20,7 @@ import { parseVerseId } from './utils/verseId';
 import { isEnabled } from './utils/featureFlags';
 import { isTagGraphEnabled } from './utils/clientConfig';
 import { TimelinePane } from './components/TimelinePane/TimelinePane';
+import { QuizPane } from './components/QuizPane/QuizPane';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -42,6 +43,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
   const showTimeline = isEnabled('timeline');
+  const showQuiz = isEnabled('quiz');
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
   // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
   useEffect(() => { audioStore.setLayout('desktop'); }, []);
@@ -89,7 +91,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const similarAvailable = useStore(similarAvailability, () => similarAvailability.available);
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
-    : shared.rightPaneMode === 'timeline' && !showTimeline
+    : (shared.rightPaneMode === 'timeline' && !showTimeline) || (shared.rightPaneMode === 'quiz' && !showQuiz)
       ? 'study'
       : shared.rightPaneMode === 'similar' && !similarAvailable
         ? 'study'
@@ -100,6 +102,13 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     // A saved 'similar' stays until the availability probe has answered (it shows 'study' meanwhile).
     if (paneMode !== shared.rightPaneMode && shared.rightPaneMode !== 'similar') commentaryStore.setRightPaneMode(paneMode);
   }, [paneMode, shared.rightPaneMode]);
+
+  // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
+  // so switching tabs does not lose a quiz in progress.
+  const [quizOpened, setQuizOpened] = useState(false);
+  useEffect(() => {
+    if (paneMode === 'quiz') setQuizOpened(true);
+  }, [paneMode]);
 
   const showRightPane = !shared.collapsed;
 
@@ -183,6 +192,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                     {t('rightPane.timeline')}
                   </button>
                 )}
+                {showQuiz && (
+                  <button
+                    class={`right-pane-tabs__tab ${paneMode === 'quiz' ? 'right-pane-tabs__tab--active' : ''}`}
+                    onClick={() => commentaryStore.setRightPaneMode('quiz')}
+                  >
+                    {t('rightPane.quiz')}
+                  </button>
+                )}
                 <button
                   class={`right-pane-tabs__tab ${paneMode === 'dictionary' ? 'right-pane-tabs__tab--active' : ''}`}
                   onClick={() => commentaryStore.setRightPaneMode('dictionary')}
@@ -226,6 +243,11 @@ export function DesktopApp({ providers }: DesktopAppProps) {
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
               {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
               {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
+              {showQuiz && (quizOpened || paneMode === 'quiz') && (
+                <div class="quiz-pane-host" hidden={paneMode !== 'quiz'}>
+                  <QuizPane />
+                </div>
+              )}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
               {paneMode === 'similar' && <SimilarPane providers={providers} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}

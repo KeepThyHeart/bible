@@ -25,6 +25,7 @@ import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
 import './routes/timelineRoutes.js';
+import './routes/quizRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
@@ -386,6 +387,7 @@ const routeDeps = {
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
+    showQuiz: siteConfig.isEnabled('quiz'),
     // /api/offline (pack builder manifest and files): on with either offline feature flag.
     offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.

@@ -175,6 +175,8 @@ export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } fr
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
+export { UserDataQuizProgressStore, QUIZ_OWNER, QUIZ_STATS_COLLECTION, QUIZ_SESSIONS_COLLECTION } from './Quiz/progress';
+export { mergeCatalogs } from './Quiz/scope';
 
 // Web user-data store (task 0084): also re-exported from `./browser`.
 export * as UserData from './UserData';

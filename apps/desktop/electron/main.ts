@@ -13,6 +13,7 @@ import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
 import { registerSimilarHandlers } from './ipc/similarHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
 import { registerTimelineHandlers, closeTimelineDb } from './ipc/timelineHandlers';
+import { registerQuizHandlers, closeQuizDbs } from './ipc/quizHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
@@ -639,6 +640,7 @@ const registerAllHandlersOnce = runOnce(() => {
   registerSimilarHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
   registerTimelineHandlers(ipcMain);
+  registerQuizHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
@@ -1463,6 +1465,7 @@ app.on('quit', () => {
   closeStudyCache();
   closeTagGraphDb();
   closeTimelineDb();
+  closeQuizDbs();
   closeSearchDb();
   closeSessionDb();
   closeNotesDatabase();

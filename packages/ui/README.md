@@ -154,6 +154,24 @@ extension settings share it. Controlled and store-free: `fields`, `values`, `onC
 fields; `labels` covers the two fixed strings (`select`, `learnMore`). `idPrefix` sets control ids (`ext-setting` for extensions).
 Classes: `kth-field`, `kth-field__hint`, `kth-fieldset`, plus `kth-input`/`kth-select`. Design and API: `packages/core/docs/features/settings-registry.md`.
 
+### `QuizPanel` (quiz questions on a passage)
+
+The pane body of the quiz: launcher (today's reading / this chapter / chosen passage, count, difficulty), one question at a time
+(multiple choice, short answer, free response with self-grade, reflection), then a summary with the missed questions and retry.
+It drives a core `QuizEngine` the app builds with its own question source and progress store; the panel itself keeps no storage.
+Question content is licensed, so the launcher always shows each module's name, version, licence and data-source credits
+(`QuizSources`). Exports: `QuizPanel`, `QuizLauncher`, `QuizQuestionCard`, `QuizSummary`, `QuizSources`, `fillLabel`,
+`DEFAULT_QUIZ_LABELS`, with their props types.
+
+| Prop | Purpose |
+|---|---|
+| `catalog`, `engine` | Installed modules plus chapter coverage (`null` while loading), and the engine. |
+| `currentChapter`, `todaysReading` | Offered as scope options ("This chapter" only when it has questions). |
+| `startRequest` | A `QuizRequest` that starts a quiz at once; a new object starts another. |
+| `bookName`, `formatReference`, `onOpenPassage` | Localised names and references; without `onOpenPassage` no passage links show. |
+| `history`, `onFinished(summary)` | Recent quizzes (desktop only) and a hook to refresh them. |
+| `emptyAction`, `labels`, `counts` | Button when no module is installed; every string (`QuizLabels`); counts offered (default 5, 10, 20). |
+
 ### `NotificationPreferences`
 
 The Notifications settings page body (task 0083): permission status, master switch, quiet hours, one row per reminder source

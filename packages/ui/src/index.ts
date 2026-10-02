@@ -100,3 +100,16 @@ export type {
   PackBuilderRunState,
   PackBuilderStatus,
 } from './components/PackBuilder';
+
+// Quiz (task 0074): QuizPanel drives a core QuizEngine the app builds.
+export { QuizPanel } from './components/Quiz/QuizPanel';
+export { QuizLauncher } from './components/Quiz/QuizLauncher';
+export type { QuizLauncherProps } from './components/Quiz/QuizLauncher';
+export { QuizQuestionCard } from './components/Quiz/QuizQuestionCard';
+export type { QuizQuestionCardProps } from './components/Quiz/QuizQuestionCard';
+export { QuizSummary } from './components/Quiz/QuizSummary';
+export type { QuizSummaryProps } from './components/Quiz/QuizSummary';
+export { QuizSources } from './components/Quiz/QuizSources';
+export type { QuizSourcesProps } from './components/Quiz/QuizSources';
+export { DEFAULT_QUIZ_LABELS, fillLabel } from './components/Quiz/labels';
+export type { QuizPanelProps, QuizLabels } from './components/Quiz/types';
