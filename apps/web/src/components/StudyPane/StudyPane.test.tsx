@@ -55,6 +55,10 @@ vi.mock('../../utils/featureFlags', () => ({
   isGenealogyEnabled: () => mockGenealogyEnabled,
 }));
 
+vi.mock('./StudyMeasures', () => ({
+  StudyMeasures: ({ verseId }: { verseId: number | null }) => <div class="study-measures-stub" data-verse={String(verseId)} />,
+}));
+
 vi.mock('./StudyHome', () => ({
   StudyHome: () => <div class="study-home-stub" />,
 }));
@@ -184,6 +188,11 @@ describe('StudyPane', () => {
     expect(container.querySelector('.study-topics-stub')).toBeTruthy();
     expect(container.querySelector('.study-synthesis-stub')).toBeTruthy();
     expect(container.querySelector('.study-home-stub')).toBeTruthy();
+  });
+
+  it('passes the studied verse to the measures section', () => {
+    const { container } = render(<StudyPane />);
+    expect(container.querySelector('.study-measures-stub')?.getAttribute('data-verse')).toBe(String(mockVerseId));
   });
 
   // ------------------------------------------------------------------

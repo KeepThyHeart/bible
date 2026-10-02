@@ -178,6 +178,24 @@ describe('validateManifest - beyond-schema rules', () => {
     expect(r.ok).toBe(false);
   });
 
+  it('accepts the `notifications:schedule` permission and the `onReminder` activation event', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).permissions = ['bible:read', 'notifications:schedule'];
+    (m as Record<string, unknown>).activationEvents = ['onReminder'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.permissions).toContain('notifications:schedule');
+      expect(r.manifest.activationEvents).toContain('onReminder');
+    }
+  });
+
+  it('rejects a parameterised `onReminder:` (the event is bare)', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onReminder:daily'];
+    expect(validateManifest(m).ok).toBe(false);
+  });
+
   it('rejects `network:oauth` without a network block', () => {
     const m = baseManifest();
     (m as { permissions: string[] }).permissions = ['bible:read', 'network:oauth'];

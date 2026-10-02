@@ -19,10 +19,15 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
 }));
 
+const mockServerOffline = vi.hoisted(() => ({ value: false }));
+
 // ---- Store mock ----------------------------------------------------------
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
+
+// ---- Downloads section (asset manager; covered by DownloadsSection.test) -
+vi.mock('./DownloadsSection', () => ({ DownloadsSection: () => <div data-testid="downloads-section" /> }));
 
 // ---- i18n module ---------------------------------------------------------
 vi.mock('../../i18n', () => ({
@@ -68,7 +73,7 @@ vi.mock('../../stores/settingsStore', () => ({
     get swipeChaptersEnabled() { return true; },
     get swipeChapterThresholdPx() { return 100; },
     get swipeCommentaryVerseThresholdPx() { return 100; },
-    get serverOfflineDownloads() { return false; },
+    get serverOfflineDownloads() { return mockServerOffline.value; },
     get leftHandedMode() { return false; },
     adjustAllFontSizes: (...args: unknown[]) => mockAdjustAllFontSizes(...args),
     setFontSize: (...args: unknown[]) => mockSetFontSize(...args),
@@ -402,5 +407,17 @@ describe('SettingsPanel', () => {
     const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
     const offlineTab = container.querySelector('[data-tab="offline"]');
     expect(offlineTab).toBeNull();
+  });
+
+  it('shows Downloads & storage at the end of the offline tab', () => {
+    mockServerOffline.value = true;
+    try {
+      const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="offline"]')!);
+      const section = container.querySelector('[data-section="offline"]')!;
+      expect(section.lastElementChild?.getAttribute('data-testid')).toBe('downloads-section');
+    } finally {
+      mockServerOffline.value = false;
+    }
   });
 });

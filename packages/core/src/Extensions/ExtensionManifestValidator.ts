@@ -129,6 +129,7 @@ export const ALLOWED_PERMISSIONS: readonly ExtensionPermission[] = [
   'commands:register',
   'commands:execute-builtin',
   'tasks',
+  'notifications:schedule',
   'network',
   'network:oauth',
   'speech:listen',

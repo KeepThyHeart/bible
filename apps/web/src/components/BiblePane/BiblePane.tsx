@@ -478,6 +478,7 @@ export function BiblePane({
                 onStrongsLeave={onStrongsLeave}
                 onCopyVerse={onCopyVerse}
                 onCommentaryVerse={onCommentaryVerse}
+                onOpenSettings={onOpenSettings}
               />
               <ChapterNav />
             </div>

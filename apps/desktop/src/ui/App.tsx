@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import React from 'react';
+import { useNotificationOpenTarget } from './hooks/useNotificationOpenTarget';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
@@ -78,6 +79,9 @@ const openBackupDialog = () => useBackupStore.getState().openDialog();
 const openAdvancedSearchDialog = () => useSearchStore.getState().openAdvancedDialog();
 const navigateToVerseInPrimary = (verseId: number) =>
   useBibleStore.getState().navigateToVerseInPrimary(verseId);
+const navigateToVerseRangeInPrimary = (verseId: number, endVerseId?: number) => {
+  void useBibleStore.getState().navigateToVerseInPrimary(verseId, endVerseId);
+};
 
 // Install cross-store bridges + when-context publishers once, at module load,
 // so they're in place before any component calls into the stores. See
@@ -223,6 +227,17 @@ function App() {
     }
   }, []);
 
+  // Notification clicks (main has already shown and focused the window).
+  const openNotificationPreferences = useCallback(() => {
+    setPreferencesInitialSection('notifications');
+    setPreferencesFontPane(undefined);
+    setShowPreferences(true);
+  }, []);
+  useNotificationOpenTarget({
+    navigateToVerse: navigateToVerseRangeInPrimary,
+    openNotificationPreferences,
+  });
+
   // Listen for menu events
   useEffect(() => {
     // Module Manager menu handler
@@ -274,6 +289,17 @@ function App() {
     window.addEventListener('open-preferences-fonts', handler);
     return () => window.removeEventListener('open-preferences-fonts', handler);
   }, [openPreferencesToFonts]);
+
+  // Weights-and-measures popup's "Units..." button (task 0069): Preferences at the measures section.
+  useEffect(() => {
+    const handler = () => {
+      setPreferencesInitialSection('measures');
+      setPreferencesFontPane(undefined);
+      setShowPreferences(true);
+    };
+    window.addEventListener('open-preferences-measures', handler);
+    return () => window.removeEventListener('open-preferences-measures', handler);
+  }, []);
 
   // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). Same shape as
   // `open-preferences-fonts` above: the extension bridge dispatches this

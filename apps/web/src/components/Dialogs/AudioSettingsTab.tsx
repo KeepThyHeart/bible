@@ -45,7 +45,7 @@ export function AudioSettingsTab() {
   const [usage, setUsage] = useState<AudioStorageUsage | null>(null);
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const [downloads, setDownloads] = useState<Record<string, LoadProgress>>({});
-  const [failed, setFailed] = useState<Record<string, boolean>>({});
+  const [failed, setFailed] = useState<Record<string, string | false>>({});
   const controllers = useRef(new Map<string, AbortController>());
 
   const refreshUsage = useCallback(() => { void audioStorageUsage().then(setUsage, () => setUsage(null)); }, []);
@@ -82,7 +82,8 @@ export function AudioSettingsTab() {
       await row.engine.prepare(row.voice.id, p => setDownloads(d => ({ ...d, [key]: p })), ctrl.signal);
       setReady(r => ({ ...r, [key]: true }));
     } catch (e) {
-      if ((e as { code?: string })?.code !== 'aborted') setFailed(f => ({ ...f, [key]: true }));
+      const code = (e as { code?: string })?.code;
+      if (code !== 'aborted') setFailed(f => ({ ...f, [key]: typeof code === 'string' ? code : 'unknown' }));
     } finally {
       controllers.current.delete(key);
       setDownloads(d => { const { [key]: _gone, ...rest } = d; return rest; });
@@ -196,7 +197,11 @@ export function AudioSettingsTab() {
                   {progress && (
                     <progress class="audio-settings__progress" max={progress.total ?? undefined} value={progress.total ? progress.loaded : undefined} aria-label={t('audio.status.downloadingVoice')} />
                   )}
-                  {failed[key] && <span class="audio-settings__voice-meta" role="alert">{t('audio.settings.downloadFailed')}</span>}
+                  {failed[key] && (
+                    <span class="audio-settings__voice-meta" role="alert">
+                      {t(`assets.error.${failed[key]}`, { defaultValue: t('audio.settings.downloadFailed') })}
+                    </span>
+                  )}
                 </div>
                 {!progress && isReady && !chosen && (
                   <button type="button" class="audio-settings__btn" onClick={() => audioStore.setEngineVoice(row.engineId, language, row.voice.id)}>{t('audio.settings.useVoice')}</button>

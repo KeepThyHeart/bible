@@ -152,3 +152,17 @@ describe('AVAILABLE_THEMES', () => {
     }
   });
 });
+
+describe('usePreferencesStore - reading plan preferences', () => {
+  it('defaults, validates on load and serializes', () => {
+    const s = usePreferencesStore.getState();
+    s.loadFromSession({ readingPlanRolloverHour: 99, readingPlanShowStreak: 'yes' as never });
+    expect(usePreferencesStore.getState().readingPlanRolloverHour).toBe(3);
+    expect(usePreferencesStore.getState().readingPlanShowStreak).toBe(false);
+    s.loadFromSession({ readingPlanRolloverHour: 5, readingPlanShowStreak: true });
+    expect(usePreferencesStore.getState().getSessionData()).toMatchObject({ readingPlanRolloverHour: 5, readingPlanShowStreak: true });
+    s.setReadingPlanRolloverHour(40);
+    expect(usePreferencesStore.getState().readingPlanRolloverHour).toBe(12);
+    s.loadFromSession({});
+  });
+});

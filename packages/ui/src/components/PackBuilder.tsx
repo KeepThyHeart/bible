@@ -1,0 +1,336 @@
+/**
+ * PackBuilder: a fully controlled offline-pack picker (task 0075). Preset chips, rows grouped by `groups`,
+ * a storage summary with a fit indicator, warnings, Start / Cancel and run progress. No state of its own and
+ * no app imports; the app maps its pack planner and downloader state to props and handles the callbacks.
+ * Every visible string comes from `labels`.
+ */
+export type PackBuilderStatus = 'absent' | 'installed' | 'update-available' | 'installing' | 'error';
+
+export interface PackBuilderRow {
+  key: string;
+  title: string;
+  detail?: string;
+  /** Id of one of the `groups`. Rows with an unknown group are not shown. */
+  group: string;
+  sizeBytes: number;
+  status: PackBuilderStatus;
+  selected: boolean;
+  disabled?: boolean;
+  /** Already localized; shown when `disabled`. */
+  disabledReason?: string;
+  progress?: { loaded: number; total: number };
+  /** Already localized. */
+  error?: string;
+}
+
+export interface PackBuilderSummary {
+  downloadBytes: number;
+  newStoredBytes: number;
+  freeBytes: number | null;
+  fit: 'fits' | 'tight' | 'no' | 'unknown';
+  shortfallBytes: number;
+}
+
+export type PackBuilderRunState = 'idle' | 'running' | 'done' | 'partial' | 'failed' | 'cancelled';
+
+export interface PackBuilderRun {
+  state: PackBuilderRunState;
+  done: number;
+  total: number;
+  loadedBytes: number;
+  totalBytes: number;
+}
+
+export interface PackBuilderLabels {
+  title: string;
+  presetsHeading: string;
+  groupsHeading: string;
+  empty: string;
+  statusAbsent: string;
+  statusInstalled: string;
+  statusUpdate: string;
+  statusInstalling: string;
+  statusError: string;
+  start: string;
+  cancel: string;
+  /** `{size}` is replaced. */
+  summaryDownload: string;
+  /** `{size}` is replaced. */
+  summaryStored: string;
+  /** `{size}` is replaced. */
+  summaryFree: string;
+  summaryFreeUnknown: string;
+  fitFits: string;
+  fitTight: string;
+  /** `{size}` (the shortfall) is replaced. */
+  fitNo: string;
+  fitUnknown: string;
+  /** Accessible name of the storage bar. */
+  storageBarLabel: string;
+  /** Accessible name of the overall progress bar. */
+  runProgressLabel: string;
+  /** `{done}` and `{total}` are replaced. */
+  runCount: string;
+  /** `{loaded}` and `{total}` are replaced. */
+  runBytes: string;
+  runRunning: string;
+  runDone: string;
+  runPartial: string;
+  runFailed: string;
+  runCancelled: string;
+  /** Row button shown when `onRemove` is given. Default 'Remove'. */
+  remove?: string;
+  /** Tooltip of the checkbox of an installed row when `onRemove` is given ("selecting keeps it on this device"). */
+  keepHint?: string;
+}
+
+export interface PackBuilderProps {
+  groups: { id: string; label: string }[];
+  rows: readonly PackBuilderRow[];
+  presets: { id: string; label: string }[];
+  onPreset: (id: string) => void;
+  onToggle: (key: string, selected: boolean) => void;
+  /**
+   * When given, installed / update-available rows (not installing) get a Remove button, and installed rows
+   * become selectable (selecting one keeps it on this device) instead of a fixed checked box.
+   */
+  onRemove?: (key: string) => void;
+  /** Level of the title element (default 3). */
+  headingLevel?: 2 | 3 | 4;
+  /** Already localized text shown directly under the title. */
+  notice?: string;
+  summary: PackBuilderSummary;
+  warnings: string[];
+  run?: PackBuilderRun;
+  onStart: () => void;
+  onCancel: () => void;
+  labels: PackBuilderLabels;
+  formatBytes: (n: number) => string;
+}
+
+function percentOf(loaded: number, total: number): number | undefined {
+  if (!(total > 0)) return undefined;
+  return Math.max(0, Math.min(100, Math.floor((loaded / total) * 100)));
+}
+
+// Literal class names per state (the CSS coverage test reads class names from source, so no template classes).
+const BAR_TONE_CLASS: Record<string, string> = {
+  fits: 'kth-pack-bar kth-pack-bar--fits',
+  tight: 'kth-pack-bar kth-pack-bar--tight',
+  no: 'kth-pack-bar kth-pack-bar--no',
+  unknown: 'kth-pack-bar',
+};
+const BADGE_CLASS: Record<string, string> = {
+  absent: 'kth-pack-badge',
+  installed: 'kth-pack-badge kth-pack-badge--installed',
+  'update-available': 'kth-pack-badge kth-pack-badge--update-available',
+  installing: 'kth-pack-badge kth-pack-badge--installing',
+  error: 'kth-pack-badge kth-pack-badge--error',
+};
+const FIT_CLASS: Record<string, string> = {
+  fits: 'kth-pack-summary__fit kth-pack-summary__fit--fits',
+  tight: 'kth-pack-summary__fit kth-pack-summary__fit--tight',
+  no: 'kth-pack-summary__fit kth-pack-summary__fit--no',
+  unknown: 'kth-pack-summary__fit kth-pack-summary__fit--unknown',
+};
+const RESULT_CLASS: Record<string, string> = {
+  done: 'kth-pack-run__result kth-pack-run__result--done',
+  partial: 'kth-pack-run__result kth-pack-run__result--partial',
+  failed: 'kth-pack-run__result kth-pack-run__result--failed',
+  cancelled: 'kth-pack-run__result kth-pack-run__result--cancelled',
+};
+
+function fill(text: string, values: Record<string, string>): string {
+  return text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? (values[k] as string) : m));
+}
+
+function Bar({ label, percent, tone }: { label: string; percent: number | undefined; tone?: string }) {
+  const cls = (tone && BAR_TONE_CLASS[tone]) || 'kth-pack-bar';
+  if (percent === undefined) {
+    return <div className={`${cls} kth-pack-bar--indeterminate`} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} />;
+  }
+  return (
+    <div className={cls} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+      <div className="kth-pack-bar__fill" style={{ inlineSize: `${percent}%` }} />
+    </div>
+  );
+}
+
+export function PackBuilder({
+  groups,
+  rows,
+  presets,
+  onPreset,
+  onToggle,
+  onRemove,
+  headingLevel = 3,
+  notice,
+  summary,
+  warnings,
+  run,
+  onStart,
+  onCancel,
+  labels: l,
+  formatBytes,
+}: PackBuilderProps) {
+  const Heading = `h${headingLevel}` as 'h3';
+  const running = run?.state === 'running';
+  const anySelected = rows.some((r) => r.selected && !r.disabled);
+  const startDisabled = running || summary.fit === 'no' || !anySelected;
+
+  const statusText: Record<PackBuilderStatus, string> = {
+    absent: l.statusAbsent,
+    installed: l.statusInstalled,
+    'update-available': l.statusUpdate,
+    installing: l.statusInstalling,
+    error: l.statusError,
+  };
+
+  const fitText =
+    summary.fit === 'fits'
+      ? l.fitFits
+      : summary.fit === 'tight'
+        ? l.fitTight
+        : summary.fit === 'no'
+          ? fill(l.fitNo, { size: formatBytes(summary.shortfallBytes) })
+          : l.fitUnknown;
+
+  const free = summary.freeBytes;
+  const storagePct = free !== null && free > 0 ? Math.min(100, Math.floor((summary.newStoredBytes / free) * 100)) : free === 0 ? 100 : undefined;
+
+  const runResult =
+    run?.state === 'done'
+      ? l.runDone
+      : run?.state === 'partial'
+        ? l.runPartial
+        : run?.state === 'failed'
+          ? l.runFailed
+          : run?.state === 'cancelled'
+            ? l.runCancelled
+            : '';
+
+  const visibleGroups = groups.filter((g) => rows.some((r) => r.group === g.id));
+
+  return (
+    <section className="kth-pack-builder" aria-label={l.title}>
+      <Heading className="kth-pack-builder__title">{l.title}</Heading>
+      {notice ? <p className="kth-pack-builder__notice">{notice}</p> : null}
+
+      {presets.length > 0 ? (
+        <div className="kth-pack-builder__presets" role="group" aria-label={l.presetsHeading}>
+          <span className="kth-pack-builder__heading">{l.presetsHeading}</span>
+          {presets.map((p) => (
+            <button key={p.id} type="button" className="kth-pack-chip" disabled={running} onClick={() => onPreset(p.id)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {visibleGroups.length === 0 ? <p className="kth-pack-builder__empty">{l.empty}</p> : null}
+
+      {visibleGroups.map((g) => (
+        <fieldset key={g.id} className="kth-pack-group">
+          <legend className="kth-pack-group__label">{g.label}</legend>
+          <ul className="kth-pack-list">
+            {rows
+              .filter((r) => r.group === g.id)
+              .map((r) => {
+                const inputId = `pack-check-${r.key}`;
+                const installed = r.status === 'installed';
+                const keepFlow = !!onRemove;
+                const removable = keepFlow && (r.status === 'installed' || r.status === 'update-available');
+                const pct = r.progress ? percentOf(r.progress.loaded, r.progress.total) : undefined;
+                return (
+                  <li key={r.key} className="kth-pack-row">
+                    <input
+                      id={inputId}
+                      type="checkbox"
+                      className="kth-pack-row__check"
+                      checked={keepFlow ? r.selected : r.selected || (installed && !r.disabled)}
+                      disabled={r.disabled || running || (!keepFlow && installed && !r.selected)}
+                      title={keepFlow && installed ? l.keepHint : undefined}
+                      onChange={(e) => onToggle(r.key, e.currentTarget.checked)}
+                    />
+                    <label htmlFor={inputId} className="kth-pack-row__info">
+                      <span className="kth-pack-row__title">{r.title}</span>
+                      {r.detail ? <span className="kth-pack-row__detail">{r.detail}</span> : null}
+                    </label>
+                    <span className="kth-pack-row__size">{formatBytes(r.sizeBytes)}</span>
+                    <span className={BADGE_CLASS[r.status] ?? 'kth-pack-badge'}>{statusText[r.status]}</span>
+                    {removable ? (
+                      <button type="button" className="kth-pack-row__remove" disabled={running} onClick={() => onRemove?.(r.key)}>
+                        {l.remove ?? 'Remove'}
+                      </button>
+                    ) : null}
+                    {r.disabled && r.disabledReason ? <span className="kth-pack-row__reason">{r.disabledReason}</span> : null}
+                    {r.status === 'installing' ? <Bar label={r.title} percent={pct} /> : null}
+                    {r.error ? <span className="kth-pack-row__error">{r.error}</span> : null}
+                  </li>
+                );
+              })}
+          </ul>
+        </fieldset>
+      ))}
+
+      <div className="kth-pack-summary">
+        <span className="kth-pack-summary__item">{fill(l.summaryDownload, { size: formatBytes(summary.downloadBytes) })}</span>
+        <span className="kth-pack-summary__item">{fill(l.summaryStored, { size: formatBytes(summary.newStoredBytes) })}</span>
+        <span className="kth-pack-summary__item">
+          {free === null ? l.summaryFreeUnknown : fill(l.summaryFree, { size: formatBytes(free) })}
+        </span>
+        {storagePct !== undefined ? (
+          <div
+            className={BAR_TONE_CLASS[summary.fit] ?? 'kth-pack-bar'}
+            role="progressbar"
+            aria-label={l.storageBarLabel}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={storagePct}
+          >
+            <div className="kth-pack-bar__fill" style={{ inlineSize: `${storagePct}%` }} />
+          </div>
+        ) : null}
+        <span className={FIT_CLASS[summary.fit] ?? 'kth-pack-summary__fit'}>{fitText}</span>
+      </div>
+
+      {warnings.length > 0 ? (
+        <ul className="kth-pack-warnings" role="status">
+          {warnings.map((w, i) => (
+            <li key={i} className="kth-pack-warnings__item">
+              {w}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="kth-pack-actions">
+        <button type="button" className="kth-btn kth-btn--primary" disabled={startDisabled} onClick={onStart}>
+          {l.start}
+        </button>
+        {running ? (
+          <button type="button" className="kth-btn" onClick={onCancel}>
+            {l.cancel}
+          </button>
+        ) : null}
+      </div>
+
+      {run && run.state !== 'idle' ? (
+        <div className="kth-pack-run" role="status" aria-live="polite">
+          {running ? (
+            <>
+              <span className="kth-pack-run__text">{l.runRunning}</span>
+              <Bar label={l.runProgressLabel} percent={percentOf(run.loadedBytes, run.totalBytes) ?? percentOf(run.done, run.total)} />
+              <span className="kth-pack-run__count">{fill(l.runCount, { done: String(run.done), total: String(run.total) })}</span>
+              <span className="kth-pack-run__bytes">
+                {fill(l.runBytes, { loaded: formatBytes(run.loadedBytes), total: formatBytes(run.totalBytes) })}
+              </span>
+            </>
+          ) : (
+            <span className={RESULT_CLASS[run.state] ?? 'kth-pack-run__result'}>{runResult}</span>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}

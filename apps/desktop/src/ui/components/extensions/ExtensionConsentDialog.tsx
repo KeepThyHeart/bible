@@ -66,6 +66,7 @@ const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> 
   'commands:register': 'extensionConsent.permission.commandsRegister',
   'commands:execute-builtin': 'extensionConsent.permission.commandsExecuteBuiltin',
   tasks: 'extensionConsent.permission.tasks',
+  'notifications:schedule': 'extensionConsent.permission.notificationsSchedule',
   'extensions:call': 'extensionConsent.permission.extensionsCall',
 };
 

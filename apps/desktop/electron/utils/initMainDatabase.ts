@@ -20,7 +20,7 @@ import path from 'path';
  */
 const MODULE_TYPE_CHECK_VALUES = [
   'bible', 'commentary', 'dictionary', 'book', 'devotional', 'lexicon',
-  'topical_index', 'cross_reference', 'tag_graph', 'timeline'
+  'topical_index', 'cross_reference', 'tag_graph', 'timeline', 'quiz'
 ];
 
 /**

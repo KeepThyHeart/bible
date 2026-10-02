@@ -1,6 +1,20 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
-import type { TimelineDataset } from '@bible/core/browser';
+import type {
+  TimelineDataset,
+  QuizCatalog,
+  QuizPassage,
+  QuizFilter,
+  QuizQuestion,
+  QuizItemStat,
+  QuizAttempt,
+  QuizSessionSummary,
+  NotificationSettings,
+  NotificationDeviceSettings,
+  NotificationsViewState,
+  ReminderPermission,
+  ReminderTarget,
+} from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -41,6 +55,13 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+
+/** Unwrap a `Result<T>` envelope: resolve to the value, reject with the error message. */
+async function unwrapResult<T>(pending: Promise<Result<T>>): Promise<T> {
+  const r = await pending;
+  if (r.ok) return r.value;
+  throw new Error(r.error.message);
+}
 import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
 import type {
@@ -51,6 +72,9 @@ import type {
 // Type-only, so nothing from the main-process service or @bible/core is pulled
 // into the preload bundle - the imports are erased at compile time.
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
+import type { AssetListSnapshot } from '@bible/core/browser';
+import type { SimilarOptions, MatchReason } from '@bible/core/browser';
+import type { SimilarFindResponse, SimilarStatus } from './ipc/similarTypes';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -205,6 +229,16 @@ export interface ElectronAPI {
     getDataset: () => Promise<Result<TimelineDataset | null>>;
   };
 
+  // Quiz (task 0074): questions from every installed quiz module; progress in the user database.
+  quiz: {
+    getCatalog: () => Promise<Result<QuizCatalog>>;
+    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => Promise<Result<QuizQuestion[]>>;
+    getStats: (keys: string[]) => Promise<Result<Record<string, QuizItemStat>>>;
+    recordAttempt: (attempt: QuizAttempt) => Promise<Result<void>>;
+    recordSession: (summary: QuizSessionSummary) => Promise<Result<void>>;
+    listSessions: (limit?: number) => Promise<Result<QuizSessionSummary[]>>;
+  };
+
   // Cross-reference methods. Replies use the `Result<T>` envelope;
   // callers should unwrap via `src/ui/services/ipcResult.ts#unwrap`.
   crossReference: {
@@ -225,6 +259,14 @@ export interface ElectronAPI {
     getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
     getBookMatrix: () => Promise<Result<number[][]>>;
     getChapterArcs: () => Promise<Result<any>>;
+  };
+
+  // Similar passages (task 0070). Payload types: `ipc/similarTypes.ts`.
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) => Promise<Result<SimilarFindResponse>>;
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) => Promise<Result<MatchReason[]>>;
+    status: () => Promise<Result<SimilarStatus>>;
+    reset: () => Promise<Result<true>>;
   };
 
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
@@ -492,6 +534,16 @@ export interface ElectronAPI {
     setRepositoryEnabled: (repositoryId: number, enabled: boolean) => Promise<Result<void>>;
   };
 
+  // Asset store (task 0090). The renderer sends ids only; `install` returns once the download
+  // has been queued and the renderer polls `list` while `active > 0`.
+  assets: {
+    list: () => Promise<Result<AssetListSnapshot>>;
+    install: (id: string) => Promise<Result<{ started: true }>>;
+    cancel: (id: string) => Promise<Result<{ cancelled: boolean }>>;
+    remove: (id: string) => Promise<Result<{ removed: boolean }>>;
+    refresh: () => Promise<Result<AssetListSnapshot>>;
+  };
+
   // Optional feature packs (semantic search). A pack is a downloadable
   // *capability*, not study content, so it has its own bridge rather than
   // living under `moduleManager`. Install is asynchronous: `install` returns as
@@ -517,6 +569,20 @@ export interface ElectronAPI {
     on: (channel: string, handler: (payload: unknown) => void) => () => void;
     send: (channel: string, payload: unknown) => void;
     invoke: <T = unknown>(channel: string, payload: unknown) => Promise<T>;
+  };
+
+  // Notifications and reminders (task 0083). The invoke methods unwrap the
+  // `Result<T>` envelope (resolve to the value, reject on failure).
+  notifications: {
+    getState(): Promise<NotificationsViewState>;
+    setSettings(settings: NotificationSettings): Promise<NotificationsViewState>;
+    setDevice(patch: Partial<NotificationDeviceSettings>): Promise<NotificationsViewState>;
+    sendTest(): Promise<void>;
+    requestPermission(): Promise<ReminderPermission>;
+    /** A click-through that arrived before the renderer subscribed (null when none). */
+    takeOpenTarget(): Promise<ReminderTarget | null>;
+    onStateChanged(cb: (state: NotificationsViewState) => void): () => void;
+    onOpenTarget(cb: (target: ReminderTarget) => void): () => void;
   };
 
   // Diagnostics & issue reporting
@@ -814,6 +880,15 @@ const electronAPI: ElectronAPI = {
     getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
   },
 
+  quiz: {
+    getCatalog: () => ipcRenderer.invoke('quiz:getCatalog'),
+    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => ipcRenderer.invoke('quiz:getQuestions', passages, filter),
+    getStats: (keys: string[]) => ipcRenderer.invoke('quiz:getStats', keys),
+    recordAttempt: (attempt: QuizAttempt) => ipcRenderer.invoke('quiz:recordAttempt', attempt),
+    recordSession: (summary: QuizSessionSummary) => ipcRenderer.invoke('quiz:recordSession', summary),
+    listSessions: (limit?: number) => ipcRenderer.invoke('quiz:listSessions', limit),
+  },
+
   crossReference: {
     getAvailable: () => ipcRenderer.invoke('xref:getAvailable'),
     getGroupsForVerse: (abbreviation: string, verseId: number) =>
@@ -834,6 +909,15 @@ const electronAPI: ElectronAPI = {
     getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
     getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
     getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
+  },
+
+  similar: {
+    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) =>
+      typedInvoke('similar:find', range, opts, module),
+    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) =>
+      typedInvoke('similar:explain', a, b, module),
+    status: () => typedInvoke('similar:status'),
+    reset: () => typedInvoke('similar:reset'),
   },
 
   search: {
@@ -1120,6 +1204,14 @@ const electronAPI: ElectronAPI = {
 
   },
 
+  assets: {
+    list: () => typedInvoke('assets:list'),
+    install: (id: string) => typedInvoke('assets:install', id),
+    cancel: (id: string) => typedInvoke('assets:cancel', id),
+    remove: (id: string) => typedInvoke('assets:remove', id),
+    refresh: () => typedInvoke('assets:refresh'),
+  },
+
   featurePacks: {
     listAvailable: () => typedInvoke('featurePack:list-available'),
     getStatus: () => typedInvoke('featurePack:get-status'),
@@ -1149,6 +1241,31 @@ const electronAPI: ElectronAPI = {
     },
     invoke: (channel: string, payload: unknown) => {
       return ipcRenderer.invoke(channel, payload);
+    },
+  },
+
+  notifications: {
+    getState: () => unwrapResult<NotificationsViewState>(typedInvoke('notifications:get-state')),
+    setSettings: (settings: NotificationSettings) =>
+      unwrapResult<NotificationsViewState>(typedInvoke('notifications:set-settings', settings)),
+    setDevice: (patch: Partial<NotificationDeviceSettings>) =>
+      unwrapResult<NotificationsViewState>(typedInvoke('notifications:set-device', patch)),
+    sendTest: () => unwrapResult<void>(typedInvoke('notifications:send-test')),
+    requestPermission: () => unwrapResult<ReminderPermission>(typedInvoke('notifications:request-permission')),
+    takeOpenTarget: () => unwrapResult<ReminderTarget | null>(typedInvoke('notifications:take-open-target')),
+    onStateChanged: (cb: (state: NotificationsViewState) => void) => {
+      const wrapped = (_event: unknown, state: NotificationsViewState): void => cb(state);
+      ipcRenderer.on('notifications:state-changed', wrapped);
+      return () => {
+        ipcRenderer.removeListener('notifications:state-changed', wrapped);
+      };
+    },
+    onOpenTarget: (cb: (target: ReminderTarget) => void) => {
+      const wrapped = (_event: unknown, target: ReminderTarget): void => cb(target);
+      ipcRenderer.on('notifications:open-target', wrapped);
+      return () => {
+        ipcRenderer.removeListener('notifications:open-target', wrapped);
+      };
     },
   },
 

@@ -273,6 +273,19 @@ export * as Crypto from './Crypto';
 // planner. Namespaced because the names are generic.
 export * as Backup from './Backup';
 
+// --- Shared text tools (task 0089) ------------------------------------------------
+// Tokenising, normalising, stemming, stop words, word/phrase matching. KeywordMarks
+// re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
+// left out of this list to avoid duplicate `export *` names.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // --- Keyword marks (task 0065) --------------------------------------------------
 // The matcher, connective lexicon, decoration-layer adapter, suggestions, JSON
 // validation and the set service. Pure TypeScript; both apps wrap it in a UI.
@@ -284,6 +297,9 @@ export * from './Genealogy';
 
 // --- Timeline (pure model, scale, layout and store; no DOM, no database) -------
 export * from './Timeline';
+
+// --- Quiz (types, pure engine, grading, progress stores; no DOM, no database) ---
+export * from './Quiz';
 
 // --- Cross-reference graph (task 0068) -----------------------------------------
 // Types, the edge-weight formula, canon geometry, chapter-pair packing and the
@@ -312,3 +328,35 @@ export * from './audio';
 // --- Speech recognition and recitation (task 0071) ---------------------------
 export * as Speech from './speech';
 export * as Recite from './recite';
+
+// --- Reading plans (task 0073) --------------------------------------------------
+// Plan engine (builder, scheduler, stock library, store over user_data_item, service).
+// Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
+export * as ReadingPlans from './ReadingPlans';
+
+// --- Notifications and reminders engine (task 0083) -------------------------------
+// Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,
+// missed-run collapse, the settings document and the scheduler both apps run.
+// Pure TypeScript; apps supply timer, presenter and state ports.
+export * from './Reminders';
+
+// --- Weights, measures and money (task 0069) -------------------------------------
+// Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
+// converter, anchor resolver, decoration layer and popup view model. Pure.
+export * from './Measures';
+
+// --- Asset store (task 0090) -------------------------------------------------
+// Download/cache manager for large optional assets: manifest, ports (transport,
+// store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
+export * from './assets';
+
+// --- Offline packs (task 0075) -----------------------------------------------
+// Pack types, planner (dependencies, sizes, fit), presets from starter packs and
+// the pack runner over per-kind installers. Pure TypeScript.
+export * from './offline';
+
+// --- Similar passages (task 0070) --------------------------------------------
+// Types, ranking weights/policy, match explanations, the SNB1 neighbour table
+// reader and the service that picks table or live source. Pure TypeScript; the
+// Node-only vector source is on the main entry.
+export * from './Services/Similar';

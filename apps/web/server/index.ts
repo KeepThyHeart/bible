@@ -11,8 +11,10 @@ import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
 import { createAudioRouter } from './routes/audioRoutes.js';
+import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
+import './routes/offlineRoutes.js';
 import './routes/bibleRoutes.js';
 import './routes/commentaryRoutes.js';
 import './routes/interlinearRoutes.js';
@@ -23,6 +25,7 @@ import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
 import './routes/timelineRoutes.js';
+import './routes/quizRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
@@ -384,6 +387,9 @@ const routeDeps = {
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
+    showQuiz: siteConfig.isEnabled('quiz'),
+    // /api/offline (pack builder manifest and files): on with either offline feature flag.
+    offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
     hooks: pluginManager.hooks,
@@ -415,6 +421,14 @@ if (siteConfig.audio.enabled) {
   app.use('/audio', createAudioRouter(siteConfig.audio.dir));
   logger.info(`Audio Bible enabled; serving ${siteConfig.audio.dir} at /audio`);
 }
+
+/**
+ * Downloadable assets (speech models, data files) at `/assets/v1`. Same position as
+ * `/audio`: after the password gate, outside `/api`. Always mounted (an empty directory
+ * just 404s). Only `/assets/v1/...` is claimed; other `/assets/*` paths are the client
+ * build's hashed bundles and fall through to the static handler below.
+ */
+app.use('/assets', createAssetRouter(siteConfig.assets.dir));
 
 /**
  * Serve the browser-side search assets -- and nothing else in the data directory.
@@ -587,7 +601,7 @@ if (existsSync(clientDir)) {
     // must 404 loudly instead of silently receiving index.html. Serving HTML where
     // JSON is expected is how a routing/auth bug masquerades as "working" while the
     // client chokes on JSON.parse(<!DOCTYPE html>...).
-    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/');
+    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/') || req.path.startsWith('/assets/v1/');
     const wantsHtml = req.accepts(['html', 'json']) === 'html';
     if (isApiOrData || !wantsHtml) {
       res.status(404).json({ error: 'Not found', path: req.path });
