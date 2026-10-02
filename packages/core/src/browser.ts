@@ -325,6 +325,10 @@ export * from './Settings';
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
 
+// --- Speech recognition and recitation (task 0071) ---------------------------
+export * as Speech from './speech';
+export * as Recite from './recite';
+
 // --- Reading plans (task 0073) --------------------------------------------------
 // Plan engine (builder, scheduler, stock library, store over user_data_item, service).
 // Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.

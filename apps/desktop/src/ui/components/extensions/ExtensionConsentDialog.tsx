@@ -44,6 +44,8 @@ const PERMISSION_DESCRIPTION_KEYS: Partial<Record<ExtensionPermission, string>> 
   'bookmarks:write': 'extensionConsent.permission.bookmarksWrite',
   network: 'extensionConsent.permission.network',
   'network:oauth': 'extensionConsent.permission.networkOauth',
+  'speech:listen': 'extensionConsent.permission.speechListen',
+  'speech:speak': 'extensionConsent.permission.speechSpeak',
   storage: 'extensionConsent.permission.storage',
   'storage:secrets': 'extensionConsent.permission.storageSecrets',
   'storage:database': 'extensionConsent.permission.storageDatabase',

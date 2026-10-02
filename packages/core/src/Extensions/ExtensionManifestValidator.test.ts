@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateManifest } from './ExtensionManifestValidator';
+import { SEPARATELY_PROMPTED_PERMISSIONS } from './Permissions';
 import type { ExtensionManifest } from './ExtensionManifest';
 
 // A trimmed-but-realistic manifest used as the baseline for happy-path tests.
@@ -137,6 +138,14 @@ describe('validateManifest - schema-level failures', () => {
     const r = validateManifest(m);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.some((e) => e.code === 'additionalProperty')).toBe(true);
+  });
+
+  it('accepts the speech permissions, and listen is separately prompted', () => {
+    const m = baseManifest();
+    (m as { permissions: string[] }).permissions = ['bible:read', 'speech:listen', 'speech:speak'];
+    expect(validateManifest(m).ok).toBe(true);
+    expect(SEPARATELY_PROMPTED_PERMISSIONS).toContain('speech:listen');
+    expect(SEPARATELY_PROMPTED_PERMISSIONS).not.toContain('speech:speak');
   });
 
   it('rejects an unknown permission', () => {

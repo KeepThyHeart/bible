@@ -41,6 +41,7 @@ import {
   UiApiImpl,
   WorkspaceApiImpl,
 } from './api-impl';
+import { SpeechApiImpl } from './api-impl/speechApiImpl';
 import type { ExtensionRpcRouter } from './ExtensionRpcRouter';
 import { buildGrant } from './ExtensionPermissionGuard';
 import type { ActiveWorker, ExtensionHostContext } from './ExtensionHostTypes';
@@ -236,6 +237,11 @@ export function attachApiImpls(
       }
     }
   }
+
+  // Speech. A stub in this build: `speech.status` is ungated and reports
+  // `unavailable`; the rest check their permission, then reject. Registered
+  // unconditionally so the generic proxy never answers `Unknown RPC method`.
+  new SpeechApiImpl({ extensionId, router, grant }).attach();
 
   // Background tasks. Gated on the `tasks` permission so
   // an extension that doesn't ask for it never sees the namespace.

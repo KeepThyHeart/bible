@@ -2018,6 +2018,8 @@
   "extensionConsent.permission.fsReadUser": "Leer archivos que usted seleccione con el selector de archivos del sistema.",
   "extensionConsent.permission.fsWriteUser": "Escribir en archivos que usted seleccione con el selector de archivos del sistema.",
   "extensionConsent.permission.fsManagedFolder": "Leer y escribir archivos en una carpeta que usted elija para ella.",
+  "extensionConsent.permission.speechListen": "Escuchar su micrófono mientras recita. El audio permanece en este dispositivo.",
+  "extensionConsent.permission.speechSpeak": "Leer texto en voz alta y reproducir sonidos breves.",
   "extensionConsent.permission.bibleProvide": "Proporcionar texto bíblico a la aplicación desde su propia fuente.",
   "extensionConsent.permission.commentaryProvide": "Proporcionar entradas de comentario a la aplicación.",
   "extensionConsent.permission.dictionaryProvide": "Proporcionar entradas de diccionario y léxico a la aplicación.",

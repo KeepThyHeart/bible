@@ -25,6 +25,7 @@
 
 import { Reminders, type Extensions } from '@bible/core';
 
+import { Speech } from '@bible/core';
 import { CHAPTERS_JOHN } from './fixtures';
 
 type BibleExtensionAPI = Extensions.BibleExtensionAPI;
@@ -531,6 +532,21 @@ function createMockEventsApi(): Extensions.IEventsApi {
   };
 }
 
+/**
+ * A `FakeSpeechApi` for tests. The default (what `createMockApi` installs) reports speech
+ * as unavailable and nothing granted; pass options to script utterances or grant access.
+ */
+export const FakeSpeechApi = Speech.FakeSpeechApi;
+export type FakeSpeechApi = Speech.FakeSpeechApi;
+
+export function createFakeSpeechApi(opts: Speech.FakeSpeechApiOptions = {}): Speech.FakeSpeechApi {
+  return new Speech.FakeSpeechApi({
+    granted: { listen: false, speak: false },
+    ...opts,
+    status: { listen: 'unavailable', speak: 'unavailable', ...opts.status },
+  });
+}
+
 function createMockNetworkApi(): Extensions.INetworkApi {
   return {
     fetch: asyncMock({
@@ -917,6 +933,7 @@ export function createMockApi(overrides?: MockApiOverrides): BibleExtensionAPI {
     extensions: createMockExtensionsApi(),
     reminders: reminders.api,
     ai: createMockAiApi(),
+    speech: createFakeSpeechApi(),
   };
 
   if (overrides) {

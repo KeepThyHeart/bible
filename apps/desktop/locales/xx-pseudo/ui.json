@@ -2018,6 +2018,8 @@
   "extensionConsent.permission.fsReadUser": "⟦Ŕéåð ƒîļéš ýøü šéļéçţ ŵîţĥ ţĥé šýšţéɱ ƒîļé þîçķéŕ. ···············⟧",
   "extensionConsent.permission.fsWriteUser": "⟦Ŵŕîţé ƒîļéš ýøü šéļéçţ ŵîţĥ ţĥé šýšţéɱ ƒîļé þîçķéŕ. ···············⟧",
   "extensionConsent.permission.fsManagedFolder": "⟦Ŕéåð åñð ŵŕîţé ƒîļéš îñ å ƒøļðéŕ ýøü çĥøøšé ƒøŕ îţ. ···············⟧",
+  "extensionConsent.permission.speechListen": "⟦Ļîšţéñ ţø ýøüŕ ɱîçŕøþĥøñé ŵĥîļé ýøü ŕéçîţé. Åüðîø šţåýš øñ ţĥîš ðéṽîçé. ·······················⟧",
+  "extensionConsent.permission.speechSpeak": "⟦Šþéåķ ţéẋţ åļøüð åñð þļåý šĥøŕţ šøüñðš. ·············⟧",
   "extensionConsent.permission.bibleProvide": "⟦Šüþþļý Ɓîƀļé ţéẋţ ţø ţĥé åþþ ƒŕøɱ îţš øŵñ šøüŕçé. ··············⟧",
   "extensionConsent.permission.commentaryProvide": "⟦Šüþþļý çøɱɱéñţåŕý éñţŕîéš ţø ţĥé åþþ. ···········⟧",
   "extensionConsent.permission.dictionaryProvide": "⟦Šüþþļý ðîçţîøñåŕý åñð ļéẋîçøñ éñţŕîéš ţø ţĥé åþþ. ··············⟧",

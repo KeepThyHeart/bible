@@ -1998,6 +1998,8 @@
   "extensionConsent.permission.fsReadUser": "सिस्टम फ़ाइल पिकर से आपकी चुनी फ़ाइलें पढ़ना।",
   "extensionConsent.permission.fsWriteUser": "सिस्टम फ़ाइल पिकर से आपकी चुनी फ़ाइलों में लिखना।",
   "extensionConsent.permission.fsManagedFolder": "आपके इसके लिए चुने फ़ोल्डर में फ़ाइलें पढ़ना और लिखना।",
+  "extensionConsent.permission.speechListen": "आपके पाठ करते समय माइक्रोफ़ोन सुनना। ऑडियो इसी डिवाइस पर रहता है।",
+  "extensionConsent.permission.speechSpeak": "पाठ को ज़ोर से बोलना और छोटी ध्वनियाँ बजाना।",
   "extensionConsent.permission.bibleProvide": "अपने स्रोत से ऐप को बाइबल पाठ उपलब्ध कराना।",
   "extensionConsent.permission.commentaryProvide": "ऐप को टीका प्रविष्टियाँ उपलब्ध कराना।",
   "extensionConsent.permission.dictionaryProvide": "ऐप को शब्दकोश और कोश प्रविष्टियाँ उपलब्ध कराना।",

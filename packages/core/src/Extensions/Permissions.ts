@@ -89,6 +89,13 @@ export const PERM_NOTIFICATIONS_SCHEDULE = 'notifications:schedule' as const;
 export const PERM_NETWORK = 'network' as const;
 export const PERM_NETWORK_OAUTH = 'network:oauth' as const;
 
+/**
+ * Speech. `speech:listen` opens the microphone (transcripts only, never audio)
+ * and is separately prompted; `speech:speak` plays synthesized speech and earcons.
+ */
+export const PERM_SPEECH_LISTEN = 'speech:listen' as const;
+export const PERM_SPEECH_SPEAK = 'speech:speak' as const;
+
 /** Inter-extension */
 export const PERM_EXTENSIONS_CALL = 'extensions:call' as const;
 
@@ -133,6 +140,8 @@ export type ExtensionPermission =
   | typeof PERM_NOTIFICATIONS_SCHEDULE
   | typeof PERM_NETWORK
   | typeof PERM_NETWORK_OAUTH
+  | typeof PERM_SPEECH_LISTEN
+  | typeof PERM_SPEECH_SPEAK
   | typeof PERM_EXTENSIONS_CALL
   | typeof PERM_FS_READ_USER
   | typeof PERM_FS_WRITE_USER
@@ -151,7 +160,7 @@ export const DEFAULT_GRANTED_PERMISSIONS: readonly ExtensionPermission[] = [
 /**
  * Permissions that show a SEPARATE detail dialog at install time, in addition
  * to the omnibus consent. These touch sensitive subsystems (network, OS
- * keychain, persistent on-disk databases) and the user deserves a focused
+ * keychain, persistent on-disk databases, the microphone) and the user deserves a focused
  * decision rather than a buried checkbox.
  */
 export const SEPARATELY_PROMPTED_PERMISSIONS: readonly ExtensionPermission[] = [
@@ -160,6 +169,7 @@ export const SEPARATELY_PROMPTED_PERMISSIONS: readonly ExtensionPermission[] = [
   PERM_STORAGE_SECRETS,
   PERM_STORAGE_DATABASE,
   PERM_FS_MANAGED_FOLDER,
+  PERM_SPEECH_LISTEN,
 ] as const;
 
 // --- `order` hint constants ------------------------------------------------

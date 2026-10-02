@@ -2018,6 +2018,8 @@
   "extensionConsent.permission.fsReadUser": "读取您通过系统文件选择器选中的文件。",
   "extensionConsent.permission.fsWriteUser": "写入您通过系统文件选择器选中的文件。",
   "extensionConsent.permission.fsManagedFolder": "读写您为其指定的文件夹中的文件。",
+  "extensionConsent.permission.speechListen": "在您背诵时收听麦克风。音频保留在此设备上。",
+  "extensionConsent.permission.speechSpeak": "朗读文本并播放简短的提示音。",
   "extensionConsent.permission.bibleProvide": "从其自身来源向应用程序提供圣经文本。",
   "extensionConsent.permission.commentaryProvide": "向应用程序提供注释条目。",
   "extensionConsent.permission.dictionaryProvide": "向应用程序提供词典和辞典条目。",
