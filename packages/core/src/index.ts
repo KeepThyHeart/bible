@@ -88,7 +88,7 @@ export * from './Services/WordFamilyService';
 export * from './Services/WordStudyService';
 export * from './Services/WordGroupStore';
 export * from './WordStudy';
-// WordStudy and KeywordMarks (via Text) both export the same primaryLanguage; naming it settles the ambiguity.
+// primaryLanguage lives in Text (KeywordMarks re-exports it too); named here so it is exported explicitly.
 export { primaryLanguage } from './Text';
 export * from './Services/VerseFormatter';
 export * from './Services/ModuleLoader';
