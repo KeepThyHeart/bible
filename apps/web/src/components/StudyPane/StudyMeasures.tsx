@@ -50,7 +50,7 @@ export function StudyMeasures({ verseId, onOpenSettings, variant = 'section', co
             labels={labels}
             compact={compact}
             dir={dir}
-            onOpenSettings={i === models.length - 1 ? openSettings : undefined}
+            onOpenSettings={i === 0 ? openSettings : undefined}
           />
         </div>
       ))}

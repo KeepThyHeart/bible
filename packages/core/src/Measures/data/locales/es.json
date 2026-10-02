@@ -238,6 +238,10 @@
     "modernWage": "≈ {amount} con un salario de {wage} al día",
     "relation": "1 {unit} = {list}",
     "per.day": "al día",
+    "per.week": "a la semana",
+    "per.month": "al mes",
+    "per.year": "al año",
+    "pluralNote": "{name} (pl. {plural})",
     "inline": "[{value}]",
     "inlineApprox": "[aprox. {value}]"
   },

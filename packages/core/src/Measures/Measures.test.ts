@@ -49,12 +49,12 @@ describe('anchors', () => {
   });
 
   it('anchors two different units in one verse', () => {
-    const v = { verseId: 1002001, words: words('it was six cubits and a span') };
+    const v = { verseId: 1002001, words: words('it was six cubits and a span and one span') };
     const res = resolveMeasureAnchors(
       [occ('1002001.1', [{ unit: 'cubit', quantity: { value: 6 } }, { unit: 'span' }]),
        occ('1002001.2', [{ unit: 'span' }])], v, ctx());
     expect(tok(res[0]).start).toBe(3);
-    expect(tok(res[1]).start).toBe(6);
+    expect(tok(res[1]).start).toBe(9); // the compound's own span is not claimed twice
   });
 
   it('matches multi-word terms, longest first', () => {

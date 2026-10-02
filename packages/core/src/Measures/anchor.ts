@@ -92,7 +92,7 @@ function termLengthAt(tokens: string[], at: number, terms: string[][]): number {
  * phrase does not run past the unit word, or the following words do not match the occurrence's parts.
  */
 function findPhraseEnd(
-  occ: MeasureOccurrence, end: number, tokens: string[], ctx: AnchorContext, numberWords: Set<string>,
+  occ: MeasureOccurrence, end: number, tokens: string[], ctx: AnchorContext, numberWords: Set<string>, claimed: Set<number>,
 ): number | undefined {
   const g = ctx.pack.grammar;
   if (!g) return undefined;
@@ -108,17 +108,17 @@ function findPhraseEnd(
     const terms = termsFor(occ.parts[pi].unit, undefined, ctx);
     let i = last + 1;
     const from = i;
-    while (i < tokens.length && i - from < MAX_GAP && filler(tokens[i]) && !termLengthAt(tokens, i, terms)) i++;
+    while (i < tokens.length && i - from < MAX_GAP && !claimed.has(i) && filler(tokens[i]) && !termLengthAt(tokens, i, terms)) i++;
     const len = termLengthAt(tokens, i, terms);
-    if (!len) return undefined; // the second unit is not where the data says: not confident
+    if (!len || claimed.has(i)) return undefined; // the second unit is not where the data says: not confident
     last = i + len - 1;
   }
 
   const lastQty = occ.parts[occ.parts.length - 1]?.quantity?.value;
   if (lastQty !== undefined && !Number.isInteger(lastQty)) {
     let i = last + 1;
-    while (i < tokens.length && i - last <= 2 && (connectors.has(tokens[i]) || articles.has(tokens[i]))) i++;
-    if (i < tokens.length && fractions.has(tokens[i]) && i > last) last = i;
+    while (i < tokens.length && i - last <= 2 && !claimed.has(i) && (connectors.has(tokens[i]) || articles.has(tokens[i]))) i++;
+    if (i < tokens.length && !claimed.has(i) && fractions.has(tokens[i]) && i > last) last = i;
   }
   return last > end ? last : undefined;
 }
@@ -144,7 +144,9 @@ export function resolveMeasureAnchors(
     rankByUnit.set(unitId ?? '', rank);
     const make = (r: Range, via: 'strongs' | 'terms' | 'modern'): ResolvedMeasureAnchor => {
       claim(r, claimed);
-      const phraseEnd = findPhraseEnd(occ, r.end, tokens, ctx, numberWords);
+      const phraseEnd = findPhraseEnd(occ, r.end, tokens, ctx, numberWords, claimed);
+      // The rest of the phrase ("span" in "a cubit and a span") belongs to this occurrence too.
+      if (phraseEnd !== undefined) claim({ start: r.end + 1, end: phraseEnd }, claimed);
       return {
         occId: occ.id, verseId: verse.verseId, target: { kind: 'tokens', start: r.start, end: r.end }, via,
         ...(phraseEnd !== undefined ? { phraseEnd } : {}),

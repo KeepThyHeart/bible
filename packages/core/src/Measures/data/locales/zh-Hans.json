@@ -86,6 +86,10 @@
     "modernWage": "≈ {amount}（按每日工资{wage}计）",
     "relation": "1{unit} = {list}",
     "per.day": "每天",
+    "per.week": "每周",
+    "per.month": "每月",
+    "per.year": "每年",
+    "pluralNote": "{name}（复数：{plural}）",
     "inline": "[{value}]",
     "inlineApprox": "[约 {value}]"
   }
