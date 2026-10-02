@@ -275,6 +275,17 @@ function App() {
     return () => window.removeEventListener('open-preferences-fonts', handler);
   }, [openPreferencesToFonts]);
 
+  // Weights-and-measures popup's "Units..." button (task 0069): Preferences at the measures section.
+  useEffect(() => {
+    const handler = () => {
+      setPreferencesInitialSection('measures');
+      setPreferencesFontPane(undefined);
+      setShowPreferences(true);
+    };
+    window.addEventListener('open-preferences-measures', handler);
+    return () => window.removeEventListener('open-preferences-measures', handler);
+  }, []);
+
   // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). Same shape as
   // `open-preferences-fonts` above: the extension bridge dispatches this
   // event (see `extensionRendererBridge.ts`) rather than reaching into a

@@ -322,6 +322,11 @@ export * from './Settings';
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
 
+// --- Weights, measures and money (task 0069) -------------------------------------
+// Unit registry, verse-keyed occurrences (lazy, per testament), locale packs,
+// converter, anchor resolver, decoration layer and popup view model. Pure.
+export * from './Measures';
+
 // --- Asset store (task 0090) -------------------------------------------------
 // Download/cache manager for large optional assets: manifest, ports (transport,
 // store, registry), streaming SHA-256 and the AssetManager. Pure TypeScript.
