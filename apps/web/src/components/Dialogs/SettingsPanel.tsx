@@ -15,6 +15,7 @@ import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { audioStore } from '../../stores/audioStore';
 import { AudioSettingsTab } from './AudioSettingsTab';
+import { DownloadsSection } from './DownloadsSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
@@ -806,6 +807,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     </div>
                   </>
                 )}
+
+                <DownloadsSection />
               </div>
             )}
           </div>

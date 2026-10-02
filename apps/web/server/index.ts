@@ -11,6 +11,7 @@ import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
 import { createAudioRouter } from './routes/audioRoutes.js';
+import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
 import './routes/bibleRoutes.js';
@@ -417,6 +418,14 @@ if (siteConfig.audio.enabled) {
 }
 
 /**
+ * Downloadable assets (speech models, data files) at `/assets/v1`. Same position as
+ * `/audio`: after the password gate, outside `/api`. Always mounted (an empty directory
+ * just 404s). Only `/assets/v1/...` is claimed; other `/assets/*` paths are the client
+ * build's hashed bundles and fall through to the static handler below.
+ */
+app.use('/assets', createAssetRouter(siteConfig.assets.dir));
+
+/**
  * Serve the browser-side search assets -- and nothing else in the data directory.
  *
  * A bare `express.static(dataDir)` here publishes every file in that directory
@@ -587,7 +596,7 @@ if (existsSync(clientDir)) {
     // must 404 loudly instead of silently receiving index.html. Serving HTML where
     // JSON is expected is how a routing/auth bug masquerades as "working" while the
     // client chokes on JSON.parse(<!DOCTYPE html>...).
-    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/');
+    const isApiOrData = req.path.startsWith('/api/') || req.path.startsWith('/data/') || req.path.startsWith('/audio/') || req.path.startsWith('/assets/v1/');
     const wantsHtml = req.accepts(['html', 'json']) === 'html';
     if (isApiOrData || !wantsHtml) {
       res.status(404).json({ error: 'Not found', path: req.path });

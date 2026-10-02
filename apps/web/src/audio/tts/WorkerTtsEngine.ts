@@ -108,6 +108,11 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
   }
 
   async prepare(voiceId: string, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void> {
+    await this.loadVoiceIntoWorker(voiceId, onProgress, signal);
+  }
+
+  /** Makes the worker load an already-stored voice; never downloads (subclasses' `prepare` may). */
+  protected async loadVoiceIntoWorker(voiceId: string, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void> {
     await this.call({ op: 'prepare', voiceId, payload: this.preparePayload(voiceId) }, signal, {
       onProgress, idleTimeoutMs: this.prepareIdleTimeoutMs,
     });
@@ -123,7 +128,8 @@ export abstract class WorkerTtsEngine implements ITtsEngine {
       if (!(await this.isVoiceCached(req.voiceId))) {
         throw { code: 'unsupported', message: 'The voice is not downloaded.', retryable: false } satisfies AudioError;
       }
-      await this.prepare(req.voiceId, () => {}, signal);
+      // Not `prepare`: a subclass's prepare may install/upgrade assets, which a background synthesis must never start.
+      await this.loadVoiceIntoWorker(req.voiceId, () => {}, signal);
     }
     const value = await this.call({ op: 'synthesize', req }, signal, { timeoutMs: this.synthesizeTimeoutMs }) as SynthesizeValue;
     return { pcm: value.pcm, sampleRate: value.sampleRate, sentences: value.sentences };
