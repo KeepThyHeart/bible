@@ -47,5 +47,14 @@
   "main.window.studyFallback": "⟦Šţüðý ··⟧",
   "main.window.topics": "⟦Ţøþîçš - {name} ··⟧",
   "main.window.topicsFallback": "⟦Ţøþîçš ··⟧",
-  "main.window.extensionFallback": "⟦Éẋţéñšîøñ ··⟧"
+  "main.window.extensionFallback": "⟦Éẋţéñšîøñ ··⟧",
+  "main.notifications.votd.label": "⟦Ṽéŕšé øƒ ţĥé ðåý ····⟧",
+  "main.notifications.votd.description": "⟦Å ṽéŕšé ƒŕøɱ ţĥé Ɓîƀļé éåçĥ ðåý. ·········⟧",
+  "main.notifications.votd.title": "⟦Ṽéŕšé øƒ ţĥé ðåý ····⟧",
+  "main.notifications.collapsed": "⟦Ŕéɱîñðéŕš ŵåîţîñĝ: {count} ·····⟧",
+  "main.notifications.tray.open": "⟦Øþéñ ··⟧",
+  "main.notifications.tray.settings": "⟦Ñøţîƒîçåţîøñš šéţţîñĝš… ······⟧",
+  "main.notifications.tray.quit": "⟦Ǫüîţ ··⟧",
+  "main.notifications.test.title": "⟦Ţéšţ ñøţîƒîçåţîøñ ·····⟧",
+  "main.notifications.test.body": "⟦Ñøţîƒîçåţîøñš åŕé ŵøŕķîñĝ. ·······⟧"
 }

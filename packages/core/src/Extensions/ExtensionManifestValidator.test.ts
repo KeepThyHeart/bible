@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateManifest } from './ExtensionManifestValidator';
+import { SEPARATELY_PROMPTED_PERMISSIONS } from './Permissions';
 import type { ExtensionManifest } from './ExtensionManifest';
 
 // A trimmed-but-realistic manifest used as the baseline for happy-path tests.
@@ -139,6 +140,14 @@ describe('validateManifest - schema-level failures', () => {
     if (!r.ok) expect(r.errors.some((e) => e.code === 'additionalProperty')).toBe(true);
   });
 
+  it('accepts the speech permissions, and listen is separately prompted', () => {
+    const m = baseManifest();
+    (m as { permissions: string[] }).permissions = ['bible:read', 'speech:listen', 'speech:speak'];
+    expect(validateManifest(m).ok).toBe(true);
+    expect(SEPARATELY_PROMPTED_PERMISSIONS).toContain('speech:listen');
+    expect(SEPARATELY_PROMPTED_PERMISSIONS).not.toContain('speech:speak');
+  });
+
   it('rejects an unknown permission', () => {
     const m = baseManifest();
     (m as { permissions: unknown[] }).permissions = ['bible:read', 'not-a-real-perm'];
@@ -167,6 +176,24 @@ describe('validateManifest - beyond-schema rules', () => {
     (m as Record<string, unknown>).network = { allowedHosts: [] };
     const r = validateManifest(m);
     expect(r.ok).toBe(false);
+  });
+
+  it('accepts the `notifications:schedule` permission and the `onReminder` activation event', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).permissions = ['bible:read', 'notifications:schedule'];
+    (m as Record<string, unknown>).activationEvents = ['onReminder'];
+    const r = validateManifest(m);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.manifest.permissions).toContain('notifications:schedule');
+      expect(r.manifest.activationEvents).toContain('onReminder');
+    }
+  });
+
+  it('rejects a parameterised `onReminder:` (the event is bare)', () => {
+    const m = baseManifest();
+    (m as Record<string, unknown>).activationEvents = ['onReminder:daily'];
+    expect(validateManifest(m).ok).toBe(false);
   });
 
   it('rejects `network:oauth` without a network block', () => {

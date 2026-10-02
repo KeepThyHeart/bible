@@ -513,6 +513,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          showSimilar={false}
         />
       )}
     </div>

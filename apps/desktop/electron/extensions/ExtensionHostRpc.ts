@@ -37,9 +37,11 @@ import {
   StorageApiImpl,
   TasksApiImpl,
   PanelsApiImpl,
+  RemindersApiImpl,
   UiApiImpl,
   WorkspaceApiImpl,
 } from './api-impl';
+import { SpeechApiImpl } from './api-impl/speechApiImpl';
 import type { ExtensionRpcRouter } from './ExtensionRpcRouter';
 import { buildGrant } from './ExtensionPermissionGuard';
 import type { ActiveWorker, ExtensionHostContext } from './ExtensionHostTypes';
@@ -236,6 +238,11 @@ export function attachApiImpls(
     }
   }
 
+  // Speech. A stub in this build: `speech.status` is ungated and reports
+  // `unavailable`; the rest check their permission, then reject. Registered
+  // unconditionally so the generic proxy never answers `Unknown RPC method`.
+  new SpeechApiImpl({ extensionId, router, grant }).attach();
+
   // Background tasks. Gated on the `tasks` permission so
   // an extension that doesn't ask for it never sees the namespace.
   if (entry.grantedPermissions.includes('tasks')) {
@@ -251,6 +258,26 @@ export function attachApiImpls(
     });
     tasksApi.attach();
     active.tasksApi = tasksApi;
+  }
+
+  // Reminders. Gated on the `notifications:schedule` permission AND on the
+  // host having a reminders bridge, so an extension without the permission
+  // never sees the namespace (feature-detect with `typeof api.reminders`).
+  if (ctx.remindersBridge && entry.grantedPermissions.includes('notifications:schedule')) {
+    const api = new RemindersApiImpl({
+      extensionId,
+      router,
+      bridge: ctx.remindersBridge,
+      grant,
+      label: pickPlainName(entry.manifest, extensionId),
+      takeActivations: () => {
+        const queued = ctx.reminderActivationQueues.get(extensionId) ?? [];
+        ctx.reminderActivationQueues.delete(extensionId);
+        return queued;
+      },
+    });
+    api.attach();
+    active.remindersApi = api;
   }
 
   if (ctx.uiBridge) {
@@ -401,6 +428,22 @@ export function attachApiImpls(
 }
 
 /**
+ * The extension's name as plain text, for OS-level labels that cannot resolve
+ * an i18n key. Prefers `displayName`, then `name`; a `{ key }` reference
+ * (which only the extension's own catalog could resolve) falls through to the
+ * next candidate, and finally to the extension id.
+ */
+export function pickPlainName(
+  manifest: { displayName?: Extensions.LocalizedString; name?: Extensions.LocalizedString },
+  fallback: string,
+): string {
+  for (const candidate of [manifest.displayName, manifest.name]) {
+    if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
+  }
+  return fallback;
+}
+
+/**
  * Build the narrow delegate the `ExtensionsApiImpl` uses to mediate
  * inter-extension calls. Captures `ctx` so the delegate always reflects the
  * current host state.
@@ -456,4 +499,5 @@ export async function disposeApiImpls(active: ActiveWorker): Promise<void> {
   active.highlightsApi?.dispose();
   active.bookmarksApi?.dispose();
   active.collectionsApi?.dispose();
+  active.remindersApi?.dispose();
 }

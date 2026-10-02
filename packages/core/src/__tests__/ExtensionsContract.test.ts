@@ -30,13 +30,11 @@ import {
  * These are pure contract assertions - no host runtime is involved.
  */
 describe('Extensions contract', () => {
-  // Retrograded to 0.1.0 in task 0024 round 3: no beta or public release has
-  // shipped, so the strict-semver / 12-month-dual-support policy this
-  // constant used to follow (1.1.0, then 1.2.0) was premature. See the doc
-  // comment on EXTENSION_API_VERSION for the full reasoning, including why
-  // 0.1.0 rather than the bare "0.1" the human suggested.
-  it('exports EXTENSION_API_VERSION 0.1.0 at the package root', () => {
-    expect(EXTENSION_API_VERSION).toBe('0.1.0');
+  // Retrograded to 0.1.0 in task 0024 round 3 (pre-release, no compatibility
+  // promise), then bumped to 0.2.0 by task 0083 for `api.reminders`. See the
+  // doc comment on EXTENSION_API_VERSION.
+  it('exports EXTENSION_API_VERSION 0.2.0 at the package root', () => {
+    expect(EXTENSION_API_VERSION).toBe('0.2.0');
   });
 
   it('exports the same version through the Extensions namespace alias', () => {

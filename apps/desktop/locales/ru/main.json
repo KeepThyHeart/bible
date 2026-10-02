@@ -47,5 +47,14 @@
   "main.window.studyFallback": "Изучение",
   "main.window.topics": "Темы - {name}",
   "main.window.topicsFallback": "Темы",
-  "main.window.extensionFallback": "Расширение"
+  "main.window.extensionFallback": "Расширение",
+  "main.notifications.votd.label": "Стих дня",
+  "main.notifications.votd.description": "По одному стиху из Библии каждый день.",
+  "main.notifications.votd.title": "Стих дня",
+  "main.notifications.collapsed": "Ожидающих напоминаний: {count}",
+  "main.notifications.tray.open": "Открыть",
+  "main.notifications.tray.settings": "Настройки уведомлений…",
+  "main.notifications.tray.quit": "Выйти",
+  "main.notifications.test.title": "Проверочное уведомление",
+  "main.notifications.test.body": "Уведомления работают."
 }

@@ -49,12 +49,9 @@ export type { LocaleMetadata, LocaleStatus } from './Data/Locales/LocaleMetadata
 // enough for `getLocalizer('es')` / `getLocalizer('zh-Hans')` to return the
 // full Localizer - no other call site has to know these exist.
 export { SpanishLocalizer, ChineseSimplifiedLocalizer } from './Data/Locales/registerBuiltinLocalizers';
-export {
-  ES_BOOK_NAMES, ES_DISPLAY_NAMES, ES_SHORT_NAMES, ES_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/es';
-export {
-  ZH_HANS_BOOK_NAMES, ZH_HANS_DISPLAY_NAMES, ZH_HANS_SHORT_NAMES, ZH_HANS_SINGLE_CHAPTER_BOOKS,
-} from './Data/Locales/books/zhHans';
+// Multilingual reference engine (task 0077): parse, scan, suggest and format
+// references in any language with locale data; languages load on demand.
+export * from './Reference';
 
 // Re-export Controllers via the barrel, so the root export surface and the
 // TypeDoc entry point (`src/Controllers/index.ts`) cannot drift apart. They did:
@@ -164,11 +161,23 @@ export * as Crypto from './Crypto';
 // Backup format v1 (task 0078): also re-exported from `./browser`.
 export * as Backup from './Backup';
 
+// Shared text tools (task 0089): also re-exported from `./browser`.
+export {
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeArchaic, ARCHAIC_EN,
+  porterStem, getStemmer, hasStemmer, registerStemmer,
+  getStopWords, registerStopWords, isStopWord,
+  findSequences, findPhraseMatches, compileTermMatcher, countForms, parseTermQuery,
+} from './Text';
+export type { TextWord, Stemmer, TermMatcher, TermMatcherOptions, TermMatch } from './Text';
+
 // Keyword marks (task 0065): also re-exported from `./browser`.
 export * from './KeywordMarks';
 export { UserDataKeywordSetStore, KEYWORD_OWNER, KEYWORD_COLLECTION } from './KeywordMarks/UserDataKeywordSetStore';
 export { UserDataNoteDirectionStore, NOTE_DIRECTION_OWNER, NOTE_DIRECTION_COLLECTION, isNoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
 export type { NoteDirection } from './NoteDirection/UserDataNoteDirectionStore';
+export { UserDataQuizProgressStore, QUIZ_OWNER, QUIZ_STATS_COLLECTION, QUIZ_SESSIONS_COLLECTION } from './Quiz/progress';
+export { mergeCatalogs } from './Quiz/scope';
 
 // Web user-data store (task 0084): also re-exported from `./browser`.
 export * as UserData from './UserData';
@@ -196,3 +205,20 @@ export {
 } from './Ui/bidi';
 export { logicalArrow, logicalSwipe, scrollStart, setScrollStart, anchorAtPointer } from './Ui/directional';
 export type { LogicalStep, HorizontalScroller } from './Ui/directional';
+
+// Speech recognition contracts and fakes, and the recitation library (task 0071).
+// Namespaced; also re-exported from `./browser`. `@bible/core/recite` is the
+// QuickJS-safe subpath the Scripture Memory extension bundles.
+export * as Speech from './speech';
+export * as Recite from './recite';
+
+// Reading plans (task 0073). Namespaced like in `./browser`.
+export * as ReadingPlans from './ReadingPlans';
+
+// Notifications and reminders engine (task 0083). Namespaced here (the Node
+// entry already exports generic names such as `JsonValue`); flat in `./browser`.
+export * as Reminders from './Reminders';
+
+// Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
+export * from './Services/Similar';
+export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';

@@ -12,14 +12,18 @@
  */
 
 export {
+  createFakeSpeechApi,
   createMockApi,
+  FakeSpeechApi,
   getMockPanelChannel,
+  getMockReminders,
   getMockRuntimeEndpoints,
   type MockApiOverrides,
   type MockDbStatement,
   type MockDbTransactionRecord,
   type MockExtensionDatabase,
   type MockPanelChannel,
+  type MockReminders,
   type MockRuntimeEndpoints,
 } from './createMockApi';
 export { createTestHost, type TestHost, type TestHostOptions } from './createTestHost';

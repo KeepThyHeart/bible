@@ -14,6 +14,8 @@ export { parseReferenceInput, suggestBooks } from './components/referenceInput';
 export type { ReferenceValue, ReferenceInputOptions, ParseReferenceInputResult, BookSuggestion } from './components/referenceInput';
 export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/HighlightSwatch';
 export type { HighlightSwatchLabels, HighlightSwatchProps, HighlightSwatchValue } from './components/HighlightSwatch';
+export { NotificationPreferences, DEFAULT_NOTIFICATION_PREFERENCES_LABELS } from './components/NotificationPreferences';
+export type { NotificationPreferencesLabels, NotificationPreferencesProps } from './components/NotificationPreferences';
 export { ExtensionPanelHost } from './components/ExtensionPanelHost';
 export type { ExtensionPanelHostProps } from './components/ExtensionPanelHost';
 
@@ -62,7 +64,6 @@ export { XrefWebView, DEFAULT_XREF_WEB_LABELS } from './components/xref/XrefWebV
 export type { XrefWebViewProps, XrefWebViewLabels } from './components/xref/XrefWebView';
 export { XrefCompassView, DEFAULT_XREF_COMPASS_LABELS } from './components/xref/XrefCompassView';
 export type { XrefCompassViewProps, XrefCompassLabels } from './components/xref/XrefCompassView';
-export { useXrefFullscreen } from './components/xref/fullscreen';
 export { XrefArcView, DEFAULT_XREF_ARCS_LABELS } from './components/xref/XrefArcView';
 export type { XrefArcViewProps, XrefArcViewLabels } from './components/xref/XrefArcView';
 export { Popover } from './components/Popover';
@@ -71,13 +72,58 @@ export { HoverCard } from './components/HoverCard';
 export type { HoverCardProps } from './components/HoverCard';
 export { BottomSheet, DEFAULT_BOTTOM_SHEET_LABELS } from './components/BottomSheet';
 export type { BottomSheetProps, BottomSheetLabels } from './components/BottomSheet';
-export { FullscreenPanel, DEFAULT_FULLSCREEN_PANEL_LABELS } from './components/FullscreenPanel';
-export type { FullscreenPanelProps, FullscreenPanelLabels } from './components/FullscreenPanel';
+export { useFullscreen, FULLSCREEN_CLASS } from './components/fullscreen/useFullscreen';
+export type { UseFullscreenOptions, FullscreenControl } from './components/fullscreen/useFullscreen';
+export { FullscreenButton, DEFAULT_FULLSCREEN_BUTTON_LABELS } from './components/fullscreen/FullscreenButton';
+export type { FullscreenButtonProps, FullscreenButtonLabels } from './components/fullscreen/FullscreenButton';
 export { useHoverIntent } from './components/useHoverIntent';
 export type { UseHoverIntentOptions } from './components/useHoverIntent';
 export { SettingsForm, DEFAULT_SETTINGS_FORM_LABELS } from './components/SettingsForm';
 export type { SettingsFormLabels, SettingsFormProps } from './components/SettingsForm';
 
+export { MeasurePopup, DEFAULT_MEASURE_POPUP_LABELS } from './components/MeasurePopup';
+export type { MeasurePopupProps, MeasurePopupLabels } from './components/MeasurePopup';
+
+export { AssetList, DEFAULT_ASSET_LIST_LABELS } from './components/AssetList';
+export type { AssetListProps, AssetListLabels, AssetListRow, AssetListStatus } from './components/AssetList';
+
+export { SimilarList, DEFAULT_SIMILAR_LIST_LABELS, similarityStep } from './components/Similar/SimilarList';
+export type { SimilarListProps, SimilarListLabels, SimilarListRow } from './components/Similar/SimilarList';
+
+export { PackBuilder } from './components/PackBuilder';
+export type {
+  PackBuilderProps,
+  PackBuilderRow,
+  PackBuilderLabels,
+  PackBuilderSummary,
+  PackBuilderRun,
+  PackBuilderRunState,
+  PackBuilderStatus,
+} from './components/PackBuilder';
+
+// Quiz (task 0074): QuizPanel drives a core QuizEngine the app builds.
+export { QuizPanel } from './components/Quiz/QuizPanel';
+export { QuizLauncher } from './components/Quiz/QuizLauncher';
+export type { QuizLauncherProps } from './components/Quiz/QuizLauncher';
+export { QuizQuestionCard } from './components/Quiz/QuizQuestionCard';
+export type { QuizQuestionCardProps } from './components/Quiz/QuizQuestionCard';
+export { QuizSummary } from './components/Quiz/QuizSummary';
+export type { QuizSummaryProps } from './components/Quiz/QuizSummary';
+export { QuizSources } from './components/Quiz/QuizSources';
+export type { QuizSourcesProps } from './components/Quiz/QuizSources';
+export { DEFAULT_QUIZ_LABELS, fillLabel } from './components/Quiz/labels';
+export type { QuizPanelProps, QuizLabels } from './components/Quiz/types';
+
+export { ReadingPlanTodayCard, DEFAULT_READING_PLAN_TODAY_CARD_LABELS } from './components/ReadingPlans/ReadingPlanTodayCard';
+export type { ReadingPlanTodayCardProps, ReadingPlanTodayCardLabels } from './components/ReadingPlans/ReadingPlanTodayCard';
+export { ReadingPlanDayGrid, DEFAULT_READING_PLAN_DAY_GRID_LABELS } from './components/ReadingPlans/ReadingPlanDayGrid';
+export type { ReadingPlanDayGridProps, ReadingPlanDayGridLabels } from './components/ReadingPlans/ReadingPlanDayGrid';
+export { ReadingPlanLibrary, DEFAULT_READING_PLAN_LIBRARY_LABELS } from './components/ReadingPlans/ReadingPlanLibrary';
+export type { ReadingPlanLibraryProps, ReadingPlanLibraryLabels } from './components/ReadingPlans/ReadingPlanLibrary';
+export { WeekdayPicker, DEFAULT_WEEKDAY_PICKER_LABELS, DEFAULT_WEEKDAY_NAMES } from './components/ReadingPlans/WeekdayPicker';
+export type { WeekdayPickerProps, WeekdayPickerLabels } from './components/ReadingPlans/WeekdayPicker';
+export { ReadingPlanBuilderForm, DEFAULT_READING_PLAN_BUILDER_FORM_LABELS } from './components/ReadingPlans/ReadingPlanBuilderForm';
+export type { ReadingPlanBuilderFormProps, ReadingPlanBuilderFormLabels, ReadingPlanBuilderStart } from './components/ReadingPlans/ReadingPlanBuilderForm';
 
 // Direction primitives (task 0076): UI direction provider + hooks, isolated runs, content containers.
 export {

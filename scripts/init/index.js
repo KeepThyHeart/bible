@@ -289,7 +289,7 @@ const PRESETS = {
 /** `module_metadata.module_type` values, mirroring core's MODULE_TYPES. */
 const MODULE_TYPES = new Set([
   'bible', 'commentary', 'dictionary', 'book', 'devotional',
-  'lexicon', 'topical_index', 'cross_reference', 'tag_graph', 'timeline',
+  'lexicon', 'topical_index', 'cross_reference', 'tag_graph', 'timeline', 'quiz',
 ]);
 
 /** Which `site-config.json` section a module type is listed under, if any. */

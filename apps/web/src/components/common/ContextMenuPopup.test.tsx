@@ -79,9 +79,27 @@ describe('ContextMenuPopup', () => {
     expect(dividers.length).toBe(1);
   });
 
+  it('calls onAction with "similar" when Find similar passages is clicked', () => {
+    const { onAction } = renderMenu();
+    fireEvent.click(screen.getByText('contextMenu.similar'));
+    expect(onAction).toHaveBeenCalledWith('similar');
+  });
+
   it('calls onAction with "connections" when Show connections is clicked', () => {
     const { onAction } = renderMenu();
     fireEvent.click(screen.getByText('xrefGraph.showConnections'));
     expect(onAction).toHaveBeenCalledWith('connections');
   });
+
+  it('hides the similar-passages entry when showSimilar is false (mobile)', () => {
+    renderMenu({ showSimilar: false });
+    expect(screen.queryByText('contextMenu.similar')).toBeNull();
+    cleanupAndCheckDefault();
+  });
 });
+
+function cleanupAndCheckDefault() {
+  document.body.innerHTML = '';
+  renderMenu();
+  expect(screen.getByText('contextMenu.similar')).toBeTruthy();
+}
