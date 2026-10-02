@@ -76,5 +76,10 @@
   "xrefGraph.open": "إظهار روابط المراجع المتقاطعة",
   "xrefGraph.open.category": "دراسة",
   "xrefGraph.open.alias.0": "مراجع متقاطعة",
-  "xrefGraph.open.alias.1": "روابط"
+  "xrefGraph.open.alias.1": "روابط",
+  "readingPlans.open": "فتح خطط القراءة",
+  "readingPlans.open.category": "خطط القراءة",
+  "readingPlans.open.alias.0": "خطة قراءة",
+  "readingPlans.open.alias.1": "قراءة اليوم",
+  "readingPlans.open.alias.2": "قراءة الكتاب المقدس في سنة"
 }

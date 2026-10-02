@@ -29,6 +29,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Backup format](features/backup-format.md) | The encrypted `.bbk` container, the ZIP payload and unencrypted export, the user-table registry, restore and merge, the crypto primitives |
 | [Search](features/search.md) | FTS keyword search and the configurable semantic pipeline |
 | [Text rendering](features/text-rendering.md) | Normalising stored module text into display text; copy templates |
+| [Reading plans](features/reading-plans.md) | Plan engine: builder, scheduler, stock plans (M'Cheyne, chronological), store over `user_data_item`, service |
 | [Keyword marks](features/keyword-marks.md) | Colouring words, phrases, Strong's numbers and connectives in the chapter: matcher, lexicon, decoration layer, sets |
 | [Notifications](features/notifications.md) | The reminder engine: schedule model, DST-safe expansion, missed-reminder collapse, settings, the scheduler and its ports |
 | [Weights, measures and money](features/measures.md) | Unit registry, verse-keyed KJV occurrences, conversions, anchoring, decoration layer and popup model |

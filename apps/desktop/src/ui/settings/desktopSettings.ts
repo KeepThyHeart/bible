@@ -45,6 +45,29 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     labelKey: 'keywords.settings.colorSafe',
     label: 'Colour-safe marks (extra underline and symbol cues)',
   },
+  {
+    key: 'readingPlanRolloverHour',
+    type: 'integer',
+    default: 3,
+    min: 0,
+    max: 12,
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.rolloverHour',
+    label: 'New reading day starts at (hour)',
+    descriptionKey: 'readingPlans.settings.rolloverHourDescription',
+    description:
+      'Reading after midnight but before this hour counts for the previous day. Change it if you work nights.',
+  },
+  {
+    key: 'readingPlanShowStreak',
+    type: 'boolean',
+    default: false,
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.showStreak',
+    label: 'Show reading streaks',
+  },
 ]);
 
 /** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
@@ -57,6 +80,8 @@ export const preferencesStoragePort: SettingsStoragePort = {
   read: () => ({
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
     keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
+    readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
+    readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
     ...useMeasureStore.getState().values,
   }),
   write: (changes: readonly SettingChange[]) => {
@@ -70,6 +95,18 @@ export const preferencesStoragePort: SettingsStoragePort = {
         usePreferencesStore.getState().advancedPaneManagerEnabled !== change.value
       ) {
         usePreferencesStore.getState().setAdvancedPaneManagerEnabled(change.value as boolean);
+      }
+      if (
+        change.key === 'readingPlanRolloverHour' &&
+        usePreferencesStore.getState().readingPlanRolloverHour !== change.value
+      ) {
+        usePreferencesStore.getState().setReadingPlanRolloverHour(change.value as number);
+      }
+      if (
+        change.key === 'readingPlanShowStreak' &&
+        usePreferencesStore.getState().readingPlanShowStreak !== change.value
+      ) {
+        usePreferencesStore.getState().setReadingPlanShowStreak(change.value as boolean);
       }
     }
   },
@@ -85,6 +122,8 @@ export function getDesktopSettingsStore(): SettingsStore {
     // dialog; mirror those in so the settings view never shows a stale value.
     usePreferencesStore.subscribe((state) => {
       store!.set('advancedPaneManagerEnabled', state.advancedPaneManagerEnabled);
+      store!.set('readingPlanRolloverHour', state.readingPlanRolloverHour);
+      store!.set('readingPlanShowStreak', state.readingPlanShowStreak);
     });
     useKeywordMarkStore.subscribe((state) => {
       store!.set('keywordColorSafe', state.colorSafe);

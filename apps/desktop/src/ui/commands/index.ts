@@ -20,6 +20,7 @@ import { registerPrayerCommands } from './prayerCommands';
 import { registerStudyCommands } from './studyCommands';
 import { registerTopicsCommands } from './topicsCommands';
 import { registerTimelineCommands } from './timelineCommands';
+import { registerReadingPlanCommands } from './readingPlanCommands';
 import { registerQuizCommands } from './quizCommands';
 import { registerSearchCommands } from './searchCommands';
 import { registerViewCommands } from './viewCommands';
@@ -45,6 +46,7 @@ export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable
     ...registerStudyCommands(registry),
     ...registerTopicsCommands(registry),
     ...registerTimelineCommands(registry),
+    ...registerReadingPlanCommands(registry),
     ...registerQuizCommands(registry),
     ...registerSearchCommands(registry),
     ...registerViewCommands(registry),

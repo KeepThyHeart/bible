@@ -76,5 +76,10 @@
   "xrefGraph.open": "Mostrar conexiones de referencias cruzadas",
   "xrefGraph.open.category": "Estudio",
   "xrefGraph.open.alias.0": "referencias cruzadas",
-  "xrefGraph.open.alias.1": "conexiones"
+  "xrefGraph.open.alias.1": "conexiones",
+  "readingPlans.open": "Abrir planes de lectura",
+  "readingPlans.open.category": "Planes de lectura",
+  "readingPlans.open.alias.0": "plan de lectura",
+  "readingPlans.open.alias.1": "lectura de hoy",
+  "readingPlans.open.alias.2": "leer la Biblia en un año"
 }

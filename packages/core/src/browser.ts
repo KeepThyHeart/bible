@@ -325,6 +325,11 @@ export * from './Settings';
 // JSON Schemas, and the shared registry. Pure TypeScript, no DOM.
 export * from './audio';
 
+// --- Reading plans (task 0073) --------------------------------------------------
+// Plan engine (builder, scheduler, stock library, store over user_data_item, service).
+// Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
+export * as ReadingPlans from './ReadingPlans';
+
 // --- Notifications and reminders engine (task 0083) -------------------------------
 // Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,
 // missed-run collapse, the settings document and the scheduler both apps run.
