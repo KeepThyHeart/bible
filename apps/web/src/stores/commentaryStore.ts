@@ -38,7 +38,7 @@ export const HOME_TAB_ID = 'ctab-home';
  * menu, a plugin — has to name one of these, or the pane renders with no active
  * tab and no content. `paneModes.test.ts` holds the callers to it.
  */
-export const RENDERABLE_PANE_MODES = ['study', 'commentary', 'topics', 'timeline', 'quiz', 'dictionary'] as const;
+export const RENDERABLE_PANE_MODES = ['study', 'commentary', 'topics', 'timeline', 'quiz', 'dictionary', 'similar'] as const;
 
 /**
  * Right-pane ids that survive a reload. 'search' is deliberately excluded:

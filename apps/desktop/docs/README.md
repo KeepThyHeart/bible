@@ -31,6 +31,7 @@ This folder contains feature-oriented documentation for the `@bible/desktop` pac
 | [Copy & Export](features/copy-export.md) | Verse copying with multiple formats and custom template editor |
 | [Sessions](features/sessions.md) | Study session persistence and auto-save/restore |
 | [Settings & Preferences](features/settings-preferences.md) | User preferences, text settings, themes, keyboard shortcuts |
+| [Notifications](features/notifications.md) | Preferences section, tray, login item and notification click routing for the shared reminders engine |
 | [Module Management](features/module-management.md) | Module browser, download, repository settings, study/starter packs, and the install policy for already-installed modules |
 | [Backup & Restore](features/backup-restore.md) | User data backup and restore with encryption support |
 | [Diagnostics & Issue Reporting](features/diagnostics-reporting.md) | Opt-in crash reports and manual issue reports with local queue and background uploader |

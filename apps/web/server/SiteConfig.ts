@@ -74,6 +74,11 @@ interface AudioBlockConfig {
   tts?: { engines?: unknown[] };
 }
 
+/** The `assets` block. `dir` (default `assets`, relative to the data directory) is served at `/assets/v1`. */
+interface AssetsBlockConfig {
+  dir?: string;
+}
+
 interface OfflineConfig {
   staleDays?: number;
 }
@@ -120,6 +125,7 @@ interface RawSiteConfig {
   auth?: AuthConfig;
   features?: FeaturesConfig;
   audio?: AudioBlockConfig;
+  assets?: AssetsBlockConfig;
   modules?: SiteSettings;
   commentaryPopularity?: Record<string, number>;
   offline?: OfflineConfig;
@@ -231,6 +237,12 @@ export class SiteConfig {
       client,
       externalOrigins: enabled ? AudioBible.audioExternalOrigins(client) : [],
     };
+  }
+
+  /** Asset store: `dir` is the absolute directory served at `/assets/v1` (always mounted; empty just 404s). */
+  get assets(): { dir: string } {
+    const block = this.raw.assets ?? {};
+    return { dir: resolve(this.dataDir, typeof block.dir === 'string' && block.dir ? block.dir : 'assets') };
   }
 
   /**

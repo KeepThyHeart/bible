@@ -14,7 +14,7 @@ function getTopicalRepository(abbreviation: string): TopicalIndexRepository | nu
 /**
  * Load all topical index modules and return them as an array
  */
-function getAllTopicalRepos(): Array<{ abbreviation: string; repo: TopicalIndexRepository }> {
+export function getAllTopicalRepos(): Array<{ abbreviation: string; repo: TopicalIndexRepository }> {
   const moduleMetadataRepo = getSharedModuleMetadataRepo();
   const modules = moduleMetadataRepo.getByType('topical_index');
 

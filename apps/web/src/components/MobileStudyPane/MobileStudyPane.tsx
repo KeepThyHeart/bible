@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StudyVerseHeader } from './StudyVerseHeader';
 import { StudyCrossRefs } from '../StudyPane/StudyCrossRefs';
 import { StudyHome } from '../StudyPane/StudyHome';
+import { StudyMeasures } from '../StudyPane/StudyMeasures';
 import { StudyTopics } from '../StudyPane/StudyTopics';
 import { TopicsBrowser } from '../StudyPane/TopicsBrowser';
 import { GenealogyPane } from '../StudyPane/GenealogyPane';
@@ -34,7 +35,7 @@ interface MobileStudyPaneProps {
  * Mobile Study tab — single scrollable page with Cross-References, Topics,
  * and Interlinear sections. Topics browser opens as a full-screen overlay.
  */
-export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onStrongsLeave, onNavigateBible }: MobileStudyPaneProps) {
+export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onStrongsLeave, onOpenSettings, onNavigateBible }: MobileStudyPaneProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
   const book = useStore(studyStore, () => studyStore.book);
@@ -186,6 +187,9 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
             </button>
           </div>
         </div>
+
+        {/* Weights, measures and money: hidden when off or none */}
+        <StudyMeasures variant="mobile" verseId={verseId} onOpenSettings={onOpenSettings} compact />
 
         {/* Family tree (genealogy explorer) */}
         {genealogyEnabled && (

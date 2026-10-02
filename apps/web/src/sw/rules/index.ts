@@ -1,4 +1,5 @@
 import type { CacheRule } from '../cacheRules';
+import { ASSET_RULES } from './assets';
 import { AUDIO_RULES } from './audio';
 import { CONTENT_RULES } from './content';
 import { DATA_RULES } from './data';
@@ -16,6 +17,7 @@ import { QUIZ_RULES } from './quiz';
  */
 export const CACHE_RULES: CacheRule[] = [
   ...NETWORK_ONLY_RULES,
+  ...ASSET_RULES,
   ...CONTENT_RULES,
   ...DATA_RULES,
   ...AUDIO_RULES,

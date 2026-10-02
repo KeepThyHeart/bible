@@ -23,6 +23,7 @@ import type {
   BookApiImpl,
   BookmarksApiImpl,
   CollectionsApiImpl,
+  RemindersApiImpl,
   CommandsApiImpl,
   CommentaryApiImpl,
   ContextApiImpl,
@@ -54,6 +55,7 @@ import type {
   IExtensionL10nBridge,
   IExtensionNotesBridge,
   IExtensionTaskStatusBridge,
+  IRemindersBridge,
   IExtensionUiBridge,
   IExtensionWorkspaceBridge,
   TaskNotifier,
@@ -113,6 +115,7 @@ export interface ActiveWorker {
   highlightsApi?: HighlightsApiImpl;
   bookmarksApi?: BookmarksApiImpl;
   collectionsApi?: CollectionsApiImpl;
+  remindersApi?: RemindersApiImpl;
 }
 
 /**
@@ -220,6 +223,13 @@ export interface ExtensionHostOptions {
    * `InMemoryFolderBridge`. Omit to leave the folder API disabled.
    */
   folderBridge?: IExtensionFolderBridge;
+  /**
+   * Bridge to the main-process reminder scheduler (`api.reminders`, needs the
+   * `notifications:schedule` permission). Omit to leave the namespace
+   * unattached. Delivery the other way goes through
+   * `ExtensionHost.deliverReminderActivation` / `deliverReminderMissed`.
+   */
+  remindersBridge?: IRemindersBridge;
   /**
    * Override the per-extension KV quota. Default is `DEFAULT_KV_QUOTA_BYTES`
    * (5 MB). Mostly useful for tests.
@@ -354,6 +364,14 @@ export interface ExtensionHostContext {
   readonly bookmarksBridge: IExtensionBookmarksBridge | undefined;
   readonly collectionsBridge: IExtensionCollectionsBridge | undefined;
   readonly folderBridge: IExtensionFolderBridge | undefined;
+  readonly remindersBridge: IRemindersBridge | undefined;
+  /**
+   * Reminder clicks waiting for `api.reminders.takeActivations()`, per
+   * extension id. Held here (not on the api-impl) so a click survives the
+   * extension's worker being torn down and re-activated. Capped at
+   * `MAX_QUEUED_REMINDER_ACTIVATIONS`, oldest dropped.
+   */
+  readonly reminderActivationQueues: Map<string, Extensions.ReminderActivationEvent[]>;
   readonly storageQuotaBytes: number | undefined;
   readonly secretsKeychain: ISecretsKeychain | undefined;
   readonly extensionDatabaseRegistry: ExtensionDatabaseRegistry | undefined;

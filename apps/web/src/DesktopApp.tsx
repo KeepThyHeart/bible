@@ -5,6 +5,7 @@ import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
 import { SearchResultsPanel } from './components/Search/SearchResultsPanel';
 import { StudyPane } from './components/StudyPane/StudyPane';
 import { TopicsPane } from './components/StudyPane/TopicsPane';
+import { SimilarPane } from './components/SimilarPane/SimilarPane';
 import { DictionaryPane } from './components/DictionaryPane/DictionaryPane';
 import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
@@ -24,6 +25,8 @@ import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
 import { audioStore } from './stores/audioStore';
+import { similarAvailability } from './similar/similarAvailability';
+import { useStore } from './hooks/useStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -83,15 +86,21 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
   // than rendering a right pane with nothing highlighted and no content —
   // which is what made a remembered Search pane look broken.
+  // Similar passages exist only when the server offers the neighbour table (feature detection).
+  useEffect(() => { void similarAvailability.probe(); }, []);
+  const similarAvailable = useStore(similarAvailability, () => similarAvailability.available);
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
     : (shared.rightPaneMode === 'timeline' && !showTimeline) || (shared.rightPaneMode === 'quiz' && !showQuiz)
       ? 'study'
+      : shared.rightPaneMode === 'similar' && !similarAvailable
+        ? 'study'
       : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
 
   // Self-heal the persisted value so a bad id does not survive another reload.
   useEffect(() => {
-    if (paneMode !== shared.rightPaneMode) commentaryStore.setRightPaneMode(paneMode);
+    // A saved 'similar' stays until the availability probe has answered (it shows 'study' meanwhile).
+    if (paneMode !== shared.rightPaneMode && shared.rightPaneMode !== 'similar') commentaryStore.setRightPaneMode(paneMode);
   }, [paneMode, shared.rightPaneMode]);
 
   // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
@@ -197,6 +206,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 >
                   {t('rightPane.dictionary')}
                 </button>
+                {similarAvailable && (
+                  <button
+                    class={`right-pane-tabs__tab ${paneMode === 'similar' ? 'right-pane-tabs__tab--active' : ''}`}
+                    onClick={() => commentaryStore.setRightPaneMode('similar')}
+                  >
+                    {t('rightPane.similar')}
+                  </button>
+                )}
                 {shared.searchIsOpen && (
                   <button
                     class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
@@ -220,6 +237,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   onStrongsLeave={shared.handleStrongsLeave}
                   bibleProvider={providers.bible}
                   genealogyProvider={providers.genealogy}
+                  onOpenSettings={shared.openSettings}
                 />
               )}
               {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
@@ -231,6 +249,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 </div>
               )}
               {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
+              {paneMode === 'similar' && <SimilarPane providers={providers} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>
           </>
@@ -265,6 +284,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          showSimilar={similarAvailable}
         />
       )}
     </div>

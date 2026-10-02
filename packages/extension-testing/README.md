@@ -27,6 +27,16 @@ Most namespaces resolve a fixed default. Storage does not, because persistence i
 
 There is no SQL engine: `query` / `queryOne` / `run` record the statement and return the empty defaults. A test that needs rows back should override `storage.openDatabase` with its own fake.
 
+### `api.reminders` is real, not stubbed
+
+`replaceAll` stores the items after the same sanitising the host does (invalid items dropped, unique keys, earliest first, capped at 64), and `list` returns them. Nothing fires by itself; drive the host side with `getMockReminders(api)`:
+
+- **`fireActivation(event)`** simulates a notification click: it calls your `onActivated` handlers, or, when there are none yet, queues it for `takeActivations()` (max 20) -- one or the other, as the host does.
+- **`fireMissed(event)`** reaches `onMissed` handlers (dropped when there are none).
+- **`setCapabilities(patch)`** / **`setPermissionResult(result)`** change what `capabilities()` / `requestPermission()` report (defaults: granted, `whenClosed: 'never'`, no actions).
+
+The smoke suite guards every `reminders` method behind `notifications:schedule`.
+
 ## Testing panel code
 
 For the code in your panel iframe (the part that uses `@bible/extension-ui`), run the test under jsdom (`// @vitest-environment jsdom`) and install a fake host:

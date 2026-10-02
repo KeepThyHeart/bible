@@ -27,6 +27,7 @@ export type PanelContentType =
   | 'genealogy'
   | 'timeline'
   | 'quiz'
+  | 'similar'
   | 'search'
   | 'newtab'
   | `ext:${string}`;
@@ -120,6 +121,12 @@ interface LayoutState {
    * implementation for the placement rule.
    */
   openSearchResultsPanel: () => string | null;
+
+  /**
+   * Open (or reveal) the Similar passages panel, placed like the search results panel.
+   * Returns the panel id, or `null` if dockview is not ready.
+   */
+  openSimilarPanel: () => string | null;
 
   /** Apply a built-in layout preset by id */
   applyPreset: (presetId: string) => Promise<void>;
@@ -453,6 +460,30 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
       : undefined;
 
     return get().addPanel('search', undefined, genericEnglishTitle('search'), position);
+  },
+
+  openSimilarPanel: () => {
+    const api = get().dockviewApi;
+    if (!api) return null;
+
+    for (const existing of get().getPanelsByType('similar')) {
+      const dockPanel = api.getPanel(existing.panelId);
+      if (dockPanel) {
+        dockPanel.api.setActive();
+        return existing.panelId;
+      }
+    }
+
+    const { lastActiveBiblePanelId } = get();
+    const targetBibleId =
+      (lastActiveBiblePanelId && api.getPanel(lastActiveBiblePanelId) ? lastActiveBiblePanelId : null)
+      ?? get().getPanelsByType('bible').find(p => api.getPanel(p.panelId))?.panelId
+      ?? null;
+    const position = targetBibleId
+      ? { direction: 'below', referencePanel: targetBibleId }
+      : undefined;
+
+    return get().addPanel('similar', undefined, genericEnglishTitle('similar'), position);
   },
 
   applyPreset: async (presetId: string) => {

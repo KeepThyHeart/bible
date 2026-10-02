@@ -41,6 +41,7 @@ export const FEATURE_FLAGS = {
   timeline: { default: false, description: 'Timeline view.' },
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
   quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
+  measureDrafts: { default: false, description: 'Show unreviewed (draft) weights-and-measures notes (review/dev only).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 
 export type FeatureFlagName = keyof typeof FEATURE_FLAGS;
