@@ -7,6 +7,7 @@ import { eventBus } from '../events/eventBus';
 import { useStore } from './useStore';
 import { parseVerseId } from '../utils/verseId';
 import { studyOwnsHash } from '../host/hashGate';
+import { appHost } from '../host/appHost';
 import { focusSearchField } from '../utils/focusSearchField';
 import type { IDataProviders } from '../providers/interfaces';
 import type { StrongsEntryData } from '../types';
@@ -117,6 +118,9 @@ export function useAppShared(providers: IDataProviders) {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Study stays mounted behind other apps: its shortcuts apply only while it is shown.
+      const activeApp = appHost.getSnapshot().activeId;
+      if (activeApp && activeApp !== 'study') return;
       if (e.ctrlKey && e.key === 'c' && !window.getSelection()?.toString()) {
         e.preventDefault();
         setCopyOpen(true);

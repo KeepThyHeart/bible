@@ -141,7 +141,7 @@ export function isChunkLoadError(err: unknown): boolean {
   const { name, message } = err as { name?: unknown; message?: unknown };
   if (name === 'ChunkLoadError') return true;
   return typeof message === 'string'
-    && /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Failed to load module script/i.test(message);
+    && /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Failed to load module script|Unable to preload CSS/i.test(message);
 }
 
 /**

@@ -23,6 +23,7 @@ describe('activation recovery', () => {
     expect(isChunkLoadError(new TypeError('Failed to fetch dynamically imported module: /a.js'))).toBe(true);
     expect(isChunkLoadError(new TypeError('error loading dynamically imported module'))).toBe(true);
     expect(isChunkLoadError(new TypeError('Importing a module script failed.'))).toBe(true);
+    expect(isChunkLoadError(new Error('Unable to preload CSS for /assets/PresenterApp-x.css'))).toBe(true);
     expect(isChunkLoadError(Object.assign(new Error('x'), { name: 'ChunkLoadError' }))).toBe(true);
     expect(isChunkLoadError(new Error('Cannot read properties of undefined'))).toBe(false);
     expect(isChunkLoadError(null)).toBe(false);
