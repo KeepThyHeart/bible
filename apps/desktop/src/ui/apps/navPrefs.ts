@@ -4,8 +4,8 @@
  * registry and the user's order/hide/switcher preferences into nav items.
  */
 import { useMemo, useSyncExternalStore } from 'react';
-import { selectNavItems, shouldShowRail } from '@bible/core/browser';
-import type { AppRegistryState, AppSwitcherMode, NavItem, NavPrefs, NavSurface } from '@bible/core/browser';
+import { selectNavItems, shouldShowRail, STUDY_APP_ID } from '@bible/core/browser';
+import type { AppIcon, AppRegistryState, AppSwitcherMode, LabelRef, NavItem, NavPrefs, NavSurface } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { whenContextService } from '../services/WhenContextService';
 import { appRegistry } from './appHost';
@@ -49,4 +49,38 @@ export function useShowRail(itemCount: number): boolean {
 export function currentNavItems(surface: NavSurface): NavItem[] {
   const { appOrder, appHidden } = usePreferencesStore.getState(); // allow-getstate: non-hook accessor for commands/menu
   return selectDesktopNavItems(appRegistry.state.getSnapshot(), { order: appOrder, hidden: appHidden }, surface);
+}
+
+/** One row of Preferences > Apps: an available app, hidden ones included. */
+export interface AppsPreferenceItem {
+  id: string;
+  title: LabelRef;
+  icon: AppIcon;
+  hidden: boolean;
+  /** Study cannot be hidden. */
+  locked: boolean;
+}
+
+/** Pure: every available app in the user's order, with a `hidden` flag. */
+export function selectAppsPreferenceItems(
+  state: AppRegistryState,
+  prefs: NavPrefs,
+  evalWhen?: (expr: string) => boolean,
+): AppsPreferenceItem[] {
+  const hidden = new Set(prefs.hidden ?? []);
+  return selectDesktopNavItems(state, { order: prefs.order }, 'tiles', evalWhen).map((n) => ({
+    id: n.id,
+    title: n.title,
+    icon: n.icon,
+    hidden: n.id !== STUDY_APP_ID && hidden.has(n.id),
+    locked: n.id === STUDY_APP_ID,
+  }));
+}
+
+/** Preferences > Apps rows, reactive to the registry and preferences. */
+export function useAppsPreferenceItems(): AppsPreferenceItem[] {
+  const state = useRegistryState();
+  const order = usePreferencesStore((s) => s.appOrder);
+  const hidden = usePreferencesStore((s) => s.appHidden);
+  return useMemo(() => selectAppsPreferenceItems(state, { order, hidden }), [state, order, hidden]);
 }

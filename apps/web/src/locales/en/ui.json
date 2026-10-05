@@ -159,7 +159,8 @@
     "commentary": "Commentary",
     "dictionary": "Dictionary",
     "study": "Study",
-    "similar": "Find similar passages"
+    "similar": "Find similar passages",
+    "present": "Present"
   },
   "rightPane": {
     "study": "Study",
@@ -460,24 +461,6 @@
         "ttsVoice": "Voice"
       }
     },
-    "downloads": {
-      "title": "Downloads & storage",
-      "download": "Download",
-      "update": "Update",
-      "retry": "Retry",
-      "cancel": "Cancel",
-      "remove": "Remove",
-      "queued": "Queued",
-      "downloading": "{percent}%",
-      "installed": "Installed",
-      "total": "On this device: {size}",
-      "empty": "Nothing to download.",
-      "unverified": "unverified",
-      "kind": {
-        "ttsRuntime": "Speech engine",
-        "ttsVoice": "Voice"
-      }
-    },
     "about": {
       "title": "About",
       "refreshApp": "Refresh App",
@@ -540,6 +523,22 @@
       "ranges.description": "Show the uncertainty range of a value: when it is wide (auto), always, or never.",
       "ranges.always": "Always",
       "ranges.never": "Never"
+    },
+    "apps": {
+      "switcher": "App switcher",
+      "switcherHint": "Show the app rail always, never, or only when more than one app is available.",
+      "switcherAuto": "Automatic",
+      "switcherRail": "Always show the rail",
+      "switcherNone": "No rail",
+      "listLabel": "Apps",
+      "listHint": "Reorder apps or hide the ones you do not use.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "show": "Show",
+      "alwaysShown": "Always shown",
+      "order": "App order",
+      "hidden": "Hidden apps",
+      "title": "Apps"
     }
   },
   "copyDialog": {
@@ -1749,6 +1748,20 @@
       "loading": "Loading…",
       "error": "This app could not be loaded.",
       "retry": "Retry"
+    },
+    "rail": {
+      "label": "Apps"
+    },
+    "sheet": {
+      "title": "Apps",
+      "close": "Close"
+    },
+    "switch": {
+      "label": "Switch app"
+    },
+    "backToStudy": "Back to Study",
+    "home": {
+      "title": "Apps"
     }
   }
 }

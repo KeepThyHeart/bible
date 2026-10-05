@@ -26,5 +26,6 @@
   "menu.help.checkForUpdates": "Buscar actualizaciones…",
   "menu.help.reportIssue": "Informar de un problema",
   "menu.help.about": "Acerca de Biblia",
-  "menu.tools.title": "Herramientas"
+  "menu.tools.title": "Herramientas",
+  "menu.view.apps": "Aplicaciones"
 }

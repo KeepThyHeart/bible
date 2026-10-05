@@ -16,6 +16,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { audioStore } from '../../stores/audioStore';
 import { AudioSettingsTab } from './AudioSettingsTab';
 import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
+import { AppsSettingsTab } from './AppsSettingsTab';
 import { DownloadsSection } from './DownloadsSection';
 import { OfflinePackSection } from './OfflinePackSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
@@ -25,7 +26,7 @@ import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
 import type { Localizer } from '@bible/core/browser';
 
-type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'about';
+type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'apps' | 'about';
 
 const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'text-size', label: 'settings.tabs.textSize', icon: 'fa-text-height' },
@@ -35,6 +36,7 @@ const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
   { key: 'audio', label: 'settings.tabs.audio', icon: 'fa-headphones' },
   { key: 'notifications', label: 'settings.tabs.notifications', icon: 'fa-bell' },
   { key: 'offline', label: 'settings.tabs.offline', icon: 'fa-cloud-arrow-down' },
+  { key: 'apps', label: 'settings.apps.title', icon: 'fa-table-cells-large' },
   { key: 'about', label: 'settings.tabs.about', icon: 'fa-circle-info' },
 ];
 
@@ -46,6 +48,7 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'audio') return 'audio';
   if (section === 'notifications') return 'notifications';
   if (section === 'offline') return 'offline';
+  if (section === 'apps') return 'apps';
   if (section === 'about') return 'about';
   return 'text-size';
 }
@@ -635,6 +638,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
             {activeTab === 'audio' && audioEnabled && <AudioSettingsTab />}
 
             {activeTab === 'notifications' && <NotificationsSettingsTab />}
+
+            {activeTab === 'apps' && <AppsSettingsTab />}
 
             {activeTab === 'about' && (
               <div class="settings-panel__section" data-section="about">

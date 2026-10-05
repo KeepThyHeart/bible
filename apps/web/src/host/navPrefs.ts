@@ -5,9 +5,9 @@
  */
 import { useMemo } from 'preact/hooks';
 import {
-  appSwitcherFromSettings, navPrefsFromSettings, selectNavItems, shouldShowRail,
+  appSwitcherFromSettings, navPrefsFromSettings, selectNavItems, shouldShowRail, STUDY_APP_ID,
 } from '@bible/core/browser';
-import type { AppSwitcherMode, NavItem, NavPrefs, NavSurface } from '@bible/core/browser';
+import type { AppSwitcherMode, AppIcon, LabelRef, NavItem, NavPrefs, NavSurface } from '@bible/core/browser';
 import { webSettings } from '../stores/settingsRegistry';
 import { appRegistry } from './appHost';
 import { evalAppWhen } from './verseActionWhen';
@@ -58,4 +58,33 @@ export function useRailVisible(): boolean {
   const items = useNavItems('rail');
   const mobile = useIsMobile();
   return !mobile && shouldShowRail(mode, items.length);
+}
+
+/** One row of Preferences > Apps: an available app, hidden ones included. */
+export interface AppsPreferenceItem {
+  id: string;
+  title: LabelRef;
+  icon: AppIcon;
+  hidden: boolean;
+  /** Study cannot be hidden. */
+  locked: boolean;
+}
+
+/** Every available app in the user's order, with a `hidden` flag (Preferences > Apps). */
+export function useAppsPreferenceItems(): AppsPreferenceItem[] {
+  const registry = useReadable(appRegistry.state);
+  const settings = useReadable(webSettings);
+  const prefs = navPrefsFromSettings((key) => settings[key]);
+  const key = prefsKey(prefs);
+  return useMemo(() => {
+    const hidden = new Set(prefs.hidden ?? []);
+    return selectNavItems(registry.apps, { platform: 'web', prefs: { order: prefs.order }, evalWhen: evalAppWhen }).map((n) => ({
+      id: n.id,
+      title: n.title,
+      icon: n.icon,
+      hidden: n.id !== STUDY_APP_ID && hidden.has(n.id),
+      locked: n.id === STUDY_APP_ID,
+    }));
+    // `prefs` is rebuilt per render; its content key is what matters.
+  }, [registry, key]);
 }
