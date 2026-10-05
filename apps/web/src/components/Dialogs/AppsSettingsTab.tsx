@@ -48,8 +48,10 @@ export function AppsSettingsTab() {
 
   const onHiddenChange = (id: string, hide: boolean) => {
     if (id === STUDY_APP_ID) return;
-    const rest = entries.filter((e) => e.hidden && e.id !== id).map((e) => e.id);
-    webSettings.set('appHidden', hide ? [...rest, id] : rest);
+    // Start from the stored list: it also holds apps that are not available right now.
+    const next = new Set(webSettings.get<string[]>('appHidden'));
+    if (hide) next.add(id); else next.delete(id);
+    webSettings.set('appHidden', [...next]);
   };
 
   return (
@@ -59,7 +61,10 @@ export function AppsSettingsTab() {
         mode={mode}
         onModeChange={(m: AppSwitcherMode) => { webSettings.set('appSwitcher', m); }}
         items={items}
-        onOrderChange={(ids) => { webSettings.set('appOrder', ids); }}
+        onOrderChange={(ids) => {
+          const keep = webSettings.get<string[]>('appOrder').filter((id) => !ids.includes(id));
+          webSettings.set('appOrder', [...ids, ...keep]); // keep ids of apps not available right now
+        }}
         onHiddenChange={onHiddenChange}
         labels={labels}
         idPrefix="settings-apps"

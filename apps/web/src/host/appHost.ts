@@ -107,6 +107,8 @@ let popped = false;
 /** Called by webRoute from its popstate handler: the pop changed the active app. */
 export function noteAppPop(changed: boolean): void {
   popped = changed;
+  // Only MobileApp consumes it; if the phone layout is not mounted it must not outlive this event.
+  if (changed) setTimeout(() => { popped = false; }, 0);
 }
 
 /**

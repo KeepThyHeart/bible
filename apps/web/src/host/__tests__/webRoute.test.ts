@@ -56,9 +56,10 @@ describe('webRoute', () => {
   it('popstate onto an app hash activates it and flags the pop once', async () => {
     history.replaceState(null, '', '/#/@present');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    await vi.waitFor(() => expect(appHost.getSnapshot().activeId).toBe('present'));
+    // The flag is set synchronously and expires on a timer (appHost.noteAppPop), so read it before waiting.
     expect(consumeAppPop()).toBe(true);
     expect(consumeAppPop()).toBe(false);
+    await vi.waitFor(() => expect(appHost.getSnapshot().activeId).toBe('present'));
   });
 
   it('popstate within Study does not flag a pop', () => {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { AppStage as SharedAppStage } from '@bible/ui';
 import { appFailures, appHost, getAppView, retryFailedApp } from './appHost';
@@ -19,6 +20,39 @@ export function AppStage() {
   const snap = useReadable(appHost);
   const failure = useReadable(appFailures);
   const mobile = useIsMobile();
+
+  // Focus per app: a switch made from a trigger inside the app now hidden would leave focus on <body>.
+  const lastFocus = useRef(new Map<string, HTMLElement>());
+  const prevActive = useRef<string | null>(null);
+  useEffect(() => {
+    const onFocusIn = (e: FocusEvent): void => {
+      const target = e.target as HTMLElement | null;
+      const id = target?.closest<HTMLElement>('[data-app]')?.dataset.app;
+      if (id && target) lastFocus.current.set(id, target);
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+  const activeId = snap.activeId;
+  useEffect(() => {
+    const prev = prevActive.current;
+    prevActive.current = activeId;
+    if (!activeId || prev === null || prev === activeId) return; // the boot activation never steals focus
+    const raf = requestAnimationFrame(() => {
+      const remembered = lastFocus.current.get(activeId);
+      if (remembered?.isConnected && !remembered.closest('[inert]')) {
+        remembered.focus();
+        return;
+      }
+      const wrapper = document.querySelector<HTMLElement>(`[data-app="${CSS.escape(activeId)}"]`);
+      if (!wrapper) return;
+      const heading = wrapper.querySelector<HTMLElement>('h1[tabindex="-1"]');
+      if (heading) { heading.focus(); return; }
+      if (!wrapper.hasAttribute('tabindex')) wrapper.setAttribute('tabindex', '-1');
+      wrapper.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeId]);
 
   const loading = snap.pendingId !== null && !snap.mounted.includes(snap.pendingId);
   const apps = snap.mounted.flatMap((id) => {

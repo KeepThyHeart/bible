@@ -56,7 +56,7 @@ export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true, 
           <div class="verse-context-menu__divider" />
           {actions.map((a) => (
             <button key={a.id} class="verse-context-menu__item" data-action-id={a.id} onClick={() => onVerseAction?.(a.id)}>
-              {a.iconClass && <i class={a.iconClass} />} {a.label}
+              {a.iconClass && <i class={a.iconClass} aria-hidden="true" />} {a.label}
             </button>
           ))}
         </>

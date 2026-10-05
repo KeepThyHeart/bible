@@ -62,4 +62,13 @@ describe('installExtensionVerseActions', () => {
     const ids = verseActions.getSnapshot().map((e) => e.item.id);
     expect(ids).toEqual(['ext-x.a', 'ext-x.z']);
   });
+
+  it('keeps ids unique and prefixed when extension and item ids contain dots', () => {
+    add('a.b', { id: 'c' });
+    add('a', { id: 'b.c' });
+    const ids = verseActions.list().map((x) => x.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.sort()).toEqual(['a.b%2Ec', 'a.b.c']);
+    expect(ids.every((id) => id.startsWith('a.'))).toBe(true);
+  });
 });

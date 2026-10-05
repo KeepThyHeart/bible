@@ -110,6 +110,11 @@ describe('ContextMenuPopup', () => {
     expect(onVerseAction).toHaveBeenCalledWith('present.showVerse');
   });
 
+  it('hides the registry action icon from assistive tech', () => {
+    const { container } = renderMenu({ actions: [{ id: 'present.showVerse', label: 'Present', iconClass: 'fa-solid fa-tv' }] });
+    expect(container.querySelector('[data-action-id="present.showVerse"] i')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('shows no extra divider without registry actions', () => {
     const { container } = renderMenu({ actions: [] });
     expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(1);

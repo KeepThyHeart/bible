@@ -17,6 +17,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
 import { CompanionSlot } from './host/CompanionSlot';
+import { AppSwitchSlot } from './host/AppSwitchSlot';
 import { AudioMiniPlayer } from './components/AudioMiniPlayer';
 import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
@@ -361,6 +362,7 @@ export function MobileApp({ providers }: MobileAppProps) {
               <i class="fa-solid fa-book-bible" /> {t('app.name')}
             </div>
             <div class="mobile-landscape-sidebar__actions">
+              <AppSwitchSlot className="mobile-landscape-sidebar__action-btn" />
               <div class="mobile-landscape-sidebar__theme-wrapper">
                 <button
                   class="mobile-landscape-sidebar__action-btn"

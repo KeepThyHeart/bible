@@ -46,4 +46,22 @@ describe('AppStage', () => {
     expect(root.querySelector('#s')).toBeTruthy(); // kept alive
     expect((root.querySelector('[data-app="present"]') as HTMLElement).hasAttribute('inert')).toBe(false);
   });
+
+  it('restores focus into the app being switched to', async () => {
+    appRegistry.register(desc('a1', 'always'), { kind: 'builtin', moduleId: 'a1' });
+    appRegistry.register(desc('a2', 'always'), { kind: 'builtin', moduleId: 'a2' });
+    addAppBinding({ id: 'a1', load: async () => ({ View: () => <button id="b1">one</button> }) });
+    addAppBinding({ id: 'a2', load: async () => ({ View: () => <button id="b2">two</button> }) });
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    await act(async () => { render(<AppStage />, root); });
+    await act(async () => { await activateWithRecovery('a1'); });
+    await act(async () => { await activateWithRecovery('a2'); });
+    (root.querySelector('#b2') as HTMLElement).focus();
+    await act(async () => { await activateWithRecovery('a1'); });
+    (root.querySelector('#b1') as HTMLElement).focus();
+    await act(async () => { await activateWithRecovery('a2'); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(document.activeElement?.id).toBe('b2');
+  });
 });

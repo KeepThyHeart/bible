@@ -52,8 +52,10 @@ export const AppsSection: React.FC = () => {
 
   const onHiddenChange = (id: string, hide: boolean) => {
     if (id === STUDY_APP_ID) return;
-    const rest = entries.filter((e) => e.hidden && e.id !== id).map((e) => e.id);
-    setAppHidden(hide ? [...rest, id] : rest);
+    // Start from the stored list: it also holds apps that are not available right now.
+    const next = new Set(usePreferencesStore.getState().appHidden); // allow-getstate: event handler reads the current stored list
+    if (hide) next.add(id); else next.delete(id);
+    setAppHidden([...next]);
   };
 
   return (
@@ -62,7 +64,10 @@ export const AppsSection: React.FC = () => {
         mode={mode}
         onModeChange={setAppSwitcher}
         items={items}
-        onOrderChange={setAppOrder}
+        onOrderChange={(ids) => {
+          const keep = usePreferencesStore.getState().appOrder.filter((id) => !ids.includes(id)); // allow-getstate: event handler
+          setAppOrder([...ids, ...keep]); // keep ids of apps not available right now
+        }}
         onHiddenChange={onHiddenChange}
         labels={labels}
         idPrefix="pref-apps"

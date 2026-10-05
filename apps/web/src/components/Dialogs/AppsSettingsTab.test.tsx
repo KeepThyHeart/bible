@@ -57,4 +57,16 @@ describe('AppsSettingsTab', () => {
     expect(webSettings.getSnapshot().appHidden).toEqual([]);
     expect((container.querySelector('[data-app-id="study"] input') as HTMLInputElement).disabled).toBe(true);
   });
+
+  it('keeps stored ids of apps that are not available when hiding and reordering', () => {
+    webSettings.set('appHidden', ['ghost']);
+    webSettings.set('appOrder', ['ghost2']);
+    const { container } = render(<AppsSettingsTab />);
+    fireEvent.click(container.querySelector('[data-app-id="present"] input') as HTMLInputElement);
+    expect(webSettings.getSnapshot().appHidden).toEqual(['ghost', 'present']);
+    fireEvent.click(container.querySelector('[data-app-id="present"] input') as HTMLInputElement);
+    expect(webSettings.getSnapshot().appHidden).toEqual(['ghost']);
+    fireEvent.click(screen.getByLabelText('Move up: Plans'));
+    expect(webSettings.getSnapshot().appOrder).toContain('ghost2');
+  });
 });

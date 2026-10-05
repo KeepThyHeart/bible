@@ -16,6 +16,18 @@ beforeEach(() => {
   settingsStore.load();
 });
 
+describe('settingsStore.save', () => {
+  it('keeps registry keys (appHidden) across a legacy save and reload', async () => {
+    const { webSettings } = await import('./settingsRegistry');
+    webSettings.set('appHidden', ['present']);
+    settingsStore.setTheme('dark');
+    expect(blob().appHidden).toEqual(['present']);
+    settingsStore.load();
+    await webSettings.reload();
+    expect(webSettings.get('appHidden')).toEqual(['present']);
+  });
+});
+
 describe('webSettingsPort', () => {
   it('merges into the existing blob without dropping other keys', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: 'dark', fontSize: 22 }));

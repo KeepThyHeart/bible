@@ -2,11 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
 
-import { appHost, appRegistry, addAppBinding, activateWithRecovery, noteAppPop, studyShouldIgnoreBack } from '../appHost';
+import { appHost, appRegistry, addAppBinding, activateWithRecovery, noteAppPop, consumeAppPop, studyShouldIgnoreBack } from '../appHost';
 
 const desc = (id: string) => ({
   id, title: { key: id, fallback: id }, icon: { kind: 'builtin' as const, name: 'x' }, order: 0,
   lifecycle: { keepAlive: 'always' as const, restore: 'default' as const },
+});
+
+describe('noteAppPop', () => {
+  it('does not leave a stale flag behind when nobody consumes it', async () => {
+    noteAppPop(true);
+    await new Promise((r) => setTimeout(r, 5));
+    expect(consumeAppPop()).toBe(false);
+  });
 });
 
 describe('studyShouldIgnoreBack', () => {

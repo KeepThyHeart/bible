@@ -54,4 +54,15 @@ describe('AppsSection', () => {
     expect(usePreferencesStore.getState().appHidden).toEqual([]);
     expect(row(container, 'study').disabled).toBe(true);
   });
+
+  it('keeps stored ids of apps that are not available when hiding and reordering', () => {
+    act(() => usePreferencesStore.setState({ appHidden: ['ghost'], appOrder: ['ghost2'] }));
+    const { container } = render(<AppsSection />);
+    fireEvent.click(row(container, 'present'));
+    expect(usePreferencesStore.getState().appHidden).toEqual(['ghost', 'present']);
+    fireEvent.click(row(container, 'present'));
+    expect(usePreferencesStore.getState().appHidden).toEqual(['ghost']);
+    fireEvent.click(screen.getByLabelText('Move up: Plans'));
+    expect(usePreferencesStore.getState().appOrder).toContain('ghost2');
+  });
 });

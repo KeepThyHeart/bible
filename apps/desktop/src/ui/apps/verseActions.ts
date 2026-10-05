@@ -50,7 +50,9 @@ export function installExtensionVerseActions(services: Services): () => void {
     }
     for (const [key, c] of wanted) {
       if (rows.has(key)) continue;
-      const id = `${c.extensionId}.${c.item.id}`;
+      // Core requires the `<extensionId>.` prefix. The item id is escaped (dots too), so the
+      // last dot always splits extension from item and ids cannot collide across extensions.
+      const id = `${c.extensionId}.${encodeURIComponent(c.item.id).replace(/\./g, '%2E')}`;
       const { item } = c;
       try {
         const reg = verseActions.register(
