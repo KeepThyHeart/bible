@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { registerHostUiForTests } from '../modules/host/registerHostUiForTests';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import NewTabPage from './NewTabPage';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
@@ -27,6 +28,8 @@ const desc = (id: string, order: number) => ({
   id, title: { key: `apps.${id}.title`, fallback: id === 'study' ? 'Study' : 'Fixture' }, icon: { kind: 'builtin' as const, name: 'app' },
   order, lifecycle: { keepAlive: 'always' as const, restore: 'reopen' as const },
 });
+
+beforeAll(() => registerHostUiForTests());
 
 describe('NewTabPage apps row', () => {
   beforeEach(() => {

@@ -4,9 +4,11 @@
  * lazy loaders. Add a module here (one line) when it is created.
  */
 import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
+import { hostPanelsManifest, hostPanelsBinding } from './host/panels';
+import { hostUiModule } from './host/ui';
 import { addBuiltinModule, reconcileModules } from './moduleHost';
 
-export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [];
+export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [[hostPanelsManifest, hostPanelsBinding], hostUiModule];
 
 let registered = false;
 

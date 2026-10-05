@@ -49,7 +49,50 @@ function getBridge(): LocaleCatalogBridge | undefined {
 }
 
 export class LocaleCatalogLoader {
-  constructor(private readonly i18n: II18nService) {}
+  /** Module namespaces (task 0113): skipped by `loadAll`, read on demand by `loadNamespace`. */
+  private readonly lazyNamespaces = new Set<string>();
+
+  constructor(private readonly i18n: II18nService) {
+    // The service asks us for namespace files; it works the same when no bridge exists (resolves undefined).
+    i18n.setNamespaceSource?.((locale, namespace) => this.readNamespace(locale, namespace));
+  }
+
+  /**
+   * Mark a namespace as module-owned: `loadAll` no longer reads `<locale>/<namespace>.json`
+   * eagerly, it loads on first use or module activation. Call before `loadAll`.
+   */
+  registerLazyNamespace(namespace: string): void {
+    this.lazyNamespaces.add(namespace);
+    this.i18n.registerNamespace?.(namespace);
+  }
+
+  /** Load a namespace's catalogs (current locale and `en`). A no-op for unknown or missing files; never throws. */
+  async loadNamespace(namespace: string): Promise<void> {
+    try {
+      await this.i18n.loadNamespace(namespace);
+    } catch {
+      // never throws
+    }
+  }
+
+  /** Built-in file first, the user's file merged over it. `undefined` when neither exists. */
+  private async readNamespace(locale: LocaleCode, namespace: string): Promise<Record<string, string> | undefined> {
+    const bridge = getBridge();
+    if (!bridge) return undefined;
+    let merged: Record<string, string> | undefined;
+    const attempt = async (list: typeof bridge.listBuiltinCatalogs, read: typeof bridge.readBuiltinCatalog) => {
+      try {
+        const entries = await list();
+        if (!entries.some((e) => e.locale === locale && e.namespace === namespace)) return;
+        merged = { ...(merged ?? {}), ...(await read(locale, namespace)) };
+      } catch {
+        // missing or unreadable file: nothing to merge
+      }
+    };
+    await attempt(bridge.listBuiltinCatalogs.bind(bridge), bridge.readBuiltinCatalog.bind(bridge));
+    await attempt(bridge.listUserCatalogs.bind(bridge), bridge.readUserCatalog.bind(bridge));
+    return merged;
+  }
 
   async loadAll(): Promise<void> {
     const bridge = getBridge();
@@ -71,7 +114,9 @@ export class LocaleCatalogLoader {
       return;
     }
     await Promise.all(
-      entries.map(async ({ locale, namespace }) => {
+      entries
+        .filter(({ namespace }) => !this.lazyNamespaces.has(namespace))
+        .map(async ({ locale, namespace }) => {
         try {
           const strings = await read(locale, namespace);
           this.i18n.loadCatalog(locale, namespace, strings);

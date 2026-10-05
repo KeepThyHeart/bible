@@ -10,6 +10,8 @@ import {
   setShellContext, startPersistingAppHost,
 } from '../host/appHost';
 import { registerBuiltinApps } from '../host/builtinApps';
+import { registerBuiltinModules } from '../modules/builtinModules';
+import { startModuleNamespaceLoading } from '../modules/host/i18nNamespaces';
 import { setStudyOwnsHash } from '../host/hashGate';
 import { ensurePresenterRuntime, hasStoredPresenterSession } from '../host/presenterRuntime';
 import '../host/webRoute';
@@ -52,6 +54,9 @@ export async function runBoot({ render }: RunBootOptions): Promise<void> {
   if (!ctx) return; // update in flight or unauthorized: render nothing
   setShellContext(ctx);
   registerBuiltinApps();
+  // Feature modules (task 0113): manifests only; after the client config so flags resolve.
+  registerBuiltinModules();
+  startModuleNamespaceLoading();
 
   const initial = resolveInitialApp(ctx, window.location.hash);
   if (initial !== STUDY_APP_ID) {

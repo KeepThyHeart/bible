@@ -18,24 +18,45 @@
  * settings-preferences.md for the full persistence path.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { Suspense, useMemo, useRef, useState } from 'react';
+import type { PreferencesSectionContribution } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
+import { useAppServices } from '../contexts/ContextProvider';
 import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import { PaneType } from '../stores/useTextSettingsStore';
-import { ExtensionsSection } from './ExtensionsSection';
-import DiagnosticsSettings from './diagnostics/DiagnosticsSettings';
-import { SECTIONS, SectionId } from './PreferencesDialog/sectionDefs';
-import { GeneralSection } from './PreferencesDialog/GeneralSection';
-import { TypographySection } from './PreferencesDialog/TypographySection';
-import { FontsSection } from './PreferencesDialog/FontsSection';
-import { ThemesSection } from './PreferencesDialog/ThemesSection';
-import { PrivacySection } from './PreferencesDialog/PrivacySection';
-import { NotificationsSection } from './PreferencesDialog/NotificationsSection';
-import { DownloadsSection } from './PreferencesDialog/DownloadsSection';
-import { AppsSection } from './PreferencesDialog/AppsSection';
-import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
-import { MeasuresSection } from './PreferencesDialog/MeasuresSection';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { modulePoints } from '../modules/moduleHost';
+import { useRegistryItems } from '../modules/host/useRegistry';
+import { SECTION_ICONS } from './PreferencesDialog/sectionDefs';
+import { SettingsGroupSection } from './PreferencesDialog/SettingsGroupSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
+
+/** Props every section view may receive; a view ignores the ones it does not use. */
+interface SectionViewProps {
+  initialPane?: PaneType;
+  initialExpand?: { extensionId: string; section?: string };
+}
+
+/** One `React.lazy` per view loader, so a section keeps its identity across renders. */
+const lazyViews = new WeakMap<object, React.LazyExoticComponent<React.ComponentType<SectionViewProps>>>();
+
+function lazyView(id: string): React.LazyExoticComponent<React.ComponentType<SectionViewProps>> | undefined {
+  const loader = modulePoints.views.resolve<{ default: React.ComponentType<SectionViewProps> }>(`preferences:${id}`);
+  if (!loader) return undefined;
+  let view = lazyViews.get(loader);
+  if (!view) {
+    view = React.lazy(loader);
+    lazyViews.set(loader, view);
+  }
+  return view;
+}
+
+const SectionBody: React.FC<{ section: PreferencesSectionContribution } & SectionViewProps> = ({ section, ...props }) => {
+  const View = lazyView(section.id);
+  if (View) return <View {...props} />;
+  if (section.settingsGroup) return <SettingsGroupSection group={section.settingsGroup} />;
+  return null;
+};
 
 interface PreferencesDialogProps {
   /** Which section to show initially (default: 'general') */
@@ -57,19 +78,38 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
   initialExtensionTarget,
   onClose
 }) => {
-  const { t } = useI18n();
-  const [activeSection, setActiveSection] = useState<SectionId>(
-    (initialSection as SectionId) || 'general'
+  const { t, i18n } = useI18n();
+  const { whenContext } = useAppServices();
+  const contributed = useRegistryItems(modulePoints.preferencesSections);
+  // Sections of a disabled module are not in the registry; `when` is a cheap data predicate.
+  const sections = useMemo(
+    () =>
+      contributed
+        .filter((s) => {
+          if (!s.when) return true;
+          try {
+            return whenContext.evaluate(s.when);
+          } catch {
+            return false;
+          }
+        })
+        .map((s) => ({
+          ...s,
+          label: 'key' in s.title ? translateWithDefault(t, s.title.key, s.title.fallback) : i18n.resolve(s.title.text),
+          glyph: SECTION_ICONS[s.id],
+        })),
+    [contributed, whenContext, t, i18n],
   );
+  const [activeSection, setActiveSection] = useState<string>(initialSection || 'general');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useDialogShell(dialogRef, onClose);
 
-  const activeSectionIndex = SECTIONS.findIndex((s) => s.id === activeSection);
+  const activeSectionIndex = sections.findIndex((s) => s.id === activeSection);
   const { tablistRef, onKeyDown: handleTabKeyDown } = useTabKeyboardNav({
-    tabCount: SECTIONS.length,
+    tabCount: sections.length,
     activeIndex: activeSectionIndex,
-    onActivate: (index) => setActiveSection(SECTIONS[index].id),
+    onActivate: (index) => setActiveSection(sections[index].id),
   });
 
   return (
@@ -114,7 +154,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             ref={tablistRef}
             onKeyDown={handleTabKeyDown}
           >
-            {SECTIONS.map((section) => (
+            {sections.map((section) => (
               <button
                 key={section.id}
                 role="tab"
@@ -145,8 +185,8 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                   }
                 }}
               >
-                {section.icon}
-                {t(section.labelKey)}
+                {section.glyph}
+                {section.label}
               </button>
             ))}
           </nav>
@@ -163,7 +203,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
               className="text-xl font-semibold"
               style={{ color: 'var(--theme-text-heading)' }}
             >
-              {t(SECTIONS[activeSectionIndex]?.labelKey ?? 'preferencesDialog.title')}
+              {sections[activeSectionIndex]?.label ?? t('preferencesDialog.title')}
             </h3>
           </div>
 
@@ -175,20 +215,15 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             aria-labelledby={`preferences-tab-${activeSection}`}
             tabIndex={0}
           >
-            {activeSection === 'general' && <GeneralSection />}
-            {activeSection === 'typography' && <TypographySection />}
-            {activeSection === 'fonts' && <FontsSection initialPane={initialFontPane} />}
-            {activeSection === 'themes' && <ThemesSection />}
-            {activeSection === 'privacy' && <PrivacySection />}
-            {activeSection === 'notifications' && <NotificationsSection />}
-            {activeSection === 'downloads' && <DownloadsSection />}
-            {activeSection === 'extensions' && (
-              <ExtensionsSection initialExpand={initialExtensionTarget} />
+            {activeSectionIndex >= 0 && (
+              <Suspense fallback={null}>
+                <SectionBody
+                  section={sections[activeSectionIndex]}
+                  initialPane={initialFontPane}
+                  initialExpand={initialExtensionTarget}
+                />
+              </Suspense>
             )}
-            {activeSection === 'apps' && <AppsSection />}
-            {activeSection === 'measures' && <MeasuresSection />}
-            {activeSection === 'advanced' && <AdvancedSection />}
-            {activeSection === 'diagnostics' && <DiagnosticsSettings />}
           </div>
 
           {/* Footer with close button */}

@@ -6,6 +6,9 @@ import i18n, {
   selectableLocaleInfos,
   ensureLocaleLoaded,
   changeLocale,
+  loadNamespace,
+  loadedModuleNamespaces,
+  setModuleNamespaceLoadersForTests,
 } from './i18n';
 
 /**
@@ -210,5 +213,31 @@ describe('xx-rtl pseudo-locale', () => {
     } finally {
       await changeLocale(original);
     }
+  });
+});
+
+describe('feature-module namespaces (task 0113)', () => {
+  afterEach(() => setModuleNamespaceLoadersForTests(null));
+
+  it('merges <locale>/<ns>.json into the flat ui key space, English first', async () => {
+    setModuleNamespaceLoadersForTests({
+      './locales/en/fakens.json': async () => ({ default: { $schema: 'x', 'fakens.title': 'Fake', 'fakens.only': 'English only' } }),
+      './locales/es/fakens.json': async () => ({ default: { 'fakens.title': 'Falso' } }),
+    });
+    await loadNamespace('fakens', 'es');
+    expect(i18n.t('fakens.title', { lng: 'en' })).toBe('Fake');
+    expect(i18n.t('fakens.title', { lng: 'es' })).toBe('Falso');
+    // English fallback for a key the locale file lacks.
+    expect(i18n.t('fakens.only', { lng: 'es' })).toBe('English only');
+    expect(i18n.getResource('en', 'ui', '$schema')).not.toBe('x');
+    expect(loadedModuleNamespaces()).toContain('fakens');
+  });
+
+  it('never throws for a missing or broken file', async () => {
+    setModuleNamespaceLoadersForTests({
+      './locales/en/broken.json': async () => { throw new Error('boom'); },
+    });
+    await expect(loadNamespace('broken')).resolves.toBeUndefined();
+    await expect(loadNamespace('nonexistent', 'fr')).resolves.toBeUndefined();
   });
 });

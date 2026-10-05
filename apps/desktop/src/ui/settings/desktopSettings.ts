@@ -19,11 +19,13 @@ import {
   APP_NAV_SETTINGS,
   type SettingChange,
   type SettingsStore,
+  type SettingsRegistry,
   type SettingsStoragePort,
   type AppSwitcherMode,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { modulePoints } from '../modules/moduleHost';
 import { useMeasureStore } from '../stores/useMeasureStore';
 
 const DESKTOP_OWN_SETTINGS = defineSettings([
@@ -71,6 +73,17 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     label: 'Show reading streaks',
   },
 ]);
+
+/**
+ * The settings feature modules contribute (`contributes.settings`, task 0113), as a
+ * registry. Computed on each call from the live contribution point, so a disabled
+ * module's settings are absent. The hand-merged registries below stay as they are;
+ * merge this one in where modules should be able to add settings:
+ * `mergeSettings(DESKTOP_SETTINGS, contributedSettings())`.
+ */
+export function contributedSettings(): SettingsRegistry {
+  return defineSettings(modulePoints.settings.list().flatMap((group) => group.defs.map((d) => ({ ...d, group: d.group ?? group.id }))));
+}
 
 /** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
 export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);

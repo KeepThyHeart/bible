@@ -22,10 +22,10 @@
  * Book pane means a *study book*, not a book of the Bible.
  */
 
-import type { PanelContentType } from '../stores/useLayoutStore';
+import type { CorePanelType, PanelContentType } from '../stores/useLayoutStore';
 
 /** Every panel content type except the open-ended extension namespace. */
-export type NamedPaneType = Exclude<PanelContentType, `ext:${string}`>;
+export type NamedPaneType = CorePanelType;
 
 export const PANE_NAME_KEYS: Record<NamedPaneType, string> = {
   bible: 'paneName.bible',

@@ -12,6 +12,9 @@ import { useNetworkStore } from './stores/useNetworkStore';
 import { usePreferencesStore } from './stores/usePreferencesStore';
 import { appHost, appRegistry } from './apps/appHost';
 import { registerBuiltinApps } from './apps/builtinApps';
+import { registerBuiltinModules } from './modules/builtinModules';
+import { modulePoints } from './modules/moduleHost';
+import { bindModuleNamespaces } from './modules/host/i18nNamespaces';
 import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
 import { installExtensionVerseActions } from './apps/verseActions';
 import { installAppSession } from './apps/appSession';
@@ -68,7 +71,13 @@ bindDocumentDirection(services.i18n);
 // `finally` because a failed load must still release that wait - the loader
 // already logs and swallows per-catalog failures, and a picker that never
 // appears is worse than a short one.
-void new LocaleCatalogLoader(services.i18n)
+// Feature modules (task 0113): manifests only, so no module code loads here. Must
+// precede the first render (panel types, tiles and sections come from it) and the
+// catalog load (module i18n namespaces are registered lazily).
+registerBuiltinModules();
+const catalogLoader = new LocaleCatalogLoader(services.i18n);
+bindModuleNamespaces(modulePoints.i18nNamespace, catalogLoader);
+void catalogLoader
   .loadAll()
   .then(() => restorePersistedLocale(services.i18n))
   .finally(() => markLocaleCatalogsReady());

@@ -42,6 +42,7 @@ import { resolveAppId } from './notifications/appId';
 import { isExtensionNotifyAllowed as isExtensionNotifyAllowedFor } from './notifications/extensionAllowed';
 import { runOnce } from './utils/runOnce';
 import { ensureBibleRepository } from './ipc/bibleHandlers';
+import { registerMainModules, closeMainModules } from './modules/mainModules';
 import { UserDataRepository } from '@bible/core';
 import { NotificationSettingsStore } from '@bible/core/browser';
 import { initializeUserSchema } from './schema/userSchema';
@@ -648,6 +649,18 @@ const registerAllHandlersOnce = runOnce(() => {
   registerQuizHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerWordStudyHandlers(ipcMain);
+  // Feature modules (task 0113): enabled modules' main-process code, loaded lazily. The table is
+  // empty until features migrate; handlers are registered before the window loads in the common
+  // case, and a failure here must never block startup.
+  registerMainModules(
+    ipcMain,
+    {
+      userDataPath: app.getPath('userData'),
+      getWindows: () => (mainWindow && !mainWindow.isDestroyed() ? [mainWindow] : []),
+      log,
+    },
+    { packaged: app.isPackaged },
+  ).catch((error) => log.error('[modules] registerMainModules failed:', error));
   registerBackupHandlers({ getExtensionPort: getBackupExtensionPort });
   initializeFileNotesService();
   registerFileNotesHandlers();
@@ -1436,6 +1449,7 @@ app.on('window-all-closed', () => {
 // the registry's `closeAll()` already closed the underlying providers.
 app.on('will-quit', () => {
   if (!gotSingleInstanceLock) return;
+  closeMainModules().catch((error) => log.error('[will-quit] Error closing feature modules:', error));
   try {
     log.info('[will-quit] Closing all module databases via registry...');
     getModuleDatabaseRegistry().closeAll();

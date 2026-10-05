@@ -153,3 +153,12 @@ export const SECTIONS: SectionDef[] = [
     )
   }
 ];
+
+/**
+ * Sidebar glyph by section id. The sections themselves (id, title, order) are
+ * contributions now (`modules/host/ui.ts`); the glyphs stay here because they are
+ * JSX. A contributed section with no entry simply shows no glyph.
+ */
+export const SECTION_ICONS: Readonly<Record<string, React.ReactNode>> = Object.fromEntries(
+  SECTIONS.map((s) => [s.id, s.icon]),
+);

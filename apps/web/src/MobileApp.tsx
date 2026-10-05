@@ -23,6 +23,8 @@ import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
+import { fireActivation } from './modules/moduleHost';
+import { usePaneModes } from './modules/host/usePaneModes';
 import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
@@ -45,8 +47,10 @@ export function MobileApp({ providers }: MobileAppProps) {
   const { t } = useTranslation();
   // The audio UI is laid out per form factor: full-screen player and mini-player here.
   useEffect(() => { audioStore.setLayout('phone'); }, []);
+  const paneModes = usePaneModes();
+  const phoneViews = new Set(paneModes.filter((m) => m.phoneView).map((m) => m.id));
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
-  const [mobileView, setMobileView] = useState<'home' | 'bible' | 'search' | 'study' | 'commentary' | 'wordStudy'>('home');
+  const [mobileView, setMobileView] = useState<string>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
   const searchIsOpen = useStore(searchStore, () => searchStore.isOpen);
   const searchSeq = useStore(searchStore, () => searchStore.searchSeq);
@@ -208,7 +212,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       }
 
       // Priority 3: Non-bible view → back to bible
-      if (mobileView === 'search' || mobileView === 'study' || mobileView === 'commentary' || mobileView === 'wordStudy') {
+      if (mobileView === 'search' || phoneViews.has(mobileView)) {
         switchMobileView('bible');
         return;
       }
@@ -345,6 +349,33 @@ export function MobileApp({ providers }: MobileAppProps) {
     </>
   );
 
+  // The phone views other than the fixed core ones (home, bible, search) are the
+  // `paneModes` that opt in with `phoneView`; the registry decides which exist.
+  const phoneComponents: Record<string, () => unknown> = {
+    study: () => (
+      <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
+    ),
+    wordStudy: () => (
+      <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
+    ),
+    commentary: () => (
+      <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
+    ),
+  };
+  const renderPhoneView = (view: string) => {
+    const render = phoneViews.has(view) ? phoneComponents[view] : undefined;
+    if (!render) return null;
+    return (
+      <div class="main-layout__right-pane" style={commentaryStyle}>
+        {render() as never}
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    if (phoneViews.has(mobileView)) fireActivation('onPanel:' + mobileView);
+  }, [mobileView]);
+
   // On mobile the entire content area is one scroll container.
   // Header, tab bar, and toolbar are siblings inside it.
   // The tab bar uses position:sticky to stay pinned while the
@@ -434,21 +465,7 @@ export function MobileApp({ providers }: MobileAppProps) {
                 <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
               </div>
             )}
-            {mobileView === 'study' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
-              </div>
-            )}
-            {mobileView === 'wordStudy' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
-              </div>
-            )}
-            {mobileView === 'commentary' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
-              </div>
-            )}
+            {renderPhoneView(mobileView)}
           </div>
         </>
       ) : (
@@ -472,21 +489,7 @@ export function MobileApp({ providers }: MobileAppProps) {
               <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
             </div>
           )}
-          {mobileView === 'study' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
-            </div>
-          )}
-          {mobileView === 'wordStudy' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
-            </div>
-          )}
-          {mobileView === 'commentary' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
-            </div>
-          )}
+          {renderPhoneView(mobileView)}
         </div>
       )}
       {navTooltip && (

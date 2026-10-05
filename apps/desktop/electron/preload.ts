@@ -332,6 +332,17 @@ export interface ElectronAPI {
     deleteGroup: (id: string) => Promise<Result<boolean>>;
   };
 
+  /**
+   * Generic feature-module surface (task 0113). Reaches only
+   * `module:<ns>:<method>` / `module:<ns>:event:<name>`; renderer code uses the
+   * typed `createModuleClient` instead of calling this directly. `invoke`
+   * resolves to the handler's `Result<T>` envelope.
+   */
+  modules: {
+    invoke: <T = unknown>(ns: string, method: string, ...args: unknown[]) => Promise<T>;
+    on: (ns: string, event: string, cb: (...args: any[]) => void) => () => void;
+  };
+
   // Expose ipcRenderer for notes API. Channel is narrowed to AllowedIpcChannel
   // for compile-time typo detection; return type defaults to `any` so existing
   // callers that destructure the response don't need individual annotations.
@@ -733,8 +744,31 @@ export interface ElectronAPI {
 }
 
 // Expose protected methods to the renderer process
+/** Namespace and method names the generic module surface accepts (kept in step with electron/modules/moduleIpc.ts). */
+const MODULE_IDENT_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
 const electronAPI: ElectronAPI = {
   appConfig: APP_CONFIG,
+
+  modules: {
+    invoke: (ns: string, method: string, ...args: unknown[]) => {
+      if (!MODULE_IDENT_RE.test(String(ns)) || !MODULE_IDENT_RE.test(String(method))) {
+        return Promise.reject(new Error(`Invalid module call "${String(ns)}.${String(method)}"`));
+      }
+      return ipcRenderer.invoke(`module:${ns}:${method}`, ...args);
+    },
+    on: (ns: string, event: string, cb: (...args: any[]) => void) => {
+      if (!MODULE_IDENT_RE.test(String(ns)) || !MODULE_IDENT_RE.test(String(event))) {
+        throw new Error(`Invalid module event "${String(ns)}.${String(event)}"`);
+      }
+      const channel = `module:${ns}:event:${event}`;
+      const listener = (_e: unknown, ...args: unknown[]) => cb(...args);
+      ipcRenderer.on(channel, listener);
+      return () => {
+        ipcRenderer.removeListener(channel, listener);
+      };
+    },
+  },
 
   log: {
     info: (...params: any[]) => log.info(...params),

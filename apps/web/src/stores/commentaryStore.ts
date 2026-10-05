@@ -1,4 +1,6 @@
 import { Store } from './Store';
+import { modulePoints } from '../modules/moduleHost';
+import { CORE_PANE_MODES } from '../modules/host/panes';
 import { eventBus } from '../events/eventBus';
 import type { ICommentaryDataProvider, CommentaryAvailability, IStudyOverviewProvider } from '../providers/interfaces';
 import type { CommentaryModuleInfoData, ModuleInfo } from '../types';
@@ -30,22 +32,40 @@ export interface CommentaryTab {
 export const HOME_TAB_ID = 'ctab-home';
 
 /**
- * Right-pane ids the desktop tab strip always has a tab for. 'search' is not
- * here because its tab exists only while `searchStore.isOpen` — DesktopApp
- * admits it separately.
+ * Right-pane ids the tab strip has a tab for: the `paneModes` contributions of
+ * the enabled feature modules (task 0113). 'search' is not one of them because
+ * its tab exists only while `searchStore.isOpen` -- DesktopApp admits it
+ * separately.
  *
- * Anything that can reach `rightPaneMode` — `pane:show`, the verse context
- * menu, a plugin — has to name one of these, or the pane renders with no active
- * tab and no content. `paneModes.test.ts` holds the callers to it.
+ * Anything that can reach `rightPaneMode` (`pane:show`, the verse context menu,
+ * a plugin) has to name one of these, or the pane renders with no active tab and
+ * no content. `paneModes.test.ts` holds the callers to it.
+ *
+ * Before the module host has registered anything (unit tests, very early boot)
+ * the core list stands in, so the answer never depends on boot order.
  */
-export const RENDERABLE_PANE_MODES = ['study', 'commentary', 'topics', 'timeline', 'quiz', 'dictionary', 'wordStudy', 'similar'] as const;
+export function renderablePaneModes(): readonly string[] {
+  const registered = modulePoints.paneModes.list();
+  return registered.length > 0 ? registered.map((p) => p.id) : CORE_PANE_MODES;
+}
 
 /**
  * Right-pane ids that survive a reload. 'search' is deliberately excluded:
  * search results are not persisted, so the Search tab does not exist on a cold
  * start and restoring it leaves the pane with no active tab and no content.
  */
-export const RESTORABLE_PANE_MODES = new Set<string>(RENDERABLE_PANE_MODES);
+export function isRestorablePaneMode(id: string): boolean {
+  const registered = modulePoints.paneModes.list();
+  if (registered.length === 0) return (CORE_PANE_MODES as readonly string[]).includes(id);
+  const item = registered.find((p) => p.id === id);
+  return !!item && item.restorable !== false;
+}
+
+/** Back-compat shape of the old Set: a live view of `isRestorablePaneMode` (`.has`, iteration). */
+export const RESTORABLE_PANE_MODES: { has(id: string): boolean; [Symbol.iterator](): Iterator<string> } = {
+  has: isRestorablePaneMode,
+  [Symbol.iterator]: () => renderablePaneModes().filter(isRestorablePaneMode)[Symbol.iterator](),
+};
 
 /**
  * Budgets for the speculative chapter prefetch, in words of commentary text.
@@ -1403,7 +1423,7 @@ class CommentaryStore extends Store {
       this.collapsed = parsed.collapsed ?? false;
       this.mutedModules = new Set(parsed.mutedModules ?? []);
       this.promotedModules = new Set(parsed.promotedModules ?? []);
-      if (parsed.rightPaneMode && RESTORABLE_PANE_MODES.has(parsed.rightPaneMode)) {
+      if (parsed.rightPaneMode && (isRestorablePaneMode(parsed.rightPaneMode) || (CORE_PANE_MODES as readonly string[]).includes(parsed.rightPaneMode))) {
         this.rightPaneMode = parsed.rightPaneMode;
       }
 

@@ -325,3 +325,62 @@ describe('I18nService RTL (task 0076)', () => {
     expect(svc.t('open', { name: 'KJV' })).toBe('افتح ⁨KJV⁩');
   });
 });
+
+describe('I18nService module namespaces (task 0113)', () => {
+  const files: Record<string, Record<string, string>> = {
+    'en/quiz': { 'quiz.title': 'Quiz', 'quiz.only': 'English only' },
+    'es/quiz': { 'quiz.title': 'Cuestionario' },
+  };
+  const source = vi.fn(async (locale: string, ns: string) => files[`${locale}/${ns}`]);
+
+  it('loadNamespace merges the file under the same key space, with en fallback', async () => {
+    source.mockClear();
+    const svc = new I18nService({ initialLocale: 'es' });
+    svc.setNamespaceSource(source);
+    await svc.loadNamespace('quiz');
+    expect(svc.t('quiz.title')).toBe('Cuestionario');
+    expect(svc.t('quiz.only')).toBe('English only');
+  });
+
+  it('is a no-op for an unknown namespace or a source that throws, and never rejects', async () => {
+    const svc = new I18nService();
+    svc.setNamespaceSource(async () => {
+      throw new Error('boom');
+    });
+    await expect(svc.loadNamespace('nope')).resolves.toBeUndefined();
+    expect(svc.t('nope.x')).toBe('[nope.x]');
+    const none = new I18nService();
+    await expect(none.loadNamespace('quiz')).resolves.toBeUndefined();
+  });
+
+  it('loads a registered namespace on first t() use and notifies subscribers', async () => {
+    source.mockClear();
+    const svc = new I18nService();
+    svc.setNamespaceSource(source);
+    svc.registerNamespace('quiz');
+    const changed = vi.fn();
+    svc.onDidChangeLocale(changed);
+    expect(svc.t('quiz.title')).toBe('[quiz.title]');
+    await vi.waitFor(() => expect(changed).toHaveBeenCalled());
+    expect(svc.t('quiz.title')).toBe('Quiz');
+    svc.t('quiz.title');
+    expect(source).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps unregistered prefixes on the normal missing-key path', () => {
+    const svc = new I18nService();
+    svc.setNamespaceSource(source);
+    source.mockClear();
+    expect(svc.t('quiz.title')).toBe('[quiz.title]');
+    expect(source).not.toHaveBeenCalled();
+  });
+
+  it('loads the namespace for the new locale on setLocale', async () => {
+    const svc = new I18nService();
+    svc.setNamespaceSource(source);
+    await svc.loadNamespace('quiz');
+    expect(svc.t('quiz.title')).toBe('Quiz');
+    await svc.setLocale('es');
+    expect(svc.t('quiz.title')).toBe('Cuestionario');
+  });
+});
