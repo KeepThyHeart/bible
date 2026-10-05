@@ -57,14 +57,17 @@ export async function loadServerModules(options: LoadServerModulesOptions): Prom
     const errors = validateBuiltinManifest(entry.manifest);
     if (errors.length) throw new Error(`Invalid server module manifest: ${errors.join('; ')}`);
     const id = entry.manifest.id;
-    host.add(entry.manifest, {
+    host.add(
+      { ...entry.manifest, activationEvents: [...new Set([...(entry.manifest.activationEvents ?? []), 'onStartupFinished' as const])] },
+      {
       id,
       load: () => {
         const run = queue.then(() => withRouteModuleId(id, entry.load));
         queue = run.catch(() => undefined);
         return run.then(() => ({}));
       },
-    });
+      },
+    );
   }
 
   const handle: ServerModuleHandle = {

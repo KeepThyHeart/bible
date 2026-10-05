@@ -16,7 +16,7 @@ import {
   standardPointList,
 } from '@bible/core/browser';
 import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
-import { appRegistry, verseActions } from '../host/appHost';
+import { appHost, appRegistry, verseActions } from '../host/appHost';
 import { isEnabled } from '../utils/featureFlags';
 
 /** Every contribution point except `apps` and `verseActions` (those live in the app host). */
@@ -34,13 +34,30 @@ function devOverrides(): Record<string, boolean> {
   }
 }
 
+let whenEvaluator: (expression: string) => boolean = () => true;
+
+/** Hook `when` clauses are evaluated by the app's context service once it exists. */
+export function setWhenEvaluator(fn: (expression: string) => boolean): void {
+  whenEvaluator = fn;
+}
+
 export const featureModules = createFeatureModuleHost({
   platform: 'web',
   points: [appRegistry, verseActions, ...standardPointList(modulePoints)],
   isFlagEnabled: (flag) => isEnabled(flag),
   overrides: devOverrides,
+  evaluateWhen: (expression) => whenEvaluator(expression),
   onActivationTiming: (t) => moduleTimings.record(t),
   onWarning: (message, error) => console.warn(`[modules] ${message}`, error ?? ''),
+});
+
+// Core event `app.didActivate`: dispatched only while some active module subscribes.
+let lastActiveApp: string | null = null;
+appHost.subscribe(() => {
+  const id = appHost.getSnapshot().activeId;
+  if (id === lastActiveApp) return;
+  lastActiveApp = id;
+  if (id && featureModules.hasSubscribers('app.didActivate')) featureModules.dispatch('app.didActivate', { appId: id });
 });
 
 /** Add a built-in module (data now, code later). Call before `reconcileModules()`. */

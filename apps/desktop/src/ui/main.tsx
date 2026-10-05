@@ -13,7 +13,7 @@ import { usePreferencesStore } from './stores/usePreferencesStore';
 import { appHost, appRegistry } from './apps/appHost';
 import { registerBuiltinApps } from './apps/builtinApps';
 import { registerBuiltinModules } from './modules/builtinModules';
-import { modulePoints } from './modules/moduleHost';
+import { modulePoints, setWhenEvaluator } from './modules/moduleHost';
 import { bindModuleNamespaces } from './modules/host/i18nNamespaces';
 import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
 import { installExtensionVerseActions } from './apps/verseActions';
@@ -74,6 +74,7 @@ bindDocumentDirection(services.i18n);
 // Feature modules (task 0113): manifests only, so no module code loads here. Must
 // precede the first render (panel types, tiles and sections come from it) and the
 // catalog load (module i18n namespaces are registered lazily).
+setWhenEvaluator((expression) => services.whenContext.evaluate(expression));
 registerBuiltinModules();
 const catalogLoader = new LocaleCatalogLoader(services.i18n);
 bindModuleNamespaces(modulePoints.i18nNamespace, catalogLoader);

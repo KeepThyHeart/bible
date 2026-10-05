@@ -67,7 +67,9 @@ export async function registerMainModules(
   });
   running = state;
   for (const entry of table) {
-    state.host.add(entry.manifest, {
+    state.host.add(
+      { ...entry.manifest, activationEvents: [...new Set([...(entry.manifest.activationEvents ?? []), 'onStartupFinished' as const])] },
+      {
       id: entry.manifest.id,
       load: async () => {
         const mod = (await entry.load()).default;
@@ -91,7 +93,8 @@ export async function registerMainModules(
           },
         };
       },
-    });
+      },
+    );
   }
   state.host.reconcile();
   await state.host.fire('onStartupFinished');

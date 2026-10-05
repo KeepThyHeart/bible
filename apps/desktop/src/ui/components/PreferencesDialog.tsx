@@ -18,7 +18,7 @@
  * settings-preferences.md for the full persistence path.
  */
 
-import React, { Suspense, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { PreferencesSectionContribution } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
@@ -81,6 +81,10 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
   const { t, i18n } = useI18n();
   const { whenContext } = useAppServices();
   const contributed = useRegistryItems(modulePoints.preferencesSections);
+  // Warm every section's chunk when the dialog opens so tab switches do not flash an empty body.
+  useEffect(() => {
+    for (const s of contributed) void modulePoints.views.resolve(`preferences:${s.id}`)?.().catch(() => undefined);
+  }, [contributed]);
   // Sections of a disabled module are not in the registry; `when` is a cheap data predicate.
   const sections = useMemo(
     () =>

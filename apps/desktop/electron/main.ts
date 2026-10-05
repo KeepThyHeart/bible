@@ -652,7 +652,7 @@ const registerAllHandlersOnce = runOnce(() => {
   // Feature modules (task 0113): enabled modules' main-process code, loaded lazily. The table is
   // empty until features migrate; handlers are registered before the window loads in the common
   // case, and a failure here must never block startup.
-  registerMainModules(
+  mainModulesReady = registerMainModules(
     ipcMain,
     {
       userDataPath: app.getPath('userData'),
@@ -758,6 +758,9 @@ const registerAllHandlersOnce = runOnce(() => {
   });
 });
 
+/** Resolves once enabled main-process feature modules have registered their IPC (never rejects). */
+let mainModulesReady: Promise<void> = Promise.resolve();
+
 async function createWindow(): Promise<void> {
   log.info('Creating main window...');
 
@@ -813,6 +816,8 @@ async function createWindow(): Promise<void> {
   windowStateService.applyAndTrack(mainWindow, windowState);
 
   registerAllHandlersOnce();
+  // The renderer may call `module:<id>:*` as soon as it loads: wait for the modules' handlers.
+  await mainModulesReady;
 
   // The application menu is built by the renderer (which owns the command
   // registry, i18n catalogs, and keybinding service) and shipped to main via

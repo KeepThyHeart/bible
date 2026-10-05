@@ -85,6 +85,40 @@ export function contributedSettings(): SettingsRegistry {
   return defineSettings(modulePoints.settings.list().flatMap((group) => group.defs.map((d) => ({ ...d, group: d.group ?? group.id }))));
 }
 
+const CONTRIBUTED_KEY = 'kth.moduleSettings';
+
+/** Device storage for contributed (module) settings: one JSON blob in localStorage. */
+const contributedStoragePort: SettingsStoragePort = {
+  read: () => {
+    try {
+      return JSON.parse(window.localStorage.getItem(CONTRIBUTED_KEY) ?? '{}') as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  },
+  write: (changes) => {
+    try {
+      const current = JSON.parse(window.localStorage.getItem(CONTRIBUTED_KEY) ?? '{}') as Record<string, unknown>;
+      for (const c of changes) current[c.key] = c.value;
+      window.localStorage.setItem(CONTRIBUTED_KEY, JSON.stringify(current));
+    } catch {
+      // storage blocked: the value holds for this session only
+    }
+  },
+};
+
+let contributedCache: { listKey: unknown; registry: SettingsRegistry; store: SettingsStore } | null = null;
+
+/** Registry + store for module-contributed settings; rebuilt when the contribution list changes. */
+export function getContributedSettings(): { registry: SettingsRegistry; store: SettingsStore } {
+  const snapshot = modulePoints.settings.getSnapshot();
+  if (!contributedCache || contributedCache.listKey !== snapshot) {
+    const registry = contributedSettings();
+    contributedCache = { listKey: snapshot, registry, store: createSettingsStore(registry, contributedStoragePort) };
+  }
+  return contributedCache;
+}
+
 /** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
 export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);
 
