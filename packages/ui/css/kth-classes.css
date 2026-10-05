@@ -1175,3 +1175,10 @@
 .kth-app-stage__app { display: contents; }
 .kth-app-stage__app[hidden] { display: none; }
 .kth-app-stage__status { display: flex; align-items: center; justify-content: center; gap: var(--kth-space-2); padding: var(--kth-space-4); color: var(--kth-text-muted); }
+
+/* Apps preferences (task 0080, S1) */
+.kth-apps-pref__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--kth-space-2); }
+.kth-apps-pref__row { display: flex; align-items: center; gap: var(--kth-space-3); padding-block: var(--kth-space-2); padding-inline: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius, 6px); }
+.kth-apps-pref__icon { inline-size: 1.5rem; text-align: center; }
+.kth-apps-pref__title { flex: 1; min-inline-size: 0; }
+.kth-apps-pref__show { display: inline-flex; align-items: center; gap: var(--kth-space-1); }

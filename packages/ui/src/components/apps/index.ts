@@ -11,3 +11,5 @@ export type { AppSwitchButtonProps } from './AppSwitchButton';
 export { AppStage } from './AppStage';
 export type { AppStageProps, AppStageApp } from './AppStage';
 export type { AppNavBadge, AppNavEntry } from './types';
+export { AppsPreferences, DEFAULT_APPS_PREFERENCES_LABELS } from './AppsPreferences';
+export type { AppsPreferencesProps, AppsPreferencesLabels, AppsPreferencesItem, AppsPreferencesMode } from './AppsPreferences';

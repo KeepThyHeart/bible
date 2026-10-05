@@ -166,9 +166,11 @@ export type {
 export {
   AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, AppStage,
   DEFAULT_APP_RAIL_LABELS, DEFAULT_APP_TILE_GRID_LABELS,
+  AppsPreferences, DEFAULT_APPS_PREFERENCES_LABELS,
 } from './components/apps';
 export type {
   AppBadgeProps, AppRailProps, AppRailLabels, AppTileGridProps, AppTileGridLabels,
   AppSheetProps, AppSwitchButtonProps, AppStageProps, AppStageApp,
   AppNavBadge, AppNavEntry,
+  AppsPreferencesProps, AppsPreferencesLabels, AppsPreferencesItem, AppsPreferencesMode,
 } from './components/apps';

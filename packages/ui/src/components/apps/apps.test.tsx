@@ -200,3 +200,25 @@ describe('AppStage', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+import { AppsPreferences } from './AppsPreferences';
+
+describe('AppsPreferences', () => {
+  const rows = [
+    { id: 'study', title: 'Study', hidden: false, locked: true },
+    { id: 'present', title: 'Presenter', hidden: false },
+  ];
+  it('changes mode, order and visibility', async () => {
+    const onMode = vi.fn(), onOrder = vi.fn(), onHidden = vi.fn();
+    render(<AppsPreferences mode="auto" onModeChange={onMode} items={rows} onOrderChange={onOrder} onHiddenChange={onHidden} />);
+    await userEvent.selectOptions(screen.getByLabelText('App switcher'), 'rail');
+    expect(onMode).toHaveBeenCalledWith('rail');
+    await userEvent.click(screen.getByRole('button', { name: 'Move up: Presenter' }));
+    expect(onOrder).toHaveBeenCalledWith(['present', 'study']);
+    expect(screen.getByRole('button', { name: 'Move up: Study' })).toBeDisabled();
+    const boxes = screen.getAllByRole('checkbox');
+    expect(boxes[0]).toBeDisabled();
+    await userEvent.click(boxes[1]);
+    expect(onHidden).toHaveBeenCalledWith('present', true);
+  });
+});
