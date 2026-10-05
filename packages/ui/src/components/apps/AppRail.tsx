@@ -73,7 +73,7 @@ export function AppRail(props: AppRailProps) {
                 onMouseEnter={() => onPrefetch?.(item.id)}
                 onFocus={() => { setFocusId(item.id); onPrefetch?.(item.id); }}
               >
-                <span className="kth-app-rail__marker" aria-hidden="true" />
+                <span className={`kth-app-rail__marker kth-app-rail__marker--${orientation}${active ? ' kth-app-rail__marker--active' : ''}`} aria-hidden="true" />
                 <span className="kth-app-rail__icon" aria-hidden="true">{item.icon}</span>
                 <span className="kth-visually-hidden">{item.title}</span>
                 {item.badge && <AppBadge badge={item.badge} className="kth-app-rail__badge" />}
