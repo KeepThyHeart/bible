@@ -33,6 +33,15 @@ import type { ContributedCommand } from '../Extensions/ExtensionManifest';
 import type { AppDescriptor } from '../Apps/AppDescriptor';
 import type { VerseActionContribution } from '../Apps/VerseActions';
 import type { FeatureFlagName } from '../Settings/FeatureFlags';
+import type {
+  NewTabTileContribution,
+  PaneModeContribution,
+  PanelTypeContribution,
+  PreferencesSectionContribution,
+  ServerRouteContribution,
+  SettingsContribution,
+  StatusBarItemContribution,
+} from './Contributions';
 import type { Disposable, HostPlatform } from './types';
 
 // --- Contributes vocabulary -------------------------------------------------
@@ -49,15 +58,38 @@ export interface Contributes {
   readonly verseActions?: readonly VerseActionContribution[];
   /** Placeholder (task 0113): the extension manifest's command shape. Not registered in M1. */
   readonly commands?: readonly ContributedCommand[];
-  // 0113 adds: panelTypes, newTabTiles, settings, preferencesSections,
-  // statusBarItems, i18nNamespace. Add the key here, a ContributionPoint for
-  // it, and (if it carries ids) its implicit activation event below.
+  /** Desktop dockview panel types (task 0113). Ids are the persisted `contentType`s: stable. */
+  readonly panelTypes?: readonly PanelTypeContribution[];
+  /** Web right-pane modes and phone views (task 0113). */
+  readonly paneModes?: readonly PaneModeContribution[];
+  readonly newTabTiles?: readonly NewTabTileContribution[];
+  /** Setting definitions, merged into the platform's settings registry. */
+  readonly settings?: readonly SettingsContribution[];
+  readonly preferencesSections?: readonly PreferencesSectionContribution[];
+  readonly statusBarItems?: readonly StatusBarItemContribution[];
+  /** Server routes this module mounts (web server only; the code is the server binding's `load`). */
+  readonly serverRoutes?: readonly ServerRouteContribution[];
+  /** A catalog namespace (`locales/<locale>/<ns>.json`) loaded on demand. */
+  readonly i18nNamespace?: string;
+  // To add a key: its type here, a ContributionPoint (StandardPoints.ts), and
+  // (if it carries ids) its implicit activation event below.
 }
 
 export type ContributesKey = keyof Contributes;
 
 /** Keys with a contribution point in M1. A manifest using another key gets a warning, not an error. */
-export const WIRED_CONTRIBUTION_KEYS: readonly ContributesKey[] = ['apps', 'verseActions'];
+export const WIRED_CONTRIBUTION_KEYS: readonly ContributesKey[] = [
+  'apps',
+  'verseActions',
+  'panelTypes',
+  'paneModes',
+  'newTabTiles',
+  'settings',
+  'preferencesSections',
+  'statusBarItems',
+  'serverRoutes',
+  'i18nNamespace',
+];
 
 // --- Activation events ------------------------------------------------------
 
@@ -86,6 +118,11 @@ export function implicitActivationEvents(contributes: Contributes): ActivationEv
   for (const a of contributes.apps ?? []) out.push(`onApp:${a.id}`);
   for (const v of contributes.verseActions ?? []) out.push(`onVerseAction:${v.id}`);
   for (const c of contributes.commands ?? []) out.push(`onCommand:${c.id}`);
+  for (const p of contributes.panelTypes ?? []) out.push(`onPanel:${p.id}`);
+  for (const p of contributes.paneModes ?? []) out.push(`onPanel:${p.id}`);
+  for (const group of contributes.settings ?? []) {
+    for (const def of group.defs) out.push(`onSetting:${def.key}`);
+  }
   return out;
 }
 
@@ -168,10 +205,20 @@ export interface FeatureModuleExports {
   readonly hooks?: { readonly [E in HookEventName]?: (payload: HookEventPayloads[E]) => void };
 }
 
-/** Per platform: `{ id: 'present', load: () => import('./present/module') }`. */
+/**
+ * Per platform: `{ id: 'present', load: () => import('./present/module'), views: {...} }`.
+ *
+ * - `load` is the module's activation code; omit it for a module that only
+ *   contributes data and views (nothing to run).
+ * - `views` maps `<kind>:<id>` (`panel:wordStudy`, `pane:similar`,
+ *   `preferences:quiz`) to a lazy import of the component. The table is plain
+ *   data (functions that have not been called): registering it imports
+ *   nothing, and a disabled module registers none of it.
+ */
 export interface FeatureModuleBinding {
   readonly id: string;
-  load(): Promise<FeatureModuleExports>;
+  load?(): Promise<FeatureModuleExports>;
+  readonly views?: Readonly<Record<string, () => Promise<unknown>>>;
 }
 
 // --- Validation -------------------------------------------------------------

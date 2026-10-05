@@ -2,3 +2,8 @@ export * from './types';
 export * from './ContributionRegistry';
 export * from './FeatureModule';
 export * from './FeatureModuleHost';
+export * from './Contributions';
+export * from './ViewRegistry';
+export * from './StandardPoints';
+export * from './ModuleTimings';
+export * from './ManifestValidation';
