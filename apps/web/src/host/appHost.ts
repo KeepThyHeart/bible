@@ -10,7 +10,6 @@ import type { ComponentType } from 'preact';
 import { reloadForUpdateOnce } from '../utils/bootGuard';
 import type { ShellContext } from '../boot/shellContext';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AppView = ComponentType<any>;
 export type WebAppBinding = AppBinding<AppView>;
 

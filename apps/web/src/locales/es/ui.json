@@ -1737,5 +1737,18 @@
     "retry": "Reintentar",
     "showMore": "Mostrar 10 más",
     "rangeNeedsLive": "Este pasaje no tiene coincidencias precalculadas aquí; seleccione un solo versículo."
+  },
+  "apps": {
+    "study": {
+      "title": "Estudio"
+    },
+    "present": {
+      "title": "Presentador"
+    },
+    "stage": {
+      "loading": "Cargando…",
+      "error": "No se pudo cargar esta aplicación.",
+      "retry": "Reintentar"
+    }
   }
 }

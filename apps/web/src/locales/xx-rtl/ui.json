@@ -1719,5 +1719,18 @@
     "retry": "‏Try again‏",
     "showMore": "‏Show 10 more‏",
     "rangeNeedsLive": "‏This passage has no precomputed matches here; select a single verse instead.‏"
+  },
+  "apps": {
+    "study": {
+      "title": "‏Study‏"
+    },
+    "present": {
+      "title": "‏Presenter‏"
+    },
+    "stage": {
+      "loading": "‏Loading…‏",
+      "error": "‏This app could not be loaded.‏",
+      "retry": "‏Retry‏"
+    }
   }
 }

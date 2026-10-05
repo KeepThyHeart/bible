@@ -1,0 +1,32 @@
+// ============================================================
+// App stage (apps/web/src/host/AppStage.tsx): loading and error
+// states overlaying the stage while an app's chunk loads.
+// Overlay is out of flow, so it never shifts the layout.
+// ============================================================
+.kth-app-stage__status {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%; // rtl-physical: centering idiom
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-inline-size: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  box-shadow: 0 8px 28px var(--dropdown-shadow);
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  pointer-events: none;
+
+  &--error {
+    flex-direction: column;
+    text-align: center;
+    padding: 16px 20px;
+    color: var(--text-primary);
+    pointer-events: auto;
+  }
+}

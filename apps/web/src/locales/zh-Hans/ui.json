@@ -1737,5 +1737,18 @@
     "retry": "重试",
     "showMore": "再显示 10 条",
     "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
+  },
+  "apps": {
+    "study": {
+      "title": "学习"
+    },
+    "present": {
+      "title": "演示"
+    },
+    "stage": {
+      "loading": "正在加载…",
+      "error": "无法加载此应用。",
+      "retry": "重试"
+    }
   }
 }
