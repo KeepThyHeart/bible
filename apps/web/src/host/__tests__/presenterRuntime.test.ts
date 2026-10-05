@@ -26,6 +26,16 @@ describe('presenterRuntime', () => {
     expect(hasStoredPresenterSession()).toBe(true);
   });
 
+  it('treats an expired or corrupt saved session as absent and removes it', () => {
+    localStorage.setItem(PRESENT_SESSION_KEY, JSON.stringify({ expiresAt: new Date(Date.now() - 1000).toISOString() }));
+    expect(hasStoredPresenterSession()).toBe(false);
+    expect(localStorage.getItem(PRESENT_SESSION_KEY)).toBeNull();
+    localStorage.setItem(PRESENT_SESSION_KEY, 'not json');
+    expect(hasStoredPresenterSession()).toBe(false);
+    localStorage.setItem(PRESENT_SESSION_KEY, JSON.stringify({ expiresAt: new Date(Date.now() + 60_000).toISOString() }));
+    expect(hasStoredPresenterSession()).toBe(true);
+  });
+
   it('restores once (memoised) and mirrors busy state to the sink', async () => {
     const sink = vi.fn();
     setPresenterBusySink(sink);

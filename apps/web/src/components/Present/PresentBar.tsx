@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
 import { stepWall } from './usePresenterShortcuts';
-import { openApp } from '../../host/appHost';
+import { openApp, prefetchApp } from '../../host/appHost';
 
 /**
  * The control strip: what a presenter touches while presenting.
@@ -111,6 +111,8 @@ export function PresentBar(props: { compact?: boolean }) {
             type="button"
             class="present-bar__btn"
             onClick={() => { void openApp('present'); }}
+            onPointerEnter={() => prefetchApp('present')}
+            onFocus={() => prefetchApp('present')}
             title={t('present.openPresenter')}
           >
             <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />

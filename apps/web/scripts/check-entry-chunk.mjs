@@ -9,6 +9,11 @@ export const FORBIDDEN = [
   /^src\/DesktopApp\.tsx$/,
   /^src\/MobileApp\.tsx$/,
   /^src\/stores\/(bible|search|commentary|study|dictionary|follow|present)Store\.ts$/,
+  /^src\/offline\//,
+  /^src\/search\/BrowserSearchProvider\.ts$/,
+  // The command barrel re-exports CommandBox; the entry may only take the provider hook-up.
+  /^src\/present\/command\/(?!searchProviders\.ts$)/,
+  /^src\/components\/Present\//,
 ];
 
 /** @returns {{ok: boolean, entry: string|null, offenders: {chunk: string, module: string}[], error?: string}} */

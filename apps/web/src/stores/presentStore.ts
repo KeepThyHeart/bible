@@ -104,7 +104,10 @@ function readStoredSession(): ControllerSession | null {
     if (!parsed?.sessionId || !parsed.controlToken || !parsed.joinCode) return null;
     // An expired session is not worth offering to resume: every action against
     // it would 410.
-    if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) return null;
+    if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;

@@ -20,7 +20,8 @@ import { NotesPane } from './notes/NotesPane';
 import { notesStore } from './notes/notesStore';
 import { ServiceMenu } from './notes/services/ServiceMenu';
 import { PhoneLayout } from './PhoneLayout';
-import { backToStudy } from '../../host/appHost';
+import { backToStudy, isAppActive } from '../../host/appHost';
+import { useIsActiveApp } from '../../host/useIsActiveApp';
 import { Splitter } from './Splitter';
 import './PresenterApp.css';
 
@@ -58,7 +59,9 @@ export function PresenterApp() {
   // Re-render when the notes' current service changes (the app bar shows its menu).
   const [, setNotesTick] = useState(0);
   useEffect(() => notesStore.subscribe(() => setNotesTick(n => n + 1)), []);
-  useCommandHotkey();
+  // Kept alive behind Study: its global keys (and the `?` help) belong to the active app only.
+  const active = useIsActiveApp('present');
+  useCommandHotkey({ enabled: active });
 
   // The pickers and command search results call this to put an item into the notes.
   const onAddToNotes = (item: PresentItem, label?: string): void => {
@@ -82,7 +85,7 @@ export function PresenterApp() {
   stateRef.current = presenterState;
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (isTyping(event.target) || event.defaultPrevented) return;
+      if (!isAppActive('present') || isTyping(event.target) || event.defaultPrevented) return;
       const action = resolvePresenterKey(event, {
         live: presenterIsLive(),
         acceptClickerKeys: presentStore.acceptClickerKeys,

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 
 const h = vi.hoisted(() => ({
   ctx: null as unknown,
@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     bible: vi.fn(), search: vi.fn(), commentary: vi.fn(), study: vi.fn(), dictionary: vi.fn(),
     loadChapter: vi.fn(),
   },
+  hasStored: vi.fn(() => false),
   presenterMounted: vi.fn(),
   studyMounted: vi.fn(),
 }));
@@ -23,7 +24,7 @@ vi.mock('../../apps/study/studyBoot', () => ({
 vi.mock('../offlineBible', () => ({ getOfflineBible: h.getOfflineBible }));
 vi.mock('../../host/presenterRuntime', () => ({
   ensurePresenterRuntime: h.ensurePresenterRuntime,
-  hasStoredPresenterSession: () => false,
+  hasStoredPresenterSession: () => h.hasStored(),
   setPresenterBusySink: vi.fn(),
 }));
 vi.mock('../../apps/present/PresenterApp', () => ({ PresenterApp: () => null }));
@@ -64,12 +65,19 @@ function noStudyInits(): void {
   expect(h.getOfflineBible).not.toHaveBeenCalled();
 }
 
-describe('runBoot app selection', () => {
+describe('runBoot app selection', { timeout: 30000 }, () => {
   const fetchSpy = vi.fn(async () => ({ ok: true, json: async () => ({}), text: async () => '' }));
+
+  // The first dynamic import transforms the whole boot graph; do it once up front
+  // so the timed tests do not pay for it under parallel load.
+  beforeAll(async () => {
+    await import('../runBoot');
+  }, 60000);
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    h.hasStored.mockReturnValue(false);
     localStorage.clear();
     vi.stubGlobal('fetch', fetchSpy);
     // Resolve requestAnimationFrame immediately so the post-boot callbacks run synchronously.
@@ -122,6 +130,25 @@ describe('runBoot app selection', () => {
     const render = vi.fn();
     await runBoot({ render });
     expect(render).not.toHaveBeenCalled();
+    noStudyInits();
+  });
+
+  // These two run last: a Presenter left active in the jsdom URL makes the next test's URL reset
+  // fire the previous graph's popstate handlers.
+  it('restores Study instead when the saved session is gone or expired', async () => {
+    localStorage.setItem('app-host', JSON.stringify({ v: 1, activeId: 'present', routes: {} }));
+    h.hasStored.mockReturnValue(false);
+    const { appHost } = await boot('');
+    expect(appHost.getSnapshot().activeId).toBe('study');
+    expect(h.bootStudy).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores the persisted Presenter when no hash and a live session is saved', async () => {
+    localStorage.setItem('app-host', JSON.stringify({ v: 1, activeId: 'present', routes: {} }));
+    h.hasStored.mockReturnValue(true);
+    const { appHost } = await boot('');
+    expect(appHost.getSnapshot().activeId).toBe('present');
+    expect(window.location.hash).toBe('#/@present');
     noStudyInits();
   });
 });

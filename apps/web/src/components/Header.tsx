@@ -9,7 +9,7 @@ import { useLocalizer } from '../hooks/useLocalizer';
 import { focusSearchField } from '../utils/focusSearchField';
 import { openWordStudy } from '../utils/openWordStudy';
 import { presentStore } from '../stores/presentStore';
-import { openApp } from '../host/appHost';
+import { openApp, prefetchApp } from '../host/appHost';
 import { stripBidiControls } from '@bible/core/browser';
 
 
@@ -290,6 +290,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         <button
           class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
           onClick={() => { void openApp('present'); }}
+          onPointerEnter={() => prefetchApp('present')}
+          onFocus={() => prefetchApp('present')}
           title={t('present.openPresenter')}
           aria-label={t('present.openPresenter')}
         >

@@ -133,15 +133,27 @@ export function isReloadingForUpdate(): boolean {
 }
 
 /**
- * Activate, and deal with a failed load: the first time reload once (a deploy
- * may have replaced the chunk URLs), otherwise record it for the stage's
- * error state (with Retry).
+ * True for a failed dynamic import of an app chunk (a deploy replaced the
+ * chunk URLs, or the network dropped), as the browsers word it.
+ */
+export function isChunkLoadError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const { name, message } = err as { name?: unknown; message?: unknown };
+  if (name === 'ChunkLoadError') return true;
+  return typeof message === 'string'
+    && /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Failed to load module script/i.test(message);
+}
+
+/**
+ * Activate, and deal with a failed load: for a chunk-load failure reload once
+ * (a deploy may have replaced the chunk URLs); any other failure, or a spent
+ * reload, is recorded for the stage's error state (with Retry).
  */
 export async function activateWithRecovery(id: AppId, options: ActivateOptions = {}): Promise<ActivateResult> {
   const result = await appHost.activate(id, options);
   if (result.status === 'failed') {
     console.error(`[AppHost] "${id}" failed to start:`, result.error);
-    if (reloadForUpdateOnce()) reloading = true;
+    if (isChunkLoadError(result.error) && reloadForUpdateOnce()) reloading = true;
     else setFailure({ id, error: result.error });
   } else if (result.status === 'activated' || result.status === 'already') {
     if (failure?.id === id) setFailure(null);

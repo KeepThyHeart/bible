@@ -41,7 +41,10 @@ let followStarted = false;
 export async function bootStudy(ctx: ShellContext): Promise<void> {
   const { providers, baseUrl } = ctx;
 
-  const offlineBible = await getOfflineBible(ctx);
+  // Everything that can fail or wait on the network runs before the first
+  // `init` below, so a failed boot leaves nothing initialised and a retry
+  // cannot repeat setup steps. Both are memoised and run in parallel.
+  const [offlineBible, searchProvider] = await Promise.all([getOfflineBible(ctx), getSearchProvider(ctx)]);
   // The server's ui.defaultModule, applied by the shell. Not yet checked against
   // what is installed; see fallBackFromMissingModules below.
   bibleStore.init(offlineBible, settingsStore.getDefaultBible());
@@ -62,7 +65,7 @@ export async function bootStudy(ctx: ShellContext): Promise<void> {
     studyOverview: providers.studyOverview,
   });
   dictionaryStore.init(baseUrl);
-  searchStore.init(await getSearchProvider(ctx));
+  searchStore.init(searchProvider);
 
   // The Audio Bible. Its code is loaded only when the site turned it on.
   const audioConfig = getAudioConfig();

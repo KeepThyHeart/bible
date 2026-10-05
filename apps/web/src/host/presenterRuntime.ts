@@ -6,10 +6,22 @@
 import { PRESENT_SESSION_KEY } from '../present/sessionKey';
 import type { ControllerSession } from '../stores/presentStore';
 
-/** True when a controller session is saved (its expiry is checked later by `readStoredSession`). */
+/**
+ * True when a usable controller session is saved: parseable and not expired
+ * (the same expiry rule as `presentStore`'s `readStoredSession`). An expired or
+ * corrupt one is dropped so later boots stay lean and land in Study.
+ */
 export function hasStoredPresenterSession(): boolean {
   try {
-    return localStorage.getItem(PRESENT_SESSION_KEY) !== null;
+    const raw = localStorage.getItem(PRESENT_SESSION_KEY);
+    if (raw === null) return false;
+    const parsed = JSON.parse(raw) as { expiresAt?: string } | null;
+    if (!parsed || typeof parsed !== 'object') return false;
+    if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) {
+      localStorage.removeItem(PRESENT_SESSION_KEY);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

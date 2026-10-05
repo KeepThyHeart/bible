@@ -27,6 +27,20 @@ describe('checkReport', () => {
     ]);
   });
 
+  it('flags offline, browser search, the command barrel and Present components, but allows searchProviders', () => {
+    const r = checkReport({ chunks: [
+      entry([
+        'src/main.tsx', 'src/present/command/searchProviders.ts', 'src/offline/BibleWorkerProxy.ts',
+        'src/search/BrowserSearchProvider.ts', 'src/present/command/index.ts', 'src/present/command/CommandBox.tsx',
+        'src/components/Present/PresentBar.tsx',
+      ]),
+    ] });
+    expect(r.offenders.map((o: { module: string }) => o.module)).toEqual([
+      'src/offline/BibleWorkerProxy.ts', 'src/search/BrowserSearchProvider.ts', 'src/present/command/index.ts',
+      'src/present/command/CommandBox.tsx', 'src/components/Present/PresentBar.tsx',
+    ]);
+  });
+
   it('errors when there is no entry chunk', () => {
     expect(checkReport({ chunks: [] }).ok).toBe(false);
   });
