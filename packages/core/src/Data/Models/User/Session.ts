@@ -60,6 +60,9 @@ export interface SessionData {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dockviewState?: Record<string, any>;
 
+  /** App host state (task 0080): the active app and each app's route. Opaque here; `AppHostState.restore` validates it. */
+  appHost?: unknown;
+
   // Other UI state
   ui?: {
     // Legacy/unused - superseded by `preferences.theme` below. Kept only so

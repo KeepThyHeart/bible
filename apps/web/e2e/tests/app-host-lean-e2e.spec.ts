@@ -56,7 +56,7 @@ test.describe('App host: Presenter-only boot', () => {
   test('browser Back from a Presenter opened out of Study returns to Study', async ({ page }) => {
     await page.goto('/');
     await waitForVerses(page);
-    await page.locator('.header__action-btn .fa-tv').click();
+    await page.locator('.kth-app-rail [data-app-id="present"]').click();
     await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
     await expect(page).toHaveURL(/#\/@present$/);
 

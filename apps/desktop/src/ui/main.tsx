@@ -9,6 +9,15 @@ import { buildMenuSpec } from './menu/buildMenuSpec';
 import { bindDocumentDirection, restorePersistedLocale } from './utils/documentDirection';
 import { markLocaleCatalogsReady, whenLocaleCatalogsReady } from './services/localeCatalogsReady';
 import { useNetworkStore } from './stores/useNetworkStore';
+import { usePreferencesStore } from './stores/usePreferencesStore';
+import { appHost, appRegistry } from './apps/appHost';
+import { registerBuiltinApps } from './apps/builtinApps';
+import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
+import { installExtensionVerseActions } from './apps/verseActions';
+import { installAppSession } from './apps/appSession';
+import { publishActiveAppContext } from './apps/publishActiveApp';
+import { currentNavItems } from './apps/navPrefs';
+import { resolveLabelRef } from './apps/navEntries';
 import enUi from '../../locales/en/ui.json';
 import enCommands from '../../locales/en/commands.json';
 import enLayout from '../../locales/en/layout.json';
@@ -68,6 +77,16 @@ void new LocaleCatalogLoader(services.i18n)
 // is intentionally leaked for the lifetime of the renderer - there is no
 // app-level teardown path that needs to call it.
 registerBuiltinCommands(services.registry);
+
+// The app host (task 0080). Study is registered and activated before the first
+// render: dockview owns `useLayoutStore.dockviewApi`, which verse navigation and
+// the extension bridge assume exists. Eager `load()` resolves within a microtask.
+registerBuiltinApps();
+installAppCommands(services);
+installExtensionVerseActions(services);
+installAppSession();
+publishActiveAppContext(services.whenContext);
+void appHost.activate('study', { source: 'boot' });
 
 // Publish runtime context keys owned by the app shell rather than any single
 // store. `os` comes from the preload-exposed platform string; `currentLocale`
@@ -149,6 +168,10 @@ function pushMenuSpec(): void {
       keybindings: services.keybindings,
       isMac: isMacRenderer,
       allowWebRequests: useNetworkStore.getState().allowWebRequests,
+      apps: currentNavItems('menu').map((item) => ({
+        commandId: APP_OPEN_PREFIX + item.id,
+        label: resolveLabelRef(item.title, (k, p) => services.i18n.t(k, p), services.i18n),
+      })),
     });
     electronMenuBridge.rebuild(spec);
   } catch (err) {
@@ -188,6 +211,11 @@ electronMenuBridge?.onCommandExecute((commandId: string) => {
 // those other surfaces show - including a change broadcast from another
 // window (`network:changed`, subscribed inside the store's `load()`).
 useNetworkStore.subscribe(() => pushMenuSpec());
+// View > Apps follows the registry and the user's order/hide preferences.
+appRegistry.state.subscribe(() => pushMenuSpec());
+usePreferencesStore.subscribe((s, prev) => {
+  if (s.appOrder !== prev.appOrder || s.appHidden !== prev.appHidden) pushMenuSpec();
+});
 void useNetworkStore.getState().load();
 
 window.addEventListener('command:network:toggleWebRequests', () => {

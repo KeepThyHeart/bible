@@ -41,6 +41,16 @@ describe('checkReport', () => {
     ]);
   });
 
+  it('fails when the Present verse-action handler lands in the entry graph, passes in its own chunk', () => {
+    const bad = checkReport({ chunks: [entry(['src/main.tsx', 'src/apps/present/presentVerseAction.ts'])] });
+    expect(bad.ok).toBe(false);
+    const ok = checkReport({ chunks: [
+      entry(['src/main.tsx', 'src/host/builtinApps.ts']),
+      { fileName: 'assets/pva.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/apps/present/presentVerseAction.ts'] },
+    ] });
+    expect(ok.ok).toBe(true);
+  });
+
   it('errors when there is no entry chunk', () => {
     expect(checkReport({ chunks: [] }).ok).toBe(false);
   });

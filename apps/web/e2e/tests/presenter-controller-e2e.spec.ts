@@ -16,9 +16,9 @@ import { desktopOnly, waitForVerses } from '../helpers';
  * list, a pinned command bar), covered by the phone smoke test.
  */
 
-/** Open the Presenter from the header's TV button. */
+/** Open the Presenter from the app rail. */
 async function openPresenter(page: Page): Promise<void> {
-  await page.locator('.header__action-btn .fa-tv').click();
+  await page.locator('.kth-app-rail [data-app-id="present"]').click();
   await expect(page).toHaveURL(/#\/@present$/);
   await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
 }

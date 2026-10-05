@@ -1,11 +1,13 @@
 import { useEffect } from 'preact/hooks';
 import { STUDY_APP_ID } from '@bible/core/browser';
 import type { AppId } from '@bible/core/browser';
-import { appRegistry, openApp } from './appHost';
+import { openApp } from './appHost';
+import { selectWebNavItems } from './navPrefs';
 
 /**
- * Ctrl+Shift+0 opens Study, Ctrl+Shift+1..9 the nth registered app by order
- * (Study is 1). Matches `e.code`: Shift changes `e.key` per keyboard layout.
+ * Ctrl+Shift+0 opens Study, Ctrl+Shift+1..9 the nth app of the rail's order
+ * (the same `shortcutSlot` the rail's tooltips show; Study is 1 unless the
+ * user reordered). Matches `e.code`: Shift changes `e.key` per keyboard layout.
  * Lives in the shell, not in Study, so it works when Study is not mounted.
  */
 export function appForSwitchKey(
@@ -23,7 +25,7 @@ export function appForSwitchKey(
 export function useAppSwitchKeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const ids = appRegistry.list().map((d) => d.id);
+      const ids = selectWebNavItems('rail').map((i) => i.id);
       const target = appForSwitchKey(e, ids);
       if (!target) return;
       e.preventDefault();

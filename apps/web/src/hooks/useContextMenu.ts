@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
+import { selectVerseActions } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
 import { useViewportPosition } from './useViewportPosition';
 import { bibleStore } from '../stores/bibleStore';
 import { xrefGraphStore } from '../stores/xrefGraphStore';
 import { eventBus } from '../events/eventBus';
 import { parseVerseId } from '../utils/verseId';
+import { appRegistry, verseActions } from '../host/appHost';
+import { resolveLabel } from '../host/appNavEntries';
+import { evalVerseWhen } from '../host/verseActionWhen';
+import { useIsActiveApp } from '../host/useIsActiveApp';
+import { useReadable } from '../host/useReadable';
 
 interface ContextMenuState {
   x: number;
@@ -49,6 +56,21 @@ export function useContextMenu(
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const dir = useDirection();
+  const { t, i18n } = useTranslation();
+  // Study stays mounted (hidden, inert) behind another app; its document listener must not
+  // open Study's menu on verse markup inside the visible app.
+  const studyActive = useIsActiveApp('study');
+  const contributed = useReadable(verseActions);
+  const apps = useReadable(appRegistry.state);
+  const verseActionItems = useMemo(
+    () => selectVerseActions(contributed, { evalWhen: evalVerseWhen }).map((a) => ({
+      id: a.id,
+      label: resolveLabel((k, f) => t(k, f), a.title),
+      iconClass: a.icon?.kind === 'builtin' ? `fa-solid ${a.icon.name}` : undefined,
+    })),
+    // `apps` carries the busy flags that `when` reads.
+    [contributed, apps, i18n?.language, t],
+  );
   const contextMenuRef = useViewportPosition<HTMLDivElement>(
     // rtl-physical: x is the physical pointer position; the hook converts it to inset-inline-start
     contextMenu ? { top: contextMenu.y, left: contextMenu.x } : null,
@@ -57,6 +79,10 @@ export function useContextMenu(
   );
 
   useEffect(() => {
+    if (!studyActive) {
+      setContextMenu(null);
+      return;
+    }
     const handleContextMenu = (e: MouseEvent) => {
       const result = findVerseAtPoint(e.target as HTMLElement, e.clientX, e.clientY);
       if (!result) return;
@@ -77,7 +103,7 @@ export function useContextMenu(
       document.removeEventListener('click', handleClickAway);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [findVerseAtPoint]);
+  }, [findVerseAtPoint, studyActive]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!contextMenu) return;
@@ -121,5 +147,19 @@ export function useContextMenu(
     setMobileView?.(target.mobileView);
   }, [contextMenu, setCopyOpen, setMobileView]);
 
-  return { contextMenu, contextMenuRef, handleContextMenuAction };
+  /** Run a registry action (e.g. Present) on the right-clicked verse; its handler loads on first use. */
+  const handleVerseAction = useCallback((id: string) => {
+    if (!contextMenu) return;
+    const verseId = contextMenu.verseId;
+    setContextMenu(null);
+    const ctx = {
+      verseId,
+      verseIds: [verseId],
+      module: bibleStore.getActiveTab()?.moduleAbbr ?? '',
+      surface: setMobileView ? 'phone' : 'reader',
+    };
+    verseActions.run(id, ctx).catch((err: unknown) => console.error('[verseActions]', id, err));
+  }, [contextMenu, setMobileView]);
+
+  return { contextMenu, contextMenuRef, handleContextMenuAction, handleVerseAction, verseActionItems };
 }

@@ -30,3 +30,90 @@
     pointer-events: auto;
   }
 }
+
+// ============================================================
+// App shell: [AppRail][stage]. The rail is a conditional sibling of the
+// stage, so toggling it never remounts the kept-alive apps. The active app's
+// wrapper is `display: contents` (kth), so `.app` / `.presenter-app` stay flex
+// items of the stage column exactly as they were children of #app.
+// ============================================================
+.app-shell {
+  flex: 1;
+  display: flex;
+  min-block-size: 0;
+  min-inline-size: 0;
+
+  &__rail {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    border-inline-end: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+  }
+
+  &__stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    min-inline-size: 0;
+  }
+}
+
+// Phone top bar of an app without chrome of its own.
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-block-size: 44px;
+  padding-block: 4px;
+  padding-inline: 12px;
+  border-block-end: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  &__title {
+    flex: 1;
+    min-inline-size: 0;
+    font-weight: 600;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// The switcher button inside Study's header and the Presenter's app bar.
+.header__app-switch,
+.pz-appbar__switch {
+  color: var(--text-secondary);
+}
+
+// Apps row on the home screen.
+.home-screen__apps {
+  inline-size: 100%;
+  max-inline-size: 480px;
+  margin-block-start: 24px;
+
+  &-title {
+    margin: 0 0 8px;
+    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+  }
+}

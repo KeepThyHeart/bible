@@ -2,8 +2,9 @@
  * The built-in apps: Study and the Presenter. Descriptors are data; every
  * chunk loads through a binding only when the app is activated or prefetched.
  */
-import type { AppDescriptor } from '@bible/core/browser';
-import { appRegistry, addAppBinding, getShellContext } from './appHost';
+import type { AppDescriptor, VerseActionContribution } from '@bible/core/browser';
+import i18n from 'i18next';
+import { appRegistry, addAppBinding, getShellContext, verseActions } from './appHost';
 import type { WebAppBinding } from './appHost';
 import { setPresenterBusySink, ensurePresenterRuntime } from './presenterRuntime';
 
@@ -42,6 +43,22 @@ export const presentBinding: WebAppBinding = {
       View: m.PresenterApp,
       activate: () => ensurePresenterRuntime(getShellContext().adoptedSession),
     })),
+  // The PresentBar strip inside Study: its chunk loads only while a session is live.
+  companion: {
+    when: 'busy',
+    load: () => import('../components/Present/PresentBar').then((m) => ({ View: m.PresentBar })),
+  },
+};
+
+/** "Present" in the verse context menu: shown while a session is live; the handler loads on first use. */
+export const presentVerseAction: VerseActionContribution = {
+  id: 'present.showVerse',
+  title: { key: 'contextMenu.present', fallback: 'Present' },
+  icon: { kind: 'builtin', name: 'fa-tv' },
+  appId: 'present',
+  when: 'present.live',
+  order: 10,
+  group: 'app',
 };
 
 let registered = false;
@@ -54,5 +71,14 @@ export function registerBuiltinApps(): void {
   appRegistry.register(presentDescriptor, { kind: 'builtin', moduleId: 'present' });
   addAppBinding(studyBinding);
   addAppBinding(presentBinding);
-  setPresenterBusySink((busy) => appRegistry.setBusy('present', busy));
+  verseActions.register(presentVerseAction, { kind: 'builtin', moduleId: 'present' });
+  verseActions.bindHandler({
+    id: presentVerseAction.id,
+    load: () => import('../apps/present/presentVerseAction').then((m) => m.presentVerseHandler),
+  });
+  setPresenterBusySink((busy) => {
+    appRegistry.setBusy('present', busy);
+    // A live dot on the rail / switcher (it replaces the header's old "presenting" highlight).
+    appRegistry.setBadge('present', busy ? { kind: 'dot', tone: 'live', label: i18n.t('present.app.live') } : undefined);
+  });
 }

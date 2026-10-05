@@ -21,6 +21,7 @@ import { notesStore } from './notes/notesStore';
 import { ServiceMenu } from './notes/services/ServiceMenu';
 import { PhoneLayout } from './PhoneLayout';
 import { backToStudy, isAppActive } from '../../host/appHost';
+import { AppSwitchSlot } from '../../host/AppSwitchSlot';
 import { useIsActiveApp } from '../../host/useIsActiveApp';
 import { Splitter } from './Splitter';
 import './PresenterApp.css';
@@ -165,6 +166,8 @@ export function PresenterApp() {
           onDeleted={id => void notesStore.onServiceDeleted(id)}
         />
         <span class="pz-appbar__spacer" />
+        {/* Shows on the phone layout and when the wide-screen rail is off. */}
+        <AppSwitchSlot className="pz-btn pz-btn--icon pz-appbar__switch" />
         {/* On desktop the Control pane shows the live status; the phone has no such row. */}
         {layout === 'phone' && (
           <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>

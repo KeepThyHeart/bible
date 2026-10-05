@@ -8,8 +8,7 @@ import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
 import { focusSearchField } from '../utils/focusSearchField';
 import { openWordStudy } from '../utils/openWordStudy';
-import { presentStore } from '../stores/presentStore';
-import { openApp, prefetchApp } from '../host/appHost';
+import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { stripBidiControls } from '@bible/core/browser';
 
 
@@ -45,7 +44,6 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const searchQuery = useStore(searchStore, () => searchStore.query);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
-  const presenting = useStore(presentStore, () => presentStore.session !== null);
   const localizer = useLocalizer();
   const bookAliases = useMemo(() => headerBookAliases(localizer), [localizer]);
 
@@ -283,20 +281,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         <i class="fa-solid fa-list" />
       </button>
       <div class="header__actions">
-        {/*
-          Session mode's one entry point: the Presenter workspace. Starting a
-          session is "Go live" in its Control pane, so this only navigates.
-        */}
-        <button
-          class={`header__action-btn ${presenting ? 'header__action-btn--on' : ''}`}
-          onClick={() => { void openApp('present'); }}
-          onPointerEnter={() => prefetchApp('present')}
-          onFocus={() => prefetchApp('present')}
-          title={t('present.openPresenter')}
-          aria-label={t('present.openPresenter')}
-        >
-          <i class="fa-solid fa-tv" />
-        </button>
+        {/* The app switcher: the wide-screen rail covers it, so this shows on phones and when the rail is off. */}
+        <AppSwitchSlot className="header__action-btn header__app-switch" />
         {offlineEnabled && !isOnline && (
           <span class="header__offline-badge" title={t('header.offlineTooltip')}>
             <i class="fa-solid fa-wifi" style={{ opacity: 0.5 }} />

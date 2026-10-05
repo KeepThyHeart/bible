@@ -14,6 +14,9 @@ interface ContextMenuPopupProps {
   onAction: (action: string) => void;
   /** Hide "Find similar passages" (mobile: its target pane has no Similar section). Default true. */
   showSimilar?: boolean;
+  /** Registry actions (labels already resolved), listed after the built-ins. */
+  actions?: { id: string; label: string; iconClass?: string }[];
+  onVerseAction?: (id: string) => void;
 }
 
 /**
@@ -26,7 +29,7 @@ interface ContextMenuPopupProps {
  * cross-references, topics and the rest as sections. Only actions that act on
  * the clicked verse directly (Copy) sit alongside it.
  */
-export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true }: ContextMenuPopupProps) {
+export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true, actions, onVerseAction }: ContextMenuPopupProps) {
   const { t } = useTranslation();
   const dir = useDirection();
   // The hook that owns menuRef re-anchors with the measured width; this is the first-paint estimate.
@@ -47,6 +50,16 @@ export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true }
         <button class="verse-context-menu__item" onClick={() => onAction('similar')}>
           <i class="fa-solid fa-clone" /> {t('contextMenu.similar')}
         </button>
+      )}
+      {actions && actions.length > 0 && (
+        <>
+          <div class="verse-context-menu__divider" />
+          {actions.map((a) => (
+            <button key={a.id} class="verse-context-menu__item" data-action-id={a.id} onClick={() => onVerseAction?.(a.id)}>
+              {a.iconClass && <i class={a.iconClass} />} {a.label}
+            </button>
+          ))}
+        </>
       )}
     </div>
   );

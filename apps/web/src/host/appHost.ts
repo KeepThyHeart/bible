@@ -4,8 +4,8 @@
  * Entry-chunk code: it may import only core, `utils/*`, settings and other
  * host modules, never anything under `src/apps/**`.
  */
-import { AppRegistry, createAppBindingController, createAppHostState } from '@bible/core/browser';
-import type { ActivateOptions, ActivateResult, AppBinding, AppId, Disposable } from '@bible/core/browser';
+import { AppRegistry, VerseActionRegistry, createAppBindingController, createAppHostState } from '@bible/core/browser';
+import type { ActivateOptions, ActivateResult, AppBinding, AppCompanionBinding, AppId, Disposable } from '@bible/core/browser';
 import type { ComponentType } from 'preact';
 import { reloadForUpdateOnce } from '../utils/bootGuard';
 import type { ShellContext } from '../boot/shellContext';
@@ -15,6 +15,8 @@ export type WebAppBinding = AppBinding<AppView>;
 
 export const appRegistry = new AppRegistry();
 export const appHost = createAppHostState({ registry: appRegistry });
+/** The verse-action contribution point (context menu entries); handlers load lazily on first run. */
+export const verseActions = new VerseActionRegistry();
 const controller = createAppBindingController<AppView>({
   host: appHost,
   onError: (err, id, phase) => console.warn(`[AppHost] ${phase} of "${id}" failed:`, err),
@@ -53,6 +55,11 @@ export function getAppView(id: AppId): AppView | undefined {
   return controller.getView(id);
 }
 
+/** The slim strip an app shows inside Study (loaded only while it applies), if the app has one. */
+export function getAppCompanion(id: AppId): AppCompanionBinding<AppView> | undefined {
+  return controller.getCompanion(id);
+}
+
 // --- navigation ----------------------------------------------------------------
 
 /** Implemented by webRoute (URL + history); injected to avoid an import cycle. */
@@ -80,6 +87,19 @@ export function backToStudy(): Promise<void> {
 
 export function isAppActive(id: AppId): boolean {
   return appHost.getSnapshot().activeId === id;
+}
+
+/**
+ * True when Study's own Back handling must stand down because another app is
+ * (or is about to be) on screen: the Back belongs to that app, and Study is
+ * only kept alive behind it. Phones push a dummy history entry per Back press;
+ * a Back from any non-Study app returns to Study before Study takes a step.
+ */
+export function studyShouldIgnoreBack(): boolean {
+  if (consumeAppPop()) return true;
+  const s = appHost.getSnapshot();
+  const current = s.pendingId ?? s.activeId;
+  return current !== null && current !== 'study';
 }
 
 let popped = false;

@@ -96,6 +96,24 @@ describe('ContextMenuPopup', () => {
     expect(screen.queryByText('contextMenu.similar')).toBeNull();
     cleanupAndCheckDefault();
   });
+
+  it('renders registry actions after the built-ins and calls onVerseAction', () => {
+    const onVerseAction = vi.fn();
+    const { container } = renderMenu({
+      actions: [{ id: 'present.showVerse', label: 'Present', iconClass: 'fa-solid fa-tv' }],
+      onVerseAction,
+    });
+    const items = Array.from(container.querySelectorAll('.verse-context-menu__item'));
+    expect(items[items.length - 1].textContent).toContain('Present');
+    expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(2);
+    fireEvent.click(screen.getByText('Present'));
+    expect(onVerseAction).toHaveBeenCalledWith('present.showVerse');
+  });
+
+  it('shows no extra divider without registry actions', () => {
+    const { container } = renderMenu({ actions: [] });
+    expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(1);
+  });
 });
 
 function cleanupAndCheckDefault() {

@@ -26,8 +26,19 @@ vi.mock('../stores/bibleStore', () => ({
     get adoptPreviewAsStudy() {
       return adoptPreviewAsStudy;
     },
+    getActiveTab: () => ({ moduleAbbr: 'KJV' }),
   },
 }));
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (_k: string, d: string) => d, i18n: { language: 'en' } }),
+  initReactI18next: { type: '3rdParty', init() {} },
+}));
+
+// Study is the visible app unless a test says otherwise.
+const studyActive = vi.hoisted(() => ({ value: true }));
+vi.mock('../host/useIsActiveApp', () => ({ useIsActiveApp: () => studyActive.value }));
+vi.mock('../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
 
 const xrefOpen = vi.fn();
 vi.mock('../stores/xrefGraphStore', () => ({
@@ -36,6 +47,7 @@ vi.mock('../stores/xrefGraphStore', () => ({
 
 import { useContextMenu } from './useContextMenu';
 import { eventBus } from '../events/eventBus';
+import { verseActions, appRegistry } from '../host/appHost';
 
 /** John 3:16 — book 43, chapter 3, verse 16. */
 const VERSE_ID = 43003016;
@@ -285,5 +297,75 @@ describe('useContextMenu - connections action', () => {
     expect(xrefOpen).toHaveBeenCalledWith(VERSE_ID);
     expect(order).toEqual(['adopt', 'open']);
     expect(emittedNames(emit)).not.toContain('pane:show');
+  });
+});
+
+
+describe('useContextMenu — registry verse actions', () => {
+  const findVerse = () => ({ el: document.body, verseId: VERSE_ID });
+  const open = () => act(() => {
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  });
+  const disposers: Array<{ dispose(): void }> = [];
+
+  beforeEach(() => {
+    studyActive.value = true;
+    for (const d of disposers.splice(0)) d.dispose();
+  });
+
+  it('lists registered actions (when applied) and runs one with the verse context', async () => {
+    const run = vi.fn(async () => {});
+    disposers.push(
+      verseActions.register(
+        { id: 't.act', title: { key: 't.act', fallback: 'Do it' }, icon: { kind: 'builtin', name: 'fa-tv' }, order: 1 },
+        { kind: 'builtin', moduleId: 't' },
+      ),
+      verseActions.bindHandler({ id: 't.act', load: async () => ({ run }) }),
+    );
+    const { result } = renderHook(() => useContextMenu(findVerse, vi.fn(), vi.fn()));
+    open();
+    expect(result.current.verseActionItems).toEqual([{ id: 't.act', label: 'Do it', iconClass: 'fa-solid fa-tv' }]);
+
+    await act(async () => { result.current.handleVerseAction('t.act'); });
+    await vi.waitFor(() => expect(run).toHaveBeenCalled());
+    expect(run).toHaveBeenCalledWith({ verseId: VERSE_ID, verseIds: [VERSE_ID], module: 'KJV', surface: 'phone' });
+    expect(result.current.contextMenu).toBeNull();
+  });
+
+  it('uses the reader surface without a mobile view setter, and logs a failing handler', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    disposers.push(
+      verseActions.register({ id: 't.bad', title: { key: 't.bad', fallback: 'Bad' } }, { kind: 'builtin', moduleId: 't' }),
+      verseActions.bindHandler({ id: 't.bad', load: async () => ({ run: () => { throw new Error('boom'); } }) }),
+    );
+    const { result } = renderHook(() => useContextMenu(findVerse, vi.fn()));
+    open();
+    await act(async () => { result.current.handleVerseAction('t.bad'); });
+    await vi.waitFor(() => expect(err).toHaveBeenCalled());
+    err.mockRestore();
+  });
+
+  it('hides a `present.live` action until the Presenter is busy', () => {
+    appRegistry.register(
+      { id: 'present', title: { key: 'p', fallback: 'P' }, icon: { kind: 'builtin', name: 'x' }, lifecycle: { keepAlive: 'always', restore: 'default' } },
+      { kind: 'builtin', moduleId: 'present' },
+    );
+    disposers.push(
+      verseActions.register({ id: 't.live', title: { key: 't.live', fallback: 'Live only' }, when: 'present.live' }, { kind: 'builtin', moduleId: 't' }),
+    );
+    const { result } = renderHook(() => useContextMenu(findVerse, vi.fn()));
+    expect(result.current.verseActionItems).toEqual([]);
+    act(() => appRegistry.setBusy('present', true));
+    expect(result.current.verseActionItems.map((a) => a.id)).toEqual(['t.live']);
+    act(() => appRegistry.setBusy('present', false));
+  });
+
+  it('is inert while Study is not the visible app', () => {
+    studyActive.value = false;
+    const { result } = renderHook(() => useContextMenu(findVerse, vi.fn()));
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    act(() => { document.dispatchEvent(event); });
+    expect(result.current.contextMenu).toBeNull();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

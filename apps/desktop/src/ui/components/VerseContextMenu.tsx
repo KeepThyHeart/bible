@@ -8,7 +8,6 @@ import { anchorAtPointer, logicalArrow } from '@bible/core/browser';
 import { useDirection, Bdi } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
-import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
 import { useXrefGraphStore } from '../stores/useXrefGraphStore';
 import { useSimilarStore } from '../stores/useSimilarStore';
@@ -16,6 +15,10 @@ import { useSimilarAvailability } from '../stores/useSimilarAvailability';
 import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
 import { groupFromQuery } from '@bible/core/browser';
+import { selectVerseActions } from '@bible/core/browser';
+import { appRegistry, verseActions, verseActionsStore } from '../apps/appHost';
+import { withVerseIdsContext } from '../apps/verseContext';
+import { installExtensionVerseActions } from '../apps/verseActions';
 import { revealWordStudyPanel } from './wordStudy/revealWordStudyPanel';
 
 /** A selection that is exactly one word (letters, marks, inner apostrophes/hyphens), else null. */
@@ -89,27 +92,14 @@ export interface VerseContextMenuProps {
  * right of the cursor by however far the dockview root sits from the window's
  * top-left - the "the right-click menu is too low" report.
  */
-/**
- * Arguments for a contributed `verse` menu item's command: the item's own
- * `args` with `verse` - what was right-clicked - merged in. Without it a
- * handler could only guess from the active verse, which a right-click does not
- * change. Non-object `args` cannot carry the key, so they pass unchanged; see
- * `ContextMenuItemDescriptor.args`.
- */
+/** `withVerseIdsContext` for a verse list: see `apps/verseContext.ts`. */
 export function withVerseMenuContext(
   args: unknown,
   verses: BibleVerse | BibleVerse[],
   module: string,
 ): unknown {
-  const isPlainObject =
-    typeof args === 'object' && args !== null && !Array.isArray(args);
-  if (args !== undefined && !isPlainObject) return args;
   const verseIds = (Array.isArray(verses) ? verses : [verses]).map((v) => v.verse_id);
-  if (verseIds.length === 0) return args;
-  return {
-    ...(isPlainObject ? (args as Record<string, unknown>) : {}),
-    verse: { verseId: verseIds[0], verseIds, module },
-  };
+  return withVerseIdsContext(args, verseIds, module);
 }
 
 const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
@@ -135,7 +125,9 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
 }) => {
   const { t, i18n } = useI18n();
   const uiDir = useDirection();
-  const { registry } = useAppServices();
+  const { whenContext, registry } = useAppServices();
+  // Idempotent: main.tsx installs the adapter at boot; this covers any other host of the menu.
+  useEffect(() => installExtensionVerseActions({ registry }), [registry]);
   // The word the reader had selected when the menu opened, if it was exactly one.
   const [selectedWord] = useState(() => singleSelectedWord(
     typeof window !== 'undefined' ? window.getSelection?.()?.toString() : null,
@@ -157,38 +149,36 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     showing it would be the wrong answer in the one case the author cared
     enough to write a condition for.
   */
-  const contributedItems = useExtensionUiStore((s) => s.contextMenuItems);
   const similarAvailable = useSimilarAvailability((s) => s.available);
   useEffect(() => { void useSimilarAvailability.getState().refresh(); }, []);
-  const extensionItems = React.useMemo(
-    () =>
-      contributedItems
-        .filter((c) => c.target === 'verse' && c.item.when === undefined)
-        .sort((a, b) => (a.item.order ?? 0) - (b.item.order ?? 0)),
-    [contributedItems],
-  );
+  const actionEntries = React.useSyncExternalStore(verseActionsStore.subscribe, verseActionsStore.getSnapshot);
+  React.useSyncExternalStore(appRegistry.state.subscribe, appRegistry.state.getSnapshot);
+  const verseActionItems = selectVerseActions(actionEntries, {
+    evalWhen: (expr) => whenContext.evaluate(expr),
+  });
 
   /*
-    Contributed items dispatch a command rather than calling back into the
-    extension directly. `RendererCommandBridge` has already put extension
-    commands into the same `ICommandRegistry` that serves the palette, the
-    keyboard and the application menu, so this reuses a path that is wired in
-    both directions and needs no new IPC.
-
-    A command that throws must not take the menu with it: the menu is already
-    closing, and an extension's failure is its own to report.
+    Actions run through the registry, which loads their handler lazily. A
+    handler that throws must not take the menu with it: the menu is already
+    closing, and the failure is the action's own to report.
   */
-  const runExtensionCommand = React.useCallback(
-    async (commandId: string, args: unknown) => {
-      try {
-        await registry.execute(commandId, args);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`[VerseContextMenu] extension command '${commandId}' failed`, err);
-      }
+  const runVerseAction = React.useCallback(
+    (id: string, ids: number[]) => {
+      void verseActions
+        .run(id, { verseId: ids[0], verseIds: ids, module: context.translation, surface: 'reader' })
+        .catch((err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.error(`[VerseContextMenu] verse action '${id}' failed`, err);
+        });
     },
-    [registry],
+    [context.translation],
   );
+  // The menu is portalled to <body>, so hiding Study does not hide it: close it
+  // when the app on screen changes.
+  useEffect(() => {
+    window.addEventListener('app:will-hide', onClose);
+    return () => window.removeEventListener('app:will-hide', onClose);
+  }, [onClose]);
   const menuRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const versesArray = Array.isArray(verses) ? verses : [verses];
@@ -690,18 +680,15 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         reaches for, and a freshly installed extension should not be able to
         push "Copy passage" down the list.
       */}
-      {extensionItems.length > 0 && (
+      {verseActionItems.length > 0 && (
         <>
           <div className="border-t border-border-secondary my-1" role="separator" />
-          {extensionItems.map(({ key, item }) => (
+          {verseActionItems.map((action) => (
             <button
-              key={key}
+              key={action.id}
               onClick={() => {
                 onClose();
-                void runExtensionCommand(
-                  item.command,
-                  withVerseMenuContext(item.args, verses, context.translation),
-                );
+                runVerseAction(action.id, versesArray.map((v) => v.verse_id));
               }}
               className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
               role="menuitem"
@@ -714,7 +701,11 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
                 added later; a gap where an icon would be is honest until then.
               */}
               <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>{i18n.resolve(item.label)}</span>
+              <span>
+                {'key' in action.title
+                  ? translateWithDefault(t, action.title.key, action.title.fallback)
+                  : i18n.resolve(action.title.text as never)}
+              </span>
             </button>
           ))}
         </>

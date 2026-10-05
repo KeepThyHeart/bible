@@ -6,7 +6,10 @@ import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
 import ToastContainer from './components/ToastContainer';
-import DockviewLayout from './components/DockviewLayout';
+import DesktopAppStage from './apps/DesktopAppStage';
+import CompanionSlot from './apps/CompanionSlot';
+import { useStudyLayoutBoot } from './apps/useStudyLayoutBoot';
+import { openApp, restoreActiveApp, useIsAppActive } from './apps/appHost';
 import StatusBar from './components/StatusBar';
 import WelcomeBar from './components/onboarding/WelcomeBar';
 import { useOnboardingStore } from './stores/useOnboardingStore';
@@ -33,6 +36,7 @@ import { useI18n } from './contexts/useI18n';
 import './styles/highlights.css';
 import './styles/extensionDecorations.css';
 import './styles/dockview-overrides.css';
+import './styles/app-stage.css';
 
 // EXP-E: dialogs and onboarding overlays are split out of the first-paint
 // bundle. Every one of these is closed on launch, and each pulled its whole
@@ -77,9 +81,13 @@ const BackupRestoreDialog = LazyDialogs.BackupRestoreDialog;
 // boundary so component bodies stay reactive-only.
 const openBackupDialog = () => useBackupStore.getState().openDialog();
 const openAdvancedSearchDialog = () => useSearchStore.getState().openAdvancedDialog();
-const navigateToVerseInPrimary = (verseId: number) =>
-  useBibleStore.getState().navigateToVerseInPrimary(verseId);
+// Navigation targets Study's dockview, so Study is brought to the front first.
+const navigateToVerseInPrimary = (verseId: number) => {
+  void openApp('study');
+  return useBibleStore.getState().navigateToVerseInPrimary(verseId);
+};
 const navigateToVerseRangeInPrimary = (verseId: number, endVerseId?: number) => {
+  void openApp('study');
   void useBibleStore.getState().navigateToVerseInPrimary(verseId, endVerseId);
 };
 
@@ -160,12 +168,15 @@ const AppWordmark: React.FC = () => {
 };
 
 function App() {
-  const [savedDockviewLayout, setSavedDockviewLayout] = useState<Record<string, any> | null>(null);
   // dockview must not build ANY layout until the session has said which
   // one it is. Without this the workbench raced session restore, won, built the
   // default layout, and `DockviewLayout`'s `api.panels.length === 0` guard then
-  // silently discarded the user's saved arrangement on every launch.
-  const [layoutDecided, setLayoutDecided] = useState(false);
+  // silently discarded the user's saved arrangement on every launch. The two
+  // values live in `useStudyLayoutBoot` so the app stage can render Study
+  // without props.
+  const setSavedDockviewLayout = useStudyLayoutBoot((s) => s.setSavedLayout);
+  const setLayoutDecided = useStudyLayoutBoot((s) => s.setLayoutDecided);
+  const studyActive = useIsAppActive('study');
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleType | null>(null);
   const [showUpdateCheck, setShowUpdateCheck] = useState(false);
@@ -205,19 +216,20 @@ function App() {
         if (layout) setSavedDockviewLayout(layout);
         setLayoutDecided(true);
       },
-    }).then(({ dockviewLayout }) => {
+    }).then(({ dockviewLayout, appHost: persistedAppHost }) => {
       if (signal.aborted) return;
       if (dockviewLayout) {
         setSavedDockviewLayout(dockviewLayout);
       }
       setLayoutDecided(true);
+      restoreActiveApp(persistedAppHost);
     });
 
     registerSaveBeforeCloseHandler();
     checkSemanticAvailability();
 
     return () => { signal.aborted = true; };
-  }, []);
+  }, [setSavedDockviewLayout, setLayoutDecided]);
 
   // Listen for extension-driven verse navigation requests (bible.navigateToVerse)
   useEffect(() => {
@@ -457,7 +469,7 @@ function App() {
         <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
           <div className="flex items-center gap-lg min-w-0">
             <AppWordmark />
-            <LayoutDropdown />
+            {studyActive && <LayoutDropdown />}
             <TopSearchBar />
             {/* D3: in-canvas access to Settings / Module Manager / Help so a
                 user who never opens the native menu bar can still reach them. */}
@@ -469,16 +481,19 @@ function App() {
         <WelcomeBar />
 
         {/* Find Bar (Ctrl+F) - displayed above all panes */}
-        {isFindVisible && (
+        {isFindVisible && studyActive && (
           <div className="flex-shrink-0 border-b border-border bg-surface-secondary px-4 py-1 flex justify-end">
             <FindBar onClose={handleCloseFindBar} />
           </div>
         )}
 
         {/* Main content area - Dockview flexible pane system */}
-        <main className="flex-1 min-h-0 overflow-hidden">
-          <DockviewLayout savedLayout={savedDockviewLayout} layoutDecided={layoutDecided} />
+        <main className="flex-1 min-h-0 overflow-hidden flex">
+          <DesktopAppStage />
         </main>
+
+        {/* Companion strips of other apps; nothing registers one on desktop yet. */}
+        <CompanionSlot />
 
         {/* Renders nothing at all until an extension contributes an item, so
             it costs no chrome for a user with none. */}

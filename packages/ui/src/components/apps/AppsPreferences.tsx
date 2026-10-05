@@ -76,7 +76,7 @@ export function AppsPreferences(props: AppsPreferencesProps) {
           className="kth-select"
           value={mode}
           aria-describedby={`${idPrefix}-mode-hint`}
-          onChange={(e) => onModeChange(e.target.value as AppsPreferencesMode)}
+          onChange={(e) => onModeChange(e.currentTarget.value as AppsPreferencesMode)}
         >
           {modes.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
         </select>
@@ -96,7 +96,7 @@ export function AppsPreferences(props: AppsPreferencesProps) {
                   checked={!item.hidden}
                   disabled={item.locked}
                   title={item.locked ? l.alwaysShown : undefined}
-                  onChange={(e) => onHiddenChange(item.id, !e.target.checked)}
+                  onChange={(e) => onHiddenChange(item.id, !e.currentTarget.checked)}
                 />
                 <span>{l.show}</span>
               </label>

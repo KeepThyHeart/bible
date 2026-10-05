@@ -42,7 +42,7 @@ describe('AppStage', () => {
     const study = root.querySelector('[data-app="study"]') as HTMLElement;
     expect(study.hidden).toBe(true);
     expect(study.hasAttribute('inert')).toBe(true);
-    expect(study.style.display).toBe('none');
+    expect(study.className).toContain('app-host__study');
     expect(root.querySelector('#s')).toBeTruthy(); // kept alive
     expect((root.querySelector('[data-app="present"]') as HTMLElement).hasAttribute('inert')).toBe(false);
   });

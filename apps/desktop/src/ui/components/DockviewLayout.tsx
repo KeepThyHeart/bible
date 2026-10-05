@@ -20,6 +20,7 @@ import { layoutPresetService } from '../commands/layoutCommands';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useBibleStore } from '../stores/useBibleStore';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { useIsAppActive } from '../apps/appHost';
 import { zeroSizedGroupIds } from '../services/PresetApplier';
 import { sanitizeDockviewState, type LayoutRepairLogEntry } from '../services/LayoutStateSanitizer';
 import { exceedsDragThreshold, gateDragEvent } from '../services/AdvancedPaneManagerGate';
@@ -204,6 +205,8 @@ interface DockviewLayoutProps {
  */
 const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDecided = true }) => {
   const apiRef = useRef<DockviewApi | null>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const studyActive = useIsAppActive('study');
   const restoredFromSavedRef = useRef(false);
   // Incremented each time onReady fires; drives the layout-init effect.
   const [apiVersion, setApiVersion] = useState(0);
@@ -310,6 +313,22 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
     apiRef.current = event.api;
     setApiVersion(v => v + 1);
   }, []);
+
+  // Reveal safety net: Study stays mounted while another app is shown (hidden, not
+  // display:none), but a window resize or a zero-size first layout may have left
+  // dockview with stale sizes. Re-lay it out at its measured size when it becomes
+  // visible again. Inside runInternal so the preset checkmark survives.
+  useEffect(() => {
+    if (!studyActive) return;
+    const raf = requestAnimationFrame(() => {
+      const api = apiRef.current;
+      const el = dockRef.current;
+      if (api && el && el.clientWidth > 0 && el.clientHeight > 0) {
+        layoutPresetService.runInternal(() => api.layout(el.clientWidth, el.clientHeight, true));
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [studyActive]);
 
   // Initialize layout when dockview API is ready.
   // Runs when apiVersion changes (new dockview instance) or savedLayout arrives.
@@ -472,7 +491,7 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
     <div ref={workbenchRef} className="app-workbench-row relative w-full h-full flex">
       {/* min-w-0 lets this shrink by the rail's width; without it the flex
           item's min-content floor would push the rail off the edge. */}
-      <div className="relative flex-1 min-w-0 h-full">
+      <div ref={dockRef} className="relative flex-1 min-w-0 h-full">
         <DockviewReact
           theme={themeLight}
           className="dockview-theme-light"

@@ -59,7 +59,10 @@ vi.mock('../stores/commentaryStore', () => ({ commentaryStore: stubCommentarySto
 vi.mock('../stores/searchStore', () => ({ searchStore: stubSearchStore }));
 vi.mock('../utils/focusSearchField', () => ({ focusSearchField: stubFocusSearchField }));
 
+vi.mock('../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
+
 import { HomeScreen } from './HomeScreen';
+import { appRegistry } from '../host/appHost';
 
 const sampleVotd = {
   book: 43,
@@ -288,5 +291,27 @@ describe('HomeScreen', () => {
     const btn = container.querySelector('.home-screen__action-btn--primary');
     expect(btn).toBeTruthy();
     expect(btn?.textContent).toContain('homeScreen.readBible');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Apps row
+  // ---------------------------------------------------------------------------
+
+  it('shows the apps row only when there is more than one app', () => {
+    const d = (id: string, order: number) => ({
+      id, title: { key: `apps.${id}.title`, fallback: id }, icon: { kind: 'builtin' as const, name: 'fa-x' }, order,
+      lifecycle: { keepAlive: 'always' as const, restore: 'default' as const },
+    });
+    const study = appRegistry.register(d('study', 0), { kind: 'builtin', moduleId: 'study' });
+    const { container, unmount } = render(<HomeScreen />);
+    expect(container.querySelector('.kth-app-grid')).toBeNull();
+    unmount();
+    const present = appRegistry.register(d('present', 10), { kind: 'builtin', moduleId: 'present' });
+    const second = render(<HomeScreen />);
+    expect(second.container.querySelectorAll('.kth-app-grid__tile').length).toBe(2);
+    expect(screen.getAllByText('apps.home.title').length).toBeGreaterThan(0);
+    second.unmount();
+    present.dispose();
+    study.dispose();
   });
 });
