@@ -6,6 +6,7 @@ import type { VerseData, BookTopicsData } from '../types';
 import { formatPassageRef } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
 import { settingsStore } from './settingsStore';
+import { studyOwnsHash, noteStudyHash } from '../host/hashGate';
 
 export type DisplayMode = 'standard' | 'reading' | 'study';
 
@@ -1172,6 +1173,11 @@ class BibleStore extends Store {
     const tab = this.getActiveTab();
     if (tab?.book && tab.chapter) {
       const hash = `#/${tab.moduleAbbr}/${tab.book}/${tab.chapter}`;
+      // Another app owns the URL: remember the reader hash for Back instead.
+      if (!studyOwnsHash()) {
+        noteStudyHash(hash);
+        return;
+      }
       if (window.location.hash !== hash) {
         history.replaceState(null, '', hash);
       }

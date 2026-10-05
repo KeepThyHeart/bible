@@ -6,6 +6,7 @@ import { settingsStore } from '../stores/settingsStore';
 import { eventBus } from '../events/eventBus';
 import { useStore } from './useStore';
 import { parseVerseId } from '../utils/verseId';
+import { studyOwnsHash } from '../host/hashGate';
 import { focusSearchField } from '../utils/focusSearchField';
 import type { IDataProviders } from '../providers/interfaces';
 import type { StrongsEntryData } from '../types';
@@ -200,6 +201,8 @@ export function useAppShared(providers: IDataProviders) {
       bibleStore.navigateFromHash(window.location.hash);
     }
     const handleHashChange = () => {
+      // `#/@app` hashes (and any hash while another app is active) are the host's.
+      if (!studyOwnsHash() || /^#\/@/.test(window.location.hash)) return;
       bibleStore.navigateFromHash(window.location.hash);
     };
     window.addEventListener('hashchange', handleHashChange);

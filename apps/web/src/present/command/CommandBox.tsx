@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { bibleStore } from '../../stores/bibleStore';
+import { preferredBible } from '../../host/preferredBible';
 import { presentStore } from '../../stores/presentStore';
 import { useStore } from '../../hooks/useStore';
 import type { PresentState } from '../protocol';
@@ -84,7 +84,7 @@ export function CommandBox(props: CommandBoxProps) {
 
   const searchOpen = useStore(commandSearch, () => commandSearch.query !== null);
   const searchQuery = useStore(commandSearch, () => commandSearch.query);
-  const activeModule = useStore(bibleStore, () => bibleStore.getActiveTab()?.moduleAbbr);
+  const activeModule = useStore(preferredBible, () => preferredBible.module);
 
   const live = state?.live ?? null;
   const defaultModule = props.defaultModule

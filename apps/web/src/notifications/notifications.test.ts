@@ -122,7 +122,7 @@ describe('web reminder host', () => {
     expect(n.title).toBe('T');
     expect(n.options).toMatchObject({ body: 'B', tag: 'votd' });
     n.onclick!();
-    expect(navigateTo).toHaveBeenCalledWith(43, 3, 16, undefined);
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith(43, 3, 16, undefined)); // bibleStore is imported lazily
     expect(n.close).toHaveBeenCalled();
   });
 

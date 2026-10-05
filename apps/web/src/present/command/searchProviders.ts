@@ -3,9 +3,10 @@
  *
  * Verses: the app's own search provider (the one `searchStore` holds) is
  * private to that store, and driving `searchStore.performSearch` would hijack
- * the Study pane's results. So the host registers the provider once
- * (`setVerseSearchProvider(providers.search)` next to `searchStore.init` in
- * main.tsx); until then a plain fetch of the same keyword endpoint is used.
+ * the Study pane's results. So the shell registers a lazy factory once
+ * (`setVerseSearchProviderFactory(() => getSearchProvider(ctx))`); the first
+ * search awaits it (the caller memoises). Until one is set, a plain fetch of
+ * the same keyword endpoint is used.
  * Hymns: the same `/api/hymns?q=` the hymn picker uses.
  */
 
@@ -28,16 +29,17 @@ export interface VerseSearchProvider {
   ): Promise<{ results: Array<{ verseId: number; module: string; reference: string; text: string }> }>;
 }
 
-let provider: VerseSearchProvider | null = null;
+let providerFactory: (() => Promise<VerseSearchProvider>) | null = null;
 
-export function setVerseSearchProvider(p: VerseSearchProvider | null): void {
-  provider = p;
+export function setVerseSearchProviderFactory(f: (() => Promise<VerseSearchProvider>) | null): void {
+  providerFactory = f;
 }
 
 const VERSE_PAGE = 20;
 
 export async function searchVerses(query: string, module?: string): Promise<VerseHit[]> {
   const modules = module ? [module] : [];
+  const provider = providerFactory ? await providerFactory() : null;
   const set = provider
     ? await provider.keywordSearch(query, modules, { pageSize: VERSE_PAGE })
     : await fetchKeyword(query, modules);

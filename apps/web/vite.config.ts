@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { chunkReport } from './build/chunkReport';
 
 /**
  * Identifier for this build, compiled into the client and written to
@@ -443,6 +444,7 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
+    manifest: true,
     rollupOptions: {
       /*
        * Two entry points, not one.
@@ -483,7 +485,7 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts'],
     globals: true,
     // v0.2 modules ship no FTS5 table: build the test data's sidecar keyword
     // indexes once before the server route tests search them.

@@ -7,7 +7,7 @@
 
 import { getLocalizer } from '@bible/core/browser';
 import i18n from '../../i18n';
-import { headerBookAliases, parseReference } from '../../components/Header';
+import { headerBookAliases, parseReference } from '../../utils/referenceParse';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { formatPassageRef } from '../../constants';
 import { moduleStore } from '../../stores/moduleStore';
