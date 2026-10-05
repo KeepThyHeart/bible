@@ -1,4 +1,5 @@
-import { relative, sep } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import type { Plugin } from 'vite';
 
 /**
@@ -12,7 +13,9 @@ export function chunkReport(): Plugin {
   return {
     name: 'kth-chunk-report',
     apply: 'build',
-    generateBundle(_options, bundle) {
+    // writeBundle, not emitFile: an emitted dot-dir asset did not reach dist/client.
+    writeBundle(options, bundle) {
+      if (!options.dir || !Object.values(bundle).some((c) => c.type === 'chunk' && c.isEntry && c.facadeModuleId?.endsWith('index.html'))) return;
       const chunks = Object.values(bundle)
         .filter((c) => c.type === 'chunk')
         .map((c) => ({
@@ -22,11 +25,8 @@ export function chunkReport(): Plugin {
           imports: c.imports,
           modules: Object.keys(c.modules).map(rel),
         }));
-      this.emitFile({
-        type: 'asset',
-        fileName: '.vite/chunk-report.json',
-        source: JSON.stringify({ chunks }, null, 2),
-      });
+      mkdirSync(join(options.dir, '.vite'), { recursive: true });
+      writeFileSync(join(options.dir, '.vite', 'chunk-report.json'), JSON.stringify({ chunks }, null, 2));
     },
   };
 }

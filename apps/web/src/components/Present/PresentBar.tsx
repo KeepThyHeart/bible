@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { usePresenter } from './usePresenter';
-import { stepWall, usePresenterShortcuts } from './usePresenterShortcuts';
-import { openPresenter } from '../../apps/present/route';
+import { stepWall } from './usePresenterShortcuts';
+import { openApp } from '../../host/appHost';
 
 /**
  * The control strip: what a presenter touches while presenting.
@@ -33,10 +33,8 @@ export function PresentBar(props: { compact?: boolean }) {
   const view = usePresenter();
   const { staged, wall } = view;
 
-  // The global shortcuts (and, opted into, a presentation remote/clicker) --
-  // shared with the Present tab, so they work the same regardless of where
-  // the controls happen to be rendered.
-  usePresenterShortcuts();
+  // The global shortcuts live in the headless `PresenterKeys`, which the app
+  // shell mounts while a session is live, so they work with Study unmounted.
 
   if (!view.presenting) return null;
 
@@ -112,7 +110,7 @@ export function PresentBar(props: { compact?: boolean }) {
           <button
             type="button"
             class="present-bar__btn"
-            onClick={openPresenter}
+            onClick={() => { void openApp('present'); }}
             title={t('present.openPresenter')}
           >
             <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />

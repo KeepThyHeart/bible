@@ -349,6 +349,7 @@ export default defineConfig({
     basePathPlugin(),
     presentViewerDevPlugin(),
     presentWatchDevPlugin(),
+    chunkReport(),
     wasmPlugin(),
     ortWasmPlugin(),
     buildIdPlugin(),

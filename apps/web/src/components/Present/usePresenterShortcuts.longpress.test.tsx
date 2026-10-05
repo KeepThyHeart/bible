@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/preact';
+vi.mock('../../host/appHost', () => ({ appHost: { getSnapshot: () => ({ activeId: 'study' }) } }));
 import { presentStore } from '../../stores/presentStore';
 import { bibleStore } from '../../stores/bibleStore';
 import type { PresentState } from '../../present/protocol';

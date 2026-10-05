@@ -14,7 +14,7 @@ import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { PresentBar } from './components/Present/PresentBar';
+import { LazyPresentBar } from './components/Present/LazyPresentBar';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -269,8 +269,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           </div>
         )}
       </div>
-      {/* Study's companion strip while a session is live; also owns the presenter shortcuts. */}
-      <PresentBar />
+      {/* Study's companion strip while a session is live; the shortcuts are `PresenterKeys`, mounted by the app shell. */}
+      <LazyPresentBar />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}
