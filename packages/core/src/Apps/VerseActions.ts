@@ -1,11 +1,10 @@
 /**
  * Verse actions: the `verseActions` contribution point (task 0080).
  *
- * M1 defines the shapes only; the registry implementation, the platform menus
- * and the extension `registerContextMenu('verse')` adapter are M2 (rows 2, 6, 9).
- * The registry will be `ContributionRegistry<VerseActionContribution>` (key
- * `verseActions`) plus the handler bindings below; the feature-module host
- * can already register contributions into any `ContributionPoint`.
+ * The shapes live here; `VerseActionRegistry` implements them as a
+ * `ContributionRegistry<VerseActionContribution>` (key `verseActions`) plus the
+ * handler bindings below. The platform menus and the extension
+ * `registerContextMenu('verse')` adapter are built on top of it.
  *
  * Data and code are split like apps: the contribution (label, order, `when`)
  * is small and loads at boot so the menu can be drawn; the handler's code is
@@ -54,7 +53,7 @@ export interface VerseActionBinding {
   load(): Promise<VerseActionHandler>;
 }
 
-/** M2: the registry the menus read. */
+/** The registry the menus read. */
 export interface IVerseActionRegistry extends Pick<
   ContributionRegistry<VerseActionContribution>,
   'key' | 'register' | 'disposeBySource' | 'get' | 'list' | 'subscribe' | 'getSnapshot'

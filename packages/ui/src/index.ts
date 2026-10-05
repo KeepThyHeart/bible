@@ -161,3 +161,14 @@ export type {
   ContentDirProps,
   ContentDirOverride,
 } from './components/Direction';
+
+// App host surfaces (task 0080).
+export {
+  AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, AppStage,
+  DEFAULT_APP_RAIL_LABELS, DEFAULT_APP_TILE_GRID_LABELS,
+} from './components/apps';
+export type {
+  AppBadgeProps, AppRailProps, AppRailLabels, AppTileGridProps, AppTileGridLabels,
+  AppSheetProps, AppSwitchButtonProps, AppStageProps, AppStageApp,
+  AppNavBadge, AppNavEntry,
+} from './components/apps';
