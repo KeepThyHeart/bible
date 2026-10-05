@@ -161,7 +161,8 @@ test.describe('The Presenter workspace', () => {
   test('the back button returns to the reader', async ({ page }) => {
     await openPresenter(page);
     await page.locator('.pz-appbar__back').click();
-    await expect(page.locator('.presenter-app')).toHaveCount(0);
+    // Kept mounted (hidden) for a grace period after leaving, so assert it is not shown.
+    await expect(page.locator('.presenter-app')).toBeHidden();
     await waitForVerses(page);
   });
 });
