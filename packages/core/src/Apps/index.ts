@@ -6,3 +6,4 @@ export * from './AppBinding';
 export * from './VerseActions';
 export * from './NavItems';
 export * from './VerseActionRegistry';
+export * from './NavSettings';
