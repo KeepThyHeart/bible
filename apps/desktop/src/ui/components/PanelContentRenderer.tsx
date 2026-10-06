@@ -105,8 +105,9 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
     );
   }
 
-  // Route to single-item panels when contentKey is provided
-  if (contentKey) {
+  // Route to single-item panels when contentKey is provided (only while the module that owns the type is on)
+  const Component = componentForPanelType(contentType);
+  if (contentKey && Component) {
     if (contentType === 'commentary') {
       return (
         <div className="h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
@@ -141,8 +142,6 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       );
     }
   }
-
-  const Component = componentForPanelType(contentType);
 
   if (!Component) {
     return (

@@ -50,6 +50,7 @@ export function MobileApp({ providers }: MobileAppProps) {
   useEffect(() => { audioStore.setLayout('phone'); }, []);
   const paneModes = usePaneModes();
   const phoneViews = new Set(paneModes.filter((m) => m.phoneView).map((m) => m.id));
+  const phoneViewKey = [...phoneViews].join(',');
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
   const [mobileView, setMobileView] = useState<string>('home');
   const leftHanded = useStore(settingsStore, () => settingsStore.leftHandedMode);
@@ -161,7 +162,7 @@ export function MobileApp({ providers }: MobileAppProps) {
   }, [mobileView]);
 
   // Word study opens as a full-screen sheet from any entry point (Strong's popup, dictionary entry, header).
-  useEffect(() => eventBus.on('wordstudy:open', () => switchMobileView('wordStudy')), [mobileView]);
+  useEffect(() => eventBus.on('wordstudy:open', () => switchMobileView('wordStudy')), [mobileView, phoneViewKey]);
 
   // Listen for navigate-to-bible events from commentary pane
   useEffect(() => {
@@ -381,7 +382,10 @@ export function MobileApp({ providers }: MobileAppProps) {
   // A module switched off while its phone view is showing: fall back rather than render nothing.
   const resolvedView = resolvePhoneView(mobileView, phoneViews);
   useEffect(() => {
-    if (resolvedView !== mobileView) setMobileView(resolvedView);
+    if (resolvedView !== mobileView) {
+      if (resolvedView === 'bible') bibleStore.setShowHome(false);
+      setMobileView(resolvedView);
+    }
   }, [resolvedView, mobileView]);
 
   // On mobile the entire content area is one scroll container.

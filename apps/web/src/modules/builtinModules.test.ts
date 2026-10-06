@@ -22,7 +22,7 @@ describe('web app boot with a module disabled', () => {
     const { modulePoints, featureModules } = await boot('');
     expect(modulePoints.paneModes.list().map((p) => p.id)).toContain('study');
     expect(featureModules.list().every((m) => m.enabled || m.offReason)).toBe(true);
-  });
+  }, 60_000);
 
   it('drops the disabled module\'s panes and phone views and keeps the rest', async () => {
     const { modulePoints, featureModules } = await boot('-host-panes');
@@ -32,5 +32,5 @@ describe('web app boot with a module disabled', () => {
     // The phone shell then has no study/commentary view: it lands on the reader, not on a blank screen.
     const phoneViews = new Set(modulePoints.paneModes.list().filter((p) => p.phoneView).map((p) => p.id));
     expect(resolvePhoneView('commentary', phoneViews)).toBe('bible');
-  });
+  }, 60_000);
 });

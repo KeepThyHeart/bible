@@ -300,7 +300,8 @@ class CommentaryStore extends Store {
       this.loadForChapter(book, chapter);
     });
     eventBus.on('pane:show', ({ paneId }) => {
-      this.setRightPaneMode(paneId);
+      // A pane whose module is off (or a plugin's bad id) must not replace the saved choice.
+      if (paneId === 'search' || renderablePaneModes().includes(paneId)) this.setRightPaneMode(paneId);
     });
     eventBus.on('pane:expand', () => {
       this.expand();
@@ -1241,7 +1242,8 @@ class CommentaryStore extends Store {
 
   setRightPaneMode(mode: string): void {
     this.rightPaneMode = mode;
-    this.preferredPaneMode = null; // an explicit choice replaces any remembered one
+    // An explicit choice replaces any remembered one; opening Search is transient and does not.
+    if (mode !== 'search') this.preferredPaneMode = null;
     this.saveSession();
     this.notify();
   }
@@ -1284,6 +1286,8 @@ class CommentaryStore extends Store {
   navigateToTopic(topicId: number, module: string, topicName: string, sourceName?: string): void {
     this.pendingTopicNav = { topicId, module, topicName, sourceName, token: ++this._topicNavToken };
     this.rightPaneMode = 'topics';
+    this.preferredPaneMode = null;
+    this.saveSession();
     this.notify();
   }
 
@@ -1461,7 +1465,8 @@ class CommentaryStore extends Store {
       this.promotedModules = new Set(parsed.promotedModules ?? []);
       if (parsed.rightPaneMode && (isRestorablePaneMode(parsed.rightPaneMode) || (CORE_PANE_MODES as readonly string[]).includes(parsed.rightPaneMode))) {
         this.rightPaneMode = parsed.rightPaneMode;
-      } else if (typeof parsed.rightPaneMode === 'string' && parsed.rightPaneMode && parsed.rightPaneMode !== 'search') {
+      } else if (typeof parsed.rightPaneMode === 'string' && parsed.rightPaneMode && parsed.rightPaneMode !== 'search'
+        && !modulePoints.paneModes.list().some((p) => p.id === parsed.rightPaneMode)) {
         // Its module is off (or not registered yet): keep the choice for when it comes back.
         this.preferredPaneMode = parsed.rightPaneMode;
       }

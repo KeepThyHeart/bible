@@ -268,7 +268,7 @@ describe('parseFeatureModuleOverrides', () => {
 describe('FeatureModuleHost: the feature-flag overrides and the module overrides work together', () => {
   // Flags (`FEATURE_FLAGS`, with its dev override) switch whole features that are off by default; the
   // per-module override switches any module by id, including ungated ones that have no flag.
-  const gated = (id: string, flag?: FeatureFlagName): FeatureModuleManifest => ({ id, ...(flag ? { flag } : {}) });
+  const gated = (id: string, flag?: FeatureFlagName): FeatureModuleManifest => ({ id, contributes: {}, ...(flag ? { flag } : {}) });
   function hostWith(flagOverrideText: string, moduleOverrideText: string) {
     const flags = createFeatureFlags({ overrides: parseFlagOverrides(flagOverrideText) });
     const host = createFeatureModuleHost({

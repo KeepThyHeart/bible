@@ -120,9 +120,9 @@ describe('a saved pane whose module is off', () => {
     expect(commentaryStore.preferredPaneMode).toBe('gone-module-pane'); // remembered, not restored
     commentaryStore.reconcilePaneMode('study', never);
     expect(commentaryStore.rightPaneMode).toBe('study');
-    expect(JSON.parse(localStorage.getItem('bible-reader-commentary') ?? '{}').rightPaneMode ?? 'gone-module-pane').toBe('gone-module-pane');
-    // Any unrelated save must not overwrite it with the fallback either.
-    commentaryStore.toggleCollapsed(); // any save
+    // Any save must keep the remembered choice, not the fallback.
+    commentaryStore.toggleCollapsed();
+    expect(JSON.parse(localStorage.getItem('bible-reader-commentary')!).rightPaneMode).toBe('gone-module-pane');
     commentaryStore.reconcilePaneMode('gone-module-pane', always); // the module came back
     expect(commentaryStore.rightPaneMode).toBe('gone-module-pane');
     expect(commentaryStore.preferredPaneMode).toBeNull();
@@ -152,5 +152,21 @@ describe('a saved pane whose module is off', () => {
     commentaryStore.reconcilePaneMode('study', always);
     expect(commentaryStore.rightPaneMode).toBe('study');
     expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+});
+
+describe('pane:show for a pane that is not there', () => {
+  it('is ignored, keeping the saved choice', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('topics');
+    eventBus.emit('pane:show', { paneId: 'gone-module-pane' });
+    expect(commentaryStore.rightPaneMode).toBe('topics');
+  });
+
+  it('opening Search does not forget a remembered pane', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    commentaryStore.reconcilePaneMode('study', () => false);
+    commentaryStore.setRightPaneMode('search');
+    expect(commentaryStore.preferredPaneMode).toBe('gone-module-pane');
   });
 });
