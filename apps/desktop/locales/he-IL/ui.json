@@ -1966,6 +1966,7 @@
   "footnoteDisplay.footnotes": "הערות שוליים",
   "toastContainer.dismiss": "התעלם",
   "panelContentRenderer.malformedExtensionPanelContentType": "סוג תוכן פגום של חלונית תוסף: {v1}",
+  "panelContentRenderer.panelUnavailable": "חלונית זו אינה זמינה",
   "panelContentRenderer.unknownPanelType": "סוג חלונית לא מוכר: {v1}",
   "downloadProgressPanel.activeDownloads": "הורדות פעילות ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "פסוקים בפרק {v1} עם ערכים:",

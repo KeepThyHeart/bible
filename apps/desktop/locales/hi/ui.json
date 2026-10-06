@@ -1945,6 +1945,7 @@
   "footnoteDisplay.footnotes": "पादटिप्पणियाँ",
   "toastContainer.dismiss": "हटाएँ",
   "panelContentRenderer.malformedExtensionPanelContentType": "त्रुटिपूर्ण एक्सटेंशन पैनल सामग्री प्रकार: {v1}",
+  "panelContentRenderer.panelUnavailable": "यह पैनल उपलब्ध नहीं है",
   "panelContentRenderer.unknownPanelType": "अज्ञात पैनल प्रकार: {v1}",
   "downloadProgressPanel.activeDownloads": "सक्रिय डाउनलोड ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "अध्याय {v1} के वे पद जिनमें प्रविष्टियाँ हैं:",

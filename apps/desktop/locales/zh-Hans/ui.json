@@ -1966,6 +1966,7 @@
   "footnoteDisplay.footnotes": "脚注",
   "toastContainer.dismiss": "关闭",
   "panelContentRenderer.malformedExtensionPanelContentType": "扩展面板内容类型格式有误：{v1}",
+  "panelContentRenderer.panelUnavailable": "此面板不可用",
   "panelContentRenderer.unknownPanelType": "未知面板类型：{v1}",
   "downloadProgressPanel.activeDownloads": "正在下载（{v1}）",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "第 {v1} 章中有注释条目的经节：",

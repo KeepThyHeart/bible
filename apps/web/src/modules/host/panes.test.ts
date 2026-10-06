@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFeatureModuleHost, createStandardPoints, standardPointList, validateBuiltinManifest } from '@bible/core/browser';
 import type { FeatureModuleManifest } from '@bible/core/browser';
-import { hostPanesModules, CORE_PANE_MODES } from './panes';
+import { hostPanesModules, CORE_PANE_MODES, resolvePhoneView } from './panes';
 
 function setup(flags: Record<string, boolean>) {
   const points = createStandardPoints();
@@ -68,5 +68,17 @@ describe('a fixture pane module', () => {
     await loader();
     await points.views.resolve('pane:fixture')!();
     expect(view).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resolvePhoneView', () => {
+  const views = new Set(['study', 'commentary', 'wordStudy']);
+  it('keeps core views and enabled module views', () => {
+    for (const v of ['home', 'bible', 'search', 'study', 'commentary', 'wordStudy']) expect(resolvePhoneView(v, views)).toBe(v);
+  });
+  it('falls back to the reader when the view\'s module is off, instead of rendering nothing', () => {
+    expect(resolvePhoneView('commentary', new Set(['study']))).toBe('bible');
+    expect(resolvePhoneView('study', new Set())).toBe('bible');
+    expect(resolvePhoneView('home', new Set())).toBe('home');
   });
 });

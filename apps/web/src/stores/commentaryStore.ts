@@ -1241,8 +1241,43 @@ class CommentaryStore extends Store {
 
   setRightPaneMode(mode: string): void {
     this.rightPaneMode = mode;
+    this.preferredPaneMode = null; // an explicit choice replaces any remembered one
     this.saveSession();
     this.notify();
+  }
+
+  /**
+   * A saved pane whose module is off right now (disabled, flag off, or not yet
+   * registered). The shell shows a fallback meanwhile, but this id is what gets
+   * saved, and it is shown again as soon as its module comes back. Cleared by
+   * an explicit `setRightPaneMode`.
+   */
+  preferredPaneMode: string | null = null;
+
+  /**
+   * Settle `rightPaneMode` on the pane the shell can show (`shown`) without
+   * losing the user's saved choice. `available` says whether a pane id has a tab.
+   */
+  reconcilePaneMode(shown: string, available: (id: string) => boolean): void {
+    const wanted = this.preferredPaneMode ?? this.rightPaneMode;
+    if (wanted !== 'search' && available(wanted)) {
+      if (this.rightPaneMode !== wanted || this.preferredPaneMode) {
+        this.rightPaneMode = wanted;
+        this.preferredPaneMode = null;
+        this.notify();
+      }
+      return;
+    }
+    if (wanted !== 'search') {
+      // Unavailable for now: show the fallback, remember the choice, never save the fallback over it.
+      if (this.rightPaneMode !== shown || this.preferredPaneMode !== wanted) {
+        this.preferredPaneMode = wanted;
+        this.rightPaneMode = shown;
+        this.notify();
+      }
+      return;
+    }
+    if (shown !== this.rightPaneMode) this.setRightPaneMode(shown); // a closed Search tab is transient
   }
 
   /** Switch to Topics pane and navigate to a specific topic */
@@ -1409,12 +1444,13 @@ class CommentaryStore extends Store {
         collapsed: this.collapsed,
         mutedModules: [...this.mutedModules],
         promotedModules: [...this.promotedModules],
-        rightPaneMode: this.rightPaneMode,
+        rightPaneMode: this.preferredPaneMode ?? this.rightPaneMode,
       }));
     } catch { /* ignore */ }
   }
 
   private restoreSession(): void {
+    this.preferredPaneMode = null;
     try {
       const data = localStorage.getItem('bible-reader-commentary');
       if (!data) return;
@@ -1425,6 +1461,9 @@ class CommentaryStore extends Store {
       this.promotedModules = new Set(parsed.promotedModules ?? []);
       if (parsed.rightPaneMode && (isRestorablePaneMode(parsed.rightPaneMode) || (CORE_PANE_MODES as readonly string[]).includes(parsed.rightPaneMode))) {
         this.rightPaneMode = parsed.rightPaneMode;
+      } else if (typeof parsed.rightPaneMode === 'string' && parsed.rightPaneMode && parsed.rightPaneMode !== 'search') {
+        // Its module is off (or not registered yet): keep the choice for when it comes back.
+        this.preferredPaneMode = parsed.rightPaneMode;
       }
 
       // Migration: old global pin state (apply to first non-home tab if present)

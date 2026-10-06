@@ -30,6 +30,20 @@ export type PaneViewComponent = (props: PaneViewProps) => unknown;
 /** The pane ids of today's shell, in tab order. Used for typing, as the pre-boot fallback and to read legacy saved ids. */
 export const CORE_PANE_MODES = ['study', 'commentary', 'topics', 'timeline', 'quiz', 'dictionary', 'wordStudy', 'similar'] as const;
 
+/** Phone views that are not pane modes: always there. */
+export const CORE_PHONE_VIEWS = ['home', 'bible', 'search'] as const;
+
+/**
+ * The phone view to show for a wanted one: itself when it is a core view or a
+ * still-enabled pane mode that opts in with `phoneView`, otherwise the reader.
+ * A disabled module's view must
+ * never leave the phone with a blank screen.
+ */
+export function resolvePhoneView(wanted: string, phoneViews: ReadonlySet<string>): string {
+  if ((CORE_PHONE_VIEWS as readonly string[]).includes(wanted) || phoneViews.has(wanted)) return wanted;
+  return 'bible';
+}
+
 const title = (id: string, fallback: string) => ({ key: `rightPane.${id}`, fallback });
 
 export const hostPanesManifest: FeatureModuleManifest = {

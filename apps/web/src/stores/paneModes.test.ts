@@ -110,3 +110,47 @@ describe('pane:show', () => {
     }
   });
 });
+
+describe('a saved pane whose module is off', () => {
+  const always = () => true;
+  const never = () => false;
+
+  it('shows the fallback but keeps the saved choice, and shows it again when the module is back', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    expect(commentaryStore.preferredPaneMode).toBe('gone-module-pane'); // remembered, not restored
+    commentaryStore.reconcilePaneMode('study', never);
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    expect(JSON.parse(localStorage.getItem('bible-reader-commentary') ?? '{}').rightPaneMode ?? 'gone-module-pane').toBe('gone-module-pane');
+    // Any unrelated save must not overwrite it with the fallback either.
+    commentaryStore.toggleCollapsed(); // any save
+    commentaryStore.reconcilePaneMode('gone-module-pane', always); // the module came back
+    expect(commentaryStore.rightPaneMode).toBe('gone-module-pane');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+
+  it('an explicit choice replaces the remembered one', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    commentaryStore.reconcilePaneMode('study', never);
+    commentaryStore.setRightPaneMode('topics');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+    expect(JSON.parse(localStorage.getItem('bible-reader-commentary') ?? '{}').rightPaneMode).toBe('topics');
+  });
+
+  it('a mode that goes away while it is showing is kept in the saved session', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('quiz');
+    commentaryStore.reconcilePaneMode('study', (id) => id !== 'quiz'); // the quiz module was disabled
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    expect(commentaryStore.preferredPaneMode).toBe('quiz');
+    commentaryStore.setRightPaneMode('study'); // the user picks the fallback pane: that is a choice
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+
+  it('a closed Search tab is not remembered', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('search');
+    commentaryStore.reconcilePaneMode('study', always);
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+});

@@ -25,6 +25,7 @@ import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
 import { fireActivation } from './modules/moduleHost';
 import { usePaneModes } from './modules/host/usePaneModes';
+import { resolvePhoneView } from './modules/host/panes';
 import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
@@ -126,7 +127,8 @@ export function MobileApp({ providers }: MobileAppProps) {
   }, [navTooltip]);
 
   // Save/restore mobile-scroll-wrapper scroll position when switching views
-  const switchMobileView = (view: typeof mobileView) => {
+  const switchMobileView = (wanted: typeof mobileView) => {
+    const view = resolvePhoneView(wanted, phoneViews);
     // Save current view's scroll position
     const wrapper = document.querySelector('.mobile-scroll-wrapper');
     if (wrapper) {
@@ -376,6 +378,12 @@ export function MobileApp({ providers }: MobileAppProps) {
     if (phoneViews.has(mobileView)) fireActivation('onPanel:' + mobileView);
   }, [mobileView]);
 
+  // A module switched off while its phone view is showing: fall back rather than render nothing.
+  const resolvedView = resolvePhoneView(mobileView, phoneViews);
+  useEffect(() => {
+    if (resolvedView !== mobileView) setMobileView(resolvedView);
+  }, [resolvedView, mobileView]);
+
   // On mobile the entire content area is one scroll container.
   // Header, tab bar, and toolbar are siblings inside it.
   // The tab bar uses position:sticky to stay pinned while the
@@ -507,7 +515,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           { view: 'bible' as const, icon: 'fa-solid fa-book-bible', label: 'mobileNav.read' },
           { view: 'commentary' as const, icon: 'fa-solid fa-comment-dots', label: 'mobileNav.commentary' },
           { view: 'search' as const, icon: 'fa-solid fa-magnifying-glass', label: 'mobileNav.search' },
-        ].map((item) => (
+        ].filter((item) => resolvePhoneView(item.view, phoneViews) === item.view).map((item) => (
           <button
             key={item.view}
             class={`mobile-nav__btn ${mobileView === item.view ? 'mobile-nav__btn--active' : ''}`}

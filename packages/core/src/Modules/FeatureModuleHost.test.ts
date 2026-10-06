@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFeatureModuleHost, parseFeatureModuleOverrides } from './FeatureModuleHost';
+import { createFeatureFlags, parseFlagOverrides } from '../Settings/FeatureFlags';
 import type { FeatureModuleHostOptions } from './FeatureModuleHost';
 import { ContributionRegistry } from './ContributionRegistry';
 import { toDisposable } from './types';
@@ -261,5 +262,39 @@ describe('parseFeatureModuleOverrides', () => {
     expect(parseFeatureModuleOverrides('-present, quiz !timeline')).toEqual({ present: false, quiz: true, timeline: false });
     expect(parseFeatureModuleOverrides('{"present":false,"x":1}')).toEqual({ present: false });
     expect(parseFeatureModuleOverrides(null)).toEqual({});
+  });
+});
+
+describe('FeatureModuleHost: the feature-flag overrides and the module overrides work together', () => {
+  // Flags (`FEATURE_FLAGS`, with its dev override) switch whole features that are off by default; the
+  // per-module override switches any module by id, including ungated ones that have no flag.
+  const gated = (id: string, flag?: FeatureFlagName): FeatureModuleManifest => ({ id, ...(flag ? { flag } : {}) });
+  function hostWith(flagOverrideText: string, moduleOverrideText: string) {
+    const flags = createFeatureFlags({ overrides: parseFlagOverrides(flagOverrideText) });
+    const host = createFeatureModuleHost({
+      platform: 'web',
+      points: [],
+      isFlagEnabled: (f) => flags.isEnabled(f),
+      overrides: () => parseFeatureModuleOverrides(moduleOverrideText),
+    });
+    host.add(gated('quiz', 'quiz'));
+    host.add(gated('plain'));
+    host.reconcile();
+    return Object.fromEntries(host.list().map((m) => [m.id, m.enabled]));
+  }
+
+  it('the flag override turns a gated module on or off', () => {
+    expect(hostWith('quiz', '')).toEqual({ quiz: true, plain: true });
+    expect(hostWith('', '')).toEqual({ quiz: false, plain: true });
+  });
+
+  it('the module override turns off an ungated module, which no flag can', () => {
+    expect(hostWith('', '-plain')).toEqual({ quiz: false, plain: false });
+  });
+
+  it('both at once: the module override wins for its module, the flag decides the rest', () => {
+    expect(hostWith('quiz', '-quiz')).toEqual({ quiz: false, plain: true });
+    expect(hostWith('-quiz', 'quiz')).toEqual({ quiz: true, plain: true });
+    expect(hostWith('quiz', '-plain')).toEqual({ quiz: true, plain: false });
   });
 });

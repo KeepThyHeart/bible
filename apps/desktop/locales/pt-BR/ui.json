@@ -1945,6 +1945,7 @@
   "footnoteDisplay.footnotes": "Notas de rodapé",
   "toastContainer.dismiss": "Dispensar",
   "panelContentRenderer.malformedExtensionPanelContentType": "Tipo de conteúdo de painel de extensão malformado: {v1}",
+  "panelContentRenderer.panelUnavailable": "Este painel não está disponível",
   "panelContentRenderer.unknownPanelType": "Tipo de painel desconhecido: {v1}",
   "downloadProgressPanel.activeDownloads": "Downloads ativos ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "Versículos do capítulo {v1} com entradas:",

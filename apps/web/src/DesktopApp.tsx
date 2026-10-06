@@ -146,11 +146,11 @@ export function DesktopApp({ providers }: DesktopAppProps) {
 
   useEffect(() => { if (paneMode !== 'search') fireActivation('onPanel:' + paneMode); }, [paneMode]);
 
-  // Self-heal the persisted value so a bad id does not survive another reload.
+  // Show the fallback while a pane is unavailable, but keep the saved choice (a disabled module, or
+  // 'similar' before the availability probe answers) and bring it back when the pane returns.
   useEffect(() => {
-    // A saved 'similar' stays until the availability probe has answered (it shows 'study' meanwhile).
-    if (paneMode !== shared.rightPaneMode && shared.rightPaneMode !== 'similar') commentaryStore.setRightPaneMode(paneMode);
-  }, [paneMode, shared.rightPaneMode]);
+    commentaryStore.reconcilePaneMode(paneMode, paneAvailable);
+  }, [paneMode, shared.rightPaneMode, paneModes, similarAvailable]);
 
   // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
   // so switching tabs does not lose a quiz in progress.

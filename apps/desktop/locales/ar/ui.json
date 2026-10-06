@@ -1945,6 +1945,7 @@
   "footnoteDisplay.footnotes": "الحواشي",
   "toastContainer.dismiss": "تجاهل",
   "panelContentRenderer.malformedExtensionPanelContentType": "نوع محتوى لوحة الامتداد غير سليم: {v1}",
+  "panelContentRenderer.panelUnavailable": "هذه اللوحة غير متاحة",
   "panelContentRenderer.unknownPanelType": "نوع لوحة غير معروف: {v1}",
   "downloadProgressPanel.activeDownloads": "التنزيلات الجارية ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "الأعداد في الأصحاح {v1} التي لها مدخلات:",

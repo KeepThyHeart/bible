@@ -1966,6 +1966,7 @@
   "footnoteDisplay.footnotes": "Notas al pie",
   "toastContainer.dismiss": "Descartar",
   "panelContentRenderer.malformedExtensionPanelContentType": "Tipo de contenido del panel de extensión no válido: {v1}",
+  "panelContentRenderer.panelUnavailable": "Este panel no está disponible",
   "panelContentRenderer.unknownPanelType": "Tipo de panel desconocido: {v1}",
   "downloadProgressPanel.activeDownloads": "Descargas activas ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "Versículos del capítulo {v1} con entradas:",

@@ -1945,6 +1945,7 @@
   "footnoteDisplay.footnotes": "Сноски",
   "toastContainer.dismiss": "Закрыть",
   "panelContentRenderer.malformedExtensionPanelContentType": "Некорректный тип содержимого панели расширения: {v1}",
+  "panelContentRenderer.panelUnavailable": "Эта панель недоступна",
   "panelContentRenderer.unknownPanelType": "Неизвестный тип панели: {v1}",
   "downloadProgressPanel.activeDownloads": "Активные загрузки ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "Стихи главы {v1}, имеющие записи:",
