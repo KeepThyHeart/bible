@@ -1,6 +1,6 @@
 {
   "name": "@bible/desktop",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "description": "Electron desktop application for Bible study",
   "main": "out/main/index.js",
   "scripts": {
