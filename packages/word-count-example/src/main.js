@@ -137,15 +137,17 @@ async function bookName(api, book) {
   return bookNames.get(book) || 'Book ' + book;
 }
 
-async function statsFor(api, verseId) {
+async function statsFor(api, verseId, module) {
   var parsed = parseVerseId(verseId);
-  var key = parsed.book * 1000 + parsed.chapter;
+  var key = (module || '') + ':' + (parsed.book * 1000 + parsed.chapter);
   var hit = statsCache.get(key);
   if (hit) return hit;
   // Verse 1 through 200 (generous upper bound; the API returns only verses that exist).
   var verses = await api.bible.getRange(
     makeVerseId(parsed.book, parsed.chapter, 1),
     makeVerseId(parsed.book, parsed.chapter, 200),
+    // The Bible the reader is looking at (the host's default otherwise).
+    typeof module === 'string' && module ? { module: module } : undefined,
   );
   var stats = computeStats(verses, (await bookName(api, parsed.book)) + ' ' + parsed.chapter);
   statsCache.set(key, stats);
@@ -161,7 +163,7 @@ function pushStats(api) {
 async function setBadge(api, stats) {
   if (!api.apps) return;
   try {
-    await api.apps.setBadge(APP_ID, stats === null ? null : {
+    await api.apps.setBadge(APP_ID, stats === null || stats.total === 0 ? null : {
       kind: 'text',
       value: compact(stats.total),
       tone: 'neutral',
@@ -231,7 +233,7 @@ exports.activate = async function activate(api) {
       }
 
       try {
-        var stats = await statsFor(api, payload.verseId);
+        var stats = await statsFor(api, payload.verseId, payload.module);
         var changed = current !== stats;
         current = stats;
 

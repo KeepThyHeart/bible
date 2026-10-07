@@ -193,6 +193,13 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
     for (const [commandId, regId] of this.registrationIdByCommandId) {
       if (idSet.has(regId)) this.registrationIdByCommandId.delete(commandId);
     }
+    // The same teardown removes this owner's declared placeholder rows (they are
+    // in `ownerToIds` too). Forget their registration ids, or the next
+    // `registerDeclaredCommand` would think the placeholder is still placed and
+    // the command would stay unreachable ("Command not found") until restart.
+    for (const state of this.declared.values()) {
+      if (state.registrationId !== null && idSet.has(state.registrationId)) state.registrationId = null;
+    }
     this.ownerToIds.delete(extensionId);
     if (ids.length > 0) {
       void this.rpc.request('disposeMany', [ids]).catch(() => undefined);
