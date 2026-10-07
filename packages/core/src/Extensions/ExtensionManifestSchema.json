@@ -135,30 +135,130 @@
       "properties": {
         "commands": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ContributedCommand" }
+          "items": {
+            "$ref": "#/definitions/ContributedCommand"
+          }
         },
         "panelTypes": {
           "type": "array",
-          "items": { "$ref": "#/definitions/PanelTypeDef" }
+          "items": {
+            "$ref": "#/definitions/PanelTypeDef"
+          }
         },
         "configuration": {
           "oneOf": [
             {
               "type": "object",
-              "required": ["$ref"],
+              "required": [
+                "$ref"
+              ],
               "additionalProperties": false,
-              "properties": { "$ref": { "type": "string" } }
+              "properties": {
+                "$ref": {
+                  "type": "string"
+                }
+              }
             },
-            { "type": "object" }
+            {
+              "type": "object"
+            }
           ]
         },
         "apiExports": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ContributedApiExport" }
+          "items": {
+            "$ref": "#/definitions/ContributedApiExport"
+          }
         },
         "bibleProviders": {
           "type": "array",
-          "items": { "$ref": "#/definitions/BibleProviderDescriptor" }
+          "items": {
+            "$ref": "#/definitions/BibleProviderDescriptor"
+          }
+        },
+        "apps": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "uiEntry"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$"
+              },
+              "title": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "key"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "shortTitle": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "key"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "icon": {
+                "type": "string",
+                "pattern": "^[^/\\\\:][^\\\\:]*\\.(svg|png|webp)$"
+              },
+              "uiEntry": {
+                "type": "string",
+                "pattern": "^[^/\\\\:][^\\\\:]*\\.html$"
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 900
+              },
+              "keepAlive": {
+                "type": "string",
+                "enum": [
+                  "never"
+                ]
+              },
+              "mobile": {
+                "type": "string",
+                "enum": [
+                  "sheet",
+                  "hidden"
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -237,22 +337,23 @@
       "type": "string",
       "enum": [
         "bible:read",
+        "bible:provide",
         "commentary:read",
+        "commentary:provide",
         "dictionary:read",
+        "dictionary:provide",
         "book:read",
+        "book:provide",
         "notes:read",
         "notes:write",
         "highlights:read",
         "highlights:write",
         "bookmarks:read",
         "bookmarks:write",
-        "bible:provide",
-        "commentary:provide",
-        "dictionary:provide",
-        "book:provide",
         "storage",
         "storage:secrets",
         "storage:database",
+        "fs:managed-folder",
         "ui:contribute-pane",
         "ui:verse-decorator",
         "ui:verse-hover",
@@ -260,18 +361,18 @@
         "ui:notification",
         "ui:status-bar",
         "ui:media",
+        "fs:read-user",
+        "fs:write-user",
         "commands:register",
         "commands:execute-builtin",
         "tasks",
-        "notifications:schedule",
         "network",
         "network:oauth",
+        "extensions:call",
+        "notifications:schedule",
         "speech:listen",
         "speech:speak",
-        "extensions:call",
-        "fs:read-user",
-        "fs:write-user",
-        "fs:managed-folder"
+        "ui:contribute-app"
       ]
     },
 

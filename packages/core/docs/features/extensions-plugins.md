@@ -176,6 +176,32 @@ at runtime:
 `applyFilters`/`runActions` check `Map.has()` first, so an unhooked call site
 costs nothing.
 
+## Extension apps (`contributes.apps`)
+
+An extension can add its own app to the host's app switcher (API `0.2.1`, task 0080). Needs the
+`ui:contribute-app` permission (prompted at install; without it the key is rejected and `api.apps` is absent).
+
+```json
+"contributes": { "apps": [{ "id": "counts", "title": "%app.counts%", "uiEntry": "ui/counts.html", "icon": "ui/counts.svg", "order": 10 }] }
+```
+
+| Key | Rule |
+|---|---|
+| `id` | required, `^[a-z][a-z0-9-]{0,39}$`; stored qualified (`ext.<publisher>.<name>.counts`); unique |
+| `title` / `shortTitle` | required / optional; literal (<= 60 / 24 chars), a `%key%` reference (kept as the string `%key%`) or `{ key }` |
+| `uiEntry` / `icon` | relative package paths (no leading `/`, `\`, `..` or scheme); `.html` / `.svg`, `.png`, `.webp` |
+| `order` | integer 0..900, position inside the extension band (host shows it at 100 + order) |
+| `keepAlive` | only `'never'` in v1; `mobile`: `'sheet'` or `'hidden'` |
+| other keys | warning `apps.unknownKey`, dropped. At most 8 apps per extension |
+
+- **Activation:** `onApp:<id as declared>` fires when the user opens the app; it matches the owning extension only.
+- **`api.apps`:** `setBadge(appId, AppBadgeDto | null)`, `open(appId): Promise<boolean>` (false when the host
+  declines: no recent user gesture in the extension's own UI, or app unavailable), and
+  `onDidChangeVisibility(handler)` (sugar over the owner-only `app.visibilityChanged` channel). `appId` is the id
+  as declared or the qualified id. The host normalises badges like built-in apps (count > 99 shows `99+`).
+- **Identity:** messages from an app view carry `PanelMessageSender.panelId = panelTypeId = 'app:<id>'` and
+  `appId = <id>`, set by the host, never by the iframe.
+
 ## Extension data and backups
 
 A manifest's optional `userData` block says which of the extension's data is the

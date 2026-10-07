@@ -17,6 +17,8 @@
 
 import type { DeclaredExtensionApi } from './Declarations/registry';
 import type {
+  AppBadgeDto,
+  AppVisibilityEvent,
   BackgroundTaskDescriptor,
   BackgroundTaskInfo,
   BibleBookDto,
@@ -153,6 +155,10 @@ export type {
  * Then refresh the lock: `UPDATE_EXTENSION_API=1 pnpm --filter @bible/core
  * exec vitest run src/Extensions/Declarations/registrySync.test.ts`.
  *
+ * `0.2.1` (task 0080): added `api.apps`, the `ui:contribute-app` permission, the
+ * `onApp:` activation event, `contributes.apps` and the `app.visibilityChanged` channel;
+ * `PanelMessageSender.appId`.
+ *
  * `0.2.0` (task 0083): added `api.reminders`, the `notifications:schedule`
  * permission, the `onReminder` activation event and the `reminder.activated` /
  * `reminder.missed` channels. An `engines.bibleApp` of `^0.1.0` no longer
@@ -162,7 +168,7 @@ export type {
  * unification below) shipped under `0.1.0` - there was no dual-support
  * window to honor, and `bible-memory` was updated in lockstep in its own task.
  */
-export const EXTENSION_API_VERSION = '0.2.0' as const;
+export const EXTENSION_API_VERSION = '0.2.1' as const;
 
 /**
  * Root API object the host injects into each extension worker. The worker
@@ -1142,7 +1148,9 @@ export type ExtensionPointId =
   | 'extension.deactivated'
   // Reminders (need `notifications:schedule`, delivered only to the owner)
   | 'reminder.activated'
-  | 'reminder.missed';
+  | 'reminder.missed'
+  // Apps (need `ui:contribute-app`, delivered only to the owner)
+  | 'app.visibilityChanged';
 
 // --- INetworkApi *(T2)* ----------------------------------------------------
 
@@ -1252,6 +1260,26 @@ export interface IRemindersApi {
   onActivated(handler: (e: ReminderActivationEvent) => void): Promise<DisposableHandle>;
   /** Reminders that came due while the app was closed or asleep. */
   onMissed(handler: (e: ReminderMissedEvent) => void): Promise<DisposableHandle>;
+}
+
+// --- IAppsApi *(T2)* -------------------------------------------------------
+
+/**
+ * Apps this extension contributes (`contributes.apps`) that appear in the host's
+ * app switcher. Every method needs `ui:contribute-app`. `appId` accepts the id as
+ * declared (`counts`) or the qualified id (`<extensionId>.counts`).
+ */
+export interface IAppsApi {
+  /** Set (or clear with null) the badge of one of this extension's own apps. */
+  setBadge(appId: string, badge: AppBadgeDto | null): Promise<void>;
+  /**
+   * Show one of this extension's own apps. Resolves true when the host opened it, false when it declined
+   * (no recent user gesture in this extension's own UI, or the app is not available on this host).
+   * Rejects only for programming errors (an id that is not one of this extension's apps, bad arguments).
+   */
+  open(appId: string): Promise<boolean>;
+  /** Worker-side sugar over the `app.visibilityChanged` channel; delivered to the owning extension only. */
+  onDidChangeVisibility(handler: (e: AppVisibilityEvent) => void): Promise<DisposableHandle>;
 }
 
 // --- IExtensionsApi *(T2)* -------------------------------------------------

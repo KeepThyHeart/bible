@@ -36,6 +36,24 @@ export type {
 } from '../Reminders/types';
 import type { JsonValue as ReminderJsonValue } from '../Reminders/types';
 
+// --- Apps (api.apps) ---------------------------------------------------------
+
+/** A badge as an extension sends it. The host normalises it (count > 99 -> '99+', text <= 4 chars, label <= 80). */
+export interface AppBadgeDto {
+  kind: 'dot' | 'count' | 'text';
+  value?: number | string;
+  /** Default `'neutral'`. */
+  tone?: 'neutral' | 'live' | 'attention';
+  /** Accessible text, already localized ("342 words"). */
+  label: string;
+}
+
+/** One of this extension's apps was shown or hidden. `appId` is the id as declared (`counts`). */
+export interface AppVisibilityEvent {
+  appId: string;
+  visible: boolean;
+}
+
 /**
  * Delivered when the user clicks a reminder this extension scheduled.
  * `key` is the clicked item; `keys` is every item the notification stood for
@@ -1062,6 +1080,11 @@ export interface PanelMessageSender {
   panelId: string;
   /** The contributed panel type, e.g. `ext.bible-app.memory.session`. */
   panelTypeId: string;
+  /**
+   * Set when the message came from one of the extension's app views (`contributes.apps`);
+   * `panelId` and `panelTypeId` are then `app:<appId>` (the id as declared).
+   */
+  appId?: string;
 }
 
 export interface OpenPanelOpts {

@@ -38,6 +38,7 @@ import type { ExtensionPointId } from './ExtensionApiTypes';
 import { EXTENSION_API_REGISTRY } from './Declarations/registry';
 import type { ExtensionPermission } from './Permissions';
 import type {
+  AppVisibilityEvent,
   CrossReferenceDto,
   PanelInfoDto,
   ReminderActivationEvent,
@@ -85,6 +86,8 @@ export const EXTENSION_POINT_KINDS: Record<ExtensionPointId, ExtensionPointKind>
   // Reminders (delivered to the owning extension only - see `deliverReminderActivation`)
   'reminder.activated': 'event',
   'reminder.missed': 'event',
+  // Apps (delivered to the owning extension only)
+  'app.visibilityChanged': 'event',
 };
 
 /**
@@ -242,6 +245,10 @@ export interface ExtensionPointPayloadMap {
   'reminder.activated': ReminderActivationEvent;
   /** Reminders that were due while the app was closed or asleep. */
   'reminder.missed': ReminderMissedEvent;
+
+  // Apps
+  /** One of this extension's apps was shown or hidden. */
+  'app.visibilityChanged': AppVisibilityEvent;
 }
 
 // --- Return types ----------------------------------------------------------
@@ -287,6 +294,9 @@ export interface ExtensionPointReturnMap {
   // Reminders
   'reminder.activated': void;
   'reminder.missed': void;
+
+  // Apps
+  'app.visibilityChanged': void;
 }
 
 // --- Helper types for typed subscribe() ------------------------------------
