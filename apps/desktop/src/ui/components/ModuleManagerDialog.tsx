@@ -578,9 +578,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     );
   }
 
-  const officialRepo = repositories.find(r => r.type === 'official');
-  const lastUpdated = officialRepo?.lastFetched
-    ? localizer.formatDate(new Date(officialRepo.lastFetched))
+  // The official site root is an index; each catalog it lists is its own
+  // official source. Report the latest fetch among them, not the first row's.
+  const officialLastFetched = repositories
+    .filter(r => r.type === 'official' && r.lastFetched)
+    .map(r => r.lastFetched as string)
+    .sort()
+    .pop();
+  const lastUpdated = officialLastFetched
+    ? localizer.formatDate(new Date(officialLastFetched))
     : td('moduleManager.lastUpdatedNever', 'Never');
 
   const panelTab = isPanelTab(activeTypeTab);

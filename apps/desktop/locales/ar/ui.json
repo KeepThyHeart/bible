@@ -1412,6 +1412,7 @@
   "ui.bookTreeView.loading": "جارٍ تحميل المحتويات…",
   "ui.bookTreeView.retry": "حاول مرة أخرى",
   "ui.dockviewHeaderActions.newTab": "علامة تبويب جديدة",
+  "ui.dockviewHeaderActions.tabList": "عرض كل علامات التبويب",
   "ui.dockviewTab.closePanel": "إغلاق اللوحة",
   "ui.dockviewTab.splitRight": "تقسيم إلى اليمين",
   "ui.dockviewTab.splitDown": "تقسيم إلى الأسفل",

@@ -1412,6 +1412,7 @@
   "ui.bookTreeView.loading": "Carregando o conteúdo…",
   "ui.bookTreeView.retry": "Tentar novamente",
   "ui.dockviewHeaderActions.newTab": "Nova aba",
+  "ui.dockviewHeaderActions.tabList": "Mostrar todas as abas",
   "ui.dockviewTab.closePanel": "Fechar o painel",
   "ui.dockviewTab.splitRight": "Dividir à direita",
   "ui.dockviewTab.splitDown": "Dividir abaixo",

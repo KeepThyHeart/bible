@@ -52,17 +52,16 @@
  * no secrets set, electron-builder produces a working UNSIGNED installer/dmg and
  * the build still succeeds. Same config, no code changes between the two.
  *
- * WINDOWS. `win.signAndEditExecutable` is true only when a Windows signing
- * credential is detected, else false (which also skips rcedit - matching the
- * prior hard-coded behaviour). Options, in order of preference for an OSS app:
+ * WINDOWS. `win.signAndEditExecutable` is always true, so rcedit always stamps
+ * the icon and version info into the exe; electron-builder signs only when a
+ * credential is present. Options, in order of preference for an OSS app:
  *   1. SignPath.io Foundation (FREE certificates + signing for OSS projects).
  *      Typical flow signs the artifact AFTER electron-builder produces it, via
- *      the SignPath GitHub Action - set BIBLE_WIN_SIGN=1 so this config enables
- *      rcedit/metadata but leaves the actual signature to the post-build step,
- *      OR wire electron-builder's own signing and point CSC_LINK at the cert.
+ *      the SignPath GitHub Action, OR wire electron-builder's own signing and
+ *      point CSC_LINK at the cert.
  *   2. Azure Trusted Signing (cheap, cloud HSM; no long-lived cert on disk).
  *      Add `win.azureSignOptions` in a private overlay config and set the
- *      AZURE_* env vars; set BIBLE_WIN_SIGN=1 to flip signAndEditExecutable on.
+ *      AZURE_* env vars.
  *   3. Traditional OV/EV .pfx: set CSC_LINK (path or base64) + CSC_KEY_PASSWORD;
  *      electron-builder signs automatically.
  *
@@ -89,13 +88,6 @@ const productName = envStr('BIBLE_PRODUCT_NAME') || DEFAULT_PRODUCT_NAME;
 const appId = envStr('BIBLE_APP_ID') || DEFAULT_APP_ID;
 
 // --- Optional-signing gates (presence of creds = activate; absence = unsigned) ---
-
-// Windows: a real cert (CSC_LINK/WIN_CSC_LINK) OR an explicit opt-in for the
-// cloud/post-build signers (SignPath OSS, Azure Trusted Signing) that supply the
-// signature outside electron-builder's own CSC path.
-const windowsSigningConfigured = Boolean(
-  envStr('CSC_LINK') || envStr('WIN_CSC_LINK') || envStr('BIBLE_WIN_SIGN')
-);
 
 // macOS: notarization needs the Developer ID cert AND all three Apple creds.
 const macSigningConfigured = Boolean(
@@ -220,8 +212,11 @@ module.exports = {
     shortcutName: productName,
   },
   win: {
-    // false when unconfigured -> build unsigned and skip rcedit (prior behaviour).
-    signAndEditExecutable: windowsSigningConfigured,
+    // Always true: this flag also gates rcedit, which stamps the app icon and
+    // version info into the .exe. With it false the installed exe (and every
+    // shortcut pointing at it) kept Electron's default icon. Without a
+    // certificate electron-builder still edits the exe and just skips signing.
+    signAndEditExecutable: true,
   },
   mac: {
     // Hardened runtime is required for notarization; only meaningful when signed.

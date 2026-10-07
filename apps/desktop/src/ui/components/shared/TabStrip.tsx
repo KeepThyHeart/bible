@@ -18,7 +18,7 @@
  * - Inactive tab: bg-background-tertiary, text-text-secondary, hover:bg-background-active
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTabKeyboardNav } from '../../hooks/useTabKeyboardNav';
 
 export interface TabStripTab {
@@ -56,6 +56,13 @@ export const TabStrip: React.FC<TabStripProps> = ({
     onActivate: (index) => onChange(allTabs[index].id),
   });
 
+  // On a narrow window the strip scrolls sideways; keep the active tab
+  // (including one reached by arrow keys) in view.
+  useEffect(() => {
+    const active = tablistRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    active?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [activeId, tablistRef]);
+
   const renderTab = (tab: TabStripTab) => {
     const isActive = tab.id === activeId;
     return (
@@ -69,7 +76,7 @@ export const TabStrip: React.FC<TabStripProps> = ({
         tabIndex={isActive ? 0 : -1}
         onClick={() => onChange(tab.id)}
         data-testid={tab.testId}
-        className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+        className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t transition-colors ${
           isActive
             ? 'bg-surface text-accent border-t-2 border-s border-e border-accent'
             : 'bg-background-tertiary text-text-secondary hover:bg-background-active'
@@ -83,7 +90,7 @@ export const TabStrip: React.FC<TabStripProps> = ({
   return (
     <div className="px-6 pt-4 border-b border-border">
       <div
-        className="flex gap-1"
+        className="flex gap-1 overflow-x-auto"
         role="tablist"
         aria-label={ariaLabel}
         ref={tablistRef}
@@ -95,7 +102,7 @@ export const TabStrip: React.FC<TabStripProps> = ({
         {/* Trailing tabs group (visually separated) */}
         {trailingTabs.length > 0 && (
           <>
-            <div className="flex-1" />
+            <div className="flex-1 min-w-4" />
             {trailingTabs.map(renderTab)}
           </>
         )}

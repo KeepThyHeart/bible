@@ -1412,6 +1412,7 @@
   "ui.bookTreeView.loading": "Загрузка оглавления…",
   "ui.bookTreeView.retry": "Повторить",
   "ui.dockviewHeaderActions.newTab": "Новая вкладка",
+  "ui.dockviewHeaderActions.tabList": "Показать все вкладки",
   "ui.dockviewTab.closePanel": "Закрыть панель",
   "ui.dockviewTab.splitRight": "Разделить вправо",
   "ui.dockviewTab.splitDown": "Разделить вниз",
