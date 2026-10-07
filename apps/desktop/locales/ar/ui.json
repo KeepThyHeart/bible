@@ -994,6 +994,7 @@
   "ui.bookTreeView.sectionCount": "{abbreviation} • {count, plural, zero {لا أقسام} one {قسم واحد} two {قسمان} few {# أقسام} many {# قسمًا} other {# قسم}}",
   "ui.bookTreeView.wordCount": "{count, plural, zero {لا كلمات} one {كلمة واحدة} two {كلمتان} few {# كلمات} many {# كلمة} other {# كلمة}}",
   "ui.dockviewHeaderActions.newTab": "علامة تبويب جديدة",
+  "ui.dockviewHeaderActions.tabList": "عرض كل علامات التبويب",
   "ui.dockviewTab.closePanel": "إغلاق اللوحة",
   "ui.dockviewTab.splitRight": "تقسيم إلى اليمين",
   "ui.dockviewTab.splitDown": "تقسيم إلى الأسفل",

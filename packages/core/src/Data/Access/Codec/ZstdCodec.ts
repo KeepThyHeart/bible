@@ -36,9 +36,14 @@ const nodeZstd = zlib as Partial<ZstdZlib>;
  * the parameter is still addressed correctly on a runtime that has the
  * functions but typings that don't; `isZstdAvailable()` gates everything that
  * reads this anyway.
+ *
+ * A function, not a module-level constant: the Electron renderer bundles this
+ * module through the `@bible/core` barrel with `node:zlib` stubbed to an empty
+ * object, so reading `zlib.constants` at load time crashed the whole UI.
  */
-const ZSTD_C_COMPRESSION_LEVEL =
-  (zlib.constants as unknown as Record<string, number>).ZSTD_c_compressionLevel ?? 100;
+function zstdCompressionLevelParam(): number {
+  return (zlib.constants as unknown as Record<string, number> | undefined)?.ZSTD_c_compressionLevel ?? 100;
+}
 
 /**
  * Whether this runtime can read zstd at all.
@@ -170,7 +175,7 @@ export class ZstdCodec implements IContentCodec {
       throw new ZstdUnavailableError();
     }
     return nodeZstd.zstdCompressSync!(Buffer.from(text, 'utf8'), {
-      params: { [ZSTD_C_COMPRESSION_LEVEL]: ZstdCodec.LEVEL },
+      params: { [zstdCompressionLevelParam()]: ZstdCodec.LEVEL },
       ...(this.dictionary ? { dictionary: this.dictionary } : {}),
     });
   }

@@ -994,6 +994,7 @@
   "ui.bookTreeView.sectionCount": "{abbreviation} • {count, plural, one {# раздел} few {# раздела} many {# разделов} other {# раздела}}",
   "ui.bookTreeView.wordCount": "{count, plural, one {# слово} few {# слова} many {# слов} other {# слова}}",
   "ui.dockviewHeaderActions.newTab": "Новая вкладка",
+  "ui.dockviewHeaderActions.tabList": "Показать все вкладки",
   "ui.dockviewTab.closePanel": "Закрыть панель",
   "ui.dockviewTab.splitRight": "Разделить вправо",
   "ui.dockviewTab.splitDown": "Разделить вниз",

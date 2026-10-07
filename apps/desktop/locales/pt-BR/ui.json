@@ -994,6 +994,7 @@
   "ui.bookTreeView.sectionCount": "{abbreviation} • {count, plural, one {# seção} other {# seções}}",
   "ui.bookTreeView.wordCount": "{count, plural, one {# palavra} other {# palavras}}",
   "ui.dockviewHeaderActions.newTab": "Nova aba",
+  "ui.dockviewHeaderActions.tabList": "Mostrar todas as abas",
   "ui.dockviewTab.closePanel": "Fechar o painel",
   "ui.dockviewTab.splitRight": "Dividir à direita",
   "ui.dockviewTab.splitDown": "Dividir abaixo",

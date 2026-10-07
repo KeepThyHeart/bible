@@ -12,7 +12,15 @@
  * the same content.
  */
 
-import { createHash, Hash } from 'node:crypto';
+// Namespace import, not `{ createHash }`: this module is re-exported by the Node
+// barrel (`@bible/core`), which the Electron renderer bundle also pulls in. Vite
+// stubs `node:crypto` there, and a NAMED import from the stub fails the build
+// ("createHash is not exported by __vite-browser-external"); a namespace import
+// resolves and is only touched when a digest is actually computed (Node only).
+// The marker constants below are `Uint8Array`, not `Buffer`, for the same reason:
+// they run at module load, and the renderer has no `Buffer` global.
+import * as nodeCrypto from 'node:crypto';
+import type { Hash } from 'node:crypto';
 import { ISql, SqlParameter, SqlRow } from '../Core/ISql';
 import { ModuleType } from '../Core/Types';
 import { CONTENT_MAP, ContentShape } from './ModuleFormat';
@@ -22,13 +30,13 @@ import { ContentCodecUnavailableError, ResolvedModuleCodec } from '../Access/Cod
 const BATCH_SIZE = 500;
 
 /** ASCII Record Separator - written once after each fully-hashed table/shape. */
-const TABLE_SEPARATOR = Buffer.from([0x1e]);
+const TABLE_SEPARATOR = new Uint8Array([0x1e]);
 
 /** NULL marker byte, per the digest's cell layout. */
-const NULL_MARKER = Buffer.from([0x00]);
+const NULL_MARKER = new Uint8Array([0x00]);
 
 /** "present" marker byte, per the digest's cell layout. */
-const PRESENT_MARKER = Buffer.from([0x01]);
+const PRESENT_MARKER = new Uint8Array([0x01]);
 
 /**
  * An 8-byte little-endian unsigned integer, per the digest's cell layout.
@@ -205,7 +213,7 @@ export function computeContentSha256(
   moduleType: ModuleType,
   resolvedCodec: ResolvedModuleCodec
 ): string {
-  const hash = createHash('sha256');
+  const hash = nodeCrypto.createHash('sha256');
   const shapes = CONTENT_MAP[moduleType];
 
   for (const shape of shapes) {
