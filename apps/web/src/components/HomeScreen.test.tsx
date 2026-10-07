@@ -62,6 +62,12 @@ vi.mock('../utils/focusSearchField', () => ({ focusSearchField: stubFocusSearchF
 vi.mock('../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
 
 import { HomeScreen } from './HomeScreen';
+import { addBuiltinModule, reconcileModules } from '../modules/moduleHost';
+import { hostUiManifest } from '../modules/host/ui';
+
+// The tabs/tiles come from the host-ui manifest (production registers it via BUILTIN_MODULES).
+addBuiltinModule(hostUiManifest);
+reconcileModules();
 import { appRegistry } from '../host/appHost';
 
 const sampleVotd = {

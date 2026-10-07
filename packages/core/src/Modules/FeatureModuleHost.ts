@@ -223,9 +223,12 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
 
   const registerContributions = (rec: ModuleRecord): void => {
     const c = rec.manifest.contributes ?? {};
-    for (const [key, items] of Object.entries(c)) {
+    for (const [key, raw] of Object.entries(c)) {
       const point = points.get(key);
-      if (!point || !Array.isArray(items)) continue;
+      if (!point) continue;
+      // `i18nNamespace` is a single string: one item whose id is the namespace.
+      const items = typeof raw === 'string' ? [{ id: raw }] : raw;
+      if (!Array.isArray(items)) continue;
       for (const item of items as ContributionItem[]) {
         const platforms = (item as { platforms?: readonly HostPlatform[] }).platforms;
         if (platforms && !platforms.includes(options.platform)) continue;
@@ -233,6 +236,17 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
           point.register(item, rec.source);
         } catch (err) {
           warn(`${rec.manifest.id}: could not register contributes.${key} "${item.id}"`, err);
+        }
+      }
+    }
+    // Views: lazy component loaders from the binding, only while enabled.
+    const viewsPoint = points.get('views');
+    if (viewsPoint && rec.binding?.views) {
+      for (const [id, load] of Object.entries(rec.binding.views)) {
+        try {
+          viewsPoint.register({ id, load } as ContributionItem, rec.source);
+        } catch (err) {
+          warn(`${rec.manifest.id}: could not register view "${id}"`, err);
         }
       }
     }
@@ -255,8 +269,8 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
   const activate = (rec: ModuleRecord, event: string): Promise<void> => {
     if (rec.active) return Promise.resolve();
     if (rec.activating) return rec.activating;
-    if (!rec.binding) return Promise.resolve();
     const binding = rec.binding;
+    if (!binding?.load) return Promise.resolve();
     const generation = rec.generation;
     const run = (async () => {
       // Required modules first (they may provide services this one uses).
@@ -265,7 +279,7 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
         if (r && r.enabled) await activate(r, event);
       }
       const t0 = now();
-      const exports = await binding.load();
+      const exports = await binding.load!();
       const t1 = now();
       if (!rec.enabled || rec.generation !== generation || disposed) return; // switched off meanwhile
       const ctx: FeatureModuleContext = {
@@ -380,7 +394,7 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
       const targets: ModuleRecord[] = [];
       for (const id of topoOrder()) {
         const rec = modules.get(id)!;
-        if (rec.enabled && !rec.active && rec.binding && rec.events.has(event)) targets.push(rec);
+        if (rec.enabled && !rec.active && rec.binding?.load && rec.events.has(event)) targets.push(rec);
       }
       await Promise.all(targets.map((rec) => activate(rec, event)));
     },

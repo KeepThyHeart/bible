@@ -24,21 +24,23 @@ import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
 import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
-import type { Localizer } from '@bible/core/browser';
+import type { Localizer, PreferencesSectionContribution } from '@bible/core/browser';
+import { modulePoints } from '../../modules/moduleHost';
+import { ContributedSection } from './ContributedSection';
 
-type SettingsTab = 'text-size' | 'theme' | 'modules' | 'gestures' | 'audio' | 'notifications' | 'offline' | 'apps' | 'about';
+type SettingsTab = string;
 
-const TAB_ITEMS: { key: SettingsTab; label: string; icon: string }[] = [
-  { key: 'text-size', label: 'settings.tabs.textSize', icon: 'fa-text-height' },
-  { key: 'theme', label: 'settings.tabs.theme', icon: 'fa-palette' },
-  { key: 'modules', label: 'settings.tabs.modules', icon: 'fa-book' },
-  { key: 'gestures', label: 'settings.tabs.gestures', icon: 'fa-hand-pointer' },
-  { key: 'audio', label: 'settings.tabs.audio', icon: 'fa-headphones' },
-  { key: 'notifications', label: 'settings.tabs.notifications', icon: 'fa-bell' },
-  { key: 'offline', label: 'settings.tabs.offline', icon: 'fa-cloud-arrow-down' },
-  { key: 'apps', label: 'settings.apps.title', icon: 'fa-table-cells-large' },
-  { key: 'about', label: 'settings.tabs.about', icon: 'fa-circle-info' },
-];
+/** Tabs whose content is rendered inline below; any other contributed section goes through `ContributedSection`. */
+const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'audio', 'notifications', 'offline', 'apps', 'about']);
+
+/** The tabs, in order, from the `preferencesSections` contribution point (declared by `modules/host/ui.ts`). */
+function useSettingsSections(): PreferencesSectionContribution[] {
+  const entries = useSyncExternalStore(
+    modulePoints.preferencesSections.subscribe.bind(modulePoints.preferencesSections),
+    modulePoints.preferencesSections.getSnapshot.bind(modulePoints.preferencesSections),
+  );
+  return entries.map((e) => e.item).filter((i) => !i.platforms || i.platforms.includes('web'));
+}
 
 function sectionToTab(section?: string): SettingsTab {
   if (section === 'bible-font' || section === 'commentary-font' || section === 'study-font' || section === 'text-size') return 'text-size';
@@ -50,6 +52,8 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'offline') return 'offline';
   if (section === 'apps') return 'apps';
   if (section === 'about') return 'about';
+  // A section contributed by a feature module deep-links by its own id.
+  if (section && modulePoints.preferencesSections.has(section)) return section;
   return 'text-size';
 }
 
@@ -181,6 +185,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     values: registryValues,
   });
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
+  const sections = useSettingsSections();
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
   const audioEnabled = useStore(audioStore, () => audioStore.enabled);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -356,15 +361,15 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
         <div class="settings-panel__layout">
           {/* Left tab navigation */}
           <div class="settings-panel__sidebar">
-            {TAB_ITEMS.filter(item => (item.key !== 'offline' || serverOfflineDownloads) && (item.key !== 'audio' || audioEnabled)).map(item => (
+            {sections.filter(item => (item.id !== 'offline' || serverOfflineDownloads) && (item.id !== 'audio' || audioEnabled)).map(item => (
               <button
-                key={item.key}
-                class={`settings-panel__tab ${activeTab === item.key ? 'settings-panel__tab--active' : ''}`}
-                onClick={() => setActiveTab(item.key)}
-                data-tab={item.key}
+                key={item.id}
+                class={`settings-panel__tab ${activeTab === item.id ? 'settings-panel__tab--active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+                data-tab={item.id}
               >
-                <i class={`fa-solid ${item.icon}`} />
-                <span>{t(item.label)}</span>
+                <i class={`fa-solid ${item.icon?.kind === 'builtin' ? item.icon.name : ''}`} />
+                <span>{'key' in item.title ? t(item.title.key, item.title.fallback) : ''}</span>
               </button>
             ))}
           </div>
@@ -640,6 +645,10 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
             {activeTab === 'notifications' && <NotificationsSettingsTab />}
 
             {activeTab === 'apps' && <AppsSettingsTab />}
+
+            {!BUILTIN_TABS.has(activeTab) && sections.some(sec => sec.id === activeTab) && (
+              <ContributedSection section={sections.find(sec => sec.id === activeTab)!} />
+            )}
 
             {activeTab === 'about' && (
               <div class="settings-panel__section" data-section="about">

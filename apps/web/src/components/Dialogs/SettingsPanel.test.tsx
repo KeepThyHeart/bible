@@ -145,6 +145,12 @@ vi.mock('../../themes/themeRegistry', () => ({
 global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]) })) as unknown as typeof fetch;
 
 import { SettingsPanel } from './SettingsPanel';
+import { addBuiltinModule, reconcileModules } from '../../modules/moduleHost';
+import { hostUiManifest } from '../../modules/host/ui';
+
+// The tabs/tiles come from the host-ui manifest (production registers it via BUILTIN_MODULES).
+addBuiltinModule(hostUiManifest);
+reconcileModules();
 
 describe('SettingsPanel', () => {
   const onClose = vi.fn();

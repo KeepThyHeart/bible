@@ -1,4 +1,6 @@
 import { Store } from './Store';
+import { modulePoints } from '../modules/moduleHost';
+import { CORE_PANE_MODES } from '../modules/host/panes';
 import { eventBus } from '../events/eventBus';
 import type { ICommentaryDataProvider, CommentaryAvailability, IStudyOverviewProvider } from '../providers/interfaces';
 import type { CommentaryModuleInfoData, ModuleInfo } from '../types';
@@ -30,22 +32,40 @@ export interface CommentaryTab {
 export const HOME_TAB_ID = 'ctab-home';
 
 /**
- * Right-pane ids the desktop tab strip always has a tab for. 'search' is not
- * here because its tab exists only while `searchStore.isOpen` — DesktopApp
- * admits it separately.
+ * Right-pane ids the tab strip has a tab for: the `paneModes` contributions of
+ * the enabled feature modules (task 0113). 'search' is not one of them because
+ * its tab exists only while `searchStore.isOpen` -- DesktopApp admits it
+ * separately.
  *
- * Anything that can reach `rightPaneMode` — `pane:show`, the verse context
- * menu, a plugin — has to name one of these, or the pane renders with no active
- * tab and no content. `paneModes.test.ts` holds the callers to it.
+ * Anything that can reach `rightPaneMode` (`pane:show`, the verse context menu,
+ * a plugin) has to name one of these, or the pane renders with no active tab and
+ * no content. `paneModes.test.ts` holds the callers to it.
+ *
+ * Before the module host has registered anything (unit tests, very early boot)
+ * the core list stands in, so the answer never depends on boot order.
  */
-export const RENDERABLE_PANE_MODES = ['study', 'commentary', 'topics', 'timeline', 'quiz', 'dictionary', 'wordStudy', 'similar'] as const;
+export function renderablePaneModes(): readonly string[] {
+  const registered = modulePoints.paneModes.list();
+  return registered.length > 0 ? registered.map((p) => p.id) : CORE_PANE_MODES;
+}
 
 /**
  * Right-pane ids that survive a reload. 'search' is deliberately excluded:
  * search results are not persisted, so the Search tab does not exist on a cold
  * start and restoring it leaves the pane with no active tab and no content.
  */
-export const RESTORABLE_PANE_MODES = new Set<string>(RENDERABLE_PANE_MODES);
+export function isRestorablePaneMode(id: string): boolean {
+  const registered = modulePoints.paneModes.list();
+  if (registered.length === 0) return (CORE_PANE_MODES as readonly string[]).includes(id);
+  const item = registered.find((p) => p.id === id);
+  return !!item && item.restorable !== false;
+}
+
+/** Back-compat shape of the old Set: a live view of `isRestorablePaneMode` (`.has`, iteration). */
+export const RESTORABLE_PANE_MODES: { has(id: string): boolean; [Symbol.iterator](): Iterator<string> } = {
+  has: isRestorablePaneMode,
+  [Symbol.iterator]: () => renderablePaneModes().filter(isRestorablePaneMode)[Symbol.iterator](),
+};
 
 /**
  * Budgets for the speculative chapter prefetch, in words of commentary text.
@@ -280,7 +300,8 @@ class CommentaryStore extends Store {
       this.loadForChapter(book, chapter);
     });
     eventBus.on('pane:show', ({ paneId }) => {
-      this.setRightPaneMode(paneId);
+      // A pane whose module is off (or a plugin's bad id) must not replace the saved choice.
+      if (paneId === 'search' || renderablePaneModes().includes(paneId)) this.setRightPaneMode(paneId);
     });
     eventBus.on('pane:expand', () => {
       this.expand();
@@ -1221,14 +1242,52 @@ class CommentaryStore extends Store {
 
   setRightPaneMode(mode: string): void {
     this.rightPaneMode = mode;
+    // An explicit choice replaces any remembered one; opening Search is transient and does not.
+    if (mode !== 'search') this.preferredPaneMode = null;
     this.saveSession();
     this.notify();
+  }
+
+  /**
+   * A saved pane whose module is off right now (disabled, flag off, or not yet
+   * registered). The shell shows a fallback meanwhile, but this id is what gets
+   * saved, and it is shown again as soon as its module comes back. Cleared by
+   * an explicit `setRightPaneMode`.
+   */
+  preferredPaneMode: string | null = null;
+
+  /**
+   * Settle `rightPaneMode` on the pane the shell can show (`shown`) without
+   * losing the user's saved choice. `available` says whether a pane id has a tab.
+   */
+  reconcilePaneMode(shown: string, available: (id: string) => boolean): void {
+    const wanted = this.preferredPaneMode ?? this.rightPaneMode;
+    if (wanted !== 'search' && available(wanted)) {
+      if (this.rightPaneMode !== wanted || this.preferredPaneMode) {
+        this.rightPaneMode = wanted;
+        this.preferredPaneMode = null;
+        this.notify();
+      }
+      return;
+    }
+    if (wanted !== 'search') {
+      // Unavailable for now: show the fallback, remember the choice, never save the fallback over it.
+      if (this.rightPaneMode !== shown || this.preferredPaneMode !== wanted) {
+        this.preferredPaneMode = wanted;
+        this.rightPaneMode = shown;
+        this.notify();
+      }
+      return;
+    }
+    if (shown !== this.rightPaneMode) this.setRightPaneMode(shown); // a closed Search tab is transient
   }
 
   /** Switch to Topics pane and navigate to a specific topic */
   navigateToTopic(topicId: number, module: string, topicName: string, sourceName?: string): void {
     this.pendingTopicNav = { topicId, module, topicName, sourceName, token: ++this._topicNavToken };
     this.rightPaneMode = 'topics';
+    this.preferredPaneMode = null;
+    this.saveSession();
     this.notify();
   }
 
@@ -1389,12 +1448,13 @@ class CommentaryStore extends Store {
         collapsed: this.collapsed,
         mutedModules: [...this.mutedModules],
         promotedModules: [...this.promotedModules],
-        rightPaneMode: this.rightPaneMode,
+        rightPaneMode: this.preferredPaneMode ?? this.rightPaneMode,
       }));
     } catch { /* ignore */ }
   }
 
   private restoreSession(): void {
+    this.preferredPaneMode = null;
     try {
       const data = localStorage.getItem('bible-reader-commentary');
       if (!data) return;
@@ -1403,8 +1463,12 @@ class CommentaryStore extends Store {
       this.collapsed = parsed.collapsed ?? false;
       this.mutedModules = new Set(parsed.mutedModules ?? []);
       this.promotedModules = new Set(parsed.promotedModules ?? []);
-      if (parsed.rightPaneMode && RESTORABLE_PANE_MODES.has(parsed.rightPaneMode)) {
+      if (parsed.rightPaneMode && (isRestorablePaneMode(parsed.rightPaneMode) || (CORE_PANE_MODES as readonly string[]).includes(parsed.rightPaneMode))) {
         this.rightPaneMode = parsed.rightPaneMode;
+      } else if (typeof parsed.rightPaneMode === 'string' && parsed.rightPaneMode && parsed.rightPaneMode !== 'search'
+        && !modulePoints.paneModes.list().some((p) => p.id === parsed.rightPaneMode)) {
+        // Its module is off (or not registered yet): keep the choice for when it comes back.
+        this.preferredPaneMode = parsed.rightPaneMode;
       }
 
       // Migration: old global pin state (apply to first non-home tab if present)

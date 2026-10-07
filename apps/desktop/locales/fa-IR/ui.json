@@ -1966,6 +1966,7 @@
   "footnoteDisplay.footnotes": "پاورقی‌ها",
   "toastContainer.dismiss": "نادیده گرفتن",
   "panelContentRenderer.malformedExtensionPanelContentType": "نوع محتوای پنل افزونه نادرست است: {v1}",
+  "panelContentRenderer.panelUnavailable": "این پنل در دسترس نیست",
   "panelContentRenderer.unknownPanelType": "نوع پنل ناشناخته: {v1}",
   "downloadProgressPanel.activeDownloads": "دانلودهای فعال ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "آیه‌های باب {v1} که مدخل دارند:",

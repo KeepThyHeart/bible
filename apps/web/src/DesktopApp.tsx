@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from 'preact/hooks';
+import { Suspense, lazy } from 'preact/compat';
+import type { ComponentType } from 'preact';
 import { useTranslation } from 'react-i18next';
 import { BiblePane } from './components/BiblePane/BiblePane';
 import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
@@ -16,12 +18,13 @@ import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
 import { UpdateBanner } from './components/UpdateBanner';
-import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
+import { commentaryStore } from './stores/commentaryStore';
+import { modulePoints, fireActivation } from './modules/moduleHost';
+import { usePaneModes } from './modules/host/usePaneModes';
+import { resolveLabel } from './host/appNavEntries';
+import type { PaneViewProps } from './modules/host/panes';
 import { parseVerseId } from './utils/verseId';
-import { isEnabled } from './utils/featureFlags';
 import { isTagGraphEnabled } from './utils/clientConfig';
-import { TimelinePane } from './components/TimelinePane/TimelinePane';
-import { QuizPane } from './components/QuizPane/QuizPane';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
@@ -31,6 +34,52 @@ import { useStore } from './hooks/useStore';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
+
+/**
+ * Panes that stay in the entry chunk exactly as before (first paint is
+ * unchanged); everything else resolves through `modulePoints.views` and loads
+ * on first use. Which panes exist at all is the `paneModes` registry's call.
+ */
+const EAGER_PANES: Record<string, (p: PaneViewProps) => unknown> = {
+  study: (p) => (
+    <StudyPane
+      onStrongsClick={p.onStrongsClick}
+      onStrongsHover={p.onStrongsHover as never}
+      onStrongsLeave={p.onStrongsLeave}
+      bibleProvider={p.providers.bible}
+      genealogyProvider={p.providers.genealogy}
+      onOpenSettings={p.onOpenSettings}
+    />
+  ),
+  commentary: (p) => <CommentaryPane bibleProvider={p.providers.bible} onOpenSettings={p.onOpenSettings} />,
+  topics: (p) => <TopicsPane topicalProvider={p.providers.topical} tagGraphProvider={p.showTagGraph ? p.providers.tagGraph : undefined} bibleProvider={p.providers.bible} />,
+  dictionary: (p) => <DictionaryPane bibleProvider={p.providers.bible} />,
+  wordStudy: (p) => <WordStudyPane onOpenStrongsEntry={p.onStrongsClick} />,
+  similar: (p) => <SimilarPane providers={p.providers} />,
+};
+
+const lazyPanes = new Map<unknown, ComponentType<PaneViewProps>>();
+
+/** A pane that is not eager: its view loader, wrapped once in a lazy component. */
+function LazyPane({ id, props }: { id: string; props: PaneViewProps }) {
+  const loader = modulePoints.views.resolve<{ default: ComponentType<PaneViewProps> }>(`pane:${id}`);
+  if (!loader) return null;
+  let Comp = lazyPanes.get(loader);
+  if (!Comp) {
+    Comp = lazy(loader) as ComponentType<PaneViewProps>;
+    lazyPanes.set(loader, Comp);
+  }
+  return (
+    <Suspense fallback={null}>
+      <Comp {...props} />
+    </Suspense>
+  );
+}
+
+function PaneBody({ id, props }: { id: string; props: PaneViewProps }) {
+  const eager = EAGER_PANES[id];
+  return eager ? <>{eager(props)}</> : <LazyPane id={id} props={props} />;
+}
 
 interface DesktopAppProps {
   providers: IDataProviders;
@@ -43,8 +92,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // anything renders, and asking for it again cost a second round trip on the
   // boot path for one boolean.
   const showTagGraph = isTagGraphEnabled();
-  const showTimeline = isEnabled('timeline');
-  const showQuiz = isEnabled('quiz');
+  const paneModes = usePaneModes();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
   // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
   useEffect(() => { audioStore.setLayout('desktop'); }, []);
@@ -90,19 +138,19 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // Similar passages exist only when the server offers the neighbour table (feature detection).
   useEffect(() => { void similarAvailability.probe(); }, []);
   const similarAvailable = useStore(similarAvailability, () => similarAvailability.available);
+  // Similar is also gated on feature detection; every other pane exists exactly when its module does.
+  const paneAvailable = (id: string) => paneModes.some((m) => m.id === id) && (id !== 'similar' || similarAvailable);
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
-    : (shared.rightPaneMode === 'timeline' && !showTimeline) || (shared.rightPaneMode === 'quiz' && !showQuiz)
-      ? 'study'
-      : shared.rightPaneMode === 'similar' && !similarAvailable
-        ? 'study'
-      : ((RENDERABLE_PANE_MODES as readonly string[]).includes(shared.rightPaneMode) ? shared.rightPaneMode : 'study');
+    : paneAvailable(shared.rightPaneMode) ? shared.rightPaneMode : 'study';
 
-  // Self-heal the persisted value so a bad id does not survive another reload.
+  useEffect(() => { if (paneMode !== 'search') fireActivation('onPanel:' + paneMode); }, [paneMode]);
+
+  // Show the fallback while a pane is unavailable, but keep the saved choice (a disabled module, or
+  // 'similar' before the availability probe answers) and bring it back when the pane returns.
   useEffect(() => {
-    // A saved 'similar' stays until the availability probe has answered (it shows 'study' meanwhile).
-    if (paneMode !== shared.rightPaneMode && shared.rightPaneMode !== 'similar') commentaryStore.setRightPaneMode(paneMode);
-  }, [paneMode, shared.rightPaneMode]);
+    commentaryStore.reconcilePaneMode(paneMode, paneAvailable);
+  }, [paneMode, shared.rightPaneMode, paneModes, similarAvailable]);
 
   // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
   // so switching tabs does not lose a quiz in progress.
@@ -112,6 +160,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   }, [paneMode]);
 
   const showRightPane = !shared.collapsed;
+  const paneProps: PaneViewProps = {
+    providers,
+    showTagGraph,
+    onStrongsClick: handleStrongsClick,
+    onStrongsHover: shared.handleStrongsHover as never,
+    onStrongsLeave: shared.handleStrongsLeave,
+    onOpenSettings: shared.openSettings as never,
+  };
 
   const bibleStyle = {
     fontFamily: shared.fontFamily,
@@ -167,61 +223,16 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <ResizeHandle onResize={handleResize} />
             <div class="main-layout__right-pane" style={rightPaneStyle}>
               <div class="right-pane-tabs">
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'study' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('study')}
-                >
-                  {t('rightPane.study')}
-                </button>
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'commentary' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('commentary')}
-                >
-                  {t('rightPane.commentary')}
-                </button>
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'topics' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('topics')}
-                >
-                  {t('rightPane.topics')}
-                </button>
-                {showTimeline && (
+                {paneModes.filter((m) => paneAvailable(m.id)).map((m) => (
                   <button
-                    class={`right-pane-tabs__tab ${paneMode === 'timeline' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('timeline')}
+                    key={m.id}
+                    class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
+                    onClick={() => commentaryStore.setRightPaneMode(m.id)}
+                    data-testid={m.id === 'wordStudy' ? 'right-pane-tab-wordStudy' : undefined}
                   >
-                    {t('rightPane.timeline')}
+                    {resolveLabel((k, f) => t(k, f), m.title)}
                   </button>
-                )}
-                {showQuiz && (
-                  <button
-                    class={`right-pane-tabs__tab ${paneMode === 'quiz' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('quiz')}
-                  >
-                    {t('rightPane.quiz')}
-                  </button>
-                )}
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'dictionary' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('dictionary')}
-                >
-                  {t('rightPane.dictionary')}
-                </button>
-                <button
-                  class={`right-pane-tabs__tab ${paneMode === 'wordStudy' ? 'right-pane-tabs__tab--active' : ''}`}
-                  onClick={() => commentaryStore.setRightPaneMode('wordStudy')}
-                  data-testid="right-pane-tab-wordStudy"
-                >
-                  {t('rightPane.wordStudy')}
-                </button>
-                {similarAvailable && (
-                  <button
-                    class={`right-pane-tabs__tab ${paneMode === 'similar' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('similar')}
-                  >
-                    {t('rightPane.similar')}
-                  </button>
-                )}
+                ))}
                 {shared.searchIsOpen && (
                   <button
                     class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
@@ -238,27 +249,17 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                 </button>
               </div>
-              {paneMode === 'study' && (
-                <StudyPane
-                  onStrongsClick={handleStrongsClick}
-                  onStrongsHover={shared.handleStrongsHover}
-                  onStrongsLeave={shared.handleStrongsLeave}
-                  bibleProvider={providers.bible}
-                  genealogyProvider={providers.genealogy}
-                  onOpenSettings={shared.openSettings}
-                />
+              {paneModes.filter((m) => paneAvailable(m.id)).map((m) =>
+                m.id === 'quiz' ? (
+                  quizOpened || paneMode === 'quiz' ? (
+                    <div key={m.id} class="quiz-pane-host" hidden={paneMode !== 'quiz'}>
+                      <PaneBody id={m.id} props={paneProps} />
+                    </div>
+                  ) : null
+                ) : paneMode === m.id ? (
+                  <PaneBody key={m.id} id={m.id} props={paneProps} />
+                ) : null,
               )}
-              {paneMode === 'commentary' && <CommentaryPane bibleProvider={providers.bible} onOpenSettings={shared.openSettings} />}
-              {paneMode === 'topics' && <TopicsPane topicalProvider={providers.topical} tagGraphProvider={showTagGraph ? providers.tagGraph : undefined} bibleProvider={providers.bible} />}
-              {paneMode === 'timeline' && <TimelinePane allowFullscreen />}
-              {showQuiz && (quizOpened || paneMode === 'quiz') && (
-                <div class="quiz-pane-host" hidden={paneMode !== 'quiz'}>
-                  <QuizPane />
-                </div>
-              )}
-              {paneMode === 'dictionary' && <DictionaryPane bibleProvider={providers.bible} />}
-              {paneMode === 'wordStudy' && <WordStudyPane onOpenStrongsEntry={handleStrongsClick} />}
-              {paneMode === 'similar' && <SimilarPane providers={providers} />}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
             </div>
           </>

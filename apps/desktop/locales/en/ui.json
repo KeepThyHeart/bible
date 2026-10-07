@@ -1966,6 +1966,7 @@
   "footnoteDisplay.footnotes": "Footnotes",
   "toastContainer.dismiss": "Dismiss",
   "panelContentRenderer.malformedExtensionPanelContentType": "Malformed extension panel content type: {v1}",
+  "panelContentRenderer.panelUnavailable": "This panel is unavailable",
   "panelContentRenderer.unknownPanelType": "Unknown panel type: {v1}",
   "downloadProgressPanel.activeDownloads": "Active Downloads ({v1})",
   "commentaryEmptyVerseGrid.versesInChapterWithEntries": "Verses in chapter {v1} with entries:",

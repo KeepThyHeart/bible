@@ -34,6 +34,7 @@ import './routes/desktopReportRoutes.js';
 import './routes/presentRoutes.js';
 import './routes/hymnRoutes.js';
 import { getRegisteredRoutes } from './routes/routeRegistry.js';
+import { loadServerModules } from './modules/loadServerModules.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
@@ -408,6 +409,8 @@ const routeDeps = {
     desktopReportToken: siteConfig.desktopReports.token,
   } as Record<string, unknown>,
 };
+// Feature modules (task 0113): enabled modules' route files import and self-register here.
+await loadServerModules({ flags: siteConfig.flags });
 for (const reg of getRegisteredRoutes()) {
   app.use(reg.path, reg.createRoutes(routeDeps));
 }

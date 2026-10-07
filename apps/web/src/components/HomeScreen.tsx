@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../stores/bibleStore';
 import { commentaryStore } from '../stores/commentaryStore';
@@ -10,15 +11,27 @@ import { AppTileGrid } from '@bible/ui';
 import { openApp, prefetchApp } from '../host/appHost';
 import { useNavEntries } from '../host/appNavEntries';
 import { useNavItems } from '../host/navPrefs';
+import { modulePoints } from '../modules/moduleHost';
+import type { NewTabTileContribution } from '@bible/core/browser';
 
 interface HomeScreenProps {
   onNavigate?: (view: 'bible' | 'search') => void;
+}
+
+/** Link-style tiles: `home.watchPresentation` is a bare page, not an in-app route. */
+function tileHref(tile: NewTabTileContribution): string | undefined {
+  return 'commandId' in tile.target && tile.target.commandId === 'home.watchPresentation' ? '/watch' : undefined;
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { t } = useTranslation();
   const [votd, setVotd] = useState<VotdData | null>(null);
   const appEntries = useNavEntries(useNavItems('tiles'));
+  const tileEntries = useSyncExternalStore(
+    modulePoints.newTabTiles.subscribe.bind(modulePoints.newTabTiles),
+    modulePoints.newTabTiles.getSnapshot.bind(modulePoints.newTabTiles),
+  );
+  const tiles = tileEntries.map((e) => e.item).filter((tile) => !tile.platforms || tile.platforms.includes('web'));
 
   useEffect(() => {
     bibleStore.getVerseOfTheDay()
@@ -45,6 +58,23 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     // On mobile the header field is hidden, focusSearchField() no-ops, and the
     // panel's inline input remains the entry point.
     requestAnimationFrame(() => { focusSearchField(); });
+  };
+
+  const runTile = (tile: NewTabTileContribution) => {
+    const target = tile.target;
+    if ('panelType' in target) {
+      // On web a panelType target is a right-pane mode id. Only search needs the
+      // extra open/focus handling today.
+      if (target.panelType === 'search') handleSearch();
+      else {
+        commentaryStore.setRightPaneMode(target.panelType as Parameters<typeof commentaryStore.setRightPaneMode>[0]);
+        commentaryStore.expand();
+      }
+    } else if ('commandId' in target && target.commandId === 'home.readBible') {
+      handleReadBible();
+    } else if ('appId' in target) {
+      void openApp(target.appId);
+    }
   };
 
   return (
@@ -85,24 +115,34 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         )}
       </div>
       <div class="home-screen__actions">
-        <button class="home-screen__action-btn home-screen__action-btn--primary" onClick={handleReadBible}>
-          <i class="fa-solid fa-book-open" />
-          <span>{t('homeScreen.readBible')}</span>
-        </button>
-        <button class="home-screen__action-btn" onClick={handleSearch}>
-          <i class="fa-solid fa-magnifying-glass" />
-          <span>{t('homeScreen.search')}</span>
-        </button>
-        {/*
-          A plain link, not a store action: `/watch` is a separate, bare page
-          (see `present/watch.html`), the same way the projection viewer is --
-          not a route this app itself renders. Someone handed a code by a
-          presenter, rather than a link or a QR code, starts here.
-        */}
-        <a class="home-screen__action-btn" href="/watch">
-          <i class="fa-solid fa-tv" />
-          <span>{t('homeScreen.watchPresentation')}</span>
-        </a>
+        {tiles.map((tile, index) => {
+          const label = 'key' in tile.title ? t(tile.title.key, tile.title.fallback) : '';
+          const cls = `home-screen__action-btn${index === 0 ? ' home-screen__action-btn--primary' : ''}`;
+          const iconName = tile.icon?.kind === 'builtin' ? tile.icon.name : undefined;
+          const content = (
+            <>
+              {iconName && <i class={`fa-solid ${iconName}`} />}
+              <span>{label}</span>
+            </>
+          );
+          const href = tileHref(tile);
+          if (href) {
+            // A plain link, not a store action: `/watch` is a separate, bare page
+            // (see `present/watch.html`), the same way the projection viewer is --
+            // not a route this app itself renders. Someone handed a code by a
+            // presenter, rather than a link or a QR code, starts here.
+            return (
+              <a key={tile.id} class={cls} href={href}>
+                {content}
+              </a>
+            );
+          }
+          return (
+            <button key={tile.id} class={cls} onClick={() => runTile(tile)}>
+              {content}
+            </button>
+          );
+        })}
       </div>
       {appEntries.length > 1 && (
         <section class="home-screen__apps" aria-labelledby="home-screen-apps-title">

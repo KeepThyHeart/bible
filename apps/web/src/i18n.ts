@@ -153,7 +153,83 @@ export async function ensureLocaleLoaded(code: string): Promise<void> {
   for (const entry of results) {
     if (entry) i18n.addResourceBundle(code, entry[0], entry[1], true, true);
   }
+  await Promise.all([...requestedNamespaces].map((ns) => mergeNamespaceFile(code, ns)));
   await referenceData;
+}
+
+// ---------------------------------------------------------------------------
+// Feature-module namespaces (task 0113): `contributes.i18nNamespace: 'quiz'`
+// means `locales/<locale>/quiz.json`, loaded lazily and merged into i18next's
+// `ui` namespace (keys are fully qualified, so the flat key space of ui.json
+// is unchanged). English is always loaded as the fallback.
+// ---------------------------------------------------------------------------
+
+/** Lazy loaders for every non-core catalog file, English included (`./locales/<code>/<ns>.json`). Globs must be literal. */
+const moduleNamespaceLoaders: Record<string, () => Promise<NamespaceModule>> = {
+  ...import.meta.glob<NamespaceModule>([
+    './locales/*/*.json',
+    '!./locales/*/ui.json',
+    '!./locales/*/books.json',
+    '!./locales/*/booksShort.json',
+    '!./locales/*/modules.json',
+    '!./locales/*/help.json',
+    '!./locales/*/meta.json',
+    '!./locales/xx-*/*.json',
+  ]),
+  ...(import.meta.env.DEV
+    ? import.meta.glob<NamespaceModule>([
+        './locales/xx-*/*.json',
+        '!./locales/xx-*/ui.json',
+        '!./locales/xx-*/books.json',
+        '!./locales/xx-*/booksShort.json',
+        '!./locales/xx-*/modules.json',
+        '!./locales/xx-*/help.json',
+        '!./locales/xx-*/meta.json',
+      ])
+    : {}),
+};
+
+/** Namespaces requested so far; re-applied when the language changes. */
+const requestedNamespaces = new Set<string>();
+const mergedNamespaceFiles = new Set<string>();
+
+/** The loader table, replaceable in tests. */
+let namespaceLoaderOverride: Record<string, () => Promise<NamespaceModule>> | null = null;
+export function setModuleNamespaceLoadersForTests(loaders: Record<string, () => Promise<NamespaceModule>> | null): void {
+  namespaceLoaderOverride = loaders;
+  mergedNamespaceFiles.clear();
+}
+
+async function mergeNamespaceFile(locale: string, ns: string): Promise<void> {
+  const file = `${locale}/${ns}`;
+  if (mergedNamespaceFiles.has(file)) return;
+  const loaders = namespaceLoaderOverride ?? moduleNamespaceLoaders;
+  const loader = loaders[`./locales/${locale}/${ns}.json`];
+  if (!loader) return;
+  try {
+    const mod = await loader();
+    const { $schema: _schema, ...data } = mod.default as Record<string, unknown>;
+    i18n.addResourceBundle(locale, 'ui', data, true, false);
+    mergedNamespaceFiles.add(file);
+  } catch {
+    // A missing or broken catalog never breaks the app: keys fall back to English / the key.
+  }
+}
+
+/**
+ * Load a feature module's catalog namespace for English (the fallback) and the
+ * active language. Safe to call repeatedly or for a namespace with no file;
+ * never throws.
+ */
+export async function loadNamespace(ns: string, locale: string = i18n.language || 'en'): Promise<void> {
+  requestedNamespaces.add(ns);
+  const locales = locale === 'en' ? ['en'] : ['en', locale];
+  await Promise.all(locales.map((l) => mergeNamespaceFile(l, ns)));
+}
+
+/** Namespaces loaded so far (for tests and diagnostics). */
+export function loadedModuleNamespaces(): string[] {
+  return [...requestedNamespaces];
 }
 
 /**

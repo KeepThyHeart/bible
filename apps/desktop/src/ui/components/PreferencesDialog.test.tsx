@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { registerHostUiForTests } from '../modules/host/registerHostUiForTests';
+
+beforeAll(() => registerHostUiForTests());
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
@@ -98,9 +101,9 @@ describe('PreferencesDialog', () => {
     expect(tabs[11]).toHaveTextContent('Diagnostics');
   });
 
-  it('opens at the Notifications section', () => {
+  it('opens at the Notifications section', async () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} initialSection="notifications" />);
-    expect(screen.getByTestId('notifications-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('notifications-section')).toBeInTheDocument();
   });
 
   it('shows General section by default', () => {

@@ -15,24 +15,34 @@ import { stripTransientPanels } from '../services/stripTransientPanels';
  * prefix and routes to `ExtensionPanelHost`, which mounts an iframe loading
  * from `ext-ui://<extensionId>/<uiEntry>`.
  */
-export type PanelContentType =
-  | 'bible'
-  | 'commentary'
-  | 'book'
-  | 'dictionary'
-  | 'notes'
-  | 'prayer'
-  | 'study'
-  | 'topics'
-  | 'wordStudy'
-  | 'genealogy'
-  | 'timeline'
-  | 'reading-plans'
-  | 'quiz'
-  | 'similar'
-  | 'search'
-  | 'newtab'
-  | `ext:${string}`;
+export type PanelContentType = string;
+
+/**
+ * The panel types the host itself declares (the `host` feature module's
+ * `contributes.panelTypes`). Ids are persisted in dockview layouts and
+ * sessions: never rename one. Everything else (extension `ext:*` types, types
+ * of a feature module that is switched off) is just a string here.
+ */
+export const CORE_PANEL_TYPES = [
+  'bible',
+  'commentary',
+  'book',
+  'dictionary',
+  'notes',
+  'prayer',
+  'study',
+  'topics',
+  'wordStudy',
+  'genealogy',
+  'timeline',
+  'reading-plans',
+  'quiz',
+  'similar',
+  'search',
+  'newtab',
+] as const;
+
+export type CorePanelType = (typeof CORE_PANEL_TYPES)[number];
 
 /**
  * Registered panel in the layout system

@@ -52,6 +52,20 @@ import type {
   FeatureFlags as FeatureFlagsType,
 } from '@bible/core/browser';
 
+import type {
+  createFeatureModuleHost as createFeatureModuleHostType,
+  parseFeatureModuleOverrides as parseFeatureModuleOverridesType,
+  createStandardPoints as createStandardPointsType,
+  standardPointList as standardPointListType,
+  validateBuiltinManifest as validateBuiltinManifestType,
+  FeatureModuleManifest as FeatureModuleManifestType,
+  FeatureModuleHost as FeatureModuleHostType,
+  StandardPoints as StandardPointsType,
+} from '@bible/core/browser';
+
+export type FeatureModuleManifest = FeatureModuleManifestType;
+export type FeatureModuleHost = FeatureModuleHostType;
+export type StandardPoints = StandardPointsType;
 export type FeatureFlagName = FeatureFlagNameType;
 export type FeatureFlags = FeatureFlagsType;
 
@@ -107,3 +121,10 @@ export const mergeCatalogs: typeof mergeCatalogsType = coreBrowser.mergeCatalogs
 export const createFeatureFlags: typeof createFeatureFlagsType = coreBrowser.createFeatureFlags;
 export const parseFlagOverrides: typeof parseFlagOverridesType = coreBrowser.parseFlagOverrides;
 export const FEATURE_FLAG_NAMES: readonly FeatureFlagNameType[] = coreBrowser.FEATURE_FLAG_NAMES;
+
+// Feature modules (task 0113): pure logic from the browser barrel, like the flags above.
+export const createFeatureModuleHost: typeof createFeatureModuleHostType = coreBrowser.createFeatureModuleHost;
+export const parseFeatureModuleOverrides: typeof parseFeatureModuleOverridesType = coreBrowser.parseFeatureModuleOverrides;
+export const createStandardPoints: typeof createStandardPointsType = coreBrowser.createStandardPoints;
+export const standardPointList: typeof standardPointListType = coreBrowser.standardPointList;
+export const validateBuiltinManifest: typeof validateBuiltinManifestType = coreBrowser.validateBuiltinManifest;

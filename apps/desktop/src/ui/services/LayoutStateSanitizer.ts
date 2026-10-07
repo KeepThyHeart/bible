@@ -1,5 +1,5 @@
 import type { SerializedDockview } from 'dockview-react';
-import type { PanelContentType } from '../stores/useLayoutStore';
+import type { CorePanelType, PanelContentType } from '../stores/useLayoutStore';
 import {
   cloneNode,
   forEachLeaf,
@@ -58,7 +58,7 @@ const REGISTERED_CONTENT_COMPONENT = 'panelContent';
  * - TypeScript enforces `Record<Exclude<PanelContentType, ...>, true>` has
  * exactly the union's members, no more, no less.
  */
-const BUILTIN_CONTENT_TYPES: Record<Exclude<PanelContentType, `ext:${string}`>, true> = {
+const BUILTIN_CONTENT_TYPES: Record<CorePanelType, true> = {
   bible: true,
   commentary: true,
   book: true,

@@ -74,6 +74,12 @@ export interface LocaleMetadata {
   direction: LocaleDirection;
 }
 
+/**
+ * Reads one module namespace catalog (`locales/<locale>/<namespace>.json`).
+ * Resolves `undefined` for a file that does not exist; must not reject.
+ */
+export type NamespaceSource = (locale: LocaleCode, namespace: string) => Promise<Record<string, string> | undefined>;
+
 export interface II18nService {
   /** Resolve a key to the current locale's string with ICU MessageFormat. */
   t(key: string, params?: Record<string, unknown>): string;
@@ -113,6 +119,28 @@ export interface II18nService {
 
   /** Add or replace a catalog namespace. Used at startup and by extension activation. */
   loadCatalog(locale: LocaleCode, namespace: string, strings: Record<string, string>): void;
+
+  /**
+   * Module namespaces (task 0113). A feature module declaring
+   * `contributes.i18nNamespace: 'quiz'` has its catalog `locales/<locale>/quiz.json`
+   * merged into the SAME key space as `ui.json` (keys stay fully qualified, e.g.
+   * `quiz.title`), with the usual fallback to English.
+   *
+   * Loading is lazy: a namespace is declared with `registerNamespace`, and its
+   * files load (a) when `loadNamespace` is called (the module host does so when
+   * the module activates) or (b) on the first `t()` whose key starts with
+   * `<namespace>.` and is not yet resolvable. In case (b) the call returns the
+   * bracketed key (without the dev warning) and, once the files arrive,
+   * `onDidChangeLocale` fires with the current locale so subscribers re-render.
+   * The files for the new locale are loaded again on `setLocale`.
+   */
+  registerNamespace(namespace: string): void;
+
+  /** Load the namespace's catalogs for the current locale and `en`. Never throws; unknown or missing files are a no-op. */
+  loadNamespace(namespace: string): Promise<void>;
+
+  /** Where namespace files come from (`LocaleCatalogLoader` installs itself). */
+  setNamespaceSource(source: NamespaceSource): void;
 
   onDidChangeLocale: IEvent<LocaleCode>;
 }

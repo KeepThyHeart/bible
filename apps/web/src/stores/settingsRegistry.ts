@@ -22,6 +22,9 @@ import {
   mergeSettings,
   measureSettingsRegistry,
   type SettingChange,
+  type ContributionRegistry,
+  type SettingsContribution,
+  type SettingsRegistry,
   type SettingsStoragePort,
 } from '@bible/core/browser';
 
@@ -116,3 +119,44 @@ export const webSettingsPort: SettingsStoragePort = {
 };
 
 export const webSettings = createSettingsStore(WEB_SETTINGS, webSettingsPort);
+
+/**
+ * The registry including settings contributed by enabled feature modules
+ * (`contributes.settings`, task 0113), merged on top of the hand-merged
+ * `WEB_SETTINGS` (which keeps working unchanged). Takes the contribution
+ * point as a parameter so this file stays free of the module host (and so
+ * tests can pass a fixture); callers pass `modulePoints.settings`.
+ * Cached per registry snapshot.
+ */
+const contributedCache = new WeakMap<object, SettingsRegistry>();
+export function contributedSettings(
+  point?: Pick<ContributionRegistry<SettingsContribution>, 'list' | 'getSnapshot'>,
+): SettingsRegistry {
+  if (!point) return WEB_SETTINGS;
+  const snapshot = point.getSnapshot();
+  const cached = contributedCache.get(snapshot);
+  if (cached) return cached;
+  const existing = new Set(WEB_SETTINGS.definitions.map((d) => d.key));
+  const defs = point
+    .list()
+    .flatMap((g) => g.defs)
+    .filter((d) => !existing.has(d.key));
+  const merged = defs.length ? mergeSettings(WEB_SETTINGS, defineSettings(defs)) : WEB_SETTINGS;
+  contributedCache.set(snapshot, merged);
+  return merged;
+}
+
+/** A settings store over `contributedSettings(point)` (same blob as `webSettings`), for generic contributed sections. Cached per registry. */
+const contributedStores = new WeakMap<SettingsRegistry, ReturnType<typeof createSettingsStore>>();
+export function contributedSettingsStore(
+  point: Pick<ContributionRegistry<SettingsContribution>, 'list' | 'getSnapshot'>,
+): ReturnType<typeof createSettingsStore> {
+  const registry = contributedSettings(point);
+  if (registry === WEB_SETTINGS) return webSettings;
+  let store = contributedStores.get(registry);
+  if (!store) {
+    store = createSettingsStore(registry, webSettingsPort);
+    contributedStores.set(registry, store);
+  }
+  return store;
+}

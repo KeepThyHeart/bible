@@ -15,6 +15,7 @@ import { Emitter } from '../types/Event';
 import type { IEvent } from '../types/Event';
 import type {
   II18nService,
+  NamespaceSource,
   LocaleCode,
   LocaleDirection,
   LocaleMetadata,
@@ -95,6 +96,12 @@ export class I18nService implements II18nService {
   /** Cached ICU formatters keyed by `${locale}::${message}`. */
   private readonly formatterCache: Map<string, IcuFormatter> = new Map();
   private icuCtor: IntlMessageFormatCtor | null = null;
+  /** Module namespaces declared via `registerNamespace`. */
+  private readonly namespaces = new Set<string>();
+  /** `${locale}/${namespace}` files already requested. */
+  private readonly namespaceFilesRequested = new Set<string>();
+  private readonly namespaceLoads = new Map<string, Promise<void>>();
+  private namespaceSource: NamespaceSource | undefined;
 
   readonly onDidChangeLocale: IEvent<LocaleCode> = this.emitter.event;
 
@@ -184,9 +191,66 @@ export class I18nService implements II18nService {
     }
   }
 
+  registerNamespace(namespace: string): void {
+    if (namespace) this.namespaces.add(namespace);
+  }
+
+  setNamespaceSource(source: NamespaceSource): void {
+    this.namespaceSource = source;
+  }
+
+  loadNamespace(namespace: string): Promise<void> {
+    const pending = this.namespaceLoads.get(`${this.locale}/${namespace}`);
+    if (pending) return pending;
+    const run = this.doLoadNamespace(namespace);
+    const key = `${this.locale}/${namespace}`;
+    this.namespaceLoads.set(key, run);
+    return run;
+  }
+
+  private async doLoadNamespace(namespace: string): Promise<void> {
+    this.namespaces.add(namespace);
+    const source = this.namespaceSource;
+    if (!source) return;
+    const locales = this.locale === FALLBACK_LOCALE ? [FALLBACK_LOCALE] : [FALLBACK_LOCALE, this.locale];
+    let loaded = false;
+    await Promise.all(
+      locales.map(async (locale) => {
+        const file = `${locale}/${namespace}`;
+        if (this.namespaceFilesRequested.has(file)) return;
+        this.namespaceFilesRequested.add(file);
+        try {
+          const strings = await source(locale, namespace);
+          if (strings && typeof strings === 'object') {
+            this.loadCatalog(locale, namespace, strings);
+            loaded = true;
+          }
+        } catch {
+          // never throws: a missing or broken namespace file just leaves the keys unresolved
+        }
+      }),
+    );
+    // Strings arrived after something may already have rendered `[key]`: re-render subscribers.
+    if (loaded) this.emitter.fire(this.locale);
+  }
+
+  /** The declared namespace of a key (`quiz.title` -> `quiz`) that has not been requested yet, if any. */
+  private pendingNamespace(key: string): string | undefined {
+    const dot = key.indexOf('.');
+    if (dot <= 0) return undefined;
+    const ns = key.slice(0, dot);
+    if (!this.namespaces.has(ns)) return undefined;
+    return this.namespaceLoads.has(`${this.locale}/${ns}`) ? undefined : ns;
+  }
+
   t(key: string, params?: Record<string, unknown>): string {
     const message = this.lookup(key);
     if (message === undefined) {
+      const ns = this.pendingNamespace(key);
+      if (ns) {
+        void this.loadNamespace(ns);
+        return `[${key}]`;
+      }
       this.warnMissing(key);
       return `[${key}]`;
     }
@@ -248,6 +312,8 @@ export class I18nService implements II18nService {
       this.catalogs.set(locale, {});
     }
     this.locale = locale;
+    // Namespaces already in use follow the user into the new locale.
+    await Promise.all(Array.from(this.namespaceLoads.keys()).map((k) => this.loadNamespace(k.slice(k.indexOf('/') + 1))));
     if (this.persistLocale) {
       try {
         await this.persistLocale(locale);

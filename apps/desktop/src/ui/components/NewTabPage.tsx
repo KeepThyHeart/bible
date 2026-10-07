@@ -15,6 +15,9 @@ import { translateWithDefault } from '../hooks/useXrefGraphLabels';
 import { openApp, prefetchApp } from '../apps/appHost';
 import { useNavItems } from '../apps/navPrefs';
 import { toNavEntries } from '../apps/navEntries';
+import { useAppServices } from '../contexts/ContextProvider';
+import { modulePoints } from '../modules/moduleHost';
+import { useRegistryItems } from '../modules/host/useRegistry';
 
 interface NewTabPageProps {
   panelId: string;
@@ -43,30 +46,14 @@ function parseBookChapter(input: string): { bookNumber: number; bookName: string
   return undefined;
 }
 
-/** Keywords that map to content types */
-const KEYWORD_MAP: Record<string, PanelContentType> = {
-  bible: 'bible',
-  commentary: 'commentary',
-  comm: 'commentary',
-  books: 'book',
-  book: 'book',
-  dictionary: 'dictionary',
-  dict: 'dictionary',
-  notes: 'notes',
-  note: 'notes',
-  prayer: 'prayer',
-  study: 'study',
-  topics: 'topics',
-  topic: 'topics',
+/**
+ * Keywords for panel types that have no tile (so no `keywords` on a tile
+ * contribution): typing them still opens the pane. Tile keywords (`plans` ->
+ * `reading-plans`, ...) come from `modulePoints.newTabTiles`.
+ */
+const TILELESS_KEYWORDS: Record<string, PanelContentType> = {
   'word study': 'wordStudy',
   wordstudy: 'wordStudy',
-  genealogy: 'genealogy',
-  family: 'genealogy',
-  timeline: 'timeline',
-  plans: 'reading-plans',
-  plan: 'reading-plans',
-  reading: 'reading-plans',
-  quiz: 'quiz',
 };
 
 /**
@@ -81,6 +68,29 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
   const { t, i18n } = useI18n();
   const extensionPanels = useExtensionUiStore((s) => s.panelTypes);
   const appItems = useNavItems('tiles');
+  const { whenContext, registry } = useAppServices();
+  const contributedTiles = useRegistryItems(modulePoints.newTabTiles);
+  // A tile's `when` is a cheap data predicate; a failing one hides the tile.
+  const tiles = React.useMemo(
+    () =>
+      contributedTiles.filter((tile) => {
+        if (!tile.when) return true;
+        try {
+          return whenContext.evaluate(tile.when);
+        } catch {
+          return false;
+        }
+      }),
+    [contributedTiles, whenContext],
+  );
+  const keywordMap = React.useMemo(() => {
+    const map: Record<string, PanelContentType> = { ...TILELESS_KEYWORDS };
+    for (const tile of tiles) {
+      if (!('panelType' in tile.target)) continue;
+      for (const kw of tile.keywords ?? []) map[kw.toLowerCase()] = tile.target.panelType as PanelContentType;
+    }
+    return map;
+  }, [tiles]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +179,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
 
     // Check for keyword match first
     const lower = trimmed.toLowerCase();
-    const matchedType = KEYWORD_MAP[lower];
+    const matchedType = Object.prototype.hasOwnProperty.call(keywordMap, lower) ? keywordMap[lower] : undefined;
     if (matchedType) {
       // Title-casing the user's own text applied English casing rules to a
       // string that becomes the panel's persisted title. Since the input has
@@ -202,7 +212,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     setError(
       t('newTabPage.unrecognizedInput', { input: trimmed }),
     );
-  }, [query, replaceWithPanel, openPassage, t]);
+  }, [query, keywordMap, replaceWithPanel, openPassage, t]);
 
   const handleQuickAction = useCallback((type: PanelContentType) => {
     // Deliberately NOT the button's visible label. That text is already
@@ -279,32 +289,22 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
             tile size, and each tile stacks its icon over its label so a narrow
             pane shrinks the tiles instead of reflowing the grid. */}
         <div className="grid grid-cols-4 gap-sm mt-lg">
-          {([
-            // Row 1 is where a new pane usually goes: Scripture, then the two
-            // places the user writes. Row 2 is the study apparatus that hangs
-            // off a verse. Array order is row order.
-            ['bible', t('newTabPage.type.bible')],
-            ['notes', t('newTabPage.type.notes')],
-            ['prayer', t('newTabPage.type.prayer')],
-            ['book', t('newTabPage.type.book')],
-            ['study', t('newTabPage.type.study')],
-            ['commentary', t('newTabPage.type.commentary')],
-            ['dictionary', t('newTabPage.type.dictionary')],
-            ['topics', t('newTabPage.type.topics')],
-            ['genealogy', t('newTabPage.type.genealogy')],
-            ['timeline', t('newTabPage.type.timeline')],
-            ['reading-plans', t('newTabPage.type.readingPlans')],
-            ['quiz', t('newTabPage.type.quiz')],
-          ] as [PanelContentType, string][]).map(([type, label]) => {
+          {tiles.map((tile) => {
+            const type = ('panelType' in tile.target ? tile.target.panelType : tile.id) as PanelContentType;
+            const label = 'key' in tile.title ? translateWithDefault(t, tile.title.key, tile.title.fallback) : i18n.resolve(tile.title.text);
             // Every tile carries a glyph. The tab strip's iconless rule is
             // about a crowded horizontal strip, not about a grid of tiles the
             // user is scanning cold - see `chooserIconFor`.
             const icon = chooserIconFor(type);
             return (
               <button
-                key={type}
+                key={tile.id}
                 type="button"
-                onClick={() => handleQuickAction(type)}
+                onClick={() => {
+                  if ('appId' in tile.target) void openApp(tile.target.appId);
+                  else if ('commandId' in tile.target) void registry.execute(tile.target.commandId);
+                  else handleQuickAction(type);
+                }}
                 className="flex flex-col items-center justify-center gap-xs min-w-0 px-xs py-md text-xs rounded border border-border bg-transparent text-text-primary hover:bg-background-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
               >
                 {icon && <span aria-hidden="true" className="text-xl leading-none">{icon}</span>}

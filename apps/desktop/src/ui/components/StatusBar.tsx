@@ -33,6 +33,9 @@ import {
   useExtensionUiStore,
   type ExtensionStatusBarItem,
 } from '../extensions/extensionUiStore';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { modulePoints } from '../modules/moduleHost';
+import { useRegistryItems } from '../modules/host/useRegistry';
 
 /** Sort by priority descending, then by id so equal priorities are stable. */
 function byPriority(a: ExtensionStatusBarItem, b: ExtensionStatusBarItem): number {
@@ -92,7 +95,37 @@ const StatusBarEntry: React.FC<StatusBarEntryProps> = ({ entry }) => {
 
 export const StatusBar: React.FC = () => {
   const { t } = useI18n();
-  const items = useExtensionUiStore((s) => s.statusBarItems);
+  const { whenContext } = useAppServices();
+  const extensionItems = useExtensionUiStore((s) => s.statusBarItems);
+  const contributed = useRegistryItems(modulePoints.statusBarItems);
+
+  // Feature-module contributions (task 0113) render through the same entries as
+  // extension items. Higher `priority` sits nearer the outer edge, so a lower
+  // `order` (earlier) maps to a higher priority.
+  const items = React.useMemo<ExtensionStatusBarItem[]>(() => {
+    const own: ExtensionStatusBarItem[] = [];
+    for (const c of contributed) {
+      if (c.when) {
+        try {
+          if (!whenContext.evaluate(c.when)) continue;
+        } catch {
+          continue;
+        }
+      }
+      own.push({
+        key: `module:${c.id}`,
+        extensionId: '',
+        item: {
+          id: c.id,
+          text: 'key' in c.title ? translateWithDefault(t, c.title.key, c.title.fallback) : c.title.text,
+          alignment: c.alignment,
+          priority: -(c.order ?? 50),
+          ...(c.commandId ? { command: c.commandId } : {}),
+        },
+      } as ExtensionStatusBarItem);
+    }
+    return own.length ? [...own, ...extensionItems] : extensionItems;
+  }, [contributed, extensionItems, whenContext, t]);
 
   const { leading, trailing } = React.useMemo(() => {
     const lead: ExtensionStatusBarItem[] = [];

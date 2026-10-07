@@ -11,11 +11,11 @@
  * landing the reader somewhere they did not ask for.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RENDERABLE_PANE_MODES, RESTORABLE_PANE_MODES, commentaryStore } from './commentaryStore';
+import { renderablePaneModes, isRestorablePaneMode, RESTORABLE_PANE_MODES, commentaryStore } from './commentaryStore';
 import { CONTEXT_MENU_TARGETS } from '../hooks/useContextMenu';
 import { eventBus } from '../events/eventBus';
 
-const RENDERABLE: readonly string[] = RENDERABLE_PANE_MODES;
+const RENDERABLE: readonly string[] = renderablePaneModes();
 
 describe('pane mode sets', () => {
   it('every restorable mode is also renderable', () => {
@@ -26,11 +26,20 @@ describe('pane mode sets', () => {
 
   it('excludes search, whose tab exists only while a search is open', () => {
     expect(RENDERABLE).not.toContain('search');
-    expect(RESTORABLE_PANE_MODES.has('search')).toBe(false);
+    expect(isRestorablePaneMode('search')).toBe(false);
   });
 
   it('names each pane once', () => {
     expect(new Set(RENDERABLE).size).toBe(RENDERABLE.length);
+  });
+});
+
+describe('a saved pane that is not registered', () => {
+  it('is not restorable, so the shell falls back to study', () => {
+    expect(isRestorablePaneMode('gone-module-pane')).toBe(false);
+    expect(() => initStore({ rightPaneMode: 'gone-module-pane' })).not.toThrow();
+    expect(commentaryStore.rightPaneMode).toBe('commentary');
+    expect(renderablePaneModes()).not.toContain(commentaryStore.rightPaneMode === 'study' ? '' : 'gone-module-pane');
   });
 });
 
@@ -66,8 +75,9 @@ describe('context menu targets', () => {
  * an empty result — these tests are about which pane is shown, not what it
  * contains.
  */
-function initStore(): void {
+function initStore(saved?: Record<string, unknown>): void {
   localStorage.clear();
+  if (saved) localStorage.setItem('bible-reader-commentary', JSON.stringify(saved));
   commentaryStore.init({
     getCommentary: async () => ({ entries: [] }) as never,
     getAllCommentary: async () => ({ modules: [] }) as never,
@@ -84,7 +94,7 @@ describe('pane:show', () => {
     commentaryStore.setRightPaneMode('commentary');
   });
 
-  it.each(RENDERABLE_PANE_MODES)('puts the pane into %s mode', (mode) => {
+  it.each(renderablePaneModes())('puts the pane into %s mode', (mode) => {
     eventBus.emit('pane:show', { paneId: mode });
     expect(commentaryStore.rightPaneMode).toBe(mode);
   });
@@ -98,5 +108,65 @@ describe('pane:show', () => {
       eventBus.emit('pane:show', { paneId: target.paneId });
       expect(commentaryStore.rightPaneMode).toBe(target.paneId);
     }
+  });
+});
+
+describe('a saved pane whose module is off', () => {
+  const always = () => true;
+  const never = () => false;
+
+  it('shows the fallback but keeps the saved choice, and shows it again when the module is back', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    expect(commentaryStore.preferredPaneMode).toBe('gone-module-pane'); // remembered, not restored
+    commentaryStore.reconcilePaneMode('study', never);
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    // Any save must keep the remembered choice, not the fallback.
+    commentaryStore.toggleCollapsed();
+    expect(JSON.parse(localStorage.getItem('bible-reader-commentary')!).rightPaneMode).toBe('gone-module-pane');
+    commentaryStore.reconcilePaneMode('gone-module-pane', always); // the module came back
+    expect(commentaryStore.rightPaneMode).toBe('gone-module-pane');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+
+  it('an explicit choice replaces the remembered one', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    commentaryStore.reconcilePaneMode('study', never);
+    commentaryStore.setRightPaneMode('topics');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+    expect(JSON.parse(localStorage.getItem('bible-reader-commentary') ?? '{}').rightPaneMode).toBe('topics');
+  });
+
+  it('a mode that goes away while it is showing is kept in the saved session', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('quiz');
+    commentaryStore.reconcilePaneMode('study', (id) => id !== 'quiz'); // the quiz module was disabled
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    expect(commentaryStore.preferredPaneMode).toBe('quiz');
+    commentaryStore.setRightPaneMode('study'); // the user picks the fallback pane: that is a choice
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+
+  it('a closed Search tab is not remembered', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('search');
+    commentaryStore.reconcilePaneMode('study', always);
+    expect(commentaryStore.rightPaneMode).toBe('study');
+    expect(commentaryStore.preferredPaneMode).toBeNull();
+  });
+});
+
+describe('pane:show for a pane that is not there', () => {
+  it('is ignored, keeping the saved choice', () => {
+    initStore();
+    commentaryStore.setRightPaneMode('topics');
+    eventBus.emit('pane:show', { paneId: 'gone-module-pane' });
+    expect(commentaryStore.rightPaneMode).toBe('topics');
+  });
+
+  it('opening Search does not forget a remembered pane', () => {
+    initStore({ rightPaneMode: 'gone-module-pane' });
+    commentaryStore.reconcilePaneMode('study', () => false);
+    commentaryStore.setRightPaneMode('search');
+    expect(commentaryStore.preferredPaneMode).toBe('gone-module-pane');
   });
 });
