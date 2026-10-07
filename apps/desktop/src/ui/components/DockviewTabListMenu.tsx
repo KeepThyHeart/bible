@@ -98,8 +98,8 @@ const DockviewTabListMenu: React.FC<{ group: DockviewGroupPanel }> = ({ group })
             top: anchor.bottom + 2,
             // Opens toward the middle of the window from the button's outer edge.
             ...(isDocumentRtl()
-              ? { left: anchor.left }
-              : { right: window.innerWidth - anchor.right }),
+              ? { left: anchor.left } // rtl-physical: fixed position from a physical rect, chosen per direction
+              : { right: window.innerWidth - anchor.right }), // rtl-physical: as above
             zIndex: 10000,
             minWidth: '200px',
             maxWidth: '360px',
