@@ -229,6 +229,10 @@ read from the running host by `electron/services/backup/nodeAdapters.ts`; the fi
 format and the restore rules are in `packages/core/docs/features/backup-format.md`, and
 the desktop side is in [Backup & Restore](backup-restore.md).
 
+## Extension apps
+
+An extension can contribute a whole app (`contributes.apps`, permission `ui:contribute-app`, API 0.2.1). It appears in the app switcher beside Study and opens in the main stage under a host-drawn app bar (icon, title, "by publisher", Settings, Close). The contract is in [Extensions and Plugins](../../../../packages/core/docs/features/extensions-plugins.md#extension-apps-contributesapps); the desktop host side (lazy `extensions:getAppUiEntry`, `app:<id>` iframe identity, badges, the 5 s user-gesture rule for `api.apps.open`, session restore) is in [Apps](apps.md#extension-apps).
+
 ## Panel iframe SDK: verse events and popups
 
 `packages/extension-ui/src/BibleExtUI.ts` declared `onActiveVerseChanged` and `showVersePopup`/`hideVersePopup` from the start; none of the three worked.

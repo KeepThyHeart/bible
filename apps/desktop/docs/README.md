@@ -44,6 +44,7 @@ This folder contains feature-oriented documentation for the `@bible/desktop` pac
 | [Source-side i18n rules](features/i18n-source-fixes.md) | How to write English source strings and call sites that translate cleanly, and the known limitations |
 | [Status Bar](features/status-bar.md) | The bottom strip, filled entirely by extension-contributed items; absent entirely when there are none |
 | [Extensions](features/extensions.md) | Sandboxed extension host, the `api.*` RPC surface, trust tiers and signing, and the catalog/blocklist marketplace |
+| [Apps](features/apps.md) | The app host on desktop: Study as an app, the rail and other surfaces, session restore, extension apps, accessibility |
 
 ## Translating
 

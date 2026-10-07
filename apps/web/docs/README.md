@@ -24,7 +24,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Search](features/search.md) | Keyword and semantic search with results panel |
 | [Presenter](features/presenter.md) | Full-page Presenter (Notes / Control / Preview), notes smart parsing, command box, simple viewer, phone layout, joining |
 | [Settings & Appearance](features/settings.md) | Theme, font, and display settings with localStorage persistence |
-| [Navigation & Layout](features/navigation-layout.md) | Header, URL hash routing, history, resizable panes, keyboard shortcuts |
+| [Navigation & Layout](features/navigation-layout.md) | App shell (rail, phone sheet, hash ownership), lean boot, entry-chunk check, header, URL hash routing, history, resizable panes, keyboard shortcuts |
 | [Copy & Export](features/copy-export.md) | Verse copying with multiple format options |
 | [Modules](features/modules.md) | Module management and data loading (Bible, Commentary, Dictionary), plus the Dictionary pane and its search |
 | [Topics & Tag Graph](features/topics.md) | Topical index browsing (Nave's, Torrey's) and tag graph entities |
