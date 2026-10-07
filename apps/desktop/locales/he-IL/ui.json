@@ -2878,5 +2878,13 @@
   "settings.apps.show": "הצגה",
   "settings.apps.alwaysShown": "מוצג תמיד",
   "settings.apps.order": "סדר האפליקציות",
-  "settings.apps.hidden": "אפליקציות מוסתרות"
+  "settings.apps.hidden": "אפליקציות מוסתרות",
+  "extensionConsent.permission.uiContributeApp": "הוספת אפליקציה משלו למחליף האפליקציות, עם תג מצב.",
+  "apps.extension.by": "מאת {publisher}",
+  "apps.extension.settings": "הגדרות",
+  "apps.extension.close": "סגירה",
+  "apps.extension.backToStudy": "חזרה ללימוד",
+  "apps.extension.unavailable": "האפליקציה אינה זמינה כרגע.",
+  "apps.extension.closeApp": "סגירת {app}",
+  "apps.extension.settingsFor": "הגדרות {app}"
 }

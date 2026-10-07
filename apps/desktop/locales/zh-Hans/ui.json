@@ -2895,5 +2895,13 @@
   "settings.apps.show": "显示",
   "settings.apps.alwaysShown": "始终显示",
   "settings.apps.order": "应用顺序",
-  "settings.apps.hidden": "隐藏的应用"
+  "settings.apps.hidden": "隐藏的应用",
+  "extensionConsent.permission.uiContributeApp": "将自己的应用添加到应用切换器，并显示状态徽章。",
+  "apps.extension.by": "来自 {publisher}",
+  "apps.extension.settings": "设置",
+  "apps.extension.close": "关闭",
+  "apps.extension.backToStudy": "返回研读",
+  "apps.extension.unavailable": "此应用当前不可用。",
+  "apps.extension.closeApp": "关闭{app}",
+  "apps.extension.settingsFor": "{app}设置"
 }

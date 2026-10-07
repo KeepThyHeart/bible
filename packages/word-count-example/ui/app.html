@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Word Count</title>
+  <!-- Host theme tokens and kit classes: they follow light/dark. Link statically (no flash). -->
+  <link rel="stylesheet" href="ext-ui://host/theme.css">
+  <link rel="stylesheet" href="ext-ui://host/kit/1/kth.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main id="app">
+    <section id="empty" class="empty" hidden>
+      <p>Open a chapter in the Bible pane to see its word statistics.</p>
+    </section>
+    <section id="content" hidden>
+      <header class="head">
+        <h2 id="ref"></h2>
+        <dl class="totals">
+          <div><dt>Words</dt><dd id="total"></dd></div>
+          <div><dt>Verses</dt><dd id="verses"></dd></div>
+        </dl>
+      </header>
+      <section aria-labelledby="top-h">
+        <h3 id="top-h">Most frequent words</h3>
+        <ol id="top" class="bars"></ol>
+      </section>
+      <section aria-labelledby="pv-h">
+        <h3 id="pv-h">Words per verse</h3>
+        <ol id="perverse" class="bars bars--compact"></ol>
+      </section>
+    </section>
+  </main>
+  <!-- Scripts must be external: the CSP has no 'unsafe-inline' for script-src. -->
+  <script src="app.js"></script>
+</body>
+</html>

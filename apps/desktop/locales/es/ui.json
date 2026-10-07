@@ -2895,5 +2895,13 @@
   "settings.apps.show": "Mostrar",
   "settings.apps.alwaysShown": "Siempre visible",
   "settings.apps.order": "Orden de las aplicaciones",
-  "settings.apps.hidden": "Aplicaciones ocultas"
+  "settings.apps.hidden": "Aplicaciones ocultas",
+  "extensionConsent.permission.uiContributeApp": "Añadir su propia aplicación al selector de aplicaciones, con una insignia de estado.",
+  "apps.extension.by": "de {publisher}",
+  "apps.extension.settings": "Configuración",
+  "apps.extension.close": "Cerrar",
+  "apps.extension.backToStudy": "Volver a Estudio",
+  "apps.extension.unavailable": "Esta aplicación no está disponible en este momento.",
+  "apps.extension.closeApp": "Cerrar {app}",
+  "apps.extension.settingsFor": "Configuración de {app}"
 }

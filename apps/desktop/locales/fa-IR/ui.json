@@ -2878,5 +2878,13 @@
   "settings.apps.show": "نمایش",
   "settings.apps.alwaysShown": "همیشه نمایش",
   "settings.apps.order": "ترتیب برنامه‌ها",
-  "settings.apps.hidden": "برنامه‌های پنهان"
+  "settings.apps.hidden": "برنامه‌های پنهان",
+  "extensionConsent.permission.uiContributeApp": "افزودن برنامهٔ خاص خود به تعویض‌کنندهٔ برنامه‌ها، همراه با نشان وضعیت.",
+  "apps.extension.by": "از {publisher}",
+  "apps.extension.settings": "تنظیمات",
+  "apps.extension.close": "بستن",
+  "apps.extension.backToStudy": "بازگشت به مطالعه",
+  "apps.extension.unavailable": "این برنامه در حال حاضر در دسترس نیست.",
+  "apps.extension.closeApp": "بستن {app}",
+  "apps.extension.settingsFor": "تنظیمات {app}"
 }

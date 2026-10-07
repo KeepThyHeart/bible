@@ -162,6 +162,8 @@ export interface ExtensionContributes {
    */
   configuration?: ContributedConfiguration;
   apiExports?: ContributedApiExport[];
+  /** Apps shown in the host's app switcher (needs `ui:contribute-app`). Validated by the `apps` namespace. */
+  apps?: ContributedApp[];
   /**
    * Bible-module provider descriptors statically declared in the manifest.
    * Mirrors what an extension would otherwise call via
@@ -180,6 +182,21 @@ export interface ExtensionContributes {
    * promise a specific future task will pick this up.
    */
   bibleProviders?: BibleProviderDescriptor[];
+}
+
+/** One `contributes.apps` entry after validation (`id` is stored qualified). */
+export interface ContributedApp {
+  id: string;
+  title: LocalizedString;
+  shortTitle?: LocalizedString;
+  /** Relative path inside the package: `.svg`, `.png` or `.webp`. */
+  icon?: string;
+  /** Relative path inside the package: `.html`. */
+  uiEntry: string;
+  /** 0..900, position inside the extension band. */
+  order?: number;
+  keepAlive?: 'never';
+  mobile?: 'sheet' | 'hidden';
 }
 
 export interface ContributedCommand {

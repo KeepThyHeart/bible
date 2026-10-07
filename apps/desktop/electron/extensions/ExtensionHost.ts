@@ -25,6 +25,7 @@ import { initializeExtensionSchema } from './extensionSchema';
 import { ExtensionRegistry } from './ExtensionRegistry';
 import { ExtensionLifecycleLogger } from './ExtensionLifecycleLogger';
 import { ContributionRegistry } from './ContributionRegistry';
+import { UserGestureTracker } from './UserGestureTracker';
 import { SingleActiveProviderRegistry } from './SingleActiveProviderRegistry';
 
 import type {
@@ -62,6 +63,7 @@ import {
   fireActivationEvent as lifecycleFireActivationEvent,
   deliverReminderActivation as lifecycleDeliverReminderActivation,
   deliverReminderMissed as lifecycleDeliverReminderMissed,
+  deliverAppVisibility as lifecycleDeliverAppVisibility,
   dispatchExtensionPoint as lifecycleDispatchExtensionPoint,
 } from './ExtensionHostLifecycle';
 import { wireExtensionPoints } from './ExtensionPointWiring';
@@ -119,6 +121,7 @@ export class ExtensionHost implements IExtensionHost {
       collectionsBridge: opts.collectionsBridge,
       folderBridge: opts.folderBridge,
       remindersBridge: opts.remindersBridge,
+      gestures: opts.gestureTracker ?? new UserGestureTracker(),
       reminderActivationQueues: new Map(),
       storageQuotaBytes: opts.storageQuotaBytes,
       secretsKeychain: opts.secretsKeychain,
@@ -424,6 +427,20 @@ export class ExtensionHost implements IExtensionHost {
     return lifecycleDeliverReminderActivation(this.ctx, extensionId, activation);
   }
 
+  /**
+   * The renderer showed or hid one of `extensionId`'s apps. Delivered to the
+   * owner only, as `app.visibilityChanged`, and only if it is already active
+   * and subscribed (a hide never wakes a worker).
+   */
+  deliverAppVisibility(extensionId: string, shortId: string, visible: boolean): void {
+    lifecycleDeliverAppVisibility(this.ctx, extensionId, shortId, visible);
+  }
+
+  /** Record a user gesture in `extensionId`'s own UI (the `api.apps.open` gate). Host-side facts only. */
+  grantUserGesture(extensionId: string): void {
+    this.ctx.gestures.grant(extensionId);
+  }
+
   /** Reminders of `extensionId` that came due while closed/asleep; delivered only if it is active. */
   deliverReminderMissed(extensionId: string, event: Extensions.ReminderMissedEvent): void {
     lifecycleDeliverReminderMissed(this.ctx, extensionId, event);
@@ -478,7 +495,12 @@ export class ExtensionHost implements IExtensionHost {
   panelInvoke(
     sender: Extensions.PanelMessageSender,
     message: unknown,
+    opts?: { userGesture?: boolean },
   ): Promise<unknown> {
+    // The renderer reports whether the browser's user-activation flag was set
+    // while focus was in this extension's own iframe; nothing the iframe says
+    // can set it. It feeds the `api.apps.open` gesture gate.
+    if (opts?.userGesture === true) this.ctx.gestures.grant(sender.extensionId);
     const active = this.ctx.activeWorkers.get(sender.extensionId);
     if (!active) {
       return Promise.reject(
@@ -530,6 +552,9 @@ export class ExtensionHost implements IExtensionHost {
     grantedPermissions: ExtensionPermission[],
   ): Promise<void> {
     await permissionsUpdate(this.ctx, extensionId, grantedPermissions);
+    // A grant can add or remove declared contributions (`ui:contribute-app`
+    // gates `contributes.apps`), so re-place them for this extension.
+    this.ctx.onDeclaredResync?.(extensionId);
     this.emitAvailabilityChanged(extensionId);
   }
 

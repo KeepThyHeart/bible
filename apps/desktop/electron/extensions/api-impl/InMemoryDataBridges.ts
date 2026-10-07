@@ -502,6 +502,19 @@ export class InMemoryUiBridge implements IExtensionUiBridge {
     return out;
   }
 
+  // --- Extension apps ------------------------------------------------------
+
+  readonly appBadges: { extensionId: string; appId: string; badge: Extensions.AppBadgeDto | null }[] = [];
+  readonly appOpens: { extensionId: string; appId: string }[] = [];
+
+  setAppBadge(extensionId: string, appId: string, badge: Extensions.AppBadgeDto | null): void {
+    this.appBadges.push({ extensionId, appId, badge });
+  }
+
+  requestOpenApp(extensionId: string, appId: string): void {
+    this.appOpens.push({ extensionId, appId });
+  }
+
   // --- T2 UI methods -------------------------------------------------------
 
   readonly decorators: {

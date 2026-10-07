@@ -61,6 +61,7 @@ export const PERM_UI_VERSE_HOVER = 'ui:verse-hover' as const;
 export const PERM_UI_CONTEXT_MENU = 'ui:context-menu' as const;
 export const PERM_UI_NOTIFICATION = 'ui:notification' as const;
 export const PERM_UI_STATUS_BAR = 'ui:status-bar' as const;
+export const PERM_UI_CONTRIBUTE_APP = 'ui:contribute-app' as const;
 /** Allows the extension's panel iframe to auto-play audio/video. */
 export const PERM_UI_MEDIA = 'ui:media' as const;
 

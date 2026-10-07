@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./StudyView', () => ({ StudyView: () => null }));
 
-import { appHost, appRegistry, addAppBinding, restoreActiveApp, isAppActive, getAppView } from './appHost';
+import { appHost, appRegistry, addAppBinding, isAppActive, getAppView } from './appHost';
+import { restoreActiveApp } from './appSession';
 import { registerBuiltinApps } from './builtinApps';
 
 describe('desktop app host', () => {

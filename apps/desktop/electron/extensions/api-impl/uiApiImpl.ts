@@ -26,6 +26,7 @@ import {
 } from '../ExtensionPermissionGuard';
 import type { IExtensionUiBridge } from './IExtensionDataBridges';
 import type { ContributionRegistry } from '../ContributionRegistry';
+import type { UserGestureTracker } from '../UserGestureTracker';
 
 const { ExtensionNotActiveError, RpcProtocolError } = Extensions;
 const { THEME_COLOR_KEYS, HOST_ICON_KEYS } = Extensions;
@@ -65,6 +66,8 @@ export interface UiApiImplOptions {
   bridge: IExtensionUiBridge;
   grant: ExtensionPermissionGrant;
   contributionRegistry?: ContributionRegistry;
+  /** Receives a grant when the user clicks an action on one of this extension's notifications. */
+  gestures?: UserGestureTracker;
 }
 
 export class UiApiImpl {
@@ -86,6 +89,7 @@ export class UiApiImpl {
   private nextDisposalId = 1;
   private disposed = false;
   private readonly contributionRegistry: ContributionRegistry | undefined;
+  private readonly gestures: UserGestureTracker | undefined;
   private decoratorCount = 0;
   private hoverProviderCount = 0;
   private readonly decoratorIds = new Set<string>();
@@ -97,6 +101,7 @@ export class UiApiImpl {
     this.bridge = opts.bridge;
     this.grant = opts.grant;
     this.contributionRegistry = opts.contributionRegistry;
+    this.gestures = opts.gestures;
   }
 
   attach(): void {
@@ -171,11 +176,15 @@ export class UiApiImpl {
     if (opts !== undefined && opts !== null && typeof opts !== 'object') {
       throw new RpcProtocolError('ui.showNotification: opts must be an object when provided');
     }
-    return this.bridge.showNotification(
+    const actionId = await this.bridge.showNotification(
       this.extensionId,
       message,
       (opts ?? undefined) as Extensions.NotificationOpts | undefined,
     );
+    // The user chose an action on this extension's own notification: that is
+    // a gesture, and counts for `api.apps.open` (host-side fact, not the worker's say-so).
+    if (actionId !== undefined) this.gestures?.grant(this.extensionId);
+    return actionId;
   }
 
   private async handleShowQuickPick(args: unknown[]): Promise<unknown> {

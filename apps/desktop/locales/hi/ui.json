@@ -2893,5 +2893,13 @@
   "settings.apps.show": "दिखाएँ",
   "settings.apps.alwaysShown": "हमेशा दिखाया गया",
   "settings.apps.order": "ऐप का क्रम",
-  "settings.apps.hidden": "छिपे हुए ऐप्स"
+  "settings.apps.hidden": "छिपे हुए ऐप्स",
+  "extensionConsent.permission.uiContributeApp": "ऐप स्विचर में अपना ऐप जोड़ना, स्थिति बैज के साथ।",
+  "apps.extension.by": "{publisher} द्वारा",
+  "apps.extension.settings": "सेटिंग्स",
+  "apps.extension.close": "बंद करें",
+  "apps.extension.backToStudy": "अध्ययन पर वापस जाएँ",
+  "apps.extension.unavailable": "यह ऐप अभी उपलब्ध नहीं है।",
+  "apps.extension.closeApp": "{app} बंद करें",
+  "apps.extension.settingsFor": "{app} सेटिंग्स"
 }

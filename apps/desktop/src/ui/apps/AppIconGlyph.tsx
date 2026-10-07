@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AppIcon } from '@bible/core/browser';
 
 /**
@@ -46,12 +46,27 @@ export function hasBuiltinGlyph(name: string): boolean {
 }
 
 export const AppIconGlyph: React.FC<{ icon: AppIcon; size?: number }> = ({ icon, size = 20 }) => {
-  if (icon.kind === 'image') {
-    return <img src={icon.src} alt="" width={size} height={size} draggable={false} />;
+  const src = icon.kind === 'image' ? icon.src : null;
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  useEffect(() => setFailedSrc(null), [src]);
+  if (icon.kind === 'image' && failedSrc !== icon.src) {
+    // A missing or blocked image falls back to the generic app glyph.
+    return (
+      <img
+        src={icon.src}
+        alt=""
+        width={size}
+        height={size}
+        draggable={false}
+        style={{ width: size, height: size, objectFit: 'contain' }}
+        onError={() => setFailedSrc(icon.src)}
+      />
+    );
   }
-  const glyph = hasBuiltinGlyph(icon.name) ? BUILTIN_GLYPHS[icon.name] : BUILTIN_GLYPHS.app;
+  const name = icon.kind === 'builtin' ? icon.name : 'app';
+  const glyph = hasBuiltinGlyph(name) ? BUILTIN_GLYPHS[name] : BUILTIN_GLYPHS.app;
   return (
-    <svg {...SVG_PROPS} width={size} height={size} data-icon={hasBuiltinGlyph(icon.name) ? icon.name : 'app'}>
+    <svg {...SVG_PROPS} width={size} height={size} data-icon={hasBuiltinGlyph(name) ? name : 'app'}>
       {glyph}
     </svg>
   );

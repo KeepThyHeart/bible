@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "surface": {
     "namespaces": [
       {
@@ -9,6 +9,18 @@
         "whenGranted": null,
         "methods": {
           "isAvailable": "open"
+        },
+        "wire": {}
+      },
+      {
+        "name": "apps",
+        "since": "0.2.1",
+        "optional": true,
+        "whenGranted": "ui:contribute-app",
+        "methods": {
+          "onVisibilityChanged": "ui:contribute-app (local)",
+          "open": "ui:contribute-app",
+          "setBadge": "ui:contribute-app"
         },
         "wire": {}
       },
@@ -410,6 +422,7 @@
       "storage:secrets separate 0.1.0",
       "tasks prompt 0.1.0",
       "ui:context-menu prompt 0.1.0",
+      "ui:contribute-app prompt 0.2.1",
       "ui:contribute-pane prompt 0.1.0",
       "ui:media prompt 0.1.0",
       "ui:notification prompt 0.1.0",
@@ -418,6 +431,7 @@
       "ui:verse-hover prompt 0.1.0"
     ],
     "activationEvents": [
+      "onApp: fired 0.2.1",
       "onCommand: fired 0.1.0",
       "onContext: 0.1.0",
       "onExtensionApi: 0.1.0",
@@ -428,12 +442,14 @@
     ],
     "contributes": [
       "apiExports 0.1.0",
+      "apps requires ui:contribute-app 0.2.1",
       "bibleProviders 0.1.0",
       "commands 0.1.0",
       "configuration 0.1.0",
       "panelTypes 0.1.0"
     ],
     "events": [
+      "app.visibilityChanged event ui:contribute-app 0.2.1",
       "crossReferences.requested provider open 0.1.0",
       "extension.activated event open 0.1.0",
       "extension.deactivated event open 0.1.0",

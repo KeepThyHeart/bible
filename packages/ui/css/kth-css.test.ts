@@ -312,3 +312,22 @@ describe('kth-rtl.css (task 0076)', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('app rail badge (task 0080)', () => {
+  const css = stripComments(read(join(CSS_DIR, 'kth-classes.css')));
+  const rules = parseRules(css);
+  const decls = (sel: string) => Object.assign({}, ...rules.filter((r) => r.selector === sel).map((r) => r.decls));
+
+  it('pins the rail badge to the top inline-end corner, logically, with a ring', () => {
+    const d = decls('.kth-app-rail__badge');
+    expect(d['inset-block-start']).toBe('0');
+    expect(d['inset-inline-end']).toBe('0');
+    expect(d['box-shadow']).toContain('var(--kth-bg');
+  });
+  it('keeps count/text badges small and width-capped so they do not cover the icon', () => {
+    const d = decls('.kth-app-badge--count, .kth-app-badge--text');
+    expect(d['font-size']).toBe('0.6rem');
+    expect(d['max-inline-size']).toBeDefined();
+    expect(d['overflow']).toBe('hidden');
+  });
+});

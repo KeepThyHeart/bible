@@ -2878,5 +2878,13 @@
   "settings.apps.show": "‏Show‏",
   "settings.apps.alwaysShown": "‏Always shown‏",
   "settings.apps.order": "‏App order‏",
-  "settings.apps.hidden": "‏Hidden apps‏"
+  "settings.apps.hidden": "‏Hidden apps‏",
+  "extensionConsent.permission.uiContributeApp": "‏Add its own app to the app switcher, with a status badge.‏",
+  "apps.extension.by": "‏by {publisher}‏",
+  "apps.extension.settings": "‏Settings‏",
+  "apps.extension.close": "‏Close‏",
+  "apps.extension.backToStudy": "‏Back to Study‏",
+  "apps.extension.unavailable": "‏This app is not available right now.‏",
+  "apps.extension.closeApp": "‏Close {app}‏",
+  "apps.extension.settingsFor": "‏{app} settings‏"
 }

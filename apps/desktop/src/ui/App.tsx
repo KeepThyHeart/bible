@@ -9,7 +9,8 @@ import ToastContainer from './components/ToastContainer';
 import DesktopAppStage from './apps/DesktopAppStage';
 import CompanionSlot from './apps/CompanionSlot';
 import { useStudyLayoutBoot } from './apps/useStudyLayoutBoot';
-import { openApp, restoreActiveApp, useIsAppActive } from './apps/appHost';
+import { openApp, useIsAppActive } from './apps/appHost';
+import { restoreActiveApp } from './apps/appSession';
 import StatusBar from './components/StatusBar';
 import WelcomeBar from './components/onboarding/WelcomeBar';
 import { useOnboardingStore } from './stores/useOnboardingStore';
@@ -222,7 +223,7 @@ function App() {
         setSavedDockviewLayout(dockviewLayout);
       }
       setLayoutDecided(true);
-      restoreActiveApp(persistedAppHost);
+      void restoreActiveApp(persistedAppHost);
     });
 
     registerSaveBeforeCloseHandler();

@@ -127,9 +127,10 @@ describe('@bible/core/browser barrel', () => {
     expect(files.size).toBeGreaterThan(1);
     // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075, then quiz 0074,
     // then reading plans 0073. Raised by 25: speech and recitation 0071. Raised by 15: word study.
-    // Raised by 30: the extension API declaration files (task 0086).
+    // Raised by 30: the extension API declaration files (task 0086). Raised by 10: the `apps`
+    // namespace declaration (task 0080).
     // Raised by 15: feature module contribution points and views (task 0113).
-    expect(files.size).toBeLessThan(300);
+    expect(files.size).toBeLessThan(310);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

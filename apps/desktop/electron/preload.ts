@@ -719,7 +719,16 @@ export interface ElectronAPI {
       panelId: string,
       panelTypeId: string,
       message: unknown,
+      opts?: { userGesture?: boolean },
     ) => Promise<unknown>;
+    /**
+     * The extension app `shortId` (as declared) of `extensionId`: lazy-activates
+     * the owner and returns what the app view needs to mount its iframe, or null
+     * when it is not a registered app.
+     */
+    getAppUiEntry: (extensionId: string, shortId: string) => Promise<{ uiEntry: string; title: string | { key: string }; allowAutoplay?: boolean; uiKit?: { version: string; components: string[] }; grantedPermissions?: string[] } | null>;
+    /** Report that an extension app view was shown (mounted) or hidden (unmounted). Delivered to the owner only. */
+    appVisibility: (extensionId: string, shortId: string, visible: boolean) => Promise<void>;
     /**
      * Marketplace. `addSource`'s `acknowledgeRisk` must only be true
      * when the user has actually seen the warning - a source added without it
@@ -1449,6 +1458,7 @@ const electronAPI: ElectronAPI = {
       panelId: string,
       panelTypeId: string,
       message: unknown,
+      opts?: { userGesture?: boolean },
     ) =>
       ipcRenderer.invoke(
         'extensions:panelInvoke',
@@ -1456,7 +1466,12 @@ const electronAPI: ElectronAPI = {
         panelId,
         panelTypeId,
         message,
+        opts,
       ),
+    getAppUiEntry: (extensionId: string, shortId: string) =>
+      ipcRenderer.invoke('extensions:getAppUiEntry', extensionId, shortId),
+    appVisibility: (extensionId: string, shortId: string, visible: boolean) =>
+      ipcRenderer.invoke('extensions:appVisibility', extensionId, shortId, visible),
     /** Marketplace catalogs. */
     catalog: {
       listSources: () => ipcRenderer.invoke('extensions:catalog:listSources'),

@@ -40,6 +40,7 @@ This folder contains feature-oriented documentation for the `@bible/core` packag
 | [Cross-reference graph](features/xref-graph.md) | Ego graphs, edge weights, whole-canon arc index |
 | [Extensions & plugins](features/extensions-plugins.md) | The third-party extension contract and the in-process hook system |
 | [Extension API namespaces](features/extension-api-namespaces.md) | Declaring an `api.*` namespace: permissions, consent text, activation events, typings, fakes, version bumps |
+| [App host](features/app-host.md) | Apps as data + lazy bindings, `AppRegistry`, `AppHostState` (activation, keep-alive, restore), deep links, nav selection and prefs, verse actions, feature modules, adding an app |
 | [USFM export](features/usfm-export.md) | `src/Export/` - USFM read and write |
 | [Browser subset](features/browser-subset.md) | `@bible/core/browser`, what belongs in it and why |
 | [Getting started](getting-started.md) | End-to-end walkthrough: provider -> repositories -> controllers -> search |

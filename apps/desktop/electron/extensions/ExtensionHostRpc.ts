@@ -41,6 +41,7 @@ import {
   TasksApiImpl,
   PanelsApiImpl,
   RemindersApiImpl,
+  AppsApiImpl,
   UiApiImpl,
   WorkspaceApiImpl,
 } from './api-impl';
@@ -296,6 +297,23 @@ export function attachApiImpls(
     active.remindersApi = api;
   }
 
+  // Extension apps (`contributes.apps`). Gated on the declared availability
+  // (the `ui:contribute-app` permission) and on a UI bridge.
+  if (ctx.uiBridge && isAvailable('apps')) {
+    const api = new AppsApiImpl({
+      extensionId,
+      router,
+      bridge: ctx.uiBridge,
+      grant,
+      apps: entry.manifest.contributes?.apps ?? [],
+      gestures: ctx.gestures,
+      log: (level, message) =>
+        ctx.logger.appendLog(extensionId, { ts: Date.now(), level, message }),
+    });
+    api.attach();
+    active.appsApi = api;
+  }
+
   if (ctx.uiBridge) {
     const api = new UiApiImpl({
       extensionId,
@@ -303,6 +321,7 @@ export function attachApiImpls(
       bridge: ctx.uiBridge,
       grant,
       contributionRegistry: ctx.contributionRegistry,
+      gestures: ctx.gestures,
     });
     api.attach();
     active.uiApi = api;
@@ -516,4 +535,5 @@ export async function disposeApiImpls(active: ActiveWorker): Promise<void> {
   active.bookmarksApi?.dispose();
   active.collectionsApi?.dispose();
   active.remindersApi?.dispose();
+  active.appsApi?.dispose();
 }

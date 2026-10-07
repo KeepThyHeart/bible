@@ -48,7 +48,7 @@ export interface ICommandRegistry {
   query(prefix: string, ctx: WhenContextSnapshot): CommandQueryResult[];
 
   /** Execute a command by ID. Throws `CommandNotFoundError` if missing. */
-  execute(id: string, args?: unknown): Promise<unknown>;
+  execute(id: string, args?: unknown, options?: { programmatic?: boolean }): Promise<unknown>;
 
   /** Look up a single command (no `when` filtering). */
   get(id: string): CommandRegistration | undefined;

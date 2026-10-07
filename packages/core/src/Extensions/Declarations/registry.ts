@@ -50,6 +50,7 @@ import { extensionsNamespace } from './namespaces/extensions';
 import { aiNamespace } from './namespaces/ai';
 import { remindersNamespace } from './namespaces/reminders';
 import { speechNamespace } from './namespaces/speech';
+import { appsNamespace } from './namespaces/apps';
 
 /**
  * Every namespace of `BibleExtensionAPI`, in the order the consent dialog
@@ -80,6 +81,7 @@ export const API_NAMESPACES = [
   aiNamespace,
   remindersNamespace,
   speechNamespace,
+  appsNamespace,
 ] as const;
 
 /** The `api` object shape, derived from the declarations. */

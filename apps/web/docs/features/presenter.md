@@ -2,7 +2,7 @@
 
 **Last verified:** 8b83839 (2026-09-28)
 
-Drives a projected screen (or several) from the browser. The **Presenter** is a full page at `#/@present` (header TV button); the screen itself is the **viewer** at `/present/v/<code>`. A stripped-down **simple viewer** lives at `/present/solo`.
+Drives a projected screen (or several) from the browser. The **Presenter** is a full page at `#/@present`, opened from the app switcher (rail on wide screens, the apps sheet or home-screen apps row on phones; a live dot shows while a session runs); the screen itself is the **viewer** at `/present/v/<code>`. A stripped-down **simple viewer** lives at `/present/solo`.
 
 ## Layout
 

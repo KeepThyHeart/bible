@@ -11,12 +11,13 @@ Header, URL hash routing, history navigation, resizable panes, and keyboard shor
 | File | Description |
 |---|---|
 | `index.html` | App shell: boot splash, error fallback, boot-loop detector, and an inline script that applies the saved theme before anything paints |
-| `src/main.tsx` | Boot sequence — provider wiring, active-tab resolution, first `render()`, splash teardown (see "Boot sequence") |
-| `src/App.tsx` | Thin router that detects mobile vs desktop (768px breakpoint) and renders the appropriate layout |
+| `src/main.tsx`, `src/boot/runBoot.ts` | Boot: `main.tsx` imports styles and calls `runBoot`; `runBoot` is the sequence in "Boot sequence" below |
+| `src/host/AppShell.tsx` | The root the boot renders: `[AppRail][AppStage]` plus the shell-wide shortcuts (see "App shell"). It replaced the old `src/App.tsx` mobile/desktop router |
+| `src/apps/study/StudyView.tsx` | The Study app's view: picks `DesktopApp` or `MobileApp` by `useIsMobile()` (768px breakpoint) and adds the follow banner |
 | `src/DesktopApp.tsx` | Desktop layout with side-by-side resizable panes, resize handle, right-pane tabs; resolves `paneMode` (see "Right-pane mode") |
 | `src/MobileApp.tsx` | Mobile layout with bottom nav, single-pane view switching, auto-hiding header on scroll |
-| `src/components/Header.tsx` | Top bar with logo, dual-purpose search/reference input, theme dropdown, settings button |
-| `src/components/HomeScreen.tsx` | Home screen with verse of the day and the Read / Search action buttons, shown when Home tab is active |
+| `src/components/Header.tsx` | Study's top bar with logo, dual-purpose search/reference input, theme dropdown, settings button, and the `AppSwitchSlot` (there is no Presenter-specific button) |
+| `src/components/HomeScreen.tsx` | Home screen with verse of the day, the Read / Search action buttons and an apps row (`AppTileGrid`), shown when Home tab is active |
 | `src/components/common/ResizeHandle.tsx` | Draggable divider between Bible pane and right pane (desktop only) |
 | `src/components/common/DialogLayer.tsx` | Single mount point for the app-wide overlays (settings, help, feedback, copy, Strong's popup/tooltip, the semantic-search progress overlay), rendered once by both layouts |
 | `src/components/common/ContextMenuPopup.tsx` | The right-click menu itself; positioned by `src/hooks/useViewportPosition.ts` |
@@ -70,9 +71,42 @@ Header, URL hash routing, history navigation, resizable panes, and keyboard shor
 | `src/components/MobileStudyPane/MobileCommentary.tsx` | List-based commentary view with star/mute, slide-to-detail view |
 | `src/components/MobileStudyPane/MobileDictionary.tsx` | Simplified dictionary with search bar and entry display |
 
+## App shell
+
+Web is a host of apps (Study, Presenter). The shared rules live in [App Host](../../../../packages/core/docs/features/app-host.md); this section is the web wiring, all under `src/host/`.
+
+| File | Role |
+|---|---|
+| `AppShell.tsx` | `[AppRail][stage]` inside a `DirectionProvider`; mounts `useAppSwitchKeys` and, while a Presenter session is live, the lazy clicker-keys chunk |
+| `AppStage.tsx` | Renders every mounted app (kept-alive ones are hidden and inert); a loading state while a chunk loads, an error with Retry on failure; on phones adds the `AppTopBar` above an app without its own chrome |
+| `appHost.ts` | Singletons (`appRegistry`, `appHost`, `verseActions`), `openApp`, `backToStudy`, `prefetchApp`, the Back rule |
+| `builtinApps.ts` | `registerBuiltinApps()`: Study and Presenter descriptors and bindings, the Presenter's busy sink (rail dot), the `present.showVerse` verse action |
+| `appNavEntries.tsx`, `navPrefs.ts` | Registry + prefs through `selectNavItems`; `useRailVisible()` is false on phones |
+| `AppSwitchSlot.tsx` | The switcher an app puts in its own chrome: one button that opens `AppSheet`. Renders nothing with fewer than two apps or while the rail shows, so apps place it unconditionally |
+| `appChrome.ts` | Apps with their own top bar (`study`, `present`); any other app gets `AppTopBar` ("Back to Study") on phones |
+| `webRoute.ts`, `hashGate.ts` | URL ownership (below) |
+| `CompanionSlot.tsx` | Renders an app's companion strip (the Presenter's `PresentBar`) while it is busy; replaced `LazyPresentBar` |
+| `useAppSwitchKeys.ts` | Ctrl+Shift+1..9 opens the nth app of the rail's order, Ctrl+Shift+0 opens Study. Matches `e.code`, and lives in the shell so it works while Study is not mounted |
+
+- **Wide screens:** the rail sits beside the stage as a conditional **sibling**, so showing or hiding it never changes the stage's parent and Study is not remounted. It shows with `appSwitcher` `rail`, or `auto` with more than one app.
+- **Phones:** no rail. `AppSwitchSlot` in the app's chrome opens the `AppSheet`; the home screen also shows an apps row. The button carries the most urgent badge among the *other* apps (`aggregateBadge`).
+- **Phone Back rule:** `studyShouldIgnoreBack()` makes Study's own Back handling stand down while another app is on screen or opening, so Back first returns to Study and only then steps through Study's own history.
+- **Hash ownership:** the URL hash belongs to Study only while Study is the target app; otherwise it belongs to the host (`#/@present`). Opening an app pushes `#/@id` and remembers the reader's hash; leaving replaces it with that hash (no re-navigation) and activates Study. Back, Forward and hand-edited hashes map onto `appHost.activate`. The URL is written when the request is made (last request wins), not when activation completes.
+- **Extension apps:** not on web. They wait for web extension hosting (see "Extensions on web (future)" below); the rail, sheet and tiles already take any registry entry.
+
+### Lean boot order
+
+`runBoot.ts`: `bootShell()` (app-independent: URL handoffs, locale, health/config/version, service worker, providers, module manifest, theme; no app store is touched) -> `registerBuiltinApps()` -> `resolveInitialApp()` (control or follow link, `#/@id`, saved app) -> render `AppShell` -> `activateWithRecovery(initial)`. Study boots on its **first activation** (`activateStudy`, once per page), so a cold open at `#/@present` never loads the reader. Other apps' chunks are prefetched on idle (`prefetchApp(STUDY_APP_ID)` when the first app was not Study) and on hover or focus of a nav item.
+
+The "Boot sequence" below describes what Study does when it activates; the splash comes down after the first app's first frame.
+
+### Entry-chunk check
+
+`scripts/check-entry-chunk.mjs` (run by `build:client`, or `pnpm --filter @bible/web check:entry-chunk` after a build) reads `dist/client/.vite/chunk-report.json` and fails when the entry chunk's static import graph contains a module that must stay lazy: `src/apps/**`, `DesktopApp`, `MobileApp`, the bible/search/commentary/study/dictionary/follow/present stores, `src/offline/`, the browser search provider, most of `src/present/command/` and `src/components/Present/`. Host code reaches those only through dynamic `import()`. Tested by `scripts/check-entry-chunk.test.ts`.
+
 ## Boot sequence
 
-`index.html` + `src/main.tsx`. The goal is that the first painted frame is the
+`index.html` + `src/main.tsx` + `src/boot/runBoot.ts`. (Study's part of it lives in `src/apps/study/studyBoot.ts`.) The goal is that the first painted frame is the
 finished app, not a shell that fills in pane by pane.
 
 1. An inline script applies the saved theme (`bible-reader-settings` →
