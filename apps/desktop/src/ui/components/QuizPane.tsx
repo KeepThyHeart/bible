@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QuizPanel } from '@bible/ui';
 import type { QuizLabels } from '@bible/ui';
-import { QuizEngine, formatVerseIdRange, getBookName } from '@bible/core/browser';
-import type { QuizCatalog, QuizRequest, QuizSessionSummary } from '@bible/core/browser';
+import { QuizEngine, ReadingPlans, formatVerseIdRange, getBookName } from '@bible/core/browser';
+import type { QuizCatalog, QuizRequest, QuizScope, QuizSessionSummary } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { useQuizLaunchStore } from '../stores/useQuizLaunchStore';
@@ -11,6 +11,7 @@ import { navigateToVerseInPrimary } from '../stores/crossStoreBridge';
 import { openModuleManager } from '../utils/openModuleManager';
 import { bibleAPI } from '../services/electronAPI';
 import { IpcQuizSource, IpcQuizProgressStore } from '../services/quizAPI';
+import { getReadingPlanService } from '../services/readingPlansAPI';
 import { loadBookNamesCache, getBookNameFromCache } from '../utils/verseReference';
 
 type PrimaryPanel = { currentBook: number; currentChapter: number };
@@ -154,6 +155,62 @@ const QuizPane: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookNamesReady]);
 
+  // Today's reading comes from the reading-plan service: every reading due today in any active
+  // plan, labelled with its references. null when no plan is active, nothing is due, or it fails.
+  const [todaysReading, setTodaysReading] = useState<QuizScope | null>(null);
+  const todaySeq = useRef(0);
+  const refreshTodaysReading = useCallback((isCancelledOuter: () => boolean) => {
+    // focus, visibilitychange and a plan event can fire together: only the latest answer counts.
+    const seq = ++todaySeq.current;
+    const isCancelled = () => isCancelledOuter() || seq !== todaySeq.current;
+    let scopes: Promise<ReadingPlans.ReadingScope[]>;
+    try {
+      scopes = getReadingPlanService().getTodayScope();
+    } catch {
+      if (!isCancelled()) setTodaysReading(null);
+      return;
+    }
+    scopes
+      .then((list) => {
+        if (isCancelled()) return;
+        // Two plans may share a reading: list each passage once.
+        const seen = new Set<string>();
+        const readings = list.flatMap((s) => s.readings).filter((r) => {
+          const k = `${r.start}-${r.end}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        const label = readings.map((r) => ReadingPlans.formatReading(r, bookName)).join('; ');
+        setTodaysReading(
+          readings.length === 0
+            ? null
+            : { label, passages: readings.map((r) => ({ start: r.start, end: r.end })) },
+        );
+      })
+      .catch(() => { if (!isCancelled()) setTodaysReading(null); });
+  }, [bookName]);
+  useEffect(() => {
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+    refreshTodaysReading(isCancelled);
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = getReadingPlanService().subscribe(() => refreshTodaysReading(isCancelled));
+    } catch { /* no service: the option stays hidden */ }
+    const onVisible = () => {
+      if (document.visibilityState !== 'hidden') refreshTodaysReading(isCancelled);
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshTodaysReading]);
+
   const formatReference = useCallback(
     (start: number, end?: number): string => formatVerseIdRange(start, end, bookName),
     [bookName],
@@ -207,9 +264,7 @@ const QuizPane: React.FC = () => {
         catalog={state.status === 'ready' ? state.catalog : null}
         engine={engine}
         currentChapter={currentChapter}
-        // Reading plans are not built yet. When they ship, supply the day's scope from an
-        // IReadingScopeProvider (core's NO_READING_PLAN is the "none" answer) instead of null.
-        todaysReading={null}
+        todaysReading={todaysReading}
         startRequest={startRequest}
         bookName={bookName}
         formatReference={formatReference}

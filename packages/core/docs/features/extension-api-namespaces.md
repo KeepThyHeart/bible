@@ -41,7 +41,7 @@ in `DeclaredApiGuard.ts`), so a web host can plug into the same declarations.
 2. **Register it.** Append it to `API_NAMESPACES` in
    `src/Extensions/Declarations/registry.ts`.
 3. **Bump the version.** An addition bumps the patch segment of
-   `EXTENSION_API_VERSION` (`0.1.0` -> `0.1.1`) and sets `since` on the new
+   `EXTENSION_API_VERSION` (`0.2.0` -> `0.2.1`) and sets `since` on the new
    declaration; a breaking change bumps the middle segment. The rule and why
    it is patch on `0.x` are in the constant's doc comment in
    `src/Extensions/ExtensionApiTypes.ts`. Then refresh the generated files:

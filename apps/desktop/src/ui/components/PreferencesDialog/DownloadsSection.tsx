@@ -61,8 +61,17 @@ export const DownloadsSection: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    void load().then(async () => {
+      // Re-read the catalogs once per visit (as web does), so assets offered by a catalog added
+      // since startup show up without a restart. The cached list above is shown meanwhile.
+      try {
+        const fresh = await assetsAPI.refresh();
+        if (!cancelled) setSnapshot(fresh);
+      } catch { /* keep the cached list */ }
+    });
     void loadPack();
+    return () => { cancelled = true; };
   }, [load, loadPack]);
 
   const active = snapshot?.active ?? 0;

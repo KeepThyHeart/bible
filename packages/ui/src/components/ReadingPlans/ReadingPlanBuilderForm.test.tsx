@@ -63,4 +63,21 @@ describe('ReadingPlanBuilderForm', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('forwards locale and picker labels to the reference picker', async () => {
+    const user = userEvent.setup();
+    render(<ReadingPlanBuilderForm onCreate={vi.fn()} today="2026-02-01" bookName={(b) => bookName(b)} locale="es"
+      labels={{ addPassage: 'Agregar pasaje', addPassagePlaceholder: 'p. ej. Juan 3:16', addPassageSuggestions: 'Sugerencias', addPassageInvalid: 'No valida' }} />);
+    const input = screen.getByRole('combobox', { name: 'Agregar pasaje' });
+    expect(input).toHaveAttribute('placeholder', 'p. ej. Juan 3:16');
+    await user.type(input, 'Juan 3{Enter}');
+    // Parsed in Spanish: became a passage chip, not the invalid message.
+    expect(screen.queryByText('No valida')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Remove/ })).toBeInTheDocument();
+  });
+
+  it('passes dir through to the picker for an RTL locale', () => {
+    render(<ReadingPlanBuilderForm onCreate={vi.fn()} today="2026-02-01" bookName={(b) => bookName(b)} locale="ar" />);
+    expect(screen.getByRole('combobox', { name: 'Add passage' }).closest('[dir]')).toHaveAttribute('dir', 'rtl');
+  });
 });

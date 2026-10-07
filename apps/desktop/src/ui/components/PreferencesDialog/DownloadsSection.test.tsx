@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DownloadsSection } from './DownloadsSection';
 
 const mocks = vi.hoisted(() => ({
-  list: vi.fn(), install: vi.fn(), cancel: vi.fn(), remove: vi.fn(), getStatus: vi.fn(), uninstall: vi.fn(),
+  list: vi.fn(), refresh: vi.fn(), install: vi.fn(), cancel: vi.fn(), remove: vi.fn(), getStatus: vi.fn(), uninstall: vi.fn(),
 }));
 
 vi.mock('../../services/electronAPI', () => ({
@@ -13,7 +13,7 @@ vi.mock('../../services/electronAPI', () => ({
     install: (id: string) => mocks.install(id),
     cancel: (id: string) => mocks.cancel(id),
     remove: (id: string) => mocks.remove(id),
-    refresh: () => mocks.list(),
+    refresh: () => mocks.refresh(),
   },
   featurePackAPI: {
     getStatus: () => mocks.getStatus(),
@@ -37,6 +37,7 @@ const snap = (entries: unknown[], active = 0, storedBytes = 0) => ({ entries, ac
 
 beforeEach(() => {
   mocks.list.mockReset().mockImplementation(() => ok(snap([entry()])));
+  mocks.refresh.mockReset().mockImplementation(() => mocks.list());
   mocks.install.mockReset().mockImplementation(() => ok({ started: true }));
   mocks.remove.mockReset().mockImplementation(() => ok({ removed: true }));
   mocks.cancel.mockReset().mockImplementation(() => ok({ cancelled: true }));
@@ -49,6 +50,13 @@ afterEach(() => {
 });
 
 describe('DownloadsSection', () => {
+  it('re-reads the catalogs on open, so newly offered assets appear without a restart', async () => {
+    mocks.refresh.mockImplementation(() => ok(snap([entry(), entry({ id: 'similar-neighbours', kind: 'data', title: 'Similar passages' })])));
+    render(<DownloadsSection />);
+    expect(await screen.findByText('Similar passages')).toBeInTheDocument();
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('renders manager rows and installs by id', async () => {
     render(<DownloadsSection />);
     expect(await screen.findByText('Amy')).toBeInTheDocument();

@@ -39,6 +39,15 @@ describe('QuizPanel launcher', () => {
     expect(screen.getByText('2 questions')).toBeTruthy();
   });
 
+  it("leaves today's reading out when the module has no questions for it", () => {
+    setup({
+      currentChapter: { book: 41, chapter: 4 },
+      todaysReading: { label: 'Genesis 1', passages: [{ start: 1001001, end: 1001999 }] },
+    });
+    expect(screen.queryByRole('radio', { name: /Today's reading/ })).toBeNull();
+    expect(screen.getByRole('radio', { name: /This chapter/ })).toHaveProperty('checked', true);
+  });
+
   it('lists only covered books and chapters in the passage selects', async () => {
     setup();
     const book = screen.getByLabelText('Book') as HTMLSelectElement;
@@ -295,6 +304,14 @@ describe('QuizPanel summary', () => {
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
   });
 
+  it('summary: missed prompts and their answers are dir=auto', async () => {
+    setup({ startRequest: only('m4-mc', 'm4-short') });
+    await missBoth();
+    const list = within(screen.getByText('To review').parentElement as HTMLElement);
+    expect(list.getByText(/good soil/).getAttribute('dir')).toBe('auto');
+    expect(list.getByText('The answer: sleeping').getAttribute('dir')).toBe('auto');
+  });
+
   it('offers another quiz on the same scope and a new quiz', async () => {
     setup({ startRequest: only('m4-mc', 'm4-short') });
     await missBoth();
@@ -317,5 +334,40 @@ describe('QuizPanel summary', () => {
 describe('fillLabel', () => {
   it('replaces known placeholders and keeps unknown ones', () => {
     expect(fillLabel('{a} of {b} {c}', { a: 1, b: 'x' })).toBe('1 of x {c}');
+  });
+});
+
+describe('quiz content direction (UI may be RTL, question text follows its own script)', () => {
+  it('multiple choice: prompt, choices, expected answer and explanation are dir=auto; chrome is not', async () => {
+    setup({ startRequest: only('m4-mc') });
+    const prompt = await screen.findByText(/good soil/);
+    expect(prompt.getAttribute('dir')).toBe('auto');
+    expect(screen.getByText('It produced a crop').getAttribute('dir')).toBe('auto');
+    expect(screen.getByRole('button', { name: 'Check' }).hasAttribute('dir')).toBe(false);
+    await userEvent.click(screen.getByRole('radio', { name: 'It produced a crop' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check' }));
+    expect(screen.getByText('Some yielded thirty, sixty or a hundred times.').getAttribute('dir')).toBe('auto');
+  });
+
+  it('short answer: the typed input is dir=auto (empty: UI direction) and a miss shows the expected answer as dir=auto', async () => {
+    setup({ startRequest: only('m4-short') });
+    await screen.findByText(/in the boat/);
+    const input = screen.getByLabelText('Your answer');
+    expect(input.getAttribute('dir')).toBeNull(); // the placeholder follows the UI
+    await userEvent.type(input, 'walking');
+    expect(input.getAttribute('dir')).toBe('auto');
+    await userEvent.type(input, '{Enter}');
+    expect(document.querySelector('.kth-quiz__expected')?.getAttribute('dir')).toBe('auto');
+  });
+
+  it('free response: typed textarea and model answer are dir=auto', async () => {
+    setup({ startRequest: only('m4-free') });
+    await screen.findByText(/four soils/);
+    const area = screen.getByLabelText('Your answer');
+    expect(area.getAttribute('dir')).toBeNull();
+    await userEvent.type(area, 'soils');
+    expect(area.getAttribute('dir')).toBe('auto');
+    await userEvent.click(screen.getByRole('button', { name: 'Show answer' }));
+    expect(screen.getByText('Four responses to the word: hard, shallow, choked and fruitful.').getAttribute('dir')).toBe('auto');
   });
 });

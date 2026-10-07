@@ -1,41 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
-  porterStem, getStemmer, compileWordGroup, normalizeWordGroup, groupFromQuery, countForms,
-  parseStrongsDefinition, normalizeRendering, groupRenderings, glossMatchesRendering, foldWord, foldLemma,
-  tokenizeVerseWords, registerStemmer,
+  compileWordGroup, normalizeWordGroup, groupFromQuery,
+  parseStrongsDefinition, normalizeRendering, groupRenderings, glossMatchesRendering,
 } from './index';
+import { countForms, foldWord, tokenizeVerseWords, registerStemmer } from '../Text';
 
-describe('stemmers', () => {
-  it('folds English inflections, including archaic -eth', () => {
-    const stems = ['love', 'loved', 'loveth', 'loving', 'loves'].map(porterStem);
-    expect(new Set(stems).size).toBe(1);
-    expect(porterStem('walking')).toBe(porterStem('walked'));
-    expect(porterStem('faith')).toBe('faith');
+describe('shared Text registry', () => {
+  it('uses a stemmer registered with the public registerStemmer in compileWordGroup', () => {
+    expect(compileWordGroup({ id: 'g', label: 'x', terms: ['abz'] }, 'qq').stemming).toBe(false);
+    registerStemmer('qq', w => w.replace(/z+$/, ''));
+    const m = compileWordGroup({ id: 'g', label: 'x', terms: ['abz'] }, 'qq');
+    expect(m.stemming).toBe(true);
+    expect(m.matchText('ab abzz cd').map(x => x.form)).toEqual(['ab', 'abzz']);
+    expect(groupRenderings([{ gloss: 'abz', count: 1 }, { gloss: 'ab', count: 2 }], 'head', 'qq')).toHaveLength(1);
   });
-  it('has light stemmers for other languages and none for unknown ones', () => {
-    expect(getStemmer('es')!('amados')).toBe(getStemmer('es')!('amadas'));
-    expect(getStemmer('en-US')).toBeDefined();
-    expect(getStemmer('eng')).toBeDefined();
-    expect(getStemmer('el')).toBeUndefined();
-  });
-  it('accepts a registered stemmer', () => {
-    registerStemmer('xx', w => w.replace(/z$/, ''));
-    expect(getStemmer('xx')!('abz')).toBe('ab');
-  });
-});
-
-describe('folding and tokenising', () => {
-  it('folds Greek accents, final sigma and Hebrew points', () => {
-    expect(foldWord('ἀγάπη')).toBe('αγαπη');
+  it('word group results are unchanged by the shared tokenizer, folding and countForms', () => {
     expect(foldWord('λόγος')).toBe('λογοσ');
-    expect(foldWord('λογος')).toBe(foldWord('Λόγος'));
-    expect(foldWord('בְּרֵאשִׁית')).toBe('בראשית');
-    expect(foldLemma("ag-ap-ah'-o")).toBe('agapaho');
-  });
-  it('indexes words by whitespace and trims edge punctuation', () => {
-    const w = tokenizeVerseWords('For God so loved the world, that');
-    expect(w[3]).toEqual({ index: 3, text: 'loved' });
-    expect(w[5].text).toBe('world');
+    expect(tokenizeVerseWords('For God so loved')[3]).toEqual({ index: 3, text: 'loved' });
   });
 });
 

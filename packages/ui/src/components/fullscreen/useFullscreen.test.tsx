@@ -153,6 +153,23 @@ describe('FullscreenButton + useFullscreen in a host', () => {
     expect(screen.getByRole('button', { name: 'Full screen' })).toHaveFocus();
   });
 
+  it('lets Tab move inside a popover portaled outside the host (no native full screen element)', async () => {
+    render(
+      <>
+        <Host />
+        <div className="kth-popover"><button type="button">pop a</button><button type="button">pop b</button></div>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    screen.getByRole('button', { name: 'pop a' }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'pop b' })).toHaveFocus();
+    await userEvent.tab(); // wraps inside the popover instead of leaving the overlay
+    expect(screen.getByRole('button', { name: 'pop a' })).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'pop b' })).toHaveFocus();
+  });
+
   it('takes custom labels', () => {
     render(<FullscreenButton full={false} onToggle={() => {}} labels={{ enter: 'Plein écran' }} />);
     expect(screen.getByRole('button', { name: 'Plein écran' })).toBeInTheDocument();

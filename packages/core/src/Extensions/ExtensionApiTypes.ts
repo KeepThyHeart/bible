@@ -137,18 +137,17 @@ export type {
  * `Declarations/` - is recorded with this version in
  * `Declarations/apiSurface.lock.json`, and `Declarations/registrySync.test.ts`
  * fails when the surface changes but this number does not. On `0.x`, a caret
- * range (`^0.1.0`, which the word-count example and every scaffold use)
- * admits only `0.1.*`, so:
+ * range (`^0.2.0`, which the word-count example uses) admits only `0.2.*`, so:
  *
  *   - **Additive** change (new namespace, method, permission, event, key):
- *     bump the PATCH segment (`0.1.0` -> `0.1.1`). Existing extensions keep
+ *     bump the PATCH segment (`0.2.0` -> `0.2.1`). Existing extensions keep
  *     loading. Set the new declaration's `since` to the new version. An
  *     extension that cannot work without the addition declares
- *     `engines.bibleApp: "^0.1.1"`; one that merely uses it when present
+ *     `engines.bibleApp: "^0.2.1"`; one that merely uses it when present
  *     keeps its old range and feature-detects (`if (api.speech)`).
  *   - **Breaking** change (removal, renamed method, narrowed type, a method
- *     newly gated by a permission): bump the MIDDLE segment (`0.2.0`). Every
- *     `^0.1.x` extension is refused at activation until it is updated - which
+ *     newly gated by a permission): bump the MIDDLE segment (`0.3.0`). Every
+ *     `^0.2.x` extension is refused at activation until it is updated - which
  *     is the point.
  *
  * Then refresh the lock: `UPDATE_EXTENSION_API=1 pnpm --filter @bible/core
@@ -159,10 +158,9 @@ export type {
  * `reminder.missed` channels. An `engines.bibleApp` of `^0.1.0` no longer
  * matches (caret on a 0.x version pins the minor).
  *
- * This round's breaking changes (the `onDid*` -> `api.events.subscribe`
- * unification below) ship under this same `0.1.0` - there is no
- * dual-support window to honor, and `bible-memory` is updated in lockstep in
- * its own task.
+ * Task 0024's breaking changes (the `onDid*` -> `api.events.subscribe`
+ * unification below) shipped under `0.1.0` - there was no dual-support
+ * window to honor, and `bible-memory` was updated in lockstep in its own task.
  */
 export const EXTENSION_API_VERSION = '0.2.0' as const;
 

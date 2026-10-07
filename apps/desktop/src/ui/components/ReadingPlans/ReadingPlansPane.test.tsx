@@ -5,15 +5,17 @@ import { enT, enLocalizer } from '../../testing/enCatalog';
 import { installTestService, uninstallTestService } from './testSupport';
 import ReadingPlansPane from './ReadingPlansPane';
 
+let testLocale = 'en';
+vi.mock('../../services/localizedReferenceParser', () => ({ ensureReferenceLocales: vi.fn().mockResolvedValue([]) }));
 vi.mock('../../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (k: string, p?: Record<string, unknown>) => enT(k, p), locale: 'en', localizer: enLocalizer }),
+  useI18n: () => ({ t: (k: string, p?: Record<string, unknown>) => enT(k, p), locale: testLocale, localizer: enLocalizer }),
 }));
 vi.mock('../../services/electronAPI', () => ({ bibleAPI: { getAllBooks: vi.fn().mockResolvedValue([]) } }));
 const navigate = vi.fn();
 vi.mock('../../stores/crossStoreBridge', () => ({ navigateToVerseInPrimary: (...a: unknown[]) => navigate(...a) }));
 
 describe('ReadingPlansPane', () => {
-  beforeEach(() => { navigate.mockClear(); });
+  beforeEach(() => { navigate.mockClear(); testLocale = 'en'; });
   afterEach(() => { uninstallTestService(); });
 
   it('shows the empty state and leads to the Plans view', async () => {
@@ -67,6 +69,19 @@ describe('ReadingPlansPane', () => {
     expect(await screen.findByRole('region', { name: 'Just Jude' })).toBeInTheDocument();
     expect((await service.enrollments())).toHaveLength(1);
     expect((await service.library()).some((p) => p.name === 'Just Jude')).toBe(true);
+  });
+
+  it('gives the builder passage picker the UI locale, loads its reference data and uses the localized labels', async () => {
+    testLocale = 'ar';
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const input = screen.getByRole('combobox', { name: enT('readingPlans.builder.addPassage') });
+    expect(input.closest('[dir]')).toHaveAttribute('dir', 'rtl');
+    expect(input).toHaveAttribute('placeholder', enT('readingPlans.builder.addPassagePlaceholder'));
+    const { ensureReferenceLocales } = await import('../../services/localizedReferenceParser');
+    expect(ensureReferenceLocales).toHaveBeenCalledWith(['ar']);
   });
 
   it('opens the plan detail, pauses and removes the plan', async () => {

@@ -56,10 +56,10 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
     <div className="word-study-pane" data-testid="word-study-pane">
       <div className="word-study-pane__bar">
         <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canBack} onClick={() => void s.back()} title={t('wordStudy.back')} aria-label={t('wordStudy.back')}>
-          <i className="fa-solid fa-arrow-left" />
+          <i className="fa-solid fa-arrow-left kth-rtl-mirror" aria-hidden="true" />
         </button>
         <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canForward} onClick={() => void s.forward()} title={t('wordStudy.forward')} aria-label={t('wordStudy.forward')}>
-          <i className="fa-solid fa-arrow-right" />
+          <i className="fa-solid fa-arrow-right kth-rtl-mirror" aria-hidden="true" />
         </button>
         <h2 className="word-study-pane__title">{t('wordStudy.title')}</h2>
         {onClose && (

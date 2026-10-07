@@ -134,7 +134,8 @@ function SimilarRow({
             }
           }}
         >
-          {row.reference}
+          {/* Isolated, so in an RTL UI a leading book number stays with its book ("1 John 4:10"). */}
+          <bdi>{row.reference}</bdi>
         </button>
         <span
           className="kth-similar__bar"
@@ -149,11 +150,11 @@ function SimilarRow({
         {row.isCrossReference ? <span className="kth-similar__badge kth-similar__badge--xref">{l.crossRef}</span> : null}
         {row.crossesTestament ? <span className="kth-similar__badge kth-similar__badge--testament">{l.otNtBadge}</span> : null}
       </div>
-      <p className="kth-similar__text">{row.text}</p>
+      <p className="kth-similar__text" dir="auto">{row.text}</p>
       {chips ? (
         <ul className="kth-similar__chips">
           {chips.map((c) => (
-            <li key={c.id} className={`kth-similar__chip kth-similar__chip--${c.kind}`}>
+            <li key={c.id} className={`kth-similar__chip kth-similar__chip--${c.kind}`} dir="auto">
               {c.text}
             </li>
           ))}

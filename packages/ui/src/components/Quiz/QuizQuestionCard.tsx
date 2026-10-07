@@ -120,7 +120,7 @@ export function QuizQuestionCard({
 
       {basisNote ? <p className="kth-quiz__small">{fillLabel(l.textBasis, { translation: basisNote })}</p> : null}
 
-      <h3 className="kth-quiz__prompt" tabIndex={-1} ref={headingRef}>
+      <h3 className="kth-quiz__prompt" dir="auto" tabIndex={-1} ref={headingRef}>
         {q.prompt}
       </h3>
 
@@ -147,7 +147,7 @@ export function QuizQuestionCard({
                   disabled={answered}
                   onChange={() => setChoice(i)}
                 />
-                <span className="kth-quiz__choice-text">{c.text}</span>
+                <span className="kth-quiz__choice-text" dir="auto">{c.text}</span>
                 {state ? (
                   <span className="kth-quiz__choice-mark" aria-hidden="true">
                     {state === 'correct' ? '✓' : '✗'}
@@ -166,6 +166,8 @@ export function QuizQuestionCard({
             <input
               type="text"
               className="kth-input"
+              // Empty: follow the UI (placeholder at the start); typed: the answer's own direction.
+              dir={text ? 'auto' : undefined}
               value={text}
               placeholder={l.answerPlaceholder}
               disabled={answered}
@@ -181,6 +183,7 @@ export function QuizQuestionCard({
           <span>{mode === 'reflection' ? l.reflectionHint : l.yourAnswer}</span>
           <textarea
             className="kth-input kth-quiz__textarea"
+            dir={text ? 'auto' : undefined}
             rows={3}
             value={text}
             placeholder={mode === 'reflection' ? l.reflectionPlaceholder : l.answerPlaceholder}
@@ -197,19 +200,19 @@ export function QuizQuestionCard({
       >
         {feedback ? <strong>{feedbackText}</strong> : null}
         {(mode === 'short_answer' || mode === 'multiple_choice') && feedback === 'incorrect' && expected ? (
-          <span className="kth-quiz__expected"> {fillLabel(l.correctAnswerIs, { answer: expected })}</span>
+          <span className="kth-quiz__expected" dir="auto"> {fillLabel(l.correctAnswerIs, { answer: expected })}</span>
         ) : null}
       </div>
 
       {mode === 'free_response' && revealed ? (
         <div className="kth-quiz__model">
           <div className="kth-quiz__model-label">{l.modelAnswer}</div>
-          <p className="kth-quiz__model-text">{q.answer}</p>
+          <p className="kth-quiz__model-text" dir="auto">{q.answer}</p>
         </div>
       ) : null}
 
       {(answered || (mode === 'free_response' && revealed)) && q.explanation ? (
-        <p className="kth-quiz__explanation">{q.explanation}</p>
+        <p className="kth-quiz__explanation" dir="auto">{q.explanation}</p>
       ) : null}
 
       {mode === 'free_response' && revealed && !answered ? (

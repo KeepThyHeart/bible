@@ -5,7 +5,7 @@
  * |---|---|---|
  * | IQuizQuestionSource | IPC -> QuizRepository (every installed quiz module) | `/api/quiz/questions` |
  * | IQuizProgressStore | IPC -> UserDataQuizProgressStore (`user_data_item`, owner `app:quiz`) | MemoryQuizProgressStore (nothing saved in the browser until web accounts) |
- * | IReadingScopeProvider | NO_READING_PLAN until reading plans ship | same |
+ * | IReadingScopeProvider | today's readings of the active plans (ReadingPlanService.getTodayScope, in the quiz pane) | NO_READING_PLAN (no reading plans on web) |
  * | IQuizAdjudicator | none (seam only) | none (seam only) |
  */
 import type {
@@ -50,8 +50,8 @@ export interface QuizScope {
 }
 
 /**
- * What "today's reading" means. Reading plans (task 0073) supply the real one;
- * until then {@link NO_READING_PLAN} answers null and the UI hides the option.
+ * What "today's reading" means. On desktop the reading plans (task 0073) supply it; where there
+ * are no plans (web) {@link NO_READING_PLAN} answers null and the UI hides the option.
  */
 export interface IReadingScopeProvider {
   /** `date` is a local calendar date, 'YYYY-MM-DD'. */

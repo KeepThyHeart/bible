@@ -47,5 +47,14 @@
   "main.window.studyFallback": "مطالعه",
   "main.window.topics": "موضوعات - {name}",
   "main.window.topicsFallback": "موضوعات",
-  "main.window.extensionFallback": "افزونه"
+  "main.window.extensionFallback": "افزونه",
+  "main.notifications.votd.label": "آیه روز",
+  "main.notifications.votd.description": "هر روز یک آیه از کتاب مقدس.",
+  "main.notifications.votd.title": "آیه روز",
+  "main.notifications.collapsed": "یادآوری‌های در انتظار: {count}",
+  "main.notifications.tray.open": "باز کردن",
+  "main.notifications.tray.settings": "تنظیمات اعلان‌ها…",
+  "main.notifications.tray.quit": "خروج",
+  "main.notifications.test.title": "اعلان آزمایشی",
+  "main.notifications.test.body": "اعلان‌ها کار می‌کنند."
 }

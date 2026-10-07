@@ -22,7 +22,7 @@ import {
 import { parseStrongsDefinition } from '../WordStudy/strongsDefinition';
 import { RenderingMode, glossMatchesRendering, groupRenderings } from '../WordStudy/renderings';
 import { GroupMatch, WordGroup, compileWordGroup } from '../WordStudy/wordGroup';
-import { foldLemma } from '../WordStudy/wordText';
+import { foldLemma } from '../Text';
 
 export interface WordStudyServiceDeps {
   /** Installed Bible modules, keyed by abbreviation. Called each time so installs show up. */

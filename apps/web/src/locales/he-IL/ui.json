@@ -158,7 +158,8 @@
     "topics": "נושאים",
     "commentary": "פירוש",
     "dictionary": "מילון",
-    "study": "לימוד"
+    "study": "לימוד",
+    "similar": "חיפוש קטעים דומים"
   },
   "rightPane": {
     "study": "לימוד",
@@ -167,7 +168,10 @@
     "dictionary": "מילון",
     "search": "חיפוש",
     "collapseRight": "צמצום החלונית הצדדית",
-    "timeline": "ציר זמן"
+    "timeline": "ציר זמן",
+    "quiz": "חידון",
+    "similar": "דומים",
+    "wordStudy": "לימוד מילים"
   },
   "timeline": {
     "title": "ציר זמן",
@@ -212,6 +216,78 @@
     "reviewed": "נבדק",
     "unreviewed": "לא נבדק"
   },
+  "quiz": {
+    "title": "חידון",
+    "intro": "בדיקה של מה שזכרתם והבנתם מקטע.",
+    "scopeHeading": "על מה לשאול",
+    "scopeToday": "הקריאה של היום ({label})",
+    "scopeChapter": "הפרק הזה ({label})",
+    "scopePassage": "בחירת קטע",
+    "book": "ספר",
+    "fromChapter": "מפרק",
+    "toChapter": "עד פרק",
+    "countHeading": "שאלות",
+    "difficultyHeading": "רמת קושי",
+    "difficultyMixed": "מעורבת",
+    "difficultyEasy": "קלה",
+    "difficultyMedium": "בינונית",
+    "difficultyHard": "קשה",
+    "start": "התחלת החידון",
+    "noQuestionsHere": "אין עדיין שאלות עבור {label}.",
+    "questionsAvailable": "{count} שאלות",
+    "loading": "טוען שאלות חידון...",
+    "progress": "שאלה {n} מתוך {total}",
+    "check": "בדיקה",
+    "next": "הבא",
+    "finish": "הצגת התוצאות",
+    "skip": "דילוג",
+    "quit": "סיום החידון",
+    "showAnswer": "הצגת התשובה",
+    "yourAnswer": "התשובה שלך",
+    "answerPlaceholder": "הקלד את התשובה",
+    "modelAnswer": "תשובה",
+    "selfGradePrompt": "איך הלך?",
+    "gotIt": "ידעתי",
+    "partly": "חלקית",
+    "missed": "לא ידעתי",
+    "correct": "נכון",
+    "incorrect": "לא בדיוק",
+    "correctAnswerIs": "התשובה: {answer}",
+    "countAsCorrect": "צדקתי",
+    "reflectionHint": "אין תשובה נכונה או שגויה: אפשר לחשוב על כך, או לכתוב כמה מילים.",
+    "reflectionPlaceholder": "כתוב כמה מילים (לא חובה)",
+    "continue": "המשך",
+    "openPassage": "קריאת {reference}",
+    "kinds": {
+      "recall": "זכירה",
+      "comprehension": "הבנה",
+      "application": "יישום"
+    },
+    "difficultyBadge": {
+      "1": "קלה",
+      "2": "בינונית",
+      "3": "קשה"
+    },
+    "summaryTitle": "תוצאות",
+    "score": "{correct} מתוך {graded} נכונות",
+    "scorePartly": "{partly} חלקית",
+    "noneGraded": "לא נבדקה אף שאלה בחידון הזה.",
+    "missedHeading": "לחזרה",
+    "retryMissed": "ניסיון חוזר בשאלות שפספסתי",
+    "newQuiz": "חידון חדש",
+    "sameAgain": "חידון נוסף על {label}",
+    "historyHeading": "חידונים אחרונים",
+    "historyEntry": "{label}: {correct}/{graded} ({date})",
+    "sourcesHeading": "מקורות השאלות",
+    "unreviewed": "טיוטה: טרם נבדק",
+    "textBasis": "מנוסח על פי {translation}",
+    "error": "לא ניתן היה לטעון את החידון.",
+    "retry": "ניסיון חוזר",
+    "noModule": "לא הותקנו שאלות חידון.",
+    "loadError": "לא ניתן היה לטעון את החידון.",
+    "quizThisChapter": "חידון על הפרק הזה",
+    "close": "סגירה"
+  },
   "mobileNav": {
     "home": "בית",
     "search": "חיפוש",
@@ -240,7 +316,8 @@
       "gestures": "מחוות",
       "audio": "שמע",
       "offline": "לא מקוון",
-      "about": "אודות"
+      "about": "אודות",
+      "notifications": "התראות"
     },
     "textSize": {
       "decreaseAll": "הקטנת כל גודלי הגופן",
@@ -302,7 +379,86 @@
       "semanticNotAvailable": "אינדקס החיפוש הסמנטי אינו זמין בשרת",
       "remove": "הסרה",
       "download": "הורדה",
-      "failed": "נכשל"
+      "failed": "נכשל",
+      "pack": {
+        "title": "חבילות לא מקוונות",
+        "presets": "חבילות פתיחה",
+        "groups": "תכנים",
+        "empty": "אין מה להוריד.",
+        "loadFailed": "לא ניתן היה לטעון את רשימת החבילות.",
+        "notReadable": "עדיין אין קורא לא מקוון לסוג זה ביישום האינטרנטי.",
+        "shellNotice": "עד שמעטפת היישום הלא מקוון תהיה זמינה, חבילות שהורדו עוזרות רק כשלשונית של אתר זה כבר פתוחה.",
+        "start": "הורדת הפריטים שנבחרו",
+        "cancel": "ביטול",
+        "storageBar": "ניצול האחסון",
+        "runProgress": "התקדמות ההורדה",
+        "status": {
+          "absent": "לא הורד",
+          "installed": "במכשיר זה",
+          "update": "עדכון זמין",
+          "installing": "מוריד",
+          "error": "נכשל"
+        },
+        "summary": {
+          "download": "הורדה: {size}",
+          "stored": "מאוחסן: {size}",
+          "free": "פנוי: {size}",
+          "freeUnknown": "המקום הפנוי אינו ידוע"
+        },
+        "fit": {
+          "fits": "מתאים למכשיר זה",
+          "tight": "מתאים, אך האחסון כמעט מלא",
+          "no": "אין מספיק מקום: חסרים {size}",
+          "unknown": "לא ניתן לדעת אם זה מתאים"
+        },
+        "run": {
+          "count": "{done} מתוך {total} פריטים",
+          "bytes": "{loaded} מתוך {total}",
+          "running": "מוריד...",
+          "done": "הסתיים. הכול נמצא במכשיר זה.",
+          "partial": "חלק מהפריטים לא הורדו.",
+          "failed": "ההורדה נכשלה.",
+          "cancelled": "בוטל. הורדות חלקיות נשמרות וימשיכו בפעם הבאה."
+        },
+        "group": {
+          "bible": "תרגומי מקרא",
+          "commentary": "פירושים",
+          "dictionary": "מילונים",
+          "crossref": "הפניות צולבות",
+          "topical": "נושאי",
+          "other": "מודולים אחרים",
+          "speech": "קולות הקראה",
+          "data": "קובצי נתונים"
+        },
+        "warn": {
+          "unavailable": "{name} אינו מוצע עוד.",
+          "notReadable": "עדיין לא ניתן לקרוא את {name} במצב לא מקוון ביישום האינטרנטי.",
+          "dependencyAdded": "{name} נוסף משום ש-{for} זקוק לו.",
+          "missingDependency": "{name} זקוק ל-{requires}, שאינו מוצע.",
+          "cycle": "חלק מהפריטים תלויים זה בזה; הם יותקנו בסדר קבוע.",
+          "overQuota": "נדרש מקום נוסף של כ-{size}."
+        },
+        "remove": "הסרה",
+        "keepHint": "בחירה בפריט שנמצא במכשיר זה משאירה אותו כאן; הוא לעולם אינו מנוקה אוטומטית."
+      }
+    },
+    "downloads": {
+      "title": "הורדות ואחסון",
+      "download": "הורדה",
+      "update": "עדכון",
+      "retry": "ניסיון חוזר",
+      "cancel": "ביטול",
+      "remove": "הסרה",
+      "queued": "בתור",
+      "downloading": "{percent}%",
+      "installed": "מותקן",
+      "total": "במכשיר זה: {size}",
+      "empty": "אין מה להוריד.",
+      "unverified": "לא מאומת",
+      "kind": {
+        "ttsRuntime": "מנוע הקראה",
+        "ttsVoice": "קול"
+      }
     },
     "about": {
       "title": "אודות",
@@ -328,6 +484,44 @@
     "keywords": {
       "colorSafe": "סימוני מילות מפתח בטוחים לצבע (קו תחתון וסמל נוספים)",
       "colorSafeHint": "מוסיף לכל סימון מילת מפתח סגנון קו תחתון וסמל, כך שלא יהיה צורך להסתמך על צבע בלבד."
+    },
+    "measures": {
+      "title": "משקלות ומידות",
+      "enabled": "הערות על משקלות, מידות וכסף",
+      "enabled.description": "סימון יחידות עתיקות בטקסט והצגת המקבילות המודרניות שלהן.",
+      "display": "הצגה בטקסט",
+      "display.description": "כבוי משאיר את הטקסט נקי (ההמרות מופיעות בחלונית הלימוד). אחרת: קו תחתון מנוקד עם חלון קופץ, או קו תחתון עם ההמרה ב-[סוגריים מרובעים] אחרי הצירוף.",
+      "display.marker": "קו תחתון מנוקד וחלון קופץ",
+      "display.inline": "קו תחתון, חלון קופץ ו-[המרה]",
+      "display.off": "לא בטקסט (בחלונית הלימוד בלבד)",
+      "showInReading": "הצגה במצב קריאה",
+      "showInReading.description": "מצב קריאה נשאר טקסט נקי אלא אם תפעילו אפשרות זו.",
+      "system": "מערכת יחידות",
+      "system.description": "אוטומטי נקבע לפי השפה והאזור שלך.",
+      "system.auto": "אוטומטי",
+      "system.metric": "מטרית",
+      "system.us": "מקובלת בארה״ב",
+      "system.imperial": "אימפריאלית",
+      "secondary": "מערכת יחידות שנייה",
+      "secondary.description": "הצגת הערך גם במערכת אחרת (אימפריאלית: אורך ומשקל בלבד).",
+      "secondary.none": "ללא",
+      "money": "כסף",
+      "money.description": "ימי שכר (ברירת מחדל), משקל המתכת, או שניהם.",
+      "money.wages": "ימי שכר",
+      "money.metal": "משקל המתכת",
+      "money.both": "שניהם",
+      "dailyWage": "שכר היום שלך",
+      "dailyWage.description": "לא חובה: מציג הערכה מודרנית של סכום הנתון בימי שכר. 0 = כבוי.",
+      "wageCurrency": "מטבע שכר היום שלך",
+      "wageCurrency.description": "קוד מטבע כגון USD, EUR או GBP.",
+      "clock": "שעות",
+      "clock.description": "אוטומטי נקבע לפי השפה והאזור שלך.",
+      "clock.h12": "12 שעות",
+      "clock.h23": "24 שעות",
+      "ranges": "טווחים",
+      "ranges.description": "הצגת טווח אי הוודאות של ערך: כשהוא רחב (אוטומטי), תמיד, או לעולם לא.",
+      "ranges.always": "תמיד",
+      "ranges.never": "לעולם לא"
     }
   },
   "copyDialog": {
@@ -784,6 +978,63 @@
     "submit": "כניסה",
     "incorrectPassword": "סיסמה שגויה.",
     "tooManyAttempts": "יותר מדי ניסיונות. יש לנסות שוב מאוחר יותר."
+  },
+  "wordStudy": {
+    "title": "לימוד מילים",
+    "open": "לימוד מילים",
+    "back": "חזרה",
+    "forward": "קדימה",
+    "close": "סגירה",
+    "offline": "לימוד מילים זמין כשיש חיבור לרשת.",
+    "retry": "ניסיון חוזר",
+    "prompt": "חפשו מספר Strong או מילה, או בנו קבוצת מילים.",
+    "labels": {
+      "lookupLabel": "מילה ללימוד",
+      "lookupPlaceholder": "G25, agapao, או love, loved, lov*",
+      "lookupSubmit": "לימוד",
+      "candidatesTitle": "האם התכוונתם ל",
+      "loading": "טוען...",
+      "totals": "{occurrences} מופעים ב-{verses} פסוקים",
+      "strongsNumber": "Strong {strongs}",
+      "moduleLabel": "תרגום",
+      "searchAll": "חיפוש בכול",
+      "openInDictionary": "פתיחה במילון",
+      "noticeNoModule": "לא הותקן תרגום מקרא מתאים ללימוד זה.",
+      "noticeNotTagged": "בתרגום זה אין תיוג מספרי Strong. יש לבחור תרגום אחר.",
+      "noticeNoOccurrences": "לא נמצאו מופעים בתרגום זה.",
+      "renderingsTitle": "איך מתורגמת המילה",
+      "formsTitle": "צורות שנמצאו",
+      "other": "אחר ({count})",
+      "modeGroup": "קיבוץ לפי",
+      "modeHead": "המילה העיקרית",
+      "modePhrase": "הצירוף המלא",
+      "clearFilter": "הצגת הכול",
+      "bookDistributionTitle": "היכן היא מופיעה",
+      "familyTitle": "משפחת המילה",
+      "relationSelf": "מילה זו",
+      "relationParent": "שורש",
+      "relationChild": "נגזרת",
+      "relationRelated": "קשורה",
+      "semanticTitle": "טווח המשמעות",
+      "lexiconRenderings": "רשימות Strong: {list}",
+      "occurrencesTitle": "מופעים",
+      "showing": "מוצגים {shown} מתוך {total}",
+      "loadMore": "טעינת עוד",
+      "noOccurrences": "אין מופעים להצגה.",
+      "groupsTitle": "קבוצות מילים",
+      "newGroup": "קבוצה חדשה",
+      "editGroupNamed": "עריכת {label}",
+      "groupLabel": "שם",
+      "groupTerms": "מילים",
+      "groupTermsHint": "אחת בכל שורה או מופרדות בפסיקים. lov* מתאים לכל מילה המתחילה ב-\"lov\"; =loved מתאים לצורה המדויקת הזו בלבד; \"loving kindness\" מתאים לצירוף.",
+      "groupExclude": "לעולם לא להתאים",
+      "groupExcludeHint": "צורות לדלג עליהן, למשל lovely.",
+      "groupStem": "שימוש בגזירת שורשים לשפה זו",
+      "groupTermsRequired": "יש להזין לפחות מילה אחת.",
+      "save": "שמירה",
+      "cancel": "ביטול",
+      "delete": "מחיקה"
+    }
   },
   "present": {
     "start": "הצגה",
@@ -1367,5 +1618,106 @@
       "strength": "עוצמה {n} מתוך 5",
       "hopName": "קפיצה {hop}"
     }
+  },
+  "notifications": {
+    "votd": {
+      "label": "פסוק היום",
+      "description": "פסוק בכל יום בשעה שתבחרו.",
+      "title": "פסוק היום",
+      "body": "{reference} — {text}"
+    },
+    "test": {
+      "title": "התראת ניסיון",
+      "body": "ההתראות פועלות."
+    },
+    "collapsed": "{count, plural, one {תזכורת אחת ממתינה} two {# תזכורות ממתינות} other {# תזכורות ממתינות}}",
+    "scheduledCount": "{count, plural, one {# מתוזמנת} two {# מתוזמנות} other {# מתוזמנות}}",
+    "labels": {
+      "statusGranted": "ההתראות מותרות.",
+      "statusDenied": "ההתראות חסומות. יש לאפשר אותן בהגדרות הדפדפן עבור אתר זה.",
+      "statusPrompt": "ההתראות עדיין לא הותרו.",
+      "statusUnsupported": "דפדפן או מכשיר זה אינו יכול להציג התראות.",
+      "allow": "אישור התראות",
+      "whenClosedFires": "תזכורות ממשיכות להגיע כשהיישום פועל ברקע.",
+      "whenClosedNever": "תזכורות מגיעות רק כשהיישום פתוח.",
+      "whenClosedBackgroundOnly": "תזכורות מגיעות רק כשהיישום פתוח בלשונית דפדפן, גם אם הלשונית ברקע.",
+      "enabled": "הצגת התראות",
+      "quietHours": "שעות שקט",
+      "quietFrom": "מ",
+      "quietTo": "עד",
+      "quietHelp": "התראות שמועדן בשעות השקט ממתינות עד לסיומן.",
+      "sources": "תזכורות",
+      "noSources": "עדיין אין תכונות שמשתמשות בהתראות.",
+      "dailyTime": "שעה עבור {source}",
+      "next": "הבאה: {time}",
+      "scheduled": "{count} מתוזמנות",
+      "device": "כשהחלון סגור",
+      "tray": "המשך הפעלה במגש המערכת",
+      "openAtLogin": "הפעלה בכניסה למערכת (במגש המערכת)",
+      "sendTest": "שליחת התראת ניסיון",
+      "general": "כללי"
+    }
+  },
+  "measures": {
+    "popup": {
+      "range": "טווח",
+      "rangeHint": "בהתאם לערך שנעשה בו שימוש",
+      "verseNote": "בפסוק זה",
+      "usageIllustrative": "להמחשה",
+      "usageFigurative": "במשמעות מושאלת",
+      "usageHintIllustrative": "סכום לדוגמה; המספר המדויק אינו העיקר",
+      "usageHintFigurative": "בשימוש מושאל; המספר אינו מכוון כפשוטו",
+      "draft": "טיוטה – טרם נבדק",
+      "sources": "מקורות",
+      "units": "יחידות…"
+    },
+    "study": {
+      "title": "משקלות, מידות וכסף",
+      "listLabel": "משקלות, מידות וכסף בפסוק זה: {count}"
+    }
+  },
+  "assets": {
+    "error": {
+      "offline": "אין חיבור לרשת (או שהגישה לאינטרנט כבויה).",
+      "network": "ההורדה נקטעה. יש לנסות שוב.",
+      "http": "השרת סירב לבקשת ההורדה.",
+      "not-found": "הורדה זו אינה זמינה עוד.",
+      "integrity": "ההורדה ניזוקה ונמחקה.",
+      "size-mismatch": "ההורדה ניזוקה ונמחקה.",
+      "unverifiable": "לא ניתן לאמת קובץ זה.",
+      "quota": "אין מספיק מקום אחסון.",
+      "storage": "לא ניתן היה לשמור את הקובץ.",
+      "invalid-manifest": "רשומה זו אינה תקינה.",
+      "busy": "גרסה אחרת בהורדה."
+    }
+  },
+  "similar": {
+    "moreLikeThis": "עוד כמו זה",
+    "crossRef": "הפניה צולבת",
+    "otNtBadge": "הברית הישנה ↔ הברית החדשה",
+    "similarInMeaning": "דומה במשמעות",
+    "barLabel": "דמיון {step} מתוך {max}",
+    "menu": "פעולות נוספות",
+    "empty": "לא נמצאו קטעים דומים.",
+    "filters": "מסנני קטעים דומים",
+    "back": "חזרה",
+    "hideKnown": "הסתרת הפניות צולבות מוכרות",
+    "testament": {
+      "label": "ברית",
+      "any": "הכול",
+      "ot": "הברית הישנה",
+      "nt": "הברית החדשה",
+      "other": "הברית ההפוכה"
+    },
+    "similarTo": "דומים ל{reference}",
+    "approximate": "מבוסס על הפסוקים הבודדים שבבחירה שלך.",
+    "selectVerse": "יש לבחור פסוק כדי למצוא קטעים דומים.",
+    "loading": "טוען קטעים דומים...",
+    "downloading": "מוריד נתוני קטעים דומים...",
+    "unavailable": "נתוני קטעים דומים אינם זמינים בשרת זה.",
+    "error": "לא ניתן היה לטעון קטעים דומים.",
+    "retry": "ניסיון חוזר",
+    "showMore": "הצגת 10 נוספים",
+    "rangeNeedsLive": "לקטע זה אין כאן התאמות מחושבות מראש; יש לבחור פסוק בודד."
   }
 }

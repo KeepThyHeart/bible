@@ -291,7 +291,7 @@ export * as Backup from './Backup';
 // --- Word study (pure: tokenising, stemming, word groups, rendering grouping, DTOs) ---
 export * from './WordStudy';
 export * from './Services/WordGroupStore';
-// WordStudy and KeywordMarks (via Text) both export the same primaryLanguage; naming it settles the ambiguity.
+// primaryLanguage lives in Text (KeywordMarks re-exports it too); named here so it is exported explicitly.
 export { primaryLanguage } from './Text';
 
 // --- Shared text tools (task 0089) ------------------------------------------------

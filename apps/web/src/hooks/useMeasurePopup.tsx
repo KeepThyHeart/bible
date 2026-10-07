@@ -63,6 +63,7 @@ export function useMeasurePopup(
     // A verse-level fallback sits on the verse's last word: only its badge, not its text, is a hit.
     if (pointer && !isMeasureHit(addr.el, measures.index, occIds, pointer.x, pointer.y)) return null;
     const r = addr.el.getBoundingClientRect();
+    // rtl-physical: a copy of a measured viewport rect, not a directional offset
     const rect = { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     return { addr, occIds, rect };
   };

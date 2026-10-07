@@ -951,6 +951,8 @@ describe('rateLimiter middleware', () => {
         '/hymns/search',
         '/books',
         '/modules',
+        '/offline/manifest',
+        '/offline/files/bible_kjv.db',
       ]) {
         expect(tierForApiPath(path)).toBe('content');
       }

@@ -3,8 +3,7 @@
  * number ("love", "loved", "thou shalt love") into a chart-ready list.
  */
 
-import { foldWord } from './wordText';
-import { getStemmer } from './stemmers';
+import { foldWord, getStemmer } from '../Text';
 
 export interface RenderingCount { gloss: string; count: number; }
 

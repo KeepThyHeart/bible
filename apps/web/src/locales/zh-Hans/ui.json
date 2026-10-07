@@ -1691,7 +1691,7 @@
     },
     "study": {
       "title": "重量、度量衡与货币",
-      "listLabel": "本节经文中的重量、度量衡与货币:{{count}}"
+      "listLabel": "本节经文中的重量、度量衡与货币:{count}"
     }
   },
   "assets": {

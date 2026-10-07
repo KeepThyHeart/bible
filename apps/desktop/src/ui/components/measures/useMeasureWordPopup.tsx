@@ -38,6 +38,7 @@ function hitKey(hit: MeasureWordHit): string {
 
 function openFrom(hit: MeasureWordHit, pinned: boolean): OpenPopup {
   const r = hit.element.getBoundingClientRect();
+  // rtl-physical: a copy of a measured viewport rect, not a directional offset
   return { key: hitKey(hit), models: hit.models.slice(0, MAX_STACKED), rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom }, pinned };
 }
 

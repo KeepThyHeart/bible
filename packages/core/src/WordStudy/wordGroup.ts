@@ -12,8 +12,7 @@
  * {@link WordGroup.exclude} lists forms that must never match ("lovely").
  */
 
-import { foldWord, tokenizeVerseWords } from './wordText';
-import { getStemmer, type Stemmer } from './stemmers';
+import { foldWord, tokenizeVerseWords, getStemmer, type Stemmer } from '../Text';
 
 export interface WordGroup {
   /** Stable id (user-data item key). */
@@ -155,16 +154,6 @@ export function normalizeWordGroup(g: Partial<WordGroup> & { terms: string[] }):
   const exclude = uniq(g.exclude ?? []);
   return { id, label, terms, ...(exclude.length ? { exclude } : {}), stem: g.stem !== false,
     ...(g.notes ? { notes: g.notes } : {}) };
-}
-
-/** Group forms by what they matched: counts per lowercase surface form, most frequent first. */
-export function countForms(matches: GroupMatch[]): Array<{ form: string; count: number }> {
-  const m = new Map<string, number>();
-  for (const x of matches) {
-    const k = x.form.toLowerCase();
-    m.set(k, (m.get(k) ?? 0) + 1);
-  }
-  return [...m].map(([form, count]) => ({ form, count })).sort((a, b) => b.count - a.count || a.form.localeCompare(b.form));
 }
 
 /**

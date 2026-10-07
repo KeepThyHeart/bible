@@ -86,8 +86,10 @@ export function QuizLauncher({
   const [count, setCount] = useState<number>(counts.includes(10) ? 10 : (counts[0] ?? 5));
   const [difficulty, setDifficulty] = useState<Difficulty>('mixed');
 
+  // Like "This chapter", today's reading is offered only when the module has questions for it.
+  const todayScope: QuizScope | null = todaysReading && countFor(catalog, todaysReading.passages) > 0 ? todaysReading : null;
   const available: ScopeKind[] = [];
-  if (todaysReading) available.push('today');
+  if (todayScope) available.push('today');
   if (chapterScope) available.push('chapter');
   available.push('passage');
   const scope: ScopeKind = scopeChoice && available.includes(scopeChoice) ? scopeChoice : available[0];
@@ -99,9 +101,9 @@ export function QuizLauncher({
 
   let passages: QuizPassage[];
   let label: string;
-  if (scope === 'today' && todaysReading) {
-    passages = todaysReading.passages;
-    label = todaysReading.label;
+  if (scope === 'today' && todayScope) {
+    passages = todayScope.passages;
+    label = todayScope.label;
   } else if (scope === 'chapter' && chapterScope) {
     passages = chapterScope.passages;
     label = chapterScope.label;
@@ -137,7 +139,7 @@ export function QuizLauncher({
 
       <fieldset className="kth-fieldset kth-quiz__fieldset">
         <legend>{l.scopeHeading}</legend>
-        {todaysReading ? scopeOption('today', fillLabel(l.scopeToday, { label: todaysReading.label })) : null}
+        {todayScope ? scopeOption('today', fillLabel(l.scopeToday, { label: todayScope.label })) : null}
         {chapterScope ? scopeOption('chapter', fillLabel(l.scopeChapter, { label: chapterScope.label })) : null}
         {scopeOption('passage', l.scopePassage)}
         {missingChapterLabel ? (

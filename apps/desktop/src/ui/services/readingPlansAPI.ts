@@ -57,9 +57,9 @@ export function currentRolloverHour(): number {
 }
 
 /**
- * The renderer's ReadingPlanService. Reminders use the core no-op port until the notifications
- * engine (task 0083) lands; then pass its adapter here (the UI shows reminder settings only when
- * `service.reminders.available`).
+ * The renderer's ReadingPlanService. Reminders use the core no-op port: the notifications engine
+ * (task 0083) is merged, but no reading-plan adapter for it exists yet; pass one here (the UI shows
+ * reminder settings only when `service.reminders.available`).
  */
 export function getReadingPlanService(): ReadingPlans.ReadingPlanService {
   if (!service) {

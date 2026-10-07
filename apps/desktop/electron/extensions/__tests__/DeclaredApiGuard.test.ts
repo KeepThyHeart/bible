@@ -268,6 +268,14 @@ function fullContext(): ExtensionHostContext {
     collectionsBridge: new InMemoryCollectionsBridge(),
     folderBridge: new InMemoryFolderBridge(),
     taskStatusBridge: new InMemoryTaskStatusBridge(),
+    // Reminders (#34) joined after this list was written: a stub bridge, so `api.reminders` is attached too.
+    remindersBridge: {
+      replaceAll: async () => ({ accepted: 0 }),
+      list: async () => [],
+      capabilities: async () => ({ permission: 'granted', whenClosed: 'fires', actions: true }),
+      requestPermission: async () => 'granted',
+    },
+    reminderActivationQueues: new Map(),
     networkGatewayFactory: () => ({ fetch: async () => ({ ok: false, error: 'stub' }) }),
     authBrokerFactory: () => ({ runAuthCodeFlow: async () => ({ ok: false, error: 'stub' }) }),
     externalUrlOpener: async () => undefined,
