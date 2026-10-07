@@ -75,15 +75,6 @@ export function useIsAppActive(id: AppId): boolean {
   return useSyncExternalStore(appHostStore.subscribe, () => appHost.getSnapshot().activeId === id);
 }
 
-/**
- * Restore the persisted active app after the session loaded. Study is always
- * mounted first at boot, so only another app needs a further activation.
- */
-export function restoreActiveApp(persisted: unknown): void {
-  const id = appHost.restore(persisted);
-  if (id !== 'study' && appRegistry.has(id)) void openApp(id, { source: 'restore' });
-}
-
 /** Test helper: forget every registration and binding (the hosts are module singletons). */
 export function resetAppHostForTest(): void {
   for (const d of [...appRegistry.list()]) appRegistry.unregister(d.id);

@@ -36,6 +36,7 @@ import { BOOK_DICT_PANEL_TYPES } from '../stores/helpers/bookDictPanelTypes';
 import { DEFAULT_COMMENTARY_PREFERENCE, DEFAULT_VERSE_ID } from '../constants';
 import { isDigestModule } from '../moduleDescriptions';
 import { pruneSessionTabs } from './pruneSessionTabs';
+import { setPendingAppRestore } from '../apps/appSession';
 
 /**
  * Dockview panel IDs created by `createDefaultLayout` in DockviewLayout.
@@ -229,6 +230,8 @@ export async function initializeApp(
     if (signal.aborted) return { dockviewLayout };
 
     appHost = session?.sessionData?.appHost;
+    // Until `restoreActiveApp` settles, saves keep this blob (see appSession.ts).
+    setPendingAppRestore(appHost);
 
     const hasSessionData = !!(
       session &&
