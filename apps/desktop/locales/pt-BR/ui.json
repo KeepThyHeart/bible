@@ -783,6 +783,7 @@
   "onboarding.language.installFromFileSuccess": "\"{name}\" instalado.",
   "onboarding.language.installFromFilePackSuccess": "{count} módulo(s) instalado(s).",
   "onboarding.language.installFromFileError": "Não foi possível instalar: {message}",
+  "onboarding.language.notNow": "Agora não",
   "onboarding.network.title": "Baixar Bíblias e conteúdo de estudo?",
   "onboarding.network.body": "O aplicativo funciona offline e permanece offline até você permitir. Ficar online permite baixar módulos e verificar atualizações, e esses servidores verão seu endereço IP. Você pode alterar isso depois em Preferências → Privacidade.",
   "onboarding.network.goOnline": "Ficar online",

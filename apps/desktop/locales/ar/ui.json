@@ -783,6 +783,7 @@
   "onboarding.language.installFromFileSuccess": "تم تثبيت «{name}».",
   "onboarding.language.installFromFilePackSuccess": "{count, plural, zero {لم تُثبَّت أي وحدة.} one {تم تثبيت وحدة واحدة.} two {تم تثبيت وحدتين.} few {تم تثبيت # وحدات.} many {تم تثبيت # وحدة.} other {تم تثبيت # وحدة.}}",
   "onboarding.language.installFromFileError": "تعذّر التثبيت: {message}",
+  "onboarding.language.notNow": "ليس الآن",
   "onboarding.network.title": "تنزيل الكتب المقدسة ومحتوى الدراسة؟",
   "onboarding.network.body": "يعمل التطبيق دون اتصال ويبقى كذلك إلى أن تسمح له. الاتصال بالإنترنت يتيح له تنزيل الوحدات والتحقق من التحديثات، وسترى تلك الخوادم عنوان IP الخاص بك. يمكنك تغيير ذلك لاحقًا من التفضيلات ← الخصوصية.",
   "onboarding.network.goOnline": "الاتصال بالإنترنت",
