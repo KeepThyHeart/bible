@@ -284,6 +284,7 @@ function createHandlers(
                 panelId: string,
                 panelTypeId: string,
                 message: unknown,
+                opts?: { userGesture?: boolean },
               ) => Promise<unknown>;
             };
           };
@@ -292,7 +293,12 @@ function createHandlers(
       if (!panelInvoke) {
         throw new Error('panel.invoke: extensions:panelInvoke IPC is not available');
       }
-      return panelInvoke(extensionId, panelId, panelTypeId, args[0]);
+      // Host-side fact for the `api.apps.open` gesture gate: the browser's own
+      // user-activation flag (it propagates to ancestor frames) while focus is
+      // in this extension's iframe. Nothing the iframe sends can set it.
+      const userGesture =
+        navigator.userActivation?.isActive === true && document.activeElement === iframeRef.current;
+      return panelInvoke(extensionId, panelId, panelTypeId, args[0], { userGesture });
     },
 
     'bible.navigateToVerse': (args) => {

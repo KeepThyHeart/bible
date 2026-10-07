@@ -88,6 +88,13 @@ export interface RendererCommandBridgeDeps {
    * Wired by `main.ts` to `DeclaredContributions.syncAll()`.
    */
   onRendererReady?: () => void;
+  /**
+   * The renderer reported a user gesture with an extension command's
+   * invocation (`userGesture: true` on `ext-bridge:command:invoke`); called
+   * with the command's owning extension. Wired by `main.ts` to the host's
+   * `UserGestureTracker`.
+   */
+  onUserGesture?: (extensionId: string) => void;
 }
 
 export class RendererCommandBridge implements IExtensionCommandBridge {
@@ -117,9 +124,19 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
     // this bridge fires (menu / palette / keybinding), the renderer routes
     // the dispatch back to main via this channel and main forwards to the
     // worker through the cached `invoke` callback.
-    ipcMain.handle('ext-bridge:command:invoke', async (_event, payload: { registrationId: string; args: unknown }) => {
+    ipcMain.handle('ext-bridge:command:invoke', async (_event, payload: { registrationId: string; args: unknown; userGesture?: boolean }) => {
       const cb = this.invokers.get(payload.registrationId);
       if (!cb) throw new Error(`No registered extension command callback for ${payload.registrationId}`);
+      // Grant before running the handler, so `api.apps.open` inside it sees the gesture.
+      // Only a literal `true` counts, and only for the command's own owner.
+      if (payload.userGesture === true) {
+        for (const [owner, ids] of this.ownerToIds) {
+          if (ids.has(payload.registrationId)) {
+            this.deps?.onUserGesture?.(owner);
+            break;
+          }
+        }
+      }
       return cb(payload.args);
     });
 

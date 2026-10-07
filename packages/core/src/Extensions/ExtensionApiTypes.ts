@@ -1279,7 +1279,7 @@ export interface IAppsApi {
    */
   open(appId: string): Promise<boolean>;
   /** Worker-side sugar over the `app.visibilityChanged` channel; delivered to the owning extension only. */
-  onDidChangeVisibility(handler: (e: AppVisibilityEvent) => void): Promise<DisposableHandle>;
+  onVisibilityChanged(handler: (e: AppVisibilityEvent) => void): Promise<DisposableHandle>;
 }
 
 // --- IExtensionsApi *(T2)* -------------------------------------------------

@@ -114,7 +114,20 @@ describe('panel.invoke', () => {
       'panel-7',
       'main',
       { type: 'getRange' },
+      { userGesture: false },
     );
+  });
+
+  it('reports no gesture when the page has user activation but focus is not in the iframe', async () => {
+    Object.defineProperty(navigator, 'userActivation', { value: { isActive: true }, configurable: true });
+    try {
+      const { send } = mountBridge({ panelId: 'panel-7', panelTypeId: 'main' });
+      send('panel.invoke', [{ type: 'getRange' }]);
+      await flush();
+      expect(panelInvoke.mock.calls[0]![4]).toEqual({ userGesture: false });
+    } finally {
+      delete (navigator as unknown as { userActivation?: unknown }).userActivation;
+    }
   });
 
   it('ignores anything in the payload that looks like an identity', async () => {

@@ -21,6 +21,8 @@
  *   extensions:getLog                  -> ExtensionLogEntry[]
  *   extensions:getCrashLog             -> ExtensionCrashRecord[]
  *   extensions:getPanelTypeUiEntry     -> { uiEntry, title?, allowAutoplay?, uiKit?, grantedPermissions } | null
+ *   extensions:getAppUiEntry           -> { uiEntry, title, allowAutoplay?, uiKit?, grantedPermissions } | null
+ *   extensions:appVisibility           -> void
  *   extensions:uiFetch                 -> NetworkFetchResponse
  *
  * The renderer-driven per-permission consent dialog (see
@@ -227,6 +229,7 @@ export function registerExtensionHandlers(
       panelId: string,
       panelTypeId: string,
       message: unknown,
+      opts?: { userGesture?: unknown },
     ) => {
       if (typeof extensionId !== 'string' || extensionId.length === 0) {
         throw new Error('extensions:panelInvoke: extensionId must be a non-empty string');
@@ -237,7 +240,18 @@ export function registerExtensionHandlers(
       if (typeof panelTypeId !== 'string' || panelTypeId.length === 0) {
         throw new Error('extensions:panelInvoke: panelTypeId must be a non-empty string');
       }
-      return host.panelInvoke({ extensionId, panelId, panelTypeId }, message);
+      // An app view's identity is `app:<shortId>` for both ids, and the app
+      // must be one this extension really registered; the iframe never names it.
+      const sender: Extensions.PanelMessageSender = { extensionId, panelId, panelTypeId };
+      if (panelId.startsWith('app:')) {
+        const shortId = panelId.slice('app:'.length);
+        if (panelTypeId !== panelId || !options.uiBridge?.getApp?.(extensionId, shortId)) {
+          throw new Error(`extensions:panelInvoke: '${panelId}' is not an app of ${extensionId}`);
+        }
+        sender.appId = shortId;
+      }
+      // Only a literal `true` from the renderer's own check counts.
+      return host.panelInvoke(sender, message, { userGesture: opts?.userGesture === true });
     },
   );
 
@@ -339,6 +353,43 @@ export function registerExtensionHandlers(
         ...(state?.manifest.uiKit !== undefined ? { uiKit: state.manifest.uiKit } : {}),
         grantedPermissions: state?.grantedPermissions ?? [],
       };
+    },
+  );
+
+  // Opening an extension app: mirrors `getPanelTypeUiEntry`. The app view
+  // mounts the iframe from what this returns, so the owner is activated first
+  // (targeted at the owner: `onApp:<id>` never fans out to other extensions).
+  ipcMain.handle(
+    'extensions:getAppUiEntry',
+    async (_e, extensionId: string, shortId: string) => {
+      if (typeof extensionId !== 'string' || typeof shortId !== 'string') return null;
+      const rec = options.uiBridge?.getApp?.(extensionId, shortId);
+      if (!rec) return null;
+      if (!host.isActive(extensionId)) {
+        try {
+          await host.activate(extensionId);
+        } catch (err) {
+          log.warn(`[extensions] lazy activation for ${extensionId} app ${shortId} failed:`, err);
+        }
+      }
+      const state = await host.getExtension(extensionId);
+      const allowAutoplay = state?.grantedPermissions?.includes('ui:media' as never) ?? false;
+      return {
+        uiEntry: rec.app.uiEntry,
+        title: rec.app.title,
+        ...(allowAutoplay ? { allowAutoplay: true } : {}),
+        ...(state?.manifest.uiKit !== undefined ? { uiKit: state.manifest.uiKit } : {}),
+        grantedPermissions: state?.grantedPermissions ?? [],
+      };
+    },
+  );
+
+  // The app view reports mounted == shown. Delivered to the owner only.
+  ipcMain.handle(
+    'extensions:appVisibility',
+    async (_e, extensionId: string, shortId: string, visible: unknown) => {
+      if (typeof extensionId !== 'string' || typeof shortId !== 'string') return;
+      host.deliverAppVisibility(extensionId, shortId, visible === true);
     },
   );
 

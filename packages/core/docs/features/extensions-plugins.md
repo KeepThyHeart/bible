@@ -197,7 +197,7 @@ An extension can add its own app to the host's app switcher (API `0.2.1`, task 0
 - **Activation:** `onApp:<id as declared>` fires when the user opens the app; it matches the owning extension only.
 - **`api.apps`:** `setBadge(appId, AppBadgeDto | null)`, `open(appId): Promise<boolean>` (false when the host
   declines: no recent user gesture in the extension's own UI, or app unavailable), and
-  `onDidChangeVisibility(handler)` (sugar over the owner-only `app.visibilityChanged` channel). `appId` is the id
+  `onVisibilityChanged(handler)` (sugar over the owner-only `app.visibilityChanged` channel). `appId` is the id
   as declared or the qualified id. The host normalises badges like built-in apps (count > 99 shows `99+`).
 - **Identity:** messages from an app view carry `PanelMessageSender.panelId = panelTypeId = 'app:<id>'` and
   `appId = <id>`, set by the host, never by the iframe.

@@ -247,6 +247,23 @@ export function createApiProxy(opts: {
             cache.set(prop, fn);
             return fn;
           }
+          // `apps.onVisibilityChanged(handler)`: worker-side sugar over the
+          // host-emitted `app.visibilityChanged` channel, exactly like
+          // `reminders.onActivated`. The host delivers it to the owning
+          // extension only (`deliverAppVisibility`).
+          if (namespace === 'apps' && prop === 'onVisibilityChanged') {
+            const fn = (handler: unknown) => {
+              if (typeof handler !== 'function') {
+                return Promise.reject(new TypeError('apps.onVisibilityChanged: handler must be a function'));
+              }
+              return opts.emitter.subscribe(
+                'app.visibilityChanged',
+                handler as (payload: unknown) => unknown | Promise<unknown>,
+              );
+            };
+            cache.set(prop, fn);
+            return fn;
+          }
           // `events.publish(channel, payload)` (P1.8) IS a genuine RPC call -
           // unlike `subscribe`, there is no local worker-side state to route
           // to, only the host's fan-out to *other* workers. It falls through

@@ -129,14 +129,14 @@ describe('api.apps registry wiring', () => {
     if (r.ok) expect(r.manifest.activationEvents).toContain('onApp:counts');
   });
 
-  it('gates setBadge/open on ui:contribute-app; onDidChangeVisibility is local', () => {
-    for (const m of ['apps.setBadge', 'apps.open', 'apps.onDidChangeVisibility']) {
+  it('gates setBadge/open on ui:contribute-app; onVisibilityChanged is local', () => {
+    for (const m of ['apps.setBadge', 'apps.open', 'apps.onVisibilityChanged']) {
       const g = EXTENSION_API_REGISTRY.methodGate(m);
       expect(g?.gate, m).toBe('ui:contribute-app');
       expect(checkMethodGate(g!.gate, new Set()).ok).toBe(false);
       expect(checkMethodGate(g!.gate, new Set(['ui:contribute-app'])).ok).toBe(true);
     }
-    expect(EXTENSION_API_REGISTRY.methodGate('apps.onDidChangeVisibility')?.local).toBe(true);
+    expect(EXTENSION_API_REGISTRY.methodGate('apps.onVisibilityChanged')?.local).toBe(true);
   });
 
   it('is available only when granted', () => {

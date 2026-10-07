@@ -17,7 +17,11 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import type { Extensions } from '@bible/core';
 
-import type { IExtensionUiBridge } from '../api-impl/IExtensionDataBridges';
+import type {
+  ExtensionAppInfo,
+  ExtensionAppRecord,
+  IExtensionUiBridge,
+} from '../api-impl/IExtensionDataBridges';
 import { BridgeRpc } from './RendererBridgeRpc';
 import { VerseDecorationService } from '../VerseDecorationService';
 import type { ContributionRegistry } from '../ContributionRegistry';
@@ -47,12 +51,24 @@ export interface RendererUiBridgeDeps {
   contributionRegistry?: ContributionRegistry;
 }
 
+/**
+ * What `registerDeclaredApp` needs to know about the owner beyond the app
+ * itself: the manifest facts the renderer's app bar shows.
+ */
+export interface DeclaredAppMeta {
+  publisher: string;
+  extensionName: LocalizedString;
+  hasSettings: boolean;
+}
+
 export class RendererUiBridge implements IExtensionUiBridge {
   private readonly rpc: BridgeRpc;
   private readonly getWindow: () => BrowserWindow | null;
   // Panel-type registry lives entirely in the host.
   private readonly panelTypes = new Map<string, ExtensionPanelTypeDef>();
   private readonly panelTypeOwners = new Map<string, string>();
+  // Declared extension apps (`contributes.apps`), keyed by qualified id.
+  private readonly apps = new Map<string, ExtensionAppRecord>();
 
   // T2 registries (context menu / status bar) - keyed by `${extensionId}::${id}`.
   private readonly contextMenuItems = new Map<string, { target: ContextMenuTarget; item: ContextMenuItemDescriptor }>();
@@ -242,6 +258,58 @@ export class RendererUiBridge implements IExtensionUiBridge {
     this.rpc.notify('panelMessage', [
       { extensionId, message, ...(panelId !== undefined ? { panelId } : {}) },
     ]);
+  }
+
+  // --- Declared extension apps (task 0080, M3) ----------------------------
+
+  /**
+   * Register a `contributes.apps` entry and tell the renderer (`appRegistered`).
+   * `app.id` is the qualified id the validator stored. Idempotent: the renderer
+   * treats an identical re-registration as a no-op, so a resync may repeat it.
+   * Titles are forwarded as declared (literal, `%key%` or `{ key }`) exactly as
+   * panel-type titles are; the renderer resolves them.
+   */
+  registerDeclaredApp(extensionId: string, app: Extensions.ContributedApp, meta: DeclaredAppMeta): void {
+    const prefix = `${extensionId}.`;
+    const shortId = app.id.startsWith(prefix) ? app.id.slice(prefix.length) : app.id;
+    const info: ExtensionAppInfo = {
+      id: `${prefix}${shortId}`,
+      shortId,
+      title: app.title,
+      ...(app.shortTitle !== undefined ? { shortTitle: app.shortTitle } : {}),
+      ...(app.icon !== undefined ? { iconUrl: `ext-ui://${extensionId}/${app.icon}` } : {}),
+      order: Math.min(900, Math.max(0, Math.trunc(app.order ?? 0))),
+      ...(app.mobile !== undefined ? { mobile: app.mobile } : {}),
+      publisher: meta.publisher,
+      extensionName: meta.extensionName,
+      hasSettings: meta.hasSettings,
+    };
+    this.apps.set(info.id, { extensionId, app: { ...app, id: info.id }, info });
+    this.rpc.notify('appRegistered', [{ extensionId, app: info }]);
+  }
+
+  /** Drop the apps owned by `extensionId` (disabled, uninstalled, or grant revoked), except the qualified ids in `keep`. */
+  unregisterDeclaredApps(extensionId: string, keep: readonly string[] = []): void {
+    for (const [id, rec] of this.apps) {
+      if (rec.extensionId !== extensionId || keep.includes(id)) continue;
+      this.apps.delete(id);
+      this.rpc.notify('appUnregistered', [{ extensionId, appId: id }]);
+    }
+  }
+
+  getApp(extensionId: string, shortId: string): ExtensionAppRecord | undefined {
+    const rec = this.apps.get(`${extensionId}.${shortId}`);
+    return rec && rec.extensionId === extensionId ? rec : undefined;
+  }
+
+  setAppBadge(extensionId: string, qualifiedAppId: string, badge: Extensions.AppBadgeDto | null): void {
+    if (this.apps.get(qualifiedAppId)?.extensionId !== extensionId) return;
+    this.rpc.notify('appBadge', [{ extensionId, appId: qualifiedAppId, badge }]);
+  }
+
+  requestOpenApp(extensionId: string, qualifiedAppId: string): void {
+    if (this.apps.get(qualifiedAppId)?.extensionId !== extensionId) return;
+    this.rpc.notify('appOpen', [{ extensionId, appId: qualifiedAppId }]);
   }
 
   // --- T2 UI methods -------------------------------------------------------

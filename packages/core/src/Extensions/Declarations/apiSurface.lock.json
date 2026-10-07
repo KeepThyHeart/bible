@@ -18,7 +18,7 @@
         "optional": true,
         "whenGranted": "ui:contribute-app",
         "methods": {
-          "onDidChangeVisibility": "ui:contribute-app (local)",
+          "onVisibilityChanged": "ui:contribute-app (local)",
           "open": "ui:contribute-app",
           "setBadge": "ui:contribute-app"
         },

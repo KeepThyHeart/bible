@@ -92,7 +92,7 @@ export const appsNamespace = defineApiNamespace<IAppsApi>()({
     setBadge: { permission: 'ui:contribute-app' },
     open: { permission: 'ui:contribute-app', fake: fakeReturns(true) },
     // Worker-side sugar over the `app.visibilityChanged` channel.
-    onDidChangeVisibility: { permission: 'ui:contribute-app', local: true, fake: FAKE_DISPOSABLE },
+    onVisibilityChanged: { permission: 'ui:contribute-app', local: true, fake: FAKE_DISPOSABLE },
   },
   activationEvents: [
     {

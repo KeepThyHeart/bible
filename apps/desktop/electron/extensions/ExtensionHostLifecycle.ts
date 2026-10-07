@@ -543,3 +543,32 @@ export function handleWorkerExit(
   // would only ever reject, and a dead palette entry is worse than none.
   ctx.onDeclaredResync?.(extensionId);
 }
+
+/**
+ * One of `extensionId`'s apps was shown or hidden by the renderer. Emits
+ * `app.visibilityChanged` to that extension alone, and only when it is
+ * active, holds `ui:contribute-app`, declares `shortId` and has subscribed.
+ * Never activates anything: opening goes through `getAppUiEntry`, which
+ * activates before the app view mounts.
+ */
+export function deliverAppVisibility(
+  ctx: ExtensionHostContext,
+  extensionId: string,
+  shortId: string,
+  visible: boolean,
+): void {
+  const entry = ctx.registry.getEntry(extensionId);
+  if (!entry || !entry.grantedPermissions.includes('ui:contribute-app' as never)) return;
+  const prefix = `${extensionId}.`;
+  const declared = (entry.manifest.contributes?.apps ?? []).some(
+    (a) => (a.id.startsWith(prefix) ? a.id.slice(prefix.length) : a.id) === shortId,
+  );
+  if (!declared) return;
+  const active = ctx.activeWorkers.get(extensionId);
+  if (!active || !active.router.hasSubscription('app.visibilityChanged')) return;
+  try {
+    active.router.emitEvent('app.visibilityChanged', { appId: shortId, visible });
+  } catch (err) {
+    log.warn(`[ExtensionHost] app.visibilityChanged emit failed for ${extensionId}:`, err);
+  }
+}

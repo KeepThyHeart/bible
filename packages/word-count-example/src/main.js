@@ -207,7 +207,7 @@ exports.activate = async function activate(api) {
 
   if (api.apps) {
     otherHandles.push(
-      await api.apps.onDidChangeVisibility(function onVisibility(e) {
+      await api.apps.onVisibilityChanged(function onVisibility(e) {
         if (e.appId !== APP_ID) return;
         appVisible = e.visible;
         if (e.visible) void pushStats(api);
