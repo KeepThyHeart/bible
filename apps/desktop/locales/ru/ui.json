@@ -2892,5 +2892,11 @@
   "settings.apps.show": "Показывать",
   "settings.apps.alwaysShown": "Всегда показано",
   "settings.apps.order": "Порядок приложений",
-  "settings.apps.hidden": "Скрытые приложения"
+  "settings.apps.hidden": "Скрытые приложения",
+  "extensionConsent.permission.uiContributeApp": "Добавлять собственное приложение в переключатель приложений, со значком состояния.",
+  "apps.extension.by": "от {publisher}",
+  "apps.extension.settings": "Настройки",
+  "apps.extension.close": "Закрыть",
+  "apps.extension.backToStudy": "Назад к Изучению",
+  "apps.extension.unavailable": "Это приложение сейчас недоступно."
 }

@@ -2877,5 +2877,11 @@
   "settings.apps.show": "⟦Šĥøŵ ··⟧",
   "settings.apps.alwaysShown": "⟦Åļŵåýš šĥøŵñ ···⟧",
   "settings.apps.order": "⟦Åþþ øŕðéŕ ··⟧",
-  "settings.apps.hidden": "⟦Ĥîððéñ åþþš ···⟧"
+  "settings.apps.hidden": "⟦Ĥîððéñ åþþš ···⟧",
+  "extensionConsent.permission.uiContributeApp": "⟦Åðð îţš øŵñ åþþ ţø ţĥé åþþ šŵîţçĥéŕ, ŵîţĥ å šţåţüš ƀåðĝé. ·················⟧",
+  "apps.extension.by": "⟦ƀý {publisher} ··⟧",
+  "apps.extension.settings": "⟦Šéţţîñĝš ··⟧",
+  "apps.extension.close": "⟦Çļøšé ··⟧",
+  "apps.extension.backToStudy": "⟦Ɓåçķ ţø Šţüðý ···⟧",
+  "apps.extension.unavailable": "⟦Ţĥîš åþþ îš ñøţ åṽåîļåƀļé ŕîĝĥţ ñøŵ. ··········⟧"
 }

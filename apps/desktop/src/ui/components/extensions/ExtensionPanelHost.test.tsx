@@ -29,13 +29,14 @@ vi.mock('../../contexts/useI18n', () => ({
 type Meta = { uiEntry: string; title?: string; allowAutoplay?: boolean } | null;
 
 const getPanelTypeUiEntry = vi.fn<(ext: string, panel: string) => Promise<Meta>>();
+const getAppUiEntry = vi.fn<(ext: string, shortId: string) => Promise<Meta>>();
 let savedElectron: unknown;
 
 beforeEach(() => {
   vi.clearAllMocks();
   const w = window as unknown as { electron?: unknown };
   savedElectron = w.electron;
-  w.electron = { extensions: { getPanelTypeUiEntry } };
+  w.electron = { extensions: { getPanelTypeUiEntry, getAppUiEntry } };
 });
 
 afterEach(() => {
@@ -163,5 +164,33 @@ describe('ExtensionPanelHost (desktop wrapper)', () => {
     unmount();
     expect(localeListeners.size).toBe(0);
     mockI18n.currentLocale = 'es';
+  });
+});
+
+describe('ExtensionPanelHost app mode (task 0080)', () => {
+  const mountApp = () => render(<ExtensionPanelHost extensionId="ext.test.alpha" appShortId="counts" />);
+
+  it('looks the app up with getAppUiEntry and gives the iframe the app:<shortId> identity', async () => {
+    getAppUiEntry.mockResolvedValue({ uiEntry: '/app/index.html', title: 'Counts' });
+    const { container } = mountApp();
+    await waitFor(() => expect(container.querySelector('iframe')).not.toBeNull());
+    const frame = container.querySelector('iframe')!;
+    expect(getAppUiEntry).toHaveBeenCalledWith('ext.test.alpha', 'counts');
+    expect(getPanelTypeUiEntry).not.toHaveBeenCalled();
+    expect(frame).toHaveAttribute('src', 'ext-ui://ext.test.alpha/app/index.html');
+    expect(frame).toHaveAttribute('data-panel-id', 'app:counts');
+    expect(frame).toHaveAttribute('data-panel-type-id', 'app:counts');
+    expect(frame).toHaveAttribute('data-app-id', 'counts');
+  });
+
+  it('shows an error when the app is not found or the handler is missing', async () => {
+    getAppUiEntry.mockResolvedValue(null);
+    const { container, unmount } = mountApp();
+    expect(await screen.findByText('Extension app not found: ext.test.alpha.counts')).toBeInTheDocument();
+    expect(container.querySelector('iframe')).toBeNull();
+    unmount();
+    (window as unknown as { electron?: unknown }).electron = { extensions: { getPanelTypeUiEntry } };
+    mountApp();
+    expect(screen.getByText('extensions:getAppUiEntry IPC handler not registered')).toBeInTheDocument();
   });
 });

@@ -49,8 +49,16 @@ export function computeSandboxAttr(allowAutoplay: boolean): string {
 
 interface ExtensionPanelHostProps {
   extensionId: string;
-  panelTypeId: string;
-  panelId: string;
+  /** A contributed panel type. Mutually exclusive with `appShortId`. */
+  panelTypeId?: string;
+  /**
+   * App mode (task 0080): host one of the extension's apps (its id as declared). The meta comes from
+   * `getAppUiEntry` and the bridge identity is `panelId = panelTypeId = app:<shortId>`.
+   */
+  appShortId?: string;
+  panelId?: string;
+  /** App mode: called when the app cannot be shown (unknown, or the lookup failed). */
+  onUnavailable?: () => void;
 }
 
 interface PanelTypeMeta {
@@ -69,9 +77,14 @@ const NO_ACCESS: PanelAccess = { manifest: null, grants: [] };
 
 const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   extensionId,
-  panelTypeId,
-  panelId,
+  panelTypeId: panelTypeIdProp,
+  appShortId,
+  panelId: panelIdProp,
+  onUnavailable,
 }) => {
+  const isApp = appShortId !== undefined;
+  const panelTypeId = isApp ? `app:${appShortId}` : (panelTypeIdProp ?? '');
+  const panelId = isApp ? panelTypeId : (panelIdProp ?? '');
   const { t, i18n } = useI18n();
   const [meta, setMeta] = React.useState<PanelTypeMeta | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -117,21 +130,33 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
             extensionId: string,
             panelTypeId: string,
           ) => Promise<PanelTypeMeta | null>;
+          getAppUiEntry?: (extensionId: string, shortId: string) => Promise<PanelTypeMeta | null>;
         };
       };
     };
-    const fetchMeta = w.electron?.extensions?.getPanelTypeUiEntry;
+    const ext = w.electron?.extensions;
+    const fetchMeta = appShortId !== undefined ? ext?.getAppUiEntry : ext?.getPanelTypeUiEntry;
     if (!fetchMeta) {
       // The IPC handler is wired by a follow-up; until then we can still
       // render a useful empty state without crashing the app.
-      setError('extensions:getPanelTypeUiEntry IPC handler not registered');
+      setError(
+        appShortId !== undefined
+          ? 'extensions:getAppUiEntry IPC handler not registered'
+          : 'extensions:getPanelTypeUiEntry IPC handler not registered',
+      );
       return;
     }
-    fetchMeta(extensionId, panelTypeId)
+    setMeta(null);
+    setError(null);
+    fetchMeta(extensionId, appShortId ?? panelTypeId)
       .then((m) => {
         if (cancelled) return;
         if (!m) {
-          setError(`Extension panel type not found: ${extensionId}.${panelTypeId}`);
+          setError(
+            appShortId !== undefined
+              ? `Extension app not found: ${extensionId}.${appShortId}`
+              : `Extension panel type not found: ${extensionId}.${panelTypeId}`,
+          );
         } else {
           accessRef.current = {
             manifest: m.uiKit ? { uiKit: m.uiKit } : null,
@@ -147,7 +172,13 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [extensionId, panelTypeId]);
+  }, [extensionId, panelTypeId, appShortId]);
+
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
+  React.useEffect(() => {
+    if (error !== null) onUnavailableRef.current?.();
+  }, [error]);
 
   // Strip leading slashes from the uiEntry so paths like '/index.html' and
   // 'index.html' both work. The custom protocol handler in main.ts joins
@@ -171,6 +202,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
         'data-panel-id': panelId,
         'data-extension-id': extensionId,
         'data-panel-type-id': panelTypeId,
+        ...(isApp ? { 'data-app-id': appShortId } : {}),
       }}
     />
   );

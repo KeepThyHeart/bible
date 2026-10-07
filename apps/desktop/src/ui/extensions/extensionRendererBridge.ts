@@ -40,6 +40,17 @@ import {
 } from './extensionUiStore';
 import { useExtensionConsentStore } from './extensionConsentStore';
 import { useVerseDecorationStore } from './verseDecorationStore';
+import type { AppBadge } from '@bible/core/browser';
+import type { ExtensionAppInfo } from '../apps/extensionApps';
+
+let extensionAppsModule: Promise<typeof import('../apps/extensionApps')> | undefined;
+function extensionApps(): Promise<typeof import('../apps/extensionApps')> {
+  extensionAppsModule ??= import('../apps/extensionApps');
+  return extensionAppsModule.catch((err) => {
+    extensionAppsModule = undefined;
+    throw err;
+  });
+}
 
 interface ExtensionBridgeApi {
   /** Subscribe to a main -> renderer channel; returns a disposer. */
@@ -401,6 +412,9 @@ async function handleCommandRequest(
           await api.invoke('ext-bridge:command:invoke', {
             registrationId,
             args: ctx.args,
+            // Host-side fact (never from an iframe): a click or key press is in flight. Main grants the
+            // command's owner a short window to call gesture-gated APIs such as `apps.open`.
+            userGesture: typeof navigator !== 'undefined' && navigator.userActivation?.isActive === true,
           });
         },
         ownerExtensionId: spec.ownerExtensionId,
@@ -650,6 +664,29 @@ async function handleUiRequest(op: string, args: unknown[]): Promise<unknown> {
     case 'panelTypeUnregistered': {
       const [payload] = args as [{ extensionId: string; panelTypeId: string }];
       store.removePanelType(payload.extensionId, payload.panelTypeId);
+      return undefined;
+    }
+    // --- Extension apps (task 0080, M3 row 11) ---------------------------
+    // Forwarded lazily to `apps/extensionApps` (which pulls the app view and its stores) so this bridge
+    // keeps no import cycle with them. One shared promise keeps the notifications in order.
+    case 'appRegistered': {
+      const [payload] = args as [{ extensionId: string; app: ExtensionAppInfo } | undefined];
+      if (payload) void extensionApps().then((m) => m.registerExtensionApp(payload.extensionId, payload.app));
+      return undefined;
+    }
+    case 'appUnregistered': {
+      const [payload] = args as [{ extensionId: string; appId: string } | undefined];
+      if (payload) void extensionApps().then((m) => m.unregisterExtensionApp(payload.extensionId, payload.appId));
+      return undefined;
+    }
+    case 'appBadge': {
+      const [payload] = args as [{ extensionId: string; appId: string; badge: AppBadge | null } | undefined];
+      if (payload) void extensionApps().then((m) => m.setExtensionAppBadge(payload.extensionId, payload.appId, payload.badge));
+      return undefined;
+    }
+    case 'appOpen': {
+      const [payload] = args as [{ extensionId: string; appId: string } | undefined];
+      if (payload) void extensionApps().then((m) => m.openExtensionApp(payload.extensionId, payload.appId));
       return undefined;
     }
     case 'openSettings': {
