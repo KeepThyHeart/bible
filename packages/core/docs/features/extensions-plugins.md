@@ -179,7 +179,7 @@ costs nothing.
 ## Extension apps (`contributes.apps`)
 
 An extension can add its own app to the host's app switcher (API `0.2.1`, task 0080). Needs the
-`ui:contribute-app` permission (prompted at install; without it the key is rejected and `api.apps` is absent).
+`ui:contribute-app` permission (prompted at install). A manifest that uses `contributes.apps` without declaring the permission is rejected. If the permission is declared but unticked at install, or later revoked, the key stays but no app is registered and `api.apps` is absent.
 
 ```json
 "contributes": { "apps": [{ "id": "counts", "title": "%app.counts%", "uiEntry": "ui/counts.html", "icon": "ui/counts.svg", "order": 10 }] }
@@ -187,14 +187,14 @@ An extension can add its own app to the host's app switcher (API `0.2.1`, task 0
 
 | Key | Rule |
 |---|---|
-| `id` | required, `^[a-z][a-z0-9-]{0,39}$`; stored qualified (`ext.<publisher>.<name>.counts`); unique |
+| `id` | required, `^[a-z][a-z0-9-]{0,39}$` (a qualified id must have a short part matching it); stored qualified (`ext.<publisher>.<name>.counts`); unique |
 | `title` / `shortTitle` | required / optional; literal (<= 60 / 24 chars), a `%key%` reference (kept as the string `%key%`) or `{ key }` |
 | `uiEntry` / `icon` | relative package paths (no leading `/`, `\`, `..` or scheme); `.html` / `.svg`, `.png`, `.webp` |
 | `order` | integer 0..900, position inside the extension band (host shows it at 100 + order) |
 | `keepAlive` | only `'never'` in v1; `mobile`: `'sheet'` or `'hidden'` |
 | other keys | warning `apps.unknownKey`, dropped. At most 8 apps per extension |
 
-- **Activation:** `onApp:<id as declared>` fires when the user opens the app; it matches the owning extension only.
+- **Activation:** opening an app always activates its owning extension (and only that one), whether or not the manifest lists `onApp:`. `onApp:<id as declared>` documents that intent and matches the owning extension only.
 - **`api.apps`:** `setBadge(appId, AppBadgeDto | null)`, `open(appId): Promise<boolean>` (false when the host
   declines: no recent user gesture in the extension's own UI, or app unavailable), and
   `onVisibilityChanged(handler)` (sugar over the owner-only `app.visibilityChanged` channel). `appId` is the id

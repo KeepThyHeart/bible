@@ -69,6 +69,8 @@ export class RendererUiBridge implements IExtensionUiBridge {
   private readonly panelTypeOwners = new Map<string, string>();
   // Declared extension apps (`contributes.apps`), keyed by qualified id.
   private readonly apps = new Map<string, ExtensionAppRecord>();
+  /** Last badge per qualified app id, replayed after every `appRegistered` (renderer reload, changed re-registration, early set). */
+  private readonly appBadges = new Map<string, Extensions.AppBadgeDto>();
 
   // T2 registries (context menu / status bar) - keyed by `${extensionId}::${id}`.
   private readonly contextMenuItems = new Map<string, { target: ContextMenuTarget; item: ContextMenuItemDescriptor }>();
@@ -286,6 +288,8 @@ export class RendererUiBridge implements IExtensionUiBridge {
     };
     this.apps.set(info.id, { extensionId, app: { ...app, id: info.id }, info });
     this.rpc.notify('appRegistered', [{ extensionId, app: info }]);
+    const badge = this.appBadges.get(info.id);
+    if (badge) this.rpc.notify('appBadge', [{ extensionId, appId: info.id, badge }]);
   }
 
   /** Drop the apps owned by `extensionId` (disabled, uninstalled, or grant revoked), except the qualified ids in `keep`. */
@@ -293,6 +297,7 @@ export class RendererUiBridge implements IExtensionUiBridge {
     for (const [id, rec] of this.apps) {
       if (rec.extensionId !== extensionId || keep.includes(id)) continue;
       this.apps.delete(id);
+      this.appBadges.delete(id);
       this.rpc.notify('appUnregistered', [{ extensionId, appId: id }]);
     }
   }
@@ -304,6 +309,8 @@ export class RendererUiBridge implements IExtensionUiBridge {
 
   setAppBadge(extensionId: string, qualifiedAppId: string, badge: Extensions.AppBadgeDto | null): void {
     if (this.apps.get(qualifiedAppId)?.extensionId !== extensionId) return;
+    if (badge) this.appBadges.set(qualifiedAppId, badge);
+    else this.appBadges.delete(qualifiedAppId);
     this.rpc.notify('appBadge', [{ extensionId, appId: qualifiedAppId, badge }]);
   }
 

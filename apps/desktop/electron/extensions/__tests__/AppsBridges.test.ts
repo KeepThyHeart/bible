@@ -112,6 +112,27 @@ describe('RendererUiBridge declared apps', () => {
     ]);
   });
 
+  it('keeps the last badge and re-sends it after every appRegistered, until the app is unregistered', () => {
+    const { window, sent } = fakeWindow();
+    const bridge = new RendererUiBridge(() => window as never);
+    bridge.registerDeclaredApp(EXT, app(), meta);
+    const badge = { kind: 'text' as const, value: '342', label: '342 words' };
+    bridge.setAppBadge(EXT, `${EXT}.counts`, badge);
+    sent.length = 0;
+    bridge.registerDeclaredApp(EXT, app(), meta); // renderer reload / resync
+    expect(sent.map((m) => m.op)).toEqual(['appRegistered', 'appBadge']);
+    expect((sent[1]!.args[0] as { badge: unknown }).badge).toEqual(badge);
+    bridge.setAppBadge(EXT, `${EXT}.counts`, null);
+    sent.length = 0;
+    bridge.registerDeclaredApp(EXT, app(), meta);
+    expect(sent.map((m) => m.op)).toEqual(['appRegistered']);
+    bridge.setAppBadge(EXT, `${EXT}.counts`, badge);
+    bridge.unregisterDeclaredApps(EXT);
+    sent.length = 0;
+    bridge.registerDeclaredApp(EXT, app(), meta);
+    expect(sent.map((m) => m.op)).toEqual(['appRegistered']);
+  });
+
   it('unregister sends appUnregistered with the qualified id, honouring keep', () => {
     const { window, sent } = fakeWindow();
     const bridge = new RendererUiBridge(() => window as never);
@@ -224,5 +245,31 @@ describe('RendererCommandBridge userGesture', () => {
     expect(await invoke(ids[1]!, true)).toBe('c');
     expect(onUserGesture).toHaveBeenCalledTimes(1);
     expect(onUserGesture).toHaveBeenCalledWith('ext.c.d');
+  });
+
+  it('re-grants after a declared command finishes activating, only when the invocation carried a gesture', async () => {
+    const { window, sent } = fakeWindow();
+    const onUserGesture = vi.fn();
+    const order: string[] = [];
+    const bridge = new RendererCommandBridge(() => window as never, {
+      activate: async () => {
+        order.push('activate');
+      },
+      callWorkerEndpoint: async () => {
+        order.push('endpoint');
+      },
+      log: () => undefined,
+      onUserGesture: (id: string) => {
+        order.push('grant');
+        onUserGesture(id);
+      },
+    });
+    bridge.registerDeclaredCommand('ext.a.b', { id: 'ext.a.b.open', title: 'Open', handlerEndpoint: 'openApp' } as never);
+    const regId = (sent.find((m) => m.op === 'register')!.args[0] as { registrationId: string }).registrationId;
+    await invoke(regId, true);
+    expect(order).toEqual(['grant', 'activate', 'grant', 'endpoint']);
+    order.length = 0;
+    await invoke(regId);
+    expect(order).toEqual(['activate', 'endpoint']);
   });
 });

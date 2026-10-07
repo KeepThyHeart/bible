@@ -57,7 +57,7 @@ describe('contributes.apps validator', () => {
   });
 
   it('rejects a bad id', () => {
-    for (const id of ['Counts', '1x', 'a_b', '', 'a'.repeat(41), 3, undefined, 'ext.other.pub.x']) {
+    for (const id of ['Counts', '1x', 'a_b', '', 'a'.repeat(41), 3, undefined, 'ext.other.pub.x', 'ext.acme.word-count.Foo Bar/x:y', 'ext.acme.word-count.1x']) {
       expect(errorCodes([{ ...good, id }]).length, String(id)).toBeGreaterThan(0);
     }
   });

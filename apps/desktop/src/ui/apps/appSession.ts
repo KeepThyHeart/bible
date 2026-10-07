@@ -17,7 +17,7 @@ import { markSessionDirty } from '../stores/helpers/sessionNotifier';
 import { appHost, appHostStore, appRegistry, openApp } from './appHost';
 
 /** How long a restore waits for an app that registers late (extension apps arrive over IPC). */
-export const RESTORE_WAIT_MS = 10_000;
+export const RESTORE_WAIT_MS = 30_000;
 
 let installed = false;
 let pending: { readonly blob: unknown } | null = null;
@@ -46,11 +46,15 @@ export function hasPendingAppRestore(): boolean {
   return pending !== null;
 }
 
-/** The restore settled: the live host state is the truth again, and it needs saving. */
-export function clearPendingAppRestore(): void {
+/**
+ * The restore settled: the live host state is the truth again, and it needs saving. A timed-out restore
+ * passes `markDirty: false`: the saved app was never shown, so nothing about the session changed and a slow
+ * extension host must not get it rewritten as Study (the next real change saves whatever is live).
+ */
+export function clearPendingAppRestore(opts: { readonly markDirty?: boolean } = {}): void {
   if (!pending) return;
   pending = null;
-  markSessionDirty();
+  if (opts.markDirty !== false) markSessionDirty();
 }
 
 function persistedActiveId(persisted: unknown): AppId | null {
@@ -64,7 +68,7 @@ function persistedActiveId(persisted: unknown): AppId | null {
  * mounted first at boot, so only another app needs an activation. An app that is
  * not registered yet (an extension app) is waited for up to `timeoutMs`; the wait
  * ends early when the user opens another app first (their choice wins).
- * Resolves when the restore has settled; the pending blob is cleared either way.
+ * Resolves when the restore has settled; the pending blob is cleared either way (a timeout does not mark the session dirty).
  */
 export function restoreActiveApp(
   persisted: unknown,
@@ -92,7 +96,7 @@ export function restoreActiveApp(
     let unsubscribeRegistry: () => void = () => undefined;
     let unsubscribeHost: () => void = () => undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const settle = (next?: AppId): void => {
+    const settle = (next?: AppId, timedOut = false): void => {
       if (done) return;
       done = true;
       unsubscribeRegistry();
@@ -104,7 +108,7 @@ export function restoreActiveApp(
           .then(() => open(next))
           .then(resolve, resolve);
       } else {
-        clearPendingAppRestore();
+        clearPendingAppRestore({ markDirty: !timedOut });
         resolve();
       }
     };
@@ -117,7 +121,7 @@ export function restoreActiveApp(
       const active = appHost.getSnapshot().activeId;
       if (active !== null && active !== STUDY_APP_ID) settle();
     });
-    timer = setTimeout(() => settle(), opts.timeoutMs ?? RESTORE_WAIT_MS);
+    timer = setTimeout(() => settle(undefined, true), opts.timeoutMs ?? RESTORE_WAIT_MS);
   });
 }
 

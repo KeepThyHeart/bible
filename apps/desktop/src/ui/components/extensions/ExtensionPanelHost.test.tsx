@@ -183,6 +183,27 @@ describe('ExtensionPanelHost app mode (task 0080)', () => {
     expect(frame).toHaveAttribute('data-app-id', 'counts');
   });
 
+  it('calls onReady only after the lookup resolves, and uses the resolved appTitle for the iframe', async () => {
+    let resolve!: (v: { uiEntry: string; title?: string }) => void;
+    getAppUiEntry.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const onReady = vi.fn();
+    const { container } = render(
+      <ExtensionPanelHost extensionId="ext.test.alpha" appShortId="counts" appTitle="Word Count" onReady={onReady} />,
+    );
+    expect(onReady).not.toHaveBeenCalled();
+    resolve({ uiEntry: '/app/index.html', title: '%raw.key%' });
+    await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
+    expect(container.querySelector('iframe')).toHaveAttribute('title', 'Word Count');
+  });
+
+  it('does not call onReady when the app is not found', async () => {
+    getAppUiEntry.mockResolvedValue(null);
+    const onReady = vi.fn();
+    render(<ExtensionPanelHost extensionId="ext.test.alpha" appShortId="counts" onReady={onReady} />);
+    await screen.findByText('Extension app not found: ext.test.alpha.counts');
+    expect(onReady).not.toHaveBeenCalled();
+  });
+
   it('shows an error when the app is not found or the handler is missing', async () => {
     getAppUiEntry.mockResolvedValue(null);
     const { container, unmount } = mountApp();

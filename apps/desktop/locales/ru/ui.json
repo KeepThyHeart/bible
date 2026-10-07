@@ -2898,5 +2898,7 @@
   "apps.extension.settings": "Настройки",
   "apps.extension.close": "Закрыть",
   "apps.extension.backToStudy": "Назад к Изучению",
-  "apps.extension.unavailable": "Это приложение сейчас недоступно."
+  "apps.extension.unavailable": "Это приложение сейчас недоступно.",
+  "apps.extension.closeApp": "Закрыть {app}",
+  "apps.extension.settingsFor": "Настройки: {app}"
 }

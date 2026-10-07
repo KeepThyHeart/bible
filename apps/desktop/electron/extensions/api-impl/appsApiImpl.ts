@@ -37,7 +37,7 @@ const MAX_TEXT_CHARS = 4;
 const KINDS = ['dot', 'count', 'text'] as const;
 const TONES = ['neutral', 'live', 'attention'] as const;
 /** Control characters and bidi overrides have no business in a badge or its label. */
-const FORBIDDEN_CHARS = /[\u0000-\u001f\u007f-\u009f‪-‮⁦-⁩]/;
+const FORBIDDEN_CHARS = /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/;
 
 export interface AppsApiImplOptions {
   extensionId: string;

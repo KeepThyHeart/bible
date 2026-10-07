@@ -101,9 +101,14 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
   private readonly rpc: BridgeRpc;
   private readonly deps: RendererCommandBridgeDeps | undefined;
   /** registrationId -> invoke callback (set by `registerRow`, drained by inbound). */
-  private readonly invokers = new Map<string, (args: unknown) => Promise<unknown>>();
+  private readonly invokers = new Map<
+    string,
+    (args: unknown, opts?: { userGesture?: boolean }) => Promise<unknown>
+  >();
   /** extensionId -> set of registrationIds, for `disposeByOwner`. */
   private readonly ownerToIds = new Map<string, Set<string>>();
+  /** registrationIds of declared placeholders: only these invokers take the gesture option (the worker's own never do). */
+  private readonly declaredRegistrationIds = new Set<string>();
   /** Declared (`contributes.commands`) state, keyed by command id. */
   private readonly declared = new Map<string, DeclaredCommandState>();
   /** commandId -> registrationId, but only while a REAL (imperative) registration owns it. */
@@ -136,6 +141,9 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
             break;
           }
         }
+      }
+      if (this.declaredRegistrationIds.has(payload.registrationId)) {
+        return cb(payload.args, { userGesture: payload.userGesture === true });
       }
       return cb(payload.args);
     });
@@ -251,7 +259,8 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
       ...(decl.order !== undefined ? { order: decl.order } : {}),
       ...(decl.hidden !== undefined ? { hidden: decl.hidden } : {}),
     };
-    state.registrationId = this.registerRow(spec, (args) => this.invokeDeclared(decl.id, args));
+    state.registrationId = this.registerRow(spec, (args, opts) => this.invokeDeclared(decl.id, args, opts));
+    this.declaredRegistrationIds.add(state.registrationId);
   }
 
   /** Drop every declared placeholder owned by `extensionId` (uninstalled, disabled, or no longer eligible). */
@@ -272,7 +281,11 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
    * promise, see `ExtensionHostLifecycle.activate`), then forward to
    * whatever now handles the command for real.
    */
-  private async invokeDeclared(commandId: string, args: unknown): Promise<unknown> {
+  private async invokeDeclared(
+    commandId: string,
+    args: unknown,
+    opts?: { userGesture?: boolean },
+  ): Promise<unknown> {
     const state = this.declared.get(commandId);
     if (!state) throw new Error(`No declared command ${commandId}`);
     const { extensionId, decl } = state;
@@ -285,6 +298,8 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
     // Throws (and leaves the placeholder in place, untouched) on a real
     // activation failure - the palette/menu surfaces that as a command error.
     await this.deps.activate(extensionId, `onCommand:${commandId}`);
+    // A cold activation can outlive the gesture window: grant again now that the handler is about to run.
+    if (opts?.userGesture === true) this.deps.onUserGesture?.(extensionId);
 
     // Activation may have superseded the placeholder: the worker's own
     // `activate()` called `commands.register` for this id, which set
@@ -320,7 +335,7 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
   /** Mint a registrationId, track it, and push the registration to the renderer. */
   private registerRow(
     spec: ExtensionCommandSpec,
-    invoke: (args: unknown) => Promise<unknown>,
+    invoke: (args: unknown, opts?: { userGesture?: boolean }) => Promise<unknown>,
   ): string {
     const registrationId = `cmd-${this.nextRegistrationId++}`;
     this.invokers.set(registrationId, invoke);

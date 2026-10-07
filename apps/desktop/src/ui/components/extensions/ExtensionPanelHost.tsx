@@ -59,6 +59,10 @@ interface ExtensionPanelHostProps {
   panelId?: string;
   /** App mode: called when the app cannot be shown (unknown, or the lookup failed). */
   onUnavailable?: () => void;
+  /** App mode: called once the app's uiEntry lookup (which activates the owner) has resolved. */
+  onReady?: () => void;
+  /** App mode: the already-resolved app title, used for the iframe's accessible name. */
+  appTitle?: string;
 }
 
 interface PanelTypeMeta {
@@ -81,6 +85,8 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   appShortId,
   panelId: panelIdProp,
   onUnavailable,
+  onReady,
+  appTitle,
 }) => {
   const isApp = appShortId !== undefined;
   const panelTypeId = isApp ? `app:${appShortId}` : (panelTypeIdProp ?? '');
@@ -89,6 +95,8 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   const [meta, setMeta] = React.useState<PanelTypeMeta | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   // Bridge postMessage between the extension iframe and the host renderer.
   // Handles navigation, theme queries, and verse popup requests from the
@@ -163,6 +171,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
             grants: (m.grantedPermissions ?? []) as PanelAccess['grants'],
           };
           setMeta(m);
+          if (appShortId !== undefined) onReadyRef.current?.();
         }
       })
       .catch((err: unknown) => {
@@ -188,7 +197,7 @@ const ExtensionPanelHost: React.FC<ExtensionPanelHostProps> = ({
   return (
     <SharedExtensionPanelHost
       src={src}
-      title={meta?.title ?? `${extensionId}.${panelTypeId}`}
+      title={(isApp ? appTitle : undefined) ?? meta?.title ?? `${extensionId}.${panelTypeId}`}
       // Extensions with `ui:media` permission get `allow-autoplay` so their
       // panel iframe can play audio/video without user gesture (e.g. Audio Bible).
       sandbox={computeSandboxAttr(meta?.allowAutoplay === true)}

@@ -27,7 +27,7 @@ export interface ExtensionAppInfo {
   order: number;
   mobile?: 'sheet' | 'hidden';
   publisher: string;
-  extensionName: string;
+  extensionName: LocalizedString;
   hasSettings: boolean;
 }
 

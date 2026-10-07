@@ -139,6 +139,15 @@ export const appsNamespace = defineApiNamespace<IAppsApi>()({
             ctx.error(`${p}/id`, 'apps.id', 'required; lowercase letters, digits and "-", starting with a letter, at most 40 characters');
           } else {
             id = ctx.qualifyId(`${p}/id`, rawId);
+            // `qualifyId` only checks the extension prefix: the short part must satisfy the same rule as a bare id.
+            if (id !== undefined && ctx.extensionId !== undefined) {
+              const prefix = `${ctx.extensionId}.`;
+              const short = id.startsWith(prefix) ? id.slice(prefix.length) : id;
+              if (!SHORT_ID.test(short)) {
+                ctx.error(`${p}/id`, 'apps.id', 'required; lowercase letters, digits and "-", starting with a letter, at most 40 characters');
+                id = undefined;
+              }
+            }
           }
           if (id !== undefined) {
             if (seen.has(id)) {
@@ -205,7 +214,7 @@ export const appsNamespace = defineApiNamespace<IAppsApi>()({
           type: 'object',
           required: ['id', 'title', 'uiEntry'],
           properties: {
-            id: { type: 'string', pattern: '^[a-z][a-z0-9-]{0,39}$' },
+            id: { type: 'string', pattern: '^(ext\\.[a-z0-9.-]+\\.)?[a-z][a-z0-9-]{0,39}$' },
             title: {
               oneOf: [
                 { type: 'string', minLength: 1 },

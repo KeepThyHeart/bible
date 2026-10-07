@@ -16,6 +16,8 @@ All under `src/ui/apps/` unless noted.
 | `DesktopAppStage.tsx` | `[AppRail?][stage]`, focus handling, live-region announcement |
 | `appCommands.ts` | Generated `app.open.<id>` commands and `app.goToStudy` |
 | `appSession.ts` | Session serializer, pending restore, `restoreActiveApp` |
+| `extensionApps.ts` | Renderer registration of extension apps (descriptors, bindings, badges, open requests) |
+| `ExtensionAppView.tsx` | The view of an extension app: host app bar plus the extension's iframe |
 | `CompanionSlot.tsx` | Companion strips between the workbench and the status bar (renders only while Study is active; no built-in desktop app has one yet) |
 | `verseActions.ts` | `installExtensionVerseActions()`: mirrors extension verse-menu rows into the registry |
 | `publishActiveApp.ts` | Publishes the `studyActive` when-context key |
@@ -57,8 +59,8 @@ The restore has a race to avoid: autosave can run after the session loads but be
 
 1. `AppInitService` hands the blob it read to `setPendingAppRestore(blob)`.
 2. While a restore is pending, the serializer returns that blob instead of the live state, so an early save cannot overwrite the saved app with the boot-time Study.
-3. `restoreActiveApp(persisted)` runs after the layout is decided. Study saved: clear. App registered: open it with `source: 'restore'`, then clear. Not registered yet: wait for it to appear in the registry, up to **10 s** (`RESTORE_WAIT_MS`), then open it. On timeout, or if the user opens any app first (their choice wins), give up and clear.
-4. Clearing marks the session dirty so the live state is saved.
+3. `restoreActiveApp(persisted)` runs after the layout is decided. Study saved: clear. App registered: open it with `source: 'restore'`, then clear. Not registered yet: wait for it to appear in the registry, up to **30 s** (`RESTORE_WAIT_MS`), then open it. If the user opens any app first (their choice wins), give up and clear. On timeout, give up and clear **without** marking the session dirty, so a slow extension host never rewrites the saved app as Study.
+4. Clearing (other than on timeout) marks the session dirty so the live state is saved.
 
 ## Extension apps
 
@@ -68,16 +70,16 @@ An extension adds an app with `contributes.apps` and the `ui:contribute-app` per
 |---|---|
 | Main process: declared apps registered only when the extension is eligible and holds the grant; `api.apps` implementation | `electron/extensions/DeclaredContributions.ts`, `electron/extensions/api-impl/appsApiImpl.ts` |
 | Renderer registration: descriptors into `appRegistry`, badges, open requests | `src/ui/apps/extensionApps.ts`, fed by `src/ui/extensions/extensionRendererBridge.ts` |
-| The view | `src/ui/components/extensions/ExtensionAppView.tsx` |
+| The view | `src/ui/apps/ExtensionAppView.tsx` (iframe host: `src/ui/components/extensions/ExtensionPanelHost.tsx`) |
 | Gesture gate | `electron/extensions/UserGestureTracker.ts` |
 
 - **Descriptor.** Source `{ kind: 'extension', extensionId }`, `keepAlive: 'never'`, `restore: 'reopen'`, `platforms: ['desktop']`, order `100 + clamp(order, 0, 900)`, icon from `ext-ui://<extensionId>/<icon>` or the builtin `app` glyph. Unregistering removes the app, and the host falls back to Study if it was active.
 - **Host app bar.** `ExtensionAppView` draws a 32 px bar that the extension cannot touch: icon, an `h1` title (focus target on first open), "by `<publisher>`", a Settings button (only when the extension has `contributes.configuration`; opens Preferences at the extension), and Close (back to Study). Because it is host UI, an extension cannot imitate it.
-- **Iframe identity.** Below the bar is the extension's iframe, through the shared panel host in `kind: 'app'` mode. Its bridge identity is `panelId = panelTypeId = 'app:<id>'` with `appId = <id>`, set by the host, never by the iframe.
-- **Lazy activation.** Opening calls IPC `extensions:getAppUiEntry(extensionId, shortId)`: unknown returns null; an inactive owner is activated (`onApp:<id>`, owner only); it returns the UI entry, title and granted permissions. An unavailable app shows a short message and "Back to Study".
-- **Visibility.** The view reports shown on mount and hidden on unmount through `extensions:appVisibility`; the owner receives `app.visibilityChanged` (`api.apps.onVisibilityChanged`). With `keepAlive: 'never'`, mounted means shown.
-- **Badges.** `api.apps.setBadge` is validated in main, forwarded to the renderer and normalised again by `AppRegistry.setBadge`. A dead worker's badges are cleared on dispose.
-- **`apps.open` gesture rule.** `api.apps.open(appId)` opens the extension's own app only if that extension had a **user gesture in the last 5 s**; otherwise it logs one line to the extension log and resolves `false`. Grants come only from host-side facts: (1) `extensions:panelInvoke` with `userGesture` set by the renderer when `navigator.userActivation.isActive` and focus is in that extension's iframe; (2) `ext-bridge:command:invoke` with `userGesture` set the same way, granting the command's owner; (3) a notification action click, granting that extension. Nothing an iframe says counts.
+- **Iframe identity.** Below the bar is the extension's iframe, through the desktop `ExtensionPanelHost` in app mode (the `appShortId` prop, with `onReady` and `appTitle`). Its bridge identity is `panelId = panelTypeId = 'app:<id>'` with `appId = <id>`, set by the host, never by the iframe.
+- **Lazy activation.** Opening calls IPC `extensions:getAppUiEntry(extensionId, shortId)`: unknown returns null; an inactive owner is activated (`onApp:<id>`, owner only); it returns the UI entry, title and granted permissions. Opening always activates the owner, whether or not the manifest lists `onApp:<id>`. An unavailable app shows a short message and "Back to Study".
+- **Visibility.** The view reports shown once the `getAppUiEntry` lookup has resolved (that lookup activates a lazily activated owner, so the worker is listening by then) and hidden on unmount, through `extensions:appVisibility`; the owner receives `app.visibilityChanged` (`api.apps.onVisibilityChanged`). With `keepAlive: 'never'`, mounted means shown.
+- **Badges.** `api.apps.setBadge` is validated in main, forwarded to the renderer and normalised again by `AppRegistry.setBadge`. Main keeps the last badge per app and re-sends it after every `appRegistered` (renderer reload, re-registration). A dead worker's badges are cleared on dispose.
+- **`apps.open` gesture rule.** `api.apps.open(appId)` opens the extension's own app only if that extension had a **user gesture in the last 5 s**; otherwise it logs one line to the extension log and resolves `false`. Grants come only from host-side facts: (1) `extensions:panelInvoke` with `userGesture` set by the renderer when `navigator.userActivation.isActive` and focus is in that extension's iframe; (2) `ext-bridge:command:invoke` with `userGesture` set by the renderer from `navigator.userActivation.isActive` only for a **user-started** run (palette, keybinding, menu, status-bar click, New Tab tile); this path has no iframe-focus check, but a run started by code never counts: a worker's `api.commands.execute(...)` reaches the renderer with `programmatic: true` (`CommandRegistry.execute(id, args, { programmatic: true })` into `CommandContext.programmatic`) and sends `userGesture: false`. A declared command whose owner must first activate is granted again once activation completes. (3) a notification action click, granting that extension. Nothing an iframe or a worker says counts. The window is about 5 s from the gesture reaching the host; an iframe that keeps calling `panel.invoke` while activation is live can extend it to about 10 s.
 - **Icons.** `index.html` allows `img-src ... ext-ui:`, so the icon loads from the extension's own origin through `<img>` only (never inline SVG).
 
 See also [Extensions](extensions.md#extension-apps).
@@ -96,4 +98,4 @@ See also [Extensions](extensions.md#extension-apps).
 
 ## Tests
 
-`appHost.test.ts`, `DesktopAppStage.test.tsx` (the Study node is the same before and after the rail appears), `appCommands.test.ts`, `appSession.test.ts`, `verseActions.test.ts`, `CompanionSlot.test.tsx`, and `src/ui/components/DockviewLayout.reveal.test.tsx` (layout runs once on reveal, never while hidden).
+`appHost.test.ts`, `DesktopAppStage.test.tsx` (the Study node is the same before and after the rail appears), `appCommands.test.ts`, `appSession.test.ts`, `verseActions.test.ts`, `CompanionSlot.test.tsx`, `extensionApps.test.ts`, `ExtensionAppView.test.tsx`, `src/ui/extensions/extensionRendererBridge.gesture.test.ts`, `electron/extensions/__tests__/` (`AppsApi.test.ts`, `AppsBridges.test.ts`, `UserGestureTracker.test.ts`), and `src/ui/components/DockviewLayout.reveal.test.tsx` (layout runs once on reveal, never while hidden).

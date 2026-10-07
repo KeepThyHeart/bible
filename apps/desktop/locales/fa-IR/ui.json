@@ -2883,5 +2883,7 @@
   "apps.extension.settings": "تنظیمات",
   "apps.extension.close": "بستن",
   "apps.extension.backToStudy": "بازگشت به مطالعه",
-  "apps.extension.unavailable": "این برنامه در حال حاضر در دسترس نیست."
+  "apps.extension.unavailable": "این برنامه در حال حاضر در دسترس نیست.",
+  "apps.extension.closeApp": "بستن {app}",
+  "apps.extension.settingsFor": "تنظیمات {app}"
 }

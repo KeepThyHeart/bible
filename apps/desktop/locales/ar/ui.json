@@ -2898,5 +2898,7 @@
   "apps.extension.settings": "الإعدادات",
   "apps.extension.close": "إغلاق",
   "apps.extension.backToStudy": "العودة إلى الدراسة",
-  "apps.extension.unavailable": "هذا التطبيق غير متاح حاليًا."
+  "apps.extension.unavailable": "هذا التطبيق غير متاح حاليًا.",
+  "apps.extension.closeApp": "إغلاق {app}",
+  "apps.extension.settingsFor": "إعدادات {app}"
 }

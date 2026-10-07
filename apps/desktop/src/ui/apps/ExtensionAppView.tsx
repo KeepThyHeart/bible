@@ -33,6 +33,9 @@ function reportVisibility(extensionId: string, shortId: string, visible: boolean
   }
 }
 
+const APP_BAR_BUTTON =
+  'rounded px-sm text-xs text-text-secondary hover:bg-background-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+
 /** Back to Study (the host's default app). */
 export function closeExtensionApp(): void {
   void openApp('study');
@@ -41,10 +44,23 @@ export function closeExtensionApp(): void {
 export const ExtensionAppView: React.FC<Props> = ({ extensionId, info }) => {
   const { t, i18n } = useI18n();
   const [failed, setFailed] = React.useState(false);
+  const headingId = React.useId();
 
-  React.useEffect(() => {
+  // Visible means the app's uiEntry lookup has resolved: that lookup activates a lazily activated owner,
+  // so a report sent any earlier would reach a worker that is not yet listening. Hidden is sent on unmount,
+  // and only if visible was.
+  const reportedVisible = React.useRef(false);
+  const reportReady = React.useCallback(() => {
+    reportedVisible.current = true;
     reportVisibility(extensionId, info.shortId, true);
-    return () => reportVisibility(extensionId, info.shortId, false);
+  }, [extensionId, info.shortId]);
+  React.useEffect(() => {
+    return () => {
+      if (reportedVisible.current) {
+        reportedVisible.current = false;
+        reportVisibility(extensionId, info.shortId, false);
+      }
+    };
   }, [extensionId, info.shortId]);
 
   const desc = appRegistry.get(info.id);
@@ -59,20 +75,25 @@ export const ExtensionAppView: React.FC<Props> = ({ extensionId, info }) => {
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background text-text-primary" data-extension-app={info.id}>
+    <section
+      className="flex h-full min-h-0 flex-col bg-background text-text-primary"
+      data-extension-app={info.id}
+      aria-labelledby={headingId}
+    >
       <header className="flex h-8 shrink-0 items-center gap-sm border-b border-border bg-surface px-md text-sm">
         <span className="flex shrink-0 items-center" aria-hidden="true">
           <AppIconGlyph icon={icon} size={16} />
         </span>
-        <h1 tabIndex={-1} className="m-0 truncate text-sm font-semibold text-text-heading">{title}</h1>
-        <span className="truncate text-xs text-text-muted">
+        <h1 id={headingId} tabIndex={-1} className="m-0 truncate text-sm font-semibold text-text-heading">{title}</h1>
+        <span className="truncate text-xs text-text-secondary">
           {translateWithDefault(t, 'apps.extension.by', 'by {publisher}').replace('{publisher}', info.publisher)}
         </span>
         <span className="flex-1" />
         {info.hasSettings && (
           <button
             type="button"
-            className="rounded px-sm text-xs text-text-secondary hover:bg-background-hover"
+            className={APP_BAR_BUTTON}
+            aria-label={translateWithDefault(t, 'apps.extension.settingsFor', '{app} settings').replace('{app}', title)}
             onClick={openSettings}
           >
             {translateWithDefault(t, 'apps.extension.settings', 'Settings')}
@@ -80,7 +101,8 @@ export const ExtensionAppView: React.FC<Props> = ({ extensionId, info }) => {
         )}
         <button
           type="button"
-          className="rounded px-sm text-xs text-text-secondary hover:bg-background-hover"
+          className={APP_BAR_BUTTON}
+          aria-label={translateWithDefault(t, 'apps.extension.closeApp', 'Close {app}').replace('{app}', title)}
           onClick={closeExtensionApp}
         >
           {translateWithDefault(t, 'apps.extension.close', 'Close')}
@@ -101,7 +123,13 @@ export const ExtensionAppView: React.FC<Props> = ({ extensionId, info }) => {
             </button>
           </div>
         ) : (
-          <ExtensionPanelHost extensionId={extensionId} appShortId={info.shortId} onUnavailable={() => setFailed(true)} />
+          <ExtensionPanelHost
+            extensionId={extensionId}
+            appShortId={info.shortId}
+            appTitle={title}
+            onReady={reportReady}
+            onUnavailable={() => setFailed(true)}
+          />
         )}
       </div>
     </section>

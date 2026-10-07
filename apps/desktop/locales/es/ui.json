@@ -2900,5 +2900,7 @@
   "apps.extension.settings": "Configuración",
   "apps.extension.close": "Cerrar",
   "apps.extension.backToStudy": "Volver a Estudio",
-  "apps.extension.unavailable": "Esta aplicación no está disponible en este momento."
+  "apps.extension.unavailable": "Esta aplicación no está disponible en este momento.",
+  "apps.extension.closeApp": "Cerrar {app}",
+  "apps.extension.settingsFor": "Configuración de {app}"
 }

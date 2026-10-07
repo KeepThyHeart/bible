@@ -2883,5 +2883,7 @@
   "apps.extension.settings": "הגדרות",
   "apps.extension.close": "סגירה",
   "apps.extension.backToStudy": "חזרה ללימוד",
-  "apps.extension.unavailable": "האפליקציה אינה זמינה כרגע."
+  "apps.extension.unavailable": "האפליקציה אינה זמינה כרגע.",
+  "apps.extension.closeApp": "סגירת {app}",
+  "apps.extension.settingsFor": "הגדרות {app}"
 }

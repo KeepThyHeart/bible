@@ -2883,5 +2883,7 @@
   "apps.extension.settings": "⟦Šéţţîñĝš ··⟧",
   "apps.extension.close": "⟦Çļøšé ··⟧",
   "apps.extension.backToStudy": "⟦Ɓåçķ ţø Šţüðý ···⟧",
-  "apps.extension.unavailable": "⟦Ţĥîš åþþ îš ñøţ åṽåîļåƀļé ŕîĝĥţ ñøŵ. ··········⟧"
+  "apps.extension.unavailable": "⟦Ţĥîš åþþ îš ñøţ åṽåîļåƀļé ŕîĝĥţ ñøŵ. ··········⟧",
+  "apps.extension.closeApp": "⟦Çļøšé {app} ··⟧",
+  "apps.extension.settingsFor": "⟦{app} šéţţîñĝš ··⟧"
 }

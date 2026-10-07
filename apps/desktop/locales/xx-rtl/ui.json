@@ -2883,5 +2883,7 @@
   "apps.extension.settings": "‏Settings‏",
   "apps.extension.close": "‏Close‏",
   "apps.extension.backToStudy": "‏Back to Study‏",
-  "apps.extension.unavailable": "‏This app is not available right now.‏"
+  "apps.extension.unavailable": "‏This app is not available right now.‏",
+  "apps.extension.closeApp": "‏Close {app}‏",
+  "apps.extension.settingsFor": "‏{app} settings‏"
 }

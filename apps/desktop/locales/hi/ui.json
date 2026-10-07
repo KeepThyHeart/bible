@@ -2898,5 +2898,7 @@
   "apps.extension.settings": "सेटिंग्स",
   "apps.extension.close": "बंद करें",
   "apps.extension.backToStudy": "अध्ययन पर वापस जाएँ",
-  "apps.extension.unavailable": "यह ऐप अभी उपलब्ध नहीं है।"
+  "apps.extension.unavailable": "यह ऐप अभी उपलब्ध नहीं है।",
+  "apps.extension.closeApp": "{app} बंद करें",
+  "apps.extension.settingsFor": "{app} सेटिंग्स"
 }

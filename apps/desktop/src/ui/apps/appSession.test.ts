@@ -6,6 +6,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { appHost, appRegistry, addAppBinding } from './appHost';
 import { registerBuiltinApps } from './builtinApps';
 import {
+  RESTORE_WAIT_MS,
   installAppSession,
   setPendingAppRestore,
   hasPendingAppRestore,
@@ -68,16 +69,23 @@ describe('app session: pending restore (autosave race)', () => {
     reg.dispose();
   });
 
+  it('waits 30 s by default for late extension apps', () => {
+    expect(RESTORE_WAIT_MS).toBe(30_000);
+  });
+
   it('gives up after the timeout and keeps Study', async () => {
     vi.useFakeTimers();
     try {
       const saved = { v: 1, activeId: 'fx.never', routes: {} };
       setPendingAppRestore(saved);
+      useSessionStore.setState({ isDirty: false });
       const done = restoreActiveApp(saved, { timeoutMs: 1_000 });
       await vi.advanceTimersByTimeAsync(1_001);
       await done;
       expect(hasPendingAppRestore()).toBe(false);
       expect(appHost.getSnapshot().activeId).toBe('study');
+      // A slow extension host must not get the saved app rewritten as Study: no dirty mark on timeout.
+      expect(useSessionStore.getState().isDirty).toBe(false);
     } finally {
       vi.useRealTimers();
     }

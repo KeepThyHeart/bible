@@ -69,6 +69,11 @@ export interface CommandContext {
   /** Live (possibly newer) context. Opt-in only. */
   liveContext: IWhenContextService;
   i18n: II18nService;
+  /**
+   * True when the run was started by code (for example an extension worker's `commands.execute`)
+   * rather than by the user (palette, keybinding, menu, click). Never counts as a user gesture.
+   */
+  programmatic?: boolean;
 }
 
 export interface CommandQueryResult {

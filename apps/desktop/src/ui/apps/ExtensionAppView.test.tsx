@@ -7,10 +7,18 @@ vi.mock('../contexts/useI18n', () => ({
 }));
 
 let unavailable: (() => void) | undefined;
+let ready: (() => void) | undefined;
 vi.mock('../components/extensions/ExtensionPanelHost', () => ({
-  default: (p: { extensionId: string; appShortId: string; onUnavailable?: () => void }) => {
+  default: (p: {
+    extensionId: string;
+    appShortId: string;
+    appTitle?: string;
+    onUnavailable?: () => void;
+    onReady?: () => void;
+  }) => {
     unavailable = p.onUnavailable;
-    return <div data-testid="panel-host" data-ext={p.extensionId} data-app={p.appShortId} />;
+    ready = p.onReady;
+    return <div data-testid="panel-host" data-ext={p.extensionId} data-app={p.appShortId} data-title={p.appTitle} />;
   },
 }));
 
@@ -69,11 +77,32 @@ describe('ExtensionAppView', () => {
     expect(screen.getByTestId('panel-host')).toHaveAttribute('data-ext', EXT);
   });
 
-  it('reports visibility on mount and unmount', () => {
+  it('reports visible only once the app lookup (which activates the owner) is ready, hidden on unmount', () => {
     const { unmount } = render(<ExtensionAppView extensionId={EXT} info={info} />);
+    expect(appVisibility).not.toHaveBeenCalled();
+    act(() => ready?.());
     expect(appVisibility).toHaveBeenCalledWith(EXT, 'counts', true);
     unmount();
     expect(appVisibility).toHaveBeenLastCalledWith(EXT, 'counts', false);
+  });
+
+  it('does not report hidden for an app that never became ready', () => {
+    const { unmount } = render(<ExtensionAppView extensionId={EXT} info={info} />);
+    unmount();
+    expect(appVisibility).not.toHaveBeenCalled();
+  });
+
+  it('names the region by its heading and passes the resolved title to the iframe host', () => {
+    render(<ExtensionAppView extensionId={EXT} info={info} />);
+    expect(screen.getByRole('region', { name: 'Word Count' })).toBeInTheDocument();
+    expect(screen.getByTestId('panel-host')).toHaveAttribute('data-title', 'Word Count');
+  });
+
+  it('gives the bar buttons app-specific accessible names and a visible focus ring', () => {
+    render(<ExtensionAppView extensionId={EXT} info={info} />);
+    expect(screen.getByRole('button', { name: 'Close Word Count' })).toHaveClass('focus-visible:ring-2');
+    expect(screen.getByRole('button', { name: 'Word Count settings' })).toHaveClass('focus-visible:ring-2');
+    expect(screen.getByRole('button', { name: 'Close Word Count' })).toHaveTextContent('Close');
   });
 
   it('works without the visibility IPC', () => {
@@ -85,10 +114,10 @@ describe('ExtensionAppView', () => {
     const handler = vi.fn();
     window.addEventListener('open-preferences-extension-settings', handler as EventListener);
     const { rerender } = render(<ExtensionAppView extensionId={EXT} info={info} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Word Count settings' }));
     expect((handler.mock.calls[0]![0] as CustomEvent).detail).toEqual({ extensionId: EXT });
     rerender(<ExtensionAppView extensionId={EXT} info={{ ...info, hasSettings: false }} />);
-    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Word Count settings' })).toBeNull();
     window.removeEventListener('open-preferences-extension-settings', handler as EventListener);
   });
 
@@ -96,7 +125,7 @@ describe('ExtensionAppView', () => {
     await openApp('study');
     await openApp(info.id);
     render(<ExtensionAppView extensionId={EXT} info={info} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close Word Count' }));
     await vi.waitFor(() => expect(appHost.getSnapshot().activeId).toBe('study'));
   });
 

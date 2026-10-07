@@ -414,7 +414,10 @@ async function handleCommandRequest(
             args: ctx.args,
             // Host-side fact (never from an iframe): a click or key press is in flight. Main grants the
             // command's owner a short window to call gesture-gated APIs such as `apps.open`.
-            userGesture: typeof navigator !== 'undefined' && navigator.userActivation?.isActive === true,
+            userGesture:
+              ctx.programmatic !== true &&
+              typeof navigator !== 'undefined' &&
+              navigator.userActivation?.isActive === true,
           });
         },
         ownerExtensionId: spec.ownerExtensionId,
@@ -448,7 +451,7 @@ async function handleCommandRequest(
     case 'execute': {
       const commandId = payload.args[0] as string;
       const args = payload.args[1];
-      const result = await services.registry.execute(commandId, args);
+      const result = await services.registry.execute(commandId, args, { programmatic: true });
       api.send('ext-bridge:command:response', { requestId: payload.requestId, ok: true, result });
       return;
     }
