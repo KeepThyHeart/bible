@@ -30,6 +30,9 @@ export function installAppSession(): void {
   );
   let last = JSON.stringify(appHost.serialize());
   appHostStore.subscribe(() => {
+    // The user (or a restore) showing another app ends a pending restore: the live state is the truth.
+    const active = appHost.getSnapshot().activeId;
+    if (pending && active !== null && active !== STUDY_APP_ID) clearPendingAppRestore();
     const json = JSON.stringify(appHost.serialize());
     if (json === last) return;
     last = json;
@@ -68,7 +71,7 @@ function persistedActiveId(persisted: unknown): AppId | null {
  * mounted first at boot, so only another app needs an activation. An app that is
  * not registered yet (an extension app) is waited for up to `timeoutMs`; the wait
  * ends early when the user opens another app first (their choice wins).
- * Resolves when the restore has settled; the pending blob is cleared either way (a timeout does not mark the session dirty).
+ * Resolves when the restore has settled. The pending blob is cleared, except after a timeout: then the saved app stays in the session until another app is shown.
  */
 export function restoreActiveApp(
   persisted: unknown,
@@ -108,7 +111,9 @@ export function restoreActiveApp(
           .then(() => open(next))
           .then(resolve, resolve);
       } else {
-        clearPendingAppRestore({ markDirty: !timedOut });
+        // A timeout keeps the saved blob: the app was never shown, so later saves must
+        // not rewrite it as Study. It ends when another app is shown (see installAppSession).
+        if (!timedOut) clearPendingAppRestore();
         resolve();
       }
     };

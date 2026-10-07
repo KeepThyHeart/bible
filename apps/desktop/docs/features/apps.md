@@ -59,8 +59,8 @@ The restore has a race to avoid: autosave can run after the session loads but be
 
 1. `AppInitService` hands the blob it read to `setPendingAppRestore(blob)`.
 2. While a restore is pending, the serializer returns that blob instead of the live state, so an early save cannot overwrite the saved app with the boot-time Study.
-3. `restoreActiveApp(persisted)` runs after the layout is decided. Study saved: clear. App registered: open it with `source: 'restore'`, then clear. Not registered yet: wait for it to appear in the registry, up to **30 s** (`RESTORE_WAIT_MS`), then open it. If the user opens any app first (their choice wins), give up and clear. On timeout, give up and clear **without** marking the session dirty, so a slow extension host never rewrites the saved app as Study.
-4. Clearing (other than on timeout) marks the session dirty so the live state is saved.
+3. `restoreActiveApp(persisted)` runs after the layout is decided. Study saved: clear. App registered: open it with `source: 'restore'`, then clear. Not registered yet: wait for it to appear in the registry, up to **30 s** (`RESTORE_WAIT_MS`), then open it. If the user opens any app first (their choice wins), give up and clear. On timeout, stop waiting but **keep** the saved blob: saves keep writing the saved app until another app is shown, so a slow extension host never rewrites it as Study.
+4. Clearing marks the session dirty so the live state is saved. Showing any app other than Study also clears a pending restore.
 
 ## Extension apps
 

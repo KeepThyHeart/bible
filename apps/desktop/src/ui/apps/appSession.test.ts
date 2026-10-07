@@ -82,13 +82,22 @@ describe('app session: pending restore (autosave race)', () => {
       const done = restoreActiveApp(saved, { timeoutMs: 1_000 });
       await vi.advanceTimersByTimeAsync(1_001);
       await done;
-      expect(hasPendingAppRestore()).toBe(false);
       expect(appHost.getSnapshot().activeId).toBe('study');
-      // A slow extension host must not get the saved app rewritten as Study: no dirty mark on timeout.
+      // A slow extension host must not get the saved app rewritten as Study: no dirty mark, and
+      // any later save (another store marked the session dirty) still writes the saved app.
       expect(useSessionStore.getState().isDirty).toBe(false);
+      expect(hasPendingAppRestore()).toBe(true);
+      expect(useSessionStore.getState().getSessionData().appHost).toEqual(saved);
     } finally {
       vi.useRealTimers();
     }
+    // Showing another app ends it: the live state is saved from then on.
+    const reg = registerApp('fx.after');
+    await appHost.activate('fx.after');
+    expect(hasPendingAppRestore()).toBe(false);
+    expect(useSessionStore.getState().getSessionData().appHost).toMatchObject({ activeId: 'fx.after' });
+    await appHost.activate('study');
+    reg.dispose();
   });
 
   it('stops waiting when the user opens another app first', async () => {

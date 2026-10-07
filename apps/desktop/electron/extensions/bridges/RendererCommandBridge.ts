@@ -190,6 +190,7 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
     const idSet = new Set(ids);
     for (const id of ids) {
       this.invokers.delete(id);
+      this.declaredRegistrationIds.delete(id);
     }
     // A bulk teardown never runs the per-registration disposer returned by
     // `register()`, so it must clear `registrationIdByCommandId` itself -
@@ -362,6 +363,7 @@ export class RendererCommandBridge implements IExtensionCommandBridge {
   /** Undo `registerRow`. Returns false (no-op) if `registrationId` was already gone. */
   private disposeRow(registrationId: string, ownerExtensionId: string): boolean {
     if (!this.invokers.delete(registrationId)) return false;
+    this.declaredRegistrationIds.delete(registrationId);
     this.ownerToIds.get(ownerExtensionId)?.delete(registrationId);
     void this.rpc.request('dispose', [registrationId]).catch(() => undefined);
     return true;
