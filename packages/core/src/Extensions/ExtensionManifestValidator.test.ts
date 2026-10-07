@@ -618,7 +618,7 @@ describe('validateManifest - activation event vocabulary (task 0024 round 3, P1.
       'onStartupFinished',
       'onSomethingMadeUp:x',
       'onSyncCompleted',
-      'onApp:memorize',
+      'onWidget:memorize',
     ];
     const r = validateManifest(m);
     expect(r.ok).toBe(true);

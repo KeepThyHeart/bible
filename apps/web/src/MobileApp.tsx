@@ -16,7 +16,8 @@ import { UpdateBanner } from './components/UpdateBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
 import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
-import { PresentBar } from './components/Present/PresentBar';
+import { CompanionSlot } from './host/CompanionSlot';
+import { AppSwitchSlot } from './host/AppSwitchSlot';
 import { AudioMiniPlayer } from './components/AudioMiniPlayer';
 import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
@@ -30,7 +31,7 @@ import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
 import { settingsStore } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
-import { consumePresenterPop } from './apps/present/route';
+import { studyShouldIgnoreBack } from './host/appHost';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -171,9 +172,9 @@ export function MobileApp({ providers }: MobileAppProps) {
     window.history.pushState({ mobileBack: true }, '');
 
     const handlePopState = (_e: PopStateEvent) => {
-      // Back out of the Presenter: it is the Presenter's own step, and the
-      // hidden Study must not also take one. (Its dummy entry is still in place.)
-      if (consumePresenterPop()) return;
+      // Back out of any other app (it returns to Study, or is that app's own step): the hidden
+      // Study must not also take one. (Its dummy entry is still in place.)
+      if (studyShouldIgnoreBack()) return;
 
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
@@ -292,7 +293,7 @@ export function MobileApp({ providers }: MobileAppProps) {
     };
   }, [handleSwipeStart, handleSwipeEnd]);
 
-  const { contextMenu, contextMenuRef, handleContextMenuAction } = useContextMenu(
+  const { contextMenu, contextMenuRef, handleContextMenuAction, handleVerseAction, verseActionItems } = useContextMenu(
     shared.findVerseAtPoint,
     shared.setCopyOpen,
     switchMobileView,
@@ -361,6 +362,7 @@ export function MobileApp({ providers }: MobileAppProps) {
               <i class="fa-solid fa-book-bible" /> {t('app.name')}
             </div>
             <div class="mobile-landscape-sidebar__actions">
+              <AppSwitchSlot className="mobile-landscape-sidebar__action-btn" />
               <div class="mobile-landscape-sidebar__theme-wrapper">
                 <button
                   class="mobile-landscape-sidebar__action-btn"
@@ -494,7 +496,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       )}
       <AudioMiniPlayer />
       {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
-      <PresentBar compact />
+      <CompanionSlot compact />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
@@ -536,6 +538,8 @@ export function MobileApp({ providers }: MobileAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          actions={verseActionItems}
+          onVerseAction={handleVerseAction}
           showSimilar={false}
         />
       )}

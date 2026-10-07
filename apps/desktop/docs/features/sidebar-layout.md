@@ -4,6 +4,8 @@
 
 Flexible docking layout using `dockview-react`, with drag-and-drop tab rearrangement, panel splitting, pop-out windows, and session-persistent layout.
 
+This layout is the **Study** app of the desktop app host: `DockviewLayout` sits in the app stage next to an optional app rail, stays mounted (`visibility: hidden`, inert) while another app is shown, and re-lays out when Study is revealed. `LayoutDropdown` and the find bar render only while Study is active. See [Apps](apps.md).
+
 ## Files
 
 ### Components

@@ -159,7 +159,8 @@
     "commentary": "Comentario",
     "dictionary": "Diccionario",
     "study": "Estudio",
-    "similar": "Buscar pasajes similares"
+    "similar": "Buscar pasajes similares",
+    "present": "Presentar"
   },
   "rightPane": {
     "study": "Estudio",
@@ -460,24 +461,6 @@
         "ttsVoice": "Voz"
       }
     },
-    "downloads": {
-      "title": "Descargas y almacenamiento",
-      "download": "Descargar",
-      "update": "Actualizar",
-      "retry": "Reintentar",
-      "cancel": "Cancelar",
-      "remove": "Quitar",
-      "queued": "En cola",
-      "downloading": "{percent}%",
-      "installed": "Instalado",
-      "total": "En este dispositivo: {size}",
-      "empty": "No hay nada que descargar.",
-      "unverified": "sin verificar",
-      "kind": {
-        "ttsRuntime": "Motor de voz",
-        "ttsVoice": "Voz"
-      }
-    },
     "about": {
       "title": "Acerca de",
       "refreshApp": "Actualizar la aplicación",
@@ -540,6 +523,22 @@
       "ranges.description": "Muestra el rango de incertidumbre de un valor: cuando es amplio (automático), siempre o nunca.",
       "ranges.always": "Siempre",
       "ranges.never": "Nunca"
+    },
+    "apps": {
+      "switcher": "Selector de aplicaciones",
+      "switcherHint": "Mostrar la barra de aplicaciones siempre, nunca o solo cuando haya más de una aplicación disponible.",
+      "switcherAuto": "Automático",
+      "switcherRail": "Mostrar siempre la barra",
+      "switcherNone": "Sin barra",
+      "listLabel": "Aplicaciones",
+      "listHint": "Reordene las aplicaciones u oculte las que no use.",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "show": "Mostrar",
+      "alwaysShown": "Siempre visible",
+      "order": "Orden de las aplicaciones",
+      "hidden": "Aplicaciones ocultas",
+      "title": "Aplicaciones"
     }
   },
   "copyDialog": {
@@ -1737,5 +1736,32 @@
     "retry": "Reintentar",
     "showMore": "Mostrar 10 más",
     "rangeNeedsLive": "Este pasaje no tiene coincidencias precalculadas aquí; seleccione un solo versículo."
+  },
+  "apps": {
+    "study": {
+      "title": "Estudio"
+    },
+    "present": {
+      "title": "Presentador"
+    },
+    "stage": {
+      "loading": "Cargando…",
+      "error": "No se pudo cargar esta aplicación.",
+      "retry": "Reintentar"
+    },
+    "rail": {
+      "label": "Aplicaciones"
+    },
+    "sheet": {
+      "title": "Aplicaciones",
+      "close": "Cerrar"
+    },
+    "switch": {
+      "label": "Cambiar de aplicación"
+    },
+    "backToStudy": "Volver a Estudio",
+    "home": {
+      "title": "Aplicaciones"
+    }
   }
 }

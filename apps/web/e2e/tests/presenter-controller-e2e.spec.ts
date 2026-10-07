@@ -16,9 +16,9 @@ import { desktopOnly, waitForVerses } from '../helpers';
  * list, a pinned command bar), covered by the phone smoke test.
  */
 
-/** Open the Presenter from the header's TV button. */
+/** Open the Presenter from the app rail. */
 async function openPresenter(page: Page): Promise<void> {
-  await page.locator('.header__action-btn .fa-tv').click();
+  await page.locator('.kth-app-rail [data-app-id="present"]').click();
   await expect(page).toHaveURL(/#\/@present$/);
   await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
 }
@@ -161,7 +161,8 @@ test.describe('The Presenter workspace', () => {
   test('the back button returns to the reader', async ({ page }) => {
     await openPresenter(page);
     await page.locator('.pz-appbar__back').click();
-    await expect(page.locator('.presenter-app')).toHaveCount(0);
+    // Kept mounted (hidden) for a grace period after leaving, so assert it is not shown.
+    await expect(page.locator('.presenter-app')).toBeHidden();
     await waitForVerses(page);
   });
 });

@@ -426,6 +426,8 @@ export const TYPED_IPC_CHANNELS = [
   'extensions:getLog',
   'extensions:getCrashLog',
   'extensions:getPanelTypeUiEntry',
+  'extensions:getAppUiEntry',
+  'extensions:appVisibility',
   'extensions:openInstallFolder',
   'extensions:uiFetch',
   'extensions:panelInvoke',

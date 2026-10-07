@@ -16,9 +16,11 @@ import {
   mergeSettings,
   measureSettingsRegistry,
   MEASURE_SETTINGS,
+  APP_NAV_SETTINGS,
   type SettingChange,
   type SettingsStore,
   type SettingsStoragePort,
+  type AppSwitcherMode,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
@@ -71,9 +73,13 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
 ]);
 
 /** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
-export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry);
+export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);
 
 const MEASURE_KEYS: ReadonlySet<string> = new Set(MEASURE_SETTINGS.map((d) => d.key));
+
+function sameIds(a: readonly string[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
 
 /** Port over `usePreferencesStore` (session-persisted, per device). */
 export const preferencesStoragePort: SettingsStoragePort = {
@@ -82,6 +88,9 @@ export const preferencesStoragePort: SettingsStoragePort = {
     keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
     readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
     readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
+    appSwitcher: usePreferencesStore.getState().appSwitcher,
+    appOrder: usePreferencesStore.getState().appOrder,
+    appHidden: usePreferencesStore.getState().appHidden,
     ...useMeasureStore.getState().values,
   }),
   write: (changes: readonly SettingChange[]) => {
@@ -101,6 +110,15 @@ export const preferencesStoragePort: SettingsStoragePort = {
         usePreferencesStore.getState().readingPlanRolloverHour !== change.value
       ) {
         usePreferencesStore.getState().setReadingPlanRolloverHour(change.value as number);
+      }
+      if (change.key === 'appSwitcher' && usePreferencesStore.getState().appSwitcher !== change.value) {
+        usePreferencesStore.getState().setAppSwitcher(change.value as AppSwitcherMode);
+      }
+      if (change.key === 'appOrder' && Array.isArray(change.value) && !sameIds(usePreferencesStore.getState().appOrder, change.value)) {
+        usePreferencesStore.getState().setAppOrder(change.value as string[]);
+      }
+      if (change.key === 'appHidden' && Array.isArray(change.value) && !sameIds(usePreferencesStore.getState().appHidden, change.value)) {
+        usePreferencesStore.getState().setAppHidden(change.value as string[]);
       }
       if (
         change.key === 'readingPlanShowStreak' &&
@@ -124,6 +142,9 @@ export function getDesktopSettingsStore(): SettingsStore {
       store!.set('advancedPaneManagerEnabled', state.advancedPaneManagerEnabled);
       store!.set('readingPlanRolloverHour', state.readingPlanRolloverHour);
       store!.set('readingPlanShowStreak', state.readingPlanShowStreak);
+      store!.set('appSwitcher', state.appSwitcher);
+      store!.set('appOrder', state.appOrder);
+      store!.set('appHidden', state.appHidden);
     });
     useKeywordMarkStore.subscribe((state) => {
       store!.set('keywordColorSafe', state.colorSafe);

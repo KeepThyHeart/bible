@@ -17,6 +17,7 @@ import type {
   IUtilityProcessFactory,
 } from './ExtensionWorkerProcess';
 import type { ExtensionRpcRouter } from './ExtensionRpcRouter';
+import type { UserGestureTracker } from './UserGestureTracker';
 import type {
   AuthApiImpl,
   BibleApiImpl,
@@ -24,6 +25,7 @@ import type {
   BookmarksApiImpl,
   CollectionsApiImpl,
   RemindersApiImpl,
+  AppsApiImpl,
   CommandsApiImpl,
   CommentaryApiImpl,
   ContextApiImpl,
@@ -116,6 +118,7 @@ export interface ActiveWorker {
   bookmarksApi?: BookmarksApiImpl;
   collectionsApi?: CollectionsApiImpl;
   remindersApi?: RemindersApiImpl;
+  appsApi?: AppsApiImpl;
 }
 
 /**
@@ -230,6 +233,12 @@ export interface ExtensionHostOptions {
    * `ExtensionHost.deliverReminderActivation` / `deliverReminderMissed`.
    */
   remindersBridge?: IRemindersBridge;
+  /**
+   * Where user gestures in an extension's own UI are recorded, for the
+   * `api.apps.open` gate. Defaults to a fresh tracker; tests inject one with
+   * a fake clock.
+   */
+  gestureTracker?: UserGestureTracker;
   /**
    * Override the per-extension KV quota. Default is `DEFAULT_KV_QUOTA_BYTES`
    * (5 MB). Mostly useful for tests.
@@ -371,6 +380,7 @@ export interface ExtensionHostContext {
    * extension's worker being torn down and re-activated. Capped at
    * `MAX_QUEUED_REMINDER_ACTIVATIONS`, oldest dropped.
    */
+  readonly gestures: UserGestureTracker;
   readonly reminderActivationQueues: Map<string, Extensions.ReminderActivationEvent[]>;
   readonly storageQuotaBytes: number | undefined;
   readonly secretsKeychain: ISecretsKeychain | undefined;

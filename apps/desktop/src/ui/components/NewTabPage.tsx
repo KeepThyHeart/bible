@@ -9,6 +9,12 @@ import { genericEnglishTitle } from '../utils/paneNames';
 // never disagree - separate lists drift.
 import { chooserIconFor } from './paneIcons';
 import type { DockviewPanelApi } from 'dockview-react';
+import { AppTileGrid } from '@bible/ui';
+import { hasMultipleApps } from '@bible/core/browser';
+import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { openApp, prefetchApp } from '../apps/appHost';
+import { useNavItems } from '../apps/navPrefs';
+import { toNavEntries } from '../apps/navEntries';
 
 interface NewTabPageProps {
   panelId: string;
@@ -74,6 +80,7 @@ const KEYWORD_MAP: Record<string, PanelContentType> = {
 const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) => {
   const { t, i18n } = useI18n();
   const extensionPanels = useExtensionUiStore((s) => s.panelTypes);
+  const appItems = useNavItems('tiles');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -243,6 +250,26 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
           <p id={errorId} role="alert" className="text-xs text-danger-text mt-xs">
             {error}
           </p>
+        )}
+
+        {/* Apps (task 0080): their own section above the pane kinds, shown only
+            when there is more than one app to switch to. The pane-type grid
+            below stays exactly as it was. */}
+        {hasMultipleApps(appItems) && (
+          <section className="mt-lg" aria-labelledby={`newtab-apps-${panelId}`}>
+            <h3
+              id={`newtab-apps-${panelId}`}
+              className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-xs"
+            >
+              {translateWithDefault(t, 'apps.newTab.title', 'Apps')}
+            </h3>
+            <AppTileGrid
+              items={toNavEntries(appItems, t, i18n)}
+              onSelect={(id) => { void openApp(id); }}
+              onPrefetch={prefetchApp}
+              labels={{ gridLabel: translateWithDefault(t, 'apps.newTab.title', 'Apps') }}
+            />
+          </section>
         )}
 
         {/* A fixed four-column grid, not a wrapping flex row. The tiles are

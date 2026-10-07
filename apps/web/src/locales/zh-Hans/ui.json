@@ -159,7 +159,8 @@
     "commentary": "注释",
     "dictionary": "词典",
     "study": "研经",
-    "similar": "查找相似经文"
+    "similar": "查找相似经文",
+    "present": "展示"
   },
   "rightPane": {
     "study": "研经",
@@ -460,24 +461,6 @@
         "ttsVoice": "语音"
       }
     },
-    "downloads": {
-      "title": "下载与存储",
-      "download": "下载",
-      "update": "更新",
-      "retry": "重试",
-      "cancel": "取消",
-      "remove": "移除",
-      "queued": "排队中",
-      "downloading": "{percent}%",
-      "installed": "已安装",
-      "total": "此设备上：{size}",
-      "empty": "没有可下载的内容。",
-      "unverified": "未验证",
-      "kind": {
-        "ttsRuntime": "语音引擎",
-        "ttsVoice": "语音"
-      }
-    },
     "about": {
       "title": "关于",
       "refreshApp": "刷新应用",
@@ -540,6 +523,22 @@
       "ranges.description": "显示数值的不确定范围：范围较大时（自动）、总是或从不。",
       "ranges.always": "总是",
       "ranges.never": "从不"
+    },
+    "apps": {
+      "switcher": "应用切换器",
+      "switcherHint": "始终显示、从不显示，或仅在有多个应用可用时显示应用栏。",
+      "switcherAuto": "自动",
+      "switcherRail": "始终显示应用栏",
+      "switcherNone": "不显示应用栏",
+      "listLabel": "应用",
+      "listHint": "调整应用顺序，或隐藏不用的应用。",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "show": "显示",
+      "alwaysShown": "始终显示",
+      "order": "应用顺序",
+      "hidden": "隐藏的应用",
+      "title": "应用"
     }
   },
   "copyDialog": {
@@ -1737,5 +1736,32 @@
     "retry": "重试",
     "showMore": "再显示 10 条",
     "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
+  },
+  "apps": {
+    "study": {
+      "title": "学习"
+    },
+    "present": {
+      "title": "演示"
+    },
+    "stage": {
+      "loading": "正在加载…",
+      "error": "无法加载此应用。",
+      "retry": "重试"
+    },
+    "rail": {
+      "label": "应用"
+    },
+    "sheet": {
+      "title": "应用",
+      "close": "关闭"
+    },
+    "switch": {
+      "label": "切换应用"
+    },
+    "backToStudy": "返回研读",
+    "home": {
+      "title": "应用"
+    }
   }
 }

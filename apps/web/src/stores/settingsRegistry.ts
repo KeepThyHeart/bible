@@ -16,6 +16,7 @@
  * swipe thresholds).
  */
 import {
+  APP_NAV_SETTINGS,
   createSettingsStore,
   defineSettings,
   mergeSettings,
@@ -87,8 +88,8 @@ const WEB_OWN_SETTINGS = defineSettings([
   },
 ]);
 
-/** The web's own settings plus the weights-and-measures group core declares (task 0069). */
-export const WEB_SETTINGS = mergeSettings(WEB_OWN_SETTINGS, measureSettingsRegistry);
+/** The web's own settings plus the weights-and-measures group (task 0069) and Preferences > Apps (task 0080) core declares. */
+export const WEB_SETTINGS = mergeSettings(WEB_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);
 
 function readBlob(): Record<string, unknown> {
   try {

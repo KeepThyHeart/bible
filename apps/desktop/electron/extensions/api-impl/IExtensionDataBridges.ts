@@ -190,6 +190,35 @@ export interface IExtensionBookBridge {
  * window; the in-memory bridge resolves immediately so unit tests can drive
  * the api-impl without an Electron window.
  */
+/** What the host keeps about a registered extension app (see `RendererUiBridge.registerDeclaredApp`). */
+export interface ExtensionAppRecord {
+  extensionId: string;
+  app: Extensions.ContributedApp;
+  info: ExtensionAppInfo;
+}
+
+/**
+ * The payload of the `appRegistered` renderer notification. `id` is qualified
+ * (`<extensionId>.<shortId>`); titles are forwarded as declared (literal text,
+ * `%key%` or `{ key }`) and resolved by the renderer against the extension's catalog.
+ */
+export interface ExtensionAppInfo {
+  id: string;
+  shortId: string;
+  title: LocalizedString;
+  shortTitle?: LocalizedString;
+  /** `ext-ui://<extensionId>/<icon>`, only when the manifest declares an icon. */
+  iconUrl?: string;
+  /** 0..900 inside the extension band (default 0). */
+  order: number;
+  mobile?: 'sheet' | 'hidden';
+  publisher: string;
+  /** Manifest `displayName` (or `name`), as declared. */
+  extensionName: LocalizedString;
+  /** `contributes.configuration` is present. */
+  hasSettings: boolean;
+}
+
 export interface IExtensionUiBridge {
   /** Resolves with the clicked action's id, or undefined - see `IUiApi.showNotification`. */
   showNotification(
@@ -243,6 +272,21 @@ export interface IExtensionUiBridge {
    * absent rather than silently dropping the message.
    */
   postPanelMessage?(extensionId: string, message: unknown, panelId?: string): void;
+
+  // --- Extension apps (`contributes.apps`, `api.apps`) --------------------
+
+  /**
+   * Set (or clear with null) the badge of one of `extensionId`'s apps.
+   * `qualifiedAppId` is `<extensionId>.<shortId>`. Optional like
+   * `postPanelMessage`: a harness with no app surface simply has no badges.
+   */
+  setAppBadge?(extensionId: string, qualifiedAppId: string, badge: Extensions.AppBadgeDto | null): void;
+
+  /** Ask the renderer to show one of `extensionId`'s apps. The gesture gate has already passed. */
+  requestOpenApp?(extensionId: string, qualifiedAppId: string): void;
+
+  /** A registered (declared, granted, eligible) app, or undefined. `shortId` is the id as declared. */
+  getApp?(extensionId: string, shortId: string): ExtensionAppRecord | undefined;
 
   // --- T2 UI methods -------------------------------------------------------
 

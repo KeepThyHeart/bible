@@ -381,3 +381,11 @@ export * from './offline';
 // reader and the service that picks table or live source. Pure TypeScript; the
 // Node-only vector source is on the main entry.
 export * from './Services/Similar';
+
+// --- Feature modules and the app host (task 0080) ------------------------------
+// The feature-module contract (data-only manifests, activation events, the flag
+// off switch, contribution-point registries) and the app host built on it: app
+// descriptors, the `apps` registry, activation/keep-alive state, deep links and
+// the lazy platform `AppBinding`. Framework-free; views are bound per platform.
+export * from './Modules';
+export * from './Apps';

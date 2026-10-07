@@ -174,6 +174,28 @@ describe('ExtensionRuntime', () => {
     expect(unsub).toBeDefined();
   });
 
+  it('apps.onVisibilityChanged subscribes to app.visibilityChanged and rejects a non-function', async () => {
+    const { channel, sent } = makeChannel();
+    const runtime = makeRuntime(channel);
+    await runtime.init(initPayload());
+    const api = runtime.getApi() as unknown as {
+      apps: { onVisibilityChanged: (h: unknown) => Promise<{ dispose(): Promise<void> }> };
+    };
+
+    await expect(api.apps.onVisibilityChanged('nope')).rejects.toThrow(TypeError);
+
+    const handler = vi.fn();
+    const handle = await api.apps.onVisibilityChanged(handler);
+    const sub = sent.find((e) => e.kind === 'subscribe') as { channel: string } | undefined;
+    expect(sub?.channel).toBe('app.visibilityChanged');
+    await runtime.dispatch({ kind: 'event', channel: 'app.visibilityChanged', payload: { appId: 'counts', visible: true } });
+    expect(handler).toHaveBeenCalledWith({ appId: 'counts', visible: true });
+    await handle.dispose();
+    expect(sent.some((e) => e.kind === 'unsubscribe')).toBe(true);
+    // No RPC request was made for the sugar.
+    expect(sent.some((e) => e.kind === 'request')).toBe(false);
+  });
+
   it('reverse RPC routes to a registered handler', async () => {
     const { channel, sent } = makeChannel();
     const runtime = makeRuntime(channel);

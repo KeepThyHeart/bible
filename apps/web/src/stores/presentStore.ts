@@ -12,6 +12,7 @@ import type {
 import { applyIntent, type IntentContext } from '../present/reducer';
 import { beginDraft, draftIsOnWall, draftToRange, tapDraft, type HighlightDraft } from '../present/wordHighlight';
 import { openLocalChannel, type LocalChannel } from '../present/transport/localChannel';
+import { PRESENT_SESSION_KEY } from '../present/sessionKey';
 
 /** The cache key `warmContext` and `hasWarmContext` share for a hymn's slide count. */
 function hymnSlideKey(hymnId: string, verseOrder?: string[]): string {
@@ -62,7 +63,7 @@ export interface ControllerSession {
 
 export type PresentConnectionStatus = 'offline' | 'connecting' | 'live' | 'reconnecting';
 
-const SESSION_KEY = 'present-controller-session';
+const SESSION_KEY = PRESENT_SESSION_KEY;
 
 /**
  * Whether the controller's own keyboard also answers to a presentation
@@ -103,7 +104,10 @@ function readStoredSession(): ControllerSession | null {
     if (!parsed?.sessionId || !parsed.controlToken || !parsed.joinCode) return null;
     // An expired session is not worth offering to resume: every action against
     // it would 410.
-    if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) return null;
+    if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;

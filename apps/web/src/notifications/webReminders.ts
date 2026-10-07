@@ -23,7 +23,6 @@ import type {
 } from '@bible/core/browser';
 import i18n from '../i18n';
 import type { VotdData } from '../providers/interfaces';
-import { bibleStore } from '../stores/bibleStore';
 import {
   NOTIFICATION_STATE_KEY,
   NOTIFICATION_SETTINGS_KEY,
@@ -47,7 +46,8 @@ export function defaultNavigation(): WebReminderNavigation {
       const verse = target.verseId % 1000;
       const end = target.endVerseId;
       const endVerse = end !== undefined && Math.floor(end / 1000) === Math.floor(target.verseId / 1000) ? end % 1000 : undefined;
-      void bibleStore.navigateTo(book, chapter, verse, endVerse ? { endVerse } : undefined);
+      void import('../stores/bibleStore').then(({ bibleStore }) =>
+        bibleStore.navigateTo(book, chapter, verse, endVerse ? { endVerse } : undefined));
     },
   };
 }
@@ -67,11 +67,11 @@ export function isWebNotificationsSupported(): boolean {
 }
 
 /**
- * The one place the default verse-of-the-day fetcher lives, read at fire time. `main.tsx` installs
+ * The one place the default verse-of-the-day fetcher lives, read at fire time. The shell installs a lazy getter for
  * the offline-first provider with `setVerseOfTheDayFetcher`; a host created earlier (by the settings
  * tab) still gets it, because it is looked up per fire, not captured at creation.
  */
-let votdFetcher: () => Promise<VotdData | null> = () => bibleStore.getVerseOfTheDay();
+let votdFetcher: () => Promise<VotdData | null> = () => Promise.resolve(null);
 
 export function setVerseOfTheDayFetcher(fn: () => Promise<VotdData | null>): void {
   votdFetcher = fn;

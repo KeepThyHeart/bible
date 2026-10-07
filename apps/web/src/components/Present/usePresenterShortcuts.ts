@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { presenterOpen } from '../../apps/present/route';
+import { appHost } from '../../host/appHost';
 import { sectionTarget } from '../../present/sections';
 import { useStore } from '../../hooks/useStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -214,7 +214,7 @@ export function usePresenterShortcuts(): void {
         hasStaged: staged !== null,
         acceptClickerKeys,
         hasLive: Boolean(wall?.live),
-        presenterOpen: presenterOpen(),
+        presenterOpen: appHost.getSnapshot().activeId === 'present',
       });
       if (!action) return;
 

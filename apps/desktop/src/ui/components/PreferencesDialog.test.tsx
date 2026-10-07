@@ -82,7 +82,7 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(11);
+    expect(tabs).toHaveLength(12);
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
@@ -92,9 +92,10 @@ describe('PreferencesDialog', () => {
     expect(tabs[5]).toHaveTextContent('Notifications');
     expect(tabs[6]).toHaveTextContent('Downloads & storage');
     expect(tabs[7]).toHaveTextContent('Extensions');
-    expect(tabs[8]).toHaveTextContent('Weights and measures');
-    expect(tabs[9]).toHaveTextContent('Advanced');
-    expect(tabs[10]).toHaveTextContent('Diagnostics');
+    expect(tabs[8]).toHaveTextContent('Apps');
+    expect(tabs[9]).toHaveTextContent('Weights and measures');
+    expect(tabs[10]).toHaveTextContent('Advanced');
+    expect(tabs[11]).toHaveTextContent('Diagnostics');
   });
 
   it('opens at the Notifications section', () => {
@@ -183,7 +184,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(11);
+    expect(tabs).toHaveLength(12);
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {

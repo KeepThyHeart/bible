@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { whenContextService } from '../services/WhenContextService';
 import { useTextSettingsStore } from './useTextSettingsStore';
+import type { AppSwitcherMode } from '@bible/core/browser';
 import { THEME_TOKENS, isValidThemeId, type ThemeId } from '../styles/themeTokens';
 
 /**
@@ -156,6 +157,13 @@ interface PreferencesState {
   /** Show reading streaks in reading plans (task 0073). */
   readingPlanShowStreak: boolean;
 
+  /** App switcher rail: `auto` (only with more than one app), `rail` (always), `none` (task 0080). */
+  appSwitcher: AppSwitcherMode;
+  /** App ids in the user's order (unlisted apps follow in registry order). */
+  appOrder: string[];
+  /** App ids the user hid from the switcher surfaces (Study cannot be hidden). */
+  appHidden: string[];
+
   // Actions
   setTheme: (theme: ThemeId) => void;
   setGlobalFontScale: (scale: number) => void;
@@ -163,6 +171,9 @@ interface PreferencesState {
   setAdvancedPaneManagerEnabled: (enabled: boolean) => void;
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
+  setAppSwitcher: (mode: AppSwitcherMode) => void;
+  setAppOrder: (ids: readonly string[]) => void;
+  setAppHidden: (ids: readonly string[]) => void;
   setTypography: (prefs: Partial<TypographyPrefs>) => void;
   resetTypography: () => void;
   applyTheme: (theme: ThemeId) => void;
@@ -180,6 +191,9 @@ interface PreferencesState {
     advancedPaneManagerEnabled?: boolean;
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
+    appSwitcher?: unknown;
+    appOrder?: unknown;
+    appHidden?: unknown;
   }) => void;
   getSessionData: () => {
     theme: ThemeId;
@@ -189,7 +203,22 @@ interface PreferencesState {
     advancedPaneManagerEnabled: boolean;
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
+    appSwitcher: AppSwitcherMode;
+    appOrder: string[];
+    appHidden: string[];
   };
+}
+
+/** Keep only distinct, non-empty string ids. */
+function sanitizeIdList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const v of raw) if (typeof v === 'string' && v !== '') seen.add(v);
+  return [...seen];
+}
+
+function sanitizeAppSwitcher(raw: unknown): AppSwitcherMode {
+  return raw === 'rail' || raw === 'none' ? raw : 'auto';
 }
 
 /**
@@ -337,6 +366,9 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   advancedPaneManagerEnabled: false,
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
+  appSwitcher: 'auto',
+  appOrder: [],
+  appHidden: [],
 
   setTheme: (theme: ThemeId) => {
     set({ theme });
@@ -370,6 +402,21 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setReadingPlanShowStreak: (show: boolean) => {
     set({ readingPlanShowStreak: show });
+    markSessionDirty();
+  },
+
+  setAppSwitcher: (mode: AppSwitcherMode) => {
+    set({ appSwitcher: sanitizeAppSwitcher(mode) });
+    markSessionDirty();
+  },
+
+  setAppOrder: (ids) => {
+    set({ appOrder: sanitizeIdList(ids) });
+    markSessionDirty();
+  },
+
+  setAppHidden: (ids) => {
+    set({ appHidden: sanitizeIdList(ids) });
     markSessionDirty();
   },
 
@@ -430,9 +477,13 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       : 3;
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
 
+    const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
+    const appOrder = sanitizeIdList(data.appOrder);
+    const appHidden = sanitizeIdList(data.appHidden);
+
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -444,11 +495,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     };
   }
 }));

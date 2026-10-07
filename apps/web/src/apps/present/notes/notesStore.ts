@@ -1,7 +1,7 @@
 import type { Plugin } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import { Store } from '../../../stores/Store';
-import { bibleStore } from '../../../stores/bibleStore';
+import { preferredBible } from '../../../host/preferredBible';
 import { moduleStore } from '../../../stores/moduleStore';
 import { presentStore } from '../../../stores/presentStore';
 import { getNotes, putNotes } from '../../../present/notesApi';
@@ -110,7 +110,7 @@ class NotesStore extends Store {
   /** The presenter's translation for bare references: the service's own, else the reader's. */
   get module(): string {
     const own = this.serviceId ? getServiceStore().get(this.serviceId)?.module : '';
-    return own || bibleStore.getActiveModule();
+    return own || preferredBible.module;
   }
 
   setTranslate(fn: Translate): void {
@@ -130,7 +130,7 @@ class NotesStore extends Store {
         store.subscribe(() => this.syncName());
         presentStore.subscribe(() => this.checkSession());
         subscribePresenter(() => this.onWallChange());
-        bibleStore.subscribe(() => this.onModuleMaybeChanged());
+        preferredBible.subscribe(() => this.onModuleMaybeChanged());
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisible);
       }
       const service = await store.openLastOrCreate();

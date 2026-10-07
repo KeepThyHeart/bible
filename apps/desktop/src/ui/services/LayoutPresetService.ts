@@ -120,6 +120,20 @@ export class LayoutPresetService implements ILayoutPresetService {
     this._currentPresetId = presetId;
   }
 
+  /**
+   * Run a layout operation that is not a user change (for example re-laying
+   * the grid out when Study is revealed). Layout events it fires are ignored
+   * by `notifyManualLayoutChange`, so the "current preset" checkmark stays.
+   */
+  runInternal<T>(fn: () => T): T {
+    this._applyingPreset = true;
+    try {
+      return fn();
+    } finally {
+      queueMicrotask(() => { this._applyingPreset = false; });
+    }
+  }
+
   undo(): boolean {
     if (!this._undoSnapshot) return false;
     const api = useLayoutStore.getState().dockviewApi; // allow-getstate: service - imperative dockview access outside render

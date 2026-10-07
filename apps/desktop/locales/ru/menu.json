@@ -26,5 +26,6 @@
   "menu.help.checkForUpdates": "Проверить обновления…",
   "menu.help.reportIssue": "Сообщить о проблеме",
   "menu.help.about": "О программе «Библия»",
-  "menu.tools.title": "Инструменты"
+  "menu.tools.title": "Инструменты",
+  "menu.view.apps": "Приложения"
 }

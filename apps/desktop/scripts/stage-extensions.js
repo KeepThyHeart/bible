@@ -114,6 +114,8 @@ const BUNDLED_EXTENSIONS = [
 const PACKAGE_CONTENTS = [
   ['extension.json', true],
   ['src', true],
+  ['ui', false],
+  ['media', false],
   ['package.json', false],
   ['LICENSE', false],
   ['README.md', false],

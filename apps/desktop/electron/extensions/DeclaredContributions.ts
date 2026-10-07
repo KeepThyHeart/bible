@@ -22,6 +22,8 @@ export interface DeclaredContributionsEntry {
   enabled: boolean;
   status: string;
   manifest: Extensions.ExtensionManifest;
+  /** Granted permissions; `contributes.apps` registers only with `ui:contribute-app` here. */
+  grantedPermissions?: readonly string[];
 }
 
 /**
@@ -44,11 +46,24 @@ export interface DeclaredPanelTypeBridge {
   unregisterDeclaredPanelTypes(extensionId: string): void;
 }
 
+/** Same narrowing again, for `RendererUiBridge`'s declared extension apps (task 0080, M3). */
+export interface DeclaredAppBridge {
+  registerDeclaredApp(
+    extensionId: string,
+    app: Extensions.ContributedApp,
+    meta: { publisher: string; extensionName: Extensions.LocalizedString; hasSettings: boolean },
+  ): void;
+  /** Drop the extension's apps, except the qualified ids in `keep`. */
+  unregisterDeclaredApps(extensionId: string, keep?: readonly string[]): void;
+}
+
 export interface DeclaredContributionsDeps {
   /** Every installed extension's id + entry (enabled, status, manifest). */
   listEntries: () => { id: string; entry: DeclaredContributionsEntry }[];
   commandBridge: DeclaredCommandBridge;
   uiBridge: DeclaredPanelTypeBridge;
+  /** Optional so harnesses without an app surface still work; `main.ts` passes the `RendererUiBridge`. */
+  appBridge?: DeclaredAppBridge;
   /** Appends one line to `extensionId`'s own lifecycle log. */
   log: (extensionId: string, level: 'info' | 'warn' | 'error', message: string) => void;
 }
@@ -75,6 +90,7 @@ export class DeclaredContributions {
     if (!found || !eligible) {
       this.deps.commandBridge.unregisterDeclaredCommands(extensionId);
       this.deps.uiBridge.unregisterDeclaredPanelTypes(extensionId);
+      this.deps.appBridge?.unregisterDeclaredApps(extensionId);
       return;
     }
     const { manifest } = found.entry;
@@ -84,6 +100,35 @@ export class DeclaredContributions {
     for (const def of manifest.contributes?.panelTypes ?? []) {
       this.deps.uiBridge.registerDeclaredPanelType(extensionId, def);
     }
+    this.syncApps(extensionId, found.entry);
+  }
+
+  /**
+   * `contributes.apps` register only while the extension holds
+   * `ui:contribute-app` (a user may untick it at install, or revoke it later:
+   * `ExtensionHost.updatePermissions` re-runs this), and are dropped otherwise.
+   */
+  private syncApps(extensionId: string, entry: DeclaredContributionsEntry): void {
+    const bridge = this.deps.appBridge;
+    if (!bridge) return;
+    const apps = entry.manifest.contributes?.apps ?? [];
+    if (apps.length === 0 || !entry.grantedPermissions?.includes('ui:contribute-app')) {
+      bridge.unregisterDeclaredApps(extensionId);
+      return;
+    }
+    const { manifest } = entry;
+    const meta = {
+      publisher: manifest.publisher,
+      extensionName: manifest.displayName ?? manifest.name,
+      hasSettings: manifest.contributes?.configuration !== undefined,
+    };
+    // Prune apps an update removed, but never unregister one that stays:
+    // that would bounce the renderer out of an app the user has open.
+    bridge.unregisterDeclaredApps(
+      extensionId,
+      apps.map((a) => (a.id.startsWith(`${extensionId}.`) ? a.id : `${extensionId}.${a.id}`)),
+    );
+    for (const app of apps) bridge.registerDeclaredApp(extensionId, app, meta);
   }
 
   /** `syncDeclared` for every installed extension. Called at boot and once the renderer bridge is ready. */

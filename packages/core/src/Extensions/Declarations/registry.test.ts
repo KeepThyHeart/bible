@@ -25,7 +25,7 @@ import {
 const LEGACY_NAMESPACES = [
   'bible', 'commentary', 'book', 'dictionary', 'notes', 'highlights', 'bookmarks', 'collections',
   'commands', 'ui', 'workspace', 'context', 'storage', 'l10n', 'events', 'runtime', 'panels',
-  'network', 'auth', 'tasks', 'extensions', 'ai', 'reminders', 'speech',
+  'network', 'auth', 'tasks', 'extensions', 'ai', 'reminders', 'speech', 'apps',
 ];
 
 /** `ALLOWED_PERMISSIONS` as it was hand-written before task 0086. */
@@ -37,7 +37,7 @@ const LEGACY_PERMISSIONS = [
   'ui:context-menu', 'ui:notification', 'ui:status-bar', 'ui:media', 'commands:register',
   'commands:execute-builtin', 'tasks', 'notifications:schedule', 'network', 'network:oauth',
   'speech:listen', 'speech:speak', 'extensions:call', 'fs:read-user', 'fs:write-user',
-  'fs:managed-folder',
+  'fs:managed-folder', 'ui:contribute-app',
 ];
 
 const sorted = (xs: readonly string[]): string[] => [...xs].sort();
@@ -74,11 +74,11 @@ describe('extension API registry - parity with the pre-0086 tables', () => {
       sorted([
         'onView:', 'onCommand:', 'onLanguage:', 'onFileType:', 'onUri:', 'onContext:',
         'onModuleInstalled:', 'onModuleUpdated:', 'onProviderRoleSelected:', 'onExtensionApi:',
-        'onAuthRequired:', 'onTask:',
+        'onAuthRequired:', 'onTask:', 'onApp:',
       ]),
     );
     expect(sorted(Activation.FIRED_ACTIVATION_EVENTS)).toEqual(
-      sorted(['onStartupFinished', 'onCommand:', 'onView:', 'onReminder']),
+      sorted(['onStartupFinished', 'onCommand:', 'onView:', 'onReminder', 'onApp:']),
     );
   });
 
@@ -98,6 +98,7 @@ describe('extension API registry - parity with the pre-0086 tables', () => {
       'highlights.afterChange': 'highlights:read',
       'reminder.activated': 'notifications:schedule',
       'reminder.missed': 'notifications:schedule',
+      'app.visibilityChanged': 'ui:contribute-app',
     });
   });
 

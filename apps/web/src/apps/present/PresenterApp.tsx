@@ -20,7 +20,9 @@ import { NotesPane } from './notes/NotesPane';
 import { notesStore } from './notes/notesStore';
 import { ServiceMenu } from './notes/services/ServiceMenu';
 import { PhoneLayout } from './PhoneLayout';
-import { closePresenter } from './route';
+import { backToStudy, isAppActive } from '../../host/appHost';
+import { AppSwitchSlot } from '../../host/AppSwitchSlot';
+import { useIsActiveApp } from '../../host/useIsActiveApp';
 import { Splitter } from './Splitter';
 import './PresenterApp.css';
 
@@ -28,8 +30,8 @@ const SPLITTER_PX = 6;
 const NUDGE = 0.02;
 
 /**
- * The Presenter: a full page under a slim app bar, rendered by `App.tsx` at
- * `#/@present` in place of Study (which stays mounted, hidden). Notes fill the
+ * The Presenter: a full page under a slim app bar, the app host's `present` app
+ * (`#/@present`). Notes fill the
  * left column; Control and Preview share the right, with both splitters
  * draggable and remembered per device. It takes no props and reads only its own
  * stores, so moving it into the app host later is a registration.
@@ -58,7 +60,9 @@ export function PresenterApp() {
   // Re-render when the notes' current service changes (the app bar shows its menu).
   const [, setNotesTick] = useState(0);
   useEffect(() => notesStore.subscribe(() => setNotesTick(n => n + 1)), []);
-  useCommandHotkey();
+  // Kept alive behind Study: its global keys (and the `?` help) belong to the active app only.
+  const active = useIsActiveApp('present');
+  useCommandHotkey({ enabled: active });
 
   // The pickers and command search results call this to put an item into the notes.
   const onAddToNotes = (item: PresentItem, label?: string): void => {
@@ -76,13 +80,13 @@ export function PresenterApp() {
   // The Presenter's keys (see `presenterKeys.ts`): `?` help, `H` / `X` note
   // highlights, `N` / `Shift+N` plan items, and before going live the clicker
   // keys against the local session. None fire while typing (the notes editor,
-  // the command box, the pickers). Study stays mounted underneath with its own
-  // clicker hook, which answers the clicker keys once live.
+  // the command box, the pickers). Once live, the headless `PresenterKeys`
+  // (mounted by the app shell) answers the clicker keys.
   const stateRef = useRef<PresentState | null>(null);
   stateRef.current = presenterState;
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (isTyping(event.target) || event.defaultPrevented) return;
+      if (!isAppActive('present') || isTyping(event.target) || event.defaultPrevented) return;
       const action = resolvePresenterKey(event, {
         live: presenterIsLive(),
         acceptClickerKeys: presentStore.acceptClickerKeys,
@@ -152,7 +156,7 @@ export function PresenterApp() {
   return (
     <div class="presenter-app" data-layout={layout}>
       <header class="pz-appbar">
-        <button type="button" class="pz-appbar__back" onClick={closePresenter} title={t('present.app.backTitle')}>
+        <button type="button" class="pz-appbar__back" onClick={() => { void backToStudy(); }} title={t('present.app.backTitle')}>
           <i class="fa-solid fa-chevron-left" aria-hidden="true" />
           {t('present.app.back')}
         </button>
@@ -162,6 +166,8 @@ export function PresenterApp() {
           onDeleted={id => void notesStore.onServiceDeleted(id)}
         />
         <span class="pz-appbar__spacer" />
+        {/* Shows on the phone layout and when the wide-screen rail is off. */}
+        <AppSwitchSlot className="pz-btn pz-btn--icon pz-appbar__switch" />
         {/* On desktop the Control pane shows the live status; the phone has no such row. */}
         {layout === 'phone' && (
           <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>

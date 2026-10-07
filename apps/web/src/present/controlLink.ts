@@ -19,7 +19,10 @@
  */
 
 import type { ControllerSession } from '../stores/presentStore';
-import { PRESENTER_HASH } from '../apps/present/route';
+
+// The Presenter's deep link (`formatAppLink('present')`, once core exports it). Kept local so this
+// module does not import `apps/present/route.ts` (and its popstate listeners) into the entry.
+const PRESENTER_HASH = '#/@present';
 
 /** `/present/c/<sessionId>`, with the session id as the first capture. */
 const CONTROL_PATH = /^\/present\/c\/([0-9A-HJKMNP-TV-Z]{16})\/?$/;

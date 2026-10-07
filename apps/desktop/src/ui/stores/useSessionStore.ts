@@ -173,6 +173,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       dictionary: get_('dictionary'),
       notes: get_('notes'),
       dockviewState: get_('dockviewState') ?? undefined,
+      appHost: get_('appHost') ?? undefined,
       ui: {
         textSettings: get_('textSettings'),
         textSettingsCustomized: get_('textSettingsCustomized'),

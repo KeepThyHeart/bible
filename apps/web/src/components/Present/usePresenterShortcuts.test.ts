@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+vi.mock('../../host/appHost', () => ({ appHost: { getSnapshot: () => ({ activeId: 'study' }) } }));
 import { isTyping, resolveShortcutAction } from './usePresenterShortcuts';
 
 function key(overrides: Partial<{

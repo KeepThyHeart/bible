@@ -36,6 +36,7 @@ import { BOOK_DICT_PANEL_TYPES } from '../stores/helpers/bookDictPanelTypes';
 import { DEFAULT_COMMENTARY_PREFERENCE, DEFAULT_VERSE_ID } from '../constants';
 import { isDigestModule } from '../moduleDescriptions';
 import { pruneSessionTabs } from './pruneSessionTabs';
+import { setPendingAppRestore } from '../apps/appSession';
 
 /**
  * Dockview panel IDs created by `createDefaultLayout` in DockviewLayout.
@@ -121,6 +122,8 @@ export function restoreFileNotesFromSession(
  */
 export interface AppInitResult {
   dockviewLayout: Record<string, unknown> | null;
+  /** The persisted app-host state (`sessionData.appHost`), for `restoreActiveApp`. */
+  appHost?: unknown;
 }
 
 /**
@@ -177,6 +180,7 @@ export async function initializeApp(
     options.onLayoutReady?.(layout);
   };
   let dockviewLayout: Record<string, unknown> | null = null;
+  let appHost: unknown;
 
   // Default-init helper, used both when there's no session data and as the
   // catch-all error fallback. Kept inline so the closure captures the same
@@ -224,6 +228,10 @@ export async function initializeApp(
   try {
     const session = await sessionAPI.getOrCreateAutosave();
     if (signal.aborted) return { dockviewLayout };
+
+    appHost = session?.sessionData?.appHost;
+    // Until `restoreActiveApp` settles, saves keep this blob (see appSession.ts).
+    setPendingAppRestore(appHost);
 
     const hasSessionData = !!(
       session &&
@@ -411,7 +419,7 @@ export async function initializeApp(
   // Backstop: any path that somehow reached here without publishing (a future
   // early return) must still unblock the workbench.
   publishLayout(dockviewLayout);
-  return { dockviewLayout };
+  return { dockviewLayout, appHost };
 }
 
 /**

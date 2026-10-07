@@ -1102,6 +1102,8 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       log: (extensionId, level, message) =>
         extensionHost!.appendLog(extensionId, { ts: Date.now(), level, message }),
       onRendererReady: () => declaredContributions?.syncAll(),
+      // A command the user ran (renderer-reported activation) counts as a gesture for `api.apps.open`.
+      onUserGesture: (extensionId) => extensionHost?.grantUserGesture(extensionId),
     });
     const contextBridge = new RendererContextBridge(getMainWindow);
     // Created explicitly (rather than left to `ExtensionHost`'s internal
@@ -1233,6 +1235,7 @@ async function initializeExtensionHostInBackground(): Promise<void> {
       listEntries: () => extensionHost!.listEntries(),
       commandBridge,
       uiBridge,
+      appBridge: uiBridge,
       log: (extensionId, level, message) =>
         extensionHost!.appendLog(extensionId, { ts: Date.now(), level, message }),
     });

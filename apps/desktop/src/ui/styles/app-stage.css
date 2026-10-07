@@ -1,0 +1,27 @@
+/*
+ * The desktop app stage (task 0080). Every mounted app is a cell of one grid
+ * track, so each keeps its real size from the first frame. Inactive apps stay
+ * laid out but invisible (visibility, not display:none): dockview keeps its
+ * ResizeObserver callbacks, scroll positions and measured sizes while Study is
+ * hidden. Specificity beats the shared `.kth-app-stage__app[hidden]` rule.
+ */
+.app-stage {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+.app-stage > .kth-app-stage__app {
+  display: block;
+  grid-area: 1 / 1;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+.app-stage > .kth-app-stage__app[hidden] {
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Descendants that set visibility:visible themselves (dockview tab actions, inline-styled
+   menus) would otherwise leak through the hidden wrapper. */
+.app-stage > .kth-app-stage__app[hidden] * {
+  visibility: hidden !important;
+}

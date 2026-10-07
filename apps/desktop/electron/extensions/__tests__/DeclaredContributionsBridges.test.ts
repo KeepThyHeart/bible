@@ -290,6 +290,21 @@ describe('RendererCommandBridge - declared commands', () => {
     expect(activateCalls).toEqual([['ext.test.foo', 'onCommand:ext.test.foo.go']]);
   });
 
+  it('disposeByOwner removing a still-placed placeholder lets a later resync place it again', () => {
+    // A worker that never superseded its handlerEndpoint command (the placeholder
+    // stays the only row) and is then torn down in bulk (deactivate, crash, a
+    // permission change) must get its placeholder back on the next resync.
+    const { window, sent } = makeFakeWindow();
+    const { deps } = makeDeps();
+    const bridge = new RendererCommandBridge(() => window as never, deps);
+
+    bridge.registerDeclaredCommand('ext.test.foo', decl());
+    expect(bridge.disposeByOwner('ext.test.foo')).toBe(1);
+    bridge.registerDeclaredCommand('ext.test.foo', decl());
+
+    expect(registerOpsFor(sent, 'ext.test.foo.go')).toHaveLength(2);
+  });
+
   it('unregisterDeclaredCommands drops the placeholder entirely', async () => {
     const { window, sent } = makeFakeWindow();
     const { deps } = makeDeps();

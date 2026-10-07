@@ -8,5 +8,5 @@ export type { CommandBoxProps } from './CommandBox';
 export { CommandSearchResults, searchItemToPresentItem } from './CommandSearchResults';
 export type { CommandSearchResultsProps } from './CommandSearchResults';
 export { commandSearch } from './commandSearch';
-export { setVerseSearchProvider } from './searchProviders';
+export { setVerseSearchProviderFactory } from './searchProviders';
 export { useCommandHotkey } from './useCommandHotkey';

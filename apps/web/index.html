@@ -81,16 +81,20 @@
       // comes from /api/config's ui.defaultModule, which is still in flight
       // here, and guessing wrong would cost a request and save none.
       try {
-        var deepLink = window.location.hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
-        if (deepLink) {
-          grab('/api/bible/' + deepLink[1] + '/' + deepLink[2] + '/' + deepLink[3]);
-        } else {
-          var saved = JSON.parse(localStorage.getItem('bible-reader-session') || 'null');
-          var tab = saved && saved.tabs && saved.tabs[saved.activeTabIndex || 0];
-          // A tab without a translation gets one from ui.defaultModule, which
-          // is unknown here; skip it rather than guess, like a first visit.
-          if (tab && tab.moduleAbbr && tab.book && tab.chapter && !(tab.verses && tab.verses.length)) {
-            grab('/api/bible/' + tab.moduleAbbr + '/' + tab.book + '/' + tab.chapter);
+        // A deep link to another app (`#/@present`) or a presenter control link never
+        // opens the reader first, so its chapter is not worth a request.
+        if (!/^#\/@/.test(window.location.hash) && !/^\/present\/c\//.test(window.location.pathname)) {
+          var deepLink = window.location.hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
+          if (deepLink) {
+            grab('/api/bible/' + deepLink[1] + '/' + deepLink[2] + '/' + deepLink[3]);
+          } else {
+            var saved = JSON.parse(localStorage.getItem('bible-reader-session') || 'null');
+            var tab = saved && saved.tabs && saved.tabs[saved.activeTabIndex || 0];
+            // A tab without a translation gets one from ui.defaultModule, which
+            // is unknown here; skip it rather than guess, like a first visit.
+            if (tab && tab.moduleAbbr && tab.book && tab.chapter && !(tab.verses && tab.verses.length)) {
+              grab('/api/bible/' + tab.moduleAbbr + '/' + tab.book + '/' + tab.chapter);
+            }
           }
         }
       } catch (e) { /* private mode, or a session this build cannot parse */ }

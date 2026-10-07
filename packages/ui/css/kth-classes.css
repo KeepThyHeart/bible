@@ -1120,3 +1120,66 @@
 .kth-pack-row__remove:hover:not(:disabled) { border-color: var(--kth-danger); color: var(--kth-danger); }
 .kth-pack-row__remove:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
 .kth-pack-row__remove:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================================
+   Apps: shared navigation + stage components (src/components/apps)
+   Logical properties only (RTL guard).
+   ============================================================================ */
+.kth-app-badge { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: var(--kth-text-muted); color: var(--kth-accent-text); font-size: 0.7rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.kth-app-badge--dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; }
+.kth-app-badge--count, .kth-app-badge--text { min-inline-size: 0.95rem; block-size: 0.95rem; max-inline-size: 2.2rem; padding-inline: 0.2rem; border-radius: 999px; font-size: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kth-app-badge--neutral { background: var(--kth-text-muted); }
+.kth-app-badge--live { background: var(--kth-success); }
+.kth-app-badge--attention { background: var(--kth-danger); }
+
+.kth-app-rail { display: flex; }
+.kth-app-rail--vertical { flex-direction: column; }
+.kth-app-rail--horizontal { flex-direction: row; }
+.kth-app-rail__list { display: flex; flex-direction: inherit; gap: var(--kth-space-1); margin: 0; padding: var(--kth-space-1); list-style: none; }
+.kth-app-rail__item { position: relative; display: flex; }
+.kth-app-rail__btn { position: relative; display: inline-flex; align-items: center; justify-content: center; inline-size: 2.5rem; block-size: 2.5rem; padding: 0; border: 0; border-radius: var(--kth-radius, 6px); background: transparent; color: var(--kth-text-muted); font: inherit; cursor: pointer; }
+.kth-app-rail__btn:hover { background: var(--kth-bg-hover); color: var(--kth-text); }
+.kth-app-rail__btn:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-app-rail__btn--active { color: var(--kth-text); background: var(--kth-bg-hover); }
+.kth-app-rail__btn[aria-busy="true"] { opacity: 0.7; }
+.kth-app-rail__marker { position: absolute; inset-inline-start: 0; inset-block: 25%; inline-size: 3px; border-radius: 2px; background: transparent; }
+.kth-app-rail__marker--horizontal { inset-inline: 25%; inset-block: auto 0; inline-size: auto; block-size: 3px; }
+.kth-app-rail__marker--active { background: var(--kth-accent); }
+.kth-app-rail__icon { display: inline-flex; font-size: 1.25rem; }
+/* Small and pinned to the top inline-end corner so it never covers the icon; a ring in the rail colour separates it from the glyph. */
+.kth-app-rail__badge { position: absolute; inset-block-start: 0; inset-inline-end: 0; box-shadow: 0 0 0 1px var(--kth-bg, transparent); pointer-events: none; }
+
+.kth-app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--kth-space-3); margin: 0; padding: 0; list-style: none; }
+.kth-app-grid__cell { display: flex; }
+.kth-app-grid__tile { position: relative; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: var(--kth-space-2); padding: var(--kth-space-4); border: 1px solid var(--kth-border); border-radius: var(--kth-radius, 6px); background: transparent; color: var(--kth-text); font: inherit; cursor: pointer; }
+.kth-app-grid__tile:hover { border-color: var(--kth-accent); }
+.kth-app-grid__tile:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-app-grid__tile[aria-busy="true"] { opacity: 0.7; }
+.kth-app-grid__icon { display: inline-flex; font-size: 2rem; }
+.kth-app-grid__title { font-weight: 600; text-align: center; }
+.kth-app-grid__badge { position: absolute; inset-block-start: var(--kth-space-2); inset-inline-end: var(--kth-space-2); }
+
+.kth-app-sheet__list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.kth-app-sheet__row { display: flex; align-items: center; gap: var(--kth-space-3); inline-size: 100%; min-block-size: 3rem; padding-block: var(--kth-space-2); padding-inline: var(--kth-space-3); border: 0; border-radius: var(--kth-radius, 6px); background: transparent; color: var(--kth-text); font: inherit; text-align: start; cursor: pointer; }
+.kth-app-sheet__row:hover { background: var(--kth-bg-hover); }
+.kth-app-sheet__row:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: -2px; }
+.kth-app-sheet__row--active { font-weight: 600; border-inline-start: 3px solid var(--kth-accent); }
+.kth-app-sheet__icon { display: inline-flex; font-size: 1.25rem; }
+.kth-app-sheet__title { flex: 1; }
+
+.kth-app-switch { position: relative; display: inline-flex; align-items: center; justify-content: center; min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0; border: 0; border-radius: var(--kth-radius, 6px); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.kth-app-switch:hover { background: var(--kth-bg-hover); }
+.kth-app-switch:focus-visible { outline: 2px solid var(--kth-accent); outline-offset: 2px; }
+.kth-app-switch__icon { display: inline-flex; }
+.kth-app-switch__badge { position: absolute; inset-block-start: 0.1rem; inset-inline-end: 0.1rem; }
+
+.kth-app-stage__app { display: contents; }
+.kth-app-stage__app[hidden] { display: none; }
+.kth-app-stage__status { display: flex; align-items: center; justify-content: center; gap: var(--kth-space-2); padding: var(--kth-space-4); color: var(--kth-text-muted); }
+
+/* Apps preferences (task 0080, S1) */
+.kth-apps-pref__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--kth-space-2); }
+.kth-apps-pref__row { display: flex; align-items: center; gap: var(--kth-space-3); padding-block: var(--kth-space-2); padding-inline: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius, 6px); }
+.kth-apps-pref__icon { inline-size: 1.5rem; text-align: center; }
+.kth-apps-pref__title { flex: 1; min-inline-size: 0; }
+.kth-apps-pref__show { display: inline-flex; align-items: center; gap: var(--kth-space-1); }

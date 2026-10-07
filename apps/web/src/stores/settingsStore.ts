@@ -460,7 +460,14 @@ class SettingsStore extends Store {
 
   save(): void {
     try {
+      // Merge into the existing blob: other writers (the registry: appHidden, appOrder, ...) own keys here too.
+      let prev: Record<string, unknown> = {};
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) prev = raw;
+      } catch { /* corrupt blob: start over */ }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...prev,
         theme: this.theme,
         fontSchemeId: this.fontSchemeId,
         fontFamily: this.fontFamily,

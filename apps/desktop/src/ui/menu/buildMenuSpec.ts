@@ -23,6 +23,7 @@ import type {
   MenuSpecItem,
   MenuCommandSpec,
 } from '../../../electron/menu/menuSpec';
+import { hasMultipleApps } from '@bible/core/browser';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { II18nService } from '../services/II18nService';
 import type { IKeybindingService } from '../services/IKeybindingService';
@@ -39,6 +40,12 @@ export interface BuildMenuSpecDeps {
    * and its safe state, so an unknown value never reads as "online".
    */
   allowWebRequests?: boolean;
+  /**
+   * The apps a user can switch to, in their order, with labels already resolved.
+   * The View > Apps submenu is built only when there is more than one, so a
+   * single app (Study alone) leaves today's menu unchanged.
+   */
+  apps?: ReadonlyArray<{ commandId: string; label: string }>;
 }
 
 /**
@@ -251,11 +258,29 @@ export function buildMenuSpec(deps: BuildMenuSpecDeps): MenuSpec {
   ];
   const viewSubmenu: MenuSpecItem[] = [
     { type: 'submenu', label: deps.i18n.t('menu.view.theme'), submenu: themeSubmenu },
+  ];
+  if (hasMultipleApps(deps.apps ?? [])) {
+    viewSubmenu.push({
+      type: 'submenu',
+      label: deps.i18n.t('menu.view.apps'),
+      id: 'view-apps',
+      submenu: (deps.apps ?? []).map((app): MenuCommandSpec => {
+        const accel = acceleratorFor(deps, app.commandId);
+        return {
+          type: 'command',
+          commandId: app.commandId,
+          label: app.label,
+          ...(accel !== undefined ? { accelerator: accel } : {}),
+        };
+      }),
+    });
+  }
+  viewSubmenu.push(
     { type: 'separator' },
     commandItem(deps, 'view.actualSize', 'menu.view.actualSize'),
     commandItem(deps, 'view.zoomIn', 'menu.view.zoomIn'),
     commandItem(deps, 'view.zoomOut', 'menu.view.zoomOut'),
-  ];
+  );
   // Developer tools only exist in development builds - see
   // `commands/appCommands.ts`. Drop the trailing separator with them so the
   // consumer build's View menu doesn't end in a stray divider.

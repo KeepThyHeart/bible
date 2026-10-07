@@ -32,6 +32,7 @@ import { ThemesSection } from './PreferencesDialog/ThemesSection';
 import { PrivacySection } from './PreferencesDialog/PrivacySection';
 import { NotificationsSection } from './PreferencesDialog/NotificationsSection';
 import { DownloadsSection } from './PreferencesDialog/DownloadsSection';
+import { AppsSection } from './PreferencesDialog/AppsSection';
 import { AdvancedSection } from './PreferencesDialog/AdvancedSection';
 import { MeasuresSection } from './PreferencesDialog/MeasuresSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
@@ -184,6 +185,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             {activeSection === 'extensions' && (
               <ExtensionsSection initialExpand={initialExtensionTarget} />
             )}
+            {activeSection === 'apps' && <AppsSection />}
             {activeSection === 'measures' && <MeasuresSection />}
             {activeSection === 'advanced' && <AdvancedSection />}
             {activeSection === 'diagnostics' && <DiagnosticsSettings />}

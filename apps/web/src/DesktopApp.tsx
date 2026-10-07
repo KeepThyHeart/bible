@@ -14,7 +14,7 @@ import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { PresentBar } from './components/Present/PresentBar';
+import { CompanionSlot } from './host/CompanionSlot';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore, RENDERABLE_PANE_MODES } from './stores/commentaryStore';
 import { parseVerseId } from './utils/verseId';
@@ -78,7 +78,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     dictionaryStore.openStrongs(strongsNumber);
   }, [shared]);
 
-  const { contextMenu, contextMenuRef, handleContextMenuAction } = useContextMenu(
+  const { contextMenu, contextMenuRef, handleContextMenuAction, handleVerseAction, verseActionItems } = useContextMenu(
     shared.findVerseAtPoint,
     shared.setCopyOpen,
   );
@@ -269,8 +269,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           </div>
         )}
       </div>
-      {/* Study's companion strip while a session is live; also owns the presenter shortcuts. */}
-      <PresentBar />
+      {/* Study's companion strip while a session is live; the shortcuts are `PresenterKeys`, mounted by the app shell. */}
+      <CompanionSlot />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}
@@ -293,6 +293,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           y={contextMenu.y}
           menuRef={contextMenuRef}
           onAction={handleContextMenuAction}
+          actions={verseActionItems}
+          onVerseAction={handleVerseAction}
           showSimilar={similarAvailable}
         />
       )}

@@ -203,7 +203,8 @@ describe('API surface contract', () => {
     expect(namespaces.get('bible')).toBe('IBibleApi');
 
     const pointIds = declaredPointIds();
-    expect(pointIds.length).toBe(16);
+    // 16 + `app.visibilityChanged` (task 0080, `api.apps`).
+    expect(pointIds.length).toBe(17);
   });
 
   it('declares only methods (never a bare data property)', () => {
@@ -241,10 +242,12 @@ describe('API surface contract', () => {
     //                name. Its `dispose()` unbinds locally *and* sends
     //                `panels.setMessageHandler(false)`, but that is a state
     //                update, not a disposal call.
+    //   `apps`     - `onVisibilityChanged` is `events.subscribe` on the host-emitted
+    //                `app.visibilityChanged` channel, built worker-side in `apiProxy.ts`.
     //   `reminders` - `onActivated` / `onMissed` are `events.subscribe` on the
     //                host-emitted `reminder.activated` / `reminder.missed`
     //                channels, built worker-side in `apiProxy.ts`.
-    const WORKER_LOCAL_DISPOSABLES = new Set(['events', 'runtime', 'panels', 'reminders']);
+    const WORKER_LOCAL_DISPOSABLES = new Set(['events', 'runtime', 'panels', 'reminders', 'apps']);
     const registered = registeredMethods();
     const missing = [...namespacesReturningDisposables()]
       .filter((ns) => !WORKER_LOCAL_DISPOSABLES.has(ns))

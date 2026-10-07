@@ -200,7 +200,7 @@ export class CommandRegistry implements ICommandRegistry {
     return results.map((r) => r.result);
   }
 
-  async execute(id: string, args?: unknown): Promise<unknown> {
+  async execute(id: string, args?: unknown, options?: { programmatic?: boolean }): Promise<unknown> {
     const cmd = this.commands.get(id);
     if (!cmd) throw new CommandNotFoundError(id);
 
@@ -219,6 +219,7 @@ export class CommandRegistry implements ICommandRegistry {
       invocationContext: snapshot,
       liveContext: this.whenContext,
       i18n: this.i18n,
+      ...(options?.programmatic ? { programmatic: true } : {}),
     };
 
     try {

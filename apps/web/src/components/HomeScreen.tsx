@@ -6,6 +6,10 @@ import { searchStore } from '../stores/searchStore';
 import { focusSearchField } from '../utils/focusSearchField';
 import { sanitizeHtml } from '../utils/sanitize';
 import type { VotdData } from '../providers/interfaces';
+import { AppTileGrid } from '@bible/ui';
+import { openApp, prefetchApp } from '../host/appHost';
+import { useNavEntries } from '../host/appNavEntries';
+import { useNavItems } from '../host/navPrefs';
 
 interface HomeScreenProps {
   onNavigate?: (view: 'bible' | 'search') => void;
@@ -14,6 +18,7 @@ interface HomeScreenProps {
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { t } = useTranslation();
   const [votd, setVotd] = useState<VotdData | null>(null);
+  const appEntries = useNavEntries(useNavItems('tiles'));
 
   useEffect(() => {
     bibleStore.getVerseOfTheDay()
@@ -99,6 +104,17 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <span>{t('homeScreen.watchPresentation')}</span>
         </a>
       </div>
+      {appEntries.length > 1 && (
+        <section class="home-screen__apps" aria-labelledby="home-screen-apps-title">
+          <h2 id="home-screen-apps-title" class="home-screen__apps-title">{t('apps.home.title', 'Apps')}</h2>
+          <AppTileGrid
+            items={appEntries}
+            onSelect={(id) => { void openApp(id); }}
+            onPrefetch={prefetchApp}
+            labels={{ gridLabel: t('apps.home.title', 'Apps') }}
+          />
+        </section>
+      )}
     </div>
   );
 }

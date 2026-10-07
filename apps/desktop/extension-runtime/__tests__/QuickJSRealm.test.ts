@@ -167,6 +167,8 @@ describe('word-count runs end-to-end inside the realm', () => {
     h.realm.deliver(initEnvelope());
     h.settle({
       'ui.registerStatusBarItem': () => ({ id: 'ext.bible-app.word-count.display' }),
+      // The example's app answers its iframe through api.panels.onMessage.
+      'panels.setMessageHandler': () => undefined,
     });
 
     // activate() awaited a host call, which is the case prone to deadlock.
@@ -175,9 +177,11 @@ describe('word-count runs end-to-end inside the realm', () => {
     expect((statusBar[0]!.args[0] as { text: string }).text).toBe('Words: --');
 
     // ...and it subscribed to the verse-change channel.
-    const subscribe = h.sent.find((e) => e.kind === 'subscribe');
-    expect(subscribe).toBeDefined();
-    expect((subscribe as Extensions.RpcSubscribe).channel).toBe('verse.activeChanged');
+    // (It also subscribes to its app's `app.visibilityChanged`.)
+    const channels = h.sent
+      .filter((e) => e.kind === 'subscribe')
+      .map((e) => (e as Extensions.RpcSubscribe).channel);
+    expect(channels).toContain('verse.activeChanged');
 
     // ...and told the host it activated cleanly.
     const ack = h.sent.find((e) => e.kind === 'response' && e.id === 'host-init');
@@ -196,6 +200,7 @@ describe('word-count runs end-to-end inside the realm', () => {
         lastStatusText = (args[0] as { text: string }).text;
         return { id: 'ext.bible-app.word-count.display' };
       },
+      'panels.setMessageHandler': () => undefined,
       // word-count-example patches its status bar item on every active-verse
       // change (ui.updateStatusBarItem) rather than re-registering the whole
       // descriptor - see ui.registerStatusBarItem above for the initial value.

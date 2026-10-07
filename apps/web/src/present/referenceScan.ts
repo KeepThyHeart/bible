@@ -21,7 +21,7 @@
  */
 
 import { getAllBookNames } from '../utils/bookNames';
-import { BOOK_ABBREV_MAP } from '../components/Header';
+import { BOOK_ABBREV_MAP } from '../utils/referenceParse';
 
 export interface ScannedReference {
   book: number;
