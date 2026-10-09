@@ -30,7 +30,7 @@ Word studies are **not limited to Greek/Hebrew**. A `WordGroup` is a user-define
 
 | File | Purpose |
 |---|---|
-| `WordStudy/wordText.ts` | `tokenizeVerseWords` (whitespace index space, same as highlights/interlinear), `foldWord` (NFD, strips accents, Hebrew points; final sigma), `foldLemma` |
+| `Text/tokenize.ts`, `Text/normalize.ts` | `tokenizeVerseWords` (whitespace index space, same as highlights/interlinear), `foldWord` (NFD, strips accents, Hebrew points; final sigma), `foldLemma` |
 | `WordStudy/stemmers.ts` | `porterStem` (English, plus archaic `-eth`), light suffix stemmers for es/pt/fr/it/de/nl, `getStemmer(lang)`, `registerStemmer(lang, fn)` |
 | `WordStudy/wordGroup.ts` | `WordGroup`, `compileWordGroup(group, language)` -> `matchText(text)`, `normalizeWordGroup`, `groupFromQuery`, `countForms` |
 | `WordStudy/strongsDefinition.ts` | `parseStrongsDefinition` - the one parser for CrossWire Strong's definitions (header, sense, KJV list, from/see/compare) |

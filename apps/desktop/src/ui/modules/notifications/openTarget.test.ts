@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { bindAppLinkHandler } from '../../apps/appHost';
 import { waitFor } from '@testing-library/react';
 import {
   hostOpenTargetHandlers,
@@ -88,5 +89,15 @@ describe('startNotificationOpenTargetRouting', () => {
     hostOpenTargetHandlers.openNotificationPreferences();
     window.removeEventListener(OPEN_PREFERENCES_SECTION_EVENT, seen);
     expect((seen.mock.calls[0]![0] as CustomEvent).detail).toBe('notifications');
+  });
+});
+
+describe('app links', () => {
+  it('go to the app\'s own link handler when it has one (so its route is acted on once)', () => {
+    const handler = vi.fn();
+    const binding = bindAppLinkHandler('test-app', handler);
+    hostOpenTargetHandlers.openAppRoute?.('test-app', 'cards');
+    expect(handler).toHaveBeenCalledWith('cards');
+    binding.dispose();
   });
 });

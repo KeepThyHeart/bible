@@ -14,11 +14,14 @@
 
 import { config } from '../config.js';
 import { nullJudge } from './nullProvider.js';
+import { localJudge } from './localProvider.js';
+import type { PrivacyMode } from '../../../SiteConfig.js';
 import { createHttpJudge, DEFAULT_TIMEOUT_MS } from './httpProvider.js';
 import type { JudgeFetch } from './httpProvider.js';
 import type { JudgeProvider } from '../../../../src/modules/games/shared/protocol.js';
 
 export { nullJudge } from './nullProvider.js';
+export { localJudge, LOCAL_JUDGE_ID } from './localProvider.js';
 export { createHttpJudge, HTTP_JUDGE_ID, DEFAULT_TIMEOUT_MS } from './httpProvider.js';
 export type {
   HttpJudgeSettings,
@@ -50,7 +53,13 @@ export interface JudgeSettings {
  * be silence, and a half-filled environment file on a Sunday morning should
  * cost a suggestion, not the service.
  */
-export function createJudgeProvider(settings: JudgeSettings | null = config.judge): JudgeProvider {
+export function createJudgeProvider(
+  settings: JudgeSettings | null = config.judge,
+  options: { privacyMode?: PrivacyMode } = {}
+): JudgeProvider {
+  // Strict is the default (fail closed) and is decided before the key is even looked at: under
+  // strict, no answer text goes to an external service, whatever is configured.
+  if (options.privacyMode !== 'relaxed') return localJudge;
   if (settings === null) return nullJudge;
   if (!isComplete(settings)) return nullJudge;
 

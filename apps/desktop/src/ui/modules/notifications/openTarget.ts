@@ -6,9 +6,8 @@
 
 import { parseAppLink } from '@bible/core/browser';
 import type { ReminderTarget } from '@bible/core/browser';
-import { openApp } from '../../apps/appHost';
+import { openApp, openAppLink } from '../../apps/appHost';
 import { useBibleStore } from '../../stores/useBibleStore';
-import { openMemoryRoute } from '../memory/memoryModule';
 import { notificationsClient } from './notificationsAPI';
 
 export interface NotificationOpenTargetHandlers {
@@ -46,11 +45,9 @@ export const hostOpenTargetHandlers: NotificationOpenTargetHandlers = {
     window.dispatchEvent(new CustomEvent(OPEN_PREFERENCES_SECTION_EVENT, { detail: 'notifications' }));
   },
   openAppRoute(appId, route) {
-    // The route is handed to the app only once it is really open (a failed open must not leave
-    // a pending request that a later, unrelated open would act on).
-    void openApp(appId).then((result) => {
-      if (appId === 'memory' && (result.status === 'activated' || result.status === 'already')) openMemoryRoute(route);
-    });
+    // The app's own link handler (Memory's `cards`) when it has one, else just open the app. With
+    // this module off, such an app listens for the click itself.
+    openAppLink(appId, route);
   },
 };
 

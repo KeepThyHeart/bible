@@ -16,4 +16,6 @@ export const wordStudyModule: DesktopFeatureModule = {
     views: { 'panel:wordStudy': () => import('./WordStudyPane') },
   },
   commands: registerWordStudyCommands,
+  // Saved panes (`ui.wordStudyPanels`) are kept whole while the module is off or not loaded yet.
+  sessionKeys: ['wordStudyPanels'],
 };

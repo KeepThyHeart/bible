@@ -11,6 +11,8 @@ import { catalogEntryFor } from '../../../../src/modules/games/shared/games.js';
 import { content } from '../content/index.js';
 import { emptyGame, games } from '../games/index.js';
 import { createJudgeProvider } from '../judge/index.js';
+import { config } from '../config.js';
+import type { PrivacyMode } from '../../../SiteConfig.js';
 import { createRoomPort } from '../room/port.js';
 import { dispatch } from '../transport/broadcast.js';
 import type { EffectHandlers } from '../transport/roomPort.js';
@@ -27,7 +29,7 @@ import { createTransport } from '../transport/routes.js';
 /** Paths in `API` are absolute; the router is mounted at `API_BASE`, so it matches the rest. */
 const rel = (path: string): string => path.slice(API_BASE.length);
 
-export function createGamesRouter(): Router {
+export function createGamesRouter(options: { privacyMode?: PrivacyMode } = {}): Router {
   const app = Router();
 
   app.post(rel(API.time), (req, res) => {
@@ -73,7 +75,7 @@ export function createGamesRouter(): Router {
   const handlers: EffectHandlers = {};
   const transport = createTransport({ port, handlers });
 
-  const judge = createJudgeProvider();
+  const judge = createJudgeProvider(config.judge, { privacyMode: options.privacyMode });
 
   /**
    * A suggestion, arriving whenever it arrives. Three things are re-checked at

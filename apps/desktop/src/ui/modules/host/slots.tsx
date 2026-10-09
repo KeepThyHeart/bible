@@ -265,8 +265,8 @@ export function VerseMenuItems(props: VerseMenuItemProps): React.ReactElement | 
   if (items.length === 0) return null;
   return (
     <>
-      {items.map((C, i) => (
-        <C key={i} {...props} />
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
       ))}
     </>
   );
@@ -281,8 +281,8 @@ export function ShellOverlays(): React.ReactElement | null {
   if (items.length === 0) return null;
   return (
     <>
-      {items.map((C, i) => (
-        <C key={i} />
+      {items.map((C) => (
+        <C key={componentKey(C)} />
       ))}
     </>
   );

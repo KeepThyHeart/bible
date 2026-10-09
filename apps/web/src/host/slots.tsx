@@ -306,14 +306,14 @@ export function StudyLayoutOutlet({ layout, placement, onOpenSettings }: { layou
   const items = useSlot(studyLayoutItems);
   const mine = items.filter((i) => i.placement === placement && (i.layout === 'both' || i.layout === layout));
   if (mine.length === 0) return null;
-  return <>{mine.map((i, n) => h(i.Component, { key: n, onOpenSettings }))}</>;
+  return <>{mine.map((i) => h(i.Component, { key: componentKey(i.Component), onOpenSettings }))}</>;
 }
 
 /** Renders every component of a slot of components that take props. */
 export function PropsSlotOutlet<P extends object>({ slot, props }: { slot: Slot<ComponentType<P>>; props: P }) {
   const items = useSlot(slot);
   if (items.length === 0) return null;
-  return <>{items.map((C, i) => h(C as ComponentType<Record<string, unknown>>, { ...(props as Record<string, unknown>), key: i }))}</>;
+  return <>{items.map((C) => h(C as ComponentType<Record<string, unknown>>, { ...(props as Record<string, unknown>), key: componentKey(C as object) }))}</>;
 }
 
 /**

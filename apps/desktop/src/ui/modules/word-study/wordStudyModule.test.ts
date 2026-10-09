@@ -163,3 +163,21 @@ describe('the seams host code uses', () => {
     expect(destroyPanel).toHaveBeenCalledWith('wordStudy_1');
   }, 60_000);
 });
+
+describe('a saved session with Word study panes', () => {
+  const saved = { 'wordStudy-1': { subject: { kind: 'strongs', id: 'G25' }, options: {}, filters: {} } };
+
+  it('keeps the saved panes when the module is off, so a later save does not drop them', async () => {
+    await boot('-word-study');
+    const { stashRestoredSessionUi, declaredSessionSections } = await import('../../stores/helpers/sessionRegistry');
+    stashRestoredSessionUi({ wordStudyPanels: saved });
+    expect(declaredSessionSections().wordStudyPanels).toEqual(saved);
+  });
+
+  it('keeps them while the module is on but its store has not loaded yet', async () => {
+    await boot('');
+    const { stashRestoredSessionUi, declaredSessionSections } = await import('../../stores/helpers/sessionRegistry');
+    stashRestoredSessionUi({ wordStudyPanels: saved });
+    expect(declaredSessionSections().wordStudyPanels).toEqual(saved);
+  });
+});

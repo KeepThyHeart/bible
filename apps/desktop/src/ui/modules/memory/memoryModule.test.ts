@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const enabled = vi.hoisted(() => ({ value: true }));
+const openApp = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
+const bindAppLinkHandler = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const addAppBinding = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const bindHandler = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const setBadge = vi.hoisted(() => vi.fn());
@@ -15,14 +17,14 @@ const client = vi.hoisted(() => ({
 }));
 
 vi.mock('../moduleHost', () => ({ featureModules: { isEnabled: () => enabled.value } }));
-vi.mock('../../apps/appHost', () => ({ addAppBinding, appRegistry: { setBadge }, verseActions: { bindHandler }, isAppActive: (id: string) => activeApp.id === id }));
+vi.mock('../../apps/appHost', () => ({ addAppBinding, openApp, bindAppLinkHandler, appRegistry: { setBadge }, verseActions: { bindHandler }, isAppActive: (id: string) => activeApp.id === id }));
 vi.mock('../../services/I18nService', () => ({
   i18nService: { t: (k: string, p?: { count?: number }) => `${k}:${p?.count ?? ''}` },
 }));
 vi.mock('../../stores/useToastStore', () => ({ useToastStore: { getState: () => ({ addToast }) } }));
 vi.mock('./memoryClient', () => ({ memoryClient: client }));
 
-import { installMemoryHost, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS, memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
+import { startMemoryClickRouting, installMemoryHost, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS, memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
 
 let push: (p: unknown) => void;
 let dispose: () => void;
@@ -32,6 +34,8 @@ beforeEach(() => {
   enabled.value = true;
   for (const m of [addAppBinding, bindHandler, setBadge, addToast, client.on, client.getStatus, client.addVerses]) m.mockReset();
   addAppBinding.mockReturnValue({ dispose: vi.fn() });
+  bindAppLinkHandler.mockReset();
+  bindAppLinkHandler.mockReturnValue({ dispose: vi.fn() });
   bindHandler.mockReturnValue({ dispose: vi.fn() });
   client.on.mockImplementation((_e: string, cb: (p: unknown) => void) => {
     push = cb;
@@ -155,5 +159,87 @@ describe('laziness', () => {
     expect(src).not.toMatch(/^import .*['"]\.\/MemoryAppView['"]/m);
     expect(src).not.toMatch(/^import .*@bible\/memory\/ui/m);
     expect(src).toMatch(/import\('\.\/MemoryAppView'\)/);
+  });
+});
+
+describe('click routing (works with the Notifications module off)', () => {
+  const setup = (notificationsOn: boolean, taken: unknown = null) => {
+    let emit: (t: unknown) => void = () => undefined;
+    const off = vi.fn();
+    const c = {
+      on: vi.fn((_e: string, cb: (t: unknown) => void) => {
+        emit = cb;
+        return off;
+      }),
+      takeOpenTarget: vi.fn().mockResolvedValue(taken),
+    };
+    openApp.mockReset();
+    openApp.mockResolvedValue({ status: 'activated' });
+    const handle = startMemoryClickRouting(c as never, () => notificationsOn);
+    return { c, emit: (t: unknown) => emit(t), handle, off };
+  };
+
+  it('opens Memory and its cards on an app:memory/cards click, with Notifications off', async () => {
+    const { emit } = setup(false);
+    const listener = vi.fn();
+    const unregister = onMemoryCardsRequest(listener);
+    emit({ kind: 'route', route: 'app:memory/cards' });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(openApp).toHaveBeenCalledWith('memory');
+    expect(listener).toHaveBeenCalledTimes(1);
+    unregister();
+  });
+
+  it('ignores other targets and other apps', async () => {
+    const { emit } = setup(false);
+    emit({ kind: 'verse', verseId: 1 });
+    emit({ kind: 'route', route: 'app:quiz/cards' });
+    await Promise.resolve();
+    expect(openApp).not.toHaveBeenCalled();
+  });
+
+  it('does not open the cards when the app failed to open', async () => {
+    const { emit } = setup(false);
+    openApp.mockResolvedValue({ status: 'failed' });
+    const listener = vi.fn();
+    const unregister = onMemoryCardsRequest(listener);
+    emit({ kind: 'route', route: 'app:memory/cards' });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listener).not.toHaveBeenCalled();
+    unregister();
+  });
+
+  it('picks up a click that arrived during page load only when Notifications is off', async () => {
+    const off = setup(false, { kind: 'route', route: 'app:memory' });
+    expect(off.c.takeOpenTarget).toHaveBeenCalled();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(openApp).toHaveBeenCalledWith('memory');
+    const on = setup(true);
+    expect(on.c.takeOpenTarget).not.toHaveBeenCalled();
+  });
+
+  it('with Notifications on, the live event is left to its routing and the app link handler opens the cards once', async () => {
+    const { emit } = setup(true);
+    emit({ kind: 'route', route: 'app:memory/cards' });
+    await Promise.resolve();
+    expect(openApp).not.toHaveBeenCalled();
+    const handler = bindAppLinkHandler.mock.calls.at(-1)![1] as (route: string) => void;
+    const listener = vi.fn();
+    const unregister = onMemoryCardsRequest(listener);
+    handler('cards');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(openApp).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unregister();
+  });
+
+  it('is part of installMemoryHost and stops on dispose', () => {
+    dispose = installMemoryHost();
+    dispose();
+    dispose = () => undefined;
   });
 });

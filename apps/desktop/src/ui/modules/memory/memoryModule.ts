@@ -7,10 +7,12 @@
 import { MEMORIZE_ACTION_ID, MEMORY_APP_ID, memoryManifest } from '@bible/memory/manifest';
 import type { MemoryPush } from '@bible/memory/api';
 import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
-import { addAppBinding, appRegistry, isAppActive, verseActions } from '../../apps/appHost';
+import { parseAppLink } from '@bible/core/browser';
+import { addAppBinding, appRegistry, bindAppLinkHandler, isAppActive, openApp, verseActions } from '../../apps/appHost';
 import { i18nService } from '../../services/I18nService';
 import { useToastStore } from '../../stores/useToastStore';
 import { featureModules } from '../moduleHost';
+import { notificationsClient } from '../notifications/notificationsAPI';
 import { memoryClient } from './memoryClient';
 
 export const memoryModule: readonly [FeatureModuleManifest, FeatureModuleBinding] = [memoryManifest, { id: 'memory' }];
@@ -52,6 +54,49 @@ export function openMemoryRoute(route: string): void {
   if (route === 'cards') requestMemoryCards();
 }
 
+/**
+ * Memory's own handling of a notification click (`app:memory[/route]`), so it works whatever the
+ * Notifications module's state. Main sends the click on the notifications event channel (a plain
+ * IPC event); this listens to it directly and acts on Memory's routes only. The one-shot pickup of
+ * a click that arrived during page load is left to the Notifications module when it is on.
+ */
+export function startMemoryClickRouting(
+  client: Pick<typeof notificationsClient, 'on' | 'takeOpenTarget'> = notificationsClient,
+  notificationsOn: () => boolean = () => featureModules.isEnabled('notifications')
+): { dispose(): void } {
+  // The one place Memory's links are acted on: open the app, then hand over the route once the app
+  // is really open (a failed or superseded open must not leave a pending request that a later,
+  // unrelated open would act on).
+  const handle = (route: string): void => {
+    void openApp(MEMORY_APP_ID).then((result) => {
+      if (result.status === 'activated' || result.status === 'already') openMemoryRoute(route);
+    });
+  };
+  const binding = bindAppLinkHandler(MEMORY_APP_ID, handle);
+  // With Notifications on, its click routing hands the link to the handler above (once). With it
+  // off, this listener is the only receiver.
+  const onTarget = (target: { kind: string; route?: string }): void => {
+    if (notificationsOn() || target.kind !== 'route') return;
+    const link = parseAppLink(target.route);
+    if (link && link.segment === MEMORY_APP_ID) handle(link.route);
+  };
+  let off: (() => void) | undefined;
+  try {
+    off = client.on('open-target', onTarget);
+  } catch {
+    return { dispose: () => binding.dispose() }; // no module bridge (not running in Electron)
+  }
+  if (!notificationsOn()) {
+    void client.takeOpenTarget().then((t) => t && onTarget(t)).catch(() => undefined);
+  }
+  return {
+    dispose() {
+      off?.();
+      binding.dispose();
+    },
+  };
+}
+
 // --- host wiring -----------------------------------------------------------
 
 const t = (key: string, params?: Record<string, unknown>): string => i18nService.t(key, params);
@@ -80,6 +125,8 @@ export function installMemoryHost(): () => void {
     }),
     verseActions.bindHandler({ id: MEMORIZE_ACTION_ID, load: () => import('./memorize') }),
   );
+
+  disposables.push(startMemoryClickRouting());
 
   const applyStatus = (due: number, waiting: number): void => {
     appRegistry.setBadge(MEMORY_APP_ID, badgeFor(due, waiting));

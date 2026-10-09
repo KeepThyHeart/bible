@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createJudgeProvider, HTTP_JUDGE_ID, DEFAULT_TIMEOUT_MS } from './index.js';
+import { createJudgeProvider, LOCAL_JUDGE_ID, HTTP_JUDGE_ID, DEFAULT_TIMEOUT_MS } from './index.js';
 import type { JudgeFetch } from './index.js';
 import type { JudgeRequest } from '../../../../src/modules/games/shared/protocol.js';
 
@@ -28,6 +28,8 @@ function answering(content: string): JudgeFetch {
     Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ choices: [{ message: { content } }] }) });
 }
 
+const RELAXED = { privacyMode: 'relaxed' as const };
+
 const originalTimeout = process.env.BIBLE_GAMES_JUDGE_TIMEOUT_MS;
 
 afterEach(() => {
@@ -38,7 +40,7 @@ afterEach(() => {
 
 describe('choosing a provider', () => {
   it('gives the null provider when judging is not configured', async () => {
-    const judge = createJudgeProvider(null);
+    const judge = createJudgeProvider(null, RELAXED);
     expect(judge.id).toBe('none');
     expect(await judge.suggest(REQUEST)).toBeNull();
   });
@@ -46,21 +48,21 @@ describe('choosing a provider', () => {
   it('gives the null provider when the key is missing', async () => {
     // The common half-configured case: a base url and a model in the
     // environment file, and the key still sitting in someone's password vault.
-    const judge = createJudgeProvider({ ...COMPLETE, apiKey: '', fetch: forbidden });
+    const judge = createJudgeProvider({ ...COMPLETE, apiKey: '', fetch: forbidden }, RELAXED);
     expect(judge.id).toBe('none');
     expect(await judge.suggest(REQUEST)).toBeNull();
   });
 
   it('gives the null provider when the base url or the model is blank', () => {
-    expect(createJudgeProvider({ ...COMPLETE, baseUrl: '   ', fetch: forbidden }).id).toBe('none');
-    expect(createJudgeProvider({ ...COMPLETE, model: '', fetch: forbidden }).id).toBe('none');
+    expect(createJudgeProvider({ ...COMPLETE, baseUrl: '   ', fetch: forbidden }, RELAXED).id).toBe('none');
+    expect(createJudgeProvider({ ...COMPLETE, model: '', fetch: forbidden }, RELAXED).id).toBe('none');
   });
 
   it('gives the HTTP provider when everything is present', async () => {
     const judge = createJudgeProvider({
       ...COMPLETE,
       fetch: answering('{"verdict":"correct","reason":"Same person."}'),
-    });
+    }, RELAXED);
 
     expect(judge.id).toBe(HTTP_JUDGE_ID);
     expect(await judge.suggest(REQUEST)).toEqual({ verdict: 'correct', reason: 'Same person.' });
@@ -76,7 +78,7 @@ describe('choosing a provider', () => {
         url = seen;
         return answering('{"verdict":"correct","reason":"y"}')(seen, init);
       },
-    });
+    }, RELAXED);
     await judge.suggest(REQUEST);
 
     expect(url).toBe('https://api.example.test/v1/chat/completions');
@@ -93,7 +95,7 @@ describe('the timeout the room is willing to wait', () => {
         new Promise((_resolve, reject) => {
           init.signal.addEventListener('abort', () => reject(new Error('aborted')));
         }),
-    });
+    }, RELAXED);
 
     const pending = judge.suggest(REQUEST);
     await vi.advanceTimersByTimeAsync(250);
@@ -111,7 +113,7 @@ describe('the timeout the room is willing to wait', () => {
         new Promise((_resolve, reject) => {
           init.signal.addEventListener('abort', () => reject(new Error('aborted')));
         }),
-    });
+    }, RELAXED);
 
     let settled = false;
     const pending = judge.suggest(REQUEST).then((result) => {
@@ -135,10 +137,41 @@ describe('the timeout the room is willing to wait', () => {
         new Promise((_resolve, reject) => {
           init.signal.addEventListener('abort', () => reject(new Error('aborted')));
         }),
-    });
+    }, RELAXED);
 
     const pending = judge.suggest(REQUEST);
     await vi.advanceTimersByTimeAsync(100);
     expect(await pending).toBeNull();
+  });
+});
+
+describe('privacy mode', () => {
+  it.each([
+    ['strict with a full key', { privacyMode: 'strict' as const }],
+    ['unspecified (fails closed) with a full key', {}],
+  ])('%s uses the local judge and never calls out', async (_name, options) => {
+    const fetchSpy = vi.fn(forbidden);
+    const judge = createJudgeProvider({ ...COMPLETE, fetch: fetchSpy }, options);
+    expect(judge.id).toBe(LOCAL_JUDGE_ID);
+    await expect(judge.suggest(REQUEST)).resolves.toMatchObject({ verdict: 'correct' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('strict without a key uses the local judge', () => {
+    expect(createJudgeProvider(null, { privacyMode: 'strict' }).id).toBe(LOCAL_JUDGE_ID);
+  });
+
+  it('relaxed with a key goes to the HTTP provider and calls out', async () => {
+    const fetchSpy = vi.fn(answering('{"verdict":"correct","reason":"ok"}'));
+    const judge = createJudgeProvider({ ...COMPLETE, fetch: fetchSpy }, RELAXED);
+    expect(judge.id).toBe(HTTP_JUDGE_ID);
+    await judge.suggest(REQUEST);
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it('the local judge suggests nothing for a wrong or blank answer', async () => {
+    const judge = createJudgeProvider(null, { privacyMode: 'strict' });
+    await expect(judge.suggest({ ...REQUEST, playerAnswer: 'Moses' })).resolves.toBeNull();
+    await expect(judge.suggest({ ...REQUEST, playerAnswer: '  ' })).resolves.toBeNull();
   });
 });

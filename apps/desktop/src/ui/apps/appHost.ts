@@ -63,6 +63,29 @@ export async function openApp(id: AppId, options: ActivateOptions = {}): Promise
   return result;
 }
 
+/**
+ * An app that handles its own `app:<id>/<route>` links (open the app, then act on the route).
+ * Whoever receives a link (the Notifications module's click routing) hands it to the app's handler
+ * instead of only opening the app, so no module has to know another app's routes.
+ */
+const appLinkHandlers = new Map<string, (route: string) => void>();
+
+export function bindAppLinkHandler(appId: AppId, handler: (route: string) => void): { dispose(): void } {
+  appLinkHandlers.set(appId, handler);
+  return {
+    dispose() {
+      if (appLinkHandlers.get(appId) === handler) appLinkHandlers.delete(appId);
+    },
+  };
+}
+
+/** Open an app link: through the app's own handler when it has one, else just open the app. */
+export function openAppLink(appId: AppId, route: string): void {
+  const handler = appLinkHandlers.get(appId);
+  if (handler) handler(route);
+  else void openApp(appId);
+}
+
 export function isAppActive(id: AppId): boolean {
   return appHost.getSnapshot().activeId === id;
 }

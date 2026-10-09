@@ -47,7 +47,8 @@ registerRoute({
         isVisible: siteSettings ? (abbreviation) => isModuleActive(siteSettings.bibles, abbreviation) : undefined,
       });
       useContent(ContentLibrary.of(catalog, ContentDatabase.open(dbPath), config.defaultTranslation));
-      return createGamesRouter();
+      // Strict unless the site says otherwise: strict keeps answer text on this server.
+      return createGamesRouter({ privacyMode: deps.extra.privacyMode === 'relaxed' ? 'relaxed' : 'strict' });
     } catch (error) {
       logger.error(`[games] disabled: could not start (${error instanceof Error ? error.message : String(error)})`);
       const router = Router();

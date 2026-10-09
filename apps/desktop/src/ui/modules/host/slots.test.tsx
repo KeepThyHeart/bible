@@ -3,13 +3,18 @@
  * fire `onView:bible` when a host view with module slots mounts, and render nothing when empty.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { useEffect } from 'react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import {
   ReaderPaintControllers,
   ReaderToolbarItems,
   StudyPaneSections,
   StrongsTooltipActions,
   WordMenuItems,
+  ShellOverlays,
+  VerseMenuItems,
+  shellOverlays,
+  verseMenuItems,
   readerPaintControllers,
   readerToolbarItems,
   setViewActivator,
@@ -75,5 +80,31 @@ describe('reader slot outlets', () => {
     render(<StudyPaneSections verseId={1} sectionsCollapsed={{}} toggleSection={() => {}} />);
     expect(fire).toHaveBeenCalledWith('onView:bible');
     expect(fire).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('stable keys', () => {
+  it('disposing one verse-menu item or overlay does not remount the others', () => {
+    const mounts = vi.fn();
+    const First = () => <i data-testid="first" />;
+    const Second = () => {
+      useEffect(() => mounts(), []);
+      return <i data-testid="second" />;
+    };
+    const regs = [verseMenuItems.register(First as never), verseMenuItems.register(Second as never), shellOverlays.register(First), shellOverlays.register(Second)];
+    render(
+      <>
+        <VerseMenuItems {...({} as React.ComponentProps<typeof VerseMenuItems>)} />
+        <ShellOverlays />
+      </>,
+    );
+    expect(mounts).toHaveBeenCalledTimes(2);
+    act(() => {
+      regs[0]!.dispose();
+      regs[2]!.dispose();
+    });
+    expect(mounts).toHaveBeenCalledTimes(2);
+    regs[1]!.dispose();
+    regs[3]!.dispose();
   });
 });

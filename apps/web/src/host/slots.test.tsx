@@ -1,5 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/preact';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, cleanup, act } from '@testing-library/preact';
+import { useEffect } from 'preact/hooks';
 import {
   PropsSlotOutlet,
   StudyLayoutOutlet,
@@ -58,5 +59,30 @@ describe('phone back handlers and Help rows', () => {
     rows.dispose();
     expect(phoneBackHandlers.list()).toEqual([]);
     expect(helpShortcutRows.list()).toEqual([]);
+  });
+});
+
+describe('stable keys', () => {
+  it('disposing one slot item does not remount the others', async () => {
+    const mounts = vi.fn();
+    const First = () => <i data-testid="first" />;
+    const Second = () => {
+      useEffect(() => mounts(), []);
+      return <i data-testid="second" />;
+    };
+    const firstProps = readerToolbarActions.register(First);
+    const secondProps = readerToolbarActions.register(Second);
+    render(<PropsSlotOutlet slot={readerToolbarActions} props={{ tab: {} as never }} />);
+    const f = studyLayoutItems.register({ layout: 'both', placement: 'dock', Component: First });
+    const s = studyLayoutItems.register({ layout: 'both', placement: 'dock', Component: Second });
+    render(<StudyLayoutOutlet layout="phone" placement="dock" onOpenSettings={() => {}} />);
+    expect(mounts).toHaveBeenCalledTimes(2);
+    await act(() => {
+      firstProps.dispose();
+      f.dispose();
+    });
+    expect(mounts).toHaveBeenCalledTimes(2);
+    secondProps.dispose();
+    s.dispose();
   });
 });
