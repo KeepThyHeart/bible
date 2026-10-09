@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { IDockviewHeaderActionsProps } from 'dockview-react';
 import { isLeftRightTwoPaneLayout, useLayoutStore } from '../stores/useLayoutStore';
-import { scrollStart, setScrollStart } from '@bible/core/browser';
+import { scrollStart } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
+import { attachTabStripScroller, type TabStripScroller } from '../utils/smoothTabScroll';
+import DockviewTabListMenu from './DockviewTabListMenu';
 
 /**
  * Chevron button for scrolling tabs. Flush with the tab row, with a
@@ -77,6 +79,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
   const expandCollapsedGroups = useLayoutStore(s => s.expandCollapsedGroups);
   const actionsRef = useRef<HTMLDivElement>(null);
   const tabsContainerRef = useRef<HTMLElement | null>(null);
+  const scrollerRef = useRef<TabStripScroller | null>(null);
   const [canScrollStart, setCanScrollStart] = useState(false);
   const [canScrollEnd, setCanScrollEnd] = useState(false);
   const [leftPortalContainer, setLeftPortalContainer] = useState<HTMLElement | null>(null);
@@ -124,6 +127,8 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
     const tabsContainer = header?.querySelector('.dv-tabs-container') as HTMLElement | null;
     if (!tabsContainer || !header) return;
     tabsContainerRef.current = tabsContainer;
+    const scroller = attachTabStripScroller(tabsContainer);
+    scrollerRef.current = scroller;
 
     // Host for the "+" button, parked as the LAST child of the tabs list so it
     // scrolls with the tabs instead of occupying fixed header width. Safe to
@@ -199,6 +204,8 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       tabsContainerRef.current = null;
+      scroller.dispose();
+      scrollerRef.current = null;
       portalDiv.remove();
       setLeftPortalContainer(null);
       collapseHost.remove();
@@ -218,19 +225,17 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
     return Math.max(visibleWidth * 0.8, 200);
   }, []);
 
+  // Eased by the shared scroller: native smooth scroll is cancelled by
+  // dockview (see smoothTabScroll.ts). The scroller works in physical pixels
+  // (positive = right), so "toward the start" flips sign in RTL.
   const scrollTowardStart = useCallback(() => {
-    const el = tabsContainerRef.current;
-    if (!el) return;
     const amount = getScrollAmount();
-    // Direct assignment - avoids smooth-scroll being cancelled by dockview
-    setScrollStart(el, scrollStart(el, uiDir) - amount, uiDir);
+    scrollerRef.current?.scrollBy(uiDir === 'rtl' ? amount : -amount);
   }, [getScrollAmount, uiDir]);
 
   const scrollTowardEnd = useCallback(() => {
-    const el = tabsContainerRef.current;
-    if (!el) return;
     const amount = getScrollAmount();
-    setScrollStart(el, scrollStart(el, uiDir) + amount, uiDir);
+    scrollerRef.current?.scrollBy(uiDir === 'rtl' ? -amount : amount);
   }, [getScrollAmount, uiDir]);
 
   const handleAddTab = useCallback(() => {
@@ -433,6 +438,9 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
       {hasOverflow && (
         <ChevronButton direction="end" enabled={canScrollEnd} onClick={scrollTowardEnd} rtl={uiDir === 'rtl'} />
       )}
+
+      {/* Every tab in the pane, for when they no longer all fit */}
+      {hasOverflow && <DockviewTabListMenu group={group} />}
 
       {/* Add tab button - portaled into the scrollable tab list so it sits after
           the last tab and scrolls with them, rather than holding 32px of the

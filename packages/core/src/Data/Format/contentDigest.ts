@@ -12,7 +12,15 @@
  * the same content.
  */
 
-import { createHash, Hash } from 'node:crypto';
+// Namespace import, not `{ createHash }`: this module is re-exported by the Node
+// barrel (`@bible/core`), which the Electron renderer bundle also pulls in. Vite
+// stubs `node:crypto` there, and a NAMED import from the stub fails the build
+// ("createHash is not exported by __vite-browser-external"); a namespace import
+// resolves and is only touched when a digest is actually computed (Node only).
+// The marker constants below are `Uint8Array`, not `Buffer`, for the same reason:
+// they run at module load, and the renderer has no `Buffer` global.
+import * as nodeCrypto from 'node:crypto';
+import type { Hash } from 'node:crypto';
 import { ISql, SqlParameter, SqlRow } from '../Core/ISql';
 import { ModuleType } from '../Core/Types';
 import { CONTENT_MAP, ContentShape } from './ModuleFormat';
@@ -209,7 +217,7 @@ export function computeContentSha256(
   moduleType: ModuleType,
   resolvedCodec: ResolvedModuleCodec
 ): string {
-  const hash = createHash('sha256');
+  const hash = nodeCrypto.createHash('sha256');
   const shapes = CONTENT_MAP[moduleType];
 
   for (const shape of shapes) {
