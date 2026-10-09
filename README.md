@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next.  ALSO: I am reworking the module format somewhat before a first beta release, as well as some of the architecture, and so the development clone may be temporarily broken but should be fixed soon._
+_Note: For a pre-release download for Windows, Linux, and Mac, please see the Tags section.  Note that this is still a beta release, and so expect rough edges.  Feel free to file any problems you have in the "Issues" tab above, and you can also e-mail me at keepthyheart@outlook.com with feedback and suggestions!_
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
