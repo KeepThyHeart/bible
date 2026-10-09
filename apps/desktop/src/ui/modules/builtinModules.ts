@@ -7,8 +7,12 @@ import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/br
 import { hostPanelsManifest, hostPanelsBinding } from './host/panels';
 import { hostUiModule } from './host/ui';
 import { addBuiltinModule, reconcileModules } from './moduleHost';
+import { genealogyManifest } from './genealogy/manifest';
+import { genealogyBinding } from './genealogy/binding';
+import { timelineManifest } from './timeline/manifest';
+import { timelineBinding } from './timeline/binding';
 
-export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [[hostPanelsManifest, hostPanelsBinding], hostUiModule];
+export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [[hostPanelsManifest, hostPanelsBinding], hostUiModule, [genealogyManifest, genealogyBinding], [timelineManifest, timelineBinding]];
 
 let registered = false;
 

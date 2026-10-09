@@ -6,7 +6,7 @@ import { StudyHome } from '../StudyPane/StudyHome';
 import { StudyMeasures } from '../StudyPane/StudyMeasures';
 import { StudyTopics } from '../StudyPane/StudyTopics';
 import { TopicsBrowser } from '../StudyPane/TopicsBrowser';
-import { GenealogyPane } from '../StudyPane/GenealogyPane';
+import { mobileStudySections, useSlot } from '../../host/slots';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
@@ -16,14 +16,12 @@ import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
 import { isEnabled } from '../../utils/featureFlags';
 import { isTagGraphEnabled } from '../../utils/clientConfig';
-import { isGenealogyEnabled } from '../../utils/featureFlags';
 import { Suspense, lazy } from 'preact/compat';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 
 // Loaded when their sheet first opens. A static import here would also split them out of
 // the Study chunk (they are lazy pane views too) and fetch them on every boot (task 0123).
-const TimelinePane = lazy(() => import('../TimelinePane/TimelinePane').then((m) => ({ default: m.TimelinePane })));
 const QuizPane = lazy(() => import('../QuizPane/QuizPane').then((m) => ({ default: m.QuizPane })));
 
 interface MobileStudyPaneProps {
@@ -48,16 +46,12 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
   const verseHistory = useStore(studyStore, () => studyStore.verseHistory);
   const pinned = useStore(studyStore, () => studyStore.pinned);
   const topicsBrowserOpen = useStore(studyStore, () => studyStore.topicsBrowserOpen);
-  const familyTreeOpen = useStore(studyStore, () => studyStore.familyTreeOpen);
-  const familyTreeFocus = useStore(studyStore, () => studyStore.familyTreeFocus);
-  const genealogyEnabled = isGenealogyEnabled();
+  const moduleSections = [...useSlot(mobileStudySections)].sort((a, b) => a.order - b.order);
   const pendingTopicNav = useStore(studyStore, () => studyStore.pendingTopicNav);
   const verseTopics = useStore(studyStore, () => studyStore.verseTopics);
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const topicsLoading = useStore(studyStore, () => studyStore.topicsLoading);
 
-  const showTimeline = isEnabled('timeline');
-  const [timelineOpen, setTimelineOpen] = useState(false);
   const showQuiz = isEnabled('quiz');
   const [quizOpen, setQuizOpen] = useState(false);
 
@@ -99,25 +93,12 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
     bibleStore.navigateToPreview(bookNumber, chapter, verse);
   };
 
-  // Reading a verse from the family tree: preview it, then leave the sheet for the reader.
-  const handleFamilyTreeOpenVerse = (targetVerseId: number) => {
-    handleNavigateBible(targetVerseId);
-    studyStore.closeFamilyTree();
-    onNavigateBible?.();
-  };
-
-  // From a person's Topics detail: swap the Topics overlay for the family tree sheet.
-  const handleShowFamilyTree = (personId: string, name: string) => {
-    studyStore.closeTopicsBrowser();
-    studyStore.openFamilyTree({ personId, name });
-  };
-
   // Close the overlays on unmount
   const paneRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     return () => {
       studyStore.topicsBrowserOpen = false;
-      studyStore.familyTreeOpen = false;
+      studyStore.studyMode = null;
     };
   }, []);
 
@@ -195,39 +176,8 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
         {/* Weights, measures and money: hidden when off or none */}
         <StudyMeasures variant="mobile" verseId={verseId} onOpenSettings={onOpenSettings} compact />
 
-        {/* Family tree (genealogy explorer) */}
-        {genealogyEnabled && (
-          <div class="mobile-study-section">
-            <div class="mobile-study-section__header">
-              <i class="fa-solid fa-sitemap" /> {t('genealogyPane.title')}
-            </div>
-            <div class="mobile-study-section__content">
-              <button
-                class="mobile-study-section__browse-link"
-                onClick={() => studyStore.openFamilyTree()}
-              >
-                <i class="fa-solid fa-arrow-up-right-from-square" /> {t('genealogyPane.title')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Timeline Section: opens a full-screen sheet, loaded on first open */}
-        {showTimeline && (
-          <div class="mobile-study-section">
-            <div class="mobile-study-section__header">
-              <i class="fa-solid fa-timeline" /> {t('timeline.title')}
-            </div>
-            <div class="mobile-study-section__content">
-              <button
-                class="mobile-study-section__browse-link"
-                onClick={() => setTimelineOpen(true)}
-              >
-                <i class="fa-solid fa-arrow-up-right-from-square" /> {t('timeline.open')}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Sections feature modules contribute (family tree, timeline, ...) */}
+        {moduleSections.map((m) => m.Section && <m.Section key={m.id} />)}
 
         {/* Quiz Section: opens a full-screen sheet that starts a quiz on the current chapter */}
         {showQuiz && (
@@ -256,23 +206,6 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
       </div>
-
-      {/* Timeline full-screen sheet (mounted only while open, so the dataset loads on first open) */}
-      {showTimeline && timelineOpen && (
-        <div class="mobile-topics-overlay">
-          <div class="mobile-topics-overlay__header">
-            <button class="mobile-topics-overlay__close" onClick={() => setTimelineOpen(false)} aria-label={t('timeline.close')}>
-              <i class="fa-solid fa-xmark" />
-            </button>
-            <span class="mobile-topics-overlay__title">
-              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('timeline.title')}
-            </span>
-          </div>
-          <div class="mobile-topics-overlay__body">
-            <Suspense fallback={null}><TimelinePane /></Suspense>
-          </div>
-        </div>
-      )}
 
       {/* Quiz full-screen sheet (mounted only while open: the catalog loads on first open and the quiz starts on the current chapter) */}
       {showQuiz && quizOpen && (
@@ -309,7 +242,6 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
               verseEntities={verseEntities}
               loading={topicsLoading}
               onNavigateBible={handleNavigateBible}
-              onShowFamilyTree={genealogyEnabled ? handleShowFamilyTree : undefined}
               topicalProvider={providers.topical}
               // Gated the same way DesktopApp gates the Topics pane: with the
               // feature off there is nothing for the browser to search or open.
@@ -323,31 +255,7 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
         </div>
       )}
 
-      {/* Family tree full-screen sheet */}
-      {genealogyEnabled && familyTreeOpen && (
-        <div class="mobile-topics-overlay mobile-family-tree-overlay">
-          <div class="mobile-topics-overlay__header">
-            <button
-              class="mobile-topics-overlay__close"
-              onClick={() => studyStore.closeFamilyTree()}
-              aria-label={t('genealogyPane.close')}
-            >
-              <i class="fa-solid fa-xmark" />
-            </button>
-            <span class="mobile-topics-overlay__title">
-              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('genealogyPane.title')}
-            </span>
-          </div>
-          <div class="mobile-topics-overlay__body">
-            <GenealogyPane
-              provider={providers.genealogy}
-              focus={familyTreeFocus}
-              compact
-              onOpenVerse={handleFamilyTreeOpenVerse}
-            />
-          </div>
-        </div>
-      )}
+      {moduleSections.map((m) => m.Sheet && <m.Sheet key={m.id} onNavigateBible={onNavigateBible} />)}
     </div>
   );
 }

@@ -12,7 +12,6 @@ import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferen
 import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
 import { registerSimilarHandlers } from './ipc/similarHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
-import { registerTimelineHandlers, closeTimelineDb } from './ipc/timelineHandlers';
 import { registerQuizHandlers, closeQuizDbs } from './ipc/quizHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
@@ -645,7 +644,6 @@ const registerAllHandlersOnce = runOnce(() => {
   registerXrefGraphHandlers(ipcMain);
   registerSimilarHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
-  registerTimelineHandlers(ipcMain);
   registerQuizHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerWordStudyHandlers(ipcMain);
@@ -1492,7 +1490,6 @@ app.on('quit', () => {
   stopStudyCacheSweep();
   closeStudyCache();
   closeTagGraphDb();
-  closeTimelineDb();
   closeQuizDbs();
   closeSearchDb();
   closeSessionDb();

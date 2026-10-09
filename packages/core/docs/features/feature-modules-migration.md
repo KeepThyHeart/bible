@@ -189,6 +189,18 @@ does not re-render when a namespace arrives later, so moving them would show Eng
 The Presenter used a small Python script over all locale folders. Pages outside the app that use the strings (such
 as the Presenter's solo viewer) call `loadNamespace('<ns>')` themselves.
 
+## Notes from batch 2 (Genealogy and Timeline, task 0124)
+
+- **A feature that lives inside a host view** (not an app or pane) registers into a generic slot from `module.ts`. Batch 2 added
+  `studyModes` (a tab in the Study pane), `mobileStudySections` (a card plus an optional full-screen sheet on the phone Study page)
+  and `topicEntityActions` (a button on a Topics entity) to `apps/web/src/host/slots.tsx`. Host state those need is generic
+  (`studyStore.studyMode`, not `familyTreeOpen`).
+- **No app, pane or verse action means no implicit activation event.** Use a `probe()` that returns `{ activate: true }` so the module
+  registers its slot items after first paint; its heavy view stays lazy and loads when opened.
+- **A flagged module's server half** carries the same `flag` in its server manifest; with the flag off its route file is never imported.
+- **Desktop**: modules are declared in `apps/desktop/src/ui/modules/<id>/` (manifest, binding, module) and `electron/modules/<id>/`
+  (a `FeatureMainModule`, called by the renderer through `createModuleClient`). Desktop panels have no flag, so they stay always on.
+
 ## Checklist
 
 - [ ] Inventory done; every hit sorted.

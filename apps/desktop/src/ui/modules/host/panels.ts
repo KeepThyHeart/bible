@@ -3,8 +3,9 @@
  * today, declared as data so `PanelContentRenderer` looks them up in the
  * registry instead of a closed union and a component table (task 0113, phase 1).
  *
- * Phase 2 splits these entries into per-feature modules (quiz, timeline, ...):
- * one array entry per panel type, ids exactly as persisted in layouts.
+ * Phase 2 splits these entries into per-feature modules (genealogy and timeline have
+ * moved: `../genealogy`, `../timeline`): one array entry per panel type, ids exactly as
+ * persisted in layouts.
  *
  * Component code is bound only through `views` loaders. Four panes stay eager
  * (Bible, Commentary, Book/Dictionary, NewTab) because the default layout
@@ -33,8 +34,6 @@ const panelTypes: PanelTypeContribution[] = [
   { id: 'study', title: t('paneName.study', 'Study'), order: 51 },
   { id: 'topics', title: t('paneName.topics', 'Topics'), order: 52 },
   { id: 'wordStudy', title: t('paneName.wordStudy', 'Word Study'), order: 53 },
-  { id: 'genealogy', title: t('paneName.genealogy', 'Family Tree'), order: 60 },
-  { id: 'timeline', title: t('paneName.timeline', 'Timeline'), order: 61 },
   { id: 'reading-plans', title: t('paneName.readingPlans', 'Reading plans'), order: 62 },
   { id: 'quiz', title: t('paneName.quiz', 'Quiz'), order: 63 },
   { id: 'similar', title: t('paneName.similar', 'Similar'), order: 64 },
@@ -79,8 +78,6 @@ export const hostPanelsBinding: FeatureModuleBinding = {
     'panel:study': () => import('../../components/StudyPane'),
     'panel:topics': () => import('../../components/TopicsPane'),
     'panel:wordStudy': () => import('../../components/wordStudy/WordStudyPane'),
-    'panel:genealogy': () => import('../../components/GenealogyPane'),
-    'panel:timeline': () => import('../../components/TimelinePane'),
     'panel:reading-plans': () => import('../../components/ReadingPlans/ReadingPlansPane'),
     'panel:quiz': () => import('../../components/QuizPane'),
     'panel:similar': () => import('../../components/SimilarPane'),

@@ -1,0 +1,19 @@
+{
+  "genealogyPane.tabs": "תצוגות יחוס",
+  "genealogyPane.line": "הקו אל המשיח",
+  "genealogyPane.family": "משפחה",
+  "genealogyPane.tribes": "שבטים",
+  "genealogyPane.highlight": "הדהה אנשים שאינם בקו המשיח",
+  "genealogyPane.showDisputed": "הצג קישורים שנויים במחלוקת",
+  "genealogyPane.fullscreen": "מסך מלא",
+  "genealogyPane.exitFullscreen": "יציאה ממסך מלא",
+  "genealogyPane.key": "מקרא סימנים",
+  "genealogyPane.showDisputedHint": "צייר גם קישורים שחוקרי המקרא חלוקים לגביהם (קווים מנוקדים)",
+  "genealogyPane.hintLine": "שורה אחת של אבות מאדם עד ישוע, כפי שהיא מפורטת בבראשית, בדברי הימים, במתי ובלוקס. יש ללחוץ על שם לפרטים.",
+  "genealogyPane.hintFamily": "ההורים, הנשים והילדים של אדם אחד. ניתן לחפש כל אדם, או ללחוץ על שם ולבחור \"הצג אילן יוחסין\".",
+  "genealogyPane.hintTribes": "שנים עשר בני יעקב (ישראל), מקובצים לפי אמהותיהם. יש ללחוץ על שם לפרטים.",
+  "genealogyPane.loading": "טוען אילן יוחסין...",
+  "genealogyPane.empty": "לא מותקנים נתוני יחוס. יש להתקין מודול יחוס כדי לעיין באילנות יוחסין.",
+  "genealogyPane.error": "לא ניתן היה לטעון את אילן היוחסין.",
+  "genealogyPane.retry": "נסה שוב"
+}

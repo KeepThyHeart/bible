@@ -196,9 +196,9 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
-      // Then the family tree sheet (it sits beneath the audio player)
-      if (studyStore.familyTreeOpen) {
-        studyStore.closeFamilyTree();
+      // Then a Study mode's sheet (the family tree; it sits beneath the audio player)
+      if (studyStore.studyMode) {
+        studyStore.closeStudyMode();
         return;
       }
 

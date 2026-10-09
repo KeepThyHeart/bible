@@ -22,11 +22,13 @@
  */
 
 import commands from '../../../locales/en/commands.json';
+import genealogy from '../../../locales/en/genealogy.json';
 import layout from '../../../locales/en/layout.json';
 import mainProcess from '../../../locales/en/main.json';
 import menu from '../../../locales/en/menu.json';
 import meta from '../../../locales/en/meta.json';
 import searchBar from '../../../locales/en/searchBar.json';
+import timeline from '../../../locales/en/timeline.json';
 import ui from '../../../locales/en/ui.json';
 import { I18nService } from '../services/I18nService';
 import type { II18nService } from '../services/II18nService';
@@ -46,11 +48,13 @@ export const enLocalizer: Localizer = EnglishLocalizer;
 export function loadEnCatalog(): Record<string, string> {
   return {
     ...(commands as Record<string, string>),
+    ...(genealogy as Record<string, string>),
     ...(layout as Record<string, string>),
     ...(mainProcess as Record<string, string>),
     ...(menu as Record<string, string>),
     ...(meta as Record<string, string>),
     ...(searchBar as Record<string, string>),
+    ...(timeline as Record<string, string>),
     ...(ui as Record<string, string>),
   };
 }

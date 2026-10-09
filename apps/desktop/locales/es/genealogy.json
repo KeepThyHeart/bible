@@ -1,0 +1,19 @@
+{
+  "genealogyPane.tabs": "Vistas de genealogía",
+  "genealogyPane.line": "Línea hasta Cristo",
+  "genealogyPane.family": "Familia",
+  "genealogyPane.tribes": "Tribus",
+  "genealogyPane.highlight": "Resaltar la línea hasta Cristo",
+  "genealogyPane.showDisputed": "Mostrar vínculos discutidos",
+  "genealogyPane.fullscreen": "Full screen",
+  "genealogyPane.exitFullscreen": "Exit full screen",
+  "genealogyPane.key": "Key",
+  "genealogyPane.showDisputedHint": "Also draw links that Bible scholars dispute (dotted lines)",
+  "genealogyPane.hintLine": "One line of fathers from Adam to Jesus, as listed in Genesis, Chronicles, Matthew and Luke. Click a name for details.",
+  "genealogyPane.hintFamily": "The parents, wives and children of one person. Search for anyone, or click a name and choose Show family tree.",
+  "genealogyPane.hintTribes": "The twelve sons of Jacob (Israel), grouped by their mothers. Click a name for details.",
+  "genealogyPane.loading": "Cargando árbol genealógico...",
+  "genealogyPane.empty": "No hay datos de genealogía instalados. Instale un módulo de genealogía para explorar árboles genealógicos.",
+  "genealogyPane.error": "No se pudo cargar el árbol genealógico.",
+  "genealogyPane.retry": "Reintentar"
+}

@@ -9,6 +9,8 @@ import { hostUiManifest } from './host/ui';
 import { addWebModule, reconcileModules } from './moduleHost';
 import type { WebFeatureModule } from './moduleHost';
 import { presentModule } from './present/binding';
+import { genealogyModule } from './genealogy/binding';
+import { timelineModule } from './timeline/binding';
 
 const plain = ([manifest, binding]: readonly [FeatureModuleManifest, FeatureModuleBinding?]): WebFeatureModule => ({ manifest, binding });
 
@@ -16,6 +18,8 @@ export const BUILTIN_MODULES: readonly WebFeatureModule[] = [
   ...hostPanesModules.map(plain),
   { manifest: hostUiManifest },
   presentModule,
+  genealogyModule,
+  timelineModule,
 ];
 
 /** Let modules take handoff secrets out of the URL before anything else runs (see `WebFeatureModule.takeUrl`). */

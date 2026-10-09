@@ -54,7 +54,7 @@ describe('present server module', () => {
     const { registry, loader } = await freshLoad({ present: false });
     expect(imported).not.toHaveBeenCalled();
     expect(registry.getRegisteredRoutes().filter((r) => r.path.startsWith('/api/present') || r.path.startsWith('/api/hymns'))).toEqual([]);
-    expect(registry.getRegisteredRoutes()).toEqual([]);
+    expect(registry.getRegisteredRoutes().filter((r) => r.moduleId === 'present')).toEqual([]);
     expect(registry.getRegisteredBodyParsers()).toEqual([]);
     expect(loader.listServerModules().find((m) => m.id === 'present')).toMatchObject({ enabled: false });
     vi.doUnmock('./present/presentRoutes');
@@ -85,7 +85,7 @@ describe('present server module', () => {
       expect(page.text).toContain('This feature is not available on this server.');
     }
     expect((await request(app).get('/other').set('Accept', 'text/html')).text).toBe('spa');
-    expect(loader.listServerModules()[0].enabled).toBe(false);
+    expect(loader.listServerModules().find((m) => m.id === 'present')?.enabled).toBe(false);
   });
 
   describe('pages (enabled)', () => {

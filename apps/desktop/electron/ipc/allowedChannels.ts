@@ -285,8 +285,6 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getVersesForEntity',
   'tagGraph:getFacetsForEntity',
   'tagGraph:getGenealogyDataset',
-  // Timeline
-  'timeline:getDataset',
   // Quiz (task 0074)
   'quiz:getCatalog',
   'quiz:getQuestions',

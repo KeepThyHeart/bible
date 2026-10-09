@@ -25,7 +25,8 @@ describe('desktop renderer boot with a module disabled', () => {
 
   it('drops the disabled module\'s contributions and keeps the other module\'s', async () => {
     const { modulePoints, featureModules } = await boot('-host');
-    expect(modulePoints.panelTypes.list()).toEqual([]);
+    // genealogy and timeline are their own modules, so they stay when `host` is off
+    expect(modulePoints.panelTypes.list().map((p) => p.id)).toEqual(['genealogy', 'timeline']);
     expect(modulePoints.newTabTiles.list().length).toBeGreaterThan(0);
     expect(featureModules.list().find((m) => m.id === 'host')).toMatchObject({ enabled: false, offReason: 'override' });
   }, 60_000);

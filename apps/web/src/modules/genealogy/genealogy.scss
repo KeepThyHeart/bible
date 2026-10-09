@@ -1,0 +1,46 @@
+// Family tree: the Study mode, the Topics action and the phone sheet (moved out of the host stylesheets).
+.genealogy-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  > * {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__message {
+    flex: 0 0 auto;
+    padding: 16px;
+    text-align: center;
+    color: var(--text-secondary, #666);
+    font-size: calc(13px * var(--ui-font-scale, 1));
+  }
+
+  &__retry {
+    margin-inline-start: 8px;
+    cursor: pointer;
+  }
+}
+
+.topics-browser__family-tree {
+  align-self: flex-start;
+  margin: 0 0 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+// Family tree sheet: the explorer scrolls/pans itself, so the body must not.
+.mobile-family-tree-overlay .mobile-topics-overlay__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}

@@ -13,7 +13,8 @@ import { usePreferencesStore } from './stores/usePreferencesStore';
 import { appHost, appRegistry } from './apps/appHost';
 import { registerBuiltinApps } from './apps/builtinApps';
 import { registerBuiltinModules } from './modules/builtinModules';
-import { modulePoints, setWhenEvaluator } from './modules/moduleHost';
+import { bindModuleHostServices } from './modules/host/hostServices';
+import { fireActivation, modulePoints, setWhenEvaluator } from './modules/moduleHost';
 import { bindModuleNamespaces } from './modules/host/i18nNamespaces';
 import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
 import { installExtensionVerseActions } from './apps/verseActions';
@@ -87,6 +88,11 @@ void catalogLoader
 // is intentionally leaked for the lifetime of the renderer - there is no
 // app-level teardown path that needs to call it.
 registerBuiltinCommands(services.registry);
+
+// Modules whose manifest asks for `onStartupFinished` (they register commands and entity actions)
+// load right after the first render, once the services they register into are bound.
+bindModuleHostServices({ registry: services.registry, i18n: services.i18n });
+window.setTimeout(() => fireActivation('onStartupFinished'), 0);
 
 // The app host (task 0080). Study is registered and activated before the first
 // render: dockview owns `useLayoutStore.dockviewApi`, which verse navigation and

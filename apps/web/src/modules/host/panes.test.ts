@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { createFeatureModuleHost, createStandardPoints, standardPointList, validateBuiltinManifest } from '@bible/core/browser';
 import type { FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanesModules, CORE_PANE_MODES, resolvePhoneView } from './panes';
+import { timelineModule } from '../timeline/binding';
+
+// The Timeline pane lives in its own module (task 0124); the persisted order still includes it.
+const allPanes = [...hostPanesModules, [timelineModule.manifest, timelineModule.binding] as const];
 
 function setup(flags: Record<string, boolean>) {
   const points = createStandardPoints();
@@ -20,7 +24,7 @@ describe('host pane manifests', () => {
 
   it('declare exactly the persisted ids, once each, in tab order', () => {
     const { points, host } = setup({ timeline: true, quiz: true });
-    for (const [m, b] of hostPanesModules) host.add(m, b);
+    for (const [m, b] of allPanes) host.add(m, b);
     host.reconcile();
     expect(points.paneModes.list().map((p) => p.id)).toEqual([...CORE_PANE_MODES]);
     expect(points.paneModes.list().filter((p) => p.phoneView).map((p) => p.id)).toEqual(['study', 'commentary', 'wordStudy']);
@@ -29,7 +33,7 @@ describe('host pane manifests', () => {
 
   it('flagged panes follow their flag', () => {
     const { points, host, flags } = setup({});
-    for (const [m, b] of hostPanesModules) host.add(m, b);
+    for (const [m, b] of allPanes) host.add(m, b);
     host.reconcile();
     const ids = () => points.paneModes.list().map((p) => p.id);
     expect(ids()).not.toContain('timeline');

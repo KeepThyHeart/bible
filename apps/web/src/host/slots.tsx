@@ -139,3 +139,55 @@ export function decorateVerse(
   if (!classes && rail === undefined && text === undefined) return undefined;
   return { classes, rail, text };
 }
+
+// --- Study pane (task 0124) ----------------------------------------------------
+
+/** What the host gives a Study mode's view. */
+export interface StudyModeViewProps {
+  /** Read a verse in the reader (the Study pane's "open verse"). */
+  onOpenVerse: (verseId: number) => void;
+  /** What the open request carried (for example a person to centre on), with a token that changes on every request. */
+  focus: { token: number } | null;
+  /** Phone layout. */
+  compact?: boolean;
+}
+
+/** An extra mode of the Study pane, next to its ordinary sections (shown as a tab). */
+export interface StudyMode {
+  readonly id: string;
+  /** Lower first. */
+  readonly order: number;
+  /** i18n key of the tab. */
+  readonly labelKey: string;
+  /** i18n key of the tab strip's accessible name. */
+  readonly stripLabelKey: string;
+  /** Lazy view: `import()` of a module whose default export is the component. */
+  readonly load: () => Promise<{ default: ComponentType<StudyModeViewProps> }>;
+}
+export const studyModes = createSlot<StudyMode>();
+
+/**
+ * A section on the phone Study page: `Section` is its card in the list (ordered by
+ * `order`), `Sheet` an optional full-screen sheet rendered after the page. `onNavigateBible`
+ * leaves the Study page for the reader (a sheet that opens a verse calls it).
+ */
+export interface MobileStudySection {
+  readonly id: string;
+  readonly order: number;
+  readonly Section?: ComponentType;
+  readonly Sheet?: ComponentType<{ onNavigateBible?: () => void }>;
+}
+export const mobileStudySections = createSlot<MobileStudySection>();
+
+/** An action on a Topics entity (for example a person); `id` also names its button class (`topics-browser__<id>`). */
+export interface TopicEntityAction {
+  readonly id: string;
+  /** Entity category it applies to (`people`). */
+  readonly category: string;
+  readonly iconClass: string;
+  /** i18n key of the label. */
+  readonly labelKey: string;
+  /** `mobile`: the Topics browser is the phone overlay. */
+  readonly run: (entityId: string, name: string, ctx: { mobile: boolean }) => void;
+}
+export const topicEntityActions = createSlot<TopicEntityAction>();

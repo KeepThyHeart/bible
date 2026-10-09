@@ -12,6 +12,8 @@ import type { FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanelsBinding, hostPanelsManifest } from './panels';
 import { CORE_PANEL_TYPES } from '../../stores/useLayoutStore';
 import { sanitizeDockviewState } from '../../services/LayoutStateSanitizer';
+import { genealogyManifest } from '../genealogy/manifest';
+import { timelineManifest } from '../timeline/manifest';
 
 function layoutNaming(types: string[], component = 'panelContent'): SerializedDockview {
   const panels: Record<string, unknown> = {};
@@ -32,10 +34,15 @@ function layoutNaming(types: string[], component = 'panelContent'): SerializedDo
 }
 
 describe('host panel types manifest', () => {
-  it('declares exactly the 16 persisted ids, once each', () => {
+  // Genealogy and timeline moved into their own modules (task 0124): the 16 persisted ids are the three manifests together.
+  const MOVED = ['genealogy', 'timeline'];
+  it('declares exactly the persisted ids that no module owns, once each', () => {
     const ids = (hostPanelsManifest.contributes.panelTypes ?? []).map((p) => p.id);
-    expect([...ids].sort()).toEqual([...CORE_PANEL_TYPES].sort());
-    expect(Object.keys(hostPanelsBinding.views ?? {}).sort()).toEqual(CORE_PANEL_TYPES.map((t) => `panel:${t}`).sort());
+    const hosted = CORE_PANEL_TYPES.filter((t) => !MOVED.includes(t));
+    expect([...ids].sort()).toEqual([...hosted].sort());
+    expect(Object.keys(hostPanelsBinding.views ?? {}).sort()).toEqual(hosted.map((t) => `panel:${t}`).sort());
+    const owned = [genealogyManifest, timelineManifest].flatMap((m) => (m.contributes.panelTypes ?? []).map((p) => p.id));
+    expect([...ids, ...owned].sort()).toEqual([...CORE_PANEL_TYPES].sort());
     expect(hostPanelsManifest.id).toBe('host');
     expect(hostPanelsManifest.flag).toBeUndefined();
     expect(hostPanelsManifest.platforms).toEqual(['desktop']);

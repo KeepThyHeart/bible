@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import TopicSearchBar from '../shared/TopicSearchBar';
 import TopicCard from '../shared/TopicCard';
-import { openFamilyTree } from '../../utils/openFamilyTree';
+import { entityActions } from '../../modules/host/entityActions';
+import { useRegistryItems } from '../../modules/host/useRegistry';
 import {
   TagGraphAssociation,
   TagGraphEntityDetail,
@@ -33,6 +34,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   onEntityClick, onSearchSelect, onTopicLinkClick,
 }) => {
   const { t } = useI18n();
+  const actions = useRegistryItems(entityActions);
   const [showAllAssocs, setShowAllAssocs] = useState(false);
   const [expandedFacets, setExpandedFacets] = useState<Set<number>>(new Set());
 
@@ -97,26 +99,29 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           </span>
         </div>
 
-        {/* People are also nodes in the genealogy dataset (same slug ids). */}
-        {entity.category === 'people' && (
-          <button
-            type="button"
-            data-testid="show-family-tree"
-            onClick={() => openFamilyTree(entity.id)}
-            style={{
-              fontSize: '11px',
-              color: 'var(--theme-accent-primary)',
-              backgroundColor: 'var(--theme-bg-tertiary)',
-              border: '1px solid var(--theme-border-secondary)',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              padding: '2px 8px',
-              marginBottom: '4px',
-            }}
-          >
-            {t('entityDetailView.showFamilyTree')}
-          </button>
-        )}
+        {/* Buttons a feature module adds for this kind of entity (e.g. "Show family tree" on a person). */}
+        {actions
+          .filter((action) => action.categories.includes(entity.category))
+          .map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              data-testid={action.testId}
+              onClick={() => action.run({ id: entity.id, category: entity.category })}
+              style={{
+                fontSize: '11px',
+                color: 'var(--theme-accent-primary)',
+                backgroundColor: 'var(--theme-bg-tertiary)',
+                border: '1px solid var(--theme-border-secondary)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                padding: '2px 8px',
+                marginBottom: '4px',
+              }}
+            >
+              {t(action.labelKey)}
+            </button>
+          ))}
 
         {/* Aliases */}
         {aliases.length > 0 && (

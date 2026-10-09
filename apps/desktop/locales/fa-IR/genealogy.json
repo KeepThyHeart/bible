@@ -1,0 +1,19 @@
+{
+  "genealogyPane.tabs": "نماهای شجره‌نامه",
+  "genealogyPane.line": "نسب تا مسیح",
+  "genealogyPane.family": "خانواده",
+  "genealogyPane.tribes": "قبیله‌ها",
+  "genealogyPane.highlight": "کم‌رنگ کردن افرادی که در نسب مسیح نیستند",
+  "genealogyPane.showDisputed": "نمایش پیوندهای مورد اختلاف",
+  "genealogyPane.fullscreen": "تمام صفحه",
+  "genealogyPane.exitFullscreen": "خروج از حالت تمام صفحه",
+  "genealogyPane.key": "راهنما",
+  "genealogyPane.showDisputedHint": "پیوندهایی را که دانشمندان کتاب مقدس درباره آن‌ها اختلاف دارند نیز رسم کن (خط‌چین)",
+  "genealogyPane.hintLine": "یک رشته پدران از آدم تا عیسی، همان‌گونه که در پیدایش، تواریخ، متی و لوقا آمده است. برای جزئیات روی یک نام کلیک کنید.",
+  "genealogyPane.hintFamily": "والدین، همسران و فرزندان یک شخص. هر کسی را جستجو کنید، یا روی یک نام کلیک کنید و «نمایش شجره‌نامه» را انتخاب کنید.",
+  "genealogyPane.hintTribes": "دوازده پسر یعقوب (اسرائیل) که بر اساس مادرانشان گروه‌بندی شده‌اند. برای جزئیات روی یک نام کلیک کنید.",
+  "genealogyPane.loading": "در حال بارگیری شجره‌نامه...",
+  "genealogyPane.empty": "هیچ داده شجره‌نامه‌ای نصب نشده است. برای کاوش شجره‌نامه‌ها یک ماژول شجره‌نامه نصب کنید.",
+  "genealogyPane.error": "بارگیری شجره‌نامه ممکن نشد.",
+  "genealogyPane.retry": "تلاش دوباره"
+}

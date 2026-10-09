@@ -17,6 +17,7 @@ import type {
 import type { ITopicalDataProvider, ITagGraphDataProvider, IBibleDataProvider } from '../../providers/interfaces';
 import type { PendingTopicNav } from '../../stores/commentaryStore';
 import { VerseRefList } from './VerseRefList';
+import { topicEntityActions, useSlot } from '../../host/slots';
 
 interface TopicsBrowserProps {
   verseId: number | null;
@@ -24,11 +25,6 @@ interface TopicsBrowserProps {
   verseEntities: TagGraphEntityData[];
   loading: boolean;
   onNavigateBible?: (verseId: number) => void;
-  /**
-   * Shows a "Show family tree" action on a person's detail view. Absent when the
-   * genealogy feature is off, in which case no action is rendered.
-   */
-  onShowFamilyTree?: (personId: string, name: string) => void;
   onOpenInTab?: (topicId: number, module: string) => void;
   topicalProvider?: ITopicalDataProvider;
   tagGraphProvider?: ITagGraphDataProvider;
@@ -96,7 +92,6 @@ export function TopicsBrowser({
   verseEntities,
   loading,
   onNavigateBible,
-  onShowFamilyTree,
   topicalProvider,
   tagGraphProvider,
   bibleProvider,
@@ -105,6 +100,7 @@ export function TopicsBrowser({
   mobile,
 }: TopicsBrowserProps) {
   const { t } = useTranslation();
+  const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
   // topic's title is on screen in the first painted frame rather than after a
@@ -724,14 +720,18 @@ export function TopicsBrowser({
 
         {!detailLoading && entityDetail && (
           <div class="topics-browser__detail">
-            {onShowFamilyTree && currentEntry.entityCategory === 'people' && currentEntry.entityId && (
-              <button
-                class="topics-browser__family-tree"
-                onClick={() => onShowFamilyTree(currentEntry.entityId!, currentEntry.entityName ?? '')}
-              >
-                <i class="fa-solid fa-sitemap" /> {t('genealogyPane.showFamilyTree')}
-              </button>
-            )}
+            {currentEntry.entityId &&
+              entityActions
+                .filter((a) => a.category === currentEntry.entityCategory)
+                .map((a) => (
+                  <button
+                    key={a.id}
+                    class={`topics-browser__${a.id}`}
+                    onClick={() => a.run(currentEntry.entityId!, currentEntry.entityName ?? '', { mobile: !!mobile })}
+                  >
+                    <i class={a.iconClass} /> {t(a.labelKey)}
+                  </button>
+                ))}
             {entityDetail.notes && (
               <div class="topics-browser__entity-notes">{entityDetail.notes as string}</div>
             )}

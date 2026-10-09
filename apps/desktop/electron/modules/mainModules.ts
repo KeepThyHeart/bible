@@ -1,6 +1,6 @@
 /**
- * Main-process feature-module registry (task 0113). Production list is empty
- * until Phase 2 migrates features; each entry is the module's data-only
+ * Main-process feature-module registry (task 0113). Production list: one entry per
+ * migrated feature (Phase 2); each entry is the module's data-only
  * manifest plus a lazy `load()` of its main-process code. The code is imported
  * only when the module is enabled AND its activation event fires; the main
  * registry opts every entry into `onStartupFinished` (IPC handlers must exist
@@ -20,14 +20,17 @@ import {
 } from '@bible/core/browser';
 import type { FeatureMainModule, MainModuleDeps } from './FeatureMainModule';
 import { createModuleIpc, type IpcMainLike } from './moduleIpc';
+import { timelineMainManifest } from './timeline/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
   readonly load: () => Promise<{ default: FeatureMainModule }>;
 }
 
-/** Production table. Empty until Phase 2. */
-export const MAIN_MODULES: readonly MainModuleEntry[] = [];
+/** Production table: one line per migrated feature. */
+export const MAIN_MODULES: readonly MainModuleEntry[] = [
+  { manifest: timelineMainManifest, load: () => import('./timeline/module') },
+];
 
 export interface RegisterMainModulesOptions {
   /** Table to use; default `MAIN_MODULES`. */

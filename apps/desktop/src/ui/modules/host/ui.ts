@@ -48,8 +48,6 @@ export const HOST_NEW_TAB_TILES: readonly NewTabTileContribution[] = [
   tile(30, 'commentary', 'newTabPage.type.commentary', 'Commentary', ['commentary', 'comm']),
   tile(35, 'dictionary', 'newTabPage.type.dictionary', 'Dictionary', ['dictionary', 'dict']),
   tile(40, 'topics', 'newTabPage.type.topics', 'Topics', ['topics', 'topic']),
-  tile(45, 'genealogy', 'newTabPage.type.genealogy', 'Family Tree', ['genealogy', 'family']),
-  tile(50, 'timeline', 'newTabPage.type.timeline', 'Timeline', ['timeline']),
   tile(55, 'reading-plans', 'newTabPage.type.readingPlans', 'Reading plans', ['plans', 'plan', 'reading']),
   tile(60, 'quiz', 'newTabPage.type.quiz', 'Quiz', ['quiz']),
 ];

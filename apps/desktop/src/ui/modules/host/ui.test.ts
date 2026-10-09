@@ -8,8 +8,13 @@ import {
 import type { FeatureModuleManifest } from '@bible/core/browser';
 import { HOST_NEW_TAB_TILES, HOST_PREFERENCES_SECTIONS, hostUiBinding, hostUiManifest } from './ui';
 import { bindModuleNamespaces } from './i18nNamespaces';
+import { genealogyManifest } from '../genealogy/manifest';
+import { timelineManifest } from '../timeline/manifest';
 
-/** The pre-0113 hard-coded tile list and keyword map of NewTabPage (snapshot). */
+/**
+ * The pre-0113 hard-coded tile list and keyword map of NewTabPage (snapshot). The genealogy and
+ * timeline tiles now come from their own modules, so the whole list is the three manifests together.
+ */
 const OLD_TILES = ['bible', 'notes', 'prayer', 'book', 'study', 'commentary', 'dictionary', 'topics', 'genealogy', 'timeline', 'reading-plans', 'quiz'];
 const OLD_TILE_KEYS: Record<string, string> = {
   'newTabPage.type.bible': 'bible', 'newTabPage.type.notes': 'notes', 'newTabPage.type.prayer': 'prayer',
@@ -39,14 +44,14 @@ describe('host-ui manifest', () => {
   });
 
   it('registers tiles in the old order with the old keywords and titles', () => {
-    const { points } = host([hostUiManifest]);
+    const { points } = host([hostUiManifest, genealogyManifest, timelineManifest]);
     const tiles = points.newTabTiles.list();
     expect(tiles.map((t) => ('panelType' in t.target ? t.target.panelType : ''))).toEqual(OLD_TILES);
     expect(tiles.map((t) => ('key' in t.title ? OLD_TILE_KEYS[t.title.key] : ''))).toEqual(OLD_TILES);
     const map: Record<string, string> = {};
     for (const t of tiles) for (const k of t.keywords ?? []) map[k] = (t.target as { panelType: string }).panelType;
     expect(map).toEqual(OLD_KEYWORDS);
-    expect(HOST_NEW_TAB_TILES).toHaveLength(OLD_TILES.length);
+    expect(HOST_NEW_TAB_TILES).toHaveLength(OLD_TILES.length - 2);
   });
 
   it('registers preferences sections in the old order, each with a lazy view', () => {

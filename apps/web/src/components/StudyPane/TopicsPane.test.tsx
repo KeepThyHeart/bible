@@ -28,11 +28,6 @@ vi.mock('./TopicsBrowser', () => ({
   },
 }));
 
-let mockGenealogyEnabled = false;
-vi.mock('../../utils/featureFlags', () => ({
-  isGenealogyEnabled: () => mockGenealogyEnabled,
-}));
-
 import { TopicsPane } from './TopicsPane';
 import { studyStore } from '../../stores/studyStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -46,9 +41,6 @@ beforeEach(() => {
   studyStore.topicsLoading = false;
   // Ensure no pending topic nav
   commentaryStore.pendingTopicNav = null;
-  mockGenealogyEnabled = false;
-  studyStore.familyTreeOpen = false;
-  studyStore.familyTreeFocus = null;
 });
 
 describe('TopicsPane', () => {
@@ -157,19 +149,5 @@ describe('TopicsPane', () => {
     expect(lastTopicsBrowserProps.topicalProvider).toBe(topicalProvider);
     expect(lastTopicsBrowserProps.tagGraphProvider).toBe(tagGraphProvider);
     expect(lastTopicsBrowserProps.bibleProvider).toBe(bibleProvider);
-  });
-
-  it('does not offer the family tree action when the genealogy flag is off', () => {
-    render(<TopicsPane />);
-    expect(lastTopicsBrowserProps.onShowFamilyTree).toBeUndefined();
-  });
-
-  it('opens the family tree on the person and switches the right pane to Study', () => {
-    mockGenealogyEnabled = true;
-    render(<TopicsPane />);
-    act(() => { (lastTopicsBrowserProps.onShowFamilyTree as (id: string, name: string) => void)('david', 'David'); });
-    expect(studyStore.familyTreeOpen).toBe(true);
-    expect(studyStore.familyTreeFocus).toMatchObject({ personId: 'david', name: 'David' });
-    expect(commentaryStore.rightPaneMode).toBe('study');
   });
 });

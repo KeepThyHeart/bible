@@ -6,8 +6,9 @@
  * (mocked as vi.fn() objects).
  * i18n is mocked to return keys as-is.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/preact';
+import { topicEntityActions } from '../../host/slots';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -259,25 +260,35 @@ describe('TopicsBrowser', () => {
     return utils;
   }
 
-  it('shows a family tree action on a person detail view and reports the entity id and name', async () => {
-    const onShowFamilyTree = vi.fn();
-    const { container } = await openFirstEntity({ onShowFamilyTree });
-    const button = container.querySelector<HTMLElement>('.topics-browser__family-tree')!;
-    expect(button).toBeTruthy();
-    expect(button.textContent).toContain('genealogyPane.showFamilyTree');
-    fireEvent.click(button);
-    expect(onShowFamilyTree).toHaveBeenCalledWith('entity-1', 'Person 1');
-  });
+  describe('entity actions (the topicEntityActions slot)', () => {
+    let handle: { dispose(): void } | undefined;
+    const run = vi.fn();
+    beforeEach(() => {
+      run.mockClear();
+      handle = topicEntityActions.register({ id: 'family-tree', category: 'people', iconClass: 'fa-solid fa-sitemap', labelKey: 'genealogyPane.showFamilyTree', run });
+    });
+    afterEach(() => handle?.dispose());
 
-  it('shows no family tree action when onShowFamilyTree is not provided', async () => {
-    const { container } = await openFirstEntity({});
-    expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
-  });
+    it('shows a contributed action on a matching entity and reports the entity id, name and layout', async () => {
+      const { container } = await openFirstEntity({});
+      const button = container.querySelector<HTMLElement>('.topics-browser__family-tree')!;
+      expect(button).toBeTruthy();
+      expect(button.textContent).toContain('genealogyPane.showFamilyTree');
+      fireEvent.click(button);
+      expect(run).toHaveBeenCalledWith('entity-1', 'Person 1', { mobile: false });
+    });
 
-  it('shows no family tree action for a place', async () => {
-    const places = [{ entity_id: 'p1', category: 'places', name: 'Bethel' }] as TagGraphEntityData[];
-    const { container } = await openFirstEntity({ onShowFamilyTree: vi.fn() }, places);
-    expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
+    it('shows no action when no module contributes one', async () => {
+      handle?.dispose();
+      const { container } = await openFirstEntity({});
+      expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
+    });
+
+    it('shows no action for another category', async () => {
+      const places = [{ entity_id: 'p1', category: 'places', name: 'Bethel' }] as TagGraphEntityData[];
+      const { container } = await openFirstEntity({}, places);
+      expect(container.querySelector('.topics-browser__family-tree')).toBeNull();
+    });
   });
 
   // ------------------------------------------------------------------

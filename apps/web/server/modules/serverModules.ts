@@ -11,6 +11,7 @@
 
 import type { FeatureModuleManifest } from '../core.js';
 import { presentManifest } from './present/manifest.js';
+import { timelineManifest } from './timeline/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -26,4 +27,5 @@ export const serverModules: readonly ServerModuleEntry[] = [
       await import('./present/presentPages.js');
     },
   },
+  { manifest: timelineManifest, load: async () => { await import('./timeline/timelineRoutes.js'); } },
 ];

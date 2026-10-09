@@ -2,7 +2,7 @@
  * The web right-pane modes as feature-module data (task 0113, phase 1).
  *
  * `hostPanesManifest` declares the panes that exist for everybody; the flagged
- * ones (timeline, quiz) are separate small manifests so their flag keeps gating
+ * ones (quiz) are separate small manifests so their flag keeps gating
  * exactly the contribution that is flag-specific. Phase 2 splits the rest.
  *
  * Ids are persisted (`rightPaneMode`): never rename. 'search' is not a pane
@@ -60,12 +60,6 @@ export const hostPanesManifest: FeatureModuleManifest = {
   },
 };
 
-export const timelinePaneManifest: FeatureModuleManifest = {
-  id: 'timeline-pane',
-  flag: 'timeline',
-  contributes: { paneModes: [{ id: 'timeline', title: title('timeline', 'Timeline'), order: 40 }] },
-};
-
 export const quizPaneManifest: FeatureModuleManifest = {
   id: 'quiz-pane',
   flag: 'quiz',
@@ -85,16 +79,6 @@ const h = createElement as unknown as (c: unknown, p: unknown) => unknown;
  */
 export const hostPanesBinding: FeatureModuleBinding = { id: 'host-panes' };
 
-export const timelinePaneBinding: FeatureModuleBinding = {
-  id: 'timeline-pane',
-  views: {
-    'pane:timeline': () =>
-      import('../../components/TimelinePane/TimelinePane').then((m) => ({
-        default: (_p: P) => h(m.TimelinePane, { allowFullscreen: true }),
-      })),
-  },
-};
-
 export const quizPaneBinding: FeatureModuleBinding = {
   id: 'quiz-pane',
   views: {
@@ -108,6 +92,5 @@ export const quizPaneBinding: FeatureModuleBinding = {
 /** The entries to add to BUILTIN_MODULES, in order. */
 export const hostPanesModules: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding]> = [
   [hostPanesManifest, hostPanesBinding],
-  [timelinePaneManifest, timelinePaneBinding],
   [quizPaneManifest, quizPaneBinding],
 ];

@@ -25,7 +25,6 @@ import './routes/crossRefRoutes.js';
 import './routes/xrefGraphRoutes.js';
 import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
-import './routes/timelineRoutes.js';
 import './routes/quizRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';

@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
 import type {
-  TimelineDataset,
   QuizCatalog,
   QuizPassage,
   QuizFilter,
@@ -226,11 +225,6 @@ export interface ElectronAPI {
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getGenealogyDataset: () => Promise<Result<any | null>>;
-  };
-
-  // Timeline module. `null` when no timeline module is installed.
-  timeline: {
-    getDataset: () => Promise<Result<TimelineDataset | null>>;
   };
 
   // Quiz (task 0074): questions from every installed quiz module; progress in the user database.
@@ -931,10 +925,6 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
     getGenealogyDataset: () =>
       ipcRenderer.invoke('tagGraph:getGenealogyDataset'),
-  },
-
-  timeline: {
-    getDataset: () => ipcRenderer.invoke('timeline:getDataset'),
   },
 
   quiz: {

@@ -5,24 +5,23 @@ import { StudySynthesis } from './StudySynthesis';
 import { StudyTopics } from './StudyTopics';
 import { StudyHome } from './StudyHome';
 import { StudyMeasures } from './StudyMeasures';
-import { GenealogyPane } from './GenealogyPane';
+import { Suspense, lazy } from 'preact/compat';
+import { useMemo } from 'preact/hooks';
+import { studyModes, useSlot } from '../../host/slots';
+import type { StudyMode } from '../../host/slots';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { useStore } from '../../hooks/useStore';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isGenealogyEnabled } from '../../utils/featureFlags';
 import type { IBibleDataProvider } from '../../providers/interfaces';
-import type { IGenealogyDataProvider } from '@bible/core/browser';
 
 interface StudyPaneProps {
   onStrongsClick?: (strongsNumber: string) => void;
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
   onStrongsLeave?: () => void;
   bibleProvider?: IBibleDataProvider;
-  /** Source of the Family tree mode; the mode is only offered when the genealogy flag is on. */
-  genealogyProvider?: IGenealogyDataProvider;
   /** Opens the settings dialog (the measures section's "Units..." button). */
   onOpenSettings?: (section?: string) => void;
 }
@@ -31,7 +30,7 @@ interface StudyPaneProps {
  * Unified Study pane — scrollable view with collapsible sections.
  * Synced to the active Bible verse (with optional pin-to-verse).
  */
-export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider, genealogyProvider, onOpenSettings }: StudyPaneProps) {
+export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibleProvider, onOpenSettings }: StudyPaneProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
   const book = useStore(studyStore, () => studyStore.book);
@@ -41,10 +40,10 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
   const pinnedBook = useStore(studyStore, () => studyStore.pinnedBook);
   const pinnedChapter = useStore(studyStore, () => studyStore.pinnedChapter);
   const pinnedVerse = useStore(studyStore, () => studyStore.pinnedVerse);
-  const familyTreeOpen = useStore(studyStore, () => studyStore.familyTreeOpen);
-  const familyTreeFocus = useStore(studyStore, () => studyStore.familyTreeFocus);
-  const genealogyEnabled = isGenealogyEnabled();
-  const showFamilyTree = genealogyEnabled && familyTreeOpen;
+  const openMode = useStore(studyStore, () => studyStore.studyMode);
+  const modeFocus = useStore(studyStore, () => studyStore.studyModeFocus);
+  const modes = [...useSlot(studyModes)].sort((a, b) => a.order - b.order);
+  const activeMode = modes.find((m) => m.id === openMode);
 
   // Passage labels
   const displayBook = pinned ? pinnedBook : book;
@@ -89,33 +88,36 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
     bibleStore.navigateToPreview(bookNumber, chapter, verse);
   };
 
-  const modeTabs = genealogyEnabled && (
-    <div class="study-pane__modes" role="tablist" aria-label={t('genealogyPane.modes')}>
+  const modeTabs = modes.length > 0 && (
+    <div class="study-pane__modes" role="tablist" aria-label={t(modes[0].stripLabelKey)}>
       <button
         role="tab"
-        aria-selected={!showFamilyTree}
-        class={`study-pane__mode${!showFamilyTree ? ' study-pane__mode--active' : ''}`}
-        onClick={() => studyStore.closeFamilyTree()}
+        aria-selected={!activeMode}
+        class={`study-pane__mode${!activeMode ? ' study-pane__mode--active' : ''}`}
+        onClick={() => studyStore.closeStudyMode()}
       >
-        {t('genealogyPane.study')}
+        {t('studyPane.study')}
       </button>
-      <button
-        role="tab"
-        aria-selected={showFamilyTree}
-        class={`study-pane__mode${showFamilyTree ? ' study-pane__mode--active' : ''}`}
-        onClick={() => studyStore.openFamilyTree()}
-      >
-        {t('genealogyPane.title')}
-      </button>
+      {modes.map((m) => (
+        <button
+          key={m.id}
+          role="tab"
+          aria-selected={activeMode === m}
+          class={`study-pane__mode${activeMode === m ? ' study-pane__mode--active' : ''}`}
+          onClick={() => studyStore.openStudyMode(m.id)}
+        >
+          {t(m.labelKey)}
+        </button>
+      ))}
     </div>
   );
 
-  if (showFamilyTree) {
+  if (activeMode) {
     return (
-      <div class="study-pane study-pane--family-tree">
+      <div class={`study-pane study-pane--${activeMode.id}`}>
         <h2 class="study-pane__title">{t('studyPane.study')}</h2>
         {modeTabs}
-        <GenealogyPane provider={genealogyProvider} focus={familyTreeFocus} onOpenVerse={handleOpenVerse} />
+        <StudyModeView mode={activeMode} focus={modeFocus} onOpenVerse={handleOpenVerse} />
       </div>
     );
   }
@@ -170,5 +172,15 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
         </StudySection>
       </div>
     </div>
+  );
+}
+
+/** A mode's view loads on first use; one `lazy` component per mode. */
+function StudyModeView({ mode, focus, onOpenVerse }: { mode: StudyMode; focus: { token: number } | null; onOpenVerse: (verseId: number) => void }) {
+  const View = useMemo(() => lazy(mode.load), [mode]);
+  return (
+    <Suspense fallback={null}>
+      <View focus={focus} onOpenVerse={onOpenVerse} />
+    </Suspense>
   );
 }

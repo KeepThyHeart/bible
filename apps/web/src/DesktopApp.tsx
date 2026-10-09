@@ -47,7 +47,6 @@ const EAGER_PANES: Record<string, (p: PaneViewProps) => unknown> = {
       onStrongsHover={p.onStrongsHover as never}
       onStrongsLeave={p.onStrongsLeave}
       bibleProvider={p.providers.bible}
-      genealogyProvider={p.providers.genealogy}
       onOpenSettings={p.onOpenSettings}
     />
   ),
