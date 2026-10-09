@@ -7,7 +7,7 @@
  * app mounts one Memory UI at a time. Anything that must follow a language change (labels held in
  * constants) has to be looked up at render time, never cached at import.
  */
-import { englishTranslate } from '../core/messages';
+import { englishTranslate, setCoreTranslator } from '../core/messages';
 import type { MessageParams, Translate } from '../core/messages';
 
 export type { MessageParams, Translate } from '../core/messages';
@@ -18,6 +18,8 @@ let currentLocale: string | undefined;
 /** Install the host's translator (and the locale for dates and numbers). No argument restores English. */
 export function setUiTranslator(t?: Translate, locale?: string): void {
   current = t ?? englishTranslate;
+  // Core helpers the UI calls directly (tier labels, suggested lists) look up through the same catalog.
+  setCoreTranslator(t);
   currentLocale = locale;
 }
 

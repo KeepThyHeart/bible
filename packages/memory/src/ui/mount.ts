@@ -34,7 +34,7 @@ import { renderCardStack } from './cardView';
 import { pickFlowTarget } from './suggest';
 import { INITIAL_NAV, navReduce, sameView } from './state';
 import type { Flow, NavAction, NavState } from './state';
-import { setUiTranslator } from './i18n';
+import { setUiTranslator, tr } from './i18n';
 import type { Translate } from './i18n';
 import './memory.css';
 
@@ -251,7 +251,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       }
       const target = pickFlowTarget(reply.data, flow, host.now(), Math.random, exclude);
       if (!target) {
-        announce('Nothing else to practice right now.');
+        announce(tr('memory.ui.settings.nothingElseToPractice', 'Nothing else to practice right now.'));
         return;
       }
       await host.startSession(target.passageId, target.rung, undefined, undefined, flow);
@@ -387,7 +387,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
           // Removed elsewhere between the click and the fetch reads the same as
           // any other failure to the core, but this one has a specific,
           // friendlier story: fall back to the plan rather than an error banner.
-          announce('That passage is no longer in your plan.');
+          announce(tr('memory.ui.settings.passageGone', 'That passage is no longer in your plan.'));
           nav = navReduce(nav, { type: 'passageRemoved', passageId });
           const planReply = await host.request({ type: 'getPlan' });
           return planReply.ok ? renderPlan(host, planReply.data) : failure(planReply.error);
@@ -437,13 +437,13 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       }
 
       default:
-        return failure('Unknown screen.');
+        return failure(tr('memory.ui.settings.unknownScreen', 'Unknown screen.'));
     }
   }
 
   function failure(message: string): HTMLElement {
     return el('section', { class: 'sm-screen' }, [
-      el('h1', { class: 'sm-screen-title', text: 'Scripture Memory' }),
+      el('h1', { class: 'sm-screen-title', text: tr('memory.ui.settings.title', 'Scripture Memory') }),
       errorBanner(message),
     ]);
   }

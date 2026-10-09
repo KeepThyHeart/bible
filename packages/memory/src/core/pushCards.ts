@@ -9,6 +9,7 @@
  * the reference (or nothing at all with the generic lock-screen setting).
  */
 
+import { tc } from './messages';
 import type {
   FireTime,
   JsonValue,
@@ -188,8 +189,10 @@ export function notificationFor(
   settings: Pick<PushCardSettings, 'lockScreen'>,
 ): { title: string; body: string; tag: string } {
   return {
-    title: 'Memory card',
-    body: settings.lockScreen === 'generic' ? 'A memory card is ready.' : reference + ' · Can you say it?',
+    title: tc('memory.core.notifTitle', 'Memory card'),
+    body: settings.lockScreen === 'generic'
+        ? tc('memory.core.notifBodyGeneric', 'A memory card is ready.')
+        : tc('memory.core.notifBodyReference', '{reference} · Can you say it?', { reference }),
     tag: 'memory-card',
   };
 }
@@ -247,22 +250,22 @@ export function statusMessage(
   caps: ReminderCapabilities | null,
   enabled: boolean,
 ): string {
-  if (!enabled) return 'Memory cards are off.';
+  if (!enabled) return tc('memory.core.statusOff', 'Memory cards are off.');
   if (!hostApi || !caps) {
-    return 'This app cannot send notifications. Cards will wait here until you open the app.';
+    return tc('memory.core.statusNoHostApi', 'This app cannot send notifications. Cards will wait here until you open the app.');
   }
   switch (caps.permission) {
     case 'denied':
-      return 'Notifications are blocked for this site. Cards will wait here until you open the app.';
+      return tc('memory.core.statusDenied', 'Notifications are blocked for this site. Cards will wait here until you open the app.');
     case 'unsupported':
-      return 'Notifications are not supported here. Cards will wait here until you open the app.';
+      return tc('memory.core.statusUnsupported', 'Notifications are not supported here. Cards will wait here until you open the app.');
     case 'prompt':
-      return 'Allow notifications to get cards when the app is closed. Until then, cards wait here.';
+      return tc('memory.core.statusPrompt', 'Allow notifications to get cards when the app is closed. Until then, cards wait here.');
     case 'granted':
-      if (caps.whenClosed === 'fires') return 'Cards arrive as notifications, even when the app is closed.';
+      if (caps.whenClosed === 'fires') return tc('memory.core.statusFires', 'Cards arrive as notifications, even when the app is closed.');
       if (caps.whenClosed === 'background-only') {
-        return 'Cards only arrive while the app is running. Turn on Keep running in background.';
+        return tc('memory.core.statusBackgroundOnly', 'Cards only arrive while the app is running. Turn on Keep running in background.');
       }
-      return 'Cards only arrive while the app is open. Otherwise they wait here.';
+      return tc('memory.core.statusOpenOnly', 'Cards only arrive while the app is open. Otherwise they wait here.');
   }
 }

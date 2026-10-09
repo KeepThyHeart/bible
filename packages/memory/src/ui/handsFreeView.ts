@@ -11,6 +11,7 @@ import { button, el, replace } from './dom';
 import { errorBanner } from './components';
 import { formatScore } from './format';
 import { progressText } from './reciteView';
+import { tr } from './i18n';
 
 export interface HandsFreeCallbacks {
   onControl(action: ReciteAction): void;
@@ -50,16 +51,16 @@ function currentTone(): HandsFreeTone {
 /** The big line of text for a phase. */
 export function handsFreePhaseText(state: ReciteStateView): string {
   const base: Record<LoopPhase, string> = {
-    announcing: 'Get ready',
-    ready: 'Say it when ready',
-    listening: 'Listening',
-    hinting: 'Hint',
-    scoring: 'Scoring',
-    feedback: state.result ? `Scored ${formatScore(state.result.score)}` : 'Scored',
-    paused: 'Paused',
-    summary: 'All done',
-    done: 'All done',
-    error: state.error?.message ?? 'Something went wrong',
+    announcing: tr('memory.ui.settings.getReady', 'Get ready'),
+    ready: tr('memory.ui.settings.sayItWhenReady', 'Say it when ready'),
+    listening: tr('memory.ui.settings.listening', 'Listening'),
+    hinting: tr('memory.ui.settings.hint', 'Hint'),
+    scoring: tr('memory.ui.settings.scoring', 'Scoring'),
+    feedback: state.result ? tr('memory.ui.settings.scoredWith', 'Scored {score}', { score: formatScore(state.result.score) }) : tr('memory.ui.settings.scored', 'Scored'),
+    paused: tr('memory.ui.settings.paused', 'Paused'),
+    summary: tr('memory.ui.settings.allDone', 'All done'),
+    done: tr('memory.ui.settings.allDone', 'All done'),
+    error: state.error?.message ?? tr('memory.ui.settings.wentWrong', 'Something went wrong'),
   };
   return base[state.phase];
 }
@@ -90,11 +91,11 @@ export function createHandsFreeView(initial: ReciteStateView, cb: HandsFreeCallb
         : null,
       state.phase === 'error' && state.error ? errorBanner(state.error.message) : null,
       el('div', { class: 'sm-handsfree-controls' }, [
-        paused ? big('Resume', 'resume', 'sm-btn-primary') : big('Pause', 'pause', 'sm-btn-primary'),
-        big('Hint', 'hint'),
-        big('Repeat', 'repeat'),
-        big('Skip', 'skip'),
-        button('Stop', () => (finished ? cb.onExit() : cb.onControl('stop')), {
+        paused ? big(tr('memory.ui.settings.resume', 'Resume'), 'resume', 'sm-btn-primary') : big(tr('memory.ui.settings.pause', 'Pause'), 'pause', 'sm-btn-primary'),
+        big(tr('memory.ui.settings.hint', 'Hint'), 'hint'),
+        big(tr('memory.ui.settings.repeat', 'Repeat'), 'repeat'),
+        big(tr('memory.ui.settings.skip', 'Skip'), 'skip'),
+        button(tr('memory.ui.settings.stop', 'Stop'), () => (finished ? cb.onExit() : cb.onControl('stop')), {
           class: 'sm-btn sm-btn-large sm-handsfree-btn sm-btn-danger',
         }),
       ]),

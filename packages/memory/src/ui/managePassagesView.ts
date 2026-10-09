@@ -21,16 +21,16 @@ import type { ListSummary, Passage, PassageView, PlanView } from '../core/types'
 import { append, button, el, focusQuietly, replace } from './dom';
 import { breadcrumb, emptyState, errorBanner, listSelector, modal } from './components';
 import type { ListSelectorOption } from './components';
-import { countLabel } from './format';
 import { dropContainedRanges, extractReferenceCandidates } from './referenceInput';
 import { SUGGESTED_LISTS } from '../core/suggestedLists';
 import type { SuggestedList } from '../core/suggestedLists';
 import type { PanelHost } from './host';
+import { tr } from './i18n';
 
 export function renderManagePassages(host: PanelHost, plan: PlanView): HTMLElement {
   const root = el('section', { class: 'sm-screen sm-screen-manage-passages' });
 
-  root.appendChild(breadcrumb({ crumbs: [{ label: 'Home', onClick: () => host.go({ type: 'goPlan' }) }, { label: 'Manage Passages' }] }));
+  root.appendChild(breadcrumb({ crumbs: [{ label: tr('memory.ui.plan.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: tr('memory.ui.plan.managePassages', 'Manage Passages') }] }));
 
   root.appendChild(renderListManagement(host, plan));
 
@@ -61,7 +61,7 @@ function renderListManagement(host: PanelHost, plan: PlanView): HTMLElement {
   wrap.appendChild(
     el(
       'ul',
-      { class: 'sm-list sm-manage-list-rows', attrs: { 'aria-label': 'Your lists' } },
+      { class: 'sm-list sm-manage-list-rows', attrs: { 'aria-label': tr('memory.ui.plan.yourLists', 'Your lists') } },
       plan.lists.map((list) => renderListRow(host, plan, list)),
     ),
   );
@@ -75,13 +75,13 @@ function switchScope(host: PanelHost, scope: { kind: 'all' } | { kind: 'list'; i
       host.announce(reply.error);
       return;
     }
-    host.announce(`Now practising ${label}.`);
+    host.announce(tr('memory.ui.plan.nowPractising', 'Now practising {name}.', { name: label }));
     host.reload();
   });
 }
 
 function currentBadge(): HTMLElement {
-  return el('span', { class: 'sm-badge sm-manage-list-current', text: 'Current' });
+  return el('span', { class: 'sm-badge sm-manage-list-current', text: tr('memory.ui.plan.current', 'Current') });
 }
 
 function renderAllListsRow(host: PanelHost, plan: PlanView): HTMLElement {
@@ -89,12 +89,12 @@ function renderAllListsRow(host: PanelHost, plan: PlanView): HTMLElement {
   const verses = plan.lists.reduce((n, l) => n + l.verseCount, 0);
   const isCurrent = plan.scope === 'all';
   return el('div', { class: 'sm-row sm-manage-all-lists-row' }, [
-    el('span', { class: 'sm-row-ref', text: 'All lists' }),
-    el('span', { class: 'sm-row-meta', text: `${countLabel(total, 'passage')}, ${countLabel(verses, 'verse')}` }),
+    el('span', { class: 'sm-row-ref', text: tr('memory.ui.plan.allListsRow', 'All lists') }),
+    el('span', { class: 'sm-row-meta', text: tr('memory.ui.plan.listMeta', '{passages}, {verses}', { passages: tr('memory.ui.plan.passageCount', '{count, plural, one {# passage} other {# passages}}', { count: total }), verses: tr('memory.ui.plan.verseCount', '{count, plural, one {# verse} other {# verses}}', { count: verses }) }) }),
     el('span', { class: 'sm-manage-list-actions' }, [
       isCurrent
         ? currentBadge()
-        : button('Switch to all lists', () => switchScope(host, { kind: 'all' }, 'all lists'), {
+        : button(tr('memory.ui.plan.switchToAllLists', 'Switch to all lists'), () => switchScope(host, { kind: 'all' }, tr('memory.ui.plan.allListsLower', 'all lists')), {
             class: 'sm-btn sm-btn-quiet sm-btn-small',
           }),
     ]),
@@ -106,15 +106,15 @@ function renderCreateList(host: PanelHost): HTMLElement {
     class: 'sm-input',
     id: 'sm-create-list-name',
     type: 'text',
-    placeholder: 'e.g. Memory verses for Advent',
+    placeholder: tr('memory.ui.plan.newListPlaceholder', 'e.g. Memory verses for Advent'),
     attrs: { autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false', enterkeyhint: 'done' },
   }) as HTMLInputElement;
   const errorSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
-  const submit = el('button', { class: 'sm-btn', text: 'Create' }) as HTMLButtonElement;
+  const submit = el('button', { class: 'sm-btn', text: tr('memory.ui.plan.create', 'Create') }) as HTMLButtonElement;
   submit.type = 'submit';
 
   const form = el('form', { class: 'sm-add' }, [
-    el('label', { class: 'sm-label', text: 'Create a list', attrs: { for: 'sm-create-list-name' } }),
+    el('label', { class: 'sm-label', text: tr('memory.ui.plan.createAList', 'Create a list'), attrs: { for: 'sm-create-list-name' } }),
     el('div', { class: 'sm-add-row' }, [input, submit]),
     errorSlot,
   ]) as HTMLFormElement;
@@ -123,7 +123,7 @@ function renderCreateList(host: PanelHost): HTMLElement {
     event.preventDefault();
     const name = input.value.trim();
     if (!name) {
-      replace(errorSlot, [errorBanner('Type a name for the new list first.')]);
+      replace(errorSlot, [errorBanner(tr('memory.ui.plan.typeListNameFirst', 'Type a name for the new list first.'))]);
       focusQuietly(input);
       return;
     }
@@ -138,7 +138,7 @@ function renderCreateList(host: PanelHost): HTMLElement {
         return;
       }
       input.value = '';
-      host.announce(`Created ${name}.`);
+      host.announce(tr('memory.ui.plan.createdName', 'Created {name}.', { name }));
       host.reload();
     });
   });
@@ -150,10 +150,10 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
   const row = el('li', { class: 'sm-row sm-manage-list-row' });
 
   const showIdle = (): void => {
-    const renameBtn = button('Rename', showRenameForm, { class: 'sm-btn sm-btn-quiet sm-btn-small' });
-    const deleteBtn = button('Delete', handleDelete, {
+    const renameBtn = button(tr('memory.ui.plan.rename', 'Rename'), showRenameForm, { class: 'sm-btn sm-btn-quiet sm-btn-small' });
+    const deleteBtn = button(tr('memory.ui.plan.delete', 'Delete'), handleDelete, {
       class: 'sm-btn sm-btn-quiet sm-btn-small sm-btn-danger-quiet',
-      attrs: { 'aria-label': `Delete ${list.name}` },
+      attrs: { 'aria-label': tr('memory.ui.plan.deleteName', 'Delete {name}', { name: list.name }) },
     }) as HTMLButtonElement;
     // Resolved D2: a plan with zero lists is a state nothing else in this
     // extension can describe, so deleting the only list left is refused
@@ -162,20 +162,20 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
     const onlyList = plan.lists.length <= 1;
     if (onlyList) {
       deleteBtn.disabled = true;
-      deleteBtn.title = 'You cannot delete your only list.';
+      deleteBtn.title = tr('memory.ui.plan.cannotDeleteOnlyList', 'You cannot delete your only list.');
     }
 
     replace(row, [
       el('span', { class: 'sm-row-ref', text: list.name }),
-      el('span', { class: 'sm-row-meta', text: `${countLabel(list.passageCount, 'passage')}, ${countLabel(list.verseCount, 'verse')}` }),
-      ...(onlyList ? [el('span', { class: 'sm-hint sm-manage-list-hint', text: 'Your only list cannot be deleted.' })] : []),
+      el('span', { class: 'sm-row-meta', text: tr('memory.ui.plan.listMeta', '{passages}, {verses}', { passages: tr('memory.ui.plan.passageCount', '{count, plural, one {# passage} other {# passages}}', { count: list.passageCount }), verses: tr('memory.ui.plan.verseCount', '{count, plural, one {# verse} other {# verses}}', { count: list.verseCount }) }) }),
+      ...(onlyList ? [el('span', { class: 'sm-hint sm-manage-list-hint', text: tr('memory.ui.plan.onlyListHint', 'Your only list cannot be deleted.') })] : []),
       el('span', { class: 'sm-manage-list-actions' }, [
         ...(plan.scope === list.id
           ? [currentBadge()]
           : [
-              button('Switch to this list', () => switchScope(host, { kind: 'list', id: list.id }, list.name), {
+              button(tr('memory.ui.plan.switchToThisList', 'Switch to this list'), () => switchScope(host, { kind: 'list', id: list.id }, list.name), {
                 class: 'sm-btn sm-btn-quiet sm-btn-small',
-                attrs: { 'aria-label': `Switch to ${list.name}` },
+                attrs: { 'aria-label': tr('memory.ui.plan.switchTo', 'Switch to {name}', { name: list.name }) },
               }),
             ]),
         renameBtn,
@@ -192,7 +192,7 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
     const save = (): void => {
       const name = input.value.trim();
       if (!name) {
-        replace(errorSlot, [errorBanner('A list needs a name.')]);
+        replace(errorSlot, [errorBanner(tr('memory.ui.plan.listNeedsName', 'A list needs a name.'))]);
         return;
       }
       void host.request({ type: 'renameList', id: list.id, name }).then((reply) => {
@@ -200,7 +200,7 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
           replace(errorSlot, [errorBanner(reply.error)]);
           return;
         }
-        host.announce(`Renamed to ${name}.`);
+        host.announce(tr('memory.ui.plan.renamedTo', 'Renamed to {name}.', { name }));
         host.reload();
       });
     };
@@ -208,8 +208,8 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
     replace(row, [
       el('div', { class: 'sm-manage-list-rename' }, [
         input,
-        button('Save', save, { class: 'sm-btn sm-btn-small' }),
-        button('Cancel', showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
+        button(tr('memory.ui.plan.save', 'Save'), save, { class: 'sm-btn sm-btn-small' }),
+        button(tr('memory.ui.plan.cancel', 'Cancel'), showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
         errorSlot,
       ]),
     ]);
@@ -222,7 +222,7 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
         host.announce(reply.error);
         return;
       }
-      host.announce(`Deleted ${list.name}.`);
+      host.announce(tr('memory.ui.plan.deletedName', 'Deleted {name}.', { name: list.name }));
       host.reload();
     });
   }
@@ -264,7 +264,7 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
 
     const needsName = stats.practiced > 0;
     const confirmButton = button(
-      `Delete and move ${countLabel(list.passageCount, 'passage')}`,
+      tr('memory.ui.plan.deleteAndMove', 'Delete and move {count, plural, one {# passage} other {# passages}}', { count: list.passageCount }),
       () => {
         doDelete(chosen);
         handle.close();
@@ -273,8 +273,8 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
     );
     const nameInput = el('input', {
       class: 'sm-input sm-manage-delete-confirm',
-      placeholder: 'Type the list name to confirm',
-      attrs: { 'aria-label': `Type "${list.name}" to confirm deleting it`, autocomplete: 'off', spellcheck: 'false' },
+      placeholder: tr('memory.ui.plan.typeListNameToConfirm', 'Type the list name to confirm'),
+      attrs: { 'aria-label': tr('memory.ui.plan.typeNameToConfirmDelete', 'Type "{name}" to confirm deleting it', { name: list.name }), autocomplete: 'off', spellcheck: 'false' },
     }) as HTMLInputElement;
     // Exact, case-sensitive, untrimmed: a deliberate speed bump.
     nameInput.addEventListener('input', () => {
@@ -288,13 +288,15 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
     });
 
     const handle = modal({
-      title: `Delete "${list.name}"?`,
+      title: tr('memory.ui.plan.deleteNameQuestion', 'Delete "{name}"?', { name: list.name }),
       body: [
         el('p', {
           class: 'sm-hint',
-          text: `This list has ${countLabel(list.passageCount, 'passage')}. Choose another list to move ${
-            list.passageCount === 1 ? 'it' : 'them'
-          } to first.`,
+          text: tr(
+            'memory.ui.plan.deleteMoveHint',
+            'This list has {count, plural, one {# passage. Choose another list to move it to first.} other {# passages. Choose another list to move them to first.}}',
+            { count: list.passageCount },
+          ),
         }),
         select,
         ...(needsName
@@ -302,7 +304,7 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
               el('p', {
                 class: 'sm-hint',
                 attrs: { role: 'alert' },
-                text: `This list has practice history on ${stats.practiced} of ${stats.total} passages. The history moves with the passages, but type the list name to confirm.`,
+                text: tr('memory.ui.plan.practiceHistoryWarning', 'This list has practice history on {practiced} of {total} passages. The history moves with the passages, but type the list name to confirm.', { practiced: stats.practiced, total: stats.total }),
               }),
               nameInput,
             ]
@@ -326,13 +328,13 @@ function renderListRow(host: PanelHost, plan: PlanView, list: ListSummary): HTML
 function renderPassageList(host: PanelHost, plan: PlanView): HTMLElement {
   if (plan.passages.length === 0) {
     return emptyState(
-      'No passages here yet.',
-      'Add one above with a reference, or start from a suggested list below.',
+      tr('memory.ui.plan.noPassagesYet', 'No passages here yet.'),
+      tr('memory.ui.plan.noPassagesHint', 'Add one above with a reference, or start from a suggested list below.'),
     );
   }
   return el(
     'ul',
-    { class: 'sm-list', attrs: { 'aria-label': 'Passages in this list' } },
+    { class: 'sm-list', attrs: { 'aria-label': tr('memory.ui.plan.passagesInList', 'Passages in this list') } },
     plan.passages.map((pv) => renderPassageRow(host, plan, pv)),
   );
 }
@@ -349,7 +351,7 @@ function renderPassageRow(host: PanelHost, plan: PlanView, pv: PassageView): HTM
       host.reload();
     });
   });
-  moveSelect.setAttribute('aria-label', `Move ${pv.passage.reference} to a different list`);
+  moveSelect.setAttribute('aria-label', tr('memory.ui.plan.moveToDifferentList', 'Move {reference} to a different list', { reference: pv.passage.reference }));
 
   return el('li', { class: 'sm-row sm-manage-passage-row' }, [
     el('span', { class: 'sm-row-ref', text: pv.passage.reference }),
@@ -375,16 +377,16 @@ function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
         replace(slot, [errorBanner(reply.error)]);
         return;
       }
-      host.announce(`Removed ${pv.passage.reference}.`);
+      host.announce(tr('memory.ui.plan.removed', 'Removed {reference}.', { reference: pv.passage.reference }));
       host.reload();
     });
   }
 
   const showIdle = (): void => {
     replace(slot, [
-      button('Remove…', hasHistory ? showConfirm : doRemove, {
+      button(tr('memory.ui.plan.remove', 'Remove…'), hasHistory ? showConfirm : doRemove, {
         class: 'sm-btn sm-btn-small sm-btn-danger-quiet',
-        attrs: { 'aria-label': `Remove ${pv.passage.reference} from the plan` },
+        attrs: { 'aria-label': tr('memory.ui.plan.removeFromPlan', 'Remove {reference} from the plan', { reference: pv.passage.reference }) },
       }),
     ]);
   };
@@ -392,9 +394,9 @@ function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
   function showConfirm(): void {
     replace(slot, [
       el('span', { class: 'sm-remove-confirm', attrs: { role: 'alert' } }, [
-        el('span', { class: 'sm-hint', text: 'Remove this passage? Its history is kept for 7 days, and adding it again restores it.' }),
-        button('Yes, remove', doRemove, { class: 'sm-btn sm-btn-small sm-btn-danger' }),
-        button('Cancel', showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
+        el('span', { class: 'sm-hint', text: tr('memory.ui.plan.removeConfirm', 'Remove this passage? Its history is kept for 7 days, and adding it again restores it.') }),
+        button(tr('memory.ui.plan.yesRemove', 'Yes, remove'), doRemove, { class: 'sm-btn sm-btn-small sm-btn-danger' }),
+        button(tr('memory.ui.plan.cancel', 'Cancel'), showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
       ]),
     ]);
   }
@@ -473,14 +475,14 @@ function announceBatch(
   if (added.length === 0) return;
   const mergedNote =
     dropped.length > 0
-      ? ` ${countLabel(dropped.length, 'reference')} already covered by another passage in this batch.`
+      ? tr('memory.ui.plan.mergedNote', ' {count, plural, one {# reference} other {# references}} already covered by another passage in this batch.', { count: dropped.length })
       : '';
   host.announce(
     added.length === 1 && failed.length === 0 && dropped.length === 0
-      ? `Added ${added[0]!.reference}.`
+      ? tr('memory.ui.plan.addedReference', 'Added {reference}.', { reference: added[0]!.reference })
       : failed.length === 0
-        ? `Added ${countLabel(added.length, 'passage')}.${mergedNote}`
-        : `Added ${countLabel(added.length, 'passage')}; ${failed.length} failed.${mergedNote}`,
+        ? tr('memory.ui.plan.addedPassages', 'Added {count, plural, one {# passage} other {# passages}}.{note}', { count: added.length, note: mergedNote })
+        : tr('memory.ui.plan.addedPassagesSomeFailed', 'Added {count, plural, one {# passage} other {# passages}}; {failed} failed.{note}', { count: added.length, failed: failed.length, note: mergedNote }),
   );
   host.reload();
 }
@@ -535,7 +537,7 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
     class: 'sm-input',
     id: 'sm-add-reference',
     type: 'text',
-    placeholder: host.activeReference ?? 'e.g. Psalm 23:1-6',
+    placeholder: host.activeReference ?? tr('memory.ui.plan.addPlaceholder', 'e.g. Psalm 23:1-6'),
     attrs: {
       autocomplete: 'off',
       autocapitalize: 'words',
@@ -553,20 +555,20 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
     attrs: { 'aria-live': 'polite' },
   });
 
-  const submit = el('button', { class: 'sm-btn', text: 'Add' }) as HTMLButtonElement;
+  const submit = el('button', { class: 'sm-btn', text: tr('memory.ui.plan.add', 'Add') }) as HTMLButtonElement;
   submit.type = 'submit';
 
-  const addSeveralLink = button('Add several passages at once…', () => openBatchModal(''), {
+  const addSeveralLink = button(tr('memory.ui.plan.addSeveralLink', 'Add several passages at once…'), () => openBatchModal(''), {
     class: 'sm-btn sm-btn-quiet sm-btn-small sm-link-btn',
   });
 
   const form = el('form', { class: 'sm-add' }, [
-    el('label', { class: 'sm-label', text: 'Add passage', attrs: { for: 'sm-add-reference' } }),
+    el('label', { class: 'sm-label', text: tr('memory.ui.plan.addPassage', 'Add passage'), attrs: { for: 'sm-add-reference' } }),
     el('div', { class: 'sm-add-row' }, [input, submit]),
     errorSlot,
     el('p', {
       class: 'sm-hint',
-      text: 'Paste a list to add several at once - one reference per line.',
+      text: tr('memory.ui.plan.pasteListHint', 'Paste a list to add several at once - one reference per line.'),
     }),
     addSeveralLink,
   ]) as HTMLFormElement;
@@ -613,20 +615,20 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
 
     const body = el('div', { class: 'sm-modal-batch-body' });
     const handle = modal({
-      title: 'Add several passages at once',
+      title: tr('memory.ui.plan.addSeveralTitle', 'Add several passages at once'),
       body: [body],
       onClose: () => handle.element.remove(),
     });
 
     function showEntry(): void {
       const entryErrorSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
-      const cancelBtn = button('Cancel', () => handle.close(), { class: 'sm-btn sm-btn-quiet' });
+      const cancelBtn = button(tr('memory.ui.plan.cancel', 'Cancel'), () => handle.close(), { class: 'sm-btn sm-btn-quiet' });
       const findBtn = button(
-        'Find references',
+        tr('memory.ui.plan.findReferences', 'Find references'),
         () => {
           const candidates = extractReferenceCandidates(textarea.value);
           if (candidates.length === 0) {
-            replace(entryErrorSlot, [errorBanner('Type or paste at least one reference first.')]);
+            replace(entryErrorSlot, [errorBanner(tr('memory.ui.plan.typeOrPasteFirst', 'Type or paste at least one reference first.'))]);
             focusQuietly(textarea);
             return;
           }
@@ -636,11 +638,11 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
       );
 
       replace(body, [
-        el('label', { class: 'sm-label', text: 'References', attrs: { for: 'sm-batch-textarea' } }),
+        el('label', { class: 'sm-label', text: tr('memory.ui.plan.references', 'References'), attrs: { for: 'sm-batch-textarea' } }),
         textarea,
         el('p', {
           class: 'sm-hint',
-          text: 'Paste a list of references, or any text that has references in it, and they will be auto-detected.',
+          text: tr('memory.ui.plan.pasteReferencesHint', 'Paste a list of references, or any text that has references in it, and they will be auto-detected.'),
         }),
         entryErrorSlot,
         el('div', { class: 'sm-modal-actions' }, [cancelBtn, findBtn]),
@@ -650,9 +652,9 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
 
     function showConfirm(confirmLines: string[]): void {
       const confirmErrorSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
-      const backBtn = button('Back', () => showEntry(), { class: 'sm-btn sm-btn-quiet' });
+      const backBtn = button(tr('memory.ui.plan.back', 'Back'), () => showEntry(), { class: 'sm-btn sm-btn-quiet' });
       const addBtn = button(
-        `Add ${countLabel(confirmLines.length, 'passage')}`,
+        tr('memory.ui.plan.addNPassages', 'Add {count, plural, one {# passage} other {# passages}}', { count: confirmLines.length }),
         () => {
           addBtn.disabled = true;
           backBtn.disabled = true;
@@ -678,7 +680,7 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
       );
 
       replace(body, [
-        el('p', { class: 'sm-hint', text: `Add ${countLabel(confirmLines.length, 'passage')}?` }),
+        el('p', { class: 'sm-hint', text: tr('memory.ui.plan.addNPassagesQuestion', 'Add {count, plural, one {# passage} other {# passages}}?', { count: confirmLines.length }) }),
         el(
           'ul',
           { class: 'sm-batch-list' },
@@ -728,7 +730,7 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
     // placeholder showing does the obvious thing.
     const references = candidates.length > 0 ? candidates : host.activeReference ? [host.activeReference.trim()] : [];
     if (references.length === 0) {
-      replace(errorSlot, [errorBanner('Type a reference first, for example "John 3:16-18".')]);
+      replace(errorSlot, [errorBanner(tr('memory.ui.plan.typeReferenceFirst', 'Type a reference first, for example "John 3:16-18".'))]);
       focusQuietly(input);
       return;
     }
@@ -759,10 +761,10 @@ function renderSuggestedLists(
   offerBatch: (lines: string[]) => void,
 ): HTMLElement {
   return el('section', { class: 'sm-suggested-lists' }, [
-    el('h2', { class: 'sm-suggested-lists-title', text: 'Suggested lists' }),
+    el('h2', { class: 'sm-suggested-lists-title', text: tr('memory.ui.plan.suggestedLists', 'Suggested lists') }),
     el(
       'ul',
-      { class: 'sm-list sm-suggested-lists-rows', attrs: { 'aria-label': 'Suggested lists' } },
+      { class: 'sm-list sm-suggested-lists-rows', attrs: { 'aria-label': tr('memory.ui.plan.suggestedLists', 'Suggested lists') } },
       SUGGESTED_LISTS.map((list) => renderSuggestedListRow(host, plan, list, offerBatch)),
     ),
   ]);
@@ -788,10 +790,10 @@ function renderSuggestedListRow(
 ): HTMLElement {
   const statusSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
 
-  const createButton = button('Create this list', () => void handleCreate(), {
+  const createButton = button(tr('memory.ui.plan.createThisList', 'Create this list'), () => void handleCreate(), {
     class: 'sm-btn sm-btn-small',
   }) as HTMLButtonElement;
-  const copyButton = button('Copy references', () => offerBatch([...list.references]), {
+  const copyButton = button(tr('memory.ui.plan.copyReferences', 'Copy references'), () => offerBatch([...list.references]), {
     class: 'sm-btn sm-btn-small sm-btn-quiet',
   });
 
@@ -813,7 +815,7 @@ function renderSuggestedListRow(
       const newList = created.data.lists.find((l) => l.name === list.name);
       if (!newList) {
         createButton.disabled = false;
-        replace(statusSlot, [errorBanner('Could not find the list that was just created.')]);
+        replace(statusSlot, [errorBanner(tr('memory.ui.plan.couldNotFindCreatedList', 'Could not find the list that was just created.'))]);
         return;
       }
       targetId = newList.id;
@@ -842,8 +844,8 @@ function renderSuggestedListRow(
 
     host.announce(
       failed.length === 0
-        ? `Created ${list.name} with ${countLabel(added.length, 'passage')}.`
-        : `Created ${list.name}: ${countLabel(added.length, 'passage')} added, ${countLabel(failed.length, 'reference')} failed.`,
+        ? tr('memory.ui.plan.createdWithPassages', 'Created {name} with {count, plural, one {# passage} other {# passages}}.', { name: list.name, count: added.length })
+        : tr('memory.ui.plan.createdSomeFailed', 'Created {name}: {added, plural, one {# passage} other {# passages}} added, {failed, plural, one {# reference} other {# references}} failed.', { name: list.name, added: added.length, failed: failed.length }),
     );
     host.reload();
   }
@@ -853,7 +855,7 @@ function renderSuggestedListRow(
     el('div', { class: 'sm-suggested-list-info' }, [
       el('span', { class: 'sm-row-ref', text: list.name }),
       el('p', { class: 'sm-hint', text: list.blurb }),
-      el('span', { class: 'sm-row-meta', text: countLabel(list.references.length, 'reference') }),
+      el('span', { class: 'sm-row-meta', text: tr('memory.ui.plan.referenceCount', '{count, plural, one {# reference} other {# references}}', { count: list.references.length }) }),
     ]),
     el('div', { class: 'sm-suggested-list-actions' }, [createButton, copyButton]),
     statusSlot,

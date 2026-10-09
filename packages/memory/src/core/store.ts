@@ -12,6 +12,7 @@
  * ladder cannot quietly become a change to persistence.
  */
 
+import { tc } from './messages';
 import type { MemorySql } from './ports';
 import type {
   AnalyticsView,
@@ -456,10 +457,10 @@ export class MemoryStore {
   async deleteCollection(id: number, movePassagesTo: number): Promise<void> {
     const countRow = await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM memory_collection`);
     if ((countRow?.n ?? 0) <= 1) {
-      throw new Error('You cannot delete your only list. Create another list first.');
+      throw new Error(tc('memory.core.cannotDeleteOnlyList', 'You cannot delete your only list. Create another list first.'));
     }
     if (movePassagesTo === id) {
-      throw new Error('Choose a different list to move these passages to.');
+      throw new Error(tc('memory.core.chooseDifferentList', 'Choose a different list to move these passages to.'));
     }
 
     await this.db.transaction(async (tx) => {
@@ -510,7 +511,7 @@ export class MemoryStore {
     collectionId: number,
   ): Promise<{ passage: Passage; moved: boolean }> {
     const passage = await this.getPassage(passageId);
-    if (!passage) throw new Error('That passage no longer exists.');
+    if (!passage) throw new Error(tc('memory.core.passageNoLongerExists', 'That passage no longer exists.'));
     if (passage.collectionId === collectionId) return { passage, moved: false };
 
     const existing = await this.db.queryOne<PassageRow>(

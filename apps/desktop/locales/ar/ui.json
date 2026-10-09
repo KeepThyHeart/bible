@@ -2279,8 +2279,6 @@
   "apps.devFixture.title": "تطبيق تجريبي",
   "apps.memory.title": "الحفظ",
   "verseActions.memorize": "احفظ",
-  "memory.badge.due": "{count, plural, zero {لا آيات مستحقة} one {آية واحدة مستحقة} two {آيتان مستحقتان} few {# آيات مستحقة} many {# آيةً مستحقة} other {# آية مستحقة}}",
-  "memory.badge.waiting": "{count, plural, zero {لا بطاقات بانتظار الرد} one {بطاقة واحدة بانتظار الرد} two {بطاقتان بانتظار الرد} few {# بطاقات بانتظار الرد} many {# بطاقةً بانتظار الرد} other {# بطاقة بانتظار الرد}}",
   "preferencesDialog.sectionApps": "التطبيقات",
   "settings.apps.switcher": "مبدّل التطبيقات",
   "settings.apps.switcherHint": "إظهار شريط التطبيقات دائمًا أو أبدًا أو فقط عند توفر أكثر من تطبيق.",

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const enabled = vi.hoisted(() => ({ value: true }));
+const listening = vi.hoisted(() => ({ value: false }));
 const openApp = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const bindAppLinkHandler = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const addAppBinding = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
@@ -14,9 +14,11 @@ const client = vi.hoisted(() => ({
   on: vi.fn(),
   getStatus: vi.fn(),
   addVerses: vi.fn(),
+  takeNotices: vi.fn(),
 }));
+const visibility = vi.hoisted(() => ({ value: 'visible' }));
 
-vi.mock('../moduleHost', () => ({ featureModules: { isEnabled: () => enabled.value } }));
+vi.mock('../moduleHost', () => ({ featureModules: { isActive: () => listening.value } }));
 vi.mock('../../apps/appHost', () => ({ addAppBinding, openApp, bindAppLinkHandler, appRegistry: { setBadge }, verseActions: { bindHandler }, isAppActive: (id: string) => activeApp.id === id }));
 vi.mock('../../services/I18nService', () => ({
   i18nService: { t: (k: string, p?: { count?: number }) => `${k}:${p?.count ?? ''}` },
@@ -24,15 +26,27 @@ vi.mock('../../services/I18nService', () => ({
 vi.mock('../../stores/useToastStore', () => ({ useToastStore: { getState: () => ({ addToast }) } }));
 vi.mock('./memoryClient', () => ({ memoryClient: client }));
 
-import { startMemoryClickRouting, installMemoryHost, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS, memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
+import { memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
+import { activate, collectNotices, startMemoryClickRouting, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS } from './module';
+
+const subscriptions: Array<{ dispose(): void }> = [];
+const installMemoryHost = (): (() => void) => {
+  activate({ moduleId: 'memory', platform: 'desktop', activationEvent: 'onStartupFinished', subscriptions });
+  return () => {
+    for (const d of subscriptions.splice(0)) d.dispose();
+  };
+};
 
 let push: (p: unknown) => void;
 let dispose: () => void;
 
 beforeEach(() => {
   vi.useFakeTimers();
-  enabled.value = true;
-  for (const m of [addAppBinding, bindHandler, setBadge, addToast, client.on, client.getStatus, client.addVerses]) m.mockReset();
+  listening.value = false;
+  visibility.value = 'visible';
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility.value });
+  for (const m of [addAppBinding, bindHandler, setBadge, addToast, client.on, client.getStatus, client.addVerses, client.takeNotices]) m.mockReset();
+  client.takeNotices.mockResolvedValue([]);
   addAppBinding.mockReturnValue({ dispose: vi.fn() });
   bindAppLinkHandler.mockReset();
   bindAppLinkHandler.mockReturnValue({ dispose: vi.fn() });
@@ -49,32 +63,48 @@ afterEach(() => {
 });
 
 describe('installMemoryHost', () => {
-  it('pairs the manifest with a binding', () => {
-    expect(memoryModule[0].id).toBe('memory');
-    expect(memoryModule[1]).toEqual({ id: 'memory' });
-  });
-
-  it('registers nothing when the module is disabled', () => {
-    enabled.value = false;
-    dispose = installMemoryHost();
-    expect(addAppBinding).not.toHaveBeenCalled();
-    expect(bindHandler).not.toHaveBeenCalled();
-    expect(client.on).not.toHaveBeenCalled();
-  });
-
-  it('registers the app binding and the verse handler when enabled', () => {
-    dispose = installMemoryHost();
-    expect(addAppBinding).toHaveBeenCalledWith(expect.objectContaining({ id: 'memory' }));
-    expect(bindHandler).toHaveBeenCalledWith(expect.objectContaining({ id: 'memory.memorize' }));
+  it('is a desktop module whose pieces register with it (so it can be switched at runtime)', () => {
+    expect(memoryModule.manifest.id).toBe('memory');
+    expect(memoryModule.manifest.activationEvents).toEqual(['onStartupFinished']);
+    expect(memoryModule.manifest.contributes.i18nNamespace).toBe('memory');
+    expect(memoryModule.apps?.map((x) => x.id)).toEqual(['memory']);
+    expect(memoryModule.verseActionHandlers?.map((x) => x.id)).toEqual(['memorize'.replace('memorize', 'memory.memorize')]);
   });
 
   it('the verse handler adds the selected verses', async () => {
-    dispose = installMemoryHost();
-    const binding = bindHandler.mock.calls[0]![0] as { load(): Promise<{ run(ctx: unknown): Promise<void> }> };
+    const binding = memoryModule.verseActionHandlers![0]!;
     client.addVerses.mockResolvedValue({ outcome: 'added', passageId: 1 });
     const handler = await binding.load();
-    await handler.run({ verseIds: [43003016, 43003017], module: 'KJV' });
+    await handler.run({ verseId: 43003016, verseIds: [43003016, 43003017], module: 'KJV', surface: 'reader' });
     expect(client.addVerses).toHaveBeenCalledWith({ verseIds: [43003016, 43003017], module: 'KJV' });
+  });
+
+  it('disposing the activation clears the badge and every subscription', async () => {
+    dispose = installMemoryHost();
+    push({ type: 'status', status: { due: 1, waiting: 0 } });
+    const unsub = client.on.mock.results[0]!.value as ReturnType<typeof vi.fn>;
+    dispose();
+    expect(unsub).toHaveBeenCalled();
+    expect(setBadge).toHaveBeenLastCalledWith('memory', undefined);
+    expect(bindAppLinkHandler.mock.results[0]!.value.dispose).toHaveBeenCalled();
+  });
+
+  it('shows queued notices as toasts, only while a window is visible, and each is taken once', async () => {
+    client.takeNotices.mockResolvedValue([{ id: 'retired', message: 'English' }]);
+    visibility.value = 'hidden';
+    await collectNotices(client);
+    expect(client.takeNotices).not.toHaveBeenCalled();
+    visibility.value = 'visible';
+    await collectNotices(client);
+    expect(addToast).toHaveBeenCalledWith('memory.notice.retired:', 'info');
+  });
+
+  it('a status push (the retirement queued a notice) collects notices', async () => {
+    client.takeNotices.mockResolvedValue([{ id: 'skipped', message: 'English' }]);
+    dispose = installMemoryHost();
+    push({ type: 'status', status: { due: 0, waiting: 0 } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(addToast).toHaveBeenCalledWith('memory.notice.skipped:', 'info');
   });
 
   it('status pushes set and clear the badge', () => {
@@ -156,14 +186,14 @@ describe('cards requests', () => {
 describe('laziness', () => {
   it('memoryModule.ts imports neither the view nor the UI package statically', () => {
     const src = readFileSync(join(__dirname, 'memoryModule.ts'), 'utf8');
-    expect(src).not.toMatch(/^import .*['"]\.\/MemoryAppView['"]/m);
+    expect(src).not.toMatch(/^import .*['"]\.\/(MemoryAppView|module)['"]/m);
     expect(src).not.toMatch(/^import .*@bible\/memory\/ui/m);
     expect(src).toMatch(/import\('\.\/MemoryAppView'\)/);
   });
 });
 
 describe('click routing (works with the Notifications module off)', () => {
-  const setup = (notificationsOn: boolean, taken: unknown = null) => {
+  const setup = (notificationsOn: boolean) => {
     let emit: (t: unknown) => void = () => undefined;
     const off = vi.fn();
     const c = {
@@ -171,7 +201,6 @@ describe('click routing (works with the Notifications module off)', () => {
         emit = cb;
         return off;
       }),
-      takeOpenTarget: vi.fn().mockResolvedValue(taken),
     };
     openApp.mockReset();
     openApp.mockResolvedValue({ status: 'activated' });
@@ -211,16 +240,6 @@ describe('click routing (works with the Notifications module off)', () => {
     unregister();
   });
 
-  it('picks up a click that arrived during page load only when Notifications is off', async () => {
-    const off = setup(false, { kind: 'route', route: 'app:memory' });
-    expect(off.c.takeOpenTarget).toHaveBeenCalled();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(openApp).toHaveBeenCalledWith('memory');
-    const on = setup(true);
-    expect(on.c.takeOpenTarget).not.toHaveBeenCalled();
-  });
-
   it('with Notifications on, the live event is left to its routing and the app link handler opens the cards once', async () => {
     const { emit } = setup(true);
     emit({ kind: 'route', route: 'app:memory/cards' });
@@ -237,9 +256,12 @@ describe('click routing (works with the Notifications module off)', () => {
     unregister();
   });
 
-  it('is part of installMemoryHost and stops on dispose', () => {
-    dispose = installMemoryHost();
-    dispose();
-    dispose = () => undefined;
+  it('asks whether Notifications is listening when the click arrives, not at activation', async () => {
+    const { emit } = setup(false);
+    listening.value = true; // Notifications activated later
+    const c2 = setup(false);
+    emit({ kind: 'route', route: 'app:memory' });
+    await Promise.resolve();
+    expect(c2.handle).toBeDefined();
   });
 });

@@ -25,6 +25,7 @@
  * notice.
  */
 
+import { tc } from '../messages';
 import type { Line, VerseText } from '../types';
 import { PREVIEW_MAX_LINES, PREVIEW_MAX_WORDS } from './ordering';
 import type { Rng } from './rng';
@@ -223,7 +224,7 @@ export function buildReferenceDistractors(opts: BuildDistractorsOpts): Distracto
     out.push({
       ...point,
       reference: formatReference(
-        bookNames[book.bookNumber] ?? `Book ${book.bookNumber}`,
+        bookNames[book.bookNumber] ?? tc('memory.core.bookN', 'Book {n}', { n: book.bookNumber }),
         chapter.chapter,
         verse,
       ),

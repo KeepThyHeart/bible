@@ -38,8 +38,11 @@ export const memorizeVerseAction: VerseActionContribution = {
 export const memoryManifest: FeatureModuleManifest = {
   id: MEMORY_MODULE_ID,
   platforms: ['desktop'],
+  // Idle after startup: the badge, notices and notification-click routing (`module.ts`).
+  activationEvents: ['onStartupFinished'],
   contributes: {
     apps: [memoryAppDescriptor],
     verseActions: [memorizeVerseAction],
+    i18nNamespace: 'memory',
   },
 };

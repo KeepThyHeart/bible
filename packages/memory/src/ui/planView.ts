@@ -30,6 +30,7 @@ import type { Flow } from './state';
 import { MIN_VERSES_FOR_REFERENCE_ACTIVITIES } from '../core/ladder';
 import type { PanelHost } from './host';
 import { cardsWaitingBanner } from './cardsBanner';
+import { tr } from './i18n';
 
 export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
   const now = host.now();
@@ -37,13 +38,13 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
 
   root.appendChild(
     breadcrumb({
-      crumbs: [{ label: 'Home' }],
+      crumbs: [{ label: tr('memory.ui.plan.home', 'Home') }],
       menu: menu({
-        label: 'Menu',
+        label: tr('memory.ui.plan.menu', 'Menu'),
         items: [
-          { label: 'Manage Passages', onClick: () => host.go({ type: 'goManagePassages' }) },
-          { label: 'Analytics', onClick: () => host.go({ type: 'goAnalytics' }) },
-          { label: 'Settings', onClick: () => host.go({ type: 'goSettings' }) },
+          { label: tr('memory.ui.plan.managePassages', 'Manage Passages'), onClick: () => host.go({ type: 'goManagePassages' }) },
+          { label: tr('memory.ui.plan.analytics', 'Analytics'), onClick: () => host.go({ type: 'goAnalytics' }) },
+          { label: tr('memory.ui.plan.settings', 'Settings'), onClick: () => host.go({ type: 'goSettings' }) },
         ],
       }),
       actions: [],
@@ -58,8 +59,8 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
     root.appendChild(renderAddAndStart(host));
     root.appendChild(
       emptyState(
-        'Nothing in your plan yet.',
-        'Add a reference above - a single verse, or a range like "Psalm 1:1-6" - and its activities will be built for you.',
+        tr('memory.ui.plan.nothingInPlan', 'Nothing in your plan yet.'),
+        tr('memory.ui.plan.nothingInPlanHint', 'Add a reference above - a single verse, or a range like "Psalm 1:1-6" - and its activities will be built for you.'),
       ),
     );
     return root;
@@ -77,7 +78,7 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
   root.appendChild(
     el(
       'ul',
-      { class: 'sm-list', attrs: { 'aria-label': 'Passages in this plan' } },
+      { class: 'sm-list', attrs: { 'aria-label': tr('memory.ui.plan.passagesInPlan', 'Passages in this plan') } },
       sortedPassages.map((pv) => renderPassageRow(host, pv)),
     ),
   );
@@ -112,14 +113,14 @@ function renderActivityTiles(host: PanelHost, plan: PlanView, now: number): HTML
       el('span', { class: 'sm-tile-head' }, [icon('recite'), el('span', { class: 'sm-tile-title', text: RECITE_TILE.title })]),
       el('span', { class: 'sm-tile-sub', text: RECITE_TILE.subtext }),
       due !== null && !due.enabled
-        ? el('span', { class: 'sm-tile-warning', text: 'Nothing due to recite yet. Switch it on for a passage first.' })
+        ? el('span', { class: 'sm-tile-warning', text: tr('memory.ui.plan.nothingDueToRecite', 'Nothing due to recite yet. Switch it on for a passage first.') })
         : null,
     ]);
     grid.push(recite);
   }
   const dueEntry = reciteDueEntry(plan);
   return el('section', { class: 'sm-tile-section' }, [
-    el('h2', { class: 'sm-block-title', text: 'Practice by Activity' }),
+    el('h2', { class: 'sm-block-title', text: tr('memory.ui.plan.practiceByActivity', 'Practice by Activity') }),
     el('div', { class: 'sm-tile-grid' }, grid),
     dueEntry === null
       ? null
@@ -146,7 +147,7 @@ function renderActivityTile(host: PanelHost, plan: PlanView, tile: ActivityTile,
     unavailable === 'locked'
       ? referenceHintText(plan)
       : unavailable === 'empty'
-        ? 'Nothing to practise for this activity yet.'
+        ? tr('memory.ui.plan.nothingToPractise', 'Nothing to practise for this activity yet.')
         : null;
 
   const tileButton = button(tile.title, () => void host.startFlow(flow), {
@@ -168,9 +169,10 @@ function renderActivityTile(host: PanelHost, plan: PlanView, tile: ActivityTile,
 function referenceHintText(plan: PlanView): string {
   const needed = MIN_VERSES_FOR_REFERENCE_ACTIVITIES;
   const short = Math.max(0, needed - plan.scopeVerseCount);
-  return (
-    `Match references and Provide reference need ${needed} verses in this list - ` +
-    `${short} more to go (${plan.scopeVerseCount} so far). Add passages in Manage Passages.`
+  return tr(
+    'memory.ui.plan.referenceHint',
+    'Match references and Provide reference need {needed} verses in this list - {short} more to go ({sofar} so far). Add passages in Manage Passages.',
+    { needed, short, sofar: plan.scopeVerseCount },
   );
 }
 
@@ -187,12 +189,12 @@ function renderPassageListHeader(host: PanelHost, plan: PlanView): HTMLElement {
   const select = el('select', {
     class: 'sm-select',
     id: 'sm-passage-sort',
-    attrs: { 'aria-label': 'Sort passages' },
+    attrs: { 'aria-label': tr('memory.ui.plan.sortPassages', 'Sort passages') },
   }) as HTMLSelectElement;
 
   const options: { value: PassageSortOrder; label: string }[] = [
-    { value: 'bible', label: 'Bible order' },
-    { value: 'need', label: 'Needs practice' },
+    { value: 'bible', label: tr('memory.ui.plan.bibleOrder', 'Bible order') },
+    { value: 'need', label: tr('memory.ui.plan.needsPractice', 'Needs practice') },
   ];
   for (const opt of options) {
     const optionEl = el('option', { value: opt.value, text: opt.label });
@@ -214,14 +216,14 @@ function renderPassageListHeader(host: PanelHost, plan: PlanView): HTMLElement {
   });
 
   return el('div', { class: 'sm-list-header' }, [
-    el('h2', { class: 'sm-block-title', text: 'Practice by Passage' }),
+    el('h2', { class: 'sm-block-title', text: tr('memory.ui.plan.practiceByPassage', 'Practice by Passage') }),
     select,
   ]);
 }
 
 function renderListPicker(host: PanelHost, plan: PlanView): HTMLElement {
   const options: ListSelectorOption[] = [
-    { id: 'all', name: 'All Lists' },
+    { id: 'all', name: tr('memory.ui.plan.allLists', 'All Lists') },
     ...plan.lists.map((list) => ({ id: list.id, name: list.name })),
   ];
   // `selected` is always read from `plan.scope`, never from local state - the
@@ -256,12 +258,12 @@ function renderAddAndStart(host: PanelHost): HTMLElement {
 
   if (!reference) {
     return el('div', { class: 'sm-callout' }, [
-      el('p', { class: 'sm-callout-text', text: 'Add a verse from Manage Passages to get started.' }),
+      el('p', { class: 'sm-callout-text', text: tr('memory.ui.plan.addVerseToStart', 'Add a verse from Manage Passages to get started.') }),
     ]);
   }
 
   const action = button(
-    `Add ${reference} and start`,
+    tr('memory.ui.plan.addAndStart', 'Add {reference} and start', { reference }),
     () => {
       action.disabled = true;
       void host

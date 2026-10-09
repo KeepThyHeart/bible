@@ -453,6 +453,9 @@ importers:
       '@bible/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bible/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

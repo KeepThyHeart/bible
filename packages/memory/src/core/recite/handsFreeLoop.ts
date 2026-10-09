@@ -12,6 +12,7 @@
  * is written to a message, a spoken prompt or the graded `detail`.
  */
 
+import { tc } from '../messages';
 import { ReciteCursor, biasFor } from '@bible/core/recite';
 import type { BiasLevel, ILanguageKit, LoopCommand, RecognizedWord } from '@bible/core/recite';
 import type { ISpeechApi } from '@bible/core/speech';
@@ -76,6 +77,7 @@ type Step =
   | 'end';
 
 const NO_PLAN = /no longer in your plan/i;
+const passageGoneText = (): string => tc('memory.core.passageGone', 'That passage is no longer in your plan.');
 
 const COMMAND_ACTION: Partial<Record<LoopCommand, ReciteAction>> = {
   repeat: 'repeat',
@@ -86,12 +88,20 @@ const COMMAND_ACTION: Partial<Record<LoopCommand, ReciteAction>> = {
   pause: 'pause',
 };
 
-const ERROR_TEXT: Record<string, string> = {
-  'mic-denied': 'The microphone is blocked. Allow microphone access and try again.',
-  'mic-busy': 'The microphone is in use by another app.',
-  engine: 'Speech recognition stopped working. Try again.',
-  'not-ready': 'Speech recognition is not ready yet. Check the speech settings.',
-};
+function errorText(code: string): string | undefined {
+  switch (code) {
+    case 'mic-denied':
+      return tc('memory.core.micDenied', 'The microphone is blocked. Allow microphone access and try again.');
+    case 'mic-busy':
+      return tc('memory.core.micBusy', 'The microphone is in use by another app.');
+    case 'engine':
+      return tc('memory.core.speechEngineFailed', 'Speech recognition stopped working. Try again.');
+    case 'not-ready':
+      return tc('memory.core.speechNotReady', 'Speech recognition is not ready yet. Check the speech settings.');
+    default:
+      return undefined;
+  }
+}
 
 export class HandsFreeLoop {
   private gen = 0;
@@ -140,7 +150,7 @@ export class HandsFreeLoop {
 
   start(): void {
     if (this.run) return;
-    this.message = 'Getting ready';
+    this.message = tc('memory.core.loopGettingReady', 'Getting ready');
     this.run = this.drive();
   }
 
@@ -251,7 +261,7 @@ export class HandsFreeLoop {
       case 'pause': {
         if (s === 'announce' || s === 'ready' || s === 'listen' || s === 'feedback' || s === 'fetch') {
           this.step = 'paused';
-          this.setPhase('paused', 'Paused');
+          this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
           this.interrupt();
         }
         return;
@@ -270,7 +280,7 @@ export class HandsFreeLoop {
           return;
         }
         this.step = 'summary';
-        this.setPhase('summary', 'Finishing up');
+        this.setPhase('summary', tc('memory.core.loopFinishingUp', 'Finishing up'));
         this.interrupt();
         return;
       }
@@ -330,7 +340,7 @@ export class HandsFreeLoop {
             await this.doFeedback(gen);
             break;
           case 'paused':
-            this.setPhase('paused', 'Paused');
+            this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
             await this.waitWake(gen);
             break;
           case 'summary':
@@ -339,7 +349,7 @@ export class HandsFreeLoop {
         }
       }
     } catch (err) {
-      this.fail('internal', err instanceof Error ? err.message : 'Something went wrong.');
+      this.fail('internal', err instanceof Error ? err.message : tc('memory.core.somethingWentWrong', 'Something went wrong.'));
     } finally {
       await this.closeListen();
     }
@@ -358,7 +368,7 @@ export class HandsFreeLoop {
 
   private async doFetch(gen: number): Promise<void> {
     // Not 'ready': there is no card to talk to yet.
-    this.setPhase('announcing', 'Finding the next passage');
+    this.setPhase('announcing', tc('memory.core.loopFindingNext', 'Finding the next passage'));
     const card = await this.deps.nextCard(this.exclude.slice());
     if (this.stale(gen)) return;
     if (!card) {
@@ -368,7 +378,7 @@ export class HandsFreeLoop {
     const kit = this.deps.kitFor(card.language);
     if (!kit) {
       this.exclude.push(card.passageId);
-      this.notice = 'Skipped a passage in a language that cannot be recited aloud yet.';
+      this.notice = tc('memory.core.loopSkippedLanguage', 'Skipped a passage in a language that cannot be recited aloud yet.');
       this.message = this.notice;
       this.emitView();
       return;
@@ -398,7 +408,7 @@ export class HandsFreeLoop {
   private async sayPrompt(gen: number, first: boolean): Promise<void> {
     const c = this.card;
     if (!c) return;
-    this.setPhase('announcing', `Recite ${c.reference}`);
+    this.setPhase('announcing', tc('memory.core.loopRecite', 'Recite {reference}', { reference: c.reference }));
     await this.say(c.spokenReference, c.language);
     if (this.stale(gen)) return;
     if (this.deps.settings().promptStyle === 'reference+opening') {
@@ -409,7 +419,7 @@ export class HandsFreeLoop {
   }
 
   private async doReady(gen: number): Promise<void> {
-    this.setPhase('ready', 'Tap Talk and recite from memory');
+    this.setPhase('ready', tc('memory.core.loopTapTalk', 'Tap Talk and recite from memory'));
     if (this.hintReq > 0) {
       await this.giveHint(this.hintReq, gen);
       this.hintReq = 0;
@@ -437,10 +447,10 @@ export class HandsFreeLoop {
       this.repeatReq = false;
       await this.sayPrompt(gen, false);
       if (this.stale(gen)) return;
-      this.setPhase('listening', 'Listening');
+      this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
     }
     if (!this.listenId) {
-      this.setPhase('listening', 'Listening');
+      this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
       let id: string;
       try {
         const bias = biasFor(this.words, c.contextWords, this.kit, this.deps.biasLevel, this.deps.rng);
@@ -461,7 +471,7 @@ export class HandsFreeLoop {
       this.listenId = id;
     }
     const id = this.listenId;
-    if (this.phase !== 'listening') this.setPhase('listening', 'Listening');
+    if (this.phase !== 'listening') this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
     const noSpeechTimeoutMs =
       cursor.furthest < 0 ? LOOP.noSpeechStartMs : this.deps.settings().hintDelayMs;
     let out;
@@ -494,11 +504,11 @@ export class HandsFreeLoop {
         if (out.reason === 'max-duration') {
           this.step = 'score';
         } else {
-          this.fail('aborted', 'Listening was interrupted.');
+          this.fail('aborted', tc('memory.core.loopInterrupted', 'Listening was interrupted.'));
         }
         return;
       case 'error':
-        this.fail(out.code, ERROR_TEXT[out.code] ?? out.message);
+        this.fail(out.code, errorText(out.code) ?? out.message);
         return;
     }
   }
@@ -527,10 +537,11 @@ export class HandsFreeLoop {
       const idx = this.indexRange(cursor.position + 1, LOOP.pickUpWords);
       if (idx.length > 0) {
         for (const i of idx) this.hinted.add(i);
-        this.setPhase('hinting', `Let's pick up from: ${this.quote(idx)}`);
-        await this.say(`Let's pick up from: ${this.quote(idx)}`, c.language);
+        const pickUp = tc('memory.core.loopPickUp', 'Let\'s pick up from: {quote}', { quote: this.quote(idx) });
+        this.setPhase('hinting', pickUp);
+        await this.say(pickUp, c.language);
         if (this.stale(gen)) return;
-        this.setPhase('listening', 'Listening');
+        this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
       }
     }
   }
@@ -551,9 +562,10 @@ export class HandsFreeLoop {
     if (cursor.furthest < 0) {
       this.noSpeech++;
       if (this.noSpeech === 1) {
-        this.message = 'Say hint, repeat, or skip.';
+        const sayHint = tc('memory.core.loopSayHint', 'Say hint, repeat, or skip.');
+        this.message = sayHint;
         this.emitView();
-        await this.say('Say hint, repeat, or skip.', c.language);
+        await this.say(sayHint, c.language);
         return;
       }
       this.act('pause');
@@ -570,7 +582,7 @@ export class HandsFreeLoop {
     }
     await this.giveHint(this.stall === 1 ? 1 : LOOP.hintWordsLater, gen);
     if (this.stale(gen)) return;
-    this.setPhase('listening', 'Listening');
+    this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
   }
 
   /** Speak (hands-free) and show the next `n` words after the matched position. */
@@ -582,10 +594,11 @@ export class HandsFreeLoop {
     if (idx.length === 0) return;
     for (const i of idx) this.hinted.add(i);
     const text = this.quote(idx);
-    this.setPhase('hinting', `Hint: ${text}`);
+    const hintText = tc('memory.core.loopHint', 'Hint: {text}', { text });
+    this.setPhase('hinting', hintText);
     await this.say(text, c.language);
     if (this.stale(gen)) return;
-    this.setPhase('listening', `Hint: ${text}`);
+    this.setPhase('listening', hintText);
   }
 
   private async doScore(gen: number): Promise<void> {
@@ -596,7 +609,7 @@ export class HandsFreeLoop {
       this.step = 'fetch';
       return;
     }
-    this.setPhase('scoring', 'Scoring');
+    this.setPhase('scoring', tc('memory.core.loopScoring', 'Scoring'));
     await this.closeListen();
     if (this.stale(gen)) return;
     const g = gradeRecitation(c.verses, cursor.heard, this.hinted, this.deps.settings().strictness, kit);
@@ -606,8 +619,8 @@ export class HandsFreeLoop {
     try {
       rec = await this.deps.record(c, g, this.startedAt);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not save that attempt.';
-      if (NO_PLAN.test(msg)) {
+      const msg = err instanceof Error ? err.message : tc('memory.core.recordFailed', 'Could not save that attempt.');
+      if (NO_PLAN.test(msg) || msg === passageGoneText()) {
         if (this.stale(gen)) return;
         this.exclude.push(c.passageId);
         this.clearCard();
@@ -643,11 +656,11 @@ export class HandsFreeLoop {
 
   private feedbackText(): string {
     const r = this.result as ReciteResultView;
-    if (r.score >= 0.9995) return 'Perfect.';
+    if (r.score >= 0.9995) return tc('memory.core.loopPerfect', 'Perfect.');
     const pct = Math.round(r.score * 100);
     return r.missedQuote.length > 0
-      ? `${pct} percent. You missed: ${r.missedQuote.join(' ')}.`
-      : `${pct} percent.`;
+      ? tc('memory.core.loopScoreMissed', '{pct} percent. You missed: {missed}.', { pct, missed: r.missedQuote.join(' ') })
+      : tc('memory.core.loopScore', '{pct} percent.', { pct });
   }
 
   private async doFeedback(gen: number): Promise<void> {
@@ -729,10 +742,12 @@ export class HandsFreeLoop {
     const nothingDue = this.done === 0 && this.skipped === 0 && this.deps.source === 'due';
     const text =
       this.done > 0
-        ? `All done. ${this.done} ${this.done === 1 ? 'passage' : 'passages'}, average ${Math.round((this.scoreSum / this.done) * 100)} percent.`
+        ? this.done === 1
+          ? tc('memory.core.loopSummaryOne', 'All done. {done} passage, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
+          : tc('memory.core.loopSummaryMany', 'All done. {done} passages, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
         : nothingDue
-          ? 'Nothing is due to recite right now.'
-          : 'All done.';
+          ? tc('memory.core.nothingDueToRecite', 'Nothing is due to recite right now.')
+          : tc('memory.core.loopAllDone', 'All done.');
     const language = this.card ? this.card.language : this.lastLanguage;
     // Privacy: drop the card, heard words and result before the final summary.
     this.clearCard();
@@ -841,7 +856,7 @@ export class HandsFreeLoop {
 
   private failListen(code: string, err: unknown): void {
     const msg = err instanceof Error ? err.message : '';
-    this.fail(code, ERROR_TEXT[code] ?? (msg || 'Could not start listening.'));
+    this.fail(code, errorText(code) ?? (msg || tc('memory.core.listenStartFailed', 'Could not start listening.')));
   }
 
   private emitView(): void {

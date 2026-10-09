@@ -34,6 +34,7 @@
  * `main.ts#finishSession` and reschedules its card.
  */
 
+import { tc } from './messages';
 import type {
   AnswerMode,
   PickerCandidate,
@@ -394,7 +395,7 @@ export class Session {
       }
       const { books, chapters, bookNames } = this.referenceCatalog;
       const correctReference = formatReference(
-        bookNames[point.bookNumber] ?? `Book ${point.bookNumber}`,
+        bookNames[point.bookNumber] ?? tc('memory.core.bookN', 'Book {n}', { n: point.bookNumber }),
         point.chapter,
         point.verse,
       );

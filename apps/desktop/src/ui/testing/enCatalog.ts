@@ -28,6 +28,7 @@ import keywords from '../../../locales/en/keywords.json';
 import layout from '../../../locales/en/layout.json';
 import mainProcess from '../../../locales/en/main.json';
 import measures from '../../../locales/en/measures.json';
+import memory from '../../../locales/en/memory.json';
 import menu from '../../../locales/en/menu.json';
 import meta from '../../../locales/en/meta.json';
 import notifications from '../../../locales/en/notifications.json';
@@ -66,6 +67,7 @@ export function loadEnCatalog(): Record<string, string> {
     ...(menu as Record<string, string>),
     ...(meta as Record<string, string>),
     ...(notifications as Record<string, string>),
+    ...(memory as Record<string, string>),
     ...(quizPane as Record<string, string>),
     ...(readingPlans as Record<string, string>),
     ...(searchBar as Record<string, string>),

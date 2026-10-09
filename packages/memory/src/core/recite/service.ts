@@ -4,6 +4,7 @@
  * recite settings. No runtime import of the '@bible/core' root.
  */
 
+import { tc } from '../messages';
 import { kitFor } from '@bible/core/recite';
 import type { ISpeechApi } from '@bible/core/speech';
 import type {
@@ -161,14 +162,14 @@ export class ReciteService {
     if (avail.state !== 'ready') throw new Error(unavailableMessage(avail));
     const speech = this.o.speech as ISpeechApi;
     if (req.mode === 'handsfree' && !avail.handsFree) {
-      throw new Error('Hands-free recitation needs the app to be able to speak, which is not available right now.');
+      throw new Error(tc('memory.core.handsFreeNeedsSpeak', 'Hands-free recitation needs the app to be able to speak, which is not available right now.'));
     }
     await this.getSettings();
 
     let first: Passage | undefined;
     if (req.source.kind === 'passage') {
       first = await this.o.store.getPassage(req.source.passageId);
-      if (!first) throw new Error('That passage is no longer in your plan.');
+      if (!first) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
       if (kitFor(await this.languageOf(first)) === null) {
         throw new Error(unavailableMessage({ ...avail, state: 'unsupported-language' }));
       }
@@ -240,7 +241,7 @@ export class ReciteService {
 
   control(req: { reciteId: string; action: ReciteAction }): ReciteStateView {
     const loop = this.loop;
-    if (!loop) throw new Error('That recitation has ended.');
+    if (!loop) throw new Error(tc('memory.core.reciteEnded', 'That recitation has ended.'));
     if (loop.view().reciteId !== req.reciteId) return loop.view();
     return loop.control(req.action);
   }

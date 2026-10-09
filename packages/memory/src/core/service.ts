@@ -856,7 +856,7 @@ export class MemoryService implements MemoryApi {
     // or the status item, neither of which is scoped to one list.
     const next = await this.store.nextDueCard({ kind: 'all' }, this.now());
     if (!next) {
-      this.notice('Nothing is due right now.');
+      this.notice(tc('memory.core.nothingDue', 'Nothing is due right now.'));
       return { due: false };
     }
     await this.opts.openApp?.();
@@ -872,7 +872,7 @@ export class MemoryService implements MemoryApi {
       return { started: false };
     }
     if ((await this.store.reciteDueCount(await this.store.getScope(), this.now())) === 0) {
-      this.notice('Nothing is due to recite right now.');
+      this.notice(tc('memory.core.nothingDueToRecite', 'Nothing is due to recite right now.'));
       return { started: false };
     }
     // Hands-free needs `speech:speak`; without it fall back to tap (Talk button).
@@ -892,7 +892,7 @@ export class MemoryService implements MemoryApi {
     // verse: a contiguous run within one chapter becomes one passage,
     // anything else just its first verse.
     const picked = versesFromMenuArgs(args);
-    if (!picked) throw new Error('Select a verse first, then add it to your plan.');
+    if (!picked) throw new Error(tc('memory.core.selectVerseFirst', 'Select a verse first, then add it to your plan.'));
     return this.addPassageFromVerseId(picked.start, picked.end, picked.module);
   }
 
@@ -922,7 +922,7 @@ export class MemoryService implements MemoryApi {
     return this.guard('importLegacyData', async () => {
       const legacy = this.opts.legacy;
       if (!legacy || !legacy.available()) {
-        throw new Error('There is no Scripture Memory extension data on this computer to import.');
+        throw new Error(tc('memory.core.noLegacyData', 'There is no Scripture Memory extension data on this computer to import.'));
       }
       const result = await legacy.merge();
       if (result.status === 'merged') {
@@ -1073,7 +1073,7 @@ export class MemoryService implements MemoryApi {
   }
 
   private requirePush(): PushController {
-    if (!this.push) throw new Error('Memory cards are not available right now.');
+    if (!this.push) throw new Error(tc('memory.core.cardsUnavailable', 'Memory cards are not available right now.'));
     return this.push;
   }
 
@@ -1106,7 +1106,7 @@ export class MemoryService implements MemoryApi {
       // The list `addPassage` would target right now - see the field's own doc
       // comment in `types.ts` for why this is kept rather than dropped.
       collectionId: scopedListId ?? this.defaultCollectionId,
-      collectionName: scopedList ? scopedList.name : 'All lists',
+      collectionName: scopedList ? scopedList.name : tc('memory.core.allLists', 'All lists'),
       lists,
       scope: scope.kind === 'all' ? 'all' : scope.id,
       scopeVerseCount: scopeFacts.scopeVerseCount,
@@ -1132,7 +1132,7 @@ export class MemoryService implements MemoryApi {
    */
   private async buildPassageView(passageId: number): Promise<PassageView> {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error('That passage is no longer in your plan.');
+    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
 
     const siblings = await this.store.listPassages(passage.collectionId);
     const scopeFacts = scopeOf(siblings);
@@ -1165,7 +1165,7 @@ export class MemoryService implements MemoryApi {
     opts: { withholdAfter: boolean },
   ): Promise<PassageContext> {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error('That passage is no longer in your plan.');
+    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
 
     const label = this.makeLabeller(passage.startVerseId, passage.endVerseId);
 
@@ -1240,7 +1240,7 @@ export class MemoryService implements MemoryApi {
       ? modules.find((m) => m.abbreviation === preferred || m.id === preferred)
       : undefined;
     const chosen = match ?? modules[0];
-    if (!chosen) throw new Error('No Bible module is installed.');
+    if (!chosen) throw new Error(tc('memory.core.noBibleModule', 'No Bible module is installed.'));
     return chosen.abbreviation;
   }
 
@@ -1289,10 +1289,10 @@ export class MemoryService implements MemoryApi {
     this.planChanged();
     this.notice(
       created
-        ? 'Added to your memorization plan.'
+        ? tc('memory.core.noticeAdded', 'Added to your memorization plan.')
         : revived
-          ? 'Restored to your memorization plan with its progress.'
-          : 'That verse is already in your plan.',
+          ? tc('memory.core.noticeRestored', 'Restored to your memorization plan with its progress.')
+          : tc('memory.core.noticeAlreadyInPlan', 'That verse is already in your plan.'),
     );
     return { outcome: created ? 'added' : revived ? 'revived' : 'exists', passageId: passage.id };
   }
@@ -1319,7 +1319,7 @@ export class MemoryService implements MemoryApi {
     tier?: number,
   ) {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error('That passage is no longer in your plan.');
+    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
 
     // The passage's own list, not the UI's current browsing scope - see
     // `buildPassageView`'s doc comment for why applicability is anchored to a
@@ -1338,11 +1338,11 @@ export class MemoryService implements MemoryApi {
     const now = this.now();
     const chosen = rung ?? (await this.suggestedRungForPassage(passage, applicable, now));
     if (!applicable.includes(chosen)) {
-      throw new Error('That exercise does not apply to this passage.');
+      throw new Error(tc('memory.core.exerciseNotApplicable', 'That exercise does not apply to this passage.'));
     }
 
     const card = await this.store.getCard(passageId, chosen);
-    if (!card) throw new Error('That exercise has not been set up for this passage.');
+    if (!card) throw new Error(tc('memory.core.exerciseNotSetUp', 'That exercise has not been set up for this passage.'));
 
     // Resolved decision D4: omitted, serve the lowest tier not yet passed (or
     // the hardest tier once every tier has been passed) - the same computation
@@ -1355,8 +1355,9 @@ export class MemoryService implements MemoryApi {
     if (tier !== undefined) {
       if (!Number.isInteger(tier) || tier < 0 || tier >= totalTiers) {
         throw new Error(
-          `That difficulty tier does not exist for this exercise ` +
-            `(it has ${totalTiers} tier${totalTiers === 1 ? '' : 's'}).`,
+          totalTiers === 1
+            ? tc('memory.core.tierMissingOne', 'That difficulty tier does not exist for this exercise (it has {count} tier).', { count: totalTiers })
+            : tc('memory.core.tierMissingMany', 'That difficulty tier does not exist for this exercise (it has {count} tiers).', { count: totalTiers }),
         );
       }
       selectedTier = tier;
@@ -1400,7 +1401,7 @@ export class MemoryService implements MemoryApi {
       referencePoints = this.referencePointsFor(verses);
       const correctBook = referencePoints[0]?.bookNumber;
       if (correctBook === undefined) {
-        throw new Error('That passage has no verses to match a reference against.');
+        throw new Error(tc('memory.core.noVersesToMatch', 'That passage has no verses to match a reference against.'));
       }
       referenceCatalog = await this.buildReferenceCatalog(
         correctBook,
@@ -1423,7 +1424,7 @@ export class MemoryService implements MemoryApi {
       });
       if (sample.length < 3) {
         throw new Error(
-          'Not enough distinct references are available for this exercise yet.',
+          tc('memory.core.notEnoughReferences', 'Not enough distinct references are available for this exercise yet.'),
         );
       }
     } else if (chosen === 'refprovide') {
@@ -1496,7 +1497,7 @@ export class MemoryService implements MemoryApi {
 
   private async submitStepImpl(sessionId: string, answer: StepAnswer) {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error('That practice session has ended. Start it again.');
+    if (!session) throw new Error(tc('memory.core.sessionEnded', 'That practice session has ended. Start it again.'));
 
     // `submit` is async because `refprovide` grades against a host round trip
     // (`bible.parseReference`) - see `session.ts#Session.submit`. A parse
@@ -1583,7 +1584,7 @@ export class MemoryService implements MemoryApi {
     await this.store.clearResume(a.cardId);
 
     const card = await this.store.getCard(a.passageId, a.rung);
-    if (!card) throw new Error('That exercise disappeared mid-session.');
+    if (!card) throw new Error(tc('memory.core.exerciseDisappeared', 'That exercise disappeared mid-session.'));
 
     const result = schedule({
       intervalStep: card.intervalStep,

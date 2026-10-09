@@ -24,13 +24,13 @@
 
 import type { Rung, RungView } from '../core/types';
 import { append, button, el, focusQuietly } from './dom';
+import { tr } from './i18n';
 import { MIN_VERSES_FOR_REFERENCE_ACTIVITIES } from '../core/ladder';
 import {
   MASTERED_LEVEL,
   RUNG_LABEL,
   carriesDownFrom,
   clampPercent,
-  countLabel,
   formatDue,
   formatScore,
   inLadderOrder,
@@ -96,7 +96,7 @@ export function breadcrumb(opts: {
     }
   });
 
-  return el('nav', { class: 'sm-crumbs', attrs: { 'aria-label': 'Breadcrumb' } }, [
+  return el('nav', { class: 'sm-crumbs', attrs: { 'aria-label': tr('memory.ui.common.breadcrumb', 'Breadcrumb') } }, [
     opts.menu ?? null,
     list,
     el('div', { class: 'sm-crumbs-actions' }, opts.actions ?? []),
@@ -399,13 +399,13 @@ export function dueBadge(dueCount: number): HTMLElement | null {
   return el('span', {
     class: 'sm-badge sm-badge-due',
     text: String(dueCount),
-    attrs: { 'aria-label': `${countLabel(dueCount, 'activity', 'activities')} due` },
+    attrs: { 'aria-label': tr('memory.ui.common.activitiesDue', '{count, plural, one {# activity due} other {# activities due}}', { count: dueCount }) },
   });
 }
 
 /** "Suggested" - the badge on the activity `suggestedRungFor` picked. */
 export function suggestedBadge(): HTMLElement {
-  return el('span', { class: 'sm-badge sm-badge-suggested', text: 'Suggested' });
+  return el('span', { class: 'sm-badge sm-badge-suggested', text: tr('memory.ui.common.suggested', 'Suggested') });
 }
 
 // ---------------------------------------------------------------------------
@@ -437,8 +437,10 @@ export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLEle
 
   const label =
     level === 0
-      ? 'not tried yet'
-      : `level ${level} of ${LEVEL_MAX}${opts.due ? ', due for review' : ''}`;
+      ? tr('memory.ui.common.levelNotTried', 'not tried yet')
+      : opts.due
+        ? tr('memory.ui.common.levelOfMaxDue', 'level {level} of {max}, due for review', { level, max: LEVEL_MAX })
+        : tr('memory.ui.common.levelOfMax', 'level {level} of {max}', { level, max: LEVEL_MAX });
 
   return el(
     'span',
@@ -452,10 +454,10 @@ export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLEle
  * accessible label.
  */
 function squareStatusWord(rv: RungView, carried: boolean): string {
-  if (rv.level >= MASTERED_LEVEL) return 'well learned';
-  if (carried) return 'learned via a harder activity';
-  if (rv.level > 0) return 'in progress';
-  return 'not started';
+  if (rv.level >= MASTERED_LEVEL) return tr('memory.ui.common.statusWellLearned', 'well learned');
+  if (carried) return tr('memory.ui.common.statusLearnedViaHarder', 'learned via a harder activity');
+  if (rv.level > 0) return tr('memory.ui.common.statusInProgress', 'in progress');
+  return tr('memory.ui.common.statusNotStarted', 'not started');
 }
 
 /**
@@ -482,7 +484,7 @@ export function activitySquares(rungs: RungView[]): HTMLElement {
         rv.level >= MASTERED_LEVEL ? 'done' : carried ? 'carried' : rv.level > 0 ? 'partial' : 'new';
       return el('span', {
         class: `sm-activity-square sm-activity-square-${status}`,
-        title: `${RUNG_LABEL[rv.rung]}: ${squareStatusWord(rv, carried)}`,
+        title: tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) }),
         attrs: { 'aria-hidden': 'true' },
       });
     }),
@@ -565,7 +567,7 @@ export function modal(opts: ModalOptions): ModalHandle {
   modalIdSeq += 1;
   const titleId = `sm-modal-title-${modalIdSeq}`;
 
-  const closeButton = iconButton('✕', 'Close', () => closeModal());
+  const closeButton = iconButton('✕', tr('memory.ui.common.close', 'Close'), () => closeModal());
   const header = el('div', { class: 'sm-modal-header' }, [
     el('h2', { class: 'sm-modal-title', id: titleId, text: opts.title }),
     closeButton,
@@ -678,7 +680,7 @@ export function tierPips(tiersPassed: number, tiers: number): HTMLElement {
     'span',
     {
       class: 'sm-tier-pips',
-      attrs: { role: 'img', 'aria-label': `${tiersPassed} of ${countLabel(tiers, 'tier')} passed` },
+      attrs: { role: 'img', 'aria-label': tr('memory.ui.common.tiersPassed', '{passed} of {tiers, plural, one {# tier} other {# tiers}} passed', { passed: tiersPassed, tiers }) },
     },
     pips,
   );
@@ -706,7 +708,7 @@ export function listSelector(
 ): HTMLSelectElement {
   const select = el('select', {
     class: 'sm-select sm-list-selector',
-    attrs: { 'aria-label': 'List' },
+    attrs: { 'aria-label': tr('memory.ui.common.list', 'List') },
   }) as HTMLSelectElement;
 
   for (const opt of options) {
@@ -757,7 +759,7 @@ export function activityRow(opts: ActivityRowOptions): HTMLElement {
     tierPips(opts.tiersPassed, opts.tiers),
     levelBoxes(opts.level, { due: opts.due }),
     el('span', { class: 'sm-activity-row-schedule', text: opts.scheduleText ?? '' }),
-    iconButton('▶', opts.playLabel ?? `Practice ${RUNG_LABEL[opts.rung]}`, opts.onPlay),
+    iconButton('▶', opts.playLabel ?? tr('memory.ui.common.practiceRung', 'Practice {rung}', { rung: RUNG_LABEL[opts.rung] }), opts.onPlay),
   ]);
 }
 
@@ -765,7 +767,7 @@ function squaresLabel(applicable: RungView[], allRungs: RungView[]): string {
   return applicable
     .map((rv) => {
       const carried = rv.level < MASTERED_LEVEL && carriesDownFrom(allRungs, rv.rung);
-      return `${RUNG_LABEL[rv.rung]}: ${squareStatusWord(rv, carried)}`;
+      return tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) });
     })
     .join('; ');
 }
@@ -797,8 +799,8 @@ export function statTile(value: string, caption: string): HTMLElement {
 /** "Due in 3 days · last score 82%" - the line under a passage-screen activity. */
 export function scheduleLine(rung: { dueAt: number | null; lastScore: number | null; streak: number }, now: number): HTMLElement {
   const parts: string[] = [formatDue(rung.dueAt, now)];
-  if (rung.lastScore !== null) parts.push(`Last score ${formatScore(rung.lastScore)}`);
-  if (rung.streak > 0) parts.push(countLabel(rung.streak, 'pass', 'passes') + ' in a row');
+  if (rung.lastScore !== null) parts.push(tr('memory.ui.common.lastScore', 'Last score {score}', { score: formatScore(rung.lastScore) }));
+  if (rung.streak > 0) parts.push(tr('memory.ui.common.passesInARow', '{count, plural, one {# pass in a row} other {# passes in a row}}', { count: rung.streak }));
   return el('p', { class: 'sm-schedule', text: parts.join(' · ') });
 }
 
@@ -912,12 +914,12 @@ export function icon(name: IconName): SVGSVGElement {
 export function inapplicabilityNote(rung: Rung): string {
   switch (rung) {
     case 'ordering':
-      return 'Putting verses in order needs more than one verse.';
+      return tr('memory.ui.common.notApplicableOrdering', 'Putting verses in order needs more than one verse.');
     case 'refmatch':
-      return `Matching a reference needs ${MIN_VERSES_FOR_REFERENCE_ACTIVITIES} verses in this list to tell references apart.`;
+      return tr('memory.ui.common.notApplicableRefmatch', 'Matching a reference needs {count} verses in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     case 'refprovide':
-      return `Naming a reference needs ${MIN_VERSES_FOR_REFERENCE_ACTIVITIES} verses in this list to tell references apart.`;
+      return tr('memory.ui.common.notApplicableRefprovide', 'Naming a reference needs {count} verses in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     default:
-      return 'This activity does not apply to this passage.';
+      return tr('memory.ui.common.notApplicableDefault', 'This activity does not apply to this passage.');
   }
 }

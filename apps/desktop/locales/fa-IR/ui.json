@@ -2264,8 +2264,6 @@
   "apps.devFixture.title": "برنامهٔ آزمایشی",
   "apps.memory.title": "حفظ",
   "verseActions.memorize": "حفظ کردن",
-  "memory.badge.due": "{count, plural, one {# آیه برای مرور} other {# آیه برای مرور}}",
-  "memory.badge.waiting": "{count, plural, one {# کارت در انتظار پاسخ} other {# کارت در انتظار پاسخ}}",
   "preferencesDialog.sectionApps": "برنامه‌ها",
   "settings.apps.switcher": "تعویض‌کننده برنامه",
   "settings.apps.switcherHint": "نوار برنامه‌ها را همیشه، هرگز یا فقط وقتی بیش از یک برنامه در دسترس است نشان بده.",

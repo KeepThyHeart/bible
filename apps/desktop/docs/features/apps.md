@@ -47,6 +47,10 @@ All under `src/ui/apps/` unless noted.
 
 The commands are rebuilt whenever the registry, the nav prefs or the locale change, and disposed when an app unregisters. Preferences > Apps sets `appSwitcher`, `appOrder` and `appHidden`.
 
+### Feature-module apps
+
+Memory is the model for an app that comes and goes with its module: the app binding, the verse-action handler, the due badge and the notification-click link handler (`bindAppLinkHandler`) register when the module is enabled and are removed when it is switched off, with no reload (see [Scripture memory](../../../../packages/core/docs/features/memory.md)). Contributed verse actions may carry an `icon`; the verse menu draws it with `AppIconGlyph` (extension-supplied rows have none).
+
 ## Companion slot
 
 `CompanionSlot` sits between `</main>` and `<StatusBar/>`. For each registry entry whose binding has a `companion` with `when: 'always'` or (`'busy'` and the app is busy), it loads the strip once (a module-level promise map, retried after a failure) and renders it. It renders only while Study is active.
