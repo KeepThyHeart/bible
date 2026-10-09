@@ -12,7 +12,7 @@ import { validateBuiltinManifest } from '../core';
 import { authCookieValue, createPasswordGate, hashPassword } from '../middleware/passwordGate';
 import type { AccountsSettings } from '../SiteConfig';
 import { loadOrCreateServerSecret, syncStateDir, SECRET_FILE } from './accounts/serverSecret';
-import { allowedOriginsFor, buildEmailSender, cookieSecureFor, parsePublicUrl, AccountsConfigError } from './accounts/syncOptions';
+import { allowedOriginsFor, buildEmailSender, consoleMailAllowed, cookieSecureFor, parsePublicUrl, AccountsConfigError } from './accounts/syncOptions';
 
 // Generous: CI and shared dev machines can be heavily loaded.
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -21,7 +21,7 @@ const SETTINGS: AccountsSettings = {
   publicUrl: 'https://bible.example.org',
   signupOpen: true,
   allowedOrigins: [],
-  email: { kind: 'console' },
+  email: { kind: 'smtp', host: 'mail.example.org', from: 'Bible <noreply@example.org>' },
 };
 
 let stateDir: string;
@@ -53,15 +53,17 @@ async function freshLoad(enabled: boolean) {
 }
 
 /** The pieces of server/index.ts that matter here, in its order: parsers, global parser, gate, routes, unavailable. */
-async function buildApp(enabled: boolean, opts: { gate?: boolean; settings?: AccountsSettings } = {}) {
+async function buildApp(enabled: boolean, opts: { gate?: boolean; settings?: AccountsSettings; trustProxy?: boolean | number | string } = {}) {
   const { registry } = await freshLoad(enabled);
   const unavailable = await import('./unavailableRoutes');
   const app = express();
   for (const bp of registry.getRegisteredBodyParsers()) app.use(bp.path, express.json({ limit: bp.limit }));
-  app.use(express.json({ limit: '100kb' }));
+  const selfParsed = new Set(registry.getSelfParsedPaths());
+  const globalJson = express.json({ limit: '100kb' });
+  app.use((req, res, next) => (selfParsed.has(req.path) ? next() : globalJson(req, res, next)));
   const hash = hashPassword('site-secret');
   if (opts.gate) app.use(createPasswordGate({ passwordHash: hash }));
-  const deps = { db: {} as never, siteSettings: null, extra: { appStateDir: stateDir, accountsSettings: opts.settings ?? SETTINGS } };
+  const deps = { db: {} as never, siteSettings: null, extra: { appStateDir: stateDir, accountsSettings: opts.settings ?? SETTINGS, trustProxy: 'trustProxy' in opts ? opts.trustProxy : 1 } };
   for (const reg of registry.getRegisteredRoutes()) app.use(reg.path, reg.createRoutes(deps));
   app.use(unavailable.createUnavailableRoutes());
   app.post('/api/other', (_req, res) => res.json({ ok: true }));
@@ -151,16 +153,40 @@ describe('accounts server module', () => {
     expect(small.status).toBe(413);
   });
 
-  it('without the registered parser the same push is refused by the 100 kB parser (control)', async () => {
+  it('registers no host-level body parser for the push; the path is self-parsed (L9)', async () => {
     const { registry } = await buildApp(true);
-    expect(registry.getRegisteredBodyParsers().map((b) => [b.path, b.limit, b.moduleId])).toEqual([
-      ['/api/sync/v1/push', '9mb', 'accounts'],
-    ]);
-    const app = express();
-    app.use(express.json({ limit: '100kb' }));
-    app.post('/api/sync/v1/push', (_req, res) => res.sendStatus(200));
-    const res = await request(app).post('/api/sync/v1/push').set('Content-Type', 'application/json').send(JSON.stringify({ pad: 'a'.repeat(200_000) }));
-    expect(res.status).toBe(413);
+    expect(registry.getRegisteredBodyParsers()).toEqual([]);
+    expect(registry.getSelfParsedPaths()).toEqual(['/api/sync/v1/push']);
+  });
+
+  it('a push from a disallowed origin is refused before its body is read (L9)', async () => {
+    const { app } = await buildApp(true);
+    const body = JSON.stringify({ records: [], pad: 'a'.repeat(7_500_000) });
+    const res = await request(app).post('/api/sync/v1/push').set('Origin', 'https://evil.example').set('Content-Type', 'application/json').send(body);
+    expect(res.status).toBe(403);
+  });
+
+  it('refuses trustProxy true or unset with a 503 (M2)', async () => {
+    for (const tp of [true, undefined]) {
+      vi.resetModules();
+      const { app } = await buildApp(true, { trustProxy: tp });
+      const res = await request(app).get('/api/sync/v1/info');
+      expect(res.status).toBe(503);
+      expect(res.body.message).toContain('server.trustProxy');
+    }
+    for (const tp of [false, 1, 'loopback']) {
+      vi.resetModules();
+      const { app } = await buildApp(true, { trustProxy: tp });
+      expect((await request(app).get('/api/sync/v1/info')).status).toBe(200);
+      (await import('./accounts/routes')).resetAccountsInstance();
+    }
+  });
+
+  it('console mail with an https publicUrl is refused with a 503 (M6)', async () => {
+    const { app } = await buildApp(true, { settings: { ...SETTINGS, email: { kind: 'console' } } });
+    const res = await request(app).get('/api/sync/v1/info');
+    expect(res.status).toBe(503);
+    expect(res.body.message).toContain('console');
   });
 
   it('keeps the sync database (WAL) and the secret under plugin-data/sync, secret mode 0600, stable across restarts', async () => {
@@ -208,7 +234,7 @@ describe('server secret', () => {
 describe('purge timer', () => {
   it('purges on the interval and stops on close', async () => {
     const { createAccounts } = await import('./accounts/createAccounts');
-    const inst = createAccounts({ settings: SETTINGS, appStateDir: stateDir, purgeIntervalMs: 20 });
+    const inst = createAccounts({ settings: SETTINGS, appStateDir: stateDir, trustProxy: 1, purgeIntervalMs: 20 });
     const spy = vi.spyOn(inst.server, 'purgeExpired');
     await new Promise((r) => setTimeout(r, 90));
     expect(spy.mock.calls.length).toBeGreaterThan(0);
@@ -246,7 +272,11 @@ describe('option building', () => {
   it('builds the email sender from the settings', () => {
     const console_ = vi.fn(() => ({ send: async () => {} }));
     const smtp = vi.fn(() => ({ send: async () => {} }));
-    buildEmailSender({ kind: 'console' }, { console: console_, smtp });
+    expect(() => buildEmailSender({ kind: 'console' }, { console: console_, smtp })).toThrow(AccountsConfigError);
+    expect(console_).not.toHaveBeenCalled();
+    buildEmailSender({ kind: 'console' }, { console: console_, smtp }, consoleMailAllowed(new URL('http://localhost:3100')));
+    expect(consoleMailAllowed(new URL('https://bible.example.org'))).toBe(false);
+    expect(consoleMailAllowed(new URL('http://example.org'))).toBe(false);
     expect(console_).toHaveBeenCalled();
     buildEmailSender({ kind: 'smtp', host: 'mail.example.org', secure: true, user: 'u', pass: 'p', from: 'Bible <n@example.org>' }, { console: console_, smtp });
     expect(smtp).toHaveBeenCalledWith({ host: 'mail.example.org', port: 465, secure: true, user: 'u', pass: 'p', from: 'Bible <n@example.org>' });

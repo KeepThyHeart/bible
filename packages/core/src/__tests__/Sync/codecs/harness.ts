@@ -3,6 +3,7 @@ import { TestSqliteProvider } from '../../helpers/TestSqliteProvider';
 import { createUserSchema } from '../../../Data/UserSchema';
 import { createChangeTracker, coreTrackedTables, type ChangeTracker } from '../../../Sync/tracking/ChangeTracker';
 import type { CodecContext, CodecNote, CodecRegistry, ModuleRefResolver } from '../../../Sync/codecs/RecordCodec';
+import { RecordDecodeError } from '../../../Sync/codecs/errors';
 import type { RecordId } from '../../../Sync/types';
 
 export const US = '\u001f';
@@ -53,9 +54,11 @@ export function makeSide(rng: () => number, modules: ModuleRefResolver, seedRows
       tracker.assignRecordId(kind, localKey, id);
       return id;
     },
-    localKeyFor(recordId) {
+    localKeyFor(recordId, expectedKind) {
       const hit = tracker.lookupByRecordId(recordId);
-      return hit && !hit.deleted ? hit.localKey : undefined;
+      if (!hit || hit.deleted) return undefined;
+      if (expectedKind !== undefined && hit.kind !== expectedKind) throw new RecordDecodeError('reference to another type');
+      return hit.localKey;
     },
     report: (n) => notes.push(n),
   };

@@ -19,7 +19,10 @@ import { mulberry32, moduleResolver } from '../codecs/harness';
 
 export interface ServerRow { seq: number; deleted: boolean; blob: Uint8Array | null }
 
-/** In-memory server with the contracts §7 rules: seq per account, baseSeq rule, tombstones kept, conflicts. */
+/**
+ * In-memory server with the contracts §7 rules: seq per account, baseSeq rule, tombstones kept, conflicts. Since 0150
+ * R1 a tombstone push must carry its sealed tombstone blob (400 otherwise), which is stored and served back.
+ */
 export class FakeServer {
   readonly rows = new Map<RecordId, ServerRow>();
   seq = 0;
@@ -35,10 +38,16 @@ export class FakeServer {
   /** 413 too_large when a record's blob exceeds this many bytes (the whole push is rejected, like the real server). */
   maxRecordBytes: number = LIMITS.maxRecordBytes;
 
-  /** Another client wrote this version. */
+  /** Another client (or a hostile server, with `deleted` and a null blob) wrote this version. */
   put(id: RecordId, blob: Uint8Array | null, deleted = false): number {
-    this.rows.set(id, { seq: ++this.seq, deleted, blob: deleted ? null : blob });
+    this.rows.set(id, { seq: ++this.seq, deleted, blob });
     return this.seq;
+  }
+
+  /** "Start over": every record is wiped (seqs restart, like a re-created account). */
+  wipe(): void {
+    this.rows.clear();
+    this.seq = 0;
   }
 
   transport(): ISyncTransport {
@@ -63,7 +72,8 @@ export class FakeServer {
         if (records.length > LIMITS.maxPushRecords) throw new SyncHttpError(413, { error: 'too_large' });
         if (JSON.stringify({ records }).length > LIMITS.maxPushBodyBytes) throw new SyncHttpError(413, { error: 'too_large' });
         for (const r of records) {
-          if (r.blob && b64urlDecode(r.blob).length > this.maxRecordBytes) throw new SyncHttpError(413, { error: 'too_large', message: 'Record too large' });
+          if (r.blob === null) throw new SyncHttpError(400, { error: 'bad_request', message: 'Every record needs a blob' });
+          if (b64urlDecode(r.blob).length > this.maxRecordBytes) throw new SyncHttpError(413, { error: 'too_large', message: 'Record too large' });
         }
         const accepted: Array<{ id: RecordId; seq: number }> = [];
         const conflicts: Array<{ id: RecordId; current: EncryptedRecord }> = [];
@@ -79,7 +89,7 @@ export class FakeServer {
             continue;
           }
           const seq = ++this.seq;
-          this.rows.set(r.id, { seq, deleted: r.deleted, blob: r.deleted || !r.blob ? null : b64urlDecode(r.blob) });
+          this.rows.set(r.id, { seq, deleted: r.deleted, blob: b64urlDecode(r.blob!) });
           accepted.push({ id: r.id, seq });
         }
         return { accepted, conflicts };
@@ -99,6 +109,15 @@ export function testAccount(): UnlockedAccount {
   return {
     accountId: hexEncode(r.bytes(16)), accountKey: r.bytes(32), recordIdKey: r.bytes(32),
     dataKeys: new Map([[1, r.bytes(32)]]), currentEpoch: 1,
+  };
+}
+
+/** A different account (new account id, record-id key and data key), e.g. after "start over". */
+export function otherAccount(seed: number): UnlockedAccount {
+  const r = seededRandom(seed);
+  return {
+    accountId: hexEncode(r.bytes(16)), accountKey: r.bytes(32), recordIdKey: r.bytes(32),
+    dataKeys: new Map([[0, r.bytes(32)]]), currentEpoch: 0,
   };
 }
 
@@ -172,6 +191,20 @@ export function makeDevice(server: FakeServer, n: number, u: UnlockedAccount = t
     hlc, status, modules: MODULES, random: seededRandom(1000 + n), timers, ...extra,
   });
   return { db, tracker, cipher, hlc, status, engine, unlocked: u, timers };
+}
+
+/** A new engine on an existing device's DB (an app restart, or a new sign-in), possibly under another account. */
+export function reopenDevice(server: FakeServer, d: Device, n: number, u: UnlockedAccount,
+  extra: Partial<SyncEngineOptions> = {}): Device {
+  const dev = (n.toString(16).repeat(16)).slice(0, 16);
+  const hlc = createHlc(dev);
+  const cipher = createRecordCipher(u, deterministicRandom(n + 100));
+  const status = createSyncStatusStore({ state: 'idle' });
+  const engine = new SyncEngine({
+    sql: d.db, tracker: d.tracker, codecs: createCodecRegistry(createCoreCodecs()), cipher, transport: server.transport(),
+    unlocked: u, hlc, status, modules: MODULES, random: seededRandom(2000 + n), timers: d.timers, ...extra,
+  });
+  return { ...d, cipher, hlc, status, engine, unlocked: u };
 }
 
 export function addNote(d: Device, content: string, title = 't'): number {

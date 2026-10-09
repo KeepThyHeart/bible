@@ -31,6 +31,9 @@ export interface ResolvedOptions {
   signupOpen: boolean;
   quotaBytes: number;
   minAge: number;
+  /** Cost the server hands out for new accounts; fake prelogin answers use the same numbers. */
+  maxRecordsPerAccount: number;
+  defaultKdf: { m: number; t: number; p: number };
   termsUrl?: string;
   privacyUrl?: string;
   allowedOrigins: ReadonlySet<string>;
@@ -206,5 +209,28 @@ export function authOf(res: Response): AuthedLocals {
  * `X-Forwarded-For` to dodge the limits. The router never reads the header itself.
  */
 export function clientIp(req: Request): string {
-  return req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  return limiterIp(req.ip ?? req.socket.remoteAddress ?? 'unknown');
+}
+
+/**
+ * Rate-limit key for an address: IPv4 (and IPv4-mapped IPv6) as is, any other IPv6 address reduced to its /64
+ * (one subscriber commonly controls a whole /64, so per-address keys would be free to rotate).
+ */
+export function limiterIp(ip: string): string {
+  const addr = ip.split('%')[0].toLowerCase();
+  if (!addr.includes(':')) return addr;
+  const mapped = /^(?:0*:)*:?ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(addr);
+  if (mapped) return mapped[1];
+  let head: string[];
+  let tail: string[] = [];
+  const dbl = addr.indexOf('::');
+  if (dbl >= 0) {
+    head = addr.slice(0, dbl).split(':').filter((x) => x !== '');
+    tail = addr.slice(dbl + 2).split(':').filter((x) => x !== '');
+  } else {
+    head = addr.split(':');
+  }
+  const groups = [...head, ...Array<string>(Math.max(0, 8 - head.length - tail.length)).fill('0'), ...tail];
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return addr;
+  return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':')}::/64`;
 }

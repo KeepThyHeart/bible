@@ -52,13 +52,27 @@ export function allowedOriginsFor(settings: Pick<AccountsSettings, 'allowedOrigi
   return [...out];
 }
 
+/** Console mail is allowed only for a loopback http `publicUrl` (development). */
+export function consoleMailAllowed(publicUrl: URL): boolean {
+  return !cookieSecureFor(publicUrl);
+}
+
 export interface EmailFactories {
   console: () => EmailSender;
   smtp: (o: { host: string; port: number; secure?: boolean; user?: string; pass?: string; from: string }) => EmailSender;
 }
 
-export function buildEmailSender(email: AccountsSettings['email'], f: EmailFactories): EmailSender {
-  if (email.kind !== 'smtp') return f.console();
+/**
+ * `allowConsole`: the console sender writes sign-in and reset links to the server log, so it is for
+ * a loopback http `publicUrl` only (see `consoleMailAllowed`).
+ */
+export function buildEmailSender(email: AccountsSettings['email'], f: EmailFactories, allowConsole = false): EmailSender {
+  if (email.kind !== 'smtp') {
+    if (!allowConsole) {
+      throw new AccountsConfigError('accounts.email.kind "console" writes reset links to the server log and is only allowed for a local http publicUrl; configure kind "smtp"');
+    }
+    return f.console();
+  }
   if (!email.host) throw new AccountsConfigError('accounts.email.host is required for kind "smtp"');
   if (!email.from) throw new AccountsConfigError('accounts.email.from is required for kind "smtp"');
   const port = email.port ?? (email.secure ? 465 : 587);

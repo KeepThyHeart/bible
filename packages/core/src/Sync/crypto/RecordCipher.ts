@@ -28,7 +28,13 @@ export interface RecordCipher {
   seal(id: RecordId, pt: RecordPlaintext): Promise<Uint8Array>;
   /** Throws AuthError on tamper/swap (AAD mismatch), UnknownEpochError, or SyntaxError for bad JSON. */
   open(id: RecordId, blob: Uint8Array): Promise<RecordPlaintext>;
-  /** Count of seals under the current epoch this session; engine asks for a new epoch after 2^30. */
+  /**
+   * Count of seals under the current epoch by THIS cipher instance (this session); the engine asks for a new epoch
+   * after 2^30. Not persisted and not shared between devices (0150 R1 L6): the bound that matters is the global one
+   * for random 96-bit AES-GCM nonces, about 2^32 seals per data key across every device and session before the
+   * collision risk reaches 2^-32. Real use (thousands of records, re-sealed on edits) stays many orders of magnitude
+   * below it; a key rotation (new epoch) resets it.
+   */
   readonly sealsThisEpoch: number;
 }
 

@@ -16,6 +16,9 @@
  * `stateFile` the first scan after a restart marks every file dirty (harmless, re-uploads identical content) and files
  * deleted while the app was closed are not noticed, so the host should pass a `stateFile`.
  *
+ * Remote writes (and deletes) are staged by the codec, which runs inside the engine's SQL transaction, and are
+ * applied to disk in `afterApply` once the transaction has committed, so a rolled-back record leaves no file behind.
+ * A remote delete renames the file to `<name>.bn.deleted-<date>.bak` instead of unlinking it.
  * Remote writes update the state, so applying a remote file is never echoed back as a local change.
  * Files over the record limit are skipped with `warn(path, 'too-large')` (decision D9).
  * Conflicts: the engine applies the winner through `upsert` and calls `conflictCopy` with the loser, which is saved as
@@ -60,6 +63,8 @@ export function bnNaturalKey(relPath: string): string {
   return relPath.normalize('NFC').toLowerCase();
 }
 
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
 /** Returns the normalised relative path ('/' separators) or null when it is not a safe `.bn` path. */
 export function sanitizeBnPath(p: unknown): string | null {
   if (typeof p !== 'string' || p.length === 0 || p.length > 1024) return null;
@@ -69,6 +74,9 @@ export function sanitizeBnPath(p: unknown): string | null {
   const parts = s.split('/');
   if (parts.some((x) => x === '' || x === '.' || x === '..')) return null;
   if (parts.some((x) => x.endsWith('.tmp') || x.startsWith('.'))) return null;
+  // Windows: alternate data streams (':'), names that end in a dot or space, and reserved device names
+  // (with or without an extension: "con", "NUL.bn", "com1.txt.bn").
+  if (parts.some((x) => x.includes(':') || /[. ]$/.test(x) || WINDOWS_RESERVED.test(x.split('.')[0].trimEnd()))) return null;
   if (!s.endsWith('.bn') || parts[parts.length - 1].length <= 3) return null;
   return s;
 }
@@ -105,6 +113,12 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
   const now = o.now ?? (() => new Date());
   const state = new Map<string, FileState>();
   let stateLoaded = false;
+  /**
+   * Remote writes and deletes staged by `upsert`/`remove` (which run inside the engine's SQL transaction, where a
+   * savepoint rollback would otherwise leave a file with no sync row) and applied to disk in `afterApply`,
+   * after the commit. The paths are validated when staged, so an unsafe record still fails the transaction.
+   */
+  const staged = new Map<string, { op: 'write'; data: string; mtime: string } | { op: 'delete' }>();
 
   const warn = (p: string, reason: BnWarnReason): void => { o.warn?.(p, reason); };
 
@@ -129,18 +143,38 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
     } catch { /* state is an optimisation; a failed save only costs a rescan */ }
   }
 
-  /** Absolute path for a relative path, checked lexically and (for existing parents) through symlinks. */
+  /** The real path of the deepest existing ancestor of `dir` (itself when it exists). */
+  function realExistingAncestor(dir: string): string {
+    let cur = dir;
+    for (;;) {
+      try { return fs.realpathSync(cur); } catch { /* not there (or dangling): go up */ }
+      const up = path.dirname(cur);
+      if (up === cur) return cur;
+      cur = up;
+    }
+  }
+
+  function insideRoot(real: string): boolean {
+    let realRoot: string;
+    try { realRoot = fs.realpathSync(root); } catch { realRoot = root; }
+    return real === realRoot || real.startsWith(realRoot + path.sep);
+  }
+
+  /**
+   * Absolute path for a relative path, checked lexically and through symlinks. The symlink check runs on the
+   * deepest existing ancestor BEFORE any directory is created, so a symlinked intermediate directory cannot
+   * make mkdir create (empty) directories outside the root; it is repeated after mkdir.
+   */
   function resolveInside(rel: string, create: boolean): string {
     const safe = sanitizeBnPath(rel);
     if (!safe) throw new Error('Unsafe .bn path');
     const full = path.resolve(root, ...safe.split('/'));
     if (!full.startsWith(root + path.sep)) throw new Error('Unsafe .bn path');
     const parent = path.dirname(full);
-    if (create) fs.mkdirSync(parent, { recursive: true });
-    if (fs.existsSync(parent)) {
-      const realRoot = fs.realpathSync(root);
-      const realParent = fs.realpathSync(parent);
-      if (realParent !== realRoot && !realParent.startsWith(realRoot + path.sep)) throw new Error('Unsafe .bn path');
+    if (!insideRoot(realExistingAncestor(parent))) throw new Error('Unsafe .bn path');
+    if (create) {
+      fs.mkdirSync(parent, { recursive: true });
+      if (!insideRoot(fs.realpathSync(parent))) throw new Error('Unsafe .bn path');
     }
     return full;
   }
@@ -213,22 +247,14 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
       if (!p || !isPlainObject(row['bn'])) throw new Error('Invalid bn.file record');
       // Keep the existing on-disk spelling when the same path differs only by case / normalisation.
       const rel = localKey && sanitizeBnPath(localKey) && bnNaturalKey(localKey) === bnNaturalKey(p) ? sanitizeBnPath(localKey)! : p;
-      const full = resolveInside(rel, true);
-      atomicWrite(full, JSON.stringify(row['bn']));
-      const when = typeof row['mtime'] === 'string' ? new Date(row['mtime']) : null;
-      if (when && !Number.isNaN(when.getTime())) { try { fs.utimesSync(full, when, when); } catch { /* cosmetic */ } }
-      recordState(rel, full);
-      saveState();
+      resolveInside(rel, false); // validate now (a throw rolls the record back); write after commit
+      staged.set(rel, { op: 'write', data: JSON.stringify(row['bn']), mtime: typeof row['mtime'] === 'string' ? row['mtime'] : '' });
       return rel;
     },
 
     remove(localKey) {
-      const full = resolveInside(localKey, false);
-      try { fs.unlinkSync(full); } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      }
-      state.delete(sanitizeBnPath(localKey)!);
-      saveState();
+      resolveInside(localKey, false);
+      staged.set(sanitizeBnPath(localKey)!, { op: 'delete' });
     },
 
     naturalKey(d) {
@@ -237,11 +263,46 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
     },
   };
 
+  /** Apply the staged remote writes/deletes (post-commit). A failing file is warned about; the rest proceed. */
+  function flushStaged(): void {
+    if (staged.size === 0) return;
+    loadState();
+    const batch = [...staged];
+    staged.clear();
+    for (const [rel, op] of batch) {
+      try {
+        const full = resolveInside(rel, op.op === 'write');
+        if (op.op === 'write') {
+          atomicWrite(full, op.data);
+          const when = op.mtime ? new Date(op.mtime) : null;
+          if (when && !Number.isNaN(when.getTime())) { try { fs.utimesSync(full, when, when); } catch { /* cosmetic */ } }
+          recordState(rel, full);
+        } else {
+          keepDeletedCopy(full);
+          state.delete(rel);
+        }
+      } catch {
+        warn(rel, 'unreadable');
+      }
+    }
+    saveState();
+  }
+
+  /** A remote delete moves the file to `<name>.deleted-<date>.bak` beside it (`.bak` files never sync) instead of unlinking. */
+  function keepDeletedCopy(full: string): void {
+    if (!fs.existsSync(full)) return;
+    const date = now().toISOString().slice(0, 10);
+    let dest = `${full}.deleted-${date}.bak`;
+    for (let n = 2; fs.existsSync(dest); n++) dest = `${full}.deleted-${date}-${n}.bak`;
+    fs.renameSync(full, dest);
+  }
+
   return {
     kind: BN_KIND,
     codec,
 
     async collect() {
+      flushStaged(); // anything left over from an apply whose afterApply did not run
       loadState();
       const files = scan();
       const seen = new Set<string>();
@@ -270,6 +331,7 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
     },
 
     async afterApply(changed) {
+      flushStaged();
       const mine = changed.filter((c) => c.kind === BN_KIND).map((c) => ({ localKey: c.localKey, deleted: c.deleted }));
       if (mine.length > 0) o.onFilesChanged?.(mine);
     },

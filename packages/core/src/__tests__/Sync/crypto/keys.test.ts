@@ -228,6 +228,19 @@ describe('rewrapForNewPassword / newRecoveryWrap', () => {
 });
 
 describe('rotateAccountKey', () => {
+  it('R1 M4: a server naming an older epoch as current (rollback after rotation) is refused', async () => {
+    const r1 = await rotateAccountKey(acct.unlocked, PASSWORD, undefined, { kdfCost: FLOOR });
+    const m = r1.material;
+    expect(m.keysets.map((k) => k.epoch)).toEqual([0, 1]);
+    const kek = await kekFor(m, PASSWORD);
+    await expect(unlockWithPassword(acct.accountId, kek, m.wrappedAkPassword, m.wrappedRecordIdKey, m.keysets, 0))
+      .rejects.toBeInstanceOf(AuthError);
+    await expect(unlockWithRecoveryCode(acct.accountId, r1.recoveryCode, m.wrappedAkRecovery, m.wrappedRecordIdKey, m.keysets, 0))
+      .rejects.toBeInstanceOf(AuthError);
+    const ok = await unlockWithPassword(acct.accountId, kek, m.wrappedAkPassword, m.wrappedRecordIdKey, m.keysets, 1);
+    expect(ok.currentEpoch).toBe(1);
+  }, 60000);
+
   it('new account key, all epochs re-wrapped plus one, record-id key kept, old records still open', async () => {
     const cipher0 = createRecordCipher(acct.unlocked);
     const rid = hexEncode(defaultRandom.bytes(16));

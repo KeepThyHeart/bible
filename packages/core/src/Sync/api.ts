@@ -52,12 +52,23 @@ export type KeysRequest =
   | { kind: 'rotate';   currentAuthKey: string; material: AccountKeyMaterial };    // revokes all other sessions
 // 'currentAuthKey' may instead be proof from a recovery session (server accepts a session created by /recover for 'password').
 
+/**
+ * `next` is the seq of the last record in the page, or `since` when the page is empty; records come in strictly
+ * increasing seq order, each above `since`. Clients reject any other page (SyncResponseError, 0150 R1).
+ */
 export interface PullResponse { records: EncryptedRecordWire[]; next: number; more: boolean }
+/**
+ * Blob rule (0150 R1): a live record's blob is its sealed version; a tombstone's (`deleted: true`) blob is the SEALED
+ * TOMBSTONE the deleting client pushed (`RecordPlaintext` with `del: true`, `d: {}`). The server returns it unchanged.
+ * `blob: null` with `deleted: true` appears only in the synthetic `{ seq: 0, deleted: true, blob: null }` push-conflict
+ * answer for "no such row" (and on rows written before this rule); clients ignore such tombstones (kept opaque).
+ */
 export interface EncryptedRecordWire { id: RecordId; seq: number; deleted: boolean; blob: string | null }
+/** A tombstone push (`deleted: true`) MUST carry the sealed tombstone as a non-null `blob` (the server refuses null). */
 export interface PushRecord { id: RecordId; baseSeq: number | null; deleted: boolean; blob: string | null }
 export interface PushRequest  { records: PushRecord[] }
 export interface PushResponse { accepted: Array<{ id: RecordId; seq: number }>; conflicts: Array<{ id: RecordId; current: EncryptedRecordWire }> }
-// Server rule: accept iff (no row and baseSeq === null) or row.seq === baseSeq. Tombstones keep id+seq forever.
+// Server rule: accept iff (no row and baseSeq === null) or row.seq === baseSeq. Tombstones keep id+seq+sealed blob forever.
 
 export interface AccountResponse { email: string; emailVerified: boolean; bytesUsed: number; quotaBytes: number; createdAt: string; recordCount: number }
 export interface DevicesResponse { devices: Array<{ id: DeviceId; nameSealed: string; createdAt: string; lastSeenAt: string; userAgent: string | null; current: boolean }> }

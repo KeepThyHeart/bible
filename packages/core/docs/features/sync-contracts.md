@@ -11,7 +11,7 @@ the contract text below it is the original, with the superseded parts marked.
 - **Record envelope (section 3):** the AAD is `utf8("kth-rec-v1") || version (1 byte, = blob[0]) || accountId (16 B) || recordId (16 B) || u32be(epoch)`. The blob version byte is bound into the AAD so a later envelope version can never be replayed as v1.
 - **Change tracking (section 4):** `sync_record` has a `rev` counter bumped by every local change. `markSynced(..., { expectRev })` clears `dirty` only if the row has not changed since it was read for the push (an edit made while the push is in flight stays dirty and is pushed next round); `DirtyRow.rev` carries the value. `touch(kind, localKey, { deleted? })` marks an arbitrary key dirty (adapters).
 - **Codecs (section 5):** `CodecContext.report` is an optional sink for notes (unknown modules). `decode` throws `RecordDecodeError` for malformed payloads (the engine keeps the record opaque). Natural-key scopes: see the header of `packages/core/src/Sync/codecs/RecordCodec.ts`.
-- **Merge (section 6):** `mergeOutcomeFor(type, local, remote, base, ctx)` is the entry point; a remote tombstone is passed as `{ d: {}, h: '', deleted: true }`, so a delete of unknown time never beats a concurrent edit. `conflictCopy` outcomes may carry `d` (merged winner). The note conflict link is `metadata.conflictOf`.
+- **Merge (section 6):** `mergeOutcomeFor(type, local, remote, base, ctx)` is the entry point; a remote tombstone is passed as `{ d: {}, h: <the sealed tombstone's HLC>, deleted: true }` (see "Security review R1" below), so a delete beats only an older edit and a newer edit resurrects the record (`h: ''` still means "time unknown" and never beats an edit). `conflictCopy` outcomes may carry `d` (merged winner). The note conflict link is `metadata.conflictOf`.
 - **Server API (section 7):**
   - Signup does not reveal registered addresses: a signup for an existing address returns the same success shape and mails the owner (`conflict_email` is no longer returned by signup).
   - `ResetConfirmRequest` carries the new `accountId` (the wraps' AAD binds it); the server re-keys the account to it.
@@ -20,6 +20,18 @@ the contract text below it is the original, with the superseded parts marked.
   - Push body limit is 8 MiB, other bodies 64 KiB. The host must set Express `trust proxy` so rate limits use the real client IP.
 - **Engine (section 8):** `SyncEngineOptions` gains `random`, `timers`, `debounceMs`, `onNeedNewEpoch`, `onApplied`, `pushLimits`; `SyncAdapter` gains `conflictCopy` and `merge`; `SyncEngine.reencryptAll()` re-seals everything under the current epoch after a key rotation. `syncNow` never rejects: failures go to the status store.
 - **AccountClient (section 9):** typed `AccountError` codes; optional deps `wantToken`, `kdfCost`, `onUnlocked`, `onSignedOut`, `onWipe`; `needsReencrypt` / `consumeReencrypt()` after rotation or start-over.
+- **Security review R1 (0150):**
+  - **Sealed tombstones.** `RecordPlaintext` gains `del?: boolean`. A delete is pushed as `{ id, baseSeq, deleted: true, blob }` where `blob = seal(id, { t, cv, h, dev, d: {}, del: true })`; the server MUST refuse a tombstone push with a null blob, stores the blob and returns it unchanged from `GET changes` and in push conflicts. A client deletes a record only when the blob opens to `del: true`; a `deleted: true` record with a null blob (other than the synthetic `{ seq: 0, deleted: true, blob: null }` "no such row" push-conflict answer), a blob that does not open, or a sealed live version flagged deleted, is kept opaque and deletes nothing. The tombstone's `h` is used in LWW. `SyncApiClient` accepts and decodes tombstone blobs.
+  - **Replay guard covers deletes.** An incoming version (live or tombstone) whose HLC is not above the row's stored HLC is ignored (only its seq is recorded), whether the row is live or deleted: a replayed old blob cannot resurrect a deleted record.
+  - **Account / record-id key change.** `sync_state` gains `idk_fp` (first 8 bytes of `HMAC-SHA256(recordIdKey, "fp")`, hex) and `epoch_max`; the engine writes them with `account_id` on its first run. A different account id or `idk_fp` (or none stored while rows carry server state) runs `ChangeTracker.resetForNewAccount(naturalKinds)` once, in one transaction: tombstones forgotten, every row dirty with `server_seq`/`base_json`/`hlc` NULL and `rev` bumped, natural-key `record_id`s cleared (re-derived), `sync_opaque`/`sync_pending` cleared, cursor 0. So after "start over" on any device, every device that signs in with the new material re-uploads its data; nothing depends on the in-memory `needsReencrypt` (still set, now informational for start-over).
+  - **Epoch floor.** `unlockWithPassword` / `unlockWithRecoveryCode` refuse (`AuthError`) a `currentEpoch` that is not the highest keyset epoch. `AccountClient` refuses (`damaged_keys`) a sign-in or recovery offering a lower highest epoch than the account in memory or in `sync.unlocked` holds; the engine refuses to run (status error `crypto`) when `unlocked` has a lower highest epoch than `sync_state.epoch_max` for the same account.
+  - **Pull pages.** Records must have strictly increasing seqs above `since`, and `next` must equal the last record's seq (or `since` for an empty page); anything else is a `SyncResponseError` and the cursor does not move.
+  - **Deletes that fail locally** (the codec's `remove` throws) wait in `sync_pending` (the stored plaintext has `del: true`) and are retried after every page and on the next run.
+  - **Foreign keys check the kind.** `CodecContext.localKeyFor(recordId, expectedKind?)`: with `expectedKind`, a record id of another kind throws `RecordDecodeError` (the record is kept opaque). Table codecs pass the FK's target table.
+  - **Push acceptance survives an abort.** Records the server accepted are recorded (`markSynced`) even if the run is aborted right after the answer.
+  - **No redirects.** Every `SyncApiClient` request uses `redirect: 'error'` (a 307/308 would re-send auth keys or key material).
+  - **`AccountClient.resume()`** treats a secret store that throws on read like a damaged blob: both secrets deleted, status `locked`.
+  - **Nonce budget.** `RecordCipher.sealsThisEpoch` (2^30 limit) is per cipher instance, not persisted. The real bound is global for random 96-bit GCM nonces: stay far below about 2^32 seals per data key across all devices; real use is many orders of magnitude below it, and a rotation starts a new key.
 - **Hosts:** the web server module is `apps/web/server/modules/accounts` (flag `accounts`, which requires `localUserDb`); the desktop IPC section (13) is replaced by the accounts feature module's `AccountsApi`; the UI components (14) live in `packages/ui/src/components/Account`.
 
 ---
@@ -66,7 +78,7 @@ export interface RecordPlaintext {
 export interface EncryptedRecord {
   id: RecordId;
   seq: number;          // server-assigned, strictly increasing per account
-  deleted: boolean;     // tombstone: blob is null
+  deleted: boolean;     // tombstone: blob is null  [superseded by R1: the blob is the sealed tombstone, see Changes]
   blob: Uint8Array | null;
 }
 
@@ -243,6 +255,7 @@ CREATE TABLE IF NOT EXISTS sync_opaque  (record_id TEXT PRIMARY KEY, server_seq 
 CREATE TABLE IF NOT EXISTS sync_pending (record_id TEXT PRIMARY KEY, server_seq INTEGER NOT NULL,
                                          plaintext TEXT NOT NULL, missing TEXT NOT NULL); -- child waiting for parent
 -- sync_state keys: 'device_id', 'account_id', 'cursor' (last pulled seq), 'hlc_last', 'applying' ('1' while applying remote changes)
+-- [R1 adds 'idk_fp' and 'epoch_max', written by the engine; see Changes]
 ```
 
 ```ts
@@ -305,7 +318,7 @@ export interface CodecContext {
   /** Resolve a parent's local key to its record id, assigning a random one if it has none yet. */
   recordIdFor(kind: string, localKey: string): RecordId;
   /** Resolve a record id to a local key; undefined when the parent has not arrived yet. */
-  localKeyFor(recordId: RecordId): string | undefined;
+  localKeyFor(recordId: RecordId): string | undefined;   // [R1: optional 2nd arg expectedKind, see Changes]
 }
 
 export type DecodeResult =
@@ -406,6 +419,7 @@ export interface PushRecord { id: RecordId; baseSeq: number | null; deleted: boo
 export interface PushRequest  { records: PushRecord[] }
 export interface PushResponse { accepted: Array<{ id: RecordId; seq: number }>; conflicts: Array<{ id: RecordId; current: EncryptedRecordWire }> }
 // Server rule: accept iff (no row and baseSeq === null) or row.seq === baseSeq. Tombstones keep id+seq forever.
+// [R1: tombstones also keep their sealed blob; a tombstone push without a blob is refused. See Changes.]
 
 export interface AccountResponse { email: string; emailVerified: boolean; bytesUsed: number; quotaBytes: number; createdAt: string; recordCount: number }
 export interface DevicesResponse { devices: Array<{ id: DeviceId; nameSealed: string; createdAt: string; lastSeenAt: string; userAgent: string | null; current: boolean }> }

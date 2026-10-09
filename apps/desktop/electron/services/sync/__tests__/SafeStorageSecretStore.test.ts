@@ -68,6 +68,17 @@ describe('SafeStorageSecretStore', () => {
     expect(new SafeStorageSecretStore(fakeSafeStorage(), dir).weak).toBe(false);
   });
 
+  it('weak backend: reports memory and refuses set() unless allowWeak is passed', async () => {
+    const weak = new SafeStorageSecretStore(fakeSafeStorage({ backend: 'basic_text' }), dir);
+    expect(weak.persistence).toBe('memory');
+    await expect(weak.set('sync.token', value())).rejects.toThrow(/unavailable/);
+    expect(() => readdirSync(dir)).toThrow();
+    const allowed = new SafeStorageSecretStore(fakeSafeStorage({ backend: 'basic_text' }), dir, { allowWeak: true });
+    expect(allowed.persistence).toBe('persistent');
+    await allowed.set('sync.token', value());
+    expect(await allowed.get('sync.token')).toEqual(value());
+  });
+
   it('fails cleanly on a corrupt file without echoing content', async () => {
     const s = new SafeStorageSecretStore(fakeSafeStorage(), dir);
     await s.set('sync.token', value());

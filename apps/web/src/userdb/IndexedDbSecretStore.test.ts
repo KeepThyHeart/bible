@@ -131,6 +131,19 @@ describe('IndexedDbSecretStore', () => {
     expect(await s.get('sync.unlocked')).toEqual(secret());
   });
 
+  it('another tab wiping the key: this tab reads no secret and set() makes a fresh decryptable key (L11b)', async () => {
+    const f = new IDBFactory();
+    const a = make(f);
+    const b = make(f);
+    await a.set('sync.token', secret());
+    expect(await a.get('sync.token')).toEqual(secret()); // a has used the key
+    await b.deleteAll();
+    expect(await a.get('sync.token')).toBeNull();
+    await a.set('sync.unlocked', secret());
+    expect(await b.get('sync.unlocked')).toEqual(secret());
+    expect(await a.get('sync.unlocked')).toEqual(secret());
+  });
+
   it('concurrent first writes agree on one wrapping key', async () => {
     const f = new IDBFactory();
     const a = make(f);

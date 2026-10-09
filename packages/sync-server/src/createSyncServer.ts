@@ -1,6 +1,6 @@
 /** Builds the sync server (contracts 0063 §11; W1-F: store, auth, router). */
 import { randomBytes } from 'node:crypto';
-import { Sync } from '@bible/core';
+import { Crypto, Sync } from '@bible/core';
 import type { SyncServer, SyncServerOptions } from './types';
 import type { ResolvedOptions, ServerContext } from './http';
 import { createSqliteSyncStore } from './store/SqliteSyncStore';
@@ -20,6 +20,8 @@ function resolveOptions(o: SyncServerOptions): ResolvedOptions {
     signupOpen: o.signupOpen ?? true,
     quotaBytes: o.quotaBytes ?? Sync.LIMITS.defaultQuotaBytes,
     minAge: o.minAge ?? DEFAULT_MIN_AGE,
+    defaultKdf: o.defaultKdf ?? { m: Crypto.DEFAULT_KDF.m, t: Crypto.DEFAULT_KDF.t, p: Crypto.DEFAULT_KDF.p },
+    maxRecordsPerAccount: o.maxRecordsPerAccount ?? 1_000_000,
     termsUrl: o.termsUrl,
     privacyUrl: o.privacyUrl,
     allowedOrigins: new Set(o.allowedOrigins),

@@ -232,6 +232,53 @@ describe('resume', () => {
     expect(await t.store.get('sync.unlocked')).toBeNull();
     expect(await t.store.get('sync.token')).toBeNull();
   });
+
+  it('R1 L11a: a store that throws on read (undecryptable value) -> secrets deleted, null and locked', async () => {
+    const t = await signedUp();
+    await t.store.set('sync.token', utf8Encode('tok'));
+    const broken = Object.assign(Object.create(t.store) as MemorySecretStore, {
+      get: async () => { throw new Error('cannot decrypt'); },
+    });
+    const del = vi.spyOn(t.store, 'delete');
+    const again = new AccountClient({ ...t.deps, secrets: broken, status: t.status });
+    expect(await again.resume()).toBeNull();
+    expect(t.status.getSnapshot().state).toBe('locked');
+    expect(del.mock.calls.map((c) => c[0]).sort()).toEqual(['sync.token', 'sync.unlocked']);
+    expect(await t.store.get('sync.unlocked')).toBeNull();
+    expect(again.unlocked).toBeNull();
+  });
+});
+
+describe('key epoch rollback (R1 M4)', () => {
+  it('a server naming an older epoch as current after a rotation is refused as damaged_keys', async () => {
+    const t = await signedUp();
+    await t.client.rotateKeys(PW);
+    t.secrets.addUnlocked(t.client.unlocked);
+    t.server.tamperSession = (res) => ({ ...res, currentEpoch: 0 });   // keysets {0,1}, current 0
+    const d2 = device2(t.server, t.secrets);
+    await expect(d2.client.signIn(EMAIL, PW)).rejects.toMatchObject({ code: 'damaged_keys' });
+    expect(d2.client.unlocked).toBeNull();
+    t.server.tamperSession = undefined;
+    await d2.client.signIn(EMAIL, PW);
+    expect(d2.client.unlocked!.currentEpoch).toBe(1);
+  });
+
+  it('after a resume that saw epoch 1, a login offering only epoch 0 fails as damaged_keys', async () => {
+    const t = await signedUp();
+    await t.client.rotateKeys(PW);
+    t.secrets.addUnlocked(t.client.unlocked);
+    const again = new AccountClient({ ...t.deps, status: statusStore() });
+    const u = await again.resume();
+    expect([...u!.dataKeys.keys()]).toEqual([0, 1]);
+    // The server drops epoch 1 (the remaining epoch-0 wrap is genuine: rotation re-wrapped it under the new account key).
+    t.server.tamperSession = (res) => ({ ...res, keysets: res.keysets.filter((k) => k.epoch === 0), currentEpoch: 0 });
+    await expect(again.signIn(EMAIL, PW)).rejects.toMatchObject({ code: 'damaged_keys' });
+    // The stored keys were not replaced by the rolled-back set.
+    expect(await t.store.get('sync.unlocked')).toEqual(serializeUnlocked(u!));
+    // A fresh client with the same store (no account in memory) refuses it too.
+    const fresh = new AccountClient({ ...t.deps, status: statusStore() });
+    await expect(fresh.signIn(EMAIL, PW)).rejects.toMatchObject({ code: 'damaged_keys' });
+  });
 });
 
 describe('signOut and deleteAccount', () => {

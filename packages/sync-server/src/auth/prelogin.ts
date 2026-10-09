@@ -13,8 +13,14 @@ export function canonicalKdf(k: Sync.KdfParamsJson): Sync.KdfParamsJson {
   return { id: k.id, v: k.v, m: k.m, t: k.t, p: k.p, salt: k.salt };
 }
 
-export function fakeKdf(serverSecret: Uint8Array, normalisedEmail: string): Sync.KdfParamsJson {
+/**
+ * Residual leak, accepted: the fake salt is stable per (secret, email) while a real account's salt changes when its
+ * password is reset or rotated, so an observer who polls prelogin over time can tell "salt changed" (real account)
+ * from "never changes" (unknown). Closing it needs per-account server-side salt state; not v1.
+ */
+export function fakeKdf(serverSecret: Uint8Array, normalisedEmail: string,
+  cost: { m: number; t: number; p: number } = Crypto.DEFAULT_KDF): Sync.KdfParamsJson {
   const mac = hmacSha256(serverSecret, `prelogin\0${normalisedEmail}`);
-  const { m, t, p } = Crypto.DEFAULT_KDF;
+  const { m, t, p } = cost;
   return canonicalKdf({ id: 'argon2id', v: 19, m, t, p, salt: bytesToB64url(mac.subarray(0, FAKE_SALT_BYTES)) });
 }

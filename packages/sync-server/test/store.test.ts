@@ -55,7 +55,7 @@ describe('SqliteSyncStore', () => {
     const del = store.records.push(A, [{ id: r1, baseSeq: 1, deleted: true, blob: null }], 1000);
     expect(del).toEqual({ accepted: [{ id: r1, seq: 2 }], conflicts: [] });
     expect(store.records.changes(A, 0, 10)).toEqual([{ id: r1, seq: 2, deleted: true, blob: null }]);
-    expect(store.accounts.byId(A)!.bytesUsed).toBe(0);
+    expect(store.accounts.byId(A)!.bytesUsed).toBe(128); // a bare tombstone still costs the row overhead
     // B shares nothing with A, and its seqs start at 1.
     expect(store.records.changes(B, 0, 10)).toEqual([]);
     expect(store.records.push(B, [{ id: r1, baseSeq: null, deleted: false, blob: blob(4) }], 1000))

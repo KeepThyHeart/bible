@@ -64,8 +64,12 @@ export interface CodecContext {
   modules: ModuleRefResolver;
   /** Resolve a parent's local key to its record id, assigning a random one if it has none yet. */
   recordIdFor(kind: string, localKey: string): RecordId;
-  /** Resolve a record id to a local key; undefined when the parent has not arrived yet. */
-  localKeyFor(recordId: RecordId): string | undefined;
+  /**
+   * Resolve a record id to a local key; undefined when the parent has not arrived yet. With `expectedKind` (the
+   * referencing column's target table), a record id that belongs to another kind throws RecordDecodeError (the
+   * record is kept opaque) instead of linking to a row of the wrong table (0150 R1 L5).
+   */
+  localKeyFor(recordId: RecordId, expectedKind?: string): string | undefined;
   /** Optional sink for `CodecNote`s raised during `encode`. */
   report?(note: CodecNote): void;
 }

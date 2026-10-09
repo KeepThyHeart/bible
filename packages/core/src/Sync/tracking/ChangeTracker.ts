@@ -22,7 +22,9 @@
  * CREATE TABLE IF NOT EXISTS sync_opaque  (record_id TEXT PRIMARY KEY, server_seq INTEGER NOT NULL, blob BLOB);
  * CREATE TABLE IF NOT EXISTS sync_pending (record_id TEXT PRIMARY KEY, server_seq INTEGER NOT NULL,
  *                                          plaintext TEXT NOT NULL, missing TEXT NOT NULL); -- child waiting for parent
- * -- sync_state keys: 'device_id', 'account_id', 'cursor' (last pulled seq), 'hlc_last', 'applying' ('1' while applying remote changes)
+ * -- sync_state keys: 'device_id', 'account_id', 'idk_fp' (record-id key fingerprint), 'epoch_max' (highest key epoch
+ * --   seen for account_id), 'cursor' (last pulled seq), 'hlc_last', 'applying' ('1' while applying remote changes).
+ * --   'account_id' / 'idk_fp' / 'epoch_max' are written by the engine (0150 R1 H2/M4).
  * ```
  */
 import type { ISql } from '../../Data/Core/ISql';
@@ -68,6 +70,14 @@ export interface ChangeTracker {
   touch(kind: string, localKey: string, opts?: { deleted?: boolean }): void;
   lookupByRecordId(recordId: RecordId): { kind: string; localKey: string; deleted: boolean; dirty: boolean; serverSeq: number | null; baseJson: string | null; hlc: HlcString | null } | undefined;
   lookupByLocal(kind: string, localKey: string): { recordId: RecordId | null } | undefined;
+  /**
+   * The account behind this DB changed (another account, or "start over": a wiped server, a new account id and
+   * record-id key). In ONE transaction: forget every tombstone; make every remaining row a dirty, never-synced record
+   * (server_seq, base_json and hlc NULL, rev bumped); clear record_id for `naturalKinds` (derived ids are re-derived
+   * under the new record-id key; random ids are kept); clear sync_opaque and sync_pending; cursor = 0. Local user
+   * data is untouched. (0150 R1 H2)
+   */
+  resetForNewAccount(naturalKinds: readonly string[]): void;
   /** Runs `fn` in one transaction with sync_state.applying = '1'; restores '0' even if fn throws (rollback). */
   applyRemote<T>(fn: () => T): T;
   state: { get(key: string): string | undefined; set(key: string, value: string): void };
@@ -312,6 +322,20 @@ export function createChangeTracker(sql: ISql): ChangeTracker {
       const r = sql.queryOne<{ record_id: string | null }>(
         'SELECT record_id FROM sync_record WHERE table_name = ? AND local_key = ?', [kind, localKey]);
       return r ? { recordId: r.record_id } : undefined;
+    },
+
+    resetForNewAccount(naturalKinds): void {
+      sql.transaction(() => {
+        sql.execute('DELETE FROM sync_record WHERE deleted = 1');
+        sql.execute(`UPDATE sync_record SET server_seq = NULL, base_json = NULL, hlc = NULL, dirty = 1, rev = rev + 1`);
+        if (naturalKinds.length > 0) {
+          sql.execute(`UPDATE sync_record SET record_id = NULL WHERE table_name IN (${naturalKinds.map(() => '?').join(', ')})`,
+            [...naturalKinds]);
+        }
+        sql.execute('DELETE FROM sync_opaque');
+        sql.execute('DELETE FROM sync_pending');
+        setState('cursor', '0');
+      });
     },
 
     applyRemote<T>(fn: () => T): T {

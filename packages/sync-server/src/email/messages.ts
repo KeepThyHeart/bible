@@ -64,6 +64,25 @@ export function duplicateSignupMail(to: string, publicUrl: string): Mail {
   };
 }
 
+export type SecurityChange = 'password-reset' | 'password-changed' | 'recovery-regenerated' | 'keys-rotated';
+
+const SECURITY_LEAD: Record<SecurityChange, [string, string]> = {
+  'password-reset': ['Your password was reset', 'The password of your Bible sync account was just reset.'],
+  'password-changed': ['Your password was changed', 'The password of your Bible sync account was just changed.'],
+  'recovery-regenerated': ['Your recovery code was regenerated',
+    'The recovery code of your Bible sync account was just regenerated. The old one no longer works.'],
+  'keys-rotated': ['Your encryption keys were rotated', 'The encryption keys of your Bible sync account were just rotated.'],
+};
+
+/** Generic security notice (no tokens, no secrets): something about the account's credentials changed. */
+export function securityChangeMail(to: string, publicUrl: string, change: SecurityChange): Mail {
+  const [subject, lead] = SECURITY_LEAD[change];
+  const link = `${base(publicUrl)}/account`;
+  const tail = 'If this was you, no action is needed. If it was not, reset your password right away and sign out '
+    + 'your other devices.';
+  return { to, subject, text: `${lead}\n\n${tail}\n\n${link}\n`, html: html([lead, tail], link) };
+}
+
 /**
  * Starts sending without waiting for the result: the response time must not reveal whether a mail was sent
  * (reset, duplicate sign-up). Failures are logged by name only.

@@ -7,7 +7,9 @@ export interface SyncServerOptions {
   serverSecret: Uint8Array;                // 32 B, persisted by the host; HMAC for fake prelogin salts
   publicUrl: string;                       // for email links
   email: EmailSender;
-  signupOpen?: boolean; quotaBytes?: number; minAge?: number; termsUrl?: string; privacyUrl?: string;
+  signupOpen?: boolean; quotaBytes?: number; minAge?: number; defaultKdf?: { m: number; t: number; p: number };
+  maxRecordsPerAccount?: number;       // default 1,000,000
+  termsUrl?: string; privacyUrl?: string;
   allowedOrigins: string[];                // Origin check for cookie-auth writes
   cookieSecure?: boolean;                  // false only for http://localhost dev
   now?: () => number; random?: (n: number) => Uint8Array; log?: (level: 'info' | 'warn' | 'error', msg: string, meta?: object) => void;

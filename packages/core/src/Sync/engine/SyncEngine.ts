@@ -4,7 +4,15 @@
  *
  * One run (`syncNow`) = pull -> merge -> push:
  *
- * 1. Pull pages from `cursor` (sync_state). Each record is decrypted outside SQL; then the page is applied in ONE
+ * 0. Once per engine instance: the account check (0150 R1 H2/M4). sync_state keeps `account_id`, `idk_fp` (first 8
+ *    bytes of HMAC-SHA256(recordIdKey, "fp"), hex) and `epoch_max`. A different account id or record-id key (another
+ *    account, or "start over" on any device), or none stored while rows carry server state, runs
+ *    `tracker.resetForNewAccount` in one transaction: every local record is re-uploaded under the new keys, derived ids
+ *    are re-derived, cursor 0. The same account offering fewer key epochs than `epoch_max` is refused (status error
+ *    'crypto'; the run stops before any request).
+ * 1. Pull pages from `cursor` (sync_state). A page must have strictly increasing seqs above the cursor and `next` equal
+ *    to its last seq (or the cursor when empty); anything else is a SyncResponseError (R1 L15). Each record is
+ *    decrypted outside SQL; then the page is applied in ONE
  *    transaction under `tracker.applyRemote` (triggers off), each record in its own savepoint, together with the
  *    pending-children retry and the cursor update. Adapter hooks (`conflictCopy`, `afterApply`) and `onApplied` run
  *    after the commit.
@@ -13,12 +21,17 @@
  *      codec rejects (RecordDecodeError), or any unexpected error while applying that one record. Opaque records are
  *      retried once per engine instance (first run), so an app upgrade, an installed extension or a new key epoch
  *      picks them up. A tombstone for an opaque record removes it.
+ *    - Tombstones (0150 R1 H1) are SEALED: the blob opens to `{ t, cv, h, dev, d: {}, del: true }`. Only such a blob
+ *      deletes anything; a tombstone with no blob (or one that does not open, or whose sealed content is a live
+ *      version) is kept opaque like any unreadable record, so a server cannot delete user data. A delete that cannot
+ *      be applied now (the codec's remove throws) waits in sync_pending and is retried (R1 L4).
  *    - Already seen (seq <= the row's server_seq, e.g. our own push coming back): skipped.
- *    - Replay (a known live record whose HLC is older than or equal to the version we hold): content ignored, only the
- *      seq is recorded as the new base (so our next push is not a conflict loop).
+ *    - Replay (a known record, live or deleted, whose incoming HLC (live or tombstone) is older than or equal to the
+ *      version we hold): content ignored, only the seq is recorded as the new base (so our next push is not a conflict
+ *      loop). A deleted record is therefore resurrected only by a version newer than its tombstone (R1 M3).
  *    - Clean local row (or no local row): apply remote (codec decode + upsert, or remove for a tombstone).
  *    - Dirty local row: `mergeOutcomeFor(type, local, remote, base, { recordId })`, where `local.h` is the HLC of the
- *      local change (see `localHlc`) and a remote tombstone is `{ d: {}, h: '', deleted: true }`. takeRemote applies
+ *      local change (see `localHlc`) and a remote tombstone is `{ d: {}, h: <its sealed HLC>, deleted: true }`. takeRemote applies
  *      remote; keepLocal records the remote seq/HLC as base and leaves the row dirty; merged writes `d` locally and
  *      leaves the row dirty on top of the remote base (pushed with an HLC above both); conflictCopy inserts `copy` as
  *      a new record of the same type (fresh random id, via `codec.upsert` + `tracker.touch`, or via the adapter's
@@ -36,23 +49,30 @@
  *    pending counts kept), or 'locked' (401; the engine then refuses to run until a new one is built). 403
  *    email_unverified stops pushing for the run with that error code.
  *
- * Nonce budget: once `cipher.sealsThisEpoch` reaches 2^30 the engine stops sealing (tombstones still go out), sets
- * status error `crypto` and calls `onNeedNewEpoch` once; the host rotates the data key (new epoch) and calls
- * `reencryptAll()` (or builds a new engine with the new cipher).
+ * Nonce budget: once `cipher.sealsThisEpoch` reaches 2^30 the engine stops sealing live records (tombstones, which are
+ * tiny and rare, are still sealed and go out), sets status error `crypto` and calls `onNeedNewEpoch` once; the host
+ * rotates the data key (new epoch) and calls `reencryptAll()` (or builds a new engine with the new cipher). The
+ * counter is per cipher instance (per session), not persisted: the real bound is the global one for random 96-bit
+ * GCM nonces (stay far below ~2^32 seals per key), which this per-session limit keeps in practice (R1 L6).
  *
  * Where the tracker API has no operation for it, the engine writes the tracker's own `sync_record` table directly:
  * forgetting a record the server no longer has, taking over a derived id held by an old tombstone, and marking every
  * synced record dirty for `reencryptAll`. Nothing here logs; errors put in the status never contain record content.
+ *
+ * Foreign keys resolve through `CodecContext.localKeyFor(id, expectedKind)`: a reference to a record of another kind
+ * is a RecordDecodeError (the record is kept opaque), never a link to the wrong table (R1 L5).
  */
 import type { ISql } from '../../Data/Core/ISql';
 import type { Row } from '../../Backup/Registry';
-import { b64urlEncode, defaultRandom, hexEncode, type RandomSource } from '../../Crypto';
+import { b64urlEncode, defaultRandom, hexEncode, utf8Encode, type RandomSource } from '../../Crypto';
 import { LIMITS, type ApiErrorCode, type PushRecord } from '../api';
 import type { ChangeTracker } from '../tracking/ChangeTracker';
 import { compareHlc, parseHlc, type HlcClock } from '../tracking/Hlc';
 import type { CodecContext, CodecRegistry, ModuleRefResolver, RecordCodec } from '../codecs/RecordCodec';
+import { RecordDecodeError } from '../codecs/errors';
 import { RecordTooLargeError, type RecordCipher } from '../crypto/RecordCipher';
-import { deriveRecordId, type UnlockedAccount } from '../crypto/keys';
+import { hmacSha256 } from '../crypto/hmac';
+import { deriveRecordId, maxEpoch, type UnlockedAccount } from '../crypto/keys';
 import { mergeOutcomeFor, type ExtDbMerge, type Version } from '../merge/MergePolicy';
 import type { DeviceId, EncryptedRecord, HlcString, RecordId, RecordPlaintext } from '../types';
 import { SyncHttpError, SyncNetworkError, SyncResponseError, type ISyncTransport } from './ISyncTransport';
@@ -113,7 +133,14 @@ interface SyncRow {
   server_seq: number | null; dirty: number; deleted: number; base_json: string | null;
 }
 
-type Incoming = { kind: 'live'; pt: RecordPlaintext } | { kind: 'tombstone' };
+/** A decrypted incoming version: live content, or a sealed tombstone (`pt.del === true`, `pt.d` = {}). */
+type Incoming = { kind: 'live' | 'tombstone'; pt: RecordPlaintext };
+const incomingOf = (pt: RecordPlaintext): Incoming => ({ kind: pt.del === true ? 'tombstone' : 'live', pt });
+
+/** The same account offered fewer key epochs than this DB has already seen (rollback to an old key). */
+class EpochRollbackError extends Error {
+  constructor() { super('Key epoch rollback'); this.name = 'EpochRollbackError'; }
+}
 
 /** A natural-key parent has no record id yet (it is derived asynchronously before pull and push). */
 class NeedParentIdError extends Error {
@@ -182,6 +209,7 @@ export class SyncEngine {
   private stopController: AbortController | null = null;
   private locked = false;
   private opaqueRetried = false;
+  private identityChecked = false;
   private epochWarned = false;
   /** Rows that failed for good this session (too large, over quota, unmergeable): key -> rev when it failed. */
   private readonly failed = new Map<string, number>();
@@ -291,6 +319,7 @@ export class SyncEngine {
     const status = this.o.status;
     status.set({ state: 'syncing' });
     try {
+      if (!this.identityChecked) await this.checkAccount();
       await this.ensureDerivedIds(run);
       if (!this.opaqueRetried) {
         this.opaqueRetried = true;
@@ -327,6 +356,9 @@ export class SyncEngine {
       return { state: 'error', error: { code: e.body?.error ?? (e.status >= 500 ? 'server_error' : 'bad_request'), message: httpMessage(e) } };
     }
     if (e instanceof SyncResponseError) return { state: 'error', error: { code: 'server_error', message: e.message } };
+    if (e instanceof EpochRollbackError) {
+      return { state: 'error', error: { code: 'crypto', message: 'The server offered older keys than this device has seen; sign in again' } };
+    }
     return { state: 'error', error: { code: 'internal', message: 'Sync failed unexpectedly' } };
   }
 
@@ -348,6 +380,51 @@ export class SyncEngine {
     if (run.signal.aborted) throw new AbortRun();
   }
 
+  // --- account check -------------------------------------------------------------------------------------------
+
+  /**
+   * Compare the account id, record-id key fingerprint and highest key epoch with what this DB last synced under
+   * (sync_state). A different account or record-id key resets the tracker (everything is re-uploaded, derived ids
+   * re-derived); fewer epochs than seen before is refused. See the header, step 0.
+   */
+  private async checkAccount(): Promise<void> {
+    const u = this.o.unlocked;
+    const fp = hexEncode((await hmacSha256(u.recordIdKey, utf8Encode('fp'))).subarray(0, 8));
+    const top = maxEpoch(u.dataKeys);
+    const st = this.tracker.state;
+    const storedAccount = st.get('account_id');
+    const storedFp = st.get('idk_fp');
+    const same = storedAccount === u.accountId && storedFp === fp;
+    let floor = -1;
+    if (same) {
+      const n = Number(st.get('epoch_max') ?? '-1');
+      floor = Number.isSafeInteger(n) ? n : -1;
+      if (top < floor) throw new EpochRollbackError();
+    }
+    const naturalKinds = [...this.kinds.entries()].filter(([, e]) => e.codec.naturalKey).map(([k]) => k);
+    this.sql.transaction(() => {
+      if (!same && (storedAccount !== undefined || storedFp !== undefined || this.hasServerState())) {
+        this.tracker.resetForNewAccount(naturalKinds);
+      }
+      st.set('account_id', u.accountId);
+      st.set('idk_fp', fp);
+      st.set('epoch_max', String(Math.max(top, floor)));
+    });
+    if (!same) {
+      this.failed.clear();
+      this.unsyncable.clear();
+    }
+    this.identityChecked = true;
+  }
+
+  /** Anything learned from a server: a synced row, a cursor, opaque or pending records. */
+  private hasServerState(): boolean {
+    if (this.sql.queryOne('SELECT 1 AS x FROM sync_record WHERE server_seq IS NOT NULL LIMIT 1')) return true;
+    if (this.sql.queryOne('SELECT 1 AS x FROM sync_opaque LIMIT 1')) return true;
+    if (this.sql.queryOne('SELECT 1 AS x FROM sync_pending LIMIT 1')) return true;
+    return (Number(this.tracker.state.get('cursor') ?? '0') || 0) > 0;
+  }
+
   // --- pull ----------------------------------------------------------------------------------------------------
 
   private async pull(run: Run): Promise<void> {
@@ -356,9 +433,16 @@ export class SyncEngine {
       this.check(run);
       const page = await this.o.transport.pull(cursor, this.pageSize, run.signal);
       this.check(run);
-      const next = Number.isSafeInteger(page.next) && page.next >= cursor ? page.next : cursor;
+      // R1 L15: seqs strictly increasing above the cursor, `next` = the last seq (or the cursor for an empty page).
+      let last = cursor;
+      for (const r of page.records) {
+        if (!Number.isSafeInteger(r.seq) || r.seq <= last) throw new SyncResponseError('Malformed server response (changes order)');
+        last = r.seq;
+      }
+      if (page.next !== last) throw new SyncResponseError('Malformed server response (changes.next)');
+      const next = last;
       await this.applyRecords(run, page.records, next);
-      if (!page.more || page.records.length === 0 || next === cursor) break;
+      if (!page.more || page.records.length === 0) break;
       cursor = next;
     }
   }
@@ -380,14 +464,19 @@ export class SyncEngine {
   private async applyRecords(run: Run, records: EncryptedRecord[], cursor: number | undefined, retrying = false): Promise<void> {
     const items: Array<{ rec: EncryptedRecord; inc: Incoming | null }> = [];
     for (const rec of records) {
-      if (rec.deleted) { items.push({ rec, inc: { kind: 'tombstone' } }); continue; }
+      // No blob: a bare tombstone (not authenticated, R1 H1) or a broken live record. Kept opaque, deletes nothing.
       if (!rec.blob) { items.push({ rec, inc: null }); continue; }
+      let pt: RecordPlaintext;
       try {
-        items.push({ rec, inc: { kind: 'live', pt: await this.o.cipher.open(rec.id, rec.blob) } });
+        pt = await this.o.cipher.open(rec.id, rec.blob);
       } catch {
         // UnknownEpochError, AuthError, SyntaxError (bad JSON): keep opaque. Never surface the error text.
         items.push({ rec, inc: null });
+        continue;
       }
+      // A server flagging a record deleted while its sealed content is a live version: the delete is not authentic.
+      if (rec.deleted && pt.del !== true) { items.push({ rec, inc: null }); continue; }
+      items.push({ rec, inc: incomingOf(pt) });
     }
     this.check(run);
     const fx = noEffects();
@@ -446,9 +535,10 @@ export class SyncEngine {
         else this.applyOne(rec.id, rec.seq, inc, local, rec);
       });
     } catch (e) {
-      if (inc?.kind === 'tombstone') return;
-      if (e instanceof NeedParentIdError && inc) {
-        // A local parent created during this run has no derived id yet: retry with the pending children.
+      if (inc && (inc.kind === 'tombstone' || e instanceof NeedParentIdError)) {
+        // A delete that could not be applied (the codec's remove failed; R1 L4), or a local parent created during this
+        // run without a derived id yet: wait in sync_pending and retry with the pending children (after every page and
+        // on the next run), so the cursor moving on never drops it.
         try { this.sql.transaction(() => this.tracker.pending.put(rec.id, rec.seq, inc.pt, [])); } catch { /* next pull */ }
         return;
       }
@@ -481,7 +571,7 @@ export class SyncEngine {
         try {
           this.sql.transaction(() => {
             this.tracker.pending.remove(p.id);
-            this.applyOne(p.id, p.seq, { kind: 'live', pt: p.pt }, local, null);
+            this.applyOne(p.id, p.seq, incomingOf(p.pt), local, null);
             stillPending = this.tracker.pending.all().some((q) => q.id === p.id);
           });
         } catch {
@@ -511,45 +601,41 @@ export class SyncEngine {
   private applyOne(id: RecordId, seq: number, inc: Incoming, fx: Effects, opaqueSource: EncryptedRecord | null): void {
     const row = this.rowById(id);
     if (row && row.server_seq !== null && seq <= row.server_seq) return; // already have this version (or newer)
+    const pt = inc.pt;
+    const opaque = (): void => this.keepOpaque(opaqueSource ?? { id, seq, blob: null }, fx);
+    if (typeof pt.h !== 'string' || tryParseHlc(pt.h) === null) { opaque(); return; }
 
     if (inc.kind === 'tombstone') {
+      const entry = row ? this.kinds.get(row.table_name) : undefined;
+      if (row && entry && entry.codec.type !== pt.t) { opaque(); return; }   // a tombstone for another type of record
+      if (row && this.isReplay(row, pt.h)) { this.replayed(row, id, seq); return; }
+      this.receiveHlc(pt.h);
       this.tracker.opaque.remove(id);
       this.tracker.pending.remove(id);
       if (!row) return;
-      const entry = this.kinds.get(row.table_name);
       if (!row.dirty) {
         if (!row.deleted && entry) {
           entry.codec.remove(row.local_key, this.ctx);
           fx.changed.push({ kind: row.table_name, localKey: row.local_key, deleted: true });
         }
-        this.markClean(row, id, seq, row.hlc ?? '', null, true);
+        this.markClean(row, id, seq, pt.h, null, true);
         fx.applied++;
         return;
       }
-      if (!entry) { this.rebase(row, id, seq, row.hlc ?? '', row.base_json); return; }
-      this.mergeDirty(row, id, seq, entry.codec, { d: {}, h: '', deleted: true }, null, fx);
+      if (!entry) { this.rebase(row, id, seq, pt.h, row.base_json); return; }
+      this.mergeDirty(row, id, seq, entry.codec, { d: {}, h: pt.h, deleted: true }, pt, fx);
       fx.applied++;
       return;
     }
 
-    const pt = inc.pt;
     const found = this.codecForPlaintext(pt);
-    if (!found || !Number.isInteger(pt.cv) || pt.cv > found.codec.version || (row && row.table_name !== found.kind)
-      || typeof pt.h !== 'string' || tryParseHlc(pt.h) === null) {
-      if (opaqueSource) this.keepOpaque(opaqueSource, fx);
-      else this.keepOpaque({ id, seq, blob: null }, fx);
+    if (!found || !Number.isInteger(pt.cv) || pt.cv > found.codec.version || (row && row.table_name !== found.kind)) {
+      opaque();
       return;
     }
     const { codec, kind } = found;
 
-    if (row && !row.deleted && row.hlc && compareHlc(pt.h, row.hlc) <= 0) {
-      // Replayed or re-sent older/equal version: keep our content, only move the base to the server's seq.
-      this.tracker.opaque.remove(id);
-      this.tracker.pending.remove(id);
-      if (row.dirty) this.rebase(row, id, seq, row.hlc, row.base_json);
-      else this.markClean(row, id, seq, row.hlc, row.base_json, false);
-      return;
-    }
+    if (row && this.isReplay(row, pt.h)) { this.replayed(row, id, seq); return; }
     this.receiveHlc(pt.h);
     this.tracker.opaque.remove(id);
 
@@ -559,6 +645,19 @@ export class SyncEngine {
     }
     this.mergeDirty(row, id, seq, codec, { d: pt.d, h: pt.h, deleted: false }, pt, fx);
     fx.applied++;
+  }
+
+  /** An incoming version (live or tombstone) no newer than the one we hold, deleted or not (R1 M3). */
+  private isReplay(row: SyncRow, h: HlcString): boolean {
+    return row.hlc !== null && tryParseHlc(row.hlc) !== null && compareHlc(h, row.hlc) <= 0;
+  }
+
+  /** Replayed or re-sent older/equal version: keep our state (live or deleted), only move the base to the server's seq. */
+  private replayed(row: SyncRow, id: RecordId, seq: number): void {
+    this.tracker.opaque.remove(id);
+    this.tracker.pending.remove(id);
+    if (row.dirty) this.rebase(row, id, seq, row.hlc!, row.base_json);
+    else this.markClean(row, id, seq, row.hlc!, row.base_json, row.deleted === 1);
   }
 
   /** Decode + upsert a remote live version over a clean (or absent) local row. False when it had to wait in pending. */
@@ -610,7 +709,7 @@ export class SyncEngine {
     const outcome = mergeOutcomeFor(codec.type, local, remote, base, { recordId: id, merge: adapter?.merge });
     fx.conflicts++;
     const remoteBase = remote.deleted ? null : JSON.stringify(remote.d);
-    const remoteH = remote.deleted ? (row.hlc ?? '') : remote.h;
+    const remoteH = remote.h;
 
     switch (outcome.kind) {
       case 'takeRemote':
@@ -658,7 +757,7 @@ export class SyncEngine {
         codec.remove(row.local_key, this.ctx);
         fx.changed.push({ kind, localKey: row.local_key, deleted: true });
       }
-      this.markClean(row, id, seq, row.hlc ?? '', null, true);
+      this.markClean(row, id, seq, remote.h, null, true);
       return true;
     }
     const r = codec.decode(remote.d, this.ctx);
@@ -729,9 +828,14 @@ export class SyncEngine {
         this.tracker.assignRecordId(kind, localKey, id);
         return id;
       },
-      localKeyFor: (recordId) => {
+      localKeyFor: (recordId, expectedKind) => {
         const hit = this.tracker.lookupByRecordId(recordId);
-        return hit && !hit.deleted ? hit.localKey : undefined;
+        if (!hit || hit.deleted) return undefined;
+        // A reference to a record of another kind must never link to a row of the wrong table (R1 L5).
+        if (expectedKind !== undefined && hit.kind !== expectedKind) {
+          throw new RecordDecodeError('A reference points at a record of another type');
+        }
+        return hit.localKey;
       },
     };
   }
@@ -901,8 +1005,16 @@ export class SyncEngine {
       const h = this.localHlc(row);
       const id = row.record_id!;
       if (d === null) {
+        // Sealed tombstone (R1 H1): authenticates the delete and carries its HLC. Sealed even past the nonce budget.
+        let tomb: Uint8Array;
+        try {
+          tomb = await this.o.cipher.seal(id, { t: codec.type, cv: codec.version, h, dev: this.dev, d: {}, del: true });
+        } catch {
+          this.failRecord(run, k, row.rev, 'crypto', 'A change could not be encrypted');
+          continue;
+        }
         items.push({ kind: row.table_name, localKey: row.local_key, rev: row.rev, h, baseJson: null,
-          rec: { id, baseSeq: row.server_seq, deleted: true, blob: null } });
+          rec: { id, baseSeq: row.server_seq, deleted: true, blob: b64urlEncode(tomb) } });
         continue;
       }
       if (this.o.cipher.sealsThisEpoch >= SEAL_LIMIT) {
@@ -971,7 +1083,7 @@ export class SyncEngine {
       }
       throw e;
     }
-    this.check(run);
+    // No abort check here: the server has accepted these records, so their acceptance is recorded first (R1 L12).
     const byId = new Map(batch.map((b) => [b.rec.id, b]));
     this.sql.transaction(() => {
       for (const a of res.accepted) {
@@ -988,6 +1100,7 @@ export class SyncEngine {
       const it = byId.get(a.id);
       if (it) this.receiveHlc(it.h);
     }
+    this.check(run);
     if (res.conflicts.length === 0) return;
 
     // No server row although we sent a base: forget the base, so the retry goes out as new (or drop a tombstone).
@@ -995,7 +1108,7 @@ export class SyncEngine {
     for (const c of res.conflicts) {
       const it = byId.get(c.id);
       if (!it) continue;
-      if (c.current.seq === 0 && c.current.deleted) {
+      if (c.current.seq === 0 && c.current.deleted && c.current.blob === null) {
         if (it.rec.deleted) {
           this.sql.execute('DELETE FROM sync_record WHERE table_name = ? AND local_key = ? AND deleted = 1', [it.kind, it.localKey]);
         } else {

@@ -102,6 +102,21 @@ export function registerBodyParser(reg: BodyParserRegistration): void {
   bodyParsers.push(!reg.moduleId && currentModuleId ? { ...reg, moduleId: currentModuleId } : reg);
 }
 
+const selfParsedPaths: string[] = [];
+
+/**
+ * A path whose handler parses its own body (after its own auth/limit checks): the global JSON
+ * parser skips exact matches, so an oversize body is not read before the handler decides.
+ */
+export function registerSelfParsedPath(path: string): void {
+  selfParsedPaths.push(path);
+}
+
+/** Paths registered through `registerSelfParsedPath`. */
+export function getSelfParsedPaths(): string[] {
+  return [...selfParsedPaths];
+}
+
 /** Registered body parsers, in registration order. */
 export function getRegisteredBodyParsers(): BodyParserRegistration[] {
   return [...bodyParsers];
@@ -120,4 +135,5 @@ export function getRegisteredRoutes(): RouteRegistration[] {
 export function clearRouteRegistry(): void {
   registrations.length = 0;
   bodyParsers.length = 0;
+  selfParsedPaths.length = 0;
 }

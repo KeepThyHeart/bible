@@ -8,9 +8,9 @@
  * - `remote`: the server's current version (decrypted `RecordPlaintext.d` / `.h`, or a tombstone).
  * - `base`:   the last version both sides agreed on (`sync_record.base_json` + `hlc`), or null when unknown.
  *
- * Tombstones carry no blob on the server, so a remote tombstone usually has no HLC: pass `h: ''`. The empty HLC
- * sorts below every real one, so a concurrent edit wins against a delete of unknown time ("no silent loss");
- * a delete with a known HLC beats only an older edit, and an edit newer than the delete resurrects the record.
+ * Tombstones are sealed (0150 R1): a remote tombstone carries the HLC of the delete, so a delete beats only an older
+ * edit, and an edit newer than the delete resurrects the record. A tombstone of unknown time may still be passed as
+ * `h: ''`: the empty HLC sorts below every real one, so a concurrent edit wins against it ("no silent loss").
  *
  * Every decision depends only on the values, never on which side is "local": device A merging (a, b) and device
  * B merging (b, a) with the same base end with the same content (outcome labels swap: takeRemote <-> keepLocal,

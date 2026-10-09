@@ -13,7 +13,7 @@ import { issueSession } from '../auth/sessions';
 import { b64urlToBytes, hashPresentedToken, newToken, sha256 } from '../auth/tokens';
 import * as v from '../auth/validate';
 import {
-  RESET_TOKEN_TTL_MS, VERIFY_TOKEN_TTL_MS, dispatchMail, resetMail, verifyMail,
+  RESET_TOKEN_TTL_MS, VERIFY_TOKEN_TTL_MS, dispatchMail, resetMail, securityChangeMail, verifyMail,
 } from '../email/messages';
 import type { AccountRow } from '../store/SyncStore';
 
@@ -33,6 +33,23 @@ export function emailFlowRoutes(ctx: ServerContext): Router {
     dispatchMail(ctx, purpose === 'verify'
       ? verifyMail(account.email, opts.publicUrl, token)
       : resetMail(account.email, opts.publicUrl, token));
+  }
+
+  /** Runs the token write and the mail after the response is out, so timing does not tell known from unknown addresses. */
+  function issueAfterResponse(account: AccountRow | undefined, purpose: 'verify' | 'reset'): void {
+    setImmediate(() => {
+      try {
+        if (account) issueTokenMail(account, purpose);
+      } catch (e) {
+        opts.log('warn', 'sync-server: issuing email token failed', { name: (e as Error)?.name });
+      }
+    });
+  }
+
+  /** Per-(address, IP /64) budget against junk plus a higher per-address ceiling; counts known and unknown alike. */
+  function sendLimits(req: Parameters<typeof clientIp>[0], kind: 'verify' | 'reset', email: string): void {
+    enforceLimit(ctx.limiter, 'emailSend', `${kind}:${email}|${clientIp(req)}`);
+    enforceLimit(ctx.limiter, 'emailSendGlobal', `${kind}:${email}`);
   }
 
   // Signup sends the verification mail. A failure is the listener's problem to log, never the signup's.
@@ -60,20 +77,20 @@ export function emailFlowRoutes(ctx: ServerContext): Router {
   r.post('/resend-verification', handler((req, res) => {
     enforceLimit(ctx.limiter, 'ipAuth', clientIp(req));
     const email = v.email(v.obj(req.body).email);
-    enforceLimit(ctx.limiter, 'emailSend', `verify:${email}`);
+    sendLimits(req, 'verify', email);
     const account = store.accounts.byEmail(email);
-    if (account && !account.emailVerified) issueTokenMail(account, 'verify');
     res.status(204).end();
+    issueAfterResponse(account && !account.emailVerified ? account : undefined, 'verify');
   }));
 
   r.post('/reset', handler((req, res) => {
     enforceLimit(ctx.limiter, 'ipAuth', clientIp(req));
     const email = v.email(v.obj(req.body).email);
     // Counted per address whether or not it has an account, so a 429 reveals nothing.
-    enforceLimit(ctx.limiter, 'emailSend', `reset:${email}`);
+    sendLimits(req, 'reset', email);
     const account = store.accounts.byEmail(email);
-    if (account) issueTokenMail(account, 'reset');
     res.status(204).end();
+    issueAfterResponse(account, 'reset');
   }));
 
   r.post('/reset/confirm', handler((req, res) => {
@@ -85,6 +102,7 @@ export function emailFlowRoutes(ctx: ServerContext): Router {
     const material = v.material(body.material);
     const device = v.deviceWire(body.device);
     const wantToken = v.optBool(body.wantToken, 'wantToken');
+    let ownerEmail = '';
     const out = store.transaction(() => {
       const t = store.emailTokens.consume(hash, 'reset', opts.now());
       const account = t && store.accounts.byId(t.accountId);
@@ -111,9 +129,11 @@ export function emailFlowRoutes(ctx: ServerContext): Router {
         emailVerified: true, deleteAfter: null,
       });
       const fresh = store.accounts.byId(accountId)!;
+      ownerEmail = fresh.email;
       return issueSession(ctx, res, { account: fresh, device, kind: 'normal', wantToken, userAgent: req.get('user-agent') });
     });
     opts.log('info', 'sync-server: password reset');
+    dispatchMail(ctx, securityChangeMail(ownerEmail, opts.publicUrl, 'password-reset'));
     res.json(out);
   }));
 

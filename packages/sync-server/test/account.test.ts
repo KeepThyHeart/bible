@@ -399,25 +399,34 @@ describe('rate limits', () => {
     expect((await send()).status).toBe(200);
   });
 
-  it('per email: 429 across many IPs', async () => {
+  it('failed logins block only the (email, IP) pair; a correct login from another IP still works', async () => {
     const t = makeServer();
     const { c } = await signup(t);
+    const login = (ip: string, authKey: string) => request(t.app).post(`${PREFIX}/login`).set('X-Forwarded-For', ip)
+      .send({ email: c.email.toUpperCase(), authKey, device: c.device, wantToken: true });
     let last: request.Response | undefined;
-    for (let i = 0; i < 11; i++) {
-      last = await request(t.app).post(`${PREFIX}/login`).set('X-Forwarded-For', `198.51.100.${i + 1}`)
-        .send({ email: c.email.toUpperCase(), authKey: b64(32), device: c.device, wantToken: true });
-    }
+    for (let i = 0; i < 11; i++) last = await login('198.51.100.1', b64(32));
     expect(last!.status).toBe(429);
     expect(last!.body.error).toBe('rate_limited');
     expect(last!.body.retryAfterSec).toBeGreaterThan(0);
-    // Even the right key is refused until the window passes.
-    const right = await request(t.app).post(`${PREFIX}/login`).set('X-Forwarded-For', '198.51.100.99')
-      .send({ email: c.email, authKey: c.material.authKey, device: c.device, wantToken: true });
-    expect(right.status).toBe(429);
+    // The attacker's IP is refused even with the right key; the owner from elsewhere is not locked out.
+    expect((await login('198.51.100.1', c.material.authKey)).status).toBe(429);
+    expect((await login('198.51.100.99', c.material.authKey)).status).toBe(200);
     t.clock.advance(15 * 60_000);
-    const later = await request(t.app).post(`${PREFIX}/login`).set('X-Forwarded-For', '198.51.100.99')
-      .send({ email: c.email, authKey: c.material.authKey, device: c.device, wantToken: true });
-    expect(later.status).toBe(200);
+    expect((await login('198.51.100.1', c.material.authKey)).status).toBe(200);
+  });
+
+  it('failures spread over many IPs hit the much higher per-email ceiling', async () => {
+    const t = makeServer();
+    const { c } = await signup(t);
+    const login = (ip: string, authKey: string) => request(t.app).post(`${PREFIX}/login`).set('X-Forwarded-For', ip)
+      .send({ email: c.email, authKey, device: c.device, wantToken: true });
+    let last: request.Response | undefined;
+    for (let i = 0; i < 101; i++) last = await login(`198.51.${Math.floor(i / 200)}.${(i % 200) + 1}`, b64(32));
+    expect(last!.status).toBe(429);
+    expect((await login('203.0.113.7', c.material.authKey)).status).toBe(429);
+    t.clock.advance(15 * 60_000);
+    expect((await login('203.0.113.7', c.material.authKey)).status).toBe(200);
   });
 });
 

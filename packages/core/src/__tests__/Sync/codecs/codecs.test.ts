@@ -191,6 +191,13 @@ describe('decode', () => {
     expect(err!.message).not.toContain('SECRET');
     expect(() => registry.byKind('verse_link')!.decode({ source_type: 'bookmark', source_id: 'a'.repeat(32) }, side.ctx)).toThrow(RecordDecodeError);
   });
+
+  it('R1 L5: a reference to a record of another kind is refused, never linked to the wrong table', () => {
+    const { side, codec } = note();
+    side.db.execute("INSERT INTO user_text_markup (module_id, verse_id_start, verse_id_end, color) VALUES (1, 1001001, 1001001, '#ffff00')");
+    const highlight = side.ctx.recordIdFor('user_text_markup', '1');
+    expect(() => codec.decode({ note_id: highlight, verse_id_start: 1001001, verse_id_end: 1001001 }, side.ctx)).toThrow(RecordDecodeError);
+  });
 });
 
 describe('rows that never sync', () => {

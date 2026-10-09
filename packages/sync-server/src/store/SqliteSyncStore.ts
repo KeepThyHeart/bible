@@ -7,6 +7,7 @@ import type { ISql, SqlParameter, Sync } from '@bible/core';
 import type {
   AccountRow, DeviceDetail, DeviceRow, EmailTokenRow, NewAccount, SessionRow, SyncStore,
 } from './SyncStore';
+import { DEFAULT_MAX_RECORDS, ROW_OVERHEAD_BYTES } from './SyncStore';
 import { MIGRATIONS, SCHEMA_VERSION } from './schema';
 
 interface AccountDb {
@@ -231,7 +232,24 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
           [accountId, since, limit],
         ).map(recordToWire);
       },
-      push(accountId: string, recs: Sync.PushRecord[], quotaBytes: number) {
+      changesPage(accountId: string, since: number, limit: number, maxBytes: number) {
+        const meta = all<{ seq: number; size: number }>(
+          'SELECT seq, size FROM record WHERE account_id = ? AND seq > ? ORDER BY seq LIMIT ?',
+          [accountId, since, limit + 1]);
+        let take = 0;
+        let bytes = 0;
+        while (take < meta.length && take < limit && (take === 0 || bytes + meta[take].size <= maxBytes)) {
+          bytes += meta[take].size;
+          take++;
+        }
+        if (take === 0) return { records: [], more: false };
+        const lastSeq = meta[take - 1].seq;
+        const records = all<RecordDb>(
+          'SELECT id, seq, deleted, blob, size FROM record WHERE account_id = ? AND seq > ? AND seq <= ? ORDER BY seq',
+          [accountId, since, lastSeq]).map(recordToWire);
+        return { records, more: meta.length > take };
+      },
+      push(accountId: string, recs: Sync.PushRecord[], quotaBytes: number, maxRecords = DEFAULT_MAX_RECORDS) {
         // Writes go straight in, so a repeated id in one batch sees its own earlier write; an over-quota result
         // throws to roll the whole transaction back.
         const overQuota = new Error('quota_exceeded');
@@ -240,6 +258,7 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
             const acct = one<{ next_seq: number; bytes_used: number }>(
               'SELECT next_seq, bytes_used FROM account WHERE id = ?', [accountId]);
             if (!acct) throw new Error('push: unknown account');
+            let rows: number | undefined;
             let nextSeq = acct.next_seq;
             let bytesUsed = acct.bytes_used;
             const accepted: Sync.PushResponse['accepted'] = [];
@@ -253,9 +272,14 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
                 conflicts.push({ id: rec.id, current: cur ? recordToWire(cur) : { id: rec.id, seq: 0, deleted: true, blob: null } });
                 continue;
               }
-              const blob = rec.deleted || rec.blob === null ? null : Buffer.from(rec.blob, 'base64url');
+              // Tombstones are sealed records too: they carry (and are charged for) their blob.
+              const blob = rec.blob === null ? null : Buffer.from(rec.blob, 'base64url');
               const size = blob ? blob.byteLength : 0;
-              bytesUsed += size - (cur?.size ?? 0);
+              if (!cur) {
+                rows ??= one<{ n: number }>('SELECT COUNT(*) AS n FROM record WHERE account_id = ?', [accountId])?.n ?? 0;
+                if (++rows > maxRecords) throw overQuota;
+              }
+              bytesUsed += size + ROW_OVERHEAD_BYTES - (cur ? cur.size + ROW_OVERHEAD_BYTES : 0);
               const seq = nextSeq++;
               if (cur) {
                 run('UPDATE record SET seq = ?, deleted = ?, blob = ?, size = ? WHERE account_id = ? AND id = ?',
@@ -266,7 +290,7 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
               }
               accepted.push({ id: rec.id, seq });
             }
-            // Over quota only blocks pushes that grow usage (deletes still go through).
+            // Over quota only blocks pushes that grow usage (shrinking updates still go through).
             if (bytesUsed > quotaBytes && bytesUsed > acct.bytes_used) throw overQuota;
             run('UPDATE account SET next_seq = ?, bytes_used = ? WHERE id = ?', [nextSeq, bytesUsed, accountId]);
             return { accepted, conflicts };

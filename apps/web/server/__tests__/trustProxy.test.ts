@@ -105,3 +105,15 @@ describe('accounts settings', () => {
     expect(JSON.stringify(new SiteConfig(dir).getClientConfig())).not.toContain('topsecret');
   });
 });
+
+describe('acceptableTrustProxy (accounts module)', () => {
+  it('refuses true and unset; accepts false, hop counts and subnet lists', async () => {
+    const { acceptableTrustProxy } = await import('../trustProxy');
+    expect(acceptableTrustProxy(true)).toBe(false);
+    expect(acceptableTrustProxy(undefined)).toBe(false);
+    expect(acceptableTrustProxy(false)).toBe(true);
+    expect(acceptableTrustProxy(1)).toBe(true);
+    expect(acceptableTrustProxy('loopback')).toBe(true);
+    expect(acceptableTrustProxy(['10.0.0.0/8'])).toBe(true);
+  });
+});

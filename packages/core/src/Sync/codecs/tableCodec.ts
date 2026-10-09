@@ -191,7 +191,7 @@ export function createTableCodec(spec: TableSpec): RecordCodec {
         if (target === null) throw new RecordDecodeError(`${where_}: unsupported reference type`);
         if (target === undefined) { row[col.name] = v; continue; }
         if (typeof v !== 'string' || !RECORD_ID.test(v)) throw new RecordDecodeError(`${where_}: not a record id`);
-        const key = ctx.localKeyFor(v);
+        const key = ctx.localKeyFor(v, target);              // throws RecordDecodeError for a record of another kind
         if (key === undefined) { if (!missing.includes(v)) missing.push(v); } else row[col.name] = localValue(key);
       }
     }

@@ -30,15 +30,24 @@ export interface RecordPlaintext {
   h: HlcString;
   /** Writing device. */
   dev: DeviceId;
-  /** Type-specific payload; foreign keys are RecordIds, never local ids. */
+  /** Type-specific payload; foreign keys are RecordIds, never local ids. `{}` for a tombstone. */
   d: Record<string, unknown>;
+  /**
+   * True for a sealed tombstone (0150 R1): the record was deleted at HLC `h` by `dev`. A client honours a server
+   * tombstone only when its blob opens to a plaintext with `del: true`; absent/false = a live version.
+   */
+  del?: boolean;
 }
 
 /** What the server stores and returns per record. */
 export interface EncryptedRecord {
   id: RecordId;
   seq: number;          // server-assigned, strictly increasing per account
-  deleted: boolean;     // tombstone: blob is null
+  /**
+   * Tombstone. Its blob is the sealed tombstone (`RecordPlaintext.del: true`, 0150 R1); a tombstone with a null blob
+   * is not authenticated and is kept opaque (ignored), except the synthetic seq-0 "no such row" push-conflict answer.
+   */
+  deleted: boolean;
   blob: Uint8Array | null;
 }
 

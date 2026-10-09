@@ -379,3 +379,33 @@ describe('markSynced with expectRev (edit between read and ack)', () => {
     expect(record('user_note', String(a))).toMatchObject({ dirty: 0 });
   });
 });
+
+describe('resetForNewAccount (R1 H2)', () => {
+  it('re-dirties every live row, forgets tombstones, opaque, pending and the cursor; clears natural-key ids only', () => {
+    tracker.install(coreTrackedTables());
+    const a = addNote('a');
+    const b = addNote('b');
+    db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('ext.m', 'k', '\"v\"', 1)");
+    syncAll();
+    db.execute('DELETE FROM user_note WHERE note_id = ?', [b]);
+    syncAll();                                                    // b is now a clean tombstone
+    tracker.opaque.put(RID(90), 9, new Uint8Array([1]));
+    tracker.pending.put(RID(91), 9, { t: 'user_note', cv: 1, h: 'h', dev: 'd', d: {} } as RecordPlaintext, []);
+    tracker.state.set('cursor', '42');
+    const before = db.queryOne<{ rev: number; record_id: string }>(
+      'SELECT rev, record_id FROM sync_record WHERE table_name = ? AND local_key = ?', ['user_note', String(a)])!;
+
+    tracker.resetForNewAccount(['ext.kv']);
+
+    expect(record('user_note', String(b))).toBeUndefined();
+    const row = db.queryOne<{ rev: number; record_id: string; dirty: number; server_seq: number | null; hlc: string | null; base_json: string | null }>(
+      'SELECT * FROM sync_record WHERE table_name = ? AND local_key = ?', ['user_note', String(a)])!;
+    expect(row).toMatchObject({ dirty: 1, server_seq: null, hlc: null, base_json: null, record_id: before.record_id });
+    expect(row.rev).toBe(before.rev + 1);
+    expect(record('ext.kv', `ext.m${US}k`)).toMatchObject({ dirty: 1, record_id: null, server_seq: null });
+    expect(tracker.opaque.all()).toEqual([]);
+    expect(tracker.pending.all()).toEqual([]);
+    expect(tracker.state.get('cursor')).toBe('0');
+    expect(tracker.pendingCount()).toBe(records().length);
+  });
+});

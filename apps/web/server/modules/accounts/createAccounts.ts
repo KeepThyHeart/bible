@@ -7,13 +7,14 @@
 import { mkdirSync } from 'fs';
 import { join } from 'path';
 import { Router } from 'express';
-import type { AccountsSettings } from '../../SiteConfig.js';
+import type { AccountsSettings, TrustProxySetting } from '../../SiteConfig.js';
 import { SqliteProvider } from '../../providers/SqliteProvider.js';
 import { logger } from '../../utils/logger.js';
 import { consoleEmailSender, createSmtpEmailSender, createSyncServer } from './syncServerBridge.js';
 import type { SyncServer } from './syncServerBridge.js';
 import { loadOrCreateServerSecret, syncStateDir } from './serverSecret.js';
-import { buildEmailSender, buildSyncOptions, parsePublicUrl } from './syncOptions.js';
+import { acceptableTrustProxy, TRUST_PROXY_HELP } from '../../trustProxy.js';
+import { AccountsConfigError, buildEmailSender, buildSyncOptions, consoleMailAllowed, parsePublicUrl } from './syncOptions.js';
 
 export const SYNC_DB_FILE = 'sync.db';
 export const PURGE_INTERVAL_MS = 60 * 60 * 1000;
@@ -30,6 +31,8 @@ export interface AccountsInstance {
 export interface CreateAccountsOptions {
   settings: AccountsSettings;
   appStateDir: string;
+  /** The configured `server.trustProxy` (undefined = unset). `true` and unset are refused: see `acceptableTrustProxy`. */
+  trustProxy?: TrustProxySetting;
   /** Test hook: purge interval. */
   purgeIntervalMs?: number;
   /** Test hook: capture log lines instead of the server log. */
@@ -38,14 +41,18 @@ export interface CreateAccountsOptions {
 
 export function createAccounts(o: CreateAccountsOptions): AccountsInstance {
   const log = o.log ?? ((level, message) => logger[level](`[accounts] ${message}`));
-  parsePublicUrl(o.settings.publicUrl); // fail on a bad config before touching the disk
+  const parsedUrl = parsePublicUrl(o.settings.publicUrl); // fail on a bad config before touching the disk
+  if (!acceptableTrustProxy(o.trustProxy)) {
+    log('error', TRUST_PROXY_HELP);
+    throw new AccountsConfigError('server.trustProxy must be set to a hop count, a subnet list or false (not true or unset)');
+  }
   const dir = syncStateDir(o.appStateDir);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const serverSecret = loadOrCreateServerSecret(dir);
   const email = buildEmailSender(o.settings.email, {
     console: () => consoleEmailSender(),
     smtp: (opts) => createSmtpEmailSender(opts),
-  });
+  }, consoleMailAllowed(parsedUrl));
   const sql = new SqliteProvider(join(dir, SYNC_DB_FILE));
   const { options, publicUrl } = buildSyncOptions(o.settings, {
     sql,

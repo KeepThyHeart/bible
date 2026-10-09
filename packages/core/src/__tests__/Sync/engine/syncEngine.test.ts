@@ -2,12 +2,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { deterministicRandom, hexEncode } from '../../../Crypto';
 import { createRecordCipher, type RecordCipher } from '../../../Sync/crypto/RecordCipher';
-import { SyncHttpError, SyncNetworkError } from '../../../Sync/engine/ISyncTransport';
+import { SyncHttpError, SyncNetworkError, type ISyncTransport } from '../../../Sync/engine/ISyncTransport';
 import { SEAL_LIMIT, type SyncAdapter, type SyncScheduler } from '../../../Sync/engine/SyncEngine';
-import type { RecordCodec } from '../../../Sync/codecs/RecordCodec';
+import { createCodecRegistry, createCoreCodecs, type RecordCodec } from '../../../Sync/codecs/RecordCodec';
 import type { RecordPlaintext } from '../../../Sync/types';
 import {
-  FakeServer, addNote, cloneAccount, makeDevice, notes, recordIdOf, seededRandom, setChangedMs, testAccount, type Device,
+  FakeServer, addNote, cloneAccount, makeDevice, notes, otherAccount, recordIdOf, reopenDevice, seededRandom, setChangedMs,
+  testAccount, type Device,
 } from './harness';
 
 function pair(extraA = {}, extraB = {}) {
@@ -118,7 +119,7 @@ describe('SyncEngine: conflicts', () => {
     expect(ids(a)).toEqual(ids(b));
   });
 
-  it('delete vs concurrent edit: the edit survives (no silent loss) on both devices', async () => {
+  it('delete vs a newer concurrent edit: the edit survives (no silent loss) on both devices', async () => {
     const { a, b } = pair();
     const id = addNote(a, 'v1');
     await a.engine.syncNow();
@@ -126,11 +127,33 @@ describe('SyncEngine: conflicts', () => {
     const bId = b.db.queryOne<{ note_id: number }>('SELECT note_id FROM user_note')!.note_id;
     a.db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
     b.db.execute('UPDATE user_note SET content = ? WHERE note_id = ?', ['edited on B', bId]);
+    const t = Date.now();
+    setChangedMs(a, 'user_note', id, t + 1000);    // the delete is older than the edit
+    setChangedMs(b, 'user_note', bId, t + 2000);
     await a.engine.syncNow();
     await b.engine.syncNow();
     await a.engine.syncNow();
     expect(notes(a).map((n) => n.content)).toEqual(['edited on B']);
     expect(notes(b).map((n) => n.content)).toEqual(['edited on B']);
+    expect(a.tracker.pendingCount() + b.tracker.pendingCount()).toBe(0);
+  });
+
+  it('R1 H1: a sealed delete newer than a concurrent edit wins on both devices', async () => {
+    const { a, b } = pair();
+    const id = addNote(a, 'v1');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const bId = b.db.queryOne<{ note_id: number }>('SELECT note_id FROM user_note')!.note_id;
+    b.db.execute('UPDATE user_note SET content = ? WHERE note_id = ?', ['edited on B', bId]);
+    a.db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
+    const t = Date.now();
+    setChangedMs(b, 'user_note', bId, t + 1000);   // the edit is older than the delete
+    setChangedMs(a, 'user_note', id, t + 2000);
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    await a.engine.syncNow();
+    expect(notes(a)).toEqual([]);
+    expect(notes(b)).toEqual([]);
     expect(a.tracker.pendingCount() + b.tracker.pendingCount()).toBe(0);
   });
 
@@ -220,7 +243,7 @@ describe('SyncEngine: hostile or unknown records', () => {
     // A newer version of an opaque record replaces the stored copy; a tombstone removes it.
     const v2 = await sealWith(a.cipher, rid(1), { t: 'future_type', d: { x: 2 } });
     const seq2 = server.put(rid(1), v2);
-    server.put(rid(2), null, true);
+    server.put(rid(2), await sealWith(a.cipher, rid(2), { d: {}, del: true }), true);   // a sealed tombstone
     await b.engine.syncNow();
     const kept = new Map(b.tracker.opaque.all().map((o) => [o.id, o]));
     expect(kept.get(rid(1))!.seq).toBe(seq2);
@@ -548,5 +571,249 @@ describe('SyncEngine: push details', () => {
     expect(sorted(b.files)).toEqual([['Notes/A (conflicted copy).bn', 'from A'], ['Notes/A.bn', 'from B']]);
     expect(sorted(a.files)).toEqual(sorted(b.files));
     expect(a.dev.tracker.pendingCount() + b.dev.tracker.pendingCount()).toBe(0);
+  });
+});
+
+describe('SyncEngine: R1 security fixes', () => {
+  const futureHlc = (dev: string, aheadMs = 10_000) =>
+    `${(Date.now() + aheadMs).toString(16).padStart(12, '0')}:0000:${dev}`;
+
+  it('H1: tombstones are sealed; the server stores the sealed blob and other devices honour it', async () => {
+    const { server, a, b } = pair();
+    const id = addNote(a, 'to delete');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const rid = recordIdOf(a, 'user_note', id);
+    a.db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
+    await a.engine.syncNow();
+    const push = server.pushCalls.flat().find((r) => r.id === rid && r.deleted)!;
+    expect(push.blob).toEqual(expect.any(String));
+    const row = server.rows.get(rid)!;
+    expect(row.deleted).toBe(true);
+    const pt = await a.cipher.open(rid, row.blob!);
+    expect(pt).toMatchObject({ t: 'user_note', d: {}, del: true });
+    await b.engine.syncNow();
+    expect(notes(b)).toEqual([]);
+  });
+
+  it('H1: a bare server tombstone (blob null) deletes nothing; the record is kept opaque', async () => {
+    const { server, a, b } = pair();
+    const id = addNote(a, 'precious');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const rid = recordIdOf(a, 'user_note', id);
+    server.put(rid, null, true);
+    await b.engine.syncNow();
+    await a.engine.syncNow();
+    expect(notes(b).map((n) => n.content)).toEqual(['precious']);
+    expect(notes(a).map((n) => n.content)).toEqual(['precious']);
+    expect(b.tracker.opaque.all().map((o) => o.id)).toEqual([rid]);
+    expect(b.status.getSnapshot().opaque).toBe(1);
+    // A fresh device learns nothing from it either.
+    const c = makeDevice(server, 3, cloneAccount(a.unlocked));
+    await c.engine.syncNow();
+    expect(notes(c)).toEqual([]);
+  });
+
+  it('H1: a server flagging a live sealed version as deleted deletes nothing', async () => {
+    const { server, a, b } = pair();
+    const id = addNote(a, 'keep me');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const rid = recordIdOf(a, 'user_note', id);
+    server.put(rid, server.rows.get(rid)!.blob, true);
+    await b.engine.syncNow();
+    expect(notes(b).map((n) => n.content)).toEqual(['keep me']);
+    expect(b.tracker.opaque.all().map((o) => o.id)).toEqual([rid]);
+  });
+
+  it('M3: a replayed old version does not resurrect a deleted record; a newer version does', async () => {
+    const { server, a, b } = pair();
+    const id = addNote(a, 'v1');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const rid = recordIdOf(a, 'user_note', id);
+    const oldBlob = server.rows.get(rid)!.blob!;
+    a.db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(notes(b)).toEqual([]);
+
+    server.seq += 10;
+    const replaySeq = server.put(rid, oldBlob);
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(notes(a)).toEqual([]);
+    expect(notes(b)).toEqual([]);
+    expect(dirtyRow(a, 'user_note', id)).toMatchObject({ dirty: 0, deleted: 1, server_seq: replaySeq });
+    expect(a.tracker.pendingCount() + b.tracker.pendingCount()).toBe(0);
+
+    const pt = await a.cipher.open(rid, oldBlob);
+    const newer = await a.cipher.seal(rid, { ...pt, h: futureHlc('9f3c0a1b2c3d4e5f'), d: { ...pt.d, content: 'back again' } });
+    server.put(rid, newer);
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(notes(a).map((n) => n.content)).toEqual(['back again']);
+    expect(notes(b).map((n) => n.content)).toEqual(['back again']);
+  });
+
+  it('L4: a delete whose local remove fails waits in sync_pending and is applied by the next run', async () => {
+    const server = new FakeServer();
+    const u = testAccount();
+    const a = makeDevice(server, 1, u);
+    let failRemove = true;
+    const codecs = createCoreCodecs().map((c) => (c.kind !== 'user_note' ? c : {
+      ...c,
+      remove: (key: string, ctx: Parameters<RecordCodec['remove']>[1]) => {
+        if (failRemove) throw new Error('disk full');
+        c.remove(key, ctx);
+      },
+    }));
+    const b = makeDevice(server, 2, cloneAccount(u), { codecs: createCodecRegistry(codecs) });
+    const id = addNote(a, 'doomed');
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    const rid = recordIdOf(a, 'user_note', id);
+    a.db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(notes(b).map((n) => n.content)).toEqual(['doomed']);
+    expect(b.tracker.pending.all().map((p) => p.id)).toEqual([rid]);
+    expect(Number(b.tracker.state.get('cursor'))).toBe(server.seq);   // the cursor moved on; the delete is kept
+    failRemove = false;
+    await b.engine.syncNow();
+    expect(notes(b)).toEqual([]);
+    expect(b.tracker.pending.all()).toEqual([]);
+    expect(b.tracker.pendingCount()).toBe(0);
+  });
+
+  it('L5: a note link whose parent FK is a highlight record id is kept opaque', async () => {
+    const { server, a, b } = pair();
+    const hl = a.db.execute(
+      "INSERT INTO user_text_markup (module_id, verse_id_start, verse_id_end, color) VALUES (1, 1001001, 1001001, '#ffff00')").lastInsertRowId!;
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(b.db.queryAll('SELECT markup_id FROM user_text_markup')).toHaveLength(1);
+    const highlight = recordIdOf(a, 'user_text_markup', hl);
+    const rid = hexEncode(seededRandom(555).bytes(16));
+    server.put(rid, await a.cipher.seal(rid, {
+      t: 'note_verse_link', cv: 1, h: a.hlc.last, dev: '1'.repeat(16),
+      d: { note_id: highlight, verse_id_start: 1001001, verse_id_end: 1001001, link_type: 'reference' },
+    }));
+    const r = await b.engine.syncNow();
+    expect(r.opaque).toBe(1);
+    expect(b.db.queryAll('SELECT link_id FROM note_verse_link')).toEqual([]);
+    expect(b.tracker.opaque.all().map((o) => o.id)).toEqual([rid]);
+  });
+
+  it('L12: an abort after the push answer still records the accepted records', async () => {
+    const server = new FakeServer();
+    const base = server.transport();
+    const ctl = new AbortController();
+    const transport: ISyncTransport = {
+      pull: base.pull,
+      push: async (recs, signal) => { const res = await base.push(recs, signal); ctl.abort(); return res; },
+    };
+    const a = makeDevice(server, 1, testAccount(), { transport });
+    const id = addNote(a, 'x');
+    await a.engine.syncNow(ctl.signal);
+    expect(dirtyRow(a, 'user_note', id)).toMatchObject({ dirty: 0, server_seq: 1 });
+    const calls = server.pushCalls.length;
+    expect(await a.engine.syncNow()).toMatchObject({ pushed: 0, conflicts: 0 });
+    expect(server.pushCalls.length).toBe(calls);
+  });
+
+  it('L15: pages with a bad next or out-of-order seqs are refused and the cursor stays put', async () => {
+    const { server, a, b } = pair();
+    addNote(a, 'one');
+    addNote(a, 'two');
+    await a.engine.syncNow();
+    const base = server.transport();
+    const bad: Array<(p: Awaited<ReturnType<ISyncTransport['pull']>>) => Awaited<ReturnType<ISyncTransport['pull']>>> = [
+      (p) => ({ ...p, next: p.next + 1000 }),                                   // cursor poisoning
+      (p) => ({ ...p, records: [...p.records].reverse() }),                     // not increasing
+      (p) => ({ ...p, records: [p.records[0], p.records[0]], next: p.records[0].seq }), // repeated seq
+      (p) => ({ ...p, records: [], next: 5 }),                                  // empty page moving the cursor
+    ];
+    for (const tamper of bad) {
+      const c = reopenDevice(server, b, 2, b.unlocked, {
+        transport: { pull: async (s, l, sig) => tamper(await base.pull(s, l, sig)), push: base.push },
+      });
+      await c.engine.syncNow();
+      expect(c.status.getSnapshot()).toMatchObject({ state: 'error', error: { code: 'server_error' } });
+      expect(c.tracker.state.get('cursor') ?? '0').toBe('0');
+      expect(notes(c)).toEqual([]);
+    }
+    await b.engine.syncNow();
+    expect(notes(b).map((n) => n.content)).toEqual(['one', 'two']);
+  });
+
+  it('H2: after "start over" on A, both devices re-upload under the new account; a third sees the union once', async () => {
+    const { server, a, b } = pair();
+    addNote(a, 'from A');
+    a.db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('ext.m', 'k', '\"v\"', 1)");
+    await a.engine.syncNow();
+    addNote(b, 'from B');
+    await b.engine.syncNow();
+    await a.engine.syncNow();
+    addNote(b, 'B offline');                                    // never reached the old server
+    const oldKv = recordIdOf(b, 'ext.kv', 'ext.m\u001fk');
+
+    // A: start over (server wiped, new account id + record-id key), then the app restarts (no in-memory flag).
+    server.wipe();
+    const u2 = otherAccount(777);
+    const a2 = reopenDevice(server, a, 1, u2);
+    await a2.engine.syncNow();
+    expect(a2.tracker.pendingCount()).toBe(0);
+    expect(server.rows.size).toBe(3);                           // A's two notes + the kv entry
+    const newKv = recordIdOf(a2, 'ext.kv', 'ext.m\u001fk');
+    expect(newKv).not.toBe(oldKv);                              // re-derived under the new record-id key
+
+    // B signs in with the new material.
+    const b2 = reopenDevice(server, b, 2, cloneAccount(u2));
+    await b2.engine.syncNow();
+    await a2.engine.syncNow();
+    expect(b2.tracker.pendingCount()).toBe(0);
+    expect(recordIdOf(b2, 'ext.kv', 'ext.m\u001fk')).toBe(newKv);
+
+    const c = makeDevice(server, 3, cloneAccount(u2));
+    await c.engine.syncNow();
+    expect(notes(c).map((n) => n.content)).toEqual(['B offline', 'from A', 'from B']);
+    expect(c.db.queryAll('SELECT key FROM extension_storage')).toHaveLength(1);
+    for (const d of [a2, b2]) expect(notes(d).map((n) => n.content)).toEqual(['B offline', 'from A', 'from B']);
+    expect(server.rows.size).toBe(4);
+  });
+
+  it('H2: the same account reopened does not re-upload; no stored account but synced rows does', async () => {
+    const { server, a } = pair();
+    addNote(a, 'x');
+    await a.engine.syncNow();
+    const calls = server.pushCalls.length;
+    const again = reopenDevice(server, a, 1, cloneAccount(a.unlocked));
+    expect(await again.engine.syncNow()).toMatchObject({ pushed: 0 });
+    expect(server.pushCalls.length).toBe(calls);
+
+    // A DB synced before the account check existed (no account_id) re-uploads once, as for a new account.
+    a.db.execute("DELETE FROM sync_state WHERE key IN ('account_id', 'idk_fp', 'epoch_max')");
+    server.wipe();
+    const legacy = reopenDevice(server, a, 1, cloneAccount(a.unlocked));
+    expect(await legacy.engine.syncNow()).toMatchObject({ pushed: 1 });
+  });
+
+  it('M4: an engine offered fewer key epochs than this DB has seen refuses to run', async () => {
+    const { server, u, a } = pair();
+    addNote(a, 'x');
+    await a.engine.syncNow();
+    const rotated = cloneAccount(u);
+    rotated.dataKeys.set(2, seededRandom(2024).bytes(32));
+    rotated.currentEpoch = 2;
+    const a2 = reopenDevice(server, a, 1, rotated);
+    await a2.engine.syncNow();
+    expect(a2.tracker.state.get('epoch_max')).toBe('2');
+    const pulls = server.pullCalls;
+    const rolledBack = reopenDevice(server, a, 1, cloneAccount(u));
+    await rolledBack.engine.syncNow();
+    expect(rolledBack.status.getSnapshot()).toMatchObject({ state: 'error', error: { code: 'crypto' } });
+    expect(server.pullCalls).toBe(pulls);
   });
 });

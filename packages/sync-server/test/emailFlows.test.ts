@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { consoleEmailSender, createSmtpEmailSender } from '../src';
 import type { MailTransport } from '../src';
 import { PREFIX, b64, newCreds, newDevice, signupBody } from './helpers/server';
-import { account, blob, makeMailServer, rid, tokenIn } from './helpers/flows';
+import { account, blob, sealed, makeMailServer, rid, tokenIn } from './helpers/flows';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -114,9 +114,9 @@ describe('reset', () => {
       .send({ email: a.c.email, authKey: a.c.material.authKey, device: newDevice(), wantToken: true });
     const id = rid();
     await request(t.app).post(`${PREFIX}/push`).set(a.auth)
-      .send({ records: [{ id, baseSeq: null, deleted: false, blob: blob(100) }] });
+      .send({ records: [{ id, baseSeq: null, deleted: false, blob: sealed() }] });
     await request(t.app).post(`${PREFIX}/push`).set(other.auth)
-      .send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: blob(100) }] });
+      .send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: sealed() }] });
     const rec = await request(t.app).post(`${PREFIX}/recover`).send({
       email: a.c.email, recoveryAuthKey: a.c.material.recoveryAuthKey, device: newDevice(), wantToken: true });
     expect(rec.status).toBe(200);
@@ -157,7 +157,7 @@ describe('reset', () => {
     // Seqs keep increasing after a wipe, and the other account is untouched.
     // (logging in again on the same device replaced the reset session)
     const next = await request(t.app).post(`${PREFIX}/push`).set({ Authorization: `Bearer ${newLogin.body.token}` })
-      .send({ records: [{ id, baseSeq: null, deleted: false, blob: blob(10) }] });
+      .send({ records: [{ id, baseSeq: null, deleted: false, blob: sealed() }] });
     expect(next.body.accepted[0].seq).toBeGreaterThan(1);
     expect((await request(t.app).get(`${PREFIX}/changes`).set(other.auth)).body.records).toHaveLength(1);
     // The new id must be free.

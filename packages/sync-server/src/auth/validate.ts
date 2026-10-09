@@ -29,7 +29,16 @@ export function normaliseEmail(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
   const e = v.trim().normalize('NFC').toLowerCase();
   if (e.length < 3 || e.length > MAX_EMAIL) return undefined;
-  if (!/^[^\s@]+@[^\s@]+$/u.test(e)) return undefined;
+  const at = e.indexOf('@');
+  if (at < 1 || at !== e.lastIndexOf('@')) return undefined;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  if (local.length > 64 || domain.length < 3 || domain.length > 253) return undefined;
+  if (/[\s<>()[\],;:"\\\u0000-\u001f\u007f]/u.test(e)) return undefined;
+  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return undefined;
+  // Needs a dot inside the domain, with non-empty labels (no leading/trailing dot, no "..").
+  const labels = domain.split('.');
+  if (labels.length < 2 || labels.some((l) => l === '' || l.startsWith('-') || l.endsWith('-'))) return undefined;
   return e;
 }
 

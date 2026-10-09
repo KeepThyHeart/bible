@@ -25,10 +25,20 @@ export interface SafeStorageLike {
 const NAMES: readonly SecretName[] = ['sync.unlocked', 'sync.token'];
 
 export class SafeStorageSecretStore implements Sync.ISecretStore {
-  constructor(private readonly safeStorage: SafeStorageLike, private readonly dir: string) {}
+  /**
+   * `allowWeak`: accept the Linux `basic_text` backend (obfuscation only). Off by default: the store then
+   * reports `memory` persistence and refuses `set()`, so the host keeps secrets in memory and asks for the
+   * password at each launch.
+   */
+  constructor(
+    private readonly safeStorage: SafeStorageLike,
+    private readonly dir: string,
+    private readonly options: { allowWeak?: boolean } = {},
+  ) {}
 
   get persistence(): 'persistent' | 'memory' {
-    return this.safeStorage.isEncryptionAvailable() ? 'persistent' : 'memory';
+    if (!this.safeStorage.isEncryptionAvailable()) return 'memory';
+    return this.weak && !this.options.allowWeak ? 'memory' : 'persistent';
   }
 
   /** True when the OS only offers obfuscation (Linux `basic_text`): do not trust this store with the keys. */
@@ -65,6 +75,9 @@ export class SafeStorageSecretStore implements Sync.ISecretStore {
 
   async set(name: SecretName, value: Uint8Array): Promise<void> {
     this.requireEncryption();
+    if (this.weak && !this.options.allowWeak) {
+      throw new Error('Secret storage unavailable: the operating system keyring is not available (basic_text backend)');
+    }
     const path = this.fileFor(name);
     mkdirSync(this.dir, { recursive: true, mode: 0o700 });
     const encrypted = this.safeStorage.encryptString(Buffer.from(value).toString('base64'));

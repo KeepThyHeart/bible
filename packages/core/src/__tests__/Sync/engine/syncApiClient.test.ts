@@ -76,6 +76,8 @@ describe('SyncApiClient routes', () => {
     expect(body(13)).toEqual({ nameSealed: 'sealed' });
     expect(calls[0].init.body).toBeUndefined();
     expect((calls[1].init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    // R1 L8: no request follows a redirect (a 307/308 would re-post auth keys or key material elsewhere).
+    for (const call of calls) expect(call.init.redirect).toBe('error');
   });
 
   it('cookie auth sends credentials: include and no Authorization; bearer sends the token and omits cookies', async () => {
@@ -141,7 +143,8 @@ describe('SyncApiClient errors', () => {
       ['records not an array', { records: 'x', next: 0, more: false }],
       ['bad record id', { records: [{ id: 'nope', seq: 1, deleted: false, blob: 'AA' }], next: 1, more: false }],
       ['live record without blob', { records: [{ id: ID, seq: 1, deleted: false, blob: null }], next: 1, more: false }],
-      ['tombstone with blob', { records: [{ id: ID, seq: 1, deleted: true, blob: 'AA' }], next: 1, more: false }],
+      ['tombstone with a non-string blob', { records: [{ id: ID, seq: 1, deleted: true, blob: 5 }], next: 1, more: false }],
+      ['tombstone with bad b64url', { records: [{ id: ID, seq: 1, deleted: true, blob: '***' }], next: 1, more: false }],
       ['negative seq', { records: [{ id: ID, seq: -1, deleted: true, blob: null }], next: 1, more: false }],
       ['bad b64url', { records: [{ id: ID, seq: 1, deleted: false, blob: '***' }], next: 1, more: false }],
       ['missing more', { records: [], next: 0 }],
@@ -161,16 +164,19 @@ describe('SyncApiClient transport', () => {
   it('pull sends since/limit and converts b64url blobs to bytes', async () => {
     const blob = Uint8Array.from([1, 2, 3, 250, 251]);
     const { c, calls } = client(() => json({
-      records: [{ id: ID, seq: 4, deleted: false, blob: b64urlEncode(blob) }, { id: 'cd'.repeat(16), seq: 5, deleted: true, blob: null }],
-      next: 5, more: true,
+      records: [{ id: ID, seq: 4, deleted: false, blob: b64urlEncode(blob) }, { id: 'cd'.repeat(16), seq: 5, deleted: true, blob: null },
+        { id: 'ef'.repeat(16), seq: 6, deleted: true, blob: b64urlEncode(blob) }],
+      next: 6, more: true,
     }));
     const r = await c.transport().pull(3, 500);
     expect(calls[0].url).toBe('https://sync.example/api/sync/v1/changes?since=3&limit=500');
     expect(calls[0].init.method).toBe('GET');
-    expect(r.next).toBe(5);
+    expect(r.next).toBe(6);
     expect(r.more).toBe(true);
     expect(r.records[0].blob).toEqual(blob);
     expect(r.records[1]).toEqual({ id: 'cd'.repeat(16), seq: 5, deleted: true, blob: null });
+    // A sealed tombstone (0150 R1) keeps its blob.
+    expect(r.records[2]).toEqual({ id: 'ef'.repeat(16), seq: 6, deleted: true, blob });
   });
 
   it('push posts the records and converts conflict blobs', async () => {

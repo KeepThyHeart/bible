@@ -7,16 +7,16 @@
  * Settings come from the site config's `accounts` block (`extra.accountsSettings`). The routes mount
  * after the password gate like every other module's.
  *
- * Body parsing: the push (up to 8 MiB) gets a parser here, registered ahead of the host's 100 kB one.
- * The sync router carries its own parsers too; `express.json` skips a request whose body an earlier
- * parser already read (`req._body`), so the two do not conflict, and everything else under the prefix
- * keeps its small limit.
+ * Body parsing: the push (up to 8 MiB) is parsed by the sync router's own parser, which runs after the
+ * router's per-IP limit and origin check. No host-level parser is registered for it (that would read up to
+ * 9 MB from anyone before any check); instead the push path is declared self-parsed so the host's 100 kB
+ * global parser skips it. Everything else under the prefix keeps its small limit.
  */
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { registerBodyParser, registerRoute } from '../../routes/routeRegistry.js';
-import type { AccountsSettings } from '../../SiteConfig.js';
+import { registerRoute, registerSelfParsedPath } from '../../routes/routeRegistry.js';
+import type { AccountsSettings, TrustProxySetting } from '../../SiteConfig.js';
 import { logger } from '../../utils/logger.js';
 import { createAccounts } from './createAccounts.js';
 import type { AccountsInstance } from './createAccounts.js';
@@ -25,10 +25,8 @@ import { AccountsConfigError } from './syncOptions.js';
 /** `SYNC_API_PREFIX` of @bible/core (a test asserts they agree). */
 export const SYNC_PREFIX = '/api/sync/v1';
 export const PUSH_PATH = `${SYNC_PREFIX}/push`;
-/** A little above the 8 MiB push limit so the sync server's own size check answers an oversize push. */
-export const PUSH_BODY_LIMIT = '9mb';
 
-registerBodyParser({ path: PUSH_PATH, limit: PUSH_BODY_LIMIT });
+registerSelfParsedPath(PUSH_PATH);
 
 let instance: AccountsInstance | undefined;
 let exitHookInstalled = false;
@@ -56,7 +54,7 @@ registerRoute({
       if (!settings) throw new AccountsConfigError('the accounts settings were not provided');
       if (!appStateDir) throw new AccountsConfigError('the app state directory was not provided');
       resetAccountsInstance();
-      instance = createAccounts({ settings, appStateDir });
+      instance = createAccounts({ settings, appStateDir, trustProxy: deps.extra.trustProxy as TrustProxySetting | undefined });
       if (!exitHookInstalled) {
         exitHookInstalled = true;
         process.once('exit', () => instance?.close());

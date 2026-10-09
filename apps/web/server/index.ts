@@ -26,7 +26,7 @@ import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
-import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
+import { getRegisteredRoutes, getRegisteredBodyParsers, getSelfParsedPaths } from './routes/routeRegistry.js';
 import { loadServerModules, listServerModules } from './modules/loadServerModules.js';
 import { createUnavailableRoutes } from './modules/unavailableRoutes.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
@@ -241,7 +241,10 @@ await loadServerModules({ flags: siteConfig.flags });
 for (const bp of getRegisteredBodyParsers()) {
   app.use(bp.path, express.json({ limit: bp.limit }));
 }
-app.use(express.json({ limit: '100kb' }));
+// Paths that parse their own body (the sync push) skip the general parser.
+const selfParsed = new Set(getSelfParsedPaths());
+const globalJson = express.json({ limit: '100kb' });
+app.use((req, res, next) => (selfParsed.has(req.path) ? next() : globalJson(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
 // Request timeouts on expensive endpoints (item #1).
@@ -420,6 +423,8 @@ const routeDeps = {
     appStateDir,
     // Settings for the `accounts` module (sync server); "enabled" is the feature flag.
     accountsSettings: siteConfig.accounts,
+    // The configured `server.trustProxy` (undefined when unset); the accounts module refuses `true`/unset.
+    trustProxy: siteConfig.trustProxy,
     hymnDirs,
     // The client build directory (when built), for modules serving its HTML entry points.
     clientDir: existsSync(clientDirPath) ? clientDirPath : undefined,

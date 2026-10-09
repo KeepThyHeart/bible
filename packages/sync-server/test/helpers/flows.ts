@@ -41,3 +41,16 @@ export async function account(t: TestServer & { mail: Mailbox }, verify = true, 
 
 export const rid = (): string => randomBytes(16).toString('hex');
 export const blob = (n: number): string => randomBytes(n).toString('base64url');
+
+/** Padded length the real RecordCipher produces for `jsonLen` bytes of JSON. */
+export function paddedLen(jsonLen: number): number {
+  const bucket = jsonLen <= 64 * 1024 ? 1024 : 16384;
+  return Math.ceil((4 + jsonLen) / bucket) * bucket;
+}
+
+/** A b64url blob with the real v1 envelope shape (version byte 1, 33 + padded bytes) for `jsonLen` bytes of JSON. */
+export const sealed = (jsonLen = 10): string => {
+  const b = randomBytes(33 + paddedLen(jsonLen));
+  b[0] = 1;
+  return b.toString('base64url');
+};

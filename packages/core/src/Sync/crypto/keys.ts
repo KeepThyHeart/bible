@@ -180,6 +180,13 @@ export async function createAccountMaterial(opts: {
   return { accountId, material, unlocked, recoveryCode };
 }
 
+/** Highest epoch among `dataKeys` (-1 when empty). */
+export function maxEpoch(dataKeys: Map<number, Uint8Array>): number {
+  let m = -1;
+  for (const e of dataKeys.keys()) if (e > m) m = e;
+  return m;
+}
+
 /** Shared tail of both unlock paths: unwrap the record-id key and every data key under the account key. */
 async function unlockRest(accountId: AccountId, acct: Uint8Array, accountKey: Uint8Array, wrappedIdk: WrappedKey,
   keysets: KeysetWire[], currentEpoch: number, message: string,
@@ -192,7 +199,13 @@ async function unlockRest(accountId: AccountId, acct: Uint8Array, accountKey: Ui
     }
     dataKeys.set(ks.epoch, await unwrapKey(accountKey, ks.wrappedDataKey, dkAad(acct, ks.epoch), message));
   }
-  if (!dataKeys.has(currentEpoch)) throw new AuthError(message);
+  // The current epoch is always the newest one (rotation only adds a higher epoch): a server naming an older epoch
+  // as current is trying to roll the account back to a key it may hold (0150 R1 M4).
+  if (!dataKeys.has(currentEpoch) || currentEpoch !== maxEpoch(dataKeys)) {
+    for (const k of dataKeys.values()) wipe(k);
+    wipe(recordIdKey);
+    throw new AuthError(message);
+  }
   return { accountId, accountKey, recordIdKey, dataKeys, currentEpoch };
 }
 

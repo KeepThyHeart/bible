@@ -69,6 +69,11 @@ export interface DeviceDetail extends DeviceRow {
   userAgent: string | null;
 }
 
+/** Bookkeeping charged per record row on top of its blob, so tiny records cannot be stored for free. */
+export const ROW_OVERHEAD_BYTES = 128;
+/** Default cap on rows per account (live and tombstones). */
+export const DEFAULT_MAX_RECORDS = 1_000_000;
+
 export interface SyncStore {
   migrate(): void;
   accounts: { create(a: NewAccount): void; byEmail(email: string): AccountRow | undefined; byId(id: string): AccountRow | undefined;
@@ -86,8 +91,16 @@ export interface SyncStore {
     delete(accountId: string, id: string): void };
   keysets: { replaceAll(accountId: string, ks: KeysetWire[]): void; list(accountId: string): KeysetWire[] };
   records: { changes(accountId: string, since: number, limit: number): Sync.EncryptedRecordWire[];
-    /** One transaction: seq check, quota check, next_seq bump, bytes_used update. */
-    push(accountId: string, recs: Sync.PushRecord[], quotaBytes: number): Sync.PushResponse | { error: 'quota_exceeded' };
+    /**
+     * Rows after `since` in seq order, at most `limit`, stopping once the blob bytes taken reach `maxBytes` (always
+     * at least one row). `more` says rows remain. Blobs of rows not returned are never loaded.
+     */
+    changesPage(accountId: string, since: number, limit: number, maxBytes: number): { records: Sync.EncryptedRecordWire[]; more: boolean };
+    /**
+     * One transaction: seq check, quota check (each row costs its blob size + ROW_OVERHEAD_BYTES, tombstones
+     * included), record-count cap (`maxRecords`), next_seq bump, bytes_used update.
+     */
+    push(accountId: string, recs: Sync.PushRecord[], quotaBytes: number, maxRecords?: number): Sync.PushResponse | { error: 'quota_exceeded' };
     count(accountId: string): number; wipe(accountId: string): void };
   emailTokens: { create(t: EmailTokenRow): void;
     /** Drops the account's outstanding tokens of one purpose (a newly issued token replaces older ones). */

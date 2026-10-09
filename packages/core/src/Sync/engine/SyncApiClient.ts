@@ -8,6 +8,7 @@
  * - A non-2xx answer throws `SyncHttpError(status, ApiError | null)`; a 401 also calls `onUnauthorized` first.
  *   A request that got no answer throws `SyncNetworkError`; an aborted one rethrows the abort reason.
  *   A 2xx body that does not have the documented shape throws `SyncResponseError` (never handed to callers).
+ * - Redirects are refused (`redirect: 'error'`; a redirect surfaces as SyncNetworkError).
  * - No error message ever contains a request body, a token or record content.
  */
 import { b64urlDecode, b64urlEncode } from '../../Crypto';
@@ -103,7 +104,8 @@ function checkRecordWire(v: unknown, what: string): EncryptedRecordWire {
   if (!HEX32.test(str(o, 'id', what))) bad(`${what}.id`);
   int(o, 'seq', what);
   const deleted = bool(o, 'deleted', what);
-  if (deleted ? o.blob !== null : typeof o.blob !== 'string') bad(`${what}.blob`);
+  // A tombstone carries its sealed tombstone blob (0150 R1); null only in the synthetic seq-0 answer / legacy rows.
+  if (deleted ? o.blob !== null && typeof o.blob !== 'string' : typeof o.blob !== 'string') bad(`${what}.blob`);
   return o as unknown as EncryptedRecordWire;
 }
 function checkExport(v: unknown): ServerExport {
@@ -154,7 +156,7 @@ function parseApiError(text: string): ApiError | null {
 
 function wireToRecord(w: EncryptedRecordWire): EncryptedRecord {
   let blob: Uint8Array | null = null;
-  if (!w.deleted && w.blob !== null) {
+  if (w.blob !== null) {
     try { blob = b64urlDecode(w.blob); } catch { bad('record blob encoding'); }
   }
   return { id: w.id, seq: w.seq, deleted: w.deleted, blob };
@@ -230,8 +232,9 @@ export class SyncApiClient {
       if (token) headers.Authorization = `Bearer ${token}`;
     }
     // `cache` is a standard fetch option; typed loosely because the server package type-checks this file without the DOM lib.
+    // `redirect: 'error'` (0150 R1): a 307/308 must never re-send an auth key or key material to another URL.
     const init: RequestInit & { cache?: string } = {
-      method, headers, credentials: auth.kind === 'cookie' ? 'include' : 'omit', cache: 'no-store',
+      method, headers, credentials: auth.kind === 'cookie' ? 'include' : 'omit', cache: 'no-store', redirect: 'error',
     };
     if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
     if (opts.signal) init.signal = opts.signal;

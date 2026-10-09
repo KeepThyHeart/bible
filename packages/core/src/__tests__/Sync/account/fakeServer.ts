@@ -4,7 +4,8 @@
  * Rules mirrored from the real server: prelogin is stable for unknown emails; signup for a taken address answers
  * like a new one (orchestrator decision); login/recover give 401 for an unknown email or wrong key; PUT keys checks
  * currentAuthKey (403) except from a recovery session, which may only set a password and must replace the spent
- * recovery code in the same request, after which every session is dropped; rotate keeps every old epoch.
+ * recovery code in the same request, after which every session is dropped; rotate keeps every old epoch; the
+ * current epoch is always the highest keyset epoch (0150 R1 M4). `tamperSession` lets a test play a hostile server.
  */
 import { b64urlEncode } from '../../../Crypto';
 import type { KdfParamsJson } from '../../../Crypto';
@@ -34,6 +35,8 @@ export class FakeServer {
   readonly sessions = new Map<string, Session>();
   readonly bodies: Array<{ route: string; json: string; raw: unknown }> = [];
   readonly resetTokens = new Map<string, string>();         // token -> email
+  /** Hostile-server hook: rewrite every session response (login, recover, signup, reset/confirm) before it is sent. */
+  tamperSession?: (res: SessionResponse) => SessionResponse;
   private n = 0;
 
   byId(id: string): FakeAccount | undefined {
@@ -59,12 +62,13 @@ export class FakeServer {
       const token = `tok${++srv.n}`;
       srv.sessions.set(token, { token, accountId: a.id, kind });
       if (!wantToken) view.cookie = token;
-      return {
+      const res: SessionResponse = {
         accountId: a.id, emailVerified: true,
         wrappedAk: kind === 'recovery' ? a.wrappedAkRecovery : a.wrappedAkPassword,
         wrappedRecordIdKey: a.wrappedIdk, keysets: a.keysets.map((k) => ({ ...k })), currentEpoch: a.currentEpoch,
         ...(wantToken ? { token } : {}),
       };
+      return srv.tamperSession ? srv.tamperSession(res) : res;
     };
     const dropAll = (accountId: string, except?: string) => {
       for (const [t, s] of srv.sessions) if (s.accountId === accountId && t !== except) srv.sessions.delete(t);
@@ -156,6 +160,7 @@ export class FakeServer {
         } else {
           const m = r.material;
           if (m.currentEpoch <= a.currentEpoch) fail(400, 'bad_request');
+          if (m.currentEpoch !== Math.max(...m.keysets.map((k) => k.epoch))) fail(400, 'bad_request');
           for (const k of a.keysets) if (!m.keysets.some((n) => n.epoch === k.epoch)) fail(400, 'bad_request');
           Object.assign(a, {
             kdf: m.kdf, authKey: m.authKey, recoveryAuthKey: m.recoveryAuthKey, wrappedAkPassword: m.wrappedAkPassword,

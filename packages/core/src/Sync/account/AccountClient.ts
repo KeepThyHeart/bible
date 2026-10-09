@@ -19,7 +19,7 @@ import {
 import type { KdfParams, RandomSource } from '../../Crypto';
 import type { DeviceId } from '../types';
 import {
-  createAccountMaterial, derivePasswordKeys, newRecoveryWrap, parseRecoveryCode, recoveryAuthKeyFor,
+  createAccountMaterial, derivePasswordKeys, maxEpoch, newRecoveryWrap, parseRecoveryCode, recoveryAuthKeyFor,
   rewrapForNewPassword, rotateAccountKey, sealDeviceName, unlockWithPassword, unlockWithRecoveryCode,
 } from '../crypto/keys';
 import type { UnlockedAccount } from '../crypto/keys';
@@ -49,7 +49,9 @@ export interface AccountClientDeps {
   /**
    * Addition to the contract. Called (awaited) whenever a new UnlockedAccount is in effect: after sign-up, sign-in,
    * recovery, resume, start-over and key rotation. Hosts (re)start the SyncEngine here, and should check
-   * `needsReencrypt` (see AccountClient) to run a full re-encryption. Errors thrown here propagate to the caller.
+   * `needsReencrypt` (see AccountClient) to run a full re-encryption after a key rotation. A new account id or
+   * record-id key (start-over, or another device's start-over) needs nothing from the host: the engine detects it on
+   * its first run (sync_state fingerprint) and re-uploads everything. Errors thrown here propagate to the caller.
    */
   onUnlocked?: (u: UnlockedAccount) => Promise<void> | void;
   /** Addition to the contract. Called (awaited) after sign-out and account deletion. Hosts stop the SyncEngine. */
@@ -72,7 +74,8 @@ export class WeakPasswordError extends Error {
  * Typed failure of an account flow (addition to the contract). Messages are fixed strings: never the password,
  * a key, a code, a token or the underlying crypto error.
  * - `invalid_credentials`: the server refused the email/password (or recovery code, or current password).
- * - `damaged_keys`: the server accepted the credentials but the wrapped keys did not open (tampering or corruption).
+ * - `damaged_keys`: the server accepted the credentials but the wrapped keys did not open (tampering or corruption),
+ *   or it offered an older key epoch than this device has already seen (rollback after a rotation).
  * - `unsafe_kdf`: the server offered Argon2id parameters below the floor (refused before any Argon2 work).
  * - `invalid_recovery_code`: the recovery code is not 32 base32 characters.
  * - `not_signed_in`: the flow needs an unlocked account and there is none.
@@ -148,8 +151,10 @@ export class AccountClient {
 
   /**
    * True after `rotateKeys` (new epoch) or `startOver` (server records wiped) until consumed: the engine must
-   * re-encrypt and re-push every local record. In memory only: hosts that need it to survive a restart persist it
-   * themselves (or the engine detects records under old epochs).
+   * re-encrypt and re-push every local record. In memory only. After `startOver` it is informational: the engine
+   * detects the new account id / record-id key itself (persisted fingerprint, 0150 R1 H2) and re-uploads, even when
+   * the process died before the flag was consumed. After `rotateKeys` a lost flag only means records stay under the
+   * old epoch (still readable) until they next change.
    */
   get needsReencrypt(): boolean {
     return this.reencrypt;
@@ -201,6 +206,7 @@ export class AccountClient {
         } catch (e) {
           throw mapUnlockError(e);
         }
+        await this.checkEpochFloor(u);
         await this.establish(u, addr, res);
         // The login had to carry a placeholder name (no account key yet); store the real sealed one. Best effort.
         try { await this.d.api.setDeviceName({ nameSealed: (await this.device(u)).nameSealed }); } catch { /* cosmetic */ }
@@ -244,6 +250,12 @@ export class AccountClient {
         await this.d.secrets.delete('sync.token');
         throw mapUnlockError(e);
       }
+      try {
+        await this.checkEpochFloor(u);
+      } catch (e) {
+        await this.d.secrets.delete('sync.token');
+        throw e;
+      }
       const pw = await rewrapForNewPassword(u, newPassword, this.kdfOpts());
       const next = await newRecoveryWrap(u, this.random);
       try {
@@ -272,11 +284,19 @@ export class AccountClient {
 
   /**
    * Restore a remembered device from ISecretStore without contacting the server. Nothing stored → null and status
-   * 'locked'. A damaged blob is deleted (with the token) → null and 'locked'.
+   * 'locked'. A damaged blob, or a store that cannot read it (e.g. a value it can no longer decrypt), is deleted
+   * (with the token) → null and 'locked'.
    */
   resume(): Promise<UnlockedAccount | null> {
     return this.serial(async () => {
-      const blob = await this.d.secrets.get('sync.unlocked');
+      let blob: Uint8Array | null;
+      try {
+        blob = await this.d.secrets.get('sync.unlocked');
+      } catch {
+        await this.dropStoredSecrets();
+        this.d.status.set({ state: 'locked', error: undefined });
+        return null;
+      }
       if (!blob) {
         this.d.status.set({ state: 'locked', error: undefined });
         return null;
@@ -285,8 +305,7 @@ export class AccountClient {
       try {
         u = deserializeUnlocked(blob);
       } catch {
-        await this.d.secrets.delete('sync.unlocked');
-        await this.d.secrets.delete('sync.token');
+        await this.dropStoredSecrets();
         this.d.status.set({ state: 'locked', error: undefined });
         return null;
       } finally {
@@ -473,6 +492,48 @@ export class AccountClient {
   private async accountEmail(): Promise<string> {
     this.email ??= (await this.d.api.account()).email;
     return this.email;
+  }
+
+  /** Best effort: a store that cannot read a value may not delete it either; the next sign-in overwrites it. */
+  private async dropStoredSecrets(): Promise<void> {
+    try { await this.d.secrets.delete('sync.unlocked'); } catch { /* see above */ }
+    try { await this.d.secrets.delete('sync.token'); } catch { /* see above */ }
+  }
+
+  /**
+   * Highest key epoch this device has seen for `accountId`: the unlocked account in memory and the one stored as
+   * `sync.unlocked` (0150 R1 M4). -1 when neither is for this account.
+   */
+  private async epochFloor(accountId: string): Promise<number> {
+    let floor = this.current?.accountId === accountId ? maxEpoch(this.current.dataKeys) : -1;
+    let blob: Uint8Array | null = null;
+    try {
+      blob = await this.d.secrets.get('sync.unlocked');
+    } catch {
+      blob = null;
+    }
+    if (!blob) return floor;
+    try {
+      const stored = deserializeUnlocked(blob);
+      if (stored.accountId === accountId) floor = Math.max(floor, maxEpoch(stored.dataKeys));
+      stored.accountKey.fill(0);
+      stored.recordIdKey.fill(0);
+      for (const k of stored.dataKeys.values()) k.fill(0);
+    } catch {
+      // Unreadable: no floor from it (resume deals with it).
+    } finally {
+      blob.fill(0);
+    }
+    return floor;
+  }
+
+  /** Refuse a server that offers fewer key epochs than this device already saw (rollback to an old key). */
+  private async checkEpochFloor(u: UnlockedAccount): Promise<void> {
+    if (maxEpoch(u.dataKeys) >= await this.epochFloor(u.accountId)) return;
+    u.accountKey.fill(0);
+    u.recordIdKey.fill(0);
+    for (const k of u.dataKeys.values()) k.fill(0);
+    throw new AccountError('damaged_keys');
   }
 
   private async persist(u: UnlockedAccount): Promise<void> {

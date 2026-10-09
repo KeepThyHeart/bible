@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { ORIGIN, PREFIX } from './helpers/server';
-import { account, blob, makeMailServer, rid } from './helpers/flows';
+import { account, blob, sealed, makeMailServer, rid } from './helpers/flows';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -70,9 +70,9 @@ describe('export', () => {
     const other = await account(t);
     const [x, y] = [rid(), rid()];
     await request(t.app).post(`${PREFIX}/push`).set(a.auth).send({ records: [
-      { id: x, baseSeq: null, deleted: false, blob: blob(40) }, { id: y, baseSeq: null, deleted: false, blob: blob(30) }] });
-    await request(t.app).post(`${PREFIX}/push`).set(a.auth).send({ records: [{ id: y, baseSeq: 2, deleted: true, blob: null }] });
-    await request(t.app).post(`${PREFIX}/push`).set(other.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: blob(5) }] });
+      { id: x, baseSeq: null, deleted: false, blob: sealed() }, { id: y, baseSeq: null, deleted: false, blob: sealed() }] });
+    await request(t.app).post(`${PREFIX}/push`).set(a.auth).send({ records: [{ id: y, baseSeq: 2, deleted: true, blob: sealed() }] });
+    await request(t.app).post(`${PREFIX}/push`).set(other.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: sealed() }] });
     const res = await request(t.app).get(`${PREFIX}/export`).set(a.auth);
     expect(res.status).toBe(200);
     const pulled = await request(t.app).get(`${PREFIX}/changes`).set(a.auth);
@@ -98,8 +98,8 @@ describe('delete account', () => {
     const t = makeMailServer();
     const a = await account(t);
     const other = await account(t);
-    await request(t.app).post(`${PREFIX}/push`).set(a.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: blob(40) }] });
-    await request(t.app).post(`${PREFIX}/push`).set(other.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: blob(40) }] });
+    await request(t.app).post(`${PREFIX}/push`).set(a.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: sealed() }] });
+    await request(t.app).post(`${PREFIX}/push`).set(other.auth).send({ records: [{ id: rid(), baseSeq: null, deleted: false, blob: sealed() }] });
     await secondSession(t, a);
     const none = await request(t.app).delete(`${PREFIX}/account`).set(a.auth);
     expect(none.status).toBe(403);

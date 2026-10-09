@@ -40,7 +40,6 @@ export class IndexedDbSecretStore implements ISecretStore {
   private readonly idb: IDBFactory;
   private readonly crypto: Crypto;
   private db: Promise<IDBDatabase> | null = null;
-  private key: Promise<CryptoKey> | null = null;
 
   constructor(options: IndexedDbSecretStoreOptions = {}) {
     this.idb = options.indexedDB ?? globalThis.indexedDB;
@@ -55,7 +54,7 @@ export class IndexedDbSecretStore implements ISecretStore {
           if (!r.result.objectStoreNames.contains(SECRETS_STORE_NAME)) r.result.createObjectStore(SECRETS_STORE_NAME);
         };
         r.onsuccess = () => {
-          r.result.onversionchange = () => { r.result.close(); this.db = null; this.key = null; };
+          r.result.onversionchange = () => { r.result.close(); this.db = null; };
           resolve(r.result);
         };
         r.onerror = () => reject(r.error ?? new Error('Cannot open secret store'));
@@ -65,24 +64,24 @@ export class IndexedDbSecretStore implements ISecretStore {
     return this.db;
   }
 
-  /** Gets the wrapping key, creating it once. Safe against concurrent creators (first writer wins). */
-  private wrapKey(): Promise<CryptoKey> {
-    if (!this.key) {
-      this.key = (async () => {
-        const db = await this.open();
-        const existing = await req(db.transaction(SECRETS_STORE_NAME, 'readonly').objectStore(SECRETS_STORE_NAME).get(WRAP_KEY_ID));
-        if (existing) return existing as CryptoKey;
-        const fresh = await this.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-        const tx = db.transaction(SECRETS_STORE_NAME, 'readwrite');
-        const store = tx.objectStore(SECRETS_STORE_NAME);
-        const raced = await req(store.get(WRAP_KEY_ID));
-        if (!raced) store.put(fresh, WRAP_KEY_ID);
-        await txDone(tx);
-        return (raced as CryptoKey | undefined) ?? fresh;
-      })();
-      this.key.catch(() => { this.key = null; });
-    }
-    return this.key;
+  /**
+   * Reads the wrapping key from IndexedDB on every use (no in-memory cache): another tab's `deleteAll()`
+   * removes the key, and a stale cached CryptoKey would let this tab write values nothing can decrypt.
+   * With `create` false a missing key yields null (no secret); with `create` true a missing key is
+   * created once, safe against concurrent creators (first writer wins).
+   */
+  private async wrapKey(create: boolean): Promise<CryptoKey | null> {
+    const db = await this.open();
+    const existing = await req(db.transaction(SECRETS_STORE_NAME, 'readonly').objectStore(SECRETS_STORE_NAME).get(WRAP_KEY_ID));
+    if (existing) return existing as CryptoKey;
+    if (!create) return null;
+    const fresh = await this.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    const tx = db.transaction(SECRETS_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(SECRETS_STORE_NAME);
+    const raced = await req(store.get(WRAP_KEY_ID));
+    if (!raced) store.put(fresh, WRAP_KEY_ID);
+    await txDone(tx);
+    return (raced as CryptoKey | undefined) ?? fresh;
   }
 
   async get(name: SecretName): Promise<Uint8Array | null> {
@@ -91,7 +90,8 @@ export class IndexedDbSecretStore implements ISecretStore {
     if (!stored) return null;
     const bytes = new Uint8Array(stored as ArrayBuffer | Uint8Array);
     if (bytes.length < NONCE_LEN + 16) throw new Error('Stored secret is malformed');
-    const key = await this.wrapKey();
+    const key = await this.wrapKey(false);
+    if (!key) return null; // the key was wiped (another tab signed out): there is no secret
     try {
       const plain = await this.crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: bytes.slice(0, NONCE_LEN), additionalData: new TextEncoder().encode(name) },
@@ -105,7 +105,7 @@ export class IndexedDbSecretStore implements ISecretStore {
   }
 
   async set(name: SecretName, value: Uint8Array): Promise<void> {
-    const key = await this.wrapKey();
+    const key = (await this.wrapKey(true))!;
     const nonce = this.crypto.getRandomValues(new Uint8Array(NONCE_LEN));
     const ct = new Uint8Array(
       await this.crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, additionalData: new TextEncoder().encode(name) }, key, value.slice()),
@@ -132,13 +132,11 @@ export class IndexedDbSecretStore implements ISecretStore {
     const tx = db.transaction(SECRETS_STORE_NAME, 'readwrite');
     tx.objectStore(SECRETS_STORE_NAME).clear();
     await txDone(tx);
-    this.key = null;
   }
 
   close(): void {
     const p = this.db;
     this.db = null;
-    this.key = null;
     void p?.then((d) => d.close(), () => undefined);
   }
 }

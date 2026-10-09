@@ -34,6 +34,8 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
+const fl = (a: BnFileSyncAdapter): Promise<void> => a.afterApply!([]);
+
 describe('collect', () => {
   it('marks new, edited, deleted and renamed files', async () => {
     const a = make();
@@ -90,6 +92,7 @@ describe('collect', () => {
     const a = make();
     await a.collect!();
     a.codec.upsert({ path: 'r.bn', bn: { x: 1 }, mtime: '2026-01-01T00:00:00.000Z' }, undefined, ctx);
+    await fl(a);
     await a.collect!();
     expect(marks).toEqual([]);
   });
@@ -127,30 +130,45 @@ describe('codec', () => {
 });
 
 describe('remote apply', () => {
-  it('writes atomically: a crash between temp write and rename leaves the old file intact', () => {
+  it('writes atomically: a crash between temp write and rename leaves the old file intact', async () => {
     const a = make();
     write('a.bn', { v: 'old' });
     const real = fs.renameSync;
     vi.spyOn(fs, 'renameSync').mockImplementation(() => { throw new Error('crash'); });
-    expect(() => a.codec.upsert({ path: 'a.bn', bn: { v: 'new' }, mtime: '2026-01-01T00:00:00Z' }, 'a.bn', ctx)).toThrow('crash');
+    a.codec.upsert({ path: 'a.bn', bn: { v: 'new' }, mtime: '2026-01-01T00:00:00Z' }, 'a.bn', ctx);
+    await fl(a); // the failed write is warned about, not thrown
+    expect(warns).toEqual([['a.bn', 'unreadable']]);
     vi.mocked(fs.renameSync).mockImplementation(real);
     expect(JSON.parse(fs.readFileSync(path.join(notes, 'a.bn'), 'utf-8'))).toEqual({ v: 'old' });
     expect(fs.readdirSync(notes)).toEqual(['a.bn']);
   });
 
-  it('writes new files into subfolders and keeps the existing on-disk spelling', () => {
+  it('writes new files into subfolders and keeps the existing on-disk spelling', async () => {
     const a = make();
     write('Notes/Todo.bn', { v: 1 });
     const key = a.codec.upsert({ path: 'notes/todo.bn', bn: { v: 2 }, mtime: '2026-01-01T00:00:00Z' }, 'Notes/Todo.bn', ctx);
     expect(key).toBe('Notes/Todo.bn');
+    expect(JSON.parse(fs.readFileSync(path.join(notes, 'Notes/Todo.bn'), 'utf-8'))).toEqual({ v: 1 }); // not before commit
+    await fl(a);
     expect(JSON.parse(fs.readFileSync(path.join(notes, 'Notes/Todo.bn'), 'utf-8'))).toEqual({ v: 2 });
     expect(a.codec.upsert({ path: 'x/y/z.bn', bn: { v: 3 }, mtime: '2026-01-01T00:00:00Z' }, undefined, ctx)).toBe('x/y/z.bn');
+    await fl(a);
     expect(fs.existsSync(path.join(notes, 'x/y/z.bn'))).toBe(true);
+  });
+
+  it('a record rolled back before commit leaves no file (writes happen in afterApply)', async () => {
+    const a = make();
+    a.codec.upsert({ path: 'rolled.bn', bn: { v: 1 }, mtime: '2026-01-01T00:00:00Z' }, undefined, ctx);
+    // the engine rolled back: nothing was written; afterApply is only called with the committed rows
+    expect(fs.readdirSync(notes)).toEqual([]);
+    await fl(a);
+    expect(fs.existsSync(path.join(notes, 'rolled.bn'))).toBe(true);
   });
 
   it.each([
     '../evil.bn', 'a/../../evil.bn', '/etc/evil.bn', 'C:/evil.bn', 'C:\\evil.bn', '..\\evil.bn', 'a\0.bn',
     'noext', 'a.txt', '', 'a//b.bn', '.hidden.bn', 'a.bn.tmp',
+    'con.bn', 'NUL.bn', 'aux/x.bn', 'Com1.txt.bn', 'lpt9.bn', 'a/prn.x.bn', 'a:stream.bn', 'a.bn:evil.bn', 'dir./x.bn', 'dir /x.bn',
   ])('rejects hostile path %j and writes nothing', (p) => {
     const a = make();
     expect(sanitizeBnPath(p)).toBeNull();
@@ -170,6 +188,19 @@ describe('remote apply', () => {
     expect(fs.readdirSync(outside)).toEqual([]);
   });
 
+  it('a symlinked intermediate folder never makes mkdir create directories outside notesDir', async () => {
+    const outside = path.join(tmp, 'outside');
+    fs.mkdirSync(outside);
+    fs.symlinkSync(outside, path.join(notes, 'link'));
+    const a = make();
+    a.codec.upsert({ path: 'ok.bn', bn: {}, mtime: 'x' }, undefined, ctx);
+    expect(() => a.codec.upsert({ path: 'link/deep/er/x.bn', bn: {}, mtime: 'x' }, undefined, ctx)).toThrow();
+    await fl(a);
+    expect(fs.readdirSync(outside)).toEqual([]);
+    expect(() => a.conflictCopy('link/deep/x.bn', { bn: {} })).toThrow();
+    expect(fs.readdirSync(outside)).toEqual([]);
+  });
+
   it('decode validates the record shape', () => {
     const a = make();
     expect(a.codec.decode({ path: 'a.bn', bn: { t: 1 }, mtime: 'm' }, ctx)).toEqual({ ok: true, row: { path: 'a.bn', bn: { t: 1 }, mtime: 'm' } });
@@ -177,14 +208,28 @@ describe('remote apply', () => {
     expect(() => a.codec.decode({ path: 'a.bn', bn: {}, mtime: 5 }, ctx)).toThrow();
   });
 
-  it('remove deletes the file but leaves .bak history, and tolerates a missing file', () => {
+  it('remote delete keeps a dated .bak copy, never unlinks, leaves .bak history, and tolerates a missing file', async () => {
     const a = make();
-    write('a.bn', {});
+    write('a.bn', { keep: 1 });
     fs.writeFileSync(path.join(notes, 'a.bn.bak'), 'history');
     a.codec.remove('a.bn', ctx);
+    expect(fs.existsSync(path.join(notes, 'a.bn'))).toBe(true); // not before commit
+    await fl(a);
     expect(fs.existsSync(path.join(notes, 'a.bn'))).toBe(false);
     expect(fs.readFileSync(path.join(notes, 'a.bn.bak'), 'utf-8')).toBe('history');
+    const kept = path.join(notes, 'a.bn.deleted-2026-10-09.bak');
+    expect(JSON.parse(fs.readFileSync(kept, 'utf-8'))).toEqual({ keep: 1 });
+    // a second delete the same day does not overwrite the first copy
+    write('a.bn', { keep: 2 });
+    a.codec.remove('a.bn', ctx);
+    await fl(a);
+    expect(JSON.parse(fs.readFileSync(path.join(notes, 'a.bn.deleted-2026-10-09-2.bak'), 'utf-8'))).toEqual({ keep: 2 });
+    expect(JSON.parse(fs.readFileSync(kept, 'utf-8'))).toEqual({ keep: 1 });
     expect(() => a.codec.remove('a.bn', ctx)).not.toThrow();
+    await fl(a);
+    // .bak files never sync
+    await a.collect!();
+    expect(marks.filter(([, k]) => k.includes('.bak'))).toEqual([]);
   });
 
   it('afterApply forwards only bn.file changes to the watcher callback', async () => {

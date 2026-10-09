@@ -15,7 +15,7 @@ Two switches, both off by default:
 ```json
 {
   "features": { "localUserDb": true, "accounts": true },
-  "server": { "trustProxy": true },
+  "server": { "trustProxy": 1 },
   "accounts": {
     "publicUrl": "https://bible.example.org",
     "signupOpen": true,
@@ -34,7 +34,7 @@ Two switches, both off by default:
 - Session cookies are `Secure` unless `publicUrl` is plain `http` on `localhost`, `127.0.0.1`, `[::1]` or `*.localhost`.
 - When `publicUrl` is https, responses under `/api/sync/v1` carry `Strict-Transport-Security: max-age=31536000`. Site-wide HSTS (and `includeSubDomains`) belongs to the reverse proxy; the main server leaves it off on purpose so plain-http development keeps working.
 - `quotaMB` is the per-account storage quota (default 50). `minAge` defaults to 16. `signupOpen: false` closes sign-up to new accounts while existing ones keep syncing.
-- Email: `kind: "console"` (the default) prints each message, including sign-in and reset links, to the server log. Use it for development only; production needs `"smtp"` (works with SES, Postmark or any relay). `smtp` needs `host` and `from`; `port` defaults to 587 (465 when `secure` is true).
+- Email: `kind: "console"` prints each message, including sign-in and reset links, to the server log, so it is accepted only when `publicUrl` is a loopback `http://` address (development). With any other `publicUrl` the accounts module refuses to start (the API answers 503) until you configure `"smtp"` (works with SES, Postmark or any relay). `smtp` needs `host` and `from`; `port` defaults to 587 (465 when `secure` is true).
 
 ## The site password gate
 
@@ -45,9 +45,8 @@ The sync routes mount after the site password gate, like every other module. If 
 The rate limiters count requests per `req.ip`. Behind a reverse proxy that address is the proxy's unless Express is told to trust the forwarded header.
 
 - `server.trustProxy` accepts `true`, `false`, a hop count (`1`), a subnet string (`"loopback, 10.0.0.0/8"`) or a list of them, exactly as Express's `trust proxy`.
-- When it is not set, the server keeps its pre-existing behaviour (`true`, defined by `UNSET_TRUST_PROXY` in `apps/web/server/trustProxy.ts`), so an existing deployment behind Apache or nginx is unchanged.
-- If the server is reachable directly (no proxy), set `false`: with `true` any client can send its own `X-Forwarded-For` and dodge the per-IP limits.
-- Prefer a hop count or the proxy's subnet over `true` when you know them.
+- **The accounts module requires an explicit value.** `true` and the unset default (which behaves as `true` for the rest of the site, unchanged) are refused: with `true` Express trusts the left-most `X-Forwarded-For` entry, which a client chooses, so it could dodge the per-IP rate limits. With either, the module logs an error saying how to set `server.trustProxy` and the sync API answers 503; the rest of the site keeps working.
+- Set a hop count (`1` behind a single nginx/Apache/Caddy), the proxy's subnet (`"loopback, 10.0.0.0/8"`), or `false` when the server is reached directly.
 
 The sync API is exempt from the main server's global and tier rate limits (`isGloballyRateLimitExempt` in `apps/web/server/middleware/rateLimiter.ts`), because the sync server enforces its own.
 
@@ -100,4 +99,4 @@ The service worker never caches `/api/sync` or anything under it (`NEVER_CACHE_P
 
 ## Request size
 
-The record push may be up to 8 MiB. The server module registers a body parser for `/api/sync/v1/push` only (limit 9 MB, ahead of the host's 100 kB parser); every other route under `/api/sync/v1` and the rest of the site keep small limits. If a reverse proxy sits in front, allow at least 9 MB request bodies for that path (nginx: `client_max_body_size 9m;`).
+The record push may be up to 8 MiB. The sync router parses the push body itself (after its per-IP limit and origin check), and the host's 100 kB parser skips that one path; every other route under `/api/sync/v1` and the rest of the site keep small limits. If a reverse proxy sits in front, allow at least 9 MB request bodies for that path (nginx: `client_max_body_size 9m;`).

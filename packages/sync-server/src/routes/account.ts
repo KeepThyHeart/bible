@@ -15,7 +15,8 @@ import {
   requireSession, resolveSession, setSessionCookie, type ServerContext,
 } from '../http';
 import { RATE_LIMITS, enforceLimit } from '../rateLimit';
-import { dispatchMail, duplicateSignupMail } from '../email/messages';
+import { dispatchMail, duplicateSignupMail, securityChangeMail } from '../email/messages';
+import { authFail, authGate } from '../auth/gate';
 import { canonicalKdf, fakeKdf } from '../auth/prelogin';
 import { issueSession } from '../auth/sessions';
 import { b64urlToBytes, checkAuthKey, newToken, sha256 } from '../auth/tokens';
@@ -29,8 +30,13 @@ function authEntry(ctx: ServerContext, req: Request): Record<string, unknown> {
   return v.obj(req.body);
 }
 
-function limitEmail(ctx: ServerContext, email: string): void {
-  enforceLimit(ctx.limiter, 'emailAuth', email);
+/** Runs `fn` after the response is out (timing must not tell which branch ran); failures are logged by name only. */
+function after(ctx: ServerContext, fn: () => void | Promise<void>): void {
+  setImmediate(() => {
+    Promise.resolve().then(fn).catch((e: unknown) => {
+      ctx.opts.log('warn', 'sync-server: deferred work failed', { name: (e as Error)?.name });
+    });
+  });
 }
 
 /** SHA-256 of a b64url 32-byte key that `validate.key32` already accepted. */
@@ -63,16 +69,17 @@ export function accountRoutes(ctx: ServerContext): Router {
     const email = v.email(body.email);
     const account = store.accounts.byEmail(email);
     // Always compute the fake salt so both paths do the same work.
-    const fake = fakeKdf(opts.serverSecret, email);
+    const fake = fakeKdf(opts.serverSecret, email, opts.defaultKdf);
     const out: Sync.PreloginResponse = { kdf: account ? canonicalKdf(account.kdf) : fake };
     res.json(out);
   }));
 
-  r.post('/signup', handler(async (req, res) => {
+  r.post('/signup', handler((req, res) => {
     const body = authEntry(ctx, req);
     if (!opts.signupOpen) throw new ApiHttpError(403, 'signup_closed', 'Sign-up is closed');
     const email = v.email(body.email);
-    limitEmail(ctx, email);
+    // Sign-up attempts spend a per-(address, IP /64) budget; it is separate from the sign-in failure budget.
+    enforceLimit(ctx.limiter, 'emailAuth', `signup:${email}|${clientIp(req)}`);
     const accountId = v.accountId(body.accountId);
     const material = v.material(body.material);
     const device = v.deviceWire(body.device);
@@ -88,6 +95,9 @@ export function accountRoutes(ctx: ServerContext): Router {
     let account: AccountRow | undefined;
     let session: Sync.SessionResponse | undefined;
     store.transaction(() => {
+      // First, and with the same answer whether or not the address exists: a caller who owns an account id can
+      // otherwise tell taken addresses from free ones (201 decoy vs 400).
+      if (store.accounts.byId(accountId)) throw new ApiHttpError(400, 'bad_request', 'accountId already in use');
       existing = store.accounts.byEmail(email);
       // An unverified account past its deadline only awaits the purge: free the address now.
       if (existing && existing.deleteAfter != null && existing.deleteAfter <= now) {
@@ -95,7 +105,6 @@ export function accountRoutes(ctx: ServerContext): Router {
         existing = undefined;
       }
       if (existing) return;
-      if (store.accounts.byId(accountId)) throw new ApiHttpError(400, 'bad_request', 'accountId already in use');
       try {
         store.accounts.create({
           id: accountId, email, emailVerified: false, kdf: material.kdf, authHash, recoveryAuthHash,
@@ -117,10 +126,13 @@ export function accountRoutes(ctx: ServerContext): Router {
     if (existing) {
       // No enumeration: answer exactly like a real signup (echoing the request's own material, a random token
       // that is never stored), create nothing, and tell the owner by mail (at most one per address per hour).
-      if (ctx.limiter.hit(RATE_LIMITS.dupSignupMail, `dupSignup:${email}`).ok) {
-        dispatchMail(ctx, duplicateSignupMail(existing.email, opts.publicUrl));
-      }
-      opts.log('info', 'sync-server: signup for an existing address');
+      const owner = existing.email;
+      after(ctx, () => {
+        if (ctx.limiter.hit(RATE_LIMITS.dupSignupMail, `dupSignup:${email}`).ok) {
+          dispatchMail(ctx, duplicateSignupMail(owner, opts.publicUrl));
+        }
+        opts.log('info', 'sync-server: signup for an existing address');
+      });
       const decoy = newToken(opts.random).token;
       const fake: Sync.SessionResponse = {
         accountId, emailVerified: false, wrappedAk: material.wrappedAkPassword,
@@ -132,26 +144,30 @@ export function accountRoutes(ctx: ServerContext): Router {
       return;
     }
 
-    opts.log('info', 'sync-server: account created', { accountId });
-    for (const listener of ctx.onAccountCreated) {
-      try {
-        await listener(account!);
-      } catch (e) {
-        opts.log('warn', 'sync-server: onAccountCreated listener failed', { name: (e as Error)?.name });
-      }
-    }
     res.status(201).json(session);
+    const created = account!;
+    after(ctx, async () => {
+      opts.log('info', 'sync-server: account created', { accountId });
+      for (const listener of ctx.onAccountCreated) {
+        try {
+          await listener(created);
+        } catch (e) {
+          opts.log('warn', 'sync-server: onAccountCreated listener failed', { name: (e as Error)?.name });
+        }
+      }
+    });
   }));
 
   r.post('/login', handler((req, res) => {
     const body = authEntry(ctx, req);
     const email = v.email(body.email);
-    limitEmail(ctx, email);
+    authGate(ctx, req, email);
     const device = v.deviceWire(body.device);
     const wantToken = v.optBool(body.wantToken, 'wantToken');
     const found = store.accounts.byEmail(email);
     const account = found && !(found.deleteAfter != null && found.deleteAfter <= opts.now()) ? found : undefined;
     if (!checkAuthKey(body.authKey, account?.authHash) || !account) {
+      authFail(ctx, req, email);
       throw new ApiHttpError(401, 'unauthorized', BAD_CREDENTIALS);
     }
     const out = store.transaction(() => issueSession(ctx, res, {
@@ -163,12 +179,13 @@ export function accountRoutes(ctx: ServerContext): Router {
   r.post('/recover', handler((req, res) => {
     const body = authEntry(ctx, req);
     const email = v.email(body.email);
-    limitEmail(ctx, email);
+    authGate(ctx, req, email);
     const device = v.deviceWire(body.device);
     const wantToken = v.optBool(body.wantToken, 'wantToken');
     const found = store.accounts.byEmail(email);
     const account = found && !(found.deleteAfter != null && found.deleteAfter <= opts.now()) ? found : undefined;
     if (!checkAuthKey(body.recoveryAuthKey, account?.recoveryAuthHash) || !account) {
+      authFail(ctx, req, email);
       throw new ApiHttpError(401, 'unauthorized', BAD_CREDENTIALS);
     }
     const out = store.transaction(() => issueSession(ctx, res, {
@@ -206,8 +223,9 @@ export function accountRoutes(ctx: ServerContext): Router {
     }
     if (!recovery) {
       // A signed-in session still proves the current password (limits a stolen session's damage).
-      limitEmail(ctx, account.email);
+      authGate(ctx, req, account.email);
       if (!checkAuthKey(body.currentAuthKey, account.authHash)) {
+        authFail(ctx, req, account.email);
         throw new ApiHttpError(403, 'forbidden', 'Current key is incorrect');
       }
     }
@@ -258,6 +276,9 @@ export function accountRoutes(ctx: ServerContext): Router {
       });
     }
     opts.log('info', 'sync-server: keys changed', { accountId: account.id, kind });
+    dispatchMail(ctx, securityChangeMail(account.email, opts.publicUrl,
+      kind === 'password' ? (recovery ? 'password-reset' : 'password-changed')
+        : kind === 'recovery' ? 'recovery-regenerated' : 'keys-rotated'));
     res.status(204).end();
   }));
 
