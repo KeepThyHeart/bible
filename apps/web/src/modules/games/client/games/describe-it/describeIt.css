@@ -1,0 +1,317 @@
+/*
+ * Describe It, on the shell's own tokens.
+ *
+ * The big screen is read from across a room by people shouting, so "who is
+ * describing" is the largest thing on it. The phones follow the approved
+ * screens: the describer's card is the one outlined in the accent colour, the
+ * other team's is plain, and their one button is in the warning colour because
+ * it is the button that stops the other side's run. Nothing carries meaning in
+ * colour alone: every team is named in words, and every button says what it
+ * does.
+ *
+ * The layout floor is a 320 px phone in portrait.
+ */
+
+.games-root .di {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.games-root .di-host {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.games-root .di-centred {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.games-root .di-nothing, .games-root .di-muted, .games-root .di-call {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .di-small {
+  font-size: var(--text-sm);
+}
+
+.games-root .di-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --- The big screen ------------------------------------------------------- */
+
+.games-root .di-team {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid var(--team, var(--border));
+  border-radius: 999px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.games-root .di-team .team-swatch {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.games-root .di-describer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-3xl));
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.games-root .di-call {
+  font-size: var(--text-xl);
+}
+
+.games-root .di-got {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.games-root .di-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .di-phone .di-chips {
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
+.games-root .di-chip {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--correct);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.games-root .di-phone .di-chip {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-base);
+}
+
+.games-root .di-notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  color: var(--fg);
+}
+
+/* --- The end of a turn ---------------------------------------------------- */
+
+.games-root .di-turn-end {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6) 3rem;
+  align-items: center;
+  max-width: 74rem;
+  margin: 0 auto;
+  text-align: start;
+}
+
+@media (max-width: 48rem) {
+  .games-root .di-turn-end {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.games-root .di-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.games-root .di-turn-end .di-chips {
+  justify-content: flex-start;
+}
+
+.games-root .di-total {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-3xl));
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.games-root .di-phone .di-total {
+  font-size: var(--text-2xl);
+}
+
+.games-root .di-thanks {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-lg);
+}
+
+.games-root .di-next {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: var(--text-lg);
+}
+
+/* --- The phones ----------------------------------------------------------- */
+
+.games-root .di-big {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.games-root .di-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+}
+
+.games-root .di-card[data-mine='true'] {
+  border: 2px solid var(--accent);
+}
+
+.games-root .di-category {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.games-root .di-concept {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.games-root .di-card[data-mine='true'] .di-concept {
+  font-size: var(--text-xl);
+}
+
+.games-root .di-rule {
+  height: 1px;
+  background: var(--border);
+}
+
+.games-root .di-forbidden {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .di-card[data-mine='true'] .di-forbidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.games-root .di-no {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.games-root .di-no-icon {
+  flex: none;
+  color: var(--wrong);
+}
+
+.games-root .di-called {
+  margin: 0;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.games-root .di-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .di-got-it {
+  width: 100%;
+  min-height: 4rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .di-pass {
+  width: 100%;
+  min-height: var(--tap);
+  background: transparent;
+  color: var(--fg-muted);
+}
+
+.games-root .di-slip {
+  width: 100%;
+  min-height: 4rem;
+  border: 2px solid var(--warn);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--warn);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .di-got-it:disabled, .games-root .di-pass:disabled, .games-root .di-slip:disabled {
+  opacity: 0.5;
+}
+
+.games-root .di-up-next {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .di-up-next[data-you='true'] {
+  color: var(--fg);
+  font-weight: 700;
+}

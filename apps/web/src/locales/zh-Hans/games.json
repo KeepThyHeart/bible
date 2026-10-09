@@ -1,0 +1,156 @@
+{
+  "$schema": "../schemas/games.schema.json",
+  "games": {
+    "play": {
+      "showOnTv": "在电视上显示",
+      "scanOnTv": "在电视上扫描",
+      "tvQr": "用于将此房间添加到电视或第二块屏幕的二维码",
+      "joinAnother": "加入其他房间",
+      "joining": "正在加入房间…",
+      "room": "房间",
+      "startAgain": "重新开始"
+    },
+    "common": {
+      "close": "关闭",
+      "reconnecting": "正在重新连接…",
+      "retryNow": "立即重试",
+      "tryAgain": "重试",
+      "or": "或",
+      "takeBackControl": "收回控制权",
+      "startGame": "开始游戏",
+      "away": "（离开）",
+      "off": "关闭"
+    },
+    "timer": {
+      "remaining": "剩余时间",
+      "secondsLeft": "剩余 {seconds} 秒",
+      "paused": "已暂停",
+      "secondsShort": "{seconds} 秒"
+    },
+    "frame": {
+      "roomAria": "房间 {code}",
+      "total": "总分",
+      "answered": "已回答 {answered} / {total}",
+      "revealNow": "立即揭晓"
+    },
+    "host": {
+      "newRoom": "开始新房间",
+      "opening": "正在打开房间…",
+      "runningBy": "{name} 正在主持房间。",
+      "someone": "某人",
+      "runningByOwner": "房间所有者正在主持。",
+      "roomCodeAria": "房间代码 {code}",
+      "joinAt": "加入地址",
+      "code": "代码",
+      "qrLabel": "加入房间 {code} 的二维码",
+      "playToo": "同时参与并在此主持",
+      "players": "玩家（{total}）",
+      "nobodyYet": "还没有人加入。",
+      "waitingFirst": "等待第一位玩家。",
+      "leaderName": "主持人"
+    },
+    "bar": {
+      "roomMenu": "房间菜单",
+      "scoresEveryone": "分数：所有人",
+      "scoresTopThree": "分数：前三名",
+      "overallWinners": "总冠军",
+      "managePlayers": "管理玩家",
+      "fullStandings": "完整排名",
+      "notFinished": "本局游戏尚未结束。",
+      "startNewGame": "开始新游戏",
+      "keepPlaying": "继续游戏",
+      "newGame": "新游戏",
+      "endIt": "结束",
+      "closeRoom": "关闭房间",
+      "nobodyScored": "还没有人得分。",
+      "askingRoom": "正在询问房间…",
+      "previousQuestion": "上一题",
+      "lastTime": "上一次",
+      "referenceOnly": "仅供参考，此处的任何内容都不会改变房间。",
+      "requestsLabel": "管理房间的请求",
+      "wantsToRun": "想要主持游戏",
+      "letThem": "同意",
+      "no": "不",
+      "roomControls": "房间控制",
+      "back": "返回",
+      "resume": "继续",
+      "pause": "暂停",
+      "skipIt": "跳过",
+      "keepGoing": "继续",
+      "skip": "跳过",
+      "nextQuestion": "下一题"
+    },
+    "join": {
+      "enterCode": "输入房间代码",
+      "codeHelp": "大屏幕上的字母和数字。",
+      "yourName": "您的名字",
+      "joining": "正在加入…",
+      "joinRoom": "加入房间",
+      "solo": "单人游戏"
+    },
+    "solo": {
+      "onYourOwn": "仅限您自己——其他人看不到这个房间。",
+      "start": "开始",
+      "joinInstead": "改为加入房间"
+    },
+    "lobby": {
+      "noBibleBefore": "此服务器未安装圣经模块——基于经文的游戏会整轮运行却不显示任何内容。请参阅",
+      "noBibleAfter": "以安装一个，或选择不需要它的游戏。",
+      "game": "游戏",
+      "set": "题集",
+      "pickForMe": "帮我选",
+      "translation": "译本",
+      "howWellKnown": "熟悉程度",
+      "rounds": "回合数",
+      "timePerQuestion": "每题时间",
+      "secondsShort": "{value} 秒",
+      "settings": "设置",
+      "teams": "分队",
+      "teamsOn": "开启——{teams}",
+      "voteTogether": "集体投票",
+      "voteOnTeam": "开启——每个队伍共同选定一个答案",
+      "voteOnRoom": "开启——全房间共同选定一个答案",
+      "voteNoticeTeam": "每个队伍集体投票：多数人的答案即为大家的答案。",
+      "voteNoticeRoom": "全房间集体投票：多数人的答案即为大家的答案。",
+      "buzzLabel": "玩家如何抢答",
+      "buzzButtons": "手机按钮——大家争着点“找到了”",
+      "buzzHostCalls": "由主持人点名——手机上没有按钮，由您点找到的人",
+      "roomTheme": "房间主题"
+    },
+    "phone": {
+      "waitingYes": "等待房间同意",
+      "neverMind": "算了",
+      "waitingStart": "等待房间开始",
+      "denied": "这次不行——再试一次？",
+      "runTheGame": "主持游戏",
+      "inRoomOne": "房间里有 {total} 人",
+      "inRoom": "房间里有 {total} 人",
+      "yourName": "您的名字：",
+      "team": "队伍",
+      "othersHere": "其他人",
+      "firstHere": "目前还没有其他人。您是第一个。",
+      "settings": "设置",
+      "yourTheme": "您的主题",
+      "useRoomTheme": "使用房间主题",
+      "shareRoom": "分享此房间",
+      "leaveTitle": "离开房间",
+      "leaveQuestion": "离开房间？",
+      "leaveRejoin": "只要房间仍然开放，您就可以用同一代码重新加入。",
+      "stay": "留下",
+      "theme": "主题",
+      "leave": "离开"
+    },
+    "brand": {
+      "title": "圣经团体游戏",
+      "by": "由 Keep Thy Heart 出品"
+    },
+    "home": {
+      "tagline": "适合小组的圣经问答和聚会游戏，在每个人自己的手机上进行。",
+      "join": "加入房间",
+      "host": "创建房间"
+    },
+    "app": {
+      "live": "房间已开启"
+    }
+  }
+}

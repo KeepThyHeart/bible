@@ -1,0 +1,271 @@
+/*
+ * Sword drill, on the shell's own tokens.
+ *
+ * The reference is the question and is read from across a room while someone
+ * turns pages, so it is the one size asserted outright. Everything else steps
+ * off the shared ladder. Nothing carries meaning in colour alone: the reader is
+ * named in words, the confirm buttons say what they do, and a confirmation on
+ * a phone is a sentence before it is green.
+ *
+ * The layout floor is a 320 px phone in portrait, so the reference shrinks
+ * rather than wraps and the host's two buttons stack when there is no room.
+ */
+
+.games-root .sd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.games-root .sd-host {
+  align-items: center;
+  text-align: center;
+}
+
+.games-root .sd-nothing, .games-root .sd-hint, .games-root .sd-count, .games-root .sd-translation {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .sd-translation {
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+}
+
+.games-root .sd-ask, .games-root .sd-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* --- The reference -------------------------------------------------------- */
+
+.games-root .sd-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The host's own confirmation aid: quiet, and much smaller than the
+   reference the room is racing to find on the wall. */
+.games-root .sd-host-hint {
+  margin: var(--space-2) 0 0;
+  max-width: 40rem;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.games-root .sd-ref {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.1;
+  /* "Song of Solomon 2:4" on a narrow phone breaks rather than overflows. */
+  overflow-wrap: anywhere;
+}
+
+/* The back wall, not the front row. */
+.games-root .sd-ref-huge {
+  font-size: clamp(var(--text-3xl), 10vw, 7rem);
+}
+
+.games-root .sd-ref-large {
+  font-size: clamp(var(--text-2xl), 6vw, 4.5rem);
+}
+
+.games-root .sd-ref-phone {
+  font-size: clamp(var(--text-xl), 11vw, var(--text-3xl));
+}
+
+/* --- The phone's one button ----------------------------------------------- */
+
+.games-root .sd-found {
+  width: 100%;
+  /* A thumb that is not being looked at: the eyes are on a page. */
+  min-height: 7rem;
+  margin-top: var(--space-4);
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.games-root .sd-found:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.games-root .sd-status {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-raised);
+}
+
+.games-root .sd-status[data-tone='now'] {
+  border-color: var(--accent);
+}
+
+.games-root .sd-status[data-tone='good'] {
+  border-color: var(--correct);
+}
+
+.games-root .sd-status-main {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.games-root .sd-status-sub {
+  margin: var(--space-2) 0 0;
+  color: var(--fg-muted);
+}
+
+/* --- The host calling a reader on (host-calls mode) ------------------------ */
+
+.games-root .sd-call-on {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.games-root .sd-call-on-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 40rem;
+}
+
+.games-root .sd-call-on-button {
+  flex: 1 1 8rem;
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.games-root .sd-call-on-button:active {
+  border-color: var(--accent);
+}
+
+/* --- The reader and the host's ruling ------------------------------------- */
+
+.games-root .sd-reader-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.games-root .sd-reader {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-3xl));
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.games-root .sd-judge {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 36rem;
+}
+
+.games-root .sd-judge button {
+  flex: 1 1 12rem;
+  min-height: 4rem;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .sd-confirm {
+  border-color: var(--correct);
+  color: var(--correct);
+}
+
+/* Neutral on purpose: passing the turn is not a verdict on a person. */
+.games-root .sd-pass {
+  color: var(--fg);
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .sd-answer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+  overflow-wrap: anywhere;
+}
+
+.games-root .sd-quote {
+  margin: 0;
+  max-width: 48rem;
+}
+
+.games-root .sd-verse {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xl);
+  line-height: 1.35;
+}
+
+.games-root .sd-verse-phone {
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+
+.games-root .sd-praise {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.games-root .sd-names {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .sd-names li {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--correct);
+  border-radius: 999px;
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.games-root .sd-yours {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.games-root .sd-yours[data-tone='good'] {
+  color: var(--correct);
+}
+
+.games-root .sd-yours[data-tone='quiet'] {
+  color: var(--fg-muted);
+}

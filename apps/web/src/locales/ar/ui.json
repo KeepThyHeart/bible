@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "قراءة الكتاب المقدس",
     "search": "بحث",
-    "watchPresentation": "مشاهدة عرض تقديمي"
+    "watchPresentation": "مشاهدة عرض تقديمي",
+    "games": "ألعاب كتابية"
   },
   "errorBoundary": {
     "title": "حدث خطأ ما",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "العارض"
+    },
+    "games": {
+      "title": "الألعاب"
     },
     "stage": {
       "loading": "جارٍ التحميل…",

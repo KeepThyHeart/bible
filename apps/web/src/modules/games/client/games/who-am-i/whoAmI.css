@@ -1,0 +1,298 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The host rules step up the shared type ladder rather than inventing sizes, so
+ * the projector and the phone stay recognisably one game. The one size asserted
+ * outright is the newest clue on the big screen: it is the question, and it
+ * should be readable from the back wall.
+ *
+ * The phone floor is 320 px in portrait. Options stack one to a row there and
+ * every tap target keeps the shell's minimum height.
+ */
+
+.games-root .wai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.games-root .wai-nothing, .games-root .wai-muted {
+  color: var(--fg-muted);
+}
+
+.games-root .wai-ask {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.games-root .wai-worth {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* --- The clues ------------------------------------------------------------ */
+
+.games-root .wai-clues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wai-clue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  color: var(--fg-muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.games-root .wai-clue-number {
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The newest clue is the one to read: larger, brighter and bolder, so it stands
+   out without a colour doing the work alone. */
+.games-root .wai-clue[data-latest='true'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.games-root .wai-clues-small .wai-clue {
+  font-size: var(--text-base);
+}
+
+.games-root .wai-clues-small .wai-clue[data-latest='true'] {
+  font-size: var(--text-lg);
+}
+
+.games-root .wai-clues-large .wai-clue {
+  font-size: var(--text-xl);
+}
+
+/* The back of the room, not the front of the laptop. */
+.games-root .wai-clues-large .wai-clue[data-latest='true'] {
+  font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
+  line-height: 1.2;
+}
+
+/* --- The options, on the big screen --------------------------------------- */
+
+.games-root .wai-options {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wai-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: var(--text-xl);
+}
+
+.games-root .wai-letter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .wai-name {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* --- The phone ------------------------------------------------------------ */
+
+/* Said before the tap, in the warning colour and with a marker, so the rule is
+   read as a rule rather than as decoration. */
+.games-root .wai-rule {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: var(--space-1) solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: var(--text-sm);
+}
+
+.games-root .wai-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wai-tap, .games-root .wai-lock, .games-root .wai-next {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+/* The chosen name is ringed and stated by aria-pressed, not filled with a hue
+   that has to be compared against three others. */
+.games-root .wai-tap[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: var(--bg-sunken);
+}
+
+.games-root .wai-lock {
+  justify-content: center;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+  text-align: center;
+}
+
+.games-root .wai-lock:disabled {
+  border-color: var(--border);
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+}
+
+.games-root .wai-next {
+  justify-content: center;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-base);
+}
+
+.games-root .wai-locked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.games-root .wai-locked p {
+  margin: 0;
+}
+
+.games-root .wai-locked-head {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .wai-answer-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.games-root .wai-answer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+  overflow-wrap: anywhere;
+}
+
+.games-root .wai-reveal-clue {
+  color: var(--fg);
+  flex-wrap: wrap;
+}
+
+.games-root .wai-clue-body {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.games-root .wai-ref {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.games-root .wai-got {
+  display: flex;
+  flex: 0 1 14rem;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+  font-size: var(--text-base);
+}
+
+.games-root .wai-bar {
+  display: block;
+  flex: 1;
+  min-width: 3rem;
+  height: 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg-sunken);
+}
+
+.games-root .wai-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.5rem;
+  background: var(--correct);
+}
+
+.games-root .wai-got-count {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .wai-yours {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.games-root .wai-yours[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .wai-yours[data-correct='false'] {
+  color: var(--warn);
+}

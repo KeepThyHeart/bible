@@ -1,0 +1,156 @@
+{
+  "$schema": "../schemas/games.schema.json",
+  "games": {
+    "play": {
+      "showOnTv": "הצגה בטלוויזיה",
+      "scanOnTv": "סרקו בטלוויזיה",
+      "tvQr": "קוד QR להוספת החדר לטלוויזיה או למסך שני",
+      "joinAnother": "הצטרפות לחדר אחר",
+      "joining": "מצטרף לחדר…",
+      "room": "חדר",
+      "startAgain": "להתחיל מחדש"
+    },
+    "common": {
+      "close": "סגירה",
+      "reconnecting": "מתחבר מחדש…",
+      "retryNow": "לנסות שוב עכשיו",
+      "tryAgain": "לנסות שוב",
+      "or": "או",
+      "takeBackControl": "לקחת בחזרה את השליטה",
+      "startGame": "התחלת המשחק",
+      "away": "(לא נוכח)",
+      "off": "כבוי"
+    },
+    "timer": {
+      "remaining": "הזמן שנותר",
+      "secondsLeft": "נותרו {seconds} שניות",
+      "paused": "מושהה",
+      "secondsShort": "{seconds} ש׳"
+    },
+    "frame": {
+      "roomAria": "חדר {code}",
+      "total": "סה״כ",
+      "answered": "ענו {answered} / {total}",
+      "revealNow": "לחשוף עכשיו"
+    },
+    "host": {
+      "newRoom": "פתיחת חדר חדש",
+      "opening": "פותח את החדר…",
+      "runningBy": "{name} מנהל/ת את החדר.",
+      "someone": "מישהו",
+      "runningByOwner": "בעל החדר מנהל אותו.",
+      "roomCodeAria": "קוד החדר {code}",
+      "joinAt": "הצטרפו בכתובת",
+      "code": "קוד",
+      "qrLabel": "קוד QR להצטרפות לחדר {code}",
+      "playToo": "לשחק גם, ולנהל מכאן",
+      "players": "שחקנים ({total})",
+      "nobodyYet": "עדיין אף אחד לא הצטרף.",
+      "waitingFirst": "ממתין לשחקן הראשון.",
+      "leaderName": "מנחה"
+    },
+    "bar": {
+      "roomMenu": "תפריט החדר",
+      "scoresEveryone": "ניקוד: כולם",
+      "scoresTopThree": "ניקוד: שלושת הראשונים",
+      "overallWinners": "הזוכים הכלליים",
+      "managePlayers": "ניהול שחקנים",
+      "fullStandings": "הדירוג המלא",
+      "notFinished": "המשחק הזה עדיין לא הסתיים.",
+      "startNewGame": "התחלת משחק חדש",
+      "keepPlaying": "להמשיך לשחק",
+      "newGame": "משחק חדש",
+      "endIt": "לסיים",
+      "closeRoom": "סגירת החדר",
+      "nobodyScored": "עדיין אף אחד לא צבר ניקוד.",
+      "askingRoom": "שואל את החדר…",
+      "previousQuestion": "השאלה הקודמת",
+      "lastTime": "בפעם הקודמת",
+      "referenceOnly": "להתייחסות בלבד — דבר מכאן לא משנה את החדר.",
+      "requestsLabel": "בקשות לנהל את החדר",
+      "wantsToRun": "רוצה לנהל את המשחק",
+      "letThem": "לאשר",
+      "no": "לא",
+      "roomControls": "פקדי החדר",
+      "back": "חזרה",
+      "resume": "המשך",
+      "pause": "השהיה",
+      "skipIt": "לדלג",
+      "keepGoing": "להמשיך",
+      "skip": "דילוג",
+      "nextQuestion": "השאלה הבאה"
+    },
+    "join": {
+      "enterCode": "הזינו את קוד החדר",
+      "codeHelp": "אותיות ומספרים מהמסך הגדול.",
+      "yourName": "השם שלכם",
+      "joining": "מצטרף…",
+      "joinRoom": "הצטרפות לחדר",
+      "solo": "לשחק לבד"
+    },
+    "solo": {
+      "onYourOwn": "אתם לבד — אף אחד אחר לא יכול לראות את החדר הזה.",
+      "start": "התחלה",
+      "joinInstead": "להצטרף לחדר במקום"
+    },
+    "lobby": {
+      "noBibleBefore": "לא מותקן בשרת הזה מודול מקרא — משחקים מבוססי פסוקים ירוצו סיבוב שלם בלי להציג דבר. ראו",
+      "noBibleAfter": "כדי להתקין אחד, או בחרו משחק שאינו זקוק לו.",
+      "game": "משחק",
+      "set": "סט",
+      "pickForMe": "לבחור בשבילי",
+      "translation": "תרגום",
+      "howWellKnown": "מידת ההיכרות",
+      "rounds": "סיבובים",
+      "timePerQuestion": "זמן לכל שאלה",
+      "secondsShort": "{value} ש׳",
+      "settings": "הגדרות",
+      "teams": "קבוצות",
+      "teamsOn": "פעיל — {teams}",
+      "voteTogether": "הצבעה משותפת",
+      "voteOnTeam": "פעיל — כל קבוצה מסכימה על תשובה אחת",
+      "voteOnRoom": "פעיל — החדר מסכים על תשובה אחת",
+      "voteNoticeTeam": "כל קבוצה מצביעה יחד: תשובת הרוב היא תשובת כולם.",
+      "voteNoticeRoom": "החדר מצביע יחד: תשובת הרוב היא תשובת כולם.",
+      "buzzLabel": "איך השחקנים מצלצלים",
+      "buzzButtons": "כפתורי הטלפון — כולם ממהרים ללחוץ על «מצאתי»",
+      "buzzHostCalls": "המנחה קורא — בלי כפתור בטלפון, אתם קוראים למי שמצא",
+      "roomTheme": "ערכת הנושא של החדר"
+    },
+    "phone": {
+      "waitingYes": "ממתין שהחדר יאשר",
+      "neverMind": "לא משנה",
+      "waitingStart": "ממתין שהחדר יתחיל",
+      "denied": "לא הפעם — לנסות שוב?",
+      "runTheGame": "לנהל את המשחק",
+      "inRoomOne": "{total} אדם בחדר",
+      "inRoom": "{total} אנשים בחדר",
+      "yourName": "השם שלכם:",
+      "team": "קבוצה",
+      "othersHere": "אחרים כאן",
+      "firstHere": "עדיין אין אף אחד אחר. אתם הראשונים.",
+      "settings": "הגדרות",
+      "yourTheme": "ערכת הנושא שלכם",
+      "useRoomTheme": "להשתמש בערכת הנושא של החדר",
+      "shareRoom": "שיתוף החדר הזה",
+      "leaveTitle": "לעזוב את החדר",
+      "leaveQuestion": "לעזוב את החדר?",
+      "leaveRejoin": "אפשר להצטרף שוב עם אותו קוד כל עוד החדר פתוח.",
+      "stay": "להישאר",
+      "theme": "ערכת נושא",
+      "leave": "עזיבה"
+    },
+    "brand": {
+      "title": "משחקי מקרא קבוצתיים",
+      "by": "מבית Keep Thy Heart"
+    },
+    "home": {
+      "tagline": "טריוויה מקראית ומשחקי חבורה לקבוצה, שמשחקים בטלפון של כל אחד.",
+      "join": "הצטרפות לחדר",
+      "host": "אירוח חדר"
+    },
+    "app": {
+      "live": "החדר פעיל"
+    }
+  }
+}

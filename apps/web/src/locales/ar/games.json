@@ -1,0 +1,156 @@
+{
+  "$schema": "../schemas/games.schema.json",
+  "games": {
+    "play": {
+      "showOnTv": "عرض على التلفاز",
+      "scanOnTv": "امسح الرمز على التلفاز",
+      "tvQr": "رمز QR لإضافة هذه الغرفة إلى تلفاز أو شاشة ثانية",
+      "joinAnother": "الانضمام إلى غرفة أخرى",
+      "joining": "جارٍ الانضمام إلى الغرفة…",
+      "room": "الغرفة",
+      "startAgain": "البدء من جديد"
+    },
+    "common": {
+      "close": "إغلاق",
+      "reconnecting": "جارٍ إعادة الاتصال…",
+      "retryNow": "أعد المحاولة الآن",
+      "tryAgain": "حاول مرة أخرى",
+      "or": "أو",
+      "takeBackControl": "استعادة التحكم",
+      "startGame": "ابدأ اللعبة",
+      "away": "(غائب)",
+      "off": "معطّل"
+    },
+    "timer": {
+      "remaining": "الوقت المتبقي",
+      "secondsLeft": "متبقٍ {seconds} ثانية",
+      "paused": "متوقف مؤقتًا",
+      "secondsShort": "{seconds} ث"
+    },
+    "frame": {
+      "roomAria": "الغرفة {code}",
+      "total": "المجموع",
+      "answered": "أجاب {answered} / {total}",
+      "revealNow": "اكشف الآن"
+    },
+    "host": {
+      "newRoom": "بدء غرفة جديدة",
+      "opening": "جارٍ فتح الغرفة…",
+      "runningBy": "{name} يدير الغرفة.",
+      "someone": "أحد ما",
+      "runningByOwner": "مالك الغرفة هو من يديرها.",
+      "roomCodeAria": "رمز الغرفة {code}",
+      "joinAt": "انضم عبر",
+      "code": "الرمز",
+      "qrLabel": "رمز QR للانضمام إلى الغرفة {code}",
+      "playToo": "العب أيضًا وأدِر اللعبة من هنا",
+      "players": "اللاعبون ({total})",
+      "nobodyYet": "لم ينضم أحد بعد.",
+      "waitingFirst": "في انتظار أول لاعب.",
+      "leaderName": "القائد"
+    },
+    "bar": {
+      "roomMenu": "قائمة الغرفة",
+      "scoresEveryone": "النتائج: الجميع",
+      "scoresTopThree": "النتائج: المراكز الثلاثة الأولى",
+      "overallWinners": "الفائزون في المجمل",
+      "managePlayers": "إدارة اللاعبين",
+      "fullStandings": "الترتيب الكامل",
+      "notFinished": "لم تنتهِ هذه اللعبة بعد.",
+      "startNewGame": "بدء لعبة جديدة",
+      "keepPlaying": "متابعة اللعب",
+      "newGame": "لعبة جديدة",
+      "endIt": "إنهاء",
+      "closeRoom": "إغلاق الغرفة",
+      "nobodyScored": "لم يسجّل أحد نقاطًا بعد.",
+      "askingRoom": "جارٍ سؤال الغرفة…",
+      "previousQuestion": "السؤال السابق",
+      "lastTime": "المرة الماضية",
+      "referenceOnly": "للاطلاع فقط — لا شيء هنا يغيّر الغرفة.",
+      "requestsLabel": "طلبات إدارة الغرفة",
+      "wantsToRun": "يريد إدارة اللعبة",
+      "letThem": "السماح له",
+      "no": "لا",
+      "roomControls": "عناصر التحكم في الغرفة",
+      "back": "رجوع",
+      "resume": "استئناف",
+      "pause": "إيقاف مؤقت",
+      "skipIt": "تخطَّ",
+      "keepGoing": "واصل",
+      "skip": "تخطي",
+      "nextQuestion": "السؤال التالي"
+    },
+    "join": {
+      "enterCode": "أدخل رمز الغرفة",
+      "codeHelp": "الحروف والأرقام من الشاشة الكبيرة.",
+      "yourName": "اسمك",
+      "joining": "جارٍ الانضمام…",
+      "joinRoom": "الانضمام إلى الغرفة",
+      "solo": "اللعب منفردًا"
+    },
+    "solo": {
+      "onYourOwn": "أنت وحدك — لا يمكن لأحد آخر رؤية هذه الغرفة.",
+      "start": "ابدأ",
+      "joinInstead": "الانضمام إلى غرفة بدلًا من ذلك"
+    },
+    "lobby": {
+      "noBibleBefore": "لم يتم تثبيت أي وحدة للكتاب المقدس على هذا الخادم — ستُجرى ألعاب الآيات بكامل جولاتها دون عرض أي شيء. راجع",
+      "noBibleAfter": "لتثبيت واحدة، أو اختر لعبة لا تحتاج إليها.",
+      "game": "اللعبة",
+      "set": "المجموعة",
+      "pickForMe": "اختر لي",
+      "translation": "الترجمة",
+      "howWellKnown": "مدى الشهرة",
+      "rounds": "الجولات",
+      "timePerQuestion": "الوقت لكل سؤال",
+      "secondsShort": "{value} ث",
+      "settings": "الإعدادات",
+      "teams": "الفرق",
+      "teamsOn": "مفعّل — {teams}",
+      "voteTogether": "التصويت الجماعي",
+      "voteOnTeam": "مفعّل — كل فريق يتفق على إجابة واحدة",
+      "voteOnRoom": "مفعّل — الغرفة تتفق على إجابة واحدة",
+      "voteNoticeTeam": "يصوّت كل فريق معًا: إجابة الأغلبية هي إجابة الجميع.",
+      "voteNoticeRoom": "تصوّت الغرفة معًا: إجابة الأغلبية هي إجابة الجميع.",
+      "buzzLabel": "كيف يضغط اللاعبون للإجابة",
+      "buzzButtons": "أزرار الهاتف — الجميع يتسابق للضغط على «وجدتها»",
+      "buzzHostCalls": "المضيف ينادي — بلا زر في الهاتف، تنادي أنت من وجدها",
+      "roomTheme": "سمة الغرفة"
+    },
+    "phone": {
+      "waitingYes": "في انتظار موافقة الغرفة",
+      "neverMind": "لا بأس",
+      "waitingStart": "في انتظار بدء الغرفة",
+      "denied": "ليس هذه المرة — أتحاول مرة أخرى؟",
+      "runTheGame": "إدارة اللعبة",
+      "inRoomOne": "{total} شخص في الغرفة",
+      "inRoom": "{total} أشخاص في الغرفة",
+      "yourName": "اسمك:",
+      "team": "الفريق",
+      "othersHere": "الآخرون هنا",
+      "firstHere": "لا أحد غيرك حتى الآن. أنت الأول.",
+      "settings": "الإعدادات",
+      "yourTheme": "سمتك",
+      "useRoomTheme": "استخدام سمة الغرفة",
+      "shareRoom": "مشاركة هذه الغرفة",
+      "leaveTitle": "مغادرة الغرفة",
+      "leaveQuestion": "مغادرة الغرفة؟",
+      "leaveRejoin": "يمكنك الانضمام مجددًا بالرمز نفسه ما دامت الغرفة مفتوحة.",
+      "stay": "البقاء",
+      "theme": "السمة",
+      "leave": "مغادرة"
+    },
+    "brand": {
+      "title": "ألعاب الكتاب المقدس الجماعية",
+      "by": "من Keep Thy Heart"
+    },
+    "home": {
+      "tagline": "أسئلة وألعاب كتابية للمجموعات، تُلعب على هاتف كل شخص.",
+      "join": "الانضمام إلى غرفة",
+      "host": "استضافة غرفة"
+    },
+    "app": {
+      "live": "الغرفة مباشرة"
+    }
+  }
+}

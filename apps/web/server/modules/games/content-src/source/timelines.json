@@ -1,0 +1,240 @@
+{
+  "_comment": [
+    "Stories in the order they happened, for put-in-order. The generator deals",
+    "out several handfuls from each timeline, so a timeline wants six or more",
+    "events: fewer and the handfuls repeat each other.",
+    "",
+    "Only put an event here if its place in the order is not in dispute. Where",
+    "scholars argue over which came first, a group will too, and the reveal",
+    "cannot settle it. The references are where each event is told, so the",
+    "reveal can point at them."
+  ],
+  "timelines": [
+    {
+      "id": "creation", "title": "The days of creation", "difficulty": 1, "tags": ["genesis"],
+      "instructions": "Put these in the order God made them.",
+      "events": [
+        { "label": "Light", "ref": "Gen 1:3" },
+        { "label": "The firmament of heaven", "ref": "Gen 1:7" },
+        { "label": "Dry land and plants", "ref": "Gen 1:12" },
+        { "label": "Sun, moon and stars", "ref": "Gen 1:16" },
+        { "label": "Fish and birds", "ref": "Gen 1:21" },
+        { "label": "Land animals and man", "ref": "Gen 1:27" },
+        { "label": "God rested", "ref": "Gen 2:2" }
+      ]
+    },
+    {
+      "id": "abraham", "title": "The life of Abraham", "difficulty": 2, "tags": ["genesis"],
+      "events": [
+        { "label": "Leaves Haran for Canaan", "ref": "Gen 12:4" },
+        { "label": "Parts from Lot", "ref": "Gen 13:11" },
+        { "label": "Rescues Lot from the kings", "ref": "Gen 14:16" },
+        { "label": "Told to count the stars", "ref": "Gen 15:5" },
+        { "label": "Name changed from Abram", "ref": "Gen 17:5" },
+        { "label": "Three visitors at Mamre", "ref": "Gen 18:2" },
+        { "label": "Isaac is born", "ref": "Gen 21:3" },
+        { "label": "Offers Isaac on Moriah", "ref": "Gen 22:9" },
+        { "label": "Buries Sarah", "ref": "Gen 23:19" }
+      ]
+    },
+    {
+      "id": "joseph", "title": "The story of Joseph", "difficulty": 2, "tags": ["genesis"],
+      "events": [
+        { "label": "Given a coat of many colours", "ref": "Gen 37:3" },
+        { "label": "Dreams of sheaves bowing down", "ref": "Gen 37:7" },
+        { "label": "Sold to the Ishmeelites", "ref": "Gen 37:28" },
+        { "label": "Serves in Potiphar's house", "ref": "Gen 39:1" },
+        { "label": "Thrown into prison", "ref": "Gen 39:20" },
+        { "label": "Explains the butler's dream", "ref": "Gen 40:12" },
+        { "label": "Explains Pharaoh's dreams", "ref": "Gen 41:25" },
+        { "label": "Made ruler over Egypt", "ref": "Gen 41:41" },
+        { "label": "Brothers come to buy corn", "ref": "Gen 42:3" },
+        { "label": "Makes himself known to his brothers", "ref": "Gen 45:3" }
+      ]
+    },
+    {
+      "id": "exodus", "title": "Moses and the Exodus", "difficulty": 2, "tags": ["exodus"],
+      "events": [
+        { "label": "A baby hidden in the bulrushes", "ref": "Exod 2:3" },
+        { "label": "Moses flees to Midian", "ref": "Exod 2:15" },
+        { "label": "The burning bush", "ref": "Exod 3:2" },
+        { "label": "The river turned to blood", "ref": "Exod 7:20" },
+        { "label": "The first Passover", "ref": "Exod 12:11" },
+        { "label": "Crossing the Red Sea", "ref": "Exod 14:22" },
+        { "label": "Manna from heaven", "ref": "Exod 16:15" },
+        { "label": "The Ten Commandments at Sinai", "ref": "Exod 20:3" },
+        { "label": "The golden calf", "ref": "Exod 32:4" }
+      ]
+    },
+    {
+      "id": "plagues", "title": "The plagues of Egypt", "difficulty": 4, "tags": ["exodus"],
+      "instructions": "Put these plagues in the order they fell on Egypt.",
+      "events": [
+        { "label": "Water turned to blood", "ref": "Exod 7:20" },
+        { "label": "Frogs", "ref": "Exod 8:6" },
+        { "label": "Lice", "ref": "Exod 8:17" },
+        { "label": "Flies", "ref": "Exod 8:24" },
+        { "label": "Murrain on the cattle", "ref": "Exod 9:6" },
+        { "label": "Boils", "ref": "Exod 9:10" },
+        { "label": "Hail", "ref": "Exod 9:23" },
+        { "label": "Locusts", "ref": "Exod 10:13" },
+        { "label": "Darkness", "ref": "Exod 10:22" },
+        { "label": "Death of the firstborn", "ref": "Exod 12:29" }
+      ]
+    },
+    {
+      "id": "judges", "title": "The judges", "difficulty": 4, "tags": ["judges"],
+      "instructions": "Put these judges in the order they judged Israel.",
+      "events": [
+        { "label": "Othniel", "ref": "Judg 3:9" },
+        { "label": "Ehud", "ref": "Judg 3:15" },
+        { "label": "Deborah", "ref": "Judg 4:4" },
+        { "label": "Gideon", "ref": "Judg 6:11" },
+        { "label": "Jephthah", "ref": "Judg 11:1" },
+        { "label": "Samson", "ref": "Judg 13:24" },
+        { "label": "Eli", "ref": "1 Sam 4:18" },
+        { "label": "Samuel", "ref": "1 Sam 7:15" }
+      ]
+    },
+    {
+      "id": "kings", "title": "From Saul to the exile", "difficulty": 3, "tags": ["kings"],
+      "instructions": "Put these kings in the order they reigned.",
+      "events": [
+        { "label": "Saul", "ref": "1 Sam 10:1" },
+        { "label": "David", "ref": "2 Sam 5:3" },
+        { "label": "Solomon", "ref": "1 Kgs 1:39" },
+        { "label": "Rehoboam", "ref": "1 Kgs 11:43" },
+        { "label": "Asa", "ref": "1 Kgs 15:8" },
+        { "label": "Jehoshaphat", "ref": "1 Kgs 15:24" },
+        { "label": "Hezekiah", "ref": "2 Kgs 18:1" },
+        { "label": "Josiah", "ref": "2 Kgs 22:1" },
+        { "label": "Zedekiah", "ref": "2 Kgs 24:17" }
+      ]
+    },
+    {
+      "id": "david", "title": "The life of David", "difficulty": 2, "tags": ["samuel"],
+      "events": [
+        { "label": "Anointed by Samuel", "ref": "1 Sam 16:13" },
+        { "label": "Plays the harp for Saul", "ref": "1 Sam 16:23" },
+        { "label": "Kills Goliath", "ref": "1 Sam 17:50" },
+        { "label": "Befriends Jonathan", "ref": "1 Sam 18:1" },
+        { "label": "Spares Saul in a cave", "ref": "1 Sam 24:4" },
+        { "label": "Made king in Hebron", "ref": "2 Sam 2:4" },
+        { "label": "Brings the ark to Jerusalem", "ref": "2 Sam 6:15" },
+        { "label": "Takes Bathsheba", "ref": "2 Sam 11:4" },
+        { "label": "Flees from Absalom", "ref": "2 Sam 15:14" },
+        { "label": "Has Solomon made king", "ref": "1 Kgs 1:39" }
+      ]
+    },
+    {
+      "id": "elijah-elisha", "title": "Elijah and Elisha", "difficulty": 3, "tags": ["kings", "prophets"],
+      "events": [
+        { "label": "Ravens feed Elijah", "ref": "1 Kgs 17:6" },
+        { "label": "The widow's meal does not run out", "ref": "1 Kgs 17:16" },
+        { "label": "Fire falls on Mount Carmel", "ref": "1 Kgs 18:38" },
+        { "label": "A still small voice", "ref": "1 Kgs 19:12" },
+        { "label": "Elisha called from the plough", "ref": "1 Kgs 19:19" },
+        { "label": "Elijah taken up by a whirlwind", "ref": "2 Kgs 2:11" },
+        { "label": "Elisha heals the waters of Jericho", "ref": "2 Kgs 2:21" },
+        { "label": "Naaman healed in the Jordan", "ref": "2 Kgs 5:14" },
+        { "label": "An axe head swims", "ref": "2 Kgs 6:6" }
+      ]
+    },
+    {
+      "id": "exile", "title": "Exile and return", "difficulty": 4, "tags": ["exile"],
+      "events": [
+        { "label": "Daniel refuses the king's meat", "ref": "Dan 1:8" },
+        { "label": "Jerusalem burned by the Babylonians", "ref": "2 Kgs 25:9" },
+        { "label": "The writing on the wall", "ref": "Dan 5:25" },
+        { "label": "Daniel in the lions' den", "ref": "Dan 6:16" },
+        { "label": "The temple's foundation is laid", "ref": "Ezra 3:10" },
+        { "label": "The temple is finished", "ref": "Ezra 6:15" },
+        { "label": "Esther is made queen", "ref": "Esth 2:17" },
+        { "label": "Ezra comes to Jerusalem", "ref": "Ezra 7:8" },
+        { "label": "Nehemiah finishes the wall", "ref": "Neh 6:15" }
+      ]
+    },
+    {
+      "id": "christmas", "title": "The Christmas story", "difficulty": 1, "tags": ["christmas", "gospels"],
+      "events": [
+        { "label": "Gabriel appears to Zacharias", "ref": "Luke 1:13" },
+        { "label": "Gabriel appears to Mary", "ref": "Luke 1:31" },
+        { "label": "Mary visits Elisabeth", "ref": "Luke 1:40" },
+        { "label": "John the Baptist is born", "ref": "Luke 1:57" },
+        { "label": "Jesus is born in Bethlehem", "ref": "Luke 2:7" },
+        { "label": "Shepherds visit the manger", "ref": "Luke 2:16" },
+        { "label": "Wise men bring gifts", "ref": "Matt 2:11" },
+        { "label": "The flight into Egypt", "ref": "Matt 2:14" }
+      ]
+    },
+    {
+      "id": "ministry", "title": "The ministry of Jesus", "difficulty": 2, "tags": ["gospels"],
+      "events": [
+        { "label": "Baptised in the Jordan", "ref": "Matt 3:16" },
+        { "label": "Tempted in the wilderness", "ref": "Matt 4:1" },
+        { "label": "Calls fishermen to follow him", "ref": "Matt 4:19" },
+        { "label": "The sermon on the mount", "ref": "Matt 5:1" },
+        { "label": "Feeds five thousand", "ref": "Matt 14:21" },
+        { "label": "Walks on the water", "ref": "Matt 14:25" },
+        { "label": "Transfigured on a mountain", "ref": "Matt 17:2" },
+        { "label": "Rides into Jerusalem", "ref": "Matt 21:7" },
+        { "label": "The last supper", "ref": "Matt 26:26" }
+      ]
+    },
+    {
+      "id": "easter", "title": "From Palm Sunday to the ascension", "difficulty": 2, "tags": ["easter", "gospels"],
+      "events": [
+        { "label": "Crowds cry Hosanna", "ref": "Matt 21:9" },
+        { "label": "The moneychangers driven out", "ref": "Matt 21:12" },
+        { "label": "The last supper", "ref": "Matt 26:26" },
+        { "label": "Prayer in Gethsemane", "ref": "Matt 26:39" },
+        { "label": "Betrayed with a kiss", "ref": "Matt 26:49" },
+        { "label": "Peter's third denial", "ref": "Matt 26:74" },
+        { "label": "Before Pilate", "ref": "Matt 27:11" },
+        { "label": "The crucifixion", "ref": "Matt 27:35" },
+        { "label": "Laid in the tomb", "ref": "Matt 27:60" },
+        { "label": "The empty tomb", "ref": "Matt 28:6" },
+        { "label": "Taken up into heaven", "ref": "Acts 1:9" }
+      ]
+    },
+    {
+      "id": "paul", "title": "The life of Paul", "difficulty": 3, "tags": ["acts"],
+      "events": [
+        { "label": "Watches Stephen stoned", "ref": "Acts 7:58" },
+        { "label": "Blinded on the Damascus road", "ref": "Acts 9:3" },
+        { "label": "Let down the wall in a basket", "ref": "Acts 9:25" },
+        { "label": "Sent out with Barnabas", "ref": "Acts 13:2" },
+        { "label": "The council at Jerusalem", "ref": "Acts 15:6" },
+        { "label": "Singing in the Philippian jail", "ref": "Acts 16:25" },
+        { "label": "Preaching on Mars' hill in Athens", "ref": "Acts 17:22" },
+        { "label": "The riot at Ephesus", "ref": "Acts 19:29" },
+        { "label": "Arrested in the temple", "ref": "Acts 21:30" },
+        { "label": "Shipwrecked on Melita", "ref": "Acts 27:41" },
+        { "label": "Arrives in Rome", "ref": "Acts 28:16" }
+      ]
+    },
+    {
+      "id": "signs-in-john", "title": "Signs in John's gospel", "difficulty": 4, "tags": ["gospels", "miracles"],
+      "instructions": "Put these in the order John tells them.",
+      "events": [
+        { "label": "Water made wine at Cana", "ref": "John 2:9" },
+        { "label": "A nobleman's son healed", "ref": "John 4:50" },
+        { "label": "A lame man healed at Bethesda", "ref": "John 5:8" },
+        { "label": "Five thousand fed", "ref": "John 6:11" },
+        { "label": "Walking on the sea", "ref": "John 6:19" },
+        { "label": "A man born blind sees", "ref": "John 9:7" },
+        { "label": "Lazarus raised", "ref": "John 11:44" }
+      ]
+    },
+    {
+      "id": "books-old", "title": "The first books of the Old Testament", "difficulty": 2, "tags": ["books"],
+      "instructions": "Put these books in the order they appear in the Bible.",
+      "events": ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel"]
+    },
+    {
+      "id": "books-new", "title": "The first books of the New Testament", "difficulty": 2, "tags": ["books"],
+      "instructions": "Put these books in the order they appear in the Bible.",
+      "events": ["Matthew", "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians"]
+    }
+  ]
+}

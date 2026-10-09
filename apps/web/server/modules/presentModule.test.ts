@@ -56,7 +56,7 @@ describe('present server module', () => {
     expect(imported).not.toHaveBeenCalled();
     expect(registry.getRegisteredRoutes().filter((r) => r.path.startsWith('/api/present') || r.path.startsWith('/api/hymns'))).toEqual([]);
     expect(registry.getRegisteredRoutes().filter((r) => r.moduleId === 'present')).toEqual([]);
-    expect(registry.getRegisteredBodyParsers()).toEqual([]);
+    expect(registry.getRegisteredBodyParsers().filter((p) => p.moduleId === 'present')).toEqual([]);
     expect(loader.listServerModules().find((m) => m.id === 'present')).toMatchObject({ enabled: false });
     vi.doUnmock('./present/presentRoutes');
     vi.doUnmock('./present/hymnRoutes');

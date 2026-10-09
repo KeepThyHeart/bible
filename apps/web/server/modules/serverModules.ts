@@ -16,6 +16,7 @@ import { quizManifest } from './quiz/manifest.js';
 import { wordStudyManifest } from './word-study/manifest.js';
 import { xrefGraphManifest } from './xref-graph/manifest.js';
 import { audioManifest } from './audio/manifest.js';
+import { gamesManifest } from './games/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -36,4 +37,11 @@ export const serverModules: readonly ServerModuleEntry[] = [
   { manifest: wordStudyManifest, load: () => import('./word-study/routes.js') },
   { manifest: xrefGraphManifest, load: () => import('./xref-graph/routes.js') },
   { manifest: audioManifest, load: () => import('./audio/routes.js') },
+  {
+    manifest: gamesManifest,
+    load: async () => {
+      await import('./games/gamesRoutes.js');
+      await import('./games/gamesPages.js');
+    },
+  },
 ];

@@ -1,0 +1,323 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The floor is a 320 px phone in portrait holding five long labels, so every
+ * row is full width, every label wraps rather than truncates, and nothing sits
+ * side by side that could push the page sideways. The big screen scales the
+ * same rules up rather than inventing a second design.
+ */
+
+.games-root .pio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.games-root .pio-nothing, .games-root .pio-hint, .games-root .pio-muted {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .pio-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.games-root .pio-title {
+  margin: 0;
+  font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
+  line-height: 1.2;
+}
+
+.games-root .pio-title-small {
+  font-size: var(--text-lg);
+}
+
+.games-root .pio-instructions, .games-root .pio-prompt {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+}
+
+.games-root .pio-prompt {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.games-root .pio-label, .games-root .pio-slot-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A letter a room can say aloud. */
+.games-root .pio-letter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .pio-number {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  color: var(--fg-muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- The shuffled items, on either screen --------------------------------- */
+
+.games-root .pio-items {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .pio-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.games-root .pio-host .pio-item {
+  font-size: var(--text-xl);
+}
+
+.games-root .pio-host .pio-letter {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.games-root .pio-items-small .pio-item {
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Two columns on a wide screen; the list never looks already ordered in a
+   single column running down the projector. */
+@media (min-width: 900px) {
+  .games-root .pio-host .pio-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* --- Building the order on a phone ---------------------------------------- */
+
+.games-root .pio-slots, .games-root .pio-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .pio-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+}
+
+.games-root .pio-slot > .pio-slot-label {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+}
+
+.games-root .pio-slot-empty {
+  flex: 1;
+  min-height: var(--tap);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+/* The one item the phone placed by itself is marked with a word as well as a
+   style, so nobody wonders whether it was their tap. */
+.games-root .pio-slot-label[data-implied='true'] {
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+}
+
+.games-root .pio-slot-label[data-implied='true']::after {
+  content: ' (last one)';
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .pio-placed, .games-root .pio-tap {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-base);
+  text-align: start;
+}
+
+.games-root .pio-placed {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+/* A thumb, not a cursor. */
+.games-root .pio-tap {
+  min-height: 3.5rem;
+  font-size: var(--text-lg);
+}
+
+.games-root .pio-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .pio-send {
+  min-height: 3.5rem;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .pio-clear {
+  background: transparent;
+  color: var(--fg-muted);
+}
+
+.games-root .pio-sent {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .pio-answer-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.games-root .pio-answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .pio-answer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: var(--space-1) solid var(--correct);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.games-root .pio-answer-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.games-root .pio-answer-body .pio-label {
+  font-weight: 600;
+}
+
+.games-root .pio-host .pio-answer-row {
+  font-size: var(--text-xl);
+}
+
+.games-root .pio-ref {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+
+.games-root .pio-note {
+  flex-basis: 100%;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .pio-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .pio-tally-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.games-root .pio-tally-count {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .pio-tally-row[data-kind='in-order'] .pio-tally-count {
+  color: var(--correct);
+}
+
+.games-root .pio-yours {
+  margin: 0;
+  font-weight: 600;
+}
+
+.games-root .pio-yours[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .pio-yours[data-correct='false'] {
+  color: var(--warn);
+}
+
+.games-root .pio-your-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.games-root .pio-your-list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  overflow-wrap: anywhere;
+}

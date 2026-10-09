@@ -19,14 +19,33 @@ export const FORBIDDEN = [
   /^src\/modules\/word-study\/(?!(manifest|binding)\.ts$)/,
   /^src\/modules\/audio\/(?!(manifest|binding)\.ts$)/,
   /^src\/modules\/notifications\/(?!(manifest|binding)\.ts$)/,
+  // Games: only the manifest, the binding and the (import-free) runtime sink.
+  /^src\/modules\/games\/(?!(manifest|binding|runtime)\.ts$)/,
+];
+
+/**
+ * The Games phone page (`games/play.html`) must load no reader code: its static
+ * graph may hold the games client and shared libraries, nothing of the reading
+ * app (task 0115).
+ */
+export const PHONE_ENTRY_FORBIDDEN = [
+  /^src\/apps\//,
+  /^src\/DesktopApp\.tsx$/,
+  /^src\/MobileApp\.tsx$/,
+  /^src\/stores\//,
+  /^src\/offline\//,
+  /^src\/search\//,
+  /^src\/host\//,
+  /^src\/i18n\.ts$/,
+  /^src\/modules\/(?!games\/)/,
 ];
 
 /** @returns {{ok: boolean, entry: string|null, offenders: {chunk: string, module: string}[], error?: string}} */
-export function checkReport(report) {
+export function checkReport(report, entryHtml = 'index.html', forbidden = FORBIDDEN) {
   const chunks = report.chunks ?? [];
   const byFile = new Map(chunks.map((c) => [c.fileName, c]));
-  const entry = chunks.find((c) => c.isEntry && c.facadeModuleId && c.facadeModuleId.endsWith('index.html'));
-  if (!entry) return { ok: false, entry: null, offenders: [], error: 'no entry chunk (facade index.html) in report' };
+  const entry = chunks.find((c) => c.isEntry && c.facadeModuleId && c.facadeModuleId.endsWith(entryHtml));
+  if (!entry) return { ok: false, entry: null, offenders: [], error: `no entry chunk (facade ${entryHtml}) in report` };
   const seen = new Set();
   const offenders = [];
   const stack = [entry.fileName];
@@ -37,7 +56,7 @@ export function checkReport(report) {
     const c = byFile.get(f);
     if (!c) continue;
     for (const m of c.modules) {
-      if (FORBIDDEN.some((re) => re.test(m))) offenders.push({ chunk: f, module: m });
+      if (forbidden.some((re) => re.test(m))) offenders.push({ chunk: f, module: m });
     }
     stack.push(...(c.imports ?? []));
   }
@@ -64,5 +83,15 @@ if (isMain) {
     for (const o of r.offenders) console.error(`  ${o.module}  (in ${o.chunk})`);
     process.exit(1);
   }
-  console.log(`check-entry-chunk OK (entry ${r.entry})`);
+  const phone = checkReport(report, 'games/play.html', PHONE_ENTRY_FORBIDDEN);
+  if (phone.error) {
+    console.error(`check-entry-chunk: ${phone.error}`);
+    process.exit(2);
+  }
+  if (!phone.ok) {
+    console.error(`check-entry-chunk FAILED: the games phone page ${phone.entry} statically pulls in ${phone.offenders.length} reader module(s):`);
+    for (const o of phone.offenders) console.error(`  ${o.module}  (in ${o.chunk})`);
+    process.exit(1);
+  }
+  console.log(`check-entry-chunk OK (entry ${r.entry}; games phone page ${phone.entry})`);
 }

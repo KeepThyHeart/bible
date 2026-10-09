@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "קריאת המקרא",
     "search": "חיפוש",
-    "watchPresentation": "צפייה במצגת"
+    "watchPresentation": "צפייה במצגת",
+    "games": "משחקי מקרא"
   },
   "errorBoundary": {
     "title": "משהו השתבש",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "מציג"
+    },
+    "games": {
+      "title": "משחקים"
     },
     "stage": {
       "loading": "טוען…",

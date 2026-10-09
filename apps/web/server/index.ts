@@ -266,7 +266,10 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
   // Scoped to /api so static assets, /data, the SPA shell and the login page
   // don't consume the ceiling — a reader loading the page should not be able
   // to 429 someone else's API calls.
-  app.use('/api', rateLimiter.global());
+  // The games' own tier covers /api/games: a room's phones share one address and chatter
+  // (intents, clock sync), and counting them here would let a few rooms starve the reader.
+  const globalLimit = rateLimiter.global();
+  app.use('/api', (req, res, next) => (req.path.startsWith('/games/') ? next() : globalLimit(req, res, next)));
 
   // ONE tier per request. Mounting `app.use('/api', default)` alongside the
   // prefix mounts did not replace them, it ran in addition to them: Express

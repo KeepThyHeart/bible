@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "阅读圣经",
     "search": "搜索",
-    "watchPresentation": "观看演示"
+    "watchPresentation": "观看演示",
+    "games": "圣经游戏"
   },
   "errorBoundary": {
     "title": "出现问题",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "演示"
+    },
+    "games": {
+      "title": "游戏"
     },
     "stage": {
       "loading": "正在加载…",

@@ -1,0 +1,156 @@
+{
+  "$schema": "../schemas/games.schema.json",
+  "games": {
+    "play": {
+      "showOnTv": "Mostrar en una pantalla",
+      "scanOnTv": "Escanee en la pantalla",
+      "tvQr": "Código QR para añadir esta sala a una pantalla o a una segunda pantalla",
+      "joinAnother": "Unirse a otra sala",
+      "joining": "Uniéndose a la sala…",
+      "room": "Sala",
+      "startAgain": "Empezar de nuevo"
+    },
+    "common": {
+      "close": "Cerrar",
+      "reconnecting": "Reconectando…",
+      "retryNow": "Reintentar ahora",
+      "tryAgain": "Intentar de nuevo",
+      "or": "o",
+      "takeBackControl": "Recuperar el control",
+      "startGame": "Empezar el juego",
+      "away": "(ausente)",
+      "off": "Desactivado"
+    },
+    "timer": {
+      "remaining": "Tiempo restante",
+      "secondsLeft": "Quedan {seconds} segundos",
+      "paused": "En pausa",
+      "secondsShort": "{seconds} s"
+    },
+    "frame": {
+      "roomAria": "Sala {code}",
+      "total": "Total",
+      "answered": "Han respondido {answered} / {total}",
+      "revealNow": "Revelar ahora"
+    },
+    "host": {
+      "newRoom": "Empezar una sala nueva",
+      "opening": "Abriendo la sala…",
+      "runningBy": "{name} dirige la sala.",
+      "someone": "Alguien",
+      "runningByOwner": "El propietario de la sala la dirige.",
+      "roomCodeAria": "Código de la sala {code}",
+      "joinAt": "Únase en",
+      "code": "Código",
+      "qrLabel": "Código QR para unirse a la sala {code}",
+      "playToo": "Jugar también y dirigirlo desde aquí",
+      "players": "Jugadores ({total})",
+      "nobodyYet": "Todavía no se ha unido nadie.",
+      "waitingFirst": "Esperando al primer jugador.",
+      "leaderName": "Líder"
+    },
+    "bar": {
+      "roomMenu": "Menú de la sala",
+      "scoresEveryone": "Puntuaciones: todos",
+      "scoresTopThree": "Puntuaciones: los tres primeros",
+      "overallWinners": "Ganadores generales",
+      "managePlayers": "Gestionar jugadores",
+      "fullStandings": "Clasificación completa",
+      "notFinished": "Esta partida aún no ha terminado.",
+      "startNewGame": "Empezar una partida nueva",
+      "keepPlaying": "Seguir jugando",
+      "newGame": "Partida nueva",
+      "endIt": "Terminar",
+      "closeRoom": "Cerrar la sala",
+      "nobodyScored": "Todavía nadie ha puntuado.",
+      "askingRoom": "Consultando a la sala…",
+      "previousQuestion": "Pregunta anterior",
+      "lastTime": "La vez anterior",
+      "referenceOnly": "Solo como referencia: nada de esto cambia la sala.",
+      "requestsLabel": "Solicitudes para dirigir la sala",
+      "wantsToRun": "Quiere dirigir la partida",
+      "letThem": "Permitir",
+      "no": "No",
+      "roomControls": "Controles de la sala",
+      "back": "Atrás",
+      "resume": "Reanudar",
+      "pause": "Pausa",
+      "skipIt": "Omitir",
+      "keepGoing": "Continuar",
+      "skip": "Omitir",
+      "nextQuestion": "Siguiente pregunta"
+    },
+    "join": {
+      "enterCode": "Introduzca el código de la sala",
+      "codeHelp": "Letras y números de la pantalla grande.",
+      "yourName": "Su nombre",
+      "joining": "Uniéndose…",
+      "joinRoom": "Unirse a la sala",
+      "solo": "Jugar solo"
+    },
+    "solo": {
+      "onYourOwn": "Está solo: nadie más puede ver esta sala.",
+      "start": "Empezar",
+      "joinInstead": "Unirse a una sala en su lugar"
+    },
+    "lobby": {
+      "noBibleBefore": "En este servidor no hay ningún módulo de la Biblia instalado: los juegos basados en versículos harán toda la ronda sin mostrar nada. Consulte",
+      "noBibleAfter": "para instalar uno, o elija un juego que no lo necesite.",
+      "game": "Juego",
+      "set": "Conjunto",
+      "pickForMe": "Elegir por mí",
+      "translation": "Traducción",
+      "howWellKnown": "Nivel de conocimiento",
+      "rounds": "Rondas",
+      "timePerQuestion": "Tiempo por pregunta",
+      "secondsShort": "{value} s",
+      "settings": "Ajustes",
+      "teams": "Equipos",
+      "teamsOn": "Activado — {teams}",
+      "voteTogether": "Votar en conjunto",
+      "voteOnTeam": "Activado — cada equipo acuerda una respuesta",
+      "voteOnRoom": "Activado — la sala acuerda una respuesta",
+      "voteNoticeTeam": "Cada equipo vota en conjunto: la respuesta mayoritaria es la de todos.",
+      "voteNoticeRoom": "La sala vota en conjunto: la respuesta mayoritaria es la de todos.",
+      "buzzLabel": "Cómo pulsan los jugadores",
+      "buzzButtons": "Botones del móvil: todos compiten por pulsar «Lo encontré»",
+      "buzzHostCalls": "El anfitrión llama: sin botón en el móvil, usted da la palabra a quien lo encontró",
+      "roomTheme": "Tema de la sala"
+    },
+    "phone": {
+      "waitingYes": "Esperando a que la sala diga que sí",
+      "neverMind": "Olvídelo",
+      "waitingStart": "Esperando a que empiece la sala",
+      "denied": "Esta vez no: ¿intentarlo de nuevo?",
+      "runTheGame": "Dirigir el juego",
+      "inRoomOne": "{total} persona en la sala",
+      "inRoom": "{total} personas en la sala",
+      "yourName": "Su nombre:",
+      "team": "Equipo",
+      "othersHere": "Otros presentes",
+      "firstHere": "Aún no hay nadie más. Usted es el primero.",
+      "settings": "Ajustes",
+      "yourTheme": "Su tema",
+      "useRoomTheme": "Usar el tema de la sala",
+      "shareRoom": "Compartir esta sala",
+      "leaveTitle": "Salir de la sala",
+      "leaveQuestion": "¿Salir de la sala?",
+      "leaveRejoin": "Puede volver a unirse con el mismo código mientras la sala siga abierta.",
+      "stay": "Quedarse",
+      "theme": "Tema",
+      "leave": "Salir"
+    },
+    "brand": {
+      "title": "Juegos Bíblicos en Grupo",
+      "by": "De Keep Thy Heart"
+    },
+    "home": {
+      "tagline": "Preguntas bíblicas y juegos de fiesta para un grupo, que se juegan en el móvil de cada uno.",
+      "join": "Unirse a una sala",
+      "host": "Crear una sala"
+    },
+    "app": {
+      "live": "Sala activa"
+    }
+  }
+}

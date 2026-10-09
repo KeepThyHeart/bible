@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "Leer la Biblia",
     "search": "Buscar",
-    "watchPresentation": "Ver una presentación"
+    "watchPresentation": "Ver una presentación",
+    "games": "Juegos bíblicos"
   },
   "errorBoundary": {
     "title": "Se ha producido un error",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "Presentador"
+    },
+    "games": {
+      "title": "Juegos"
     },
     "stage": {
       "loading": "Cargando…",

@@ -1,0 +1,260 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The host rules scale up from the shared type ladder rather than inventing
+ * sizes, so the projector and the phone stay recognisably the same game. The
+ * one place a size is asserted outright is the verse: it is the question, and
+ * on the big screen it should be readable from the back wall.
+ */
+
+.games-root .ntr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+  width: 100%;
+}
+
+.games-root .ntr-nothing, .games-root .ntr-hint, .games-root .ntr-muted {
+  color: var(--fg-muted);
+}
+
+.games-root .ntr-ask {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.games-root .ntr-quote {
+  margin: 0;
+}
+
+.games-root .ntr-verse {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+
+.games-root .ntr-verse-small {
+  font-size: var(--text-base);
+}
+
+.games-root .ntr-verse-medium {
+  font-size: var(--text-2xl);
+}
+
+/* The back of the room, not the front of the laptop. */
+.games-root .ntr-verse-large {
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-3xl));
+  line-height: 1.25;
+}
+
+.games-root .ntr-translation {
+  margin-top: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+}
+
+/* --- The options, on the big screen --------------------------------------- */
+
+.games-root .ntr-options {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .ntr-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4, 1rem);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  font-size: var(--text-xl);
+}
+
+.games-root .ntr-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .ntr-ref {
+  font-weight: 600;
+}
+
+/* --- The options, on a phone ---------------------------------------------- */
+
+.games-root .ntr-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .ntr-tap, .games-root .ntr-send {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  /* A thumb, not a cursor. */
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-4, 1rem);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+.games-root .ntr-send {
+  justify-content: center;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.games-root .ntr-tap[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+.games-root .ntr-tap:disabled, .games-root .ntr-send:disabled {
+  opacity: 0.6;
+}
+
+.games-root .ntr-sent {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* --- The picker ----------------------------------------------------------- */
+
+.games-root .ntr-picker {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr;
+}
+
+.games-root .ntr-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.games-root .ntr-field-label {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .ntr-select, .games-root .ntr-number {
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .ntr-answer-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.games-root .ntr-answer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+}
+
+.games-root .ntr-why {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4, 1rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.games-root .ntr-why li {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.games-root .ntr-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .ntr-split-row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  grid-template-columns: minmax(6rem, 12rem) 1fr auto;
+  font-size: var(--text-lg);
+}
+
+/* The right answer is marked by a word as well as by a colour. */
+.games-root .ntr-split-row[data-correct='true'] .ntr-split-label::after {
+  content: ' ✓ correct';
+  color: var(--correct);
+  font-size: var(--text-sm);
+}
+
+.games-root .ntr-bar {
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.625rem;
+  background: var(--bg-sunken);
+}
+
+.games-root .ntr-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.625rem;
+  background: var(--accent);
+}
+
+.games-root .ntr-split-row[data-correct='true'] .ntr-bar-fill {
+  background: var(--correct);
+}
+
+.games-root .ntr-yours[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .ntr-yours[data-correct='false'] {
+  color: var(--warn);
+}
+
+@media (min-width: 40rem) {
+  .games-root .ntr-picker {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}

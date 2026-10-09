@@ -312,6 +312,27 @@ function presentWatchDevPlugin(): Plugin {
   };
 }
 
+/**
+ * Serve the Games phone page for its pretty URLs during development
+ * (`/games/play`, `/games/screen`, `/games/solo`, with their query strings).
+ * In a build the server does the same (`server/modules/games/gamesPages.ts`).
+ */
+function gamesPlayDevPlugin(): Plugin {
+  return {
+    name: 'games-play-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && /^\/games\/(?:play|screen|solo)(?:[/?#]|$)/.test(req.url)) {
+          const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+          req.url = '/games/play.html' + query;
+        }
+        next();
+      });
+    },
+  };
+}
+
 function basePathPlugin(): Plugin {
   return {
     name: 'bible-base-path',
@@ -349,6 +370,7 @@ export default defineConfig({
     basePathPlugin(),
     presentViewerDevPlugin(),
     presentWatchDevPlugin(),
+    gamesPlayDevPlugin(),
     chunkReport(),
     wasmPlugin(),
     ortWasmPlugin(),
@@ -462,6 +484,8 @@ export default defineConfig({
         presentViewer: resolve(__dirname, 'present/viewer.html'),
         presentWatch: resolve(__dirname, 'present/watch.html'),
         presentSolo: resolve(__dirname, 'present/solo.html'),
+        // The Games phone page: its own entry, so a phone loads no reader code.
+        gamesPlay: resolve(__dirname, 'games/play.html'),
       },
     },
   },

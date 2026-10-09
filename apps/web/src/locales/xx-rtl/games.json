@@ -1,0 +1,156 @@
+{
+  "$schema": "../schemas/games.schema.json",
+  "games": {
+    "play": {
+      "showOnTv": "‏Show on a TV‏",
+      "scanOnTv": "‏Scan on the TV‏",
+      "tvQr": "‏QR code to add this room to a TV or a second screen‏",
+      "joinAnother": "‏Join another room‏",
+      "joining": "‏Joining the room…‏",
+      "room": "‏Room‏",
+      "startAgain": "‏Start again‏"
+    },
+    "common": {
+      "close": "‏Close‏",
+      "reconnecting": "‏Reconnecting…‏",
+      "retryNow": "‏Retry now‏",
+      "tryAgain": "‏Try again‏",
+      "or": "‏or‏",
+      "takeBackControl": "‏Take back control‏",
+      "startGame": "‏Start game‏",
+      "away": "‏(away)‏",
+      "off": "‏Off‏"
+    },
+    "timer": {
+      "remaining": "‏Time remaining‏",
+      "secondsLeft": "‏{seconds} seconds left‏",
+      "paused": "‏Paused‏",
+      "secondsShort": "‏{seconds}s‏"
+    },
+    "frame": {
+      "roomAria": "‏Room {code}‏",
+      "total": "‏Total‏",
+      "answered": "‏Answered {answered} / {total}‏",
+      "revealNow": "‏Reveal now‏"
+    },
+    "host": {
+      "newRoom": "‏Start a new room‏",
+      "opening": "‏Opening the room…‏",
+      "runningBy": "‏{name} is running the room.‏",
+      "someone": "‏Someone‏",
+      "runningByOwner": "‏The room's owner is running it.‏",
+      "roomCodeAria": "‏Room code {code}‏",
+      "joinAt": "‏Join at‏",
+      "code": "‏Code‏",
+      "qrLabel": "‏QR code to join room {code}‏",
+      "playToo": "‏Play too, and run it from here‏",
+      "players": "‏Players ({total})‏",
+      "nobodyYet": "‏Nobody has joined yet.‏",
+      "waitingFirst": "‏Waiting for the first player.‏",
+      "leaderName": "‏Leader‏"
+    },
+    "bar": {
+      "roomMenu": "‏Room menu‏",
+      "scoresEveryone": "‏Scores: everyone‏",
+      "scoresTopThree": "‏Scores: top three‏",
+      "overallWinners": "‏Overall winners‏",
+      "managePlayers": "‏Manage players‏",
+      "fullStandings": "‏Full standings‏",
+      "notFinished": "‏This game is not finished yet.‏",
+      "startNewGame": "‏Start a new game‏",
+      "keepPlaying": "‏Keep playing‏",
+      "newGame": "‏New game‏",
+      "endIt": "‏End it‏",
+      "closeRoom": "‏Close room‏",
+      "nobodyScored": "‏Nobody has scored yet.‏",
+      "askingRoom": "‏Asking the room…‏",
+      "previousQuestion": "‏Previous question‏",
+      "lastTime": "‏Last time‏",
+      "referenceOnly": "‏For reference only — nothing here changes the room.‏",
+      "requestsLabel": "‏Requests to run the room‏",
+      "wantsToRun": "‏Wants to run the game‏",
+      "letThem": "‏Let them‏",
+      "no": "‏No‏",
+      "roomControls": "‏Room controls‏",
+      "back": "‏Back‏",
+      "resume": "‏Resume‏",
+      "pause": "‏Pause‏",
+      "skipIt": "‏Skip it‏",
+      "keepGoing": "‏Keep going‏",
+      "skip": "‏Skip‏",
+      "nextQuestion": "‏Next question‏"
+    },
+    "join": {
+      "enterCode": "‏Enter room code‏",
+      "codeHelp": "‏Letters and numbers from the big screen.‏",
+      "yourName": "‏Your name‏",
+      "joining": "‏Joining…‏",
+      "joinRoom": "‏Join room‏",
+      "solo": "‏Play solo‏"
+    },
+    "solo": {
+      "onYourOwn": "‏On your own — nobody else can see this room.‏",
+      "start": "‏Start‏",
+      "joinInstead": "‏Join a room instead‏"
+    },
+    "lobby": {
+      "noBibleBefore": "‏No Bible module is installed on this server — verse-based games will run their full round showing nothing. See‏",
+      "noBibleAfter": "‏to install one, or pick a game that does not need one.‏",
+      "game": "‏Game‏",
+      "set": "‏Set‏",
+      "pickForMe": "‏Pick for me‏",
+      "translation": "‏Translation‏",
+      "howWellKnown": "‏How well known‏",
+      "rounds": "‏Rounds‏",
+      "timePerQuestion": "‏Time per question‏",
+      "secondsShort": "‏{value}s‏",
+      "settings": "‏Settings‏",
+      "teams": "‏Teams‏",
+      "teamsOn": "‏On — {teams}‏",
+      "voteTogether": "‏Vote together‏",
+      "voteOnTeam": "‏On — each team agrees one answer‏",
+      "voteOnRoom": "‏On — the room agrees one answer‏",
+      "voteNoticeTeam": "‏Each team votes together: the majority answer is everyone's.‏",
+      "voteNoticeRoom": "‏The room votes together: the majority answer is everyone's.‏",
+      "buzzLabel": "‏How players buzz in‏",
+      "buzzButtons": "‏Phone buttons — everyone races to tap Found it‏",
+      "buzzHostCalls": "‏Host calls — no phone button, you call on whoever found it‏",
+      "roomTheme": "‏Room theme‏"
+    },
+    "phone": {
+      "waitingYes": "‏Waiting for the room to say yes‏",
+      "neverMind": "‏Never mind‏",
+      "waitingStart": "‏Waiting for the room to start‏",
+      "denied": "‏Not this time — try again?‏",
+      "runTheGame": "‏Run the game‏",
+      "inRoomOne": "‏{total} person in the room‏",
+      "inRoom": "‏{total} people in the room‏",
+      "yourName": "‏Your name:‏",
+      "team": "‏Team‏",
+      "othersHere": "‏Others here‏",
+      "firstHere": "‏Nobody else yet. You are first.‏",
+      "settings": "‏Settings‏",
+      "yourTheme": "‏Your theme‏",
+      "useRoomTheme": "‏Use the room's theme‏",
+      "shareRoom": "‏Share this room‏",
+      "leaveTitle": "‏Leave the room‏",
+      "leaveQuestion": "‏Leave the room?‏",
+      "leaveRejoin": "‏You can rejoin with the same code while the room is still open.‏",
+      "stay": "‏Stay‏",
+      "theme": "‏Theme‏",
+      "leave": "‏Leave‏"
+    },
+    "brand": {
+      "title": "‏Group Bible Games‏",
+      "by": "‏By Keep Thy Heart‏"
+    },
+    "home": {
+      "tagline": "‏Bible trivia and party games for a group, played on everyone’s own phone.‏",
+      "join": "‏Join a room‏",
+      "host": "‏Host a room‏"
+    },
+    "app": {
+      "live": "‏Room live‏"
+    }
+  }
+}

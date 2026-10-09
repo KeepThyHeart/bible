@@ -1,0 +1,303 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The big screen is sized for the back of a room: the public clue is the
+ * largest thing on it, and the names are big enough to say aloud. The phone
+ * is sized for a thumb. Nothing is marked by colour alone — the right answer
+ * carries a word or a tick as well as a hue.
+ */
+
+.games-root .det {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+  width: 100%;
+}
+
+.games-root .det-nothing, .games-root .det-muted {
+  color: var(--fg-muted);
+}
+
+.games-root .det-small {
+  font-size: var(--text-sm);
+}
+
+.games-root .det-ask {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.games-root .det-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.games-root .det-label-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.games-root .det-lock {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --- The big screen during play ------------------------------------------- */
+
+.games-root .det-host {
+  max-width: 70rem;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+/* The back of the room, not the front of the laptop. */
+.games-root .det-opening {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  line-height: 1.25;
+  text-wrap: pretty;
+}
+
+.games-root .det-how {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.games-root .det-options {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .det-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4, 1rem);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  font-size: var(--text-xl);
+}
+
+.games-root .det-letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .det-name {
+  font-weight: 600;
+}
+
+/* --- The phone during play ------------------------------------------------ */
+
+.games-root .det-yours, .games-root .det-vote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .det-vote {
+  gap: var(--space-3);
+}
+
+.games-root .det-clue-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4, 1rem);
+  border: 2px solid var(--accent);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+}
+
+.games-root .det-clue-card-quiet {
+  border-width: 1px;
+  border-color: var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .det-clue-text {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.35;
+}
+
+.games-root .det-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .det-tap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  /* A thumb, not a cursor. */
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-4, 1rem);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+.games-root .det-tap[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+.games-root .det-tap:disabled {
+  opacity: 0.6;
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .det-reveal {
+  display: grid;
+  gap: var(--space-4, 1rem) 3rem;
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+
+.games-root .det-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .det-answer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+  line-height: 1.1;
+}
+
+.games-root .det-verdict {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.games-root .det-phone .det-verdict {
+  font-size: var(--text-lg);
+}
+
+.games-root .det-verdict[data-tone='correct'] {
+  color: var(--correct);
+}
+
+.games-root .det-verdict[data-tone='wrong'] {
+  color: var(--warn);
+}
+
+.games-root .det-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .det-split-row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  grid-template-columns: minmax(6rem, 10rem) 1fr 2.5rem;
+  font-size: var(--text-lg);
+}
+
+.games-root .det-split-row[data-correct='true'] .det-split-label {
+  font-weight: 700;
+}
+
+/* The right answer is marked by a word as well as by a colour. */
+.games-root .det-split-row[data-correct='true'] .det-split-label::after {
+  content: ' ✓';
+  color: var(--correct);
+}
+
+.games-root .det-split-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .det-bar {
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.625rem;
+  background: var(--bg-sunken);
+}
+
+.games-root .det-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.625rem;
+  background: var(--accent);
+}
+
+.games-root .det-split-row[data-correct='true'] .det-bar-fill {
+  background: var(--correct);
+}
+
+.games-root .det-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .det-clue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: var(--space-3) var(--space-4, 1rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.games-root .det-clue[data-where='undealt'] {
+  opacity: 0.7;
+}
+
+.games-root .det-own {
+  margin: 0;
+  color: var(--warn);
+}
+
+@media (min-width: 56rem) {
+  .games-root .det-reveal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

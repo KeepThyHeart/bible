@@ -17,12 +17,13 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-export type RateLimitTier = 'search' | 'content' | 'present' | 'default';
+export type RateLimitTier = 'search' | 'content' | 'present' | 'games' | 'default';
 
 export interface RateLimitConfig {
   search: number;
   content: number;
   present: number;
+  games: number;
   default: number;
   global: number;
   /** Window length in ms. Defaults to 60_000 (1 minute). */
@@ -59,6 +60,11 @@ export const DEFAULT_RATE_LIMITS = {
   // room, like the projector froze -- so this is sized well clear of any
   // plausible service.
   present: 600,
+  // Group Bible games. Every phone in a room usually shares one address (a church
+  // hall's wifi behind one NAT), so the cap is per room-sized crowd, not per
+  // person: ~40 phones sending an intent a second, plus clock-sync and the odd
+  // reconnect. Tripping it freezes a live game for everybody.
+  games: 3000,
   // Boot-time odds and ends — health, config, version, plugins. A handful per
   // session, so this stays tight without ever gating content.
   default: 120,
@@ -81,6 +87,7 @@ const TIER_BY_PREFIX: Record<string, RateLimitTier> = {
   search: 'search',
   'word-study': 'search',
   present: 'present',
+  games: 'games',
   hymns: 'content',
   bible: 'content',
   commentary: 'content',
@@ -159,6 +166,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
     search: new Map(),
     content: new Map(),
     present: new Map(),
+    games: new Map(),
     default: new Map(),
   };
   let globalCounter: Counter = { count: 0, windowStart: Date.now() };
@@ -170,6 +178,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
     sweep(perTier.search, now, windowMs);
     sweep(perTier.content, now, windowMs);
     sweep(perTier.present, now, windowMs);
+    sweep(perTier.games, now, windowMs);
     sweep(perTier.default, now, windowMs);
   }, 5 * 60_000);
   // Don't keep the event loop alive just for sweeping.
@@ -215,6 +224,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
       perTier.search.clear();
       perTier.content.clear();
       perTier.present.clear();
+      perTier.games.clear();
       perTier.default.clear();
       globalCounter = { count: 0, windowStart: Date.now() };
     },

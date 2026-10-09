@@ -1,0 +1,136 @@
+{
+  "_comment": [
+    "The category board: each category is a column of five questions, easiest",
+    "first. kind says where the wrong answers come from — person and place",
+    "draw from the people and places files, book from the books of the Bible —",
+    "so the answer must be spelled the way that file spells it. kind other",
+    "means nothing on file fits, and the author writes the wrong answers:",
+    "eight, most plausible first, so a replay does not show the same four.",
+    "",
+    "Factual, not interpretive. A question the text itself settles, never one a",
+    "commentary does. Keep the answer out of the prompt: the check warns when a",
+    "prompt names its own answer."
+  ],
+  "board": [
+    {
+      "title": "Kings and Queens", "tags": ["kings"],
+      "questions": [
+        { "prompt": "Who was the first king of Israel?", "answer": "Saul", "kind": "person", "ref": "1 Sam 10:24", "difficulty": 1 },
+        { "prompt": "Which king asked God for an understanding heart?", "answer": "Solomon", "kind": "person", "ref": "1 Kgs 3:9", "difficulty": 2 },
+        { "prompt": "Which queen was married to King Ahab?", "answer": "Jezebel", "kind": "person", "ref": "1 Kgs 16:31", "difficulty": 3 },
+        { "prompt": "Which king saw fingers of a man's hand writing on his palace wall?", "answer": "Belshazzar", "kind": "person", "ref": "Dan 5:5", "difficulty": 4 },
+        { "prompt": "Which king of Judah began to reign at eight years old?", "answer": "Josiah", "kind": "person", "ref": "2 Kgs 22:1", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Prophets", "tags": ["prophets"],
+      "questions": [
+        { "prompt": "Which prophet was swallowed by a great fish?", "answer": "Jonah", "kind": "person", "ref": "Jonah 1:17", "difficulty": 1 },
+        { "prompt": "Which prophet went up by a whirlwind into heaven?", "answer": "Elijah", "kind": "person", "ref": "2 Kgs 2:11", "difficulty": 2 },
+        { "prompt": "Which prophet told King David, Thou art the man?", "answer": "Nathan", "kind": "person", "ref": "2 Sam 12:7", "difficulty": 3 },
+        { "prompt": "Which prophet was let down into a dungeon of mire?", "answer": "Jeremiah", "kind": "person", "ref": "Jer 38:6", "difficulty": 4 },
+        { "prompt": "Which prophet walked naked and barefoot for three years as a sign?", "answer": "Isaiah", "kind": "person", "ref": "Isa 20:3", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Women of the Bible", "tags": ["women"],
+      "questions": [
+        { "prompt": "Who was called the mother of all living?", "answer": "Eve", "kind": "person", "ref": "Gen 3:20", "difficulty": 1 },
+        { "prompt": "Who hid two spies on her roof in Jericho?", "answer": "Rahab", "kind": "person", "ref": "Josh 2:6", "difficulty": 2 },
+        { "prompt": "Which woman judged Israel under a palm tree?", "answer": "Deborah", "kind": "person", "ref": "Judg 4:5", "difficulty": 3 },
+        { "prompt": "Which seller of purple was baptised at Philippi?", "answer": "Lydia", "kind": "person", "ref": "Acts 16:14", "difficulty": 4 },
+        { "prompt": "Which prophetess of the tribe of Aser gave thanks for the baby Jesus in the temple?", "answer": "Anna", "kind": "person", "ref": "Luke 2:36", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Places", "tags": ["places"],
+      "questions": [
+        { "prompt": "In which town was Jesus born?", "answer": "Bethlehem", "kind": "place", "ref": "Matt 2:1", "difficulty": 1 },
+        { "prompt": "Which city's walls fell down flat?", "answer": "Jericho", "kind": "place", "ref": "Josh 6:20", "difficulty": 2 },
+        { "prompt": "To which great city was Jonah sent to preach?", "answer": "Nineveh", "kind": "place", "ref": "Jonah 1:2", "difficulty": 3 },
+        { "prompt": "In which city were the disciples first called Christians?", "answer": "Antioch", "kind": "place", "ref": "Acts 11:26", "difficulty": 4 },
+        { "prompt": "From which city of the Chaldees did Abram's family set out?", "answer": "Ur", "kind": "place", "ref": "Gen 11:31", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Mountains and Waters", "tags": ["places"],
+      "questions": [
+        { "prompt": "In which river was Jesus baptised?", "answer": "Jordan", "kind": "place", "ref": "Matt 3:13", "difficulty": 1 },
+        { "prompt": "On which mountain did Moses receive the law?", "answer": "Mount Sinai", "kind": "place", "ref": "Exod 19:20", "difficulty": 2 },
+        { "prompt": "Upon which mountains did the ark rest?", "answer": "Mount Ararat", "kind": "place", "ref": "Gen 8:4", "difficulty": 3 },
+        { "prompt": "On which mountain did Elijah face the prophets of Baal?", "answer": "Mount Carmel", "kind": "place", "ref": "1 Kgs 18:19", "difficulty": 4 },
+        { "prompt": "At which pool had a man waited thirty-eight years to be healed?", "answer": "Pool of Bethesda", "kind": "place", "ref": "John 5:5", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Books of the Bible", "tags": ["books"],
+      "questions": [
+        { "prompt": "Which book begins, In the beginning God created the heaven and the earth?", "answer": "Genesis", "kind": "book", "ref": "Gen 1:1", "difficulty": 1 },
+        { "prompt": "In which book are the Ten Commandments first given?", "answer": "Exodus", "kind": "book", "ref": "Exod 20:3", "difficulty": 2 },
+        { "prompt": "Which book tells of a man of Uz who lost everything and was covered with boils?", "answer": "Job", "kind": "book", "ref": "Job 2:7", "difficulty": 3 },
+        { "prompt": "Which is the shortest book of the Old Testament?", "answer": "Obadiah", "kind": "book", "difficulty": 4 },
+        { "prompt": "Which book tells of a prophet told to marry Gomer?", "answer": "Hosea", "kind": "book", "ref": "Hos 1:3", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Numbers", "tags": ["numbers"],
+      "questions": [
+        { "prompt": "How many days did God work at creation before he rested?", "answer": "Six", "accept": ["6"], "distractors": ["Seven", "Five", "Three", "Ten", "Four", "Eight", "Twelve", "Forty"], "ref": "Gen 2:2", "difficulty": 1 },
+        { "prompt": "How many apostles did Jesus ordain?", "answer": "Twelve", "accept": ["12"], "distractors": ["Ten", "Seven", "Eleven", "Seventy", "Three", "Six", "Five", "Forty"], "ref": "Mark 3:14", "difficulty": 2 },
+        { "prompt": "For how many days and nights did it rain in the flood?", "answer": "Forty", "accept": ["40"], "distractors": ["Seven", "Thirty", "A hundred and fifty", "Twelve", "Seventy", "Twenty", "Three", "Ten"], "ref": "Gen 7:12", "difficulty": 3 },
+        { "prompt": "For how many pieces of silver was Joseph sold?", "answer": "Twenty", "accept": ["20"], "distractors": ["Thirty", "Ten", "Forty", "Fifty", "Twelve", "Fifteen", "Five", "Seven"], "ref": "Gen 37:28", "difficulty": 4 },
+        { "prompt": "How many years did Methuselah live?", "answer": "969", "accept": ["nine hundred sixty and nine", "nine hundred and sixty-nine"], "distractors": ["930", "950", "912", "962", "905", "895", "900", "1000"], "ref": "Gen 5:27", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Animals", "tags": ["animals"],
+      "questions": [
+        { "prompt": "What creature spoke to Eve in the garden?", "answer": "Serpent", "accept": ["snake", "the serpent"], "distractors": ["Lion", "Raven", "Dove", "Fox", "Frog", "Eagle", "Wolf", "Lamb"], "ref": "Gen 3:1", "difficulty": 1 },
+        { "prompt": "Which bird came back to the ark with an olive leaf?", "answer": "Dove", "accept": ["a dove"], "distractors": ["Raven", "Sparrow", "Eagle", "Swallow", "Crane", "Owl", "Stork", "Hawk"], "ref": "Gen 8:11", "difficulty": 2 },
+        { "prompt": "What animal spoke to Balaam?", "answer": "Ass", "accept": ["donkey", "his ass"], "distractors": ["Camel", "Horse", "Ox", "Mule", "Serpent", "Sheep", "Goat", "Lion"], "ref": "Num 22:28", "difficulty": 3 },
+        { "prompt": "What animals did Samson tie together tail to tail with firebrands?", "answer": "Foxes", "accept": ["fox"], "distractors": ["Lions", "Wolves", "Goats", "Dogs", "Oxen", "Bears", "Horses", "Asses"], "ref": "Judg 15:4", "difficulty": 4 },
+        { "prompt": "What animals ran violently down a steep place into the sea when Jesus cast out devils?", "answer": "Swine", "accept": ["pigs", "pig", "hogs"], "distractors": ["Goats", "Sheep", "Cattle", "Horses", "Camels", "Asses", "Wolves", "Dogs"], "ref": "Matt 8:32", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Parables", "tags": ["parables", "gospels"],
+      "questions": [
+        { "prompt": "In the parable, who stopped to help the man who fell among thieves?", "answer": "A Samaritan", "accept": ["Samaritan", "the good Samaritan", "good Samaritan"], "distractors": ["A priest", "A Levite", "An innkeeper", "A Pharisee", "A publican", "A scribe", "A soldier", "A shepherd"], "ref": "Luke 10:33", "difficulty": 1 },
+        { "prompt": "In the parable of the lost sheep, how many were left in the wilderness?", "answer": "Ninety and nine", "accept": ["99", "ninety-nine", "ninety nine"], "distractors": ["A hundred", "Ninety", "Fifty", "Twelve", "Forty", "Seventy", "Thirty", "Ten"], "ref": "Luke 15:4", "difficulty": 2 },
+        { "prompt": "What did the prodigal son long to fill his belly with?", "answer": "Husks", "accept": ["the husks"], "distractors": ["Bread", "Figs", "Barley", "Corn", "Acorns", "Olives", "Grapes", "Straw"], "ref": "Luke 15:16", "difficulty": 3 },
+        { "prompt": "In the parable of the sower, what sprang up and choked some of the seed?", "answer": "Thorns", "distractors": ["Stones", "Birds", "Tares", "Drought", "Frost", "Hail", "Locusts", "Worms"], "ref": "Matt 13:7", "difficulty": 4 },
+        { "prompt": "In the parable of the talents, how many talents was the first servant given?", "answer": "Five", "accept": ["5"], "distractors": ["Two", "One", "Ten", "Three", "Seven", "Eight", "Twelve", "Four"], "ref": "Matt 25:15", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Miracles", "tags": ["miracles"],
+      "questions": [
+        { "prompt": "What did Jesus turn water into at Cana?", "answer": "Wine", "distractors": ["Oil", "Milk", "Honey", "Blood", "Vinegar", "Ointment", "Bread", "Salt"], "ref": "John 2:9", "difficulty": 1 },
+        { "prompt": "Whom did Jesus raise after four days in the grave?", "answer": "Lazarus", "kind": "person", "ref": "John 11:17", "difficulty": 2 },
+        { "prompt": "How many barley loaves did the lad have when the multitude was fed?", "answer": "Five", "accept": ["5"], "distractors": ["Two", "Seven", "Three", "Twelve", "Four", "Six", "Ten", "One"], "ref": "John 6:9", "difficulty": 3 },
+        { "prompt": "What did Elisha make swim in the water?", "answer": "An axe head", "accept": ["axe head", "axehead", "axe", "the axe head", "iron"], "distractors": ["A cup", "A stone", "A spear", "A plough", "A sword", "A lamp", "A crown", "A pot"], "ref": "2 Kgs 6:6", "difficulty": 4 },
+        { "prompt": "Which ruler of the synagogue saw his twelve-year-old daughter raised?", "answer": "Jairus", "kind": "person", "ref": "Mark 5:42", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "The Early Church", "tags": ["acts"],
+      "questions": [
+        { "prompt": "Which apostle denied Jesus three times?", "answer": "Peter", "kind": "person", "ref": "Matt 26:75", "difficulty": 1 },
+        { "prompt": "Who was stoned while a young man named Saul kept the witnesses' clothes?", "answer": "Stephen", "kind": "person", "ref": "Acts 7:58", "difficulty": 2 },
+        { "prompt": "Who baptised an Ethiopian eunuch?", "answer": "Philip", "kind": "person", "ref": "Acts 8:38", "difficulty": 3 },
+        { "prompt": "On whom did the lot fall to replace Judas among the apostles?", "answer": "Matthias", "kind": "person", "ref": "Acts 1:26", "difficulty": 4 },
+        { "prompt": "Which young man fell from the third loft while Paul preached?", "answer": "Eutychus", "kind": "person", "ref": "Acts 20:9", "difficulty": 5 }
+      ]
+    },
+    {
+      "title": "Firsts and Lasts", "tags": [],
+      "questions": [
+        { "prompt": "Who was the first man?", "answer": "Adam", "kind": "person", "ref": "Gen 2:7", "difficulty": 1 },
+        { "prompt": "What is the last book of the Bible?", "answer": "Revelation", "kind": "book", "difficulty": 2 },
+        { "prompt": "Who lived longer than anyone else the Bible records?", "answer": "Methuselah", "kind": "person", "ref": "Gen 5:27", "difficulty": 3 },
+        { "prompt": "Who reigned over Judah when the kingdom divided?", "answer": "Rehoboam", "kind": "person", "ref": "1 Kgs 12:17", "difficulty": 4 },
+        { "prompt": "What is the last word of the Old Testament in the King James Version?", "answer": "Curse", "accept": ["a curse"], "distractors": ["Amen", "Lord", "Fathers", "Children", "Earth", "Blessing", "Hosts", "Day"], "ref": "Mal 4:6", "difficulty": 5 }
+      ]
+    }
+  ]
+}

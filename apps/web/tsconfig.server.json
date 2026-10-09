@@ -23,6 +23,6 @@
   // constants, importing nothing. Both ends compile against this one file so
   // they cannot drift. It lives under `src/` because the lint boundary allows
   // the server to read platform-free client code but never the reverse.
-  "include": ["server/**/*", "src/modules/present/lib/protocol.ts", "src/modules/present/lib/qr.ts", "src/modules/present/lib/hymns.ts"],
+  "include": ["server/**/*", "src/modules/present/lib/protocol.ts", "src/modules/present/lib/qr.ts", "src/modules/present/lib/hymns.ts", "src/modules/games/shared/**/*.ts"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

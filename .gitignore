@@ -19,6 +19,9 @@ apps/*/data/
 # Scratch data the web e2e suite assembles for itself (see apps/web/e2e/prepareData.ts)
 apps/web/e2e/.data/
 
+# Games questions the content tool's `generate` writes from content-src/source (the server builds its own in memory).
+apps/web/server/modules/games/content-src/generated/
+
 # Generated web assets. Both are build output, not source: the fonts are
 # downloaded by apps/web/scripts/fetch-fonts.mjs and the icons rasterised from
 # admin/brand/icon.svg by apps/web/scripts/generate-icons.mjs, each on the

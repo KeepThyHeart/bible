@@ -1,0 +1,231 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The host rules scale up from the shared type ladder rather than inventing
+ * sizes, so the projector and the phone stay recognisably the same game. The
+ * one size asserted outright is the quotation on the big screen: it is the
+ * question, and it should be readable from the back wall.
+ *
+ * Names can be long — `John the Baptist`, `Nebuchadnezzar` — so every place a
+ * name sits is allowed to wrap. A 320-pixel phone gets a narrower row, never a
+ * row that runs off the side.
+ */
+
+.games-root .wsi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.games-root .wsi-nothing, .games-root .wsi-hint, .games-root .wsi-muted {
+  color: var(--fg-muted);
+}
+
+.games-root .wsi-ask {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.games-root .wsi-quote {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-style: italic;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.games-root .wsi-quote-small {
+  font-size: var(--text-base);
+}
+
+.games-root .wsi-quote-medium {
+  font-size: var(--text-2xl);
+}
+
+/* The back of the room, not the front of the laptop. */
+.games-root .wsi-quote-large {
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-3xl));
+  line-height: 1.25;
+}
+
+/* --- The names, on the big screen ----------------------------------------- */
+
+.games-root .wsi-options {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wsi-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: var(--text-xl);
+}
+
+.games-root .wsi-letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .wsi-name {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* --- The names, on a phone ------------------------------------------------ */
+
+.games-root .wsi-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wsi-tap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  /* A thumb, not a cursor. */
+  min-height: 4rem;
+  padding: var(--space-3);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+.games-root .wsi-tap[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+.games-root .wsi-tap:disabled {
+  opacity: 0.6;
+}
+
+.games-root .wsi-sent {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .wsi-answer-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.games-root .wsi-answer {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+  overflow-wrap: anywhere;
+}
+
+.games-root .wsi-listener {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+}
+
+.games-root .wsi-verse-figure {
+  margin: 0;
+}
+
+.games-root .wsi-verse {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.4;
+}
+
+.games-root .wsi-verse-small {
+  font-size: var(--text-base);
+}
+
+.games-root .wsi-citation {
+  margin: var(--space-2) 0 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+}
+
+.games-root .wsi-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .wsi-split-row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  grid-template-columns: minmax(6rem, 14rem) 1fr auto;
+  font-size: var(--text-lg);
+}
+
+/* The speaker is marked by a word as well as by a colour. */
+.games-root .wsi-split-row[data-correct='true'] .wsi-split-label::after {
+  content: ' ✓ said it';
+  color: var(--correct);
+  font-size: var(--text-sm);
+}
+
+.games-root .wsi-bar {
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.625rem;
+  background: var(--bg-sunken);
+}
+
+.games-root .wsi-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.625rem;
+  background: var(--accent);
+}
+
+.games-root .wsi-split-row[data-correct='true'] .wsi-bar-fill {
+  background: var(--correct);
+}
+
+.games-root .wsi-yours[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .wsi-yours[data-correct='false'] {
+  color: var(--warn);
+}

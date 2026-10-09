@@ -1,0 +1,219 @@
+/*
+ * Fill in the blank.
+ *
+ * Two audiences, one stylesheet. The projector is read from six metres away by
+ * a room that is looking up from a conversation, so the verse there is as large
+ * as it can be without wrapping into a wall of text; the phone is read at arm's
+ * length by someone who is about to type, so the verse there gives way to the
+ * box.
+ *
+ * The blank itself is the only thing on either screen that is allowed to shout,
+ * because it is the question.
+ */
+
+.games-root .fitb-host, .games-root .fitb-phone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.games-root .fitb-host {
+  justify-content: center;
+  text-align: center;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+/* Long verses must not push the controls off a projector, so the size gives
+   way before the layout does. */
+.games-root .fitb-host .fitb-verse {
+  font-size: clamp(var(--text-xl), 4.2vw, var(--text-3xl));
+  line-height: 1.35;
+}
+
+.games-root .fitb-phone .fitb-verse {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.games-root .fitb-verse {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.games-root .fitb-blank {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  /* Underscores sit on the baseline and vanish against an underline-free
+     paragraph; a rule under them reads as a blank at any distance. */
+  border-bottom: 0.12em solid var(--accent);
+  padding: 0 0.15em;
+}
+
+.games-root .fitb-answer {
+  color: var(--correct);
+}
+
+.games-root .fitb-lead {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+}
+
+.games-root .fitb-host .fitb-lead {
+  font-size: var(--text-xl);
+}
+
+.games-root .fitb-word {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 8vw, var(--text-3xl));
+  font-weight: 700;
+  color: var(--correct);
+  overflow-wrap: anywhere;
+}
+
+.games-root .fitb-ref {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--fg-muted);
+}
+
+.games-root .fitb-host .fitb-ref {
+  font-size: var(--text-2xl);
+  color: var(--fg);
+}
+
+/* ---- The tally on the big screen ---------------------------------------- */
+
+.games-root .fitb-tally {
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  max-width: 32rem;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .fitb-tally li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+.games-root .fitb-tally li[data-correct='true'] {
+  border-color: var(--correct);
+}
+
+.games-root .fitb-tally-word {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.games-root .fitb-tally-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The box on the phone ------------------------------------------------ */
+
+.games-root .fitb-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .fitb-label {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.games-root .fitb-input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3);
+  font: inherit;
+  font-size: var(--text-xl);
+  color: var(--fg);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .fitb-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.games-root .fitb-submit {
+  min-height: var(--tap);
+  padding: 0 var(--space-5);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+}
+
+.games-root .fitb-submit:disabled {
+  opacity: 0.45;
+}
+
+/* ---- After the answer, and after the round ------------------------------- */
+
+.games-root .fitb-sent {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.games-root .fitb-sent-word {
+  margin: 0;
+  font-size: var(--text-2xl);
+  overflow-wrap: anywhere;
+}
+
+.games-root .fitb-hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+}
+
+.games-root .fitb-verdict {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .fitb-verdict[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .fitb-verdict[data-correct='false'] {
+  color: var(--wrong);
+}
+
+.games-root .fitb-missing {
+  margin: 0;
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+  text-align: center;
+}

@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "خواندن کتاب مقدس",
     "search": "جستجو",
-    "watchPresentation": "تماشای یک ارائه"
+    "watchPresentation": "تماشای یک ارائه",
+    "games": "بازی‌های کتاب مقدسی"
   },
   "errorBoundary": {
     "title": "مشکلی پیش آمد",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "نمایشگر"
+    },
+    "games": {
+      "title": "بازی‌ها"
     },
     "stage": {
       "loading": "در حال بارگذاری…",

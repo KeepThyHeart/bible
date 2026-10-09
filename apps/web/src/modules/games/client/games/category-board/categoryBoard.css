@@ -1,0 +1,332 @@
+/*
+ * Two screens from one file, on the shell's own tokens.
+ *
+ * The host rules scale up from the shared type ladder rather than inventing
+ * sizes, so the projector and the phone stay recognisably the same game. The
+ * board is the one thing sized to the room rather than to the ladder: it has to
+ * be read from the back wall, and its columns share the width however many of
+ * them there are.
+ */
+
+.games-root .cb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.games-root .cb-nothing, .games-root .cb-hint, .games-root .cb-muted {
+  color: var(--fg-muted);
+}
+
+.games-root .cb-caption, .games-root .cb-answer-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.games-root .cb-ask {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.games-root .cb-prompt {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.games-root .cb-prompt-small {
+  font-size: var(--text-base);
+}
+
+.games-root .cb-host .cb-prompt {
+  font-size: var(--text-2xl);
+}
+
+/* The back of the room, not the front of the laptop. */
+.games-root .cb-host .cb-prompt-large {
+  font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
+  line-height: 1.25;
+}
+
+/* --- The board ------------------------------------------------------------ */
+
+.games-root .cb-board {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(var(--cb-columns, 2), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.games-root .cb-category {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  font-size: var(--text-base);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.games-root .cb-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--accent);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.games-root .cb-board-small .cb-category {
+  min-height: 2.5rem;
+  font-size: var(--text-sm);
+}
+
+.games-root .cb-board-small .cb-tile {
+  /* Below the app's own tap-target floor (`--tap`, 3rem) it used to sit at
+     2.25rem — small enough to matter on the reveal board, which doubles as
+     the host's "pick the next question" control. */
+  min-height: var(--tap);
+  font-size: var(--text-base);
+}
+
+/* A tile the host can pick fills its cell, so the whole tile is the target. */
+.games-root .cb-tile-pick {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: inherit;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.games-root .cb-tile-pick:hover, .games-root .cb-tile-pick:focus-visible {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.games-root .cb-tile-word {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A played tile says so in words; the dimming is a second signal, not the only one. */
+.games-root .cb-tile[data-state='played'] {
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  opacity: 0.6;
+}
+
+.games-root .cb-tile[data-state='played'] .cb-tile-value {
+  text-decoration: line-through;
+}
+
+.games-root .cb-tile[data-state='current'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.games-root .cb-tile[data-state='current'] .cb-tile-word {
+  color: var(--accent-fg);
+}
+
+/* --- The options, on the big screen --------------------------------------- */
+
+.games-root .cb-options {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  font-size: var(--text-xl);
+}
+
+.games-root .cb-letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .cb-label {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* --- The options, on a phone ---------------------------------------------- */
+
+.games-root .cb-taps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-tap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  /* A thumb, not a cursor. */
+  min-height: 4rem;
+  padding: var(--space-3);
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--text-lg);
+  text-align: start;
+}
+
+.games-root .cb-tap[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+.games-root .cb-tap:disabled {
+  opacity: 0.6;
+}
+
+.games-root .cb-sent {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* --- The reveal ----------------------------------------------------------- */
+
+.games-root .cb-answer {
+  margin: 0;
+  font-size: var(--text-2xl);
+  overflow-wrap: anywhere;
+}
+
+.games-root .cb-host .cb-answer {
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+}
+
+.games-root .cb-reference {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-base);
+}
+
+.games-root .cb-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-split-row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  grid-template-columns: minmax(6rem, 14rem) 1fr auto;
+  font-size: var(--text-lg);
+}
+
+/* The right answer is marked by a word as well as by a colour. */
+.games-root .cb-split-row[data-correct='true'] .cb-split-label::after {
+  content: ' ✓ correct';
+  color: var(--correct);
+  font-size: var(--text-sm);
+}
+
+.games-root .cb-bar {
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.625rem;
+  background: var(--bg-sunken);
+}
+
+.games-root .cb-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0.625rem;
+  background: var(--accent);
+}
+
+.games-root .cb-split-row[data-correct='true'] .cb-bar-fill {
+  background: var(--correct);
+}
+
+.games-root .cb-yours {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.games-root .cb-yours[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .cb-yours[data-correct='false'] {
+  color: var(--warn);
+}

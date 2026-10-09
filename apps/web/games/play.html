@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Bible games</title>
+  <!--
+    The Games phone page: a second HTML entry, like present/viewer.html, so a
+    phone joining a room loads the games client and none of the reading app (no
+    stores, plugin host, service worker registration, icon font). It also serves
+    the second screen (/games/screen) and solo play (/games/solo).
+  -->
+  <style>
+    /* The client puts its tokens and background on <html>. */
+    body { margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/modules/games/client/main.tsx"></script>
+</body>
+</html>

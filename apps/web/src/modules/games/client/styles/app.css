@@ -1,0 +1,1184 @@
+/*
+ * Scoping (task 0115): every rule here and in each game's stylesheet is under
+ * `.games-root`, so the host screen embedded in the reader cannot restyle it.
+ * The standalone phone page puts the class on <html>.
+ *
+ * KTH tokens: the colour tokens fall back to the app's `--kth-*` tokens, so
+ * the embedded host screen follows the reader's theme until a room (or a
+ * device override) sets its own, which wins as an inline style.
+ *
+ * Shell tokens.
+ *
+ * The constraints that shaped these: a phone held at arm's length in a lit
+ * room, a projector that eats contrast, and a 320 px viewport in portrait.
+ * So: large default type, generous tap targets, no colour-only meaning, and
+ * team identity carried by a label as well as a hue.
+ *
+ * The colour tokens (`--bg` through `--warn`) are a *theme*, not a fixed
+ * palette: `src/shared/theme.ts` is the source of truth for their values, and
+ * the shell writes the active theme onto this element's inline style at
+ * runtime, which wins over this rule with no specificity fight — editing a
+ * theme is editing those values, never this stylesheet. What is here is only
+ * the pre-hydration fallback, so the first paint is the light theme rather
+ * than a flash of some other one; it must be kept equal to `LIGHT_THEME` in
+ * `theme.ts` by hand, since CSS cannot import it.
+ *
+ * Team colours are not part of a theme: they carry identity across whichever
+ * palette is active, so they stay fixed CSS custom properties here.
+ */
+
+.games-root {
+  --bg: var(--kth-bg, #f7f8fb);
+  --bg-raised: var(--kth-surface-raised, #ffffff);
+  --bg-sunken: var(--kth-bg-subtle, #eef0f5);
+  --fg: var(--kth-text, #1a1d24);
+  --fg-muted: var(--kth-text-muted, #5b6472);
+  --border: var(--kth-border, #d7dbe3);
+
+  --accent: var(--kth-accent, #2d6be4);
+  --accent-fg: var(--kth-accent-text, #ffffff);
+  --correct: var(--kth-success, #1a8255);
+  --wrong: var(--kth-danger, #c94141);
+  --warn: var(--kth-warning, #9a6300);
+
+  --team-red: #ff6b6b;
+  --team-blue: #5b9dff;
+  --team-green: #3ecf8e;
+  --team-gold: #ffc857;
+
+  /* Type scale. The phone base is 18px on purpose: 16 is too small held at
+     arm's length, and the host screen scales up from the same ladder. */
+  --text-sm: 0.875rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+  --text-3xl: 3rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius: 0.625rem;
+  /* Anything tappable is at least this tall. */
+  --tap: 3rem;
+
+  /* Which native widgets (scrollbars, form controls) the light fallback
+     above wants; the shell sets this alongside the theme's colours, from the
+     same computation, once it knows which theme is active. */
+  color-scheme: var(--kth-color-scheme, light);
+}
+
+.games-root, .games-root *, .games-root::before, .games-root *::before, .games-root::after, .games-root *::after {
+  box-sizing: border-box;
+}
+
+.games-root {
+  font-size: 100%;
+}
+
+.games-root {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  /* A mistyped answer should not scroll the room sideways. */
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+.games-root button {
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.games-root button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.games-root input, .games-root select {
+  min-height: var(--tap);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  color: var(--fg);
+  font: inherit;
+}
+
+.games-root :focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.games-root .boot {
+  padding: var(--space-6);
+}
+
+/* The host screen is a projector or a TV across a room: everything steps up a
+   rung, and nothing relies on hover. */
+@media (min-width: 900px) {
+  .games-root {
+    --text-base: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .games-root, .games-root *, .games-root::before, .games-root *::before, .games-root::after, .games-root *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Shell
+   ==========================================================================
+
+   Everything below is the frame a game is played inside: the join form, the
+   two lobbies, the chrome around a phone and a projector, the timer and the
+   summary. Games style their own middles; nothing here reaches into one.
+
+   The layout floor is a 320 px viewport in portrait, so widths are fluid and
+   the few grids collapse to one column rather than overflowing. Nothing
+   carries meaning in colour alone: a team is a word first and a hue second, a
+   disconnected player is dimmed *and* marked, and the timer says the seconds
+   out loud as well as drawing them.
+   ========================================================================== */
+
+.games-root .screen {
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.games-root .screen.centre, .games-root .centre {
+  text-align: center;
+  align-items: center;
+}
+
+.games-root .brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.games-root .brand {
+  margin: 0;
+  font-size: var(--text-xl);
+  letter-spacing: 0.02em;
+}
+
+.games-root .brand-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.games-root .small-heading {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.games-root .muted {
+  color: var(--fg-muted);
+}
+
+.games-root .small {
+  font-size: var(--text-sm);
+}
+
+.games-root .home-tagline {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.games-root .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .field-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+/* A game's own scope ("Whole Bible", "People of the Bible") — a fact about
+   the content, read under the picker that chose it. */
+.games-root .field-hint {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* Buttons: the primary one is the thing to press, the quiet one is the way
+   back out. Both keep the tap floor. */
+.games-root .btn-primary {
+  min-height: var(--tap);
+  width: 100%;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.games-root .btn-quiet {
+  min-height: var(--tap);
+  width: 100%;
+  background: transparent;
+  color: var(--fg-muted);
+}
+
+.games-root button.danger {
+  border-color: var(--wrong);
+  color: var(--wrong);
+}
+
+/* ---- Join ---------------------------------------------------------------- */
+
+/* A code read off a screen at the back of a room, then typed. Wide letter
+   spacing so a transposed pair is visible while it is being typed. */
+.games-root .code-input {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.35em;
+  /* The tracking is trailing, so the text sits a touch left without this. */
+  text-indent: 0.35em;
+}
+
+.games-root .or-rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .or-rule::before, .games-root .or-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.games-root .alert {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--wrong);
+  border-inline-start-width: var(--space-1);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--wrong) 12%, transparent);
+  color: var(--fg);
+}
+
+/* Status, not failure: a reconnect is ordinary and should not look like an
+   error in the middle of a game. */
+.games-root .banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* Its own row below the host's code/round/menu row, not a child of it — see
+   the doc comment where this is used in HostFrame. */
+.games-root .banner-row {
+  width: 100%;
+}
+
+.games-root .banner-retry {
+  flex: none;
+  width: auto;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid currentColor;
+  color: inherit;
+  font-size: var(--text-sm);
+}
+
+/* ---- Room chrome --------------------------------------------------------- */
+
+.games-root .chrome-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+/* The "#" is part of the text, not decoration — it reads as an ID rather
+   than a stray word, and a screen reader gets it for free without a second
+   aria-label. Tighter than the old 0.15em: this sits in a cramped header
+   next to several other controls now, not alone. */
+.games-root .chrome-code {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.games-root .chrome-round, .games-root .chrome-answered {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The code as the projector shows it: the largest thing in the room, and it
+   has to shrink rather than wrap on a narrow screen. */
+.games-root .big-code {
+  margin: 0;
+  font-size: clamp(var(--text-3xl), 18vw, 8rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.12em;
+}
+
+.games-root .code-label, .games-root .join-at {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+/* ---- Timer --------------------------------------------------------------- */
+
+.games-root .timerbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.games-root .timerbar-track {
+  flex: 1;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.games-root .timerbar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Running out is signalled by the number, the colour and the stripes together;
+   a player who cannot tell amber from blue still sees the seconds fall. */
+.games-root .timerbar[data-low='true'] .timerbar-fill {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--warn),
+    var(--warn) 0.5rem,
+    var(--bg-sunken) 0.5rem,
+    var(--bg-sunken) 0.75rem
+  );
+}
+
+.games-root .timerbar[data-paused='true'] .timerbar-fill {
+  background: var(--fg-muted);
+}
+
+.games-root .timerbar-label {
+  min-width: 3.5ch;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ---- Teams --------------------------------------------------------------- */
+
+.games-root .team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.games-root .team-chip.small {
+  margin-inline-start: var(--space-2);
+}
+
+.games-root .team-chip::before {
+  content: '';
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--team, var(--fg-muted));
+}
+
+/* How each team voted, under a group-vote reveal. Counts only, one card a
+   team, in the team's own colour. */
+.games-root .group-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.games-root .group-card {
+  flex: 1 1 12rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-inline-start: 0.375rem solid var(--team, var(--fg-muted));
+  border-radius: var(--space-2);
+}
+
+/* The outcome text already says "— right" / "— not this time" (never colour
+   alone), but nothing distinguished a right card from a wrong one at a
+   glance — both used the same team-coloured edge. Once the vote is judged,
+   the edge and the outcome line say so too. */
+.games-root .group-card[data-correct='true'] {
+  border-inline-start-color: var(--correct);
+}
+
+.games-root .group-card[data-correct='false'] {
+  border-inline-start-color: var(--wrong);
+}
+
+.games-root .group-name {
+  margin: 0;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
+.games-root .group-outcome {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.games-root .group-split {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .group-split li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.games-root .vote-notice {
+  align-self: end;
+  color: var(--fg-muted);
+}
+
+.games-root .team-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--team, var(--fg-muted));
+}
+
+.games-root [data-team='red'] {
+  --team: var(--team-red);
+}
+
+.games-root [data-team='blue'] {
+  --team: var(--team-blue);
+}
+
+.games-root [data-team='green'] {
+  --team: var(--team-green);
+}
+
+.games-root [data-team='gold'] {
+  --team: var(--team-gold);
+}
+
+.games-root .team-picker {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .team-picker legend {
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* Two per row at 320 px, four when there is room. */
+.games-root .team-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-2);
+}
+
+.games-root .team-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* The chosen team is stated by aria-pressed and drawn with a ring, not by a
+   fill that a colour-blind player has to compare against three others. */
+.games-root .team-button[aria-pressed='true'] {
+  border-color: var(--team, var(--accent));
+  box-shadow: inset 0 0 0 2px var(--team, var(--accent));
+  font-weight: 700;
+}
+
+/* ---- Lobbies ------------------------------------------------------------- */
+
+.games-root .lobby-header {
+  justify-content: space-between;
+}
+
+.games-root .lobby-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .lobby-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+
+.games-root .lobby-actions .icon-button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: var(--space-2);
+}
+
+.games-root .settings-share {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.games-root .settings-code {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.games-root .lobby-name {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.games-root .waiting {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.games-root .dots::after {
+  content: '…';
+}
+
+.games-root .others {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .name-list, .games-root .name-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .name-list li, .games-root .name-grid li {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: var(--space-1) 0;
+  gap: var(--space-1);
+}
+
+/* The name itself is the one part of the row that can run long — a 20-odd
+   character name at the projector's larger type size used to wrap across
+   three lines and push its row's siblings around. Truncating it to one line
+   (with the full name in `title`, for anyone who needs it) keeps every row
+   the same height instead. */
+.games-root .name-text {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Away is spelled out as well as dimmed, because dimming alone is invisible
+   on a projector that has eaten the contrast. Real text, not a CSS
+   pseudo-element: `content` strings are not selectable and some screen
+   readers skip them entirely. */
+.games-root .name-list li[data-connected='false'], .games-root .name-grid li[data-connected='false'] {
+  color: var(--fg-muted);
+}
+
+.games-root .away-marker {
+  flex: none;
+  font-size: var(--text-sm);
+}
+
+.games-root .name-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.games-root .host-join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.games-root .host-join-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.games-root .qr-block {
+  flex: 0 0 auto;
+  max-width: 16rem;
+}
+
+.games-root .qr {
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: #ffffff;
+  line-height: 0;
+}
+
+.games-root .qr-svg svg, .games-root .qr-empty {
+  width: clamp(8rem, 22vw, 15rem);
+  height: clamp(8rem, 22vw, 15rem);
+  display: block;
+}
+
+.games-root .qr-empty {
+  background: #ffffff;
+}
+
+.games-root .qr-warning {
+  margin: var(--space-2) 0 0;
+  color: var(--warn);
+  font-size: var(--text-sm);
+}
+
+.games-root .host-settings, .games-root .host-players {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* Spans every column: the theme editor's presets and token grid want more
+   room than one settings cell gives them. */
+.games-root .field-wide {
+  grid-column: 1 / -1;
+}
+
+.games-root .btn-start {
+  align-self: center;
+  max-width: 22rem;
+}
+
+/* ---- Theme editor --------------------------------------------------------- */
+
+.games-root .theme-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.games-root .theme-preset {
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--swatch-bg, var(--bg-raised));
+  /* The preset's own foreground, not the room's currently active theme's: a
+     button painted in the Dark preset's near-black background must read
+     against Dark's own near-white text, not whichever theme is currently
+     showing it. Without this, viewing the Light theme's near-black `--fg`
+     landed on the Dark preset's near-black background whenever Dark was not
+     the selected preset — unreadable except when it was. */
+  color: var(--swatch-fg, var(--fg));
+  font-weight: 600;
+}
+
+.games-root .theme-preset::before {
+  content: '';
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: var(--space-2);
+  border-radius: 999px;
+  background: var(--swatch, var(--accent));
+  vertical-align: middle;
+}
+
+.games-root .theme-preset[aria-pressed='true'] {
+  border-color: var(--swatch, var(--accent));
+}
+
+/* ---- Phone frame --------------------------------------------------------- */
+
+/* Full viewport height, chrome pinned at both ends, the game in the middle:
+   the score never moves and the timer is always in the same corner. */
+.games-root .phone {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-3);
+  gap: var(--space-3);
+}
+
+.games-root .phone-chrome, .games-root .host-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .phone-body, .games-root .host-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.games-root .phone-score {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.games-root .score-total {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .score-delta {
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  border: 1px solid currentcolor;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .score-delta[data-correct='true'] {
+  color: var(--correct);
+}
+
+.games-root .score-delta[data-correct='false'] {
+  color: var(--wrong);
+}
+
+/* Only ever a top three — see the frame that renders it. */
+.games-root .score-rank {
+  font-weight: 700;
+}
+
+/* ---- Host frame ---------------------------------------------------------- */
+
+.games-root .host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: var(--space-4);
+  gap: var(--space-4);
+}
+
+/* Wraps to as many rows as it needs; a control that has slid off the edge of a
+   projector is a control the host cannot use. */
+.games-root .host-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.games-root .host-controls button {
+  flex: 1 1 8rem;
+}
+
+.games-root .host-controls .confirm {
+  display: flex;
+  flex: 1 1 16rem;
+  gap: var(--space-2);
+}
+
+.games-root .host-controls .confirm button {
+  flex: 1;
+}
+
+/* A control drawn as an icon still says its own name — never colour or shape
+   alone — just smaller and under the glyph rather than instead of it. */
+.games-root .icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+}
+
+.games-root .icon-caption {
+  font-size: var(--text-sm);
+}
+
+/* ---- The room menu -------------------------------------------------------- */
+
+.games-root .host-menu {
+  position: relative;
+}
+
+.games-root .host-menu-toggle {
+  min-width: var(--tap);
+  padding: var(--space-2);
+}
+
+.games-root .host-menu-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: max(16rem, 60vw);
+  max-width: 22rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.25);
+}
+
+.games-root .host-menu-panel button {
+  text-align: start;
+}
+
+.games-root .host-menu-divider {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--border);
+}
+
+.games-root .host-menu-confirm {
+  flex-direction: column;
+}
+
+.games-root .host-menu-warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* ---- Reveal now, on the main screen itself --------------------------------- */
+
+.games-root .btn-reveal-now {
+  align-self: center;
+  width: 100%;
+  max-width: 24rem;
+}
+
+/* ---- Overlays: Overall winners, and a read-only glance Back ---------------- */
+
+.games-root .overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.55);
+}
+
+.games-root .overlay-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 28rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  border-radius: 1rem;
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.games-root .overlay-title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.games-root .overall-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .overall-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .overall-rank {
+  min-width: 1.5em;
+  font-weight: 700;
+  color: var(--fg-muted);
+}
+
+.games-root .overall-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.games-root .overall-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .overall-answer {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.games-root .overall-aggregates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Manage players -------------------------------------------------- */
+
+.games-root .player-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .player-manager-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .player-manager-row .name-text {
+  font-weight: 600;
+}
+
+.games-root .player-manager-adjust {
+  display: flex;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+
+.games-root .player-manager-step {
+  min-width: 2.5rem;
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .player-manager-kick {
+  width: auto;
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+}
+
+.games-root .player-manager-confirm {
+  display: flex;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.games-root .overall-aggregates li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.games-root .solo-controls {
+  margin-top: var(--space-3);
+}
+
+/* ---- Placeholder and summary --------------------------------------------- */
+
+.games-root .placeholder {
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.games-root .summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.games-root .summary h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.games-root .standings, .games-root .team-standings {
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  max-width: 28rem;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .standings li, .games-root .team-standings li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  text-align: start;
+}
+
+.games-root .standings .who, .games-root .team-standings .team-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.games-root .standings .place {
+  font-weight: 700;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .standings .score, .games-root .team-standings .team-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .final-total, .games-root .final-rank {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.games-root .final-rank {
+  font-weight: 700;
+}
+
+/* Embedded in the reader: fill the app stage and scroll inside it, instead of
+   owning the page the way the phone page does. */
+.games-root--embedded {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Embedded: the app stage, not the viewport, is the page. */
+.games-root--embedded {
+  position: relative;
+}
+
+.games-root--embedded .host,
+.games-root--embedded .phone {
+  min-height: 100%;
+}
+
+.games-root--embedded .overlay {
+  position: absolute;
+}

@@ -74,12 +74,15 @@ const SHELL_URL = new URL('index.html', self.location.href).href;
 const VIEWER_URL = new URL('present/viewer.html', self.location.href).href;
 const SOLO_URL = new URL('present/solo.html', self.location.href).href;
 const WATCH_URL = new URL('present/watch.html', self.location.href).href;
+/** The Games phone page (`games/play.html`), likewise a separate entry. */
+const GAMES_PLAY_URL = new URL('games/play.html', self.location.href).href;
 
 /** The precache key of the page a navigation to `pathname` should get offline, else the app shell. */
 export function offlinePageFor(pathname: string): string {
   if (/(^|\/)present\/v\/[^/]+\/?$/.test(pathname)) return VIEWER_URL;
   if (/(^|\/)present\/solo\/?$/.test(pathname)) return SOLO_URL;
   if (/(^|\/)watch\/?$/.test(pathname)) return WATCH_URL;
+  if (/(^|\/)games\/(play|screen|solo)(\/.*)?$/.test(pathname)) return GAMES_PLAY_URL;
   return SHELL_URL;
 }
 

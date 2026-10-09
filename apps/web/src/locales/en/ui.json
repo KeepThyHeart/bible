@@ -184,7 +184,8 @@
   "homeScreen": {
     "readBible": "Read Bible",
     "search": "Search",
-    "watchPresentation": "Watch a presentation"
+    "watchPresentation": "Watch a presentation",
+    "games": "Bible games"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -887,6 +888,9 @@
     },
     "present": {
       "title": "Presenter"
+    },
+    "games": {
+      "title": "Games"
     },
     "stage": {
       "loading": "Loading…",
