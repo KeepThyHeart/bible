@@ -365,6 +365,8 @@ export default defineConfig({
       '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
+  // sqlite-wasm loads its own worker and wasm by URL; pre-bundling breaks that (task 0150).
+  optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },
   plugins: [
     brandingPlugin(),
     basePathPlugin(),

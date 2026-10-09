@@ -21,6 +21,12 @@ export const FORBIDDEN = [
   /^src\/modules\/notifications\/(?!(manifest|binding)\.ts$)/,
   // Games: only the manifest, the binding and the (import-free) runtime sink.
   /^src\/modules\/games\/(?!(manifest|binding|runtime)\.ts$)/,
+  // Accounts and sync (task 0150): the reading entry holds no user DB, sync or account code.
+  /^src\/userdb\//,
+  /^src\/modules\/(accounts|annotations)\/(?!(manifest|binding)\.ts$)/,
+  /^\.\.\/\.\.\/packages\/core\/src\/Sync\//,
+  /sqlite-wasm/,
+  /@zxcvbn-ts/,
 ];
 
 /**

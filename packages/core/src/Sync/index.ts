@@ -15,7 +15,7 @@ export type { PasswordKeys, UnlockedAccount, WrappedKey, KeysetWire, AccountKeyM
 export {
   derivePasswordKeys, createAccountMaterial, unlockWithPassword, unlockWithRecoveryCode, rewrapForNewPassword,
   newRecoveryWrap, rotateAccountKey, generateRecoveryCode, parseRecoveryCode, deriveRecordId, sealDeviceName,
-  openDeviceName, validateKdfParams,
+  openDeviceName, validateKdfParams, recoveryAuthKeyFor,
 } from './crypto/keys';
 export type { RecordCipher } from './crypto/RecordCipher';
 export {

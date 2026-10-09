@@ -1,0 +1,141 @@
+{
+  "inputs": {
+    "password": "Pássword correct horse ✓",
+    "newPassword": "néw passphrase 2026",
+    "kdfCost": {
+      "m": 19456,
+      "t": 2,
+      "p": 1
+    },
+    "seeds": {
+      "account": 42,
+      "record": 7,
+      "deviceName": 9,
+      "rewrap": 11,
+      "newRecovery": 13,
+      "rotate": 17,
+      "recoveryCode": 19
+    },
+    "recordId": "00112233445566778899aabbccddeeff",
+    "record": {
+      "t": "user_note",
+      "cv": 1,
+      "h": "0192f3a1b2c3:0000:9f3c0a1b2c3d4e5f",
+      "dev": "9f3c0a1b2c3d4e5f",
+      "d": {
+        "title": "Psalm 23",
+        "body": "The LORD is my shepherd; I shall not want."
+      }
+    },
+    "derivedId": {
+      "scope": "ext.kv",
+      "key": "com.example/theme"
+    },
+    "deviceId": "a1b2c3d4e5f60718",
+    "deviceName": "Kitchen tablet"
+  },
+  "derivation": {
+    "authKey": "4e5acfc60240216ba419938b63a74a7c2828df4fa7feb60c7fc8d4d2a73fe833",
+    "kek": "9ff0e8bdb90e757c39eb386f017502d063518605cce85818dae5e6bf60ed2ec8"
+  },
+  "account": {
+    "accountId": "373e454c535a61686f767d848b9299a0",
+    "recoveryCode": "1C91-J817-5RTK-RGTA-A5C5-YSKD-EHXR-52CG",
+    "material": {
+      "kdf": {
+        "id": "argon2id",
+        "v": 19,
+        "m": 19456,
+        "t": 2,
+        "p": 1,
+        "salt": "R05VXGNqcXh_ho2Um6KpsA"
+      },
+      "authKey": "TlrPxgJAIWukGZOLY6dKfCgo30-n_rYMf8jU0qc_6DM",
+      "wrappedAkPassword": "t77FzNPa4ejv9v0EXO6Jp-DGGYXMEcxkU-u9ASotuT6pdyF4SDPhO0KcOJcT-qxKoZNiA-8e7LmMFbfR",
+      "recoveryAuthKey": "1ysRZn5U0Cn717-5LG2UvdeBCCC7mgCYKjnUVBage_c",
+      "wrappedAkRecovery": "l56lrLO6wcjP1t3kbzRh-9sbu6jdjeMNWslu8rY1jM_Viw_uV6qjIv8D5Nkmtp3h9NrGLbpfgab8xoTR",
+      "wrappedRecordIdKey": "6_L5AAcOFRwjKjE4KFDOrAfXZOO0OyBAmV7wTxuZIEs4WozN7qzRzNLCy8YgbinVyrlIWvzBHsHw_dzQ",
+      "keysets": [
+        {
+          "epoch": 0,
+          "wrappedDataKey": "P0ZNVFtiaXB3foWMnaEeQq0RwM6E4L2MOfcdSZlfXJ8QAUsOrkNjbU9hjWdA8avvu9ZHbZeMuQ7Zt7Z5"
+        }
+      ],
+      "currentEpoch": 0
+    },
+    "unlocked": {
+      "accountId": "373e454c535a61686f767d848b9299a0",
+      "accountKey": "a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c333a41484f565d646b727980",
+      "recordIdKey": "878e959ca3aab1b8bfc6cdd4dbe2e9f0f7fe050c131a21282f363d444b525960",
+      "dataKeys": {
+        "0": "676e757c838a91989fa6adb4bbc2c9d0d7dee5ecf3fa01080f161d242b323940"
+      },
+      "currentEpoch": 0
+    }
+  },
+  "record": {
+    "blob": "0100000000141b222930373e454c535a619b2d2a79037548c6e931427d240ef56e01acf700d3e53d84d5e8b2fb316650b74c4f58f0ce094946b38c213f72b9175460ac24aedf65521c1dcaf793f278be51f5896500ab0e6ff51a74f3944cadb98599f89b96c4d90027c49e280832b556c76d2e3314fb278cc9450a88b45cfb9bc70217bf1c94b5063f09bf8982705171a4467587269fa956708fd9c7fa07f7aa9a77b9dc9d58af0d6cc07cc250c66591dfc74c021a2f388e15b78559df649e331c8ab72b2d48e24538563250fb471d1424341a1198176c9a015e0b74ee35764382bebe2d5adf257a2dee8a35f1333c7ccf8d4dcc7f95eeb31919cca5798b3355b4a5a59aa3368616705516a6cf31044c92ea5c205b9b5966a1b47d423ea0a94aad037bf6dd47db80c7015ff09f8f84d2caa77ea8622df316f34fb346b91bd1b2b45b79ce97fa61361dcb4a306b787cebe052b92e1fb94cc0413c4cd892b6cbeb8bec134e222296f3a2d97d16fe8f93b4f20c0806beedd26c235ee169cf83b957cdb8ad9d1696ada2852183018f65915382c0d7b988626f59fbd32af8681cbe79c21621146a71aeafac2fb1c7e4c4fb6e2bfe9282f0b1843a0d3cb017082da53496b0cae3a402484b5df3524eacae714c09f2a98df9b7b04742ca10fae3df4e087a782eb810ba77cd1116dcd1a1544e07d6d6c2347caad76f185b589100acbb42505226a819b262d94a24e4883dbb9cd25e489357e20706e8065251120a8dd844ac98eb27cce05e7f8ac8c7d2f6cb61774b3ac54faaa1cfa37d6144e5aba16da423c2eed7993938a282af7a621ea6c0498b0fe5a5145c10df88de9b5367abe10b13cbd29a97728f6cc0db4256d8644d3267533a3da66a431b32e9ee48cf385de03d279bc2069381b4f6950bce00f2e0e47c30a25645ad6003152b0343c6bb6e1436991fca1dbebfe3e3be0e807a0cc9c94c3aa377d1e63e6d8fce80006b39fd56f9b9765904dd38bec666e09a529a6d33592b9b67084f3da08761c692518579bf11cedc2cbafa535eb9bc81d8a64fbce1143fe4a3cace35aa403eab9eeb1a9054a33fa3bc635691289d89ec87b577abdc03523df3dc9c1033af4d8a6cb7221a449b95fe123e6623e7acd22b9792ed09c5e3e44b93fe372e5bb472b7a8257e95824cd880e880d595bba62aff7603fa4c39f17f4a568c89b1504a79d2e87883151aa15129a28071988cddd104bfcad12a1d912cdbbec69e375ece8f20158c8b0f039a8a9cbdf7656ed0da29a27bce0e98eec98aadba6af9ab4a0547dc6b62aca3401a3dfe0a8e71629e5d638c722c5f0224738a24dbb708f9fbc98c55f00ac7351f17e8861d4f795e0bd180d289bb6c1019a7fbf4b5c41eeb12bf03e68a18e07bc085a669eeffa392bb27e0b7c595e6935a43181a0e94a6724b9be5789e6852e4bf69bbfdb5abfa92997631f30a9bb7d5577a495da1e435558c87608707aa48c2a6d5"
+  },
+  "derivedRecordId": "e62ff3849d24ecd56ef4d1f38c91d9d2",
+  "sealedDeviceName": "Fh0kKzI5QEdOVVxjkCb3yiKwpaKdDdfkgc3BzRHvk59ebcsF04JCidwq",
+  "rewrap": {
+    "kdf": {
+      "id": "argon2id",
+      "v": 19,
+      "m": 19456,
+      "t": 2,
+      "p": 1,
+      "salt": "GB8mLTQ7QklQV15lbHN6gQ"
+    },
+    "authKey": "cLAQsxMjYITh-zu-UXvzQA7ZiBUoBLyXDmY6ad1S8lc",
+    "wrappedAkPassword": "iI-WnaSrsrnAx87VQLmDHWA88ZPl365f_nhleBtA5m5wWybuzN_4EOqKpMcuuqjap5EYZUUlEUEdPGlO"
+  },
+  "newRecovery": {
+    "recoveryCode": "38GJ-GBSP-7N24-PMJS-C1KP-WXBW-GE59-364Z",
+    "recoveryAuthKey": "JUz9CsjcKi8hZo5nDiqy3pWQm0YZwYoXNj1-ZJcrcgU",
+    "wrappedAkRecovery": "pq20u8LJ0Nfe5ezzBlX9sK3-7TKUtZJfIeH-8hyY9-GUyPqPy4c7u2Ohatt7WK6YYl2Cx-LbuCrZWVRq"
+  },
+  "rotation": {
+    "recoveryCode": "MAMV-1DXY-RQ6D-7PQ1-X3QZ-DZ84-1C91-J817",
+    "material": {
+      "kdf": {
+        "id": "argon2id",
+        "v": 19,
+        "m": 19456,
+        "t": 2,
+        "p": 1,
+        "salt": "3uXs8_oBCA8WHSQrMjlARw"
+      },
+      "authKey": "D-aiHO9wrFWY5tVes_t9rieMUtwIxgOP4l_fPKMPwBs",
+      "wrappedAkPassword": "TlVcY2pxeH-GjZSbbrr4NNLo6-FeyniPcip4IMCpUYeA8ffILFrBKPglyzLiHW3czAXrq2fPm0J-Zure",
+      "recoveryAuthKey": "F3AuHEFCzlh1mgf80Lkjp7K_7T5h0oedEdWvVmoJn2c",
+      "wrappedAkRecovery": "LjU8Q0pRWF9mbXR7kOQymcAGFUwZhDxAWpQVYnLAIy729_UUyWgqqtd6hb5PwRUc-z3IlVsqBSwoYeiU",
+      "wrappedRecordIdKey": "gomQl56lrLO6wcjPGQaIJqvotr5TY8CAF7X74IHB_YaB1s-EV5NN0t4bErRipivuGIjdFMt7LuUtHDJC",
+      "keysets": [
+        {
+          "epoch": 0,
+          "wrappedDataKey": "1t3k6_L5AAcOFRwjV9M5l3EGUU3uhTxTsK5QDXlY9IHBfgLjuc1OfSKa3jM-0W_zvQsjOeeRbkxTGake"
+        },
+        {
+          "epoch": 1,
+          "wrappedDataKey": "KjE4P0ZNVFtiaXB3dbkSjQ4E1wsJlPwcqlqHaidpvqKooDi8hc1GlnLnge7b4kJECQwrsInJTn7jFbjV"
+        }
+      ],
+      "currentEpoch": 1
+    },
+    "unlocked": {
+      "accountId": "373e454c535a61686f767d848b9299a0",
+      "accountKey": "1e252c333a41484f565d646b727980878e959ca3aab1b8bfc6cdd4dbe2e9f0f7",
+      "recordIdKey": "878e959ca3aab1b8bfc6cdd4dbe2e9f0f7fe050c131a21282f363d444b525960",
+      "dataKeys": {
+        "0": "676e757c838a91989fa6adb4bbc2c9d0d7dee5ecf3fa01080f161d242b323940",
+        "1": "fe050c131a21282f363d444b525960676e757c838a91989fa6adb4bbc2c9d0d7"
+      },
+      "currentEpoch": 1
+    }
+  },
+  "recoveryCode": {
+    "code": "40KJ-WD9W-8D55-2P2Z-CSPQ-8YW2-H689-F7N5",
+    "bytes": "20272e353c434a51585f666d747b828990979ea5"
+  }
+}
