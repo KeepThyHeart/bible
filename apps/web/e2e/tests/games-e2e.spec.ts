@@ -21,7 +21,8 @@ test.describe('Games', () => {
     const body = (await catalog.json()) as { games: { id: string }[]; translations: string[] };
     expect(body.games.length).toBeGreaterThanOrEqual(9);
     expect(body.translations).toContain('KJV');
-    expect((await request.get('/api/catalog')).headers()['content-type'] ?? '').not.toContain('application/json');
+    // The old unprefixed path is gone: it is a 404 (API 404s are JSON, so check the status, not the type).
+    expect((await request.get('/api/catalog')).status()).toBe(404);
   });
 
   test('serves the phone page, not the reading app, and loads no reader requests', async ({ page }) => {
