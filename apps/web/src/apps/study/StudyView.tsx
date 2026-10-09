@@ -1,19 +1,19 @@
 import { DesktopApp } from '../../DesktopApp';
 import { MobileApp } from '../../MobileApp';
-import { FollowBanner } from '../../components/Present/FollowBanner';
+import { SlotOutlet, studyBanners } from '../../host/slots';
 import { getShellContext } from '../../host/appHost';
 import { setStudyOwnsHash } from '../../host/hashGate';
 import { useIsMobile } from '../../host/useIsMobile';
 import { bootStudy, afterStudyFirstPaint } from './studyBoot';
 
-/** The reading app: the follow banner plus the desktop or mobile layout. */
+/** The reading app: feature modules' banners (e.g. the follow banner) plus the desktop or mobile layout. */
 export function StudyView() {
   const isMobile = useIsMobile();
 
   const { providers } = getShellContext();
   return (
     <>
-      <FollowBanner />
+      <SlotOutlet slot={studyBanners} />
       {isMobile ? <MobileApp providers={providers} /> : <DesktopApp providers={providers} />}
     </>
   );

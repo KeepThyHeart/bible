@@ -13,10 +13,6 @@ export interface ShellContext {
   serverStaleDays: number | undefined;
   offlineAutoDownload: boolean;
   semanticMode: 'server' | 'browser' | 'off';
-  /** Presenter session adopted from a control (handoff) link, if any. */
-  adoptedSession: ReturnType<typeof import('../present/controlLink').takeControlLinkFromUrl>;
-  /** Join code of a `/present/f/<code>` load, if any. */
-  followCode: ReturnType<typeof import('../present/controlLink').takeFollowLinkFromUrl>;
   /** Resolves once the detected locale's catalogs are loaded; await before first render. */
   localeReady: Promise<void>;
 }

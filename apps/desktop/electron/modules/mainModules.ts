@@ -12,6 +12,7 @@ import {
   createFeatureModuleHost,
   createFeatureFlags,
   parseFeatureModuleOverrides,
+  parseFlagOverrides,
   disposeAll,
   type Disposable,
   type FeatureModuleHost,
@@ -35,6 +36,25 @@ export interface RegisterMainModulesOptions {
   readonly packaged: boolean;
   /** Raw `KTH_MODULES` value; default `process.env.KTH_MODULES`. */
   readonly overrideText?: string;
+  /**
+   * Raw flag override (`'audio,-pwa'` or JSON); default `process.env.KTH_FLAGS`.
+   * The main-process twin of the renderer's dev `localStorage['kth.flags']`, so a
+   * flagged module can be switched on in both processes in a dev build. Ignored when packaged.
+   */
+  readonly flagOverrideText?: string;
+  /** Per-module activation timeout in ms (default 10 s): a hung module is reported and skipped, never blocks startup. */
+  readonly activationTimeoutMs?: number;
+}
+
+export const DEFAULT_MAIN_MODULE_TIMEOUT_MS = 10_000;
+
+/** Resolve `promise`, or reject after `ms` with a timeout error naming `what`. */
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 interface Running {
@@ -53,7 +73,10 @@ export async function registerMainModules(
 ): Promise<void> {
   if (running) throw new Error('registerMainModules called twice');
   const table = options.modules ?? MAIN_MODULES;
-  const flags = createFeatureFlags();
+  const flags = createFeatureFlags({
+    overrides: options.packaged ? {} : parseFlagOverrides(options.flagOverrideText ?? process.env.KTH_FLAGS),
+  });
+  const timeoutMs = options.activationTimeoutMs ?? DEFAULT_MAIN_MODULE_TIMEOUT_MS;
   const overrides = options.packaged
     ? {}
     : parseFeatureModuleOverrides(options.overrideText ?? process.env.KTH_MODULES);
@@ -72,7 +95,7 @@ export async function registerMainModules(
       {
       id: entry.manifest.id,
       load: async () => {
-        const mod = (await entry.load()).default;
+        const mod = (await withTimeout(entry.load(), timeoutMs, `main module "${entry.manifest.id}" load`)).default;
         return {
           activate: () => {
             const ipc = createModuleIpc(mod.id, ipcMain, deps);

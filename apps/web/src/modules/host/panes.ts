@@ -75,35 +75,15 @@ export const quizPaneManifest: FeatureModuleManifest = {
 type P = PaneViewProps;
 const h = createElement as unknown as (c: unknown, p: unknown) => unknown;
 
-export const hostPanesBinding: FeatureModuleBinding = {
-  id: 'host-panes',
-  views: {
-    'pane:study': () =>
-      import('../../components/StudyPane/StudyPane').then((m) => ({
-        default: (p: P) => h(m.StudyPane, { onStrongsClick: p.onStrongsClick, onStrongsHover: p.onStrongsHover, onStrongsLeave: p.onStrongsLeave, bibleProvider: p.providers.bible, genealogyProvider: p.providers.genealogy, onOpenSettings: p.onOpenSettings }),
-      })),
-    'pane:commentary': () =>
-      import('../../components/CommentaryPane/CommentaryPane').then((m) => ({
-        default: (p: P) => h(m.CommentaryPane, { bibleProvider: p.providers.bible, onOpenSettings: p.onOpenSettings }),
-      })),
-    'pane:topics': () =>
-      import('../../components/StudyPane/TopicsPane').then((m) => ({
-        default: (p: P) => h(m.TopicsPane, { topicalProvider: p.providers.topical, tagGraphProvider: p.showTagGraph ? p.providers.tagGraph : undefined, bibleProvider: p.providers.bible }),
-      })),
-    'pane:dictionary': () =>
-      import('../../components/DictionaryPane/DictionaryPane').then((m) => ({
-        default: (p: P) => h(m.DictionaryPane, { bibleProvider: p.providers.bible }),
-      })),
-    'pane:wordStudy': () =>
-      import('../../components/WordStudy/WordStudyPane').then((m) => ({
-        default: (p: P) => h(m.WordStudyPane, { onOpenStrongsEntry: p.onStrongsClick }),
-      })),
-    'pane:similar': () =>
-      import('../../components/SimilarPane/SimilarPane').then((m) => ({
-        default: (p: P) => h(m.SimilarPane, { providers: p.providers }),
-      })),
-  },
-};
+/**
+ * The always-there panes have no lazy view: the Study app renders them
+ * directly (`EAGER_PANES` in DesktopApp), so they are part of the Study chunk.
+ * Binding them here as `import()` too made Rollup split each one (and its
+ * shared deps) into its own chunk, all still fetched at boot: the Phase 1
+ * startup regression (task 0123). A pane moved into its own module later gets
+ * a lazy view and leaves `EAGER_PANES`.
+ */
+export const hostPanesBinding: FeatureModuleBinding = { id: 'host-panes' };
 
 export const timelinePaneBinding: FeatureModuleBinding = {
   id: 'timeline-pane',

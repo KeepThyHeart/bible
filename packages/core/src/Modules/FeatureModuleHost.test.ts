@@ -298,3 +298,41 @@ describe('FeatureModuleHost: the feature-flag overrides and the module overrides
     expect(hostWith('quiz', '-plain')).toEqual({ quiz: true, plain: false });
   });
 });
+
+describe('FeatureModuleHost: activateNow', () => {
+  it('activates exactly one enabled module, reporting the reason as the activation event', async () => {
+    const { host } = setup({ quiz: true });
+    const q = spyBinding('quiz');
+    const other = spyBinding('other');
+    host.add(quizManifest(), q.binding);
+    host.add({ id: 'other', hooks: [], contributes: {}, activationEvents: ['onStartupFinished'] }, other.binding);
+    host.reconcile();
+    await host.activateNow('quiz', 'onBootProbe');
+    expect(host.isActive('quiz')).toBe(true);
+    expect(q.activate).toHaveBeenCalledTimes(1);
+    expect((q.activate.mock.calls[0] as unknown[])[0]).toMatchObject({ moduleId: 'quiz', activationEvent: 'onBootProbe' });
+    expect(host.isActive('other')).toBe(false);
+    expect(other.load).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for disabled, unknown, already-active and code-less modules', async () => {
+    const { host } = setup({ quiz: false });
+    const q = spyBinding('quiz');
+    host.add(quizManifest(), q.binding);
+    host.add({ id: 'plain', contributes: {} });
+    host.reconcile();
+    await host.activateNow('quiz', 'x'); // disabled
+    await host.activateNow('nope', 'x'); // unknown
+    await host.activateNow('plain', 'x'); // no binding
+    expect(q.load).not.toHaveBeenCalled();
+    expect(host.isActive('plain')).toBe(false);
+
+    const { host: h2 } = setup({ quiz: true });
+    const q2 = spyBinding('quiz');
+    h2.add(quizManifest(), q2.binding);
+    h2.reconcile();
+    await h2.activateNow('quiz', 'first');
+    await h2.activateNow('quiz', 'second');
+    expect(q2.activate).toHaveBeenCalledTimes(1);
+  });
+});

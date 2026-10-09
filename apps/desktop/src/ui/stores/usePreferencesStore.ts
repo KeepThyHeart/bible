@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { whenContextService } from '../services/WhenContextService';
+import { preferencesChanged } from '../modules/host/readerHooks';
 import { useTextSettingsStore } from './useTextSettingsStore';
 import type { AppSwitcherMode } from '@bible/core/browser';
 import { THEME_TOKENS, isValidThemeId, type ThemeId } from '../styles/themeTokens';
@@ -511,6 +512,8 @@ function publishPreferencesWhenContext(state: PreferencesState): void {
 
 publishPreferencesWhenContext(usePreferencesStore.getState());
 usePreferencesStore.subscribe(publishPreferencesWhenContext);
+// Feature-module core event `settings.changed`: a no-op unless an active module subscribes.
+usePreferencesStore.subscribe(preferencesChanged);
 
 // Register the session serializer so useSessionStore doesn't import us
 // directly (same decoupling pattern as useTextSettingsStore). Restoration is

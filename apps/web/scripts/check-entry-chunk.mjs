@@ -8,12 +8,12 @@ export const FORBIDDEN = [
   /^src\/apps\//,
   /^src\/DesktopApp\.tsx$/,
   /^src\/MobileApp\.tsx$/,
-  /^src\/stores\/(bible|search|commentary|study|dictionary|follow|present)Store\.ts$/,
+  /^src\/stores\/(bible|search|commentary|study|dictionary)Store\.ts$/,
   /^src\/offline\//,
   /^src\/search\/BrowserSearchProvider\.ts$/,
-  // The command barrel re-exports CommandBox; the entry may only take the provider hook-up.
-  /^src\/present\/command\/(?!searchProviders\.ts$)/,
-  /^src\/components\/Present\//,
+  // Feature modules: only the manifest, the binding and what the boot probe needs
+  // may be in the entry; everything else loads on activation (task 0123).
+  /^src\/modules\/present\/(?!(manifest|binding|runtime)\.ts$|lib\/(controlLink|sessionKey)\.ts$)/,
 ];
 
 /** @returns {{ok: boolean, entry: string|null, offenders: {chunk: string, module: string}[], error?: string}} */

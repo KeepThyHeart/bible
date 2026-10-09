@@ -11,7 +11,7 @@ import type { IBibleDataProvider } from '../providers/interfaces';
 import { bibleStore } from '../stores/bibleStore';
 import { moduleStore } from '../stores/moduleStore';
 import { audioStore } from '../stores/audioStore';
-import { presentStore } from '../stores/presentStore';
+import { appRegistry } from '../host/appHost';
 import { createAudioSystem } from './bootstrap';
 import { createKeybindingRegistry, registerAudioShortcuts } from './audioShortcuts';
 
@@ -32,5 +32,6 @@ export function initAudio(config: AudioSiteConfig, bible: IBibleDataProvider): v
     chapterCount: book => moduleStore.getBookByNumber(book)?.chapter_count ?? 0,
   });
   audioStore.init(system);
-  registerAudioShortcuts(createKeybindingRegistry(), audioStore, () => presentStore.session !== null);
+  // Alt+arrows stand down while an app with a live session (the Presenter) is busy.
+  registerAudioShortcuts(createKeybindingRegistry(), audioStore, () => appRegistry.state.getSnapshot().apps.some((a) => a.busy));
 }

@@ -10,9 +10,10 @@ const { studyState, runInternal, mockLayout } = vi.hoisted(() => ({
   mockLayout: vi.fn(),
 }));
 
-vi.mock('../apps/appHost', async () => {
+vi.mock('../apps/appHost', async (importOriginal) => {
   const React = await import('react');
   return {
+    ...(await importOriginal<typeof import('../apps/appHost')>()),
     useIsAppActive: () =>
       React.useSyncExternalStore(
         (l: () => void) => { studyState.listeners.add(l); return () => { studyState.listeners.delete(l); }; },

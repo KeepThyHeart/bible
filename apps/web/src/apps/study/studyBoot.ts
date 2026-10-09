@@ -6,7 +6,6 @@ import { searchStore } from '../../stores/searchStore';
 import { dictionaryStore } from '../../stores/dictionaryStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { settingsStore } from '../../stores/settingsStore';
-import { followStore } from '../../stores/followStore';
 import { eventBus } from '../../events/eventBus';
 import { initAutoDownload, runAutoCleanup } from '../../offline/autoDownloadManager';
 import { offlineStorageManager } from '../../offline/sharedInstances';
@@ -31,7 +30,6 @@ export function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
 // The Audio Bible's code loads once, and only while the `audio` flag is on.
 const loadAudio = lazyFeature(featureFlags, 'audio', () => import('../../audio/initAudio'));
 
-let followStarted = false;
 
 /**
  * Study's own boot (the Study binding's `activate`): initialises its stores and
@@ -111,16 +109,8 @@ export async function bootStudy(ctx: ShellContext): Promise<void> {
   }
 }
 
-/** Study's after-first-paint work: follow-along, background tabs, cleanup. */
+/** Study's after-first-paint work: background tabs, cleanup. */
 export function afterStudyFirstPaint(ctx: ShellContext): void {
-  // Start following, if this load was `/present/f/<code>`. After first paint:
-  // the reader underneath renders as for any other chapter, and `followStore`
-  // then nudges it to the presenter's live reference once the stream answers.
-  if (ctx.followCode && !followStarted) {
-    followStarted = true;
-    followStore.start(ctx.followCode);
-  }
-
   // Always load any restored tabs that don't have verses yet (e.g. background tabs)
   bibleStore.loadRestoredTabs();
 

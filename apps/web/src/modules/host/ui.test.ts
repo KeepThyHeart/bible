@@ -44,14 +44,13 @@ describe('host-ui manifest', () => {
     expect(validateBuiltinManifest(hostUiManifest)).toEqual([]);
   });
 
-  it('declares today\'s home tiles and settings tabs, in order (snapshot)', () => {
+  it('declares the host home tiles and settings tabs, in order (snapshot; the watch tile lives in the present manifest)', () => {
     const { points, host } = makeHost();
     host.add(hostUiManifest);
     host.reconcile();
     expect(points.newTabTiles.list().map((t) => [t.id, 'key' in t.title ? t.title.key : '', t.icon && 'name' in t.icon ? t.icon.name : ''])).toEqual([
       ['readBible', 'homeScreen.readBible', 'fa-book-open'],
       ['search', 'homeScreen.search', 'fa-magnifying-glass'],
-      ['watchPresentation', 'homeScreen.watchPresentation', 'fa-tv'],
     ]);
     expect(points.preferencesSections.list().map((s) => [s.id, 'key' in s.title ? s.title.key : ''])).toEqual([
       ['text-size', 'settings.tabs.textSize'],
@@ -64,7 +63,7 @@ describe('host-ui manifest', () => {
       ['apps', 'settings.apps.title'],
       ['about', 'settings.tabs.about'],
     ]);
-    expect(HOME_TILES.length).toBe(3);
+    expect(HOME_TILES.length).toBe(2);
     expect(SETTINGS_SECTIONS.length).toBe(9);
   });
 

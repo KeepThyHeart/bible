@@ -7,7 +7,6 @@ const h = vi.hoisted(() => ({
   navigateToLoginOnce: vi.fn(() => true),
   showBootError: vi.fn(),
   createServerProviders: vi.fn((base: string) => ({ base, bible: {}, search: {}, modules: {} })),
-  setFactory: vi.fn(),
   applyTheme: vi.fn(),
   bibleInit: vi.fn(),
   urls: [] as string[],
@@ -61,15 +60,9 @@ vi.mock('../../stores/settingsStore', () => ({
   },
 }));
 vi.mock('../../stores/bibleStore', () => ({ bibleStore: { init: h.bibleInit } }));
-vi.mock('../../present/controlLink', () => ({
-  takeControlLinkFromUrl: vi.fn(() => null),
-  takeFollowLinkFromUrl: vi.fn(() => null),
-}));
-vi.mock('../../present/command/searchProviders', () => ({ setVerseSearchProviderFactory: h.setFactory }));
 vi.mock('../../host/preferredBible', () => ({ preferredBible: { module: 'KJV', setSource: vi.fn() } }));
 
 import { bootShell } from '../shellBoot';
-import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from '../../present/controlLink';
 
 describe('bootShell (shell-only path)', () => {
   beforeEach(() => {
@@ -91,18 +84,16 @@ describe('bootShell (shell-only path)', () => {
     expect(h.createServerProviders).toHaveBeenCalledTimes(1);
     expect(h.loadManifest).toHaveBeenCalledTimes(1);
     expect(h.applyTheme).toHaveBeenCalled();
-    expect(h.setFactory).toHaveBeenCalledWith(expect.any(Function));
     expect(h.bibleInit).not.toHaveBeenCalled();
     expect(h.urls.some(u => u.includes('/api/bible/'))).toBe(false);
     await expect(ctx!.localeReady).resolves.toBeUndefined();
   });
 
-  it('reads control and follow links first and exposes them on the context', async () => {
-    vi.mocked(takeControlLinkFromUrl).mockReturnValueOnce({ id: 's' } as never);
-    vi.mocked(takeFollowLinkFromUrl).mockReturnValueOnce('ABCDEFGH' as never);
+  it('leaves handoff links and the verse search provider to the Presenter module', async () => {
+    // The links are read by the module's boot probe (binding.test.ts), not by the shell.
     const ctx = await bootShell();
-    expect(ctx!.adoptedSession).toEqual({ id: 's' });
-    expect(ctx!.followCode).toBe('ABCDEFGH');
+    expect(ctx).not.toHaveProperty('adoptedSession');
+    expect(ctx).not.toHaveProperty('followCode');
   });
 
   it('returns null and goes to login when unauthorized', async () => {

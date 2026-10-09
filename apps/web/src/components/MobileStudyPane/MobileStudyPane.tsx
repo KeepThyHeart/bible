@@ -17,10 +17,14 @@ import { getSyncStatus } from '../../utils/syncStatus';
 import { isEnabled } from '../../utils/featureFlags';
 import { isTagGraphEnabled } from '../../utils/clientConfig';
 import { isGenealogyEnabled } from '../../utils/featureFlags';
-import { TimelinePane } from '../TimelinePane/TimelinePane';
-import { QuizPane } from '../QuizPane/QuizPane';
+import { Suspense, lazy } from 'preact/compat';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
+
+// Loaded when their sheet first opens. A static import here would also split them out of
+// the Study chunk (they are lazy pane views too) and fetch them on every boot (task 0123).
+const TimelinePane = lazy(() => import('../TimelinePane/TimelinePane').then((m) => ({ default: m.TimelinePane })));
+const QuizPane = lazy(() => import('../QuizPane/QuizPane').then((m) => ({ default: m.QuizPane })));
 
 interface MobileStudyPaneProps {
   providers: IDataProviders;
@@ -265,7 +269,7 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
             </span>
           </div>
           <div class="mobile-topics-overlay__body">
-            <TimelinePane />
+            <Suspense fallback={null}><TimelinePane /></Suspense>
           </div>
         </div>
       )}
@@ -282,7 +286,7 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
             </span>
           </div>
           <div class="mobile-topics-overlay__body">
-            <QuizPane startOnCurrentChapter onPassageOpened={() => setQuizOpen(false)} />
+            <Suspense fallback={null}><QuizPane startOnCurrentChapter onPassageOpened={() => setQuizOpen(false)} /></Suspense>
           </div>
         </div>
       )}

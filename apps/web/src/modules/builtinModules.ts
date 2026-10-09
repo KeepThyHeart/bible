@@ -1,14 +1,33 @@
 /**
- * The built-in feature modules of the web app: manifest + binding
- * pairs, added to the host at boot. Manifests are data; bindings only hold
- * lazy loaders. Add a module here (one line) when it is created.
+ * The built-in feature modules of the web app, added to the host at boot.
+ * Manifests are data; bindings only hold lazy loaders and (at most) a cheap
+ * boot probe. Add a module here (one line) when it is created.
  */
 import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanesModules } from './host/panes';
 import { hostUiManifest } from './host/ui';
-import { addBuiltinModule, reconcileModules } from './moduleHost';
+import { addWebModule, reconcileModules } from './moduleHost';
+import type { WebFeatureModule } from './moduleHost';
+import { presentModule } from './present/binding';
 
-export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [...hostPanesModules, [hostUiManifest]];
+const plain = ([manifest, binding]: readonly [FeatureModuleManifest, FeatureModuleBinding?]): WebFeatureModule => ({ manifest, binding });
+
+export const BUILTIN_MODULES: readonly WebFeatureModule[] = [
+  ...hostPanesModules.map(plain),
+  { manifest: hostUiManifest },
+  presentModule,
+];
+
+/** Let modules take handoff secrets out of the URL before anything else runs (see `WebFeatureModule.takeUrl`). */
+export function takeModuleUrlHandoffs(): void {
+  for (const entry of BUILTIN_MODULES) {
+    try {
+      entry.takeUrl?.();
+    } catch (err) {
+      console.warn(`[modules] ${entry.manifest.id}: takeUrl failed`, err);
+    }
+  }
+}
 
 let registered = false;
 
@@ -16,6 +35,6 @@ let registered = false;
 export function registerBuiltinModules(): void {
   if (registered) return;
   registered = true;
-  for (const [manifest, binding] of BUILTIN_MODULES) addBuiltinModule(manifest, binding);
+  for (const entry of BUILTIN_MODULES) addWebModule(entry);
   reconcileModules();
 }

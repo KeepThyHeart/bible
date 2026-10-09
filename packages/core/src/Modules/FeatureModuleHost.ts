@@ -88,6 +88,13 @@ export interface FeatureModuleHost {
    * active; a module whose activation fails is reported and left inactive.
    */
   fire(event: string): Promise<void>;
+  /**
+   * Activate one enabled module for a host-specific reason that is not an
+   * activation event, e.g. its boot probe found saved state to resume
+   * (`reason` is reported as the activation event). No-op when the module is
+   * off, already active or has no code.
+   */
+  activateNow(id: string, reason: string): Promise<void>;
   /** Deliver a core event to active modules that declared it and whose `when` holds. */
   dispatch<E extends HookEventName>(event: E, payload: HookEventPayloads[E]): void;
   /** Number of active subscribers to an event (dispatch sites may skip building a payload when 0). */
@@ -397,6 +404,13 @@ export function createFeatureModuleHost(options: FeatureModuleHostOptions): Feat
         if (rec.enabled && !rec.active && rec.binding?.load && rec.events.has(event)) targets.push(rec);
       }
       await Promise.all(targets.map((rec) => activate(rec, event)));
+    },
+
+    async activateNow(id, reason) {
+      if (disposed) return;
+      const rec = modules.get(id);
+      if (!rec || !rec.enabled || rec.active || !rec.binding?.load) return;
+      await activate(rec, reason);
     },
 
     dispatch(event, payload) {

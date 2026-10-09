@@ -102,7 +102,7 @@ The "Boot sequence" below describes what Study does when it activates; the splas
 
 ### Entry-chunk check
 
-`scripts/check-entry-chunk.mjs` (run by `build:client`, or `pnpm --filter @bible/web check:entry-chunk` after a build) reads `dist/client/.vite/chunk-report.json` and fails when the entry chunk's static import graph contains a module that must stay lazy: `src/apps/**`, `DesktopApp`, `MobileApp`, the bible/search/commentary/study/dictionary/follow/present stores, `src/offline/`, the browser search provider, most of `src/present/command/` and `src/components/Present/`. Host code reaches those only through dynamic `import()`. Tested by `scripts/check-entry-chunk.test.ts`.
+`scripts/check-entry-chunk.mjs` (run by `build:client`, or `pnpm --filter @bible/web check:entry-chunk` after a build) reads `dist/client/.vite/chunk-report.json` and fails when the entry chunk's static import graph contains a module that must stay lazy: `src/apps/**`, `DesktopApp`, `MobileApp`, the bible/search/commentary/study/dictionary stores, `src/offline/`, the browser search provider, and everything of the Presenter module (`src/modules/present/`) except its manifest, binding, runtime probe and `lib/controlLink.ts`/`lib/sessionKey.ts`. Host code reaches those only through dynamic `import()`. Tested by `scripts/check-entry-chunk.test.ts`.
 
 ## Boot sequence
 

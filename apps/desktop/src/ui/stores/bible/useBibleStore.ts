@@ -3,6 +3,7 @@ import { createPanelSlice } from '../helpers/createPanelSlice';
 import { DEFAULT_PANEL_ID } from '../helpers/panelStateHelpers';
 import { whenContextService } from '../../services/WhenContextService';
 import { registerSessionSerializer } from '../helpers/sessionRegistry';
+import { bibleStateChanged } from '../../modules/host/readerHooks';
 
 import {
   BIBLE_SESSION_VERSION,
@@ -87,6 +88,8 @@ function publishBibleWhenContext(state: BibleState): void {
 
 publishBibleWhenContext(useBibleStore.getState());
 useBibleStore.subscribe(publishBibleWhenContext);
+// Feature-module core events (reader.*): a no-op unless an active module subscribes.
+useBibleStore.subscribe(bibleStateChanged);
 
 /**
  * Snapshot one panel's live navigation state back onto its passage record.

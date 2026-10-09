@@ -43,7 +43,9 @@ export interface PaneModeContribution extends ContributionItem {
 export type TileTarget =
   | { readonly panelType: string }
   | { readonly appId: string }
-  | { readonly commandId: string };
+  | { readonly commandId: string }
+  /** A plain link to a separate page (`/watch`): no app code runs. */
+  | { readonly href: string };
 
 /** A tile on the new-tab page (desktop) or home screen (web). */
 export interface NewTabTileContribution extends ContributionItem {

@@ -1,0 +1,136 @@
+import { useTranslation } from 'react-i18next';
+import { presentStore } from '../stores/presentStore';
+import { usePresenter } from './usePresenter';
+import { stepWall } from './usePresenterShortcuts';
+import { openApp, prefetchApp } from '../../../host/appHost';
+// Strip, panel and reader styles: with this chunk too, so it never renders before module.ts loads them.
+import '../present.scss';
+
+/**
+ * The control strip: what a presenter touches while presenting.
+ *
+ * It is docked to the bottom of the reading app and it is deliberately short.
+ * Everything on it is something that might be needed *mid-sentence*, in a room,
+ * without looking down. Anything that can wait -- the running order, the join
+ * code, display settings -- lives in the Presenter, behind the last button.
+ *
+ * Three things earn their place by being needed urgently:
+ *
+ *  - **Blank.** During prayer, during an unplanned digression, or when
+ *    something has gone wrong on the screen. It is the largest control and it
+ *    is always in the same place, because it is the one that gets pressed
+ *    without looking.
+ *  - **Send.** The line between what the presenter is reading and what the room
+ *    can see. It says what it would send, and it looks different when the wall
+ *    is already showing it, so there is never a question of which.
+ *  - **Next / previous.** Sized for a thumb on a phone held low.
+ *
+ * The viewer count is the quiet one that matters most before a service starts:
+ * it is how a presenter confirms the television is actually connected, minutes
+ * before it would be embarrassing to find out otherwise.
+ */
+
+export function PresentBar(props: { compact?: boolean }) {
+  const { t } = useTranslation();
+  const view = usePresenter();
+  const { staged, wall } = view;
+
+  // The global shortcuts live in the headless `PresenterKeys`, which the app
+  // shell mounts while a session is live, so they work with Study unmounted.
+
+  if (!view.presenting) return null;
+
+  const blanked = wall?.display.blanked ?? false;
+  const connected = view.connection === 'live';
+
+  return (
+    <>
+      <div class={`present-bar${props.compact ? ' present-bar--compact' : ''}`} role="region" aria-label={t('present.barLabel')}>
+        <div class="present-bar__status">
+          <span
+            class={`present-bar__viewers ${connected ? '' : 'present-bar__viewers--offline'}`}
+            title={connected ? t('present.viewersTooltip') : t('present.reconnecting')}
+          >
+            <i class="fa-solid fa-tv" aria-hidden="true" />
+            {view.viewers}
+          </span>
+          <span class="present-bar__live">
+            {view.liveLabel
+              ? <><span class="present-bar__live-label">{t('present.onScreen')}</span> {view.liveLabel}</>
+              : <span class="present-bar__live-empty">{t('present.nothingOnScreen')}</span>}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          class={`present-bar__send ${view.stagedIsLive ? 'present-bar__send--live' : ''}`}
+          disabled={!staged || view.stagedIsLive}
+          onClick={() => staged && void presentStore.show(staged.item, staged.index)}
+          title={t('present.sendTooltip')}
+        >
+          <i class={`fa-solid ${view.stagedIsLive ? 'fa-check' : 'fa-arrow-up'}`} aria-hidden="true" />
+          <span class="present-bar__send-text">
+            {staged
+              ? (view.stagedIsLive ? t('present.showing', { ref: staged.label }) : t('present.send', { ref: staged.label }))
+              : t('present.nothingToSend')}
+          </span>
+        </button>
+
+        <div class="present-bar__controls">
+          <button
+            type="button"
+            class="present-bar__btn"
+            onClick={() => stepWall('previous')}
+            disabled={!wall?.live}
+            title={t('present.previous')}
+            aria-label={t('present.previous')}
+          >
+            <i class="fa-solid fa-chevron-left kth-rtl-mirror" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="present-bar__btn"
+            onClick={() => stepWall('next')}
+            disabled={!wall?.live}
+            title={t('present.next')}
+            aria-label={t('present.next')}
+          >
+            <i class="fa-solid fa-chevron-right kth-rtl-mirror" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class={`present-bar__btn present-bar__btn--blank ${blanked ? 'present-bar__btn--on' : ''}`}
+            onClick={() => void presentStore.toggleBlank()}
+            title={blanked ? t('present.unblank') : t('present.blank')}
+            aria-pressed={blanked}
+          >
+            <i class={`fa-solid ${blanked ? 'fa-eye' : 'fa-eye-slash'}`} aria-hidden="true" />
+            <span class="present-bar__btn-text">
+              {blanked ? t('present.unblank') : t('present.blank')}
+            </span>
+          </button>
+          <button
+            type="button"
+            class="present-bar__btn"
+            onClick={() => { void openApp('present'); }}
+            onPointerEnter={() => prefetchApp('present')}
+            onFocus={() => prefetchApp('present')}
+            title={t('present.openPresenter')}
+          >
+            <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />
+            <span class="present-bar__btn-text">{t('present.openPresenterShort')}</span>
+          </button>
+        </div>
+      </div>
+
+      {view.error && (
+        <div class="present-bar__error" role="status">
+          {view.error}
+          <button type="button" onClick={() => presentStore.clearError()} aria-label={t('common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}

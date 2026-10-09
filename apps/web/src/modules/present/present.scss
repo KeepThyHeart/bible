@@ -1,0 +1,785 @@
+// Session mode: the control strip and its panel.
+//
+// Both are docked flex children of `.app`, below `.main-layout`, so the reader
+// above them simply gets shorter rather than being covered. Overlaying would
+// have been fewer lines and would have hidden the last verse of whatever the
+// presenter was reading -- which is the verse they are most likely reading.
+//
+// Sizes here are in `px` rather than `rem` on purpose: this is instrument
+// panel, not text. It must not resize when the reader changes their reading
+// font, because the presenter has learned where the blank button is.
+
+:root {
+  // The presenter's own colour: green means "this is on the screen". Dark
+  // enough for white text on every theme, and deliberately not any theme's
+  // accent so it cannot be mistaken for selection.
+  --present-sent: #1a7f4b;
+}
+
+.present-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 2px solid var(--accent-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  // The number a presenter checks before the service starts to confirm the
+  // television actually connected.
+  &__viewers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
+
+    &--offline {
+      opacity: 0.5;
+    }
+  }
+
+  &__live {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__live-label,
+  &__live-empty {
+    color: var(--text-muted);
+  }
+
+  // Preview-then-send made visible: this is the whole difference between what
+  // the presenter is reading and what the room can see.
+  &__send {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, opacity 0.15s;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    // Already on the wall. Deliberately quiet rather than disabled-looking:
+    // "this is showing" is information, not a broken button.
+    &--live,
+    &:disabled {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      cursor: default;
+    }
+  }
+
+  &__send-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 22ch;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    // 44px is the smallest target a thumb finds reliably without looking, which
+    // is the condition these are actually used under.
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 15px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    &--on {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+
+    &--blank {
+      font-weight: 700;
+    }
+  }
+
+  &__btn-text {
+    font-size: 13px;
+  }
+
+  &__error {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--highlight-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+
+    button {
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+  }
+
+  // On a phone the strip is the primary interface, so it gets two rows and the
+  // reference gives up its space to the controls.
+  &--compact {
+    flex-wrap: wrap;
+    row-gap: 8px;
+
+    .present-bar__status {
+      flex-basis: 100%;
+      order: 1;
+      font-size: 13px;
+    }
+
+    .present-bar__send {
+      order: 2;
+      flex: 1;
+    }
+
+    .present-bar__controls {
+      order: 3;
+    }
+
+    .present-bar__btn-text {
+      display: none;
+    }
+  }
+}
+
+.present-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  // Bounded so the reader above never disappears entirely: the presenter still
+  // needs to see the passage they are choosing from.
+  max-height: 45vh;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  // The settings menu opened from the Presenter's status row: screen and
+  // joining, stacked as their own labelled sections.
+  &__menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__menu-section {
+    padding-top: 14px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-color);
+
+    &:first-of-type {
+      padding-top: 0;
+      margin-top: 0;
+      border-top: none;
+    }
+  }
+
+  &__menu-heading {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  &__row-label {
+    min-width: 90px;
+    color: var(--text-muted);
+  }
+
+  &__step {
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  &__step-value {
+    min-width: 2ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  &__choice {
+    padding: 7px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &--active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+  }
+
+  &__note,
+  &__hint {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  &__join {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  // The QR sits on white regardless of theme: a dark-on-dark code does not
+  // scan, and inverting one is worse than framing it.
+  &__qr {
+    width: 168px;
+    height: 168px;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+
+    &--small {
+      width: 132px;
+      height: 132px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__join-detail {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  &__code {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  &__link,
+  &__handoff-link {
+    display: block;
+    margin: 4px 0 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    word-break: break-all;
+  }
+
+  &__join-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+
+    &--danger {
+      border-color: #b3261e;
+      color: #b3261e;
+    }
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  &__handoff {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &__warning {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #b3261e;
+  }
+}
+
+// The wall in miniature. The box is the aspect ratio; the iframe inside is
+// nominal-size and CSS-scaled, so the viewer measures a real 1280x720 viewport
+// and its viewport-relative typography stays honest.
+.present-preview {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #000;
+
+  &__frame {
+    position: absolute;
+    top: 0;
+    left: 0; // rtl-physical: iframe pinned to container corner
+    border: 0;
+  }
+}
+
+.present-plan {
+  &__actions {
+    margin-bottom: 10px;
+  }
+
+  &__add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+  }
+
+  &__icon {
+    min-width: 34px;
+    min-height: 34px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+  }
+
+  &__paste-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-inline-start: 8px;
+    padding: 9px 12px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+}
+
+// Paste a block of text and pick out whatever Bible references it contains.
+// The text itself is scratch space, never saved -- only the references the
+// presenter chooses to add survive past this box closing.
+.present-paste {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+
+  &__input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+  }
+}
+
+// The hymn picker: one box searched four ways, because those are the four ways
+// a person names a hymn.
+.present-hymns {
+  &__search {
+    width: 100%;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 15px;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__pick {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    padding: 9px 8px;
+    border: none;
+    background: none;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-tertiary);
+    }
+  }
+
+  &__title {
+    font-weight: 700;
+  }
+
+  &__detail {
+    color: var(--text-muted);
+    font-size: 13px;
+    // One line: the list is for picking from, not reading.
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+}
+
+// Follow-along mode (`/present/f/<code>`): a strip above the ordinary reader,
+// not an overlay -- the same reasoning as the control strip at the bottom
+// (see the file header): pushing content down loses nothing, covering it
+// hides the very verse someone opened this to read.
+.follow-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 8px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 13px;
+
+  &--ended {
+    color: var(--text-muted);
+    justify-content: center;
+  }
+
+  &__dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2e9e4f;
+  }
+
+  &--paused &__dot {
+    background: var(--text-muted);
+  }
+
+  &__label {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  &__button {
+    padding: 5px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  &__link {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-decoration: underline;
+  }
+}
+
+// The word-highlight draft's bar, docked to the bottom of the Bible pane
+// (`PresentHighlightBar`) so it never covers the verse being highlighted.
+.present-highlight-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px -8px -8px;
+  padding: 10px 12px;
+  border-top: 2px solid #a3813e;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+
+  &--sent {
+    border-top-color: var(--present-sent);
+  }
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__state {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &--sent &__state {
+    color: var(--present-sent);
+  }
+
+  &__phrase {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__btn {
+    flex: none;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    &--send {
+      border-color: var(--present-sent);
+      background: var(--present-sent);
+      color: #ffffff;
+    }
+  }
+}
+
+// Moved from `styles/_bible-content.scss` (task 0123): the Study reader's present-mode marks.
+// ---------------------------------------------------------------------------
+// Present mode: the sent verse, the left-rail send button, and the word
+// highlight on the active verse. `--present-sent` (defined above)
+// is the presenter's one colour: green always means "this is on the screen".
+// ---------------------------------------------------------------------------
+
+// The verse the wall is showing. Green wins over the study (selected) tint --
+// these rules come after `.verse--study` and `.verse--block.verse--study` with
+// the same specificity, so a verse that is both reads as sent.
+.verse.verse--sent,
+.verse--block.verse--sent,
+.verse--block.verse--sent.verse--study,
+.verse--block.verse--sent.verse--in-range {
+  background: color-mix(in srgb, var(--present-sent) 18%, var(--bg-primary));
+}
+
+@media (hover: hover) {
+  .verse--block.verse--sent:hover {
+    background: color-mix(in srgb, var(--present-sent) 24%, var(--bg-primary));
+  }
+}
+
+// Outline monitor to send; filled green check once it is the one on screen.
+.verse__send {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-block: 1px 0;
+  margin-inline: 4px 8px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    border-color: var(--present-sent);
+    color: var(--present-sent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--present-sent);
+    outline-offset: 2px;
+  }
+
+  &--sent {
+    background: var(--present-sent);
+    border-color: var(--present-sent);
+    color: #ffffff;
+    cursor: default;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+}
+
+// The active verse's words while presenting (`PresenterWords`). Selection is
+// off on them because a press-and-hold is the highlight gesture: left on, a
+// hold would also start a native text selection (and, on a phone, the
+// selection handles and callout).
+.verse__pwords {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.verse__pword {
+  border-radius: 3px;
+  cursor: pointer;
+
+  // A draft: not yet on the screen.
+  &--draft {
+    background: color-mix(in srgb, #cbaa5c 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, #a3813e 60%, transparent);
+  }
+
+  // The highlight the screen is showing.
+  &--sent {
+    background: color-mix(in srgb, var(--present-sent) 32%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--present-sent) 70%, transparent);
+  }
+}

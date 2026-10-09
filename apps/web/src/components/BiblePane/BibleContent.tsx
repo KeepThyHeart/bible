@@ -4,10 +4,9 @@ import i18n from '../../i18n';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
-import { followStore } from '../../stores/followStore';
-import { presentStore } from '../../stores/presentStore';
-import { PresentHighlightBar, useHighlightDraftLifecycle } from '../Present/PresentHighlightBar';
 import { audioStore } from '../../stores/audioStore';
+import { SlotOutlet, decorateVerse, readerOverlays, useSlot, verseDecorators } from '../../host/slots';
+import { emitChapterRendered } from '../../modules/host/readerHooks';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { VerseRenderer } from './VerseRenderer';
@@ -17,7 +16,6 @@ import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
-import { draftIsOnWall } from '../../present/wordHighlight';
 import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
 import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
 import { useMeasureDecorations } from '../../hooks/useMeasureDecorations';
@@ -197,19 +195,21 @@ export function BibleContent({
   // Whether this chapter carries any publisher footnotes at all. Modules that
   // ship none leave the Notes toggle with nothing to reveal.
   const hasNotes = tab?.verses.some(v => v.footnotes && v.footnotes.length > 0) ?? false;
-  // Only read for a follow-along session (`/present/f/<code>`) -- null on
-  // every ordinary tab, since `followStore` is never `active` there.
-  const followLive = useStore(followStore, () => followStore.liveVerse);
-  const followBookChapterMatches = Boolean(
-    followLive && tab?.book === followLive.book && tab.chapter === followLive.chapter,
-  );
-  // Present mode: what the wall is showing (for the sent-verse colour and each
-  // verse's send button) and the presenter's word-highlight draft. All null /
-  // false outside a session, when none of this renders.
-  const presenting = useStore(presentStore, () => presentStore.session !== null);
-  const wall = useStore(presentStore, () => presentStore.wall);
-  const highlightDraft = useStore(presentStore, () => presentStore.highlightDraft);
-  useHighlightDraftLifecycle();
+  // Per-verse marks from active feature modules (the Presenter's send rail and
+  // highlighted words). Empty, and free, while no module decorates.
+  const decorators = useSlot(verseDecorators);
+  // Core event `reader.chapterRendered`, once the chapter's verses are on screen:
+  // keyed on the rendered verses, whose ids name their chapter. `navigateTo` sets the
+  // tab's book/chapter before the new verses arrive, so the old chapter can still be
+  // painted under the new reference; that render must not count.
+  // Free while no active feature module subscribes (the payload is never built).
+  useEffect(() => {
+    const first = tab?.verses[0];
+    if (!tab || !first) return;
+    const book = Math.floor(first.verse_id / 1_000_000);
+    const chapter = Math.floor(first.verse_id / 1_000) % 1_000;
+    if (book === tab.book && chapter === tab.chapter) emitChapterRendered(book, chapter, tab.moduleAbbr);
+  }, [tab?.moduleAbbr, tab?.book, tab?.chapter, tab?.verses]);
   const [refValue, setRefValue] = useState('');
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -314,33 +314,6 @@ export function BibleContent({
         start: Math.min(tab.studyVerse, tab.selectionEndVerse),
         end: Math.max(tab.studyVerse, tab.selectionEndVerse),
       }
-    : null;
-
-  // Present mode. A verse is "sent" when it is the very verse the wall shows,
-  // of this passage in this translation; the send button on every other verse
-  // sends it (and moves the study focus there, so the next arrow key continues
-  // from what was just sent).
-  const live = presenting ? wall?.live : null;
-  const wallVerse = live?.kind === 'passage'
-    && live.module === tab.moduleAbbr && live.book === tab.book && live.chapter === tab.chapter
-    ? wall!.position.index
-    : null;
-  const sendVerse = (verseNumber: number) => {
-    if (!tab.book || !tab.chapter) return;
-    bibleStore.focusVerseNumber(verseNumber);
-    void presentStore.show(
-      { kind: 'passage', module: tab.moduleAbbr, book: tab.book, chapter: tab.chapter },
-      verseNumber,
-    );
-  };
-  const draftOnWall = draftIsOnWall(highlightDraft, wall?.position.highlights ?? []);
-  const wordHighlight = presenting
-    ? {
-      draft: highlightDraft,
-      sent: draftOnWall,
-      onHold: (verseId: number, index: number) => presentStore.beginHighlight(verseId, index),
-      onTap: (verseId: number, index: number) => presentStore.tapHighlightWord(verseId, index),
-    }
     : null;
 
   // Scripture follows the MODULE's writing direction, not the UI's. Someone
@@ -509,23 +482,16 @@ export function BibleContent({
                 onStrongsClick={onStrongsClick}
                 onStrongsHover={onStrongsHover}
                 onStrongsLeave={onStrongsLeave}
-                isFollowLive={followBookChapterMatches && verse.verse === followLive!.verse}
-                followHighlights={
-                  followBookChapterMatches && verse.verse === followLive!.verse ? followLive!.highlights : undefined
-                }
-                sendRail={presenting ? {
-                  sent: wallVerse === verse.verse,
-                  onSend: () => sendVerse(verse.verse),
-                  label: wallVerse === verse.verse
-                    ? t('present.verseOnScreen', { verse: verse.verse })
-                    : t('present.sendVerse', { verse: verse.verse }),
-                } : undefined}
-                wordHighlight={wordHighlight ? {
-                  draft: wordHighlight.draft,
-                  sent: wordHighlight.sent,
-                  onHold: index => wordHighlight.onHold(verse.verse_id, index),
-                  onTap: index => wordHighlight.onTap(verse.verse_id, index),
-                } : undefined}
+                decoration={decorateVerse(decorators, {
+                  tabId: tab.id,
+                  moduleAbbr: tab.moduleAbbr,
+                  book: tab.book ?? 0,
+                  chapter: tab.chapter ?? 0,
+                  verseId: verse.verse_id,
+                  verse: verse.verse,
+                  html: verse.text_html,
+                  isActive: tab.studyVerse === verse.verse_id,
+                })}
               />
             ))}
             </div>
@@ -533,7 +499,7 @@ export function BibleContent({
         </>
       )}
       {measurePopup.popup}
-      <PresentHighlightBar />
+      <SlotOutlet slot={readerOverlays} />
       {/* Mobile-only action bar — currently disabled; use context menu instead */}
       <BookChapterPicker
         isOpen={showBookPicker}

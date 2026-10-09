@@ -17,7 +17,6 @@ vi.mock('../../stores/searchStore', () => ({ searchStore: { init: h.inits.search
 vi.mock('../../stores/dictionaryStore', () => ({ dictionaryStore: { init: h.inits.dictionary } }));
 vi.mock('../../stores/moduleStore', () => ({ moduleStore: { getCommentaryModules: () => [] } }));
 vi.mock('../../stores/settingsStore', () => ({ settingsStore: { getDefaultBible: () => 'KJV' } }));
-vi.mock('../../stores/followStore', () => ({ followStore: { start: vi.fn() } }));
 vi.mock('../../offline/autoDownloadManager', () => ({ initAutoDownload: vi.fn(), runAutoCleanup: vi.fn(async () => {}) }));
 vi.mock('../../offline/sharedInstances', () => ({ offlineStorageManager: {} }));
 vi.mock('../../utils/clientConfig', () => ({ isTagGraphEnabled: () => false }));

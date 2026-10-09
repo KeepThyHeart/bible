@@ -22,15 +22,15 @@ vi.mock('../../apps/study/studyBoot', () => ({
   afterStudyFirstPaint: h.afterStudyFirstPaint,
 }));
 vi.mock('../offlineBible', () => ({ getOfflineBible: h.getOfflineBible }));
-vi.mock('../../host/presenterRuntime', () => ({
+vi.mock('../../modules/present/runtime', () => ({
   ensurePresenterRuntime: h.ensurePresenterRuntime,
   hasStoredPresenterSession: () => h.hasStored(),
   setPresenterBusySink: vi.fn(),
 }));
-vi.mock('../../apps/present/PresenterApp', () => ({ PresenterApp: () => null }));
+vi.mock('../../modules/present/app/PresenterApp', () => ({ PresenterApp: () => null }));
 vi.mock('../../DesktopApp', () => ({ DesktopApp: () => null }));
 vi.mock('../../MobileApp', () => ({ MobileApp: () => null }));
-vi.mock('../../components/Present/FollowBanner', () => ({ FollowBanner: () => null }));
+vi.mock('../../modules/present/study/FollowBanner', () => ({ FollowBanner: () => null }));
 vi.mock('../../components/ErrorBoundary', () => ({ ErrorBoundary: () => null }));
 vi.mock('../../host/AppShell', () => ({ AppShell: () => null }));
 vi.mock('../../utils/bootPrefetch', () => ({ releaseBootPrefetch: vi.fn(), bootFetch: vi.fn() }));
@@ -43,7 +43,7 @@ vi.mock('../../stores/dictionaryStore', () => ({ dictionaryStore: { init: h.init
 function makeCtx(over: Record<string, unknown> = {}) {
   return {
     baseUrl: '', providers: {}, serverOnline: true, serverStaleDays: undefined,
-    offlineAutoDownload: false, semanticMode: 'off', adoptedSession: null, followCode: null,
+    offlineAutoDownload: false, semanticMode: 'off',
     localeReady: Promise.resolve(), ...over,
   };
 }
@@ -109,18 +109,23 @@ describe('runBoot app selection', { timeout: 30000 }, () => {
   });
 
   it('a follow link boots Study even with a presenter hash', async () => {
-    const { appHost } = await boot('#/@present', { followCode: 'ABCDEFGH' }, '/present/f/ABCDEFGH');
+    const { appHost } = await boot('#/@present', {}, '/present/f/ABCD2345');
     expect(appHost.getSnapshot().activeId).toBe('study');
     expect(h.bootStudy).toHaveBeenCalledTimes(1);
   });
 
   it('a control link adopts the Presenter without Study', async () => {
-    const adoptedSession = { sessionId: 's1', token: 't' };
-    const { appHost } = await boot('', { adoptedSession });
+    // The Presenter module's boot probe reads the link from the URL (path + token fragment).
+    const sid = '0123456789ABCDEF';
+    const token = 'A'.repeat(43);
+    const { appHost } = await boot(`#t=${token}&j=ABCD2345&x=2099-01-01T00:00:00Z`, {}, `/present/c/${sid}`);
     expect(appHost.getSnapshot().activeId).toBe('present');
     expect(window.location.hash).toBe('#/@present');
+    expect(window.location.hash).not.toContain(token);
     noStudyInits();
-    expect(h.ensurePresenterRuntime).toHaveBeenCalledWith(adoptedSession);
+    expect(h.ensurePresenterRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: sid, controlToken: token, joinCode: 'ABCD2345' }),
+    );
   });
 
   it('renders nothing when the shell boot stops (update in flight)', async () => {

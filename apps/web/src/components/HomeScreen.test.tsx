@@ -15,6 +15,8 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/preact
 
 // Mock i18n before component imports
 vi.mock('react-i18next', () => ({
+  // src/i18n.ts (reached through the module host) registers this plugin at import.
+  initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts?.holiday) return `bibleContent.votdHoliday:${opts.holiday}`;

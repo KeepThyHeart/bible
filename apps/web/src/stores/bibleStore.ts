@@ -7,6 +7,7 @@ import { formatPassageRef } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
 import { settingsStore } from './settingsStore';
 import { studyOwnsHash, noteStudyHash } from '../host/hashGate';
+import { watchReaderStore } from '../modules/host/readerHooks';
 
 export type DisplayMode = 'standard' | 'reading' | 'study';
 
@@ -1339,3 +1340,6 @@ class BibleStore extends Store {
 }
 
 export const bibleStore = new BibleStore();
+
+// Core events `reader.verseChanged` / `reader.selectionChanged` (task 0123): only while an active feature module listens.
+watchReaderStore(bibleStore);

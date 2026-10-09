@@ -6,33 +6,19 @@ import { navigateToLoginOnce, showBootError } from '../utils/bootGuard';
 import { bootFetch } from '../utils/bootPrefetch';
 import { pwaFlag, pwaUpdateMode, setClientConfig } from '../utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from '../utils/appUpdate';
-import { takeControlLinkFromUrl, takeFollowLinkFromUrl } from '../present/controlLink';
-import { setVerseSearchProviderFactory } from '../present/command/searchProviders';
 import i18n, { ensureLocaleLoaded } from '../i18n';
 import { installBidiCopy } from '../utils/bidiCopy';
 import { getOfflineBible } from './offlineBible';
-import { getSearchProvider } from './searchProvider';
 import type { ShellContext } from './shellContext';
 
 /**
- * The app-independent half of boot: URL handoffs, locale, health/config/version,
+ * The app-independent half of boot: locale, health/config/version,
  * service worker, update check, providers, module manifest, theme, reminders.
  * Resolves to null when boot must stop and render nothing (unauthorized, or the
  * page is being replaced by a fresh build). No app-specific store is touched.
  */
 export async function bootShell(): Promise<ShellContext | null> {
   const baseUrl = API_BASE;
-
-  // Session mode. A handoff link carries the control token in its fragment, and
-  // it has to come out of the URL before anything else looks at the hash --
-  // a token sitting in a visible address bar on a laptop that may itself be
-  // plugged into a projector is not where it belongs. Reading it is cheap and
-  // returns null on every ordinary page load.
-  const adoptedSession = takeControlLinkFromUrl();
-
-  // Follow-along mode (`/present/f/<code>`): the join code is not a secret, so
-  // it stays in the path rather than being scrubbed.
-  const followCode = takeFollowLinkFromUrl();
 
   // Kicked off now, awaited just before the first render: `en`'s catalogs are
   // bundled eagerly (see `i18n.ts`), so this resolves instantly unless
@@ -132,13 +118,8 @@ export async function bootShell(): Promise<ShellContext | null> {
     serverStaleDays,
     offlineAutoDownload,
     semanticMode,
-    adoptedSession,
-    followCode,
     localeReady,
   };
-
-  // The Presenter's verse search shares Study's provider; built only on first use.
-  setVerseSearchProviderFactory(() => getSearchProvider(ctx));
 
   settingsStore.applyTheme();
 

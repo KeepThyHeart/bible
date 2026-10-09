@@ -10,13 +10,13 @@ import {
   setShellContext, startPersistingAppHost,
 } from '../host/appHost';
 import { registerBuiltinApps } from '../host/builtinApps';
-import { registerBuiltinModules } from '../modules/builtinModules';
+import { registerBuiltinModules, takeModuleUrlHandoffs } from '../modules/builtinModules';
+import { activateProbedModules, runBootProbes } from '../modules/moduleHost';
+import type { BootIntents } from '../modules/moduleHost';
 import { startModuleNamespaceLoading } from '../modules/host/i18nNamespaces';
 import { setStudyOwnsHash } from '../host/hashGate';
-import { ensurePresenterRuntime, hasStoredPresenterSession } from '../host/presenterRuntime';
 import '../host/webRoute';
 import { bootShell } from './shellBoot';
-import type { ShellContext } from './shellContext';
 
 export interface RunBootOptions {
   /** Injected so the boot can be tested without a DOM root. */
@@ -24,21 +24,21 @@ export interface RunBootOptions {
 }
 
 /**
- * Which app to open first. A follow link wins (Study); a control link adopts
- * the Presenter; then a registered `#/@app` hash; a plain hash means Study;
- * with no hash at all, the persisted active app under its restore policy.
+ * Which app to open first. A module's boot probe wins (the Presenter's follow
+ * link opens Study, its control link the Presenter); then a registered
+ * `#/@app` hash; a plain hash means Study; with no hash at all, the persisted
+ * active app under its restore policy (probes may mark apps busy first).
  */
-export function resolveInitialApp(ctx: Pick<ShellContext, 'followCode' | 'adoptedSession'>, hash: string): AppId {
-  if (ctx.followCode) return STUDY_APP_ID;
-  if (ctx.adoptedSession) return 'present';
+export function resolveInitialApp(intents: Pick<BootIntents, 'initialApp' | 'busyApps'>, hash: string): AppId {
+  if (intents.initialApp && (intents.initialApp === STUDY_APP_ID || appRegistry.has(intents.initialApp))) return intents.initialApp;
   const link = parseAppLink(hash);
   if (link) {
     const desc = appRegistry.list().find((d) => appLinkSegment(d) === link.segment);
     return desc ? desc.id : STUDY_APP_ID;
   }
   if (hash && hash !== '#') return STUDY_APP_ID;
-  // The Presenter's restore policy is 'while-busy': a saved session marks it busy first.
-  if (hasStoredPresenterSession()) appRegistry.setBusy('present', true);
+  // Apps with restore policy 'while-busy' (the Presenter with a saved session) are marked busy first.
+  for (const id of intents.busyApps) appRegistry.setBusy(id, true);
   const saved = appHost.restore(loadPersistedAppHost());
   return appRegistry.has(saved) ? saved : STUDY_APP_ID;
 }
@@ -50,15 +50,19 @@ function whenIdle(fn: () => void): void {
 }
 
 export async function runBoot({ render }: RunBootOptions): Promise<void> {
+  // Handoff secrets (the Presenter's control token) leave the URL before anything else.
+  takeModuleUrlHandoffs();
   const ctx = await bootShell();
   if (!ctx) return; // update in flight or unauthorized: render nothing
   setShellContext(ctx);
   registerBuiltinApps();
   // Feature modules (task 0113): manifests only; after the client config so flags resolve.
   registerBuiltinModules();
-  startModuleNamespaceLoading();
+  // Boot probes (task 0123): cheap URL/storage checks of enabled modules, e.g.
+  // the Presenter's handoff links, which must leave the URL before the hash is read.
+  const intents = runBootProbes();
 
-  const initial = resolveInitialApp(ctx, window.location.hash);
+  const initial = resolveInitialApp(intents, window.location.hash);
   if (initial !== STUDY_APP_ID) {
     setStudyOwnsHash(false);
     const desc = appRegistry.get(initial);
@@ -86,8 +90,11 @@ export async function runBoot({ render }: RunBootOptions): Promise<void> {
     (window as unknown as { hideAppLoading?: () => void }).hideAppLoading?.();
   }));
 
-  // Reconnect to a session this device is driving, after first paint.
-  if (ctx.adoptedSession || hasStoredPresenterSession()) void ensurePresenterRuntime(ctx.adoptedSession);
+  // Modules with state to resume (a session this device is driving, a follow link), after first paint.
+  activateProbedModules(intents.activate);
+  // Module catalogs (labels of their contributions) load when idle, off the boot path;
+  // a module's own code awaits its namespace when it activates.
+  whenIdle(() => startModuleNamespaceLoading());
 
   releaseBootPrefetch();
   if (initial !== STUDY_APP_ID) whenIdle(() => prefetchApp(STUDY_APP_ID));

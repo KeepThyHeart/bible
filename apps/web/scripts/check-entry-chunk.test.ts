@@ -19,34 +19,37 @@ describe('checkReport', () => {
   it('reports offenders in the entry and in transitive static imports', () => {
     const r = checkReport({ chunks: [
       entry(['src/main.tsx', 'src/DesktopApp.tsx'], ['assets/b.js']),
-      { fileName: 'assets/b.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/apps/present/route.ts', 'src/stores/bibleStore.ts'] },
+      { fileName: 'assets/b.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/modules/present/app/PresenterApp.tsx', 'src/stores/bibleStore.ts'] },
     ] });
     expect(r.ok).toBe(false);
     expect(r.offenders.map((o: { module: string }) => o.module)).toEqual([
-      'src/DesktopApp.tsx', 'src/apps/present/route.ts', 'src/stores/bibleStore.ts',
+      'src/DesktopApp.tsx', 'src/modules/present/app/PresenterApp.tsx', 'src/stores/bibleStore.ts',
     ]);
   });
 
-  it('flags offline, browser search, the command barrel and Present components, but allows searchProviders', () => {
+  it('flags offline, browser search and Present module internals, but allows the manifest, binding, runtime and boot-probe libs', () => {
     const r = checkReport({ chunks: [
       entry([
-        'src/main.tsx', 'src/present/command/searchProviders.ts', 'src/offline/BibleWorkerProxy.ts',
-        'src/search/BrowserSearchProvider.ts', 'src/present/command/index.ts', 'src/present/command/CommandBox.tsx',
-        'src/components/Present/PresentBar.tsx',
+        'src/main.tsx', 'src/modules/present/manifest.ts', 'src/modules/present/binding.ts', 'src/modules/present/runtime.ts',
+        'src/modules/present/lib/controlLink.ts', 'src/modules/present/lib/sessionKey.ts',
+        'src/offline/BibleWorkerProxy.ts', 'src/search/BrowserSearchProvider.ts',
+        'src/modules/present/lib/command/index.ts', 'src/modules/present/lib/command/CommandBox.tsx',
+        'src/modules/present/study/PresentBar.tsx', 'src/modules/present/module.ts', 'src/modules/present/stores/presentStore.ts',
       ]),
     ] });
     expect(r.offenders.map((o: { module: string }) => o.module)).toEqual([
-      'src/offline/BibleWorkerProxy.ts', 'src/search/BrowserSearchProvider.ts', 'src/present/command/index.ts',
-      'src/present/command/CommandBox.tsx', 'src/components/Present/PresentBar.tsx',
+      'src/offline/BibleWorkerProxy.ts', 'src/search/BrowserSearchProvider.ts', 'src/modules/present/lib/command/index.ts',
+      'src/modules/present/lib/command/CommandBox.tsx', 'src/modules/present/study/PresentBar.tsx',
+      'src/modules/present/module.ts', 'src/modules/present/stores/presentStore.ts',
     ]);
   });
 
   it('fails when the Present verse-action handler lands in the entry graph, passes in its own chunk', () => {
-    const bad = checkReport({ chunks: [entry(['src/main.tsx', 'src/apps/present/presentVerseAction.ts'])] });
+    const bad = checkReport({ chunks: [entry(['src/main.tsx', 'src/modules/present/app/presentVerseAction.ts'])] });
     expect(bad.ok).toBe(false);
     const ok = checkReport({ chunks: [
       entry(['src/main.tsx', 'src/host/builtinApps.ts']),
-      { fileName: 'assets/pva.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/apps/present/presentVerseAction.ts'] },
+      { fileName: 'assets/pva.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/modules/present/app/presentVerseAction.ts'] },
     ] });
     expect(ok.ok).toBe(true);
   });

@@ -20,7 +20,7 @@ The hamburger menu holds screen settings (text size, theme, clicker keys), join 
 
 ## Notes smart parsing
 
-Nothing is written back into the notes; items are decorations over the text (`src/apps/present/notes/detect.ts`).
+Nothing is written back into the notes; items are decorations over the text (`src/modules/present/app/notes/detect.ts`).
 
 - **References**: `John 3:16`, `Rom 8:28-30`, `Ps 23`, optional trailing translation (`John 3:16 ESV`).
 - **Continuations**: `v. 18`, `vv. 18-20` attach to the nearest passage above (current or previous section only).
@@ -31,7 +31,7 @@ Nothing is written back into the notes; items are decorations over the text (`sr
 
 ## Command box (Control pane; `/` or Ctrl+K focuses it)
 
-Exact commands win; anything else is a search. Grammar in `src/present/command/command.ts`.
+Exact commands win; anything else is a search. Grammar in `src/modules/present/lib/command/command.ts`.
 
 | Type | Does |
 |---|---|
@@ -68,18 +68,22 @@ Go live creates a session with an 8-character join code (menu shows code, QR and
 
 ## Files
 
+The Presenter is a feature module (task 0123): turning it off (`localStorage['kth.modules'] = '-present'` in a dev build, `BIBLE_MODULES=-present` for a dev server) removes the app, tile, verse action, Study strip, strings and routes; present links then answer "not available". See `packages/core/docs/features/feature-modules-migration.md`.
+
+
 | File | Description |
 |---|---|
-| `src/apps/present/PresenterApp.tsx` | The page: app bar, three-pane grid, splitters |
-| `src/apps/present/route.ts` | `#/@present` hash helpers (`openPresenter`, `closePresenter`) |
-| `src/apps/present/PhoneLayout.tsx` | Phone layout; rows in `src/apps/present/phone/` |
-| `src/apps/present/control/` | Control pane: status row, transport, add row, menu, setup card |
-| `src/apps/present/notes/` | Notes pane, editor (`editor/`), detection (`detect.ts`, `hymnMatch.ts`), `notesStore.ts`, services (`services/`) |
-| `src/present/command/` | Command grammar, `CommandBox`, search results, hotkey |
-| `src/present/solo/` | Simple viewer entry (`SoloApp.tsx`, `localSession.ts`) |
-| `src/present/ViewerApp.tsx` | The projection viewer |
-| `src/present/protocol.ts`, `src/present/reducer.ts` | Session state, intents (including highlight intents) |
-| `src/present/notesApi.ts` | Notes sync with the session |
-| `src/components/Present/` | Shared pieces: preview, hymn/quote pickers, help, Study companion strip (`PresentBar`, `PresentHighlightBar`) |
-| `src/styles/_present.scss` | Strip, panel and picker styles |
+| `src/modules/present/app/PresenterApp.tsx` | The page: app bar, three-pane grid, splitters |
+| `src/modules/present/app/PhoneLayout.tsx` | Phone layout; rows in `src/modules/present/app/phone/` |
+| `src/modules/present/app/control/` | Control pane: status row, transport, add row, menu, setup card |
+| `src/modules/present/app/notes/` | Notes pane, editor (`editor/`), detection (`detect.ts`, `hymnMatch.ts`), `notesStore.ts`, services (`services/`) |
+| `src/modules/present/lib/command/` | Command grammar, `CommandBox`, search results, hotkey |
+| `src/modules/present/lib/solo/` | Simple viewer entry (`SoloApp.tsx`, `localSession.ts`) |
+| `src/modules/present/lib/ViewerApp.tsx` | The projection viewer |
+| `src/modules/present/lib/protocol.ts`, `src/modules/present/lib/reducer.ts` | Session state, intents (including highlight intents) |
+| `src/modules/present/lib/notesApi.ts` | Notes sync with the session |
+| `src/modules/present/study/` | Shared pieces: preview, hymn/quote pickers, help, Study companion strip (`PresentBar`, `PresentHighlightBar`) |
+| `src/modules/present/present.scss` | Strip, panel and picker styles (loaded with the module code) |
+| `src/modules/present/manifest.ts`, `binding.ts`, `module.ts` | The feature module: contributions, lazy loaders + boot probe, activation (Study integration through host slots) |
+| `server/modules/present/` | Server half: session, hymn and page routes (a server feature module) |
 | `e2e/tests/presenter-controller-e2e.spec.ts` | E2E for the Presenter, phone layout and `/present/solo` |

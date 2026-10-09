@@ -84,6 +84,29 @@ describe('main feature modules', () => {
     expect(e.load).toHaveBeenCalledTimes(1);
   });
 
+  it('KTH_FLAGS turns a flagged module on in dev, and is ignored when packaged', async () => {
+    const flagged: FeatureModuleManifest = { ...manifest, flag: 'quiz' };
+    const on = { manifest: flagged, load: vi.fn(async () => ({ default: fixture })) };
+    await registerMainModules(fakeIpcMain(), deps, { modules: [on], packaged: false, overrideText: '', flagOverrideText: 'quiz' });
+    expect(on.load).toHaveBeenCalledTimes(1);
+    await closeMainModules();
+    const packaged = { manifest: flagged, load: vi.fn(async () => ({ default: fixture })) };
+    await registerMainModules(fakeIpcMain(), deps, { modules: [packaged], packaged: true, flagOverrideText: 'quiz' });
+    expect(packaged.load).not.toHaveBeenCalled(); // quiz defaults off
+  });
+
+  it('a module whose load hangs times out, is reported, and does not block startup', async () => {
+    const warn = vi.fn();
+    const hung = entry(vi.fn(() => new Promise<{ default: FeatureMainModule }>(() => {})));
+    await registerMainModules(fakeIpcMain(), { ...deps, log: { ...deps.log, warn } }, {
+      modules: [hung],
+      packaged: false,
+      overrideText: '',
+      activationTimeoutMs: 20,
+    });
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('timed out') || String(c[1]).includes('timed out'))).toBe(true);
+  });
+
   it('close removes channels and calls close()', async () => {
     const ipc = fakeIpcMain();
     await registerMainModules(ipc, deps, { modules: [entry()], packaged: false, overrideText: '' });

@@ -72,6 +72,8 @@ export interface AppDescriptor {
   readonly settingsSection?: string;
   /** Phones: listed in the Apps sheet (default) or hidden there. */
   readonly mobile?: 'sheet' | 'hidden';
+  /** The app draws its own top bar (with the app switcher and a way back); phones skip the shell's bar. */
+  readonly ownChrome?: boolean;
 }
 
 export type AppBadgeKind = 'dot' | 'count' | 'text';

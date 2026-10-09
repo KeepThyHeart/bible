@@ -6,6 +6,7 @@
  *
  * Tile targets: `{ panelType: 'search' }` is a right-pane mode id on web;
  * `{ commandId }` names a home-screen command HomeScreen knows how to run.
+ * The Presenter's "Watch a presentation" tile (order 30) comes from its own module.
  */
 import type { FeatureModuleManifest, NewTabTileContribution, PreferencesSectionContribution } from '@bible/core/browser';
 
@@ -26,13 +27,7 @@ export const HOME_TILES: readonly NewTabTileContribution[] = [
     order: 20,
     target: { panelType: 'search' },
   },
-  {
-    id: 'watchPresentation',
-    title: { key: 'homeScreen.watchPresentation', fallback: 'Watch a presentation' },
-    icon: icon('fa-tv'),
-    order: 30,
-    target: { commandId: 'home.watchPresentation' },
-  },
+
 ];
 
 /** Settings panel tabs in today's order. The `title.key` is the tab label's catalog key. */

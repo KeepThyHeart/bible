@@ -31,10 +31,9 @@ import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
-import './routes/presentRoutes.js';
-import './routes/hymnRoutes.js';
-import { getRegisteredRoutes } from './routes/routeRegistry.js';
-import { loadServerModules } from './modules/loadServerModules.js';
+import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
+import { loadServerModules, listServerModules } from './modules/loadServerModules.js';
+import { createUnavailableRoutes } from './modules/unavailableRoutes.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
@@ -95,6 +94,8 @@ logger.init(appStateDir);
 logger.info(`Data directory: ${dataDir}`);
 logger.info(`Modules directory: ${modulesDir}`);
 logger.info(`App state directory: ${appStateDir}`);
+
+const clientDirPath = resolve(packageRoot, 'dist/client');
 
 const db = new DatabaseManager(dataDir, modulesDir);
 
@@ -229,10 +230,17 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,  // keep false — enabling it can break WASM
 }));
 
+// Feature modules (task 0113): enabled modules' route files import and self-register here
+// (mounting stays below). Loaded this early so a module's body parsers, registered
+// through `registerBodyParser`, go ahead of the global parser.
+await loadServerModules({ flags: siteConfig.flags });
+
 // Body size limits (item #5)
-// The presenter notes route carries a document up to 256 KB (the route enforces
-// the cap itself), so it gets its own parser ahead of the general 100 KB one.
-app.use('/api/present/s/:sessionId/notes', express.json({ limit: '300kb' }));
+// A route that carries more than 100 KB (the presenter notes document) gets its own
+// parser, registered by its module, ahead of the general 100 KB one.
+for (const bp of getRegisteredBodyParsers()) {
+  app.use(bp.path, express.json({ limit: bp.limit }));
+}
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
@@ -350,7 +358,9 @@ app.get('/api/version', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  res.json(siteConfig.getClientConfig());
+  // `modules.disabled`: server feature modules that are off, so the client can treat them as off too.
+  const disabled = listServerModules().filter((m) => !m.enabled).map((m) => m.id);
+  res.json({ ...siteConfig.getClientConfig(), modules: { disabled } });
 });
 
 // Plugin system — discover and activate server-side plugins
@@ -404,16 +414,18 @@ const routeDeps = {
     // sessions. See the dataDir/appStateDir note at the top of this file.
     appStateDir,
     hymnDirs,
+    // The client build directory (when built), for modules serving its HTML entry points.
+    clientDir: existsSync(clientDirPath) ? clientDirPath : undefined,
     privacyMode,
     // Shared token the desktop uploader must present. Empty accepts any build.
     desktopReportToken: siteConfig.desktopReports.token,
   } as Record<string, unknown>,
 };
-// Feature modules (task 0113): enabled modules' route files import and self-register here.
-await loadServerModules({ flags: siteConfig.flags });
 for (const reg of getRegisteredRoutes()) {
   app.use(reg.path, reg.createRoutes(routeDeps));
 }
+// Paths of switched-off feature modules answer "not available" (after the password gate).
+app.use(createUnavailableRoutes());
 
 /**
  * Audio Bible files (recordings, TTS engine files) at `/audio`, when enabled.
@@ -512,7 +524,7 @@ app.use('/data', (
 });
 
 // Serve static client files in production
-const clientDir = resolve(packageRoot, 'dist/client');
+const clientDir = clientDirPath;
 if (existsSync(clientDir)) {
   // Before static: `/sw.js` is the real worker or the kill switch depending on
   // `features.pwa`, and the manifest is withheld when it is off.
@@ -540,65 +552,6 @@ if (existsSync(clientDir)) {
       }
     },
   }));
-  /**
-   * The projection viewer, at the URL people are actually handed.
-   *
-   * It is a second HTML entry point (see `build.rollupOptions.input` in
-   * vite.config.ts), not a route inside the reading app, because the machine
-   * plugged into the television must not download the reader to show a verse.
-   *
-   * This must stay above the SPA catch-all below. If it is lost, the catch-all
-   * answers the same URL with the reading app's shell -- a 200 with HTML, which
-   * looks like success to anything that only checks a status code.
-   *
-   * The join code in the path is not validated here. Serving the shell for an
-   * unknown code is harmless, the code is checked when the page opens its
-   * stream, and answering differently for a real code than for a made-up one
-   * would leak which codes exist.
-   */
-  const presentViewerHtml = join(clientDir, 'present', 'viewer.html');
-  app.get('/present/v/:joinCode', (_req, res) => {
-    if (!existsSync(presentViewerHtml)) {
-      res.status(404).json({ error: 'Projection viewer is not built' });
-      return;
-    }
-    // Same reasoning as the SPA shell: it names hashed asset files, so a stale
-    // copy pins this screen to a stale build.
-    res.set('Cache-Control', 'no-store');
-    res.sendFile(presentViewerHtml);
-  });
-
-  /**
-   * `/present/solo`: the solo viewer (`present/solo.html`), a projection page
-   * driven by a local session with no join code. Same placement reasons as above.
-   */
-  const presentSoloHtml = join(clientDir, 'present', 'solo.html');
-  app.get('/present/solo', (_req, res) => {
-    if (!existsSync(presentSoloHtml)) {
-      res.status(404).json({ error: 'The solo viewer is not built' });
-      return;
-    }
-    res.set('Cache-Control', 'no-store');
-    res.sendFile(presentSoloHtml);
-  });
-
-  /**
-   * `/watch`: the short, typeable join address (see `present/watch.html`).
-   *
-   * Above the SPA catch-all for the same reason `/present/v/:joinCode` is:
-   * this is a second, bare entry point, not a route inside the reading app,
-   * and must not fall through to `index.html`.
-   */
-  const presentWatchHtml = join(clientDir, 'present', 'watch.html');
-  app.get('/watch', (_req, res) => {
-    if (!existsSync(presentWatchHtml)) {
-      res.status(404).json({ error: 'The join page is not built' });
-      return;
-    }
-    res.set('Cache-Control', 'no-store');
-    res.sendFile(presentWatchHtml);
-  });
-
   app.get('*', (req, res) => {
     // The SPA shell is ONLY a valid answer for genuine browser navigations.
     // Anything else — /api/*, /data/*, or any fetch/XHR that expects JSON/binary —

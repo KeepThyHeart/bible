@@ -3,6 +3,7 @@ import { webSettings, WEB_SETTINGS, STORAGE_KEY } from './settingsRegistry';
 import { moduleStore } from './moduleStore';
 import { isValidTheme, getThemeById } from '../themes/themeRegistry';
 import type { ModuleInfo } from '../types';
+import { watchSettingsStore } from '../modules/host/readerHooks';
 
 
 /** Used only when there is no configured default and no installed Bible to name. */
@@ -574,3 +575,6 @@ class SettingsStore extends Store {
 }
 
 export const settingsStore = new SettingsStore();
+
+// Core event `settings.changed` (task 0123): only while an active feature module listens.
+watchSettingsStore(settingsStore, () => Object.fromEntries(WEB_SETTINGS.definitions.map((d) => [d.key, webSettings.get(d.key)])));

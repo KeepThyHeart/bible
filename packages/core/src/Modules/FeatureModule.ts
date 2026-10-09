@@ -20,6 +20,8 @@
  *    hook's `when` (a cheap data predicate the host evaluates) holds. An
  *    inactive module costs nothing per event: dispatch walks an index of the
  *    *active* subscribers of that event.
+ *    A host may also activate one module directly (`activateNow`), e.g. the
+ *    web host when a module's boot probe found state to resume (`onBootProbe`).
  * 4. `activate()` returns Disposables; deactivation (feature switched off at
  *    runtime) disposes them and removes the module's hook subscriptions.
  *

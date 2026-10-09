@@ -75,7 +75,36 @@ export function unregisterRoutesByModule(moduleId: string): number {
       removed++;
     }
   }
+  for (let i = bodyParsers.length - 1; i >= 0; i--) {
+    if (bodyParsers[i].moduleId === moduleId) bodyParsers.splice(i, 1);
+  }
   return removed;
+}
+
+// ---------------------------------------------------------------------------
+// Body parsers (task 0123): a module whose route takes a body larger than the
+// global JSON limit registers a parser for its path; the server mounts these
+// before the global parser.
+// ---------------------------------------------------------------------------
+
+export interface BodyParserRegistration {
+  /** Express path, e.g. '/api/present/s/:sessionId/notes' */
+  path: string;
+  /** express.json limit, e.g. '300kb' */
+  limit: string;
+  /** Feature module that owns it; tagged like routes. */
+  moduleId?: string;
+}
+
+const bodyParsers: BodyParserRegistration[] = [];
+
+export function registerBodyParser(reg: BodyParserRegistration): void {
+  bodyParsers.push(!reg.moduleId && currentModuleId ? { ...reg, moduleId: currentModuleId } : reg);
+}
+
+/** Registered body parsers, in registration order. */
+export function getRegisteredBodyParsers(): BodyParserRegistration[] {
+  return [...bodyParsers];
 }
 
 /**
@@ -90,4 +119,5 @@ export function getRegisteredRoutes(): RouteRegistration[] {
  */
 export function clearRouteRegistry(): void {
   registrations.length = 0;
+  bodyParsers.length = 0;
 }

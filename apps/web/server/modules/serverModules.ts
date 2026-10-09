@@ -10,10 +10,20 @@
  */
 
 import type { FeatureModuleManifest } from '../core.js';
+import { presentManifest } from './present/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
   readonly load: () => Promise<unknown>;
 }
 
-export const serverModules: readonly ServerModuleEntry[] = [];
+export const serverModules: readonly ServerModuleEntry[] = [
+  {
+    manifest: presentManifest,
+    load: async () => {
+      await import('./present/presentRoutes.js');
+      await import('./present/hymnRoutes.js');
+      await import('./present/presentPages.js');
+    },
+  },
+];

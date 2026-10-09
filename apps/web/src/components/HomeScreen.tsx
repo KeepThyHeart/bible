@@ -11,16 +11,16 @@ import { AppTileGrid } from '@bible/ui';
 import { openApp, prefetchApp } from '../host/appHost';
 import { useNavEntries } from '../host/appNavEntries';
 import { useNavItems } from '../host/navPrefs';
-import { modulePoints } from '../modules/moduleHost';
+import { fireActivation, modulePoints } from '../modules/moduleHost';
 import type { NewTabTileContribution } from '@bible/core/browser';
 
 interface HomeScreenProps {
   onNavigate?: (view: 'bible' | 'search') => void;
 }
 
-/** Link-style tiles: `home.watchPresentation` is a bare page, not an in-app route. */
+/** Link-style tiles (`target.href`): a bare page such as `/watch`, not an in-app route. */
 function tileHref(tile: NewTabTileContribution): string | undefined {
-  return 'commandId' in tile.target && tile.target.commandId === 'home.watchPresentation' ? '/watch' : undefined;
+  return 'href' in tile.target ? tile.target.href : undefined;
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
@@ -70,8 +70,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         commentaryStore.setRightPaneMode(target.panelType as Parameters<typeof commentaryStore.setRightPaneMode>[0]);
         commentaryStore.expand();
       }
-    } else if ('commandId' in target && target.commandId === 'home.readBible') {
-      handleReadBible();
+    } else if ('commandId' in target) {
+      // A module listening for this command activates first (`onCommand:<id>`).
+      fireActivation(`onCommand:${target.commandId}`);
+      if (target.commandId === 'home.readBible') handleReadBible();
     } else if ('appId' in target) {
       void openApp(target.appId);
     }
@@ -127,10 +129,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           );
           const href = tileHref(tile);
           if (href) {
-            // A plain link, not a store action: `/watch` is a separate, bare page
-            // (see `present/watch.html`), the same way the projection viewer is --
-            // not a route this app itself renders. Someone handed a code by a
-            // presenter, rather than a link or a QR code, starts here.
+            // A plain link, not a store action: a separate, bare page (the
+            // Presenter's `/watch`), not a route this app itself renders.
             return (
               <a key={tile.id} class={cls} href={href}>
                 {content}

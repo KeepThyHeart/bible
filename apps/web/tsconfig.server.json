@@ -19,10 +19,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  // `src/present/protocol.ts` is the presenter wire contract: types and a few
+  // `src/modules/present/lib/protocol.ts` is the presenter wire contract: types and a few
   // constants, importing nothing. Both ends compile against this one file so
   // they cannot drift. It lives under `src/` because the lint boundary allows
   // the server to read platform-free client code but never the reverse.
-  "include": ["server/**/*", "src/present/protocol.ts", "src/present/qr.ts", "src/present/hymns.ts"],
+  "include": ["server/**/*", "src/modules/present/lib/protocol.ts", "src/modules/present/lib/qr.ts", "src/modules/present/lib/hymns.ts"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }
