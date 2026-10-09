@@ -745,6 +745,28 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(jsdom@27.4.0(@noble/hashes@2.4.0)(supports-color@8.1.1))(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.104.0)(terser@5.51.2)(tsx@4.23.13))
 
+  packages/speech:
+    dependencies:
+      '@huggingface/transformers':
+        specifier: ^3.8.1
+        version: 3.8.1(@types/node@20.19.43)
+    devDependencies:
+      '@bible/core':
+        specifier: workspace:^
+        version: link:../core
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      jsdom:
+        specifier: ^27.4.0
+        version: 27.4.0(@noble/hashes@2.4.0)(supports-color@8.1.1)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(jsdom@27.4.0(@noble/hashes@2.4.0)(supports-color@8.1.1))(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.104.0)(terser@5.51.2)(tsx@4.23.13))
+
   packages/ui:
     dependencies:
       d3-force:
