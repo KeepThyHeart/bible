@@ -95,3 +95,17 @@ describe('LRU', () => {
     expect(calls.length).toBe(1); // still cached
   });
 });
+
+describe('php slice matching', () => {
+  it('matches slices by chapter key, not by position (an empty range cannot shift the others)', async () => {
+    mockFetch(() => json({ t: 'KJV', s: [{ k: 1001, f: 1, v: [], n: 0 }, { k: 64001, f: 14, v: ['x'], n: 14 }] }));
+    const c = client({ type: 'php', url: '/vh.php' });
+    const [a, b] = await Promise.all([c.get({ tr: 'KJV', book: 1, chapter: 1, from: 999, to: 999 }), c.get({ tr: 'KJV', book: 64, chapter: 1, from: 14, to: 14 })]);
+    expect(a.v).toEqual([]);
+    expect(b.v).toEqual(['x']);
+  });
+  it('fails a request that has no slice at all', async () => {
+    mockFetch(() => json({ t: 'KJV', s: [{ k: 64001, f: 14, v: ['x'], n: 14 }] }));
+    await expect(client({ type: 'php', url: '/vh.php' }).get({ tr: 'KJV', book: 1, chapter: 1, from: 1, to: 1 })).rejects.toThrow();
+  });
+});

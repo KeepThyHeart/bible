@@ -159,7 +159,8 @@ $r = call('t=KJV&r=43003014-43003018,45005008');
 eq($r['status'], 200, 'range status');
 $b = jbody($r);
 eq($b['t'], 'KJV', 'range t');
-eq(count($b['s']), 1, 'Romans absent from mini -> only John slice');
+eq(count($b['s']), 2, 'Romans absent from mini -> John slice plus an empty slice for Romans');
+eq(count($b['s'][1]['v']), 0, 'the missing range gets an empty slice, keeping request order');
 eq($b['s'][0]['k'], 43003, 'k');
 eq($b['s'][0]['f'], 14, 'f = first returned verse');
 eq(count($b['s'][0]['v']), 5, 'five verses');
@@ -198,7 +199,7 @@ check(strpos($r['body'], '\\u') === false, 'no \\u escapes (UNESCAPED_UNICODE)')
 eq(jbody(call('t=KJV&r=40005001-40005012'))['s'][0]['n'], 12, 'Matt 5 n');
 eq(count(jbody(call('t=KJV&r=31001001-31001021'))['s'][0]['v']), 21, 'Obadiah 21 verses');
 eq(count(jbody(call('t=KJV&r=64001001-64001014'))['s'][0]['v']), 14, '3 John 14 verses');
-eq(jbody(call('t=KJV&r=1002001'))['s'], array(), 'range with no rows -> empty s');
+eq(jbody(call('t=KJV&r=1002001'))['s'], array(array('k' => 1002, 'f' => 1, 'v' => array(), 'n' => 0)), 'range with no rows -> one empty slice');
 
 // --- chapter, manifest vs static
 $tmp = tmpdir();

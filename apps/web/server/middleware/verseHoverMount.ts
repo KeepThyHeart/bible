@@ -62,6 +62,8 @@ export function createVerseHoverMount(opts: VerseHoverMountOptions): Router | nu
 
   const router = express.Router();
   router.use((req: Request, res: Response, next: NextFunction) => {
+    // The PHP endpoint ships in dist for the release zip but must never be served as a download.
+    if (/\.php$/i.test(req.path)) { res.status(404).end(); return; }
     setCrossOriginHeaders(res);
     if (req.method === 'OPTIONS') {
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');

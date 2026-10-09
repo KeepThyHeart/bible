@@ -71,13 +71,12 @@ export function createPopup(d: PopupDeps) {
 
   async function load(r: Ref, t: string): Promise<{ verses: RenderContext['verses']; n: number; man: Manifest | null; more: boolean }> {
     const c = d.cfg();
-    const man = await d.data.manifest(t);
-    const steps = plan(r, c, man?.counts?.[r.book - 1]?.[r.chapter - 1]);
-    const slices = await Promise.all(steps.map((s) => d.data.get({ tr: t, book: r.book, chapter: s.ch, from: s.from, to: s.to })));
+    const steps = plan(r, c);
+    const [man, ...slices] = await Promise.all([d.data.manifest(t), ...steps.map((s) => d.data.get({ tr: t, book: r.book, chapter: s.ch, from: s.from, to: s.to }))]);
     const verses: RenderContext['verses'] = [];
     let more = false;
     steps.forEach((s, i) => {
-      const sl: ChapterSlice = slices[i];
+      const sl = slices[i] as ChapterSlice;
       sl.v.forEach((text, j) => {
         const n = sl.f + j;
         if (n < s.from || n > s.to) return;
@@ -97,7 +96,7 @@ export function createPopup(d: PopupDeps) {
     const c = d.cfg();
     const my = ++token;
     const t = linkTr(el, r);
-    link?.removeAttribute('aria-expanded');
+    clearAria();
     link = el; ref = r; tr = t;
     pinned = pin;
     mount();
@@ -130,10 +129,12 @@ export function createPopup(d: PopupDeps) {
       open = true;
       place();
       watchPos();
+      if (pinned && ptype !== 'touch') pop.focus({ preventScroll: true });
     };
     const slow = window.setTimeout(() => { if (my === token) { draw(d.ui('loading')); reveal(); } }, 100);
     link.setAttribute('aria-expanded', 'true');
     link.setAttribute('aria-describedby', pop.id);
+    link.setAttribute('aria-controls', pop.id);
     try {
       const ctx = await load(r, t);
       clearTimeout(slow);
@@ -144,6 +145,10 @@ export function createPopup(d: PopupDeps) {
       clearTimeout(slow);
       if (my !== token) return;
       draw('!' + d.ui('error'));
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = P() + 'pop__retry'; b.textContent = d.ui('retry');
+      b.onclick = () => void show(el, pinned);
+      pop.appendChild(b);
       d.emit('error', e);
     }
     reveal();
@@ -187,18 +192,23 @@ export function createPopup(d: PopupDeps) {
   function watchPos() {
     if (raf) return;
     raf = 1;
-    addEventListener('scroll', () => open && place(), { capture: true, passive: true });
+    const f = () => open && place();
+    addEventListener('scroll', f, { capture: true, passive: true });
+    offs.push(() => removeEventListener('scroll', f, true));
+  }
+
+  function clearAria() {
+    for (const a of ['aria-expanded', 'aria-describedby', 'aria-controls']) link?.removeAttribute(a);
   }
 
   function hide() {
     clearTimeout(showT); clearTimeout(hideT);
     token++;
+    clearAria();
     if (!open) return;
     open = false; pinned = false;
     pop.classList.remove(P() + 'pop--open', P() + 'pop--pinned');
     if (hasPopover) { try { (pop as any).hidePopover(); } catch { /* not open */ } }
-    link?.removeAttribute('aria-expanded');
-    link?.removeAttribute('aria-describedby');
     d.emit('close', { ref });
   }
 
@@ -238,6 +248,8 @@ export function createPopup(d: PopupDeps) {
     add('focusin', (e: FocusEvent) => { const el = refEl(e.target); if (el && !quiet) { clearTimeout(hideT); void show(el, false); } });
     add('focusout', (e: FocusEvent) => { if ((refEl(e.target) || inPop(e.target)) && !inPop(e.relatedTarget as Node) && !refEl(e.relatedTarget)) schedHide(); });
     add('keydown', (e: KeyboardEvent) => {
+      const rb = refEl(e.target);
+      if (rb && rb.tagName === 'SPAN' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); rb.click(); return; }
       if (e.key === 'Escape' && open) dismiss();
     });
     add('click', (e: MouseEvent) => {

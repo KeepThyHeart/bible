@@ -70,7 +70,12 @@ export function createData(src: () => SourceConfig, scriptBase: () => string): D
         const url = head + ids;
         ids = '';
         getJson(url).then(
-          (j) => g.forEach((p, i) => (j.s && j.s[i] ? p.ok(j.s[i]) : p.fail(new Error('empty')))),
+          (j) =>
+            g.forEach((p) => {
+              const k = p.req.book * 1000 + p.req.chapter;
+              const hit = (j.s || []).find((x: ChapterSlice) => x.k === k && p.req.from >= x.f && p.req.from < x.f + Math.max(1, x.v.length)) || (j.s || []).find((x: ChapterSlice) => x.k === k);
+              if (hit) p.ok(hit); else p.fail(new Error('empty'));
+            }),
           (e) => g.forEach((p) => p.fail(e)),
         );
       };

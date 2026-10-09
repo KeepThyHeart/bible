@@ -49,7 +49,7 @@ const positive: [string, string[], object?][] = [
   ['Mark 4', ['41:4|Mark 4'], { threshold: 'loose' }],
   ['Acts 2:38', ['44:2:38|Acts 2:38']],
   ['Revelation 22:21', ['66:22:21|Revelation 22:21']],
-  ['Rev 22', ['66:22|Rev 22']],
+  ['Rev 22:21', ['66:22:21|Rev 22:21']],
   ['“John 3:16”', ['43:3:16|John 3:16']],
   ['<b>x</b> Heb 11:1', ['58:11:1|Heb 11:1']],
   ['John 3:16', ['43:3:16|John 3:16']],
@@ -66,7 +66,7 @@ const negative: [string, object?][] = [
   ['2 Corinthians'], ['Genesis'], ['Revelation of John'], ['See Job.'], ['the book of Isaiah is long'], ['Isaiah and John'],
   ['John 200'], ['Genesis 51'], ['Psalm 151'], ['Romans 17'], ['John 3:1234'], ['Rom 5 km'], ['Rom 8 times'], ['Luke 4th'],
   ['Mark 3 km'], ['rom 8'], ['john 3'], ['Dan 5 people'], ['Ex 4'], ['Ps 23%'], ['john3:16abc'], ['3:16'], ['16'], ['Mar 5'],
-  ['Mat 5'], ['In 2020 I read'], ['Matthew'], ['Version 2.0'], ['Rom'], ['pp. 5'],
+  ['Mat 5'], ['Rev 22'], ['Gen 1'], ['In 2020 I read'], ['Matthew'], ['Version 2.0'], ['Rom'], ['pp. 5'],
 ];
 
 describe('detect: positive cases', () => {

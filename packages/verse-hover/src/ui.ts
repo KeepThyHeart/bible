@@ -32,7 +32,11 @@ export function start(x: UiCtx) {
       document.head.appendChild(styleEl);
     }
   }
-  for (const [k, v] of Object.entries(c.style)) document.documentElement.style.setProperty('--vh-' + k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), v);
+  const vars = Object.entries(c.style).map(([k, v]) => {
+    const name = '--vh-' + k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+    document.documentElement.style.setProperty(name, v);
+    return name;
+  });
   const data = createData(() => c.source, x.base);
   const popup = createPopup({ cfg: () => c, data, books: () => x.books, ui: x.ui, emit: x.emit, reader: x.reader, f: x.f });
   popup.bind();
@@ -54,6 +58,7 @@ export function start(x: UiCtx) {
       popup.destroy();
       if (sheet) document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== sheet);
       styleEl?.remove();
+      vars.forEach((n) => document.documentElement.style.removeProperty(n));
     },
   };
 }

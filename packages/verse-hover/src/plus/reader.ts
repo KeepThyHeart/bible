@@ -102,11 +102,14 @@ export function open(x: Ctx) {
     );
   }
 
+  let seq = 0;
   async function go() {
+    const my = ++seq;
     drawNav();
     body.textContent = t('loading') === 'loading' ? '…' : t('loading');
     try {
       const sl: ChapterSlice = await x.data.get({ tr, book, chapter, from: 1, to: 999 });
+      if (my !== seq) return;
       body.replaceChildren();
       sl.v.forEach((v, i) => {
         const n = sl.f + i;

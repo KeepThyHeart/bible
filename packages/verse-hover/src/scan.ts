@@ -26,7 +26,7 @@ const tick = (): Promise<void> => {
 
 export function createScanner(h: ScanHooks) {
   const scopes = h.scope ? (Array.isArray(h.scope) ? h.scope : [h.scope]).filter(Boolean).join(',') : '';
-  const skipSel = `[contenteditable]:not([contenteditable="false"]),[translate=no],[data-vh=off],.${h.prefix}skip,.${h.prefix}pop,.${h.prefix}ref${h.skip ? ',' + h.skip : ''}`;
+  const skipSel = `[contenteditable]:not([contenteditable="false"]),[translate=no],[data-vh=off],.${h.prefix}skip,.${h.prefix}pop,.${h.prefix}rd,.${h.prefix}ref${h.skip ? ',' + h.skip : ''}`;
   const records: Record_[] = [];
   const own = new WeakSet<Node>();
   let observer: MutationObserver | null = null;
@@ -116,6 +116,7 @@ export function createScanner(h: ScanHooks) {
     if (at < t.length) add(frag, document.createTextNode(t.slice(at)));
     const nodes = Array.from(frag.childNodes);
     node.replaceWith(frag);
+    if (records.length > 500 && records.length % 500 === 0) for (let i = records.length - 1; i >= 0; i--) if (!records[i].nodes[0]?.isConnected) records.splice(i, 1);
     records.push({ orig: node, nodes });
   }
 

@@ -222,3 +222,46 @@ test('reader (plus bundle): opens on click, navigates across a book boundary, cl
   await page.keyboard.press('Escape');
   await expect(dlg).toHaveCount(0);
 });
+
+test('references inserted after load are linked and interactive (single-page apps)', async ({ page }) => {
+  await page.goto(`/demo/article.html?cfg=${encodeURIComponent(JSON.stringify({ ...SRC, scope: ['#late'] }))}`);
+  await page.evaluate(() => { const d = document.createElement('div'); d.id = 'late'; document.body.appendChild(d); });
+  await page.evaluate(() => { document.getElementById('late')!.textContent = 'Later: John 3:16'; });
+  await page.waitForSelector('#late .vh-ref');
+  await page.locator('#late .vh-ref').hover();
+  await expect(pop(page)).toContainText('For God so loved the world');
+});
+
+test('keyboard: a pinned popup takes focus so its controls can be reached; Escape returns focus', async ({ page }) => {
+  await open(page);
+  const l = link(page, 'John 3:16');
+  await l.focus();
+  await page.keyboard.press('Enter');
+  await expect(pop(page)).toHaveClass(/vh-pop--pinned/);
+  await expect(pop(page)).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(pop(page).locator('[data-vh-slot=close]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(pop(page)).toHaveCount(0);
+  await expect(l).toBeFocused();
+});
+
+test('references are role=button spans that wrap, and activate with Space', async ({ page }) => {
+  await open(page);
+  const l = link(page, 'John 3:16');
+  await expect(l).toHaveAttribute('role', 'button');
+  expect(await l.evaluate((e) => e.tagName)).toBe('SPAN');
+  await l.focus();
+  await page.keyboard.press('Space');
+  await expect(pop(page)).toHaveClass(/vh-pop--pinned/);
+});
+
+test('missing UI script: references are restored to plain text', async ({ page }) => {
+  await page.route('**/dist/verse-hover-ui.min.js', (r) => r.fulfill({ status: 404 }));
+  const warns: string[] = [];
+  page.on('console', (m) => m.type() === 'warning' && warns.push(m.text()));
+  await page.goto(`/demo/article.html?cfg=${encodeURIComponent(JSON.stringify(SRC))}`);
+  await page.waitForTimeout(800);
+  expect(await page.locator('.vh-ref').count()).toBe(0);
+  expect(warns.join()).toContain('could not load the popup script');
+});

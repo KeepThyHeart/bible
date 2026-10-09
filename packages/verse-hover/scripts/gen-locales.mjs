@@ -20,7 +20,7 @@ const CHAPTERS = counts.join(',');
 const PACKS = {
   en: {
     ambiguous: ['is', 'am', 'so', 'ho', 'he', 're', 'la', 'ex', 'pm', 'co', 'pp', 'ml', 'mr', 'job', 'mark', 'acts', 'act', 'numbers',
-      'judges', 'song', 'mat', 'mar', 'dan', 'pro', 'est', 'mic', 'hab', 'gal', 'sos', 'jam', 'no', 'ac'],
+      'judges', 'song', 'mat', 'mar', 'dan', 'pro', 'est', 'mic', 'hab', 'gal', 'sos', 'jam', 'no', 'ac', 'gen', 'rev', 'col', 'lev', 'mal', 'tit', 'am'],
     units: '(?:%|(?:st|nd|rd|th)\\b|(?:km|kg|cm|mm|mg|lbs?|ml|px|mph|kb|mb|gb|am|pm|years?|days?|hours?|minutes?|times|percent|people|items?)\\b)',
     cues: '(?:\\b(?:see|cf|compare|read|reading|in|from|per|ref|refs|also|and|verse|verses)|[(\\[;])[\\s.:]*$',
     ui: { loading: 'Loading…', notFound: 'Verse not found', error: 'Could not load the verse', retry: 'Retry', close: 'Close',

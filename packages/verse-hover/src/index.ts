@@ -66,17 +66,21 @@ function build(c: Config) {
       : new Promise((ok, fail) => {
           const s = document.createElement('script');
           s.src = c.uiUrl || new URL('verse-hover-ui.min.js', scriptBase()).href;
-          if (c.nonce) s.nonce = c.nonce;
+          const nonce = c.nonce ?? script?.nonce;
+          if (nonce) s.nonce = nonce;
           s.onload = () => (w.__vhUi ? ok(w.__vhUi) : fail(new Error('ui')));
           s.onerror = () => fail(new Error('ui'));
           document.head.appendChild(s);
         });
 
+  let loose: ReturnType<typeof createDetector> | undefined;
   const make = (ref: Ref, text: string, host: Element): HTMLElement => {
     const url = linkFor(c.linkUrl, ref, c.translation, main.books[ref.book - 1], text);
-    const el = document.createElement(url ? 'a' : 'button');
+    ensure();
+    // Without a URL the reference is a focusable role=button span (a real <button> cannot wrap across lines).
+    const el = document.createElement(url ? 'a' : 'span');
     if (url) { (el as HTMLAnchorElement).href = url; if (c.linkTarget) { (el as HTMLAnchorElement).target = c.linkTarget; el.setAttribute('rel', 'noopener'); } }
-    else (el as HTMLButtonElement).type = 'button';
+    else { el.tabIndex = 0; el.setAttribute('role', 'button'); }
     el.className = `${P}ref` + (ref.endVerse !== undefined || ref.endChapter !== undefined ? ` ${P}ref--range` : '') + (ref.verse === undefined ? ` ${P}ref--chapter` : '');
     el.dataset.vhRef = encodeRef(ref);
     if (ref.tr) el.dataset.vhTr = ref.tr;
@@ -90,19 +94,22 @@ function build(c: Config) {
     mark: (el) => {
       let v = el.getAttribute('data-vh-ref') || '';
       if (!decodeRef(v)) {
-        const r = createDetector(main, chapters, { threshold: 0 }).detect(v)[0];
+        const r = (loose ||= createDetector(main, chapters, { threshold: 0 })).detect(v)[0];
         if (!r) return;
         el.setAttribute('data-vh-ref', (v = encodeRef(r)));
       }
+      ensure();
       el.classList.add(`${P}ref`);
       if (!el.matches('a,button,[tabindex]')) { el.tabIndex = 0; el.setAttribute('role', 'button'); }
     },
     prefix: P, skip: c.skip, scope: c.scope, observe: c.observe,
   });
 
-  void scanner.scan().then(() => {
-    scanner.watch();
-    if (!document.querySelector(`.${P}ref`)) { c.on?.ready?.({}); return; }
+  let started = false;
+  /** Loads the interactive half the first time a reference exists (also for nodes added later). */
+  function ensure() {
+    if (started) return;
+    started = true;
     loadUi().then(
       (lib) => {
         if (dead) return;
@@ -114,11 +121,19 @@ function build(c: Config) {
           },
           reader: (ref, tr) => void openReader(ref, tr),
         });
-        c.on?.ready?.({});
-        document.dispatchEvent(new CustomEvent('vh:ready'));
       },
-      (e) => c.on?.error?.(e),
+      (e) => {
+        console.warn('verse-hover: could not load the popup script (' + (c.uiUrl || 'verse-hover-ui.min.js') + '); references stay plain.');
+        scanner.destroy(); // leave the page as it was rather than inert dotted text
+        c.on?.error?.(e);
+      },
     );
+  }
+
+  void scanner.scan().then(() => {
+    scanner.watch();
+    c.on?.ready?.({});
+    document.dispatchEvent(new CustomEvent('vh:ready'));
   });
 
   async function openReader(ref: Ref, tr: string) {

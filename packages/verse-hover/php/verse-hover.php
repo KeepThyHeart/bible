@@ -686,6 +686,10 @@ function vh_handle(array $cfg, $method, array $get, array $req)
                 foreach ($rows as $row) {
                     $groups[intdiv((int)$row['verse_id'], 1000)][] = $row;
                 }
+                if (!$groups) {
+                    // Always one slice per requested range, so the client can match them up.
+                    $slices[] = array('k' => intdiv($rg[0], 1000), 'f' => 1, 'v' => array(), 'n' => 0);
+                }
                 foreach ($groups as $ck => $grp) {
                     if (!isset($counts[$ck])) {
                         $c = $db->all('SELECT COUNT(*) AS n FROM bible_verse WHERE verse_id BETWEEN ? AND ?', array($ck * 1000, $ck * 1000 + 999));
